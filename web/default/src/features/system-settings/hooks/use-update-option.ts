@@ -20,12 +20,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
 import { toast } from 'sonner'
 
+import { DEFAULT_LOGO } from '@/lib/constants'
+import { useSystemConfigStore } from '@/stores/system-config-store'
+
 import { updateSystemOption } from '../api'
 import type { UpdateOptionRequest } from '../types'
 
 // Configuration keys that require status refresh
-const STATUS_RELATED_KEYS = [
+const STATUS_RELATED_KEYS = new Set([
   'theme.frontend',
+  'branding.favicon_url',
+  'branding.primary_color',
+  'branding.token_preset',
+  'SystemName',
+  'Logo',
+  'Footer',
   'HeaderNavModules',
   'SidebarModulesAdmin',
   'Notice',
@@ -37,7 +46,7 @@ const STATUS_RELATED_KEYS = [
   'general_setting.quota_display_type',
   'general_setting.custom_currency_symbol',
   'general_setting.custom_currency_exchange_rate',
-]
+])
 
 export function useUpdateOption() {
   const queryClient = useQueryClient()
@@ -46,11 +55,34 @@ export function useUpdateOption() {
     mutationFn: (request: UpdateOptionRequest) => updateSystemOption(request),
     onSuccess: (data, variables) => {
       if (data.success) {
+        const value = String(variables.value)
+        const setSystemConfig = useSystemConfigStore.getState().setConfig
+        switch (variables.key) {
+          case 'SystemName':
+            setSystemConfig({ systemName: value })
+            break
+          case 'Logo':
+            setSystemConfig({ logo: value || DEFAULT_LOGO })
+            break
+          case 'Footer':
+            setSystemConfig({ footerHtml: value })
+            break
+          case 'branding.favicon_url':
+            setSystemConfig({ faviconUrl: value })
+            break
+          case 'branding.primary_color':
+            setSystemConfig({ primaryColor: value })
+            break
+          case 'branding.token_preset':
+            setSystemConfig({ tokenPreset: value === 'box-ai' ? value : '' })
+            break
+        }
+
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
 
         // If updating frontend-display-related config, also refresh status
-        if (STATUS_RELATED_KEYS.includes(variables.key)) {
+        if (STATUS_RELATED_KEYS.has(variables.key)) {
           queryClient.invalidateQueries({ queryKey: ['status'] })
           try {
             window.localStorage.removeItem('status')

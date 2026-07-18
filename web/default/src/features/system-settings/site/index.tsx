@@ -26,6 +26,9 @@ import {
 
 const defaultSiteSettings: SiteSettings = {
   'theme.frontend': 'default',
+  'branding.favicon_url': '',
+  'branding.primary_color': '',
+  'branding.token_preset': '',
   Notice: '',
   SystemName: 'New API',
   Logo: '',

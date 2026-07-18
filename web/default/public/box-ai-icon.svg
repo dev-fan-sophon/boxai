@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Box AI</title>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#2563EB"/>
+  <path d="m14 21 18-10 18 10v19L32 51 14 40V21Z" fill="#fff"/>
+  <path d="m19 21 13-7 13 7-13 7-13-7Z" fill="#2563EB"/>
+  <path d="m18 26 12 7v12l-12-7V26Z" fill="#2563EB"/>
+  <path d="m34 33 12-7v12l-12 7V33Z" fill="#7C3AED"/>
+  <circle cx="49" cy="47" r="7" fill="#22D3EE"/>
+  <circle cx="49" cy="47" r="3" fill="#fff"/>
+</svg>

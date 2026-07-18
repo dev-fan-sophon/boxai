@@ -16,6 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { isAccessibleBrandPrimary } from '@/lib/colors'
+
+export function applyDocumentTitleToDom(title: string) {
+  if (typeof document === 'undefined' || !title) return
+  document.title = title
+  const metaTitle =
+    document.querySelector<HTMLMetaElement>('meta[name="title"]')
+  metaTitle?.setAttribute('content', title)
+}
+
 export function applyFaviconToDom(url: string) {
   if (typeof document === 'undefined' || !url) return
   try {
@@ -30,5 +40,30 @@ export function applyFaviconToDom(url: string) {
     document.head.appendChild(link)
   } catch {
     // Ignore malformed URLs
+  }
+}
+
+export function applyPrimaryColorToDom(color: string) {
+  if (typeof document === 'undefined') return
+  const validColor = isAccessibleBrandPrimary(color)
+  for (const property of [
+    '--brand-primary',
+    '--primary',
+    '--sidebar-primary',
+  ]) {
+    if (validColor) {
+      document.documentElement.style.setProperty(property, color)
+    } else {
+      document.documentElement.style.removeProperty(property)
+    }
+  }
+}
+
+export function applyBrandTokenPresetToDom(preset: string) {
+  if (typeof document === 'undefined' || !document.body) return
+  if (preset === 'box-ai') {
+    document.body.dataset.brandTokenPreset = preset
+  } else {
+    document.body.removeAttribute('data-brand-token-preset')
   }
 }

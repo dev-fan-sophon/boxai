@@ -55,6 +55,26 @@ export const colorToBgClass: Record<SemanticColor, string> = {
   slate: 'bg-slate-500',
 }
 
+export function isAccessibleBrandPrimary(color: string): boolean {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return false
+
+  const channels = [1, 3, 5].map((index) => {
+    const channel = Number.parseInt(color.slice(index, index + 2), 16) / 255
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4
+  })
+  const luminance =
+    0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+  const whiteContrast = 1.05 / (luminance + 0.05)
+  const lightCanvasContrast = (0.947 + 0.05) / (luminance + 0.05)
+  const darkCanvasContrast = (luminance + 0.05) / (0.006 + 0.05)
+  return (
+    whiteContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
+  )
+}
+
 export const avatarColorMap: Record<SemanticColor, string> = {
   blue: 'bg-chart-1/10 text-chart-1',
   green: 'bg-success/10 text-success',

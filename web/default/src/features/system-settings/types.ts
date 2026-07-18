@@ -108,6 +108,9 @@ export type SystemTaskListResponse = {
 
 export type SiteSettings = {
   'theme.frontend': string
+  'branding.favicon_url': string
+  'branding.primary_color': string
+  'branding.token_preset': string
   Notice: string
   SystemName: string
   Logo: string

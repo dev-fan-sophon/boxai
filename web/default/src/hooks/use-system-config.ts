@@ -19,7 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useCallback } from 'react'
 
 import { DEFAULT_SYSTEM_NAME, DEFAULT_LOGO } from '@/lib/constants'
-import { applyFaviconToDom } from '@/lib/dom-utils'
+import {
+  applyBrandTokenPresetToDom,
+  applyDocumentTitleToDom,
+  applyFaviconToDom,
+  applyPrimaryColorToDom,
+} from '@/lib/dom-utils'
 import {
   useSystemConfigStore,
   type CurrencyConfig,
@@ -38,6 +43,9 @@ interface StatusApiResponse {
   data: {
     system_name?: string
     logo?: string
+    favicon_url?: string
+    primary_color?: string
+    token_preset?: string
     footer_html?: string
     demo_site_enabled?: boolean
     display_token_stat_enabled?: boolean
@@ -95,6 +103,9 @@ export function mapStatusDataToConfig(
   return {
     systemName: data.system_name || DEFAULT_SYSTEM_NAME,
     logo: data.logo || DEFAULT_LOGO,
+    faviconUrl: data.favicon_url || '',
+    primaryColor: data.primary_color || '',
+    tokenPreset: data.token_preset === 'box-ai' ? 'box-ai' : '',
     footerHtml: data.footer_html,
     demoSiteEnabled: data.demo_site_enabled,
     displayTokenStatEnabled: data.display_token_stat_enabled,
@@ -120,13 +131,13 @@ function preloadImage(
   onError: () => void
 ): () => void {
   const img = new Image()
-  img.onload = onLoad
-  img.onerror = onError
+  img.addEventListener('load', onLoad)
+  img.addEventListener('error', onError)
   img.src = src
 
   return () => {
-    img.onload = null
-    img.onerror = null
+    img.removeEventListener('load', onLoad)
+    img.removeEventListener('error', onError)
   }
 }
 
@@ -172,6 +183,23 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
 
   // Preload logo image when URL changes
   useEffect(() => {
+    applyDocumentTitleToDom(config.systemName)
+    applyBrandTokenPresetToDom(config.tokenPreset)
+    applyPrimaryColorToDom(config.primaryColor)
+    const favicon = config.faviconUrl || config.logo
+    if (favicon && (config.faviconUrl || config.logo === loadedLogoUrl)) {
+      applyFaviconToDom(favicon)
+    }
+  }, [
+    config.faviconUrl,
+    config.logo,
+    config.primaryColor,
+    config.systemName,
+    config.tokenPreset,
+    loadedLogoUrl,
+  ])
+
+  useEffect(() => {
     const { logo } = config
 
     // Skip if logo is already loaded
@@ -182,7 +210,7 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
       logo,
       () => {
         setLoadedLogoUrl(logo)
-        applyFaviconToDom(logo)
+        if (!config.faviconUrl) applyFaviconToDom(logo)
       },
       () => {
         if (logo !== DEFAULT_LOGO) {
@@ -194,7 +222,7 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
       }
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.logo, loadedLogoUrl, setLoadedLogoUrl])
+  }, [config.logo, config.faviconUrl, loadedLogoUrl, setLoadedLogoUrl])
 
   return {
     ...config,

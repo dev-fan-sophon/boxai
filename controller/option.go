@@ -2,7 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -40,6 +42,38 @@ func isPositiveOptionValue(value string) bool {
 	}
 	floatValue, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	return err == nil && floatValue > 0
+}
+
+func brandColorRelativeLuminance(value string) float64 {
+	rgb, _ := strconv.ParseUint(value[1:], 16, 32)
+	channels := []float64{
+		float64((rgb>>16)&0xff) / 255,
+		float64((rgb>>8)&0xff) / 255,
+		float64(rgb&0xff) / 255,
+	}
+	for index, channel := range channels {
+		if channel <= 0.04045 {
+			channels[index] = channel / 12.92
+		} else {
+			channels[index] = math.Pow((channel+0.055)/1.055, 2.4)
+		}
+	}
+	return 0.2126*channels[0] + 0.7152*channels[1] + 0.0722*channels[2]
+}
+
+func isAccessibleBrandPrimary(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	if _, err := strconv.ParseUint(value[1:], 16, 32); err != nil {
+		return false
+	}
+
+	luminance := brandColorRelativeLuminance(value)
+	whiteContrast := 1.05 / (luminance + 0.05)
+	lightCanvasContrast := (0.947 + 0.05) / (luminance + 0.05)
+	darkCanvasContrast := (luminance + 0.05) / (0.006 + 0.05)
+	return whiteContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
 }
 
 func collectModelNamesFromOptionValue(raw string, modelNames map[string]struct{}) {
@@ -220,6 +254,43 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "无效的主题值，可选值：default（新版前端）、classic（经典前端）",
+			})
+			return
+		}
+	case "branding.favicon_url":
+		value := option.Value.(string)
+		if strings.HasPrefix(value, "//") {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "Browser icon URL must be empty, an absolute HTTP/HTTPS URL, or a root-relative path beginning with /",
+			})
+			return
+		}
+		if value != "" && !strings.HasPrefix(value, "/") {
+			parsedURL, parseErr := url.ParseRequestURI(value)
+			if parseErr != nil || !parsedURL.IsAbs() || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "Browser icon URL must be empty, an absolute HTTP/HTTPS URL, or a root-relative path beginning with /",
+				})
+				return
+			}
+		}
+	case "branding.primary_color":
+		value := option.Value.(string)
+		if value != "" && !isAccessibleBrandPrimary(value) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "Brand primary color must use #RRGGBB and provide accessible contrast in light and dark modes",
+			})
+			return
+		}
+	case "branding.token_preset":
+		value := option.Value.(string)
+		if value != "" && value != "box-ai" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "Brand token preset must be empty or box-ai",
 			})
 			return
 		}

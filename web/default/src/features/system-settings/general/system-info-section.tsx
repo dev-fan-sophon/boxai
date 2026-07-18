@@ -21,6 +21,7 @@ import type { Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import * as z from 'zod'
 
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -40,6 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { isAccessibleBrandPrimary } from '@/lib/colors'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
@@ -59,7 +61,12 @@ const _systemInfoSchema = z.object({
   }),
   SystemName: z.string().min(1),
   ServerAddress: z.string().optional(),
-  Logo: z.string().url().optional().or(z.literal('')),
+  Logo: z.string().optional(),
+  branding: z.object({
+    favicon_url: z.string().optional(),
+    primary_color: z.string().optional(),
+    token_preset: z.enum(['', 'box-ai']),
+  }),
   Footer: z.string().optional(),
   About: z.string().optional(),
   HomePageContent: z.string().optional(),
@@ -92,6 +99,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     SystemName: normalizeValue(defaultValues.SystemName),
     ServerAddress: normalizeValue(defaultValues.ServerAddress),
     Logo: normalizeValue(defaultValues.Logo),
+    branding: {
+      favicon_url: normalizeValue(defaultValues.branding?.favicon_url),
+      primary_color: normalizeValue(defaultValues.branding?.primary_color),
+      token_preset:
+        defaultValues.branding?.token_preset === 'box-ai' ? 'box-ai' : '',
+    },
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
     HomePageContent: normalizeValue(defaultValues.HomePageContent),
@@ -109,7 +122,41 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       error: () => t('System name is required'),
     }),
     ServerAddress: z.string().optional(),
-    Logo: z.string().url().optional().or(z.literal('')),
+    Logo: z
+      .string()
+      .refine(
+        (value) =>
+          !value || value.startsWith('/') || z.url().safeParse(value).success,
+        {
+          error: () => t('Enter an absolute URL or a root-relative path'),
+        }
+      ),
+    branding: z.object({
+      favicon_url: z
+        .string()
+        .refine(
+          (value) =>
+            !value ||
+            (value.startsWith('/') && !value.startsWith('//')) ||
+            z.httpUrl().safeParse(value).success,
+          {
+            error: () => t('Enter an absolute URL or a root-relative path'),
+          }
+        ),
+      primary_color: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/, {
+          error: () => t('Enter a color in #RRGGBB format'),
+        })
+        .or(z.literal(''))
+        .refine((value) => !value || isAccessibleBrandPrimary(value), {
+          error: () =>
+            t(
+              'Choose a brand color with accessible contrast in light and dark modes'
+            ),
+        }),
+      token_preset: z.enum(['', 'box-ai']),
+    }),
     Footer: z.string().optional(),
     About: z.string().optional(),
     HomePageContent: z.string().optional(),
@@ -174,6 +221,24 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       },
     })
 
+  const previewName = form.watch('SystemName')
+  const previewLogo = form.watch('Logo')
+  const previewFavicon = form.watch('branding.favicon_url')
+  const previewColor = form.watch('branding.primary_color')
+
+  const applyBoxAIRecommendedValues = () => {
+    form.setValue('SystemName', 'Box AI', { shouldDirty: true })
+    form.setValue('Logo', '/box-ai-icon.svg', { shouldDirty: true })
+    form.setValue('branding.favicon_url', '/box-ai-icon.svg', {
+      shouldDirty: true,
+    })
+    form.setValue('branding.primary_color', '#2563EB', {
+      shouldDirty: true,
+    })
+    form.setValue('branding.token_preset', 'box-ai', { shouldDirty: true })
+    form.setValue('theme.frontend', 'default', { shouldDirty: true })
+  }
+
   return (
     <>
       <FormNavigationGuard when={isDirty} />
@@ -188,6 +253,34 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
               isResetDisabled={!isDirty}
             />
             <FormDirtyIndicator isDirty={isDirty} />
+            <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3'>
+              <div className='flex min-w-0 items-center gap-3'>
+                <img
+                  src={previewFavicon || previewLogo || '/logo.png'}
+                  alt=''
+                  className='size-9 rounded-md object-contain'
+                />
+                <div className='min-w-0'>
+                  <div className='text-muted-foreground text-xs'>
+                    {t('Live brand preview')}
+                  </div>
+                  <div
+                    className='truncate font-semibold'
+                    style={{ color: previewColor || undefined }}
+                  >
+                    {previewName || t('System Name')}
+                  </div>
+                </div>
+              </div>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={applyBoxAIRecommendedValues}
+              >
+                {t('Box AI recommended values')}
+              </Button>
+            </div>
             <SettingsFormGrid>
               <FormField
                 control={form.control}
@@ -285,6 +378,91 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t('URL to your logo image (optional)')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='branding.favicon_url'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Browser Icon URL')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder='/favicon.svg' {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Browser icon shown in tabs and bookmarks')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='branding.primary_color'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Brand Primary Color')}</FormLabel>
+                    <FormControl>
+                      <div className='flex gap-2'>
+                        <Input
+                          type='color'
+                          aria-label={t('Brand Primary Color')}
+                          className='w-12 p-1'
+                          value={field.value || '#2563EB'}
+                          onChange={field.onChange}
+                        />
+                        <Input placeholder='#2563EB' {...field} />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Primary color used by buttons and sidebar highlights'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='branding.token_preset'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Design Tokens')}</FormLabel>
+                    <Select
+                      items={[
+                        { value: '', label: t('Use default design tokens') },
+                        { value: 'box-ai', label: t('Box AI design tokens') },
+                      ]}
+                      onValueChange={(value) => field.onChange(value ?? '')}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value=''>
+                            {t('Use default design tokens')}
+                          </SelectItem>
+                          <SelectItem value='box-ai'>
+                            {t('Box AI design tokens')}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {t(
+                        'Sets the default visual language unless a user chooses a theme preset.'
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

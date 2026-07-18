@@ -41,6 +41,12 @@ const SITE_SECTIONS = [
           },
           SystemName: settings.SystemName,
           Logo: settings.Logo,
+          branding: {
+            favicon_url: settings['branding.favicon_url'],
+            primary_color: settings['branding.primary_color'],
+            token_preset:
+              settings['branding.token_preset'] === 'box-ai' ? 'box-ai' : '',
+          },
           Footer: settings.Footer,
           About: settings.About,
           HomePageContent: settings.HomePageContent,

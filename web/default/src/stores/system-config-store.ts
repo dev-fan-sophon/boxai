@@ -41,6 +41,9 @@ export interface CurrencyConfig {
 export interface SystemConfig {
   systemName: string
   logo: string
+  faviconUrl: string
+  primaryColor: string
+  tokenPreset: string
   footerHtml?: string
   demoSiteEnabled?: boolean
   displayTokenStatEnabled?: boolean
@@ -75,6 +78,9 @@ export const useSystemConfigStore = create<SystemConfigState>()(
       config: {
         systemName: DEFAULT_SYSTEM_NAME,
         logo: DEFAULT_LOGO,
+        faviconUrl: '',
+        primaryColor: '',
+        tokenPreset: '',
         currency: { ...DEFAULT_CURRENCY_CONFIG },
       },
       loading: true,
@@ -86,7 +92,7 @@ export const useSystemConfigStore = create<SystemConfigState>()(
             ...newConfig,
             currency: {
               ...state.config.currency,
-              ...(newConfig.currency ?? {}),
+              ...newConfig.currency,
             },
           },
         })),

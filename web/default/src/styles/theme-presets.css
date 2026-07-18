@@ -32,6 +32,131 @@ For commercial licensing, please contact support@quantumnous.com
  *   blocks so an explicit user choice overrides the preset's default radius.
  */
 
+/* ── Box AI backend brand layer ─────────────────────────────────────────
+ * This is an installation default selected by the backend, not a user theme.
+ * The :not([data-theme-preset]) guard is intentional: any user-selected
+ * preset owns the complete token cascade. --brand-primary is supplied on the
+ * root by runtime branding, allowing a configured primary color to customize
+ * this palette without a body-level declaration masking it.
+ *
+ * Light: airy cool-white work surfaces anchored by a deep-space navy sidebar.
+ * Dark: genuine navy foundations with electric blue, violet, and cyan accents.
+ * User font and radius axes appear later and therefore remain authoritative.
+ */
+body[data-brand-token-preset='box-ai']:not([data-theme-preset]) {
+  --background: #f7f9fd;
+  --foreground: #0b1633;
+  --card: #ffffff;
+  --card-foreground: #0b1633;
+  --popover: #ffffff;
+  --popover-foreground: #0b1633;
+  --primary: var(--brand-primary, #2563eb);
+  --primary-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #172554;
+  --muted: #eef3f9;
+  --muted-foreground: #52627a;
+  --accent: #ede9fe;
+  --accent-foreground: #5b21b6;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #047857;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --info: #0e7490;
+  --info-foreground: #ffffff;
+  --neutral: #64748b;
+  --neutral-foreground: #ffffff;
+  --border: #dbe4f0;
+  --input: #60718a;
+  --ring: var(--brand-primary, #2563eb);
+  --chart-1: var(--brand-primary, #2563eb);
+  --chart-2: #7c3aed;
+  --chart-3: #22d3ee;
+  --chart-4: #0f766e;
+  --chart-5: #f59e0b;
+  --overview-accent-1: var(--brand-primary, #2563eb);
+  --overview-accent-2: #7c3aed;
+  --overview-accent-3: #22d3ee;
+  --sidebar: #09152f;
+  --sidebar-foreground: #eaf1ff;
+  --sidebar-primary: var(--brand-primary, #2563eb);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #172b52;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #24385f;
+  --sidebar-ring: #60a5fa;
+  --skeleton-base: #e7edf6;
+  --skeleton-highlight: #f8fbff;
+  --table-row: #ffffff;
+  --table-header: #edf3fa;
+  --table-header-hover: #e3ebf6;
+  --table-disabled: #f1f4f8;
+  --table-disabled-hover: #ebeff5;
+  --table-disabled-border: #dfe6ef;
+}
+
+.dark body[data-brand-token-preset='box-ai']:not([data-theme-preset]) {
+  --background: #071126;
+  --foreground: #eaf1ff;
+  --card: #0d1a35;
+  --card-foreground: #eef4ff;
+  --popover: #101f3d;
+  --popover-foreground: #eef4ff;
+  --primary: var(--brand-primary, #2563eb);
+  --primary-foreground: #ffffff;
+  --secondary: #172a50;
+  --secondary-foreground: #dce8ff;
+  --muted: #132440;
+  --muted-foreground: #9aabc5;
+  --accent: #30235f;
+  --accent-foreground: #ddd6fe;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #10b981;
+  --success-foreground: #041b14;
+  --warning: #f59e0b;
+  --warning-foreground: #251400;
+  --info: #22d3ee;
+  --info-foreground: #06202a;
+  --neutral: #8091ab;
+  --neutral-foreground: #071126;
+  --border: #26395e;
+  --input: #52698f;
+  --ring: var(--brand-primary, #2563eb);
+  --chart-1: #60a5fa;
+  --chart-2: #a78bfa;
+  --chart-3: #22d3ee;
+  --chart-4: #34d399;
+  --chart-5: #fbbf24;
+  --overview-accent-1: #60a5fa;
+  --overview-accent-2: #a78bfa;
+  --overview-accent-3: #22d3ee;
+  --sidebar: #050d20;
+  --sidebar-foreground: #eaf1ff;
+  --sidebar-primary: var(--brand-primary, #2563eb);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #172b52;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #20365d;
+  --sidebar-ring: #60a5fa;
+  --skeleton-base: #162844;
+  --skeleton-highlight: #263d62;
+  --table-row: #0d1a35;
+  --table-header: #142746;
+  --table-header-hover: #1a3053;
+  --table-disabled: #101d33;
+  --table-disabled-hover: #14223a;
+  --table-disabled-border: #223451;
+}
+
+body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
+  [data-theme-radius]
+) {
+  --radius: 0.75rem;
+}
+
 /* ── Underground ──────────────────────────────────────────────────────── */
 [data-theme-preset='underground'] {
   --primary: oklch(0.5315 0.0694 156.19);
@@ -428,8 +553,8 @@ For commercial licensing, please contact support@quantumnous.com
  *     cards/borders rather than tinting them with the clay accent).
  *   - `simple-large`: keeps intentionally neutral, high-contrast surfaces. */
 [data-theme-preset]:not([data-theme-preset='default']):not(
-    [data-theme-preset='anthropic']
-  ):not([data-theme-preset='simple-large']) {
+  [data-theme-preset='anthropic']
+):not([data-theme-preset='simple-large']) {
   --card: color-mix(in oklch, var(--primary) 3%, var(--background));
   --popover: color-mix(in oklch, var(--primary) 5%, var(--background));
   --muted: color-mix(in oklch, var(--primary) 7%, var(--background));
