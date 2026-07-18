@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: bootstrap-management-token --rotate [--output FILE]
+
+Rotates the authenticated account's system management token and writes:
+  BOXAI_BASE_URL
+  BOXAI_ADMIN_USER_ID
+  BOXAI_ADMIN_TOKEN
+
+Required environment: BOXAI_ADMIN_USERNAME
+Optional environment: BOXAI_BASE_URL, BOXAI_ADMIN_PASSWORD, BOXAI_ADMIN_2FA_CODE
+EOF
+  exit 2
+}
+
+rotate=false
+output=.env.boxai-admin
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --rotate) rotate=true; shift ;;
+    --output) [[ $# -ge 2 ]] || usage; output=$2; shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+[[ "$rotate" == true ]] || {
+  echo 'Refusing to rotate a management token without --rotate.' >&2
+  exit 2
+}
+
+: "${BOXAI_ADMIN_USERNAME:?BOXAI_ADMIN_USERNAME is required}"
+base_url=${BOXAI_BASE_URL:-https://you-box.com}
+base_url=${base_url%/}
+
+password=${BOXAI_ADMIN_PASSWORD-}
+if [[ -z "$password" && -t 0 ]]; then
+  read -r -s -p 'Administrator password: ' password
+  printf '\n' >&2
+fi
+[[ -n "$password" ]] || {
+  echo 'BOXAI_ADMIN_PASSWORD is required in a non-interactive shell.' >&2
+  exit 2
+}
+
+cookie_jar=$(mktemp)
+response_file=$(mktemp)
+output_tmp=$(mktemp "${output}.tmp.XXXXXX")
+cleanup() {
+  rm -f "$cookie_jar" "$response_file" "$output_tmp"
+}
+trap cleanup EXIT
+
+login_payload=$(jq -cn --arg username "$BOXAI_ADMIN_USERNAME" --arg password "$password" '{username:$username,password:$password}')
+curl --silent --show-error --fail-with-body \
+  --cookie-jar "$cookie_jar" \
+  --header 'Content-Type: application/json' \
+  --data "$login_payload" \
+  "${base_url}/api/user/login" >"$response_file"
+
+jq -e '.success == true' "$response_file" >/dev/null || {
+  jq '{success,message}' "$response_file" >&2
+  exit 1
+}
+
+if [[ $(jq -r '.data.require_2fa // false' "$response_file") == true ]]; then
+  code=${BOXAI_ADMIN_2FA_CODE-}
+  if [[ -z "$code" && -t 0 ]]; then
+    read -r -s -p '2FA or backup code: ' code
+    printf '\n' >&2
+  fi
+  [[ -n "$code" ]] || {
+    echo 'BOXAI_ADMIN_2FA_CODE is required in a non-interactive shell.' >&2
+    exit 2
+  }
+  twofa_payload=$(jq -cn --arg code "$code" '{code:$code}')
+  curl --silent --show-error --fail-with-body \
+    --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+    --header 'Content-Type: application/json' \
+    --data "$twofa_payload" \
+    "${base_url}/api/user/login/2fa" >"$response_file"
+  jq -e '.success == true' "$response_file" >/dev/null || {
+    jq '{success,message}' "$response_file" >&2
+    exit 1
+  }
+fi
+
+user_id=$(jq -er '.data.id' "$response_file")
+role=$(jq -er '.data.role' "$response_file")
+(( role >= 10 )) || {
+  echo 'The authenticated account is not an administrator.' >&2
+  exit 1
+}
+
+curl --silent --show-error --fail-with-body \
+  --cookie "$cookie_jar" \
+  --header "New-Api-User: ${user_id}" \
+  "${base_url}/api/user/token" >"$response_file"
+jq -e '.success == true' "$response_file" >/dev/null || {
+  jq '{success,message}' "$response_file" >&2
+  exit 1
+}
+token=$(jq -er '.data' "$response_file")
+
+umask 077
+{
+  printf 'export BOXAI_BASE_URL=%q\n' "$base_url"
+  printf 'export BOXAI_ADMIN_USER_ID=%q\n' "$user_id"
+  printf 'export BOXAI_ADMIN_TOKEN=%q\n' "$token"
+} >"$output_tmp"
+chmod 600 "$output_tmp"
+mv -f "$output_tmp" "$output"
+
+echo "Management credentials written to $output (mode 0600); token value was not printed."
+echo 'Remove BOXAI_ADMIN_PASSWORD and BOXAI_ADMIN_2FA_CODE from the environment now.'

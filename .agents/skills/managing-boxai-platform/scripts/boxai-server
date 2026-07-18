@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ $# -gt 0 ]] || {
+  echo 'Usage: boxai-server COMMAND [ARG ...]' >&2
+  exit 2
+}
+
+: "${BOXAI_SSH_HOST:?BOXAI_SSH_HOST is required}"
+: "${BOXAI_SSH_USER:?BOXAI_SSH_USER is required}"
+
+port=${BOXAI_SSH_PORT:-22}
+key_file=${BOXAI_SSH_KEY_FILE:-$HOME/.ssh/boxai_orb_ed25519}
+known_hosts=${BOXAI_SSH_KNOWN_HOSTS_FILE:-$HOME/.ssh/boxai_known_hosts}
+
+[[ -r "$key_file" ]] || {
+  echo "SSH key not prepared at $key_file; run .agents/setup in an orb." >&2
+  exit 1
+}
+[[ -s "$known_hosts" ]] || {
+  echo "Pinned host key not prepared at $known_hosts; configure BOXAI_SSH_HOST_KEY." >&2
+  exit 1
+}
+
+exec ssh \
+  -i "$key_file" \
+  -p "$port" \
+  -o BatchMode=yes \
+  -o IdentitiesOnly=yes \
+  -o StrictHostKeyChecking=yes \
+  -o "UserKnownHostsFile=$known_hosts" \
+  -- "${BOXAI_SSH_USER}@${BOXAI_SSH_HOST}" "$@"

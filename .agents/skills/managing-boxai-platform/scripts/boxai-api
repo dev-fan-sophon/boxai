@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: boxai-api METHOD /api/path [JSON_BODY]
+
+Environment:
+  BOXAI_BASE_URL
+  BOXAI_ADMIN_USER_ID   required for authenticated endpoints
+  BOXAI_ADMIN_TOKEN     required for authenticated endpoints
+EOF
+  exit 2
+}
+
+[[ $# -ge 2 && $# -le 3 ]] || usage
+
+method=${1^^}
+path=$2
+body=${3-}
+base_url=${BOXAI_BASE_URL:-https://you-box.com}
+base_url=${base_url%/}
+
+[[ "$path" == /api/* ]] || {
+  echo 'Refusing a path outside /api/.' >&2
+  exit 2
+}
+
+case "$method" in
+  GET|POST|PUT|PATCH|DELETE) ;;
+  *) echo "Unsupported method: $method" >&2; exit 2 ;;
+esac
+
+curl_args=(--silent --show-error --fail-with-body --request "$method" --header 'Accept: application/json')
+
+if [[ "$path" != /api/status && "$path" != /api/setup ]]; then
+  : "${BOXAI_ADMIN_USER_ID:?BOXAI_ADMIN_USER_ID is required}"
+  : "${BOXAI_ADMIN_TOKEN:?BOXAI_ADMIN_TOKEN is required}"
+  curl_args+=(
+    --header "Authorization: Bearer ${BOXAI_ADMIN_TOKEN}"
+    --header "New-Api-User: ${BOXAI_ADMIN_USER_ID}"
+  )
+fi
+
+if [[ -n "$body" ]]; then
+  jq -e . >/dev/null <<<"$body" || {
+    echo 'JSON_BODY is not valid JSON.' >&2
+    exit 2
+  }
+  curl_args+=(--header 'Content-Type: application/json' --data "$body")
+fi
+
+response=$(curl "${curl_args[@]}" "${base_url}${path}")
+
+if jq -e . >/dev/null 2>&1 <<<"$response"; then
+  jq . <<<"$response"
+  if jq -e 'type == "object" and has("success") and .success == false' >/dev/null <<<"$response"; then
+    exit 1
+  fi
+else
+  printf '%s\n' "$response"
+fi

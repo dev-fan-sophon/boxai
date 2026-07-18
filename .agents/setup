@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo 'Checking BoxAI orb toolchain...'
+for command_name in go bun curl jq ssh; do
+  command -v "$command_name" >/dev/null || {
+    echo "Required command not found: $command_name" >&2
+    exit 1
+  }
+done
+
+echo 'Downloading Go modules...'
+go mod download
+
+echo 'Installing and building embedded web assets...'
+(
+  cd web
+  bun install --frozen-lockfile
+  (cd default && bun run build)
+  # The production/default frontend is the supported orb build. main.go still
+  # embeds the optional legacy theme, so provide the minimum embed target
+  # without making orb setup depend on its incompatible date-fns dependency.
+  mkdir -p classic/dist
+  printf '<!doctype html><html><body>Classic theme is not built in Amp orbs.</body></html>\n' >classic/dist/index.html
+)
+
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+if [[ -n ${BOXAI_SSH_PRIVATE_KEY:-} ]]; then
+  key_file="$HOME/.ssh/boxai_orb_ed25519"
+  umask 077
+  if [[ "$BOXAI_SSH_PRIVATE_KEY" == -----BEGIN* ]]; then
+    printf '%s\n' "$BOXAI_SSH_PRIVATE_KEY" >"$key_file"
+  else
+    printf '%s' "$BOXAI_SSH_PRIVATE_KEY" | base64 --decode >"$key_file"
+  fi
+  chmod 600 "$key_file"
+  ssh-keygen -y -f "$key_file" >/dev/null
+  echo 'Prepared BoxAI SSH key.'
+else
+  echo 'BOXAI_SSH_PRIVATE_KEY is not configured; production SSH will be unavailable.'
+fi
+
+if [[ -n ${BOXAI_SSH_HOST_KEY:-} ]]; then
+  known_hosts="$HOME/.ssh/boxai_known_hosts"
+  umask 077
+  printf '%s\n' "$BOXAI_SSH_HOST_KEY" >"$known_hosts"
+  chmod 600 "$known_hosts"
+  echo 'Prepared pinned BoxAI SSH host key.'
+else
+  echo 'BOXAI_SSH_HOST_KEY is not configured; production SSH is intentionally blocked.'
+fi
+
+echo 'BoxAI orb setup complete.'

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+base_url=${BOXAI_BASE_URL:-https://you-box.com}
+if ! curl --silent --show-error --fail --max-time 4 "${base_url%/}/api/status" >/dev/null; then
+  echo 'Warning: BoxAI public health check failed.' >&2
+fi
+
+if [[ -n ${BOXAI_SSH_HOST:-} && -n ${BOXAI_SSH_USER:-} && -r $HOME/.ssh/boxai_orb_ed25519 && -s $HOME/.ssh/boxai_known_hosts ]]; then
+  if ! timeout 4 ssh \
+    -i "$HOME/.ssh/boxai_orb_ed25519" \
+    -p "${BOXAI_SSH_PORT:-22}" \
+    -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o "UserKnownHostsFile=$HOME/.ssh/boxai_known_hosts" \
+    -- "${BOXAI_SSH_USER}@${BOXAI_SSH_HOST}" true; then
+    echo 'Warning: BoxAI production SSH check failed.' >&2
+  fi
+fi
