@@ -23,9 +23,10 @@ if ! command -v go >/dev/null; then
   echo "Installing Go ${go_version} for ${go_arch}..."
   curl --fail --location --silent --show-error \
     "https://go.dev/dl/${go_archive}" -o "$go_tmp/$go_archive"
-  curl --fail --location --silent --show-error \
-    "https://go.dev/dl/${go_archive}.sha256" -o "$go_tmp/$go_archive.sha256"
-  expected_sha=$(cat "$go_tmp/$go_archive.sha256")
+  expected_sha=$(curl --fail --location --silent --show-error \
+    'https://go.dev/dl/?mode=json&include=all' |
+    jq -er --arg filename "$go_archive" \
+      '[.[] | .files[] | select(.filename == $filename) | .sha256][0]')
   if command -v sha256sum >/dev/null; then
     printf '%s  %s\n' "$expected_sha" "$go_tmp/$go_archive" | sha256sum --check --status
   elif command -v shasum >/dev/null; then
