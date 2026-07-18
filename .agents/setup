@@ -9,6 +9,31 @@ for command_name in bun curl jq ssh tar; do
   }
 done
 
+verify_sha256() {
+  local file=$1
+  local expected=$2
+  if command -v sha256sum >/dev/null; then
+    printf '%s  %s\n' "$expected" "$file" | sha256sum --check --status
+  elif command -v shasum >/dev/null; then
+    [[ $(shasum -a 256 "$file" | awk '{print $1}') == "$expected" ]]
+  else
+    echo 'No SHA-256 verification command is available.' >&2
+    exit 1
+  fi
+}
+
+sudo_cmd=()
+if [[ ! -w /usr/local ]]; then
+  command -v sudo >/dev/null || {
+    echo 'Toolchain installation requires write access to /usr/local or sudo.' >&2
+    exit 1
+  }
+  sudo_cmd=(sudo)
+fi
+
+setup_tmp=$(mktemp -d)
+trap 'rm -rf "$setup_tmp"' EXIT
+
 if ! command -v go >/dev/null; then
   go_version=1.25.1
   case "$(uname -m)" in
@@ -18,39 +43,60 @@ if ! command -v go >/dev/null; then
   esac
 
   go_archive="go${go_version}.linux-${go_arch}.tar.gz"
-  go_tmp=$(mktemp -d)
-  trap 'rm -rf "$go_tmp"' EXIT
   echo "Installing Go ${go_version} for ${go_arch}..."
   curl --fail --location --silent --show-error \
-    "https://go.dev/dl/${go_archive}" -o "$go_tmp/$go_archive"
+    "https://go.dev/dl/${go_archive}" -o "$setup_tmp/$go_archive"
   expected_sha=$(curl --fail --location --silent --show-error \
     'https://go.dev/dl/?mode=json&include=all' |
     jq -er --arg filename "$go_archive" \
       '[.[] | .files[] | select(.filename == $filename) | .sha256][0]')
-  if command -v sha256sum >/dev/null; then
-    printf '%s  %s\n' "$expected_sha" "$go_tmp/$go_archive" | sha256sum --check --status
-  elif command -v shasum >/dev/null; then
-    [[ $(shasum -a 256 "$go_tmp/$go_archive" | awk '{print $1}') == "$expected_sha" ]]
-  else
-    echo 'No SHA-256 verification command is available.' >&2
-    exit 1
-  fi
-
-  sudo_cmd=()
-  if [[ ! -w /usr/local ]]; then
-    command -v sudo >/dev/null || {
-      echo 'Go installation requires write access to /usr/local or sudo.' >&2
-      exit 1
-    }
-    sudo_cmd=(sudo)
-  fi
+  verify_sha256 "$setup_tmp/$go_archive" "$expected_sha"
   "${sudo_cmd[@]}" rm -rf /usr/local/go
-  "${sudo_cmd[@]}" tar -C /usr/local -xzf "$go_tmp/$go_archive"
+  "${sudo_cmd[@]}" tar -C /usr/local -xzf "$setup_tmp/$go_archive"
   "${sudo_cmd[@]}" ln -sf /usr/local/go/bin/go /usr/local/bin/go
   hash -r
 fi
 
 go version
+
+node_supported=false
+if command -v node >/dev/null && node -e '
+  const [major, minor] = process.versions.node.split(".").map(Number)
+  process.exit((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22 ? 0 : 1)
+'; then
+  node_supported=true
+fi
+
+if [[ "$node_supported" != true ]]; then
+  node_version=22.17.0
+  case "$(uname -m)" in
+    x86_64) node_arch=x64 ;;
+    aarch64|arm64) node_arch=arm64 ;;
+    *) echo "Unsupported architecture for Node.js installation: $(uname -m)" >&2; exit 1 ;;
+  esac
+
+  node_archive="node-v${node_version}-linux-${node_arch}.tar.gz"
+  echo "Installing Node.js ${node_version} for ${node_arch}..."
+  curl --fail --location --silent --show-error \
+    "https://nodejs.org/dist/v${node_version}/${node_archive}" -o "$setup_tmp/$node_archive"
+  expected_sha=$(curl --fail --location --silent --show-error \
+    "https://nodejs.org/dist/v${node_version}/SHASUMS256.txt" |
+    awk -v filename="$node_archive" '$2 == filename {print $1}')
+  [[ ${#expected_sha} -eq 64 ]] || {
+    echo "Unable to resolve Node.js checksum for $node_archive." >&2
+    exit 1
+  }
+  verify_sha256 "$setup_tmp/$node_archive" "$expected_sha"
+
+  node_install="/usr/local/node-v${node_version}"
+  "${sudo_cmd[@]}" rm -rf "$node_install"
+  "${sudo_cmd[@]}" mkdir -p "$node_install"
+  "${sudo_cmd[@]}" tar -C "$node_install" --strip-components=1 -xzf "$setup_tmp/$node_archive"
+  "${sudo_cmd[@]}" ln -sf "$node_install/bin/node" /usr/local/bin/node
+  hash -r
+fi
+
+node --version
 
 echo 'Downloading Go modules...'
 go mod download
