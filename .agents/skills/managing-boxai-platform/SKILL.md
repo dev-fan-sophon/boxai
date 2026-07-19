@@ -73,14 +73,29 @@ BOXAI_ADMIN_USERNAME='admin@example.com' \
 
 The script logs in, handles an optional interactive 2FA challenge, rotates the token once, and writes a mode-0600 ignored environment file without printing the token. Remove `BOXAI_ADMIN_PASSWORD` from the shell and Amp project settings immediately afterward. Copy the resulting three values into Amp project secrets, then delete the local file if it is no longer needed.
 
-## Production SSH workflow
+## Production deployment (native app)
 
-Use `scripts/boxai-server` instead of constructing SSH flags manually:
+Canonical path: **host binary + systemd**; **Docker only for Postgres/Redis**.
 
 ```bash
-.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai2 && docker compose ps'
-.agents/skills/managing-boxai-platform/scripts/boxai-server 'curl -fsS http://127.0.0.1:3000/api/status'
+# From repo root (preferred)
+make deploy
+# or
+./scripts/deploy-prod.sh
+./scripts/deploy-prod.sh --bootstrap   # first-time host only
 ```
+
+Docs: [deploy/README.md](../../../deploy/README.md).
+
+Use `scripts/boxai-server` instead of hand-built SSH flags:
+
+```bash
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'systemctl status boxai2 --no-pager'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'curl -fsS http://127.0.0.1:3000/api/status'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai2 && docker compose -f docker-compose.infra.yml ps'
+```
+
+**Do not** deploy the application as a Docker image/container. Do not resurrect root `docker-compose.yml` app services on production.
 
 Follow [reference/orb.md](reference/orb.md) when connecting this repository to an Amp project and adding its orb secrets.
 
@@ -91,10 +106,10 @@ Rules:
 - Take a database/configuration backup before migrations or broad configuration changes.
 - Ask before restart, deploy, migration, database write, firewall change, secret rotation, or deletion.
 - Never disable SSH host-key checking. `BOXAI_SSH_HOST_KEY` must pin the production host.
-- Verify health and container state after every production mutation.
+- After deploy: verify `systemctl is-active boxai2`, `curl -fsS http://127.0.0.1:3000/api/status`, and infra compose health.
 
 ## Capability boundary
 
 Use the API for users, administrator roles, channels, models, prices, groups, OAuth providers, payment settings, subscriptions, redemption codes, application logs, and runtime options.
 
-Use SSH for `SQL_DSN`, `REDIS_CONN_STRING`, `SESSION_SECRET`, `CRYPTO_SECRET`, container images, Docker Compose, nginx, TLS, database/Redis credentials, OS resources, and backups. These are deployment settings and generally require a restart.
+Use SSH for host app binary/systemd, `SQL_DSN`, `REDIS_CONN_STRING`, `SESSION_SECRET`, `CRYPTO_SECRET`, Postgres/Redis Docker **infra only**, nginx, TLS, OS resources, and backups.

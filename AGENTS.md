@@ -134,6 +134,40 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 - Frontend UI text must support i18n with `i18next`/`react-i18next`. Use flat JSON locale files in `web/default/src/i18n/locales/{lang}.json`, with English source strings as keys.
 - In React components, use `useTranslation()` and call `t('English key')` for user-facing text.
 - Follow `web/default/AGENTS.md` for detailed frontend conventions, including TypeScript, component structure, styling, accessibility, testing, and build checks.
+- **Local frontend default API target is production** (`https://you-box.com`) via `web/default/.env.development` and Rsbuild proxy (`/api`, `/mj`, `/pg`). Use `make dev-web-local` or `VITE_REACT_APP_SERVER_URL=http://127.0.0.1:3000` only when developing against a local backend.
+
+### Deployment (BoxAI production & local)
+
+**Canonical docs:** `deploy/README.md`. Do not reintroduce full-stack application Docker as the primary production path.
+
+| Layer | Production | Local default |
+|-------|------------|---------------|
+| App (Go + embedded web) | Host binary + **systemd** `boxai2.service` on `127.0.0.1:3000` | Optional `go run` / `make start-api` |
+| Postgres / Redis | Docker only (`deploy/docker-compose.infra.yml`) on `127.0.0.1:5432` / `6379` | Optional `docker-compose.dev.yml` (infra only) |
+| TLS / reverse proxy | nginx → `127.0.0.1:3000` | n/a |
+
+**Commands agents must prefer:**
+
+```bash
+# Production deploy (upload source → server build → systemctl restart)
+make deploy
+# First-time host bootstrap only
+make deploy-bootstrap
+
+# Local frontend (proxies API to production)
+make dev-web
+
+# Local frontend against local API
+make dev-web-local
+```
+
+**Do not:**
+
+- Build or run the application as a Docker image/container for production (legacy `Dockerfile` / root `docker-compose.yml` are deprecated for BoxAI ops).
+- Document or script `docker compose up` for the app service as the deploy path.
+- Copy production `.env` secrets into the repo or chat.
+
+**Ops paths on the server:** `/opt/boxai2/` (`bin/new-api`, `current` → `releases/<id>`, `.env`, `docker-compose.infra.yml`, `logs/`, `data/`). Health: `curl -fsS http://127.0.0.1:3000/api/status` and `systemctl status boxai2`.
 
 ### Project Governance
 

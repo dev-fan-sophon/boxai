@@ -1,82 +1,57 @@
-# BoxAI production deploy (native app + Docker data plane)
+# BoxAI deployment
+
+Canonical production and local ops for this repository.
 
 ## Architecture
 
-| Component | How it runs |
-|-----------|-------------|
-| **BoxAI / new-api** | Host binary + **systemd** (`boxai2.service`) on `127.0.0.1:3000` |
-| **Postgres** | Docker (`boxai2-postgres`), published `127.0.0.1:5432` |
-| **Redis** | Docker (`boxai2-redis`), published `127.0.0.1:6379` |
-| **nginx** | TLS termination → `http://127.0.0.1:3000` |
+| Component | Production | Local default |
+|-----------|------------|---------------|
+| **App** (Go + embedded UI) | Host binary + **systemd** `boxai2.service` → `127.0.0.1:3000` | Optional `make start-api` (`go run`) |
+| **Postgres** | Docker `boxai2-postgres` → `127.0.0.1:5432` | Optional `docker-compose.dev.yml` |
+| **Redis** | Docker `boxai2-redis` → `127.0.0.1:6379` | Optional `docker-compose.dev.yml` |
+| **TLS** | nginx → `http://127.0.0.1:3000` | n/a |
 
-No application Docker image is built or run in steady state.
+**There is no application Docker container in steady state.**  
+Root `Dockerfile` / `Dockerfile.dev` / empty `docker-compose.yml` are **deprecated** for BoxAI ops.
 
-## First-time migration (once)
+## Production deploy
 
-From a machine with SSH secrets (`.env.boxai-admin`):
+### Prerequisites (local)
 
-```bash
-./scripts/deploy-prod.sh --bootstrap --ref HEAD
-```
+- Git pushed to the remote the release is cut from
+- `.env.boxai-admin` with `BOXAI_SSH_*` and optional `BOXAI_BASE_URL`
 
-This will:
-
-1. Install Go + Bun on the server (if missing)
-2. Install `docker-compose.infra.yml` (Postgres/Redis only)
-3. Rewrite `SQL_DSN` / `REDIS_CONN_STRING` hosts to `127.0.0.1`
-4. Stop the old `boxai2` app container
-5. Build frontend + Go binary on the server
-6. Install/enable `boxai2.service` and health-check
-
-## Everyday deploy
+### Everyday
 
 ```bash
 git push origin main
-./scripts/deploy-prod.sh          # uses current HEAD
-# or
-./scripts/deploy-prod.sh --ref a45d048e
-```
-
-Makefile:
-
-```bash
 make deploy
-make deploy-bootstrap   # first time only
+# equivalent:
+./scripts/deploy-prod.sh
+./scripts/deploy-prod.sh --ref <commit>
 ```
 
-## Local frontend → production API
-
-Default for `web/default` dev:
+### First-time host only
 
 ```bash
-make dev-web
-# or: cd web/default && bun run dev
+make deploy-bootstrap
+# installs Go/Bun, infra compose, systemd unit, rewrites DSN hosts to 127.0.0.1
 ```
 
-Uses `VITE_REACT_APP_SERVER_URL=https://you-box.com` (see `.env.development`) and
-proxies `/api`, `/mj`, `/pg` with cookie rewrites for localhost.
-
-Local API instead:
-
-```bash
-make dev-web-local
-```
-
-## Server paths
+### Server layout
 
 ```text
 /opt/boxai2/
-  .env                      # secrets (mode 600)
-  bin/new-api               # active binary
-  current -> releases/<id>
-  releases/<id>/            # source + build tree
-  data/                     # WorkingDirectory
-  logs/
-  postgres_data/ redis_data/
-  docker-compose.infra.yml
+  .env                         # mode 600; SQL_DSN/REDIS → 127.0.0.1
+  bin/new-api                  # active binary
+  current → releases/<id>
+  releases/<id>/               # source + build tree
+  docker-compose.infra.yml     # Postgres + Redis only
+  data/  logs/
+  postgres_data/  redis_data/
 ```
 
-## Ops
+### Ops
 
 ```bash
 systemctl status boxai2
@@ -84,3 +59,40 @@ journalctl -u boxai2 -f
 curl -fsS http://127.0.0.1:3000/api/status
 cd /opt/boxai2 && docker compose -f docker-compose.infra.yml ps
 ```
+
+## Local development
+
+```bash
+# Frontend only — proxies /api to https://you-box.com (default)
+make dev-web
+
+# Frontend + local API (host process)
+make dev-infra          # Docker Postgres/Redis on localhost
+make start-api          # go run main.go
+make dev-web-local      # proxy to http://127.0.0.1:3000
+```
+
+Env for host API against `docker-compose.dev.yml` (makefile defaults):
+
+```bash
+SQL_DSN='postgresql://root:123456@127.0.0.1:5432/new-api?sslmode=disable'
+REDIS_CONN_STRING='redis://127.0.0.1:6379/0'
+```
+
+## Related files
+
+| Path | Role |
+|------|------|
+| `deploy/docker-compose.infra.yml` | Production PG/Redis |
+| `deploy/boxai2.service` | systemd unit |
+| `scripts/deploy-prod.sh` | Upload + remote build + restart |
+| `scripts/server/bootstrap-toolchain.sh` | Install Go/Bun on host |
+| `scripts/server/build-native.sh` | Server-side web + go build |
+| `docker-compose.dev.yml` | Local PG/Redis only |
+| `web/default/.env.development` | Default `VITE_REACT_APP_SERVER_URL` |
+
+## Platform admin skill
+
+API/config over management token; SSH only for host/infra:
+
+See `.agents/skills/managing-boxai-platform/SKILL.md`.

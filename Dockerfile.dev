@@ -1,5 +1,6 @@
-# Backend-only build for frontend development
-# Skips frontend build, uses a placeholder for //go:embed web/dist
+# DEPRECATED for BoxAI local/production ops.
+# Local API: host `go run` against docker-compose.dev.yml (Postgres/Redis only).
+# Production: make deploy (native binary + systemd). See deploy/README.md.
 
 FROM golang:1.26.1-alpine AS builder
 

@@ -55,11 +55,21 @@ Ask the orb to load `managing-boxai-platform`, then perform read-only checks:
 ```bash
 .agents/skills/managing-boxai-platform/scripts/boxai-api GET /api/status
 .agents/skills/managing-boxai-platform/scripts/boxai-api GET '/api/user/?p=1&page_size=1'
-.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai2 && docker compose ps'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'systemctl is-active boxai2'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'curl -fsS http://127.0.0.1:3000/api/status | head -c 120'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai2 && docker compose -f docker-compose.infra.yml ps'
 ```
 
 Expected signals:
 
 - Public API status returns JSON with `success: true`.
 - Authenticated user request succeeds without exposing the token.
-- SSH host-key verification succeeds and Docker Compose shows the BoxAI services.
+- SSH host-key verification succeeds; `boxai2` systemd unit is `active`; infra compose shows healthy **postgres** and **redis** only (no app container).
+
+## 6. Deploy from an orb
+
+```bash
+make deploy
+```
+
+Application deploys are native (build on host, restart systemd). Do not `docker compose build` the app.

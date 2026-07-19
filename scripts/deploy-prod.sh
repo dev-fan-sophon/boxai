@@ -143,21 +143,49 @@ ln -sfn "/opt/boxai2/releases/${REF}" /opt/boxai2/current
 if [[ ! -f /opt/boxai2/docker-compose.infra.yml ]]; then
   cp -f "/opt/boxai2/releases/${REF}/deploy/docker-compose.infra.yml" /opt/boxai2/docker-compose.infra.yml
 fi
-# Keep infra up
-cd /opt/boxai2 && docker compose -f docker-compose.infra.yml up -d
+# Keep infra up; never use legacy app compose
+cd /opt/boxai2
+rm -f docker-compose.yml
+docker compose -f docker-compose.infra.yml up -d
 # Ensure systemd unit is current
 cp -f "/opt/boxai2/releases/${REF}/deploy/boxai2.service" /etc/systemd/system/boxai2.service
 systemctl daemon-reload
 # Build
 bash "/opt/boxai2/releases/${REF}/scripts/server/build-native.sh" "/opt/boxai2/releases/${REF}"
 # Ensure docker app is not holding the port
-if docker ps -q -f name=^boxai2$ | grep -q .; then
-  docker stop boxai2 || true
-  docker rm boxai2 || true
+if docker ps -aq -f name=^boxai2$ | grep -q .; then
+  docker stop boxai2 2>/dev/null || true
+  docker rm -f boxai2 2>/dev/null || true
 fi
 systemctl restart boxai2.service
 sleep 2
 systemctl --no-pager --full status boxai2.service | head -25
+# Prune old releases (keep current + one previous)
+python3 - <<PY
+import os, shutil
+from pathlib import Path
+cur = Path("/opt/boxai2/current").resolve().name
+rel = Path("/opt/boxai2/releases")
+entries = sorted([p for p in rel.iterdir() if p.is_dir()], key=lambda p: p.stat().st_mtime, reverse=True)
+keep = set()
+if cur:
+    keep.add(cur)
+for p in entries:
+    if len(keep) >= 2:
+        break
+    keep.add(p.name)
+for p in entries:
+    if p.name not in keep:
+        print(f"removing old release {p.name}")
+        shutil.rmtree(p, ignore_errors=True)
+print("KEEP_RELEASES", sorted(keep))
+PY
+# Drop obsolete app images (keep postgres/redis)
+docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^boxai2-local:|^ghcr.io/fran0220/boxai:' | while read -r img; do
+  echo "removing image $img"
+  docker rmi -f "$img" 2>/dev/null || true
+done
+docker image prune -f >/dev/null 2>&1 || true
 # Health
 for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:3000/api/status | grep -q '"success"'; then
