@@ -40,6 +40,7 @@ func authHelper(c *gin.Context, minRole int) {
 	role := session.Get("role")
 	id := session.Get("id")
 	status := session.Get("status")
+	group := session.Get("group")
 	useAccessToken := false
 	if username == nil {
 		// Check access token
@@ -83,6 +84,7 @@ func authHelper(c *gin.Context, minRole int) {
 			role = user.Role
 			id = user.Id
 			status = user.Status
+			group = user.Group
 			useAccessToken = true
 		} else {
 			c.JSON(http.StatusOK, gin.H{
@@ -92,6 +94,38 @@ func authHelper(c *gin.Context, minRole int) {
 			c.Abort()
 			return
 		}
+	}
+	if !useAccessToken {
+		sessionUserID, ok := id.(int)
+		if !ok || sessionUserID == 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthNotLoggedIn),
+			})
+			c.Abort()
+			return
+		}
+		user, err := model.GetUserById(sessionUserID, false)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"success": false,
+					"message": common.TranslateMessage(c, i18n.MsgAuthNotLoggedIn),
+				})
+			} else {
+				common.SysLog("session user lookup failed: " + err.Error())
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": common.TranslateMessage(c, i18n.MsgDatabaseError),
+				})
+			}
+			c.Abort()
+			return
+		}
+		username = user.Username
+		role = user.Role
+		status = user.Status
+		group = user.Group
 	}
 	// get header New-Api-User
 	apiUserIdStr := c.Request.Header.Get("New-Api-User")
@@ -121,7 +155,7 @@ func authHelper(c *gin.Context, minRole int) {
 		c.Abort()
 		return
 	}
-	if status.(int) == common.UserStatusDisabled {
+	if status.(int) != common.UserStatusEnabled {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": common.TranslateMessage(c, i18n.MsgAuthUserBanned),
@@ -150,8 +184,8 @@ func authHelper(c *gin.Context, minRole int) {
 	c.Set("username", username)
 	c.Set("role", role)
 	c.Set("id", id)
-	c.Set("group", session.Get("group"))
-	c.Set("user_group", session.Get("group"))
+	c.Set("group", group)
+	c.Set("user_group", group)
 	c.Set("use_access_token", useAccessToken)
 
 	// 管理/root 写操作审计兜底：内聚在鉴权链路里，保证任何经过 AdminAuth/RootAuth
