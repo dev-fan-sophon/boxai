@@ -149,3 +149,26 @@ export interface GroupOption {
   ratio: number
   desc?: string
 }
+
+export type StudioModality = 'chat' | 'image' | 'video' | 'audio'
+
+export type StudioSettings = {
+  imageCount: number
+  imageSize: string
+  imageQuality: string
+  videoDuration: number
+  videoSize: string
+  voice: string
+  speed: number
+  audioFormat: string
+}
+
+export type GeneratedImage = {
+  url: string
+  revisedPrompt?: string
+}
+
+export type VideoSubmission = {
+  taskId: string
+  status?: string
+}
