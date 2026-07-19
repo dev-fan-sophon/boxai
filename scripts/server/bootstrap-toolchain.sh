@@ -32,15 +32,31 @@ install_go() {
   go version
 }
 
+install_unzip() {
+  if need_cmd unzip; then
+    return 0
+  fi
+  echo "installing unzip..."
+  if need_cmd apt-get; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq unzip ca-certificates curl
+  elif need_cmd dnf; then
+    dnf install -y unzip ca-certificates curl
+  else
+    echo "install unzip manually" >&2
+    exit 1
+  fi
+}
+
 install_bun() {
   if need_cmd bun; then
     echo "bun already installed: $(bun --version)"
     return 0
   fi
+  install_unzip
   echo "installing bun..."
   curl -fsSL https://bun.sh/install | bash
-  # shellcheck disable=SC1091
-  source "$HOME/.bun/bin/bun" 2>/dev/null || true
   ln -sfn "$HOME/.bun/bin/bun" /usr/local/bin/bun
   bun --version
 }
