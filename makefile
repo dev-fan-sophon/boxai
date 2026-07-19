@@ -10,7 +10,7 @@ DEV_POSTGRES_DB = new-api
 DEV_POSTGRES_USER = root
 DEV_SQLITE_PATH ?= one-api.db
 
-.PHONY: all build-web build-web-classic build-all-web start-api dev dev-api dev-api-rebuild dev-web dev-web-classic reset-setup
+.PHONY: all build-web build-web-classic build-all-web start-api dev dev-api dev-api-rebuild dev-web dev-web-classic dev-web-local reset-setup deploy deploy-bootstrap
 
 all: build-all-web start-api
 
@@ -39,10 +39,23 @@ dev-api-rebuild:
 	@docker compose -f $(DEV_COMPOSE_FILE) up -d --build $(DEV_API_SERVICE)
 
 dev-web:
-	@echo "Starting default web dev server..."
+	@echo "Starting default web dev server (API → $${VITE_REACT_APP_SERVER_URL:-https://you-box.com})..."
 	@echo "Default web: http://localhost:$(DEV_WEB_DEFAULT_PORT)"
 	@cd ./web && bun install --filter ./default
 	@cd $(WEB_DIR) && bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_DEFAULT_PORT)
+
+# Local frontend + local API (no production proxy)
+dev-web-local:
+	@echo "Starting default web against local API http://127.0.0.1:3000"
+	@cd ./web && bun install --filter ./default
+	@cd $(WEB_DIR) && VITE_REACT_APP_SERVER_URL=http://127.0.0.1:3000 bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_DEFAULT_PORT)
+
+# Production: native binary on host; Postgres/Redis stay in Docker
+deploy:
+	@bash ./scripts/deploy-prod.sh
+
+deploy-bootstrap:
+	@bash ./scripts/deploy-prod.sh --bootstrap
 
 dev-web-classic:
 	@echo "Starting classic web dev server..."

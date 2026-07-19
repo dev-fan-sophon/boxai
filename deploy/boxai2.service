@@ -1,0 +1,28 @@
+[Unit]
+Description=BoxAI (new-api) application
+Documentation=https://github.com/dev-fan-sophon/boxai2
+After=network-online.target docker.service
+Wants=network-online.target
+# Postgres/Redis are Docker services; wait a moment after docker starts.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/boxai2/data
+EnvironmentFile=-/opt/boxai2/.env
+# Host-local data plane (published by docker-compose.infra.yml)
+Environment=GIN_MODE=release
+Environment=TZ=Asia/Shanghai
+ExecStart=/opt/boxai2/bin/new-api --port 3000 --log-dir /opt/boxai2/logs
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+# Hardening (keep loose enough for outbound AI provider calls)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

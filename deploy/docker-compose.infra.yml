@@ -1,0 +1,47 @@
+# Production data plane only — Postgres + Redis.
+# The BoxAI application runs natively via systemd (not Docker).
+#
+# Usage on server:
+#   cd /opt/boxai2 && docker compose -f docker-compose.infra.yml up -d
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: boxai2-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - /opt/boxai2/postgres_data:/var/lib/postgresql/data:Z
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [boxai]
+
+  redis:
+    image: redis:8-alpine
+    container_name: boxai2-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - /opt/boxai2/redis_data:/data:Z
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [boxai]
+
+networks:
+  boxai:
+    name: boxai2-network
+    driver: bridge
