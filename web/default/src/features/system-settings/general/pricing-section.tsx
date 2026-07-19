@@ -65,7 +65,7 @@ const createPricingSchema = (t: (key: string) => string) =>
       DisplayInCurrencyEnabled: z.boolean(),
       DisplayTokenStatEnabled: z.boolean(),
       general_setting: z.object({
-        quota_display_type: z.enum(['USD', 'CNY', 'TOKENS', 'CUSTOM']),
+        quota_display_type: z.enum(['USD', 'CNY', 'VND', 'TOKENS', 'CUSTOM']),
         custom_currency_symbol: z.string().max(8).optional(),
         custom_currency_exchange_rate: z.coerce
           .number()
@@ -143,6 +143,9 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
     displayType === 'TOKENS' ||
     defaultValues.QuotaPerUnit !== DEFAULT_CURRENCY_CONFIG.quotaPerUnit
   const showDisplayInCurrencyOption = displayInCurrencyEnabled === false
+  let exchangeRateLabel = t('USD Exchange Rate')
+  if (displayType === 'CNY') exchangeRateLabel = t('CNY per USD')
+  if (displayType === 'VND') exchangeRateLabel = t('VND per USD')
 
   return (
     <>
@@ -195,6 +198,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                     items={[
                       { value: 'USD', label: t('USD') },
                       { value: 'CNY', label: t('CNY') },
+                      { value: 'VND', label: t('VND') },
                       { value: 'CUSTOM', label: t('Custom Currency') },
                       { value: 'TOKENS', label: t('Tokens Only') },
                     ]}
@@ -210,6 +214,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                       <SelectGroup>
                         <SelectItem value='USD'>{t('USD')}</SelectItem>
                         <SelectItem value='CNY'>{t('CNY')}</SelectItem>
+                        <SelectItem value='VND'>{t('VND')}</SelectItem>
                         <SelectItem value='CUSTOM'>
                           {t('Custom Currency')}
                         </SelectItem>
@@ -235,13 +240,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                 name='USDExchangeRate'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {displayType === 'CNY'
-                        ? t('CNY per USD')
-                        : displayType === 'USD'
-                          ? t('USD Exchange Rate')
-                          : t('USD Exchange Rate')}
-                    </FormLabel>
+                    <FormLabel>{exchangeRateLabel}</FormLabel>
                     <FormControl>
                       <Input
                         type='number'

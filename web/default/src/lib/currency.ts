@@ -140,7 +140,7 @@ const DEFAULT_FORMAT_OPTIONS: ResolvedCurrencyFormatOptions = {
   locale: undefined,
 }
 
-const DISPLAY_TYPE_VALUES = ['USD', 'CNY', 'TOKENS', 'CUSTOM'] as const
+const DISPLAY_TYPE_VALUES = ['USD', 'CNY', 'VND', 'TOKENS', 'CUSTOM'] as const
 type DisplayTypeLiteral = (typeof DISPLAY_TYPE_VALUES)[number]
 
 export function isCurrencyDisplayType(
@@ -191,6 +191,13 @@ function getDisplayMeta(config: CurrencyConfig): DisplayMeta {
         kind: 'currency',
         symbol: '¥',
         currencyCode: 'CNY',
+        exchangeRate: config.usdExchangeRate,
+      }
+    case 'VND':
+      return {
+        kind: 'currency',
+        symbol: '₫',
+        currencyCode: 'VND',
         exchangeRate: config.usdExchangeRate,
       }
     case 'CUSTOM':
@@ -533,6 +540,8 @@ export function getCurrencyLabel(): string {
   switch (config.quotaDisplayType) {
     case 'CNY':
       return 'CNY'
+    case 'VND':
+      return 'VND'
     case 'CUSTOM':
       return meta.kind === 'custom' ? meta.symbol : 'Custom'
     case 'USD':

@@ -6,6 +6,7 @@ import "github.com/QuantumNous/new-api/setting/config"
 const (
 	QuotaDisplayTypeUSD    = "USD"
 	QuotaDisplayTypeCNY    = "CNY"
+	QuotaDisplayTypeVND    = "VND"
 	QuotaDisplayTypeTokens = "TOKENS"
 	QuotaDisplayTypeCustom = "CUSTOM"
 )
@@ -14,7 +15,7 @@ type GeneralSetting struct {
 	DocsLink            string `json:"docs_link"`
 	PingIntervalEnabled bool   `json:"ping_interval_enabled"`
 	PingIntervalSeconds int    `json:"ping_interval_seconds"`
-	// 当前站点额度展示类型：USD / CNY / TOKENS
+	// 当前站点额度展示类型：USD / CNY / VND / TOKENS / CUSTOM
 	QuotaDisplayType string `json:"quota_display_type"`
 	// 自定义货币符号，用于 CUSTOM 展示类型
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
@@ -27,7 +28,7 @@ var generalSetting = GeneralSetting{
 	DocsLink:                   "https://docs.newapi.pro",
 	PingIntervalEnabled:        false,
 	PingIntervalSeconds:        60,
-	QuotaDisplayType:           QuotaDisplayTypeUSD,
+	QuotaDisplayType:           QuotaDisplayTypeVND,
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
 }
@@ -63,6 +64,8 @@ func GetCurrencySymbol() string {
 		return "$"
 	case QuotaDisplayTypeCNY:
 		return "¥"
+	case QuotaDisplayTypeVND:
+		return "₫"
 	case QuotaDisplayTypeCustom:
 		if generalSetting.CustomCurrencySymbol != "" {
 			return generalSetting.CustomCurrencySymbol
@@ -74,12 +77,12 @@ func GetCurrencySymbol() string {
 }
 
 // GetUsdToCurrencyRate 返回 1 USD = X <currency> 的 X（TOKENS 不适用）
-func GetUsdToCurrencyRate(usdToCny float64) float64 {
+func GetUsdToCurrencyRate(usdExchangeRate float64) float64 {
 	switch generalSetting.QuotaDisplayType {
 	case QuotaDisplayTypeUSD:
 		return 1
-	case QuotaDisplayTypeCNY:
-		return usdToCny
+	case QuotaDisplayTypeCNY, QuotaDisplayTypeVND:
+		return usdExchangeRate
 	case QuotaDisplayTypeCustom:
 		if generalSetting.CustomCurrencyExchangeRate > 0 {
 			return generalSetting.CustomCurrencyExchangeRate

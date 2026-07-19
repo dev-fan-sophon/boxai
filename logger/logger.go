@@ -123,10 +123,10 @@ func LogQuota(quota int) string {
 	// 新逻辑：根据额度展示类型输出
 	q := float64(quota)
 	switch operation_setting.GetQuotaDisplayType() {
-	case operation_setting.QuotaDisplayTypeCNY:
+	case operation_setting.QuotaDisplayTypeCNY, operation_setting.QuotaDisplayTypeVND:
 		usd := q / common.QuotaPerUnit
-		cny := usd * operation_setting.USDExchangeRate
-		return fmt.Sprintf("¥%.6f 额度", cny)
+		value := usd * operation_setting.USDExchangeRate
+		return fmt.Sprintf("%s%.6f 额度", operation_setting.GetCurrencySymbol(), value)
 	case operation_setting.QuotaDisplayTypeCustom:
 		usd := q / common.QuotaPerUnit
 		rate := operation_setting.GetGeneralSetting().CustomCurrencyExchangeRate
@@ -149,10 +149,10 @@ func LogQuota(quota int) string {
 func FormatQuota(quota int) string {
 	q := float64(quota)
 	switch operation_setting.GetQuotaDisplayType() {
-	case operation_setting.QuotaDisplayTypeCNY:
+	case operation_setting.QuotaDisplayTypeCNY, operation_setting.QuotaDisplayTypeVND:
 		usd := q / common.QuotaPerUnit
-		cny := usd * operation_setting.USDExchangeRate
-		return fmt.Sprintf("¥%.6f", cny)
+		value := usd * operation_setting.USDExchangeRate
+		return fmt.Sprintf("%s%.6f", operation_setting.GetCurrencySymbol(), value)
 	case operation_setting.QuotaDisplayTypeCustom:
 		usd := q / common.QuotaPerUnit
 		rate := operation_setting.GetGeneralSetting().CustomCurrencyExchangeRate
