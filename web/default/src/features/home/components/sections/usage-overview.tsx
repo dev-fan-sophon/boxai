@@ -9,6 +9,7 @@ License, or (at your option) any later version.
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
+import { toIntlLocale } from '@/i18n/languages'
 
 import { useHomeStats } from '../../hooks'
 
@@ -16,7 +17,8 @@ export function UsageOverview() {
   const { i18n, t } = useTranslation()
   const statsQuery = useHomeStats()
   const stats = statsQuery.data?.data
-  const numberFormatter = new Intl.NumberFormat(i18n.language, {
+  const intlLocale = toIntlLocale(i18n.language)
+  const numberFormatter = new Intl.NumberFormat(intlLocale, {
     notation: 'compact',
     maximumFractionDigits: 1,
   })
@@ -101,7 +103,7 @@ export function UsageOverview() {
             {stats && (
               <p className='text-muted-foreground text-xs'>
                 {t('Updated {{time}}', {
-                  time: new Intl.DateTimeFormat(i18n.language, {
+                  time: new Intl.DateTimeFormat(intlLocale, {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   }).format(stats.updated_at * 1000),
@@ -174,7 +176,7 @@ export function UsageOverview() {
                       {stats.trend.map((point) => (
                         <div
                           key={point.ts}
-                          title={`${new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(point.ts * 1000)}: ${numberFormatter.format(point.tokens)}`}
+                          title={`${new Intl.DateTimeFormat(intlLocale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(point.ts * 1000)}: ${numberFormatter.format(point.tokens)}`}
                           className='min-h-px w-full rounded-t-sm bg-gradient-to-t from-blue-500/80 to-violet-500/60'
                           style={{
                             height: `${maxTokens > 0 ? (point.tokens / maxTokens) * 100 : 0}%`,
