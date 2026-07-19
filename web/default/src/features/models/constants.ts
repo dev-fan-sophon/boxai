@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 
 import type { NameRule, ModelStatus, SyncSource } from './types'
 
@@ -170,21 +170,13 @@ export const ENDPOINT_TEMPLATES: Record<
 }
 
 // ============================================================================
-// Sync Locale Options
+// Sync Source Options
 // ============================================================================
-
-export function getSyncLocaleOptions(t: TFunction) {
-  return [
-    { label: t('Chinese'), value: 'zh' },
-    { label: t('English'), value: 'en' },
-    { label: t('Japanese'), value: 'ja' },
-  ] as const
-}
 
 export function getSyncSourceOptions(t: TFunction) {
   return [
     {
-      label: t('Official Repository'),
+      label: 'models.dev',
       value: 'official' as SyncSource,
       description: t('Sync from the public upstream metadata repository.'),
       disabled: false,

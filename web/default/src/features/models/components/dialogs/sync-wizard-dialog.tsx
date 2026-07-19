@@ -31,9 +31,9 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 import { syncUpstream, previewUpstreamDiff } from '../../api'
-import { getSyncLocaleOptions, getSyncSourceOptions } from '../../constants'
+import { getSyncSourceOptions } from '../../constants'
 import { modelsQueryKeys, vendorsQueryKeys } from '../../lib'
-import type { SyncLocale, SyncSource } from '../../types'
+import type { SyncSource } from '../../types'
 import { useModels } from '../models-provider'
 
 type SyncWizardDialogProps = {
@@ -54,17 +54,14 @@ export function SyncWizardDialog({
     syncWizardOptions,
   } = useModels()
   const isMobile = useIsMobile()
-  const [locale, setLocale] = useState<SyncLocale>('zh')
   const [source, setSource] = useState<SyncSource>('official')
   const [isSyncing, setIsSyncing] = useState(false)
 
   // Get translated options
   const SYNC_SOURCE_OPTIONS = getSyncSourceOptions(t)
-  const SYNC_LOCALE_OPTIONS = getSyncLocaleOptions(t)
 
   useEffect(() => {
     if (open) {
-      setLocale(syncWizardOptions.locale || 'zh')
       const preferredSource = SYNC_SOURCE_OPTIONS.find(
         (option) => option.value === syncWizardOptions.source
       )
@@ -79,6 +76,7 @@ export function SyncWizardDialog({
   const handleSync = async () => {
     setIsSyncing(true)
     try {
+      const locale = 'en'
       setSyncWizardOptions({ locale, source })
       const previewRes = await previewUpstreamDiff({ locale, source })
 
@@ -203,33 +201,6 @@ export function SyncWizardDialog({
               </Label>
             )
           })}
-        </RadioGroup>
-      </div>
-
-      <div className='space-y-2'>
-        <Label className='text-base'>{t('Select Language')}</Label>
-        <RadioGroup
-          value={locale}
-          onValueChange={(v) => setLocale(v as SyncLocale)}
-          className='grid gap-3 sm:grid-cols-3'
-        >
-          {SYNC_LOCALE_OPTIONS.map((option) => (
-            <div
-              key={option.value}
-              className='flex items-center space-x-2 rounded-lg border p-3'
-            >
-              <RadioGroupItem
-                value={option.value}
-                id={`locale-${option.value}`}
-              />
-              <Label
-                htmlFor={`locale-${option.value}`}
-                className='cursor-pointer font-normal'
-              >
-                {option.label}
-              </Label>
-            </div>
-          ))}
         </RadioGroup>
       </div>
 

@@ -2,13 +2,12 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,50 +19,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// 上游地址
-const (
-	upstreamModelsURL  = "https://basellm.github.io/llm-metadata/api/newapi/models.json"
-	upstreamVendorsURL = "https://basellm.github.io/llm-metadata/api/newapi/vendors.json"
-)
+const modelsDevURL = "https://models.dev/models.json"
 
-func normalizeLocale(locale string) (string, bool) {
-	l := strings.ToLower(strings.TrimSpace(locale))
-	switch l {
-	case "en", "zh-CN", "zh-TW", "ja":
-		return l, true
-	default:
-		return "", false
-	}
-}
-
-func getUpstreamBase() string {
-	return common.GetEnvOrDefaultString("SYNC_UPSTREAM_BASE", "https://basellm.github.io/llm-metadata")
-}
-
-func getUpstreamURLs(locale string) (modelsURL, vendorsURL string) {
-	base := strings.TrimRight(getUpstreamBase(), "/")
-	if l, ok := normalizeLocale(locale); ok && l != "" {
-		return fmt.Sprintf("%s/api/i18n/%s/newapi/models.json", base, l),
-			fmt.Sprintf("%s/api/i18n/%s/newapi/vendors.json", base, l)
-	}
-	return fmt.Sprintf("%s/api/newapi/models.json", base), fmt.Sprintf("%s/api/newapi/vendors.json", base)
-}
-
-type upstreamEnvelope[T any] struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Data    []T    `json:"data"`
+func getUpstreamURL() string {
+	return common.GetEnvOrDefaultString("SYNC_UPSTREAM_MODELS_URL", modelsDevURL)
 }
 
 type upstreamModel struct {
-	Description string          `json:"description"`
-	Endpoints   json.RawMessage `json:"endpoints"`
-	Icon        string          `json:"icon"`
-	ModelName   string          `json:"model_name"`
-	NameRule    int             `json:"name_rule"`
-	Status      int             `json:"status"`
-	Tags        string          `json:"tags"`
-	VendorName  string          `json:"vendor_name"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	ModelName   string `json:"model_name"`
+	NameRule    int    `json:"name_rule"`
+	Status      int    `json:"status"`
+	Tags        string `json:"tags"`
+	VendorName  string `json:"vendor_name"`
 }
 
 type upstreamVendor struct {
@@ -71,6 +40,37 @@ type upstreamVendor struct {
 	Icon        string `json:"icon"`
 	Name        string `json:"name"`
 	Status      int    `json:"status"`
+}
+
+type modelsDevCatalogEntry struct {
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	Family           string `json:"family"`
+	Attachment       bool   `json:"attachment"`
+	Reasoning        bool   `json:"reasoning"`
+	ToolCall         bool   `json:"tool_call"`
+	StructuredOutput bool   `json:"structured_output"`
+	OpenWeights      bool   `json:"open_weights"`
+	Modalities       struct {
+		Input  []string `json:"input"`
+		Output []string `json:"output"`
+	} `json:"modalities"`
+}
+
+var vendorDisplayNames = map[string]string{
+	"deepreinforce":    "DeepReinforce",
+	"deepseek":         "DeepSeek",
+	"minimax":          "MiniMax",
+	"moonshotai":       "Moonshot AI",
+	"nvidia":           "NVIDIA",
+	"openai":           "OpenAI",
+	"poolside":         "Poolside",
+	"sakana":           "Sakana AI",
+	"sarvam":           "Sarvam AI",
+	"stepfun":          "StepFun",
+	"thinkingmachines": "Thinking Machines",
+	"xai":              "xAI",
+	"zhipuai":          "Zhipu AI",
 }
 
 var (
@@ -130,7 +130,7 @@ func getHTTPClient() *http.Client {
 	return httpClient
 }
 
-func fetchJSON[T any](ctx context.Context, url string, out *upstreamEnvelope[T]) error {
+func fetchJSON[T any](ctx context.Context, url string, out *T) error {
 	var lastErr error
 	attempts := common.GetEnvOrDefault("SYNC_HTTP_RETRY", 3)
 	if attempts < 1 {
@@ -179,21 +179,9 @@ func fetchJSON[T any](ctx context.Context, url string, out *upstreamEnvelope[T])
 				bodyCache[url] = buf
 				cacheMutex.Unlock()
 
-				// Try decode as envelope first
-				if err := json.Unmarshal(buf, out); err != nil {
-					// Try decode as pure array
-					var arr []T
-					if err2 := json.Unmarshal(buf, &arr); err2 != nil {
-						lastErr = err
-						return
-					}
-					out.Success = true
-					out.Data = arr
-					out.Message = ""
-				} else {
-					if !out.Success && len(out.Data) == 0 && out.Message == "" {
-						out.Success = true
-					}
+				if err := common.Unmarshal(buf, out); err != nil {
+					lastErr = err
+					return
 				}
 				lastErr = nil
 			case http.StatusNotModified:
@@ -205,19 +193,9 @@ func fetchJSON[T any](ctx context.Context, url string, out *upstreamEnvelope[T])
 					lastErr = errors.New("cache miss for 304 response")
 					return
 				}
-				if err := json.Unmarshal(buf, out); err != nil {
-					var arr []T
-					if err2 := json.Unmarshal(buf, &arr); err2 != nil {
-						lastErr = err
-						return
-					}
-					out.Success = true
-					out.Data = arr
-					out.Message = ""
-				} else {
-					if !out.Success && len(out.Data) == 0 && out.Message == "" {
-						out.Success = true
-					}
+				if err := common.Unmarshal(buf, out); err != nil {
+					lastErr = err
+					return
 				}
 				lastErr = nil
 			default:
@@ -232,6 +210,99 @@ func fetchJSON[T any](ctx context.Context, url string, out *upstreamEnvelope[T])
 		time.Sleep(sleep + jitter)
 	}
 	return lastErr
+}
+
+func parseModelsDevCatalog(catalog map[string]modelsDevCatalogEntry) ([]upstreamModel, []upstreamVendor) {
+	canonicalIDs := make([]string, 0, len(catalog))
+	modelNameCounts := make(map[string]int, len(catalog))
+	for canonicalID := range catalog {
+		canonicalIDs = append(canonicalIDs, canonicalID)
+		parts := strings.SplitN(canonicalID, "/", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+			modelNameCounts[parts[1]]++
+		}
+	}
+	sort.Strings(canonicalIDs)
+
+	models := make([]upstreamModel, 0, len(catalog))
+	vendorsByName := make(map[string]upstreamVendor)
+	for _, canonicalID := range canonicalIDs {
+		parts := strings.SplitN(canonicalID, "/", 2)
+		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" || modelNameCounts[parts[1]] != 1 {
+			continue
+		}
+
+		namespace := strings.ToLower(strings.TrimSpace(parts[0]))
+		vendorName := vendorDisplayNames[namespace]
+		if vendorName == "" {
+			vendorName = strings.ToUpper(namespace[:1]) + namespace[1:]
+		}
+		vendor := upstreamVendor{
+			Name:        vendorName,
+			Description: vendorName + " model provider",
+			Status:      1,
+		}
+		vendorsByName[vendorName] = vendor
+
+		item := catalog[canonicalID]
+		tags := make([]string, 0, 8)
+		if item.Family != "" {
+			tags = append(tags, "family:"+item.Family)
+		}
+		if item.Reasoning {
+			tags = append(tags, "reasoning")
+		}
+		if item.ToolCall {
+			tags = append(tags, "tool-call")
+		}
+		if item.StructuredOutput {
+			tags = append(tags, "structured-output")
+		}
+		if item.Attachment {
+			tags = append(tags, "attachment")
+		}
+		if item.OpenWeights {
+			tags = append(tags, "open-weights")
+		}
+		for _, modality := range item.Modalities.Input {
+			tags = append(tags, "input:"+modality)
+		}
+		for _, modality := range item.Modalities.Output {
+			tags = append(tags, "output:"+modality)
+		}
+
+		models = append(models, upstreamModel{
+			Description: item.Description,
+			ModelName:   parts[1],
+			NameRule:    model.NameRuleExact,
+			Status:      1,
+			Tags:        strings.Join(tags, ","),
+			VendorName:  vendorName,
+		})
+	}
+
+	vendorNames := make([]string, 0, len(vendorsByName))
+	for name := range vendorsByName {
+		vendorNames = append(vendorNames, name)
+	}
+	sort.Strings(vendorNames)
+	vendors := make([]upstreamVendor, 0, len(vendorNames))
+	for _, name := range vendorNames {
+		vendors = append(vendors, vendorsByName[name])
+	}
+	return models, vendors
+}
+
+func fetchUpstreamMetadata(ctx context.Context) ([]upstreamModel, []upstreamVendor, error) {
+	var catalog map[string]modelsDevCatalogEntry
+	if err := fetchJSON(ctx, getUpstreamURL(), &catalog); err != nil {
+		return nil, nil, err
+	}
+	models, vendors := parseModelsDevCatalog(catalog)
+	if len(models) == 0 {
+		return nil, nil, errors.New("models.dev returned no valid models")
+	}
+	return models, vendors, nil
 }
 
 func ensureVendorID(vendorName string, vendorByName map[string]upstreamVendor, vendorIDCache map[string]int, createdVendors *int) int {
@@ -279,7 +350,6 @@ func SyncUpstreamModels(c *gin.Context) {
 
 	// 若既无缺失模型需要创建，也未指定覆盖更新字段，则无需请求上游数据，直接返回
 	if len(missing) == 0 && len(req.Overwrite) == 0 {
-		modelsURL, vendorsURL := getUpstreamURLs(req.Locale)
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -290,9 +360,8 @@ func SyncUpstreamModels(c *gin.Context) {
 				"created_list":    []string{},
 				"updated_list":    []string{},
 				"source": gin.H{
-					"locale":      req.Locale,
-					"models_url":  modelsURL,
-					"vendors_url": vendorsURL,
+					"locale":     req.Locale,
+					"models_url": getUpstreamURL(),
 				},
 			},
 		})
@@ -304,38 +373,22 @@ func SyncUpstreamModels(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 
-	modelsURL, vendorsURL := getUpstreamURLs(req.Locale)
-	var vendorsEnv upstreamEnvelope[upstreamVendor]
-	var modelsEnv upstreamEnvelope[upstreamModel]
-	var fetchErr error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		// vendor 失败不拦截
-		_ = fetchJSON(ctx, vendorsURL, &vendorsEnv)
-	}()
-	go func() {
-		defer wg.Done()
-		if err := fetchJSON(ctx, modelsURL, &modelsEnv); err != nil {
-			fetchErr = err
-		}
-	}()
-	wg.Wait()
+	modelsURL := getUpstreamURL()
+	upstreamModels, upstreamVendors, fetchErr := fetchUpstreamMetadata(ctx)
 	if fetchErr != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + fetchErr.Error(), "locale": req.Locale, "source_urls": gin.H{"models_url": modelsURL, "vendors_url": vendorsURL}})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + fetchErr.Error(), "locale": req.Locale, "source_urls": gin.H{"models_url": modelsURL}})
 		return
 	}
 
 	// 建立映射
 	vendorByName := make(map[string]upstreamVendor)
-	for _, v := range vendorsEnv.Data {
+	for _, v := range upstreamVendors {
 		if v.Name != "" {
 			vendorByName[v.Name] = v
 		}
 	}
 	modelByName := make(map[string]upstreamModel)
-	for _, m := range modelsEnv.Data {
+	for _, m := range upstreamModels {
 		if m.ModelName != "" {
 			modelByName[m.ModelName] = m
 		}
@@ -460,9 +513,8 @@ func SyncUpstreamModels(c *gin.Context) {
 			"created_list":    createdList,
 			"updated_list":    updatedList,
 			"source": gin.H{
-				"locale":      req.Locale,
-				"models_url":  modelsURL,
-				"vendors_url": vendorsURL,
+				"locale":     req.Locale,
+				"models_url": modelsURL,
 			},
 		},
 	})
@@ -503,38 +555,22 @@ func SyncUpstreamPreview(c *gin.Context) {
 	defer cancel()
 
 	locale := c.Query("locale")
-	modelsURL, vendorsURL := getUpstreamURLs(locale)
-
-	var vendorsEnv upstreamEnvelope[upstreamVendor]
-	var modelsEnv upstreamEnvelope[upstreamModel]
-	var fetchErr error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		_ = fetchJSON(ctx, vendorsURL, &vendorsEnv)
-	}()
-	go func() {
-		defer wg.Done()
-		if err := fetchJSON(ctx, modelsURL, &modelsEnv); err != nil {
-			fetchErr = err
-		}
-	}()
-	wg.Wait()
+	modelsURL := getUpstreamURL()
+	upstreamModels, upstreamVendors, fetchErr := fetchUpstreamMetadata(ctx)
 	if fetchErr != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + fetchErr.Error(), "locale": locale, "source_urls": gin.H{"models_url": modelsURL, "vendors_url": vendorsURL}})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + fetchErr.Error(), "locale": locale, "source_urls": gin.H{"models_url": modelsURL}})
 		return
 	}
 
 	vendorByName := make(map[string]upstreamVendor)
-	for _, v := range vendorsEnv.Data {
+	for _, v := range upstreamVendors {
 		if v.Name != "" {
 			vendorByName[v.Name] = v
 		}
 	}
 	modelByName := make(map[string]upstreamModel)
-	upstreamNames := make([]string, 0, len(modelsEnv.Data))
-	for _, m := range modelsEnv.Data {
+	upstreamNames := make([]string, 0, len(upstreamModels))
+	for _, m := range upstreamModels {
 		if m.ModelName != "" {
 			modelByName[m.ModelName] = m
 			upstreamNames = append(upstreamNames, m.ModelName)
@@ -625,9 +661,8 @@ func SyncUpstreamPreview(c *gin.Context) {
 			"missing":   missing,
 			"conflicts": conflicts,
 			"source": gin.H{
-				"locale":      locale,
-				"models_url":  modelsURL,
-				"vendors_url": vendorsURL,
+				"locale":     locale,
+				"models_url": modelsURL,
 			},
 		},
 	})
