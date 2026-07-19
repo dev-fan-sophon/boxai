@@ -52,7 +52,7 @@ export function CTA(props: CTAProps) {
           {t('Start Building')}
         </p>
         <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
-          {t('Connect to 500+ AI Models')}
+          {t('Connect to Available AI Models')}
         </h2>
         <div className='mt-8 flex items-center justify-center gap-3'>
           <Button

@@ -5,60 +5,67 @@ This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { cn } from '@/lib/utils'
 
-const TREND = [28, 36, 32, 48, 44, 58, 52, 70, 66, 78, 72, 88, 84, 96]
-
-const TOP_MODELS = [
-  { name: 'GPT-4o', share: 34.2 },
-  { name: 'Claude 3.5', share: 21.6 },
-  { name: 'Gemini 1.5 Pro', share: 16.8 },
-  { name: 'Qwen 2.5', share: 14.2 },
-]
+import { useHomeStats } from '../../hooks'
 
 export function UsageOverview() {
-  const { t } = useTranslation()
+  const { i18n, t } = useTranslation()
+  const statsQuery = useHomeStats()
+  const stats = statsQuery.data?.data
+  const numberFormatter = new Intl.NumberFormat(i18n.language, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  })
 
-  const metrics = [
-    {
-      label: t('Call Volume'),
-      value: '12.45M',
-      delta: '+18.6%',
-      positive: true,
-    },
-    {
+  const metrics = stats
+    ? [
+        {
+          label: t('Available Models'),
+          value: numberFormatter.format(stats.available_models),
+        },
+        {
+          label: t('Model Providers'),
+          value: numberFormatter.format(stats.active_vendors),
+        },
+        {
+          label: t('Supported Endpoint Types'),
+          value: numberFormatter.format(stats.endpoint_types),
+        },
+        {
+          label: t('Tokens'),
+          value: numberFormatter.format(stats.total_tokens),
+        },
+      ]
+    : []
+
+  if (stats && stats.request_count !== null) {
+    metrics.push({
+      label: t('Performance samples'),
+      value: numberFormatter.format(stats.request_count),
+    })
+  }
+  if (stats && stats.success_rate !== null) {
+    metrics.push({
       label: t('Success rate'),
-      value: '99.32%',
-      delta: '+0.8%',
-      positive: true,
-    },
-    {
+      value: `${stats.success_rate.toFixed(1)}%`,
+    })
+  }
+  if (stats && stats.avg_latency_ms !== null) {
+    metrics.push({
       label: t('Avg latency'),
-      value: '632ms',
-      delta: '-12.4%',
-      positive: true,
-    },
-    {
-      label: t('Cost Savings'),
-      value: '$24,680',
-      delta: '+31.2%',
-      positive: true,
-    },
-  ]
+      value: `${numberFormatter.format(stats.avg_latency_ms)} ms`,
+    })
+  }
+
+  const maxTokens = Math.max(
+    ...(stats?.trend.map((point) => point.tokens) ?? [])
+  )
+  const hasTokenUsage = (stats?.total_tokens ?? 0) > 0
+  const hasPerformance = stats ? stats.request_count !== null : false
 
   return (
     <section
@@ -68,14 +75,14 @@ export function UsageOverview() {
       <div className='mx-auto max-w-6xl'>
         <AnimateInView className='mb-12 max-w-2xl'>
           <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-            {t('Platform Capabilities')}
+            {t('Live Platform Data')}
           </p>
           <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
-            {t('All-in-one AI Aggregation Console')}
+            {t('Real Platform Activity')}
           </h2>
           <p className='text-muted-foreground mt-3 text-sm leading-relaxed md:text-base'>
             {t(
-              'Unified API access, real-time usage monitoring, flexible model switching — one panel for all AI capabilities.'
+              'Availability comes from the current model catalog. Usage and measured performance come from actual API traffic.'
             )}
           </p>
         </AnimateInView>
@@ -88,100 +95,129 @@ export function UsageOverview() {
             <div>
               <h3 className='text-base font-semibold'>{t('Usage Overview')}</h3>
               <p className='text-muted-foreground text-xs'>
-                {t('Last 30 days · All regions')}
+                {t('Last 30 days')}
               </p>
             </div>
-            <div className='bg-muted/60 flex rounded-lg p-1 text-xs font-medium'>
-              {[t('7 days'), t('30 days'), t('90 days')].map((label, i) => (
-                <span
-                  key={label}
-                  className={cn(
-                    'rounded-md px-3 py-1.5',
-                    i === 1
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground'
-                  )}
-                >
-                  {label}
-                </span>
+            {stats && (
+              <p className='text-muted-foreground text-xs'>
+                {t('Updated {{time}}', {
+                  time: new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(stats.updated_at * 1000),
+                })}
+              </p>
+            )}
+          </div>
+
+          {statsQuery.isLoading && (
+            <div className='grid gap-4 p-5 sm:grid-cols-2 md:grid-cols-4 md:p-6'>
+              {Array.from({ length: 4 }, (_, index) => (
+                <div
+                  key={index}
+                  className='bg-muted/50 h-24 animate-pulse rounded-xl'
+                />
               ))}
             </div>
-          </div>
+          )}
 
-          <div className='grid gap-4 p-5 md:grid-cols-4 md:p-6'>
-            {metrics.map((m) => (
-              <div
-                key={m.label}
-                className='border-border/40 bg-muted/20 rounded-xl border p-4'
-              >
-                <div className='text-muted-foreground flex items-center justify-between text-xs'>
-                  <span>{m.label}</span>
-                  <span
-                    className={cn(
-                      'font-medium',
-                      m.positive
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-rose-600 dark:text-rose-400'
-                    )}
-                  >
-                    {m.delta}
-                  </span>
-                </div>
-                <div className='mt-2 text-2xl font-bold tracking-tight'>
-                  {m.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className='grid gap-4 px-5 pb-5 md:grid-cols-5 md:px-6 md:pb-6'>
-            <div className='border-border/40 bg-muted/10 rounded-xl border p-4 md:col-span-3'>
-              <div className='mb-4 flex items-center justify-between'>
-                <h4 className='text-sm font-semibold'>
-                  {t('Call Volume Trend')}
-                </h4>
-                <span className='text-muted-foreground text-xs'>
-                  {t('Daily avg 415K · Peak 1.2M')}
-                </span>
-              </div>
-              <div className='flex h-36 items-end gap-1.5'>
-                {TREND.map((h, i) => (
-                  <div
-                    key={i}
-                    className='from-blue-500/80 to-violet-500/60 w-full rounded-t-sm bg-gradient-to-t'
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
+          {statsQuery.isError && !stats && (
+            <div className='text-muted-foreground px-6 py-14 text-center text-sm'>
+              {t(
+                'Platform data is temporarily unavailable. Please try again later.'
+              )}
             </div>
+          )}
 
-            <div className='border-border/40 bg-muted/10 rounded-xl border p-4 md:col-span-2'>
-              <div className='mb-4 flex items-center justify-between'>
-                <h4 className='text-sm font-semibold'>{t('Top Models')}</h4>
-                <span className='text-muted-foreground text-xs'>
-                  {t('By call volume')}
-                </span>
-              </div>
-              <div className='space-y-3'>
-                {TOP_MODELS.map((model) => (
-                  <div key={model.name}>
-                    <div className='mb-1 flex items-center justify-between text-xs'>
-                      <span className='font-medium'>{model.name}</span>
-                      <span className='text-muted-foreground tabular-nums'>
-                        {model.share}%
-                      </span>
+          {stats && (
+            <>
+              <div className='grid gap-4 p-5 sm:grid-cols-2 md:grid-cols-4 md:p-6'>
+                {metrics.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className='border-border/40 bg-muted/20 rounded-xl border p-4'
+                  >
+                    <div className='text-muted-foreground text-xs'>
+                      {metric.label}
                     </div>
-                    <div className='bg-muted h-1.5 overflow-hidden rounded-full'>
-                      <div
-                        className='h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500'
-                        style={{ width: `${model.share}%` }}
-                      />
+                    <div className='mt-2 text-2xl font-bold tracking-tight tabular-nums'>
+                      {metric.value}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+
+              {!hasPerformance && (
+                <p className='text-muted-foreground mx-5 mb-5 text-sm md:mx-6'>
+                  {t('No performance samples were recorded for this period.')}
+                </p>
+              )}
+
+              {!hasTokenUsage ? (
+                <div className='border-border/40 bg-muted/10 mx-5 mb-5 rounded-xl border px-6 py-12 text-center md:mx-6 md:mb-6'>
+                  <p className='font-medium'>
+                    {t('No recorded token usage for this period')}
+                  </p>
+                  <p className='text-muted-foreground mt-2 text-sm'>
+                    {t(
+                      'Token trends and top models will appear after token usage is recorded.'
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <div className='grid gap-4 px-5 pb-5 md:grid-cols-5 md:px-6 md:pb-6'>
+                  <div className='border-border/40 bg-muted/10 rounded-xl border p-4 md:col-span-3'>
+                    <h4 className='mb-4 text-sm font-semibold'>
+                      {t('Token Usage Trend')}
+                    </h4>
+                    <div className='flex h-36 items-end gap-1'>
+                      {stats.trend.map((point) => (
+                        <div
+                          key={point.ts}
+                          title={`${new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(point.ts * 1000)}: ${numberFormatter.format(point.tokens)}`}
+                          className='min-h-px w-full rounded-t-sm bg-gradient-to-t from-blue-500/80 to-violet-500/60'
+                          style={{
+                            height: `${maxTokens > 0 ? (point.tokens / maxTokens) * 100 : 0}%`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className='border-border/40 bg-muted/10 rounded-xl border p-4 md:col-span-2'>
+                    <div className='mb-4 flex items-center justify-between'>
+                      <h4 className='text-sm font-semibold'>
+                        {t('Top Models')}
+                      </h4>
+                      <span className='text-muted-foreground text-xs'>
+                        {t('By token usage')}
+                      </span>
+                    </div>
+                    <div className='space-y-3'>
+                      {stats.top_models.map((model) => (
+                        <div key={model.model_name}>
+                          <div className='mb-1 flex items-center justify-between gap-3 text-xs'>
+                            <span className='truncate font-medium'>
+                              {model.model_name}
+                            </span>
+                            <span className='text-muted-foreground tabular-nums'>
+                              {(model.share * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className='bg-muted h-1.5 overflow-hidden rounded-full'>
+                            <div
+                              className='h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500'
+                              style={{ width: `${model.share * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </AnimateInView>
       </div>
     </section>

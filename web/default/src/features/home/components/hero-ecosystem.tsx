@@ -18,21 +18,19 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   BarChart3,
-  BookOpen,
   Bot,
-  Code2,
-  FileText,
-  Image as ImageIcon,
-  Languages,
+  Braces,
+  KeyRound,
+  Layers3,
   MessageSquare,
-  Search,
   Sparkles,
-  Wand2,
-  Zap,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
+
+import type { HomeStatsVendor } from '../types'
 
 type BubbleItem = {
   label: string
@@ -43,6 +41,7 @@ type BubbleItem = {
 
 interface HeroEcosystemProps {
   className?: string
+  vendors: HomeStatsVendor[]
 }
 
 /**
@@ -59,113 +58,49 @@ export function HeroEcosystem(props: HeroEcosystemProps) {
       className: 'left-[8%] top-[18%]',
     },
     {
-      label: t('Text Generation'),
+      label: t('Unified API Access'),
       tone: 'bg-blue-500/10 text-blue-700 ring-blue-500/15 dark:text-blue-300',
-      icon: <FileText className='size-3.5' />,
+      icon: <Braces className='size-3.5' />,
       className: 'left-[2%] top-[48%]',
     },
     {
-      label: t('Image Generation'),
+      label: t('Model Catalog'),
       tone: 'bg-violet-500/10 text-violet-700 ring-violet-500/15 dark:text-violet-300',
-      icon: <ImageIcon className='size-3.5' />,
+      icon: <Layers3 className='size-3.5' />,
       className: 'left-[18%] top-[32%]',
     },
     {
-      label: t('Code Assistant'),
+      label: t('API Keys'),
       tone: 'bg-indigo-500/10 text-indigo-700 ring-indigo-500/15 dark:text-indigo-300',
-      icon: <Code2 className='size-3.5' />,
+      icon: <KeyRound className='size-3.5' />,
       className: 'left-[22%] top-[58%]',
     },
     {
-      label: t('Document Analysis'),
+      label: t('Usage Analytics'),
       tone: 'bg-cyan-500/10 text-cyan-700 ring-cyan-500/15 dark:text-cyan-300',
-      icon: <BookOpen className='size-3.5' />,
-      className: 'left-[6%] top-[72%]',
-    },
-    {
-      label: t('Content Creation'),
-      tone: 'bg-amber-500/10 text-amber-700 ring-amber-500/15 dark:text-amber-300',
-      icon: <Wand2 className='size-3.5' />,
-      className: 'left-[38%] top-[14%]',
-    },
-    {
-      label: t('Data Analytics'),
-      tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/15 dark:text-emerald-300',
       icon: <BarChart3 className='size-3.5' />,
-      className: 'left-[42%] top-[38%]',
-    },
-    {
-      label: t('Smart Search'),
-      tone: 'bg-fuchsia-500/10 text-fuchsia-700 ring-fuchsia-500/15 dark:text-fuchsia-300',
-      icon: <Search className='size-3.5' />,
-      className: 'left-[48%] top-[62%]',
-    },
-    {
-      label: t('Translation'),
-      tone: 'bg-teal-500/10 text-teal-700 ring-teal-500/15 dark:text-teal-300',
-      icon: <Languages className='size-3.5' />,
-      className: 'left-[34%] top-[78%]',
-    },
-    {
-      label: t('API Integration'),
-      tone: 'bg-blue-600/10 text-blue-800 ring-blue-600/15 dark:text-blue-200',
-      icon: <Zap className='size-3.5' />,
-      className: 'left-[20%] top-[88%]',
+      className: 'left-[6%] top-[72%]',
     },
   ]
 
-  const providers: BubbleItem[] = [
-    {
-      label: 'OpenAI',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[18%] top-[12%]',
-    },
-    {
-      label: 'Claude',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[4%] top-[24%]',
-    },
-    {
-      label: 'DeepSeek',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[22%] top-[30%]',
-    },
-    {
-      label: 'Gemini',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[6%] top-[42%]',
-    },
-    {
-      label: 'xAI',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[28%] top-[48%]',
-    },
-    {
-      label: 'Midjourney',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[8%] top-[58%]',
-    },
-    {
-      label: 'Suno',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[30%] top-[66%]',
-    },
-    {
-      label: 'Kling',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[4%] top-[74%]',
-    },
-    {
-      label: 'Runway',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[24%] top-[82%]',
-    },
-    {
-      label: 'Moonshot',
-      tone: 'bg-background text-foreground ring-border/60',
-      className: 'right-[42%] top-[22%]',
-    },
+  const providerPositions = [
+    'right-[18%] top-[12%]',
+    'right-[4%] top-[24%]',
+    'right-[22%] top-[34%]',
+    'right-[6%] top-[46%]',
+    'right-[24%] top-[58%]',
+    'right-[4%] top-[70%]',
+    'right-[24%] top-[82%]',
+    'right-[42%] top-[22%]',
   ]
+  const providers: BubbleItem[] = props.vendors
+    .slice(0, providerPositions.length)
+    .map((vendor, index) => ({
+      label: vendor.name,
+      tone: 'bg-background text-foreground ring-border/60',
+      icon: vendor.icon ? getLobeIcon(vendor.icon, 14) : null,
+      className: providerPositions[index],
+    }))
 
   return (
     <div
@@ -181,7 +116,7 @@ export function HeroEcosystem(props: HeroEcosystemProps) {
       <div className='pointer-events-none absolute inset-[32%] rounded-full border border-blue-500/10 dark:border-blue-400/10' />
 
       {/* Center brand badge */}
-      <div className='absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-blue-500/20 bg-background/90 px-4 py-2 shadow-[0_8px_30px_-12px_rgba(37,99,235,0.45)] backdrop-blur-md dark:border-blue-400/20'>
+      <div className='bg-background/90 absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-blue-500/20 px-4 py-2 shadow-[0_8px_30px_-12px_rgba(37,99,235,0.45)] backdrop-blur-md dark:border-blue-400/20'>
         <span className='flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white shadow-sm'>
           <Sparkles className='size-3.5' />
         </span>

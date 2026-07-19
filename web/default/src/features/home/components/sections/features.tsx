@@ -44,17 +44,17 @@ export function Features() {
     {
       icon: <Zap className='size-5' />,
       title: t('Fast Integration'),
-      desc: t('Complete SDKs and examples — integrate in 10 minutes'),
+      desc: t('Complete SDKs and examples for a straightforward integration'),
     },
     {
       icon: <Gauge className='size-5' />,
       title: t('Elastic Scaling'),
-      desc: t('High concurrency, auto-scaling for business growth'),
+      desc: t('High concurrency routing for business traffic'),
     },
     {
       icon: <Shield className='size-5' />,
       title: t('Stable & Reliable'),
-      desc: t('Global deployment with 99.9% SLA'),
+      desc: t('Centralized routing, monitoring, and operational controls'),
     },
     {
       icon: <RefreshCw className='size-5' />,
@@ -95,7 +95,7 @@ export function Features() {
     {
       icon: <Users className='size-4' />,
       title: t('Smart Customer Service'),
-      desc: t('24/7 intelligent responses'),
+      desc: t('Automated responses backed by your selected models'),
     },
     {
       icon: <Wand2 className='size-4' />,

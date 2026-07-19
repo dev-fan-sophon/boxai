@@ -17,12 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Layers3, ShieldCheck, Sparkles, Zap } from 'lucide-react'
+import { ArrowRight, Braces, Layers3, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { useSystemConfig } from '@/hooks/use-system-config'
 
+import { useHomeStats } from '../../hooks'
 import { HeroEcosystem } from '../hero-ecosystem'
 
 interface HeroProps {
@@ -33,7 +34,35 @@ interface HeroProps {
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
   const { systemName } = useSystemConfig()
+  const statsQuery = useHomeStats()
+  const stats = statsQuery.data?.data
   const brand = systemName || 'BoxAI'
+
+  const facts = stats
+    ? [
+        {
+          icon: Layers3,
+          label: t('{{count}} Available Models', {
+            count: stats.available_models,
+          }),
+        },
+        {
+          icon: Sparkles,
+          label: t('{{count}} Model Providers', {
+            count: stats.active_vendors,
+          }),
+        },
+        {
+          icon: Braces,
+          label: t('{{count}} Supported Endpoint Types', {
+            count: stats.endpoint_types,
+          }),
+        },
+      ]
+    : [
+        { icon: Layers3, label: t('Unified Model Catalog') },
+        { icon: Braces, label: t('Unified API Access') },
+      ]
 
   return (
     <section
@@ -79,7 +108,7 @@ export function Hero(props: HeroProps) {
           >
             <span className='text-foreground font-medium'>{brand}</span>{' '}
             {t(
-              'helps developers and enterprises access through a single Unified API, quickly and securely access 500+ mainstream AI models.'
+              'helps developers and enterprises access the currently available AI models through one unified API.'
             )}
           </p>
 
@@ -87,11 +116,7 @@ export function Hero(props: HeroProps) {
             className='landing-animate-fade-up mt-6 flex flex-wrap gap-2 opacity-0'
             style={{ animationDelay: '160ms' }}
           >
-            {[
-              { icon: Layers3, label: t('500+ Models') },
-              { icon: Zap, label: t('Minute-level Integration') },
-              { icon: ShieldCheck, label: t('Enterprise-grade SLA') },
-            ].map((item) => (
+            {facts.map((item) => (
               <span
                 key={item.label}
                 className='border-border/50 bg-background/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-xs backdrop-blur-sm'
@@ -109,9 +134,7 @@ export function Hero(props: HeroProps) {
             <Button
               className='group h-11 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-6 text-sm font-medium text-white shadow-md hover:from-blue-500 hover:to-violet-500'
               render={
-                <Link
-                  to={props.isAuthenticated ? '/dashboard' : '/sign-up'}
-                />
+                <Link to={props.isAuthenticated ? '/dashboard' : '/sign-up'} />
               }
             >
               {t('Get Started')}
@@ -131,7 +154,7 @@ export function Hero(props: HeroProps) {
           className='landing-animate-fade-up opacity-0 lg:col-span-7'
           style={{ animationDelay: '280ms' }}
         >
-          <HeroEcosystem />
+          <HeroEcosystem vendors={stats?.vendors ?? []} />
         </div>
       </div>
     </section>

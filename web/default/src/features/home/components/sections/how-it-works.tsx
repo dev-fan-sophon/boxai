@@ -42,9 +42,8 @@ export function HowItWorks() {
     {
       num: '01',
       title: t('Top Up Account'),
-      time: t('~1 min'),
       desc: t(
-        'Go to Wallet, choose an amount to top up. Enterprise invoicing and usage alerts supported.'
+        'Go to Wallet and choose an available payment method and amount.'
       ),
       href: '/wallet',
       cta: t('Go to Wallet'),
@@ -53,7 +52,6 @@ export function HowItWorks() {
     {
       num: '02',
       title: t('Create API Key'),
-      time: t('~30 sec'),
       desc: t(
         'Create keys in API Tokens, split by project, rotate anytime to reduce leak risk.'
       ),
@@ -64,7 +62,6 @@ export function HowItWorks() {
     {
       num: '03',
       title: t('Choose Models'),
-      time: t('~1 min'),
       desc: t(
         'Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.'
       ),
@@ -75,9 +72,8 @@ export function HowItWorks() {
     {
       num: '04',
       title: t('Integrate Apps'),
-      time: t('~5 min'),
       desc: t(
-        'Replace Base URL and apikey with platform address and token. Existing SDKs and frameworks need no code changes.'
+        'Compatible SDKs typically require only the platform Base URL and API key.'
       ),
       href: docsUrl,
       external: docsUrl.startsWith('http'),
@@ -98,14 +94,11 @@ export function HowItWorks() {
               {t('Quick Start')}
             </p>
             <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
-              {t('Just a few steps, one unified API to access 500+ Models')}
+              {t('One unified API for the models currently available')}
             </h2>
           </AnimateInView>
           <AnimateInView delay={80}>
-            <Button
-              className='rounded-full'
-              render={<Link to='/dashboard' />}
-            >
+            <Button className='rounded-full' render={<Link to='/dashboard' />}>
               {t('Start Now')}
               <ArrowRight className='ml-1.5 size-4' />
             </Button>
@@ -115,9 +108,11 @@ export function HowItWorks() {
         <div className='grid items-start gap-10 lg:grid-cols-12'>
           <AnimateInView delay={100} className='lg:col-span-6'>
             <div className='mb-3 flex items-center justify-between'>
-              <p className='text-sm font-semibold'>{t('Unified API Example')}</p>
+              <p className='text-sm font-semibold'>
+                {t('Unified API Example')}
+              </p>
               <span className='text-muted-foreground rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300'>
-                {t('OpenAI Compatible')}
+                {t('Multiple API Formats')}
               </span>
             </div>
             <HeroTerminalDemo />
@@ -142,11 +137,10 @@ export function HowItWorks() {
                           <span className='text-muted-foreground font-mono text-[11px]'>
                             {step.num}
                           </span>
-                          <h3 className='text-sm font-semibold'>{step.title}</h3>
+                          <h3 className='text-sm font-semibold'>
+                            {step.title}
+                          </h3>
                         </div>
-                        <p className='text-muted-foreground mt-0.5 text-[11px]'>
-                          {step.time}
-                        </p>
                       </div>
                     </div>
                     <ArrowRight className='text-muted-foreground/50 group-hover:text-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5' />
