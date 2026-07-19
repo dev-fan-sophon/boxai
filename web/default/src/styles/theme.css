@@ -16,7 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-@custom-variant dark (&:is(.dark *));
+/* Match both the .dark root itself and any descendant (system theme puts
+ * the class on <html>; some tools also put it on <body>). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-sans: 'Public Sans', sans-serif;

@@ -80,15 +80,18 @@ export function useSidebarData(): SidebarData {
         id: 'tools',
         title: t('Tools'),
         items: [
+          // In-product playground is the primary "Chat" entry (Apilio keeps chat tools simple).
+          // External chat-presets remain available when admin enables chat.chat.
           {
             title: t('Chat'),
+            url: '/playground',
             icon: MessageSquare,
-            type: 'chat-presets',
+            configUrls: ['/playground'],
           },
           {
-            title: t('Playground'),
-            url: '/playground',
+            title: t('Chat apps'),
             icon: FlaskConical,
+            type: 'chat-presets',
           },
         ],
       },

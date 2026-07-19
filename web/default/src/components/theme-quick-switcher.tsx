@@ -30,6 +30,11 @@ export function ThemeQuickSwitcher() {
 
   const options = [
     {
+      id: 'system' as const,
+      label: t('System'),
+      icon: Monitor,
+    },
+    {
       id: 'light' as const,
       label: t('Light'),
       icon: Sun,
@@ -38,11 +43,6 @@ export function ThemeQuickSwitcher() {
       id: 'dark' as const,
       label: t('Dark'),
       icon: MoonStar,
-    },
-    {
-      id: 'system' as const,
-      label: t('System'),
-      icon: Monitor,
     },
   ]
 

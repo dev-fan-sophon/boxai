@@ -97,7 +97,11 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]) {
   --table-disabled-border: #dfe6ef;
 }
 
-.dark body[data-brand-token-preset='box-ai']:not([data-theme-preset]) {
+/* Use html.dark (class lives on documentElement) so system/dark correctly
+ * overrides light brand tokens. Bare `.dark body` can fail when tooling
+ * scopes dark variants differently from the brand layer. */
+html.dark body[data-brand-token-preset='box-ai']:not([data-theme-preset]),
+body.dark[data-brand-token-preset='box-ai']:not([data-theme-preset]) {
   --background: #071126;
   --foreground: #eaf1ff;
   --card: #0d1a35;

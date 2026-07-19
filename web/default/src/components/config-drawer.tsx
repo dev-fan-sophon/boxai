@@ -229,10 +229,9 @@ function ThemeConfig() {
         aria-describedby='theme-description'
       >
         {[
-          // Light first — matches BoxAI brand (navy sidebar + light surfaces)
+          { value: 'system', label: t('System'), icon: IconThemeSystem },
           { value: 'light', label: t('Light'), icon: IconThemeLight },
           { value: 'dark', label: t('Dark'), icon: IconThemeDark },
-          { value: 'system', label: t('System'), icon: IconThemeSystem },
         ].map((item) => (
           <RadioGroupItem key={item.value} item={item} isTheme />
         ))}

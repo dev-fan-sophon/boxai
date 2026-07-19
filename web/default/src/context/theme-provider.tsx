@@ -30,9 +30,7 @@ import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
 type Theme = 'dark' | 'light' | 'system'
 type ResolvedTheme = Exclude<Theme, 'system'>
 
-// Prefer light to match Apilio-style console (navy sidebar + light surfaces).
-// "system" remains available in the theme drawer but is not the installation default.
-const DEFAULT_THEME = 'light'
+const DEFAULT_THEME = 'system'
 const THEME_COOKIE_NAME = 'vite-ui-theme'
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 const THEMES = new Set<Theme>(['dark', 'light', 'system'])
@@ -77,6 +75,22 @@ function getStoredTheme(storageKey: string, fallback: Theme): Theme {
   return storedTheme && THEMES.has(storedTheme) ? storedTheme : fallback
 }
 
+/**
+ * Apply resolved light/dark to <html> and color-scheme so:
+ * - Tailwind `dark:` variants work (html.dark descendants)
+ * - Brand tokens under `html.dark body[data-brand-token-preset]` resolve
+ * - Native form controls / scrollbars follow the same scheme
+ */
+function applyResolvedThemeToDom(resolved: ResolvedTheme) {
+  const root = window.document.documentElement
+  root.classList.remove('light', 'dark')
+  root.classList.add(resolved)
+  root.style.colorScheme = resolved
+  // Mirror class on body for selectors that assume .dark on body (legacy / third-party).
+  document.body?.classList.remove('light', 'dark')
+  document.body?.classList.add(resolved)
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = DEFAULT_THEME,
@@ -91,27 +105,42 @@ export function ThemeProvider({
   )
 
   useEffect(() => {
-    const root = window.document.documentElement
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-    const applyTheme = () => {
-      const nextResolvedTheme = theme === 'system' ? getSystemTheme() : theme
-      root.classList.remove('light', 'dark')
-      root.classList.add(nextResolvedTheme)
-      setResolvedTheme(nextResolvedTheme)
+    const sync = () => {
+      const next = theme === 'system' ? getSystemTheme() : theme
+      applyResolvedThemeToDom(next)
+      setResolvedTheme(next)
     }
 
-    applyTheme()
+    sync()
 
-    mediaQuery.addEventListener('change', applyTheme)
+    // Only track OS changes while preference is "system".
+    if (theme !== 'system') {
+      return
+    }
 
-    return () => mediaQuery.removeEventListener('change', applyTheme)
+    // Safari < 14 uses addListener/removeListener.
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', sync)
+      return () => mediaQuery.removeEventListener('change', sync)
+    }
+
+    mediaQuery.addListener(sync)
+    return () => mediaQuery.removeListener(sync)
   }, [theme])
 
+  // Brand token preset is applied asynchronously after status loads. Re-apply
+  // theme classes after body mounts / when children re-render the body attrs
+  // so html.dark brand dark tokens take effect immediately.
+  useEffect(() => {
+    applyResolvedThemeToDom(resolvedTheme)
+  }, [resolvedTheme])
+
   const setTheme = useCallback(
-    (theme: Theme) => {
-      setCookie(storageKey, theme, THEME_COOKIE_MAX_AGE)
-      _setTheme(theme)
+    (next: Theme) => {
+      setCookie(storageKey, next, THEME_COOKIE_MAX_AGE)
+      _setTheme(next)
     },
     [storageKey]
   )
