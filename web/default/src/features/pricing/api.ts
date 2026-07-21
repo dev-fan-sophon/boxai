@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { isAxiosError } from 'axios'
+
 import { api } from '@/lib/api'
 
 import type { IntegrationProfile, PricingData } from './types'
@@ -31,8 +33,14 @@ export async function getPricing(): Promise<PricingData> {
 }
 
 export async function getPlaygroundCatalog(): Promise<PricingData> {
-  const res = await api.get('/api/playground/catalog')
-  return res.data
+  try {
+    const res = await api.get('/api/playground/catalog')
+    return res.data
+  } catch (error) {
+    if (!isAxiosError(error) || error.response?.status !== 404) throw error
+    const pricing = await getPricing()
+    return { ...pricing, legacy_playground_catalog: true }
+  }
 }
 
 export async function getIntegrationProfiles(): Promise<IntegrationProfile[]> {

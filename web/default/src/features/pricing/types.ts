@@ -122,6 +122,7 @@ export type PricingData = {
   supported_endpoint: Record<string, { path?: string; method?: string }>
   integration_profiles?: IntegrationProfile[]
   auto_groups: string[]
+  legacy_playground_catalog?: boolean
 }
 
 export type TokenUnit = 'M' | 'K'

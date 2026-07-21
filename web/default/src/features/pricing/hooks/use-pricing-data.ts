@@ -72,6 +72,7 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     usableGroup: data?.usable_group ?? {},
     endpointMap: data?.supported_endpoint ?? {},
     integrationProfiles: data?.integration_profiles ?? [],
+    isLegacyPlaygroundCatalog: data?.legacy_playground_catalog === true,
     autoGroups: data?.auto_groups ?? [],
     isLoading,
     error,

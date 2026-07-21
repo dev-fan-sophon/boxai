@@ -52,8 +52,11 @@ export function Playground() {
   const [signInDialogOpen, setSignInDialogOpen] = useState(false)
   const pricing = usePricingData('playground')
   const playgroundModels = useMemo(
-    () => pricing.models.filter(canTryInPlayground),
-    [pricing.models]
+    () =>
+      pricing.isLegacyPlaygroundCatalog
+        ? pricing.models
+        : pricing.models.filter(canTryInPlayground),
+    [pricing.isLegacyPlaygroundCatalog, pricing.models]
   )
   const studio = useStudio()
   const publicModels = useMemo(
