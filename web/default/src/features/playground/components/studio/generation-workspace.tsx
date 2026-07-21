@@ -73,10 +73,12 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   }
   const submit = () => {
     if (!prompt.trim() || !props.model) return
+    const settings = normalizeSettings(props.settings)
+    props.onSettingsChange(settings)
     const common = {
       model: props.model,
       group: props.group,
-      settings: props.settings,
+      settings,
     }
     if (props.modality === 'image') {
       props.imageMutation.mutate({ ...common, prompt: prompt.trim() })
@@ -89,7 +91,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
 
   return (
     <div className='flex min-h-0 flex-1 flex-col overflow-y-auto'>
-      <div className='mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 md:p-8'>
+      <div className='mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 p-4 md:p-6 xl:p-8'>
         <div>
           <p className='text-primary text-xs font-medium'>
             {t('Multimodal workspace')}
@@ -101,10 +103,54 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             )}
           </p>
         </div>
-        <div className='grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]'>
-          <section className='bg-muted/10 flex min-h-72 flex-col rounded-xl border p-4'>
+        <form
+          className='bg-background rounded-xl border p-3 shadow-xs'
+          onSubmit={(event) => {
+            event.preventDefault()
+            submit()
+          }}
+        >
+          <Label htmlFor='studio-prompt'>
+            {props.modality === 'audio' ? t('Speech text') : t('Prompt')}
+          </Label>
+          <Textarea
+            id='studio-prompt'
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            className='mt-2 min-h-24 resize-none border-0 px-0 shadow-none focus-visible:ring-0'
+            placeholder={t(
+              props.modality === 'audio'
+                ? 'Enter the text to speak…'
+                : 'Describe what you want to create…'
+            )}
+          />
+          <div className='flex items-center justify-between gap-3 border-t pt-3'>
+            <p className='text-muted-foreground truncate font-mono text-xs'>
+              {props.model}
+            </p>
+            <Button
+              type='submit'
+              disabled={!prompt.trim() || !props.model || isPending}
+            >
+              {isPending ? (
+                <Loader2 className='size-4 animate-spin' />
+              ) : (
+                <Send className='size-4' />
+              )}
+              {t(action)}
+            </Button>
+          </div>
+        </form>
+        <div className='grid flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px]'>
+          <section
+            className='bg-muted/10 flex min-h-80 flex-col rounded-xl border p-4'
+            aria-busy={isPending}
+          >
             <h2 className='text-sm font-medium text-balance'>{t('Output')}</h2>
-            <div className='grid flex-1 place-items-center py-6'>
+            <div
+              className='grid flex-1 place-items-center py-6'
+              aria-live='polite'
+            >
               {props.modality === 'image' && props.images.length > 0 && (
                 <div className='grid w-full grid-cols-1 gap-3 sm:grid-cols-2'>
                   {props.images.map((image) => (
@@ -175,7 +221,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                 </div>
               )}
               {error && (
-                <div className='text-center'>
+                <div className='text-center' role='alert'>
                   <p className='text-destructive text-sm text-pretty'>
                     {error.message || t('Generation failed.')}
                   </p>
@@ -200,35 +246,6 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             onChange={props.onSettingsChange}
           />
         </div>
-        <section className='bg-background rounded-xl border p-3'>
-          <Label htmlFor='studio-prompt'>
-            {props.modality === 'audio' ? t('Speech text') : t('Prompt')}
-          </Label>
-          <Textarea
-            id='studio-prompt'
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            className='mt-2 min-h-24 resize-none border-0 px-0 shadow-none focus-visible:ring-0'
-            placeholder={t(
-              props.modality === 'audio'
-                ? 'Enter the text to speak…'
-                : 'Describe what you want to create…'
-            )}
-          />
-          <div className='flex justify-end border-t pt-3'>
-            <Button
-              onClick={submit}
-              disabled={!prompt.trim() || !props.model || isPending}
-            >
-              {isPending ? (
-                <Loader2 className='size-4 animate-spin' />
-              ) : (
-                <Send className='size-4' />
-              )}
-              {t(action)}
-            </Button>
-          </div>
-        </section>
       </div>
     </div>
   )
@@ -250,8 +267,9 @@ function Settings(props: {
   return (
     <aside className='bg-background space-y-4 rounded-xl border p-4'>
       <h2 className='text-sm font-medium text-balance'>{t('Run settings')}</h2>
-      <Field label={t('Group')}>
+      <Field id='studio-group' label={t('Group')}>
         <NativeSelect
+          id='studio-group'
           className='w-full'
           value={props.group}
           onChange={(event) => props.onGroupChange(event.target.value)}
@@ -265,24 +283,30 @@ function Settings(props: {
       </Field>
       {props.modality === 'image' && (
         <>
-          <Field label={t('Count')}>
+          <Field id='studio-image-count' label={t('Count')}>
             <Input
+              id='studio-image-count'
               type='number'
               min={1}
               max={10}
               value={props.settings.imageCount}
               onChange={(event) =>
-                update('imageCount', Number(event.target.value))
+                update(
+                  'imageCount',
+                  parseBoundedNumber(event.target.value, 1, 10, 1)
+                )
               }
             />
           </Field>
           <SelectField
+            id='studio-image-size'
             label={t('Size')}
             value={props.settings.imageSize}
             values={['1024x1024', '1536x1024', '1024x1536']}
             onChange={(value) => update('imageSize', value)}
           />
           <SelectField
+            id='studio-image-quality'
             label={t('Quality')}
             value={props.settings.imageQuality}
             values={['standard', 'hd']}
@@ -292,18 +316,23 @@ function Settings(props: {
       )}
       {props.modality === 'video' && (
         <>
-          <Field label={t('Duration (seconds)')}>
+          <Field id='studio-video-duration' label={t('Duration (seconds)')}>
             <Input
+              id='studio-video-duration'
               type='number'
               min={1}
               max={60}
               value={props.settings.videoDuration}
               onChange={(event) =>
-                update('videoDuration', Number(event.target.value))
+                update(
+                  'videoDuration',
+                  parseBoundedNumber(event.target.value, 1, 60, 5)
+                )
               }
             />
           </Field>
           <SelectField
+            id='studio-video-size'
             label={t('Size')}
             value={props.settings.videoSize}
             values={['1280x720', '720x1280', '1920x1080']}
@@ -314,22 +343,30 @@ function Settings(props: {
       {props.modality === 'audio' && (
         <>
           <SelectField
+            id='studio-audio-voice'
             label={t('Voice')}
             value={props.settings.voice}
             values={['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']}
             onChange={(value) => update('voice', value)}
           />
-          <Field label={t('Speed')}>
+          <Field id='studio-audio-speed' label={t('Speed')}>
             <Input
+              id='studio-audio-speed'
               type='number'
               min={0.25}
               max={4}
               step={0.05}
               value={props.settings.speed}
-              onChange={(event) => update('speed', Number(event.target.value))}
+              onChange={(event) =>
+                update(
+                  'speed',
+                  parseBoundedNumber(event.target.value, 0.25, 4, 1)
+                )
+              }
             />
           </Field>
           <SelectField
+            id='studio-audio-format'
             label={t('Format')}
             value={props.settings.audioFormat}
             values={['mp3', 'opus', 'aac', 'flac', 'wav']}
@@ -341,23 +378,29 @@ function Settings(props: {
   )
 }
 
-function Field(props: { label: string; children: React.ReactNode }) {
+function Field(props: {
+  id: string
+  label: string
+  children: React.ReactNode
+}) {
   return (
     <div className='space-y-1.5'>
-      <Label>{props.label}</Label>
+      <Label htmlFor={props.id}>{props.label}</Label>
       {props.children}
     </div>
   )
 }
 function SelectField(props: {
+  id: string
   label: string
   value: string
   values: string[]
   onChange: (value: string) => void
 }) {
   return (
-    <Field label={props.label}>
+    <Field id={props.id} label={props.label}>
       <NativeSelect
+        id={props.id}
         className='w-full'
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
@@ -370,4 +413,24 @@ function SelectField(props: {
       </NativeSelect>
     </Field>
   )
+}
+
+function parseBoundedNumber(
+  value: string,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(max, Math.max(min, parsed))
+}
+
+function normalizeSettings(settings: StudioSettings): StudioSettings {
+  return {
+    ...settings,
+    imageCount: parseBoundedNumber(String(settings.imageCount), 1, 10, 1),
+    videoDuration: parseBoundedNumber(String(settings.videoDuration), 1, 60, 5),
+    speed: parseBoundedNumber(String(settings.speed), 0.25, 4, 1),
+  }
 }

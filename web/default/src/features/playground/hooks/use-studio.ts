@@ -11,12 +11,7 @@ import { useEffect, useState } from 'react'
 
 import { generateImages, generateSpeech, submitVideo } from '../api'
 import { STORAGE_KEYS } from '../constants'
-import type {
-  GeneratedImage,
-  StudioModality,
-  StudioSettings,
-  VideoSubmission,
-} from '../types'
+import type { GeneratedImage, StudioSettings, VideoSubmission } from '../types'
 
 const defaults: StudioSettings = {
   imageCount: 1,
@@ -30,7 +25,6 @@ const defaults: StudioSettings = {
 }
 
 type StoredStudio = {
-  modality?: StudioModality
   settings?: Partial<StudioSettings>
 }
 
@@ -45,24 +39,32 @@ function loadStudio(): StoredStudio {
 
 export function useStudio() {
   const queryClient = useQueryClient()
-  const initial = loadStudio()
-  const [modality, setModality] = useState<StudioModality>(
-    initial.modality ?? 'chat'
-  )
-  const [settings, setSettings] = useState<StudioSettings>({
-    ...defaults,
-    ...initial.settings,
+  const [settings, setSettings] = useState<StudioSettings>(() => {
+    const stored = loadStudio().settings
+    return {
+      ...defaults,
+      ...stored,
+      imageCount: clampNumber(stored?.imageCount, 1, 10, defaults.imageCount),
+      videoDuration: clampNumber(
+        stored?.videoDuration,
+        1,
+        60,
+        defaults.videoDuration
+      ),
+      speed: clampNumber(stored?.speed, 0.25, 4, defaults.speed),
+    }
   })
   const [images, setImages] = useState<GeneratedImage[]>([])
   const [video, setVideo] = useState<VideoSubmission | null>(null)
   const [audioUrl, setAudioUrl] = useState('')
 
   useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEYS.STUDIO,
-      JSON.stringify({ modality, settings })
-    )
-  }, [modality, settings])
+    try {
+      localStorage.setItem(STORAGE_KEYS.STUDIO, JSON.stringify({ settings }))
+    } catch {
+      // Storage may be unavailable in private browsing modes.
+    }
+  }, [settings])
 
   useEffect(
     () => () => {
@@ -93,8 +95,6 @@ export function useStudio() {
   })
 
   return {
-    modality,
-    setModality,
     settings,
     setSettings,
     images,
@@ -104,4 +104,14 @@ export function useStudio() {
     videoMutation,
     audioMutation,
   }
+}
+
+function clampNumber(
+  value: number | undefined,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, value as number))
 }

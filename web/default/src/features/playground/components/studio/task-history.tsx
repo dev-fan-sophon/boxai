@@ -7,16 +7,34 @@ published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, RefreshCw } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ExternalLink, ListTodo, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUserTaskLogs } from '@/features/usage-logs/api'
+import { TASK_ACTIONS } from '@/features/usage-logs/constants'
+import { taskStatusMapper } from '@/features/usage-logs/lib/mappers'
 import type { TaskLog } from '@/features/usage-logs/types'
+import { formatTimestampToDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-export function TaskHistory() {
+const videoActions = new Set<string>([
+  TASK_ACTIONS.GENERATE,
+  TASK_ACTIONS.TEXT_GENERATE,
+  TASK_ACTIONS.FIRST_TAIL_GENERATE,
+  TASK_ACTIONS.REFERENCE_GENERATE,
+  TASK_ACTIONS.REMIX_GENERATE,
+])
+
+type TaskHistoryProps = {
+  highlightedTaskId?: string
+}
+
+export function TaskHistory(props: TaskHistoryProps) {
   const { t } = useTranslation()
   const query = useQuery({
     queryKey: ['playground', 'task-history'],
@@ -50,8 +68,11 @@ export function TaskHistory() {
           size='icon'
           aria-label={t('Refresh tasks')}
           onClick={() => query.refetch()}
+          disabled={query.isFetching}
         >
-          <RefreshCw className='size-4' />
+          <RefreshCw
+            className={cn('size-4', query.isFetching && 'animate-spin')}
+          />
         </Button>
       </div>
       <div className='min-h-0 flex-1 space-y-2 overflow-y-auto p-2'>
@@ -74,27 +95,45 @@ export function TaskHistory() {
           />
         )}
         {tasks.map((task) => {
-          const percent = Number.parseFloat(task.progress ?? '0')
+          const parsedPercent = Number.parseFloat(task.progress ?? '')
+          const percent = Number.isFinite(parsedPercent)
+            ? Math.min(100, Math.max(0, parsedPercent))
+            : null
+          const highlighted = props.highlightedTaskId === task.task_id
+          const canOpenVideo =
+            task.status === 'SUCCESS' &&
+            videoActions.has(task.action) &&
+            task.fail_reason?.startsWith('http')
           return (
             <article
               key={task.id}
-              className='bg-background rounded-lg border p-3'
+              aria-current={highlighted ? 'true' : undefined}
+              className={cn(
+                'bg-background rounded-lg border p-3 transition-colors',
+                highlighted && 'border-primary/40 bg-primary/5'
+              )}
             >
-              <div className='flex items-center justify-between gap-2'>
-                <span className='truncate text-sm font-medium'>
+              <div className='flex items-start justify-between gap-2'>
+                <span className='min-w-0 truncate text-sm font-medium'>
                   {task.platform || task.action}
                 </span>
-                <span className='text-muted-foreground text-xs'>
-                  {t(task.status)}
-                </span>
+                <StatusBadge
+                  label={t(taskStatusMapper.getLabel(task.status, task.status))}
+                  variant={taskStatusMapper.getVariant(task.status)}
+                  copyable={false}
+                  size='sm'
+                />
               </div>
               <p className='text-muted-foreground mt-1 truncate font-mono text-xs'>
                 {task.task_id}
               </p>
-              {Number.isFinite(percent) && percent > 0 && (
+              <p className='text-muted-foreground/70 mt-1 text-[11px] tabular-nums'>
+                {formatTimestampToDate(task.submit_time, 'seconds')}
+              </p>
+              {percent !== null && percent > 0 && (
                 <Progress value={percent} className='mt-2 h-1.5' />
               )}
-              {task.status === 'SUCCESS' && (
+              {canOpenVideo && (
                 <a
                   className='text-primary mt-2 inline-flex items-center gap-1 text-xs hover:underline'
                   href={`/v1/videos/${task.task_id}/content`}
@@ -113,6 +152,19 @@ export function TaskHistory() {
             </article>
           )
         })}
+      </div>
+      <div className='border-t p-2'>
+        <Button
+          render={
+            <Link to='/usage-logs/$section' params={{ section: 'task' }} />
+          }
+          variant='ghost'
+          size='sm'
+          className='w-full justify-start'
+        >
+          <ListTodo className='size-4' />
+          {t('View all task logs')}
+        </Button>
       </div>
     </div>
   )

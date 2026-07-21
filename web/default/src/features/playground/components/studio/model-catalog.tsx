@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import type { PricingModel } from '../../../pricing/types'
 import { getModelModality } from '../../lib/studio/model-modality'
 import type { ModelOption, StudioModality } from '../../types'
+import { ModelBrandIcon } from './model-brand-icon'
 
 const modalities: Array<'all' | StudioModality> = [
   'all',
@@ -43,7 +44,7 @@ type ModelCatalogProps = {
   loading: boolean
   error: boolean
   onRetry: () => void
-  onSelect: (model: PricingModel, modality: StudioModality) => void
+  onSelect: (model: PricingModel) => void
 }
 
 export function ModelCatalog(props: ModelCatalogProps) {
@@ -66,15 +67,18 @@ export function ModelCatalog(props: ModelCatalogProps) {
       ] as string[],
     [catalog]
   )
-  const filtered = catalog.filter((model) => {
-    const searchable =
-      `${model.model_name} ${model.description ?? ''} ${model.vendor_name ?? ''}`.toLowerCase()
-    return (
-      searchable.includes(query.toLowerCase()) &&
-      (modality === 'all' || getModelModality(model) === modality) &&
-      (vendor === 'all' || model.vendor_name === vendor)
-    )
-  })
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return catalog.filter((model) => {
+      const searchable =
+        `${model.model_name} ${model.description ?? ''} ${model.vendor_name ?? ''}`.toLowerCase()
+      return (
+        searchable.includes(normalizedQuery) &&
+        (modality === 'all' || getModelModality(model) === modality) &&
+        (vendor === 'all' || model.vendor_name === vendor)
+      )
+    })
+  }, [catalog, modality, query, vendor])
 
   return (
     <div className='bg-muted/20 flex h-full min-h-0 flex-col'>
@@ -96,10 +100,15 @@ export function ModelCatalog(props: ModelCatalogProps) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('Search models')}
+            aria-label={t('Search models')}
             className='h-8 pl-8'
           />
         </div>
-        <div className='flex flex-wrap gap-1'>
+        <div
+          className='flex flex-wrap gap-1'
+          role='group'
+          aria-label={t('Filter by modality')}
+        >
           {modalities.map((item) => (
             <Button
               key={item}
@@ -107,6 +116,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
               variant={modality === item ? 'secondary' : 'ghost'}
               className='h-7 px-2 text-xs'
               onClick={() => setModality(item)}
+              aria-pressed={modality === item}
             >
               {t(
                 item === 'all' ? 'All' : item[0].toUpperCase() + item.slice(1)
@@ -154,49 +164,59 @@ export function ModelCatalog(props: ModelCatalogProps) {
             }}
           />
         )}
-        {filtered.map((model) => {
-          const modelModality = getModelModality(model)
-          const ModalityIcon = modalityIcons[modelModality]
-          return (
-            <button
-              type='button'
-              key={model.model_name}
-              onClick={() => props.onSelect(model, modelModality)}
-              className={cn(
-                'hover:bg-muted focus-visible:ring-ring w-full rounded-lg border border-transparent p-2.5 text-left outline-none focus-visible:ring-2',
-                props.selected === model.model_name &&
-                  'border-primary/40 bg-primary/5'
-              )}
-            >
-              <div className='flex items-start justify-between gap-2'>
-                <span className='flex min-w-0 items-center gap-2'>
-                  <span className='bg-muted flex size-8 shrink-0 items-center justify-center rounded-md border'>
-                    <ModalityIcon
-                      className='text-muted-foreground size-4'
-                      aria-hidden='true'
-                    />
+        <div className='space-y-1'>
+          {filtered.map((model) => {
+            const modelModality = getModelModality(model)
+            const ModalityIcon = modalityIcons[modelModality]
+            const selected = props.selected === model.model_name
+            return (
+              <button
+                type='button'
+                key={model.model_name}
+                onClick={() => props.onSelect(model)}
+                aria-current={selected ? 'true' : undefined}
+                className={cn(
+                  'hover:bg-muted/70 focus-visible:ring-ring w-full rounded-lg border border-transparent p-2.5 text-left outline-none transition-colors focus-visible:ring-2',
+                  selected && 'border-primary/30 bg-primary/5 shadow-xs'
+                )}
+              >
+                <div className='flex items-start justify-between gap-2'>
+                  <span className='flex min-w-0 items-center gap-2'>
+                    <span className='bg-background flex size-9 shrink-0 items-center justify-center rounded-lg border shadow-xs'>
+                      <ModelBrandIcon
+                        modelName={model.model_name}
+                        icon={model.icon}
+                        vendorIcon={model.vendor_icon}
+                        size={22}
+                      />
+                    </span>
+                    <span className='min-w-0'>
+                      <span className='block truncate font-mono text-xs font-semibold'>
+                        {model.model_name}
+                      </span>
+                      <span className='text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-[11px]'>
+                        <ModalityIcon className='size-3' aria-hidden='true' />
+                        {model.vendor_name ||
+                          t(
+                            modelModality[0].toUpperCase() +
+                              modelModality.slice(1)
+                          )}
+                      </span>
+                    </span>
                   </span>
-                  <span className='truncate text-sm font-medium'>
-                    {model.model_name}
-                  </span>
-                </span>
-                <Badge variant='outline' className='shrink-0 capitalize'>
-                  {t(modelModality[0].toUpperCase() + modelModality.slice(1))}
-                </Badge>
-              </div>
-              <p className='text-muted-foreground mt-1 line-clamp-2 text-xs text-pretty'>
-                {model.description ||
-                  model.vendor_description ||
-                  t('Available for generation')}
-              </p>
-              {model.vendor_name && (
-                <p className='text-muted-foreground mt-1 truncate text-xs'>
-                  {model.vendor_name}
+                  <Badge variant='outline' className='shrink-0 capitalize'>
+                    {t(modelModality[0].toUpperCase() + modelModality.slice(1))}
+                  </Badge>
+                </div>
+                <p className='text-muted-foreground mt-1 line-clamp-2 text-xs text-pretty'>
+                  {model.description ||
+                    model.vendor_description ||
+                    t('Available for generation')}
                 </p>
-              )}
-            </button>
-          )
-        })}
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

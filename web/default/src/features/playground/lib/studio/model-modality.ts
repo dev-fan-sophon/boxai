@@ -10,7 +10,10 @@ import type { PricingModel } from '@/features/pricing/types'
 
 import type { StudioModality } from '../../types'
 
-export function getModelModality(model: PricingModel): StudioModality {
+type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
+  Partial<Pick<PricingModel, 'supported_endpoint_types' | 'output_modalities'>>
+
+export function getModelModality(model: ModelModalityMetadata): StudioModality {
   const endpoints = model.supported_endpoint_types ?? []
   const output = model.output_modalities ?? []
   if (
