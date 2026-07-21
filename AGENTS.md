@@ -142,14 +142,15 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 
 | Layer | Production | Local default |
 |-------|------------|---------------|
-| App (Go + embedded web) | Host binary + **systemd** `boxai2.service` on `127.0.0.1:3000` | Optional `go run` / `make start-api` |
+| App (Go + embedded web) | Host binary + **systemd** `boxai.service` on `127.0.0.1:3000` | Optional `go run` / `make start-api` |
 | Postgres / Redis | Docker only (`deploy/docker-compose.infra.yml`) on `127.0.0.1:5432` / `6379` | Optional `docker-compose.dev.yml` (infra only) |
 | TLS / reverse proxy | nginx → `127.0.0.1:3000` | n/a |
 
 **Commands agents must prefer:**
 
 ```bash
-# Production deploy (upload source → server build → systemctl restart)
+# Production deploy: push/merge to main → GitHub Actions "Deploy production"
+# Emergency / local: upload source → server build → systemctl restart
 make deploy
 # First-time host bootstrap only
 make deploy-bootstrap
@@ -167,7 +168,7 @@ make dev-web-local
 - Document or script `docker compose up` for the app service as the deploy path.
 - Copy production `.env` secrets into the repo or chat.
 
-**Ops paths on the server:** `/opt/boxai2/` (`bin/new-api`, `current` → `releases/<id>`, `.env`, `docker-compose.infra.yml`, `logs/`, `data/`). Health: `curl -fsS http://127.0.0.1:3000/api/status` and `systemctl status boxai2`.
+**Ops paths on the server:** `/opt/boxai/` (`bin/new-api`, `current` → `releases/<id>`, `.env`, `docker-compose.infra.yml`, `logs/`, `data/`). Health: `curl -fsS http://127.0.0.1:3000/api/status` and `systemctl status boxai`.
 
 ### Project Governance
 

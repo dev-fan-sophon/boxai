@@ -11,12 +11,12 @@ StartLimitBurst=5
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/opt/boxai2/data
-EnvironmentFile=-/opt/boxai2/.env
+WorkingDirectory=/opt/boxai/data
+EnvironmentFile=-/opt/boxai/.env
 # Host-local data plane (published by docker-compose.infra.yml)
 Environment=GIN_MODE=release
 Environment=TZ=Asia/Shanghai
-ExecStart=/opt/boxai2/bin/new-api --port 3000 --log-dir /opt/boxai2/logs
+ExecStart=/opt/boxai/bin/new-api --port 3000 --log-dir /opt/boxai/logs
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=1048576

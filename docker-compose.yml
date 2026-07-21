@@ -1,7 +1,7 @@
 # DEPRECATED for BoxAI production application deploys.
 #
 # Production architecture (canonical):
-#   - App: native binary + systemd  →  see deploy/boxai2.service
+#   - App: native binary + systemd  →  see deploy/boxai.service
 #   - Postgres + Redis: Docker only →  deploy/docker-compose.infra.yml
 #   - Deploy: make deploy / scripts/deploy-prod.sh
 #   - Docs: deploy/README.md

@@ -77,22 +77,24 @@ The script logs in, handles an optional interactive 2FA challenge, rotates the t
 
 Canonical path: **host binary + systemd**; **Docker only for Postgres/Redis**.
 
+**Preferred release path:** merge/push to `main` → GitHub Actions workflow `Deploy production` (`.github/workflows/deploy-prod.yml`).
+
 ```bash
-# From repo root (preferred)
+# Emergency / local from a machine with BOXAI_SSH_* configured
 make deploy
 # or
 ./scripts/deploy-prod.sh
 ./scripts/deploy-prod.sh --bootstrap   # first-time host only
 ```
 
-Docs: [deploy/README.md](../../../deploy/README.md).
+Docs: [deploy/README.md](../../../deploy/README.md). GitHub secrets: `BOXAI_SSH_HOST`, `BOXAI_SSH_USER`, `BOXAI_SSH_PORT` (optional), `BOXAI_SSH_PRIVATE_KEY`, `BOXAI_SSH_HOST_KEY`, `BOXAI_BASE_URL`.
 
 Use `scripts/boxai-server` instead of hand-built SSH flags:
 
 ```bash
-.agents/skills/managing-boxai-platform/scripts/boxai-server 'systemctl status boxai2 --no-pager'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'systemctl status boxai --no-pager'
 .agents/skills/managing-boxai-platform/scripts/boxai-server 'curl -fsS http://127.0.0.1:3000/api/status'
-.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai2 && docker compose -f docker-compose.infra.yml ps'
+.agents/skills/managing-boxai-platform/scripts/boxai-server 'cd /opt/boxai && docker compose -f docker-compose.infra.yml ps'
 ```
 
 **Do not** deploy the application as a Docker image/container. Do not resurrect root `docker-compose.yml` app services on production.
@@ -106,7 +108,7 @@ Rules:
 - Take a database/configuration backup before migrations or broad configuration changes.
 - Ask before restart, deploy, migration, database write, firewall change, secret rotation, or deletion.
 - Never disable SSH host-key checking. `BOXAI_SSH_HOST_KEY` must pin the production host.
-- After deploy: verify `systemctl is-active boxai2`, `curl -fsS http://127.0.0.1:3000/api/status`, and infra compose health.
+- After deploy: verify `systemctl is-active boxai`, `curl -fsS http://127.0.0.1:3000/api/status`, and infra compose health.
 
 ## Capability boundary
 

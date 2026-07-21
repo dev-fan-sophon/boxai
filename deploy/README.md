@@ -6,9 +6,9 @@ Canonical production and local ops for this repository.
 
 | Component | Production | Local default |
 |-----------|------------|---------------|
-| **App** (Go + embedded UI) | Host binary + **systemd** `boxai2.service` → `127.0.0.1:3000` | Optional `make start-api` (`go run`) |
-| **Postgres** | Docker `boxai2-postgres` → `127.0.0.1:5432` | Optional `docker-compose.dev.yml` |
-| **Redis** | Docker `boxai2-redis` → `127.0.0.1:6379` | Optional `docker-compose.dev.yml` |
+| **App** (Go + embedded UI) | Host binary + **systemd** `boxai.service` → `127.0.0.1:3000` | Optional `make start-api` (`go run`) |
+| **Postgres** | Docker `boxai-postgres` → `127.0.0.1:5432` | Optional `docker-compose.dev.yml` |
+| **Redis** | Docker `boxai-redis` → `127.0.0.1:6379` | Optional `docker-compose.dev.yml` |
 | **TLS** | nginx → `http://127.0.0.1:3000` | n/a |
 
 **There is no application Docker container in steady state.**  
@@ -23,6 +23,11 @@ Root `Dockerfile` / `Dockerfile.dev` / empty `docker-compose.yml` are **deprecat
 
 ### Everyday
 
+**Preferred:** merge/push to `main` → GitHub Actions workflow **Deploy production**  
+(`.github/workflows/deploy-prod.yml`) SSHes to the host and runs `scripts/deploy-prod.sh`.
+
+Manual / emergency from a trusted machine:
+
 ```bash
 git push origin main
 make deploy
@@ -30,6 +35,23 @@ make deploy
 ./scripts/deploy-prod.sh
 ./scripts/deploy-prod.sh --ref <commit>
 ```
+
+### GitHub Actions secrets
+
+Repository secrets used by **Deploy production** (Settings → Secrets and variables → Actions):
+
+| Secret | Purpose |
+|--------|---------|
+| `BOXAI_SSH_HOST` | Production host/IP |
+| `BOXAI_SSH_USER` | SSH user (prefer `boxai-deploy`) |
+| `BOXAI_SSH_PORT` | SSH port (optional; default `22` if empty) |
+| `BOXAI_SSH_PRIVATE_KEY` | OpenSSH private key (PEM/`BEGIN OPENSSH` text) |
+| `BOXAI_SSH_HOST_KEY` | Single `known_hosts` line for the host |
+| `BOXAI_BASE_URL` | Public origin, e.g. `https://you-box.com` |
+
+Also create a GitHub **Environment** named `production` (workflow references it). Optional protection rules / required reviewers can be added there.
+
+Manual workflow dispatch supports an optional ref and first-time `--bootstrap`.
 
 ### First-time host only
 
@@ -41,7 +63,7 @@ make deploy-bootstrap
 ### Server layout
 
 ```text
-/opt/boxai2/
+/opt/boxai/
   .env                         # mode 600; SQL_DSN/REDIS → 127.0.0.1
   bin/new-api                  # active binary
   current → releases/<id>
@@ -51,13 +73,15 @@ make deploy-bootstrap
   postgres_data/  redis_data/
 ```
 
+> Legacy path `/opt/boxai2` + unit `boxai2.service` is auto-migrated to `/opt/boxai` + `boxai.service` on the next deploy.
+
 ### Ops
 
 ```bash
-systemctl status boxai2
-journalctl -u boxai2 -f
+systemctl status boxai
+journalctl -u boxai -f
 curl -fsS http://127.0.0.1:3000/api/status
-cd /opt/boxai2 && docker compose -f docker-compose.infra.yml ps
+cd /opt/boxai && docker compose -f docker-compose.infra.yml ps
 ```
 
 ## Local development
@@ -84,7 +108,7 @@ REDIS_CONN_STRING='redis://127.0.0.1:6379/0'
 | Path | Role |
 |------|------|
 | `deploy/docker-compose.infra.yml` | Production PG/Redis |
-| `deploy/boxai2.service` | systemd unit |
+| `deploy/boxai.service` | systemd unit |
 | `scripts/deploy-prod.sh` | Upload + remote build + restart |
 | `scripts/server/bootstrap-toolchain.sh` | Install Go/Bun on host |
 | `scripts/server/build-native.sh` | Server-side web + go build |
