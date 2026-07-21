@@ -79,3 +79,8 @@ make deploy
 Application deploys are native (build on host, restart systemd). Do not `docker compose build` the app.
 
 GitHub Actions repository secrets (not Amp orb secrets): `BOXAI_SSH_HOST`, `BOXAI_SSH_USER`, `BOXAI_SSH_PORT`, `BOXAI_SSH_PRIVATE_KEY`, `BOXAI_SSH_HOST_KEY`, `BOXAI_BASE_URL`, plus Environment `production`.
+
+## Canonical production names
+
+`boxai` only: repo `dev-fan-sophon/boxai`, `/opt/boxai`, `boxai.service`, containers `boxai-postgres`/`boxai-redis`. Do not target `boxai2`.
+

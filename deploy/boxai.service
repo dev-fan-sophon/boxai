@@ -1,6 +1,6 @@
 [Unit]
 Description=BoxAI (new-api) application
-Documentation=https://github.com/dev-fan-sophon/boxai2
+Documentation=https://github.com/dev-fan-sophon/boxai
 After=network-online.target docker.service
 Wants=network-online.target
 # Postgres/Redis are Docker services; wait a moment after docker starts.

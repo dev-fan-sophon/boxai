@@ -14,6 +14,23 @@ Canonical production and local ops for this repository.
 **There is no application Docker container in steady state.**  
 Root `Dockerfile` / `Dockerfile.dev` / empty `docker-compose.yml` are **deprecated** for BoxAI ops.
 
+## Canonical names
+
+Use **boxai** everywhere. Do not introduce `boxai2` for new work.
+
+| Thing | Name |
+|-------|------|
+| GitHub repo | `dev-fan-sophon/boxai` |
+| Product | BoxAI |
+| Host app root | `/opt/boxai` |
+| systemd unit | `boxai.service` |
+| Infra containers | `boxai-postgres`, `boxai-redis` |
+| Docker network | `boxai-network` |
+| SSH deploy user (preferred) | `boxai-deploy` |
+| Env / secrets prefix | `BOXAI_*` |
+
+`scripts/deploy-prod.sh` may still clean leftover historical `boxai2*` container/image names once; that is not a supported target.
+
 ## Production deploy
 
 ### Prerequisites (local)
@@ -72,8 +89,6 @@ make deploy-bootstrap
   data/  logs/
   postgres_data/  redis_data/
 ```
-
-> Legacy path `/opt/boxai2` + unit `boxai2.service` is auto-migrated to `/opt/boxai` + `boxai.service` on the next deploy.
 
 ### Ops
 

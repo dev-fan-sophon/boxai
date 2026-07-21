@@ -347,7 +347,7 @@ PY
 while read -r img; do
   echo "removing image $img"
   docker rmi -f "$img" 2>/dev/null || true
-done < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^boxai2-local:|^boxai-local:|^ghcr.io/fran0220/boxai:' || true)
+done < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^boxai-local:|^boxai2-local:|^ghcr.io/.*/boxai:' || true)
 docker image prune -f >/dev/null 2>&1 || true
 # Health
 for i in $(seq 1 30); do

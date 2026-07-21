@@ -168,6 +168,8 @@ make dev-web-local
 - Document or script `docker compose up` for the app service as the deploy path.
 - Copy production `.env` secrets into the repo or chat.
 
+**Canonical name:** `boxai` only (repo `dev-fan-sophon/boxai`, unit `boxai.service`, root `/opt/boxai`). Do not use `boxai2` for new work.
+
 **Ops paths on the server:** `/opt/boxai/` (`bin/new-api`, `current` → `releases/<id>`, `.env`, `docker-compose.infra.yml`, `logs/`, `data/`). Health: `curl -fsS http://127.0.0.1:3000/api/status` and `systemctl status boxai`.
 
 ### Project Governance
