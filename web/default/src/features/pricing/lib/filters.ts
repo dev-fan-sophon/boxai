@@ -23,7 +23,7 @@ import {
   QUOTA_TYPE_VALUES,
   ENDPOINT_TYPES,
 } from '../constants'
-import type { PricingModel } from '../types'
+import type { IntegrationProfile, PricingModel } from '../types'
 
 // ----------------------------------------------------------------------------
 // Filter Utilities
@@ -90,11 +90,24 @@ export function filterByQuotaType(
  */
 export function filterByEndpointType(
   models: PricingModel[],
-  endpointType: string
+  endpointType: string,
+  integrationProfiles: IntegrationProfile[] = [],
+  group = FILTER_ALL
 ): PricingModel[] {
   if (endpointType === ENDPOINT_TYPES.ALL) return models
-  return models.filter((m) =>
-    m.supported_endpoint_types?.includes(endpointType)
+  const profileIds = new Set(
+    integrationProfiles
+      .filter((profile) => profile.protocol === endpointType)
+      .map((profile) => profile.id)
+  )
+  return models.filter((model) =>
+    model.integrations?.some(
+      (item) =>
+        item.verified &&
+        item.source === 'explicit' &&
+        profileIds.has(item.profile_id) &&
+        (group === FILTER_ALL || item.groups.includes(group))
+    )
   )
 }
 
@@ -142,6 +155,7 @@ export function filterAndSortModels(
     group: string
     quotaType: string
     endpointType: string
+    integrationProfiles?: IntegrationProfile[]
     tag: string
     sortBy: string
   }
@@ -150,7 +164,12 @@ export function filterAndSortModels(
   result = filterByVendor(result, filters.vendor)
   result = filterByGroup(result, filters.group)
   result = filterByQuotaType(result, filters.quotaType)
-  result = filterByEndpointType(result, filters.endpointType)
+  result = filterByEndpointType(
+    result,
+    filters.endpointType,
+    filters.integrationProfiles,
+    filters.group
+  )
   result = filterByTag(result, filters.tag)
   result = sortModels(result, filters.sortBy)
 
@@ -183,7 +202,7 @@ export function extractAllTags(models: PricingModel[]): string[] {
     }
   })
 
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
+  return [...tagSet].sort((a, b) => a.localeCompare(b))
 }
 
 /**

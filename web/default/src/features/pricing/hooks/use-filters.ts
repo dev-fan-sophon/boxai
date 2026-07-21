@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useSearch } from '@tanstack/react-router'
-import { useMemo, useCallback, useState } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useMemo, useCallback } from 'react'
 
 import {
   FILTER_ALL,
@@ -29,7 +29,7 @@ import {
   type ViewMode,
 } from '../constants'
 import { filterAndSortModels, extractAllTags } from '../lib/filters'
-import type { PricingModel, TokenUnit } from '../types'
+import type { IntegrationProfile, PricingModel, TokenUnit } from '../types'
 
 type FilterState = {
   search?: string
@@ -51,20 +51,13 @@ function normalizeViewMode(value: unknown): ViewMode {
   return VIEW_MODES.CARD
 }
 
-export function useFilters(models: PricingModel[]) {
+export function useFilters(
+  models: PricingModel[],
+  integrationProfiles: IntegrationProfile[] = []
+) {
   const search = useSearch({ from: '/pricing/' })
-  const [filterState, setFilterState] = useState<FilterState>(() => ({
-    search: search.search,
-    sort: search.sort,
-    vendor: search.vendor,
-    group: search.group,
-    quotaType: search.quotaType,
-    endpointType: search.endpointType,
-    tag: search.tag,
-    tokenUnit: search.tokenUnit,
-    view: search.view,
-    rechargePrice: search.rechargePrice,
-  }))
+  const navigate = useNavigate({ from: '/pricing/' })
+  const filterState = search
 
   const searchInput = filterState.search || ''
   const sortBy = filterState.sort || SORT_OPTIONS.NAME
@@ -80,17 +73,18 @@ export function useFilters(models: PricingModel[]) {
   const viewMode = normalizeViewMode(filterState.view)
   const showRechargePrice = filterState.rechargePrice === true
 
-  const updateFilters = useCallback((updates: Record<string, unknown>) => {
-    setFilterState((prev) => {
-      const next: Record<string, unknown> = { ...prev, ...updates }
+  const updateFilters = useCallback(
+    (updates: Record<string, unknown>) => {
+      const next: Record<string, unknown> = { ...search, ...updates }
       for (const key of Object.keys(next)) {
         if (next[key] === undefined || next[key] === null) {
           delete next[key]
         }
       }
-      return next as FilterState
-    })
-  }, [])
+      void navigate({ search: next as FilterState, replace: true })
+    },
+    [navigate, search]
+  )
 
   const setSearchInput = useCallback(
     (v: string) => updateFilters({ search: v || undefined }),
@@ -154,6 +148,7 @@ export function useFilters(models: PricingModel[]) {
       group: groupFilter,
       quotaType: quotaTypeFilter,
       endpointType: endpointTypeFilter,
+      integrationProfiles,
       tag: tagFilter,
       sortBy,
     })
@@ -164,6 +159,7 @@ export function useFilters(models: PricingModel[]) {
     groupFilter,
     quotaTypeFilter,
     endpointTypeFilter,
+    integrationProfiles,
     tagFilter,
     sortBy,
   ])

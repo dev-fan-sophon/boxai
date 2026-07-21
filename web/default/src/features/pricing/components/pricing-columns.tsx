@@ -367,30 +367,6 @@ export function usePricingColumns(
       enableSorting: false,
     },
 
-    // Endpoints column
-    {
-      accessorKey: 'supported_endpoint_types',
-      header: t('Endpoints'),
-      cell: ({ row }) => {
-        const endpoints = row.original.supported_endpoint_types || []
-        return (
-          <BadgeListCell
-            items={endpoints.map((ep) => (
-              <StatusBadge
-                key={ep}
-                label={ep}
-                autoColor={ep}
-                size='sm'
-                copyable={false}
-              />
-            ))}
-          />
-        )
-      },
-      size: 130,
-      enableSorting: false,
-    },
-
     // Enable Groups column
     {
       accessorKey: 'enable_groups',

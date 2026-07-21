@@ -89,21 +89,17 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
   }
 
-  // Track when Docs already occupies /about so About is not duplicated.
-  let docsFallsBackToAbout = false
   if (modules?.docs !== false) {
     if (docsLink) {
       links.push({ title: t('API Docs'), href: docsLink, external: true })
     } else {
-      // No external docs_link — built-in About page hosts docs-style content.
-      docsFallsBackToAbout = true
-      links.push({ title: t('API Docs'), href: '/about' })
+      links.push({ title: t('API Docs'), href: '/docs' })
     }
   }
 
   // Explicit opt-in (default false). Skip when Docs already links to /about
   // so the strip does not show two labels for the same destination.
-  if (modules?.about && !docsFallsBackToAbout) {
+  if (modules?.about) {
     links.push({ title: t('About'), href: '/about' })
   }
 

@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,7 +82,9 @@ func GetModelMeta(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	persistedEndpoints := m.Endpoints
 	enrichModels([]*model.Model{&m})
+	m.Endpoints = persistedEndpoints
 	common.ApiSuccess(c, &m)
 }
 
@@ -95,6 +97,10 @@ func CreateModelMeta(c *gin.Context) {
 	}
 	if m.ModelName == "" {
 		common.ApiErrorMsg(c, "模型名称不能为空")
+		return
+	}
+	if err := normalizeModelMetadata(&m); err != nil {
+		common.ApiErrorMsg(c, err.Error())
 		return
 	}
 	// 名称冲突检查
@@ -135,6 +141,10 @@ func UpdateModelMeta(c *gin.Context) {
 			return
 		}
 	} else {
+		if err := normalizeModelMetadata(&m); err != nil {
+			common.ApiErrorMsg(c, err.Error())
+			return
+		}
 		// 名称冲突检查
 		if dup, err := model.IsModelNameDuplicated(m.Id, m.ModelName); err != nil {
 			common.ApiError(c, err)
@@ -151,6 +161,52 @@ func UpdateModelMeta(c *gin.Context) {
 	}
 	model.RefreshPricing()
 	common.ApiSuccess(c, &m)
+}
+
+func normalizeModelMetadata(m *model.Model) error {
+	var err error
+	if m.Integrations, err = model.NormalizeModelIntegrations(m.Integrations); err != nil {
+		return err
+	}
+	for name, value := range map[string]*string{
+		"input_modalities": &m.InputModalities, "output_modalities": &m.OutputModalities, "capabilities": &m.Capabilities,
+	} {
+		if strings.TrimSpace(*value) == "" {
+			continue
+		}
+		var items []string
+		if err := common.Unmarshal([]byte(*value), &items); err != nil {
+			return fmt.Errorf("invalid %s JSON: %w", name, err)
+		}
+		normalized, err := common.Marshal(items)
+		if err != nil {
+			return err
+		}
+		*value = string(normalized)
+	}
+	if strings.TrimSpace(m.Endpoints) != "" {
+		var endpoints interface{}
+		if err := common.Unmarshal([]byte(m.Endpoints), &endpoints); err != nil {
+			return fmt.Errorf("invalid endpoints JSON: %w", err)
+		}
+		switch value := endpoints.(type) {
+		case map[string]interface{}:
+		case []interface{}:
+			for _, endpoint := range value {
+				if _, ok := endpoint.(string); !ok {
+					return fmt.Errorf("invalid endpoints JSON: legacy endpoint arrays must contain only strings")
+				}
+			}
+		default:
+			return fmt.Errorf("invalid endpoints JSON: expected an object or string array")
+		}
+		normalized, err := common.Marshal(endpoints)
+		if err != nil {
+			return err
+		}
+		m.Endpoints = string(normalized)
+	}
+	return nil
 }
 
 // DeleteModelMeta 删除模型
@@ -201,7 +257,7 @@ func enrichModels(models []*model.Model) {
 			mm := models[idx]
 			if mm.Endpoints == "" {
 				eps := model.GetModelSupportEndpointTypes(mm.ModelName)
-				if b, err := json.Marshal(eps); err == nil {
+				if b, err := common.Marshal(eps); err == nil {
 					mm.Endpoints = string(b)
 				}
 			}
@@ -291,7 +347,7 @@ func enrichModels(models []*model.Model) {
 			for et := range es {
 				eps = append(eps, et)
 			}
-			if b, err := json.Marshal(eps); err == nil {
+			if b, err := common.Marshal(eps); err == nil {
 				mm.Endpoints = string(b)
 			}
 		}

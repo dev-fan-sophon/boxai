@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"sort"
+
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
@@ -19,6 +21,44 @@ func filterPricingByUsableGroups(pricing []model.Pricing, usableGroup map[string
 
 	filtered := make([]model.Pricing, 0, len(pricing))
 	for _, item := range pricing {
+		enabledGroups := make(map[string]struct{}, len(item.EnableGroup))
+		for _, group := range item.EnableGroup {
+			enabledGroups[group] = struct{}{}
+		}
+		publicIntegrations := make([]model.ModelIntegration, 0, len(item.Integrations))
+		for _, integration := range item.Integrations {
+			if !integration.Verified || integration.Source != "explicit" {
+				continue
+			}
+			groupsSet := make(map[string]struct{}, len(integration.Groups))
+			for _, group := range integration.Groups {
+				_, modelEnabled := enabledGroups[group]
+				if _, allEnabled := enabledGroups["all"]; allEnabled {
+					modelEnabled = true
+				}
+				if group == "all" && modelEnabled {
+					for usable := range usableGroup {
+						groupsSet[usable] = struct{}{}
+					}
+					continue
+				}
+				_, callerCanUse := usableGroup[group]
+				if modelEnabled && callerCanUse {
+					groupsSet[group] = struct{}{}
+				}
+			}
+			groups := make([]string, 0, len(groupsSet))
+			for group := range groupsSet {
+				groups = append(groups, group)
+			}
+			sort.Strings(groups)
+			if len(groups) > 0 {
+				integration.Groups = groups
+				publicIntegrations = append(publicIntegrations, integration)
+			}
+		}
+		item.Integrations = publicIntegrations
+		item.SupportedEndpointTypes = nil
 		if common.StringsContains(item.EnableGroup, "all") {
 			filtered = append(filtered, item)
 			continue
@@ -65,15 +105,20 @@ func GetPricing(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"success":            true,
-		"data":               pricing,
-		"vendors":            model.GetVendors(),
-		"group_ratio":        groupRatio,
-		"usable_group":       usableGroup,
-		"supported_endpoint": model.GetSupportedEndpointMap(),
-		"auto_groups":        service.GetUserAutoGroup(group),
-		"pricing_version":    "a42d372ccf0b5dd13ecf71203521f9d2",
+		"success":              true,
+		"data":                 pricing,
+		"vendors":              model.GetVendors(),
+		"group_ratio":          groupRatio,
+		"usable_group":         usableGroup,
+		"supported_endpoint":   model.GetSupportedEndpointMap(),
+		"integration_profiles": model.GetIntegrationProfiles(),
+		"auto_groups":          service.GetUserAutoGroup(group),
+		"pricing_version":      "a42d372ccf0b5dd13ecf71203521f9d2",
 	})
+}
+
+func GetIntegrationProfiles(c *gin.Context) {
+	common.ApiSuccess(c, model.GetIntegrationProfiles())
 }
 
 func ResetModelRatio(c *gin.Context) {

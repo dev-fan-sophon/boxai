@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"sync"
@@ -36,6 +37,17 @@ type Pricing struct {
 	BillingMode            string                  `json:"billing_mode,omitempty"`
 	BillingExpr            string                  `json:"billing_expr,omitempty"`
 	PricingVersion         string                  `json:"pricing_version,omitempty"`
+	Integrations           []ModelIntegration      `json:"integrations"`
+	DisplayName            string                  `json:"display_name,omitempty"`
+	ContextLength          int                     `json:"context_length,omitempty"`
+	MaxOutputTokens        int                     `json:"max_output_tokens,omitempty"`
+	KnowledgeCutoff        string                  `json:"knowledge_cutoff,omitempty"`
+	ReleaseDate            string                  `json:"release_date,omitempty"`
+	ParameterCount         string                  `json:"parameter_count,omitempty"`
+	InputModalities        []string                `json:"input_modalities,omitempty"`
+	OutputModalities       []string                `json:"output_modalities,omitempty"`
+	Capabilities           []string                `json:"capabilities,omitempty"`
+	UsageNotes             string                  `json:"usage_notes,omitempty"`
 }
 
 type PricingVendor struct {
@@ -259,6 +271,7 @@ func updatePricing() {
 	}
 
 	modelGroupsMap := make(map[string]*types.Set[string])
+	groupIntegrationSets := make(map[string]map[string]map[string]struct{})
 
 	for _, ability := range enableAbilities {
 		groups, ok := modelGroupsMap[ability.Model]
@@ -267,6 +280,12 @@ func updatePricing() {
 			modelGroupsMap[ability.Model] = groups
 		}
 		groups.Add(ability.Group)
+		if groupIntegrationSets[ability.Model] == nil {
+			groupIntegrationSets[ability.Model] = make(map[string]map[string]struct{})
+		}
+		if groupIntegrationSets[ability.Model][ability.Group] == nil {
+			groupIntegrationSets[ability.Model][ability.Group] = make(map[string]struct{})
+		}
 	}
 
 	//这里使用切片而不是Set，因为一个模型可能支持多个端点类型，并且第一个端点是优先使用端点
@@ -280,6 +299,9 @@ func updatePricing() {
 		for _, channelType := range channelTypes {
 			if !common.StringsContains(endpoints, string(channelType)) {
 				endpoints = append(endpoints, string(channelType))
+			}
+			if profileID := endpointProfileIDs[channelType]; profileID != "" {
+				groupIntegrationSets[ability.Model][ability.Group][profileID] = struct{}{}
 			}
 		}
 		modelSupportEndpointsStr[ability.Model] = endpoints
@@ -361,6 +383,21 @@ func updatePricing() {
 			EnableGroup:            groups.Items(),
 			SupportedEndpointTypes: modelSupportEndpointTypes[model],
 		}
+		profileGroups := make(map[string][]string)
+		for group, profiles := range groupIntegrationSets[model] {
+			for profileID := range profiles {
+				profileGroups[profileID] = append(profileGroups[profileID], group)
+			}
+		}
+		profileIDs := make([]string, 0, len(profileGroups))
+		for profileID := range profileGroups {
+			profileIDs = append(profileIDs, profileID)
+		}
+		sort.Strings(profileIDs)
+		for _, profileID := range profileIDs {
+			sort.Strings(profileGroups[profileID])
+			pricing.Integrations = append(pricing.Integrations, ModelIntegration{ProfileID: profileID, Groups: profileGroups[profileID], Source: "inferred"})
+		}
 
 		// 补充模型元数据（描述、标签、供应商、状态）
 		if meta, ok := metaMap[model]; ok {
@@ -372,6 +409,38 @@ func updatePricing() {
 			pricing.Icon = meta.Icon
 			pricing.Tags = meta.Tags
 			pricing.VendorID = meta.VendorID
+			pricing.DisplayName = meta.DisplayName
+			pricing.ContextLength = meta.ContextLength
+			pricing.MaxOutputTokens = meta.MaxOutputTokens
+			pricing.KnowledgeCutoff = meta.KnowledgeCutoff
+			pricing.ReleaseDate = meta.ReleaseDate
+			pricing.ParameterCount = meta.ParameterCount
+			pricing.UsageNotes = meta.UsageNotes
+			_ = common.Unmarshal([]byte(meta.InputModalities), &pricing.InputModalities)
+			_ = common.Unmarshal([]byte(meta.OutputModalities), &pricing.OutputModalities)
+			_ = common.Unmarshal([]byte(meta.Capabilities), &pricing.Capabilities)
+			if strings.TrimSpace(meta.Integrations) != "" {
+				var explicit []ModelIntegration
+				if common.Unmarshal([]byte(meta.Integrations), &explicit) == nil {
+					enabled := make(map[string]struct{}, len(pricing.EnableGroup))
+					for _, group := range pricing.EnableGroup {
+						enabled[group] = struct{}{}
+					}
+					_, allEnabled := enabled["all"]
+					pricing.Integrations = nil
+					for _, integration := range explicit {
+						groups := make([]string, 0, len(integration.Groups))
+						for _, group := range integration.Groups {
+							if _, ok := enabled[group]; ok || allEnabled {
+								groups = append(groups, group)
+							}
+						}
+						if len(groups) > 0 {
+							pricing.Integrations = append(pricing.Integrations, ModelIntegration{ProfileID: integration.ProfileID, Groups: groups, Verified: true, Source: "explicit"})
+						}
+					}
+				}
+			}
 		}
 		modelPrice, findPrice := ratio_setting.GetModelPrice(model, false)
 		if findPrice {

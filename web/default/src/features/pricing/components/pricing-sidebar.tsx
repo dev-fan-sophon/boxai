@@ -37,8 +37,8 @@ import {
   getEndpointTypeLabels,
   getQuotaTypeLabels,
 } from '../constants'
-import { parseTags } from '../lib/filters'
-import type { PricingModel, PricingVendor } from '../types'
+import { filterByEndpointType, parseTags } from '../lib/filters'
+import type { IntegrationProfile, PricingModel, PricingVendor } from '../types'
 
 type FilterOption = {
   value: string
@@ -71,6 +71,7 @@ export interface PricingSidebarProps {
   groupRatios?: Record<string, number>
   tags: string[]
   models: PricingModel[]
+  integrationProfiles: IntegrationProfile[]
   hasActiveFilters: boolean
   onClearFilters: () => void
   className?: string
@@ -227,22 +228,25 @@ export function PricingSidebar(props: PricingSidebarProps) {
     })),
   ]
 
+  const protocols = [
+    ...new Set(props.integrationProfiles.map((profile) => profile.protocol)),
+  ].sort()
   const endpointOptions: FilterOption[] = [
     {
       value: ENDPOINT_TYPES.ALL,
       label: endpointTypeLabels[ENDPOINT_TYPES.ALL],
       count: props.models.length,
     },
-    ...Object.entries(endpointTypeLabels)
-      .filter(([value]) => value !== ENDPOINT_TYPES.ALL)
-      .map(([value, label]) => ({
+    ...protocols.map((value) => ({
+      value,
+      label: value,
+      count: filterByEndpointType(
+        props.models,
         value,
-        label,
-        count: countBy(
-          props.models,
-          (model) => model.supported_endpoint_types?.includes(value) ?? false
-        ),
-      })),
+        props.integrationProfiles,
+        props.groupFilter
+      ).length,
+    })),
   ]
 
   return (
@@ -299,7 +303,7 @@ export function PricingSidebar(props: PricingSidebarProps) {
           onChange={props.onQuotaTypeChange}
         />
         <FilterSection
-          title={t('Endpoint Type')}
+          title={t('Integration protocol')}
           value={props.endpointTypeFilter}
           options={endpointOptions}
           onChange={props.onEndpointTypeChange}

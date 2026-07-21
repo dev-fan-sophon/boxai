@@ -190,6 +190,108 @@ func TestPricingNativeChannelEndpointTypesUnchanged(t *testing.T) {
 	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeAnthropic, constant.EndpointTypeOpenAI}, byModel["claude-3-5-sonnet"])
 }
 
+func TestIntegrationProfileRegistryContract(t *testing.T) {
+	seen := make(map[string]struct{})
+	profiles := GetIntegrationProfiles()
+	require.GreaterOrEqual(t, len(profiles), 12)
+	for _, profile := range profiles {
+		assert.NotEmpty(t, profile.ID)
+		assert.NotEmpty(t, profile.GatewayPathTemplate)
+		assert.NotEmpty(t, profile.DocsSlug)
+		assert.NotEmpty(t, profile.SampleKind)
+		assert.NotEmpty(t, profile.AuthScheme)
+		_, duplicate := seen[profile.ID]
+		assert.False(t, duplicate, profile.ID)
+		seen[profile.ID] = struct{}{}
+	}
+}
+
+func TestNormalizeModelIntegrationsRejectsUnknownAndCanonicalizesAssignments(t *testing.T) {
+	_, err := NormalizeModelIntegrations(`[{"profile_id":"unknown.operation","groups":["default"]}]`)
+	assert.ErrorContains(t, err, "unknown integration profile_id")
+	_, err = NormalizeModelIntegrations(`[{"profile_id":"openai.responses","groups":[]}]`)
+	assert.ErrorContains(t, err, "at least one group")
+
+	normalized, err := NormalizeModelIntegrations(`[
+		{"profile_id":"openai.responses","groups":["premium","default","premium"]},
+		{"profile_id":"openai.responses","groups":["default"]}
+	]`)
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"profile_id":"openai.responses","groups":["default","premium"],"verified":true,"source":"explicit"}]`, normalized)
+}
+
+func TestPricingIntegrationsPreserveGroupsAndExplicitAssignmentsTakePrecedence(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 210, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointChannel(t, 211, constant.ChannelTypeAdvancedCustom, pricingEndpointAdvancedCustomConfig(dto.AdvancedCustomRoute{
+		IncomingPath: "/v1beta/models/{model}:generateContent", UpstreamPath: "/v1beta/models/{model}:generateContent",
+	}))
+	require.NoError(t, DB.Create(&Ability{Group: "default", Model: "grouped-model", ChannelId: 210, Enabled: true}).Error)
+	require.NoError(t, DB.Create(&Ability{Group: "premium", Model: "grouped-model", ChannelId: 211, Enabled: true}).Error)
+	InitChannelCache()
+
+	var pricing Pricing
+	for _, item := range GetPricing() {
+		if item.ModelName == "grouped-model" {
+			pricing = item
+		}
+	}
+	assert.Contains(t, pricing.Integrations, ModelIntegration{ProfileID: "openai.chat_completions", Groups: []string{"default"}, Source: "inferred"})
+	assert.Contains(t, pricing.Integrations, ModelIntegration{ProfileID: "gemini.generate_content", Groups: []string{"premium"}, Source: "inferred"})
+
+	stored, err := NormalizeModelIntegrations(`[{"profile_id":"openai.responses","groups":["default","stale"]}]`)
+	require.NoError(t, err)
+	require.NoError(t, DB.Create(&Model{ModelName: "grouped-model", Integrations: stored, Status: 1, NameRule: NameRuleExact}).Error)
+	InvalidatePricingCache()
+	for _, item := range GetPricing() {
+		if item.ModelName == "grouped-model" {
+			pricing = item
+		}
+	}
+	assert.Equal(t, []ModelIntegration{{ProfileID: "openai.responses", Groups: []string{"default"}, Verified: true, Source: "explicit"}}, pricing.Integrations)
+}
+
+func TestPricingExplicitIntegrationSupportsGlobalModelGroup(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 212, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	require.NoError(t, DB.Create(&Ability{Group: "all", Model: "global-model", ChannelId: 212, Enabled: true}).Error)
+
+	stored, err := NormalizeModelIntegrations(`[{"profile_id":"openai.chat_completions","groups":["all"]}]`)
+	require.NoError(t, err)
+	require.NoError(t, DB.Create(&Model{ModelName: "global-model", Integrations: stored, Status: 1, NameRule: NameRuleExact}).Error)
+	InvalidatePricingCache()
+
+	for _, item := range GetPricing() {
+		if item.ModelName == "global-model" {
+			assert.Equal(t, []ModelIntegration{{ProfileID: "openai.chat_completions", Groups: []string{"all"}, Verified: true, Source: "explicit"}}, item.Integrations)
+			return
+		}
+	}
+	t.Fatal("global-model pricing not found")
+}
+
+func TestPricingParsesRichModelMetadata(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 220, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointAbility(t, 220, "documented-model")
+	require.NoError(t, DB.Create(&Model{ModelName: "documented-model", Status: 1, NameRule: NameRuleExact,
+		DisplayName: "Documented Model", ContextLength: 128000, MaxOutputTokens: 8192,
+		InputModalities: `["text","image"]`, OutputModalities: `["text"]`, Capabilities: `["tools"]`, UsageNotes: "Use for analysis.",
+	}).Error)
+
+	var pricing Pricing
+	for _, item := range GetPricing() {
+		if item.ModelName == "documented-model" {
+			pricing = item
+		}
+	}
+	assert.Equal(t, "Documented Model", pricing.DisplayName)
+	assert.Equal(t, 128000, pricing.ContextLength)
+	assert.Equal(t, 8192, pricing.MaxOutputTokens)
+	assert.Equal(t, []string{"text", "image"}, pricing.InputModalities)
+	assert.Equal(t, []string{"tools"}, pricing.Capabilities)
+}
+
 func TestInitChannelCacheInvalidatesPricingCache(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 

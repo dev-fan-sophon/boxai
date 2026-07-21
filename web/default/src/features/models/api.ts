@@ -25,6 +25,7 @@ import type {
   GetVendorsResponse,
   GetVendorResponse,
   Model,
+  ModelMutationRequest,
   Vendor,
   SearchModelsParams,
   SyncUpstreamResponse,
@@ -74,7 +75,7 @@ export async function getModel(id: number): Promise<GetModelResponse> {
  * Create new model
  */
 export async function createModel(
-  data: Partial<Model>
+  data: ModelMutationRequest
 ): Promise<{ success: boolean; message?: string; data?: Model }> {
   const res = await api.post('/api/models/', data)
   return res.data
@@ -84,7 +85,7 @@ export async function createModel(
  * Update existing model
  */
 export async function updateModel(
-  data: Partial<Model> & { id: number }
+  data: ModelMutationRequest & { id: number }
 ): Promise<{ success: boolean; message?: string; data?: Model }> {
   const res = await api.put('/api/models/', data)
   return res.data

@@ -48,6 +48,9 @@ export type PricingModel = {
   enable_groups: string[]
   tags?: string
   supported_endpoint_types?: string[]
+  display_name?: string
+  integrations?: ModelIntegration[]
+  usage_notes?: string
   key?: string
   group_ratio?: Record<string, number>
   /** Billing mode (e.g. "tiered_expr") used to flag dynamic pricing */
@@ -68,6 +71,27 @@ export type PricingModel = {
   input_modalities?: Modality[]
   output_modalities?: Modality[]
   capabilities?: ModelCapability[]
+}
+
+export type IntegrationProfile = {
+  id: string
+  protocol: string
+  operation: string
+  name_key: string
+  method: string
+  gateway_path_template: string
+  auth_scheme: 'bearer' | 'x-api-key' | string
+  content_type: string
+  docs_slug: string
+  sample_kind: string
+  streaming: boolean
+}
+
+export type ModelIntegration = {
+  profile_id: string
+  groups: string[]
+  verified: boolean
+  source: 'explicit' | 'inferred'
 }
 
 /** Input/output modalities supported by a model. */
@@ -95,7 +119,8 @@ export type PricingData = {
   vendors: PricingVendor[]
   group_ratio: Record<string, number>
   usable_group: Record<string, string | { desc: string; ratio: number }>
-  supported_endpoint: Record<string, string>
+  supported_endpoint: Record<string, { path?: string; method?: string }>
+  integration_profiles?: IntegrationProfile[]
   auto_groups: string[]
 }
 

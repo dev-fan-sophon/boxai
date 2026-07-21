@@ -18,6 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { z } from 'zod'
 
+import type {
+  ModelCapability,
+  ModelIntegration,
+  Modality,
+} from '@/features/pricing/types'
+
 import type { Model } from '../types'
 import { parseModelTags as parseTagsFromUtils } from './model-utils'
 
@@ -36,6 +42,17 @@ export const modelFormSchema = z.object({
   tags: z.array(z.string()).default([]),
   vendor_id: z.number().optional(),
   endpoints: z.string().default(''),
+  display_name: z.string().default(''),
+  context_length: z.number().int().nonnegative().optional(),
+  max_output_tokens: z.number().int().nonnegative().optional(),
+  knowledge_cutoff: z.string().default(''),
+  release_date: z.string().default(''),
+  parameter_count: z.string().default(''),
+  usage_notes: z.string().default(''),
+  input_modalities: z.array(z.custom<Modality>()).default([]),
+  output_modalities: z.array(z.custom<Modality>()).default([]),
+  capabilities: z.array(z.custom<ModelCapability>()).default([]),
+  integrations: z.array(z.custom<ModelIntegration>()).default([]),
   name_rule: z.number().min(0).max(3).default(0),
   status: z.boolean().default(true),
   sync_official: z.boolean().default(true),
@@ -78,6 +95,17 @@ export function transformModelToFormDefaults(model: Model): ModelFormValues {
     tags: parseTagsFromUtils(model.tags),
     vendor_id: model.vendor_id,
     endpoints: model.endpoints || '',
+    display_name: model.display_name || '',
+    context_length: model.context_length,
+    max_output_tokens: model.max_output_tokens,
+    knowledge_cutoff: model.knowledge_cutoff || '',
+    release_date: model.release_date || '',
+    parameter_count: model.parameter_count || '',
+    usage_notes: model.usage_notes || '',
+    input_modalities: parseJsonArray<Modality>(model.input_modalities),
+    output_modalities: parseJsonArray<Modality>(model.output_modalities),
+    capabilities: parseJsonArray<ModelCapability>(model.capabilities),
+    integrations: parseJsonArray<ModelIntegration>(model.integrations),
     name_rule: model.name_rule || 0,
     status: model.status === 1,
     sync_official: model.sync_official === 1,
@@ -100,6 +128,28 @@ export function transformFormDataToModelPayload(
     tags: formatTagsArray(formData.tags),
     vendor_id: formData.vendor_id,
     endpoints: formData.endpoints || '',
+    display_name: formData.display_name,
+    context_length: formData.context_length,
+    max_output_tokens: formData.max_output_tokens,
+    knowledge_cutoff: formData.knowledge_cutoff,
+    release_date: formData.release_date,
+    parameter_count: formData.parameter_count,
+    usage_notes: formData.usage_notes,
+    input_modalities: JSON.stringify([...formData.input_modalities].sort()),
+    output_modalities: JSON.stringify([...formData.output_modalities].sort()),
+    capabilities: JSON.stringify([...formData.capabilities].sort()),
+    integrations: JSON.stringify(
+      formData.integrations
+        .map((item) => ({
+          profile_id: item.profile_id,
+          groups: [
+            ...new Set(
+              item.groups.map((group) => group.trim()).filter(Boolean)
+            ),
+          ].sort(),
+        }))
+        .sort((a, b) => a.profile_id.localeCompare(b.profile_id))
+    ),
     name_rule: formData.name_rule,
     status: formData.status ? 1 : 0,
     sync_official: formData.sync_official ? 1 : 0,
@@ -117,6 +167,16 @@ export function transformFormDataToModelPayload(
  */
 export function formatTagsArray(tags: string[]): string {
   return tags.filter(Boolean).join(',')
+}
+
+function parseJsonArray<T>(value?: string): T[] {
+  if (!value) return []
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
 }
 
 /**

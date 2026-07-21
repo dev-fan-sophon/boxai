@@ -16,7 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ArrowUpDown, Check, Filter, Grid2X2, Table2 } from 'lucide-react'
+import {
+  ArrowUpDown,
+  Check,
+  Filter,
+  Grid2X2,
+  Settings2,
+  Table2,
+  X,
+} from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -33,6 +41,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Sheet,
   SheetContent,
@@ -53,7 +66,12 @@ import {
   type SortOption,
   type ViewMode,
 } from '../constants'
-import type { PricingModel, PricingVendor, TokenUnit } from '../types'
+import type {
+  IntegrationProfile,
+  PricingModel,
+  PricingVendor,
+  TokenUnit,
+} from '../types'
 import { PricingSidebar } from './pricing-sidebar'
 
 type SegmentOption = {
@@ -89,6 +107,7 @@ export interface PricingToolbarProps {
   groupRatios?: Record<string, number>
   tags: string[]
   models: PricingModel[]
+  integrationProfiles: IntegrationProfile[]
   hasActiveFilters: boolean
   activeFilterCount: number
   onClearFilters: () => void
@@ -134,7 +153,7 @@ function SegmentedControl(props: {
 
         return (
           <Tooltip key={option.value}>
-            <TooltipTrigger render={button}></TooltipTrigger>
+            <TooltipTrigger render={button} />
             <TooltipContent side='bottom' className='text-xs'>
               {option.tooltip}
             </TooltipContent>
@@ -149,6 +168,28 @@ export function PricingToolbar(props: PricingToolbarProps) {
   const { t } = useTranslation()
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const sortLabels = getSortLabels(t)
+  const activeFilters = [
+    props.vendorFilter !== 'all' && {
+      label: `${t('Vendor')}: ${props.vendorFilter}`,
+      clear: () => props.onVendorChange('all'),
+    },
+    props.groupFilter !== 'all' && {
+      label: `${t('Group')}: ${props.groupFilter}`,
+      clear: () => props.onGroupChange('all'),
+    },
+    props.tagFilter !== 'all' && {
+      label: `${t('Tag')}: ${props.tagFilter}`,
+      clear: () => props.onTagChange('all'),
+    },
+    props.quotaTypeFilter !== 'all' && {
+      label: `${t('Billing type')}: ${props.quotaTypeFilter}`,
+      clear: () => props.onQuotaTypeChange('all'),
+    },
+    props.endpointTypeFilter !== 'all' && {
+      label: `${t('Protocol')}: ${props.endpointTypeFilter}`,
+      clear: () => props.onEndpointTypeChange('all'),
+    },
+  ].filter(Boolean) as Array<{ label: string; clear: () => void }>
 
   const handleTokenUnitChange = useCallback(
     (value: string) => props.onTokenUnitChange(value as TokenUnit),
@@ -169,21 +210,82 @@ export function PricingToolbar(props: PricingToolbarProps) {
     <div className='rounded-xl border p-3'>
       <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
         <div className='flex items-center gap-2'>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  className='max-w-48'
+                />
+              }
+            >
+              <span className='truncate'>
+                {props.vendorFilter === 'all'
+                  ? t('All Vendors')
+                  : props.vendorFilter}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align='start'
+              className='max-h-72 w-56 overflow-y-auto'
+            >
+              <DropdownMenuItem onClick={() => props.onVendorChange('all')}>
+                {t('All Vendors')}
+              </DropdownMenuItem>
+              {props.vendors.map((vendor) => (
+                <DropdownMenuItem
+                  key={vendor.id}
+                  onClick={() => props.onVendorChange(vendor.name)}
+                >
+                  {vendor.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type='button'
             variant='outline'
             size='sm'
             onClick={() => setMobileFiltersOpen(true)}
-            className='gap-1.5 xl:hidden'
+            className='gap-1.5 md:hidden'
           >
             <Filter className='size-4' />
-            {t('Filter')}
+            {t('More filters')}
             {props.activeFilterCount > 0 && (
               <Badge className='ml-0.5 size-5 justify-center p-0 text-[10px]'>
                 {props.activeFilterCount}
               </Badge>
             )}
           </Button>
+
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  className='hidden gap-1.5 md:inline-flex'
+                />
+              }
+            >
+              <Filter className='size-4' />
+              {t('More filters')}
+              {props.activeFilterCount > 0 && (
+                <Badge className='size-5 justify-center p-0 text-[10px]'>
+                  {props.activeFilterCount}
+                </Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align='start'
+              className='max-h-[70vh] w-[420px] overflow-y-auto p-0'
+            >
+              <PricingSidebar {...props} className='border-0 shadow-none' />
+            </PopoverContent>
+          </Popover>
 
           <div className='text-muted-foreground flex items-baseline gap-1 text-sm'>
             <span className='text-foreground font-semibold tabular-nums'>
@@ -199,26 +301,41 @@ export function PricingToolbar(props: PricingToolbarProps) {
         </div>
 
         <div className='flex flex-wrap items-center gap-2'>
-          <div className='hidden items-center gap-2 sm:flex'>
-            <SegmentedControl
-              options={[
-                { value: 'standard', label: t('Standard') },
-                { value: 'recharge', label: t('Recharge') },
-              ]}
-              value={props.showRechargePrice ? 'recharge' : 'standard'}
-              onChange={handleRechargePriceChange}
-              ariaLabel={t('Price display mode')}
-            />
-            <SegmentedControl
-              options={[
-                { value: 'M', label: '/1M' },
-                { value: 'K', label: '/1K' },
-              ]}
-              value={props.tokenUnit}
-              onChange={handleTokenUnitChange}
-              ariaLabel={t('Token unit')}
-            />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  className='text-muted-foreground gap-1.5'
+                />
+              }
+            >
+              <Settings2 className='size-4' />
+              {t('Display')}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end' className='space-y-2 p-2'>
+              <SegmentedControl
+                options={[
+                  { value: 'standard', label: t('Standard') },
+                  { value: 'recharge', label: t('Recharge') },
+                ]}
+                value={props.showRechargePrice ? 'recharge' : 'standard'}
+                onChange={handleRechargePriceChange}
+                ariaLabel={t('Price display mode')}
+              />
+              <SegmentedControl
+                options={[
+                  { value: 'M', label: '/1M' },
+                  { value: 'K', label: '/1K' },
+                ]}
+                value={props.tokenUnit}
+                onChange={handleTokenUnitChange}
+                ariaLabel={t('Token unit')}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -273,13 +390,41 @@ export function PricingToolbar(props: PricingToolbarProps) {
         </div>
       </div>
 
+      {activeFilters.length > 0 && (
+        <div
+          className='mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3'
+          aria-label={t('Active filters')}
+        >
+          {activeFilters.map((filter) => (
+            <button
+              key={filter.label}
+              type='button'
+              onClick={filter.clear}
+              className='bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs'
+            >
+              {filter.label}
+              <X className='size-3' />
+            </button>
+          ))}
+          <Button
+            type='button'
+            variant='ghost'
+            size='sm'
+            onClick={props.onClearFilters}
+            className='h-7 text-xs'
+          >
+            {t('Clear all')}
+          </Button>
+        </div>
+      )}
+
       <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
         <SheetContent
           side='right'
           className={sideDrawerContentClassName('sm:max-w-md')}
         >
           <SheetHeader className={sideDrawerHeaderClassName()}>
-            <SheetTitle>{t('Filter')}</SheetTitle>
+            <SheetTitle>{t('More filters')}</SheetTitle>
             <SheetDescription>
               {t('Filter models by provider, group, type, endpoint, and tags.')}
             </SheetDescription>
@@ -301,6 +446,7 @@ export function PricingToolbar(props: PricingToolbarProps) {
               groupRatios={props.groupRatios}
               tags={props.tags}
               models={props.models}
+              integrationProfiles={props.integrationProfiles}
               hasActiveFilters={props.hasActiveFilters}
               onClearFilters={props.onClearFilters}
               className='border-0 bg-transparent p-0 shadow-none'

@@ -16,13 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useMemo, useState } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
+import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -44,18 +45,24 @@ import { getModelModality } from './lib/studio/model-modality'
 export function Playground() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const search = useSearch({ from: '/playground/' })
+  const appliedDeepLink = useRef<string | undefined>(undefined)
   const user = useAuthStore((state) => state.auth.user)
   const isAuthenticated = Boolean(user)
   const [signInDialogOpen, setSignInDialogOpen] = useState(false)
   const pricing = usePricingData('playground')
+  const playgroundModels = useMemo(
+    () => pricing.models.filter(canTryInPlayground),
+    [pricing.models]
+  )
   const studio = useStudio()
   const publicModels = useMemo(
     () =>
-      pricing.models.map((model) => ({
+      playgroundModels.map((model) => ({
         label: model.model_name,
         value: model.model_name,
       })),
-    [pricing.models]
+    [playgroundModels]
   )
   const publicGroups = useMemo(
     () =>
@@ -124,7 +131,13 @@ export function Playground() {
     setModels,
     updateConfig,
   })
-  const selectedCatalogModel = pricing.models.find(
+  useEffect(() => {
+    if (!search.model || appliedDeepLink.current === search.model) return
+    if (!models.some((model) => model.value === search.model)) return
+    appliedDeepLink.current = search.model
+    updateConfig('model', search.model)
+  }, [models, search.model, updateConfig])
+  const selectedCatalogModel = playgroundModels.find(
     (model) => model.model_name === config.model
   )
   const activeModality = getModelModality(
@@ -134,7 +147,7 @@ export function Playground() {
   const catalog = (
     <ModelCatalog
       available={models}
-      models={pricing.models}
+      models={playgroundModels}
       selected={config.model}
       loading={pricing.isLoading || isLoadingModels}
       error={Boolean(pricing.error)}

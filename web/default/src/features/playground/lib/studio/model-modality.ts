@@ -11,11 +11,36 @@ import type { PricingModel } from '@/features/pricing/types'
 import type { StudioModality } from '../../types'
 
 type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
-  Partial<Pick<PricingModel, 'supported_endpoint_types' | 'output_modalities'>>
+  Partial<
+    Pick<
+      PricingModel,
+      'supported_endpoint_types' | 'output_modalities' | 'integrations'
+    >
+  >
 
 export function getModelModality(model: ModelModalityMetadata): StudioModality {
   const endpoints = model.supported_endpoint_types ?? []
   const output = model.output_modalities ?? []
+  const profiles = new Set(
+    (model.integrations ?? [])
+      .filter(
+        (integration) =>
+          integration.verified && integration.source === 'explicit'
+      )
+      .map((integration) => integration.profile_id)
+  )
+  const hasExplicitPlaygroundProfile = [
+    'openai.chat_completions',
+    'openai.images.generate',
+    'openai.video.create',
+    'openai.audio.speech',
+  ].some((profile) => profiles.has(profile))
+  if (hasExplicitPlaygroundProfile) {
+    if (profiles.has('openai.video.create')) return 'video'
+    if (profiles.has('openai.images.generate')) return 'image'
+    if (profiles.has('openai.audio.speech')) return 'audio'
+    return 'chat'
+  }
   if (
     output.includes('video') ||
     endpoints.some((item) => item.includes('video'))

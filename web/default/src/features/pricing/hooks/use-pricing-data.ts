@@ -71,6 +71,7 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     groupRatio: data?.group_ratio ?? {},
     usableGroup: data?.usable_group ?? {},
     endpointMap: data?.supported_endpoint ?? {},
+    integrationProfiles: data?.integration_profiles ?? [],
     autoGroups: data?.auto_groups ?? [],
     isLoading,
     error,

@@ -61,6 +61,16 @@ function parseJsonRows(json: string): EditorRow[] {
   }
 }
 
+function isJsonObject(json: string): boolean {
+  if (!json.trim()) return true
+  try {
+    const parsed = JSON.parse(json)
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+  } catch {
+    return false
+  }
+}
+
 export function JsonEditor({
   value,
   onChange,
@@ -80,7 +90,9 @@ export function JsonEditor({
   const resolvedValuePlaceholder = valuePlaceholder ?? t('Value')
   const resolvedKeyLabel = keyLabel ?? t('Key')
   const resolvedValueLabel = valueLabel ?? t('Value')
-  const [mode, setMode] = useState<'visual' | 'json'>('visual')
+  const [mode, setMode] = useState<'visual' | 'json'>(() =>
+    isJsonObject(value) ? 'visual' : 'json'
+  )
   const [rows, setRows] = useState<EditorRow[]>(() => parseJsonRows(value))
   const [jsonValue, setJsonValue] = useState(value)
 
@@ -93,6 +105,7 @@ export function JsonEditor({
     if (value !== jsonValue) {
       setJsonValue(value)
       parseJsonToRows(value)
+      if (!isJsonObject(value)) setMode('json')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
@@ -180,6 +193,7 @@ export function JsonEditor({
       setMode('json')
     } else {
       // Switching to visual mode: sync JSON to rows
+      if (!isJsonObject(jsonValue)) return
       parseJsonToRows(jsonValue)
       setMode('visual')
     }

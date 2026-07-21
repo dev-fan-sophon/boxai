@@ -30,7 +30,7 @@ import {
   Sparkles,
   Timer,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
@@ -66,11 +66,11 @@ import {
   getDynamicPricingTiers,
   isDynamicPricingModel,
 } from '../lib/dynamic-price'
-import { parseTags } from '../lib/filters'
 import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
 import { formatFixedPrice, formatGroupPrice } from '../lib/price'
 import type {
   ModelCapability,
+  IntegrationProfile,
   PriceType,
   PricingModel,
   TokenUnit,
@@ -447,8 +447,6 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
   const { t } = useTranslation()
   const model = props.model
   const groups = normalizeCatalogItems(model.enable_groups)
-  const endpoints = normalizeCatalogItems(model.supported_endpoint_types)
-  const tags = parseTags(model.tags)
   const cells: React.ReactNode[] = []
 
   if (model.vendor_name) {
@@ -469,22 +467,6 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
     cells.push(
       <CatalogInfoCell key='groups' label={t('Groups')}>
         <CatalogPillList items={groups} />
-      </CatalogInfoCell>
-    )
-  }
-
-  if (endpoints.length > 0) {
-    cells.push(
-      <CatalogInfoCell key='endpoints' label={t('Endpoints')}>
-        <CatalogPillList items={endpoints} />
-      </CatalogInfoCell>
-    )
-  }
-
-  if (tags.length > 0) {
-    cells.push(
-      <CatalogInfoCell key='tags' label={t('Tags')}>
-        <CatalogPillList items={tags} />
       </CatalogInfoCell>
     )
   }
@@ -510,11 +492,20 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
 }
 
 function ModelBackendDetailsSection(props: { model: PricingModel }) {
+  const { t } = useTranslation()
   return (
     <>
       <ModelBackendQuickStats model={props.model} />
       <ModelBackendSignalsSection model={props.model} />
       <ModelBackendProviderSection model={props.model} />
+      {props.model.usage_notes && (
+        <section>
+          <SectionTitle>{t('Usage notes')}</SectionTitle>
+          <p className='text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap'>
+            {props.model.usage_notes}
+          </p>
+        </section>
+      )}
     </>
   )
 }
@@ -534,8 +525,8 @@ function ModelHeader(props: { model: PricingModel }) {
     <header className='pb-4'>
       <div className='flex items-center gap-2.5'>
         {modelIcon}
-        <h1 className='font-mono text-xl font-bold tracking-tight sm:text-2xl'>
-          {model.model_name}
+        <h1 className='text-xl font-bold tracking-tight sm:text-2xl'>
+          {model.display_name || model.model_name}
         </h1>
         <CopyButton
           value={model.model_name || ''}
@@ -1113,7 +1104,12 @@ function GroupPricingSection(props: {
   )
 }
 
-const TAB_VALUES = ['overview', 'performance', 'api'] as const
+const TAB_VALUES = [
+  'overview',
+  'pricing',
+  'performance',
+  'integration',
+] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 const TAB_META: Record<
@@ -1121,8 +1117,9 @@ const TAB_META: Record<
   { icon: React.ComponentType<{ className?: string }>; labelKey: string }
 > = {
   overview: { icon: Info, labelKey: 'Overview' },
+  pricing: { icon: Layers, labelKey: 'Pricing & availability' },
   performance: { icon: HeartPulse, labelKey: 'Performance' },
-  api: { icon: Code2, labelKey: 'API' },
+  integration: { icon: Code2, labelKey: 'Integration' },
 }
 
 export interface ModelDetailsContentProps {
@@ -1130,15 +1127,19 @@ export interface ModelDetailsContentProps {
   groupRatio: Record<string, number>
   usableGroup: Record<string, string | { desc: string; ratio: number }>
   endpointMap: Record<string, { path?: string; method?: string }>
+  integrationProfiles: IntegrationProfile[]
   autoGroups: string[]
   priceRate: number
   usdExchangeRate: number
   tokenUnit: TokenUnit
   showRechargePrice?: boolean
+  activeTab?: TabValue
+  onTabChange?: (value: TabValue) => void
 }
 
 export function ModelDetailsContent(props: ModelDetailsContentProps) {
   const { t } = useTranslation()
+  const [drawerTab, setDrawerTab] = useState<TabValue>('overview')
   const showRechargePrice = props.showRechargePrice ?? false
 
   const isDynamic =
@@ -1149,8 +1150,16 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
     <div className='@container/details space-y-4'>
       <ModelHeader model={props.model} />
 
-      <Tabs defaultValue='overview' className='gap-4'>
-        <TabsList className='bg-muted/60 grid w-full grid-cols-3 gap-1 rounded-lg p-1 group-data-horizontal/tabs:h-auto'>
+      <Tabs
+        value={props.activeTab ?? drawerTab}
+        onValueChange={(value) => {
+          const tab = value as TabValue
+          setDrawerTab(tab)
+          props.onTabChange?.(tab)
+        }}
+        className='gap-4'
+      >
+        <TabsList className='bg-muted/60 grid w-full grid-cols-2 gap-1 rounded-lg p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4'>
           {TAB_VALUES.map((value) => {
             const Icon = TAB_META[value].icon
             return (
@@ -1169,6 +1178,10 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
         <TabsContent value='overview' className='space-y-6 outline-none'>
           <OverviewSummaryGrid model={props.model} />
 
+          <ModelBackendDetailsSection model={props.model} />
+        </TabsContent>
+
+        <TabsContent value='pricing' className='space-y-6 outline-none'>
           <section className='bg-card/60 space-y-5 rounded-xl border p-4 shadow-sm'>
             <SectionTitle>{t('Pricing')}</SectionTitle>
             <PriceSection
@@ -1192,18 +1205,16 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
               showRechargePrice={showRechargePrice}
             />
           </section>
-
-          <ModelBackendDetailsSection model={props.model} />
         </TabsContent>
 
         <TabsContent value='performance' className='outline-none'>
           <ModelDetailsPerformance model={props.model} />
         </TabsContent>
 
-        <TabsContent value='api' className='outline-none'>
+        <TabsContent value='integration' className='outline-none'>
           <ModelDetailsApi
             model={props.model}
-            endpointMap={props.endpointMap}
+            integrationProfiles={props.integrationProfiles}
           />
         </TabsContent>
       </Tabs>
@@ -1255,6 +1266,7 @@ export function ModelDetails() {
     groupRatio,
     usableGroup,
     endpointMap,
+    integrationProfiles,
     autoGroups,
     isLoading,
     priceRate,
@@ -1343,6 +1355,16 @@ export function ModelDetails() {
               string,
               { path?: string; method?: string }
             >) || {}
+          }
+          integrationProfiles={integrationProfiles}
+          activeTab={search.tab ?? 'overview'}
+          onTabChange={(tab) =>
+            navigate({
+              to: '/pricing/$modelId',
+              params: { modelId },
+              search: { ...search, tab },
+              replace: true,
+            })
           }
         />
       </div>

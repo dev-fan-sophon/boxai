@@ -16,26 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { api } from '@/lib/api'
+import { createFileRoute } from '@tanstack/react-router'
 
-import type { IntegrationProfile, PricingData } from './types'
+import { DocsPage } from '@/features/docs'
 
-// ----------------------------------------------------------------------------
-// Pricing APIs
-// ----------------------------------------------------------------------------
-
-// Get model pricing data
-export async function getPricing(): Promise<PricingData> {
-  const res = await api.get('/api/pricing')
-  return res.data
-}
-
-export async function getPlaygroundCatalog(): Promise<PricingData> {
-  const res = await api.get('/api/playground/catalog')
-  return res.data
-}
-
-export async function getIntegrationProfiles(): Promise<IntegrationProfile[]> {
-  const res = await api.get('/api/integration-profiles')
-  return res.data.data ?? []
+export const Route = createFileRoute('/docs/$slug')({
+  component: RouteComponent,
+})
+function RouteComponent() {
+  const { slug } = Route.useParams()
+  return <DocsPage slug={slug} />
 }

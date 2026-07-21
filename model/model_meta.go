@@ -22,18 +22,29 @@ type BoundChannel struct {
 }
 
 type Model struct {
-	Id           int            `json:"id"`
-	ModelName    string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
-	Description  string         `json:"description,omitempty" gorm:"type:text"`
-	Icon         string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
-	Tags         string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
-	VendorID     int            `json:"vendor_id,omitempty" gorm:"index"`
-	Endpoints    string         `json:"endpoints,omitempty" gorm:"type:text"`
-	Status       int            `json:"status" gorm:"default:1"`
-	SyncOfficial int            `json:"sync_official" gorm:"default:1"`
-	CreatedTime  int64          `json:"created_time" gorm:"bigint"`
-	UpdatedTime  int64          `json:"updated_time" gorm:"bigint"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
+	Id               int            `json:"id"`
+	ModelName        string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
+	Description      string         `json:"description,omitempty" gorm:"type:text"`
+	Icon             string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
+	Tags             string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
+	VendorID         int            `json:"vendor_id,omitempty" gorm:"index"`
+	Endpoints        string         `json:"endpoints,omitempty" gorm:"type:text"`
+	Integrations     string         `json:"integrations,omitempty" gorm:"type:text"`
+	DisplayName      string         `json:"display_name,omitempty" gorm:"type:varchar(255)"`
+	ContextLength    int            `json:"context_length,omitempty"`
+	MaxOutputTokens  int            `json:"max_output_tokens,omitempty"`
+	KnowledgeCutoff  string         `json:"knowledge_cutoff,omitempty" gorm:"type:varchar(64)"`
+	ReleaseDate      string         `json:"release_date,omitempty" gorm:"type:varchar(64)"`
+	ParameterCount   string         `json:"parameter_count,omitempty" gorm:"type:varchar(64)"`
+	InputModalities  string         `json:"input_modalities,omitempty" gorm:"type:text"`
+	OutputModalities string         `json:"output_modalities,omitempty" gorm:"type:text"`
+	Capabilities     string         `json:"capabilities,omitempty" gorm:"type:text"`
+	UsageNotes       string         `json:"usage_notes,omitempty" gorm:"type:text"`
+	Status           int            `json:"status" gorm:"default:1"`
+	SyncOfficial     int            `json:"sync_official" gorm:"default:1"`
+	CreatedTime      int64          `json:"created_time" gorm:"bigint"`
+	UpdatedTime      int64          `json:"updated_time" gorm:"bigint"`
+	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
 
 	BoundChannels []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
 	EnableGroups  []string       `json:"enable_groups,omitempty" gorm:"-"`
@@ -78,7 +89,7 @@ func (mi *Model) Update() error {
 	mi.UpdatedTime = common.GetTimestamp()
 	// 使用 Select 强制更新所有字段，包括零值
 	return DB.Model(&Model{}).Where("id = ?", mi.Id).
-		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "status", "sync_official", "name_rule", "updated_time").
+		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_output_tokens", "knowledge_cutoff", "release_date", "parameter_count", "input_modalities", "output_modalities", "capabilities", "usage_notes", "status", "sync_official", "name_rule", "updated_time").
 		Updates(mi).Error
 }
 
