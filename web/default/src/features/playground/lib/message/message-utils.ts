@@ -76,12 +76,18 @@ export function updateCurrentVersionContent(
  */
 export function createUserMessage(
   content: string,
-  createdAt: number = Date.now()
+  createdAt: number = Date.now(),
+  attachments?: string[]
 ): Message {
+  const validAttachments = attachments?.filter((url) => url.trim() !== '')
   return {
     key: nanoid(),
     from: MESSAGE_ROLES.USER,
     versions: [createMessageVersion(content)],
+    attachments:
+      validAttachments && validAttachments.length > 0
+        ? validAttachments
+        : undefined,
     createdAt,
   }
 }
@@ -154,6 +160,12 @@ export function getTextContent(content: string | ContentPart[]): string {
  */
 export function formatMessageForAPI(message: Message): ChatCompletionMessage {
   const currentVersion = getCurrentVersion(message)
+  if (message.from === MESSAGE_ROLES.USER && message.attachments?.length) {
+    return {
+      role: message.from,
+      content: buildMessageContent(currentVersion.content, message.attachments),
+    }
+  }
   return {
     role: message.from,
     content: currentVersion.content,

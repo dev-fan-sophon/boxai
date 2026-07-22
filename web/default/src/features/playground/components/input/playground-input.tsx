@@ -16,8 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
+import { ImagePlus, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
   PromptInput,
@@ -25,6 +27,7 @@ import {
   PromptInputTextarea,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
+import { Button } from '@/components/ui/button'
 
 import { getSubmittableInputText } from '../../lib'
 import type {
@@ -36,9 +39,12 @@ import type {
 import { PlaygroundInputControls } from './playground-input-controls'
 import { PlaygroundInputTools } from './playground-input-tools'
 
+const MAX_ATTACHMENTS = 4
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+
 interface PlaygroundInputProps {
   config: PlaygroundConfig
-  onSubmit: (text: string) => boolean
+  onSubmit: (text: string, attachments?: string[]) => boolean
   onStop?: () => void
   disabled?: boolean
   isGenerating?: boolean
@@ -88,6 +94,8 @@ export function PlaygroundInput({
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (prefillText == null) return
@@ -95,11 +103,48 @@ export function PlaygroundInput({
     onPrefillConsumed?.()
   }, [prefillText, onPrefillConsumed])
 
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const remaining = MAX_ATTACHMENTS - attachments.length
+    if (remaining <= 0) {
+      toast.error(
+        t('You can attach up to {{count}} images.', { count: MAX_ATTACHMENTS })
+      )
+      return
+    }
+    for (const file of [...files].slice(0, remaining)) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(t('Only image attachments are supported.'))
+        continue
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        toast.error(t('Image is too large (max 8MB).'))
+        continue
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.addEventListener('load', () => resolve(String(reader.result)), {
+          once: true,
+        })
+        reader.addEventListener('error', () => reject(reader.error), {
+          once: true,
+        })
+        reader.readAsDataURL(file)
+      })
+      setAttachments((prev) =>
+        prev.length < MAX_ATTACHMENTS ? [...prev, dataUrl] : prev
+      )
+    }
+  }
+
   const handleSubmit = (message: PromptInputMessage) => {
     const submittableText = getSubmittableInputText(message, disabled)
 
-    if (!submittableText) return
-    if (onSubmit(submittableText)) setText('')
+    if (!submittableText && attachments.length === 0) return
+    if (onSubmit(submittableText ?? '', attachments)) {
+      setText('')
+      setAttachments([])
+    }
   }
 
   return (
@@ -121,6 +166,42 @@ export function PlaygroundInput({
           value={text}
         />
 
+        {attachments.length > 0 && (
+          <div className='flex flex-wrap gap-2 px-5 pb-2'>
+            {attachments.map((src, index) => (
+              <div key={src} className='relative'>
+                <img
+                  src={src}
+                  alt={t('Attachment {{index}}', { index: index + 1 })}
+                  className='border-border size-14 rounded-lg border object-cover'
+                />
+                <button
+                  type='button'
+                  aria-label={t('Remove attachment')}
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((_, i) => i !== index))
+                  }
+                  className='bg-background border-border absolute -top-1.5 -right-1.5 rounded-full border p-0.5 shadow-sm'
+                >
+                  <X className='size-3' />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type='file'
+          accept='image/*'
+          multiple
+          className='hidden'
+          onChange={(event) => {
+            void handleFiles(event.target.files)
+            event.target.value = ''
+          }}
+        />
+
         <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-3 py-2.5 backdrop-blur'>
           <PlaygroundInputControls
             disabled={disabled}
@@ -135,15 +216,28 @@ export function PlaygroundInput({
             onStop={onStop}
             text={text}
             tools={
-              <PlaygroundInputTools
-                config={config}
-                disabled={disabled}
-                hasMessages={hasMessages}
-                onConfigChange={onConfigChange}
-                onClearMessages={onClearMessages}
-                onParameterEnabledChange={onParameterEnabledChange}
-                parameterEnabled={parameterEnabled}
-              />
+              <>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  className='text-muted-foreground hover:text-foreground size-8'
+                  disabled={disabled || attachments.length >= MAX_ATTACHMENTS}
+                  aria-label={t('Attach image')}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImagePlus className='size-4' />
+                </Button>
+                <PlaygroundInputTools
+                  config={config}
+                  disabled={disabled}
+                  hasMessages={hasMessages}
+                  onConfigChange={onConfigChange}
+                  onClearMessages={onClearMessages}
+                  onParameterEnabledChange={onParameterEnabledChange}
+                  parameterEnabled={parameterEnabled}
+                />
+              </>
             }
           />
         </PromptInputFooter>

@@ -91,6 +91,19 @@ export function PlaygroundMessageContent({
         getMessageAlignmentClass(alignment)
       )}
     >
+      {message.attachments && message.attachments.length > 0 && (
+        <div className='mb-2 flex flex-wrap gap-2'>
+          {message.attachments.map((src, index) => (
+            <img
+              key={src}
+              src={src}
+              alt={t('Attachment {{index}}', { index: index + 1 })}
+              className='border-border size-24 rounded-lg border object-cover'
+            />
+          ))}
+        </div>
+      )}
+
       {hasSources && (
         <Sources>
           <SourcesTrigger count={sources.length} />

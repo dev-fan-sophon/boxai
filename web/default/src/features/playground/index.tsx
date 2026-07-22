@@ -45,10 +45,10 @@ import {
 } from './hooks'
 import { useStudio } from './hooks/use-studio'
 import { useWorkbenchPrefs } from './hooks/use-workbench-prefs'
+import { getModelModality } from './lib/studio/model-modality'
 import type { AgentCard } from './lib/workbench/agents-data'
 import type { InspirationTemplate } from './lib/workbench/inspiration-data'
 import type { WorkbenchTab } from './lib/workbench/workbench-prefs'
-import { getModelModality } from './lib/studio/model-modality'
 import type { StudioModality } from './types'
 
 export function Playground() {
@@ -186,9 +186,8 @@ export function Playground() {
           (model) => model.model_name === option.value
         )
         return (
-          getModelModality(
-            pricingModel ?? { model_name: option.value }
-          ) === 'chat'
+          getModelModality(pricingModel ?? { model_name: option.value }) ===
+          'chat'
         )
       }),
     [models, playgroundModels]
@@ -201,14 +200,13 @@ export function Playground() {
       )
       const currentMatches =
         current != null && getModelModality(current) === modality
-      const match =
-        currentMatches
-          ? current
-          : playgroundModels.find(
-              (model) =>
-                models.some((item) => item.value === model.model_name) &&
-                getModelModality(model) === modality
-            )
+      const match = currentMatches
+        ? current
+        : playgroundModels.find(
+            (model) =>
+              models.some((item) => item.value === model.model_name) &&
+              getModelModality(model) === modality
+          )
 
       if (!match) {
         toast.error(t('No model available for this modality'), {
@@ -260,8 +258,8 @@ export function Playground() {
 
   const pushRecentPrompt = workbench.pushRecentPrompt
   const handleChatSend = useCallback(
-    (text: string) => {
-      const ok = handleSendMessage(text)
+    (text: string, attachments?: string[]) => {
+      const ok = handleSendMessage(text, attachments)
       if (ok) {
         pushRecentPrompt({
           prompt: text,
@@ -315,9 +313,7 @@ export function Playground() {
         if (tab !== 'models') setDuoOpen(false)
       }}
       catalog={catalog}
-      agents={
-        <AgentsPanel onSelectAgent={handleAgentSelect} variant='rail' />
-      }
+      agents={<AgentsPanel onSelectAgent={handleAgentSelect} variant='rail' />}
       inspiration={
         <InspirationPanel
           variant='rail'
@@ -332,7 +328,10 @@ export function Playground() {
       {showBusyStrip && (
         <div className='border-warning/25 bg-warning/10 flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2'>
           <p className='text-warning flex min-w-0 items-center gap-2 text-xs font-medium'>
-            <Loader2 className='size-3.5 shrink-0 animate-spin' aria-hidden='true' />
+            <Loader2
+              className='size-3.5 shrink-0 animate-spin'
+              aria-hidden='true'
+            />
             <span className='text-foreground truncate'>
               {isGenerating
                 ? t('Generation in progress…')
@@ -353,7 +352,7 @@ export function Playground() {
             )}
             <Button
               size='sm'
-              className='h-7 bg-primary text-primary-foreground hover:bg-primary/90'
+              className='bg-primary text-primary-foreground hover:bg-primary/90 h-7'
               onClick={() => setWorkbenchTab('models')}
             >
               {t('Back to Models')}
@@ -441,37 +440,35 @@ export function Playground() {
         </>
       )}
 
-      {showModelsWorkspace &&
-        !duoOpen &&
-        activeModality !== 'chat' && (
-          <GenerationWorkspace
-            modality={activeModality}
-            model={config.model}
-            pricingModel={selectedCatalogModel}
-            group={config.group}
-            groups={groups}
-            onGroupChange={(value) => updateConfig('group', value)}
-            settings={studio.settings}
-            onSettingsChange={studio.setSettings}
-            canSubmit={requireAuthentication}
-            images={studio.images}
-            video={studio.video}
-            audioUrl={studio.audioUrl}
-            imageMutation={studio.imageMutation}
-            videoMutation={studio.videoMutation}
-            audioMutation={studio.audioMutation}
-            prefillPrompt={prefillPrompt}
-            onPrefillConsumed={() => setPrefillPrompt(undefined)}
-            onPromptUsed={(prompt) =>
-              workbench.pushRecentPrompt({
-                prompt,
-                modality: activeModality,
-                model: config.model,
-              })
-            }
-            onSaveWork={workbench.saveWork}
-          />
-        )}
+      {showModelsWorkspace && !duoOpen && activeModality !== 'chat' && (
+        <GenerationWorkspace
+          modality={activeModality}
+          model={config.model}
+          pricingModel={selectedCatalogModel}
+          group={config.group}
+          groups={groups}
+          onGroupChange={(value) => updateConfig('group', value)}
+          settings={studio.settings}
+          onSettingsChange={studio.setSettings}
+          canSubmit={requireAuthentication}
+          images={studio.images}
+          video={studio.video}
+          audioUrl={studio.audioUrl}
+          imageMutation={studio.imageMutation}
+          videoMutation={studio.videoMutation}
+          audioMutation={studio.audioMutation}
+          prefillPrompt={prefillPrompt}
+          onPrefillConsumed={() => setPrefillPrompt(undefined)}
+          onPromptUsed={(prompt) =>
+            workbench.pushRecentPrompt({
+              prompt,
+              modality: activeModality,
+              model: config.model,
+            })
+          }
+          onSaveWork={workbench.saveWork}
+        />
+      )}
 
       <Dialog
         open={signInDialogOpen}

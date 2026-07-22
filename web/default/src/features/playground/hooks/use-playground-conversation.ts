@@ -46,9 +46,9 @@ export function usePlaygroundConversation({
   )
 
   const handleSendMessage = useCallback(
-    (text: string): boolean => {
+    (text: string, attachments?: string[]): boolean => {
       if (!canSubmit()) return false
-      const nextMessages = appendUserMessagePair(messages, text)
+      const nextMessages = appendUserMessagePair(messages, text, attachments)
       updateMessages(nextMessages)
       sendChat(nextMessages)
       return true

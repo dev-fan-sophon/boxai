@@ -32,6 +32,8 @@ export interface Message {
   key: string
   from: MessageRole
   versions: MessageVersion[]
+  /** Image URLs (data URLs) attached to a user turn for vision requests */
+  attachments?: string[]
   createdAt?: number
   startedAt?: number
   completedAt?: number
