@@ -65,17 +65,15 @@ export function GenerationComposer(props: GenerationComposerProps) {
         )}
         disabled={props.isPending}
         canSubmit={Boolean(text.trim() && model && !props.isPending)}
-        attachments={
+        tools={
           showMediaSlot ? (
-            <div className='px-5 pb-2'>
-              <MediaReferenceSlot
-                label={mediaLabel}
-                value={props.reference}
-                onChange={props.onReferenceChange}
-                attachable
-                kind='image'
-              />
-            </div>
+            <MediaReferenceSlot
+              label={mediaLabel}
+              value={props.reference}
+              onChange={props.onReferenceChange}
+              attachable
+              kind='image'
+            />
           ) : undefined
         }
         trailing={

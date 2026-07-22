@@ -131,72 +131,63 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
   }
 
   return (
-    <div className={cn('flex flex-col gap-1.5', props.className)}>
-      <div className='flex items-center gap-1'>
-        <button
+    <div className={cn('flex items-center gap-1', props.className)}>
+      <button
+        type='button'
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          'inline-flex h-8 items-center gap-1.5 rounded-lg border border-transparent px-2 text-[11px] font-medium transition-colors',
+          'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          props.value
+            ? 'border-primary/40 bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+        )}
+        aria-label={props.label}
+      >
+        {props.value ? (
+          <img
+            src={props.value.dataUrl}
+            alt={props.value.name}
+            className='size-5 rounded object-cover'
+          />
+        ) : (
+          <ImagePlus className='size-3.5' aria-hidden='true' />
+        )}
+        <span className='max-w-24 truncate'>{props.label}</span>
+      </button>
+      <Button
+        type='button'
+        variant='ghost'
+        size='icon'
+        className='size-8 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+        aria-label={t('Asset library')}
+        onClick={() => setLibraryOpen(true)}
+      >
+        <Library className='size-3.5' />
+      </Button>
+      <Button
+        type='button'
+        variant='ghost'
+        size='icon'
+        className='size-8 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+        aria-label={t('Scan to upload')}
+        disabled={qrPolling}
+        onClick={() => void startQrSession()}
+      >
+        <QrCode className='size-3.5' />
+      </Button>
+      {props.value && (
+        <Button
           type='button'
-          onClick={() => inputRef.current?.click()}
-          className={cn(
-            'group relative flex size-14 shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/40 transition-colors outline-none',
-            'hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring',
-            props.value && 'border-solid border-border'
-          )}
-          aria-label={props.label}
+          variant='ghost'
+          size='icon'
+          className='size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+          aria-label={t('Remove reference')}
+          onClick={() => props.onChange(null)}
         >
-          {props.value ? (
-            <img
-              src={props.value.dataUrl}
-              alt={props.value.name}
-              className='size-full object-cover'
-            />
-          ) : (
-            <>
-              <ImagePlus
-                className='size-4 text-muted-foreground group-hover:text-primary'
-                aria-hidden='true'
-              />
-              <span className='mt-0.5 max-w-[3.25rem] truncate text-[9px] text-muted-foreground'>
-                {props.label}
-              </span>
-            </>
-          )}
-        </button>
-        <div className='flex flex-col gap-0.5'>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='size-7 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-            aria-label={t('Asset library')}
-            onClick={() => setLibraryOpen(true)}
-          >
-            <Library className='size-3.5' />
-          </Button>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='size-7 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-            aria-label={t('Scan to upload')}
-            disabled={qrPolling}
-            onClick={() => void startQrSession()}
-          >
-            <QrCode className='size-3.5' />
-          </Button>
-          {props.value && (
-            <Button
-              type='button'
-              variant='ghost'
-              size='icon'
-              className='size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
-              aria-label={t('Remove reference')}
-              onClick={() => props.onChange(null)}
-            >
-              <Trash2 className='size-3.5' />
-            </Button>
-          )}
-        </div>
-      </div>
+          <Trash2 className='size-3.5' />
+        </Button>
+      )}
       <input
         ref={inputRef}
         type='file'
