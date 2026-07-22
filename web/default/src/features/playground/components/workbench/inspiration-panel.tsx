@@ -312,6 +312,29 @@ export function InspirationPanel(props: InspirationPanelProps) {
                   </Button>
                 )}
               </div>
+              {work.previewUrl && work.modality === 'image' && (
+                <img
+                  src={work.previewUrl}
+                  alt={work.title}
+                  loading='lazy'
+                  className='mt-2 aspect-video w-full rounded-lg object-cover'
+                />
+              )}
+              {work.previewUrl && work.modality === 'video' && (
+                <video
+                  src={work.previewUrl}
+                  controls
+                  preload='metadata'
+                  className='mt-2 aspect-video w-full rounded-lg bg-black'
+                >
+                  {t('Your browser does not support video playback.')}
+                </video>
+              )}
+              {work.previewUrl && work.modality === 'audio' && (
+                <audio src={work.previewUrl} controls className='mt-2 w-full'>
+                  {t('Your browser does not support audio playback.')}
+                </audio>
+              )}
             </div>
           ))}
         </div>
