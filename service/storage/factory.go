@@ -36,6 +36,18 @@ func Default() AssetStore {
 	return defaultStore
 }
 
+// NewLocalStore builds a local filesystem store rooted at root. Used by the
+// backfill tool to read legacy local objects regardless of STORAGE_BACKEND.
+func NewLocalStore(root string) AssetStore {
+	return newLocalStore(root)
+}
+
+// NewR2Store builds a Cloudflare R2 store from the R2_* environment variables.
+// Used by the backfill tool as the migration target.
+func NewR2Store() (AssetStore, error) {
+	return newR2Store()
+}
+
 // Reset clears the cached default store. Intended for tests that mutate
 // storage-related environment variables.
 func Reset() {

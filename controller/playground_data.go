@@ -185,6 +185,24 @@ func UnpublishPlaygroundAsset(c *gin.Context) {
 	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
 }
 
+// BackfillPlaygroundAssetsToR2 migrates local-backend assets to R2 (admin only).
+// Query params: limit (0 = all), dry_run (true reports candidates only).
+func BackfillPlaygroundAssetsToR2(c *gin.Context) {
+	limit := 0
+	if v := c.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	dryRun := c.Query("dry_run") == "true" || c.Query("dry_run") == "1"
+	result, err := service.BackfillPlaygroundAssetsToR2(c.Request.Context(), limit, dryRun)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, result)
+}
+
 func GetPlaygroundAssetContent(c *gin.Context) {
 	userId := c.GetInt("id")
 	id, err := strconv.Atoi(c.Param("id"))

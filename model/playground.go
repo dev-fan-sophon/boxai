@@ -213,6 +213,40 @@ func DeletePlaygroundAsset(id int, userId int) error {
 	return nil
 }
 
+// ListPlaygroundAssetsForBackfill returns assets still stored on the local
+// backend (legacy empty backend or explicit "local"), ordered by id, for
+// migration to R2. limit <= 0 returns all matching assets.
+func ListPlaygroundAssetsForBackfill(limit int) ([]PlaygroundAsset, error) {
+	var items []PlaygroundAsset
+	q := DB.Where("backend = ? OR backend = ?", "local", "").
+		Where("storage_key <> ?", "").
+		Order("id ASC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// SetPlaygroundAssetBackend updates the storage backend marker for an asset,
+// optionally refreshing the public URL when the object was republished.
+func SetPlaygroundAssetBackend(id int, backend, publicURL string) error {
+	updates := map[string]any{"backend": backend}
+	if publicURL != "" {
+		updates["public_url"] = publicURL
+	}
+	res := DB.Model(&PlaygroundAsset{}).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // SetPlaygroundAssetVisibility updates publish state. Empty publicKey/publicURL
 // clear the public copy metadata (unpublish).
 func SetPlaygroundAssetVisibility(id, userId int, visibility, publicKey, publicURL string) error {
