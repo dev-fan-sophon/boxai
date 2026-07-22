@@ -31,7 +31,6 @@ import {
   applyMessageStateUpdate,
   type MessageStateUpdater,
 } from '@/features/playground/lib/state/playground-state-utils'
-import { MAX_STORED_MESSAGES } from '@/features/playground/lib/storage/storage-schema'
 import {
   DEFAULT_STUDIO_SETTINGS,
   MAX_DUO_ANSWER_MODELS,
@@ -39,6 +38,7 @@ import {
   PLAYGROUND_STORE_VERSION,
   loadPersistedPlaygroundState,
   normalizeStudioSettings,
+  preparePersistedPlaygroundState,
   type PersistedPlaygroundState,
   type PlaygroundWorkspaceMode,
 } from '@/features/playground/lib/storage/store-migration'
@@ -329,22 +329,8 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
       name: PLAYGROUND_STORE_STORAGE_KEY,
       version: PLAYGROUND_STORE_VERSION,
       storage: playgroundPersistStorage,
-      partialize: (state): PersistedPlaygroundState => ({
-        workspaceMode: state.workspaceMode,
-        config: state.config,
-        parameterEnabled: state.parameterEnabled,
-        chatTools: state.chatTools,
-        studioSettings: state.studioSettings,
-        duo: state.duo,
-        pinnedModels: state.pinnedModels,
-        recentPrompts: state.recentPrompts,
-        myWorks: state.myWorks,
-        messages:
-          state.messages.length > MAX_STORED_MESSAGES
-            ? state.messages.slice(-MAX_STORED_MESSAGES)
-            : state.messages,
-        ui: state.ui,
-      }),
+      partialize: (state): PersistedPlaygroundState =>
+        preparePersistedPlaygroundState(state),
     }
   )
 )

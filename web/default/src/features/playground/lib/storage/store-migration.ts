@@ -38,7 +38,11 @@ import {
   type WorkbenchChatTools,
 } from '../workbench/workbench-prefs'
 import { loadMessages, prepareLoadedMessages } from './storage'
-import { messagesSchema, playgroundConfigSchema } from './storage-schema'
+import {
+  MAX_STORED_MESSAGES,
+  messagesSchema,
+  playgroundConfigSchema,
+} from './storage-schema'
 
 export const PLAYGROUND_STORE_STORAGE_KEY = STORAGE_KEYS.STORE
 export const PLAYGROUND_STORE_VERSION = 2
@@ -71,6 +75,33 @@ export type PersistedPlaygroundState = {
   myWorks: InspirationWork[]
   messages: Message[]
   ui: PlaygroundUiPrefs
+}
+
+/** Remove ephemeral attachment data before Zustand serializes playground state. */
+export function preparePersistedPlaygroundState(
+  state: PersistedPlaygroundState
+): PersistedPlaygroundState {
+  const messages =
+    state.messages.length > MAX_STORED_MESSAGES
+      ? state.messages.slice(-MAX_STORED_MESSAGES)
+      : state.messages
+
+  return {
+    workspaceMode: state.workspaceMode,
+    config: state.config,
+    parameterEnabled: state.parameterEnabled,
+    chatTools: state.chatTools,
+    studioSettings: state.studioSettings,
+    duo: state.duo,
+    pinnedModels: state.pinnedModels,
+    recentPrompts: state.recentPrompts,
+    myWorks: state.myWorks,
+    messages: messages.map((message) => ({
+      ...message,
+      attachments: undefined,
+    })),
+    ui: state.ui,
+  }
 }
 
 export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {

@@ -13,6 +13,7 @@ import type { Message } from '../../types'
 import {
   DEFAULT_STUDIO_SETTINGS,
   loadPersistedPlaygroundState,
+  preparePersistedPlaygroundState,
   type PersistedPlaygroundState,
 } from './store-migration'
 
@@ -187,5 +188,31 @@ describe('loadPersistedPlaygroundState', () => {
     expect(state.messages[0].versions[0].content).toBe(
       'hello from legacy storage'
     )
+  })
+})
+
+describe('preparePersistedPlaygroundState', () => {
+  it('removes inline attachments without mutating live messages', () => {
+    const state = loadPersistedPlaygroundState()
+    state.messages = [
+      {
+        ...userMessage,
+        attachments: [
+          {
+            id: 'pdf-1',
+            name: 'report.pdf',
+            mimeType: 'application/pdf',
+            dataUrl: 'data:application/pdf;base64,cGRm',
+            type: 'file',
+          },
+        ],
+      },
+    ]
+
+    const persisted = preparePersistedPlaygroundState(state)
+
+    expect(persisted.messages[0].attachments).toBeUndefined()
+    expect(state.messages[0].attachments).toHaveLength(1)
+    expect(JSON.stringify(persisted)).not.toContain('data:application/pdf')
   })
 })

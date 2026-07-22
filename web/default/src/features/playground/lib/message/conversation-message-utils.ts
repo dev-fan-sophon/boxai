@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Message } from '../../types'
+import type { ChatAttachment, Message } from '../../types'
 import {
   createLoadingAssistantMessage,
   createUserMessage,
@@ -39,7 +39,7 @@ type ChatMessageRenderState = {
 export function appendUserMessagePair(
   messages: Message[],
   content: string,
-  attachments?: string[]
+  attachments?: ChatAttachment[]
 ): Message[] {
   const submittedAt = Date.now()
 

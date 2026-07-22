@@ -23,6 +23,7 @@ import type {
   Message,
   MessageVersion,
   ChatCompletionMessage,
+  ChatAttachment,
   ContentPart,
 } from '../../types'
 
@@ -77,9 +78,11 @@ export function updateCurrentVersionContent(
 export function createUserMessage(
   content: string,
   createdAt: number = Date.now(),
-  attachments?: string[]
+  attachments?: ChatAttachment[]
 ): Message {
-  const validAttachments = attachments?.filter((url) => url.trim() !== '')
+  const validAttachments = attachments?.filter(
+    (attachment) => attachment.dataUrl.trim() !== ''
+  )
   return {
     key: nanoid(),
     from: MESSAGE_ROLES.USER,
@@ -113,15 +116,17 @@ export function createLoadingAssistantMessage(
 }
 
 /**
- * Build message content with optional images
+ * Build message content with optional images and PDFs
  */
 export function buildMessageContent(
   text: string,
-  imageUrls: string[] = []
+  attachments: ChatAttachment[] = []
 ): string | ContentPart[] {
-  const validImages = imageUrls.filter((url) => url.trim() !== '')
+  const validAttachments = attachments.filter(
+    (attachment) => attachment.dataUrl.trim() !== ''
+  )
 
-  if (validImages.length === 0) {
+  if (validAttachments.length === 0) {
     return text
   }
 
@@ -130,11 +135,24 @@ export function buildMessageContent(
       type: 'text',
       text: text || '',
     },
-    ...validImages.map((url) => ({
-      type: 'image_url' as const,
-      image_url: { url: url.trim() },
-    })),
   ]
+
+  for (const attachment of validAttachments) {
+    if (attachment.type === 'image') {
+      parts.push({
+        type: 'image_url',
+        image_url: { url: attachment.dataUrl.trim() },
+      })
+      continue
+    }
+    parts.push({
+      type: 'file',
+      file: {
+        filename: attachment.name,
+        file_data: attachment.dataUrl.trim(),
+      },
+    })
+  }
 
   return parts
 }

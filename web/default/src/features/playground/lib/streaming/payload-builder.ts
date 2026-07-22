@@ -36,6 +36,17 @@ export type BuildChatPayloadOptions = {
   maxToolLoops?: number
 }
 
+export const MAX_CHAT_PAYLOAD_BYTES = 30 * 1024 * 1024
+
+export function isChatCompletionPayloadTooLarge(
+  payload: ChatCompletionRequest
+): boolean {
+  return (
+    new TextEncoder().encode(JSON.stringify(payload)).byteLength >
+    MAX_CHAT_PAYLOAD_BYTES
+  )
+}
+
 /**
  * Build API request payload from messages and config
  */

@@ -28,12 +28,20 @@ export interface MessageVersion {
   content: string
 }
 
+export type ChatAttachment = {
+  id: string
+  name: string
+  mimeType: string
+  dataUrl: string
+  type: 'image' | 'file'
+}
+
 export interface Message {
   key: string
   from: MessageRole
   versions: MessageVersion[]
-  /** Image URLs (data URLs) attached to a user turn for vision requests */
-  attachments?: string[]
+  /** Inline images and PDFs attached to a user turn */
+  attachments?: ChatAttachment[]
   createdAt?: number
   startedAt?: number
   completedAt?: number
@@ -59,13 +67,16 @@ export interface ChatCompletionMessage {
   content: string | ContentPart[]
 }
 
-export interface ContentPart {
-  type: 'text' | 'image_url'
-  text?: string
-  image_url?: {
-    url: string
-  }
-}
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+  | {
+      type: 'file'
+      file: {
+        filename: string
+        file_data: string
+      }
+    }
 
 export interface ChatCompletionRequest {
   model: string

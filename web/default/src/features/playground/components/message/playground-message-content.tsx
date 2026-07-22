@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -93,14 +94,26 @@ export function PlaygroundMessageContent({
     >
       {message.attachments && message.attachments.length > 0 && (
         <div className='mb-2 flex flex-wrap gap-2'>
-          {message.attachments.map((src, index) => (
-            <img
-              key={src}
-              src={src}
-              alt={t('Attachment {{index}}', { index: index + 1 })}
-              className='border-border size-24 rounded-lg border object-cover'
-            />
-          ))}
+          {message.attachments.map((attachment, index) =>
+            attachment.type === 'image' ? (
+              <img
+                key={attachment.id}
+                src={attachment.dataUrl}
+                alt={t('Attachment {{index}}', { index: index + 1 })}
+                className='border-border size-24 rounded-lg border object-cover'
+              />
+            ) : (
+              <div
+                key={attachment.id}
+                className='border-border bg-muted flex max-w-64 items-center gap-2 rounded-lg border px-3 py-2'
+              >
+                <FileText className='text-muted-foreground size-5 shrink-0' />
+                <span className='truncate text-sm' title={attachment.name}>
+                  {attachment.name}
+                </span>
+              </div>
+            )
+          )}
         </div>
       )}
 

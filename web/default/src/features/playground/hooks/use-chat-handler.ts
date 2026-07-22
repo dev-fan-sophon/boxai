@@ -34,7 +34,10 @@ import {
   isAssistantMessageFinal,
   isAssistantMessagePending,
 } from '../lib'
-import type { BuildChatPayloadOptions } from '../lib/streaming/payload-builder'
+import {
+  isChatCompletionPayloadTooLarge,
+  type BuildChatPayloadOptions,
+} from '../lib/streaming/payload-builder'
 import type { Message, PlaygroundConfig, ParameterEnabled } from '../types'
 import { useStreamRequest } from './use-stream-request'
 
@@ -205,16 +208,32 @@ export function useChatHandler({
     [flushStreamUpdates, getDisplayError, onMessageUpdate, t]
   )
 
-  // Send streaming chat request
-  const sendStreamingChat = useCallback(
+  const buildValidatedPayload = useCallback(
     (messages: Message[]) => {
-      setIsRequesting(true)
       const payload = buildChatCompletionPayload(
         messages,
         config,
         parameterEnabled,
         payloadOptions
       )
+
+      if (isChatCompletionPayloadTooLarge(payload)) {
+        handleStreamError(ERROR_MESSAGES.REQUEST_TOO_LARGE)
+        return null
+      }
+
+      return payload
+    },
+    [config, handleStreamError, parameterEnabled, payloadOptions]
+  )
+
+  // Send streaming chat request
+  const sendStreamingChat = useCallback(
+    (messages: Message[]) => {
+      const payload = buildValidatedPayload(messages)
+      if (!payload) return
+
+      setIsRequesting(true)
       sendStreamRequest(
         payload,
         handleStreamUpdate,
@@ -223,9 +242,7 @@ export function useChatHandler({
       )
     },
     [
-      config,
-      parameterEnabled,
-      payloadOptions,
+      buildValidatedPayload,
       sendStreamRequest,
       handleStreamUpdate,
       handleStreamComplete,
@@ -236,12 +253,9 @@ export function useChatHandler({
   // Send non-streaming chat request
   const sendNonStreamingChat = useCallback(
     async (messages: Message[]) => {
-      const payload = buildChatCompletionPayload(
-        messages,
-        config,
-        parameterEnabled,
-        payloadOptions
-      )
+      const payload = buildValidatedPayload(messages)
+      if (!payload) return
+
       const requestId = requestIdRef.current + 1
       const abortController = new AbortController()
 
@@ -283,13 +297,7 @@ export function useChatHandler({
         }
       }
     },
-    [
-      config,
-      parameterEnabled,
-      payloadOptions,
-      onMessageUpdate,
-      handleStreamError,
-    ]
+    [buildValidatedPayload, onMessageUpdate, handleStreamError]
   )
 
   // Send chat request (stream or non-stream based on config)

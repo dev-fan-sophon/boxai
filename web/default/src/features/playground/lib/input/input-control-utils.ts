@@ -21,7 +21,9 @@ import type { GroupOption, ModelOption } from '../../types'
 type InputControlStateOptions = {
   disabled?: boolean
   groups: GroupOption[]
+  hasAttachments?: boolean
   hasStopHandler: boolean
+  isAddingAttachments?: boolean
   isGenerating?: boolean
   isModelLoading?: boolean
   models: ModelOption[]
@@ -52,7 +54,9 @@ export function getSubmittableInputText(
 export function getInputControlState({
   disabled,
   groups,
+  hasAttachments,
   hasStopHandler,
+  isAddingAttachments,
   isGenerating,
   isModelLoading,
   models,
@@ -61,7 +65,11 @@ export function getInputControlState({
   const hasModels = models.length > 0
 
   return {
-    canSubmit: !disabled && hasModels && text.trim().length > 0,
+    canSubmit:
+      !disabled &&
+      !isAddingAttachments &&
+      hasModels &&
+      (text.trim().length > 0 || Boolean(hasAttachments)),
     isSelectorDisabled: disabled || isModelLoading || groups.length === 0,
     shouldShowStop: Boolean(isGenerating && hasStopHandler),
   }

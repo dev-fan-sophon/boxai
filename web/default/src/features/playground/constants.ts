@@ -96,6 +96,7 @@ export const STORAGE_KEYS = {
 // Error messages
 export const ERROR_MESSAGES = {
   API_REQUEST_ERROR: 'Request error occurred',
+  REQUEST_TOO_LARGE: 'Request is too large (max 30MB).',
   NETWORK_ERROR: 'Network connection failed or server not responding',
   PARSE_ERROR: 'Error parsing response data',
   STREAM_START_ERROR: 'Error establishing connection',

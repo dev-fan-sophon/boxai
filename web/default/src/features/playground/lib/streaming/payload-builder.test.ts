@@ -10,7 +10,11 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONFIG, DEFAULT_PARAMETER_ENABLED } from '../../constants'
 import type { Message } from '../../types'
-import { buildChatCompletionPayload } from './payload-builder'
+import {
+  MAX_CHAT_PAYLOAD_BYTES,
+  buildChatCompletionPayload,
+  isChatCompletionPayloadTooLarge,
+} from './payload-builder'
 
 function userMessage(content: string, key = content): Message {
   return {
@@ -105,5 +109,73 @@ describe('buildChatCompletionPayload', () => {
     )
     expect(payload.messages[0]?.role).toBe('system')
     expect(String(payload.messages[0]?.content).length).toBe(8000)
+  })
+
+  it('formats image and PDF attachments for chat completions', () => {
+    const message = userMessage('Compare these files')
+    message.attachments = [
+      {
+        id: 'image-1',
+        name: 'chart.png',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,aW1hZ2U=',
+        type: 'image',
+      },
+      {
+        id: 'pdf-1',
+        name: 'report.pdf',
+        mimeType: 'application/pdf',
+        dataUrl: 'data:application/pdf;base64,cGRm',
+        type: 'file',
+      },
+    ]
+
+    const payload = buildChatCompletionPayload(
+      [message],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED
+    )
+
+    expect(payload.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Compare these files' },
+          {
+            type: 'image_url',
+            image_url: { url: 'data:image/png;base64,aW1hZ2U=' },
+          },
+          {
+            type: 'file',
+            file: {
+              filename: 'report.pdf',
+              file_data: 'data:application/pdf;base64,cGRm',
+            },
+          },
+        ],
+      },
+    ])
+  })
+})
+
+describe('isChatCompletionPayloadTooLarge', () => {
+  it('rejects payloads above the request byte limit', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('x'.repeat(MAX_CHAT_PAYLOAD_BYTES))],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED
+    )
+
+    expect(isChatCompletionPayloadTooLarge(payload)).toBe(true)
+  })
+
+  it('accepts normal payloads', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hello')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED
+    )
+
+    expect(isChatCompletionPayloadTooLarge(payload)).toBe(false)
   })
 })

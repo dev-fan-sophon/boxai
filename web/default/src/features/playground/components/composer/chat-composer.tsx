@@ -6,7 +6,7 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { Globe, ImagePlus, Trash2Icon } from 'lucide-react'
+import { Globe, Paperclip, Trash2Icon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -25,13 +25,14 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { getInputControlState, getSubmittableInputText } from '../../lib'
-import { ChatImageAttachmentStrip } from './attachments/chat-images'
-import { useChatImageAttachments } from './attachments/use-chat-image-attachments'
+import type { ChatAttachment } from '../../types'
+import { ChatAttachmentStrip } from './attachments/chat-attachments'
+import { useChatAttachments } from './attachments/use-chat-attachments'
 import { ComposerShell } from './composer'
 import { useComposerText } from './use-composer'
 
 type ChatComposerProps = {
-  onSubmit: (text: string, attachments?: string[]) => boolean
+  onSubmit: (text: string, attachments?: ChatAttachment[]) => boolean
   onStop?: () => void
   disabled?: boolean
   isGenerating?: boolean
@@ -41,7 +42,7 @@ type ChatComposerProps = {
 }
 
 /**
- * Chat composer: shared composer skeleton plus multi-image attachments
+ * Chat composer: shared composer skeleton plus image/PDF attachments
  * (file dialog, paste, drag-drop) and the high-frequency web-search
  * shortcut. Model and group selection live in the catalog and settings
  * panel; sampling parameters live in the settings panel.
@@ -49,7 +50,7 @@ type ChatComposerProps = {
 export function ChatComposer(props: ChatComposerProps) {
   const { t } = useTranslation()
   const { text, setText } = useComposerText()
-  const images = useChatImageAttachments()
+  const attachments = useChatAttachments()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
   const models = usePlaygroundStore((state) => state.models)
@@ -60,7 +61,9 @@ export function ChatComposer(props: ChatComposerProps) {
   const { canSubmit, shouldShowStop } = getInputControlState({
     disabled: props.disabled,
     groups,
+    hasAttachments: attachments.attachments.length > 0,
     hasStopHandler: Boolean(props.onStop),
+    isAddingAttachments: attachments.isAdding,
     isGenerating: props.isGenerating,
     isModelLoading: props.isModelLoading,
     models,
@@ -68,11 +71,12 @@ export function ChatComposer(props: ChatComposerProps) {
   })
 
   const handleSubmit = (message: PromptInputMessage) => {
+    if (attachments.isAdding) return
     const submittableText = getSubmittableInputText(message, props.disabled)
-    if (!submittableText && images.attachments.length === 0) return
-    if (props.onSubmit(submittableText ?? '', images.attachments)) {
+    if (!submittableText && attachments.attachments.length === 0) return
+    if (props.onSubmit(submittableText ?? '', attachments.attachments)) {
       setText('')
-      images.clear()
+      attachments.clear()
     }
   }
 
@@ -93,13 +97,13 @@ export function ChatComposer(props: ChatComposerProps) {
         canSubmit={canSubmit}
         showStop={shouldShowStop}
         onStop={props.onStop}
-        onPaste={images.handlePaste}
-        onDrop={images.handleDrop}
-        onDragOver={images.handleDragOver}
+        onPaste={attachments.handlePaste}
+        onDrop={attachments.handleDrop}
+        onDragOver={attachments.handleDragOver}
         attachments={
-          <ChatImageAttachmentStrip
-            attachments={images.attachments}
-            onRemove={images.removeAt}
+          <ChatAttachmentStrip
+            attachments={attachments.attachments}
+            onRemove={attachments.removeAt}
           />
         }
         tools={
@@ -107,11 +111,12 @@ export function ChatComposer(props: ChatComposerProps) {
             <input
               ref={fileInputRef}
               type='file'
-              accept='image/*'
+              accept='image/*,application/pdf'
               multiple
+              disabled={props.disabled || attachments.isAdding}
               className='hidden'
               onChange={(event) => {
-                void images.addFiles(event.target.files)
+                void attachments.addFiles(event.target.files)
                 event.target.value = ''
               }}
             />
@@ -119,18 +124,22 @@ export function ChatComposer(props: ChatComposerProps) {
               <TooltipTrigger
                 render={
                   <PromptInputButton
-                    aria-label={t('Attach image')}
+                    aria-label={t('Attach image or PDF')}
                     className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                    disabled={props.disabled || images.isFull}
+                    disabled={
+                      props.disabled ||
+                      attachments.isAdding ||
+                      attachments.isFull
+                    }
                     onClick={() => fileInputRef.current?.click()}
                     variant='ghost'
                   >
-                    <ImagePlus size={16} />
+                    <Paperclip size={16} />
                   </PromptInputButton>
                 }
               />
               <TooltipContent>
-                <p>{t('Attach image')}</p>
+                <p>{t('Attach image or PDF')}</p>
               </TooltipContent>
             </Tooltip>
 

@@ -59,7 +59,7 @@ import { useStudio } from './hooks/use-studio'
 import { getModelModality } from './lib/studio/model-modality'
 import type { AgentCard } from './lib/workbench/agents-data'
 import type { InspirationTemplate } from './lib/workbench/inspiration-data'
-import type { PlaygroundConfig, StudioModality } from './types'
+import type { ChatAttachment, PlaygroundConfig, StudioModality } from './types'
 
 export function Playground() {
   const { t } = useTranslation()
@@ -290,7 +290,7 @@ export function Playground() {
   )
 
   const handleChatSend = useCallback(
-    (text: string, attachments?: string[]) => {
+    (text: string, attachments?: ChatAttachment[]) => {
       const ok = handleSendMessage(text, attachments)
       if (ok) {
         addRecentPrompt({
