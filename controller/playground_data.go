@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -510,8 +511,9 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 	}
 	var body struct {
 		Messages []struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
+			Role        string          `json:"role"`
+			Content     string          `json:"content"`
+			ContentJson json.RawMessage `json:"content_json"`
 		} `json:"messages"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -530,9 +532,24 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 		}
 		// longtext column: cap at 200k runes (not MySQL 64KB TEXT)
 		content := truncateRunes(m.Content, 200_000)
+		contentJson := ""
+		if len(m.ContentJson) > 0 && string(m.ContentJson) != "null" {
+			raw := string(m.ContentJson)
+			if len(raw) > 400_000 {
+				common.ApiErrorMsg(c, "content_json too large")
+				return
+			}
+			var parts []map[string]any
+			if err := common.Unmarshal(m.ContentJson, &parts); err != nil {
+				common.ApiErrorMsg(c, "invalid content_json")
+				return
+			}
+			contentJson = raw
+		}
 		msgs = append(msgs, model.PlaygroundMessage{
-			Role:    role,
-			Content: content,
+			Role:        role,
+			Content:     content,
+			ContentJson: contentJson,
 		})
 	}
 	if err := model.ReplacePlaygroundMessages(id, userId, msgs); err != nil {

@@ -50,9 +50,13 @@ type PlaygroundMessage struct {
 	// type:text is portable across SQLite / MySQL / PostgreSQL.
 	// (MySQL TEXT is 64KB; large messages are also capped in the API layer.)
 	// Do NOT use longtext — PostgreSQL rejects it (SQLSTATE 42704).
-	Content   string `json:"content" gorm:"type:text"`
-	Seq       int    `json:"seq" gorm:"not null;index"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint"`
+	Content string `json:"content" gorm:"type:text"`
+	// ContentJson holds structured multimodal parts (OpenAI-style content array,
+	// e.g. text + image_url) when a message carries more than plain text. Empty
+	// for legacy/plain-text messages, in which case Content is authoritative.
+	ContentJson string `json:"content_json" gorm:"type:text"`
+	Seq         int    `json:"seq" gorm:"not null;index"`
+	CreatedAt   int64  `json:"created_at" gorm:"bigint"`
 }
 
 func (PlaygroundMessage) TableName() string { return "playground_messages" }

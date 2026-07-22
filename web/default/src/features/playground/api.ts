@@ -371,6 +371,7 @@ export type ServerMessage = {
   id: number
   role: string
   content: string
+  content_json?: string
   seq: number
 }
 
@@ -411,7 +412,7 @@ export async function deleteConversation(id: number): Promise<void> {
 
 export async function putConversationMessages(
   id: number,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string; content_json?: string }>
 ): Promise<void> {
   await api.put(`${API_ENDPOINTS.CONVERSATIONS}/${id}/messages`, { messages })
 }
