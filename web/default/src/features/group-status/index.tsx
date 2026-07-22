@@ -17,7 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Eye, RefreshCw, ShieldCheck } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  Eye,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'

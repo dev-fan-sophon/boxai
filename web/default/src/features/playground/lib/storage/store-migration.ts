@@ -24,6 +24,10 @@ import type {
   StudioSettings,
 } from '../../types'
 import {
+  getInitialParameterEnabled,
+  getInitialPlaygroundConfig,
+} from '../state/playground-state-utils'
+import {
   MAX_MY_WORKS,
   MAX_PINNED_MODELS,
   MAX_RECENT_PROMPTS,
@@ -33,10 +37,6 @@ import {
   type RecentPrompt,
   type WorkbenchChatTools,
 } from '../workbench/workbench-prefs'
-import {
-  getInitialParameterEnabled,
-  getInitialPlaygroundConfig,
-} from '../state/playground-state-utils'
 import { loadMessages, prepareLoadedMessages } from './storage'
 import { messagesSchema, playgroundConfigSchema } from './storage-schema'
 
@@ -151,8 +151,7 @@ export function normalizeDuoConfig(value: unknown): PlaygroundDuoConfig {
   const raw = isRecord(value) ? value : {}
   return {
     answerModels: stringArray(raw.answerModels, MAX_DUO_ANSWER_MODELS),
-    summaryModel:
-      typeof raw.summaryModel === 'string' ? raw.summaryModel : '',
+    summaryModel: typeof raw.summaryModel === 'string' ? raw.summaryModel : '',
   }
 }
 

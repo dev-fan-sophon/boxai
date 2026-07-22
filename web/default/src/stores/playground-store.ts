@@ -17,7 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { create } from 'zustand'
-import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
+import {
+  persist,
+  type PersistStorage,
+  type StorageValue,
+} from 'zustand/middleware'
 
 import {
   DEFAULT_CONFIG,
@@ -90,7 +94,10 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   setStudioSettings: (
     value: StudioSettings | ((prev: StudioSettings) => StudioSettings)
   ) => void
-  setDuoConfig: (patch: { answerModels?: string[]; summaryModel?: string }) => void
+  setDuoConfig: (patch: {
+    answerModels?: string[]
+    summaryModel?: string
+  }) => void
   togglePinnedModel: (modelName: string) => void
   addRecentPrompt: (input: {
     prompt: string

@@ -48,7 +48,11 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
 
   const handleFile = (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/') && props.kind !== 'audio' && props.kind !== 'video') {
+    if (
+      !file.type.startsWith('image/') &&
+      props.kind !== 'audio' &&
+      props.kind !== 'video'
+    ) {
       toast.error(t('Please choose an image file.'))
       return
     }
@@ -125,7 +129,9 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
     } catch (err) {
       setQrPolling(false)
       toast.error(
-        err instanceof Error ? err.message : t('Could not create upload session')
+        err instanceof Error
+          ? err.message
+          : t('Could not create upload session')
       )
     }
   }
@@ -159,7 +165,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         type='button'
         variant='ghost'
         size='icon'
-        className='size-8 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+        className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Asset library')}
         onClick={() => setLibraryOpen(true)}
       >
@@ -169,7 +175,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         type='button'
         variant='ghost'
         size='icon'
-        className='size-8 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+        className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Scan to upload')}
         disabled={qrPolling}
         onClick={() => void startQrSession()}
@@ -181,7 +187,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           type='button'
           variant='ghost'
           size='icon'
-          className='size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+          className='text-muted-foreground hover:bg-destructive/10 hover:text-destructive size-8'
           aria-label={t('Remove reference')}
           onClick={() => props.onChange(null)}
         >

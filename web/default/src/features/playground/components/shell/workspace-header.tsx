@@ -100,7 +100,9 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
         </button>
       )}
       {props.actions && (
-        <div className='flex shrink-0 items-center gap-1.5'>{props.actions}</div>
+        <div className='flex shrink-0 items-center gap-1.5'>
+          {props.actions}
+        </div>
       )}
     </div>
   )

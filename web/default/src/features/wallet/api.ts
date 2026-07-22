@@ -41,6 +41,8 @@ import type {
   WaffoPancakePaymentResponse,
   BankQRAmountResponse,
   BankQRPaymentResponse,
+  TopUpSubmission,
+  TopUpReviewsData,
 } from './types'
 
 // ============================================================================
@@ -138,6 +140,44 @@ export async function requestBankQRPayment(
   const res = await api.post('/api/user/bank-qr/pay', request, {
     skipBusinessError: true,
   } as Record<string, unknown>)
+  return res.data
+}
+
+export async function submitTopUpProof(
+  tradeNo: string,
+  formData: FormData
+): Promise<ApiResponse<TopUpSubmission>> {
+  const res = await api.post(`/api/user/topup/${tradeNo}/submissions`, formData)
+  return res.data
+}
+
+export async function getTopUpSubmissions(
+  tradeNo: string
+): Promise<ApiResponse<TopUpSubmission[]>> {
+  const res = await api.get(`/api/user/topup/${tradeNo}/submissions`)
+  return res.data
+}
+
+export async function getTopUpReviews(params: {
+  status: string
+  keyword: string
+  page: number
+  page_size: number
+}): Promise<ApiResponse<TopUpReviewsData>> {
+  const res = await api.get('/api/user/topup/reviews', { params })
+  return res.data
+}
+
+export async function approveTopUpReview(id: number): Promise<ApiResponse> {
+  const res = await api.post(`/api/user/topup/reviews/${id}/approve`)
+  return res.data
+}
+
+export async function rejectTopUpReview(
+  id: number,
+  reason: string
+): Promise<ApiResponse> {
+  const res = await api.post(`/api/user/topup/reviews/${id}/reject`, { reason })
   return res.data
 }
 

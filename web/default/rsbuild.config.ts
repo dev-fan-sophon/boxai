@@ -8,9 +8,9 @@ import { tanstackRouter } from '@tanstack/router-plugin/rspack'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-function stripSecureCookieFlag(
-  proxyRes: { headers: Record<string, string | string[] | undefined> }
-) {
+function stripSecureCookieFlag(proxyRes: {
+  headers: Record<string, string | string[] | undefined>
+}) {
   const raw = proxyRes.headers['set-cookie']
   if (!raw) return
   const list = Array.isArray(raw) ? raw : [raw]

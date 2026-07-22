@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	maxBankQRTopUpUSD  int64 = 100_000
-	maxBankQRAmountVND int64 = 500_000_000
+	maxBankQRTopUpUSD      int64 = 100_000
+	maxBankQRAmountVND     int64 = 500_000_000
+	maxPendingBankQROrders       = 10
 )
 
 func bankQRAmount(amountUSD int64, group string, setting operation_setting.BankQRSetting) (int64, error) {
@@ -103,7 +104,7 @@ func RequestBankQRPay(c *gin.Context) {
 			return
 		}
 		tradeNo = prefix + suffix
-		if model.GetTopUpByTradeNo(tradeNo) == nil {
+		if model.GetTopUpByTradeNo(tradeNo) == nil && model.GetSubscriptionOrderByTradeNo(tradeNo) == nil {
 			break
 		}
 		tradeNo = ""
@@ -123,7 +124,7 @@ func RequestBankQRPay(c *gin.Context) {
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
-	if err := order.Insert(); err != nil {
+	if err := model.CreatePendingBankQRTopUp(order, maxPendingBankQROrders); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -132,6 +133,91 @@ func RequestBankQRPay(c *gin.Context) {
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
 		"account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName),
 	})
+}
+
+type SubscriptionBankQRRequest struct {
+	PlanId int `json:"plan_id"`
+}
+
+func SubscriptionRequestBankQRPay(c *gin.Context) {
+	if !requirePaymentCompliance(c) {
+		return
+	}
+	bankSetting := operation_setting.GetBankQRSetting()
+	if !operation_setting.IsBankQRSettingConfigured(bankSetting) {
+		common.ApiErrorMsg(c, "Bank QR payment is not enabled")
+		return
+	}
+	var req SubscriptionBankQRRequest
+	if c.ShouldBindJSON(&req) != nil || req.PlanId <= 0 {
+		common.ApiErrorMsg(c, "invalid plan_id")
+		return
+	}
+	plan, err := model.GetSubscriptionPlanById(req.PlanId)
+	if err != nil || !plan.Enabled {
+		common.ApiErrorMsg(c, "plan is not enabled")
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(plan.Currency), "USD") || plan.PriceAmount < 0.01 {
+		common.ApiErrorMsg(c, "Bank QR only supports valid USD plan prices")
+		return
+	}
+	userID := c.GetInt("id")
+	if plan.MaxPurchasePerUser > 0 {
+		count, countErr := model.CountUserSubscriptionsByPlan(userID, plan.Id)
+		if countErr != nil {
+			common.ApiError(c, countErr)
+			return
+		}
+		if count >= int64(plan.MaxPurchasePerUser) {
+			common.ApiErrorMsg(c, "已达到该套餐购买上限")
+			return
+		}
+	}
+	rate := operation_setting.USDExchangeRate
+	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		common.ApiErrorMsg(c, "invalid USD exchange rate")
+		return
+	}
+	amount := decimal.NewFromFloat(plan.PriceAmount).Mul(decimal.NewFromFloat(rate)).Round(0)
+	if !amount.IsPositive() || amount.GreaterThanOrEqual(decimal.NewFromInt(maxBankQRAmountVND)) {
+		common.ApiErrorMsg(c, "bank QR transfer amount must be below 500000000 VND")
+		return
+	}
+	prefix := operation_setting.NormalizeBankQRTransferPrefix(bankSetting.TransferPrefix)
+	tradeNo := ""
+	for attempts := 0; attempts < 5; attempts++ {
+		suffix, randomErr := bankQRRandomSuffix(12)
+		if randomErr != nil {
+			common.ApiError(c, randomErr)
+			return
+		}
+		candidate := prefix + suffix
+		if model.GetTopUpByTradeNo(candidate) == nil && model.GetSubscriptionOrderByTradeNo(candidate) == nil {
+			tradeNo = candidate
+			break
+		}
+	}
+	if tradeNo == "" {
+		common.ApiErrorMsg(c, "Unable to create a unique transfer reference")
+		return
+	}
+	payload, err := vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, amount.IntPart(), tradeNo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	providerPayload, err := common.Marshal(model.BankQRSubscriptionOrderPayload{Version: 1, Amount: amount.IntPart(), Currency: "VND", Plan: *plan})
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	order := &model.SubscriptionOrder{UserId: userID, PlanId: plan.Id, Money: plan.PriceAmount, TradeNo: tradeNo, PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(), ProviderPayload: string(providerPayload)}
+	if err := model.CreatePendingBankQRSubscriptionOrder(order, maxPendingBankQROrders); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"trade_no": tradeNo, "transfer_content": tradeNo, "amount": amount.IntPart(), "currency": "VND", "payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN, "account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName)})
 }
 
 func UpdateBankQRSetting(c *gin.Context) {

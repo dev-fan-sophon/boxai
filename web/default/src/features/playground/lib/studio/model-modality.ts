@@ -14,10 +14,7 @@ type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
   Partial<
     Pick<
       PricingModel,
-      | 'supported_endpoint_types'
-      | 'output_modalities'
-      | 'integrations'
-      | 'tags'
+      'supported_endpoint_types' | 'output_modalities' | 'integrations' | 'tags'
     >
   >
 
@@ -61,7 +58,9 @@ export function getModelModality(model: ModelModalityMetadata): StudioModality {
   }
   if (
     output.includes('audio') ||
-    endpoints.some((item) => item.includes('audio') || item.includes('speech')) ||
+    endpoints.some(
+      (item) => item.includes('audio') || item.includes('speech')
+    ) ||
     /\boutput:audio\b/.test(tags)
   ) {
     return 'audio'

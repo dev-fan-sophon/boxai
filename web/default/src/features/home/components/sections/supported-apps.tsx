@@ -49,7 +49,7 @@ export function SupportedApps() {
   return (
     <section
       aria-label={t('Customers & Ecosystem')}
-      className='border-border/40 relative z-10 border-y bg-muted/20'
+      className='border-border/40 bg-muted/20 relative z-10 border-y'
     >
       <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
         <AnimateInView className='mb-6 text-center'>

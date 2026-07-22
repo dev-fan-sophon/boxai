@@ -75,6 +75,38 @@ export type BankQRAmountResponse = ApiResponse<{
   currency: 'VND'
 }>
 export type BankQRPaymentResponse = ApiResponse<BankQRPaymentData>
+export type TopUpSubmissionStatus = 'submitted' | 'approved' | 'rejected'
+export interface TopUpSubmission {
+  id: number
+  user_id: number
+  trade_no: string
+  order_type: 'balance' | 'subscription'
+  bank_transaction_no: string
+  proof_backend: string
+  proof_mime: string
+  proof_size: number
+  note: string
+  status: TopUpSubmissionStatus
+  submitted_at: number
+  reviewed_at: number
+  reviewed_by: number
+  review_note: string
+  proof_url?: string
+}
+export interface TopUpReview extends TopUpSubmission {
+  username: string
+  amount: number
+  money: number
+  currency: string
+  plan_id: number
+  plan_title: string
+}
+export interface TopUpReviewsData {
+  items: TopUpReview[]
+  total: number
+  page: number
+  page_size: number
+}
 
 /**
  * Creem product configuration

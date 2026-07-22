@@ -368,6 +368,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		if topUp.Status != common.TopUpStatusPending {
 			return errors.New("订单状态不是待支付，无法补单")
 		}
+		if topUp.PaymentProvider == PaymentProviderBankQR {
+			return errors.New("Bank QR orders must be completed through payment-proof review")
+		}
 
 		// 计算应充值额度：
 		// - Stripe 订单：Money 代表经分组倍率换算后的美元数量，直接 * QuotaPerUnit

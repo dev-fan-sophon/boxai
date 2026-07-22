@@ -100,7 +100,10 @@ export function GenerationSettingsSection(props: {
   if (props.modality === 'video') {
     return (
       <div className='space-y-3'>
-        <SettingRow label={t('Duration (seconds)')} htmlFor='gen-video-duration'>
+        <SettingRow
+          label={t('Duration (seconds)')}
+          htmlFor='gen-video-duration'
+        >
           <NativeSelect
             id='gen-video-duration'
             size='sm'

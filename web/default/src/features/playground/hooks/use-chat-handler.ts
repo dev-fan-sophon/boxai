@@ -283,7 +283,13 @@ export function useChatHandler({
         }
       }
     },
-    [config, parameterEnabled, payloadOptions, onMessageUpdate, handleStreamError]
+    [
+      config,
+      parameterEnabled,
+      payloadOptions,
+      onMessageUpdate,
+      handleStreamError,
+    ]
   )
 
   // Send chat request (stream or non-stream based on config)

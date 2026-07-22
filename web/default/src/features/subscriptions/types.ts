@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { z } from 'zod'
 
+import type { BankQRPaymentData } from '@/features/wallet/types'
+
 // ============================================================================
 // Subscription Plan Schema & Types
 // ============================================================================
@@ -112,6 +114,7 @@ export interface SubscriptionPayResponse {
   }
   url?: string
 }
+export type SubscriptionBankQRPayResponse = ApiResponse<BankQRPaymentData>
 
 export interface CreateUserSubscriptionRequest {
   plan_id: number
@@ -142,6 +145,15 @@ export interface SelfSubscriptionData {
   billing_preference: string
   subscriptions: UserSubscriptionRecord[]
   all_subscriptions: UserSubscriptionRecord[]
+  pending_bank_qr_orders: PendingBankQRSubscriptionOrder[]
+}
+
+export interface PendingBankQRSubscriptionOrder {
+  trade_no: string
+  plan_id: number
+  plan_title: string
+  money: number
+  create_time: number
 }
 
 // ============================================================================

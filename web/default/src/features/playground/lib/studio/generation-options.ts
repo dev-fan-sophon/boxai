@@ -14,7 +14,14 @@ export const IMAGE_QUALITIES = ['standard', 'hd'] as const
 export const IMAGE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 export const VIDEO_SIZES = ['1280x720', '720x1280', '1920x1080'] as const
 export const VIDEO_DURATIONS = [1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60] as const
-export const VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const
+export const VOICES = [
+  'alloy',
+  'echo',
+  'fable',
+  'onyx',
+  'nova',
+  'shimmer',
+] as const
 export const SPEEDS = [0.75, 1, 1.25, 1.5] as const
 export const AUDIO_FORMATS = ['mp3', 'opus', 'aac', 'flac', 'wav'] as const
 

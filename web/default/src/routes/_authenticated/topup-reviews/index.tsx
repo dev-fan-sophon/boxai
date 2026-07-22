@@ -16,33 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { HtmlContent, type HtmlContentVariant } from '@/components/html-content'
-import { Markdown } from '@/components/ui/markdown'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-type RichContentMode = 'markdown' | 'html'
+import { TopUpReviews } from '@/features/topup-reviews'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
-interface RichContentProps {
-  content: string
-  mode?: RichContentMode
-  breaks?: boolean
-  className?: string
-  htmlVariant?: HtmlContentVariant
-}
-
-export function RichContent(props: RichContentProps) {
-  if (props.mode === 'html') {
-    return (
-      <HtmlContent
-        content={props.content}
-        className={props.className}
-        variant={props.htmlVariant}
-      />
-    )
-  }
-
-  return (
-    <Markdown breaks={props.breaks} className={props.className}>
-      {props.content}
-    </Markdown>
-  )
-}
+export const Route = createFileRoute('/_authenticated/topup-reviews/')({
+  beforeLoad: () => {
+    const { auth } = useAuthStore.getState()
+    if (!auth.user || auth.user.role < ROLE.ADMIN) {
+      throw redirect({ to: '/403' })
+    }
+  },
+  component: TopUpReviews,
+})

@@ -100,7 +100,9 @@ export function loadWorkbenchPrefs(): WorkbenchPrefs {
     const parsed = JSON.parse(raw) as Partial<WorkbenchPrefs>
     return {
       pinnedModels: Array.isArray(parsed.pinnedModels)
-        ? parsed.pinnedModels.filter((item): item is string => typeof item === 'string').slice(0, MAX_PINNED_MODELS)
+        ? parsed.pinnedModels
+            .filter((item): item is string => typeof item === 'string')
+            .slice(0, MAX_PINNED_MODELS)
         : [],
       chatTools: normalizeChatTools(parsed.chatTools),
       duo: {
@@ -108,10 +110,14 @@ export function loadWorkbenchPrefs(): WorkbenchPrefs {
         ...parsed.duo,
         enabled: parsed.duo?.enabled === true,
         answerModels: Array.isArray(parsed.duo?.answerModels)
-          ? parsed.duo.answerModels.filter((item): item is string => typeof item === 'string').slice(0, 5)
+          ? parsed.duo.answerModels
+              .filter((item): item is string => typeof item === 'string')
+              .slice(0, 5)
           : [],
         summaryModel:
-          typeof parsed.duo?.summaryModel === 'string' ? parsed.duo.summaryModel : '',
+          typeof parsed.duo?.summaryModel === 'string'
+            ? parsed.duo.summaryModel
+            : '',
       },
       recentPrompts: Array.isArray(parsed.recentPrompts)
         ? parsed.recentPrompts

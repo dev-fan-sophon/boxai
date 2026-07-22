@@ -227,6 +227,31 @@ type SubscriptionOrder struct {
 	ProviderPayload string `json:"provider_payload" gorm:"type:text"`
 }
 
+type BankQRSubscriptionOrderPayload struct {
+	Version  int              `json:"version"`
+	Amount   int64            `json:"amount"`
+	Currency string           `json:"currency"`
+	Plan     SubscriptionPlan `json:"plan"`
+}
+
+type PendingBankQRSubscriptionOrder struct {
+	TradeNo    string  `json:"trade_no"`
+	PlanId     int     `json:"plan_id"`
+	PlanTitle  string  `json:"plan_title"`
+	Money      float64 `json:"money"`
+	CreateTime int64   `json:"create_time"`
+}
+
+func GetPendingBankQRSubscriptionOrders(userId int) ([]PendingBankQRSubscriptionOrder, error) {
+	var orders []PendingBankQRSubscriptionOrder
+	err := DB.Table("subscription_orders o").
+		Select("o.trade_no, o.plan_id, COALESCE(p.title, '') plan_title, o.money, o.create_time").
+		Joins("LEFT JOIN subscription_plans p ON p.id = o.plan_id").
+		Where("o.user_id = ? AND o.payment_provider = ? AND o.status = ?", userId, PaymentProviderBankQR, common.TopUpStatusPending).
+		Order("o.id DESC").Limit(10).Scan(&orders).Error
+	return orders, err
+}
+
 func (o *SubscriptionOrder) Insert() error {
 	if o.CreateTime == 0 {
 		o.CreateTime = common.GetTimestamp()

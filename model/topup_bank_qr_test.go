@@ -20,7 +20,7 @@ func TestBankQRQuotaRejectsInvalidOrOversizedConfiguration(t *testing.T) {
 	}
 }
 
-func TestManualCompleteBankQRUsesUSDAmountAndIsIdempotent(t *testing.T) {
+func TestManualCompleteBankQRRequiresProofReview(t *testing.T) {
 	truncateTables(t)
 	originalQuotaPerUnit := common.QuotaPerUnit
 	common.QuotaPerUnit = 500_000
@@ -33,9 +33,6 @@ func TestManualCompleteBankQRUsesUSDAmountAndIsIdempotent(t *testing.T) {
 		Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(),
 	}
 	require.NoError(t, order.Insert())
-	require.NoError(t, ManualCompleteTopUp(order.TradeNo, "127.0.0.1"))
-	assert.Equal(t, 5_000_000, getUserQuotaForPaymentGuardTest(t, 301))
-
-	require.NoError(t, ManualCompleteTopUp(order.TradeNo, "127.0.0.1"))
-	assert.Equal(t, 5_000_000, getUserQuotaForPaymentGuardTest(t, 301))
+	require.ErrorContains(t, ManualCompleteTopUp(order.TradeNo, "127.0.0.1"), "payment-proof review")
+	assert.Equal(t, 0, getUserQuotaForPaymentGuardTest(t, 301))
 }

@@ -30,6 +30,7 @@ import {
   ServerCog,
   Settings,
   Ticket,
+  ClipboardCheck,
   User,
   Users,
   Wallet,
@@ -158,6 +159,11 @@ export function useSidebarData(): SidebarData {
             title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('Top-up Reviews'),
+            url: '/topup-reviews',
+            icon: ClipboardCheck,
           },
           {
             title: t('System Info'),

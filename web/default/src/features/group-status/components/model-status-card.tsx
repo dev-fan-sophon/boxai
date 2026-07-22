@@ -41,7 +41,8 @@ export function ModelStatusCard(props: ModelStatusCardProps) {
   const { t } = useTranslation()
   const tone = normalizeStatus(props.model.status)
   const rate =
-    props.model.success_rate != null && Number.isFinite(props.model.success_rate)
+    props.model.success_rate != null &&
+    Number.isFinite(props.model.success_rate)
       ? Math.round(props.model.success_rate)
       : null
 
@@ -67,7 +68,9 @@ export function ModelStatusCard(props: ModelStatusCardProps) {
       </div>
 
       <div className='mt-3 flex items-baseline gap-1.5'>
-        <span className='text-muted-foreground text-xs'>{t('Success rate')}</span>
+        <span className='text-muted-foreground text-xs'>
+          {t('Success rate')}
+        </span>
         <span className='font-mono text-xl font-semibold tabular-nums'>
           {rate == null ? '—' : rate}
         </span>

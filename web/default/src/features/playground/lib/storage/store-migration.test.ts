@@ -44,7 +44,10 @@ const userMessage: Message = {
 function seedLegacyKeys() {
   localStorage.setItem(
     STORAGE_KEYS.CONFIG,
-    JSON.stringify({ version: 1, data: { model: 'claude-x', temperature: 0.3 } })
+    JSON.stringify({
+      version: 1,
+      data: { model: 'claude-x', temperature: 0.3 },
+    })
   )
   localStorage.setItem(
     STORAGE_KEYS.MESSAGES,

@@ -66,11 +66,16 @@ func GetSubscriptionSelf(c *gin.Context) {
 	if err != nil {
 		activeSubscriptions = []model.SubscriptionSummary{}
 	}
+	pendingBankQROrders, err := model.GetPendingBankQRSubscriptionOrders(userId)
+	if err != nil {
+		pendingBankQROrders = []model.PendingBankQRSubscriptionOrder{}
+	}
 
 	common.ApiSuccess(c, gin.H{
-		"billing_preference": pref,
-		"subscriptions":      activeSubscriptions, // all active subscriptions
-		"all_subscriptions":  allSubscriptions,    // all subscriptions including expired
+		"billing_preference":     pref,
+		"subscriptions":          activeSubscriptions, // all active subscriptions
+		"all_subscriptions":      allSubscriptions,    // all subscriptions including expired
+		"pending_bank_qr_orders": pendingBankQROrders,
 	})
 }
 

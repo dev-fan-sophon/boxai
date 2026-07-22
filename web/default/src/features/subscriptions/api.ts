@@ -30,6 +30,7 @@ import type {
   SubscriptionPayResponse,
   SubscriptionPayRequest,
   SelfSubscriptionData,
+  SubscriptionBankQRPayResponse,
 } from './types'
 
 // ============================================================================
@@ -159,6 +160,13 @@ export async function paySubscriptionBalance(
   data: SubscriptionPayRequest
 ): Promise<SubscriptionPayResponse> {
   const res = await api.post('/api/subscription/balance/pay', data)
+  return res.data
+}
+
+export async function paySubscriptionBankQR(
+  data: SubscriptionPayRequest
+): Promise<SubscriptionBankQRPayResponse> {
+  const res = await api.post('/api/subscription/bank-qr/pay', data)
   return res.data
 }
 

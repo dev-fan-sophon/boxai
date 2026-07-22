@@ -14,11 +14,11 @@ import { Button } from '@/components/ui/button'
 import type { PricingModel } from '@/features/pricing/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import { useVideoTaskResult } from '../../hooks/use-video-task-result'
 import type { UseStudioResult } from '../../hooks/use-studio'
+import { useVideoTaskResult } from '../../hooks/use-video-task-result'
+import type { StudioModality } from '../../types'
 import type { MediaReference } from '../composer/attachments/media-reference-slot'
 import { GenerationComposer } from '../composer/generation-composer'
-import type { StudioModality } from '../../types'
 import { ModelHero } from './model-hero'
 
 type GenerationWorkspaceProps = {

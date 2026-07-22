@@ -113,18 +113,18 @@ export function ModelCatalog(props: ModelCatalogProps) {
 
   return (
     <div className='flex h-full min-h-0 flex-col bg-transparent'>
-      <div className='space-y-2.5 border-b border-border p-3'>
+      <div className='border-border space-y-2.5 border-b p-3'>
         <div className='relative'>
           <Search
             aria-hidden='true'
-            className='absolute top-2 left-2.5 size-3.5 text-muted-foreground'
+            className='text-muted-foreground absolute top-2 left-2.5 size-3.5'
           />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('Search models')}
             aria-label={t('Search models')}
-            className='h-8 border-border bg-muted/40 pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:ring-ring/30'
+            className='border-border bg-muted/40 text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:ring-ring/30 h-8 pl-8'
           />
         </div>
         <div
@@ -155,7 +155,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           })}
         </div>
         <NativeSelect
-          className='w-full border-border bg-muted/40 text-foreground'
+          className='border-border bg-muted/40 text-foreground w-full'
           size='sm'
           value={vendor}
           onChange={(event) => setVendor(event.target.value)}
@@ -180,18 +180,17 @@ export function ModelCatalog(props: ModelCatalogProps) {
             className={cn(
               'mb-1 flex w-full items-start gap-2.5 rounded-[11px] border border-dashed border-primary/25 bg-primary/[0.06] p-2.5 text-left outline-none transition-colors',
               'hover:border-primary/40 hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring',
-              props.duoEnabled &&
-                'border-solid border-primary/40 shadow-sm'
+              props.duoEnabled && 'border-solid border-primary/40 shadow-sm'
             )}
           >
-            <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary'>
+            <span className='bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg'>
               <Layers className='size-4' aria-hidden='true' />
             </span>
             <span className='min-w-0'>
-              <span className='block text-xs font-semibold text-primary'>
+              <span className='text-primary block text-xs font-semibold'>
                 {t('Multi-model collaboration')}
               </span>
-              <span className='mt-0.5 line-clamp-2 text-[11px] text-muted-foreground'>
+              <span className='text-muted-foreground mt-0.5 line-clamp-2 text-[11px]'>
                 {t('Compare answers from several chat models, then summarize.')}
               </span>
             </span>
@@ -202,7 +201,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           ['one', 'two', 'three', 'four', 'five', 'six'].map((key) => (
             <Skeleton
               key={key}
-              className='h-[4.5rem] w-full rounded-[11px] bg-muted/50'
+              className='bg-muted/50 h-[4.5rem] w-full rounded-[11px]'
             />
           ))}
         {props.error && (
@@ -244,11 +243,11 @@ export function ModelCatalog(props: ModelCatalogProps) {
                   type='button'
                   onClick={() => props.onSelect(model)}
                   aria-current={selected ? 'true' : undefined}
-                  className='w-full p-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+                  className='focus-visible:ring-ring w-full p-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset'
                 >
                   <div className='flex items-start justify-between gap-2'>
                     <span className='flex min-w-0 items-center gap-2'>
-                      <span className='flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60'>
+                      <span className='border-border bg-muted/60 flex size-9 shrink-0 items-center justify-center rounded-lg border'>
                         <ModelBrandIcon
                           modelName={model.model_name}
                           icon={model.icon}
@@ -258,7 +257,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                       </span>
                       <span className='min-w-0'>
                         <span className='flex items-center gap-1.5'>
-                          <span className='block truncate font-mono text-xs font-semibold text-foreground'>
+                          <span className='text-foreground block truncate font-mono text-xs font-semibold'>
                             {model.model_name}
                           </span>
                           {isNew && (
@@ -267,11 +266,8 @@ export function ModelCatalog(props: ModelCatalogProps) {
                             </span>
                           )}
                         </span>
-                        <span className='mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground'>
-                          <ModalityIcon
-                            className='size-3'
-                            aria-hidden='true'
-                          />
+                        <span className='text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-[11px]'>
+                          <ModalityIcon className='size-3' aria-hidden='true' />
                           {model.vendor_name ||
                             t(modalityLabelKey(modelModality))}
                         </span>
@@ -286,7 +282,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                       {t(modalityLabelKey(modelModality))}
                     </span>
                   </div>
-                  <p className='mt-1.5 line-clamp-2 text-[11px] text-pretty text-muted-foreground'>
+                  <p className='text-muted-foreground mt-1.5 line-clamp-2 text-[11px] text-pretty'>
                     {model.description ||
                       model.vendor_description ||
                       t('Available for generation')}
@@ -301,9 +297,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                         ? 'text-primary'
                         : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground/80'
                     )}
-                    aria-label={
-                      pinned ? t('Unpin model') : t('Pin model')
-                    }
+                    aria-label={pinned ? t('Unpin model') : t('Pin model')}
                     aria-pressed={pinned}
                     onClick={(event) => {
                       event.stopPropagation()
@@ -332,7 +326,7 @@ function CatalogState(props: {
 }) {
   return (
     <div className='grid place-items-center gap-2 px-4 py-12 text-center'>
-      <p className='text-sm text-pretty text-muted-foreground'>{props.text}</p>
+      <p className='text-muted-foreground text-sm text-pretty'>{props.text}</p>
       <Button
         size='sm'
         variant='outline'

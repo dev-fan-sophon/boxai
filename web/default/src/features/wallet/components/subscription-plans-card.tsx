@@ -53,6 +53,7 @@ import {
 import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/dialogs/subscription-purchase-dialog'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
+  PendingBankQRSubscriptionOrder,
   PlanRecord,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
@@ -60,6 +61,7 @@ import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import type { PaymentMethod, TopupInfo } from '../types'
+import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
 
 interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
@@ -92,12 +94,7 @@ function getBillingPreferenceLabel(
   }
 }
 
-export function SubscriptionPlansCard({
-  topupInfo,
-  onAvailabilityChange,
-  userQuota,
-  onPurchaseSuccess,
-}: SubscriptionPlansCardProps) {
+export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const { t } = useTranslation()
 
   const [plans, setPlans] = useState<PlanRecord[]>([])
@@ -107,6 +104,9 @@ export function SubscriptionPlansCard({
   const [allSubscriptions, setAllSubscriptions] = useState<
     UserSubscriptionRecord[]
   >([])
+  const [pendingBankQROrders, setPendingBankQROrders] = useState<
+    PendingBankQRSubscriptionOrder[]
+  >([])
   const [billingPreference, setBillingPreference] =
     useState('subscription_first')
   const [loading, setLoading] = useState(true)
@@ -114,14 +114,16 @@ export function SubscriptionPlansCard({
 
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
+  const onAvailabilityChange = props.onAvailabilityChange
+  const [proofTradeNo, setProofTradeNo] = useState<string | null>(null)
 
-  const enableStripe = !!topupInfo?.enable_stripe_topup
-  const enableCreem = !!topupInfo?.enable_creem_topup
-  const enableWaffoPancake = !!topupInfo?.enable_waffo_pancake_topup
-  const enableOnlineTopUp = !!topupInfo?.enable_online_topup
+  const enableStripe = !!props.topupInfo?.enable_stripe_topup
+  const enableCreem = !!props.topupInfo?.enable_creem_topup
+  const enableWaffoPancake = !!props.topupInfo?.enable_waffo_pancake_topup
+  const enableOnlineTopUp = !!props.topupInfo?.enable_online_topup
   const epayMethods = useMemo(
-    () => getEpayMethods(topupInfo?.pay_methods),
-    [topupInfo?.pay_methods]
+    () => getEpayMethods(props.topupInfo?.pay_methods),
+    [props.topupInfo?.pay_methods]
   )
 
   const fetchPlans = useCallback(async () => {
@@ -144,6 +146,7 @@ export function SubscriptionPlansCard({
         )
         setActiveSubscriptions(res.data.subscriptions || [])
         setAllSubscriptions(res.data.all_subscriptions || [])
+        setPendingBankQROrders(res.data.pending_bank_qr_orders || [])
       }
     } catch {
       // ignore
@@ -189,7 +192,8 @@ export function SubscriptionPlansCard({
 
   const hasActive = activeSubscriptions.length > 0
   const hasAny = allSubscriptions.length > 0
-  const isAvailable = loading || plans.length > 0 || hasAny
+  const isAvailable =
+    loading || plans.length > 0 || hasAny || pendingBankQROrders.length > 0
   const disablePref = !hasActive
   const isSubPref =
     billingPreference === 'subscription_first' ||
@@ -253,7 +257,7 @@ export function SubscriptionPlansCard({
     )
   }
 
-  if (plans.length === 0 && !hasAny) {
+  if (plans.length === 0 && !hasAny && pendingBankQROrders.length === 0) {
     return null
   }
 
@@ -267,6 +271,35 @@ export function SubscriptionPlansCard({
         disableHoverEffect
         contentClassName='space-y-4 sm:space-y-5'
       >
+        {pendingBankQROrders.length > 0 && (
+          <div className='border-warning/40 bg-warning/10 space-y-2 rounded-xl border p-3 sm:p-4'>
+            <p className='text-sm font-medium'>
+              {t('Pending Bank QR payments')}
+            </p>
+            {pendingBankQROrders.map((order) => (
+              <div
+                key={order.trade_no}
+                className='bg-background/70 flex flex-col gap-2 rounded-md border p-2.5 sm:flex-row sm:items-center sm:justify-between'
+              >
+                <div className='min-w-0'>
+                  <p className='truncate text-sm font-medium'>
+                    {order.plan_title || `#${order.plan_id}`}
+                  </p>
+                  <code className='text-muted-foreground text-xs'>
+                    {order.trade_no}
+                  </code>
+                </div>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => setProofTradeNo(order.trade_no)}
+                >
+                  {t('Submit payment proof')}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
         {/* My subscriptions & billing preference */}
         <div className='rounded-xl border p-3 sm:p-4'>
           <div className='flex flex-wrap items-center justify-between gap-2.5 sm:gap-3'>
@@ -646,9 +679,10 @@ export function SubscriptionPlansCard({
         enableCreem={enableCreem}
         enableWaffoPancake={enableWaffoPancake}
         enableOnlineTopUp={enableOnlineTopUp}
+        enableBankQR={!!props.topupInfo?.enable_bank_qr_topup}
         epayMethods={epayMethods}
-        userQuota={userQuota}
-        onPurchaseSuccess={onPurchaseSuccess}
+        userQuota={props.userQuota}
+        onPurchaseSuccess={props.onPurchaseSuccess}
         purchaseLimit={
           selectedPlan?.plan?.max_purchase_per_user
             ? Number(selectedPlan.plan.max_purchase_per_user)
@@ -659,6 +693,12 @@ export function SubscriptionPlansCard({
             ? planPurchaseCountMap.get(selectedPlan.plan.id)
             : undefined
         }
+      />
+      <TopUpProofDialog
+        open={proofTradeNo !== null}
+        onOpenChange={(open) => !open && setProofTradeNo(null)}
+        tradeNo={proofTradeNo}
+        onSubmitted={() => void fetchSelfSubscription()}
       />
     </>
   )

@@ -11,17 +11,14 @@ import { Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
 
 import {
   estimatePlaygroundCost,
   type PlaygroundEstimateResult,
 } from '../../api'
-import {
-  buildPriceHint,
-  type PriceHint,
-} from '../../lib/workbench/price-hint'
-import type { PricingModel } from '@/features/pricing/types'
+import { buildPriceHint, type PriceHint } from '../../lib/workbench/price-hint'
 
 type PriceHintBadgeProps = {
   model?: PricingModel
@@ -53,13 +50,7 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
   }, [props.estimateParams])
 
   const estimateQuery = useQuery({
-    queryKey: [
-      'playground',
-      'estimate',
-      modelName,
-      props.group,
-      debounced,
-    ],
+    queryKey: ['playground', 'estimate', modelName, props.group, debounced],
     queryFn: () =>
       estimatePlaygroundCost({
         modality: debounced?.modality ?? 'chat',
@@ -117,10 +108,7 @@ function mergeEstimate(
   return catalog
 }
 
-function formatHintLabel(
-  hint: PriceHint,
-  t: (key: string) => string
-): string {
+function formatHintLabel(hint: PriceHint, t: (key: string) => string): string {
   if (hint.kind === 'per_request' && hint.amountLabel) {
     return `${hint.amountLabel}/${t('run')}`
   }
@@ -133,10 +121,7 @@ function formatHintLabel(
   return t(hint.labelKey)
 }
 
-function formatHintTitle(
-  hint: PriceHint,
-  t: (key: string) => string
-): string {
+function formatHintTitle(hint: PriceHint, t: (key: string) => string): string {
   if (hint.kind === 'per_request') {
     return t('Estimated per-request price from catalog (group-adjusted)')
   }

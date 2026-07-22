@@ -31,16 +31,16 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
-import { useMediaQuery } from '@/hooks/use-media-query'
 import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { ModelCatalog } from './components/catalog/model-catalog'
 import { PlaygroundChat } from './components/chat/playground-chat'
+import { ChatComposer } from './components/composer/chat-composer'
 import { AgentsView } from './components/discover/agents-view'
 import { InspirationView } from './components/discover/inspiration-view'
-import { ChatComposer } from './components/composer/chat-composer'
 import {
   SettingsPanel,
   SettingsSections,

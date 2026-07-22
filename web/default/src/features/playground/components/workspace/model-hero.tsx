@@ -51,12 +51,12 @@ export function ModelHero(props: ModelHeroProps) {
         />
       </div>
       {!props.compact && (
-        <p className='font-mono text-sm font-semibold text-foreground'>
+        <p className='text-foreground font-mono text-sm font-semibold'>
           {props.modelName || t('Select a model')}
         </p>
       )}
-      <div className='max-h-40 overflow-y-auto rounded-2xl border border-border bg-muted/60 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'>
-        <p className='text-sm leading-relaxed text-pretty text-muted-foreground'>
+      <div className='border-border bg-muted/60 max-h-40 overflow-y-auto rounded-2xl border px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'>
+        <p className='text-muted-foreground text-sm leading-relaxed text-pretty'>
           {description}
         </p>
       </div>

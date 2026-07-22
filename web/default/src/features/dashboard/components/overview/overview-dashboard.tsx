@@ -467,10 +467,7 @@ function CompactQuickAction(props: { action: QuickAction }) {
   )
 }
 
-function ChatPresetChip(props: {
-  preset: ChatPreset
-  serverAddress: string
-}) {
+function ChatPresetChip(props: { preset: ChatPreset; serverAddress: string }) {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
 
@@ -878,9 +875,7 @@ export function OverviewDashboard() {
             </CardStaggerItem>
           )}
           {showChatApps && (
-            <CardStaggerItem
-              className={cn(!checkinEnabled && 'sm:col-span-2')}
-            >
+            <CardStaggerItem className={cn(!checkinEnabled && 'sm:col-span-2')}>
               <div className='bg-card flex h-full flex-col gap-3 rounded-2xl border p-4 shadow-xs'>
                 <div className='flex items-center gap-3'>
                   <span className='bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl'>

@@ -61,10 +61,7 @@ export function StatusHeatmap(props: StatusHeatmapProps) {
       <div className='space-y-1.5'>
         <div className='flex flex-wrap gap-0.5'>
           {props.series.map((point) => {
-            const tone = seriesCellTone(
-              point.success_rate,
-              point.request_count
-            )
+            const tone = seriesCellTone(point.success_rate, point.request_count)
             const range = formatBucketRange(
               point.ts,
               props.bucketSeconds,
