@@ -84,6 +84,7 @@ import type {
   FlowOverflowMode,
   FlowRole,
 } from '@/features/dashboard/types'
+import { getCurrentIntlLocale } from '@/i18n/languages'
 import { formatQuota } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 import { computeTimeRange } from '@/lib/time'
@@ -247,9 +248,9 @@ function toggleSelectedNodeFilter(
 }
 
 function formatFlowMetricNumber(value: number): string {
-  return Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
-    value
-  )
+  return Intl.NumberFormat(getCurrentIntlLocale(), {
+    maximumFractionDigits: 0,
+  }).format(value)
 }
 
 export function FlowCharts(props: FlowChartsProps) {

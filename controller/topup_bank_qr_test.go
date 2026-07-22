@@ -1,10 +1,15 @@
 package controller
 
 import (
+	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,4 +44,12 @@ func TestBankQRAmount(t *testing.T) {
 	operation_setting.USDExchangeRate = 50_000_000
 	_, err = bankQRAmount(10, "default", setting)
 	assert.Error(t, err)
+}
+
+func TestBankQRPendOrderLimitErrorUsesVietnameseCatalog(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Set(string(constant.ContextKeyLanguage), i18n.LangVi)
+
+	assert.Equal(t, "Bạn có quá nhiều đơn Bank QR đang chờ xử lý", topUpPaymentError(c, model.ErrBankQRPendingOrderLimit))
 }

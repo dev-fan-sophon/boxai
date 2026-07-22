@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18n from 'i18next'
 
 export const INTERFACE_LANGUAGE_OPTIONS = [
   { code: 'zhCN', label: '简体中文' },
@@ -44,6 +45,9 @@ export function normalizeInterfaceLanguage(value?: string | null): string {
   }
   if (value === 'zh-CN' || value === 'zh-Hans' || value === 'zhCN') {
     normalized = 'zhCN'
+  }
+  if (normalized === 'vi' || normalized.startsWith('vi-')) {
+    normalized = 'vi'
   }
 
   return INTERFACE_LANGUAGE_OPTIONS.some((lang) => lang.code === normalized)
@@ -91,6 +95,8 @@ export function toIntlLocale(value?: string | null): string | undefined {
       return 'zh-CN'
     case 'zhTW':
       return 'zh-TW'
+    case 'vi':
+      return 'vi-VN'
     default:
       break
   }
@@ -99,4 +105,9 @@ export function toIntlLocale(value?: string | null): string | undefined {
   } catch {
     return undefined
   }
+}
+
+/** Return the Intl locale for the language currently selected in i18next. */
+export function getCurrentIntlLocale(): string | undefined {
+  return toIntlLocale(i18n.resolvedLanguage || i18n.language)
 }

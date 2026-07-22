@@ -169,7 +169,7 @@ export function UserCharts(props: UserChartsProps) {
                 value={String(preset.days)}
                 className='px-2.5 text-xs'
               >
-                {t(preset.label)}
+                {t(preset.labelKey)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -189,7 +189,7 @@ export function UserCharts(props: UserChartsProps) {
                 value={opt.value}
                 className='px-2.5 text-xs'
               >
-                {t(opt.label)}
+                {t(opt.labelKey)}
               </TabsTrigger>
             ))}
           </TabsList>

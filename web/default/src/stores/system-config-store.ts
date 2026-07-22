@@ -47,8 +47,11 @@ export interface SystemConfig {
   footerHtml?: string
   demoSiteEnabled?: boolean
   displayTokenStatEnabled?: boolean
+  businessTimezone: string
   currency: CurrencyConfig
 }
+
+export const DEFAULT_BUSINESS_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
 export const DEFAULT_CURRENCY_CONFIG: CurrencyConfig = {
   displayInCurrency: true,
@@ -81,6 +84,7 @@ export const useSystemConfigStore = create<SystemConfigState>()(
         faviconUrl: '',
         primaryColor: '',
         tokenPreset: '',
+        businessTimezone: DEFAULT_BUSINESS_TIMEZONE,
         currency: { ...DEFAULT_CURRENCY_CONFIG },
       },
       loading: true,
@@ -117,3 +121,7 @@ export const getLogo = () => useSystemConfigStore.getState().config.logo
 
 export const getFooterHtml = () =>
   useSystemConfigStore.getState().config.footerHtml
+
+export const getBusinessTimezone = () =>
+  useSystemConfigStore.getState().config.businessTimezone ||
+  DEFAULT_BUSINESS_TIMEZONE

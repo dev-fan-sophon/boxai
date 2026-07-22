@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
@@ -514,6 +516,10 @@ func AdminCompleteTopUp(c *gin.Context) {
 	defer UnlockOrder(req.TradeNo)
 
 	if err := model.ManualCompleteTopUp(req.TradeNo, c.ClientIP()); err != nil {
+		if errors.Is(err, model.ErrBankQRProofReviewRequired) {
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupBankQRProofReviewRequired))
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}

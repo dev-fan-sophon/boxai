@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
@@ -46,6 +48,21 @@ func NewLocalStore(root string) AssetStore {
 // Used by the backfill tool as the migration target.
 func NewR2Store() (AssetStore, error) {
 	return newR2Store()
+}
+
+// ForBackend resolves the backend recorded with a persisted object. An empty
+// backend is treated as a legacy row and uses the current process default.
+func ForBackend(backend string) (AssetStore, error) {
+	switch strings.ToLower(strings.TrimSpace(backend)) {
+	case "":
+		return Default(), nil
+	case "local":
+		return NewLocalStore(LocalRoot()), nil
+	case "r2", "s3":
+		return NewR2Store()
+	default:
+		return nil, fmt.Errorf("storage: unsupported backend %q", backend)
+	}
 }
 
 // Reset clears the cached default store. Intended for tests that mutate

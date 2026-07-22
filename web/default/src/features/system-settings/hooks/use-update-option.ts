@@ -46,6 +46,7 @@ const STATUS_RELATED_KEYS = new Set([
   'general_setting.quota_display_type',
   'general_setting.custom_currency_symbol',
   'general_setting.custom_currency_exchange_rate',
+  'general_setting.business_timezone',
 ])
 
 export function useUpdateOption() {
@@ -75,6 +76,9 @@ export function useUpdateOption() {
             break
           case 'branding.token_preset':
             setSystemConfig({ tokenPreset: value === 'box-ai' ? value : '' })
+            break
+          case 'general_setting.business_timezone':
+            setSystemConfig({ businessTimezone: value })
             break
         }
 

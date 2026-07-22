@@ -96,10 +96,17 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>
 
 const ANNOUNCEMENT_FORM_ID = 'announcement-form'
 
-const typeOptions = [
+const typeOptions: Array<{
+  value: Announcement['type']
+  label: string
+  labelKey?: string
+  color: string
+  badgeVariant: 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+}> = [
   {
     value: 'default',
     label: 'Default',
+    labelKey: 'Default',
     color: 'bg-gray-500',
     badgeVariant: 'neutral' as const,
   },
@@ -112,18 +119,21 @@ const typeOptions = [
   {
     value: 'success',
     label: 'Success',
+    labelKey: 'Success',
     color: 'bg-green-500',
     badgeVariant: 'success' as const,
   },
   {
     value: 'warning',
     label: 'Warning',
+    labelKey: 'Warning',
     color: 'bg-orange-500',
     badgeVariant: 'warning' as const,
   },
   {
     value: 'error',
     label: 'Error',
+    labelKey: 'Error',
     color: 'bg-red-500',
     badgeVariant: 'danger' as const,
   },
@@ -399,19 +409,21 @@ export function AnnouncementsSection({
             {
               id: 'type',
               header: t('Type'),
-              cell: (announcement) => (
-                <StatusBadge
-                  label={
-                    typeOptions.find((opt) => opt.value === announcement.type)
-                      ?.label
-                  }
-                  variant={
-                    typeOptions.find((opt) => opt.value === announcement.type)
-                      ?.badgeVariant ?? 'neutral'
-                  }
-                  copyable={false}
-                />
-              ),
+              cell: (announcement) => {
+                const option = typeOptions.find(
+                  (item) => item.value === announcement.type
+                )
+                const label = option?.labelKey
+                  ? t(option.labelKey)
+                  : option?.label
+                return (
+                  <StatusBadge
+                    label={label}
+                    variant={option?.badgeVariant ?? 'neutral'}
+                    copyable={false}
+                  />
+                )
+              },
             },
             {
               id: 'extra',
@@ -529,7 +541,7 @@ export function AnnouncementsSection({
                           <div
                             className={`h-3 w-3 rounded-full ${option.color}`}
                           />
-                          {option.label}
+                          {option.labelKey ? t(option.labelKey) : option.label}
                         </div>
                       ),
                     }))}
@@ -551,7 +563,9 @@ export function AnnouncementsSection({
                               <div
                                 className={`h-3 w-3 rounded-full ${option.color}`}
                               />
-                              {option.label}
+                              {option.labelKey
+                                ? t(option.labelKey)
+                                : option.label}
                             </div>
                           </SelectItem>
                         ))}

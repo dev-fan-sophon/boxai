@@ -10,11 +10,19 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/vietqr"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
+)
+
+var (
+	errBankQRTopUpAmountRange   = errors.New("Bank QR top-up amount out of range")
+	errBankQRTopUpNotCreditable = errors.New("Bank QR top-up amount cannot be credited")
+	errBankQRRateInvalid        = errors.New("Bank QR rate is invalid")
+	errBankQRAmountLimit        = errors.New("Bank QR amount exceeds limit")
 )
 
 const (
@@ -25,10 +33,10 @@ const (
 
 func bankQRAmount(amountUSD int64, group string, setting operation_setting.BankQRSetting) (int64, error) {
 	if amountUSD < setting.MinTopUp || amountUSD > maxBankQRTopUpUSD {
-		return 0, fmt.Errorf("top-up amount must be between %d and %d USD", setting.MinTopUp, maxBankQRTopUpUSD)
+		return 0, errBankQRTopUpAmountRange
 	}
 	if _, err := model.BankQRQuota(amountUSD); err != nil {
-		return 0, fmt.Errorf("top-up amount cannot be credited: %w", err)
+		return 0, fmt.Errorf("%w: %v", errBankQRTopUpNotCreditable, err)
 	}
 	rate := operation_setting.USDExchangeRate
 	ratio := common.GetTopupGroupRatio(group)
@@ -38,35 +46,50 @@ func bankQRAmount(amountUSD int64, group string, setting operation_setting.BankQ
 	}
 	if rate <= 0 || ratio <= 0 || discount <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) ||
 		math.IsNaN(ratio) || math.IsInf(ratio, 0) || math.IsNaN(discount) || math.IsInf(discount, 0) {
-		return 0, errors.New("invalid bank QR exchange rate, group ratio, or discount")
+		return 0, errBankQRRateInvalid
 	}
 	amount := decimal.NewFromInt(amountUSD).Mul(decimal.NewFromFloat(rate)).
 		Mul(decimal.NewFromFloat(ratio)).Mul(decimal.NewFromFloat(discount)).Round(0)
 	if !amount.IsPositive() || amount.GreaterThanOrEqual(decimal.NewFromInt(maxBankQRAmountVND)) {
-		return 0, errors.New("bank QR transfer amount must be below 500000000 VND")
+		return 0, errBankQRAmountLimit
 	}
 	return amount.IntPart(), nil
+}
+
+func bankQRAmountError(c *gin.Context, err error, minTopUp int64) string {
+	switch {
+	case errors.Is(err, errBankQRTopUpAmountRange):
+		return i18n.T(c, i18n.MsgPaymentTopUpAmountRange, map[string]any{"Min": minTopUp, "Max": maxBankQRTopUpUSD})
+	case errors.Is(err, errBankQRTopUpNotCreditable):
+		return i18n.T(c, i18n.MsgPaymentTopUpNotCreditable)
+	case errors.Is(err, errBankQRRateInvalid):
+		return i18n.T(c, i18n.MsgPaymentBankQRRateInvalid)
+	case errors.Is(err, errBankQRAmountLimit):
+		return i18n.T(c, i18n.MsgPaymentBankQRAmountLimit)
+	default:
+		return topUpPaymentError(c, err)
+	}
 }
 
 func RequestBankQRAmount(c *gin.Context) {
 	bankSetting := operation_setting.GetBankQRSetting()
 	if !isPaymentComplianceConfirmed() || !operation_setting.IsBankQRSettingConfigured(bankSetting) {
-		common.ApiErrorMsg(c, "Bank QR top-up is not enabled")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
 	}
 	var req AmountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ApiErrorMsg(c, "Invalid amount")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
 	group, err := model.GetUserGroup(c.GetInt("id"), true)
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
 	amountVND, err := bankQRAmount(req.Amount, group, bankSetting)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
 		return
 	}
 	common.ApiSuccess(c, gin.H{"amount": amountVND, "currency": "VND"})
@@ -75,23 +98,23 @@ func RequestBankQRAmount(c *gin.Context) {
 func RequestBankQRPay(c *gin.Context) {
 	bankSetting := operation_setting.GetBankQRSetting()
 	if !isPaymentComplianceConfirmed() || !operation_setting.IsBankQRSettingConfigured(bankSetting) {
-		common.ApiErrorMsg(c, "Bank QR top-up is not enabled")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
 	}
 	var req AmountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ApiErrorMsg(c, "Invalid amount")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
 	userID := c.GetInt("id")
 	group, err := model.GetUserGroup(userID, true)
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
 	amountVND, err := bankQRAmount(req.Amount, group, bankSetting)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
 		return
 	}
 
@@ -100,7 +123,7 @@ func RequestBankQRPay(c *gin.Context) {
 	for attempts := 0; attempts < 5; attempts++ {
 		suffix, randomErr := bankQRRandomSuffix(12)
 		if randomErr != nil {
-			common.ApiError(c, randomErr)
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 			return
 		}
 		tradeNo = prefix + suffix
@@ -110,12 +133,12 @@ func RequestBankQRPay(c *gin.Context) {
 		tradeNo = ""
 	}
 	if tradeNo == "" {
-		common.ApiErrorMsg(c, "Unable to create a unique transfer reference")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentTransferRefFailed))
 		return
 	}
 	payload, err := vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, amountVND, tradeNo)
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 
@@ -125,7 +148,7 @@ func RequestBankQRPay(c *gin.Context) {
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
 	if err := model.CreatePendingBankQRTopUp(order, maxPendingBankQROrders); err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, gin.H{
@@ -145,43 +168,43 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 	}
 	bankSetting := operation_setting.GetBankQRSetting()
 	if !operation_setting.IsBankQRSettingConfigured(bankSetting) {
-		common.ApiErrorMsg(c, "Bank QR payment is not enabled")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRDisabled))
 		return
 	}
 	var req SubscriptionBankQRRequest
 	if c.ShouldBindJSON(&req) != nil || req.PlanId <= 0 {
-		common.ApiErrorMsg(c, "invalid plan_id")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentPlanInvalid))
 		return
 	}
 	plan, err := model.GetSubscriptionPlanById(req.PlanId)
 	if err != nil || !plan.Enabled {
-		common.ApiErrorMsg(c, "plan is not enabled")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentPlanDisabled))
 		return
 	}
 	if !strings.EqualFold(strings.TrimSpace(plan.Currency), "USD") || plan.PriceAmount < 0.01 {
-		common.ApiErrorMsg(c, "Bank QR only supports valid USD plan prices")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRUSDPlanOnly))
 		return
 	}
 	userID := c.GetInt("id")
 	if plan.MaxPurchasePerUser > 0 {
 		count, countErr := model.CountUserSubscriptionsByPlan(userID, plan.Id)
 		if countErr != nil {
-			common.ApiError(c, countErr)
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 			return
 		}
 		if count >= int64(plan.MaxPurchasePerUser) {
-			common.ApiErrorMsg(c, "已达到该套餐购买上限")
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgSubscriptionPurchaseMax))
 			return
 		}
 	}
 	rate := operation_setting.USDExchangeRate
 	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
-		common.ApiErrorMsg(c, "invalid USD exchange rate")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentUSDExchangeInvalid))
 		return
 	}
 	amount := decimal.NewFromFloat(plan.PriceAmount).Mul(decimal.NewFromFloat(rate)).Round(0)
 	if !amount.IsPositive() || amount.GreaterThanOrEqual(decimal.NewFromInt(maxBankQRAmountVND)) {
-		common.ApiErrorMsg(c, "bank QR transfer amount must be below 500000000 VND")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRAmountLimit))
 		return
 	}
 	prefix := operation_setting.NormalizeBankQRTransferPrefix(bankSetting.TransferPrefix)
@@ -189,7 +212,7 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 	for attempts := 0; attempts < 5; attempts++ {
 		suffix, randomErr := bankQRRandomSuffix(12)
 		if randomErr != nil {
-			common.ApiError(c, randomErr)
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 			return
 		}
 		candidate := prefix + suffix
@@ -199,22 +222,22 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 		}
 	}
 	if tradeNo == "" {
-		common.ApiErrorMsg(c, "Unable to create a unique transfer reference")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentTransferRefFailed))
 		return
 	}
 	payload, err := vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, amount.IntPart(), tradeNo)
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	providerPayload, err := common.Marshal(model.BankQRSubscriptionOrderPayload{Version: 1, Amount: amount.IntPart(), Currency: "VND", Plan: *plan})
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
 	order := &model.SubscriptionOrder{UserId: userID, PlanId: plan.Id, Money: plan.PriceAmount, TradeNo: tradeNo, PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(), ProviderPayload: string(providerPayload)}
 	if err := model.CreatePendingBankQRSubscriptionOrder(order, maxPendingBankQROrders); err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, gin.H{"trade_no": tradeNo, "transfer_content": tradeNo, "amount": amount.IntPart(), "currency": "VND", "payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN, "account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName)})
@@ -223,7 +246,7 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 func UpdateBankQRSetting(c *gin.Context) {
 	var setting operation_setting.BankQRSetting
 	if err := common.DecodeJson(c.Request.Body, &setting); err != nil {
-		common.ApiErrorMsg(c, "Invalid bank QR settings")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRSettingInvalid))
 		return
 	}
 	setting.BankName = strings.TrimSpace(setting.BankName)
@@ -232,7 +255,7 @@ func UpdateBankQRSetting(c *gin.Context) {
 	setting.AccountName = strings.TrimSpace(setting.AccountName)
 	setting.TransferPrefix = operation_setting.NormalizeBankQRTransferPrefix(setting.TransferPrefix)
 	if err := operation_setting.ValidateBankQRSetting(setting); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": i18n.T(c, i18n.MsgPaymentBankQRSettingInvalid)})
 		return
 	}
 
@@ -253,7 +276,7 @@ func UpdateBankQRSetting(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		common.ApiError(c, err)
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
 	common.ApiSuccess(c, setting)

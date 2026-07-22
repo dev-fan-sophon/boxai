@@ -94,7 +94,7 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
           items={[
             ...TIME_RANGE_PRESETS.map((option) => ({
               value: String(option.days),
-              label: t(option.label),
+              label: t(option.labelKey),
             })),
           ]}
           value={String(draft.defaultTimeRangeDays)}
@@ -112,7 +112,7 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             <SelectGroup>
               {TIME_RANGE_PRESETS.map((option) => (
                 <SelectItem key={option.days} value={String(option.days)}>
-                  {t(option.label)}
+                  {t(option.labelKey)}
                 </SelectItem>
               ))}
             </SelectGroup>
@@ -127,7 +127,7 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
           items={[
             ...TIME_GRANULARITY_OPTIONS.map((option) => ({
               value: option.value,
-              label: t(option.label),
+              label: t(option.labelKey),
             })),
           ]}
           value={draft.defaultTimeGranularity}
@@ -145,7 +145,7 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             <SelectGroup>
               {TIME_GRANULARITY_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {t(option.label)}
+                  {t(option.labelKey)}
                 </SelectItem>
               ))}
             </SelectGroup>

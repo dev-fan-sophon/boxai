@@ -17,9 +17,14 @@ import (
 
 const TopUpProofMaxBytes int64 = 10 * 1024 * 1024
 
+var (
+	ErrTopUpProofTooLarge    = errors.New("top-up proof is too large")
+	ErrTopUpProofUnsupported = errors.New("top-up proof type is unsupported")
+)
+
 func SaveTopUpProof(ctx context.Context, userID int, data []byte) (key, backend, mimeType string, err error) {
 	if len(data) == 0 || int64(len(data)) > TopUpProofMaxBytes {
-		return "", "", "", errors.New("proof must be at most 10MB")
+		return "", "", "", ErrTopUpProofTooLarge
 	}
 	mimeType = http.DetectContentType(data[:min(len(data), 512)])
 	ext := ""
@@ -34,7 +39,7 @@ func SaveTopUpProof(ctx context.Context, userID int, data []byte) (key, backend,
 		if len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
 			mimeType, ext = "image/webp", ".webp"
 		} else {
-			return "", "", "", errors.New("proof must be JPEG, PNG, or WebP")
+			return "", "", "", ErrTopUpProofUnsupported
 		}
 	}
 	key = fmt.Sprintf("topup-proofs/%d/%s%s", userID, strings.ReplaceAll(uuid.NewString(), "-", ""), ext)
@@ -45,15 +50,22 @@ func SaveTopUpProof(ctx context.Context, userID int, data []byte) (key, backend,
 	return key, store.Backend(), mimeType, nil
 }
 
-func DeleteTopUpProof(ctx context.Context, key string) error {
+func DeleteTopUpProof(ctx context.Context, backend, key string) error {
 	if key == "" {
 		return nil
 	}
-	return storage.Default().Delete(ctx, key)
+	store, err := storage.ForBackend(backend)
+	if err != nil {
+		return err
+	}
+	return store.Delete(ctx, key)
 }
 
-func OpenTopUpProof(ctx context.Context, key string) (string, io.ReadCloser, error) {
-	store := storage.Default()
+func OpenTopUpProof(ctx context.Context, backend, key string) (string, io.ReadCloser, error) {
+	store, err := storage.ForBackend(backend)
+	if err != nil {
+		return "", nil, err
+	}
 	url, err := store.PresignGet(ctx, key, 5*time.Minute)
 	if err == nil {
 		return url, nil, nil

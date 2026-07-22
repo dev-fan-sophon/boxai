@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { COMMON_TIMEZONES } from '@/features/pricing/lib/billing-expr'
 import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -71,6 +72,9 @@ const createPricingSchema = (t: (key: string) => string) =>
           .number()
           .min(0.0001, t('Exchange rate must be greater than 0'))
           .optional(),
+        business_timezone: z
+          .string()
+          .min(1, t('Business timezone is required')),
       }),
     })
     .superRefine((data, ctx) => {
@@ -346,6 +350,47 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                 )}
               />
             )}
+
+            <FormField
+              control={form.control}
+              name='general_setting.business_timezone'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Business timezone')}</FormLabel>
+                  <Select
+                    items={COMMON_TIMEZONES}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t('Select business timezone')}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent alignItemWithTrigger={false}>
+                      <SelectGroup>
+                        {COMMON_TIMEZONES.map((timezone) => (
+                          <SelectItem
+                            key={timezone.value}
+                            value={timezone.value}
+                          >
+                            {timezone.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {t(
+                      'Used for billing time rules and subscription quota resets.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

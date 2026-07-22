@@ -65,9 +65,9 @@ type DashboardSectionProps = {
 }
 
 const granularityOptions = [
-  { label: 'Hour', value: 'hour' },
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
+  { labelKey: 'Hour', value: 'hour' },
+  { labelKey: 'Day', value: 'day' },
+  { labelKey: 'Week', value: 'week' },
 ]
 
 export function DashboardSection({ defaultValues }: DashboardSectionProps) {
@@ -154,12 +154,10 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
                 <FormItem>
                   <FormLabel>{t('Default time granularity')}</FormLabel>
                   <Select
-                    items={[
-                      ...granularityOptions.map((option) => ({
-                        value: option.value,
-                        label: t(option.label),
-                      })),
-                    ]}
+                    items={granularityOptions.map((option) => ({
+                      value: option.value,
+                      label: t(option.labelKey),
+                    }))}
                     onValueChange={field.onChange}
                     value={field.value}
                     disabled={!isEnabled}
@@ -173,7 +171,7 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
                       <SelectGroup>
                         {granularityOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {t(option.label)}
+                            {t(option.labelKey)}
                           </SelectItem>
                         ))}
                       </SelectGroup>

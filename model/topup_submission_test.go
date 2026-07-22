@@ -78,14 +78,42 @@ func TestTopUpSubmissionSubscriptionApprovalIsIdempotent(t *testing.T) {
 	assert.Equal(t, common.TopUpStatusSuccess, order.Status)
 }
 
+func TestTopUpSubmissionApprovalRejectsCumulativeQuotaOverflow(t *testing.T) {
+	setupTopUpSubmissionTestDB(t)
+	require.NoError(t, DB.Create(&User{Id: 1, Username: "owner", AffCode: "owner-aff", Quota: common.MaxQuota - 999}).Error)
+	require.NoError(t, DB.Create(&TopUp{UserId: 1, TradeNo: "OVERFLOW", Amount: 10, PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}).Error)
+	submission := &TopUpSubmission{UserId: 1, TradeNo: "OVERFLOW", BankTransactionNo: "overflow-bank"}
+	require.NoError(t, CreateTopUpSubmission(submission))
+
+	_, err := ReviewTopUpSubmission(submission.Id, 99, true, "")
+	require.ErrorContains(t, err, "exceed maximum")
+
+	var user User
+	require.NoError(t, DB.First(&user, 1).Error)
+	assert.Equal(t, common.MaxQuota-999, user.Quota)
+	var order TopUp
+	require.NoError(t, DB.Where("trade_no = ?", "OVERFLOW").First(&order).Error)
+	assert.Equal(t, common.TopUpStatusPending, order.Status)
+	var storedSubmission TopUpSubmission
+	require.NoError(t, DB.First(&storedSubmission, submission.Id).Error)
+	assert.Equal(t, TopUpSubmissionSubmitted, storedSubmission.Status)
+	assert.Zero(t, storedSubmission.ReviewedAt)
+	assert.Zero(t, storedSubmission.ReviewedBy)
+	assert.NotNil(t, storedSubmission.ActiveBankTransactionKey)
+}
+
 func TestBankQRPerUserPendingOrderAndProofStorageLimits(t *testing.T) {
 	setupTopUpSubmissionTestDB(t)
 	require.NoError(t, DB.Create(&User{Id: 1, Username: "owner", AffCode: "owner-aff"}).Error)
+	now := common.GetTimestamp()
 	for i := 0; i < 10; i++ {
-		require.NoError(t, DB.Create(&TopUp{UserId: 1, TradeNo: fmt.Sprintf("PENDING-%d", i), PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}).Error)
+		require.NoError(t, DB.Create(&TopUp{UserId: 1, TradeNo: fmt.Sprintf("PENDING-%d", i), PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: now}).Error)
 	}
 	err := CreatePendingBankQRTopUp(&TopUp{UserId: 1, TradeNo: "PENDING-OVERFLOW", PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}, 10)
 	require.ErrorContains(t, err, "too many pending")
+
+	require.NoError(t, DB.Model(&TopUp{}).Where("user_id = ?", 1).Update("create_time", now-BankQRPendingOrderWindowSeconds-1).Error)
+	require.NoError(t, CreatePendingBankQRTopUp(&TopUp{UserId: 1, TradeNo: "PENDING-AFTER-WINDOW", PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}, 10))
 
 	require.NoError(t, DB.Create(&User{Id: 2, Username: "proof-owner", AffCode: "proof-owner-aff"}).Error)
 	require.NoError(t, DB.Create(&TopUp{UserId: 2, TradeNo: "PROOF-LIMIT", PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}).Error)

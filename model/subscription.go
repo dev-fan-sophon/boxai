@@ -10,6 +10,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/pkg/cachex"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/samber/hot"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -36,6 +37,7 @@ const (
 var (
 	ErrSubscriptionOrderNotFound      = errors.New("subscription order not found")
 	ErrSubscriptionOrderStatusInvalid = errors.New("subscription order status invalid")
+	ErrSubscriptionPurchaseLimit      = errors.New("subscription purchase limit reached")
 )
 
 const (
@@ -289,8 +291,9 @@ type UserSubscription struct {
 
 	Source string `json:"source" gorm:"type:varchar(32);default:'order'"` // order/admin
 
-	LastResetTime int64 `json:"last_reset_time" gorm:"type:bigint;default:0"`
-	NextResetTime int64 `json:"next_reset_time" gorm:"type:bigint;default:0;index"`
+	LastResetTime int64  `json:"last_reset_time" gorm:"type:bigint;default:0"`
+	NextResetTime int64  `json:"next_reset_time" gorm:"type:bigint;default:0;index"`
+	ResetTimezone string `json:"reset_timezone" gorm:"type:varchar(64);default:''"`
 
 	UpgradeGroup  string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
 	PrevUserGroup string `json:"prev_user_group" gorm:"type:varchar(64);default:''"`
@@ -338,6 +341,7 @@ func calcPlanEndTime(start time.Time, plan *SubscriptionPlan) (int64, error) {
 	if plan.DurationValue <= 0 && plan.DurationUnit != SubscriptionDurationCustom {
 		return 0, errors.New("duration_value must be > 0")
 	}
+	start = start.In(operation_setting.GetBusinessLocation())
 	switch plan.DurationUnit {
 	case SubscriptionDurationYear:
 		return start.AddDate(plan.DurationValue, 0, 0).Unix(), nil
@@ -374,6 +378,7 @@ func calcNextResetTime(base time.Time, plan *SubscriptionPlan, endUnix int64) in
 	if period == SubscriptionResetNever {
 		return 0
 	}
+	base = base.In(operation_setting.GetBusinessLocation())
 	var next time.Time
 	switch period {
 	case SubscriptionResetDaily:
@@ -516,6 +521,10 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	if userId <= 0 {
 		return nil, errors.New("invalid user id")
 	}
+	var user User
+	if err := lockForUpdate(tx).Select("id", "group").First(&user, userId).Error; err != nil {
+		return nil, err
+	}
 	if plan.MaxPurchasePerUser > 0 {
 		var count int64
 		if err := tx.Model(&UserSubscription{}).
@@ -524,7 +533,7 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 			return nil, err
 		}
 		if count >= int64(plan.MaxPurchasePerUser) {
-			return nil, errors.New("已达到该套餐购买上限")
+			return nil, ErrSubscriptionPurchaseLimit
 		}
 	}
 	nowUnix := GetDBTimestamp()
@@ -542,9 +551,13 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	upgradeGroup := strings.TrimSpace(plan.UpgradeGroup)
 	prevGroup := ""
 	if upgradeGroup != "" {
-		currentGroup, err := getUserGroupByIdTx(tx, userId)
-		if err != nil {
-			return nil, err
+		currentGroup := user.Group
+		if currentGroup == "" {
+			var err error
+			currentGroup, err = getUserGroupByIdTx(tx, userId)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if currentGroup != upgradeGroup {
 			prevGroup = currentGroup
@@ -569,6 +582,7 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 		Source:              source,
 		LastResetTime:       lastReset,
 		NextResetTime:       nextReset,
+		ResetTimezone:       operation_setting.GetBusinessTimezone(),
 		UpgradeGroup:        upgradeGroup,
 		PrevUserGroup:       prevGroup,
 		DowngradeGroup:      strings.TrimSpace(plan.DowngradeGroup),
@@ -1292,6 +1306,67 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	sub.LastResetTime = base.Unix()
 	sub.NextResetTime = next
 	return tx.Save(sub).Error
+}
+
+// ReconcileActiveSubscriptionResetTimezone applies the configured business
+// timezone to existing calendar-based subscriptions. The persisted timezone
+// makes the migration idempotent across restarts and multiple application nodes.
+func ReconcileActiveSubscriptionResetTimezone() error {
+	timezone := operation_setting.GetBusinessTimezone()
+	location := operation_setting.GetBusinessLocation()
+	now := GetDBTimestamp()
+	lastID := 0
+
+	for {
+		var ids []int
+		if err := DB.Model(&UserSubscription{}).
+			Joins("JOIN subscription_plans p ON p.id = user_subscriptions.plan_id").
+			Where("user_subscriptions.id > ? AND user_subscriptions.status = ? AND user_subscriptions.end_time > ? AND COALESCE(user_subscriptions.reset_timezone, '') <> ?", lastID, "active", now, timezone).
+			Where("p.quota_reset_period IN ?", []string{SubscriptionResetDaily, SubscriptionResetWeekly, SubscriptionResetMonthly}).
+			Order("user_subscriptions.id asc").
+			Limit(200).
+			Pluck("user_subscriptions.id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+
+		for _, id := range ids {
+			err := DB.Transaction(func(tx *gorm.DB) error {
+				var sub UserSubscription
+				if err := lockForUpdate(tx).Where("id = ?", id).First(&sub).Error; err != nil {
+					return err
+				}
+				if sub.Status != "active" || sub.EndTime <= now || sub.ResetTimezone == timezone {
+					return nil
+				}
+
+				var plan SubscriptionPlan
+				if err := tx.Where("id = ?", sub.PlanId).First(&plan).Error; err != nil {
+					return err
+				}
+				period := NormalizeResetPeriod(plan.QuotaResetPeriod)
+				if period != SubscriptionResetDaily && period != SubscriptionResetWeekly && period != SubscriptionResetMonthly {
+					return nil
+				}
+				// The persisted boundary belongs to the old timezone and is
+				// authoritative: if it passed, that reset is already owed. Do not
+				// re-evaluate it using the new timezone or it may be postponed.
+				if sub.NextResetTime > 0 && sub.NextResetTime <= now {
+					sub.AmountUsed = 0
+					sub.LastResetTime = now
+				}
+				sub.NextResetTime = calcNextResetTime(time.Unix(now, 0).In(location), &plan, sub.EndTime)
+				sub.ResetTimezone = timezone
+				return tx.Save(&sub).Error
+			})
+			if err != nil {
+				return err
+			}
+		}
+		lastID = ids[len(ids)-1]
+	}
 }
 
 // PreConsumeUserSubscription pre-consumes from any active subscription total quota.

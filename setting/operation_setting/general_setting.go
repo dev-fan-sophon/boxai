@@ -1,14 +1,21 @@
 package operation_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import (
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/QuantumNous/new-api/setting/config"
+)
 
 // 额度展示类型
 const (
-	QuotaDisplayTypeUSD    = "USD"
-	QuotaDisplayTypeCNY    = "CNY"
-	QuotaDisplayTypeVND    = "VND"
-	QuotaDisplayTypeTokens = "TOKENS"
-	QuotaDisplayTypeCustom = "CUSTOM"
+	QuotaDisplayTypeUSD     = "USD"
+	QuotaDisplayTypeCNY     = "CNY"
+	QuotaDisplayTypeVND     = "VND"
+	QuotaDisplayTypeTokens  = "TOKENS"
+	QuotaDisplayTypeCustom  = "CUSTOM"
+	DefaultBusinessTimezone = "Asia/Ho_Chi_Minh"
 )
 
 type GeneralSetting struct {
@@ -21,6 +28,8 @@ type GeneralSetting struct {
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
+	// 业务日期边界使用的 IANA 时区；数据库时间仍统一存储为 UTC/Unix 时间戳。
+	BusinessTimezone string `json:"business_timezone"`
 }
 
 // 默认配置
@@ -31,6 +40,7 @@ var generalSetting = GeneralSetting{
 	QuotaDisplayType:           QuotaDisplayTypeVND,
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
+	BusinessTimezone:           DefaultBusinessTimezone,
 }
 
 func init() {
@@ -40,6 +50,33 @@ func init() {
 
 func GetGeneralSetting() *GeneralSetting {
 	return &generalSetting
+}
+
+func ValidateBusinessTimezone(value string) (string, error) {
+	timezone := strings.TrimSpace(value)
+	if timezone == "" || timezone == "Local" {
+		return "", errors.New("business timezone must be an explicit IANA timezone")
+	}
+	if _, err := time.LoadLocation(timezone); err != nil {
+		return "", err
+	}
+	return timezone, nil
+}
+
+func GetBusinessTimezone() string {
+	timezone, err := ValidateBusinessTimezone(generalSetting.BusinessTimezone)
+	if err != nil {
+		return DefaultBusinessTimezone
+	}
+	return timezone
+}
+
+func GetBusinessLocation() *time.Location {
+	location, err := time.LoadLocation(GetBusinessTimezone())
+	if err != nil {
+		return time.FixedZone("ICT", 7*60*60)
+	}
+	return location
 }
 
 // IsCurrencyDisplay 是否以货币形式展示（美元或人民币）

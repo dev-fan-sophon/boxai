@@ -24,6 +24,7 @@ import type {
   ProcessedChartData,
   ProcessedUserChartData,
 } from '@/features/dashboard/types'
+import { getCurrentIntlLocale } from '@/i18n/languages'
 import { getCurrencyDisplay } from '@/lib/currency'
 import { formatChartTime, type TimeGranularity } from '@/lib/time'
 
@@ -52,7 +53,9 @@ export function getDashboardChartColors(domainLength: number): string[] {
 
 function renderQuotaCompat(rawQuota: number, digits = 4): string {
   const { config, meta } = getCurrencyDisplay()
-  if (meta.kind === 'tokens') return rawQuota.toLocaleString()
+  if (meta.kind === 'tokens') {
+    return rawQuota.toLocaleString(getCurrentIntlLocale())
+  }
   const usd = rawQuota / config.quotaPerUnit
   const rate = 'exchangeRate' in meta ? meta.exchangeRate : 1
   const symbol = 'symbol' in meta ? meta.symbol : '$'
@@ -62,6 +65,24 @@ function renderQuotaCompat(rawQuota: number, digits = 4): string {
     return symbol + Math.pow(10, -digits).toFixed(digits)
   }
   return symbol + fixed
+}
+
+function getChartBucketTimestamp(
+  timestamp: number,
+  granularity: TimeGranularity
+): number {
+  if (granularity === 'hour') {
+    return Math.floor(timestamp / 3600) * 3600
+  }
+  const date = new Date(timestamp * 1000)
+  if (granularity === 'day') {
+    date.setHours(0, 0, 0, 0)
+  } else if (granularity === 'week') {
+    date.setHours(0, 0, 0, 0)
+    const daysSinceMonday = (date.getDay() + 6) % 7
+    date.setDate(date.getDate() - daysSinceMonday)
+  }
+  return Math.floor(date.getTime() / 1000)
 }
 
 /**
@@ -77,7 +98,9 @@ export function processChartData(
   const otherLabel = tt('Other')
 
   const formatInt = (value: number) =>
-    Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
+    Intl.NumberFormat(getCurrentIntlLocale(), {
+      maximumFractionDigits: 0,
+    }).format(value)
   const formatQuotaValue = (value: number) => renderQuotaCompat(value, 4)
   const formatQuotaTotal = (value: number) => renderQuotaCompat(value, 2)
 
@@ -217,7 +240,7 @@ export function processChartData(
 
   // Aggregate all metrics by time and model
   const timeModelMap = new Map<
-    string,
+    number,
     Map<string, { quota: number; count: number; tokens: number }>
   >()
   const modelTotalsMap = new Map<
@@ -227,17 +250,17 @@ export function processChartData(
 
   data.forEach((item) => {
     const timestamp = Number(item.created_at)
-    const timeKey = formatChartTime(timestamp, timeGranularity)
+    const timeBucket = getChartBucketTimestamp(timestamp, timeGranularity)
     const model = item.model_name || 'Unknown'
     const quota = Number(item.quota) || 0
     const count = Number(item.count) || 0
     const tokens = Number(item.token_used) || 0
 
     // Aggregate by time and model
-    if (!timeModelMap.has(timeKey)) {
-      timeModelMap.set(timeKey, new Map())
+    if (!timeModelMap.has(timeBucket)) {
+      timeModelMap.set(timeBucket, new Map())
     }
-    const modelMap = timeModelMap.get(timeKey)!
+    const modelMap = timeModelMap.get(timeBucket)!
     const existing = modelMap.get(model) || { quota: 0, count: 0, tokens: 0 }
     modelMap.set(model, {
       quota: existing.quota + quota,
@@ -259,7 +282,7 @@ export function processChartData(
   })
 
   const allModels = Array.from(modelTotalsMap.keys())
-  const sortedTimes = Array.from(timeModelMap.keys()).sort()
+  const sortedTimes = Array.from(timeModelMap.keys()).sort((a, b) => a - b)
   const sortedModels = [...allModels].sort()
   const modelColorDomain = Array.from(new Set([...sortedModels, otherLabel]))
   const modelColorRange = getDashboardChartColors(modelColorDomain.length)
@@ -274,24 +297,21 @@ export function processChartData(
 
   // Pad time points if too few (default 7 points)
   const MAX_TREND_POINTS = MAX_CHART_TREND_POINTS
-  const fillTimePoints = (times: string[]) => {
+  const fillTimePoints = (times: number[]) => {
     if (times.length >= MAX_TREND_POINTS) return times
-    const lastTime = Math.max(
-      ...data.map((item) => Number(item.created_at) || 0)
-    )
-    const intervalSec =
-      timeGranularity === 'week'
-        ? 604800
-        : timeGranularity === 'day'
-          ? 86400
-          : 3600
-    const padded = Array.from({ length: MAX_TREND_POINTS }, (_, i) =>
-      formatChartTime(
-        lastTime - (MAX_TREND_POINTS - 1 - i) * intervalSec,
-        timeGranularity
-      )
-    )
-    return padded
+    const buckets = new Set(times)
+    let cursor = times[times.length - 1]
+    while (buckets.size < MAX_TREND_POINTS) {
+      if (timeGranularity === 'hour') {
+        cursor -= 3600
+      } else {
+        const date = new Date(cursor * 1000)
+        date.setDate(date.getDate() - (timeGranularity === 'week' ? 7 : 1))
+        cursor = Math.floor(date.getTime() / 1000)
+      }
+      buckets.add(cursor)
+    }
+    return [...buckets].sort((a, b) => a - b)
   }
   const chartTimes = fillTimePoints(sortedTimes)
 
@@ -321,9 +341,10 @@ export function processChartData(
     TimeSum: number
   }> = []
 
-  chartTimes.forEach((time) => {
+  chartTimes.forEach((timestamp) => {
+    const time = formatChartTime(timestamp, timeGranularity)
     let timeData = sortedModels.map((model) => {
-      const stats = timeModelMap.get(time)?.get(model)
+      const stats = timeModelMap.get(timestamp)?.get(model)
       const rawQuota = Number(stats?.quota) || 0
       const usd = rawQuota ? rawQuota / quotaPerUnit : 0
       // Match legacy frontend getQuotaWithUnit(..., 4)
@@ -342,7 +363,6 @@ export function processChartData(
     timeData = timeData.map((item) => ({ ...item, TimeSum: timeSum }))
     lineValues.push(...timeData)
   })
-  lineValues.sort((a, b) => a.Time.localeCompare(b.Time))
 
   // Area chart: top models by quota + "Other" bucket (too many series = unreadable)
   const MAX_AREA_MODELS = 15
@@ -357,9 +377,10 @@ export function processChartData(
   )
 
   const areaValues: typeof lineValues = []
-  chartTimes.forEach((time) => {
+  chartTimes.forEach((timestamp) => {
+    const time = formatChartTime(timestamp, timeGranularity)
     const buckets = new Map<string, { rawQuota: number; usage: number }>()
-    const modelMap = timeModelMap.get(time)
+    const modelMap = timeModelMap.get(timestamp)
     let timeSum = 0
     sortedModels.forEach((model) => {
       const stats = modelMap?.get(model)
@@ -384,7 +405,6 @@ export function processChartData(
       })
     }
   })
-  areaValues.sort((a, b) => a.Time.localeCompare(b.Time))
 
   // Line chart: model call trend (top models + "Other" bucket)
   const MAX_TREND_MODELS = 20
@@ -406,9 +426,10 @@ export function processChartData(
     Model: string
     Count: number
   }> = []
-  chartTimes.forEach((time) => {
+  chartTimes.forEach((timestamp) => {
+    const time = formatChartTime(timestamp, timeGranularity)
     const timeData = topTrendModels.map((model) => {
-      const stats = timeModelMap.get(time)?.get(model)
+      const stats = timeModelMap.get(timestamp)?.get(model)
       return {
         Time: time,
         Model: model,
@@ -417,7 +438,7 @@ export function processChartData(
     })
     if (otherTrendModels.length > 0) {
       const otherCount = otherTrendModels.reduce((sum, model) => {
-        const stats = timeModelMap.get(time)?.get(model)
+        const stats = timeModelMap.get(timestamp)?.get(model)
         return sum + (Number(stats?.count) || 0)
       }, 0)
       timeData.push({
@@ -428,7 +449,6 @@ export function processChartData(
     }
     modelLineValues.push(...timeData)
   })
-  modelLineValues.sort((a, b) => a.Time.localeCompare(b.Time))
 
   // Rank bar: model call count ranking (top 20 + "Other" bucket)
   const MAX_RANK_MODELS = 20
@@ -778,21 +798,21 @@ export function processUserChartData(
     {}
   )
 
-  const timeUserMap = new Map<string, Map<string, number>>()
-  const allTimePoints = new Set<string>()
+  const timeUserMap = new Map<number, Map<string, number>>()
+  const allTimePoints = new Set<number>()
 
   data.forEach((item) => {
     const ts = Number(item.created_at)
-    const timeKey = formatChartTime(ts, timeGranularity)
-    allTimePoints.add(timeKey)
+    const timeBucket = getChartBucketTimestamp(ts, timeGranularity)
+    allTimePoints.add(timeBucket)
     const user = item.username || 'unknown'
     if (!topUserSet.has(user)) return
-    if (!timeUserMap.has(timeKey)) timeUserMap.set(timeKey, new Map())
-    const map = timeUserMap.get(timeKey)!
+    if (!timeUserMap.has(timeBucket)) timeUserMap.set(timeBucket, new Map())
+    const map = timeUserMap.get(timeBucket)!
     map.set(user, (map.get(user) || 0) + (Number(item.quota) || 0))
   })
 
-  const sortedTimePoints = Array.from(allTimePoints).sort()
+  const sortedTimePoints = Array.from(allTimePoints).sort((a, b) => a - b)
   const trendValues: Array<{
     Time: string
     User: string
@@ -800,9 +820,10 @@ export function processUserChartData(
     Usage: number
   }> = []
 
-  sortedTimePoints.forEach((time) => {
+  sortedTimePoints.forEach((timestamp) => {
+    const time = formatChartTime(timestamp, timeGranularity)
     topUsers.forEach((user) => {
-      const q = timeUserMap.get(time)?.get(user) || 0
+      const q = timeUserMap.get(timestamp)?.get(user) || 0
       trendValues.push({
         Time: time,
         User: user,

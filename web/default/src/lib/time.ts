@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 /**
  * Time utility functions for consistent time handling across the application
  */
-import dayjs from '@/lib/dayjs'
+import { getCurrentIntlLocale } from '../i18n/languages'
 
 /**
  * Time granularity type
@@ -139,18 +139,25 @@ export function computeTimeRange(
   return { start_timestamp: start, end_timestamp: end }
 }
 
-/**
- * Format Unix timestamp (seconds) to YYYY-MM-DD
- */
-export function formatDate(tsSec: number): string {
-  return dayjs(tsSec * 1000).format('YYYY-MM-DD')
+/** Format a Unix timestamp using the selected interface language. */
+export function formatDate(
+  tsSec: number,
+  locales?: Intl.LocalesArgument
+): string {
+  return new Intl.DateTimeFormat(locales ?? getCurrentIntlLocale(), {
+    dateStyle: 'medium',
+  }).format(tsSec * 1000)
 }
 
-/**
- * Format Date object to YYYY-MM-DD HH:mm:ss
- */
-export function formatDateTimeObject(date: Date): string {
-  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
+/** Format a Date using the selected interface language. */
+export function formatDateTimeObject(
+  date: Date,
+  locales?: Intl.LocalesArgument
+): string {
+  return new Intl.DateTimeFormat(locales ?? getCurrentIntlLocale(), {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+  }).format(date)
 }
 
 /**
@@ -161,16 +168,29 @@ export function formatDateTimeObject(date: Date): string {
  */
 export function formatChartTime(
   timestamp: number,
-  granularity: TimeGranularity = 'day'
+  granularity: TimeGranularity = 'day',
+  locales?: Intl.LocalesArgument
 ): string {
-  const d = dayjs(timestamp * 1000)
-  let result = d.format('MM-DD')
+  const locale = locales ?? getCurrentIntlLocale()
+  const date = new Date(timestamp * 1000)
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    month: '2-digit',
+    day: '2-digit',
+  })
+  let result = dateFormatter.format(date)
 
   if (granularity === 'hour') {
-    result += ` ${d.format('HH')}:00`
+    const time = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZoneName: 'shortOffset',
+    }).format(date)
+    result += ` ${time}`
   } else if (granularity === 'week') {
-    const weekEnd = d.add(6, 'day')
-    result += ` - ${weekEnd.format('MM-DD')}`
+    const weekEnd = new Date(date)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    result += ` – ${dateFormatter.format(weekEnd)}`
   }
 
   return result

@@ -157,12 +157,12 @@ func UpdateOption(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "无效的参数",
+			"message": i18n.T(c, i18n.MsgOptionInvalidParams),
 		})
 		return
 	}
 	if strings.HasPrefix(option.Key, "bank_qr_setting.") {
-		common.ApiErrorMsg(c, "Use the bank QR settings endpoint")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOptionBankQRDedicatedEndpoint))
 		return
 	}
 	switch option.Value.(type) {
@@ -192,7 +192,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && common.GitHubClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 GitHub OAuth，请先填入 GitHub Client Id 以及 GitHub Client Secret！",
+				"message": i18n.T(c, i18n.MsgOptionGitHubOAuthConfigRequired),
 			})
 			return
 		}
@@ -200,7 +200,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && system_setting.GetDiscordSettings().ClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 Discord OAuth，请先填入 Discord Client Id 以及 Discord Client Secret！",
+				"message": i18n.T(c, i18n.MsgOptionDiscordOAuthConfigRequired),
 			})
 			return
 		}
@@ -208,7 +208,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && system_setting.GetOIDCSettings().ClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 OIDC 登录，请先填入 OIDC Client Id 以及 OIDC Client Secret！",
+				"message": i18n.T(c, i18n.MsgOptionOIDCConfigRequired),
 			})
 			return
 		}
@@ -216,7 +216,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && common.LinuxDOClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 LinuxDO OAuth，请先填入 LinuxDO Client Id 以及 LinuxDO Client Secret！",
+				"message": i18n.T(c, i18n.MsgOptionLinuxDOOAuthConfigRequired),
 			})
 			return
 		}
@@ -224,7 +224,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && len(common.EmailDomainWhitelist) == 0 {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用邮箱域名限制，请先填入限制的邮箱域名！",
+				"message": i18n.T(c, i18n.MsgOptionEmailDomainRequired),
 			})
 			return
 		}
@@ -232,7 +232,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && common.WeChatServerAddress == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用微信登录，请先填入微信登录相关配置信息！",
+				"message": i18n.T(c, i18n.MsgOptionWeChatConfigRequired),
 			})
 			return
 		}
@@ -240,7 +240,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && common.TurnstileSiteKey == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 Turnstile 校验，请先填入 Turnstile 校验相关配置信息！",
+				"message": i18n.T(c, i18n.MsgOptionTurnstileConfigRequired),
 			})
 
 			return
@@ -249,7 +249,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value == "true" && common.TelegramBotToken == "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 Telegram OAuth，请先填入 Telegram Bot Token！",
+				"message": i18n.T(c, i18n.MsgOptionTelegramConfigRequired),
 			})
 			return
 		}
@@ -257,7 +257,7 @@ func UpdateOption(c *gin.Context) {
 		if option.Value != "default" && option.Value != "classic" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无效的主题值，可选值：default（新版前端）、classic（经典前端）",
+				"message": i18n.T(c, i18n.MsgOptionInvalidTheme),
 			})
 			return
 		}
@@ -266,7 +266,7 @@ func UpdateOption(c *gin.Context) {
 		if strings.HasPrefix(value, "//") {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "Browser icon URL must be empty, an absolute HTTP/HTTPS URL, or a root-relative path beginning with /",
+				"message": i18n.T(c, i18n.MsgOptionInvalidFaviconURL),
 			})
 			return
 		}
@@ -275,7 +275,7 @@ func UpdateOption(c *gin.Context) {
 			if parseErr != nil || !parsedURL.IsAbs() || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
-					"message": "Browser icon URL must be empty, an absolute HTTP/HTTPS URL, or a root-relative path beginning with /",
+					"message": i18n.T(c, i18n.MsgOptionInvalidFaviconURL),
 				})
 				return
 			}
@@ -285,7 +285,7 @@ func UpdateOption(c *gin.Context) {
 		if value != "" && !isAccessibleBrandPrimary(value) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "Brand primary color must use #RRGGBB and provide accessible contrast in light and dark modes",
+				"message": i18n.T(c, i18n.MsgOptionInvalidBrandPrimaryColor),
 			})
 			return
 		}
@@ -294,10 +294,20 @@ func UpdateOption(c *gin.Context) {
 		if value != "" && value != "box-ai" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "Brand token preset must be empty or box-ai",
+				"message": i18n.T(c, i18n.MsgOptionInvalidBrandTokenPreset),
 			})
 			return
 		}
+	case "general_setting.business_timezone":
+		timezone, timezoneErr := operation_setting.ValidateBusinessTimezone(option.Value.(string))
+		if timezoneErr != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": i18n.T(c, i18n.MsgOptionInvalidBusinessTimezone),
+			})
+			return
+		}
+		option.Value = timezone
 	case "GroupRatio":
 		err = ratio_setting.CheckGroupRatio(option.Value.(string))
 		if err != nil {
@@ -312,7 +322,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "图片倍率设置失败: " + err.Error(),
+				"message": i18n.T(c, i18n.MsgOptionImageRatioFailed, map[string]any{"Error": err.Error()}),
 			})
 			return
 		}
@@ -321,7 +331,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "音频倍率设置失败: " + err.Error(),
+				"message": i18n.T(c, i18n.MsgOptionAudioRatioFailed, map[string]any{"Error": err.Error()}),
 			})
 			return
 		}
@@ -330,7 +340,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "音频补全倍率设置失败: " + err.Error(),
+				"message": i18n.T(c, i18n.MsgOptionAudioCompletionRatioFailed, map[string]any{"Error": err.Error()}),
 			})
 			return
 		}
@@ -339,7 +349,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "缓存创建倍率设置失败: " + err.Error(),
+				"message": i18n.T(c, i18n.MsgOptionCreateCacheRatioFailed, map[string]any{"Error": err.Error()}),
 			})
 			return
 		}
@@ -411,6 +421,12 @@ func UpdateOption(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if option.Key == "general_setting.business_timezone" {
+		if err = model.ReconcileActiveSubscriptionResetTimezone(); err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	}
 	// 出于安全考虑只记录被修改的配置项名称，不记录配置值（可能含密钥等敏感信息）。
 	recordManageAudit(c, "option.update", map[string]interface{}{

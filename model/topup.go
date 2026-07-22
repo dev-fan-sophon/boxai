@@ -45,9 +45,10 @@ const (
 )
 
 var (
-	ErrPaymentMethodMismatch = errors.New("payment method mismatch")
-	ErrTopUpNotFound         = errors.New("topup not found")
-	ErrTopUpStatusInvalid    = errors.New("topup status invalid")
+	ErrPaymentMethodMismatch     = errors.New("payment method mismatch")
+	ErrTopUpNotFound             = errors.New("topup not found")
+	ErrTopUpStatusInvalid        = errors.New("topup status invalid")
+	ErrBankQRProofReviewRequired = errors.New("Bank QR orders require payment-proof review")
 )
 
 func BankQRQuota(amount int64) (int, error) {
@@ -369,7 +370,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 			return errors.New("订单状态不是待支付，无法补单")
 		}
 		if topUp.PaymentProvider == PaymentProviderBankQR {
-			return errors.New("Bank QR orders must be completed through payment-proof review")
+			return ErrBankQRProofReviewRequired
 		}
 
 		// 计算应充值额度：

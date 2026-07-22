@@ -9,18 +9,61 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 )
 
+func topUpPaymentError(c *gin.Context, err error) string {
+	key := ""
+	switch {
+	case errors.Is(err, service.ErrTopUpProofTooLarge):
+		key = i18n.MsgTopupProofTooLarge
+	case errors.Is(err, service.ErrTopUpProofUnsupported):
+		key = i18n.MsgTopupProofTypeInvalid
+	case errors.Is(err, model.ErrTopUpSubmissionNotFound):
+		key = i18n.MsgTopupSubmissionNotFound
+	case errors.Is(err, model.ErrTopUpSubmissionInvalid):
+		key = i18n.MsgTopupSubmissionNotSubmitted
+	case errors.Is(err, model.ErrTopUpSubmissionInputInvalid), errors.Is(err, model.ErrBankQROrderInvalid):
+		key = i18n.MsgTopupSubmissionInvalid
+	case errors.Is(err, model.ErrTopUpSubmissionAttemptLimit):
+		key = i18n.MsgTopupSubmissionAttemptLimit
+	case errors.Is(err, model.ErrTopUpProofStorageLimit):
+		key = i18n.MsgTopupProofStorageLimit
+	case errors.Is(err, model.ErrTopUpSubmissionActive):
+		key = i18n.MsgTopupSubmissionActive
+	case errors.Is(err, model.ErrBankTransactionDuplicate):
+		key = i18n.MsgTopupBankTransactionDuplicate
+	case errors.Is(err, model.ErrBankQRPendingOrderLimit):
+		key = i18n.MsgTopupPendingOrderLimit
+	case errors.Is(err, model.ErrBankQROrderOwner), errors.Is(err, model.ErrTopUpSubmissionOwnerChanged):
+		key = i18n.MsgTopupOrderOwnerInvalid
+	case errors.Is(err, model.ErrBankQROrderNotPending), errors.Is(err, model.ErrTopUpStatusInvalid), errors.Is(err, model.ErrSubscriptionOrderStatusInvalid):
+		key = i18n.MsgTopupOrderNotPending
+	case errors.Is(err, model.ErrBankQROrderNotFound):
+		key = i18n.MsgTopupOrderNotExists
+	case errors.Is(err, model.ErrTopUpCreditExceedsMaximum):
+		key = i18n.MsgTopupCreditExceedsMaximum
+	case errors.Is(err, model.ErrBankQRSubscriptionSnapshotInvalid):
+		key = i18n.MsgTopupSubscriptionSnapshotInvalid
+	case errors.Is(err, model.ErrSubscriptionPurchaseLimit):
+		key = i18n.MsgSubscriptionPurchaseMax
+	}
+	if key != "" {
+		return i18n.T(c, key)
+	}
+	return i18n.T(c, i18n.MsgOperationFailed)
+}
+
 func SubmitTopUpProof(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.TopUpProofMaxBytes+1024*1024)
 	userID, tradeNo := c.GetInt("id"), strings.TrimSpace(c.Param("trade_no"))
 	bankNo, note := strings.TrimSpace(c.PostForm("bank_transaction_no")), strings.TrimSpace(c.PostForm("note"))
 	if len(bankNo) > 128 || len(note) > 1000 {
-		common.ApiErrorMsg(c, "bank transaction number or note is too long")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupSubmissionMetadataLong))
 		return
 	}
 	var key, backend, mimeType string
@@ -28,7 +71,7 @@ func SubmitTopUpProof(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err == nil {
 		if file.Size > service.TopUpProofMaxBytes {
-			common.ApiErrorMsg(c, "proof must be at most 10MB")
+			common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupProofTooLarge))
 			return
 		}
 		f, openErr := file.Open()
@@ -44,7 +87,7 @@ func SubmitTopUpProof(c *gin.Context) {
 		}
 		key, backend, mimeType, err = service.SaveTopUpProof(c.Request.Context(), userID, data)
 		if err != nil {
-			common.ApiErrorMsg(c, err.Error())
+			common.ApiErrorMsg(c, topUpPaymentError(c, err))
 			return
 		}
 		size = int64(len(data))
@@ -53,15 +96,15 @@ func SubmitTopUpProof(c *gin.Context) {
 		return
 	}
 	if bankNo == "" && key == "" {
-		common.ApiErrorMsg(c, "bank_transaction_no or file is required")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupProofRequired))
 		return
 	}
 	item := &model.TopUpSubmission{UserId: userID, TradeNo: tradeNo, BankTransactionNo: bankNo, Note: note, ProofStorageKey: key, ProofBackend: backend, ProofMime: mimeType, ProofSize: size}
 	if err := model.CreateTopUpSubmission(item); err != nil {
-		if deleteErr := service.DeleteTopUpProof(c.Request.Context(), key); deleteErr != nil {
+		if deleteErr := service.DeleteTopUpProof(c.Request.Context(), backend, key); deleteErr != nil {
 			logger.LogError(c.Request.Context(), fmt.Sprintf("failed to delete orphaned top-up proof key=%q: %v", key, deleteErr))
 		}
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, submissionDTO(item, false))
@@ -86,7 +129,7 @@ func submissionDTO(item *model.TopUpSubmission, admin bool) gin.H {
 func ListUserTopUpSubmissions(c *gin.Context) {
 	items, err := model.GetUserTopUpSubmissions(c.Param("trade_no"), c.GetInt("id"))
 	if err != nil {
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	result := make([]gin.H, 0, len(items))
@@ -105,7 +148,7 @@ func serveTopUpProof(c *gin.Context, admin bool) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	url, body, err := service.OpenTopUpProof(c.Request.Context(), item.ProofStorageKey)
+	url, body, err := service.OpenTopUpProof(c.Request.Context(), item.ProofBackend, item.ProofStorageKey)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -149,12 +192,12 @@ func ListTopUpReviews(c *gin.Context) {
 func GetTopUpReview(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		common.ApiErrorMsg(c, "invalid review id")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupReviewIdInvalid))
 		return
 	}
 	item, err := model.GetTopUpSubmission(id)
 	if err != nil {
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, submissionDTO(item, true))
@@ -165,11 +208,11 @@ func RejectTopUpReview(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	if c.ShouldBindJSON(&req) != nil || strings.TrimSpace(req.Reason) == "" {
-		common.ApiErrorMsg(c, "reason is required")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupReviewReasonRequired))
 		return
 	}
 	if len(strings.TrimSpace(req.Reason)) > 1000 {
-		common.ApiErrorMsg(c, "reason is too long")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupReviewReasonTooLong))
 		return
 	}
 	reviewTopUp(c, false, strings.TrimSpace(req.Reason))
@@ -177,19 +220,19 @@ func RejectTopUpReview(c *gin.Context) {
 func reviewTopUp(c *gin.Context, approve bool, reason string) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		common.ApiErrorMsg(c, "invalid review id")
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgTopupReviewIdInvalid))
 		return
 	}
 	before, err := model.GetTopUpSubmission(id)
 	if err != nil {
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	LockOrder(before.TradeNo)
 	defer UnlockOrder(before.TradeNo)
 	before, err = model.GetTopUpSubmission(id)
 	if err != nil {
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	if approve && before.Status == model.TopUpSubmissionApproved {
@@ -198,7 +241,7 @@ func reviewTopUp(c *gin.Context, approve bool, reason string) {
 	}
 	item, err := model.ReviewTopUpSubmission(id, c.GetInt("id"), approve, reason)
 	if err != nil {
-		common.ApiErrorMsg(c, err.Error())
+		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	action := "topup.submission_reject"

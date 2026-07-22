@@ -78,6 +78,7 @@ For commercial licensing, please contact support@quantumnous.com
  * 4. **Billing displays**: Use formatBillingCurrencyFromUSD() to avoid token display
  * 5. **Effective exchange rate**: When quotaDisplayType is 'USD', use rate of 1 regardless of config
  */
+import { getCurrentIntlLocale } from '@/i18n/languages'
 import {
   useSystemConfigStore,
   DEFAULT_CURRENCY_CONFIG,
@@ -101,7 +102,7 @@ export interface CurrencyFormatOptions {
   compact?: boolean
   /** Whether to include the currency/custom symbol. Token displays are unchanged. */
   showSymbol?: boolean
-  /** Locale used for number formatting (defaults to the runtime locale) */
+  /** Locale used for number formatting (defaults to the selected UI language) */
   locale?: Intl.LocalesArgument | undefined
 }
 
@@ -238,7 +239,9 @@ function getBillingDisplayMeta(config: CurrencyConfig): DisplayMeta {
 function mergeOptions(
   options?: CurrencyFormatOptions
 ): ResolvedCurrencyFormatOptions {
-  if (!options) return DEFAULT_FORMAT_OPTIONS
+  if (!options) {
+    return { ...DEFAULT_FORMAT_OPTIONS, locale: getCurrentIntlLocale() }
+  }
   return {
     digitsLarge: options.digitsLarge ?? DEFAULT_FORMAT_OPTIONS.digitsLarge,
     digitsSmall: options.digitsSmall ?? DEFAULT_FORMAT_OPTIONS.digitsSmall,
@@ -247,7 +250,7 @@ function mergeOptions(
       options.minimumNonZero ?? DEFAULT_FORMAT_OPTIONS.minimumNonZero,
     compact: options.compact ?? DEFAULT_FORMAT_OPTIONS.compact,
     showSymbol: options.showSymbol ?? DEFAULT_FORMAT_OPTIONS.showSymbol,
-    locale: options.locale ?? DEFAULT_FORMAT_OPTIONS.locale,
+    locale: options.locale ?? getCurrentIntlLocale(),
   }
 }
 
@@ -312,11 +315,20 @@ function formatCurrencyValue(
   const adjustedValue = adjustForMinimum(value, digits, options.minimumNonZero)
 
   if (meta.kind === 'currency') {
+    const currencyDigits = new Intl.NumberFormat(options.locale, {
+      style: 'currency',
+      currency: meta.currencyCode,
+    }).resolvedOptions().maximumFractionDigits
+    const maximumFractionDigits =
+      meta.currencyCode === 'VND' && Math.abs(adjustedValue) >= 1
+        ? currencyDigits
+        : digits
+
     if (!options.showSymbol) {
       return new Intl.NumberFormat(options.locale, {
         notation: options.compact ? 'compact' : 'standard',
         minimumFractionDigits: 0,
-        maximumFractionDigits: options.compact ? 1 : digits,
+        maximumFractionDigits: options.compact ? 1 : maximumFractionDigits,
       }).format(adjustedValue)
     }
 
@@ -326,7 +338,7 @@ function formatCurrencyValue(
       currencyDisplay: 'narrowSymbol',
       notation: options.compact ? 'compact' : 'standard',
       minimumFractionDigits: 0,
-      maximumFractionDigits: options.compact ? 1 : digits,
+      maximumFractionDigits: options.compact ? 1 : maximumFractionDigits,
     }).format(adjustedValue)
     return formatted
   }

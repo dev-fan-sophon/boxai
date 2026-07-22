@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +25,79 @@ func getSubscriptionResetSub(t *testing.T, id int) UserSubscription {
 	var sub UserSubscription
 	require.NoError(t, DB.Where("id = ?", id).First(&sub).Error)
 	return sub
+}
+
+func TestCalcNextResetTimeUsesBusinessTimezone(t *testing.T) {
+	setting := operation_setting.GetGeneralSetting()
+	original := setting.BusinessTimezone
+	t.Cleanup(func() { setting.BusinessTimezone = original })
+	setting.BusinessTimezone = "Asia/Ho_Chi_Minh"
+
+	base := time.Date(2026, 7, 22, 16, 30, 0, 0, time.UTC)
+	plan := &SubscriptionPlan{QuotaResetPeriod: SubscriptionResetDaily}
+	next := calcNextResetTime(base, plan, 0)
+
+	assert.Equal(t, time.Date(2026, 7, 22, 17, 0, 0, 0, time.UTC).Unix(), next)
+}
+
+func TestReconcileActiveSubscriptionResetTimezone(t *testing.T) {
+	truncateTables(t)
+	setting := operation_setting.GetGeneralSetting()
+	original := setting.BusinessTimezone
+	t.Cleanup(func() { setting.BusinessTimezone = original })
+
+	now := GetDBTimestamp()
+	end := now + 45*24*60*60
+	dailyPlan := &SubscriptionPlan{Id: 9001, Title: "Daily", DurationUnit: SubscriptionDurationMonth, DurationValue: 2, TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetDaily}
+	customPlan := &SubscriptionPlan{Id: 9002, Title: "Custom", DurationUnit: SubscriptionDurationMonth, DurationValue: 2, TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: 3600}
+	neverPlan := &SubscriptionPlan{Id: 9003, Title: "Never", DurationUnit: SubscriptionDurationMonth, DurationValue: 2, TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetNever}
+	weeklyPlan := &SubscriptionPlan{Id: 9004, Title: "Weekly", DurationUnit: SubscriptionDurationMonth, DurationValue: 2, TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetWeekly}
+	monthlyPlan := &SubscriptionPlan{Id: 9005, Title: "Monthly", DurationUnit: SubscriptionDurationMonth, DurationValue: 2, TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetMonthly}
+	seedSubscriptionResetPlan(t, dailyPlan)
+	seedSubscriptionResetPlan(t, customPlan)
+	seedSubscriptionResetPlan(t, neverPlan)
+	seedSubscriptionResetPlan(t, weeklyPlan)
+	seedSubscriptionResetPlan(t, monthlyPlan)
+
+	setting.BusinessTimezone = "Asia/Shanghai"
+	oldFutureReset := calcNextResetTime(time.Unix(now, 0), dailyPlan, end)
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9001, UserId: 1, PlanId: dailyPlan.Id, AmountTotal: 1000, AmountUsed: 250, StartTime: now - 86400, EndTime: end, Status: "active", LastResetTime: now - 3600, NextResetTime: oldFutureReset, ResetTimezone: "Asia/Shanghai"})
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9002, UserId: 2, PlanId: dailyPlan.Id, AmountTotal: 1000, AmountUsed: 350, StartTime: now - 86400, EndTime: end, Status: "active", LastResetTime: now - 3600, NextResetTime: now - 60, ResetTimezone: "Asia/Shanghai"})
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9003, UserId: 3, PlanId: customPlan.Id, AmountTotal: 1000, AmountUsed: 450, StartTime: now - 3600, EndTime: end, Status: "active", LastResetTime: now - 1800, NextResetTime: now + 1800, ResetTimezone: "Asia/Shanghai"})
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9004, UserId: 4, PlanId: neverPlan.Id, AmountTotal: 1000, AmountUsed: 550, StartTime: now - 3600, EndTime: end, Status: "active", ResetTimezone: "Asia/Shanghai"})
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9005, UserId: 5, PlanId: weeklyPlan.Id, AmountTotal: 1000, AmountUsed: 650, StartTime: now - 3600, EndTime: end, Status: "active", NextResetTime: now + 3600, ResetTimezone: "Asia/Shanghai"})
+	seedSubscriptionResetSub(t, &UserSubscription{Id: 9006, UserId: 6, PlanId: monthlyPlan.Id, AmountTotal: 1000, AmountUsed: 750, StartTime: now - 3600, EndTime: end, Status: "active", NextResetTime: now + 3600, ResetTimezone: "Asia/Shanghai"})
+
+	setting.BusinessTimezone = "Asia/Ho_Chi_Minh"
+	require.NoError(t, ReconcileActiveSubscriptionResetTimezone())
+
+	future := getSubscriptionResetSub(t, 9001)
+	assert.Equal(t, "Asia/Ho_Chi_Minh", future.ResetTimezone)
+	assert.Equal(t, calcNextResetTime(time.Unix(now, 0), dailyPlan, end), future.NextResetTime)
+	assert.EqualValues(t, 250, future.AmountUsed)
+
+	overdue := getSubscriptionResetSub(t, 9002)
+	assert.Equal(t, "Asia/Ho_Chi_Minh", overdue.ResetTimezone)
+	assert.Zero(t, overdue.AmountUsed)
+	assert.Greater(t, overdue.NextResetTime, now)
+
+	custom := getSubscriptionResetSub(t, 9003)
+	assert.Equal(t, "Asia/Shanghai", custom.ResetTimezone)
+	assert.Equal(t, now+1800, custom.NextResetTime)
+	assert.EqualValues(t, 450, custom.AmountUsed)
+	never := getSubscriptionResetSub(t, 9004)
+	assert.Equal(t, "Asia/Shanghai", never.ResetTimezone)
+	assert.EqualValues(t, 550, never.AmountUsed)
+	weekly := getSubscriptionResetSub(t, 9005)
+	assert.Equal(t, "Asia/Ho_Chi_Minh", weekly.ResetTimezone)
+	assert.Equal(t, calcNextResetTime(time.Unix(now, 0), weeklyPlan, end), weekly.NextResetTime)
+	monthly := getSubscriptionResetSub(t, 9006)
+	assert.Equal(t, "Asia/Ho_Chi_Minh", monthly.ResetTimezone)
+	assert.Equal(t, calcNextResetTime(time.Unix(now, 0), monthlyPlan, end), monthly.NextResetTime)
+
+	// The persisted timezone makes startup reconciliation idempotent.
+	require.NoError(t, ReconcileActiveSubscriptionResetTimezone())
+	assert.Equal(t, future.NextResetTime, getSubscriptionResetSub(t, 9001).NextResetTime)
 }
 
 func TestAdminResetUserSubscriptionsByPlanResetsAllActiveMatchesAndAdvancesTime(t *testing.T) {

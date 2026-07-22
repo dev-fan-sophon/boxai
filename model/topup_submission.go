@@ -16,6 +16,7 @@ const (
 	TopUpSubmissionRejected                = "rejected"
 	MaxTopUpSubmissionAttempts             = 5
 	MaxTopUpProofBytesPerUser        int64 = 50 * 1024 * 1024
+	BankQRPendingOrderWindowSeconds  int64 = 24 * 60 * 60
 )
 
 type TopUpSubmission struct {
@@ -38,13 +39,26 @@ type TopUpSubmission struct {
 }
 
 var (
-	ErrTopUpSubmissionNotFound = errors.New("top-up submission not found")
-	ErrTopUpSubmissionInvalid  = errors.New("top-up submission is not submitted")
+	ErrTopUpSubmissionNotFound           = errors.New("top-up submission not found")
+	ErrTopUpSubmissionInvalid            = errors.New("top-up submission is not submitted")
+	ErrTopUpSubmissionInputInvalid       = errors.New("invalid top-up submission")
+	ErrTopUpSubmissionAttemptLimit       = errors.New("top-up submission attempt limit reached")
+	ErrTopUpProofStorageLimit            = errors.New("top-up proof storage limit reached")
+	ErrTopUpSubmissionActive             = errors.New("active top-up submission already exists")
+	ErrBankTransactionDuplicate          = errors.New("bank transaction number has already been submitted")
+	ErrBankQROrderInvalid                = errors.New("invalid Bank QR order")
+	ErrBankQRPendingOrderLimit           = errors.New("too many pending Bank QR orders")
+	ErrBankQROrderOwner                  = errors.New("Bank QR order does not belong to user")
+	ErrBankQROrderNotPending             = errors.New("Bank QR order is not pending")
+	ErrBankQROrderNotFound               = errors.New("Bank QR order not found")
+	ErrTopUpSubmissionOwnerChanged       = errors.New("top-up submission owner changed")
+	ErrTopUpCreditExceedsMaximum         = errors.New("credited quota would exceed maximum")
+	ErrBankQRSubscriptionSnapshotInvalid = errors.New("invalid Bank QR subscription order snapshot")
 )
 
 func CreateTopUpSubmission(submission *TopUpSubmission) error {
 	if submission == nil || submission.UserId <= 0 || strings.TrimSpace(submission.TradeNo) == "" {
-		return errors.New("invalid submission")
+		return ErrTopUpSubmissionInputInvalid
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var user User
@@ -61,7 +75,7 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 			return err
 		}
 		if count >= MaxTopUpSubmissionAttempts {
-			return errors.New("submission attempt limit reached")
+			return ErrTopUpSubmissionAttemptLimit
 		}
 		var storedBytes int64
 		if err := tx.Model(&TopUpSubmission{}).Where("user_id = ?", submission.UserId).
@@ -69,13 +83,13 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 			return err
 		}
 		if submission.ProofSize > 0 && storedBytes > MaxTopUpProofBytesPerUser-submission.ProofSize {
-			return errors.New("payment proof storage limit reached")
+			return ErrTopUpProofStorageLimit
 		}
 		if err := query.Where("status = ?", TopUpSubmissionSubmitted).Count(&active).Error; err != nil {
 			return err
 		}
 		if active > 0 {
-			return errors.New("an active submission already exists")
+			return ErrTopUpSubmissionActive
 		}
 		if submission.BankTransactionNo != "" {
 			canonicalTransactionNo := strings.ToUpper(strings.TrimSpace(submission.BankTransactionNo))
@@ -87,7 +101,7 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 				return err
 			}
 			if duplicate > 0 {
-				return errors.New("bank transaction number has already been submitted")
+				return ErrBankTransactionDuplicate
 			}
 		}
 		submission.OrderType = orderType
@@ -98,7 +112,7 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 	if err != nil && submission.ActiveBankTransactionKey != nil {
 		var duplicate int64
 		if DB.Model(&TopUpSubmission{}).Where("active_bank_transaction_key = ?", *submission.ActiveBankTransactionKey).Count(&duplicate).Error == nil && duplicate > 0 {
-			return errors.New("bank transaction number has already been submitted")
+			return ErrBankTransactionDuplicate
 		}
 	}
 	return err
@@ -106,10 +120,11 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 
 func countPendingBankQROrdersTx(tx *gorm.DB, userId int) (int64, error) {
 	var topUpCount, subscriptionCount int64
-	if err := tx.Model(&TopUp{}).Where("user_id = ? AND payment_provider = ? AND status = ?", userId, PaymentProviderBankQR, common.TopUpStatusPending).Count(&topUpCount).Error; err != nil {
+	cutoff := common.GetTimestamp() - BankQRPendingOrderWindowSeconds
+	if err := tx.Model(&TopUp{}).Where("user_id = ? AND payment_provider = ? AND status = ? AND create_time >= ?", userId, PaymentProviderBankQR, common.TopUpStatusPending, cutoff).Count(&topUpCount).Error; err != nil {
 		return 0, err
 	}
-	if err := tx.Model(&SubscriptionOrder{}).Where("user_id = ? AND payment_provider = ? AND status = ?", userId, PaymentProviderBankQR, common.TopUpStatusPending).Count(&subscriptionCount).Error; err != nil {
+	if err := tx.Model(&SubscriptionOrder{}).Where("user_id = ? AND payment_provider = ? AND status = ? AND create_time >= ?", userId, PaymentProviderBankQR, common.TopUpStatusPending, cutoff).Count(&subscriptionCount).Error; err != nil {
 		return 0, err
 	}
 	return topUpCount + subscriptionCount, nil
@@ -117,7 +132,7 @@ func countPendingBankQROrdersTx(tx *gorm.DB, userId int) (int64, error) {
 
 func CreatePendingBankQRTopUp(order *TopUp, maxPending int) error {
 	if order == nil || order.UserId <= 0 {
-		return errors.New("invalid Bank QR order")
+		return ErrBankQROrderInvalid
 	}
 	return createPendingBankQROrder(order.UserId, maxPending, func(tx *gorm.DB) error {
 		return tx.Create(order).Error
@@ -126,7 +141,7 @@ func CreatePendingBankQRTopUp(order *TopUp, maxPending int) error {
 
 func CreatePendingBankQRSubscriptionOrder(order *SubscriptionOrder, maxPending int) error {
 	if order == nil || order.UserId <= 0 {
-		return errors.New("invalid Bank QR subscription order")
+		return ErrBankQROrderInvalid
 	}
 	return createPendingBankQROrder(order.UserId, maxPending, func(tx *gorm.DB) error {
 		return tx.Create(order).Error
@@ -144,7 +159,7 @@ func createPendingBankQROrder(userId, maxPending int, insert func(*gorm.DB) erro
 			return err
 		}
 		if count >= int64(maxPending) {
-			return errors.New("too many pending Bank QR orders")
+			return ErrBankQRPendingOrderLimit
 		}
 		return insert(tx)
 	})
@@ -154,10 +169,10 @@ func validateBankQROrderTx(tx *gorm.DB, tradeNo string, userId int) (string, err
 	var topup TopUp
 	if err := lockForUpdate(tx).Where("trade_no = ?", tradeNo).First(&topup).Error; err == nil {
 		if topup.UserId != userId {
-			return "", errors.New("order does not belong to user")
+			return "", ErrBankQROrderOwner
 		}
 		if topup.PaymentProvider != PaymentProviderBankQR || topup.PaymentMethod != PaymentMethodBankQR || topup.Status != common.TopUpStatusPending {
-			return "", errors.New("order is not a pending Bank QR order")
+			return "", ErrBankQROrderNotPending
 		}
 		return TopUpSubmissionOrderBalance, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -165,13 +180,13 @@ func validateBankQROrderTx(tx *gorm.DB, tradeNo string, userId int) (string, err
 	}
 	var order SubscriptionOrder
 	if err := lockForUpdate(tx).Where("trade_no = ?", tradeNo).First(&order).Error; err != nil {
-		return "", errors.New("order not found")
+		return "", ErrBankQROrderNotFound
 	}
 	if order.UserId != userId {
-		return "", errors.New("order does not belong to user")
+		return "", ErrBankQROrderOwner
 	}
 	if order.PaymentProvider != PaymentProviderBankQR || order.PaymentMethod != PaymentMethodBankQR || order.Status != common.TopUpStatusPending {
-		return "", errors.New("order is not a pending Bank QR order")
+		return "", ErrBankQROrderNotPending
 	}
 	return TopUpSubmissionOrderSubscription, nil
 }
@@ -189,16 +204,16 @@ func validateBankQROrderOwnership(tradeNo string, userId int) (string, error) {
 	var topup TopUp
 	if err := DB.Where("trade_no = ?", tradeNo).First(&topup).Error; err == nil {
 		if topup.UserId != userId {
-			return "", errors.New("order does not belong to user")
+			return "", ErrBankQROrderOwner
 		}
 		return TopUpSubmissionOrderBalance, nil
 	}
 	var order SubscriptionOrder
 	if err := DB.Where("trade_no = ?", tradeNo).First(&order).Error; err != nil {
-		return "", errors.New("order not found")
+		return "", ErrBankQROrderNotFound
 	}
 	if order.UserId != userId {
-		return "", errors.New("order does not belong to user")
+		return "", ErrBankQROrderOwner
 	}
 	return TopUpSubmissionOrderSubscription, nil
 }
@@ -268,14 +283,14 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			return ErrTopUpSubmissionNotFound
 		}
 		var user User
-		if err := lockForUpdate(tx).Select("id").First(&user, identity.UserId).Error; err != nil {
+		if err := lockForUpdate(tx).Select("id", "quota").First(&user, identity.UserId).Error; err != nil {
 			return err
 		}
 		if err := lockForUpdate(tx).First(&result, id).Error; err != nil {
 			return ErrTopUpSubmissionNotFound
 		}
 		if result.UserId != identity.UserId {
-			return errors.New("top-up submission owner changed")
+			return ErrTopUpSubmissionOwnerChanged
 		}
 		if result.Status == TopUpSubmissionApproved && approve {
 			return nil
@@ -294,12 +309,15 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			if err := lockForUpdate(tx).Where("trade_no = ?", result.TradeNo).First(&order).Error; err != nil {
 				return err
 			}
-			if order.Status != common.TopUpStatusPending || order.PaymentProvider != PaymentProviderBankQR {
+			if order.UserId != result.UserId || order.Status != common.TopUpStatusPending || order.PaymentProvider != PaymentProviderBankQR || order.PaymentMethod != PaymentMethodBankQR {
 				return ErrTopUpStatusInvalid
 			}
 			quota, err := BankQRQuota(order.Amount)
 			if err != nil {
 				return err
+			}
+			if int64(user.Quota)+int64(quota) > int64(common.MaxQuota) {
+				return ErrTopUpCreditExceedsMaximum
 			}
 			if err := tx.Model(&User{}).Where("id = ?", order.UserId).Update("quota", gorm.Expr("quota + ?", quota)).Error; err != nil {
 				return err
@@ -314,12 +332,12 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			if err := lockForUpdate(tx).Where("trade_no = ?", result.TradeNo).First(&order).Error; err != nil {
 				return err
 			}
-			if order.Status != common.TopUpStatusPending || order.PaymentProvider != PaymentProviderBankQR {
+			if order.UserId != result.UserId || order.Status != common.TopUpStatusPending || order.PaymentProvider != PaymentProviderBankQR || order.PaymentMethod != PaymentMethodBankQR {
 				return ErrSubscriptionOrderStatusInvalid
 			}
 			var payload BankQRSubscriptionOrderPayload
 			if err := common.UnmarshalJsonStr(order.ProviderPayload, &payload); err != nil || payload.Version != 1 || payload.Plan.Id != order.PlanId {
-				return errors.New("invalid Bank QR subscription order snapshot")
+				return ErrBankQRSubscriptionSnapshotInvalid
 			}
 			if _, err := CreateUserSubscriptionFromPlanTx(tx, order.UserId, &payload.Plan, "order"); err != nil {
 				return err

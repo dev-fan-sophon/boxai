@@ -122,15 +122,15 @@ const getDateDaysAgo = (days: number) => getDateHoursAgo(days * HOURS_IN_DAY)
 
 const quickSelectOptions = [
   {
-    label: '24 hours ago',
+    labelKey: '24 hours ago',
     getValue: () => getDateHoursAgo(24),
   },
   {
-    label: '7 days ago',
+    labelKey: '7 days ago',
     getValue: () => getDateDaysAgo(7),
   },
   {
-    label: '30 days ago',
+    labelKey: '30 days ago',
     getValue: () => getDateDaysAgo(30),
   },
 ]
@@ -380,12 +380,12 @@ export function LogSettingsSection({
             <div className='flex flex-wrap gap-3'>
               {quickSelectOptions.map((option) => (
                 <Button
-                  key={option.label}
+                  key={option.labelKey}
                   type='button'
                   variant='outline'
                   onClick={() => setPurgeDate(option.getValue())}
                 >
-                  {t(option.label)}
+                  {t(option.labelKey)}
                 </Button>
               ))}
               <Button

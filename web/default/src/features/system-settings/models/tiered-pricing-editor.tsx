@@ -100,6 +100,7 @@ import {
   tryParseVisualConfig,
 } from '@/features/pricing/lib/tier-expr'
 import { cn } from '@/lib/utils'
+import { getBusinessTimezone } from '@/stores/system-config-store'
 
 const PRICE_SUFFIX = '$/1M tokens'
 const CACHE_PRICE_VARS = BILLING_EXTRA_VARS.filter(
@@ -263,7 +264,7 @@ const PRESET_GROUPS: PresetGroup[] = [
               {
                 source: SOURCE_TIME as 'time',
                 timeFunc: 'hour',
-                timezone: 'Asia/Shanghai',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_RANGE,
                 value: '',
                 rangeStart: '21',
@@ -284,7 +285,7 @@ const PRESET_GROUPS: PresetGroup[] = [
               {
                 source: SOURCE_TIME as 'time',
                 timeFunc: 'weekday',
-                timezone: 'Asia/Shanghai',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_EQ,
                 value: '0',
                 rangeStart: '',
@@ -298,7 +299,7 @@ const PRESET_GROUPS: PresetGroup[] = [
               {
                 source: SOURCE_TIME as 'time',
                 timeFunc: 'weekday',
-                timezone: 'Asia/Shanghai',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_EQ,
                 value: '6',
                 rangeStart: '',
@@ -488,7 +489,7 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
         min={0}
         value={condition.value}
         onValueChange={(value) => onChange({ ...condition, value })}
-        placeholder='tokens'
+        placeholder={t('tokens')}
         className='w-32'
       />
       <span className='text-muted-foreground text-xs'>
@@ -498,7 +499,7 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
         variant='ghost'
         size='icon'
         onClick={onRemove}
-        aria-label='remove'
+        aria-label={t('Remove')}
         className='ml-auto'
       >
         <Trash2 className='text-destructive h-4 w-4' />
@@ -976,7 +977,7 @@ function RuleConditionRow({
 
   const handleSourceChange = (source: string) => {
     if (source === SOURCE_TIME) {
-      onChange(createEmptyTimeCondition())
+      onChange(createEmptyTimeCondition(getBusinessTimezone()))
     } else if (source === SOURCE_HEADER || source === SOURCE_PARAM) {
       onChange({
         ...createEmptyCondition(),
@@ -1217,7 +1218,9 @@ function RuleGroupCard({
       ...group,
       conditions: [
         ...group.conditions,
-        timeMode ? createEmptyTimeCondition() : createEmptyCondition(),
+        timeMode
+          ? createEmptyTimeCondition(getBusinessTimezone())
+          : createEmptyCondition(),
       ],
     })
   }
@@ -1696,7 +1699,10 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
 
   useEffect(() => {
     if (editorMode !== 'visual') return
-    const ruleExpr = buildRequestRuleExpr(requestRuleGroups)
+    const ruleExpr = buildRequestRuleExpr(
+      requestRuleGroups,
+      getBusinessTimezone()
+    )
     if (ruleExpr !== currentRequestRuleExpr) {
       onRequestRuleExprChange(ruleExpr)
     }
@@ -1737,7 +1743,10 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
         onRequestRuleExprChange(ruleStr)
       } else {
         const expr = generateExprFromVisualConfig(visualConfig)
-        const ruleExpr = buildRequestRuleExpr(requestRuleGroups)
+        const ruleExpr = buildRequestRuleExpr(
+          requestRuleGroups,
+          getBusinessTimezone()
+        )
         setRawExpr(combineBillingExpr(expr, ruleExpr) || expr)
       }
       setEditorMode(next)
@@ -1747,8 +1756,15 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
 
   const applyPreset = useCallback(
     (preset: Preset) => {
-      const presetGroups = preset.requestRules || []
-      const ruleExpr = buildRequestRuleExpr(presetGroups)
+      const presetGroups = (preset.requestRules || []).map((group) => ({
+        ...group,
+        conditions: group.conditions.map((condition) =>
+          condition.source === SOURCE_TIME
+            ? { ...condition, timezone: getBusinessTimezone() }
+            : condition
+        ),
+      }))
+      const ruleExpr = buildRequestRuleExpr(presetGroups, getBusinessTimezone())
       const combined = combineBillingExpr(preset.expr, ruleExpr) || preset.expr
       setRawExpr(combined)
       const parsed = tryParseVisualConfig(preset.expr)

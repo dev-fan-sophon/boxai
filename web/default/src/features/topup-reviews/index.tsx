@@ -46,6 +46,8 @@ import type {
   TopUpReview,
   TopUpSubmissionStatus,
 } from '@/features/wallet/types'
+import { getCurrentIntlLocale } from '@/i18n/languages'
+import { formatDateTimeObject } from '@/lib/time'
 
 const PAGE_SIZE = 12
 const SKELETON_KEYS = ['first', 'second', 'third', 'fourth']
@@ -232,7 +234,10 @@ export function TopUpReviews() {
                             {t('Amount')}
                           </dt>
                           <dd>
-                            {item.money} {item.currency}
+                            {new Intl.NumberFormat(getCurrentIntlLocale(), {
+                              style: 'currency',
+                              currency: item.currency || 'VND',
+                            }).format(item.money)}
                           </dd>
                         </div>
                         <div>
@@ -248,9 +253,9 @@ export function TopUpReviews() {
                             {t('Submitted at')}
                           </dt>
                           <dd>
-                            {new Date(
-                              item.submitted_at * 1000
-                            ).toLocaleString()}
+                            {formatDateTimeObject(
+                              new Date(item.submitted_at * 1000)
+                            )}
                           </dd>
                         </div>
                       </dl>

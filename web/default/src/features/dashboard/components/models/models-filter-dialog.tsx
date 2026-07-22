@@ -219,7 +219,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
                       'ring-ring ring-2 ring-offset-2'
                   )}
                 >
-                  {t(range.label)}
+                  {t(range.labelKey)}
                 </Button>
               ))}
             </div>
@@ -260,7 +260,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
               items={[
                 ...TIME_GRANULARITY_OPTIONS.map((option) => ({
                   value: option.value,
-                  label: t(option.label),
+                  label: t(option.labelKey),
                 })),
               ]}
               value={filters.time_granularity}
@@ -275,7 +275,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
                 <SelectGroup>
                   {TIME_GRANULARITY_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {t(option.label)}
+                      {t(option.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectGroup>

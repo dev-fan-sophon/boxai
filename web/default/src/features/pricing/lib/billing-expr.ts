@@ -186,6 +186,10 @@ export const TIME_FUNCS = ['hour', 'minute', 'weekday', 'month', 'day'] as const
 export type TimeFunc = (typeof TIME_FUNCS)[number]
 
 export const COMMON_TIMEZONES: { value: string; label: string }[] = [
+  {
+    value: 'Asia/Ho_Chi_Minh',
+    label: 'UTC+7 Ho Chi Minh City (Asia/Ho_Chi_Minh)',
+  },
   { value: 'Asia/Shanghai', label: 'UTC+8 Shanghai (Asia/Shanghai)' },
   { value: 'UTC', label: 'UTC' },
   { value: 'America/New_York', label: 'UTC-5 New York (America/New_York)' },
@@ -581,11 +585,13 @@ export function createEmptyCondition(): ParamHeaderCondition {
   return { source: 'param', path: '', mode: MATCH_EQ, value: '' }
 }
 
-export function createEmptyTimeCondition(): TimeCondition {
+export function createEmptyTimeCondition(
+  timezone = 'Asia/Ho_Chi_Minh'
+): TimeCondition {
   return {
     source: 'time',
     timeFunc: 'hour',
-    timezone: 'Asia/Shanghai',
+    timezone,
     mode: MATCH_GTE,
     value: '',
     rangeStart: '',
@@ -597,8 +603,10 @@ export function createEmptyRuleGroup(): RequestRuleGroup {
   return { conditions: [createEmptyCondition()], multiplier: '' }
 }
 
-export function createEmptyTimeRuleGroup(): RequestRuleGroup {
-  return { conditions: [createEmptyTimeCondition()], multiplier: '' }
+export function createEmptyTimeRuleGroup(
+  timezone = 'Asia/Ho_Chi_Minh'
+): RequestRuleGroup {
+  return { conditions: [createEmptyTimeCondition(timezone)], multiplier: '' }
 }
 
 // ---------------------------------------------------------------------------
@@ -640,7 +648,8 @@ function isTimeFunc(value: unknown): value is TimeFunc {
 }
 
 export function normalizeCondition(
-  cond: Partial<RequestCondition> | null | undefined
+  cond: Partial<RequestCondition> | null | undefined,
+  defaultTimezone = 'Asia/Ho_Chi_Minh'
 ): RequestCondition {
   const source =
     cond?.source === 'time'
@@ -661,7 +670,7 @@ export function normalizeCondition(
     return {
       source: 'time',
       timeFunc,
-      timezone: timeCond?.timezone || 'Asia/Shanghai',
+      timezone: timeCond?.timezone || defaultTimezone,
       mode,
       value: timeCond?.value == null ? '' : String(timeCond.value),
       rangeStart:
@@ -695,8 +704,11 @@ function buildExprLiteral(mode: string, value: string): string {
   return JSON.stringify(text)
 }
 
-function buildTimeConditionExpr(cond: TimeCondition): string {
-  const normalized = normalizeCondition(cond) as TimeCondition
+function buildTimeConditionExpr(
+  cond: TimeCondition,
+  defaultTimezone: string
+): string {
+  const normalized = normalizeCondition(cond, defaultTimezone) as TimeCondition
   const { timeFunc, timezone, mode } = normalized
   const tz = JSON.stringify(timezone)
   const fn = `${timeFunc}(${tz})`
@@ -719,8 +731,13 @@ function buildTimeConditionExpr(cond: TimeCondition): string {
   return `${fn} ${opMap[mode] || '=='} ${v}`
 }
 
-function buildRequestConditionExpr(cond: RequestCondition): string {
-  if (cond.source === 'time') return buildTimeConditionExpr(cond)
+function buildRequestConditionExpr(
+  cond: RequestCondition,
+  defaultTimezone: string
+): string {
+  if (cond.source === 'time') {
+    return buildTimeConditionExpr(cond, defaultTimezone)
+  }
   const normalized = normalizeCondition(cond) as ParamHeaderCondition
   const path = normalized.path.trim()
   if (!path) return ''
@@ -759,11 +776,14 @@ function buildRequestConditionExpr(cond: RequestCondition): string {
   }
 }
 
-function buildRuleGroupFactor(group: RequestRuleGroup): string {
+function buildRuleGroupFactor(
+  group: RequestRuleGroup,
+  defaultTimezone: string
+): string {
   const multiplier = (group.multiplier || '').trim()
   if (!NUMERIC_LITERAL_REGEX.test(multiplier)) return ''
   const condExprs = (group.conditions || [])
-    .map(buildRequestConditionExpr)
+    .map((condition) => buildRequestConditionExpr(condition, defaultTimezone))
     .filter(Boolean)
   if (condExprs.length === 0) return ''
 
@@ -774,6 +794,12 @@ function buildRuleGroupFactor(group: RequestRuleGroup): string {
   return `(${combined} ? ${multiplier} : 1)`
 }
 
-export function buildRequestRuleExpr(groups: RequestRuleGroup[]): string {
-  return (groups || []).map(buildRuleGroupFactor).filter(Boolean).join(' * ')
+export function buildRequestRuleExpr(
+  groups: RequestRuleGroup[],
+  defaultTimezone = 'Asia/Ho_Chi_Minh'
+): string {
+  return (groups || [])
+    .map((group) => buildRuleGroupFactor(group, defaultTimezone))
+    .filter(Boolean)
+    .join(' * ')
 }

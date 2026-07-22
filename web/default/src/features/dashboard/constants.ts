@@ -38,16 +38,16 @@ export const TIME_RANGE_BY_GRANULARITY = {
 } as const
 
 export const TIME_GRANULARITY_OPTIONS = [
-  { label: 'Hour', value: 'hour' },
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
+  { labelKey: 'Hour', value: 'hour' },
+  { labelKey: 'Day', value: 'day' },
+  { labelKey: 'Week', value: 'week' },
 ] as const
 
 export const TIME_RANGE_PRESETS = [
-  { label: '1 Day', days: 1 },
-  { label: '7 Days', days: 7 },
-  { label: '14 Days', days: 14 },
-  { label: '29 Days', days: 29 },
+  { labelKey: '1 Day', days: 1 },
+  { labelKey: '7 Days', days: 7 },
+  { labelKey: '14 Days', days: 14 },
+  { labelKey: '29 Days', days: 29 },
 ] as const
 
 export const CONSUMPTION_DISTRIBUTION_CHART_OPTIONS = [

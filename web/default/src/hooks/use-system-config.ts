@@ -30,6 +30,7 @@ import {
   type CurrencyConfig,
   type CurrencyDisplayType,
   type SystemConfig,
+  DEFAULT_BUSINESS_TIMEZONE,
   DEFAULT_CURRENCY_CONFIG,
 } from '@/stores/system-config-store'
 
@@ -55,6 +56,7 @@ interface StatusApiResponse {
     usd_exchange_rate?: number
     custom_currency_symbol?: string
     custom_currency_exchange_rate?: number
+    business_timezone?: string
   }
 }
 
@@ -109,6 +111,8 @@ export function mapStatusDataToConfig(
     footerHtml: data.footer_html,
     demoSiteEnabled: data.demo_site_enabled,
     displayTokenStatEnabled: data.display_token_stat_enabled,
+    businessTimezone:
+      data.business_timezone?.trim() || DEFAULT_BUSINESS_TIMEZONE,
     currency,
   }
 }
