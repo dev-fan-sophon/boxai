@@ -32,6 +32,8 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     queryKey: ['pricing', source],
     queryFn: source === 'playground' ? getPlaygroundCatalog : getPricing,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: source === 'playground' ? 'always' : true,
+    refetchOnWindowFocus: source === 'playground' ? 'always' : true,
   })
 
   // Ensure rates never reach zero to prevent division errors

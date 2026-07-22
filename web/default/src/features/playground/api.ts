@@ -147,13 +147,20 @@ export type ImageGenerateInput = {
 export async function generateImages(
   input: ImageGenerateInput
 ): Promise<GeneratedImage[]> {
+  let quality = input.settings.imageQuality
+  const model = input.model.toLowerCase()
+  if (model.startsWith('gpt-image-') || model.startsWith('chatgpt-image-')) {
+    if (quality === 'standard') quality = 'medium'
+    if (quality === 'hd') quality = 'high'
+  }
+
   const body: Record<string, unknown> = {
     model: input.model,
     group: input.group,
     prompt: input.prompt,
     n: input.settings.imageCount,
     size: input.settings.imageSize,
-    quality: input.settings.imageQuality,
+    quality,
   }
   const ref = await resolveMediaForUpstream(input.referenceImage)
   if (ref) {
