@@ -6,8 +6,9 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -15,9 +16,11 @@ import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+import { listPlaygroundAgents } from '../../api'
 import {
   AGENT_CARDS,
   type AgentCard,
+  mapApiAgentToCard,
 } from '../../lib/workbench/agents-data'
 
 type AgentsPanelProps = {
@@ -32,6 +35,18 @@ export function AgentsPanel(props: AgentsPanelProps) {
   const navigate = useNavigate()
   const [dialog, setDialog] = useState<'skill' | 'canvas' | null>(null)
   const variant = props.variant ?? 'rail'
+
+  const apiAgents = useQuery({
+    queryKey: ['playground', 'agents'],
+    queryFn: listPlaygroundAgents,
+    staleTime: 60_000,
+  })
+  const agents = useMemo(() => {
+    if (apiAgents.data && apiAgents.data.length > 0) {
+      return apiAgents.data.map(mapApiAgentToCard)
+    }
+    return AGENT_CARDS
+  }, [apiAgents.data])
 
   const runAgent = (agent: AgentCard) => {
     const action = agent.action
@@ -58,20 +73,25 @@ export function AgentsPanel(props: AgentsPanelProps) {
 
   if (variant === 'main') {
     return (
-      <div className={cn('min-h-0 flex-1 overflow-y-auto p-4 md:p-8', props.className)}>
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto p-4 md:p-8',
+          props.className
+        )}
+      >
         <div className='mx-auto max-w-4xl space-y-6'>
           <div>
-            <h1 className='text-2xl font-semibold text-foreground'>
+            <h1 className='text-foreground text-2xl font-semibold'>
               {t('Agents')}
             </h1>
-            <p className='mt-1 text-sm text-pretty text-muted-foreground'>
+            <p className='text-muted-foreground mt-1 text-sm text-pretty'>
               {t(
                 'Scene-ready workflows and API entry points. Pick an agent to jump into the matching model workspace.'
               )}
             </p>
           </div>
           <div className='grid gap-3 sm:grid-cols-2'>
-            {AGENT_CARDS.map((agent) => (
+            {agents.map((agent) => (
               <AgentCardButton
                 key={agent.id}
                 agent={agent}
@@ -89,14 +109,14 @@ export function AgentsPanel(props: AgentsPanelProps) {
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-b border-border p-3'>
-        <h2 className='text-sm font-semibold text-foreground'>{t('Agents')}</h2>
-        <p className='text-[11px] text-muted-foreground'>
+      <div className='border-border border-b p-3'>
+        <h2 className='text-foreground text-sm font-semibold'>{t('Agents')}</h2>
+        <p className='text-muted-foreground text-[11px]'>
           {t('Workflows & API tools')}
         </p>
       </div>
       <div className='min-h-0 flex-1 space-y-1 overflow-y-auto p-2'>
-        {AGENT_CARDS.map((agent) => (
+        {agents.map((agent) => (
           <AgentCardButton
             key={agent.id}
             agent={agent}
@@ -137,14 +157,14 @@ function AgentCardButton(props: {
         </span>
         <span className='min-w-0'>
           <span className='flex items-center gap-1.5'>
-            <span className='truncate text-sm font-medium text-foreground'>
+            <span className='text-foreground truncate text-sm font-medium'>
               {t(props.agent.titleKey)}
             </span>
-            <span className='shrink-0 rounded bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground'>
+            <span className='bg-muted/50 text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px]'>
               {t(props.agent.categoryKey)}
             </span>
           </span>
-          <span className='mt-0.5 line-clamp-2 text-[11px] text-muted-foreground'>
+          <span className='text-muted-foreground mt-0.5 line-clamp-2 text-[11px]'>
             {t(props.agent.descriptionKey)}
           </span>
         </span>
@@ -156,11 +176,11 @@ function AgentCardButton(props: {
 function SkillLanding() {
   const { t } = useTranslation()
   return (
-    <section className='rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-transparent to-accent/40 p-5'>
-      <h2 className='text-lg font-semibold text-foreground'>
+    <section className='border-border from-primary/10 to-accent/40 rounded-2xl border bg-gradient-to-br via-transparent p-5'>
+      <h2 className='text-foreground text-lg font-semibold'>
         {t('Zero-friction API access')}
       </h2>
-      <p className='mt-2 max-w-2xl text-sm text-pretty text-muted-foreground'>
+      <p className='text-muted-foreground mt-2 max-w-2xl text-sm text-pretty'>
         {t(
           'Use Box AI as a unified gateway for chat, image, video, and audio models. Create an API key, pick a model from pricing, and call the OpenAI-compatible endpoints.'
         )}
@@ -205,7 +225,11 @@ function AgentDialogs(props: {
             <Button
               variant='outline'
               onClick={() => {
-                window.open('/api/playground/skill.md', '_blank', 'noopener,noreferrer')
+                window.open(
+                  '/api/playground/skill.md',
+                  '_blank',
+                  'noopener,noreferrer'
+                )
               }}
             >
               {t('Download SKILL.md')}
@@ -227,9 +251,7 @@ function AgentDialogs(props: {
         description={t(
           'A freeform multi-node canvas is on the roadmap. Use the Models tab for sequential generation today.'
         )}
-        footer={
-          <Button onClick={props.onClose}>{t('Got it')}</Button>
-        }
+        footer={<Button onClick={props.onClose}>{t('Got it')}</Button>}
       >
         <span />
       </Dialog>

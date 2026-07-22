@@ -307,6 +307,7 @@ func migrateDB() error {
 		&PlaygroundVoice{},
 		&InspirationCategory{},
 		&InspirationTemplate{},
+		&PlaygroundAgent{},
 		&PlaygroundUploadSession{},
 	)
 	if err != nil {
@@ -323,6 +324,9 @@ func migrateDB() error {
 	}
 	if err := SeedInspirationIfEmpty(); err != nil {
 		common.SysLog("seed inspiration failed: " + err.Error())
+	}
+	if err := SeedPlaygroundAgentsIfEmpty(); err != nil {
+		common.SysLog("seed playground agents failed: " + err.Error())
 	}
 	return nil
 }
@@ -371,6 +375,7 @@ func migrateDBFast() error {
 		{&PlaygroundVoice{}, "PlaygroundVoice"},
 		{&InspirationCategory{}, "InspirationCategory"},
 		{&InspirationTemplate{}, "InspirationTemplate"},
+		{&PlaygroundAgent{}, "PlaygroundAgent"},
 		{&PlaygroundUploadSession{}, "PlaygroundUploadSession"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
@@ -407,6 +412,9 @@ func migrateDBFast() error {
 	}
 	if err := SeedInspirationIfEmpty(); err != nil {
 		common.SysLog("seed inspiration failed: " + err.Error())
+	}
+	if err := SeedPlaygroundAgentsIfEmpty(); err != nil {
+		common.SysLog("seed playground agents failed: " + err.Error())
 	}
 	common.SysLog("database migrated")
 	return nil

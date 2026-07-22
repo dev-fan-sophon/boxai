@@ -91,6 +91,26 @@ func TestPlaygroundRunTaskLinkage(t *testing.T) {
 	assert.Equal(t, "/api/playground/assets/77/content", got.ResultURL)
 }
 
+func TestSeedAndListPlaygroundAgents(t *testing.T) {
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundAgent{}))
+	t.Cleanup(func() { model.DB.Exec("DELETE FROM playground_agents") })
+
+	require.NoError(t, model.SeedPlaygroundAgentsIfEmpty())
+	// Seeding is idempotent: a second call is a no-op.
+	require.NoError(t, model.SeedPlaygroundAgentsIfEmpty())
+
+	agents, err := model.ListPlaygroundAgents()
+	require.NoError(t, err)
+	assert.Equal(t, 8, len(agents))
+	assert.Equal(t, "api-docs", agents[0].Slug) // ordered by sort_order
+
+	require.NoError(t, model.DB.Model(&model.PlaygroundAgent{}).
+		Where("slug = ?", "pricing").Update("enabled", false).Error)
+	agents, err = model.ListPlaygroundAgents()
+	require.NoError(t, err)
+	assert.Equal(t, 7, len(agents)) // disabled agents are excluded
+}
+
 func TestPersistPlaygroundOutputNotPersistable(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("STORAGE_BACKEND", "local")

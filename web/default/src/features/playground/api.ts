@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import { API_ENDPOINTS } from './constants'
+import type { ApiAgent } from './lib/workbench/agents-data'
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -557,7 +558,9 @@ export async function listInspirationTemplates(params?: {
       skipErrorHandler: true,
     } as Record<string, unknown>)
     if (!res.data?.success) return []
-    return (res.data.data?.items ?? res.data.data ?? []) as ApiInspirationTemplate[]
+    return (res.data.data?.items ??
+      res.data.data ??
+      []) as ApiInspirationTemplate[]
   } catch {
     return []
   }
@@ -565,13 +568,23 @@ export async function listInspirationTemplates(params?: {
 
 export async function recordInspirationTemplateUse(id: number): Promise<void> {
   try {
-    await api.post(
-      `${API_ENDPOINTS.INSPIRATION_TEMPLATES}/${id}/use`,
-      {},
-      { skipErrorHandler: true } as Record<string, unknown>
-    )
+    await api.post(`${API_ENDPOINTS.INSPIRATION_TEMPLATES}/${id}/use`, {}, {
+      skipErrorHandler: true,
+    } as Record<string, unknown>)
   } catch {
     // best-effort counter
+  }
+}
+
+export async function listPlaygroundAgents(): Promise<ApiAgent[]> {
+  try {
+    const res = await api.get(API_ENDPOINTS.AGENTS, {
+      skipErrorHandler: true,
+    } as Record<string, unknown>)
+    if (!res.data?.success) return []
+    return (res.data.data ?? []) as ApiAgent[]
+  } catch {
+    return []
   }
 }
 

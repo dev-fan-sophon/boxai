@@ -380,6 +380,7 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundPublic.POST("/upload-sessions/:token/file", middleware.UploadRateLimit(), controller.UploadPlaygroundUploadSessionFile)
 			playgroundPublic.GET("/inspiration/categories", controller.ListInspirationCategories)
 			playgroundPublic.GET("/inspiration/templates", controller.ListInspirationTemplates)
+			playgroundPublic.GET("/agents", controller.ListPlaygroundAgents)
 			playgroundPublic.POST("/inspiration/templates/:id/use", middleware.UserAuth(), controller.UseInspirationTemplate)
 			// skill download also available without auth for docs convenience
 			playgroundPublic.GET("/skill.md", controller.GetPlaygroundSkill)

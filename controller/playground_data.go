@@ -751,6 +751,15 @@ func ListInspirationCategories(c *gin.Context) {
 	common.ApiSuccess(c, items)
 }
 
+func ListPlaygroundAgents(c *gin.Context) {
+	items, err := model.ListPlaygroundAgents()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, items)
+}
+
 func ListInspirationTemplates(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	category := strings.TrimSpace(c.Query("category"))

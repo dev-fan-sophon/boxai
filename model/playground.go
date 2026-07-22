@@ -125,6 +125,25 @@ type InspirationTemplate struct {
 
 func (InspirationTemplate) TableName() string { return "inspiration_templates" }
 
+// PlaygroundAgent is a launcher card shown in the playground agents panel.
+type PlaygroundAgent struct {
+	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	Slug         string `json:"slug" gorm:"type:varchar(64);uniqueIndex;not null"`
+	Title        string `json:"title" gorm:"type:varchar(255);not null"`
+	Description  string `json:"description" gorm:"type:text"`
+	Category     string `json:"category" gorm:"type:varchar(64)"`
+	Icon         string `json:"icon" gorm:"type:varchar(64)"`          // lucide icon key
+	ActionType   string `json:"action_type" gorm:"type:varchar(20)"`   // route | external | modality | dialog
+	ActionValue  string `json:"action_value" gorm:"type:varchar(255)"` // route path | href | modality | dialog name
+	ActionPrompt string `json:"action_prompt" gorm:"type:text"`        // prefill prompt for modality actions
+	Accent       string `json:"accent" gorm:"type:varchar(128)"`
+	SortOrder    int    `json:"sort_order"`
+	Enabled      bool   `json:"enabled"`
+	CreatedAt    int64  `json:"created_at" gorm:"bigint"`
+}
+
+func (PlaygroundAgent) TableName() string { return "playground_agents" }
+
 // PlaygroundUploadSession is a short-lived token for QR / cross-device upload.
 type PlaygroundUploadSession struct {
 	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -504,6 +523,42 @@ func SeedInspirationIfEmpty() error {
 		}
 	}
 	common.SysLog(fmt.Sprintf("seeded %d inspiration templates", len(templates)))
+	return nil
+}
+
+func ListPlaygroundAgents() ([]PlaygroundAgent, error) {
+	var items []PlaygroundAgent
+	err := DB.Where("enabled = ?", true).Order("sort_order ASC, id ASC").Find(&items).Error
+	return items, err
+}
+
+// SeedPlaygroundAgentsIfEmpty inserts the default agent launcher cards when the
+// table is empty.
+func SeedPlaygroundAgentsIfEmpty() error {
+	var count int64
+	if err := DB.Model(&PlaygroundAgent{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	now := time.Now().Unix()
+	agents := []PlaygroundAgent{
+		{Slug: "api-docs", Title: "Open API docs", Description: "Browse integration guides and endpoint references for Box AI.", Category: "API", Icon: "book-open", ActionType: "route", ActionValue: "/docs", Accent: "bg-primary/15 text-primary", SortOrder: 1, Enabled: true, CreatedAt: now},
+		{Slug: "skill-download", Title: "Skill kit", Description: "Download starter skills and client snippets for quick integration.", Category: "API", Icon: "file-down", ActionType: "dialog", ActionValue: "skill", Accent: "bg-info/15 text-info", SortOrder: 2, Enabled: true, CreatedAt: now},
+		{Slug: "pricing", Title: "Model pricing", Description: "Compare model rates and groups before you run a workload.", Category: "API", Icon: "sparkles", ActionType: "route", ActionValue: "/pricing", Accent: "bg-accent text-accent-foreground", SortOrder: 3, Enabled: true, CreatedAt: now},
+		{Slug: "image-batch", Title: "Product image batch", Description: "Generate product shots with a shared prompt and count settings.", Category: "Create", Icon: "image", ActionType: "modality", ActionValue: "image", ActionPrompt: "Studio product photo on a clean background, soft lighting, high detail", Accent: "bg-accent text-accent-foreground", SortOrder: 4, Enabled: true, CreatedAt: now},
+		{Slug: "video-product", Title: "Product video", Description: "Turn a product description into a short promotional clip.", Category: "Create", Icon: "clapperboard", ActionType: "modality", ActionValue: "video", ActionPrompt: "Cinematic 5s product showcase, slow orbit camera, premium lighting", Accent: "bg-warning/15 text-warning", SortOrder: 5, Enabled: true, CreatedAt: now},
+		{Slug: "ppt-outline", Title: "PPT outline", Description: "Draft a presentation structure with titles and talking points.", Category: "Create", Icon: "presentation", ActionType: "modality", ActionValue: "chat", ActionPrompt: "Create a 10-slide presentation outline with titles, bullet points, and speaker notes for: ", Accent: "bg-success/15 text-success", SortOrder: 6, Enabled: true, CreatedAt: now},
+		{Slug: "generic-image", Title: "One-click image", Description: "Jump into image generation with a ready creative brief.", Category: "Create", Icon: "wand", ActionType: "modality", ActionValue: "image", ActionPrompt: "Ultra detailed concept art, dramatic lighting, 4k", Accent: "bg-primary/10 text-primary", SortOrder: 7, Enabled: true, CreatedAt: now},
+		{Slug: "infinite-canvas", Title: "Infinite canvas", Description: "Open a freeform board for multi-step visual workflows.", Category: "Tools", Icon: "layout-template", ActionType: "dialog", ActionValue: "canvas", Accent: "bg-warning/15 text-warning", SortOrder: 8, Enabled: true, CreatedAt: now},
+	}
+	for i := range agents {
+		if err := DB.Create(&agents[i]).Error; err != nil {
+			return err
+		}
+	}
+	common.SysLog(fmt.Sprintf("seeded %d playground agents", len(agents)))
 	return nil
 }
 
