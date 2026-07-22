@@ -24,14 +24,14 @@ import {
   INSPIRATION_TEMPLATES,
   type InspirationTemplate,
 } from '../../lib/workbench/inspiration-data'
-import type {
-  InspirationWork,
-  RecentPrompt,
-} from '../../lib/workbench/workbench-prefs'
 import {
   MODALITY_COLORS,
   modalityLabelKey,
 } from '../../lib/workbench/modality-styles'
+import type {
+  InspirationWork,
+  RecentPrompt,
+} from '../../lib/workbench/workbench-prefs'
 import type { StudioModality } from '../../types'
 
 type InspirationView = 'square' | 'works' | 'usage'
@@ -50,7 +50,9 @@ export function InspirationPanel(props: InspirationPanelProps) {
   const { t } = useTranslation()
   const [view, setView] = useState<InspirationView>('square')
   const [category, setCategory] = useState<string>('all')
-  const [modalityFilter, setModalityFilter] = useState<'all' | 'image' | 'video' | 'chat'>('all')
+  const [modalityFilter, setModalityFilter] = useState<
+    'all' | 'image' | 'video' | 'chat'
+  >('all')
   const variant = props.variant ?? 'rail'
 
   const apiCategories = useQuery({
@@ -59,7 +61,13 @@ export function InspirationPanel(props: InspirationPanelProps) {
     staleTime: 60_000,
   })
   const apiTemplates = useQuery({
-    queryKey: ['playground', 'inspiration', 'templates', category, modalityFilter],
+    queryKey: [
+      'playground',
+      'inspiration',
+      'templates',
+      category,
+      modalityFilter,
+    ],
     queryFn: () =>
       listInspirationTemplates({
         category: category === 'all' ? undefined : category,
@@ -104,6 +112,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
             modality: item.modality as InspirationTemplate['modality'],
             category: 'all',
             tagKeys: [],
+            coverUrl: item.cover_url,
           })
         )
     }
@@ -144,7 +153,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
   const body = (
     <>
       <div
-        className='flex gap-1 rounded-lg bg-muted/40 p-1 ring-1 ring-border'
+        className='bg-muted/40 ring-border flex gap-1 rounded-lg p-1 ring-1'
         role='tablist'
         aria-label={t('Inspiration views')}
       >
@@ -211,14 +220,18 @@ export function InspirationPanel(props: InspirationPanelProps) {
                     : 'text-muted-foreground hover:text-foreground/80'
                 )}
               >
-                {t(item === 'all' ? 'All' : item[0].toUpperCase() + item.slice(1))}
+                {t(
+                  item === 'all' ? 'All' : item[0].toUpperCase() + item.slice(1)
+                )}
               </button>
             ))}
           </div>
           <div
             className={cn(
               'grid gap-2',
-              variant === 'main' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'
+              variant === 'main'
+                ? 'sm:grid-cols-2 lg:grid-cols-3'
+                : 'grid-cols-1'
             )}
           >
             {templates.map((template) => (
@@ -226,25 +239,35 @@ export function InspirationPanel(props: InspirationPanelProps) {
                 key={template.id}
                 type='button'
                 onClick={() => applyTemplate(template)}
-                className='rounded-xl border border-border bg-muted/40 p-3 text-left outline-none transition hover:border-primary/30 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring'
+                className='border-border bg-muted/40 hover:border-primary/30 hover:bg-primary/5 focus-visible:ring-ring overflow-hidden rounded-xl border text-left transition outline-none focus-visible:ring-2'
               >
-                <div className='flex items-center justify-between gap-2'>
-                  <span className='truncate text-sm font-medium text-foreground'>
-                    {t(template.titleKey)}
-                  </span>
-                  <span
-                    className={cn(
-                      'shrink-0 rounded border px-1.5 py-0.5 text-[10px]',
-                      MODALITY_COLORS[template.modality as StudioModality]?.tag ??
-                        MODALITY_COLORS.chat.tag
-                    )}
-                  >
-                    {t(modalityLabelKey(template.modality as StudioModality))}
-                  </span>
+                {template.coverUrl && (
+                  <img
+                    src={template.coverUrl}
+                    alt={t(template.titleKey)}
+                    loading='lazy'
+                    className='aspect-video w-full object-cover'
+                  />
+                )}
+                <div className='p-3'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <span className='text-foreground truncate text-sm font-medium'>
+                      {t(template.titleKey)}
+                    </span>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded border px-1.5 py-0.5 text-[10px]',
+                        MODALITY_COLORS[template.modality as StudioModality]
+                          ?.tag ?? MODALITY_COLORS.chat.tag
+                      )}
+                    >
+                      {t(modalityLabelKey(template.modality as StudioModality))}
+                    </span>
+                  </div>
+                  <p className='text-muted-foreground mt-1.5 line-clamp-2 text-[11px]'>
+                    {template.prompt}
+                  </p>
                 </div>
-                <p className='mt-1.5 line-clamp-2 text-[11px] text-muted-foreground'>
-                  {template.prompt}
-                </p>
               </button>
             ))}
           </div>
@@ -254,14 +277,14 @@ export function InspirationPanel(props: InspirationPanelProps) {
       {view === 'works' && (
         <div className='space-y-2'>
           {worksList.length === 0 && (
-            <p className='py-8 text-center text-sm text-muted-foreground'>
+            <p className='text-muted-foreground py-8 text-center text-sm'>
               {t('Generations you save will show up here.')}
             </p>
           )}
           {worksList.map((work) => (
             <div
               key={work.id}
-              className='rounded-xl border border-border bg-muted/40 p-3'
+              className='border-border bg-muted/40 rounded-xl border p-3'
             >
               <div className='flex items-start justify-between gap-2'>
                 <button
@@ -271,10 +294,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
                     props.onApplyPrompt(work.prompt, work.modality)
                   }
                 >
-                  <p className='truncate text-sm font-medium text-foreground'>
+                  <p className='text-foreground truncate text-sm font-medium'>
                     {work.title}
                   </p>
-                  <p className='mt-1 line-clamp-2 text-[11px] text-muted-foreground'>
+                  <p className='text-muted-foreground mt-1 line-clamp-2 text-[11px]'>
                     {work.prompt}
                   </p>
                 </button>
@@ -282,7 +305,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
                   <Button
                     size='sm'
                     variant='ghost'
-                    className='h-7 text-xs text-muted-foreground'
+                    className='text-muted-foreground h-7 text-xs'
                     onClick={() => props.onRemoveWork?.(work.id)}
                   >
                     {t('Remove')}
@@ -297,7 +320,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
       {view === 'usage' && (
         <div className='space-y-2'>
           {props.recentPrompts.length === 0 && (
-            <p className='py-8 text-center text-sm text-muted-foreground'>
+            <p className='text-muted-foreground py-8 text-center text-sm'>
               {t('Recent prompts from this browser will appear here.')}
             </p>
           )}
@@ -306,10 +329,12 @@ export function InspirationPanel(props: InspirationPanelProps) {
               key={item.id}
               type='button'
               onClick={() => props.onApplyPrompt(item.prompt, item.modality)}
-              className='w-full rounded-xl border border-border bg-muted/40 p-3 text-left hover:border-primary/30'
+              className='border-border bg-muted/40 hover:border-primary/30 w-full rounded-xl border p-3 text-left'
             >
-              <p className='line-clamp-2 text-sm text-foreground'>{item.prompt}</p>
-              <p className='mt-1 font-mono text-[10px] text-muted-foreground'>
+              <p className='text-foreground line-clamp-2 text-sm'>
+                {item.prompt}
+              </p>
+              <p className='text-muted-foreground mt-1 font-mono text-[10px]'>
                 {item.model} · {t(modalityLabelKey(item.modality))}
               </p>
             </button>
@@ -328,10 +353,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
         )}
       >
         <div>
-          <h1 className='text-2xl font-semibold text-foreground'>
+          <h1 className='text-foreground text-2xl font-semibold'>
             {t('Inspiration')}
           </h1>
-          <p className='mt-1 text-sm text-muted-foreground'>
+          <p className='text-muted-foreground mt-1 text-sm'>
             {t('Templates, saved works, and recent prompts for faster starts.')}
           </p>
         </div>
@@ -342,11 +367,13 @@ export function InspirationPanel(props: InspirationPanelProps) {
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-b border-border p-3'>
-        <h2 className='text-sm font-semibold text-foreground'>
+      <div className='border-border border-b p-3'>
+        <h2 className='text-foreground text-sm font-semibold'>
           {t('Inspiration')}
         </h2>
-        <p className='text-[11px] text-muted-foreground'>{t('Templates & history')}</p>
+        <p className='text-muted-foreground text-[11px]'>
+          {t('Templates & history')}
+        </p>
       </div>
       <div className='min-h-0 flex-1 space-y-3 overflow-y-auto p-2'>{body}</div>
     </div>

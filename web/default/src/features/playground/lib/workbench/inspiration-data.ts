@@ -27,6 +27,7 @@ export type InspirationTemplate = {
   category: InspirationCategory
   prompt: string
   tagKeys: string[]
+  coverUrl?: string
 }
 
 export const INSPIRATION_CATEGORIES: Array<{
