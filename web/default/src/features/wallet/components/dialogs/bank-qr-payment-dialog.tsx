@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
+import { toIntlLocale } from '@/i18n/languages'
 
 import type { BankQRPaymentData } from '../../types'
 
@@ -42,7 +43,7 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
   }
   const payment = props.payment
 
-  const formattedAmount = new Intl.NumberFormat(i18n.language, {
+  const formattedAmount = new Intl.NumberFormat(toIntlLocale(i18n.language), {
     style: 'currency',
     currency: 'VND',
     maximumFractionDigits: 0,

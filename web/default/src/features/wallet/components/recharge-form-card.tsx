@@ -235,9 +235,9 @@ export function RechargeFormCard({
                               method.type,
                               'h-4 w-4',
                               method.icon,
-                              method.name
+                              t(method.name)
                             )}
-                            {method.name}
+                            {t(method.name)}
                           </span>
                           {minHint && (
                             <span className='text-muted-foreground text-[11px]'>
@@ -382,7 +382,9 @@ export function RechargeFormCard({
                       {t('Payment method')}
                     </span>
                     <span className='truncate font-medium'>
-                      {selectedPaymentMethod?.name || t('Not selected')}
+                      {selectedPaymentMethod?.name
+                        ? t(selectedPaymentMethod.name)
+                        : t('Not selected')}
                     </span>
                   </div>
                   <div className='flex justify-between gap-3 text-sm'>

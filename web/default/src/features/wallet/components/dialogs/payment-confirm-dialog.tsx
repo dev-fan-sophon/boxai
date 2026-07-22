@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toIntlLocale } from '@/i18n/languages'
 import { formatLocalCurrencyAmount } from '@/lib/currency'
 
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
@@ -65,7 +66,7 @@ export function PaymentConfirmDialog({
   const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false
   const formatPaymentAmount = (amount: number) =>
     isBankQR
-      ? new Intl.NumberFormat(i18n.language, {
+      ? new Intl.NumberFormat(toIntlLocale(i18n.language), {
           style: 'currency',
           currency: 'VND',
           maximumFractionDigits: 0,
@@ -142,9 +143,11 @@ export function PaymentConfirmDialog({
                   paymentMethod?.type,
                   'h-4 w-4',
                   paymentMethod?.icon,
-                  paymentMethod?.name
+                  paymentMethod?.name ? t(paymentMethod.name) : undefined
                 )}
-                <span className='font-medium'>{paymentMethod?.name}</span>
+                <span className='font-medium'>
+                  {paymentMethod?.name ? t(paymentMethod.name) : ''}
+                </span>
               </div>
             </div>
           </div>
