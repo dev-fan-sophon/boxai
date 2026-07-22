@@ -56,9 +56,9 @@ export function GenerationDock(props: GenerationDockProps) {
     >
       <form
         className={cn(
-          'pointer-events-auto mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-2xl border border-white/[0.1]',
-          'bg-[#141418]/92 p-3 shadow-[0_20px_60px_-24px_rgba(0,0,0,0.85)] backdrop-blur-xl',
-          'ring-1 ring-white/[0.04]'
+          'pointer-events-auto mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-2xl border border-border',
+          'bg-card/95 p-3 shadow-lg backdrop-blur-xl',
+          'ring-1 ring-border'
         )}
         onSubmit={(event) => {
           event.preventDefault()
@@ -85,8 +85,8 @@ export function GenerationDock(props: GenerationDockProps) {
               onChange={(event) => props.onPromptChange(event.target.value)}
               rows={3}
               className={cn(
-                'w-full resize-none bg-transparent text-sm leading-relaxed text-zinc-100 outline-none',
-                'placeholder:text-zinc-500'
+                'w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none',
+                'placeholder:text-muted-foreground'
               )}
               placeholder={t(
                 props.modality === 'audio'
@@ -97,7 +97,7 @@ export function GenerationDock(props: GenerationDockProps) {
           </div>
         </div>
 
-        <div className='flex flex-col gap-2 border-t border-white/[0.06] pt-2 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='flex flex-col gap-2 border-t border-border pt-2 sm:flex-row sm:items-center sm:justify-between'>
           <ParameterChips
             modality={props.modality}
             group={props.group}
@@ -132,9 +132,9 @@ export function GenerationDock(props: GenerationDockProps) {
               }
               aria-label={t('Generate')}
               className={cn(
-                'inline-flex size-10 items-center justify-center rounded-full bg-[#00CAE0] text-zinc-950 shadow-[0_0_24px_-4px_rgba(0,202,224,0.7)]',
-                'transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:shadow-none',
-                'outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#141418]'
+                'inline-flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm',
+                'transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none',
+                'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
               )}
             >
               {props.isPending ? (

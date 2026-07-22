@@ -61,10 +61,10 @@ export function AgentsPanel(props: AgentsPanelProps) {
       <div className={cn('min-h-0 flex-1 overflow-y-auto p-4 md:p-8', props.className)}>
         <div className='mx-auto max-w-4xl space-y-6'>
           <div>
-            <h1 className='text-2xl font-semibold text-zinc-50'>
+            <h1 className='text-2xl font-semibold text-foreground'>
               {t('Agents')}
             </h1>
-            <p className='mt-1 text-sm text-pretty text-zinc-400'>
+            <p className='mt-1 text-sm text-pretty text-muted-foreground'>
               {t(
                 'Scene-ready workflows and API entry points. Pick an agent to jump into the matching model workspace.'
               )}
@@ -89,9 +89,9 @@ export function AgentsPanel(props: AgentsPanelProps) {
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-b border-white/[0.06] p-3'>
-        <h2 className='text-sm font-semibold text-zinc-100'>{t('Agents')}</h2>
-        <p className='text-[11px] text-zinc-500'>
+      <div className='border-b border-border p-3'>
+        <h2 className='text-sm font-semibold text-foreground'>{t('Agents')}</h2>
+        <p className='text-[11px] text-muted-foreground'>
           {t('Workflows & API tools')}
         </p>
       </div>
@@ -122,30 +122,29 @@ function AgentCardButton(props: {
       onClick={props.onClick}
       className={cn(
         'w-full rounded-xl border border-transparent p-2.5 text-left outline-none transition-colors',
-        'hover:border-white/10 hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-cyan-400/50',
-        props.large && 'border-white/[0.06] bg-white/[0.02] p-4'
+        'hover:border-border hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring',
+        props.large && 'border-border bg-muted/40 p-4'
       )}
     >
       <div className='flex items-start gap-2.5'>
         <span
-          className='flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-white/10'
-          style={{
-            backgroundColor: `${props.agent.accent}22`,
-            color: props.agent.accent,
-          }}
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-border',
+            props.agent.accentClass
+          )}
         >
           <Icon className='size-4' aria-hidden='true' />
         </span>
         <span className='min-w-0'>
           <span className='flex items-center gap-1.5'>
-            <span className='truncate text-sm font-medium text-zinc-100'>
+            <span className='truncate text-sm font-medium text-foreground'>
               {t(props.agent.titleKey)}
             </span>
-            <span className='shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-500'>
+            <span className='shrink-0 rounded bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground'>
               {t(props.agent.categoryKey)}
             </span>
           </span>
-          <span className='mt-0.5 line-clamp-2 text-[11px] text-zinc-500'>
+          <span className='mt-0.5 line-clamp-2 text-[11px] text-muted-foreground'>
             {t(props.agent.descriptionKey)}
           </span>
         </span>
@@ -157,11 +156,11 @@ function AgentCardButton(props: {
 function SkillLanding() {
   const { t } = useTranslation()
   return (
-    <section className='rounded-2xl border border-white/[0.08] bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 p-5'>
-      <h2 className='text-lg font-semibold text-zinc-50'>
+    <section className='rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-transparent to-accent/40 p-5'>
+      <h2 className='text-lg font-semibold text-foreground'>
         {t('Zero-friction API access')}
       </h2>
-      <p className='mt-2 max-w-2xl text-sm text-pretty text-zinc-400'>
+      <p className='mt-2 max-w-2xl text-sm text-pretty text-muted-foreground'>
         {t(
           'Use Box AI as a unified gateway for chat, image, video, and audio models. Create an API key, pick a model from pricing, and call the OpenAI-compatible endpoints.'
         )}
@@ -169,7 +168,7 @@ function SkillLanding() {
       <div className='mt-4 flex flex-wrap gap-2'>
         <Button
           size='sm'
-          className='bg-cyan-500 text-zinc-950 hover:bg-cyan-400'
+          className='bg-primary text-primary-foreground hover:bg-primary/90'
           render={<Link to='/docs' />}
         >
           {t('Open API docs')}
@@ -177,7 +176,7 @@ function SkillLanding() {
         <Button
           size='sm'
           variant='outline'
-          className='border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10'
+          className='border-border bg-muted/50 text-foreground hover:bg-muted'
           render={<Link to='/pricing' />}
         >
           {t('Model pricing')}

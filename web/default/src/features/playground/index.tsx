@@ -330,10 +330,10 @@ export function Playground() {
       }
     >
       {showBusyStrip && (
-        <div className='flex shrink-0 items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-400/10 px-3 py-2'>
-          <p className='flex min-w-0 items-center gap-2 text-xs text-amber-100'>
+        <div className='border-warning/25 bg-warning/10 flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2'>
+          <p className='text-warning flex min-w-0 items-center gap-2 text-xs font-medium'>
             <Loader2 className='size-3.5 shrink-0 animate-spin' aria-hidden='true' />
-            <span className='truncate'>
+            <span className='text-foreground truncate'>
               {isGenerating
                 ? t('Generation in progress…')
                 : t('Studio task still running…')}
@@ -344,7 +344,7 @@ export function Playground() {
               <Button
                 size='sm'
                 variant='outline'
-                className='h-7 border-amber-300/30 bg-black/20 text-amber-50 hover:bg-black/40'
+                className='h-7'
                 onClick={stopGeneration}
               >
                 <Square className='size-3 fill-current' />
@@ -353,7 +353,7 @@ export function Playground() {
             )}
             <Button
               size='sm'
-              className='h-7 bg-cyan-500 text-zinc-950 hover:bg-cyan-400'
+              className='h-7 bg-primary text-primary-foreground hover:bg-primary/90'
               onClick={() => setWorkbenchTab('models')}
             >
               {t('Back to Models')}

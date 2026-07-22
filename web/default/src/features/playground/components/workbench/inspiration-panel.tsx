@@ -144,7 +144,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
   const body = (
     <>
       <div
-        className='flex gap-1 rounded-lg bg-white/[0.03] p-1 ring-1 ring-white/[0.06]'
+        className='flex gap-1 rounded-lg bg-muted/40 p-1 ring-1 ring-border'
         role='tablist'
         aria-label={t('Inspiration views')}
       >
@@ -162,10 +162,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
             aria-selected={view === id}
             onClick={() => setView(id)}
             className={cn(
-              'flex-1 rounded-md px-2 py-1 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50',
+              'flex-1 rounded-md px-2 py-1 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
               view === id
-                ? 'bg-cyan-500/15 text-cyan-300'
-                : 'text-zinc-500 hover:text-zinc-200'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {t(label)}
@@ -187,10 +187,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
                 aria-pressed={category === item.id}
                 onClick={() => setCategory(item.id)}
                 className={cn(
-                  'rounded-full px-2 py-0.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50',
+                  'rounded-full px-2 py-0.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   category === item.id
-                    ? 'bg-white/10 text-zinc-100'
-                    : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'
+                    ? 'bg-white/10 text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground/80'
                 )}
               >
                 {t(item.labelKey)}
@@ -207,8 +207,8 @@ export function InspirationPanel(props: InspirationPanelProps) {
                 className={cn(
                   'rounded-md px-2 py-0.5 text-[10px]',
                   modalityFilter === item
-                    ? 'bg-cyan-500/15 text-cyan-300'
-                    : 'text-zinc-500 hover:text-zinc-300'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground/80'
                 )}
               >
                 {t(item === 'all' ? 'All' : item[0].toUpperCase() + item.slice(1))}
@@ -226,10 +226,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
                 key={template.id}
                 type='button'
                 onClick={() => applyTemplate(template)}
-                className='rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left outline-none transition hover:border-cyan-400/30 hover:bg-cyan-500/[0.04] focus-visible:ring-2 focus-visible:ring-cyan-400/50'
+                className='rounded-xl border border-border bg-muted/40 p-3 text-left outline-none transition hover:border-primary/30 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring'
               >
                 <div className='flex items-center justify-between gap-2'>
-                  <span className='truncate text-sm font-medium text-zinc-100'>
+                  <span className='truncate text-sm font-medium text-foreground'>
                     {t(template.titleKey)}
                   </span>
                   <span
@@ -242,7 +242,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
                     {t(modalityLabelKey(template.modality as StudioModality))}
                   </span>
                 </div>
-                <p className='mt-1.5 line-clamp-2 text-[11px] text-zinc-500'>
+                <p className='mt-1.5 line-clamp-2 text-[11px] text-muted-foreground'>
                   {template.prompt}
                 </p>
               </button>
@@ -254,14 +254,14 @@ export function InspirationPanel(props: InspirationPanelProps) {
       {view === 'works' && (
         <div className='space-y-2'>
           {worksList.length === 0 && (
-            <p className='py-8 text-center text-sm text-zinc-500'>
+            <p className='py-8 text-center text-sm text-muted-foreground'>
               {t('Generations you save will show up here.')}
             </p>
           )}
           {worksList.map((work) => (
             <div
               key={work.id}
-              className='rounded-xl border border-white/[0.06] bg-white/[0.02] p-3'
+              className='rounded-xl border border-border bg-muted/40 p-3'
             >
               <div className='flex items-start justify-between gap-2'>
                 <button
@@ -271,10 +271,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
                     props.onApplyPrompt(work.prompt, work.modality)
                   }
                 >
-                  <p className='truncate text-sm font-medium text-zinc-100'>
+                  <p className='truncate text-sm font-medium text-foreground'>
                     {work.title}
                   </p>
-                  <p className='mt-1 line-clamp-2 text-[11px] text-zinc-500'>
+                  <p className='mt-1 line-clamp-2 text-[11px] text-muted-foreground'>
                     {work.prompt}
                   </p>
                 </button>
@@ -282,7 +282,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
                   <Button
                     size='sm'
                     variant='ghost'
-                    className='h-7 text-xs text-zinc-500'
+                    className='h-7 text-xs text-muted-foreground'
                     onClick={() => props.onRemoveWork?.(work.id)}
                   >
                     {t('Remove')}
@@ -297,7 +297,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
       {view === 'usage' && (
         <div className='space-y-2'>
           {props.recentPrompts.length === 0 && (
-            <p className='py-8 text-center text-sm text-zinc-500'>
+            <p className='py-8 text-center text-sm text-muted-foreground'>
               {t('Recent prompts from this browser will appear here.')}
             </p>
           )}
@@ -306,10 +306,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
               key={item.id}
               type='button'
               onClick={() => props.onApplyPrompt(item.prompt, item.modality)}
-              className='w-full rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left hover:border-cyan-400/30'
+              className='w-full rounded-xl border border-border bg-muted/40 p-3 text-left hover:border-primary/30'
             >
-              <p className='line-clamp-2 text-sm text-zinc-200'>{item.prompt}</p>
-              <p className='mt-1 font-mono text-[10px] text-zinc-500'>
+              <p className='line-clamp-2 text-sm text-foreground'>{item.prompt}</p>
+              <p className='mt-1 font-mono text-[10px] text-muted-foreground'>
                 {item.model} · {t(modalityLabelKey(item.modality))}
               </p>
             </button>
@@ -328,10 +328,10 @@ export function InspirationPanel(props: InspirationPanelProps) {
         )}
       >
         <div>
-          <h1 className='text-2xl font-semibold text-zinc-50'>
+          <h1 className='text-2xl font-semibold text-foreground'>
             {t('Inspiration')}
           </h1>
-          <p className='mt-1 text-sm text-zinc-400'>
+          <p className='mt-1 text-sm text-muted-foreground'>
             {t('Templates, saved works, and recent prompts for faster starts.')}
           </p>
         </div>
@@ -342,11 +342,11 @@ export function InspirationPanel(props: InspirationPanelProps) {
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-b border-white/[0.06] p-3'>
-        <h2 className='text-sm font-semibold text-zinc-100'>
+      <div className='border-b border-border p-3'>
+        <h2 className='text-sm font-semibold text-foreground'>
           {t('Inspiration')}
         </h2>
-        <p className='text-[11px] text-zinc-500'>{t('Templates & history')}</p>
+        <p className='text-[11px] text-muted-foreground'>{t('Templates & history')}</p>
       </div>
       <div className='min-h-0 flex-1 space-y-3 overflow-y-auto p-2'>{body}</div>
     </div>

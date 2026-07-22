@@ -30,32 +30,6 @@ For commercial licensing, please contact support@quantumnous.com
 @import './theme.css';
 @import './theme-presets.css';
 
-/*
- * Playground workbench: immersive near-black creation surface.
- * Scoped CSS variables so chat / shadcn tokens pick up the dark cyan palette
- * without changing the rest of the app.
- */
-.playground-workbench {
-  --background: #0f0f12;
-  --foreground: #f4f4f5;
-  --card: #141418;
-  --card-foreground: #f4f4f5;
-  --popover: #16161c;
-  --popover-foreground: #f4f4f5;
-  --primary: #00cae0;
-  --primary-foreground: #041016;
-  --secondary: #1c1c22;
-  --secondary-foreground: #e4e4e7;
-  --muted: #1a1a20;
-  --muted-foreground: #a1a1aa;
-  --accent: color-mix(in oklab, #00cae0 18%, #0f0f12);
-  --accent-foreground: #e4e4e7;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: color-mix(in oklab, #00cae0 55%, transparent);
-  color-scheme: dark;
-}
-
 /* Shiki dual themes: token colors follow dark theme (pre background stays `bg-background` on the block) */
 @layer components {
   .shiki span {

@@ -71,7 +71,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         type='button'
         className={cn(
           chipClass,
-          props.tools.webSearch && 'border-cyan-400/40 text-cyan-300'
+          props.tools.webSearch && 'border-primary/40 text-primary'
         )}
         aria-pressed={props.tools.webSearch}
         onClick={() => {
@@ -99,7 +99,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         type='button'
         className={cn(
           chipClass,
-          props.tools.longMemory && 'border-cyan-400/40 text-cyan-300'
+          props.tools.longMemory && 'border-primary/40 text-primary'
         )}
         aria-pressed={props.tools.longMemory}
         onClick={() => {
@@ -144,7 +144,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         description={t(
           'Set a system persona. It is prepended to chat requests when non-empty. Save to cloud to reuse later.'
         )}
-        contentClassName='sm:max-w-lg border-white/10 bg-[#16161c] text-zinc-100'
+        contentClassName='sm:max-w-lg border-border bg-popover text-foreground'
         footer={
           <>
             <Button variant='outline' onClick={() => setRoleOpen(false)}>
@@ -174,18 +174,18 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         <div className='space-y-3'>
           {(personasQuery.data?.length ?? 0) > 0 && (
             <div className='space-y-1.5'>
-              <p className='text-xs font-medium text-zinc-400'>
+              <p className='text-xs font-medium text-muted-foreground'>
                 {t('Saved personas')}
               </p>
               <ul className='max-h-28 space-y-1 overflow-y-auto'>
                 {personasQuery.data?.map((persona) => (
                   <li
                     key={persona.id}
-                    className='flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1'
+                    className='flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1'
                   >
                     <button
                       type='button'
-                      className='min-w-0 flex-1 truncate text-left text-sm text-zinc-200 hover:text-cyan-200'
+                      className='min-w-0 flex-1 truncate text-left text-sm text-foreground hover:text-primary'
                       onClick={() => {
                         setDraftPrompt(persona.system_prompt)
                         props.onToolsChange({
@@ -200,7 +200,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
                       type='button'
                       variant='ghost'
                       size='icon'
-                      className='size-7 text-zinc-500 hover:text-red-300'
+                      className='size-7 text-muted-foreground hover:text-destructive'
                       aria-label={t('Delete')}
                       onClick={() => {
                         void deletePersona(persona.id).then(() =>
@@ -251,7 +251,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         description={t(
           'Workbench preferences applied to chat: history, system prompt, web search, and tool-loop bounds.'
         )}
-        contentClassName='sm:max-w-md border-white/10 bg-[#16161c] text-zinc-100'
+        contentClassName='sm:max-w-md border-border bg-popover text-foreground'
         footer={
           <Button onClick={() => setAdvancedOpen(false)}>{t('Done')}</Button>
         }
@@ -348,6 +348,6 @@ function ToggleRow(props: {
 }
 
 const chipClass = cn(
-  'inline-flex h-7 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-300',
-  'outline-none hover:bg-white/[0.08] hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-cyan-400/50'
+  'inline-flex h-7 items-center gap-1 rounded-lg border border-border bg-muted/40 px-2 text-[11px] font-medium text-foreground/80',
+  'outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
 )

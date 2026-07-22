@@ -59,14 +59,13 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
   return (
     <div
       className={cn(
-        'playground-workbench relative flex size-full min-h-0 overflow-hidden',
-        'bg-[#0F0F12] text-zinc-100',
+        'playground-workbench bg-background text-foreground relative flex size-full min-h-0 overflow-hidden',
         props.className
       )}
       data-playground-workbench=''
     >
       {isDesktop ? (
-        <aside className='flex w-[272px] shrink-0 flex-col border-r border-white/[0.08] bg-[#0C0C0F]'>
+        <aside className='bg-sidebar text-sidebar-foreground border-sidebar-border flex w-[272px] shrink-0 flex-col border-r'>
           {railBody}
         </aside>
       ) : null}
@@ -80,7 +79,7 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
       <Sheet open={railOpen} onOpenChange={setRailOpen}>
         <SheetContent
           side='left'
-          className='w-[88%] border-white/10 bg-[#0C0C0F] p-0 text-zinc-100 sm:max-w-sm'
+          className='bg-sidebar text-sidebar-foreground border-sidebar-border w-[88%] p-0 sm:max-w-sm'
         >
           <SheetHeader className='sr-only'>
             <SheetTitle>{t('Model catalog')}</SheetTitle>
@@ -94,7 +93,7 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
 
       {!isDesktop && !railOpen && (
         <Button
-          className='absolute bottom-24 left-3 z-20 size-11 rounded-full border border-white/10 bg-[#121218]/90 text-cyan-300 shadow-lg backdrop-blur hover:bg-[#1a1a22]'
+          className='bg-card/95 text-primary border-border absolute bottom-24 left-3 z-20 size-11 rounded-full border shadow-lg backdrop-blur'
           size='icon'
           onClick={() => setRailOpen(true)}
           aria-label={t('Open catalog')}

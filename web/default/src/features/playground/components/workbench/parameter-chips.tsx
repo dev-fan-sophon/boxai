@@ -39,7 +39,7 @@ const SPEEDS = [0.75, 1, 1.25, 1.5] as const
 const AUDIO_FORMATS = ['mp3', 'opus', 'aac', 'flac', 'wav'] as const
 
 const WORKBENCH_MENU_CLASS =
-  'max-h-64 overflow-y-auto border-white/10 bg-[#16161c] text-zinc-100'
+  'max-h-64 overflow-y-auto border-border bg-popover text-popover-foreground'
 
 export function ParameterChips(props: ParameterChipsProps) {
   const { t } = useTranslation()
@@ -71,7 +71,7 @@ export function ParameterChips(props: ParameterChipsProps) {
           >
             <span className='font-medium'>{group.label}</span>
             {group.desc && (
-              <span className='ml-2 text-xs text-zinc-500'>{group.desc}</span>
+              <span className='ml-2 text-xs text-muted-foreground'>{group.desc}</span>
             )}
           </DropdownMenuItem>
         ))}
@@ -211,8 +211,8 @@ function ChipMenu(props: {
             type='button'
             aria-label={props.ariaLabel}
             className={cn(
-              'inline-flex h-7 max-w-[9rem] items-center gap-1 truncate rounded-lg border border-white/10 bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-300',
-              'outline-none hover:bg-white/[0.08] hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-cyan-400/50'
+              'inline-flex h-7 max-w-[9rem] items-center gap-1 truncate rounded-lg border border-border bg-muted/40 px-2 text-[11px] font-medium text-foreground/80',
+              'outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
             )}
           />
         }

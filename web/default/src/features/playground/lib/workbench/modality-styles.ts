@@ -13,29 +13,29 @@ export const MODALITY_COLORS: Record<
   { tag: string; bg: string; text: string }
 > = {
   chat: {
-    tag: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-    bg: 'bg-cyan-500/10',
-    text: 'text-cyan-300',
+    tag: 'bg-primary/15 text-primary border-primary/30',
+    bg: 'bg-primary/10',
+    text: 'text-primary',
   },
   image: {
-    tag: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-300',
+    tag: 'bg-accent text-accent-foreground border-border',
+    bg: 'bg-accent',
+    text: 'text-accent-foreground',
   },
   video: {
-    tag: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
-    bg: 'bg-orange-500/10',
-    text: 'text-orange-300',
+    tag: 'bg-warning/15 text-warning border-warning/30',
+    bg: 'bg-warning/10',
+    text: 'text-warning',
   },
   audio: {
-    tag: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-300',
+    tag: 'bg-success/15 text-success border-success/30',
+    bg: 'bg-success/10',
+    text: 'text-success',
   },
   tool: {
-    tag: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-300',
+    tag: 'bg-info/15 text-info border-info/30',
+    bg: 'bg-info/10',
+    text: 'text-info',
   },
 }
 
@@ -57,6 +57,5 @@ export function isLikelyNewModel(model: {
       return true
     }
   }
-  // light name heuristic for very recent-looking model codes
   return /-(latest|preview|exp)\b/i.test(model.model_name)
 }

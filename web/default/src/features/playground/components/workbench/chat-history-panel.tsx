@@ -130,11 +130,11 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
 
   return (
     <div className='flex h-full min-h-0 flex-col'>
-      <div className='border-b border-white/[0.06] p-3'>
-        <h2 className='text-sm font-semibold text-zinc-100'>
+      <div className='border-b border-border p-3'>
+        <h2 className='text-sm font-semibold text-foreground'>
           {t('Chat history')}
         </h2>
-        <p className='text-xs text-zinc-500'>
+        <p className='text-xs text-muted-foreground'>
           {isAuth
             ? t('Cloud conversations and this browser session.')
             : t('Conversation stored in this browser.')}
@@ -142,11 +142,11 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
       </div>
 
       {isAuth && (
-        <div className='flex gap-1 border-b border-white/[0.06] p-2'>
+        <div className='flex gap-1 border-b border-border p-2'>
           <Button
             size='sm'
             variant='outline'
-            className='h-7 flex-1 border-white/10 bg-white/5 text-zinc-200'
+            className='h-7 flex-1 border-border bg-muted/50 text-foreground'
             disabled={createMutation.isPending}
             onClick={() => createMutation.mutate()}
           >
@@ -156,7 +156,7 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
           <Button
             size='sm'
             variant='outline'
-            className='h-7 flex-1 border-white/10 bg-white/5 text-zinc-200'
+            className='h-7 flex-1 border-border bg-muted/50 text-foreground'
             disabled={props.messages.length === 0}
             onClick={() => void syncMessages()}
           >
@@ -167,7 +167,7 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
 
       <div className='min-h-0 flex-1 space-y-2 overflow-y-auto p-2'>
         {isAuth && listQuery.isLoading && (
-          <p className='flex items-center justify-center gap-2 py-6 text-sm text-zinc-500'>
+          <p className='flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground'>
             <Loader2 className='size-3.5 animate-spin' />
             {t('Loading…')}
           </p>
@@ -180,22 +180,22 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
               type='button'
               onClick={() => void loadConversation(conv)}
               className={cn(
-                'w-full rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 text-left transition-colors hover:border-cyan-400/30',
+                'w-full rounded-lg border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/30',
                 props.activeConversationId === conv.id &&
-                  'border-cyan-400/40 bg-cyan-500/10'
+                  'border-primary/40 bg-primary/10'
               )}
             >
-              <p className='truncate text-sm font-medium text-zinc-100'>
+              <p className='truncate text-sm font-medium text-foreground'>
                 {conv.title || t('Untitled')}
               </p>
-              <p className='mt-0.5 truncate text-[11px] text-zinc-500'>
+              <p className='mt-0.5 truncate text-[11px] text-muted-foreground'>
                 {conv.model || '—'}
               </p>
               <div className='mt-1 flex justify-end'>
                 <span
                   role='button'
                   tabIndex={0}
-                  className='inline-flex size-6 items-center justify-center rounded text-zinc-500 hover:text-red-300'
+                  className='inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:text-destructive'
                   onClick={(e) => {
                     e.stopPropagation()
                     void deleteConversation(conv.id).then(() => {
@@ -218,7 +218,7 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
           ))}
 
         {userTurns.length === 0 && !isAuth && (
-          <p className='px-3 py-10 text-center text-sm text-zinc-500'>
+          <p className='px-3 py-10 text-center text-sm text-muted-foreground'>
             {t('No messages yet. Start a conversation from the workbench.')}
           </p>
         )}
@@ -229,20 +229,20 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
             return (
               <article
                 key={message.key}
-                className='rounded-lg border border-white/[0.06] bg-white/[0.03] p-3'
+                className='rounded-lg border border-border bg-muted/40 p-3'
               >
-                <div className='mb-1 flex items-center gap-1.5 text-[11px] text-zinc-500'>
+                <div className='mb-1 flex items-center gap-1.5 text-[11px] text-muted-foreground'>
                   <MessageSquare className='size-3' aria-hidden='true' />
                   {t('You')}
                 </div>
-                <p className='line-clamp-4 text-sm text-zinc-200'>{content}</p>
+                <p className='line-clamp-4 text-sm text-foreground'>{content}</p>
               </article>
             )
           })}
 
         {isAuth && userTurns.length > 0 && (
-          <div className='border-t border-white/[0.06] pt-2'>
-            <p className='mb-1 px-1 text-[11px] font-medium text-zinc-500'>
+          <div className='border-t border-border pt-2'>
+            <p className='mb-1 px-1 text-[11px] font-medium text-muted-foreground'>
               {t('Current session')}
             </p>
             {userTurns.slice(-5).map((message) => {
@@ -250,20 +250,20 @@ export function ChatHistoryPanel(props: ChatHistoryPanelProps) {
               return (
                 <article
                   key={message.key}
-                  className='mb-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2'
+                  className='mb-1.5 rounded-lg border border-border bg-muted/40 p-2'
                 >
-                  <p className='line-clamp-3 text-xs text-zinc-300'>{content}</p>
+                  <p className='line-clamp-3 text-xs text-foreground/80'>{content}</p>
                 </article>
               )
             })}
           </div>
         )}
       </div>
-      <div className='border-t border-white/[0.06] p-2'>
+      <div className='border-t border-border p-2'>
         <Button
           variant='ghost'
           size='sm'
-          className='w-full justify-start text-zinc-300 hover:bg-destructive/10 hover:text-red-300'
+          className='w-full justify-start text-foreground/80 hover:bg-destructive/10 hover:text-destructive'
           disabled={props.messages.length === 0}
           onClick={props.onClear}
         >

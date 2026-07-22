@@ -137,9 +137,9 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           type='button'
           onClick={() => inputRef.current?.click()}
           className={cn(
-            'group relative flex size-14 shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-white/15 bg-white/[0.03] transition-colors outline-none',
-            'hover:border-cyan-400/40 hover:bg-cyan-500/5 focus-visible:ring-2 focus-visible:ring-cyan-400/50',
-            props.value && 'border-solid border-white/20'
+            'group relative flex size-14 shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/40 transition-colors outline-none',
+            'hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring',
+            props.value && 'border-solid border-border'
           )}
           aria-label={props.label}
         >
@@ -152,10 +152,10 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           ) : (
             <>
               <ImagePlus
-                className='size-4 text-zinc-500 group-hover:text-cyan-300'
+                className='size-4 text-muted-foreground group-hover:text-primary'
                 aria-hidden='true'
               />
-              <span className='mt-0.5 max-w-[3.25rem] truncate text-[9px] text-zinc-500'>
+              <span className='mt-0.5 max-w-[3.25rem] truncate text-[9px] text-muted-foreground'>
                 {props.label}
               </span>
             </>
@@ -166,7 +166,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             type='button'
             variant='ghost'
             size='icon'
-            className='size-7 text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
+            className='size-7 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
             aria-label={t('Asset library')}
             onClick={() => setLibraryOpen(true)}
           >
@@ -176,7 +176,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             type='button'
             variant='ghost'
             size='icon'
-            className='size-7 text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
+            className='size-7 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
             aria-label={t('Scan to upload')}
             disabled={qrPolling}
             onClick={() => void startQrSession()}
@@ -188,7 +188,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
               type='button'
               variant='ghost'
               size='icon'
-              className='size-7 text-zinc-500 hover:bg-destructive/10 hover:text-red-300'
+              className='size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
               aria-label={t('Remove reference')}
               onClick={() => props.onChange(null)}
             >

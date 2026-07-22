@@ -76,7 +76,7 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
       onOpenChange={props.onOpenChange}
       title={t('Asset library')}
       description={t('Pick a previously uploaded reference or upload a new file.')}
-      contentClassName='sm:max-w-lg border-white/10 bg-[#16161c] text-zinc-100'
+      contentClassName='sm:max-w-lg border-border bg-popover text-foreground'
       footer={
         <Button variant='outline' onClick={() => props.onOpenChange(false)}>
           {t('Close')}
@@ -88,7 +88,7 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
           <Button
             type='button'
             size='sm'
-            className='bg-cyan-500 text-zinc-950 hover:bg-cyan-400'
+            className='bg-primary text-primary-foreground hover:bg-primary/90'
             disabled={uploadMutation.isPending}
             onClick={() => inputRef.current?.click()}
           >
@@ -113,14 +113,14 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
         </div>
 
         {query.isLoading && (
-          <p className='flex items-center gap-2 text-sm text-zinc-500'>
+          <p className='flex items-center gap-2 text-sm text-muted-foreground'>
             <Loader2 className='size-3.5 animate-spin' />
             {t('Loading…')}
           </p>
         )}
 
         {!query.isLoading && items.length === 0 && (
-          <p className='py-6 text-center text-sm text-zinc-500'>
+          <p className='py-6 text-center text-sm text-muted-foreground'>
             {t('No assets yet. Upload a file to get started.')}
           </p>
         )}
@@ -129,11 +129,11 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
           {items.map((asset) => (
             <li
               key={asset.id}
-              className='flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] p-2'
+              className='flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2'
             >
               <button
                 type='button'
-                className='flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50'
+                className='flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 onClick={() => {
                   props.onSelect(asset)
                   props.onOpenChange(false)
@@ -146,15 +146,15 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
                     className='size-10 shrink-0 rounded object-cover'
                   />
                 ) : (
-                  <span className='flex size-10 shrink-0 items-center justify-center rounded bg-white/5 text-[10px] uppercase text-zinc-500'>
+                  <span className='flex size-10 shrink-0 items-center justify-center rounded bg-muted/50 text-[10px] uppercase text-muted-foreground'>
                     {asset.kind}
                   </span>
                 )}
                 <span className='min-w-0'>
-                  <span className='block truncate text-sm text-zinc-100'>
+                  <span className='block truncate text-sm text-foreground'>
                     {asset.name || `#${asset.id}`}
                   </span>
-                  <span className='text-[11px] text-zinc-500'>
+                  <span className='text-[11px] text-muted-foreground'>
                     {(asset.size / 1024).toFixed(0)} KB
                   </span>
                 </span>
@@ -163,7 +163,7 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
                 type='button'
                 variant='ghost'
                 size='icon'
-                className='size-8 shrink-0 text-zinc-500 hover:text-red-300'
+                className='size-8 shrink-0 text-muted-foreground hover:text-destructive'
                 aria-label={t('Delete')}
                 onClick={() => deleteMutation.mutate(asset.id)}
               >

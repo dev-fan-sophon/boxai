@@ -113,18 +113,18 @@ export function ModelCatalog(props: ModelCatalogProps) {
 
   return (
     <div className='flex h-full min-h-0 flex-col bg-transparent'>
-      <div className='space-y-2.5 border-b border-white/[0.06] p-3'>
+      <div className='space-y-2.5 border-b border-border p-3'>
         <div className='relative'>
           <Search
             aria-hidden='true'
-            className='absolute top-2 left-2.5 size-3.5 text-zinc-500'
+            className='absolute top-2 left-2.5 size-3.5 text-muted-foreground'
           />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('Search models')}
             aria-label={t('Search models')}
-            className='h-8 border-white/10 bg-white/[0.04] pl-8 text-zinc-100 placeholder:text-zinc-500 focus-visible:border-cyan-500/40 focus-visible:ring-cyan-500/20'
+            className='h-8 border-border bg-muted/40 pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:ring-ring/30'
           />
         </div>
         <div
@@ -141,10 +141,10 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 key={item}
                 type='button'
                 className={cn(
-                  'h-7 rounded-lg px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-cyan-400/50',
+                  'h-7 rounded-lg px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
                   modality === item
-                    ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/30'
-                    : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 )}
                 onClick={() => setModality(item)}
                 aria-pressed={modality === item}
@@ -155,7 +155,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           })}
         </div>
         <NativeSelect
-          className='w-full border-white/10 bg-white/[0.04] text-zinc-200'
+          className='w-full border-border bg-muted/40 text-foreground'
           size='sm'
           value={vendor}
           onChange={(event) => setVendor(event.target.value)}
@@ -178,20 +178,20 @@ export function ModelCatalog(props: ModelCatalogProps) {
             type='button'
             onClick={props.onOpenDuo}
             className={cn(
-              'mb-1 flex w-full items-start gap-2.5 rounded-[11px] border border-dashed border-cyan-400/25 bg-cyan-500/[0.06] p-2.5 text-left outline-none transition-colors',
-              'hover:border-cyan-400/40 hover:bg-cyan-500/10 focus-visible:ring-2 focus-visible:ring-cyan-400/50',
+              'mb-1 flex w-full items-start gap-2.5 rounded-[11px] border border-dashed border-primary/25 bg-primary/[0.06] p-2.5 text-left outline-none transition-colors',
+              'hover:border-primary/40 hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring',
               props.duoEnabled &&
-                'border-solid border-cyan-400/40 shadow-[0_0_24px_-8px_rgba(0,202,224,0.55)]'
+                'border-solid border-primary/40 shadow-sm'
             )}
           >
-            <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300'>
+            <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary'>
               <Layers className='size-4' aria-hidden='true' />
             </span>
             <span className='min-w-0'>
-              <span className='block text-xs font-semibold text-cyan-200'>
+              <span className='block text-xs font-semibold text-primary'>
                 {t('Multi-model collaboration')}
               </span>
-              <span className='mt-0.5 line-clamp-2 text-[11px] text-zinc-500'>
+              <span className='mt-0.5 line-clamp-2 text-[11px] text-muted-foreground'>
                 {t('Compare answers from several chat models, then summarize.')}
               </span>
             </span>
@@ -202,7 +202,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           ['one', 'two', 'three', 'four', 'five', 'six'].map((key) => (
             <Skeleton
               key={key}
-              className='h-[4.5rem] w-full rounded-[11px] bg-white/5'
+              className='h-[4.5rem] w-full rounded-[11px] bg-muted/50'
             />
           ))}
         {props.error && (
@@ -236,19 +236,19 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 className={cn(
                   'group relative w-full rounded-[11px] border border-transparent transition-all',
                   selected
-                    ? 'border-cyan-400/30 bg-[rgba(0,202,224,0.08)] shadow-[0_0_28px_-10px_rgba(0,202,224,0.65)]'
-                    : 'hover:border-white/10 hover:bg-white/[0.03]'
+                    ? 'border-primary/30 bg-primary/10 shadow-sm'
+                    : 'hover:border-border hover:bg-muted/40'
                 )}
               >
                 <button
                   type='button'
                   onClick={() => props.onSelect(model)}
                   aria-current={selected ? 'true' : undefined}
-                  className='w-full p-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 focus-visible:ring-inset'
+                  className='w-full p-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
                 >
                   <div className='flex items-start justify-between gap-2'>
                     <span className='flex min-w-0 items-center gap-2'>
-                      <span className='flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/30'>
+                      <span className='flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60'>
                         <ModelBrandIcon
                           modelName={model.model_name}
                           icon={model.icon}
@@ -258,7 +258,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                       </span>
                       <span className='min-w-0'>
                         <span className='flex items-center gap-1.5'>
-                          <span className='block truncate font-mono text-xs font-semibold text-zinc-100'>
+                          <span className='block truncate font-mono text-xs font-semibold text-foreground'>
                             {model.model_name}
                           </span>
                           {isNew && (
@@ -267,7 +267,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                             </span>
                           )}
                         </span>
-                        <span className='mt-0.5 flex items-center gap-1 truncate text-[11px] text-zinc-500'>
+                        <span className='mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground'>
                           <ModalityIcon
                             className='size-3'
                             aria-hidden='true'
@@ -286,7 +286,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                       {t(modalityLabelKey(modelModality))}
                     </span>
                   </div>
-                  <p className='mt-1.5 line-clamp-2 text-[11px] text-pretty text-zinc-500'>
+                  <p className='mt-1.5 line-clamp-2 text-[11px] text-pretty text-muted-foreground'>
                     {model.description ||
                       model.vendor_description ||
                       t('Available for generation')}
@@ -296,10 +296,10 @@ export function ModelCatalog(props: ModelCatalogProps) {
                   <button
                     type='button'
                     className={cn(
-                      'absolute top-2 right-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50',
+                      'absolute top-2 right-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       pinned
-                        ? 'text-cyan-300'
-                        : 'text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-zinc-300'
+                        ? 'text-primary'
+                        : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground/80'
                     )}
                     aria-label={
                       pinned ? t('Unpin model') : t('Pin model')
@@ -332,11 +332,11 @@ function CatalogState(props: {
 }) {
   return (
     <div className='grid place-items-center gap-2 px-4 py-12 text-center'>
-      <p className='text-sm text-pretty text-zinc-500'>{props.text}</p>
+      <p className='text-sm text-pretty text-muted-foreground'>{props.text}</p>
       <Button
         size='sm'
         variant='outline'
-        className='border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10'
+        className='border-border bg-muted/50 text-foreground hover:bg-muted'
         onClick={props.onAction}
       >
         {props.action}

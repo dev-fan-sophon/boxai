@@ -31,7 +31,7 @@ export type AgentCard = {
   categoryKey: string
   icon: LucideIcon
   action: AgentAction
-  accent: string
+  accentClass: string
 }
 
 export const AGENT_CARDS: AgentCard[] = [
@@ -42,7 +42,7 @@ export const AGENT_CARDS: AgentCard[] = [
     categoryKey: 'API',
     icon: BookOpen,
     action: { type: 'route', to: '/docs' },
-    accent: '#00CAE0',
+    accentClass: 'bg-primary/15 text-primary',
   },
   {
     id: 'skill-download',
@@ -51,7 +51,7 @@ export const AGENT_CARDS: AgentCard[] = [
     categoryKey: 'API',
     icon: FileDown,
     action: { type: 'dialog', dialog: 'skill' },
-    accent: '#38BDF8',
+    accentClass: 'bg-info/15 text-info',
   },
   {
     id: 'pricing',
@@ -60,7 +60,7 @@ export const AGENT_CARDS: AgentCard[] = [
     categoryKey: 'API',
     icon: Sparkles,
     action: { type: 'route', to: '/pricing' },
-    accent: '#A855F7',
+    accentClass: 'bg-accent text-accent-foreground',
   },
   {
     id: 'image-batch',
@@ -73,7 +73,7 @@ export const AGENT_CARDS: AgentCard[] = [
       modality: 'image',
       prompt: 'Studio product photo on a clean background, soft lighting, high detail',
     },
-    accent: '#A855F7',
+    accentClass: 'bg-accent text-accent-foreground',
   },
   {
     id: 'video-product',
@@ -86,7 +86,7 @@ export const AGENT_CARDS: AgentCard[] = [
       modality: 'video',
       prompt: 'Cinematic 5s product showcase, slow orbit camera, premium lighting',
     },
-    accent: '#FB923C',
+    accentClass: 'bg-warning/15 text-warning',
   },
   {
     id: 'ppt-outline',
@@ -100,7 +100,7 @@ export const AGENT_CARDS: AgentCard[] = [
       prompt:
         'Create a 10-slide presentation outline with titles, bullet points, and speaker notes for: ',
     },
-    accent: '#22C55E',
+    accentClass: 'bg-success/15 text-success',
   },
   {
     id: 'generic-image',
@@ -113,7 +113,7 @@ export const AGENT_CARDS: AgentCard[] = [
       modality: 'image',
       prompt: 'Ultra detailed concept art, dramatic lighting, 4k',
     },
-    accent: '#EC4899',
+    accentClass: 'bg-primary/10 text-primary',
   },
   {
     id: 'infinite-canvas',
@@ -122,6 +122,6 @@ export const AGENT_CARDS: AgentCard[] = [
     categoryKey: 'Tools',
     icon: LayoutTemplate,
     action: { type: 'dialog', dialog: 'canvas' },
-    accent: '#FBBF24',
+    accentClass: 'bg-warning/15 text-warning',
   },
 ]

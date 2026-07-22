@@ -36,9 +36,9 @@ export function WorkbenchRail(props: WorkbenchRailProps) {
 
   return (
     <div className='flex h-full min-h-0 flex-col'>
-      <div className='shrink-0 border-b border-white/[0.06] p-3'>
+      <div className='border-sidebar-border shrink-0 border-b p-3'>
         <div
-          className='grid grid-cols-3 gap-1 rounded-xl bg-white/[0.03] p-1 ring-1 ring-white/[0.06]'
+          className='bg-muted/50 ring-border grid grid-cols-3 gap-1 rounded-xl p-1 ring-1'
           role='tablist'
           aria-label={t('Workbench sections')}
         >
@@ -53,10 +53,10 @@ export function WorkbenchRail(props: WorkbenchRailProps) {
                 aria-selected={active}
                 onClick={() => props.onTabChange(tab.id)}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
+                  'flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   active
-                    ? 'bg-cyan-500/15 text-cyan-300 shadow-[0_0_0_1px_rgba(0,202,224,0.25)]'
-                    : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
+                    ? 'bg-primary/15 text-primary shadow-xs ring-1 ring-primary/25'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 <Icon className='size-3.5' aria-hidden='true' />

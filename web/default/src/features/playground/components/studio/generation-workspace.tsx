@@ -209,7 +209,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                 {props.images.map((image) => (
                   <figure
                     key={image.url}
-                    className='overflow-hidden rounded-xl border border-white/10 bg-black/30'
+                    className='overflow-hidden rounded-xl border border-border bg-muted/60'
                   >
                     <img
                       src={image.url}
@@ -217,7 +217,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                       className='aspect-square w-full object-cover'
                     />
                     {image.revisedPrompt && (
-                      <figcaption className='p-2 text-xs text-pretty text-zinc-500'>
+                      <figcaption className='p-2 text-xs text-pretty text-muted-foreground'>
                         {image.revisedPrompt}
                       </figcaption>
                     )}
@@ -226,14 +226,14 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
               </div>
             )}
             {props.modality === 'video' && props.video && (
-              <div className='rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center'>
-                <p className='font-medium text-zinc-100'>
+              <div className='rounded-2xl border border-border bg-muted/40 p-6 text-center'>
+                <p className='font-medium text-foreground'>
                   {t('Video task submitted')}
                 </p>
-                <p className='mt-1 font-mono text-xs text-zinc-500'>
+                <p className='mt-1 font-mono text-xs text-muted-foreground'>
                   {props.video.taskId}
                 </p>
-                <p className='mt-2 text-sm text-pretty text-zinc-500'>
+                <p className='mt-2 text-sm text-pretty text-muted-foreground'>
                   {t(
                     'Track progress in task history. The result link appears when processing finishes.'
                   )}
@@ -241,7 +241,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
               </div>
             )}
             {props.modality === 'audio' && props.audioUrl && (
-              <div className='mx-auto w-full max-w-md space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5'>
+              <div className='mx-auto w-full max-w-md space-y-3 rounded-2xl border border-border bg-muted/40 p-5'>
                 <audio controls className='w-full' src={props.audioUrl}>
                   {t('Your browser does not support audio playback.')}
                 </audio>
@@ -254,7 +254,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                   }
                   variant='outline'
                   size='sm'
-                  className='border-white/15 bg-white/5 text-zinc-200'
+                  className='border-border bg-muted/50 text-foreground'
                 >
                   <Download className='size-4' />
                   {t('Download audio')}
@@ -262,8 +262,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
               </div>
             )}
             {isPending && (
-              <div className='flex items-center justify-center gap-2 py-16 text-sm text-zinc-400'>
-                <Loader2 className='size-4 animate-spin text-cyan-400' />
+              <div className='flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground'>
+                <Loader2 className='size-4 animate-spin text-primary' />
                 {t('Generating…')}
               </div>
             )}
@@ -273,7 +273,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                   {error.message || t('Generation failed.')}
                 </p>
                 <Button
-                  className='mt-3 border-white/15 bg-white/5 text-zinc-200'
+                  className='mt-3 border-border bg-muted/50 text-foreground'
                   size='sm'
                   variant='outline'
                   onClick={submit}

@@ -38,9 +38,9 @@ export function ModelHero(props: ModelHeroProps) {
     >
       <div
         className={cn(
-          'relative flex items-center justify-center rounded-full bg-white/[0.03] ring-1 ring-white/10',
+          'relative flex items-center justify-center rounded-full bg-muted/40 ring-1 ring-border',
           props.compact ? 'size-16' : 'size-24 md:size-28',
-          'shadow-[0_0_60px_-12px_rgba(0,202,224,0.35)]'
+          'shadow-sm'
         )}
       >
         <ModelBrandIcon
@@ -51,12 +51,12 @@ export function ModelHero(props: ModelHeroProps) {
         />
       </div>
       {!props.compact && (
-        <p className='font-mono text-sm font-semibold text-zinc-200'>
+        <p className='font-mono text-sm font-semibold text-foreground'>
           {props.modelName || t('Select a model')}
         </p>
       )}
-      <div className='max-h-40 overflow-y-auto rounded-2xl border border-white/[0.08] bg-black/30 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'>
-        <p className='text-sm leading-relaxed text-pretty text-zinc-400'>
+      <div className='max-h-40 overflow-y-auto rounded-2xl border border-border bg-muted/60 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'>
+        <p className='text-sm leading-relaxed text-pretty text-muted-foreground'>
           {description}
         </p>
       </div>

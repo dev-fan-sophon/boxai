@@ -101,20 +101,20 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
   return (
     <div
       className={cn(
-        'mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 md:p-6',
+        'mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 md:p-6',
         props.className
       )}
     >
       <div className='flex items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <span className='flex size-10 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300'>
+          <span className='flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary'>
             <Layers className='size-5' aria-hidden='true' />
           </span>
           <div>
-            <h2 className='text-base font-semibold text-zinc-50'>
+            <h2 className='text-base font-semibold text-foreground'>
               {t('Multi-model collaboration')}
             </h2>
-            <p className='mt-1 text-sm text-pretty text-zinc-400'>
+            <p className='mt-1 text-sm text-pretty text-muted-foreground'>
               {t(
                 'Pick up to five answer models and one summarizer. Each leg is billed through playground chat; then a summary call runs.'
               )}
@@ -124,7 +124,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
         <Button
           variant='ghost'
           size='icon'
-          className='text-zinc-400 hover:bg-white/5 hover:text-white'
+          className='text-muted-foreground hover:bg-muted/50 hover:text-foreground'
           onClick={props.onClose}
           aria-label={t('Close')}
         >
@@ -137,7 +137,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
           <button
             key={scenario.id}
             type='button'
-            className='rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-zinc-300 hover:border-cyan-400/40 hover:text-cyan-200'
+            className='rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-foreground/80 hover:border-primary/40 hover:text-primary'
             title={t(scenario.hint)}
             onClick={() => {
               const picks = props.chatModels.slice(0, 3).map((m) => m.value)
@@ -155,7 +155,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       </div>
 
       <div className='space-y-2'>
-        <p className='text-xs font-medium text-zinc-400'>
+        <p className='text-xs font-medium text-muted-foreground'>
           {t('Answer models')} ({props.duo.answerModels.length}/5)
         </p>
         <div className='flex max-h-40 flex-wrap gap-1.5 overflow-y-auto'>
@@ -170,8 +170,8 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
                 className={cn(
                   'rounded-lg border px-2 py-1 font-mono text-[11px] transition-colors',
                   active
-                    ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200'
-                    : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:text-zinc-200'
+                    ? 'border-primary/40 bg-primary/15 text-primary'
+                    : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
                 )}
               >
                 {model.label}
@@ -179,7 +179,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
             )
           })}
           {props.chatModels.length === 0 && (
-            <p className='text-sm text-zinc-500'>
+            <p className='text-sm text-muted-foreground'>
               {t('No chat models available yet.')}
             </p>
           )}
@@ -189,13 +189,13 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       <div className='space-y-1.5'>
         <label
           htmlFor='duo-summary-model'
-          className='text-xs font-medium text-zinc-400'
+          className='text-xs font-medium text-muted-foreground'
         >
           {t('Summary model')}
         </label>
         <NativeSelect
           id='duo-summary-model'
-          className='w-full border-white/10 bg-white/5 text-zinc-100'
+          className='w-full border-border bg-muted/50 text-foreground'
           value={props.duo.summaryModel}
           onChange={(event) =>
             props.onChange({
@@ -216,7 +216,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       <div className='space-y-1.5'>
         <label
           htmlFor='duo-prompt'
-          className='text-xs font-medium text-zinc-400'
+          className='text-xs font-medium text-muted-foreground'
         >
           {t('Prompt')}
         </label>
@@ -226,12 +226,12 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
           onChange={(e) => setPrompt(e.target.value)}
           rows={4}
           placeholder={t('Ask all selected models…')}
-          className='border-white/10 bg-white/5 text-zinc-100'
+          className='border-border bg-muted/50 text-foreground'
         />
       </div>
 
       <Button
-        className='bg-cyan-500 text-zinc-950 hover:bg-cyan-400'
+        className='bg-primary text-primary-foreground hover:bg-primary/90'
         disabled={!canRun}
         onClick={() => runMutation.mutate()}
       >
@@ -247,17 +247,17 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
 
       {legs.length > 0 && (
         <div className='space-y-2'>
-          <p className='text-xs font-medium text-zinc-400'>{t('Legs')}</p>
+          <p className='text-xs font-medium text-muted-foreground'>{t('Legs')}</p>
           {legs.map((leg) => (
             <article
               key={leg.model}
-              className='rounded-lg border border-white/[0.08] bg-black/20 p-3'
+              className='rounded-lg border border-border bg-muted/50 p-3'
             >
-              <p className='font-mono text-[11px] text-cyan-300'>{leg.model}</p>
+              <p className='font-mono text-[11px] text-primary'>{leg.model}</p>
               {leg.error ? (
                 <p className='mt-1 text-sm text-red-300'>{leg.error}</p>
               ) : (
-                <p className='mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-zinc-200'>
+                <p className='mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-foreground'>
                   {leg.content}
                 </p>
               )}
@@ -267,9 +267,9 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       )}
 
       {summary && (
-        <div className='rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-4'>
-          <p className='text-xs font-medium text-cyan-200'>{t('Summary')}</p>
-          <p className='mt-2 whitespace-pre-wrap text-sm text-zinc-100'>
+        <div className='rounded-xl border border-primary/20 bg-primary/10 p-4'>
+          <p className='text-xs font-medium text-primary'>{t('Summary')}</p>
+          <p className='mt-2 whitespace-pre-wrap text-sm text-foreground'>
             {summary}
           </p>
         </div>
