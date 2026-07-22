@@ -16,8 +16,11 @@ type PlaygroundAsset struct {
 	Kind       string `json:"kind" gorm:"type:varchar(20);not null;index"` // image | video | audio
 	Name       string `json:"name" gorm:"type:varchar(255)"`
 	StorageKey string `json:"storage_key" gorm:"type:varchar(512);not null"`
-	Backend    string `json:"backend" gorm:"type:varchar(16)"` // local | r2 (empty = local, legacy)
-	URL        string `json:"url" gorm:"type:varchar(1024)"`   // public or app-relative URL
+	Backend    string `json:"backend" gorm:"type:varchar(16)"`    // local | r2 (empty = local, legacy)
+	Visibility string `json:"visibility" gorm:"type:varchar(16)"` // private (default) | public
+	PublicKey  string `json:"public_key" gorm:"type:varchar(512)"`
+	PublicURL  string `json:"public_url" gorm:"type:varchar(1024)"`
+	URL        string `json:"url" gorm:"type:varchar(1024)"` // public or app-relative URL
 	Mime       string `json:"mime" gorm:"type:varchar(128)"`
 	Size       int64  `json:"size"`
 	CreatedAt  int64  `json:"created_at" gorm:"bigint;index"`
@@ -177,6 +180,25 @@ func ListPlaygroundAssets(userId int, kind string, offset, limit int) ([]Playgro
 
 func DeletePlaygroundAsset(id int, userId int) error {
 	res := DB.Where("id = ? AND user_id = ?", id, userId).Delete(&PlaygroundAsset{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// SetPlaygroundAssetVisibility updates publish state. Empty publicKey/publicURL
+// clear the public copy metadata (unpublish).
+func SetPlaygroundAssetVisibility(id, userId int, visibility, publicKey, publicURL string) error {
+	res := DB.Model(&PlaygroundAsset{}).
+		Where("id = ? AND user_id = ?", id, userId).
+		Updates(map[string]any{
+			"visibility": visibility,
+			"public_key": publicKey,
+			"public_url": publicURL,
+		})
 	if res.Error != nil {
 		return res.Error
 	}
@@ -505,6 +527,8 @@ func PublicPlaygroundAssetDTO(a *PlaygroundAsset) map[string]any {
 		"kind":       a.Kind,
 		"name":       a.Name,
 		"url":        a.URL,
+		"visibility": a.Visibility,
+		"public_url": a.PublicURL,
 		"mime":       a.Mime,
 		"size":       a.Size,
 		"created_at": a.CreatedAt,

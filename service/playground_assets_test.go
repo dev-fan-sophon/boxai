@@ -90,6 +90,40 @@ func TestSaveAndResolvePlaygroundAssetFile(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestPublishPlaygroundAssetObjectLocal(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", root)
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+
+	data := []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	}
+	key, _, mimeType, _, err := SavePlaygroundAssetFile(7, "shot.png", "image/png", bytes.NewReader(data), int64(len(data)))
+	require.NoError(t, err)
+
+	publicKey, publicURL, err := PublishPlaygroundAssetObject(context.Background(), 7, key, mimeType, int64(len(data)))
+	require.NoError(t, err)
+	assert.True(t, storage.IsPublicKey(publicKey), "public key must use a public prefix: %s", publicKey)
+	// local backend has no CDN, so the URL is empty (callers fall back)
+	assert.Empty(t, publicURL)
+
+	// the copied object is retrievable at the public key
+	_, body, err := OpenPlaygroundAssetContent(context.Background(), publicKey, 0)
+	require.NoError(t, err)
+	got, err := io.ReadAll(body)
+	require.NoError(t, body.Close())
+	require.NoError(t, err)
+	assert.Equal(t, data, got)
+
+	UnpublishPlaygroundAssetObject(context.Background(), publicKey)
+	_, _, err = OpenPlaygroundAssetContent(context.Background(), publicKey, 0)
+	assert.Error(t, err)
+}
+
 func TestSavePlaygroundAssetFile_SizeLimit(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("STORAGE_BACKEND", "local")

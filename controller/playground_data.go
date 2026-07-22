@@ -118,7 +118,70 @@ func DeletePlaygroundAsset(c *gin.Context) {
 		return
 	}
 	service.DeletePlaygroundAssetFile(asset.StorageKey)
+	service.UnpublishPlaygroundAssetObject(c.Request.Context(), asset.PublicKey)
 	common.ApiSuccess(c, nil)
+}
+
+// PublishPlaygroundAsset copies an asset to the public CDN prefix and marks it
+// public, returning the updated asset.
+func PublishPlaygroundAsset(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ApiErrorMsg(c, "invalid id")
+		return
+	}
+	asset, err := model.GetPlaygroundAsset(id, userId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			common.ApiErrorMsg(c, "asset not found")
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+	publicKey, publicURL, err := service.PublishPlaygroundAssetObject(c.Request.Context(), userId, asset.StorageKey, asset.Mime, asset.Size)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := model.SetPlaygroundAssetVisibility(id, userId, "public", publicKey, publicURL); err != nil {
+		service.UnpublishPlaygroundAssetObject(c.Request.Context(), publicKey)
+		common.ApiError(c, err)
+		return
+	}
+	asset.Visibility = "public"
+	asset.PublicKey = publicKey
+	asset.PublicURL = publicURL
+	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
+}
+
+// UnpublishPlaygroundAsset removes the public copy and marks the asset private.
+func UnpublishPlaygroundAsset(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ApiErrorMsg(c, "invalid id")
+		return
+	}
+	asset, err := model.GetPlaygroundAsset(id, userId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			common.ApiErrorMsg(c, "asset not found")
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+	service.UnpublishPlaygroundAssetObject(c.Request.Context(), asset.PublicKey)
+	if err := model.SetPlaygroundAssetVisibility(id, userId, "private", "", ""); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	asset.Visibility = "private"
+	asset.PublicKey = ""
+	asset.PublicURL = ""
+	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
 }
 
 func GetPlaygroundAssetContent(c *gin.Context) {

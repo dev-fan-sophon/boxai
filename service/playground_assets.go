@@ -215,6 +215,35 @@ func OpenPlaygroundAssetContent(ctx context.Context, storageKey string, ttl time
 	return "", rc, nil
 }
 
+// PublishPlaygroundAssetObject copies a stored object to a public ("public/")
+// key so it can be delivered via the public CDN. Returns the public key and,
+// when the backend exposes a CDN, the public URL. For the local backend the
+// URL is empty (no public CDN); callers fall back to the app content route.
+func PublishPlaygroundAssetObject(ctx context.Context, userId int, storageKey, mimeType string, size int64) (publicKey string, publicURL string, err error) {
+	store := storage.Default()
+	publicKey = path.Join("public", fmt.Sprintf("%d", userId), path.Base(storageKey))
+	rc, err := store.Open(ctx, storageKey)
+	if err != nil {
+		return "", "", err
+	}
+	defer rc.Close()
+	if err := store.Put(ctx, publicKey, rc, size, mimeType); err != nil {
+		return "", "", err
+	}
+	if url, ok := store.PublicURL(publicKey); ok {
+		publicURL = url
+	}
+	return publicKey, publicURL, nil
+}
+
+// UnpublishPlaygroundAssetObject removes a previously published public object.
+func UnpublishPlaygroundAssetObject(ctx context.Context, publicKey string) {
+	if publicKey == "" {
+		return
+	}
+	_ = storage.Default().Delete(ctx, publicKey)
+}
+
 // ResolvePlaygroundAssetPath maps a storage key to a local absolute path. Only
 // valid for the local backend (used by the local content path and backfill).
 func ResolvePlaygroundAssetPath(storageKey string) (string, error) {

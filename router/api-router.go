@@ -345,6 +345,8 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
 			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)
 			playgroundDataRoute.GET("/assets/:id/content", controller.GetPlaygroundAssetContent)
+			playgroundDataRoute.POST("/assets/:id/publish", controller.PublishPlaygroundAsset)
+			playgroundDataRoute.POST("/assets/:id/unpublish", controller.UnpublishPlaygroundAsset)
 			playgroundDataRoute.DELETE("/assets/:id", controller.DeletePlaygroundAsset)
 
 			playgroundDataRoute.POST("/upload-sessions", controller.CreatePlaygroundUploadSession)
