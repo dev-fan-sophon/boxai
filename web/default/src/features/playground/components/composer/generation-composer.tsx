@@ -96,7 +96,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
             }}
           />
         }
-        className='px-0 md:pb-0'
+        className='px-0'
       />
     </div>
   )

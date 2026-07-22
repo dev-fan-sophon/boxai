@@ -49,7 +49,7 @@ export function ComposerShell(props: ComposerShellProps) {
 
   return (
     <div
-      className={cn('grid shrink-0 gap-4 px-1 md:pb-4', props.className)}
+      className={cn('grid shrink-0 gap-2 px-1', props.className)}
       onDrop={props.onDrop}
       onDragOver={props.onDragOver}
     >
@@ -63,7 +63,7 @@ export function ComposerShell(props: ComposerShellProps) {
           autoCorrect='off'
           autoCapitalize='off'
           spellCheck={false}
-          className='min-h-20 px-5 pt-4 pb-3 leading-7 md:min-h-24 md:text-base'
+          className='min-h-0 px-4 pt-3 pb-2 leading-6 md:text-base'
           disabled={props.disabled}
           onChange={(event) => props.onTextChange(event.target.value)}
           onPaste={props.onPaste}
@@ -73,7 +73,7 @@ export function ComposerShell(props: ComposerShellProps) {
 
         {props.attachments}
 
-        <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-3 py-2.5 backdrop-blur'>
+        <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-2.5 py-1.5 backdrop-blur'>
           <div className='flex w-full items-center justify-between gap-2'>
             <div className='flex min-w-0 items-center gap-1'>{props.tools}</div>
             <div className='flex shrink-0 items-center gap-2'>
