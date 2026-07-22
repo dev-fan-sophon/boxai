@@ -174,6 +174,16 @@ Private objects (`uploads/`, `outputs/`) are served via short-lived presigned
 GET URLs; only explicitly published objects are copied under `public/` and
 served through the `assets.you-box.com` CDN.
 
+**Migrating legacy local assets to R2:** after switching `STORAGE_BACKEND` to
+`r2`, migrate objects previously written to the local filesystem with the
+admin-only endpoint (preserves storage keys, re-uploads public copies, marks
+rows `backend=r2`):
+
+```text
+POST /api/playground/assets/backfill-r2?dry_run=true   # report candidates only
+POST /api/playground/assets/backfill-r2?limit=100      # migrate a batch
+```
+
 ---
 
 ## 4. Production host app env (`/opt/boxai/.env`)
