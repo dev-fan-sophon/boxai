@@ -2,15 +2,18 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"net/http"
-	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/service/storage"
 	"github.com/google/uuid"
 )
 
@@ -45,17 +48,10 @@ var playgroundAudioMimes = map[string]bool{
 	"audio/m4a":   true,
 }
 
-// PlaygroundAssetsRoot returns the absolute directory for playground asset files.
+// PlaygroundAssetsRoot returns the absolute directory for the local storage
+// backend. Kept for the local content path and backfill tooling.
 func PlaygroundAssetsRoot() string {
-	root := common.GetEnvOrDefaultString("PLAYGROUND_ASSETS_DIR", "")
-	if root == "" {
-		root = filepath.Join("data", "playground-assets")
-	}
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return root
-	}
-	return abs
+	return storage.LocalRoot()
 }
 
 // NormalizePlaygroundMime maps common sniff/browser variants onto the allowlist key.
@@ -155,10 +151,11 @@ func MaxBytesForPlaygroundKind(kind string) int64 {
 	}
 }
 
-// SavePlaygroundAssetFile writes file content under the user-scoped assets directory.
-// Returns storage key relative to root (never absolute path for clients).
-// Sniffs the first bytes to enforce MIME allowlist (declared is only a hint).
-func SavePlaygroundAssetFile(userId int, originalName, declaredMime string, r io.Reader, size int64) (storageKey string, absPath string, mimeType string, kind string, err error) {
+// SavePlaygroundAssetFile stores uploaded content through the configured asset
+// store under a user-scoped "uploads/" key. It sniffs the first bytes to
+// enforce the MIME allowlist (declared is only a hint) and caps size by kind.
+// Returns the storage key and the backend that persisted it.
+func SavePlaygroundAssetFile(userId int, originalName, declaredMime string, r io.Reader, size int64) (storageKey string, backend string, mimeType string, kind string, err error) {
 	// Peek for sniff
 	header := make([]byte, 512)
 	n, readErr := io.ReadFull(r, header)
@@ -176,37 +173,50 @@ func SavePlaygroundAssetFile(userId int, originalName, declaredMime string, r io
 		return "", "", "", "", fmt.Errorf("file exceeds size limit (%d bytes)", max)
 	}
 
-	ext := safeExtFromName(originalName, mimeType)
-	id := uuid.New().String()
-	storageKey = filepath.ToSlash(filepath.Join(fmt.Sprintf("%d", userId), id+ext))
-
-	absPath = filepath.Join(PlaygroundAssetsRoot(), filepath.FromSlash(storageKey))
-	if err := os.MkdirAll(filepath.Dir(absPath), 0o750); err != nil {
-		return "", "", "", "", err
-	}
-
-	f, err := os.OpenFile(absPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o640)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	defer f.Close()
-
-	// write sniffed header then rest, with size cap
+	// Read the remaining bytes with a hard cap (media sizes are bounded).
 	limitedRest := io.LimitReader(r, max+1-int64(len(header)))
-	body := io.MultiReader(bytes.NewReader(header), limitedRest)
-	written, err := io.Copy(f, body)
+	rest, err := io.ReadAll(limitedRest)
 	if err != nil {
-		_ = os.Remove(absPath)
 		return "", "", "", "", err
 	}
-	if written > max {
-		_ = os.Remove(absPath)
+	content := make([]byte, 0, len(header)+len(rest))
+	content = append(content, header...)
+	content = append(content, rest...)
+	if int64(len(content)) > max {
 		return "", "", "", "", fmt.Errorf("file exceeds size limit (%d bytes)", max)
 	}
-	return storageKey, absPath, mimeType, kind, nil
+
+	ext := safeExtFromName(originalName, mimeType)
+	storageKey = path.Join("uploads", fmt.Sprintf("%d", userId), uuid.New().String()+ext)
+
+	store := storage.Default()
+	if err := store.Put(context.Background(), storageKey, bytes.NewReader(content), int64(len(content)), mimeType); err != nil {
+		return "", "", "", "", err
+	}
+	return storageKey, store.Backend(), mimeType, kind, nil
 }
 
-// ResolvePlaygroundAssetPath maps a storage key to an absolute path, rejecting traversal.
+// OpenPlaygroundAssetContent resolves an asset for delivery. When the backend
+// supports presigned URLs (R2) it returns a redirect URL; otherwise it returns
+// a reader for streaming (local). Exactly one of redirectURL/body is non-empty.
+func OpenPlaygroundAssetContent(ctx context.Context, storageKey string, ttl time.Duration) (redirectURL string, body io.ReadCloser, err error) {
+	store := storage.Default()
+	url, perr := store.PresignGet(ctx, storageKey, ttl)
+	if perr == nil {
+		return url, nil, nil
+	}
+	if !errors.Is(perr, storage.ErrPresignUnsupported) {
+		return "", nil, perr
+	}
+	rc, oerr := store.Open(ctx, storageKey)
+	if oerr != nil {
+		return "", nil, oerr
+	}
+	return "", rc, nil
+}
+
+// ResolvePlaygroundAssetPath maps a storage key to a local absolute path. Only
+// valid for the local backend (used by the local content path and backfill).
 func ResolvePlaygroundAssetPath(storageKey string) (string, error) {
 	if storageKey == "" || strings.Contains(storageKey, "..") {
 		return "", fmt.Errorf("invalid storage key")
@@ -224,13 +234,9 @@ func ResolvePlaygroundAssetPath(storageKey string) (string, error) {
 	return full, nil
 }
 
-// DeletePlaygroundAssetFile removes the file if it exists.
+// DeletePlaygroundAssetFile removes the stored object if it exists.
 func DeletePlaygroundAssetFile(storageKey string) {
-	path, err := ResolvePlaygroundAssetPath(storageKey)
-	if err != nil {
-		return
-	}
-	_ = os.Remove(path)
+	_ = storage.Default().Delete(context.Background(), storageKey)
 }
 
 func safeExtFromName(name, mimeType string) string {

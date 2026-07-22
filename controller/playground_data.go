@@ -3,8 +3,8 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -47,7 +47,7 @@ func UploadPlaygroundAsset(c *gin.Context) {
 	}
 	defer src.Close()
 
-	storageKey, _, mimeType, kind, err := service.SavePlaygroundAssetFile(userId, file.Filename, declared, src, file.Size)
+	storageKey, backend, mimeType, kind, err := service.SavePlaygroundAssetFile(userId, file.Filename, declared, src, file.Size)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -62,6 +62,7 @@ func UploadPlaygroundAsset(c *gin.Context) {
 		Kind:       kind,
 		Name:       filepath.Base(file.Filename),
 		StorageKey: storageKey,
+		Backend:    backend,
 		Mime:       mimeType,
 		Size:       file.Size,
 	}
@@ -132,21 +133,25 @@ func GetPlaygroundAssetContent(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	path, err := service.ResolvePlaygroundAssetPath(asset.StorageKey)
+	redirectURL, body, err := service.OpenPlaygroundAssetContent(c.Request.Context(), asset.StorageKey, 0)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if _, err := os.Stat(path); err != nil {
-		c.Status(http.StatusNotFound)
+	if redirectURL != "" {
+		c.Redirect(http.StatusFound, redirectURL)
 		return
 	}
+	defer body.Close()
 	if asset.Mime != "" {
 		c.Header("Content-Type", asset.Mime)
 	}
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Cache-Control", "private, max-age=3600")
-	c.File(path)
+	c.Status(http.StatusOK)
+	if _, err := io.Copy(c.Writer, body); err != nil {
+		common.SysError("stream playground asset: " + err.Error())
+	}
 }
 
 func playgroundAssetContentURL(id int) string {
@@ -258,7 +263,7 @@ func UploadPlaygroundUploadSessionFile(c *gin.Context) {
 		return
 	}
 	defer src.Close()
-	storageKey, _, mimeType, kind, err := service.SavePlaygroundAssetFile(s.UserId, file.Filename, declared, src, file.Size)
+	storageKey, backend, mimeType, kind, err := service.SavePlaygroundAssetFile(s.UserId, file.Filename, declared, src, file.Size)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -273,6 +278,7 @@ func UploadPlaygroundUploadSessionFile(c *gin.Context) {
 		Kind:       kind,
 		Name:       filepath.Base(file.Filename),
 		StorageKey: storageKey,
+		Backend:    backend,
 		Mime:       mimeType,
 		Size:       file.Size,
 	}
@@ -727,7 +733,7 @@ func CreatePlaygroundVoice(c *gin.Context) {
 		return
 	}
 	defer src.Close()
-	storageKey, _, mimeType, kind, err := service.SavePlaygroundAssetFile(userId, file.Filename, declared, src, file.Size)
+	storageKey, backend, mimeType, kind, err := service.SavePlaygroundAssetFile(userId, file.Filename, declared, src, file.Size)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -742,6 +748,7 @@ func CreatePlaygroundVoice(c *gin.Context) {
 		Kind:       "audio",
 		Name:       filepath.Base(file.Filename),
 		StorageKey: storageKey,
+		Backend:    backend,
 		Mime:       mimeType,
 		Size:       file.Size,
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	defaultOnce  sync.Once
+	defaultMu    sync.Mutex
 	defaultStore AssetStore
 )
 
@@ -28,10 +28,20 @@ func LocalRoot() string {
 // Default returns the process-wide asset store selected by STORAGE_BACKEND.
 // Unknown or misconfigured backends fall back to the local filesystem.
 func Default() AssetStore {
-	defaultOnce.Do(func() {
+	defaultMu.Lock()
+	defer defaultMu.Unlock()
+	if defaultStore == nil {
 		defaultStore = build()
-	})
+	}
 	return defaultStore
+}
+
+// Reset clears the cached default store. Intended for tests that mutate
+// storage-related environment variables.
+func Reset() {
+	defaultMu.Lock()
+	defaultStore = nil
+	defaultMu.Unlock()
 }
 
 func build() AssetStore {

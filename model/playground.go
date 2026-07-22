@@ -11,15 +11,16 @@ import (
 
 // PlaygroundAsset stores user-owned media for the playground workbench.
 type PlaygroundAsset struct {
-	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	UserId    int    `json:"user_id" gorm:"not null;index"`
-	Kind      string `json:"kind" gorm:"type:varchar(20);not null;index"` // image | video | audio
-	Name      string `json:"name" gorm:"type:varchar(255)"`
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId     int    `json:"user_id" gorm:"not null;index"`
+	Kind       string `json:"kind" gorm:"type:varchar(20);not null;index"` // image | video | audio
+	Name       string `json:"name" gorm:"type:varchar(255)"`
 	StorageKey string `json:"storage_key" gorm:"type:varchar(512);not null"`
-	URL       string `json:"url" gorm:"type:varchar(1024)"` // public or app-relative URL
-	Mime      string `json:"mime" gorm:"type:varchar(128)"`
-	Size      int64  `json:"size"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
+	Backend    string `json:"backend" gorm:"type:varchar(16)"` // local | r2 (empty = local, legacy)
+	URL        string `json:"url" gorm:"type:varchar(1024)"`   // public or app-relative URL
+	Mime       string `json:"mime" gorm:"type:varchar(128)"`
+	Size       int64  `json:"size"`
+	CreatedAt  int64  `json:"created_at" gorm:"bigint;index"`
 }
 
 func (PlaygroundAsset) TableName() string { return "playground_assets" }
@@ -46,9 +47,9 @@ type PlaygroundMessage struct {
 	// type:text is portable across SQLite / MySQL / PostgreSQL.
 	// (MySQL TEXT is 64KB; large messages are also capped in the API layer.)
 	// Do NOT use longtext — PostgreSQL rejects it (SQLSTATE 42704).
-	Content string `json:"content" gorm:"type:text"`
-	Seq            int    `json:"seq" gorm:"not null;index"`
-	CreatedAt      int64  `json:"created_at" gorm:"bigint"`
+	Content   string `json:"content" gorm:"type:text"`
+	Seq       int    `json:"seq" gorm:"not null;index"`
+	CreatedAt int64  `json:"created_at" gorm:"bigint"`
 }
 
 func (PlaygroundMessage) TableName() string { return "playground_messages" }
@@ -82,13 +83,13 @@ func (PlaygroundRun) TableName() string { return "playground_runs" }
 
 // PlaygroundVoice stores a voice-clone reference (provider wiring optional).
 type PlaygroundVoice struct {
-	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	UserId       int    `json:"user_id" gorm:"not null;index"`
-	Name         string `json:"name" gorm:"type:varchar(128);not null"`
-	AssetId      int    `json:"asset_id"`
+	Id              int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId          int    `json:"user_id" gorm:"not null;index"`
+	Name            string `json:"name" gorm:"type:varchar(128);not null"`
+	AssetId         int    `json:"asset_id"`
 	ProviderVoiceId string `json:"provider_voice_id" gorm:"type:varchar(191)"`
-	Status       string `json:"status" gorm:"type:varchar(40)"` // pending_provider | ready | failed
-	CreatedAt    int64  `json:"created_at" gorm:"bigint;index"`
+	Status          string `json:"status" gorm:"type:varchar(40)"` // pending_provider | ready | failed
+	CreatedAt       int64  `json:"created_at" gorm:"bigint;index"`
 }
 
 func (PlaygroundVoice) TableName() string { return "playground_voices" }
