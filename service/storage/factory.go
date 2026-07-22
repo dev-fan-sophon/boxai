@@ -35,6 +35,16 @@ func Default() AssetStore {
 }
 
 func build() AssetStore {
-	// R2/S3 backends are wired in a subsequent step; default to local.
-	return newLocalStore(LocalRoot())
+	backend := common.GetEnvOrDefaultString("STORAGE_BACKEND", "local")
+	switch backend {
+	case "r2", "s3":
+		s, err := newR2Store()
+		if err != nil {
+			common.SysError("storage: r2 backend init failed, falling back to local: " + err.Error())
+			return newLocalStore(LocalRoot())
+		}
+		return s
+	default:
+		return newLocalStore(LocalRoot())
+	}
 }
