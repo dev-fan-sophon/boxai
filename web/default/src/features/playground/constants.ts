@@ -38,8 +38,22 @@ export const API_ENDPOINTS = {
   USER_MODELS: '/api/user/models',
   USER_GROUPS: '/api/user/self/groups',
   IMAGE_GENERATIONS: '/pg/images/generations',
+  IMAGE_EDITS: '/pg/images/edits',
   VIDEO_GENERATIONS: '/pg/video/generations',
   AUDIO_SPEECH: '/pg/audio/speech',
+  ESTIMATE: '/api/playground/estimate',
+  ASSETS: '/api/playground/assets',
+  UPLOAD_SESSIONS: '/api/playground/upload-sessions',
+  CONVERSATIONS: '/api/playground/conversations',
+  PERSONAS: '/api/playground/personas',
+  PLAYGROUND_TASKS: '/api/playground/tasks',
+  PLAYGROUND_RUNS: '/api/playground/runs',
+  CHAT_MULTI: '/api/playground/chat/multi',
+  INSPIRATION_CATEGORIES: '/api/playground/inspiration/categories',
+  INSPIRATION_TEMPLATES: '/api/playground/inspiration/templates',
+  SKILL: '/api/playground/skill',
+  SKILL_MD: '/api/playground/skill.md',
+  VOICES: '/api/playground/voices',
 } as const
 
 // Default group — uses 'default' as the safe fallback; auto-group is

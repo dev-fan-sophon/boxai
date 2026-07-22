@@ -71,7 +71,8 @@ export function GenerationDock(props: GenerationDockProps) {
               label={mediaLabel}
               value={props.reference}
               onChange={props.onReferenceChange}
-              attachable={false}
+              attachable
+              kind='image'
             />
           )}
           <div className='min-w-0 flex-1'>
@@ -110,6 +111,19 @@ export function GenerationDock(props: GenerationDockProps) {
               model={props.pricingModel}
               group={props.group}
               groupRatio={groupRatio}
+              estimateParams={{
+                modality: props.modality,
+                n: props.settings.imageCount,
+                size:
+                  props.modality === 'video'
+                    ? props.settings.videoSize
+                    : props.settings.imageSize,
+                duration:
+                  props.modality === 'video'
+                    ? props.settings.videoDuration
+                    : undefined,
+                has_reference: Boolean(props.reference),
+              }}
             />
             <button
               type='submit'

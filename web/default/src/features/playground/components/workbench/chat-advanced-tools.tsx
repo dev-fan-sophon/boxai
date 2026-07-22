@@ -6,7 +6,8 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { Brain, History, Settings2, Theater, Globe } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Brain, History, Settings2, Theater, Globe, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -18,6 +19,11 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
+import {
+  createPersona,
+  deletePersona,
+  listPersonas,
+} from '../../api'
 import {
   MAX_SYSTEM_PROMPT_CHARS,
   type WorkbenchChatTools,
@@ -31,9 +37,31 @@ type ChatAdvancedToolsProps = {
 
 export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [roleOpen, setRoleOpen] = useState(false)
   const [draftPrompt, setDraftPrompt] = useState(props.tools.systemPrompt)
+  const [personaName, setPersonaName] = useState('')
+
+  const personasQuery = useQuery({
+    queryKey: ['playground', 'personas'],
+    queryFn: listPersonas,
+    enabled: roleOpen,
+  })
+
+  const savePersonaMutation = useMutation({
+    mutationFn: () =>
+      createPersona({
+        name: personaName.trim() || t('Persona'),
+        system_prompt: draftPrompt.slice(0, MAX_SYSTEM_PROMPT_CHARS),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['playground', 'personas'] })
+      toast.success(t('Persona saved to cloud'))
+      setPersonaName('')
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
 
   return (
     <div
@@ -54,9 +82,11 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
               ? t('Web search preference saved')
               : t('Web search preference off'),
             {
-              description: t(
-                'Playground search is a local preference today; upstream tool routing depends on channel support.'
-              ),
+              description: next
+                ? t(
+                    'When enabled, the server runs a search pre-pass if PLAYGROUND_SEARCH_URL is configured.'
+                  )
+                : t('Web search will not run on the next send.'),
             }
           )
         }}
@@ -112,13 +142,20 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         onOpenChange={setRoleOpen}
         title={t('Role play')}
         description={t(
-          'Set a system persona for this browser. It is prepended to chat requests when non-empty.'
+          'Set a system persona. It is prepended to chat requests when non-empty. Save to cloud to reuse later.'
         )}
         contentClassName='sm:max-w-lg border-white/10 bg-[#16161c] text-zinc-100'
         footer={
           <>
             <Button variant='outline' onClick={() => setRoleOpen(false)}>
               {t('Cancel')}
+            </Button>
+            <Button
+              variant='outline'
+              disabled={!draftPrompt.trim() || savePersonaMutation.isPending}
+              onClick={() => savePersonaMutation.mutate()}
+            >
+              {t('Save to cloud')}
             </Button>
             <Button
               onClick={() => {
@@ -129,26 +166,81 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
                 toast.success(t('Persona saved'))
               }}
             >
-              {t('Save')}
+              {t('Apply')}
             </Button>
           </>
         }
       >
-        <div className='space-y-2'>
-          <Label htmlFor='workbench-system-prompt'>{t('System prompt')}</Label>
-          <Textarea
-            id='workbench-system-prompt'
-            value={draftPrompt}
-            maxLength={MAX_SYSTEM_PROMPT_CHARS}
-            onChange={(event) =>
-              setDraftPrompt(event.target.value.slice(0, MAX_SYSTEM_PROMPT_CHARS))
-            }
-            rows={6}
-            placeholder={t('You are a helpful creative assistant…')}
-          />
-          <p className='text-muted-foreground text-xs tabular-nums'>
-            {draftPrompt.length}/{MAX_SYSTEM_PROMPT_CHARS}
-          </p>
+        <div className='space-y-3'>
+          {(personasQuery.data?.length ?? 0) > 0 && (
+            <div className='space-y-1.5'>
+              <p className='text-xs font-medium text-zinc-400'>
+                {t('Saved personas')}
+              </p>
+              <ul className='max-h-28 space-y-1 overflow-y-auto'>
+                {personasQuery.data?.map((persona) => (
+                  <li
+                    key={persona.id}
+                    className='flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1'
+                  >
+                    <button
+                      type='button'
+                      className='min-w-0 flex-1 truncate text-left text-sm text-zinc-200 hover:text-cyan-200'
+                      onClick={() => {
+                        setDraftPrompt(persona.system_prompt)
+                        props.onToolsChange({
+                          systemPrompt: persona.system_prompt,
+                        })
+                        toast.success(t('Persona applied'))
+                      }}
+                    >
+                      {persona.name}
+                    </button>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='size-7 text-zinc-500 hover:text-red-300'
+                      aria-label={t('Delete')}
+                      onClick={() => {
+                        void deletePersona(persona.id).then(() =>
+                          queryClient.invalidateQueries({
+                            queryKey: ['playground', 'personas'],
+                          })
+                        )
+                      }}
+                    >
+                      <Trash2 className='size-3.5' />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className='space-y-2'>
+            <Label htmlFor='workbench-persona-name'>{t('Name (for cloud save)')}</Label>
+            <input
+              id='workbench-persona-name'
+              value={personaName}
+              onChange={(e) => setPersonaName(e.target.value)}
+              className='border-input bg-background h-9 w-full rounded-md border px-3 text-sm'
+              placeholder={t('Creative director')}
+            />
+            <Label htmlFor='workbench-system-prompt'>{t('System prompt')}</Label>
+            <Textarea
+              id='workbench-system-prompt'
+              value={draftPrompt}
+              maxLength={MAX_SYSTEM_PROMPT_CHARS}
+              onChange={(event) =>
+                setDraftPrompt(event.target.value.slice(0, MAX_SYSTEM_PROMPT_CHARS))
+              }
+              rows={6}
+              placeholder={t('You are a helpful creative assistant…')}
+            />
+            <p className='text-muted-foreground text-xs tabular-nums'>
+              {draftPrompt.length}/{MAX_SYSTEM_PROMPT_CHARS}
+            </p>
+          </div>
         </div>
       </Dialog>
 
@@ -157,7 +249,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
         onOpenChange={setAdvancedOpen}
         title={t('Advanced chat settings')}
         description={t(
-          'Local workbench preferences. Only system prompt is applied to the API payload today.'
+          'Workbench preferences applied to chat: history, system prompt, web search, and tool-loop bounds.'
         )}
         contentClassName='sm:max-w-md border-white/10 bg-[#16161c] text-zinc-100'
         footer={
@@ -179,7 +271,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
             id='wb-web-search'
             label={t('Web search')}
             description={t(
-              'Prefer channels that can use web tools when available.'
+              'Run a server search pre-pass when PLAYGROUND_SEARCH_URL is set.'
             )}
             checked={props.tools.webSearch}
             onCheckedChange={(checked) =>
@@ -217,7 +309,7 @@ export function ChatAdvancedTools(props: ChatAdvancedToolsProps) {
               className='border-input bg-background h-9 w-full rounded-md border px-3 text-sm'
             />
             <p className='text-muted-foreground text-xs'>
-              {t('Stored locally for future tool-calling channels.')}
+              {t('Sent as max_tool_loops with web search requests.')}
             </p>
           </div>
         </div>

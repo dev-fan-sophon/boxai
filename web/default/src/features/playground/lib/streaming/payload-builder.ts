@@ -31,6 +31,9 @@ export type BuildChatPayloadOptions = {
   systemPrompt?: string
   /** When false, only the latest user turn is sent (plus system prompt) */
   carryHistory?: boolean
+  /** Server-side web search pre-pass when configured */
+  webSearch?: boolean
+  maxToolLoops?: number
 }
 
 /**
@@ -96,6 +99,11 @@ export function buildChatCompletionPayload(
 
   if (parameterEnabled.seed && config.seed !== null) {
     payload.seed = config.seed
+  }
+
+  if (options?.webSearch) {
+    payload.web_search = true
+    payload.max_tool_loops = options.maxToolLoops ?? 3
   }
 
   return payload

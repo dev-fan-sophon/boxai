@@ -6,12 +6,19 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
+import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+import {
+  listInspirationCategories,
+  listInspirationTemplates,
+  listPlaygroundTasks,
+  recordInspirationTemplateUse,
+} from '../../api'
 import {
   INSPIRATION_CATEGORIES,
   INSPIRATION_TEMPLATES,
@@ -46,7 +53,60 @@ export function InspirationPanel(props: InspirationPanelProps) {
   const [modalityFilter, setModalityFilter] = useState<'all' | 'image' | 'video' | 'chat'>('all')
   const variant = props.variant ?? 'rail'
 
+  const apiCategories = useQuery({
+    queryKey: ['playground', 'inspiration', 'categories'],
+    queryFn: listInspirationCategories,
+    staleTime: 60_000,
+  })
+  const apiTemplates = useQuery({
+    queryKey: ['playground', 'inspiration', 'templates', category, modalityFilter],
+    queryFn: () =>
+      listInspirationTemplates({
+        category: category === 'all' ? undefined : category,
+        modality: modalityFilter === 'all' ? undefined : modalityFilter,
+        page_size: 50,
+      }),
+    staleTime: 60_000,
+  })
+  const serverWorks = useQuery({
+    queryKey: ['playground', 'runs'],
+    queryFn: listPlaygroundTasks,
+    enabled: view === 'works',
+  })
+
+  const categories = useMemo(() => {
+    if (apiCategories.data && apiCategories.data.length > 0) {
+      return [
+        { id: 'all' as const, labelKey: 'All' },
+        ...apiCategories.data.map((c) => ({
+          id: c.slug as InspirationTemplate['category'] | 'all',
+          labelKey: c.name,
+        })),
+      ]
+    }
+    return INSPIRATION_CATEGORIES
+  }, [apiCategories.data])
+
   const templates = useMemo(() => {
+    if (apiTemplates.data && apiTemplates.data.length > 0) {
+      return apiTemplates.data
+        .filter((item) => {
+          if (modalityFilter !== 'all' && item.modality !== modalityFilter) {
+            return false
+          }
+          return true
+        })
+        .map(
+          (item): InspirationTemplate => ({
+            id: String(item.id),
+            titleKey: item.title,
+            prompt: item.prompt,
+            modality: item.modality as InspirationTemplate['modality'],
+            category: 'all',
+            tagKeys: [],
+          })
+        )
+    }
     return INSPIRATION_TEMPLATES.filter((item) => {
       if (category !== 'all' && item.category !== category) return false
       if (modalityFilter !== 'all' && item.modality !== modalityFilter) {
@@ -54,7 +114,32 @@ export function InspirationPanel(props: InspirationPanelProps) {
       }
       return true
     })
-  }, [category, modalityFilter])
+  }, [apiTemplates.data, category, modalityFilter])
+
+  const applyTemplate = (template: InspirationTemplate) => {
+    const numericId = Number(template.id)
+    if (Number.isFinite(numericId) && numericId > 0) {
+      void recordInspirationTemplateUse(numericId)
+    }
+    props.onApplyTemplate(template)
+  }
+
+  const worksList = useMemo(() => {
+    const serverRuns = (serverWorks.data?.runs ?? []).map((run) => ({
+      id: `run-${run.id}`,
+      title: run.prompt.slice(0, 48) || t('Untitled work'),
+      prompt: run.prompt,
+      modality: run.modality as StudioModality,
+      createdAt: run.created_at * 1000,
+      model: run.model,
+      previewUrl: run.result_url,
+    }))
+    // Prefer server runs when available, merge local works
+    const local = props.myWorks
+    if (serverRuns.length === 0) return local
+    const localIds = new Set(serverRuns.map((r) => r.id))
+    return [...serverRuns, ...local.filter((w) => !localIds.has(w.id))]
+  }, [props.myWorks, serverWorks.data?.runs, t])
 
   const body = (
     <>
@@ -95,7 +180,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
             role='group'
             aria-label={t('Categories')}
           >
-            {INSPIRATION_CATEGORIES.map((item) => (
+            {categories.map((item) => (
               <button
                 key={item.id}
                 type='button'
@@ -140,7 +225,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
               <button
                 key={template.id}
                 type='button'
-                onClick={() => props.onApplyTemplate(template)}
+                onClick={() => applyTemplate(template)}
                 className='rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-left outline-none transition hover:border-cyan-400/30 hover:bg-cyan-500/[0.04] focus-visible:ring-2 focus-visible:ring-cyan-400/50'
               >
                 <div className='flex items-center justify-between gap-2'>
@@ -168,12 +253,12 @@ export function InspirationPanel(props: InspirationPanelProps) {
 
       {view === 'works' && (
         <div className='space-y-2'>
-          {props.myWorks.length === 0 && (
+          {worksList.length === 0 && (
             <p className='py-8 text-center text-sm text-zinc-500'>
               {t('Generations you save will show up here.')}
             </p>
           )}
-          {props.myWorks.map((work) => (
+          {worksList.map((work) => (
             <div
               key={work.id}
               className='rounded-xl border border-white/[0.06] bg-white/[0.02] p-3'
@@ -193,7 +278,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
                     {work.prompt}
                   </p>
                 </button>
-                {props.onRemoveWork && (
+                {props.onRemoveWork && !String(work.id).startsWith('run-') && (
                   <Button
                     size='sm'
                     variant='ghost'

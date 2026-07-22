@@ -335,6 +335,54 @@ func SetApiRouter(router *gin.Engine) {
 			taskRoute.GET("/", middleware.AdminAuth(), controller.GetAllTask)
 		}
 
+		// Playground data APIs (assets, estimate, conversations, personas, etc.)
+		playgroundDataRoute := apiRouter.Group("/playground")
+		playgroundDataRoute.Use(middleware.UserAuth())
+		{
+			playgroundDataRoute.POST("/estimate", controller.PlaygroundEstimate)
+			playgroundDataRoute.POST("/chat/multi", controller.PlaygroundMultiChat)
+
+			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
+			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)
+			playgroundDataRoute.GET("/assets/:id/content", controller.GetPlaygroundAssetContent)
+			playgroundDataRoute.DELETE("/assets/:id", controller.DeletePlaygroundAsset)
+
+			playgroundDataRoute.POST("/upload-sessions", controller.CreatePlaygroundUploadSession)
+			playgroundDataRoute.GET("/upload-sessions/:token", controller.GetPlaygroundUploadSession)
+
+			playgroundDataRoute.GET("/conversations", controller.ListPlaygroundConversations)
+			playgroundDataRoute.POST("/conversations", controller.CreatePlaygroundConversation)
+			playgroundDataRoute.GET("/conversations/:id", controller.GetPlaygroundConversation)
+			playgroundDataRoute.PATCH("/conversations/:id", controller.UpdatePlaygroundConversation)
+			playgroundDataRoute.DELETE("/conversations/:id", controller.DeletePlaygroundConversation)
+			playgroundDataRoute.PUT("/conversations/:id/messages", controller.PutPlaygroundConversationMessages)
+
+			playgroundDataRoute.GET("/personas", controller.ListPlaygroundPersonas)
+			playgroundDataRoute.POST("/personas", controller.CreatePlaygroundPersona)
+			playgroundDataRoute.PATCH("/personas/:id", controller.UpdatePlaygroundPersona)
+			playgroundDataRoute.DELETE("/personas/:id", controller.DeletePlaygroundPersona)
+
+			playgroundDataRoute.GET("/tasks", controller.ListPlaygroundTasks)
+			playgroundDataRoute.POST("/runs", controller.CreatePlaygroundRun)
+
+			playgroundDataRoute.GET("/voices", controller.ListPlaygroundVoices)
+			playgroundDataRoute.POST("/voices", middleware.UploadRateLimit(), controller.CreatePlaygroundVoice)
+			playgroundDataRoute.DELETE("/voices/:id", controller.DeletePlaygroundVoice)
+
+			playgroundDataRoute.GET("/skill", controller.GetPlaygroundSkill)
+		}
+		// Inspiration can be read by authenticated users (seeded public content)
+		playgroundPublic := apiRouter.Group("/playground")
+		{
+			// upload-session file accepts session token (no user auth cookie on phone)
+			playgroundPublic.POST("/upload-sessions/:token/file", middleware.UploadRateLimit(), controller.UploadPlaygroundUploadSessionFile)
+			playgroundPublic.GET("/inspiration/categories", controller.ListInspirationCategories)
+			playgroundPublic.GET("/inspiration/templates", controller.ListInspirationTemplates)
+			playgroundPublic.POST("/inspiration/templates/:id/use", middleware.UserAuth(), controller.UseInspirationTemplate)
+			// skill download also available without auth for docs convenience
+			playgroundPublic.GET("/skill.md", controller.GetPlaygroundSkill)
+		}
+
 		vendorRoute := apiRouter.Group("/vendors")
 		vendorRoute.Use(middleware.AdminAuth())
 		{

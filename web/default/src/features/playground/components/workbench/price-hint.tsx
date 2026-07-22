@@ -6,11 +6,17 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
+import { useQuery } from '@tanstack/react-query'
 import { Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
 
+import {
+  estimatePlaygroundCost,
+  type PlaygroundEstimateResult,
+} from '../../api'
 import {
   buildPriceHint,
   type PriceHint,
@@ -22,11 +28,57 @@ type PriceHintBadgeProps = {
   group: string
   groupRatio?: number
   className?: string
+  /** When set, debounced server estimate is preferred over catalog-only hint */
+  estimateParams?: {
+    modality: string
+    n?: number
+    size?: string
+    duration?: number
+    has_reference?: boolean
+    max_tokens?: number
+  }
 }
 
 export function PriceHintBadge(props: PriceHintBadgeProps) {
   const { t } = useTranslation()
-  const hint = buildPriceHint(props.model, props.group, props.groupRatio)
+  const catalogHint = buildPriceHint(props.model, props.group, props.groupRatio)
+  const [debounced, setDebounced] = useState(props.estimateParams)
+  const modelName = props.model?.model_name
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebounced(props.estimateParams)
+    }, 350)
+    return () => window.clearTimeout(handle)
+  }, [props.estimateParams])
+
+  const estimateQuery = useQuery({
+    queryKey: [
+      'playground',
+      'estimate',
+      modelName,
+      props.group,
+      debounced,
+    ],
+    queryFn: () =>
+      estimatePlaygroundCost({
+        modality: debounced?.modality ?? 'chat',
+        model: modelName ?? '',
+        group: props.group,
+        n: debounced?.n,
+        size: debounced?.size,
+        duration: debounced?.duration,
+        has_reference: debounced?.has_reference,
+        max_tokens: debounced?.max_tokens,
+        // Rough display estimate; backend also defaults when omitted
+        prompt_tokens: debounced?.modality === 'chat' ? 500 : undefined,
+      }),
+    enabled: Boolean(modelName && debounced),
+    staleTime: 30_000,
+  })
+
+  const hint = mergeEstimate(catalogHint, estimateQuery.data)
+
   return (
     <span
       className={cn(
@@ -39,6 +91,30 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
       <span>{formatHintLabel(hint, t)}</span>
     </span>
   )
+}
+
+function mergeEstimate(
+  catalog: PriceHint,
+  estimate: PlaygroundEstimateResult | null | undefined
+): PriceHint {
+  if (!estimate) return catalog
+  if (estimate.kind === 'per_request' && estimate.amount_label) {
+    return {
+      kind: 'per_request',
+      labelKey: 'per run',
+      amountLabel: estimate.amount_label,
+      groupRatio: estimate.group_ratio,
+    }
+  }
+  if (estimate.kind === 'token') {
+    return {
+      kind: 'token',
+      labelKey: 'Token billing',
+      amountLabel: estimate.amount_label,
+      groupRatio: estimate.group_ratio,
+    }
+  }
+  return catalog
 }
 
 function formatHintLabel(

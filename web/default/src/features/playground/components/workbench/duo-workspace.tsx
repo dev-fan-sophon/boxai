@@ -6,13 +6,18 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { Layers, X } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
+import { Layers, Loader2, X } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
+import { multiChat } from '../../api'
 import type { DuoCollabState } from '../../lib/workbench/workbench-prefs'
 import type { ModelOption } from '../../types'
 
@@ -44,12 +49,18 @@ type DuoWorkspaceProps = {
   chatModels: ModelOption[]
   onChange: (patch: Partial<DuoCollabState>) => void
   onClose: () => void
+  group?: string
   className?: string
 }
 
 export function DuoWorkspace(props: DuoWorkspaceProps) {
   const { t } = useTranslation()
   const selected = new Set(props.duo.answerModels)
+  const [prompt, setPrompt] = useState('')
+  const [summary, setSummary] = useState('')
+  const [legs, setLegs] = useState<
+    Array<{ model: string; content?: string; error?: string }>
+  >([])
 
   const toggleModel = (value: string) => {
     const next = selected.has(value)
@@ -57,6 +68,35 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       : [...props.duo.answerModels, value].slice(0, 5)
     props.onChange({ answerModels: next, enabled: true })
   }
+
+  const runMutation = useMutation({
+    mutationFn: () =>
+      multiChat({
+        answer_models: props.duo.answerModels,
+        summarizer_model: props.duo.summaryModel,
+        group: props.group,
+        messages: [{ role: 'user', content: prompt.trim() }],
+        timeout: 120,
+      }),
+    onSuccess: (data) => {
+      setLegs(data.legs ?? [])
+      setSummary(data.summary || data.summary_error || '')
+      if (data.partial) {
+        toast.info(t('Partial multi-model result'), {
+          description: t('Some answer models failed; summary used successful legs.'),
+        })
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || t('Multi-model run failed'))
+    },
+  })
+
+  const canRun =
+    props.duo.answerModels.length > 0 &&
+    Boolean(props.duo.summaryModel) &&
+    prompt.trim().length > 0 &&
+    !runMutation.isPending
 
   return (
     <div
@@ -76,7 +116,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
             </h2>
             <p className='mt-1 text-sm text-pretty text-zinc-400'>
               {t(
-                'Pick up to five answer models and one summarizer. Runs stay local until multi-model relay is available — use the active chat model to iterate now.'
+                'Pick up to five answer models and one summarizer. Each leg is billed through playground chat; then a summary call runs.'
               )}
             </p>
           </div>
@@ -172,6 +212,68 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
           ))}
         </NativeSelect>
       </div>
+
+      <div className='space-y-1.5'>
+        <label
+          htmlFor='duo-prompt'
+          className='text-xs font-medium text-zinc-400'
+        >
+          {t('Prompt')}
+        </label>
+        <Textarea
+          id='duo-prompt'
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={4}
+          placeholder={t('Ask all selected models…')}
+          className='border-white/10 bg-white/5 text-zinc-100'
+        />
+      </div>
+
+      <Button
+        className='bg-cyan-500 text-zinc-950 hover:bg-cyan-400'
+        disabled={!canRun}
+        onClick={() => runMutation.mutate()}
+      >
+        {runMutation.isPending ? (
+          <>
+            <Loader2 className='size-4 animate-spin' />
+            {t('Running…')}
+          </>
+        ) : (
+          t('Run multi-model')
+        )}
+      </Button>
+
+      {legs.length > 0 && (
+        <div className='space-y-2'>
+          <p className='text-xs font-medium text-zinc-400'>{t('Legs')}</p>
+          {legs.map((leg) => (
+            <article
+              key={leg.model}
+              className='rounded-lg border border-white/[0.08] bg-black/20 p-3'
+            >
+              <p className='font-mono text-[11px] text-cyan-300'>{leg.model}</p>
+              {leg.error ? (
+                <p className='mt-1 text-sm text-red-300'>{leg.error}</p>
+              ) : (
+                <p className='mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-zinc-200'>
+                  {leg.content}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+
+      {summary && (
+        <div className='rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-4'>
+          <p className='text-xs font-medium text-cyan-200'>{t('Summary')}</p>
+          <p className='mt-2 whitespace-pre-wrap text-sm text-zinc-100'>
+            {summary}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

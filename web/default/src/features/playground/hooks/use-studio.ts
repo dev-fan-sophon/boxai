@@ -9,7 +9,12 @@ License, or (at your option) any later version.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { generateImages, generateSpeech, submitVideo } from '../api'
+import {
+  createPlaygroundRun,
+  generateImages,
+  generateSpeech,
+  submitVideo,
+} from '../api'
 import { STORAGE_KEYS } from '../constants'
 import type { GeneratedImage, StudioSettings, VideoSubmission } from '../types'
 
@@ -75,22 +80,44 @@ export function useStudio() {
 
   const imageMutation = useMutation({
     mutationFn: generateImages,
-    onSuccess: setImages,
+    onSuccess: (images, variables) => {
+      setImages(images)
+      void createPlaygroundRun({
+        modality: 'image',
+        model: variables.model,
+        prompt: variables.prompt,
+        result_url: images[0]?.url,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['playground', 'runs'] })
+    },
   })
   const videoMutation = useMutation({
     mutationFn: submitVideo,
-    onSuccess: (submission) => {
+    onSuccess: (submission, variables) => {
       setVideo(submission)
+      void createPlaygroundRun({
+        modality: 'video',
+        model: variables.model,
+        prompt: variables.prompt,
+        task_id: submission.taskId,
+      })
       void queryClient.invalidateQueries({
         queryKey: ['playground', 'task-history'],
       })
+      void queryClient.invalidateQueries({ queryKey: ['playground', 'runs'] })
     },
   })
   const audioMutation = useMutation({
     mutationFn: generateSpeech,
-    onSuccess: (blob) => {
+    onSuccess: (blob, variables) => {
       if (audioUrl) URL.revokeObjectURL(audioUrl)
       setAudioUrl(URL.createObjectURL(blob))
+      void createPlaygroundRun({
+        modality: 'audio',
+        model: variables.model,
+        prompt: variables.text,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['playground', 'runs'] })
     },
   })
 

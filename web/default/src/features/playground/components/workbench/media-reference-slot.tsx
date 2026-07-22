@@ -7,17 +7,25 @@ published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
 import { ImagePlus, QrCode, Trash2, Library } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+import {
+  createUploadSession,
+  getUploadSession,
+  type PlaygroundAsset,
+} from '../../api'
+import { AssetLibraryDialog } from './asset-library-dialog'
+
 export type MediaReference = {
   name: string
   dataUrl: string
   file?: File
+  assetId?: number
 }
 
 type MediaReferenceSlotProps = {
@@ -28,21 +36,25 @@ type MediaReferenceSlotProps = {
   className?: string
   /** When false, file is kept in UI only (backend may not accept it yet). */
   attachable?: boolean
+  kind?: 'image' | 'video' | 'audio'
 }
 
 export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const attachable = props.attachable !== false
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [qrPolling, setQrPolling] = useState(false)
 
   const handleFile = (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && props.kind !== 'audio' && props.kind !== 'video') {
       toast.error(t('Please choose an image file.'))
       return
     }
-    if (file.size > 12 * 1024 * 1024) {
-      toast.error(t('Image must be under 12MB.'))
+    // Align with backend PlaygroundAssetMaxImageBytes (10MB)
+    if (file.size > 10 * 1024 * 1024 && file.type.startsWith('image/')) {
+      toast.error(t('Image must be under 10MB.'))
       return
     }
     const reader = new FileReader()
@@ -65,6 +77,57 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       toast.error(t('Could not read the selected image.'))
     })
     reader.readAsDataURL(file)
+  }
+
+  const selectAsset = (asset: PlaygroundAsset) => {
+    props.onChange({
+      name: asset.name || `asset-${asset.id}`,
+      dataUrl: asset.url,
+      assetId: asset.id,
+    })
+  }
+
+  const startQrSession = async () => {
+    try {
+      setQrPolling(true)
+      const session = await createUploadSession(props.kind ?? 'image')
+      toast.info(t('Scan to upload'), {
+        description: t(
+          'Session ready for {{minutes}} min. Upload from another device to: {{url}}',
+          {
+            minutes: 15,
+            url: session.upload_url,
+          }
+        ),
+        duration: 12_000,
+      })
+      // poll for completed upload
+      const deadline = Date.now() + 15 * 60 * 1000
+      const poll = async () => {
+        if (Date.now() > deadline) {
+          setQrPolling(false)
+          return
+        }
+        try {
+          const status = await getUploadSession(session.token)
+          if (status.asset) {
+            selectAsset(status.asset)
+            toast.success(t('Asset received from upload session'))
+            setQrPolling(false)
+            return
+          }
+        } catch {
+          // keep polling
+        }
+        window.setTimeout(() => void poll(), 2500)
+      }
+      void poll()
+    } catch (err) {
+      setQrPolling(false)
+      toast.error(
+        err instanceof Error ? err.message : t('Could not create upload session')
+      )
+    }
   }
 
   return (
@@ -105,13 +168,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             size='icon'
             className='size-7 text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
             aria-label={t('Asset library')}
-            onClick={() =>
-              toast.info(t('Asset library'), {
-                description: t(
-                  'Asset library upload is coming soon. Use the file picker for now.'
-                ),
-              })
-            }
+            onClick={() => setLibraryOpen(true)}
           >
             <Library className='size-3.5' />
           </Button>
@@ -121,13 +178,8 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             size='icon'
             className='size-7 text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
             aria-label={t('Scan to upload')}
-            onClick={() =>
-              toast.info(t('Scan to upload'), {
-                description: t(
-                  'QR upload is not available yet. Use the file picker on this device.'
-                ),
-              })
-            }
+            disabled={qrPolling}
+            onClick={() => void startQrSession()}
           >
             <QrCode className='size-3.5' />
           </Button>
@@ -154,6 +206,12 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           handleFile(event.target.files?.[0])
           event.target.value = ''
         }}
+      />
+      <AssetLibraryDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        kind={props.kind ?? 'image'}
+        onSelect={selectAsset}
       />
     </div>
   )

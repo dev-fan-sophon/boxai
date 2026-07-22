@@ -41,17 +41,38 @@ type GenerationWorkspaceProps = {
   imageMutation: UseMutationResult<
     GeneratedImage[],
     Error,
-    { model: string; group: string; prompt: string; settings: StudioSettings }
+    {
+      model: string
+      group: string
+      prompt: string
+      settings: StudioSettings
+      referenceImage?: string | null
+      editMode?: boolean
+    }
   >
   videoMutation: UseMutationResult<
     VideoSubmission,
     Error,
-    { model: string; group: string; prompt: string; settings: StudioSettings }
+    {
+      model: string
+      group: string
+      prompt: string
+      settings: StudioSettings
+      firstFrame?: string | null
+      lastFrame?: string | null
+      inputReference?: string | null
+    }
   >
   audioMutation: UseMutationResult<
     Blob,
     Error,
-    { model: string; group: string; text: string; settings: StudioSettings }
+    {
+      model: string
+      group: string
+      text: string
+      settings: StudioSettings
+      voiceId?: string
+    }
   >
   /** External prompt prefill (inspiration / agents) */
   prefillPrompt?: string
@@ -105,7 +126,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     props.onSettingsChange(settings)
     const trimmed = prompt.trim()
     props.onPromptUsed?.(trimmed)
-    // Reference media is held in UI state; image/video APIs do not accept it yet.
+    const refUrl = reference?.dataUrl || null
     const common = {
       model: props.model,
       group: props.group,
@@ -113,7 +134,12 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     }
     if (props.modality === 'image') {
       props.imageMutation.mutate(
-        { ...common, prompt: trimmed },
+        {
+          ...common,
+          prompt: trimmed,
+          referenceImage: refUrl,
+          editMode: Boolean(refUrl),
+        },
         {
           onSuccess: (images) => {
             props.onSaveWork?.({
@@ -128,7 +154,12 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       )
     } else if (props.modality === 'video') {
       props.videoMutation.mutate(
-        { ...common, prompt: trimmed },
+        {
+          ...common,
+          prompt: trimmed,
+          firstFrame: refUrl,
+          inputReference: refUrl,
+        },
         {
           onSuccess: () => {
             props.onSaveWork?.({

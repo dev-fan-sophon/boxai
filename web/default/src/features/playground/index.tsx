@@ -65,6 +65,9 @@ export function Playground() {
   const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>('models')
   const [duoOpen, setDuoOpen] = useState(false)
   const [prefillPrompt, setPrefillPrompt] = useState<string | undefined>()
+  const [activeConversationId, setActiveConversationId] = useState<
+    number | null
+  >(null)
   const pricing = usePricingData('playground')
   const playgroundModels = useMemo(
     () =>
@@ -118,10 +121,14 @@ export function Playground() {
     () => ({
       systemPrompt: workbench.prefs.chatTools.systemPrompt,
       carryHistory: workbench.prefs.chatTools.carryHistory,
+      webSearch: workbench.prefs.chatTools.webSearch,
+      maxToolLoops: workbench.prefs.chatTools.maxToolLoops,
     }),
     [
       workbench.prefs.chatTools.systemPrompt,
       workbench.prefs.chatTools.carryHistory,
+      workbench.prefs.chatTools.webSearch,
+      workbench.prefs.chatTools.maxToolLoops,
     ]
   )
 
@@ -309,6 +316,12 @@ export function Playground() {
       <ChatHistoryPanel
         messages={messages}
         onClear={handleClearMessages}
+        isAuthenticated={isAuthenticated}
+        activeConversationId={activeConversationId}
+        onConversationIdChange={setActiveConversationId}
+        onLoadMessages={(loaded) => updateMessages(loaded)}
+        model={config.model}
+        group={config.group}
       />
     ) : (
       <TaskHistory
@@ -406,6 +419,7 @@ export function Playground() {
           <DuoWorkspace
             duo={workbench.prefs.duo}
             chatModels={chatModels}
+            group={config.group}
             onChange={workbench.updateDuo}
             onClose={() => {
               setDuoOpen(false)

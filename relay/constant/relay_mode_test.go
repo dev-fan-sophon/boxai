@@ -13,6 +13,7 @@ func TestPath2RelayModePlayground(t *testing.T) {
 	}{
 		{path: "/pg/chat/completions", want: RelayModeChatCompletions},
 		{path: "/pg/images/generations", want: RelayModeImagesGenerations},
+		{path: "/pg/images/edits", want: RelayModeImagesEdits},
 		{path: "/pg/audio/speech", want: RelayModeAudioSpeech},
 		{path: "/pg/video/generations", want: RelayModeVideoSubmit},
 	}

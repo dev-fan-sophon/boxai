@@ -215,6 +215,8 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	if seconds == 0 {
 		seconds = req.Duration
 	}
+	normalizeTaskFrameReferences(&req)
+
 	if req.InputReference != "" {
 		req.Images = []string{req.InputReference}
 	} else if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
@@ -276,6 +278,8 @@ func isKnownTaskField(field string) bool {
 		"size":            true,
 		"duration":        true,
 		"input_reference": true, // Sora 特有字段
+		"first_frame":     true, // playground / i2v alias
+		"last_frame":      true, // playground / i2v alias
 	}
 	return knownFields[field]
 }
@@ -307,7 +311,80 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 		// 兼容单图上传
 		req.Images = []string{req.Image}
 	}
+	// Normalize playground first_frame / last_frame into images + input_reference
+	normalizeTaskFrameReferences(&req)
 
 	storeTaskRequest(c, info, action, req)
 	return nil
+}
+
+// normalizeTaskFrameReferences maps first_frame/last_frame into Images and InputReference
+// so provider adaptors that only read image/images/input_reference keep working.
+func normalizeTaskFrameReferences(req *TaskSubmitReq) {
+	if req == nil {
+		return
+	}
+	first := strings.TrimSpace(req.FirstFrame)
+	last := strings.TrimSpace(req.LastFrame)
+	if first == "" && last == "" {
+		return
+	}
+	if first != "" {
+		if strings.TrimSpace(req.InputReference) == "" {
+			req.InputReference = first
+		}
+		if strings.TrimSpace(req.Image) == "" {
+			req.Image = first
+		}
+	}
+	// Build images list: [first, last] when provided
+	var frames []string
+	if first != "" {
+		frames = append(frames, first)
+	}
+	if last != "" {
+		frames = append(frames, last)
+	}
+	if len(req.Images) == 0 && len(frames) > 0 {
+		req.Images = frames
+	} else if len(frames) > 0 {
+		// Prefer explicit frames at the front when client also sent images
+		merged := append([]string{}, frames...)
+		for _, img := range req.Images {
+			trimmed := strings.TrimSpace(img)
+			if trimmed == "" {
+				continue
+			}
+			dup := false
+			for _, f := range frames {
+				if f == trimmed {
+					dup = true
+					break
+				}
+			}
+			if !dup {
+				merged = append(merged, trimmed)
+			}
+		}
+		req.Images = merged
+	}
+	if req.Metadata == nil {
+		req.Metadata = map[string]interface{}{}
+	}
+	if first != "" {
+		if _, ok := req.Metadata["first_frame"]; !ok {
+			req.Metadata["first_frame"] = first
+		}
+		if _, ok := req.Metadata["first_frame_url"]; !ok {
+			req.Metadata["first_frame_url"] = first
+		}
+	}
+	if last != "" {
+		if _, ok := req.Metadata["last_frame"]; !ok {
+			req.Metadata["last_frame"] = last
+		}
+		if _, ok := req.Metadata["last_frame_url"]; !ok {
+			req.Metadata["last_frame_url"] = last
+		}
+	}
 }

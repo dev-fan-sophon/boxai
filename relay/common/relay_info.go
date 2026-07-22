@@ -697,7 +697,11 @@ type TaskSubmitReq struct {
 	Duration       int                    `json:"duration,omitempty"`
 	Seconds        string                 `json:"seconds,omitempty"`
 	InputReference string                 `json:"input_reference,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	// FirstFrame / LastFrame are playground-friendly aliases for image-to-video.
+	// Normalized into Images / InputReference before adaptors run.
+	FirstFrame string                 `json:"first_frame,omitempty"`
+	LastFrame  string                 `json:"last_frame,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {

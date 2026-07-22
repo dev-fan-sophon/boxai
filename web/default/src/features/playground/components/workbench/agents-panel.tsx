@@ -199,10 +199,20 @@ function AgentDialogs(props: {
         onOpenChange={(open) => !open && props.onClose()}
         title={t('Skill kit')}
         description={t(
-          'Starter skill packs and client snippets will be downloadable here. For now, use the API docs and create a key in the console.'
+          'Download a starter SKILL.md with base URL placeholders and playground endpoint map.'
         )}
         footer={
-          <Button onClick={props.onClose}>{t('Got it')}</Button>
+          <>
+            <Button
+              variant='outline'
+              onClick={() => {
+                window.open('/api/playground/skill.md', '_blank', 'noopener,noreferrer')
+              }}
+            >
+              {t('Download SKILL.md')}
+            </Button>
+            <Button onClick={props.onClose}>{t('Got it')}</Button>
+          </>
         }
       >
         <ul className='text-muted-foreground list-disc space-y-1 pl-5 text-sm'>
