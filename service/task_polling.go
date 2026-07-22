@@ -511,6 +511,7 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 
 	shouldRefund := false
 	shouldSettle := false
+	directVideoURL := ""
 	quota := task.Quota
 
 	task.Status = model.TaskStatus(taskResult.Status)
@@ -535,6 +536,7 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		} else if taskResult.Url != "" {
 			// Direct upstream URL (e.g. Kling, Ali, Doubao, etc.)
 			task.PrivateData.ResultURL = taskResult.Url
+			directVideoURL = taskResult.Url
 		} else {
 			// No URL from adaptor — construct proxy URL using public task ID
 			task.PrivateData.ResultURL = taskcommon.BuildProxyURL(task.TaskID)
@@ -587,8 +589,43 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 	if shouldRefund {
 		RefundTaskQuota(ctx, task, task.FailReason)
 	}
+	// shouldSettle stays true only when this poll won the success transition,
+	// so it also gates one-time output persistence for linked playground runs.
+	if shouldSettle && directVideoURL != "" {
+		persistPlaygroundVideoOutput(task.TaskID, directVideoURL)
+	}
 
 	return nil
+}
+
+// persistPlaygroundVideoOutput asynchronously downloads a completed video and
+// stores it durably when the task originated from a playground run. Most tasks
+// are not playground runs, so the lookup returns quickly with no work.
+func persistPlaygroundVideoOutput(taskID, videoURL string) {
+	gopool.Go(func() {
+		run, err := model.GetPlaygroundRunByTaskId(taskID)
+		if err != nil {
+			return // not a playground task (or lookup failed) — nothing to persist
+		}
+		if run.AssetId != 0 {
+			return // already persisted
+		}
+		asset, err := PersistPlaygroundOutput(context.Background(), run.UserId, "video", videoURL)
+		if err != nil {
+			common.SysError(fmt.Sprintf("persist playground video for task %s: %v", taskID, err))
+			return
+		}
+		if asset == nil {
+			return
+		}
+		contentURL := fmt.Sprintf("/api/playground/assets/%d/content", asset.Id)
+		if err := model.DB.Model(asset).Update("url", contentURL).Error; err != nil {
+			common.SysError("update playground video asset url: " + err.Error())
+		}
+		if err := model.UpdatePlaygroundRunResult(run.Id, asset.Id, contentURL); err != nil {
+			common.SysError("update playground run result: " + err.Error())
+		}
+	})
 }
 
 func redactVideoResponseBody(body []byte) []byte {

@@ -361,6 +361,30 @@ func CreatePlaygroundRun(r *PlaygroundRun) error {
 	return DB.Create(r).Error
 }
 
+// GetPlaygroundRunByTaskId returns the most recent run linked to an async task,
+// or gorm.ErrRecordNotFound when the task did not originate from the playground.
+func GetPlaygroundRunByTaskId(taskId string) (*PlaygroundRun, error) {
+	if taskId == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var r PlaygroundRun
+	err := DB.Where("task_id = ?", taskId).Order("id DESC").First(&r).Error
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// UpdatePlaygroundRunResult points a run at a persisted output asset.
+func UpdatePlaygroundRunResult(id, assetId int, resultURL string) error {
+	return DB.Model(&PlaygroundRun{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"asset_id":   assetId,
+			"result_url": resultURL,
+		}).Error
+}
+
 func ListPlaygroundRuns(userId int, modality string, offset, limit int) ([]PlaygroundRun, int64, error) {
 	q := DB.Model(&PlaygroundRun{}).Where("user_id = ?", userId)
 	if modality != "" {

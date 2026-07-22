@@ -47,6 +47,50 @@ func TestPersistPlaygroundOutputDataURL(t *testing.T) {
 	assert.Equal(t, png, got)
 }
 
+func TestPersistPlaygroundVideoDataURL(t *testing.T) {
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundAsset{}))
+	t.Cleanup(func() { model.DB.Exec("DELETE FROM playground_assets") })
+
+	root := t.TempDir()
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", root)
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+
+	// Minimal mp4 ftyp box header + payload; declared mime drives the kind.
+	mp4 := append([]byte{0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}, []byte("isom video bytes")...)
+	dataURL := "data:video/mp4;base64," + base64.StdEncoding.EncodeToString(mp4)
+
+	asset, err := PersistPlaygroundOutput(context.Background(), 5, "video", dataURL)
+	require.NoError(t, err)
+	require.NotNil(t, asset)
+	assert.Equal(t, "video", asset.Kind)
+	assert.Equal(t, "video/mp4", asset.Mime)
+	assert.True(t, strings.HasPrefix(asset.StorageKey, "outputs/5/"), "key: %s", asset.StorageKey)
+}
+
+func TestPlaygroundRunTaskLinkage(t *testing.T) {
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundRun{}))
+	t.Cleanup(func() { model.DB.Exec("DELETE FROM playground_runs") })
+
+	_, err := model.GetPlaygroundRunByTaskId("missing")
+	assert.Error(t, err)
+
+	run := &model.PlaygroundRun{UserId: 3, Modality: "video", TaskId: "task-abc"}
+	require.NoError(t, model.CreatePlaygroundRun(run))
+
+	got, err := model.GetPlaygroundRunByTaskId("task-abc")
+	require.NoError(t, err)
+	assert.Equal(t, run.Id, got.Id)
+	assert.Equal(t, 0, got.AssetId)
+
+	require.NoError(t, model.UpdatePlaygroundRunResult(run.Id, 77, "/api/playground/assets/77/content"))
+	got, err = model.GetPlaygroundRunByTaskId("task-abc")
+	require.NoError(t, err)
+	assert.Equal(t, 77, got.AssetId)
+	assert.Equal(t, "/api/playground/assets/77/content", got.ResultURL)
+}
+
 func TestPersistPlaygroundOutputNotPersistable(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("STORAGE_BACKEND", "local")
