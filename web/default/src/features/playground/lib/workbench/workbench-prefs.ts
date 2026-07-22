@@ -8,8 +8,6 @@ License, or (at your option) any later version.
 */
 import type { StudioModality } from '../../types'
 
-export type WorkbenchTab = 'models' | 'agents' | 'inspiration'
-
 export type WorkbenchChatTools = {
   webSearch: boolean
   carryHistory: boolean
@@ -126,14 +124,6 @@ export function loadWorkbenchPrefs(): WorkbenchPrefs {
     }
   } catch {
     return structuredClone(DEFAULT_WORKBENCH_PREFS)
-  }
-}
-
-export function saveWorkbenchPrefs(prefs: WorkbenchPrefs): void {
-  try {
-    localStorage.setItem(WORKBENCH_STORAGE_KEY, JSON.stringify(prefs))
-  } catch {
-    // Storage may be unavailable.
   }
 }
 

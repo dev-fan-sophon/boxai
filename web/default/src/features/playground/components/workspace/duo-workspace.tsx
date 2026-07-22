@@ -16,9 +16,10 @@ import { Button } from '@/components/ui/button'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { multiChat } from '../../api'
-import type { DuoCollabState } from '../../lib/workbench/workbench-prefs'
+import { useComposerText } from '../composer/use-composer'
 import type { ModelOption } from '../../types'
 
 const SCENARIOS = [
@@ -45,18 +46,22 @@ const SCENARIOS = [
 ] as const
 
 type DuoWorkspaceProps = {
-  duo: DuoCollabState
   chatModels: ModelOption[]
-  onChange: (patch: Partial<DuoCollabState>) => void
   onClose: () => void
-  group?: string
   className?: string
 }
 
+/**
+ * Multi-model collaboration workspace. Answer/summary model choices live
+ * in the shared store (persisted); prompt text supports store prefill.
+ */
 export function DuoWorkspace(props: DuoWorkspaceProps) {
   const { t } = useTranslation()
-  const selected = new Set(props.duo.answerModels)
-  const [prompt, setPrompt] = useState('')
+  const duo = usePlaygroundStore((state) => state.duo)
+  const setDuoConfig = usePlaygroundStore((state) => state.setDuoConfig)
+  const group = usePlaygroundStore((state) => state.config.group)
+  const selected = new Set(duo.answerModels)
+  const { text: prompt, setText: setPrompt } = useComposerText()
   const [summary, setSummary] = useState('')
   const [legs, setLegs] = useState<
     Array<{ model: string; content?: string; error?: string }>
@@ -64,17 +69,17 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
 
   const toggleModel = (value: string) => {
     const next = selected.has(value)
-      ? props.duo.answerModels.filter((m) => m !== value)
-      : [...props.duo.answerModels, value].slice(0, 5)
-    props.onChange({ answerModels: next, enabled: true })
+      ? duo.answerModels.filter((m) => m !== value)
+      : [...duo.answerModels, value].slice(0, 5)
+    setDuoConfig({ answerModels: next })
   }
 
   const runMutation = useMutation({
     mutationFn: () =>
       multiChat({
-        answer_models: props.duo.answerModels,
-        summarizer_model: props.duo.summaryModel,
-        group: props.group,
+        answer_models: duo.answerModels,
+        summarizer_model: duo.summaryModel,
+        group,
         messages: [{ role: 'user', content: prompt.trim() }],
         timeout: 120,
       }),
@@ -83,7 +88,9 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
       setSummary(data.summary || data.summary_error || '')
       if (data.partial) {
         toast.info(t('Partial multi-model result'), {
-          description: t('Some answer models failed; summary used successful legs.'),
+          description: t(
+            'Some answer models failed; summary used successful legs.'
+          ),
         })
       }
     },
@@ -93,8 +100,8 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
   })
 
   const canRun =
-    props.duo.answerModels.length > 0 &&
-    Boolean(props.duo.summaryModel) &&
+    duo.answerModels.length > 0 &&
+    Boolean(duo.summaryModel) &&
     prompt.trim().length > 0 &&
     !runMutation.isPending
 
@@ -141,8 +148,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
             title={t(scenario.hint)}
             onClick={() => {
               const picks = props.chatModels.slice(0, 3).map((m) => m.value)
-              props.onChange({
-                enabled: true,
+              setDuoConfig({
                 answerModels: picks,
                 summaryModel:
                   props.chatModels[picks.length]?.value || picks[0] || '',
@@ -156,7 +162,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
 
       <div className='space-y-2'>
         <p className='text-xs font-medium text-muted-foreground'>
-          {t('Answer models')} ({props.duo.answerModels.length}/5)
+          {t('Answer models')} ({duo.answerModels.length}/5)
         </p>
         <div className='flex max-h-40 flex-wrap gap-1.5 overflow-y-auto'>
           {props.chatModels.map((model) => {
@@ -196,12 +202,9 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
         <NativeSelect
           id='duo-summary-model'
           className='w-full border-border bg-muted/50 text-foreground'
-          value={props.duo.summaryModel}
+          value={duo.summaryModel}
           onChange={(event) =>
-            props.onChange({
-              summaryModel: event.target.value,
-              enabled: true,
-            })
+            setDuoConfig({ summaryModel: event.target.value })
           }
         >
           <NativeSelectOption value=''>{t('Select model')}</NativeSelectOption>
@@ -247,7 +250,9 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
 
       {legs.length > 0 && (
         <div className='space-y-2'>
-          <p className='text-xs font-medium text-muted-foreground'>{t('Legs')}</p>
+          <p className='text-xs font-medium text-muted-foreground'>
+            {t('Legs')}
+          </p>
           {legs.map((leg) => (
             <article
               key={leg.model}

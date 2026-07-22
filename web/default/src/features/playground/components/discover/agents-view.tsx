@@ -23,18 +23,19 @@ import {
   mapApiAgentToCard,
 } from '../../lib/workbench/agents-data'
 
-type AgentsPanelProps = {
+type AgentsViewProps = {
   onSelectAgent: (agent: AgentCard) => void
   className?: string
-  /** compact list mode for left rail */
-  variant?: 'rail' | 'main'
 }
 
-export function AgentsPanel(props: AgentsPanelProps) {
+/**
+ * Full-width Agents view rendered in the workspace center when the
+ * toolbar's Agents tab is active.
+ */
+export function AgentsView(props: AgentsViewProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [dialog, setDialog] = useState<'skill' | 'canvas' | null>(null)
-  const variant = props.variant ?? 'rail'
 
   const apiAgents = useQuery({
     queryKey: ['playground', 'agents'],
@@ -71,69 +72,41 @@ export function AgentsPanel(props: AgentsPanelProps) {
     }
   }
 
-  if (variant === 'main') {
-    return (
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto p-4 md:p-8',
-          props.className
-        )}
-      >
-        <div className='mx-auto max-w-4xl space-y-6'>
-          <div>
-            <h1 className='text-foreground text-2xl font-semibold'>
-              {t('Agents')}
-            </h1>
-            <p className='text-muted-foreground mt-1 text-sm text-pretty'>
-              {t(
-                'Scene-ready workflows and API entry points. Pick an agent to jump into the matching model workspace.'
-              )}
-            </p>
-          </div>
-          <div className='grid gap-3 sm:grid-cols-2'>
-            {agents.map((agent) => (
-              <AgentCardButton
-                key={agent.id}
-                agent={agent}
-                onClick={() => runAgent(agent)}
-                large
-              />
-            ))}
-          </div>
-          <SkillLanding />
-        </div>
-        <AgentDialogs dialog={dialog} onClose={() => setDialog(null)} />
-      </div>
-    )
-  }
-
   return (
-    <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-border border-b p-3'>
-        <h2 className='text-foreground text-sm font-semibold'>{t('Agents')}</h2>
-        <p className='text-muted-foreground text-[11px]'>
-          {t('Workflows & API tools')}
-        </p>
-      </div>
-      <div className='min-h-0 flex-1 space-y-1 overflow-y-auto p-2'>
-        {agents.map((agent) => (
-          <AgentCardButton
-            key={agent.id}
-            agent={agent}
-            onClick={() => runAgent(agent)}
-          />
-        ))}
+    <div
+      className={cn(
+        'min-h-0 flex-1 overflow-y-auto p-4 md:p-8',
+        props.className
+      )}
+    >
+      <div className='mx-auto max-w-4xl space-y-6'>
+        <div>
+          <h1 className='text-foreground text-2xl font-semibold'>
+            {t('Agents')}
+          </h1>
+          <p className='text-muted-foreground mt-1 text-sm text-pretty'>
+            {t(
+              'Scene-ready workflows and API entry points. Pick an agent to jump into the matching model workspace.'
+            )}
+          </p>
+        </div>
+        <div className='grid gap-3 sm:grid-cols-2'>
+          {agents.map((agent) => (
+            <AgentCardButton
+              key={agent.id}
+              agent={agent}
+              onClick={() => runAgent(agent)}
+            />
+          ))}
+        </div>
+        <SkillLanding />
       </div>
       <AgentDialogs dialog={dialog} onClose={() => setDialog(null)} />
     </div>
   )
 }
 
-function AgentCardButton(props: {
-  agent: AgentCard
-  onClick: () => void
-  large?: boolean
-}) {
+function AgentCardButton(props: { agent: AgentCard; onClick: () => void }) {
   const { t } = useTranslation()
   const Icon = props.agent.icon
   return (
@@ -141,15 +114,14 @@ function AgentCardButton(props: {
       type='button'
       onClick={props.onClick}
       className={cn(
-        'w-full rounded-xl border border-transparent p-2.5 text-left outline-none transition-colors',
-        'hover:border-border hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring',
-        props.large && 'border-border bg-muted/40 p-4'
+        'border-border bg-muted/40 w-full rounded-xl border p-4 text-left outline-none transition-colors',
+        'hover:border-primary/30 hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2'
       )}
     >
       <div className='flex items-start gap-2.5'>
         <span
           className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-border',
+            'ring-border flex size-9 shrink-0 items-center justify-center rounded-lg ring-1',
             props.agent.accentClass
           )}
         >

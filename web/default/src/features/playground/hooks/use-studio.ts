@@ -9,67 +9,31 @@ License, or (at your option) any later version.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
+import { usePlaygroundStore } from '@/stores/playground-store'
+
 import {
   createPlaygroundRun,
   generateImages,
   generateSpeech,
   submitVideo,
 } from '../api'
-import { STORAGE_KEYS } from '../constants'
-import type { GeneratedImage, StudioSettings, VideoSubmission } from '../types'
+import type { GeneratedImage, VideoSubmission } from '../types'
 
-const defaults: StudioSettings = {
-  imageCount: 1,
-  imageSize: '1024x1024',
-  imageQuality: 'standard',
-  videoDuration: 5,
-  videoSize: '1280x720',
-  voice: 'alloy',
-  speed: 1,
-  audioFormat: 'mp3',
-}
-
-type StoredStudio = {
-  settings?: Partial<StudioSettings>
-}
-
-function loadStudio(): StoredStudio {
-  try {
-    const value = localStorage.getItem(STORAGE_KEYS.STUDIO)
-    return value ? (JSON.parse(value) as StoredStudio) : {}
-  } catch {
-    return {}
-  }
-}
+/**
+ * Generation results and mutations for the studio modalities. Settings live
+ * in the shared playground store (persisted, migrated); the transient
+ * results below reset when the playground unmounts, matching the previous
+ * behavior.
+ */
+export type UseStudioResult = ReturnType<typeof useStudio>
 
 export function useStudio() {
   const queryClient = useQueryClient()
-  const [settings, setSettings] = useState<StudioSettings>(() => {
-    const stored = loadStudio().settings
-    return {
-      ...defaults,
-      ...stored,
-      imageCount: clampNumber(stored?.imageCount, 1, 10, defaults.imageCount),
-      videoDuration: clampNumber(
-        stored?.videoDuration,
-        1,
-        60,
-        defaults.videoDuration
-      ),
-      speed: clampNumber(stored?.speed, 0.25, 4, defaults.speed),
-    }
-  })
+  const settings = usePlaygroundStore((state) => state.studioSettings)
+  const setSettings = usePlaygroundStore((state) => state.setStudioSettings)
   const [images, setImages] = useState<GeneratedImage[]>([])
   const [video, setVideo] = useState<VideoSubmission | null>(null)
   const [audioUrl, setAudioUrl] = useState('')
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.STUDIO, JSON.stringify({ settings }))
-    } catch {
-      // Storage may be unavailable in private browsing modes.
-    }
-  }, [settings])
 
   useEffect(
     () => () => {
@@ -131,14 +95,4 @@ export function useStudio() {
     videoMutation,
     audioMutation,
   }
-}
-
-function clampNumber(
-  value: number | undefined,
-  min: number,
-  max: number,
-  fallback: number
-): number {
-  if (!Number.isFinite(value)) return fallback
-  return Math.min(max, Math.max(min, value as number))
 }

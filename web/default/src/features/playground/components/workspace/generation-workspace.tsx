@@ -6,188 +6,123 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import type { UseMutationResult } from '@tanstack/react-query'
 import { Download, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import type { PricingModel } from '@/features/pricing/types'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { useVideoTaskResult } from '../../hooks/use-video-task-result'
-import type {
-  GeneratedImage,
-  GroupOption,
-  StudioModality,
-  StudioSettings,
-  VideoSubmission,
-} from '../../types'
-import { GenerationDock } from '../workbench/generation-dock'
-import type { MediaReference } from '../workbench/media-reference-slot'
-import { ModelHero } from '../workbench/model-hero'
+import type { UseStudioResult } from '../../hooks/use-studio'
+import type { MediaReference } from '../composer/attachments/media-reference-slot'
+import { GenerationComposer } from '../composer/generation-composer'
+import type { StudioModality } from '../../types'
+import { ModelHero } from './model-hero'
 
 type GenerationWorkspaceProps = {
   modality: Exclude<StudioModality, 'chat'>
-  model: string
   pricingModel?: PricingModel
-  group: string
-  groups: GroupOption[]
-  onGroupChange: (group: string) => void
-  settings: StudioSettings
-  onSettingsChange: (settings: StudioSettings) => void
   canSubmit: () => boolean
-  images: GeneratedImage[]
-  video: VideoSubmission | null
-  audioUrl: string
-  imageMutation: UseMutationResult<
-    GeneratedImage[],
-    Error,
-    {
-      model: string
-      group: string
-      prompt: string
-      settings: StudioSettings
-      referenceImage?: string | null
-      editMode?: boolean
-    }
-  >
-  videoMutation: UseMutationResult<
-    VideoSubmission,
-    Error,
-    {
-      model: string
-      group: string
-      prompt: string
-      settings: StudioSettings
-      firstFrame?: string | null
-      lastFrame?: string | null
-      inputReference?: string | null
-    }
-  >
-  audioMutation: UseMutationResult<
-    Blob,
-    Error,
-    {
-      model: string
-      group: string
-      text: string
-      settings: StudioSettings
-      voiceId?: string
-    }
-  >
-  /** External prompt prefill (inspiration / agents) */
-  prefillPrompt?: string
-  onPrefillConsumed?: () => void
-  onPromptUsed?: (prompt: string) => void
-  onSaveWork?: (input: {
-    title: string
-    prompt: string
-    modality: StudioModality
-    model: string
-    previewUrl?: string
-  }) => void
+  studio: UseStudioResult
 }
 
+/**
+ * Generation workspace: result gallery in normal flow with the generation
+ * composer docked at the bottom of the column (no floating overlay).
+ * Model, group and settings come from the shared store; mutations and
+ * transient results come from `useStudio` via the `studio` bundle.
+ */
 export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const { t } = useTranslation()
-  const [prompt, setPrompt] = useState('')
+  const { studio } = props
   const [reference, setReference] = useState<MediaReference | null>(null)
+  const [referenceKey, setReferenceKey] = useState('')
 
-  const prefillPrompt = props.prefillPrompt
-  const onPrefillConsumed = props.onPrefillConsumed
-  useEffect(() => {
-    if (prefillPrompt == null) return
-    setPrompt(prefillPrompt)
-    onPrefillConsumed?.()
-  }, [prefillPrompt, onPrefillConsumed])
+  const model = usePlaygroundStore((state) => state.config.model)
+  const group = usePlaygroundStore((state) => state.config.group)
+  const addRecentPrompt = usePlaygroundStore((state) => state.addRecentPrompt)
+  const addMyWork = usePlaygroundStore((state) => state.addMyWork)
 
-  useEffect(() => {
+  // Reset the media reference when the modality or model changes.
+  const currentKey = `${props.modality}:${model}`
+  if (referenceKey !== currentKey) {
+    setReferenceKey(currentKey)
     setReference(null)
-  }, [props.modality, props.model])
+  }
 
   const videoTask = useVideoTaskResult(
-    props.video?.taskId,
-    props.modality === 'video' && Boolean(props.video)
+    studio.video?.taskId,
+    props.modality === 'video' && Boolean(studio.video)
   )
 
-  let isPending = props.audioMutation.isPending
-  let error = props.audioMutation.error
+  let isPending = studio.audioMutation.isPending
+  let error = studio.audioMutation.error
   if (props.modality === 'image') {
-    isPending = props.imageMutation.isPending
-    error = props.imageMutation.error
+    isPending = studio.imageMutation.isPending
+    error = studio.imageMutation.error
   } else if (props.modality === 'video') {
-    isPending = props.videoMutation.isPending
-    error = props.videoMutation.error
+    isPending = studio.videoMutation.isPending
+    error = studio.videoMutation.error
   }
 
   const hasOutput =
-    (props.modality === 'image' && props.images.length > 0) ||
-    (props.modality === 'video' && Boolean(props.video)) ||
-    (props.modality === 'audio' && Boolean(props.audioUrl))
+    (props.modality === 'image' && studio.images.length > 0) ||
+    (props.modality === 'video' && Boolean(studio.video)) ||
+    (props.modality === 'audio' && Boolean(studio.audioUrl))
 
-  const submit = () => {
-    if (!prompt.trim() || !props.model) return
+  const [lastPrompt, setLastPrompt] = useState('')
+
+  const submit = (prompt: string) => {
+    if (!prompt || !model) return
     if (!props.canSubmit()) return
-    const settings = normalizeSettings(props.settings)
-    props.onSettingsChange(settings)
-    const trimmed = prompt.trim()
-    props.onPromptUsed?.(trimmed)
+    setLastPrompt(prompt)
+    const settings = usePlaygroundStore.getState().studioSettings
+    addRecentPrompt({ prompt, modality: props.modality, model })
     const refUrl = reference?.dataUrl || null
-    const common = {
-      model: props.model,
-      group: props.group,
-      settings,
-    }
+    const common = { model, group, settings }
+    const workTitle = prompt.slice(0, 48) || t('Untitled work')
     if (props.modality === 'image') {
-      props.imageMutation.mutate(
+      studio.imageMutation.mutate(
         {
           ...common,
-          prompt: trimmed,
+          prompt,
           referenceImage: refUrl,
           editMode: Boolean(refUrl),
         },
         {
           onSuccess: (images) => {
-            props.onSaveWork?.({
-              title: trimmed.slice(0, 48) || t('Untitled work'),
-              prompt: trimmed,
+            addMyWork({
+              title: workTitle,
+              prompt,
               modality: 'image',
-              model: props.model,
+              model,
               previewUrl: images[0]?.url,
             })
           },
         }
       )
     } else if (props.modality === 'video') {
-      props.videoMutation.mutate(
+      studio.videoMutation.mutate(
         {
           ...common,
-          prompt: trimmed,
+          prompt,
           firstFrame: refUrl,
           inputReference: refUrl,
         },
         {
           onSuccess: () => {
-            props.onSaveWork?.({
-              title: trimmed.slice(0, 48) || t('Untitled work'),
-              prompt: trimmed,
-              modality: 'video',
-              model: props.model,
-            })
+            addMyWork({ title: workTitle, prompt, modality: 'video', model })
           },
         }
       )
     } else {
-      props.audioMutation.mutate(
-        { ...common, text: trimmed },
+      studio.audioMutation.mutate(
+        { ...common, text: prompt },
         {
           onSuccess: () => {
-            props.onSaveWork?.({
-              title: trimmed.slice(0, 48) || t('Untitled work'),
-              prompt: trimmed,
-              modality: 'audio',
-              model: props.model,
-            })
+            addMyWork({ title: workTitle, prompt, modality: 'audio', model })
           },
         }
       )
@@ -196,9 +131,9 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
 
   return (
     <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
-      <div className='min-h-0 flex-1 overflow-y-auto pb-40'>
+      <div className='min-h-0 flex-1 overflow-y-auto'>
         {!hasOutput && !isPending && !error && (
-          <ModelHero model={props.pricingModel} modelName={props.model} />
+          <ModelHero model={props.pricingModel} modelName={model} />
         )}
 
         <div className='mx-auto w-full max-w-5xl px-4 pb-6 md:px-6'>
@@ -207,9 +142,9 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             aria-busy={isPending}
             aria-live='polite'
           >
-            {props.modality === 'image' && props.images.length > 0 && (
+            {props.modality === 'image' && studio.images.length > 0 && (
               <div className='grid w-full grid-cols-1 gap-3 sm:grid-cols-2'>
-                {props.images.map((image) => (
+                {studio.images.map((image) => (
                   <figure
                     key={image.url}
                     className='border-border bg-muted/60 overflow-hidden rounded-xl border'
@@ -228,7 +163,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                 ))}
               </div>
             )}
-            {props.modality === 'video' && props.video && videoTask.ready && (
+            {props.modality === 'video' && studio.video && videoTask.ready && (
               <div className='mx-auto w-full max-w-3xl space-y-3'>
                 <video
                   controls
@@ -241,7 +176,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                   render={
                     <a
                       href={videoTask.resultUrl}
-                      download={`video-${props.video.taskId}.mp4`}
+                      download={`video-${studio.video.taskId}.mp4`}
                     />
                   }
                   variant='outline'
@@ -254,7 +189,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
               </div>
             )}
             {props.modality === 'video' &&
-              props.video &&
+              studio.video &&
               !videoTask.ready &&
               !videoTask.failed && (
                 <div className='border-border bg-muted/40 rounded-2xl border p-6 text-center'>
@@ -262,7 +197,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                     {t('Video task submitted')}
                   </p>
                   <p className='text-muted-foreground mt-1 font-mono text-xs'>
-                    {props.video.taskId}
+                    {studio.video.taskId}
                   </p>
                   <p className='text-muted-foreground mt-2 text-sm text-pretty'>
                     {t(
@@ -279,7 +214,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                   )}
                 </div>
               )}
-            {props.modality === 'video' && props.video && videoTask.failed && (
+            {props.modality === 'video' && studio.video && videoTask.failed && (
               <div className='border-destructive/40 bg-destructive/5 rounded-2xl border p-6 text-center'>
                 <p className='text-foreground font-medium'>
                   {t('Video generation failed.')}
@@ -291,16 +226,16 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                 )}
               </div>
             )}
-            {props.modality === 'audio' && props.audioUrl && (
+            {props.modality === 'audio' && studio.audioUrl && (
               <div className='border-border bg-muted/40 mx-auto w-full max-w-md space-y-3 rounded-2xl border p-5'>
-                <audio controls className='w-full' src={props.audioUrl}>
+                <audio controls className='w-full' src={studio.audioUrl}>
                   {t('Your browser does not support audio playback.')}
                 </audio>
                 <Button
                   render={
                     <a
-                      href={props.audioUrl}
-                      download={`speech.${props.settings.audioFormat}`}
+                      href={studio.audioUrl}
+                      download={`speech.${studio.settings.audioFormat}`}
                     />
                   }
                   variant='outline'
@@ -327,7 +262,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                   className='border-border bg-muted/50 text-foreground mt-3'
                   size='sm'
                   variant='outline'
-                  onClick={submit}
+                  onClick={() => submit(lastPrompt)}
+                  disabled={!lastPrompt}
                 >
                   {t('Try again')}
                 </Button>
@@ -337,42 +273,14 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         </div>
       </div>
 
-      <GenerationDock
+      <GenerationComposer
         modality={props.modality}
-        model={props.model}
         pricingModel={props.pricingModel}
-        group={props.group}
-        groups={props.groups}
-        onGroupChange={props.onGroupChange}
-        settings={props.settings}
-        onSettingsChange={props.onSettingsChange}
-        prompt={prompt}
-        onPromptChange={setPrompt}
-        onSubmit={submit}
         isPending={isPending}
         reference={reference}
         onReferenceChange={setReference}
+        onSubmit={submit}
       />
     </div>
   )
-}
-
-function parseBoundedNumber(
-  value: string,
-  min: number,
-  max: number,
-  fallback: number
-): number {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed)) return fallback
-  return Math.min(max, Math.max(min, parsed))
-}
-
-function normalizeSettings(settings: StudioSettings): StudioSettings {
-  return {
-    ...settings,
-    imageCount: parseBoundedNumber(String(settings.imageCount), 1, 10, 1),
-    videoDuration: parseBoundedNumber(String(settings.videoDuration), 1, 60, 5),
-    speed: parseBoundedNumber(String(settings.speed), 0.25, 4, 1),
-  }
 }

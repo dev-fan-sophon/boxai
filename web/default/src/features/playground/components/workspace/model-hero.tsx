@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next'
 import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
 
-import { ModelBrandIcon } from '../studio/model-brand-icon'
+import { ModelBrandIcon } from '../catalog/model-brand-icon'
 
 type ModelHeroProps = {
   model?: PricingModel

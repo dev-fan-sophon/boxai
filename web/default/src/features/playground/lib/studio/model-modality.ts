@@ -14,13 +14,17 @@ type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
   Partial<
     Pick<
       PricingModel,
-      'supported_endpoint_types' | 'output_modalities' | 'integrations'
+      | 'supported_endpoint_types'
+      | 'output_modalities'
+      | 'integrations'
+      | 'tags'
     >
   >
 
 export function getModelModality(model: ModelModalityMetadata): StudioModality {
   const endpoints = model.supported_endpoint_types ?? []
   const output = model.output_modalities ?? []
+  const tags = model.tags?.toLowerCase() ?? ''
   const profiles = new Set(
     (model.integrations ?? [])
       .filter(
@@ -43,19 +47,22 @@ export function getModelModality(model: ModelModalityMetadata): StudioModality {
   }
   if (
     output.includes('video') ||
-    endpoints.some((item) => item.includes('video'))
+    endpoints.some((item) => item.includes('video')) ||
+    /\boutput:video\b/.test(tags)
   ) {
     return 'video'
   }
   if (
     output.includes('image') ||
-    endpoints.some((item) => item.includes('image'))
+    endpoints.some((item) => item.includes('image')) ||
+    /\boutput:image\b/.test(tags)
   ) {
     return 'image'
   }
   if (
     output.includes('audio') ||
-    endpoints.some((item) => item.includes('audio') || item.includes('speech'))
+    endpoints.some((item) => item.includes('audio') || item.includes('speech')) ||
+    /\boutput:audio\b/.test(tags)
   ) {
     return 'audio'
   }

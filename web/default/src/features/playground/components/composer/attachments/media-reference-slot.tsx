@@ -18,7 +18,7 @@ import {
   createUploadSession,
   getUploadSession,
   type PlaygroundAsset,
-} from '../../api'
+} from '../../../api'
 import { AssetLibraryDialog } from './asset-library-dialog'
 
 export type MediaReference = {

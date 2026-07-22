@@ -21,7 +21,7 @@ import { ChevronRight, Copy, Play } from 'lucide-react'
 import { memo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ModelBrandIcon } from '@/features/playground/components/studio/model-brand-icon'
+import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { cn } from '@/lib/utils'
 

@@ -336,6 +336,17 @@ export function saveParameterEnabled(
 }
 
 /**
+ * Normalize, trim and sanitize messages parsed from persisted storage.
+ * Shared by the legacy per-key loader and the merged playground store.
+ */
+export function prepareLoadedMessages(parsed: Message[]): Message[] {
+  const normalized = parsed.map(normalizeStoredMessageForLoad)
+  const trimmed = trimMessages(normalized)
+  const sizeTrimmed = trimMessagesByContentSize(trimmed)
+  return sanitizeMessagesOnLoad(sizeTrimmed)
+}
+
+/**
  * Load messages from localStorage
  */
 export function loadMessages(): Message[] | null {
@@ -344,24 +355,16 @@ export function loadMessages(): Message[] | null {
     if (!saved) return null
 
     const parsed = messagesSchema.parse(unwrapStoredValue(saved)) as Message[]
-    const normalized = parsed.map(normalizeStoredMessageForLoad)
-    const normalizedChanged = normalized.some(
-      (message, index) => message !== parsed[index]
-    )
-    const trimmed = trimMessages(normalized)
-    const sizeTrimmed = trimMessagesByContentSize(trimmed)
-    const sanitized = sanitizeMessagesOnLoad(sizeTrimmed)
+    const prepared = prepareLoadedMessages(parsed)
+    const changed =
+      prepared.length !== parsed.length ||
+      prepared.some((message, index) => message !== parsed[index])
 
-    if (
-      normalizedChanged ||
-      trimmed !== normalized ||
-      sizeTrimmed !== trimmed ||
-      sanitized !== sizeTrimmed
-    ) {
-      saveMessages(sanitized)
+    if (changed) {
+      saveMessages(prepared)
     }
 
-    return sanitized
+    return prepared
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to load messages:', error)
@@ -391,6 +394,9 @@ export function clearPlaygroundData(): void {
     localStorage.removeItem(STORAGE_KEYS.CONFIG)
     localStorage.removeItem(STORAGE_KEYS.PARAMETER_ENABLED)
     localStorage.removeItem(STORAGE_KEYS.MESSAGES)
+    localStorage.removeItem(STORAGE_KEYS.STUDIO)
+    localStorage.removeItem(STORAGE_KEYS.WORKBENCH)
+    localStorage.removeItem(STORAGE_KEYS.STORE)
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to clear playground data:', error)

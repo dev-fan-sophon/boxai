@@ -36,8 +36,7 @@ import type { StudioModality } from '../../types'
 
 type InspirationView = 'square' | 'works' | 'usage'
 
-type InspirationPanelProps = {
-  variant?: 'rail' | 'main'
+type InspirationViewProps = {
   myWorks: InspirationWork[]
   recentPrompts: RecentPrompt[]
   onApplyTemplate: (template: InspirationTemplate) => void
@@ -46,14 +45,18 @@ type InspirationPanelProps = {
   className?: string
 }
 
-export function InspirationPanel(props: InspirationPanelProps) {
+/**
+ * Full-width Inspiration view (templates / my works / recent prompts)
+ * rendered in the workspace center when the toolbar's Inspiration tab is
+ * active.
+ */
+export function InspirationView(props: InspirationViewProps) {
   const { t } = useTranslation()
   const [view, setView] = useState<InspirationView>('square')
   const [category, setCategory] = useState<string>('all')
   const [modalityFilter, setModalityFilter] = useState<
     'all' | 'image' | 'video' | 'chat'
   >('all')
-  const variant = props.variant ?? 'rail'
 
   const apiCategories = useQuery({
     queryKey: ['playground', 'inspiration', 'categories'],
@@ -150,10 +153,24 @@ export function InspirationPanel(props: InspirationPanelProps) {
     return [...serverRuns, ...local.filter((w) => !localIds.has(w.id))]
   }, [props.myWorks, serverWorks.data?.runs, t])
 
-  const body = (
-    <>
+  return (
+    <div
+      className={cn(
+        'min-h-0 flex-1 space-y-4 overflow-y-auto p-4 md:p-8',
+        props.className
+      )}
+    >
+      <div>
+        <h1 className='text-foreground text-2xl font-semibold'>
+          {t('Inspiration')}
+        </h1>
+        <p className='text-muted-foreground mt-1 text-sm'>
+          {t('Templates, saved works, and recent prompts for faster starts.')}
+        </p>
+      </div>
+
       <div
-        className='bg-muted/40 ring-border flex gap-1 rounded-lg p-1 ring-1'
+        className='bg-muted/40 ring-border flex max-w-md gap-1 rounded-lg p-1 ring-1'
         role='tablist'
         aria-label={t('Inspiration views')}
       >
@@ -171,7 +188,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
             aria-selected={view === id}
             onClick={() => setView(id)}
             className={cn(
-              'flex-1 rounded-md px-2 py-1 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'focus-visible:ring-ring flex-1 rounded-md px-2 py-1 text-[11px] font-medium outline-none focus-visible:ring-2',
               view === id
                 ? 'bg-primary/15 text-primary'
                 : 'text-muted-foreground hover:text-foreground'
@@ -196,7 +213,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
                 aria-pressed={category === item.id}
                 onClick={() => setCategory(item.id)}
                 className={cn(
-                  'rounded-full px-2 py-0.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'focus-visible:ring-ring rounded-full px-2 py-0.5 text-[10px] outline-none focus-visible:ring-2',
                   category === item.id
                     ? 'bg-white/10 text-foreground'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground/80'
@@ -226,14 +243,7 @@ export function InspirationPanel(props: InspirationPanelProps) {
               </button>
             ))}
           </div>
-          <div
-            className={cn(
-              'grid gap-2',
-              variant === 'main'
-                ? 'sm:grid-cols-2 lg:grid-cols-3'
-                : 'grid-cols-1'
-            )}
-          >
+          <div className='grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
             {templates.map((template) => (
               <button
                 key={template.id}
@@ -364,41 +374,6 @@ export function InspirationPanel(props: InspirationPanelProps) {
           ))}
         </div>
       )}
-    </>
-  )
-
-  if (variant === 'main') {
-    return (
-      <div
-        className={cn(
-          'min-h-0 flex-1 space-y-4 overflow-y-auto p-4 md:p-8',
-          props.className
-        )}
-      >
-        <div>
-          <h1 className='text-foreground text-2xl font-semibold'>
-            {t('Inspiration')}
-          </h1>
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {t('Templates, saved works, and recent prompts for faster starts.')}
-          </p>
-        </div>
-        {body}
-      </div>
-    )
-  }
-
-  return (
-    <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
-      <div className='border-border border-b p-3'>
-        <h2 className='text-foreground text-sm font-semibold'>
-          {t('Inspiration')}
-        </h2>
-        <p className='text-muted-foreground text-[11px]'>
-          {t('Templates & history')}
-        </p>
-      </div>
-      <div className='min-h-0 flex-1 space-y-3 overflow-y-auto p-2'>{body}</div>
     </div>
   )
 }

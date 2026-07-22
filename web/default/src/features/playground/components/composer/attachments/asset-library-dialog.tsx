@@ -20,7 +20,7 @@ import {
   listPlaygroundAssets,
   uploadPlaygroundAsset,
   type PlaygroundAsset,
-} from '../../api'
+} from '../../../api'
 
 type AssetLibraryDialogProps = {
   open: boolean

@@ -89,6 +89,8 @@ export const STORAGE_KEYS = {
   MESSAGES: 'playground_messages',
   PARAMETER_ENABLED: 'playground_parameter_enabled',
   STUDIO: 'playground_studio',
+  WORKBENCH: 'playground_workbench_prefs_v1',
+  STORE: 'playground_store_v2',
 } as const
 
 // Error messages

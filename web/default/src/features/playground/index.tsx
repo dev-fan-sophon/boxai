@@ -17,39 +17,49 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { Loader2, Square } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
 import { useAuthStore } from '@/stores/auth-store'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { ModelCatalog } from './components/catalog/model-catalog'
 import { PlaygroundChat } from './components/chat/playground-chat'
-import { PlaygroundInput } from './components/input/playground-input'
-import { GenerationWorkspace } from './components/studio/generation-workspace'
-import { ModelCatalog } from './components/studio/model-catalog'
-import { AgentsPanel } from './components/workbench/agents-panel'
-import { ChatAdvancedTools } from './components/workbench/chat-advanced-tools'
-import { DuoWorkspace } from './components/workbench/duo-workspace'
-import { InspirationPanel } from './components/workbench/inspiration-panel'
-import { WorkbenchShell } from './components/workbench/workbench-shell'
+import { AgentsView } from './components/discover/agents-view'
+import { InspirationView } from './components/discover/inspiration-view'
+import { ChatComposer } from './components/composer/chat-composer'
+import {
+  SettingsPanel,
+  SettingsSections,
+} from './components/settings/settings-panel'
+import { PlaygroundShell } from './components/shell/playground-shell'
+import { PlaygroundToolbar } from './components/shell/playground-toolbar'
+import { WorkspaceHeader } from './components/shell/workspace-header'
+import { DuoWorkspace } from './components/workspace/duo-workspace'
+import { GenerationWorkspace } from './components/workspace/generation-workspace'
 import {
   useChatHandler,
   usePlaygroundConversation,
   usePlaygroundOptions,
-  usePlaygroundState,
 } from './hooks'
 import { useStudio } from './hooks/use-studio'
-import { useWorkbenchPrefs } from './hooks/use-workbench-prefs'
 import { getModelModality } from './lib/studio/model-modality'
 import type { AgentCard } from './lib/workbench/agents-data'
 import type { InspirationTemplate } from './lib/workbench/inspiration-data'
-import type { WorkbenchTab } from './lib/workbench/workbench-prefs'
-import type { StudioModality } from './types'
+import type { PlaygroundConfig, StudioModality } from './types'
 
 export function Playground() {
   const { t } = useTranslation()
@@ -59,19 +69,62 @@ export function Playground() {
   const user = useAuthStore((state) => state.auth.user)
   const isAuthenticated = Boolean(user)
   const [signInDialogOpen, setSignInDialogOpen] = useState(false)
-  const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>('models')
-  const [duoOpen, setDuoOpen] = useState(false)
-  const [prefillPrompt, setPrefillPrompt] = useState<string | undefined>()
-  const pricing = usePricingData('playground')
-  const playgroundModels = useMemo(
-    () =>
-      pricing.isLegacyPlaygroundCatalog
-        ? pricing.models
-        : pricing.models.filter(canTryInPlayground),
-    [pricing.isLegacyPlaygroundCatalog, pricing.models]
+  const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false)
+  // Settings panel: persisted open state on wide desktop, ephemeral overlay
+  // between 1024–1279px, bottom sheet below 1024px.
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const isWideDesktop = useMediaQuery('(min-width: 1280px)')
+  const [narrowSettingsOpen, setNarrowSettingsOpen] = useState(false)
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false)
+
+  const view = usePlaygroundStore((state) => state.view)
+  const setView = usePlaygroundStore((state) => state.setView)
+  const workspaceMode = usePlaygroundStore((state) => state.workspaceMode)
+  const setWorkspaceMode = usePlaygroundStore((state) => state.setWorkspaceMode)
+  const selectStoreModel = usePlaygroundStore((state) => state.selectModel)
+  const selectDuo = usePlaygroundStore((state) => state.selectDuo)
+  const setPrefill = usePlaygroundStore((state) => state.setPrefill)
+  const settingsPanelOpen = usePlaygroundStore(
+    (state) => state.ui.settingsPanelOpen
   )
+  const setSettingsPanelOpen = usePlaygroundStore(
+    (state) => state.setSettingsPanelOpen
+  )
+  const chatTools = usePlaygroundStore((state) => state.chatTools)
+  const pinnedModels = usePlaygroundStore((state) => state.pinnedModels)
+  const togglePinnedModel = usePlaygroundStore(
+    (state) => state.togglePinnedModel
+  )
+  const myWorks = usePlaygroundStore((state) => state.myWorks)
+  const recentPrompts = usePlaygroundStore((state) => state.recentPrompts)
+  const removeMyWork = usePlaygroundStore((state) => state.removeMyWork)
+  const addRecentPrompt = usePlaygroundStore((state) => state.addRecentPrompt)
+  const config = usePlaygroundStore((state) => state.config)
+  const parameterEnabled = usePlaygroundStore((state) => state.parameterEnabled)
+  const messages = usePlaygroundStore((state) => state.messages)
+  const models = usePlaygroundStore((state) => state.models)
+  const updateMessages = usePlaygroundStore((state) => state.setMessages)
+  const setModels = usePlaygroundStore((state) => state.setModels)
+  const setGroups = usePlaygroundStore((state) => state.setGroups)
+  const patchConfig = usePlaygroundStore((state) => state.updateConfig)
+  const clearMessages = usePlaygroundStore((state) => state.clearMessages)
+  const updateConfig = useCallback(
+    <K extends keyof PlaygroundConfig>(key: K, value: PlaygroundConfig[K]) => {
+      patchConfig({ [key]: value })
+    },
+    [patchConfig]
+  )
+
+  const pricing = usePricingData('playground')
+  const playgroundModels = useMemo(() => {
+    // Strict mode only when at least one model has an explicit playground
+    // integration. Otherwise fall back to the full catalog so production
+    // sites that have not configured integrations yet still work.
+    if (pricing.isLegacyPlaygroundCatalog) return pricing.models
+    const eligible = pricing.models.filter(canTryInPlayground)
+    return eligible.length > 0 ? eligible : pricing.models
+  }, [pricing.isLegacyPlaygroundCatalog, pricing.models])
   const studio = useStudio()
-  const workbench = useWorkbenchPrefs()
   const publicModels = useMemo(
     () =>
       playgroundModels.map((model) => ({
@@ -96,33 +149,19 @@ export function Playground() {
     setSignInDialogOpen(true)
     return false
   }, [user])
-  const {
-    config,
-    parameterEnabled,
-    messages,
-    isLoadingMessages,
-    models,
-    groups,
-    updateMessages,
-    setModels,
-    setGroups,
-    updateConfig,
-    updateParameterEnabled,
-    clearMessages,
-  } = usePlaygroundState()
 
   const payloadOptions = useMemo(
     () => ({
-      systemPrompt: workbench.prefs.chatTools.systemPrompt,
-      carryHistory: workbench.prefs.chatTools.carryHistory,
-      webSearch: workbench.prefs.chatTools.webSearch,
-      maxToolLoops: workbench.prefs.chatTools.maxToolLoops,
+      systemPrompt: chatTools.systemPrompt,
+      carryHistory: chatTools.carryHistory,
+      webSearch: chatTools.webSearch,
+      maxToolLoops: chatTools.maxToolLoops,
     }),
     [
-      workbench.prefs.chatTools.systemPrompt,
-      workbench.prefs.chatTools.carryHistory,
-      workbench.prefs.chatTools.webSearch,
-      workbench.prefs.chatTools.maxToolLoops,
+      chatTools.systemPrompt,
+      chatTools.carryHistory,
+      chatTools.webSearch,
+      chatTools.maxToolLoops,
     ]
   )
 
@@ -167,10 +206,8 @@ export function Playground() {
     if (!search.model || appliedDeepLink.current === search.model) return
     if (!models.some((model) => model.value === search.model)) return
     appliedDeepLink.current = search.model
-    updateConfig('model', search.model)
-    setWorkbenchTab('models')
-    setDuoOpen(false)
-  }, [models, search.model, updateConfig])
+    selectStoreModel(search.model)
+  }, [models, search.model, selectStoreModel])
 
   const selectedCatalogModel = playgroundModels.find(
     (model) => model.model_name === config.model
@@ -217,17 +254,13 @@ export function Playground() {
         return false
       }
 
-      setWorkbenchTab('models')
-      setDuoOpen(false)
-      if (!currentMatches) {
-        updateConfig('model', match.model_name)
-      }
+      selectStoreModel(match.model_name)
       if (preferredPrompt != null) {
-        setPrefillPrompt(preferredPrompt)
+        setPrefill(preferredPrompt)
       }
       return true
     },
-    [config.model, models, playgroundModels, t, updateConfig]
+    [config.model, models, playgroundModels, selectStoreModel, setPrefill, t]
   )
 
   const handleAgentSelect = useCallback(
@@ -256,12 +289,11 @@ export function Playground() {
     [selectModelByModality]
   )
 
-  const pushRecentPrompt = workbench.pushRecentPrompt
   const handleChatSend = useCallback(
     (text: string, attachments?: string[]) => {
       const ok = handleSendMessage(text, attachments)
       if (ok) {
-        pushRecentPrompt({
+        addRecentPrompt({
           prompt: text,
           modality: 'chat',
           model: config.model,
@@ -269,134 +301,134 @@ export function Playground() {
       }
       return ok
     },
-    [config.model, handleSendMessage, pushRecentPrompt]
+    [config.model, handleSendMessage, addRecentPrompt]
   )
 
   const studioPending =
     studio.imageMutation.isPending ||
     studio.videoMutation.isPending ||
     studio.audioMutation.isPending
-  const showBusyStrip =
-    workbenchTab !== 'models' && (isGenerating || studioPending)
 
   const catalog = (
     <ModelCatalog
       available={models}
       models={playgroundModels}
-      selected={duoOpen ? '' : config.model}
+      selected={workspaceMode === 'duo' ? '' : config.model}
       loading={pricing.isLoading || isLoadingModels}
       error={Boolean(pricing.error)}
       onRetry={() => pricing.refetch()}
       onSelect={(model) => {
-        updateConfig('model', model.model_name)
-        setDuoOpen(false)
-        setWorkbenchTab('models')
+        selectStoreModel(model.model_name)
+        setCatalogDrawerOpen(false)
       }}
-      pinnedModels={workbench.prefs.pinnedModels}
-      onTogglePin={workbench.togglePin}
-      duoEnabled={duoOpen}
+      pinnedModels={pinnedModels}
+      onTogglePin={togglePinnedModel}
+      duoEnabled={workspaceMode === 'duo'}
       onOpenDuo={() => {
-        setDuoOpen(true)
-        setWorkbenchTab('models')
-        workbench.updateDuo({ enabled: true })
+        selectDuo()
+        setCatalogDrawerOpen(false)
       }}
     />
   )
 
-  const showModelsWorkspace = workbenchTab === 'models'
+  const showWorkspace = view === 'workspace'
+  const duoActive = workspaceMode === 'duo'
+  const desktopSettingsOpen = isWideDesktop
+    ? settingsPanelOpen
+    : narrowSettingsOpen
+  const toggleSettings = () => {
+    if (!isDesktop) {
+      setSettingsSheetOpen(true)
+      return
+    }
+    if (isWideDesktop) {
+      setSettingsPanelOpen(!settingsPanelOpen)
+      return
+    }
+    setNarrowSettingsOpen((open) => !open)
+  }
+  const closeDesktopSettings = () => {
+    if (isWideDesktop) {
+      setSettingsPanelOpen(false)
+      return
+    }
+    setNarrowSettingsOpen(false)
+  }
 
   return (
-    <WorkbenchShell
-      tab={workbenchTab}
-      onTabChange={(tab) => {
-        setWorkbenchTab(tab)
-        if (tab !== 'models') setDuoOpen(false)
-      }}
-      catalog={catalog}
-      agents={<AgentsPanel onSelectAgent={handleAgentSelect} variant='rail' />}
-      inspiration={
-        <InspirationPanel
-          variant='rail'
-          myWorks={workbench.prefs.myWorks}
-          recentPrompts={workbench.prefs.recentPrompts}
-          onApplyTemplate={handleApplyTemplate}
-          onApplyPrompt={handleApplyPrompt}
-          onRemoveWork={workbench.removeWork}
+    <PlaygroundShell
+      toolbar={
+        <PlaygroundToolbar
+          view={view}
+          onViewChange={setView}
+          isChatGenerating={isGenerating}
+          isStudioPending={studioPending}
+          onStopChat={stopGeneration}
         />
       }
+      catalog={catalog}
+      catalogOpen={catalogDrawerOpen}
+      onCatalogOpenChange={setCatalogDrawerOpen}
+      settings={
+        showWorkspace ? (
+          <SettingsPanel
+            modality={activeModality}
+            duoActive={duoActive}
+            open={desktopSettingsOpen}
+            onClose={closeDesktopSettings}
+          />
+        ) : undefined
+      }
     >
-      {showBusyStrip && (
-        <div className='border-warning/25 bg-warning/10 flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2'>
-          <p className='text-warning flex min-w-0 items-center gap-2 text-xs font-medium'>
-            <Loader2
-              className='size-3.5 shrink-0 animate-spin'
-              aria-hidden='true'
-            />
-            <span className='text-foreground truncate'>
-              {isGenerating
-                ? t('Generation in progress…')
-                : t('Studio task still running…')}
-            </span>
-          </p>
-          <div className='flex shrink-0 items-center gap-1.5'>
-            {isGenerating && (
-              <Button
-                size='sm'
-                variant='outline'
-                className='h-7'
-                onClick={stopGeneration}
-              >
-                <Square className='size-3 fill-current' />
-                {t('Stop')}
-              </Button>
-            )}
-            <Button
-              size='sm'
-              className='bg-primary text-primary-foreground hover:bg-primary/90 h-7'
-              onClick={() => setWorkbenchTab('models')}
-            >
-              {t('Back to Models')}
-            </Button>
-          </div>
-        </div>
-      )}
+      {view === 'agents' && <AgentsView onSelectAgent={handleAgentSelect} />}
 
-      {workbenchTab === 'agents' && (
-        <AgentsPanel onSelectAgent={handleAgentSelect} variant='main' />
-      )}
-
-      {workbenchTab === 'inspiration' && (
-        <InspirationPanel
-          variant='main'
-          myWorks={workbench.prefs.myWorks}
-          recentPrompts={workbench.prefs.recentPrompts}
+      {view === 'inspiration' && (
+        <InspirationView
+          myWorks={myWorks}
+          recentPrompts={recentPrompts}
           onApplyTemplate={handleApplyTemplate}
           onApplyPrompt={handleApplyPrompt}
-          onRemoveWork={workbench.removeWork}
+          onRemoveWork={removeMyWork}
         />
       )}
 
-      {showModelsWorkspace && duoOpen && (
+      {showWorkspace && (
+        <WorkspaceHeader
+          model={config.model}
+          pricingModel={selectedCatalogModel}
+          group={config.group}
+          mode={workspaceMode}
+          onOpenCatalog={() => setCatalogDrawerOpen(true)}
+          actions={
+            <Button
+              size='icon'
+              variant='ghost'
+              className='text-muted-foreground hover:text-foreground size-8'
+              aria-label={t('Settings')}
+              aria-pressed={isDesktop ? desktopSettingsOpen : undefined}
+              onClick={toggleSettings}
+            >
+              <SlidersHorizontal className='size-4' />
+            </Button>
+          }
+        />
+      )}
+
+      {showWorkspace && duoActive && (
         <div className='min-h-0 flex-1 overflow-y-auto p-4 md:p-8'>
           <DuoWorkspace
-            duo={workbench.prefs.duo}
             chatModels={chatModels}
-            group={config.group}
-            onChange={workbench.updateDuo}
-            onClose={() => {
-              setDuoOpen(false)
-              workbench.updateDuo({ enabled: false })
-            }}
+            onClose={() => setWorkspaceMode('model')}
           />
         </div>
       )}
 
-      {showModelsWorkspace && !duoOpen && activeModality === 'chat' && (
+      {showWorkspace && !duoActive && activeModality === 'chat' && (
         <>
           <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
             <PlaygroundChat
               messages={messages}
-              isLoadingMessages={isLoadingMessages}
+              isLoadingMessages={false}
               onRegenerateMessage={handleRegenerateMessage}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
@@ -409,66 +441,41 @@ export function Playground() {
             />
           </div>
           <div className='mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pb-3 md:px-3 md:pb-4'>
-            <ChatAdvancedTools
-              tools={workbench.prefs.chatTools}
-              onToolsChange={workbench.updateChatTools}
-            />
-            <PlaygroundInput
-              config={config}
+            <ChatComposer
               disabled={isGenerating}
-              groups={groups}
-              groupValue={config.group}
               isGenerating={isGenerating}
               isModelLoading={isLoadingModels}
-              modelValue={config.model}
-              models={models}
-              onGroupChange={(value) => updateConfig('group', value)}
-              onConfigChange={updateConfig}
               onClearMessages={handleClearMessages}
-              onModelChange={(value) => updateConfig('model', value)}
-              onParameterEnabledChange={updateParameterEnabled}
               onStop={stopGeneration}
               onSubmit={handleChatSend}
-              parameterEnabled={parameterEnabled}
               hasMessages={messages.length > 0}
-              prefillText={
-                activeModality === 'chat' ? prefillPrompt : undefined
-              }
-              onPrefillConsumed={() => setPrefillPrompt(undefined)}
             />
           </div>
         </>
       )}
 
-      {showModelsWorkspace && !duoOpen && activeModality !== 'chat' && (
+      {showWorkspace && !duoActive && activeModality !== 'chat' && (
         <GenerationWorkspace
           modality={activeModality}
-          model={config.model}
           pricingModel={selectedCatalogModel}
-          group={config.group}
-          groups={groups}
-          onGroupChange={(value) => updateConfig('group', value)}
-          settings={studio.settings}
-          onSettingsChange={studio.setSettings}
           canSubmit={requireAuthentication}
-          images={studio.images}
-          video={studio.video}
-          audioUrl={studio.audioUrl}
-          imageMutation={studio.imageMutation}
-          videoMutation={studio.videoMutation}
-          audioMutation={studio.audioMutation}
-          prefillPrompt={prefillPrompt}
-          onPrefillConsumed={() => setPrefillPrompt(undefined)}
-          onPromptUsed={(prompt) =>
-            workbench.pushRecentPrompt({
-              prompt,
-              modality: activeModality,
-              model: config.model,
-            })
-          }
-          onSaveWork={workbench.saveWork}
+          studio={studio}
         />
       )}
+
+      <Sheet open={settingsSheetOpen} onOpenChange={setSettingsSheetOpen}>
+        <SheetContent
+          side='bottom'
+          className='max-h-[85vh] overflow-y-auto rounded-t-xl'
+        >
+          <SheetHeader>
+            <SheetTitle>{t('Settings')}</SheetTitle>
+          </SheetHeader>
+          <div className='px-4 pb-4'>
+            <SettingsSections modality={activeModality} duoActive={duoActive} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog
         open={signInDialogOpen}
@@ -499,6 +506,6 @@ export function Playground() {
       >
         <span />
       </Dialog>
-    </WorkbenchShell>
+    </PlaygroundShell>
   )
 }
