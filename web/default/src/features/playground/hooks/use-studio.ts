@@ -20,6 +20,10 @@ import {
 } from '../api'
 import { persistGeneratedMediaAsset } from '../lib/download-generated-media'
 import type { GeneratedImage, VideoSubmission } from '../types'
+import {
+  ensureActiveStudioProjectId,
+  recordActiveStudioRun,
+} from './use-session-cloud-sync'
 
 /**
  * Generation results and mutations for the studio modalities. Settings live
@@ -72,16 +76,44 @@ export function useStudio() {
     },
     onSuccess: (images, variables) => {
       setImages(images)
+      const previewUrls = images
+        .map((image) => image.url)
+        .filter((url) => !url.startsWith('data:') && !url.startsWith('blob:'))
+      recordActiveStudioRun({
+        prompt: variables.prompt,
+        model: variables.model,
+        previewUrls,
+      })
       void (async () => {
+        const projectId = await ensureActiveStudioProjectId()
         await Promise.allSettled(
           images.map(async (image) => {
             if (!image.assetId) return
-            await createPlaygroundRun({
+            const run = await createPlaygroundRun({
               modality: 'image',
               model: variables.model,
               prompt: variables.prompt,
               asset_id: image.assetId,
+              project_id: projectId || undefined,
             })
+            if (run) {
+              recordActiveStudioRun({
+                prompt: variables.prompt,
+                model: variables.model,
+                previewUrls: run.result_url ? [run.result_url] : undefined,
+                run: {
+                  id: run.id,
+                  model: run.model,
+                  prompt: run.prompt,
+                  resultUrl: run.result_url,
+                  assetId: run.asset_id,
+                  taskId: run.task_id,
+                  createdAt: run.created_at
+                    ? run.created_at * 1000
+                    : Date.now(),
+                },
+              })
+            }
           })
         )
         await queryClient.invalidateQueries({
@@ -94,16 +126,39 @@ export function useStudio() {
     mutationFn: submitVideo,
     onSuccess: (submission, variables) => {
       setVideo(submission)
-      void createPlaygroundRun({
-        modality: 'video',
-        model: variables.model,
+      recordActiveStudioRun({
         prompt: variables.prompt,
-        task_id: submission.taskId,
+        model: variables.model,
       })
-      void queryClient.invalidateQueries({
-        queryKey: ['playground', 'task-history'],
-      })
-      void queryClient.invalidateQueries({ queryKey: ['playground', 'runs'] })
+      void (async () => {
+        const projectId = await ensureActiveStudioProjectId()
+        const run = await createPlaygroundRun({
+          modality: 'video',
+          model: variables.model,
+          prompt: variables.prompt,
+          task_id: submission.taskId,
+          project_id: projectId || undefined,
+        })
+        if (run) {
+          recordActiveStudioRun({
+            prompt: variables.prompt,
+            model: variables.model,
+            run: {
+              id: run.id,
+              model: run.model,
+              prompt: run.prompt,
+              resultUrl: run.result_url,
+              assetId: run.asset_id,
+              taskId: run.task_id,
+              createdAt: run.created_at ? run.created_at * 1000 : Date.now(),
+            },
+          })
+        }
+        await queryClient.invalidateQueries({
+          queryKey: ['playground', 'task-history'],
+        })
+        await queryClient.invalidateQueries({ queryKey: ['playground', 'runs'] })
+      })()
     },
   })
   const audioMutation = useMutation({
@@ -111,6 +166,10 @@ export function useStudio() {
     onSuccess: (blob, variables) => {
       if (audioUrl) URL.revokeObjectURL(audioUrl)
       setAudioUrl(URL.createObjectURL(blob))
+      recordActiveStudioRun({
+        prompt: variables.text,
+        model: variables.model,
+      })
       void (async () => {
         let assetId: number
         try {
@@ -124,12 +183,30 @@ export function useStudio() {
           // Playback remains available without creating a broken saved run.
           return
         }
-        await createPlaygroundRun({
+        const projectId = await ensureActiveStudioProjectId()
+        const run = await createPlaygroundRun({
           modality: 'audio',
           model: variables.model,
           prompt: variables.text,
           asset_id: assetId,
+          project_id: projectId || undefined,
         })
+        if (run) {
+          recordActiveStudioRun({
+            prompt: variables.text,
+            model: variables.model,
+            previewUrls: run.result_url ? [run.result_url] : undefined,
+            run: {
+              id: run.id,
+              model: run.model,
+              prompt: run.prompt,
+              resultUrl: run.result_url,
+              assetId: run.asset_id,
+              taskId: run.task_id,
+              createdAt: run.created_at ? run.created_at * 1000 : Date.now(),
+            },
+          })
+        }
         await queryClient.invalidateQueries({
           queryKey: ['playground', 'runs'],
         })

@@ -43,6 +43,10 @@ export function createChatSession(input?: {
   serverId?: number
   isDraft?: boolean
   draft?: string
+  kind?: 'chat' | 'duo'
+  duoMeta?: ChatSession['duoMeta']
+  createdAt?: number
+  updatedAt?: number
 }): ChatSession {
   const ts = now()
   const messages = (input?.messages ?? []).slice(-MAX_SESSION_MESSAGES)
@@ -54,10 +58,12 @@ export function createChatSession(input?: {
     model: input?.model ?? '',
     group: input?.group ?? '',
     messages,
+    kind: input?.kind ?? 'chat',
+    duoMeta: input?.duoMeta,
     draft: input?.draft,
     isDraft: input?.isDraft ?? messages.length === 0,
-    createdAt: ts,
-    updatedAt: ts,
+    createdAt: input?.createdAt ?? ts,
+    updatedAt: input?.updatedAt ?? ts,
   }
 }
 
@@ -72,21 +78,32 @@ export function createStudioSession(
     lastPrompt?: string
     isDraft?: boolean
     draft?: string
+    serverId?: number
+    runs?: StudioSession['runs']
+    createdAt?: number
+    updatedAt?: number
   }
 ): StudioSession {
   const ts = now()
+  const hasContent = Boolean(
+    input?.lastPrompt?.trim() ||
+      (input?.previewUrls && input.previewUrls.length > 0) ||
+      (input?.runs && input.runs.length > 0)
+  )
   return {
     id: input?.id ?? createSessionId(),
+    serverId: input?.serverId,
     modality,
     title: input?.title?.trim() || defaultSessionTitle(modality),
     model: input?.model ?? '',
     group: input?.group ?? '',
     previewUrls: input?.previewUrls,
     lastPrompt: input?.lastPrompt,
+    runs: input?.runs,
     draft: input?.draft,
-    isDraft: input?.isDraft ?? true,
-    createdAt: ts,
-    updatedAt: ts,
+    isDraft: input?.isDraft ?? !hasContent,
+    createdAt: input?.createdAt ?? ts,
+    updatedAt: input?.updatedAt ?? ts,
   }
 }
 
@@ -161,7 +178,8 @@ export function hasSessionContent(session: PlaygroundSession): boolean {
   }
   return Boolean(
     session.lastPrompt?.trim() ||
-      (session.previewUrls && session.previewUrls.length > 0)
+      (session.previewUrls && session.previewUrls.length > 0) ||
+      (session.runs && session.runs.length > 0)
   )
 }
 

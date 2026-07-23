@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   ASSETS: '/api/playground/assets',
   UPLOAD_SESSIONS: '/api/playground/upload-sessions',
   CONVERSATIONS: '/api/playground/conversations',
+  PROJECTS: '/api/playground/projects',
   PERSONAS: '/api/playground/personas',
   PLAYGROUND_TASKS: '/api/playground/tasks',
   PLAYGROUND_RUNS: '/api/playground/runs',

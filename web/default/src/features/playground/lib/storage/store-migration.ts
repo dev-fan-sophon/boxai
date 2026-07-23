@@ -62,9 +62,21 @@ export const PLAYGROUND_STORE_VERSION = 3
 
 export type PlaygroundWorkspaceMode = 'model' | 'duo'
 
+export type PlaygroundDuoLeg = {
+  model: string
+  content?: string
+  error?: string
+}
+
 export type PlaygroundDuoConfig = {
   answerModels: string[]
   summaryModel: string
+  /** Last duo prompt (lane persistence across reloads). */
+  lastPrompt?: string
+  /** Last multi-model leg results. */
+  lastLegs?: PlaygroundDuoLeg[]
+  /** Last summarizer output. */
+  lastSummary?: string
 }
 
 export type PlaygroundUiPrefs = {
@@ -137,6 +149,13 @@ export function preparePersistedPlaygroundState(
       previewUrls: session.previewUrls
         ?.filter((url) => !url.startsWith('data:') && !url.startsWith('blob:'))
         .slice(0, 12),
+      runs: session.runs?.slice(-40).map((run) => ({
+        ...run,
+        resultUrl:
+          run.resultUrl?.startsWith('data:') || run.resultUrl?.startsWith('blob:')
+            ? undefined
+            : run.resultUrl,
+      })),
       draft: session.draft?.slice(0, 20_000),
     }
   })
@@ -148,7 +167,19 @@ export function preparePersistedPlaygroundState(
     parameterEnabled: state.parameterEnabled,
     chatTools: state.chatTools,
     studioSettings: state.studioSettings,
-    duo: state.duo,
+    duo: {
+      answerModels: state.duo.answerModels.slice(0, MAX_DUO_ANSWER_MODELS),
+      summaryModel: state.duo.summaryModel,
+      lastPrompt: state.duo.lastPrompt?.slice(0, 20_000),
+      lastLegs: state.duo.lastLegs
+        ?.slice(0, MAX_DUO_ANSWER_MODELS)
+        .map((leg) => ({
+          model: leg.model,
+          content: leg.content?.slice(0, 40_000),
+          error: leg.error?.slice(0, 2_000),
+        })),
+      lastSummary: state.duo.lastSummary?.slice(0, 100_000),
+    },
     pinnedModels: state.pinnedModels,
     recentPrompts: state.recentPrompts,
     myWorks: state.myWorks,
@@ -236,9 +267,29 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
 
 export function normalizeDuoConfig(value: unknown): PlaygroundDuoConfig {
   const raw = isRecord(value) ? value : {}
+  const lastLegs = Array.isArray(raw.lastLegs)
+    ? raw.lastLegs
+        .filter((item): item is Record<string, unknown> => isRecord(item))
+        .map((item) => ({
+          model: typeof item.model === 'string' ? item.model : '',
+          content: typeof item.content === 'string' ? item.content : undefined,
+          error: typeof item.error === 'string' ? item.error : undefined,
+        }))
+        .filter((item) => item.model)
+        .slice(0, MAX_DUO_ANSWER_MODELS)
+    : undefined
   return {
     answerModels: stringArray(raw.answerModels, MAX_DUO_ANSWER_MODELS),
     summaryModel: typeof raw.summaryModel === 'string' ? raw.summaryModel : '',
+    lastPrompt:
+      typeof raw.lastPrompt === 'string'
+        ? raw.lastPrompt.slice(0, 20_000)
+        : undefined,
+    lastLegs: lastLegs?.length ? lastLegs : undefined,
+    lastSummary:
+      typeof raw.lastSummary === 'string'
+        ? raw.lastSummary.slice(0, 100_000)
+        : undefined,
   }
 }
 
@@ -387,6 +438,17 @@ function normalizeSessionRecord(
 
   if (modality === 'chat') {
     const messages = normalizeMessagesField(value.messages)
+    const kind = value.kind === 'duo' ? 'duo' : 'chat'
+    let duoMeta: { answerModels: string[]; summaryModel: string } | undefined
+    if (isRecord(value.duoMeta)) {
+      duoMeta = {
+        answerModels: stringArray(value.duoMeta.answerModels, 5),
+        summaryModel:
+          typeof value.duoMeta.summaryModel === 'string'
+            ? value.duoMeta.summaryModel
+            : '',
+      }
+    }
     return {
       id,
       serverId,
@@ -395,6 +457,8 @@ function normalizeSessionRecord(
       model,
       group,
       messages,
+      kind,
+      duoMeta,
       draft,
       isDraft: isDraft || messages.length === 0,
       createdAt,
@@ -414,19 +478,40 @@ function normalizeSessionRecord(
     : undefined
   const lastPrompt =
     typeof value.lastPrompt === 'string' ? value.lastPrompt : undefined
+  const runs = Array.isArray(value.runs)
+    ? value.runs
+        .filter((item): item is Record<string, unknown> => isRecord(item))
+        .map((item) => ({
+          id: typeof item.id === 'number' ? item.id : 0,
+          model: typeof item.model === 'string' ? item.model : undefined,
+          prompt: typeof item.prompt === 'string' ? item.prompt : undefined,
+          resultUrl:
+            typeof item.resultUrl === 'string' ? item.resultUrl : undefined,
+          assetId: typeof item.assetId === 'number' ? item.assetId : undefined,
+          taskId: typeof item.taskId === 'string' ? item.taskId : undefined,
+          createdAt:
+            typeof item.createdAt === 'number' ? item.createdAt : undefined,
+        }))
+        .filter((item) => item.id > 0)
+        .slice(0, 40)
+    : undefined
 
   return {
     id,
+    serverId,
     modality,
     title,
     model,
     group,
     previewUrls,
     lastPrompt,
+    runs,
     draft,
     isDraft:
       isDraft ||
-      (!lastPrompt && (!previewUrls || previewUrls.length === 0)),
+      (!lastPrompt &&
+        (!previewUrls || previewUrls.length === 0) &&
+        (!runs || runs.length === 0)),
     createdAt,
     updatedAt,
   }

@@ -13,7 +13,11 @@ export type SessionModality = StudioModality
 
 export type PlaygroundSessionBase = {
   id: string
-  /** Cloud conversation id when the chat session has been synced. */
+  /**
+   * Cloud id when synced:
+   * - chat/duo → playground_conversations.id
+   * - studio → playground_projects.id
+   */
   serverId?: number
   modality: SessionModality
   title: string
@@ -28,9 +32,26 @@ export type PlaygroundSessionBase = {
   isDraft?: boolean
 }
 
+/** Immutable studio generation attached to a project. */
+export type StudioRunSummary = {
+  id: number
+  model?: string
+  prompt?: string
+  resultUrl?: string
+  assetId?: number
+  taskId?: string
+  createdAt?: number
+}
+
 export type ChatSession = PlaygroundSessionBase & {
   modality: 'chat'
   messages: Message[]
+  /** Multi-model (duo) session — same chat storage, different kind on server. */
+  kind?: 'chat' | 'duo'
+  duoMeta?: {
+    answerModels: string[]
+    summaryModel: string
+  }
 }
 
 export type StudioSession = PlaygroundSessionBase & {
@@ -38,6 +59,8 @@ export type StudioSession = PlaygroundSessionBase & {
   /** Lightweight local run previews (URLs only; blobs excluded from persist). */
   previewUrls?: string[]
   lastPrompt?: string
+  /** Cloud-linked immutable runs (newest last). */
+  runs?: StudioRunSummary[]
 }
 
 export type PlaygroundSession = ChatSession | StudioSession

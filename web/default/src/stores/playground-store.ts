@@ -123,6 +123,9 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   setDuoConfig: (patch: {
     answerModels?: string[]
     summaryModel?: string
+    lastPrompt?: string
+    lastLegs?: Array<{ model: string; content?: string; error?: string }>
+    lastSummary?: string
   }) => void
   togglePinnedModel: (modelName: string) => void
   addRecentPrompt: (input: {
@@ -437,6 +440,18 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
               MAX_DUO_ANSWER_MODELS
             ),
             summaryModel: patch.summaryModel ?? state.duo.summaryModel,
+            lastPrompt:
+              patch.lastPrompt !== undefined
+                ? patch.lastPrompt
+                : state.duo.lastPrompt,
+            lastLegs:
+              patch.lastLegs !== undefined
+                ? patch.lastLegs.slice(0, MAX_DUO_ANSWER_MODELS)
+                : state.duo.lastLegs,
+            lastSummary:
+              patch.lastSummary !== undefined
+                ? patch.lastSummary
+                : state.duo.lastSummary,
           },
         })),
       togglePinnedModel: (modelName) =>

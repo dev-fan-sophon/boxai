@@ -491,9 +491,11 @@ func ListPlaygroundConversations(c *gin.Context) {
 func CreatePlaygroundConversation(c *gin.Context) {
 	userId := c.GetInt("id")
 	var body struct {
-		Title string `json:"title"`
-		Model string `json:"model"`
-		Group string `json:"group"`
+		Title    string          `json:"title"`
+		Model    string          `json:"model"`
+		Group    string          `json:"group"`
+		Kind     string          `json:"kind"`
+		MetaJson json.RawMessage `json:"meta_json"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		common.ApiError(c, err)
@@ -504,11 +506,34 @@ func CreatePlaygroundConversation(c *gin.Context) {
 		title = "New chat"
 	}
 	title = truncateRunes(title, 200)
+	kind := strings.TrimSpace(body.Kind)
+	if kind == "" {
+		kind = "chat"
+	}
+	if kind != "chat" && kind != "duo" {
+		common.ApiErrorMsg(c, "invalid kind")
+		return
+	}
+	metaJson := ""
+	if len(body.MetaJson) > 0 && string(body.MetaJson) != "null" {
+		if len(body.MetaJson) > 20_000 {
+			common.ApiErrorMsg(c, "meta_json too large")
+			return
+		}
+		var probe any
+		if err := common.Unmarshal(body.MetaJson, &probe); err != nil {
+			common.ApiErrorMsg(c, "invalid meta_json")
+			return
+		}
+		metaJson = string(body.MetaJson)
+	}
 	conv := &model.PlaygroundConversation{
-		UserId: userId,
-		Title:  title,
-		Model:  body.Model,
-		Group:  body.Group,
+		UserId:   userId,
+		Title:    title,
+		Model:    body.Model,
+		Group:    body.Group,
+		Kind:     kind,
+		MetaJson: metaJson,
 	}
 	if err := model.CreatePlaygroundConversation(conv); err != nil {
 		common.ApiError(c, err)
@@ -553,9 +578,11 @@ func UpdatePlaygroundConversation(c *gin.Context) {
 		return
 	}
 	var body struct {
-		Title *string `json:"title"`
-		Model *string `json:"model"`
-		Group *string `json:"group"`
+		Title    *string         `json:"title"`
+		Model    *string         `json:"model"`
+		Group    *string         `json:"group"`
+		Kind     *string         `json:"kind"`
+		MetaJson json.RawMessage `json:"meta_json"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		common.ApiError(c, err)
@@ -569,6 +596,29 @@ func UpdatePlaygroundConversation(c *gin.Context) {
 	}
 	if body.Group != nil {
 		conv.Group = *body.Group
+	}
+	if body.Kind != nil {
+		kind := strings.TrimSpace(*body.Kind)
+		if kind != "" && kind != "chat" && kind != "duo" {
+			common.ApiErrorMsg(c, "invalid kind")
+			return
+		}
+		if kind == "" {
+			kind = "chat"
+		}
+		conv.Kind = kind
+	}
+	if len(body.MetaJson) > 0 && string(body.MetaJson) != "null" {
+		if len(body.MetaJson) > 20_000 {
+			common.ApiErrorMsg(c, "meta_json too large")
+			return
+		}
+		var probe any
+		if err := common.Unmarshal(body.MetaJson, &probe); err != nil {
+			common.ApiErrorMsg(c, "invalid meta_json")
+			return
+		}
+		conv.MetaJson = string(body.MetaJson)
 	}
 	if err := model.UpdatePlaygroundConversation(conv); err != nil {
 		common.ApiError(c, err)
@@ -607,6 +657,10 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 			Role        string          `json:"role"`
 			Content     string          `json:"content"`
 			ContentJson json.RawMessage `json:"content_json"`
+			Model       string          `json:"model"`
+			ToolJson    json.RawMessage `json:"tool_json"`
+			ClientKey   string          `json:"client_key"`
+			CreatedAt   int64           `json:"created_at"`
 		} `json:"messages"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -639,11 +693,37 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 			}
 			contentJson = raw
 		}
-		msgs = append(msgs, model.PlaygroundMessage{
+		toolJson := ""
+		if len(m.ToolJson) > 0 && string(m.ToolJson) != "null" {
+			raw := string(m.ToolJson)
+			if len(raw) > 100_000 {
+				common.ApiErrorMsg(c, "tool_json too large")
+				return
+			}
+			var probe any
+			if err := common.Unmarshal(m.ToolJson, &probe); err != nil {
+				common.ApiErrorMsg(c, "invalid tool_json")
+				return
+			}
+			toolJson = raw
+		}
+		clientKey := strings.TrimSpace(m.ClientKey)
+		if len(clientKey) > 64 {
+			clientKey = clientKey[:64]
+		}
+		modelName := truncateRunes(strings.TrimSpace(m.Model), 191)
+		msg := model.PlaygroundMessage{
 			Role:        role,
 			Content:     content,
 			ContentJson: contentJson,
-		})
+			Model:       modelName,
+			ToolJson:    toolJson,
+			ClientKey:   clientKey,
+		}
+		if m.CreatedAt > 0 {
+			msg.CreatedAt = m.CreatedAt
+		}
+		msgs = append(msgs, msg)
 	}
 	if err := model.ReplacePlaygroundMessages(id, userId, msgs); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -763,6 +843,199 @@ func DeletePlaygroundPersona(c *gin.Context) {
 	common.ApiSuccess(c, nil)
 }
 
+// ---------- Studio projects ----------
+
+func ListPlaygroundProjects(c *gin.Context) {
+	userId := c.GetInt("id")
+	pageInfo := common.GetPageQuery(c)
+	modality := strings.TrimSpace(c.Query("modality"))
+	if modality != "" && modality != "image" && modality != "video" && modality != "audio" {
+		common.ApiErrorMsg(c, "invalid modality")
+		return
+	}
+	items, total, err := model.ListPlaygroundProjects(userId, modality, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(items)
+	common.ApiSuccess(c, pageInfo)
+}
+
+func CreatePlaygroundProject(c *gin.Context) {
+	userId := c.GetInt("id")
+	var body struct {
+		Modality    string   `json:"modality"`
+		Title       string   `json:"title"`
+		Model       string   `json:"model"`
+		Group       string   `json:"group"`
+		ClientKey   string   `json:"client_key"`
+		LastPrompt  string   `json:"last_prompt"`
+		PreviewURLs []string `json:"preview_urls"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	mod := strings.TrimSpace(body.Modality)
+	if mod != "image" && mod != "video" && mod != "audio" {
+		common.ApiErrorMsg(c, "invalid modality")
+		return
+	}
+	clientKey := strings.TrimSpace(body.ClientKey)
+	if len(clientKey) > 64 {
+		clientKey = clientKey[:64]
+	}
+	// Idempotent create by client_key when provided.
+	if clientKey != "" {
+		if existing, err := model.GetPlaygroundProjectByClientKey(userId, clientKey); err == nil {
+			common.ApiSuccess(c, existing)
+			return
+		}
+	}
+	title := strings.TrimSpace(body.Title)
+	if title == "" {
+		title = "Untitled project"
+	}
+	title = truncateRunes(title, 200)
+	previewJSON := ""
+	if len(body.PreviewURLs) > 0 {
+		urls := make([]string, 0, len(body.PreviewURLs))
+		for _, u := range body.PreviewURLs {
+			safe := allowlistedResultURL(strings.TrimSpace(u))
+			if safe == "" {
+				continue
+			}
+			urls = append(urls, safe)
+			if len(urls) >= 12 {
+				break
+			}
+		}
+		if len(urls) > 0 {
+			if raw, err := common.Marshal(urls); err == nil {
+				previewJSON = string(raw)
+			}
+		}
+	}
+	p := &model.PlaygroundProject{
+		UserId:      userId,
+		Modality:    mod,
+		Title:       title,
+		Model:       truncateRunes(strings.TrimSpace(body.Model), 191),
+		Group:       truncateRunes(strings.TrimSpace(body.Group), 50),
+		ClientKey:   clientKey,
+		LastPrompt:  truncateRunes(body.LastPrompt, 4000),
+		PreviewURLs: previewJSON,
+	}
+	if err := model.CreatePlaygroundProject(p); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, p)
+}
+
+func GetPlaygroundProject(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiErrorMsg(c, "invalid id")
+		return
+	}
+	p, err := model.GetPlaygroundProject(id, userId)
+	if err != nil {
+		common.ApiErrorMsg(c, "project not found")
+		return
+	}
+	runs, err := model.ListPlaygroundRunsByProject(userId, id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"project": p,
+		"runs":    runs,
+	})
+}
+
+func UpdatePlaygroundProject(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiErrorMsg(c, "invalid id")
+		return
+	}
+	p, err := model.GetPlaygroundProject(id, userId)
+	if err != nil {
+		common.ApiErrorMsg(c, "project not found")
+		return
+	}
+	var body struct {
+		Title       *string  `json:"title"`
+		Model       *string  `json:"model"`
+		Group       *string  `json:"group"`
+		LastPrompt  *string  `json:"last_prompt"`
+		PreviewURLs []string `json:"preview_urls"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if body.Title != nil {
+		p.Title = truncateRunes(strings.TrimSpace(*body.Title), 200)
+	}
+	if body.Model != nil {
+		p.Model = truncateRunes(strings.TrimSpace(*body.Model), 191)
+	}
+	if body.Group != nil {
+		p.Group = truncateRunes(strings.TrimSpace(*body.Group), 50)
+	}
+	if body.LastPrompt != nil {
+		p.LastPrompt = truncateRunes(*body.LastPrompt, 4000)
+	}
+	if body.PreviewURLs != nil {
+		urls := make([]string, 0, len(body.PreviewURLs))
+		for _, u := range body.PreviewURLs {
+			safe := allowlistedResultURL(strings.TrimSpace(u))
+			if safe == "" {
+				continue
+			}
+			urls = append(urls, safe)
+			if len(urls) >= 12 {
+				break
+			}
+		}
+		if len(urls) == 0 {
+			p.PreviewURLs = ""
+		} else if raw, err := common.Marshal(urls); err == nil {
+			p.PreviewURLs = string(raw)
+		}
+	}
+	if err := model.UpdatePlaygroundProject(p); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, p)
+}
+
+func DeletePlaygroundProject(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiErrorMsg(c, "invalid id")
+		return
+	}
+	if err := model.DeletePlaygroundProject(id, userId); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			common.ApiErrorMsg(c, "project not found")
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
+}
+
 // ---------- Tasks / works timeline ----------
 
 func ListPlaygroundTasks(c *gin.Context) {
@@ -794,6 +1067,7 @@ func CreatePlaygroundRun(c *gin.Context) {
 		Prompt    string `json:"prompt"`
 		ResultURL string `json:"result_url"`
 		AssetId   int    `json:"asset_id"`
+		ProjectId int    `json:"project_id"`
 		// Quota from client is ignored — runs are not a billing ledger
 		Quota  int    `json:"quota"`
 		TaskId string `json:"task_id"`
@@ -815,6 +1089,22 @@ func CreatePlaygroundRun(c *gin.Context) {
 	if assetId < 0 {
 		common.ApiErrorMsg(c, "invalid asset id")
 		return
+	}
+	projectId := body.ProjectId
+	if projectId < 0 {
+		common.ApiErrorMsg(c, "invalid project id")
+		return
+	}
+	if projectId > 0 {
+		p, err := model.GetPlaygroundProject(projectId, userId)
+		if err != nil {
+			common.ApiErrorMsg(c, "project not found")
+			return
+		}
+		if mod != "chat" && p.Modality != mod {
+			common.ApiErrorMsg(c, "project modality does not match run")
+			return
+		}
 	}
 	taskId := strings.TrimSpace(body.TaskId)
 	if len(taskId) > 191 {
@@ -870,6 +1160,7 @@ func CreatePlaygroundRun(c *gin.Context) {
 	}
 	run := &model.PlaygroundRun{
 		UserId:    userId,
+		ProjectId: projectId,
 		Modality:  mod,
 		AssetId:   assetId,
 		Model:     body.Model,
@@ -881,6 +1172,31 @@ func CreatePlaygroundRun(c *gin.Context) {
 	if err := model.CreatePlaygroundRun(run); err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	// Touch parent project so history sorts by latest activity.
+	if projectId > 0 {
+		if p, err := model.GetPlaygroundProject(projectId, userId); err == nil {
+			if prompt != "" {
+				p.LastPrompt = prompt
+			}
+			if body.Model != "" {
+				p.Model = body.Model
+			}
+			if resultURL != "" {
+				var urls []string
+				if p.PreviewURLs != "" {
+					_ = common.UnmarshalJsonStr(p.PreviewURLs, &urls)
+				}
+				urls = append(urls, resultURL)
+				if len(urls) > 12 {
+					urls = urls[len(urls)-12:]
+				}
+				if raw, err := common.Marshal(urls); err == nil {
+					p.PreviewURLs = string(raw)
+				}
+			}
+			_ = model.UpdatePlaygroundProject(p)
+		}
 	}
 	if completedVideoURL != "" {
 		service.QueuePlaygroundVideoOutputReconciliation(taskId, userId, completedVideoURL)

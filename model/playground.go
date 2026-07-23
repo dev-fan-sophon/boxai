@@ -28,13 +28,19 @@ type PlaygroundAsset struct {
 
 func (PlaygroundAsset) TableName() string { return "playground_assets" }
 
-// PlaygroundConversation is a cloud-synced chat session.
+// PlaygroundConversation is a cloud-synced chat or duo session.
+// Kind: "chat" (default) | "duo". Empty kind is treated as chat for legacy rows.
 type PlaygroundConversation struct {
 	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserId    int    `json:"user_id" gorm:"not null;index"`
 	Title     string `json:"title" gorm:"type:varchar(255)"`
-	Model     string `json:"model" gorm:"type:varchar(191)"`
-	Group     string `json:"group" gorm:"type:varchar(50)"`
+	// Engine selected for the *next* turn (not per-turn history).
+	Model string `json:"model" gorm:"type:varchar(191)"`
+	Group string `json:"group" gorm:"type:varchar(50)"`
+	// Kind distinguishes plain chat threads from multi-model (duo) sessions.
+	Kind string `json:"kind" gorm:"type:varchar(20);index"` // chat | duo
+	// MetaJson stores kind-specific config (e.g. duo answer/summary models).
+	MetaJson  string `json:"meta_json" gorm:"type:text"`
 	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt int64  `json:"updated_at" gorm:"bigint;index"`
 }
@@ -55,11 +61,37 @@ type PlaygroundMessage struct {
 	// e.g. text + image_url) when a message carries more than plain text. Empty
 	// for legacy/plain-text messages, in which case Content is authoritative.
 	ContentJson string `json:"content_json" gorm:"type:text"`
-	Seq         int    `json:"seq" gorm:"not null;index"`
-	CreatedAt   int64  `json:"created_at" gorm:"bigint"`
+	// Model is the engine that produced this turn (assistant) or the active
+	// engine at send time (user). Empty on legacy rows.
+	Model string `json:"model" gorm:"type:varchar(191)"`
+	// ToolJson stores managed-tool card / source metadata for the turn.
+	ToolJson string `json:"tool_json" gorm:"type:text"`
+	// ClientKey is the frontend message key used for idempotent merge.
+	ClientKey string `json:"client_key" gorm:"type:varchar(64)"`
+	Seq       int    `json:"seq" gorm:"not null;index"`
+	CreatedAt int64  `json:"created_at" gorm:"bigint"`
 }
 
 func (PlaygroundMessage) TableName() string { return "playground_messages" }
+
+// PlaygroundProject is a cloud-synced Studio work item (image/video/audio).
+// Runs are immutable children linked via ProjectId on PlaygroundRun.
+type PlaygroundProject struct {
+	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId    int    `json:"user_id" gorm:"not null;index"`
+	Modality  string `json:"modality" gorm:"type:varchar(20);not null;index"` // image | video | audio
+	Title     string `json:"title" gorm:"type:varchar(255)"`
+	Model     string `json:"model" gorm:"type:varchar(191)"`
+	Group     string `json:"group" gorm:"type:varchar(50)"`
+	// ClientKey is the local session id used for idempotent create/merge.
+	ClientKey   string `json:"client_key" gorm:"type:varchar(64);index"`
+	LastPrompt  string `json:"last_prompt" gorm:"type:text"`
+	PreviewURLs string `json:"preview_urls" gorm:"type:text"` // JSON string array
+	CreatedAt   int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt   int64  `json:"updated_at" gorm:"bigint;index"`
+}
+
+func (PlaygroundProject) TableName() string { return "playground_projects" }
 
 // PlaygroundPersona is a reusable system prompt / role.
 type PlaygroundPersona struct {
@@ -74,9 +106,11 @@ type PlaygroundPersona struct {
 func (PlaygroundPersona) TableName() string { return "playground_personas" }
 
 // PlaygroundRun records a lightweight generation for "My works".
+// When ProjectId is set, the run belongs to a Studio project timeline.
 type PlaygroundRun struct {
 	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserId    int    `json:"user_id" gorm:"not null;index"`
+	ProjectId int    `json:"project_id" gorm:"index"` // 0 = unscoped / legacy "My works"
 	Modality  string `json:"modality" gorm:"type:varchar(20);not null;index"` // image | video | audio | chat
 	Model     string `json:"model" gorm:"type:varchar(191)"`
 	Prompt    string `json:"prompt" gorm:"type:text"`
@@ -356,6 +390,8 @@ func UpdatePlaygroundConversation(c *PlaygroundConversation) error {
 		"title":      c.Title,
 		"model":      c.Model,
 		"group":      c.Group,
+		"kind":       c.Kind,
+		"meta_json":  c.MetaJson,
 		"updated_at": c.UpdatedAt,
 	}).Error
 }
@@ -374,6 +410,90 @@ func DeletePlaygroundConversation(id int, userId int) error {
 		}
 		return nil
 	})
+}
+
+// --- Project helpers ---
+
+func CreatePlaygroundProject(p *PlaygroundProject) error {
+	now := time.Now().Unix()
+	if p.CreatedAt == 0 {
+		p.CreatedAt = now
+	}
+	p.UpdatedAt = now
+	return DB.Create(p).Error
+}
+
+func GetPlaygroundProject(id, userId int) (*PlaygroundProject, error) {
+	var p PlaygroundProject
+	err := DB.Where("id = ? AND user_id = ?", id, userId).First(&p).Error
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func GetPlaygroundProjectByClientKey(userId int, clientKey string) (*PlaygroundProject, error) {
+	if clientKey == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var p PlaygroundProject
+	err := DB.Where("user_id = ? AND client_key = ?", userId, clientKey).First(&p).Error
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func ListPlaygroundProjects(userId int, modality string, offset, limit int) ([]PlaygroundProject, int64, error) {
+	q := DB.Model(&PlaygroundProject{}).Where("user_id = ?", userId)
+	if modality != "" {
+		q = q.Where("modality = ?", modality)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var items []PlaygroundProject
+	err := q.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&items).Error
+	return items, total, err
+}
+
+func UpdatePlaygroundProject(p *PlaygroundProject) error {
+	p.UpdatedAt = time.Now().Unix()
+	return DB.Model(p).Where("id = ? AND user_id = ?", p.Id, p.UserId).Updates(map[string]any{
+		"title":        p.Title,
+		"model":        p.Model,
+		"group":        p.Group,
+		"last_prompt":  p.LastPrompt,
+		"preview_urls": p.PreviewURLs,
+		"updated_at":   p.UpdatedAt,
+	}).Error
+}
+
+func DeletePlaygroundProject(id, userId int) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		// Unlink runs (keep immutable run history under "My works").
+		if err := tx.Model(&PlaygroundRun{}).
+			Where("project_id = ? AND user_id = ?", id, userId).
+			Update("project_id", 0).Error; err != nil {
+			return err
+		}
+		res := tx.Where("id = ? AND user_id = ?", id, userId).Delete(&PlaygroundProject{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+}
+
+func ListPlaygroundRunsByProject(userId, projectId int) ([]PlaygroundRun, error) {
+	var items []PlaygroundRun
+	err := DB.Where("user_id = ? AND project_id = ?", userId, projectId).
+		Order("id ASC").Find(&items).Error
+	return items, err
 }
 
 func ReplacePlaygroundMessages(conversationId, userId int, messages []PlaygroundMessage) error {

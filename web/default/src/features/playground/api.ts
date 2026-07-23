@@ -502,6 +502,8 @@ export type ServerConversation = {
   title: string
   model: string
   group: string
+  kind?: string
+  meta_json?: string
   created_at: number
   updated_at: number
 }
@@ -511,7 +513,21 @@ export type ServerMessage = {
   role: string
   content: string
   content_json?: string
+  model?: string
+  tool_json?: string
+  client_key?: string
   seq: number
+  created_at?: number
+}
+
+export type ServerConversationMessageInput = {
+  role: string
+  content: string
+  content_json?: string
+  model?: string
+  tool_json?: string
+  client_key?: string
+  created_at?: number
 }
 
 export async function listConversations(params?: {
@@ -530,6 +546,8 @@ export async function createConversation(input: {
   title?: string
   model?: string
   group?: string
+  kind?: 'chat' | 'duo'
+  meta_json?: string | Record<string, unknown>
 }): Promise<ServerConversation> {
   const res = await api.post(API_ENDPOINTS.CONVERSATIONS, input)
   if (!res.data?.success) throw new Error(res.data?.message || 'Create failed')
@@ -551,18 +569,94 @@ export async function deleteConversation(id: number): Promise<void> {
 
 export async function updateConversation(
   id: number,
-  input: { title?: string; model?: string; group?: string }
+  input: {
+    title?: string
+    model?: string
+    group?: string
+    kind?: 'chat' | 'duo'
+    meta_json?: string | Record<string, unknown>
+  }
 ): Promise<ServerConversation> {
-  const res = await api.put(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, input)
+  const res = await api.patch(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, input)
   if (!res.data?.success) throw new Error(res.data?.message || 'Update failed')
   return res.data.data as ServerConversation
 }
 
 export async function putConversationMessages(
   id: number,
-  messages: Array<{ role: string; content: string; content_json?: string }>
+  messages: ServerConversationMessageInput[]
 ): Promise<void> {
   await api.put(`${API_ENDPOINTS.CONVERSATIONS}/${id}/messages`, { messages })
+}
+
+// ---- Studio projects ----
+
+export type ServerProject = {
+  id: number
+  modality: string
+  title: string
+  model: string
+  group: string
+  client_key?: string
+  last_prompt?: string
+  preview_urls?: string
+  created_at: number
+  updated_at: number
+}
+
+export async function listProjects(params?: {
+  p?: number
+  page_size?: number
+  modality?: string
+}): Promise<{ items: ServerProject[]; total: number }> {
+  const res = await api.get(API_ENDPOINTS.PROJECTS, { params })
+  if (!res.data?.success) return { items: [], total: 0 }
+  return {
+    items: (res.data.data?.items ?? []) as ServerProject[],
+    total: Number(res.data.data?.total ?? 0),
+  }
+}
+
+export async function createProject(input: {
+  modality: string
+  title?: string
+  model?: string
+  group?: string
+  client_key?: string
+  last_prompt?: string
+  preview_urls?: string[]
+}): Promise<ServerProject> {
+  const res = await api.post(API_ENDPOINTS.PROJECTS, input)
+  if (!res.data?.success) throw new Error(res.data?.message || 'Create failed')
+  return res.data.data as ServerProject
+}
+
+export async function getProject(id: number): Promise<{
+  project: ServerProject
+  runs: PlaygroundRun[]
+}> {
+  const res = await api.get(`${API_ENDPOINTS.PROJECTS}/${id}`)
+  if (!res.data?.success) throw new Error(res.data?.message || 'Not found')
+  return res.data.data
+}
+
+export async function updateProject(
+  id: number,
+  input: {
+    title?: string
+    model?: string
+    group?: string
+    last_prompt?: string
+    preview_urls?: string[]
+  }
+): Promise<ServerProject> {
+  const res = await api.patch(`${API_ENDPOINTS.PROJECTS}/${id}`, input)
+  if (!res.data?.success) throw new Error(res.data?.message || 'Update failed')
+  return res.data.data as ServerProject
+}
+
+export async function deleteProject(id: number): Promise<void> {
+  await api.delete(`${API_ENDPOINTS.PROJECTS}/${id}`)
 }
 
 // ---- Personas ----
@@ -602,6 +696,7 @@ export type PlaygroundRun = {
   prompt: string
   result_url: string
   asset_id?: number
+  project_id?: number
   quota: number
   task_id: string
   created_at: number
@@ -625,6 +720,7 @@ export async function createPlaygroundRun(input: {
   prompt: string
   result_url?: string
   asset_id?: number
+  project_id?: number
   quota?: number
   task_id?: string
 }): Promise<PlaygroundRun | null> {

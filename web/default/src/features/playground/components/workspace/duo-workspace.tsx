@@ -62,10 +62,11 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
   const group = usePlaygroundStore((state) => state.config.group)
   const selected = new Set(duo.answerModels)
   const { text: prompt, setText: setPrompt } = useComposerText()
-  const [summary, setSummary] = useState('')
+  // Restore lane results from the persisted duo config on mount / store change.
+  const [summary, setSummary] = useState(duo.lastSummary || '')
   const [legs, setLegs] = useState<
     Array<{ model: string; content?: string; error?: string }>
-  >([])
+  >(duo.lastLegs ?? [])
 
   const toggleModel = (value: string) => {
     const next = selected.has(value)
@@ -84,8 +85,15 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
         timeout: 120,
       }),
     onSuccess: (data) => {
-      setLegs(data.legs ?? [])
-      setSummary(data.summary || data.summary_error || '')
+      const nextLegs = data.legs ?? []
+      const nextSummary = data.summary || data.summary_error || ''
+      setLegs(nextLegs)
+      setSummary(nextSummary)
+      setDuoConfig({
+        lastPrompt: prompt.trim(),
+        lastLegs: nextLegs,
+        lastSummary: nextSummary,
+      })
       if (data.partial) {
         toast.info(t('Partial multi-model result'), {
           description: t(
