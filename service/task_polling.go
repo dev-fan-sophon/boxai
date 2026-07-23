@@ -664,7 +664,8 @@ func persistPlaygroundVideoRun(ctx context.Context, run *model.PlaygroundRun, ta
 	}
 	var asset *model.PlaygroundAsset
 	var err error
-	if videoURL != "" && !strings.Contains(videoURL, "/v1/videos/"+task.TaskID+"/content") {
+	isPersistableRef := strings.HasPrefix(videoURL, "data:") || strings.HasPrefix(videoURL, "http://") || strings.HasPrefix(videoURL, "https://")
+	if isPersistableRef && !strings.Contains(videoURL, "/v1/videos/"+task.TaskID+"/content") {
 		asset, err = PersistPlaygroundOutput(ctx, run.UserId, "video", videoURL)
 	} else {
 		asset, err = persistProviderVideoOutput(ctx, run.UserId, task)

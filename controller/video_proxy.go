@@ -71,6 +71,7 @@ func VideoProxy(c *gin.Context) {
 	var videoURL string
 	isXAITask := task.Platform == constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeXai))
 	untrustedResultURL := isUntrustedVideoResultURL(isXAITask, channel.Type)
+	operatorManagedURL := false
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
 	defer cancel()
@@ -85,6 +86,21 @@ func VideoProxy(c *gin.Context) {
 		// xAI returns a temporary media URL in the completed task response and
 		// does not expose the OpenAI-compatible /content endpoint.
 		videoURL = task.GetResultURL()
+		if parsed, parseErr := url.Parse(videoURL); parseErr == nil && !parsed.IsAbs() && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/") {
+			base, baseErr := url.Parse(baseURL)
+			if baseErr != nil {
+				videoProxyError(c, http.StatusInternalServerError, "server_error", "Failed to resolve video content URL")
+				return
+			}
+			videoURL = base.ResolveReference(parsed).String()
+			apiKey := task.PrivateData.Key
+			if apiKey == "" {
+				apiKey = channel.Key
+			}
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+			untrustedResultURL = false
+			operatorManagedURL = true
+		}
 	} else {
 		switch channel.Type {
 		case constant.ChannelTypeGemini:
@@ -151,10 +167,14 @@ func VideoProxy(c *gin.Context) {
 			videoProxyError(c, http.StatusInternalServerError, "server_error", "Failed to create proxy client")
 			return
 		}
+	} else if operatorManagedURL {
+		client = service.GetHttpClient()
 	}
 
 	var validateErr error
-	if untrustedResultURL {
+	if operatorManagedURL {
+		validateErr = nil
+	} else if untrustedResultURL {
 		validateErr = service.ValidateUntrustedMediaURL(videoURL)
 	} else if proxy == "" {
 		validateErr = service.ValidateSSRFProtectedFetchURL(videoURL)
