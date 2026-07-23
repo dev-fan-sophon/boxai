@@ -56,9 +56,9 @@ export function ComposerShell(props: ComposerShellProps) {
       <PromptInput
         className='relative'
         groupClassName={cn(
-          'bg-background/95 dark:bg-background/80 border-border/70 ring-1 ring-foreground/5 rounded-xl overflow-hidden',
-          'shadow-[0_18px_60px_-32px_rgba(0,0,0,0.65)] transition-all duration-200',
-          'focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-[0_22px_70px_-34px_rgba(0,0,0,0.75)]',
+          'playground-composer-surface bg-background/95 dark:bg-background/85 border-border/70 ring-1 ring-foreground/5 rounded-2xl overflow-hidden',
+          'shadow-[0_18px_60px_-32px_rgba(0,0,0,0.55)] transition-[border-color,box-shadow,transform] duration-200',
+          'focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-[0_22px_70px_-34px_rgba(0,0,0,0.7)]',
           props.disabled && 'opacity-90'
         )}
         onSubmit={props.onSubmit}
@@ -68,7 +68,7 @@ export function ComposerShell(props: ComposerShellProps) {
           autoCorrect='off'
           autoCapitalize='off'
           spellCheck={false}
-          className='min-h-0 px-4 pt-3 pb-2 leading-6 md:text-base'
+          className='min-h-[2.75rem] px-3.5 pt-3 pb-2 text-base leading-6 sm:min-h-0 sm:px-4 md:text-base'
           disabled={props.disabled}
           onChange={(event) => props.onTextChange(event.target.value)}
           onPaste={props.onPaste}
@@ -78,14 +78,16 @@ export function ComposerShell(props: ComposerShellProps) {
 
         {props.attachments}
 
-        <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-2.5 py-1.5 backdrop-blur'>
-          <div className='flex w-full items-center justify-between gap-2'>
-            <div className='flex min-w-0 items-center gap-1'>{props.tools}</div>
-            <div className='flex shrink-0 items-center gap-2'>
+        <PromptInputFooter className='border-border/60 bg-muted/25 dark:bg-muted/15 border-t px-2 py-1.5 backdrop-blur-md sm:px-2.5'>
+          <div className='flex w-full items-center justify-between gap-1.5 sm:gap-2'>
+            <div className='flex min-w-0 items-center gap-0.5 sm:gap-1'>
+              {props.tools}
+            </div>
+            <div className='flex shrink-0 items-center gap-1.5 sm:gap-2'>
               {props.trailing}
               {props.showStop ? (
                 <PromptInputButton
-                  className='border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium'
+                  className='border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/15 h-9 min-w-9 touch-manipulation font-medium sm:h-8'
                   onClick={props.onStop}
                   variant='secondary'
                 >
@@ -96,7 +98,7 @@ export function ComposerShell(props: ComposerShellProps) {
               ) : (
                 <PromptInputButton
                   className={cn(
-                    'bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-8 px-3 font-medium shadow-sm',
+                    'bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-9 min-w-9 touch-manipulation px-3 font-medium shadow-sm sm:h-8',
                     'transition-transform active:scale-[0.97]',
                     props.canSubmit &&
                       !props.disabled &&

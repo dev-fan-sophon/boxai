@@ -40,9 +40,9 @@ export function PlaygroundToolbar(props: PlaygroundToolbarProps) {
   const generating = props.isChatGenerating || props.isStudioPending
 
   return (
-    <div className='flex min-w-0 flex-1 items-center justify-between gap-3'>
+    <div className='flex min-w-0 flex-1 items-center justify-between gap-2 sm:gap-3'>
       <div
-        className='bg-muted/50 ring-border flex gap-1 rounded-xl p-1 ring-1'
+        className='bg-muted/45 ring-border/70 flex gap-0.5 rounded-xl p-0.5 ring-1 sm:gap-1 sm:p-1'
         role='tablist'
         aria-label={t('Playground views')}
       >
@@ -55,15 +55,16 @@ export function PlaygroundToolbar(props: PlaygroundToolbarProps) {
               type='button'
               role='tab'
               aria-selected={active}
+              aria-label={t(view.labelKey)}
               onClick={() => props.onViewChange(view.id)}
               className={cn(
-                'focus-visible:ring-ring flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2',
+                'focus-visible:ring-ring flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-[color,background-color,box-shadow,transform] outline-none focus-visible:ring-2 active:scale-[0.98] sm:min-h-0 sm:px-2.5 sm:py-1',
                 active
                   ? 'bg-primary/15 text-primary shadow-xs ring-primary/25 ring-1'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <Icon className='size-3.5' aria-hidden='true' />
+              <Icon className='size-3.5 shrink-0' aria-hidden='true' />
               <span className='hidden sm:inline'>{t(view.labelKey)}</span>
             </button>
           )
@@ -71,10 +72,13 @@ export function PlaygroundToolbar(props: PlaygroundToolbarProps) {
       </div>
 
       {generating && (
-        <div className='flex min-w-0 shrink-0 items-center gap-2'>
+        <div className='flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2'>
           <span className='text-muted-foreground flex items-center gap-1.5 text-xs font-medium'>
-            <Loader2 className='size-3.5 animate-spin' aria-hidden='true' />
-            <span className='hidden sm:inline'>
+            <Loader2
+              className='text-primary size-3.5 animate-spin'
+              aria-hidden='true'
+            />
+            <span className='hidden md:inline'>
               {props.isChatGenerating
                 ? t('Generation in progress…')
                 : t('Studio task still running…')}
@@ -84,20 +88,21 @@ export function PlaygroundToolbar(props: PlaygroundToolbarProps) {
             <Button
               size='sm'
               variant='outline'
-              className='h-7'
+              className='h-8 px-2.5 sm:h-7'
               onClick={props.onStopChat}
             >
               <Square className='size-3 fill-current' aria-hidden='true' />
-              {t('Stop')}
+              <span className='hidden sm:inline'>{t('Stop')}</span>
             </Button>
           )}
           {props.view !== 'workspace' && (
             <Button
               size='sm'
-              className='bg-primary text-primary-foreground hover:bg-primary/90 h-7'
+              className='bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-2.5 sm:h-7'
               onClick={() => props.onViewChange('workspace')}
             >
-              {t('Back to workspace')}
+              <span className='sm:hidden'>{t('Workspace')}</span>
+              <span className='hidden sm:inline'>{t('Back to workspace')}</span>
             </Button>
           )}
         </div>

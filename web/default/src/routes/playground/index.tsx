@@ -37,7 +37,7 @@ export const Route = createFileRoute('/playground/')({
 function PlaygroundPage() {
   return (
     <PublicLayout showMainContainer={false}>
-      <div className='h-svh overflow-hidden pt-16'>
+      <div className='playground-page h-dvh max-h-dvh overflow-hidden pt-[calc(var(--app-header-height,3.5rem)+env(safe-area-inset-top,0px))]'>
         <Playground />
       </div>
     </PublicLayout>

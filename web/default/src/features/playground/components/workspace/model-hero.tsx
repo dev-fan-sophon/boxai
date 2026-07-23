@@ -90,8 +90,8 @@ export function ModelHero(props: ModelHeroProps) {
   const content = (
     <div
       className={cn(
-        'mx-auto flex w-full max-w-2xl flex-col items-center px-4 text-center',
-        props.compact ? 'gap-3 py-4' : 'gap-5 py-10 md:py-14',
+        'mx-auto flex w-full max-w-2xl flex-col items-center px-3 text-center sm:px-4',
+        props.compact ? 'gap-3 py-4' : 'gap-4 py-7 sm:gap-5 sm:py-10 md:py-14',
         props.className
       )}
     >
@@ -99,7 +99,7 @@ export function ModelHero(props: ModelHeroProps) {
         {media && !shouldReduce && (
           <div
             className={cn(
-              'pointer-events-none absolute -inset-6 rounded-full bg-gradient-to-br blur-2xl',
+              'pointer-events-none absolute -inset-5 rounded-full bg-gradient-to-br blur-2xl sm:-inset-6',
               media.accent,
               'generation-glow-pulse'
             )}
@@ -110,14 +110,14 @@ export function ModelHero(props: ModelHeroProps) {
           className={cn(
             'relative flex items-center justify-center rounded-full',
             'bg-muted/50 ring-border/80 shadow-sm ring-1',
-            props.compact ? 'size-16' : 'size-24 md:size-28'
+            props.compact ? 'size-16' : 'size-20 sm:size-24 md:size-28'
           )}
         >
           {Icon ? (
             <Icon
               className={cn(
                 'text-foreground/80',
-                props.compact ? 'size-9' : 'size-12 md:size-14'
+                props.compact ? 'size-9' : 'size-10 sm:size-12 md:size-14'
               )}
               aria-hidden='true'
             />
@@ -126,8 +126,8 @@ export function ModelHero(props: ModelHeroProps) {
       </div>
 
       {!props.compact && (
-        <div className='space-y-2'>
-          <p className='text-foreground text-lg font-semibold tracking-tight md:text-xl'>
+        <div className='space-y-1.5 sm:space-y-2'>
+          <p className='text-foreground text-base font-semibold tracking-tight sm:text-lg md:text-xl'>
             {title}
           </p>
           <p className='text-muted-foreground mx-auto max-w-md text-sm leading-relaxed text-pretty'>

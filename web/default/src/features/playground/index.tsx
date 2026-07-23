@@ -631,7 +631,7 @@ export function Playground() {
             <Button
               size='icon'
               variant='ghost'
-              className='text-muted-foreground hover:text-foreground size-8'
+              className='text-muted-foreground hover:text-foreground size-9 touch-manipulation sm:size-8'
               aria-label={t('Settings')}
               aria-pressed={isDesktop ? desktopSettingsOpen : undefined}
               onClick={toggleSettings}
@@ -643,7 +643,7 @@ export function Playground() {
       )}
 
       {showWorkspace && duoActive && (
-        <div className='min-h-0 flex-1 overflow-y-auto p-4 md:p-8'>
+        <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-8'>
           <DuoWorkspace
             chatModels={chatModels}
             onClose={() => setWorkspaceMode('model')}
@@ -668,7 +668,7 @@ export function Playground() {
               onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
             />
           </div>
-          <div className='mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pb-3 md:px-3 md:pb-4'>
+          <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
             <ChatComposer
               disabled={isGenerating || isRouting}
               isGenerating={isGenerating}
@@ -694,12 +694,13 @@ export function Playground() {
       <Sheet open={settingsSheetOpen} onOpenChange={setSettingsSheetOpen}>
         <SheetContent
           side='bottom'
-          className='max-h-[85vh] overflow-y-auto rounded-t-xl'
+          className='max-h-[min(88dvh,40rem)] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom,0px)]'
         >
+          <div className='bg-border mx-auto mt-1 mb-1 h-1 w-10 rounded-full' />
           <SheetHeader>
             <SheetTitle>{t('Settings')}</SheetTitle>
           </SheetHeader>
-          <div className='px-4 pb-4'>
+          <div className='px-4 pb-5'>
             <SettingsSections modality={activeModality} duoActive={duoActive} />
           </div>
         </SheetContent>

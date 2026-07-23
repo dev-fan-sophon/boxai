@@ -47,23 +47,24 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
   return (
     <div
       className={cn(
-        'playground-workbench bg-background text-foreground relative flex size-full min-h-0 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]',
+        'playground-workbench bg-background text-foreground relative flex size-full min-h-0 flex-col overflow-hidden',
+        'pb-[env(safe-area-inset-bottom,0px)]',
         props.className
       )}
       data-playground-workbench=''
     >
-      <div className='border-border flex h-12 shrink-0 items-center gap-2 border-b px-3'>
+      <div className='playground-topbar border-border/70 flex h-11 shrink-0 items-center gap-2 border-b px-2 sm:h-12 sm:px-3'>
         {props.toolbar}
       </div>
 
       <div className='relative flex min-h-0 flex-1'>
         {isDesktop && (
-          <aside className='bg-sidebar text-sidebar-foreground border-sidebar-border flex w-[300px] shrink-0 flex-col border-r'>
+          <aside className='playground-rail bg-sidebar/95 text-sidebar-foreground border-sidebar-border flex w-[min(300px,28vw)] shrink-0 flex-col border-r backdrop-blur-md'>
             {props.catalog}
           </aside>
         )}
 
-        <main className='relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
+        <main className='playground-stage relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
           {props.children}
         </main>
 
@@ -76,7 +77,7 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
       >
         <SheetContent
           side='left'
-          className='bg-sidebar text-sidebar-foreground border-sidebar-border w-[88%] p-0 sm:max-w-sm'
+          className='bg-sidebar text-sidebar-foreground border-sidebar-border w-[min(92vw,22rem)] p-0 sm:max-w-sm'
         >
           <SheetHeader className='sr-only'>
             <SheetTitle>{t('Model catalog')}</SheetTitle>
@@ -84,7 +85,7 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
               {t('Choose a model for your next run.')}
             </SheetDescription>
           </SheetHeader>
-          <div className='flex h-full flex-col'>
+          <div className='flex h-full flex-col pt-[env(safe-area-inset-top,0px)]'>
             {catalogOpen && props.catalog}
           </div>
         </SheetContent>

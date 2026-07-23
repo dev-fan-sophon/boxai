@@ -336,6 +336,98 @@ For commercial licensing, please contact support@quantumnous.com
   animation: generation-size-badge 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
 }
 
+/* Playground shell: mobile-first polish + ambient stage */
+.playground-page {
+  --playground-composer-glow: color-mix(
+    in oklab,
+    var(--primary) 18%,
+    transparent
+  );
+}
+
+.playground-workbench {
+  isolation: isolate;
+}
+
+.playground-topbar,
+.playground-workspace-header {
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.playground-stage {
+  background:
+    radial-gradient(
+      120% 70% at 50% -10%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--muted) 35%, transparent),
+      transparent 28%
+    );
+}
+
+.playground-composer-dock {
+  position: relative;
+}
+
+.playground-composer-dock::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 8%;
+  top: -1.25rem;
+  height: 2.5rem;
+  background: radial-gradient(
+    60% 100% at 50% 100%,
+    var(--playground-composer-glow),
+    transparent 70%
+  );
+  opacity: 0.7;
+}
+
+.playground-composer-surface {
+  position: relative;
+}
+
+.playground-composer-surface::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0
+    color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+@media (max-width: 639px) {
+  .playground-workbench {
+    --playground-touch-min: 2.25rem;
+  }
+
+  .playground-topbar,
+  .playground-workspace-header {
+    /* Keep chrome compact on phones so the stage has room */
+    min-height: 2.75rem;
+  }
+
+  .playground-composer-dock {
+    /* Prevent iOS focus jump / rubber-band overscroll fighting the dock */
+    overscroll-behavior: contain;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playground-composer-surface,
+  .playground-topbar button,
+  .playground-workspace-header button {
+    transition: none !important;
+  }
+}
+
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;

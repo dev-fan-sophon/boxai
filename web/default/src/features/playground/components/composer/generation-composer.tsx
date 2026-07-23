@@ -62,7 +62,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
   }
 
   return (
-    <div className='mx-auto w-full max-w-4xl shrink-0 px-2 py-3 md:px-3 md:py-3.5'>
+    <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-3 md:px-3 md:py-3.5'>
       {props.isPending && (
         <p className='text-muted-foreground mb-2 px-1 text-center text-[11px]'>
           {t('Generating… you can keep editing the prompt for the next run.')}

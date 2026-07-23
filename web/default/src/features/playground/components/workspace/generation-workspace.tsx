@@ -222,11 +222,11 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           )}
         </AnimatePresence>
 
-        <div className='mx-auto w-full max-w-5xl px-4 pb-6 md:px-6'>
+        <div className='mx-auto w-full max-w-5xl px-3 pb-5 sm:px-4 md:px-6 md:pb-6'>
           <section
             className={cn(
-              'flex min-h-[12rem] flex-col',
-              showProgress || hasOutput || error ? 'pt-4 md:pt-6' : ''
+              'flex min-h-[10rem] flex-col sm:min-h-[12rem]',
+              showProgress || hasOutput || error ? 'pt-3 sm:pt-4 md:pt-6' : ''
             )}
             aria-busy={showProgress}
             aria-live='polite'
@@ -385,8 +385,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
 
       <div
         className={cn(
-          'border-border/60 bg-background/80 shrink-0 border-t backdrop-blur-md',
-          'supports-backdrop-filter:bg-background/70'
+          'playground-composer-dock border-border/60 bg-background/85 shrink-0 border-t backdrop-blur-xl',
+          'supports-backdrop-filter:bg-background/72'
         )}
       >
         <GenerationComposer

@@ -115,14 +115,14 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
   }
 
   return (
-    <div className='border-border flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3'>
+    <div className='playground-workspace-header border-border/70 flex h-11 shrink-0 items-center justify-between gap-2 border-b px-2 sm:h-12 sm:px-3'>
       {isDesktop ? (
         modelInfo
       ) : (
         <button
           type='button'
           onClick={props.onOpenCatalog}
-          className='focus-visible:ring-ring flex min-w-0 items-center gap-1.5 rounded-lg py-1 pr-1.5 text-left outline-none focus-visible:ring-2'
+          className='focus-visible:ring-ring hover:bg-muted/50 active:bg-muted flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl py-1 pr-1.5 pl-0.5 text-left outline-none transition-colors focus-visible:ring-2'
           aria-label={t('Open catalog')}
         >
           {modelInfo}
@@ -133,7 +133,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
         </button>
       )}
       {props.actions && (
-        <div className='flex shrink-0 items-center gap-1.5'>
+        <div className='flex shrink-0 items-center gap-1 sm:gap-1.5'>
           {props.actions}
         </div>
       )}

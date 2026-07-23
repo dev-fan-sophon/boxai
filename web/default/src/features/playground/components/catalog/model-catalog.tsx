@@ -128,7 +128,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           />
         </div>
         <div
-          className='flex flex-wrap gap-1'
+          className='no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5'
           role='group'
           aria-label={t('Filter by modality')}
         >
@@ -141,7 +141,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 key={item}
                 type='button'
                 className={cn(
-                  'h-7 rounded-lg px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                  'h-8 shrink-0 touch-manipulation rounded-lg px-2.5 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring sm:h-7 sm:px-2',
                   modality === item
                     ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
