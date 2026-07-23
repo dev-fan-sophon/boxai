@@ -32,7 +32,7 @@ type UsePlaygroundConversationOptions = {
   updateMessages: (
     updater: Message[] | ((prev: Message[]) => Message[])
   ) => void
-  sendChat: (messages: Message[], managedToolRunId?: number) => void
+  sendChat: (messages: Message[]) => void
   routeTurn?: (messages: Message[], text: string) => Promise<void>
   canSubmit: () => boolean
 }

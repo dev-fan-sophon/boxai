@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -83,10 +84,39 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 	// direct args still pass through the existing relay validators and bounds.
 	args["prompt"] = req.UserText
 	endpoint := ""
-	if action == service.PlaygroundToolImage || action == service.PlaygroundToolVideo {
+	if action == service.PlaygroundToolImage || action == service.PlaygroundToolVideo || action == service.PlaygroundToolSearch {
 		abilityGroups := []string{req.Group}
 		if req.Group == "auto" {
 			abilityGroups = service.GetUserAutoGroup(userGroup)
+		}
+		if action == service.PlaygroundToolSearch {
+			abilities, abilityErr := model.GetEnabledGrokPlaygroundSearchAbilities(abilityGroups)
+			if abilityErr != nil {
+				common.ApiError(c, abilityErr)
+				return
+			}
+			for _, group := range abilityGroups {
+				models := make([]string, 0, len(abilities))
+				for _, ability := range abilities {
+					if ability.Group == group && (ability.ChannelType == constant.ChannelTypeXai || ability.ChannelType == constant.ChannelTypeOpenAI) {
+						models = append(models, ability.Model)
+					}
+				}
+				selectedModel := selectToolModel(models, action)
+				for _, ability := range abilities {
+					if ability.Group != group || ability.Model != selectedModel {
+						continue
+					}
+					run.ToolModel = ability.Model
+					run.UsingGroup = ability.Group
+					args["__channel_id"] = ability.ChannelId
+					args["group"] = ability.Group
+					break
+				}
+				if run.ToolModel != "" {
+					break
+				}
+			}
 		}
 		modelSet := map[string]struct{}{}
 		for _, group := range abilityGroups {
@@ -98,7 +128,9 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 		for enabledModel := range modelSet {
 			models = append(models, enabledModel)
 		}
-		run.ToolModel = selectToolModel(models, action)
+		if action != service.PlaygroundToolSearch {
+			run.ToolModel = selectToolModel(models, action)
+		}
 		if run.ToolModel == "" {
 			run.Status = "unavailable"
 			run.ErrorMessage = "no enabled tool model is available for this group"
@@ -106,23 +138,15 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 			args["model"] = run.ToolModel
 			if action == service.PlaygroundToolImage {
 				endpoint = "/pg/images/generations"
-			} else {
+			} else if action == service.PlaygroundToolVideo {
 				endpoint = "/pg/video/generations"
+			} else {
+				endpoint = "/pg/responses"
 			}
 		}
 	}
 	argBytes, _ := common.Marshal(args)
 	run.ArgumentsJson = string(argBytes)
-	var searchProvider service.SearchProvider
-	if action == service.PlaygroundToolSearch {
-		searchProvider = service.GetPlaygroundSearchProvider()
-		if !searchProvider.Configured() {
-			run.Status = "unavailable"
-			run.ErrorMessage = "web search is not configured"
-		} else {
-			run.Status = "running"
-		}
-	}
 	if action == service.PlaygroundToolChat {
 		run.Status = "completed"
 	}
@@ -134,29 +158,6 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	// The unique owner/request key elects exactly one search executor. Concurrent
-	// losers returned above and never call the provider.
-	if action == service.PlaygroundToolSearch && run.Status == "running" {
-		updates := map[string]any{"status": "completed"}
-		sources, err := searchProvider.Search(c.Request.Context(), req.UserText, 5)
-		if err != nil {
-			updates["status"] = "failed"
-			updates["error_message"] = err.Error()
-		} else {
-			b, marshalErr := common.Marshal(sources)
-			if marshalErr != nil {
-				updates["status"] = "failed"
-				updates["error_message"] = marshalErr.Error()
-			} else {
-				updates["sources_json"] = string(b)
-			}
-		}
-		if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, userID, "running", updates); err != nil {
-			common.ApiError(c, err)
-			return
-		}
-		run, _ = model.GetPlaygroundChatToolRun(run.Id, userID)
-	}
 	c.Set("playground_tool_endpoint", endpoint)
 	respondPlaygroundToolRun(c, run)
 }
@@ -164,8 +165,8 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 func GetPlaygroundChatToolRun(c *gin.Context) {
 	run := ownedToolRun(c)
 	if run != nil {
-		if run.Action == service.PlaygroundToolSearch && run.Status == "running" && run.UpdatedAt < time.Now().Add(-30*time.Second).Unix() {
-			_ = model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, "running", map[string]any{"status": "failed", "error_message": "web search timed out"})
+		if run.Action == service.PlaygroundToolSearch && run.Status == "executing" && run.UpdatedAt < time.Now().Add(-10*time.Minute).Unix() {
+			_ = model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, "executing", map[string]any{"status": "failed", "error_message": "managed search execution timed out"})
 		}
 		reconcileSubmittedPlaygroundToolRun(run)
 		run, _ = model.GetPlaygroundChatToolRun(run.Id, run.UserId)
@@ -214,6 +215,7 @@ func ImportPlaygroundChatToolRun(c *gin.Context) {
 		Status         string `json:"status"`
 		TaskId         string `json:"task_id"`
 		Result         any    `json:"result"`
+		Sources        any    `json:"sources"`
 		Error          string `json:"error"`
 	}
 	if err := common.DecodeJson(c.Request.Body, &body); err != nil || body.ExecutionToken != run.ExecutionToken {
@@ -235,6 +237,11 @@ func ImportPlaygroundChatToolRun(c *gin.Context) {
 		common.ApiErrorMsg(c, "result is too large")
 		return
 	}
+	sources, _ := common.Marshal(body.Sources)
+	if len(sources) > 64*1024 {
+		common.ApiErrorMsg(c, "sources are too large")
+		return
+	}
 	fromStatus := run.Status
 	if fromStatus != "executing" && fromStatus != "submitted" {
 		common.ApiErrorMsg(c, "run state conflict")
@@ -244,7 +251,7 @@ func ImportPlaygroundChatToolRun(c *gin.Context) {
 		common.ApiErrorMsg(c, "run state conflict")
 		return
 	}
-	if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, fromStatus, map[string]any{"status": body.Status, "task_id": body.TaskId, "result_json": string(b), "error_message": body.Error}); err != nil {
+	if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, fromStatus, map[string]any{"status": body.Status, "task_id": body.TaskId, "result_json": string(b), "sources_json": string(sources), "error_message": body.Error}); err != nil {
 		common.ApiErrorMsg(c, "run state conflict")
 		return
 	}
@@ -270,8 +277,12 @@ func ownedToolRun(c *gin.Context) *model.PlaygroundChatToolRun {
 	return r
 }
 func respondPlaygroundToolRun(c *gin.Context, r *model.PlaygroundChatToolRun) {
-	var args, sources, result any
+	var args map[string]any
+	var sources, result any
 	_ = common.UnmarshalJsonStr(r.ArgumentsJson, &args)
+	if args != nil {
+		delete(args, "__channel_id")
+	}
 	_ = common.UnmarshalJsonStr(r.SourcesJson, &sources)
 	_ = common.UnmarshalJsonStr(r.ResultJson, &result)
 	endpoint := ""
@@ -279,6 +290,8 @@ func respondPlaygroundToolRun(c *gin.Context, r *model.PlaygroundChatToolRun) {
 		endpoint = "/pg/images/generations"
 	} else if r.Action == service.PlaygroundToolVideo {
 		endpoint = "/pg/video/generations"
+	} else if r.Action == service.PlaygroundToolSearch {
+		endpoint = "/pg/responses"
 	}
 	common.ApiSuccess(c, gin.H{"run": r, "arguments": args, "sources": sources, "result": result, "execution": gin.H{"endpoint": endpoint, "method": "POST", "execution_token": r.ExecutionToken}})
 }
@@ -296,6 +309,9 @@ func selectToolModel(models []string, action string) string {
 	if action == service.PlaygroundToolVideo {
 		priorities = []string{"grok-imagine-video", "grok-imagine-video-1.5"}
 		need = []string{"video", "sora", "veo", "kling", "wan"}
+	} else if action == service.PlaygroundToolSearch {
+		priorities = []string{"grok-4.5", "grok-4.3"}
+		need = []string{"grok-4"}
 	}
 	for _, preferred := range priorities {
 		for _, enabled := range models {
@@ -308,6 +324,9 @@ func selectToolModel(models []string, action string) string {
 	sort.Slice(fallbacks, func(i, j int) bool { return strings.ToLower(fallbacks[i]) < strings.ToLower(fallbacks[j]) })
 	for _, m := range fallbacks {
 		lower := strings.ToLower(m)
+		if action == service.PlaygroundToolSearch && (strings.Contains(lower, "image") || strings.Contains(lower, "imagine") || strings.Contains(lower, "video")) {
+			continue
+		}
 		for _, k := range need {
 			if strings.Contains(lower, k) {
 				return m

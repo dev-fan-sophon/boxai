@@ -229,11 +229,14 @@ type Usage struct {
 	UsageSource          string        `json:"usage_source,omitempty"`
 	BillingUsage         *BillingUsage `json:"billing_usage,omitempty"`
 
-	PromptTokensDetails    InputTokenDetails  `json:"prompt_tokens_details"`
-	CompletionTokenDetails OutputTokenDetails `json:"completion_tokens_details"`
-	InputTokens            int                `json:"input_tokens"`
-	OutputTokens           int                `json:"output_tokens"`
-	InputTokensDetails     *InputTokenDetails `json:"input_tokens_details"`
+	PromptTokensDetails    InputTokenDetails           `json:"prompt_tokens_details"`
+	CompletionTokenDetails OutputTokenDetails          `json:"completion_tokens_details"`
+	InputTokens            int                         `json:"input_tokens"`
+	OutputTokens           int                         `json:"output_tokens"`
+	InputTokensDetails     *InputTokenDetails          `json:"input_tokens_details"`
+	NumServerSideToolsUsed int                         `json:"num_server_side_tools_used,omitempty"`
+	CostInUSDTicks         int64                       `json:"cost_in_usd_ticks,omitempty"`
+	ServerSideToolUsage    *ServerSideToolUsageDetails `json:"server_side_tool_usage_details,omitempty"`
 
 	// claude cache 1h
 	ClaudeCacheCreation5mTokens int `json:"claude_cache_creation_5_m_tokens"`
@@ -241,6 +244,11 @@ type Usage struct {
 
 	// OpenRouter Params
 	Cost any `json:"cost,omitempty"`
+}
+
+type ServerSideToolUsageDetails struct {
+	WebSearchCalls int `json:"web_search_calls"`
+	XSearchCalls   int `json:"x_search_calls"`
 }
 
 type OpenAIVideoResponse struct {
@@ -301,6 +309,7 @@ type OpenAIResponsesResponse struct {
 	MaxOutputTokens    int                `json:"max_output_tokens"`
 	Model              string             `json:"model"`
 	Output             []ResponsesOutput  `json:"output"`
+	Citations          []any              `json:"citations,omitempty"`
 	ParallelToolCalls  bool               `json:"parallel_tool_calls"`
 	PreviousResponseID json.RawMessage    `json:"previous_response_id"`
 	Reasoning          *Reasoning         `json:"reasoning"`
@@ -400,10 +409,13 @@ type ResponsesReasoningSummaryPart struct {
 const (
 	BuildInToolWebSearchPreview = "web_search_preview"
 	BuildInToolFileSearch       = "file_search"
+	BuildInToolXAIWebSearch     = "web_search"
+	BuildInToolXAIXSearch       = "x_search"
 )
 
 const (
 	BuildInCallWebSearchCall = "web_search_call"
+	BuildInCallXSearchCall   = "x_search_call"
 )
 
 const (

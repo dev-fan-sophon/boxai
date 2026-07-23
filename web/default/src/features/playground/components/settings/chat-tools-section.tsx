@@ -7,7 +7,7 @@ published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Brain, Globe, History, Theater, Trash2 } from 'lucide-react'
+import { Brain, History, Theater, Trash2, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -62,16 +62,6 @@ export function ChatToolsSection() {
   return (
     <div className='space-y-3'>
       <ToggleRow
-        id='settings-web-search'
-        label={t('Web search')}
-        description={t(
-          'Run a server search pre-pass when PLAYGROUND_SEARCH_URL is set.'
-        )}
-        checked={chatTools.webSearch}
-        onCheckedChange={(checked) => setChatTools({ webSearch: checked })}
-        icon={Globe}
-      />
-      <ToggleRow
         id='settings-carry-history'
         label={t('Carry history')}
         description={t('Include prior turns from this conversation.')}
@@ -87,30 +77,6 @@ export function ChatToolsSection() {
         onCheckedChange={(checked) => setChatTools({ longMemory: checked })}
         icon={Brain}
       />
-
-      <div className='space-y-1.5'>
-        <Label htmlFor='settings-tool-loops' className='text-xs'>
-          {t('Max tool loops')}
-        </Label>
-        <input
-          id='settings-tool-loops'
-          type='number'
-          min={1}
-          max={20}
-          value={chatTools.maxToolLoops}
-          onChange={(event) => {
-            const value = Number(event.target.value)
-            if (!Number.isFinite(value)) return
-            setChatTools({
-              maxToolLoops: Math.min(20, Math.max(1, Math.round(value))),
-            })
-          }}
-          className='border-input bg-background h-8 w-full rounded-md border px-3 text-sm'
-        />
-        <p className='text-muted-foreground text-[11px]'>
-          {t('Sent as max_tool_loops with web search requests.')}
-        </p>
-      </div>
 
       <div className='space-y-1.5'>
         <div className='flex items-center justify-between gap-2'>
@@ -255,7 +221,7 @@ function ToggleRow(props: {
   description: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
-  icon: typeof Globe
+  icon: LucideIcon
 }) {
   const Icon = props.icon
   return (

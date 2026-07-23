@@ -8,7 +8,8 @@ This document lists the APIs, environment variables, and **models/providers to c
 
 | Method | Path | Notes |
 |--------|------|--------|
-| POST | `/pg/chat/completions` | Chat; optional `web_search`, `max_tool_loops` |
+| POST | `/pg/chat/completions` | Chat |
+| POST | `/pg/responses` | Managed Grok native web/X search; requires run ID and execution token headers |
 | POST | `/pg/images/generations` | Image gen; accepts `images` / `image` reference fields |
 | POST | `/pg/images/edits` | Image edits (same body as OpenAI image edits + playground `group`) |
 | POST | `/pg/audio/speech` | TTS |
@@ -46,8 +47,6 @@ This document lists the APIs, environment variables, and **models/providers to c
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PLAYGROUND_ASSETS_DIR` | `data/playground-assets` | Local filesystem root for uploads |
-| `PLAYGROUND_SEARCH_URL` | _(empty)_ | HTTP GET search provider base URL (`?q=` + optional `limit=`). Do **not** point at sensitive internal metadata endpoints without auth. Queries are capped (~1500 runes). |
-| `PLAYGROUND_SEARCH_API_KEY` | _(empty)_ | Optional Bearer key for search provider |
 | `PLAYGROUND_INTERNAL_BASE` | `http://127.0.0.1:$PORT` | Base URL for multi-chat internal fan-out |
 | `SERVER_ADDRESS` | _(empty)_ | Base URL printed in SKILL.md |
 | `PORT` | `3000` | Used for internal multi-chat base when `PLAYGROUND_INTERNAL_BASE` unset |
@@ -99,9 +98,8 @@ Fill these in admin **Channels** + **Model pricing** before users can generate f
 
 ### Web search
 
-- [ ] Deploy or point `PLAYGROUND_SEARCH_URL` at a small search proxy (Bing / SerpAPI / custom)
-- [ ] Optional `PLAYGROUND_SEARCH_API_KEY`
-- [ ] Without this, enabling “Web search” in the UI returns a clear error on send
+- [ ] Enable a Grok 4 search-capable model in each intended user group
+- [ ] The managed search route uses native `web_search` and `x_search` Responses tools
 
 ### Multi-model collaboration
 
@@ -131,6 +129,5 @@ Fill these in admin **Channels** + **Model pricing** before users can generate f
 
 1. **QR upload UX**: session token + poll is implemented; a full phone QR landing page UI is minimal (upload URL shown in toast).
 2. **Voice clone upstream**: records stay `pending_provider` until a provider is configured.
-3. **Web search multi-tool loop**: single pre-pass search today; `max_tool_loops` is accepted and capped for future multi-round tools.
-4. **Multi-chat** depends on loopback HTTP to self; reverse-proxy only deployments should set `PLAYGROUND_INTERNAL_BASE`.
-5. **PPT / infinite canvas agents**: still documented as coming soon (modality jumps work).
+3. **Multi-chat** depends on loopback HTTP to self; reverse-proxy only deployments should set `PLAYGROUND_INTERNAL_BASE`.
+4. **PPT / infinite canvas agents**: still documented as coming soon (modality jumps work).

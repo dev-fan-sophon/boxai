@@ -31,10 +31,6 @@ export type BuildChatPayloadOptions = {
   systemPrompt?: string
   /** When false, only the latest user turn is sent (plus system prompt) */
   carryHistory?: boolean
-  /** Server-side web search pre-pass when configured */
-  webSearch?: boolean
-  maxToolLoops?: number
-  managedToolRunId?: number
 }
 
 export const MAX_CHAT_PAYLOAD_BYTES = 30 * 1024 * 1024
@@ -111,13 +107,6 @@ export function buildChatCompletionPayload(
 
   if (parameterEnabled.seed && config.seed !== null) {
     payload.seed = config.seed
-  }
-
-  if (options?.managedToolRunId) {
-    payload.managed_tool_run_id = options.managedToolRunId
-  } else if (options?.webSearch) {
-    payload.web_search = true
-    payload.max_tool_loops = options.maxToolLoops ?? 3
   }
 
   return payload

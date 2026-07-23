@@ -40,7 +40,7 @@ import {
   createManagedToolRun,
   createPlaygroundRun,
   generateImages,
-  getManagedToolRun,
+  executeManagedSearch,
   importManagedToolRun,
   submitVideo,
 } from './api'
@@ -65,7 +65,10 @@ import {
 } from './hooks'
 import { useStudio } from './hooks/use-studio'
 import { persistGeneratedMediaAsset } from './lib/download-generated-media'
-import { updateManagedAssistant } from './lib/managed-tools'
+import {
+  extractManagedSearchResult,
+  updateManagedAssistant,
+} from './lib/managed-tools'
 import { getModelModality } from './lib/studio/model-modality'
 import type { AgentCard } from './lib/workbench/agents-data'
 import type { InspirationTemplate } from './lib/workbench/inspiration-data'
@@ -165,15 +168,8 @@ export function Playground() {
     () => ({
       systemPrompt: chatTools.systemPrompt,
       carryHistory: chatTools.carryHistory,
-      webSearch: chatTools.webSearch,
-      maxToolLoops: chatTools.maxToolLoops,
     }),
-    [
-      chatTools.systemPrompt,
-      chatTools.carryHistory,
-      chatTools.webSearch,
-      chatTools.maxToolLoops,
-    ]
+    [chatTools.systemPrompt, chatTools.carryHistory]
   )
 
   const { sendChat, stopGeneration, isGenerating } = useChatHandler({
@@ -205,7 +201,8 @@ export function Playground() {
       if (chatTools.mode === 'search') directName = 'web_search'
       const setAssistantTool = (
         managedTool: import('./types').ManagedToolCard,
-        sources?: import('./types').MessageSource[]
+        sources?: import('./types').MessageSource[],
+        content?: string
       ) =>
         updateMessages((previous) =>
           assistantKey
@@ -213,7 +210,8 @@ export function Playground() {
                 previous,
                 assistantKey,
                 managedTool,
-                sources
+                sources,
+                content
               )
             : previous
         )
@@ -248,22 +246,17 @@ export function Playground() {
           model: run.tool_model,
         }
         if (run.action === 'web_search') {
-          while (response.run.status === 'running') {
-            await new Promise((resolve) => window.setTimeout(resolve, 1000))
-            response = await getManagedToolRun(run.id)
-          }
-          if (response.run.status !== 'completed') {
-            throw new Error(response.run.error || t('Tool failed'))
-          }
-          const sources = (response.sources?.results ?? []).map((source) => ({
-            href: source.url,
-            title: source.title,
-            snippet: source.snippet,
-            domain: source.domain,
-            publishedAt: source.published_at,
-          }))
-          setAssistantTool({ ...baseCard, status: 'completed' }, sources)
-          sendChat(turnMessages, run.id)
+          setAssistantTool(baseCard)
+          const raw = await executeManagedSearch(
+            run.id,
+            response.execution.execution_token
+          )
+          const result = extractManagedSearchResult(raw)
+          setAssistantTool(
+            { ...baseCard, status: 'completed' },
+            result.sources,
+            result.text
+          )
           return
         }
         if (run.action === 'generate_image') {

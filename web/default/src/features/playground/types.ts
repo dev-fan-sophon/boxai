@@ -116,10 +116,6 @@ export interface ChatCompletionRequest {
   frequency_penalty?: number
   presence_penalty?: number
   seed?: number
-  /** Playground-only: server web search pre-pass when configured */
-  web_search?: boolean
-  max_tool_loops?: number
-  managed_tool_run_id?: number
 }
 
 export interface ChatCompletionChunk {

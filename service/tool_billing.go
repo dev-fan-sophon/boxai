@@ -3,7 +3,29 @@ package service
 import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/shopspring/decimal"
 )
+
+// ManagedXAISearchReservationQuota reserves a conservative platform-owned
+// tool-call allowance. Some OpenAI-compatible xAI upstreams do not enforce
+// max_turns, so reservation must not assume turns equal actual calls.
+func ManagedXAISearchReservationQuota(modelName string, reservedCalls int, groupRatio float64) (int, *common.QuotaClamp) {
+	if reservedCalls <= 0 || groupRatio <= 0 {
+		return 0, nil
+	}
+	webPrice := operation_setting.GetToolPriceForModel("xai_web_search", modelName)
+	xPrice := operation_setting.GetToolPriceForModel("xai_x_search", modelName)
+	maxPrice := decimal.NewFromFloat(webPrice)
+	if decimal.NewFromFloat(xPrice).GreaterThan(maxPrice) {
+		maxPrice = decimal.NewFromFloat(xPrice)
+	}
+	quota := maxPrice.
+		Mul(decimal.NewFromInt(int64(reservedCalls))).
+		Div(decimal.NewFromInt(1000)).
+		Mul(decimal.NewFromFloat(common.QuotaPerUnit)).
+		Mul(decimal.NewFromFloat(groupRatio))
+	return common.QuotaFromDecimalChecked(quota)
+}
 
 // ToolCallUsage captures all tool call counts from a single request.
 type ToolCallUsage struct {

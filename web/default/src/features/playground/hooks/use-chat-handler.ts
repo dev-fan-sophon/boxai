@@ -209,12 +209,12 @@ export function useChatHandler({
   )
 
   const buildValidatedPayload = useCallback(
-    (messages: Message[], managedToolRunId?: number) => {
+    (messages: Message[]) => {
       const payload = buildChatCompletionPayload(
         messages,
         config,
         parameterEnabled,
-        { ...payloadOptions, managedToolRunId }
+        payloadOptions
       )
 
       if (isChatCompletionPayloadTooLarge(payload)) {
@@ -229,8 +229,8 @@ export function useChatHandler({
 
   // Send streaming chat request
   const sendStreamingChat = useCallback(
-    (messages: Message[], managedToolRunId?: number) => {
-      const payload = buildValidatedPayload(messages, managedToolRunId)
+    (messages: Message[]) => {
+      const payload = buildValidatedPayload(messages)
       if (!payload) return
 
       setIsRequesting(true)
@@ -252,8 +252,8 @@ export function useChatHandler({
 
   // Send non-streaming chat request
   const sendNonStreamingChat = useCallback(
-    async (messages: Message[], managedToolRunId?: number) => {
-      const payload = buildValidatedPayload(messages, managedToolRunId)
+    async (messages: Message[]) => {
+      const payload = buildValidatedPayload(messages)
       if (!payload) return
 
       const requestId = requestIdRef.current + 1
@@ -302,11 +302,11 @@ export function useChatHandler({
 
   // Send chat request (stream or non-stream based on config)
   const sendChat = useCallback(
-    (messages: Message[], managedToolRunId?: number) => {
+    (messages: Message[]) => {
       if (config.stream) {
-        sendStreamingChat(messages, managedToolRunId)
+        sendStreamingChat(messages)
       } else {
-        void sendNonStreamingChat(messages, managedToolRunId)
+        void sendNonStreamingChat(messages)
       }
     },
     [config.stream, sendStreamingChat, sendNonStreamingChat]

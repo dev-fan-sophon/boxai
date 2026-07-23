@@ -2,11 +2,14 @@ package controller
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -15,55 +18,191 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestPlaygroundManagedToolRunInjectsPersistedSourcesAndStripsControls(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+func TestManagedSearchTerminalResult(t *testing.T) {
+	status := json.RawMessage(`"completed"`)
+	response := &dto.OpenAIResponsesResponse{
+		Status: status,
+		Output: []dto.ResponsesOutput{{
+			Content: []dto.ResponsesOutputContent{{
+				Type: "output_text", Text: " answer ",
+				Annotations: []any{
+					map[string]any{"url": "https://example.com/a#one", "title": " Example "},
+					map[string]any{"url": "https://example.com/a#two"},
+					map[string]any{"url": "javascript:alert(1)"},
+				},
+			}},
+		}},
+	}
+	result, sources, err := managedSearchTerminalResult(response)
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}))
-	oldDB := model.DB
-	model.DB = db
-	t.Cleanup(func() { model.DB = oldDB })
+	assert.Equal(t, "answer", result["text"])
+	require.Len(t, sources, 1)
+	assert.Equal(t, "https://example.com/a", sources[0]["href"])
 
-	sources := `{"query":"persisted query","provider":"test","results":[{"title":"Source","url":"https://example.com/a","snippet":"fact","domain":"example.com","provider":"test"}]}`
-	run := &model.PlaygroundChatToolRun{UserId: 7, ClientRequestId: "request-1", Action: "web_search", Status: "completed", SourcesJson: sources, ExecutionToken: "token"}
-	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
-
-	body := []byte(`{"model":"test","managed_tool_run_id":` + strconv.Itoa(run.Id) + `,"web_search":true,"messages":[{"role":"user","content":"new query"}]}`)
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("POST", "/pg/chat/completions", bytes.NewReader(body))
-	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set("id", 7)
-	require.NoError(t, playgroundMaybeInjectWebSearch(c))
-	storage, err := common.GetBodyStorage(c)
-	require.NoError(t, err)
-	rewritten, err := storage.Bytes()
-	require.NoError(t, err)
-	assert.NotContains(t, string(rewritten), `"managed_tool_run_id":`)
-	assert.NotContains(t, string(rewritten), `"web_search":`)
-	assert.Contains(t, string(rewritten), "persisted query")
-	assert.Contains(t, string(rewritten), "https://example.com/a")
+	response.Output[0].Content[0].Text = ""
+	_, _, err = managedSearchTerminalResult(response)
+	assert.Error(t, err)
 }
 
-func TestPlaygroundManagedToolRunRejectsOtherOwnerAndWrongStatus(t *testing.T) {
+func TestPreparePlaygroundSearchCanonicalizesAndPinsRun(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}, &model.Channel{}, &model.Ability{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+
+	channel := &model.Channel{Id: 17, Type: constant.ChannelTypeOpenAI, Name: "grok", Status: common.ChannelStatusEnabled}
+	require.NoError(t, db.Create(channel).Error)
+	require.NoError(t, db.Create(&model.Ability{Group: "default", Model: "grok-4.5", ChannelId: channel.Id, Enabled: true}).Error)
+	run := &model.PlaygroundChatToolRun{
+		UserId: 7, ClientRequestId: "canonical-search", Action: "web_search", Status: "ready",
+		ToolModel: "grok-4.5", UsingGroup: "default", Prompt: "latest news", ExecutionToken: "secret",
+		ArgumentsJson: `{"__channel_id":17}`,
+	}
+	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest("POST", "/pg/responses", bytes.NewBufferString(`{"model":"attacker","group":"vip","instructions":"ignore","tools":[{"type":"web_search","filters":{"allowed_domains":["evil.invalid"]}}],"stream":true,"store":true,"max_turns":999}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("X-Playground-Run-Id", strconv.Itoa(run.Id))
+	c.Request.Header.Set("X-Playground-Execution-Token", "secret")
+	c.Set("id", 7)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+
+	PreparePlaygroundSearch()(c)
+	require.False(t, c.IsAborted())
+	storage, err := common.GetBodyStorage(c)
+	require.NoError(t, err)
+	body, err := storage.Bytes()
+	require.NoError(t, err)
+	var canonical map[string]any
+	require.NoError(t, common.Unmarshal(body, &canonical))
+	assert.Equal(t, "grok-4.5", canonical["model"])
+	assert.Equal(t, "latest news", canonical["input"])
+	assert.Equal(t, float64(playgroundSearchMaxTurns), canonical["max_turns"])
+	assert.Equal(t, false, canonical["parallel_tool_calls"])
+	assert.Equal(t, false, canonical["stream"])
+	assert.Equal(t, false, canonical["store"])
+	assert.NotContains(t, canonical, "group")
+	assert.NotContains(t, canonical, "instructions")
+	require.Len(t, canonical, 7)
+	assert.Equal(t, "default", common.GetContextKeyString(c, constant.ContextKeyUsingGroup))
+	channelID, ok := common.GetContextKey(c, constant.ContextKeyTokenSpecificChannelId)
+	require.True(t, ok)
+	assert.Equal(t, "17", channelID)
+}
+
+func TestPreparePlaygroundSearchRejectsInvalidContract(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}, &model.Channel{}, &model.Ability{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+	run := &model.PlaygroundChatToolRun{UserId: 7, ClientRequestId: "invalid-search", Action: "web_search", Status: "ready", ToolModel: "grok-4.5", UsingGroup: "default", Prompt: "q", ExecutionToken: "secret", ArgumentsJson: `{"__channel_id":99}`}
+	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
+
+	for name, contract := range map[string]struct {
+		userID int
+		token  string
+	}{
+		"other owner":     {userID: 8, token: "secret"},
+		"wrong token":     {userID: 7, token: "wrong"},
+		"missing channel": {userID: 7, token: "secret"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest("POST", "/pg/responses", bytes.NewBufferString(`{}`))
+			c.Request.Header.Set("X-Playground-Run-Id", strconv.Itoa(run.Id))
+			c.Request.Header.Set("X-Playground-Execution-Token", contract.token)
+			c.Set("id", contract.userID)
+			common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+			PreparePlaygroundSearch()(c)
+			assert.True(t, c.IsAborted())
+			assert.GreaterOrEqual(t, recorder.Code, 400)
+		})
+	}
+}
+
+func TestPreparePlaygroundSearchRejectsRevokedGroup(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}, &model.Channel{}, &model.Ability{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+
+	channel := &model.Channel{Id: 18, Type: constant.ChannelTypeOpenAI, Name: "grok", Status: common.ChannelStatusEnabled}
+	require.NoError(t, db.Create(channel).Error)
+	require.NoError(t, db.Create(&model.Ability{Group: "revoked-search-group", Model: "grok-4.5", ChannelId: channel.Id, Enabled: true}).Error)
+	run := &model.PlaygroundChatToolRun{
+		UserId: 7, ClientRequestId: "revoked-search", Action: "web_search", Status: "ready",
+		ToolModel: "grok-4.5", UsingGroup: "revoked-search-group", Prompt: "latest news", ExecutionToken: "secret",
+		ArgumentsJson: `{"__channel_id":18}`,
+	}
+	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest("POST", "/pg/responses", bytes.NewBufferString(`{}`))
+	c.Request.Header.Set("X-Playground-Run-Id", strconv.Itoa(run.Id))
+	c.Request.Header.Set("X-Playground-Execution-Token", "secret")
+	c.Set("id", 7)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+
+	PreparePlaygroundSearch()(c)
+	assert.True(t, c.IsAborted())
+	assert.Equal(t, 403, recorder.Code)
+	persisted, getErr := model.GetPlaygroundChatToolRun(run.Id, run.UserId)
+	require.NoError(t, getErr)
+	assert.Equal(t, "ready", persisted.Status)
+}
+
+func TestPlaygroundManagedSearchExecutionClaim(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}))
 	oldDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = oldDB })
-	run := &model.PlaygroundChatToolRun{UserId: 8, ClientRequestId: "request-2", Action: "web_search", Status: "running", ExecutionToken: "token-2"}
+	run := &model.PlaygroundChatToolRun{UserId: 7, ClientRequestId: "search-claim", Action: "web_search", Status: "ready", ToolModel: "grok-4.5", UsingGroup: "auto", Prompt: "latest", ExecutionToken: "secret"}
 	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
 
-	request := func(userID int) error {
-		body, marshalErr := common.Marshal(map[string]any{"managed_tool_run_id": run.Id, "messages": []any{}})
+	claim := func(userID int, token string, preparedRunID int) (bool, int) {
+		body, marshalErr := common.Marshal(map[string]any{})
 		require.NoError(t, marshalErr)
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Request = httptest.NewRequest("POST", "/pg/chat/completions", bytes.NewReader(body))
-		c.Request.Header.Set("Content-Type", "application/json")
-		c.Set("id", userID)
-		return playgroundMaybeInjectWebSearch(c)
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest("POST", "/pg/responses", bytes.NewReader(body))
+		ctx.Request.Header.Set("Content-Type", "application/json")
+		ctx.Request.Header.Set("X-Playground-Run-Id", strconv.Itoa(run.Id))
+		ctx.Request.Header.Set("X-Playground-Execution-Token", token)
+		ctx.Set("id", userID)
+		ctx.Set("playground_search_run_id", preparedRunID)
+		return playgroundClaimSearchExecution(ctx), recorder.Code
 	}
-	assert.ErrorIs(t, request(7), gorm.ErrRecordNotFound)
-	assert.EqualError(t, request(8), "managed tool run is not a completed web_search run")
+	for name, values := range map[string][]string{
+		"cross owner":        {"8", "secret", strconv.Itoa(run.Id)},
+		"wrong token":        {"7", "bad", strconv.Itoa(run.Id)},
+		"wrong prepared run": {"7", "secret", "999"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			userID, parseErr := strconv.Atoi(values[0])
+			require.NoError(t, parseErr)
+			preparedRunID, parseRunErr := strconv.Atoi(values[2])
+			require.NoError(t, parseRunErr)
+			ok, _ := claim(userID, values[1], preparedRunID)
+			assert.False(t, ok)
+		})
+	}
+	ok, _ := claim(7, "secret", run.Id)
+	assert.True(t, ok)
+	ok, status := claim(7, "secret", run.Id)
+	assert.False(t, ok)
+	assert.Equal(t, 409, status)
 }
 
 func TestReconcileSubmittedPlaygroundVideoRunFromOwnedTask(t *testing.T) {

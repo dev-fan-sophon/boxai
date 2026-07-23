@@ -33,6 +33,11 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 	if oaiError := responsesResponse.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
+	if c.GetBool("playground_managed_search") {
+		c.Set("playground_search_response", &responsesResponse)
+		c.Set("playground_search_response_body", responseBody)
+		c.Set("playground_search_response_content_type", resp.Header.Get("Content-Type"))
+	}
 
 	if responsesResponse.HasImageGenerationCall() {
 		c.Set("image_generation_call", true)
@@ -40,8 +45,11 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		c.Set("image_generation_call_size", responsesResponse.GetSize())
 	}
 
-	// 写入新的 response body
-	service.IOCopyBytesGracefully(c, resp, responseBody)
+	// Managed Playground Search persists and validates the buffered response in
+	// its controller before exposing it to the browser.
+	if !c.GetBool("playground_managed_search") {
+		service.IOCopyBytesGracefully(c, resp, responseBody)
+	}
 
 	// compute usage
 	usage := dto.Usage{}
@@ -55,6 +63,33 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 	}
 	if info == nil || info.ResponsesUsageInfo == nil || info.ResponsesUsageInfo.BuiltInTools == nil {
+		return &usage, nil
+	}
+	if c.GetBool("playground_managed_search") {
+		webCalls, xCalls := 0, 0
+		if responsesResponse.Usage != nil && responsesResponse.Usage.ServerSideToolUsage != nil {
+			webCalls = responsesResponse.Usage.ServerSideToolUsage.WebSearchCalls
+			xCalls = responsesResponse.Usage.ServerSideToolUsage.XSearchCalls
+		} else {
+			for _, output := range responsesResponse.Output {
+				switch output.Type {
+				case dto.BuildInCallWebSearchCall:
+					webCalls++
+				case dto.BuildInCallXSearchCall:
+					xCalls++
+				case "custom_tool_call":
+					if strings.HasPrefix(output.Name, "x_") {
+						xCalls++
+					}
+				}
+			}
+		}
+		if tool := info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolXAIWebSearch]; tool != nil {
+			tool.CallCount = webCalls
+		}
+		if tool := info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolXAIXSearch]; tool != nil {
+			tool.CallCount = xCalls
+		}
 		return &usage, nil
 	}
 	// 解析 Tools 用量

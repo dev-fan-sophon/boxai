@@ -2,6 +2,8 @@ package service
 
 import "strings"
 
+const MaxPlaygroundSearchQueryRunes = 1500
+
 const (
 	PlaygroundToolChat   = "chat"
 	PlaygroundToolImage  = "generate_image"

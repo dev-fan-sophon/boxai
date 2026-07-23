@@ -30,6 +30,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 )
 
 func relayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
@@ -155,10 +156,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithStatusCode(http.StatusBadRequest))
 		return
 	}
+	if c.GetBool("playground_managed_search") {
+		reserve, clamp := service.ManagedXAISearchReservationQuota(relayInfo.OriginModelName, playgroundSearchReservedToolCalls, priceData.GroupRatioInfo.GroupRatio)
+		combined, combinedClamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(int64(priceData.QuotaToPreConsume)).Add(decimal.NewFromInt(int64(reserve))))
+		priceData.QuotaToPreConsume = combined
+		relayInfo.ForcePreConsume = true
+		if clamp != nil {
+			relayInfo.QuotaClamp = clamp
+		} else if combinedClamp != nil {
+			relayInfo.QuotaClamp = combinedClamp
+		}
+	}
 
 	// common.SetContextKey(c, constant.ContextKeyTokenCountMeta, meta)
 
-	if priceData.FreeModel {
+	if priceData.FreeModel && !c.GetBool("playground_managed_search") {
 		logger.LogInfo(c, fmt.Sprintf("模型 %s 免费，跳过预扣费", relayInfo.OriginModelName))
 	} else {
 		newAPIError = service.PreConsumeBilling(c, priceData.QuotaToPreConsume, relayInfo)
@@ -324,6 +336,9 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
 	if openaiErr == nil {
+		return false
+	}
+	if c.GetBool("playground_managed_search") {
 		return false
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {

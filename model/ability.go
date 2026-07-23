@@ -30,6 +30,26 @@ type AbilityWithChannel struct {
 	ChannelType int `json:"channel_type"`
 }
 
+// GetEnabledGrokPlaygroundSearchAbilities returns concrete enabled Grok chat
+// abilities backed by either a native xAI or OpenAI-compatible channel. The
+// caller persists one exact ability so retries cannot change its identity.
+func GetEnabledGrokPlaygroundSearchAbilities(groups []string) ([]AbilityWithChannel, error) {
+	var abilities []AbilityWithChannel
+	groupValues := make([]any, len(groups))
+	for i, group := range groups {
+		groupValues[i] = group
+	}
+	err := DB.Table("abilities").
+		Select("abilities.*, channels.type as channel_type").
+		Joins("join channels on abilities.channel_id = channels.id").
+		Where("abilities.enabled = ? AND channels.status = ? AND channels.type IN ? AND LOWER(abilities.model) LIKE ?", true, common.ChannelStatusEnabled, []int{constant.ChannelTypeXai, constant.ChannelTypeOpenAI}, "grok-4%").
+		Where(clause.IN{Column: clause.Column{Table: "abilities", Name: "group"}, Values: groupValues}).
+		Order(clause.OrderByColumn{Column: clause.Column{Table: "abilities", Name: "group"}}).
+		Order("abilities.priority DESC, abilities.weight DESC, abilities.model ASC, abilities.channel_id ASC").
+		Scan(&abilities).Error
+	return abilities, err
+}
+
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 	var abilities []AbilityWithChannel
 	err := DB.Table("abilities").

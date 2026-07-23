@@ -52,6 +52,10 @@ type textQuotaSummary struct {
 	ClaudeWebSearchCallCount int
 	FileSearchPrice          float64
 	FileSearchCallCount      int
+	XAIWebSearchPrice        float64
+	XAIWebSearchCallCount    int
+	XAIXSearchPrice          float64
+	XAIXSearchCallCount      int
 	AudioInputPrice          float64
 	ImageGenerationCallPrice float64
 	ToolCallSurchargeQuota   decimal.Decimal
@@ -88,6 +92,18 @@ func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.Rel
 	var surcharge decimal.Decimal
 
 	if relayInfo.ResponsesUsageInfo != nil {
+		if ctx.GetBool("playground_managed_search") {
+			if tool := relayInfo.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolXAIWebSearch]; tool != nil && tool.CallCount > 0 {
+				summary.XAIWebSearchCallCount = tool.CallCount
+				summary.XAIWebSearchPrice = operation_setting.GetToolPriceForModel("xai_web_search", summary.ModelName)
+				surcharge = surcharge.Add(decimal.NewFromFloat(summary.XAIWebSearchPrice).Mul(decimal.NewFromInt(int64(tool.CallCount))).Div(decimal.NewFromInt(1000)).Mul(dGroupRatio).Mul(dQuotaPerUnit))
+			}
+			if tool := relayInfo.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolXAIXSearch]; tool != nil && tool.CallCount > 0 {
+				summary.XAIXSearchCallCount = tool.CallCount
+				summary.XAIXSearchPrice = operation_setting.GetToolPriceForModel("xai_x_search", summary.ModelName)
+				surcharge = surcharge.Add(decimal.NewFromFloat(summary.XAIXSearchPrice).Mul(decimal.NewFromInt(int64(tool.CallCount))).Div(decimal.NewFromInt(1000)).Mul(dGroupRatio).Mul(dQuotaPerUnit))
+			}
+		}
 		if webSearchTool, exists := relayInfo.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview]; exists && webSearchTool.CallCount > 0 {
 			summary.WebSearchCallCount = webSearchTool.CallCount
 			summary.WebSearchPrice = operation_setting.GetToolPriceForModel("web_search_preview", summary.ModelName)
@@ -115,7 +131,6 @@ func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.Rel
 			Mul(dQuotaPerUnit).
 			Mul(decimal.NewFromInt(int64(summary.ClaudeWebSearchCallCount))))
 	}
-
 	if relayInfo.ResponsesUsageInfo != nil {
 		if fileSearchTool, exists := relayInfo.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolFileSearch]; exists && fileSearchTool.CallCount > 0 {
 			summary.FileSearchCallCount = fileSearchTool.CallCount
@@ -325,7 +340,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		noteQuotaClamp(relayInfo, clamp)
 	}
 
-	if summary.TotalTokens == 0 {
+	if summary.TotalTokens == 0 && summary.ToolCallSurchargeQuota.IsZero() {
 		summary.Quota = 0
 	} else if !ratio.IsZero() && summary.Quota == 0 {
 		summary.Quota = 1
@@ -375,6 +390,12 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if summary.WebSearchCallCount > 0 {
 		extraContent = append(extraContent, fmt.Sprintf("Web Search 调用 %d 次，调用花费 %s", summary.WebSearchCallCount, decimal.NewFromFloat(summary.WebSearchPrice).Mul(decimal.NewFromInt(int64(summary.WebSearchCallCount))).Div(decimal.NewFromInt(1000)).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
+	if summary.XAIWebSearchCallCount > 0 {
+		extraContent = append(extraContent, fmt.Sprintf("xAI Web Search 调用 %d 次，单价 %s/千次", summary.XAIWebSearchCallCount, decimal.NewFromFloat(summary.XAIWebSearchPrice).String()))
+	}
+	if summary.XAIXSearchCallCount > 0 {
+		extraContent = append(extraContent, fmt.Sprintf("xAI X Search 调用 %d 次，单价 %s/千次", summary.XAIXSearchCallCount, decimal.NewFromFloat(summary.XAIXSearchPrice).String()))
+	}
 	if summary.ClaudeWebSearchCallCount > 0 {
 		extraContent = append(extraContent, fmt.Sprintf("Claude Web Search 调用 %d 次，调用花费 %s", summary.ClaudeWebSearchCallCount, decimal.NewFromFloat(summary.ClaudeWebSearchPrice).Div(decimal.NewFromInt(1000)).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Mul(decimal.NewFromInt(int64(summary.ClaudeWebSearchCallCount))).String()))
 	}
@@ -388,7 +409,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		extraContent = append(extraContent, fmt.Sprintf("Image Generation Call 花费 %s", decimal.NewFromFloat(summary.ImageGenerationCallPrice).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
 
-	if summary.TotalTokens == 0 {
+	if summary.TotalTokens == 0 && summary.ToolCallSurchargeQuota.IsZero() {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
 	} else {
@@ -441,6 +462,16 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		other["web_search"] = true
 		other["web_search_call_count"] = summary.ClaudeWebSearchCallCount
 		other["web_search_price"] = summary.ClaudeWebSearchPrice
+	}
+	if summary.XAIWebSearchCallCount > 0 {
+		other["xai_web_search"] = true
+		other["xai_web_search_call_count"] = summary.XAIWebSearchCallCount
+		other["xai_web_search_price"] = summary.XAIWebSearchPrice
+	}
+	if summary.XAIXSearchCallCount > 0 {
+		other["xai_x_search"] = true
+		other["xai_x_search_call_count"] = summary.XAIXSearchCallCount
+		other["xai_x_search_price"] = summary.XAIXSearchPrice
 	}
 	if summary.FileSearchCallCount > 0 {
 		other["file_search"] = true

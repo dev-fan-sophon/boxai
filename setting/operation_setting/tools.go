@@ -24,6 +24,8 @@ var defaultToolPrices = map[string]float64{
 	"web_search_preview": 10.0, // OpenAI web search preview (default: reasoning models)
 	"file_search":        2.5,  // OpenAI file search (Responses API)
 	"google_search":      14.0, // Gemini Grounding with Google Search
+	"xai_web_search":     5.0,  // xAI managed Playground web search
+	"xai_x_search":       5.0,  // xAI managed Playground X search
 }
 
 var defaultToolPriceOverrides = map[string]float64{

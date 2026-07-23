@@ -64,6 +64,20 @@ export type ManagedExecutionContract = {
   executionToken: string
 }
 
+export async function executeManagedSearch(
+  runId: number,
+  executionToken: string
+): Promise<unknown> {
+  const response = await api.post('/pg/responses', {}, {
+    headers: {
+      'X-Playground-Run-Id': String(runId),
+      'X-Playground-Execution-Token': executionToken,
+    },
+    skipErrorHandler: true,
+  } as Record<string, unknown>)
+  return response.data
+}
+
 function requireManagedSuccess(response: {
   data?: { success?: boolean; message?: string; data?: unknown }
 }): ManagedToolRunResponse {
@@ -102,6 +116,7 @@ export async function importManagedToolRun(
     status: 'submitted' | 'completed' | 'failed'
     task_id?: string
     result?: unknown
+    sources?: unknown
     error?: string
   }
 ): Promise<ManagedToolRunResponse> {
