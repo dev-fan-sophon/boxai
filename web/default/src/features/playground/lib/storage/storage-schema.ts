@@ -61,6 +61,20 @@ const messageVersionSchema = z.object({
 const sourceSchema = z.object({
   href: z.string(),
   title: z.string(),
+  snippet: z.string().optional(),
+  domain: z.string().optional(),
+  publishedAt: z.string().optional(),
+})
+
+const managedToolSchema = z.object({
+  runId: z.number().int().positive().optional(),
+  action: z.enum(['generate_image', 'generate_video', 'web_search']),
+  status: z.enum(['queued', 'running', 'submitted', 'completed', 'failed']),
+  model: z.string().optional(),
+  taskId: z.string().optional(),
+  images: z.array(z.string()).optional(),
+  videoUrl: z.string().optional(),
+  error: z.string().optional(),
 })
 
 const reasoningSchema = z.object({
@@ -80,6 +94,7 @@ const messageSchema = z.object({
   completedAt: z.number().optional(),
   durationMs: z.number().optional(),
   sources: z.array(sourceSchema).optional(),
+  managedTool: managedToolSchema.optional(),
   reasoning: reasoningSchema.optional(),
   isReasoningStreaming: z.boolean().optional(),
   isReasoningComplete: z.boolean().optional(),

@@ -6,7 +6,7 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { Globe, Paperclip, Trash2Icon } from 'lucide-react'
+import { Bot, Globe, Image, Paperclip, Trash2Icon, Video } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -55,7 +55,7 @@ export function ChatComposer(props: ChatComposerProps) {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
   const models = usePlaygroundStore((state) => state.models)
   const groups = usePlaygroundStore((state) => state.groups)
-  const webSearch = usePlaygroundStore((state) => state.chatTools.webSearch)
+  const toolMode = usePlaygroundStore((state) => state.chatTools.mode)
   const setChatTools = usePlaygroundStore((state) => state.setChatTools)
 
   const { canSubmit, shouldShowStop } = getInputControlState({
@@ -143,21 +143,32 @@ export function ChatComposer(props: ChatComposerProps) {
               </TooltipContent>
             </Tooltip>
 
-            <button
-              type='button'
-              aria-pressed={webSearch}
-              onClick={() => setChatTools({ webSearch: !webSearch })}
-              className={cn(
-                'inline-flex h-8 items-center gap-1 rounded-lg border border-transparent px-2 text-[11px] font-medium transition-colors',
-                'outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                webSearch
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-              )}
-            >
-              <Globe className='size-3.5' aria-hidden='true' />
-              {t('Web search')}
-            </button>
+            {(
+              [
+                ['auto', t('Auto'), Bot],
+                ['image', t('Image'), Image],
+                ['video', t('Video'), Video],
+                ['search', t('Search'), Globe],
+              ] as const
+            ).map(([mode, label, Icon]) => (
+              <button
+                key={mode}
+                type='button'
+                aria-pressed={toolMode === mode}
+                onClick={() =>
+                  setChatTools({ mode, webSearch: mode === 'search' })
+                }
+                className={cn(
+                  'inline-flex h-8 items-center gap-1 rounded-lg border border-transparent px-2 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  toolMode === mode
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                )}
+              >
+                <Icon className='size-3.5' aria-hidden='true' />
+                {label}
+              </button>
+            ))}
 
             <Tooltip>
               <TooltipTrigger

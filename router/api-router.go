@@ -350,6 +350,10 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			playgroundDataRoute.POST("/estimate", controller.PlaygroundEstimate)
 			playgroundDataRoute.POST("/chat/multi", controller.PlaygroundMultiChat)
+			playgroundDataRoute.POST("/chat/runs", controller.CreatePlaygroundChatToolRun)
+			playgroundDataRoute.GET("/chat/runs/:id", controller.GetPlaygroundChatToolRun)
+			playgroundDataRoute.POST("/chat/runs/:id/import", controller.ImportPlaygroundChatToolRun)
+			playgroundDataRoute.POST("/chat/runs/:id/cancel", controller.CancelPlaygroundChatToolRun)
 
 			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
 			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)

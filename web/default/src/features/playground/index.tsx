@@ -36,6 +36,14 @@ import { useMediaQuery } from '@/hooks/use-media-query'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import {
+  createManagedToolRun,
+  createPlaygroundRun,
+  generateImages,
+  getManagedToolRun,
+  importManagedToolRun,
+  submitVideo,
+} from './api'
 import { ModelCatalog } from './components/catalog/model-catalog'
 import { PlaygroundChat } from './components/chat/playground-chat'
 import { ChatComposer } from './components/composer/chat-composer'
@@ -56,6 +64,8 @@ import {
   usePlaygroundOptions,
 } from './hooks'
 import { useStudio } from './hooks/use-studio'
+import { persistGeneratedMediaAsset } from './lib/download-generated-media'
+import { updateManagedAssistant } from './lib/managed-tools'
 import { getModelModality } from './lib/studio/model-modality'
 import type { AgentCard } from './lib/workbench/agents-data'
 import type { InspirationTemplate } from './lib/workbench/inspiration-data'
@@ -98,6 +108,7 @@ export function Playground() {
   const myWorks = usePlaygroundStore((state) => state.myWorks)
   const recentPrompts = usePlaygroundStore((state) => state.recentPrompts)
   const removeMyWork = usePlaygroundStore((state) => state.removeMyWork)
+  const addMyWork = usePlaygroundStore((state) => state.addMyWork)
   const addRecentPrompt = usePlaygroundStore((state) => state.addRecentPrompt)
   const config = usePlaygroundStore((state) => state.config)
   const parameterEnabled = usePlaygroundStore((state) => state.parameterEnabled)
@@ -171,6 +182,229 @@ export function Playground() {
     onMessageUpdate: updateMessages,
     payloadOptions,
   })
+  const [isRouting, setIsRouting] = useState(false)
+  const isRoutingRef = useRef(false)
+  const canSubmitManagedTurn = useCallback(
+    () => !isRoutingRef.current && requireAuthentication(),
+    [requireAuthentication]
+  )
+
+  const routeManagedTurn = useCallback(
+    async (turnMessages: import('./types').Message[], text: string) => {
+      if (isRoutingRef.current) return
+      isRoutingRef.current = true
+      setIsRouting(true)
+      const assistantKey = turnMessages.at(-1)?.key
+      let directName:
+        | 'generate_image'
+        | 'generate_video'
+        | 'web_search'
+        | undefined
+      if (chatTools.mode === 'image') directName = 'generate_image'
+      if (chatTools.mode === 'video') directName = 'generate_video'
+      if (chatTools.mode === 'search') directName = 'web_search'
+      const setAssistantTool = (
+        managedTool: import('./types').ManagedToolCard,
+        sources?: import('./types').MessageSource[]
+      ) =>
+        updateMessages((previous) =>
+          assistantKey
+            ? updateManagedAssistant(
+                previous,
+                assistantKey,
+                managedTool,
+                sources
+              )
+            : previous
+        )
+
+      let response: Awaited<ReturnType<typeof createManagedToolRun>> | undefined
+      let action = directName
+      try {
+        response = await createManagedToolRun({
+          client_request_id: crypto.randomUUID(),
+          model: config.model,
+          group: config.group,
+          user_text: text,
+          tool_policy: {
+            mode: directName ? 'direct' : 'auto',
+            enabled: ['generate_image', 'generate_video', 'web_search'],
+            direct: directName ? { name: directName, args: {} } : undefined,
+          },
+        })
+        const run = response.run
+        action = run.action === 'chat' ? undefined : run.action
+        if (run.status === 'unavailable' || run.status === 'failed') {
+          throw new Error(run.error || t('Tool is unavailable'))
+        }
+        if (run.action === 'chat') {
+          sendChat(turnMessages)
+          return
+        }
+        const baseCard = {
+          runId: run.id,
+          action: run.action,
+          status: 'running' as const,
+          model: run.tool_model,
+        }
+        if (run.action === 'web_search') {
+          while (response.run.status === 'running') {
+            await new Promise((resolve) => window.setTimeout(resolve, 1000))
+            response = await getManagedToolRun(run.id)
+          }
+          if (response.run.status !== 'completed') {
+            throw new Error(response.run.error || t('Tool failed'))
+          }
+          const sources = (response.sources?.results ?? []).map((source) => ({
+            href: source.url,
+            title: source.title,
+            snippet: source.snippet,
+            domain: source.domain,
+            publishedAt: source.published_at,
+          }))
+          setAssistantTool({ ...baseCard, status: 'completed' }, sources)
+          sendChat(turnMessages, run.id)
+          return
+        }
+        if (run.action === 'generate_image') {
+          setAssistantTool(baseCard)
+          const images = await generateImages({
+            model: String(response.arguments.model),
+            group: config.group,
+            prompt: String(response.arguments.prompt),
+            settings: {
+              ...studio.settings,
+              imageCount:
+                Number(response.arguments.n) || studio.settings.imageCount,
+              imageSize: String(
+                response.arguments.size || studio.settings.imageSize
+              ),
+              imageQuality: String(
+                response.arguments.quality || studio.settings.imageQuality
+              ),
+            },
+            execution: {
+              runId: run.id,
+              executionToken: response.execution.execution_token,
+            },
+          })
+          const assets = await Promise.all(
+            images.map((image, index) =>
+              persistGeneratedMediaAsset(
+                image.url,
+                `chat-image-${index + 1}`,
+                'image'
+              )
+            )
+          )
+          await Promise.all(
+            assets.map((asset) =>
+              createPlaygroundRun({
+                modality: 'image',
+                model: run.tool_model || '',
+                prompt: text,
+                asset_id: asset.id,
+              })
+            )
+          )
+          const urls = assets.map((asset) => asset.url)
+          assets.forEach((asset, index) =>
+            addMyWork({
+              title: `${text.slice(0, 48) || 'Image'} ${index + 1}`,
+              prompt: text,
+              modality: 'image',
+              model: run.tool_model,
+              previewUrl: asset.url,
+            })
+          )
+          await importManagedToolRun(run.id, {
+            execution_token: response.execution.execution_token,
+            status: 'completed',
+            result: { images: urls },
+          })
+          setAssistantTool({ ...baseCard, status: 'completed', images: urls })
+          return
+        }
+        setAssistantTool(baseCard)
+        const submission = await submitVideo({
+          model: String(response.arguments.model),
+          group: config.group,
+          prompt: String(response.arguments.prompt),
+          settings: {
+            ...studio.settings,
+            videoDuration:
+              Number(response.arguments.duration) ||
+              studio.settings.videoDuration,
+            videoSize: String(
+              response.arguments.size || studio.settings.videoSize
+            ),
+          },
+          execution: {
+            runId: run.id,
+            executionToken: response.execution.execution_token,
+          },
+        })
+        await createPlaygroundRun({
+          modality: 'video',
+          model: run.tool_model || '',
+          prompt: text,
+          task_id: submission.taskId,
+        })
+        await importManagedToolRun(run.id, {
+          execution_token: response.execution.execution_token,
+          status: 'submitted',
+          task_id: submission.taskId,
+        })
+        setAssistantTool({
+          ...baseCard,
+          status: 'submitted',
+          taskId: submission.taskId,
+        })
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : t('Tool failed')
+        toast.error(message)
+        if (response && response.run.status === 'ready') {
+          try {
+            await importManagedToolRun(response.run.id, {
+              execution_token: response.execution.execution_token,
+              status: 'failed',
+              error: message,
+            })
+          } catch {
+            // Preserve the original execution error for the user.
+          }
+        }
+        if (action) {
+          setAssistantTool({
+            runId: response?.run.id,
+            action,
+            status: 'failed',
+            error: message,
+          })
+        } else if (assistantKey) {
+          updateMessages((previous) =>
+            previous.map((item) =>
+              item.key === assistantKey ? { ...item, status: 'error' } : item
+            )
+          )
+        }
+      } finally {
+        isRoutingRef.current = false
+        setIsRouting(false)
+      }
+    },
+    [
+      chatTools.mode,
+      addMyWork,
+      config.group,
+      config.model,
+      sendChat,
+      studio.settings,
+      t,
+      updateMessages,
+    ]
+  )
 
   const {
     editingMessageKey,
@@ -184,7 +418,8 @@ export function Playground() {
     messages,
     updateMessages,
     sendChat,
-    canSubmit: requireAuthentication,
+    routeTurn: routeManagedTurn,
+    canSubmit: canSubmitManagedTurn,
   })
 
   const handleClearMessages = () => {
@@ -442,7 +677,7 @@ export function Playground() {
           </div>
           <div className='mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pb-3 md:px-3 md:pb-4'>
             <ChatComposer
-              disabled={isGenerating}
+              disabled={isGenerating || isRouting}
               isGenerating={isGenerating}
               isModelLoading={isLoadingModels}
               onClearMessages={handleClearMessages}

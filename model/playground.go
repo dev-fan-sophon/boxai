@@ -87,6 +87,59 @@ type PlaygroundRun struct {
 	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
 }
 
+// PlaygroundChatToolRun is the durable, owner-scoped orchestration record for
+// chat-triggered platform tools. Tool execution itself remains in the existing
+// relay endpoints so media is billed exactly once.
+type PlaygroundChatToolRun struct {
+	Id              int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId          int    `json:"-" gorm:"not null;uniqueIndex:idx_pg_tool_owner_request"`
+	ClientRequestId string `json:"client_request_id" gorm:"type:varchar(191);not null;uniqueIndex:idx_pg_tool_owner_request"`
+	Action          string `json:"action" gorm:"type:varchar(32);not null;index"`
+	Status          string `json:"status" gorm:"type:varchar(32);not null;index"`
+	ChatModel       string `json:"chat_model" gorm:"type:varchar(191)"`
+	UsingGroup      string `json:"group" gorm:"type:varchar(50)"`
+	Prompt          string `json:"prompt" gorm:"type:text"`
+	ToolModel       string `json:"tool_model" gorm:"type:varchar(191)"`
+	ArgumentsJson   string `json:"-" gorm:"type:text"`
+	SourcesJson     string `json:"-" gorm:"type:text"`
+	ExecutionToken  string `json:"-" gorm:"type:varchar(64);uniqueIndex"`
+	TaskId          string `json:"task_id,omitempty" gorm:"type:varchar(191);index"`
+	ResultJson      string `json:"-" gorm:"type:text"`
+	ErrorMessage    string `json:"error,omitempty" gorm:"type:text"`
+	CreatedAt       int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt       int64  `json:"updated_at" gorm:"bigint"`
+}
+
+func (PlaygroundChatToolRun) TableName() string { return "playground_chat_tool_runs" }
+
+func CreatePlaygroundChatToolRun(run *PlaygroundChatToolRun) error {
+	now := time.Now().Unix()
+	run.CreatedAt = now
+	run.UpdatedAt = now
+	return DB.Create(run).Error
+}
+func GetPlaygroundChatToolRun(id, userId int) (*PlaygroundChatToolRun, error) {
+	var r PlaygroundChatToolRun
+	err := DB.Where("id = ? AND user_id = ?", id, userId).First(&r).Error
+	return &r, err
+}
+func GetPlaygroundChatToolRunByRequest(userId int, requestId string) (*PlaygroundChatToolRun, error) {
+	var r PlaygroundChatToolRun
+	err := DB.Where("user_id = ? AND client_request_id = ?", userId, requestId).First(&r).Error
+	return &r, err
+}
+func UpdatePlaygroundChatToolRunCAS(id, userId int, from string, updates map[string]any) error {
+	updates["updated_at"] = time.Now().Unix()
+	res := DB.Model(&PlaygroundChatToolRun{}).Where("id = ? AND user_id = ? AND status = ?", id, userId, from).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (PlaygroundRun) TableName() string { return "playground_runs" }
 
 // PlaygroundVoice stores a voice-clone reference (provider wiring optional).

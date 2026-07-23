@@ -1,24 +1,32 @@
 package controller
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/service"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func Playground(c *gin.Context) {
 	if err := playgroundMaybeInjectWebSearch(c); err != nil {
-		c.JSON(400, gin.H{
+		status := http.StatusBadRequest
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
 			"error": map[string]any{
 				"message": err.Error(),
 				"type":    "invalid_request_error",
@@ -30,10 +38,16 @@ func Playground(c *gin.Context) {
 }
 
 func PlaygroundImage(c *gin.Context) {
+	if !playgroundClaimMediaExecution(c, service.PlaygroundToolImage) {
+		return
+	}
 	playgroundRelay(c, types.RelayFormatOpenAIImage, false)
 }
 
 func PlaygroundImageEdit(c *gin.Context) {
+	if !playgroundClaimMediaExecution(c, service.PlaygroundToolImage) {
+		return
+	}
 	playgroundRelay(c, types.RelayFormatOpenAIImage, false)
 }
 
@@ -43,7 +57,54 @@ func PlaygroundAudio(c *gin.Context) {
 
 func PlaygroundVideo(c *gin.Context) {
 	_ = playgroundNormalizeVideoBody(c)
+	if !playgroundClaimMediaExecution(c, service.PlaygroundToolVideo) {
+		return
+	}
 	playgroundRelay(c, types.RelayFormatTask, true)
+}
+
+func playgroundClaimMediaExecution(c *gin.Context, action string) bool {
+	runIDHeader := strings.TrimSpace(c.GetHeader("X-Playground-Run-Id"))
+	token := c.GetHeader("X-Playground-Execution-Token")
+	if runIDHeader == "" && token == "" {
+		return true
+	}
+	runID, err := strconv.Atoi(runIDHeader)
+	if err != nil || runID <= 0 || token == "" {
+		playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
+		return false
+	}
+	run, err := model.GetPlaygroundChatToolRun(runID, c.GetInt("id"))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		playgroundExecutionError(c, http.StatusNotFound, "managed tool run not found")
+		return false
+	}
+	if err != nil {
+		playgroundExecutionError(c, http.StatusInternalServerError, err.Error())
+		return false
+	}
+	if run.Action != action || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
+		playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
+		return false
+	}
+	var identity struct {
+		Model  string `json:"model"`
+		Group  string `json:"group"`
+		Prompt string `json:"prompt"`
+	}
+	if err := common.UnmarshalBodyReusable(c, &identity); err != nil || identity.Model != run.ToolModel || identity.Group != run.UsingGroup || identity.Prompt != run.Prompt {
+		playgroundExecutionError(c, http.StatusBadRequest, "managed execution identity mismatch")
+		return false
+	}
+	if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, "ready", map[string]any{"status": "executing"}); err != nil {
+		playgroundExecutionError(c, http.StatusConflict, "managed tool run was already executed")
+		return false
+	}
+	return true
+}
+
+func playgroundExecutionError(c *gin.Context, status int, message string) {
+	c.JSON(status, gin.H{"error": map[string]any{"message": message, "type": "invalid_request_error"}})
 }
 
 func playgroundRelay(c *gin.Context, relayFormat types.RelayFormat, task bool) {
@@ -95,20 +156,23 @@ func playgroundRelay(c *gin.Context, relayFormat types.RelayFormat, task bool) {
 // playgroundMaybeInjectWebSearch runs when the client sets web_search=true.
 func playgroundMaybeInjectWebSearch(c *gin.Context) error {
 	var envelope struct {
-		WebSearch    bool             `json:"web_search"`
-		MaxToolLoops int              `json:"max_tool_loops"`
-		Messages     []map[string]any `json:"messages"`
+		ManagedToolRunID *int             `json:"managed_tool_run_id"`
+		WebSearch        bool             `json:"web_search"`
+		MaxToolLoops     int              `json:"max_tool_loops"`
+		Messages         []map[string]any `json:"messages"`
 	}
 	if err := common.UnmarshalBodyReusable(c, &envelope); err != nil {
 		return nil
 	}
-	if !envelope.WebSearch {
-		return nil
+	managedID := 0
+	if envelope.ManagedToolRunID != nil {
+		managedID = *envelope.ManagedToolRunID
+		if managedID <= 0 {
+			return fmt.Errorf("managed_tool_run_id must be a positive integer")
+		}
 	}
-
-	provider := service.GetPlaygroundSearchProvider()
-	if !provider.Configured() {
-		return fmt.Errorf("web search is enabled but not configured on this server (set PLAYGROUND_SEARCH_URL)")
+	if managedID == 0 && !envelope.WebSearch {
+		return nil
 	}
 
 	maxLoops := envelope.MaxToolLoops
@@ -121,12 +185,32 @@ func playgroundMaybeInjectWebSearch(c *gin.Context) error {
 	_ = maxLoops // reserved for multi-round tool loops
 
 	query := service.ExtractLastUserQuery(envelope.Messages)
-	if query == "" {
-		return nil
-	}
-	results, err := provider.Search(query, 5)
-	if err != nil {
-		return fmt.Errorf("web search failed: %w", err)
+	var results *service.SearchResponse
+	if managedID != 0 {
+		run, err := model.GetPlaygroundChatToolRun(managedID, c.GetInt("id"))
+		if err != nil {
+			return err
+		}
+		if run.Action != service.PlaygroundToolSearch || run.Status != "completed" {
+			return fmt.Errorf("managed tool run is not a completed web_search run")
+		}
+		if err := common.UnmarshalJsonStr(run.SourcesJson, &results); err != nil || results == nil {
+			return fmt.Errorf("managed tool run has invalid persisted sources")
+		}
+		query = results.Query
+	} else {
+		provider := service.GetPlaygroundSearchProvider()
+		if !provider.Configured() {
+			return fmt.Errorf("web search is enabled but not configured on this server")
+		}
+		if query == "" {
+			return nil
+		}
+		var err error
+		results, err = provider.Search(c.Request.Context(), query, 5)
+		if err != nil {
+			return fmt.Errorf("web search failed: %w", err)
+		}
 	}
 	snippet := service.BuildWebSearchSystemSnippet(query, results)
 
@@ -172,6 +256,7 @@ func playgroundMaybeInjectWebSearch(c *gin.Context) error {
 	full["messages"] = newMsgs
 	delete(full, "web_search")
 	delete(full, "max_tool_loops")
+	delete(full, "managed_tool_run_id")
 
 	newBody, err := common.Marshal(full)
 	if err != nil {

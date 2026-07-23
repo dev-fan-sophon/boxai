@@ -22,6 +22,7 @@ import {
   appendUserMessagePair,
   applyMessageEdit,
   createRegeneratedMessages,
+  getMessageContent,
   removeMessageByKey,
 } from '../lib'
 import type { ChatAttachment, Message } from '../types'
@@ -31,7 +32,8 @@ type UsePlaygroundConversationOptions = {
   updateMessages: (
     updater: Message[] | ((prev: Message[]) => Message[])
   ) => void
-  sendChat: (messages: Message[]) => void
+  sendChat: (messages: Message[], managedToolRunId?: number) => void
+  routeTurn?: (messages: Message[], text: string) => Promise<void>
   canSubmit: () => boolean
 }
 
@@ -39,6 +41,7 @@ export function usePlaygroundConversation({
   messages,
   updateMessages,
   sendChat,
+  routeTurn,
   canSubmit,
 }: UsePlaygroundConversationOptions) {
   const [editingMessageKey, setEditingMessageKey] = useState<string | null>(
@@ -50,10 +53,14 @@ export function usePlaygroundConversation({
       if (!canSubmit()) return false
       const nextMessages = appendUserMessagePair(messages, text, attachments)
       updateMessages(nextMessages)
-      sendChat(nextMessages)
+      if (routeTurn && text.trim() && !attachments?.length) {
+        void routeTurn(nextMessages, text)
+      } else {
+        sendChat(nextMessages)
+      }
       return true
     },
-    [canSubmit, messages, updateMessages, sendChat]
+    [canSubmit, messages, updateMessages, sendChat, routeTurn]
   )
 
   const handleRegenerateMessage = useCallback(
@@ -63,9 +70,27 @@ export function usePlaygroundConversation({
       if (!nextMessages) return
 
       updateMessages(nextMessages)
-      sendChat(nextMessages)
+      const messageIndex = messages.findIndex(
+        (item) => item.key === message.key
+      )
+      const precedingUser = messages
+        .slice(0, messageIndex + (message.from === 'user' ? 1 : 0))
+        .reverse()
+        .find((item) => item.from === 'user')
+      const precedingText = precedingUser
+        ? getMessageContent(precedingUser)
+        : ''
+      if (
+        routeTurn &&
+        precedingText.trim() &&
+        !precedingUser?.attachments?.length
+      ) {
+        void routeTurn(nextMessages, precedingText)
+      } else {
+        sendChat(nextMessages)
+      }
     },
-    [canSubmit, messages, updateMessages, sendChat]
+    [canSubmit, messages, updateMessages, sendChat, routeTurn]
   )
 
   const handleEditMessage = useCallback((message: Message) => {
@@ -95,10 +120,28 @@ export function usePlaygroundConversation({
       updateMessages(editResult.messages)
 
       if (editResult.shouldSend) {
-        sendChat(editResult.messages)
+        const editedMessage = editResult.messages.find(
+          (message) => message.key === editingMessageKey
+        )
+        if (
+          routeTurn &&
+          newContent.trim() &&
+          !editedMessage?.attachments?.length
+        ) {
+          void routeTurn(editResult.messages, newContent)
+        } else {
+          sendChat(editResult.messages)
+        }
       }
     },
-    [canSubmit, editingMessageKey, messages, updateMessages, sendChat]
+    [
+      canSubmit,
+      editingMessageKey,
+      messages,
+      updateMessages,
+      sendChat,
+      routeTurn,
+    ]
   )
 
   const handleDeleteMessage = useCallback(

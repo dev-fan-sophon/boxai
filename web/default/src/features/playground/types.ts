@@ -21,6 +21,32 @@ export type MessageRole = 'user' | 'assistant' | 'system'
 
 export type MessageStatus = 'loading' | 'streaming' | 'complete' | 'error'
 
+export type ManagedToolStatus =
+  | 'queued'
+  | 'running'
+  | 'submitted'
+  | 'completed'
+  | 'failed'
+
+export type ManagedToolCard = {
+  runId?: number
+  action: 'generate_image' | 'generate_video' | 'web_search'
+  status: ManagedToolStatus
+  model?: string
+  taskId?: string
+  images?: string[]
+  videoUrl?: string
+  error?: string
+}
+
+export type MessageSource = {
+  href: string
+  title: string
+  snippet?: string
+  domain?: string
+  publishedAt?: string
+}
+
 export type PlaygroundMessageLayoutMode = 'alternating' | 'left'
 
 export interface MessageVersion {
@@ -46,7 +72,8 @@ export interface Message {
   startedAt?: number
   completedAt?: number
   durationMs?: number
-  sources?: { href: string; title: string }[]
+  sources?: MessageSource[]
+  managedTool?: ManagedToolCard
   reasoning?: {
     content: string
     duration: number
@@ -92,6 +119,7 @@ export interface ChatCompletionRequest {
   /** Playground-only: server web search pre-pass when configured */
   web_search?: boolean
   max_tool_loops?: number
+  managed_tool_run_id?: number
 }
 
 export interface ChatCompletionChunk {

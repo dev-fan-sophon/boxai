@@ -34,6 +34,7 @@ export type BuildChatPayloadOptions = {
   /** Server-side web search pre-pass when configured */
   webSearch?: boolean
   maxToolLoops?: number
+  managedToolRunId?: number
 }
 
 export const MAX_CHAT_PAYLOAD_BYTES = 30 * 1024 * 1024
@@ -112,7 +113,9 @@ export function buildChatCompletionPayload(
     payload.seed = config.seed
   }
 
-  if (options?.webSearch) {
+  if (options?.managedToolRunId) {
+    payload.managed_tool_run_id = options.managedToolRunId
+  } else if (options?.webSearch) {
     payload.web_search = true
     payload.max_tool_loops = options.maxToolLoops ?? 3
   }

@@ -57,6 +57,16 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
+	// Playground video outputs are persisted independently of the upstream
+	// task. Prefer that durable, owner-scoped asset once it is available so old
+	// chat cards do not depend on temporary provider URLs or channel secrets.
+	if run, runErr := model.GetPlaygroundRunByTaskId(taskID, userID); runErr == nil && run.AssetId > 0 {
+		if _, assetErr := model.GetPlaygroundAsset(run.AssetId, userID); assetErr == nil {
+			c.Redirect(http.StatusFound, fmt.Sprintf("/api/playground/assets/%d/content", run.AssetId))
+			return
+		}
+	}
+
 	channel, err := model.CacheGetChannel(task.ChannelId)
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to get channel for task %s: %s", taskID, err.Error()))

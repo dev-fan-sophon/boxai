@@ -35,6 +35,18 @@ function assistantMessage(content: string, key = content): Message {
 }
 
 describe('buildChatCompletionPayload', () => {
+  it('uses a managed search run without requesting a duplicate web search', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('latest news')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { webSearch: true, managedToolRunId: 42 }
+    )
+
+    expect(payload.managed_tool_run_id).toBe(42)
+    expect(payload.web_search).toBeUndefined()
+    expect(payload.max_tool_loops).toBeUndefined()
+  })
   it('omits whitespace-only system prompts', () => {
     const payload = buildChatCompletionPayload(
       [userMessage('hello')],

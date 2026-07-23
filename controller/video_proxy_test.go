@@ -105,6 +105,37 @@ func TestVideoProxyDoesNotExposeAnotherUsersTask(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
 
+func TestVideoProxyPrefersPersistedPlaygroundAsset(t *testing.T) {
+	db := setupVideoProxyTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}, &model.PlaygroundRun{}))
+	require.NoError(t, db.Create(&model.Task{
+		TaskID:   "task_persisted_video",
+		UserId:   42,
+		Status:   model.TaskStatusSuccess,
+		Platform: constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeXai)),
+	}).Error)
+	asset := &model.PlaygroundAsset{UserId: 42, Kind: "video", StorageKey: "videos/result.mp4"}
+	require.NoError(t, db.Create(asset).Error)
+	require.NoError(t, db.Create(&model.PlaygroundRun{
+		UserId:   42,
+		Modality: "video",
+		TaskId:   "task_persisted_video",
+		AssetId:  asset.Id,
+	}).Error)
+
+	router := gin.New()
+	router.GET("/v1/videos/:task_id/content", func(c *gin.Context) {
+		c.Set("id", 42)
+		VideoProxy(c)
+	})
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/v1/videos/task_persisted_video/content", nil)
+	router.ServeHTTP(recorder, request)
+
+	assert.Equal(t, http.StatusFound, recorder.Code)
+	assert.Equal(t, fmt.Sprintf("/api/playground/assets/%d/content", asset.Id), recorder.Header().Get("Location"))
+}
+
 func TestCopyVideoResponseHeadersExcludesCookies(t *testing.T) {
 	source := http.Header{
 		"Content-Type":  {"video/mp4"},

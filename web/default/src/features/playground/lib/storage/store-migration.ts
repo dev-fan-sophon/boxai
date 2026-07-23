@@ -99,6 +99,17 @@ export function preparePersistedPlaygroundState(
     messages: messages.map((message) => ({
       ...message,
       attachments: undefined,
+      managedTool: message.managedTool
+        ? {
+            ...message.managedTool,
+            images: message.managedTool.images?.filter(
+              (url) => !url.startsWith('data:')
+            ),
+            videoUrl: message.managedTool.videoUrl?.startsWith('data:')
+              ? undefined
+              : message.managedTool.videoUrl,
+          }
+        : undefined,
     })),
     ui: state.ui,
   }

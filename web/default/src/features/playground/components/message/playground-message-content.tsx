@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { FileText } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -39,15 +39,18 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai-elements/sources'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { MESSAGE_STATUS } from '../../constants'
+import { useVideoTaskResult } from '../../hooks/use-video-task-result'
 import {
   getMessageAlignmentClass,
   getMessageContentState,
   isErrorMessage,
   type MessageAlignment,
 } from '../../lib'
+import { downloadGeneratedMedia } from '../../lib/download-generated-media'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MessageError } from './message-error'
@@ -84,6 +87,20 @@ export function PlaygroundMessageContent({
   const isMessageFinal =
     message.status !== MESSAGE_STATUS.LOADING &&
     message.status !== MESSAGE_STATUS.STREAMING
+  const videoResult = useVideoTaskResult(
+    message.managedTool?.taskId,
+    message.managedTool?.action === 'generate_video',
+    message.managedTool?.runId
+  )
+  const toolVideoUrl = videoResult.resultUrl || message.managedTool?.videoUrl
+  const toolStatus =
+    message.managedTool?.action === 'generate_video' && videoResult.status
+      ? videoResult.status.toLowerCase()
+      : message.managedTool?.status
+  const toolError =
+    message.managedTool?.action === 'generate_video' && videoResult.failed
+      ? videoResult.failReason
+      : message.managedTool?.error
 
   return (
     <div
@@ -130,6 +147,75 @@ export function PlaygroundMessageContent({
             ))}
           </SourcesContent>
         </Sources>
+      )}
+
+      {message.managedTool && (
+        <section className='border-border bg-muted/30 mb-2 rounded-xl border p-3'>
+          <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
+            <div>
+              <span className='font-medium'>{t('Platform tool')}</span>
+              {message.managedTool.model && (
+                <span className='text-muted-foreground ml-2'>
+                  {message.managedTool.model}
+                </span>
+              )}
+            </div>
+            <span className='bg-muted rounded-full px-2 py-0.5 text-xs'>
+              {t(toolStatus || message.managedTool.status)}
+            </span>
+          </div>
+          {toolError && (
+            <p className='text-destructive mt-2 text-sm'>{toolError}</p>
+          )}
+          {message.managedTool.images && (
+            <div className='mt-3 grid gap-2 sm:grid-cols-2'>
+              {message.managedTool.images.map((url, index) => (
+                <div key={url} className='relative overflow-hidden rounded-lg'>
+                  <img
+                    src={url}
+                    alt={t('Generated image')}
+                    className='w-full'
+                  />
+                  <Button
+                    size='icon-sm'
+                    variant='secondary'
+                    className='absolute right-2 bottom-2'
+                    aria-label={t('Download')}
+                    onClick={() =>
+                      void downloadGeneratedMedia(
+                        url,
+                        `image-${index + 1}`,
+                        'image'
+                      )
+                    }
+                  >
+                    <Download aria-hidden='true' />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {toolVideoUrl && (
+            <div className='mt-3'>
+              <video
+                src={toolVideoUrl}
+                controls
+                className='w-full rounded-lg'
+              />
+              <Button
+                size='sm'
+                variant='outline'
+                className='mt-2'
+                onClick={() =>
+                  void downloadGeneratedMedia(toolVideoUrl, 'video', 'video')
+                }
+              >
+                <Download aria-hidden='true' />
+                {t('Download')}
+              </Button>
+            </div>
+          )}
+        </section>
       )}
 
       {hasReasoning && (

@@ -10,6 +10,7 @@ import type { StudioModality } from '../../types'
 
 export type WorkbenchChatTools = {
   webSearch: boolean
+  mode: 'auto' | 'image' | 'video' | 'search'
   carryHistory: boolean
   longMemory: boolean
   maxToolLoops: number
@@ -50,6 +51,7 @@ export type WorkbenchPrefs = {
 
 export const DEFAULT_CHAT_TOOLS: WorkbenchChatTools = {
   webSearch: false,
+  mode: 'auto',
   carryHistory: true,
   longMemory: false,
   maxToolLoops: 3,
@@ -84,8 +86,17 @@ export function clampSystemPrompt(value: string | undefined | null): string {
 export function normalizeChatTools(
   value: Partial<WorkbenchChatTools> | undefined | null
 ): WorkbenchChatTools {
+  let mode: WorkbenchChatTools['mode'] = value?.webSearch ? 'search' : 'auto'
+  if (
+    value?.mode === 'image' ||
+    value?.mode === 'video' ||
+    value?.mode === 'search'
+  ) {
+    mode = value.mode
+  }
   return {
     webSearch: value?.webSearch === true,
+    mode,
     carryHistory: value?.carryHistory !== false,
     longMemory: value?.longMemory === true,
     maxToolLoops: clampInt(value?.maxToolLoops, 1, 20, 3),

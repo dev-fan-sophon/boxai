@@ -30,6 +30,88 @@ import type {
   VideoSubmission,
 } from './types'
 
+export type ManagedToolAction =
+  | 'chat'
+  | 'generate_image'
+  | 'generate_video'
+  | 'web_search'
+
+export type ManagedToolRunResponse = {
+  run: {
+    id: number
+    action: ManagedToolAction
+    status: string
+    tool_model?: string
+    task_id?: string
+    error?: string
+  }
+  arguments: Record<string, unknown>
+  execution: { endpoint: string; method: string; execution_token: string }
+  sources?: {
+    results?: Array<{
+      title: string
+      url: string
+      snippet?: string
+      domain?: string
+      published_at?: string
+    }>
+  }
+  result?: unknown
+}
+
+export type ManagedExecutionContract = {
+  runId: number
+  executionToken: string
+}
+
+function requireManagedSuccess(response: {
+  data?: { success?: boolean; message?: string; data?: unknown }
+}): ManagedToolRunResponse {
+  if (!response.data?.success) {
+    throw new Error(response.data?.message || 'Managed tool request failed')
+  }
+  return response.data.data as ManagedToolRunResponse
+}
+
+export async function getManagedToolRun(
+  runId: number
+): Promise<ManagedToolRunResponse> {
+  const response = await api.get(`/api/playground/chat/runs/${runId}`)
+  return requireManagedSuccess(response)
+}
+
+export async function createManagedToolRun(input: {
+  client_request_id: string
+  model: string
+  group: string
+  user_text: string
+  tool_policy: {
+    mode: 'auto' | 'direct'
+    enabled: Array<'generate_image' | 'generate_video' | 'web_search'>
+    direct?: { name: string; args: Record<string, unknown> }
+  }
+}): Promise<ManagedToolRunResponse> {
+  const response = await api.post('/api/playground/chat/runs', input)
+  return requireManagedSuccess(response)
+}
+
+export async function importManagedToolRun(
+  runId: number,
+  input: {
+    execution_token: string
+    status: 'submitted' | 'completed' | 'failed'
+    task_id?: string
+    result?: unknown
+    error?: string
+  }
+): Promise<ManagedToolRunResponse> {
+  const response = await api.post(
+    `/api/playground/chat/runs/${runId}/import`,
+    input
+  )
+  return requireManagedSuccess(response)
+}
+
 /**
  * Send chat completion request (non-streaming)
  */
@@ -142,6 +224,7 @@ export type ImageGenerateInput = {
   referenceImage?: string | null
   /** when true with reference, use /pg/images/edits */
   editMode?: boolean
+  execution?: ManagedExecutionContract
 }
 
 export async function generateImages(
@@ -171,7 +254,14 @@ export async function generateImages(
     input.editMode && ref
       ? API_ENDPOINTS.IMAGE_EDITS
       : API_ENDPOINTS.IMAGE_GENERATIONS
-  const response = await api.post(endpoint, body)
+  const response = await api.post(endpoint, body, {
+    headers: input.execution
+      ? {
+          'X-Playground-Run-Id': String(input.execution.runId),
+          'X-Playground-Execution-Token': input.execution.executionToken,
+        }
+      : undefined,
+  })
   const items = (response.data?.data ?? []) as Array<{
     url?: string
     b64_json?: string
@@ -195,6 +285,7 @@ export type VideoSubmitInput = {
   firstFrame?: string | null
   lastFrame?: string | null
   inputReference?: string | null
+  execution?: ManagedExecutionContract
 }
 
 export async function submitVideo(
@@ -224,7 +315,14 @@ export async function submitVideo(
       body.images = [...images, last]
     }
   }
-  const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body)
+  const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body, {
+    headers: input.execution
+      ? {
+          'X-Playground-Run-Id': String(input.execution.runId),
+          'X-Playground-Execution-Token': input.execution.executionToken,
+        }
+      : undefined,
+  })
   const data = response.data?.data ?? response.data
   return {
     taskId: String(data?.task_id ?? data?.id ?? ''),
