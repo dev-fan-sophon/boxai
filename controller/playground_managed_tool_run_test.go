@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
@@ -125,6 +126,29 @@ func TestPreparePlaygroundSearchRejectsInvalidContract(t *testing.T) {
 			assert.GreaterOrEqual(t, recorder.Code, 400)
 		})
 	}
+}
+
+func TestPreparePlaygroundSearchRejectsReplayWithConflict(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundChatToolRun{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+	run := &model.PlaygroundChatToolRun{UserId: 7, ClientRequestId: "completed-search", Action: "web_search", Status: "completed", ToolModel: "grok-4.5", UsingGroup: "default", Prompt: "q", ExecutionToken: "secret"}
+	require.NoError(t, model.CreatePlaygroundChatToolRun(run))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest("POST", "/pg/responses", bytes.NewBufferString(`{}`))
+	c.Request.Header.Set("X-Playground-Run-Id", strconv.Itoa(run.Id))
+	c.Request.Header.Set("X-Playground-Execution-Token", "secret")
+	c.Set("id", run.UserId)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+
+	PreparePlaygroundSearch()(c)
+	assert.True(t, c.IsAborted())
+	assert.Equal(t, http.StatusConflict, recorder.Code)
 }
 
 func TestPreparePlaygroundSearchRejectsRevokedGroup(t *testing.T) {

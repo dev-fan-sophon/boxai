@@ -159,8 +159,13 @@ func PreparePlaygroundSearch() gin.HandlerFunc {
 			return
 		}
 		run, err := model.GetPlaygroundChatToolRun(runID, c.GetInt("id"))
-		if err != nil || run.Action != service.PlaygroundToolSearch || run.Status != "ready" || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
+		if err != nil || run.Action != service.PlaygroundToolSearch || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
 			playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
+			c.Abort()
+			return
+		}
+		if run.Status != "ready" {
+			playgroundExecutionError(c, http.StatusConflict, "managed tool run was already executed")
 			c.Abort()
 			return
 		}
