@@ -230,15 +230,13 @@ export function GenerationProgress(props: GenerationProgressProps) {
   )
 }
 
-function ModalityGlyph(props: {
-  modality: Exclude<StudioModality, 'chat'>
-}) {
+function ModalityGlyph(props: { modality: Exclude<StudioModality, 'chat'> }) {
   if (props.modality === 'image') return <ImageIcon className='size-4' />
   if (props.modality === 'video') return <Video className='size-4' />
   return <Music2 className='size-4' />
 }
 
-function ImagePlaceholder(props: {
+export function ImagePlaceholder(props: {
   delayMs: number
   reduceMotion: boolean
   aspectCss: string
@@ -281,7 +279,7 @@ function ImagePlaceholder(props: {
   )
 }
 
-function VideoPlaceholder(props: { reduceMotion: boolean }) {
+export function VideoPlaceholder(props: { reduceMotion: boolean }) {
   return (
     <div className='border-border/70 bg-muted/40 relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border'>
       <div className='skeleton-shimmer absolute inset-0' />

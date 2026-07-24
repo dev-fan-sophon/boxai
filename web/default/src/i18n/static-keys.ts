@@ -235,6 +235,12 @@ export const STATIC_I18N_KEYS = [
   'Area',
   'Pie',
 
+  // Playground managed tool cards (labelKeys in MANAGED_TOOL_META)
+  'Image generation',
+  'Video generation',
+  'Web search',
+  'Platform tool',
+
   // Playground parameter controls
   'Temperature',
   'Top P',

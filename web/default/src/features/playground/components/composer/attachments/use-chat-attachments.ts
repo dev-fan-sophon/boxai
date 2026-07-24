@@ -10,15 +10,22 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import {
+  extractDocumentText,
+  isDocumentFile,
+} from '../../../lib/attachments/document-extract'
 import type { ChatAttachment } from '../../../types'
 
 const MAX_CHAT_ATTACHMENTS = 4
 const MAX_CHAT_IMAGE_BYTES = 8 * 1024 * 1024
 const MAX_CHAT_PDF_BYTES = 10 * 1024 * 1024
+const MAX_CHAT_DOCUMENT_BYTES = 10 * 1024 * 1024
 
 /**
- * Chat image and PDF attachments with file-dialog, paste, and drag-drop
- * ingestion paths. Attachments stay in memory and are sent inline upstream.
+ * Chat attachments (images, PDFs, and office/text documents) with
+ * file-dialog, paste, and drag-drop ingestion paths. Images and PDFs stay
+ * in memory as data URLs; documents are extracted to plain text in the
+ * browser and sent as text parts.
  */
 export function useChatAttachments() {
   const { t } = useTranslation()
@@ -36,15 +43,22 @@ export function useChatAttachments() {
 
   const addFiles = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0 || isAddingRef.current) return
-    const validFiles: Array<{ file: File; isImage: boolean; isPdf: boolean }> =
-      []
+    const validFiles: Array<{
+      file: File
+      kind: 'image' | 'pdf' | 'document'
+    }> = []
     for (const file of files) {
       const isPdf =
         file.type === 'application/pdf' ||
         (file.type === '' && /\.pdf$/i.test(file.name))
       const isImage = !isPdf && file.type.startsWith('image/')
-      if (!isImage && !isPdf) {
-        toast.error(t('Only image and PDF attachments are supported.'))
+      const isDocument = !isPdf && !isImage && isDocumentFile(file)
+      if (!isImage && !isPdf && !isDocument) {
+        toast.error(
+          t(
+            'Unsupported file type. Use images, PDF, Word, Excel, PowerPoint, or text files.'
+          )
+        )
         continue
       }
       if (isImage && file.size > MAX_CHAT_IMAGE_BYTES) {
@@ -55,7 +69,14 @@ export function useChatAttachments() {
         toast.error(t('PDF is too large (max 10MB).'))
         continue
       }
-      validFiles.push({ file, isImage, isPdf })
+      if (isDocument && file.size > MAX_CHAT_DOCUMENT_BYTES) {
+        toast.error(t('Document is too large (max 10MB).'))
+        continue
+      }
+      let kind: 'image' | 'pdf' | 'document' = 'document'
+      if (isImage) kind = 'image'
+      if (isPdf) kind = 'pdf'
+      validFiles.push({ file, kind })
     }
 
     const remaining = MAX_CHAT_ATTACHMENTS - attachments.length
@@ -82,36 +103,47 @@ export function useChatAttachments() {
     isAddingRef.current = true
     setIsAdding(true)
     const results = await Promise.allSettled(
-      acceptedFiles.map(
-        ({ file, isImage, isPdf }) =>
-          new Promise<ChatAttachment>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.addEventListener(
-              'load',
-              () => {
-                let dataUrl = String(reader.result)
-                if (isPdf) {
-                  dataUrl = dataUrl.replace(
-                    /^data:[^;]*;base64,/,
-                    'data:application/pdf;base64,'
-                  )
-                }
-                resolve({
-                  id: crypto.randomUUID(),
-                  name: file.name,
-                  mimeType: isPdf ? 'application/pdf' : file.type,
-                  dataUrl,
-                  type: isImage ? 'image' : 'file',
-                })
-              },
-              { once: true }
-            )
-            reader.addEventListener('error', () => reject(reader.error), {
-              once: true,
+      acceptedFiles.map(({ file, kind }) => {
+        if (kind === 'document') {
+          return extractDocumentText(file).then(
+            (textContent): ChatAttachment => ({
+              id: crypto.randomUUID(),
+              name: file.name,
+              mimeType: file.type || 'text/plain',
+              dataUrl: '',
+              type: 'document',
+              textContent,
             })
-            reader.readAsDataURL(file)
+          )
+        }
+        return new Promise<ChatAttachment>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.addEventListener(
+            'load',
+            () => {
+              let dataUrl = String(reader.result)
+              if (kind === 'pdf') {
+                dataUrl = dataUrl.replace(
+                  /^data:[^;]*;base64,/,
+                  'data:application/pdf;base64,'
+                )
+              }
+              resolve({
+                id: crypto.randomUUID(),
+                name: file.name,
+                mimeType: kind === 'pdf' ? 'application/pdf' : file.type,
+                dataUrl,
+                type: kind === 'image' ? 'image' : 'file',
+              })
+            },
+            { once: true }
+          )
+          reader.addEventListener('error', () => reject(reader.error), {
+            once: true,
           })
-      )
+          reader.readAsDataURL(file)
+        })
+      })
     )
 
     if (operationRef.current !== operation) return
@@ -154,7 +186,8 @@ export function useChatAttachments() {
       (file) =>
         file.type.startsWith('image/') ||
         file.type === 'application/pdf' ||
-        (file.type === '' && /\.pdf$/i.test(file.name))
+        (file.type === '' && /\.pdf$/i.test(file.name)) ||
+        isDocumentFile(file)
     )
     if (files.length === 0) return
     event.preventDefault()

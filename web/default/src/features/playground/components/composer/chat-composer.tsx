@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { getInputControlState, getSubmittableInputText } from '../../lib'
+import { DOCUMENT_ACCEPT } from '../../lib/attachments/document-extract'
 import type { ChatAttachment } from '../../types'
 import { ChatAttachmentStrip } from './attachments/chat-attachments'
 import { useChatAttachments } from './attachments/use-chat-attachments'
@@ -42,7 +43,7 @@ type ChatComposerProps = {
 }
 
 /**
- * Chat composer: shared composer skeleton plus image/PDF attachments
+ * Chat composer: shared composer skeleton plus image/PDF/document attachments
  * (file dialog, paste, drag-drop) and the high-frequency web-search
  * shortcut. Model and group selection live in the catalog and settings
  * panel; sampling parameters live in the settings panel.
@@ -111,7 +112,7 @@ export function ChatComposer(props: ChatComposerProps) {
             <input
               ref={fileInputRef}
               type='file'
-              accept='image/*,application/pdf'
+              accept={`image/*,application/pdf,${DOCUMENT_ACCEPT}`}
               multiple
               disabled={props.disabled || attachments.isAdding}
               className='hidden'
@@ -124,7 +125,7 @@ export function ChatComposer(props: ChatComposerProps) {
               <TooltipTrigger
                 render={
                   <PromptInputButton
-                    aria-label={t('Attach image or PDF')}
+                    aria-label={t('Attach images or documents')}
                     className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
                     disabled={
                       props.disabled ||
@@ -139,7 +140,7 @@ export function ChatComposer(props: ChatComposerProps) {
                 }
               />
               <TooltipContent>
-                <p>{t('Attach image or PDF')}</p>
+                <p>{t('Attach images or documents')}</p>
               </TooltipContent>
             </Tooltip>
 

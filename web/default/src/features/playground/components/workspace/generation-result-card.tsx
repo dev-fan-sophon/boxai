@@ -79,7 +79,7 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
     <figure
       className={cn(
         'border-border/80 bg-muted/40 group relative overflow-hidden rounded-2xl border',
-        'shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] transition-shadow duration-300',
+        'ring-foreground/5 ring-1 ring-inset transition-shadow duration-300',
         'generation-result-enter hover:border-border hover:shadow-md'
       )}
       style={{ animationDelay: `${enterDelayMs}ms` }}
@@ -138,9 +138,7 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
               downloading={props.downloading}
               done={justDownloaded && !props.downloading}
             />
-            {justDownloaded && !props.downloading
-              ? t('Saved')
-              : t('Download')}
+            {justDownloaded && !props.downloading ? t('Saved') : t('Download')}
           </Button>
         </div>
       </div>
@@ -153,15 +151,12 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
   )
 }
 
-function DownloadActionIcon(props: {
-  downloading: boolean
-  done: boolean
-}) {
+function DownloadActionIcon(props: { downloading: boolean; done: boolean }) {
   if (props.downloading) {
     return <Loader2 className='size-3.5 animate-spin' />
   }
   if (props.done) {
-    return <Check className='size-3.5 text-emerald-500' />
+    return <Check className='text-success size-3.5' />
   }
   return <Download className='size-3.5' />
 }

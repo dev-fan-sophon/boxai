@@ -16,7 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Download, FileText } from 'lucide-react'
+import {
+  Download,
+  FileText,
+  Globe,
+  ImageIcon,
+  Sparkles,
+  Video,
+  type LucideIcon,
+} from 'lucide-react'
+import { useReducedMotion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -53,8 +62,39 @@ import {
 import { downloadGeneratedMedia } from '../../lib/download-generated-media'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
+import {
+  ImagePlaceholder,
+  VideoPlaceholder,
+} from '../workspace/generation-progress'
 import { MessageError } from './message-error'
 import { MessageMetadata } from './message-metadata'
+
+const MANAGED_TOOL_META: Record<
+  string,
+  { titleKey: string; Icon: LucideIcon; tile: string }
+> = {
+  generate_image: {
+    titleKey: 'Image generation',
+    Icon: ImageIcon,
+    tile: 'bg-chart-3/15 text-chart-3',
+  },
+  generate_video: {
+    titleKey: 'Video generation',
+    Icon: Video,
+    tile: 'bg-warning/15 text-warning',
+  },
+  web_search: {
+    titleKey: 'Web search',
+    Icon: Globe,
+    tile: 'bg-info/15 text-info',
+  },
+}
+
+const DEFAULT_TOOL_META = {
+  titleKey: 'Platform tool',
+  Icon: Sparkles,
+  tile: 'bg-primary/15 text-primary',
+}
 
 type PlaygroundMessageContentProps = {
   actions: ReactNode
@@ -102,14 +142,23 @@ export function PlaygroundMessageContent({
       ? videoResult.failReason
       : message.managedTool?.error
 
-  let managedToolTitle = t('Platform tool')
-  if (message.managedTool?.action === 'generate_image') {
-    managedToolTitle = t('Image generation')
-  } else if (message.managedTool?.action === 'generate_video') {
-    managedToolTitle = t('Video generation')
-  } else if (message.managedTool?.action === 'web_search') {
-    managedToolTitle = t('Web search')
-  }
+  const shouldReduce = useReducedMotion()
+  const toolMeta = message.managedTool
+    ? (MANAGED_TOOL_META[message.managedTool.action] ?? DEFAULT_TOOL_META)
+    : DEFAULT_TOOL_META
+  const ToolIcon = toolMeta.Icon
+  const isToolFailed =
+    Boolean(toolError) ||
+    toolStatus === 'failed' ||
+    toolStatus === 'unavailable'
+  const isToolDone =
+    !isToolFailed &&
+    (toolStatus === 'completed' ||
+      toolStatus === 'success' ||
+      Boolean(message.managedTool?.images?.length) ||
+      Boolean(toolVideoUrl))
+  const isToolRunning =
+    Boolean(message.managedTool) && !isToolFailed && !isToolDone
 
   return (
     <div
@@ -159,15 +208,65 @@ export function PlaygroundMessageContent({
       )}
 
       {message.managedTool && (
-        <section className='border-border bg-muted/30 mb-2 rounded-xl border p-3'>
+        <section className='border-border from-muted/40 to-muted/15 mb-2 rounded-xl border bg-gradient-to-br p-3'>
           <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
-            <span className='font-medium'>{managedToolTitle}</span>
-            <span className='bg-muted rounded-full px-2 py-0.5 text-xs'>
+            <span className='flex min-w-0 items-center gap-2'>
+              <span
+                className={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-lg',
+                  toolMeta.tile
+                )}
+              >
+                <ToolIcon className='size-3.5' aria-hidden='true' />
+              </span>
+              <span className='truncate font-medium'>
+                {t(toolMeta.titleKey)}
+              </span>
+            </span>
+            <span
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs',
+                isToolFailed && 'bg-destructive/10 text-destructive',
+                isToolDone && 'bg-success/10 text-success',
+                isToolRunning && 'bg-primary/10 text-primary'
+              )}
+            >
+              {isToolRunning && (
+                <span
+                  className={cn(
+                    'bg-primary size-1.5 rounded-full',
+                    !shouldReduce && 'animate-pulse'
+                  )}
+                  aria-hidden='true'
+                />
+              )}
               {t(toolStatus || message.managedTool.status)}
             </span>
           </div>
           {toolError && (
             <p className='text-destructive mt-2 text-sm'>{toolError}</p>
+          )}
+          {isToolRunning && message.managedTool.action === 'generate_image' && (
+            <div className='mt-3'>
+              <ImagePlaceholder
+                delayMs={0}
+                reduceMotion={Boolean(shouldReduce)}
+                aspectCss='4 / 3'
+                sizeLabel={null}
+              />
+            </div>
+          )}
+          {isToolRunning && message.managedTool.action === 'generate_video' && (
+            <div className='mt-3'>
+              <VideoPlaceholder reduceMotion={Boolean(shouldReduce)} />
+            </div>
+          )}
+          {isToolRunning && message.managedTool.action === 'web_search' && (
+            <div className='mt-3 space-y-1.5' aria-hidden='true'>
+              <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
+              <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
+              <div className='skeleton-shimmer h-3 w-2/3 rounded-full' />
+            </div>
           )}
           {message.managedTool.images && (
             <div className='mt-3 grid gap-2 sm:grid-cols-2'>
@@ -183,22 +282,18 @@ export function PlaygroundMessageContent({
             </div>
           )}
           {toolVideoUrl && (
-            <div className='mt-3'>
-              <video
-                src={toolVideoUrl}
-                controls
-                className='w-full rounded-lg'
-              />
+            <div className='generation-result-enter border-border/70 bg-muted/30 group relative mt-3 overflow-hidden rounded-xl border'>
+              <video src={toolVideoUrl} controls className='w-full' />
               <Button
-                size='sm'
-                variant='outline'
-                className='mt-2'
+                size='icon-sm'
+                variant='secondary'
+                className='bg-background/85 absolute top-2 right-2 shadow-sm backdrop-blur-sm'
+                aria-label={t('Download')}
                 onClick={() =>
                   void downloadGeneratedMedia(toolVideoUrl, 'video', 'video')
                 }
               >
                 <Download aria-hidden='true' />
-                {t('Download')}
               </Button>
             </div>
           )}

@@ -15,6 +15,7 @@ export type WorkbenchChatTools = {
   longMemory: boolean
   maxToolLoops: number
   systemPrompt: string
+  visualOutput: boolean
 }
 
 export type DuoCollabState = {
@@ -56,6 +57,7 @@ export const DEFAULT_CHAT_TOOLS: WorkbenchChatTools = {
   longMemory: false,
   maxToolLoops: 3,
   systemPrompt: '',
+  visualOutput: true,
 }
 
 export const DEFAULT_DUO: DuoCollabState = {
@@ -101,6 +103,7 @@ export function normalizeChatTools(
     longMemory: value?.longMemory === true,
     maxToolLoops: clampInt(value?.maxToolLoops, 1, 20, 3),
     systemPrompt: clampSystemPrompt(value?.systemPrompt),
+    visualOutput: value?.visualOutput !== false,
   }
 }
 

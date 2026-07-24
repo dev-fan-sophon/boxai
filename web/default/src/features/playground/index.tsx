@@ -184,8 +184,9 @@ export function Playground() {
     () => ({
       systemPrompt: chatTools.systemPrompt,
       carryHistory: chatTools.carryHistory,
+      visualOutput: chatTools.visualOutput,
     }),
-    [chatTools.systemPrompt, chatTools.carryHistory]
+    [chatTools.systemPrompt, chatTools.carryHistory, chatTools.visualOutput]
   )
 
   const { sendChat, stopGeneration, isGenerating } = useChatHandler({

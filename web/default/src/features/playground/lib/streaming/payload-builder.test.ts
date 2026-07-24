@@ -13,6 +13,7 @@ import type { Message } from '../../types'
 import {
   MAX_CHAT_PAYLOAD_BYTES,
   buildChatCompletionPayload,
+  VISUAL_OUTPUT_SYSTEM_PROMPT,
   isChatCompletionPayloadTooLarge,
 } from './payload-builder'
 
@@ -108,6 +109,45 @@ describe('buildChatCompletionPayload', () => {
       { carryHistory: false }
     )
     expect(payload.messages).toEqual([])
+  })
+
+  it('appends the visual-output capability prompt when enabled', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hi')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { systemPrompt: 'persona', visualOutput: true }
+    )
+    expect(payload.messages[0]).toEqual({
+      role: 'system',
+      content: `persona\n\n${VISUAL_OUTPUT_SYSTEM_PROMPT}`,
+    })
+  })
+
+  it('injects the visual-output prompt alone without a persona', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hi')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { visualOutput: true }
+    )
+    expect(payload.messages[0]).toEqual({
+      role: 'system',
+      content: VISUAL_OUTPUT_SYSTEM_PROMPT,
+    })
+  })
+
+  it('omits the visual-output prompt when disabled', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hi')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { systemPrompt: 'persona', visualOutput: false }
+    )
+    expect(payload.messages[0]).toEqual({
+      role: 'system',
+      content: 'persona',
+    })
   })
 
   it('clamps oversized system prompts before send', () => {

@@ -31,7 +31,23 @@ export type BuildChatPayloadOptions = {
   systemPrompt?: string
   /** When false, only the latest user turn is sent (plus system prompt) */
   carryHistory?: boolean
+  /** When true, appends the platform visual-output capability prompt */
+  visualOutput?: boolean
 }
+
+/**
+ * Tells the model which rich Markdown fences the client can render.
+ * Must stay in sync with the renderers in components/ai-elements
+ * (chart-spec.ts, mermaid-diagram.tsx, html-preview-fence.tsx).
+ */
+export const VISUAL_OUTPUT_SYSTEM_PROMPT = [
+  'When visual output communicates better than prose, use these Markdown fences; the client renders them:',
+  '- ```chart — JSON {"type":"bar"|"line"|"area"|"pie","title"?,"xKey"?,"yKeys"?,"data":[{...}]} (max 500 rows) for numeric comparisons and trends.',
+  '- ```mermaid — flowchart, sequence, state, ER, and gantt diagrams.',
+  '- ```html — a self-contained interactive demo (inline CSS/JS only; rendered in a sandboxed iframe without network access).',
+  '- ```svg — vector graphics.',
+  'LaTeX math ($...$ or $$...$$) and GFM tables are also rendered. Otherwise reply normally.',
+].join('\n')
 
 export const MAX_CHAT_PAYLOAD_BYTES = 30 * 1024 * 1024
 
@@ -70,7 +86,13 @@ export function buildChatCompletionPayload(
   const processedMessages: ChatCompletionMessage[] =
     sourceMessages.map(formatMessageForAPI)
 
-  const systemPrompt = clampSystemPrompt(options?.systemPrompt).trim()
+  const personaPrompt = clampSystemPrompt(options?.systemPrompt).trim()
+  const systemPrompt = [
+    personaPrompt,
+    options?.visualOutput ? VISUAL_OUTPUT_SYSTEM_PROMPT : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
   if (systemPrompt) {
     processedMessages.unshift({
       role: 'system',

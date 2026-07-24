@@ -10,32 +10,37 @@ import type { StudioModality } from '../../types'
 
 export const MODALITY_COLORS: Record<
   StudioModality | 'tool',
-  { tag: string; bg: string; text: string }
+  { tag: string; bg: string; text: string; tile: string }
 > = {
   chat: {
     tag: 'bg-primary/15 text-primary border-primary/30',
     bg: 'bg-primary/10',
     text: 'text-primary',
+    tile: 'bg-gradient-to-br from-primary/15 to-chart-2/10 text-primary ring-primary/20',
   },
   image: {
     tag: 'bg-accent text-accent-foreground border-border',
     bg: 'bg-accent',
     text: 'text-accent-foreground',
+    tile: 'bg-gradient-to-br from-chart-3/20 to-chart-4/10 text-chart-3 ring-chart-3/20',
   },
   video: {
     tag: 'bg-warning/15 text-warning border-warning/30',
     bg: 'bg-warning/10',
     text: 'text-warning',
+    tile: 'bg-gradient-to-br from-warning/20 to-chart-1/10 text-warning ring-warning/20',
   },
   audio: {
     tag: 'bg-success/15 text-success border-success/30',
     bg: 'bg-success/10',
     text: 'text-success',
+    tile: 'bg-gradient-to-br from-success/20 to-chart-5/10 text-success ring-success/20',
   },
   tool: {
     tag: 'bg-info/15 text-info border-info/30',
     bg: 'bg-info/10',
     text: 'text-info',
+    tile: 'bg-gradient-to-br from-info/20 to-chart-2/10 text-info ring-info/20',
   },
 }
 

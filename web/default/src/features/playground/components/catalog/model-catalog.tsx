@@ -240,8 +240,8 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 className={cn(
                   'group relative w-full rounded-[11px] border border-transparent transition-all',
                   selected
-                    ? 'border-primary/30 bg-primary/10 shadow-sm'
-                    : 'hover:border-border hover:bg-muted/40'
+                    ? 'border-primary/30 from-primary/12 to-primary/4 bg-gradient-to-br shadow-sm'
+                    : 'hover:border-border hover:bg-muted/40 hover:shadow-sm'
                 )}
               >
                 <button
@@ -252,7 +252,12 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 >
                   <div className='flex items-start justify-between gap-2'>
                     <span className='flex min-w-0 items-center gap-2'>
-                      <span className='border-border bg-muted/60 flex size-9 shrink-0 items-center justify-center rounded-lg border'>
+                      <span
+                        className={cn(
+                          'flex size-9 shrink-0 items-center justify-center rounded-lg ring-1',
+                          MODALITY_COLORS[modelModality].tile
+                        )}
+                      >
                         <ModelBrandIcon
                           modelName={model.model_name}
                           icon={model.icon}

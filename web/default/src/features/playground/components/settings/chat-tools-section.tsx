@@ -7,7 +7,14 @@ published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Brain, History, Theater, Trash2, type LucideIcon } from 'lucide-react'
+import {
+  Brain,
+  ChartColumn,
+  History,
+  Theater,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -76,6 +83,16 @@ export function ChatToolsSection() {
         checked={chatTools.longMemory}
         onCheckedChange={(checked) => setChatTools({ longMemory: checked })}
         icon={Brain}
+      />
+      <ToggleRow
+        id='settings-visual-output'
+        label={t('Visual output')}
+        description={t(
+          'Let the model reply with charts, diagrams, formulas, and interactive HTML.'
+        )}
+        checked={chatTools.visualOutput}
+        onCheckedChange={(checked) => setChatTools({ visualOutput: checked })}
+        icon={ChartColumn}
       />
 
       <div className='space-y-1.5'>

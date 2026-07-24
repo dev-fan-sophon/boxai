@@ -64,8 +64,11 @@ export type ChatAttachment = {
   id: string
   name: string
   mimeType: string
+  /** Empty for extracted documents, which carry textContent instead */
   dataUrl: string
-  type: 'image' | 'file'
+  type: 'image' | 'file' | 'document'
+  /** Browser-extracted plain text for office/text documents */
+  textContent?: string
 }
 
 export interface Message {

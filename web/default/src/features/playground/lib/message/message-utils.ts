@@ -118,14 +118,16 @@ export function createLoadingAssistantMessage(
 }
 
 /**
- * Build message content with optional images and PDFs
+ * Build message content with optional images, PDFs, and extracted documents
  */
 export function buildMessageContent(
   text: string,
   attachments: ChatAttachment[] = []
 ): string | ContentPart[] {
-  const validAttachments = attachments.filter(
-    (attachment) => attachment.dataUrl.trim() !== ''
+  const validAttachments = attachments.filter((attachment) =>
+    attachment.type === 'document'
+      ? (attachment.textContent ?? '').trim() !== ''
+      : attachment.dataUrl.trim() !== ''
   )
 
   if (validAttachments.length === 0) {
@@ -144,6 +146,13 @@ export function buildMessageContent(
       parts.push({
         type: 'image_url',
         image_url: { url: attachment.dataUrl.trim() },
+      })
+      continue
+    }
+    if (attachment.type === 'document') {
+      parts.push({
+        type: 'text',
+        text: `Attached document "${attachment.name}":\n\n${(attachment.textContent ?? '').trim()}`,
       })
       continue
     }
