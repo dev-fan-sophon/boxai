@@ -24,7 +24,6 @@ import {
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
 import i18next from 'i18next'
-import { MotionConfig } from 'motion/react'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { toast } from 'sonner'
@@ -39,6 +38,7 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSystemConfigStore } from '@/stores/system-config-store'
 
+import { MotionPreferences } from './components/page-transition'
 import { DirectionProvider } from './context/direction-provider'
 import { ThemeProvider } from './context/theme-provider'
 import { i18nReady } from './i18n/config'
@@ -171,14 +171,9 @@ if (rootElement && !rootElement.innerHTML) {
           <QueryClientProvider client={queryClient}>
             <ThemeProvider>
               <DirectionProvider>
-                {/* `user` follows the OS setting and drops transforms and
-                 * layout animations while keeping opacity, which is what the
-                 * preference actually asks for — a hard cut is not more
-                 * accessible, just less legible. One provider replaces the
-                 * per-component branching this app used to carry. */}
-                <MotionConfig reducedMotion='user'>
+                <MotionPreferences>
                   <RouterProvider router={router} />
-                </MotionConfig>
+                </MotionPreferences>
               </DirectionProvider>
             </ThemeProvider>
           </QueryClientProvider>

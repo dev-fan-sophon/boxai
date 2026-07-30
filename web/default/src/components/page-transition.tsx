@@ -17,7 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Outlet, useRouterState } from '@tanstack/react-router'
-import { AnimatePresence, motion, type Variants } from 'motion/react'
+import {
+  AnimatePresence,
+  MotionConfig,
+  motion,
+  type Variants,
+} from 'motion/react'
 import type { ReactNode } from 'react'
 
 import {
@@ -31,14 +36,30 @@ import {
 /*
  * Motion-backed transitions for the console. Everything here needs the runtime
  * for a real reason — an exit animation, or variant orchestration across a
- * list. Enter-only surfaces live in `page-enter.tsx` and stay on CSS so the
- * public pages never load `motion/react`.
+ * list. Enter-only surfaces live in `page-enter.tsx` and stay on CSS, so the
+ * public pages render without calling into `motion/react`.
  *
- * Reduced motion is handled once, by the `MotionConfig reducedMotion='user'` in
- * `src/main.tsx`. Branching per component the way this file used to swapped
- * `motion.div` for a plain `div`, which changes the element type and makes
- * React remount the whole subtree — losing the state inside it.
+ * Reduced motion is handled once, by `MotionPreferences` below. Branching per
+ * component the way this file used to swapped `motion.div` for a plain `div`,
+ * which changes the element type and makes React remount the whole subtree —
+ * losing the state inside it.
  */
+
+/**
+ * The application's reduced-motion policy, in one place.
+ *
+ * `user` follows the OS setting and drops transforms and layout animations
+ * while keeping opacity: a hard cut is not more accessible, only less legible.
+ *
+ * Mounted at the root, so an animated subtree cannot be added without it. That
+ * costs no bundle today because `routeTree.gen.ts` imports all 79 routes
+ * statically and every page already carries the runtime. Should routes become
+ * lazy, move this to the roots that actually animate — the console shell and
+ * the playground — so public pages stop paying for it.
+ */
+export function MotionPreferences(props: { children: ReactNode }) {
+  return <MotionConfig reducedMotion='user'>{props.children}</MotionConfig>
+}
 
 export function AnimatedOutlet() {
   // Key the page transition by the matched route id, not the resolved pathname.
