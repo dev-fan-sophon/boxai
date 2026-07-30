@@ -277,8 +277,9 @@ export function PlaygroundMessageContent({
               <ImagePlaceholder
                 delayMs={0}
                 reduceMotion={Boolean(shouldReduce)}
-                aspectCss='4 / 3'
+                ratio={4 / 3}
                 sizeLabel={null}
+                className='max-w-40 rounded-xl'
               />
             </div>
           )}

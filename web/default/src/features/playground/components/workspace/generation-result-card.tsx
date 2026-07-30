@@ -36,15 +36,22 @@ function parseSizeLabel(size?: string): string | null {
   return `${match[1]}×${match[2]}`
 }
 
-function parseAspectCss(size?: string): string {
-  if (!size) return '1 / 1'
+function parseAspectRatio(size?: string): number {
+  if (!size) return 1
   const match = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(size.trim())
-  if (!match) return '1 / 1'
+  if (!match) return 1
   const w = Number(match[1])
   const h = Number(match[2])
-  if (!w || !h) return '1 / 1'
-  return `${w} / ${h}`
+  if (!w || !h) return 1
+  return w / h
 }
+
+/**
+ * Feed results are thumbnails: height drives the layout so portrait and
+ * landscape results occupy comparable space, and the full-size image is one
+ * click away in the lightbox.
+ */
+export const RESULT_THUMBNAIL_HEIGHT = 'clamp(160px, 30vh, 280px)'
 
 export function GenerationImageCard(props: GenerationImageCardProps) {
   const { t } = useTranslation()
@@ -74,9 +81,9 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
   const sizeLabel = naturalSize
     ? `${naturalSize.w}×${naturalSize.h}`
     : parseSizeLabel(props.requestedSize)
-  const aspectCss = naturalSize
-    ? `${naturalSize.w} / ${naturalSize.h}`
-    : parseAspectCss(props.requestedSize)
+  const ratio = naturalSize
+    ? naturalSize.w / naturalSize.h
+    : parseAspectRatio(props.requestedSize)
   const enterDelayMs = (props.index ?? 0) * 70
 
   return (
@@ -86,14 +93,17 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
         'ring-foreground/5 ring-1 ring-inset transition-shadow duration-300',
         'generation-result-enter hover:border-border hover:shadow-md'
       )}
-      style={{ animationDelay: `${enterDelayMs}ms` }}
+      style={{
+        animationDelay: `${enterDelayMs}ms`,
+        width: `min(100%, calc(${RESULT_THUMBNAIL_HEIGHT} * ${ratio}))`,
+      }}
     >
       <div
         // The ratio snaps once, when the image reports its natural size; the
         // image's own reveal covers the change, and interpolating aspect-ratio
         // would relayout the results grid on every frame of it.
         className='bg-muted/60 relative w-full overflow-hidden'
-        style={{ aspectRatio: aspectCss }}
+        style={{ aspectRatio: ratio }}
       >
         {!loaded && <div className='skeleton-shimmer absolute inset-0' />}
         <img
@@ -136,7 +146,7 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
         )}
         <div
           className={cn(
-            'absolute inset-x-0 bottom-0 z-10 flex items-end justify-end gap-2 p-2.5',
+            'absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-end justify-end gap-1.5 p-2',
             'pointer-events-none bg-gradient-to-t from-black/55 via-black/20 to-transparent',
             'opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100'
           )}

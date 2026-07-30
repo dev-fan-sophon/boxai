@@ -16,6 +16,7 @@ import { MOTION_TRANSITION } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 import type { StudioModality } from '../../types'
+import { RESULT_THUMBNAIL_HEIGHT } from './generation-result-card'
 
 type GenerationProgressProps = {
   modality: Exclude<StudioModality, 'chat'>
@@ -33,15 +34,14 @@ type GenerationProgressProps = {
 function parseSizeAspect(size?: string): {
   ratio: number
   label: string | null
-  css: string
 } {
-  if (!size) return { ratio: 1, label: null, css: '1 / 1' }
+  if (!size) return { ratio: 1, label: null }
   const match = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(size.trim())
-  if (!match) return { ratio: 1, label: size, css: '1 / 1' }
+  if (!match) return { ratio: 1, label: size }
   const w = Number(match[1])
   const h = Number(match[2])
-  if (!w || !h) return { ratio: 1, label: size, css: '1 / 1' }
-  return { ratio: w / h, label: `${w}×${h}`, css: `${w} / ${h}` }
+  if (!w || !h) return { ratio: 1, label: size }
+  return { ratio: w / h, label: `${w}×${h}` }
 }
 
 function formatElapsed(ms: number): string {
@@ -123,14 +123,7 @@ export function GenerationProgress(props: GenerationProgressProps) {
       aria-label={t('Generating… {{elapsed}}', { elapsed: elapsedLabel })}
     >
       {props.modality === 'image' && (
-        <div
-          className={cn(
-            'grid w-full gap-3',
-            count === 1
-              ? 'mx-auto max-w-xl grid-cols-1'
-              : 'grid-cols-1 sm:grid-cols-2'
-          )}
-        >
+        <div className='flex w-full flex-wrap items-start gap-3'>
           {(['slot-a', 'slot-b', 'slot-c', 'slot-d'] as const)
             .slice(0, count)
             .map((id, i) => (
@@ -138,7 +131,7 @@ export function GenerationProgress(props: GenerationProgressProps) {
                 key={id}
                 delayMs={shouldReduce ? 0 : i * 80}
                 reduceMotion={Boolean(shouldReduce)}
-                aspectCss={sizeMeta.css}
+                ratio={sizeMeta.ratio}
                 sizeLabel={sizeMeta.label}
               />
             ))}
@@ -242,17 +235,20 @@ function ModalityGlyph(props: { modality: Exclude<StudioModality, 'chat'> }) {
 export function ImagePlaceholder(props: {
   delayMs: number
   reduceMotion: boolean
-  aspectCss: string
+  ratio: number
   sizeLabel: string | null
+  className?: string
 }) {
   return (
     <div
       className={cn(
-        'border-border/70 bg-muted/40 relative w-full overflow-hidden rounded-2xl border',
-        !props.reduceMotion && 'generation-slot-enter'
+        'border-border/70 bg-muted/40 relative overflow-hidden rounded-2xl border',
+        !props.reduceMotion && 'generation-slot-enter',
+        props.className
       )}
       style={{
-        aspectRatio: props.aspectCss,
+        width: `min(100%, calc(${RESULT_THUMBNAIL_HEIGHT} * ${props.ratio}))`,
+        aspectRatio: props.ratio,
         animationDelay: props.reduceMotion ? undefined : `${props.delayMs}ms`,
       }}
     >

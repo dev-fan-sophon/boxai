@@ -275,14 +275,7 @@ function ImageBatchGrid(props: {
   }))
 
   return (
-    <div
-      className={cn(
-        'grid w-full gap-3',
-        images.length === 1
-          ? 'max-w-xl grid-cols-1'
-          : 'grid-cols-1 sm:grid-cols-2'
-      )}
-    >
+    <div className='flex w-full flex-wrap items-start gap-3'>
       {images.map((run, index) => {
         const url = run.resultUrl as string
         const filename = `image-run-${Math.abs(run.id) || index + 1}`
