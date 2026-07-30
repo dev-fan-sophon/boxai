@@ -19,11 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useCallback } from 'react'
 
 import { DEFAULT_SYSTEM_NAME, DEFAULT_LOGO } from '@/lib/constants'
-import {
-  applyBrandTokenPresetToDom,
-  applyFaviconToDom,
-  applyPrimaryColorToDom,
-} from '@/lib/dom-utils'
+import { applyFaviconToDom, applyPrimaryColorToDom } from '@/lib/dom-utils'
 import {
   useSystemConfigStore,
   type CurrencyConfig,
@@ -45,7 +41,6 @@ interface StatusApiResponse {
     logo?: string
     favicon_url?: string
     primary_color?: string
-    token_preset?: string
     footer_html?: string
     demo_site_enabled?: boolean
     display_token_stat_enabled?: boolean
@@ -106,7 +101,6 @@ export function mapStatusDataToConfig(
     logo: data.logo || DEFAULT_LOGO,
     faviconUrl: data.favicon_url || '',
     primaryColor: data.primary_color || '',
-    tokenPreset: data.token_preset === 'box-ai' ? 'box-ai' : '',
     footerHtml: data.footer_html,
     demoSiteEnabled: data.demo_site_enabled,
     displayTokenStatEnabled: data.display_token_stat_enabled,
@@ -187,19 +181,12 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
   // Apply branding to the DOM when config changes.
   // Document title is owned by usePageSeo / applySeo so route-specific titles are not clobbered.
   useEffect(() => {
-    applyBrandTokenPresetToDom(config.tokenPreset)
     applyPrimaryColorToDom(config.primaryColor)
     const favicon = config.faviconUrl || config.logo
     if (favicon && (config.faviconUrl || config.logo === loadedLogoUrl)) {
       applyFaviconToDom(favicon)
     }
-  }, [
-    config.faviconUrl,
-    config.logo,
-    config.primaryColor,
-    config.tokenPreset,
-    loadedLogoUrl,
-  ])
+  }, [config.faviconUrl, config.logo, config.primaryColor, loadedLogoUrl])
 
   useEffect(() => {
     const { logo } = config

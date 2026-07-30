@@ -31,9 +31,8 @@ func TestWebFallbackDoesNotServeIndexForMissingStaticAssets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	engine.Use(middleware.Cache())
-	engine.NoRoute(webFallbackHandler(ThemeAssets{
-		DefaultIndexPage: []byte("default index"),
-		ClassicIndexPage: []byte("classic index"),
+	engine.NoRoute(webFallbackHandler(WebAssets{
+		IndexPage: []byte("default index"),
 	}))
 
 	for _, requestPath := range []string{
@@ -66,9 +65,8 @@ func TestWebFallbackServesIndexForClientRoute(t *testing.T) {
 	})
 
 	engine := gin.New()
-	engine.NoRoute(webFallbackHandler(ThemeAssets{
-		DefaultIndexPage: []byte(sampleIndexHTML),
-		ClassicIndexPage: []byte(sampleIndexHTML),
+	engine.NoRoute(webFallbackHandler(WebAssets{
+		IndexPage: []byte(sampleIndexHTML),
 	}))
 
 	request := httptest.NewRequest(http.MethodGet, "/playground", nil)
@@ -94,9 +92,8 @@ func TestWebFallbackInjectsPublicPageSEO(t *testing.T) {
 	})
 
 	engine := gin.New()
-	engine.NoRoute(webFallbackHandler(ThemeAssets{
-		DefaultIndexPage: []byte(sampleIndexHTML),
-		ClassicIndexPage: []byte(sampleIndexHTML),
+	engine.NoRoute(webFallbackHandler(WebAssets{
+		IndexPage: []byte(sampleIndexHTML),
 	}))
 
 	request := httptest.NewRequest(http.MethodGet, "/pricing", nil)

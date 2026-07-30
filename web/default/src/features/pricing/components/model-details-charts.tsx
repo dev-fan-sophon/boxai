@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -28,139 +28,138 @@ import {
   XAxis,
   YAxis,
   type DotItemDotProps,
-} from 'recharts'
+} from "recharts";
 
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from '@/components/ui/chart'
-import { useThemeCustomization } from '@/context/theme-customization-provider'
-import { getSuccessRateColor } from '@/features/performance-metrics/lib/format'
-import { useThemeRadiusPx } from '@/lib/theme-radius'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/chart";
+import { getSuccessRateColor } from "@/features/performance-metrics/lib/format";
+import { useThemeRadiusPx } from "@/lib/theme-radius";
+import { cn } from "@/lib/utils";
 
-import type { LatencyTimePoint, UptimeDayPoint } from '../lib/mock-stats'
+import type { LatencyTimePoint, UptimeDayPoint } from "../lib/mock-stats";
 
 const CHART_FRAME_CLASS =
-  'bg-card ring-border overflow-hidden rounded-xl p-3 ring-1'
+  "bg-card ring-border overflow-hidden rounded-xl p-3 ring-1";
 
 const SERIES_COLORS = [
-  'var(--chart-1)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-  'var(--chart-5)',
-  '#6366f1',
-  '#14b8a6',
-  '#f97316',
-]
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "#6366f1",
+  "#14b8a6",
+  "#f97316",
+];
 
 function formatHourLabel(iso: string): string {
-  const date = new Date(iso)
-  const hours = date.getHours()
-  return `${String(hours).padStart(2, '0')}:00`
+  const date = new Date(iso);
+  const hours = date.getHours();
+  return `${String(hours).padStart(2, "0")}:00`;
 }
 
 function formatDayLabel(date: string): string {
-  const parsed = new Date(date)
-  if (date.includes('T')) {
+  const parsed = new Date(date);
+  if (date.includes("T")) {
     return parsed.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-    })
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+    });
   }
   return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  })
+    month: "short",
+    day: "numeric",
+  });
 }
 
-const UPTIME_AXIS_MAX = 100
-const UPTIME_FOCUSED_AXIS_MIN = 95
-const UPTIME_MINOR_OUTAGE_AXIS_MIN = 90
+const UPTIME_AXIS_MAX = 100;
+const UPTIME_FOCUSED_AXIS_MIN = 95;
+const UPTIME_MINOR_OUTAGE_AXIS_MIN = 90;
 
 function toUptimeChartValue(value: number): number {
-  if (!Number.isFinite(value)) return 0
-  return Math.min(UPTIME_AXIS_MAX, Math.max(0, value))
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(UPTIME_AXIS_MAX, Math.max(0, value));
 }
 
 function getUptimeAxisMin(values: number[]): number {
-  const finiteValues = values.filter((value) => Number.isFinite(value))
-  if (finiteValues.length === 0) return UPTIME_FOCUSED_AXIS_MIN
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  if (finiteValues.length === 0) return UPTIME_FOCUSED_AXIS_MIN;
 
-  const minValue = Math.max(0, Math.min(...finiteValues))
-  if (minValue >= UPTIME_FOCUSED_AXIS_MIN) return UPTIME_FOCUSED_AXIS_MIN
+  const minValue = Math.max(0, Math.min(...finiteValues));
+  if (minValue >= UPTIME_FOCUSED_AXIS_MIN) return UPTIME_FOCUSED_AXIS_MIN;
   if (minValue >= UPTIME_MINOR_OUTAGE_AXIS_MIN) {
-    return UPTIME_MINOR_OUTAGE_AXIS_MIN
+    return UPTIME_MINOR_OUTAGE_AXIS_MIN;
   }
 
-  return Math.max(0, Math.floor((minValue - 5) / 10) * 10)
+  return Math.max(0, Math.floor((minValue - 5) / 10) * 10);
 }
 
 // ---------------------------------------------------------------------------
 // Latency trend chart (24h, multi-group line chart)
 // ---------------------------------------------------------------------------
 
-type LatencyRow = Record<string, number | string> & { time: string }
+type LatencyRow = Record<string, number | string> & { time: string };
 
 export function LatencyTrendChart(props: {
-  series: LatencyTimePoint[]
-  className?: string
+  series: LatencyTimePoint[];
+  className?: string;
 }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const chart = useMemo(() => {
-    const rowsByTime = new Map<string, LatencyRow>()
-    const groups: string[] = []
+    const rowsByTime = new Map<string, LatencyRow>();
+    const groups: string[] = [];
 
     for (const point of props.series) {
-      const time = formatHourLabel(point.timestamp)
-      let row = rowsByTime.get(time)
+      const time = formatHourLabel(point.timestamp);
+      let row = rowsByTime.get(time);
       if (!row) {
-        row = { time }
-        rowsByTime.set(time, row)
+        row = { time };
+        rowsByTime.set(time, row);
       }
-      row[point.group] = point.ttft_ms
-      if (!groups.includes(point.group)) groups.push(point.group)
+      row[point.group] = point.ttft_ms;
+      if (!groups.includes(point.group)) groups.push(point.group);
     }
 
-    const config: ChartConfig = {}
+    const config: ChartConfig = {};
     groups.forEach((group, index) => {
       config[group] = {
         label: group,
         color: SERIES_COLORS[index % SERIES_COLORS.length],
-      }
-    })
+      };
+    });
 
-    return { rows: [...rowsByTime.values()], groups, config }
-  }, [props.series])
+    return { rows: [...rowsByTime.values()], groups, config };
+  }, [props.series]);
 
   if (props.series.length === 0) {
     return (
       <div
         className={cn(
-          'text-muted-foreground flex h-48 items-center justify-center rounded-lg border text-xs',
-          props.className
+          "text-muted-foreground flex h-48 items-center justify-center rounded-lg border text-xs",
+          props.className,
         )}
       >
-        {t('No latency data available')}
+        {t("No latency data available")}
       </div>
-    )
+    );
   }
 
   return (
     <div className={cn(CHART_FRAME_CLASS, props.className)}>
       <ChartContainer
         config={chart.config}
-        className='aspect-auto h-64 w-full sm:h-72'
+        className="aspect-auto h-64 w-full sm:h-72"
       >
         <LineChart data={chart.rows} margin={{ left: 4, right: 12, top: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray='3 3' />
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
-            dataKey='time'
+            dataKey="time"
             tickLine={false}
             axisLine={false}
             minTickGap={24}
@@ -178,11 +177,11 @@ export function LatencyTrendChart(props: {
                 formatter={(value, name, item) => (
                   <>
                     <div
-                      className='size-2.5 shrink-0 rounded-[2px]'
+                      className="size-2.5 shrink-0 rounded-[2px]"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className='text-muted-foreground flex-1'>{name}</span>
-                    <span className='text-foreground font-mono font-medium tabular-nums'>
+                    <span className="text-muted-foreground flex-1">{name}</span>
+                    <span className="text-foreground font-mono font-medium tabular-nums">
                       {`${Math.round(Number(value) || 0)} ms`}
                     </span>
                   </>
@@ -193,7 +192,7 @@ export function LatencyTrendChart(props: {
           {chart.groups.map((group, index) => (
             <Line
               key={group}
-              type='monotone'
+              type="monotone"
               dataKey={group}
               name={group}
               stroke={SERIES_COLORS[index % SERIES_COLORS.length]}
@@ -206,7 +205,7 @@ export function LatencyTrendChart(props: {
         </LineChart>
       </ChartContainer>
     </div>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -214,16 +213,16 @@ export function LatencyTrendChart(props: {
 // ---------------------------------------------------------------------------
 
 type UptimeRow = {
-  date: string
-  uptime: number
-  incidents: number
-  outage: number
-}
+  date: string;
+  uptime: number;
+  incidents: number;
+  outage: number;
+};
 
 function UptimeDot(dotProps: DotItemDotProps) {
-  const row = dotProps.payload as UptimeRow | undefined
-  if (typeof dotProps.cx !== 'number' || typeof dotProps.cy !== 'number') {
-    return null
+  const row = dotProps.payload as UptimeRow | undefined;
+  if (typeof dotProps.cx !== "number" || typeof dotProps.cy !== "number") {
+    return null;
   }
   return (
     <circle
@@ -231,17 +230,17 @@ function UptimeDot(dotProps: DotItemDotProps) {
       cy={dotProps.cy}
       r={3}
       fill={getSuccessRateColor(row?.uptime ?? 0)}
-      stroke='#ffffff'
+      stroke="#ffffff"
       strokeWidth={1.5}
     />
-  )
+  );
 }
 
 export function UptimeTrendChart(props: {
-  series: UptimeDayPoint[]
-  className?: string
+  series: UptimeDayPoint[];
+  className?: string;
 }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const chart = useMemo(() => {
     const rows: UptimeRow[] = props.series.map((point) => ({
@@ -249,41 +248,41 @@ export function UptimeTrendChart(props: {
       uptime: toUptimeChartValue(point.uptime_pct),
       incidents: point.incidents,
       outage: point.outage_minutes,
-    }))
+    }));
     return {
       rows,
       axisMin: getUptimeAxisMin(rows.map((row) => row.uptime)),
-    }
-  }, [props.series])
+    };
+  }, [props.series]);
 
   const config = useMemo(
-    () => ({ uptime: { label: t('Uptime'), color: '#10b981' } }) as ChartConfig,
-    [t]
-  )
+    () => ({ uptime: { label: t("Uptime"), color: "#10b981" } }) as ChartConfig,
+    [t],
+  );
 
   if (props.series.length === 0) {
     return (
       <div
         className={cn(
-          'text-muted-foreground flex h-48 items-center justify-center rounded-lg border text-xs',
-          props.className
+          "text-muted-foreground flex h-48 items-center justify-center rounded-lg border text-xs",
+          props.className,
         )}
       >
-        {t('No uptime data available')}
+        {t("No uptime data available")}
       </div>
-    )
+    );
   }
 
   return (
     <div className={cn(CHART_FRAME_CLASS, props.className)}>
       <ChartContainer
         config={config}
-        className='aspect-auto h-56 w-full sm:h-64'
+        className="aspect-auto h-56 w-full sm:h-64"
       >
         <LineChart data={chart.rows} margin={{ left: 4, right: 12, top: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray='3 3' />
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
-            dataKey='date'
+            dataKey="date"
             tickLine={false}
             axisLine={false}
             minTickGap={24}
@@ -300,44 +299,44 @@ export function UptimeTrendChart(props: {
             content={
               <ChartTooltipContent
                 formatter={(_value, _name, item) => {
-                  const row = item.payload as UptimeRow
+                  const row = item.payload as UptimeRow;
                   return (
-                    <div className='grid flex-1 gap-1'>
-                      <div className='flex items-center justify-between gap-4'>
-                        <span className='text-muted-foreground'>
-                          {t('Uptime')}
+                    <div className="grid flex-1 gap-1">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground">
+                          {t("Uptime")}
                         </span>
-                        <span className='text-foreground font-mono font-medium tabular-nums'>
+                        <span className="text-foreground font-mono font-medium tabular-nums">
                           {`${row.uptime.toFixed(2)}%`}
                         </span>
                       </div>
-                      <div className='flex items-center justify-between gap-4'>
-                        <span className='text-muted-foreground'>
-                          {t('Incidents')}
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground">
+                          {t("Incidents")}
                         </span>
-                        <span className='text-foreground font-mono font-medium tabular-nums'>
+                        <span className="text-foreground font-mono font-medium tabular-nums">
                           {row.incidents}
                         </span>
                       </div>
-                      <div className='flex items-center justify-between gap-4'>
-                        <span className='text-muted-foreground'>
-                          {t('Outage')}
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground">
+                          {t("Outage")}
                         </span>
-                        <span className='text-foreground font-mono font-medium tabular-nums'>
-                          {`${row.outage} ${t('minutes')}`}
+                        <span className="text-foreground font-mono font-medium tabular-nums">
+                          {`${row.outage} ${t("minutes")}`}
                         </span>
                       </div>
                     </div>
-                  )
+                  );
                 }}
               />
             }
           />
           <Line
-            type='monotone'
-            dataKey='uptime'
-            name={t('Uptime')}
-            stroke='#10b981'
+            type="monotone"
+            dataKey="uptime"
+            name={t("Uptime")}
+            stroke="#10b981"
             strokeWidth={2}
             dot={UptimeDot}
             activeDot={{ r: 4, strokeWidth: 1.5 }}
@@ -346,7 +345,7 @@ export function UptimeTrendChart(props: {
         </LineChart>
       </ChartContainer>
     </div>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -354,58 +353,54 @@ export function UptimeTrendChart(props: {
 // ---------------------------------------------------------------------------
 
 export function ThroughputBarChart(props: {
-  rows: { group: string; throughput_tps: number }[]
-  className?: string
+  rows: { group: string; throughput_tps: number }[];
+  className?: string;
 }) {
-  const { t } = useTranslation()
-  const { customization } = useThemeCustomization()
-  const barRadius = useThemeRadiusPx(
-    '--radius-sm',
-    `${customization.preset}:${customization.radius}`
-  )
+  const { t } = useTranslation();
+  const barRadius = useThemeRadiusPx("--radius-sm");
 
   const filtered = useMemo(
     () => props.rows.filter((r) => r.throughput_tps > 0),
-    [props.rows]
-  )
+    [props.rows],
+  );
 
   const config = useMemo(
     () =>
       ({
-        throughput_tps: { label: t('Throughput'), color: '#6366f1' },
+        throughput_tps: { label: t("Throughput"), color: "var(--chart-1)" },
       }) as ChartConfig,
-    [t]
-  )
+    [t],
+  );
 
   if (filtered.length === 0) {
-    return null
+    return null;
   }
 
   return (
     <div className={cn(CHART_FRAME_CLASS, props.className)}>
       <ChartContainer
         config={config}
-        className='aspect-auto h-48 w-full sm:h-56'
+        className="aspect-auto h-48 w-full sm:h-56"
       >
         <BarChart
           data={filtered}
-          layout='vertical'
+          layout="vertical"
           margin={{ left: 4, right: 48, top: 4, bottom: 4 }}
         >
-          <CartesianGrid horizontal={false} strokeDasharray='3 3' />
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <YAxis
-            dataKey='group'
-            type='category'
+            dataKey="group"
+            type="category"
             tickLine={false}
             axisLine={false}
             width={96}
           />
-          <XAxis type='number' tickLine={false} axisLine={false} />
+          <XAxis type="number" tickLine={false} axisLine={false} />
           <ChartTooltip
             content={
               <ChartTooltipContent
                 formatter={(value) => (
-                  <span className='text-foreground font-mono font-medium tabular-nums'>
+                  <span className="text-foreground font-mono font-medium tabular-nums">
                     {`${(Number(value) || 0).toFixed(1)} t/s`}
                   </span>
                 )}
@@ -413,21 +408,21 @@ export function ThroughputBarChart(props: {
             }
           />
           <Bar
-            dataKey='throughput_tps'
-            name={t('Throughput')}
-            fill='#6366f1'
+            dataKey="throughput_tps"
+            name={t("Throughput")}
+            fill="#6366f1"
             radius={barRadius ?? 3}
             isAnimationActive
           >
             <LabelList
-              dataKey='throughput_tps'
-              position='right'
-              className='fill-muted-foreground text-[11px] tabular-nums'
+              dataKey="throughput_tps"
+              position="right"
+              className="fill-muted-foreground text-[11px] tabular-nums"
               formatter={(value) => `${Number(value) || 0} t/s`}
             />
           </Bar>
         </BarChart>
       </ChartContainer>
     </div>
-  )
+  );
 }

@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, Loader2 } from 'lucide-react'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import type { z } from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import type { z } from "zod";
 
-import { Turnstile } from '@/components/turnstile'
-import { Button } from '@/components/ui/button'
+import { Turnstile } from "@/components/turnstile";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -33,23 +33,23 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { sendPasswordResetEmail } from '@/features/auth/api'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { sendPasswordResetEmail } from "@/features/auth/api";
 import {
   forgotPasswordFormSchema,
   PASSWORD_RESET_COUNTDOWN,
-} from '@/features/auth/constants'
-import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
-import { useCountdown } from '@/hooks/use-countdown'
-import { cn } from '@/lib/utils'
+} from "@/features/auth/constants";
+import { useTurnstile } from "@/features/auth/hooks/use-turnstile";
+import { useCountdown } from "@/hooks/use-countdown";
+import { cn } from "@/lib/utils";
 
 export function ForgotPasswordForm({
   className,
   ...props
 }: React.HTMLAttributes<HTMLFormElement>) {
-  const { t } = useTranslation()
-  const [isLoading, setIsLoading] = useState(false)
+  const { t } = useTranslation();
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     isTurnstileEnabled,
@@ -57,36 +57,36 @@ export function ForgotPasswordForm({
     turnstileToken,
     setTurnstileToken,
     validateTurnstile,
-  } = useTurnstile()
+  } = useTurnstile();
   const {
     secondsLeft,
     isActive,
     start: startCountdown,
-  } = useCountdown({ initialSeconds: PASSWORD_RESET_COUNTDOWN })
+  } = useCountdown({ initialSeconds: PASSWORD_RESET_COUNTDOWN });
 
   const form = useForm<z.infer<typeof forgotPasswordFormSchema>>({
     resolver: zodResolver(forgotPasswordFormSchema),
-    defaultValues: { email: '' },
-  })
-  const turnstileReady = !isTurnstileEnabled || Boolean(turnstileToken)
+    defaultValues: { email: "" },
+  });
+  const turnstileReady = !isTurnstileEnabled || Boolean(turnstileToken);
 
   async function onSubmit(data: z.infer<typeof forgotPasswordFormSchema>) {
-    if (!validateTurnstile()) return
+    if (!validateTurnstile()) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const res = await sendPasswordResetEmail(data.email, turnstileToken)
+      const res = await sendPasswordResetEmail(data.email, turnstileToken);
       if (res?.success) {
-        form.reset()
-        startCountdown()
-        toast.success(t('Reset email sent, please check your inbox'))
+        form.reset();
+        startCountdown();
+        toast.success(t("Reset email sent, please check your inbox"));
       } else {
-        toast.error(res?.message || t('Failed to send reset email'))
+        toast.error(res?.message || t("Failed to send reset email"));
       }
     } catch {
       // Errors are handled by global interceptor
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -94,17 +94,17 @@ export function ForgotPasswordForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-2', className)}
+        className={cn("grid gap-2", className)}
         {...props}
       >
         <FormField
           control={form.control}
-          name='email'
+          name="email"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input placeholder="name@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -112,18 +112,18 @@ export function ForgotPasswordForm({
         />
 
         <Button
-          type='submit'
-          className='mt-2'
+          type="submit"
+          className="mt-2"
           disabled={isLoading || isActive || !turnstileReady}
         >
           {isActive
-            ? t('Resend ({{seconds}}s)', { seconds: secondsLeft })
-            : t('Send reset email')}
-          {isLoading ? <Loader2 className='animate-spin' /> : <ArrowRight />}
+            ? t("Resend ({{seconds}}s)", { seconds: secondsLeft })
+            : t("Send reset email")}
+          {isLoading ? <Loader2 className="animate-spin" /> : <ArrowRight />}
         </Button>
 
         {isTurnstileEnabled && (
-          <div className='mt-2'>
+          <div className="mt-2">
             <Turnstile
               siteKey={turnstileSiteKey}
               onVerify={setTurnstileToken}
@@ -132,5 +132,5 @@ export function ForgotPasswordForm({
         )}
       </form>
     </Form>
-  )
+  );
 }

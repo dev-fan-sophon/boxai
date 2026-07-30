@@ -16,31 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Loading03Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { useTranslation } from 'react-i18next'
+import { Loading03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useTranslation } from "react-i18next";
 
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 type SpinnerProps = Omit<
   React.ComponentProps<typeof HugeiconsIcon>,
-  'icon' | 'strokeWidth'
+  "icon" | "strokeWidth"
 > & {
-  strokeWidth?: number
-}
+  strokeWidth?: number;
+};
 
 function Spinner({ className, strokeWidth = 2, ...props }: SpinnerProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <HugeiconsIcon
       icon={Loading03Icon}
       strokeWidth={strokeWidth}
-      role='status'
-      aria-label={t('Loading')}
-      className={cn('size-4 animate-spin', className)}
+      role="status"
+      aria-label={t("Loading")}
+      className={cn("size-4 animate-spin", className)}
       {...props}
     />
-  )
+  );
 }
 
-export { Spinner }
+export { Spinner };

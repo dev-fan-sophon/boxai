@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { isAccessibleBrandPrimary } from '@/lib/colors'
+import { brandPrimaryForeground, isAccessibleBrandPrimary } from '@/lib/colors'
 
 export function applyDocumentTitleToDom(title: string) {
   if (typeof document === 'undefined' || !title) return
@@ -45,25 +45,21 @@ export function applyFaviconToDom(url: string) {
 
 export function applyPrimaryColorToDom(color: string) {
   if (typeof document === 'undefined') return
-  const validColor = isAccessibleBrandPrimary(color)
-  for (const property of [
-    '--brand-primary',
-    '--primary',
-    '--sidebar-primary',
-  ]) {
-    if (validColor) {
-      document.documentElement.style.setProperty(property, color)
-    } else {
-      document.documentElement.style.removeProperty(property)
-    }
+  const root = document.documentElement
+  // The label is derived from the same color so a light brand primary keeps a
+  // readable button/sidebar label instead of white-on-light.
+  const values: Record<string, string> = {
+    '--brand-primary': color,
+    '--primary': color,
+    '--sidebar-primary': color,
+    '--brand-primary-foreground': brandPrimaryForeground(color),
   }
-}
-
-export function applyBrandTokenPresetToDom(preset: string) {
-  if (typeof document === 'undefined' || !document.body) return
-  if (preset === 'box-ai') {
-    document.body.dataset.brandTokenPreset = preset
-  } else {
-    document.body.removeAttribute('data-brand-token-preset')
+  const validColor = isAccessibleBrandPrimary(color)
+  for (const [property, value] of Object.entries(values)) {
+    if (validColor) {
+      root.style.setProperty(property, value)
+    } else {
+      root.style.removeProperty(property)
+    }
   }
 }

@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { AUTH_DEFAULT_SECTION } from '@/features/system-settings/auth/section-manifest'
+import { AUTH_DEFAULT_SECTION } from "@/features/system-settings/auth/section-manifest";
 
-export const Route = createFileRoute('/_authenticated/system-settings/auth/')({
+export const Route = createFileRoute("/_authenticated/system-settings/auth/")({
   beforeLoad: () => {
     throw redirect({
-      to: '/system-settings/auth/$section',
+      to: "/system-settings/auth/$section",
       params: { section: AUTH_DEFAULT_SECTION },
-    })
+    });
   },
-})
+});

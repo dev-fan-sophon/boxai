@@ -46,6 +46,49 @@ export function buildDiscordOAuthUrl(clientId: string, state: string): string {
 }
 
 /**
+ * Build Google OAuth URL
+ */
+export function buildGoogleOAuthUrl(clientId: string, state: string): string {
+  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+  url.searchParams.set('client_id', clientId)
+  url.searchParams.set('redirect_uri', `${window.location.origin}/oauth/google`)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', 'openid profile email')
+  url.searchParams.set('state', state)
+  return url.toString()
+}
+
+/**
+ * Build Facebook OAuth URL
+ */
+export function buildFacebookOAuthUrl(clientId: string, state: string): string {
+  const url = new URL('https://www.facebook.com/v21.0/dialog/oauth')
+  url.searchParams.set('client_id', clientId)
+  url.searchParams.set(
+    'redirect_uri',
+    `${window.location.origin}/oauth/facebook`
+  )
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', 'public_profile,email')
+  url.searchParams.set('state', state)
+  return url.toString()
+}
+
+/**
+ * Build Zalo OAuth URL
+ *
+ * Zalo OAuth v4 names the client credential `app_id` and does not accept
+ * `response_type`, so it cannot reuse the standard builder shape.
+ */
+export function buildZaloOAuthUrl(appId: string, state: string): string {
+  const url = new URL('https://oauth.zaloapp.com/v4/permission')
+  url.searchParams.set('app_id', appId)
+  url.searchParams.set('redirect_uri', `${window.location.origin}/oauth/zalo`)
+  url.searchParams.set('state', state)
+  return url.toString()
+}
+
+/**
  * Build OIDC OAuth URL
  */
 export function buildOIDCOAuthUrl(
@@ -115,6 +158,39 @@ export async function handleDiscordOAuth(clientId: string): Promise<void> {
   if (!state) return
 
   const url = buildDiscordOAuthUrl(clientId, state)
+  window.open(url, '_blank')
+}
+
+/**
+ * Handle Google OAuth binding/login
+ */
+export async function handleGoogleOAuth(clientId: string): Promise<void> {
+  const state = await getOAuthState()
+  if (!state) return
+
+  const url = buildGoogleOAuthUrl(clientId, state)
+  window.open(url, '_blank')
+}
+
+/**
+ * Handle Facebook OAuth binding/login
+ */
+export async function handleFacebookOAuth(clientId: string): Promise<void> {
+  const state = await getOAuthState()
+  if (!state) return
+
+  const url = buildFacebookOAuthUrl(clientId, state)
+  window.open(url, '_blank')
+}
+
+/**
+ * Handle Zalo OAuth binding/login
+ */
+export async function handleZaloOAuth(appId: string): Promise<void> {
+  const state = await getOAuthState()
+  if (!state) return
+
+  const url = buildZaloOAuthUrl(appId, state)
   window.open(url, '_blank')
 }
 

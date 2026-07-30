@@ -20,15 +20,8 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/public-sans';
-/* Editorial serif (Lora) backing the `serif` font axis and the Anthropic
- * preset's default typography. See `--font-serif` in theme.css for the
- * full Latin + CJK fallback stack and `theme-presets.css` for the cascade
- * that activates it. Loaded globally so font-switching is instantaneous
- * with no FOUT once the variable is fetched. */
-@import '@fontsource-variable/lora';
 
 @import './theme.css';
-@import './theme-presets.css';
 
 /* Shiki dual themes: token colors follow dark theme (pre background stays `bg-background` on the block) */
 @layer components {
@@ -59,9 +52,6 @@ For commercial licensing, please contact support@quantumnous.com
   }
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
-    /* Font is driven by the theme's font axis via `--font-body`
-     * (defined in theme.css, swapped by `[data-theme-font='...']` blocks
-     * in theme-presets.css). Defaults to the project's humanist sans. */
     font-family: var(--font-body);
   }
 
@@ -591,6 +581,29 @@ For commercial licensing, please contact support@quantumnous.com
   /* Hide scrollbar for IE, Edge and Firefox */
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+/*
+ * Edge fade for a horizontal scroller whose scrollbar is hidden. Driven by
+ * `data-overflow` so only the side that actually has clipped content fades —
+ * a static mask would dim the first item even when nothing is scrolled past.
+ */
+@utility scroll-fade-x {
+  &[data-overflow='start'] {
+    mask-image: linear-gradient(to right, transparent 0, black 2rem);
+  }
+  &[data-overflow='end'] {
+    mask-image: linear-gradient(to left, transparent 0, black 2rem);
+  }
+  &[data-overflow='both'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 2rem,
+      black calc(100% - 2rem),
+      transparent 100%
+    );
+  }
 }
 
 /* Tooltip content can still scroll, but should not show a distracting axis. */

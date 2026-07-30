@@ -46,6 +46,21 @@ export const STATIC_I18N_KEYS = [
   'Routing Reliability',
   'Maintenance',
 
+  // System settings — route throttling and trusted proxies
+  'Route Throttling',
+  'Trusted Proxies',
+  'Console API requests',
+  'Applies to every /api route, keyed by client IP',
+  'Web assets',
+  'Applies to the frontend bundle and static files',
+  'Sensitive operations',
+  'Applies to registration, login, password reset and OAuth callbacks',
+  'Uploads',
+  'Applies to file and image upload endpoints',
+  'Keyed by user ID instead of IP, so proxy rotation cannot bypass it',
+  'Save route throttling',
+  'Save trusted proxies',
+
   // System info
   'online',
   'stale',

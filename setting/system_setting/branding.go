@@ -5,7 +5,6 @@ import "github.com/QuantumNous/new-api/setting/config"
 type BrandingSettings struct {
 	FaviconURL   string `json:"favicon_url"`
 	PrimaryColor string `json:"primary_color"`
-	TokenPreset  string `json:"token_preset"`
 }
 
 var brandingSettings = BrandingSettings{}

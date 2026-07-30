@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import * as z from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import * as z from "zod";
 
 import {
   Form,
@@ -30,8 +30,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -39,65 +39,65 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from '../components/settings-form-layout'
-import { SettingsPageFormActions } from '../components/settings-page-context'
-import { SettingsSection } from '../components/settings-section'
-import { useUpdateOption } from '../hooks/use-update-option'
-import { safeNumberFieldProps } from '../utils/numeric-field'
+} from "../components/settings-form-layout";
+import { SettingsPageFormActions } from "../components/settings-page-context";
+import { SettingsSection } from "../components/settings-section";
+import { useUpdateOption } from "../hooks/use-update-option";
+import { safeNumberFieldProps } from "../utils/numeric-field";
 
 const dataDashboardSchema = z.object({
   DataExportEnabled: z.boolean(),
   DataExportInterval: z.number().int().min(1).max(1440),
-  DataExportDefaultTime: z.enum(['hour', 'day', 'week']),
-})
+  DataExportDefaultTime: z.enum(["hour", "day", "week"]),
+});
 
-type DataDashboardFormValues = z.infer<typeof dataDashboardSchema>
+type DataDashboardFormValues = z.infer<typeof dataDashboardSchema>;
 
 type DashboardSectionProps = {
-  defaultValues: DataDashboardFormValues
-}
+  defaultValues: DataDashboardFormValues;
+};
 
 const granularityOptions = [
-  { labelKey: 'Hour', value: 'hour' },
-  { labelKey: 'Day', value: 'day' },
-  { labelKey: 'Week', value: 'week' },
-]
+  { labelKey: "Hour", value: "hour" },
+  { labelKey: "Day", value: "day" },
+  { labelKey: "Week", value: "week" },
+];
 
 export function DashboardSection({ defaultValues }: DashboardSectionProps) {
-  const { t } = useTranslation()
-  const updateOption = useUpdateOption()
+  const { t } = useTranslation();
+  const updateOption = useUpdateOption();
 
   const form = useForm<DataDashboardFormValues>({
     resolver: zodResolver(dataDashboardSchema),
     defaultValues,
-  })
+  });
 
   useEffect(() => {
-    form.reset(defaultValues)
-  }, [defaultValues, form])
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
   const onSubmit = async (values: DataDashboardFormValues) => {
     const updates = Object.entries(values).filter(
       ([key, value]) =>
-        value !== defaultValues[key as keyof DataDashboardFormValues]
-    )
+        value !== defaultValues[key as keyof DataDashboardFormValues],
+    );
 
     for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value })
+      await updateOption.mutateAsync({ key, value });
     }
-  }
+  };
 
-  const isEnabled = form.watch('DataExportEnabled')
+  const isEnabled = form.watch("DataExportEnabled");
 
   return (
-    <SettingsSection title={t('Data Dashboard')}>
+    <SettingsSection title={t("Data Dashboard")}>
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
@@ -106,11 +106,11 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
           />
           <FormField
             control={form.control}
-            name='DataExportEnabled'
+            name="DataExportEnabled"
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t('Enable Data Dashboard')}</FormLabel>
+                  <FormLabel>{t("Enable Data Dashboard")}</FormLabel>
                 </SettingsSwitchContent>
                 <FormControl>
                   <Switch
@@ -122,16 +122,16 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
             )}
           />
 
-          <div className='grid gap-6 sm:grid-cols-2'>
+          <div className="grid gap-6 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name='DataExportInterval'
+              name="DataExportInterval"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Refresh interval (minutes)')}</FormLabel>
+                  <FormLabel>{t("Refresh interval (minutes)")}</FormLabel>
                   <FormControl>
                     <Input
-                      type='number'
+                      type="number"
                       min={1}
                       max={1440}
                       step={1}
@@ -140,7 +140,7 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Keep this above 1 minute to avoid heavy database load')}
+                    {t("Keep this above 1 minute to avoid heavy database load")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -149,10 +149,10 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
 
             <FormField
               control={form.control}
-              name='DataExportDefaultTime'
+              name="DataExportDefaultTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Default time granularity')}</FormLabel>
+                  <FormLabel>{t("Default time granularity")}</FormLabel>
                   <Select
                     items={granularityOptions.map((option) => ({
                       value: option.value,
@@ -164,7 +164,7 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={t('Select granularity')} />
+                        <SelectValue placeholder={t("Select granularity")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent alignItemWithTrigger={false}>
@@ -179,7 +179,7 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
                   </Select>
                   <FormDescription>
                     {t(
-                      'UI granularity only &mdash; data is still aggregated hourly'
+                      "UI granularity only &mdash; data is still aggregated hourly",
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -190,5 +190,5 @@ export function DashboardSection({ defaultValues }: DashboardSectionProps) {
         </SettingsForm>
       </Form>
     </SettingsSection>
-  )
+  );
 }

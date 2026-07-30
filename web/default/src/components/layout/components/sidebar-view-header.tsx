@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Link } from "@tanstack/react-router";
+import { ChevronLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   SidebarHeader,
@@ -26,14 +26,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from '@/components/ui/sidebar'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
-import type { SidebarView } from '../types'
+import type { SidebarView } from "../types";
 
 type SidebarViewHeaderProps = {
-  view: SidebarView
-}
+  view: SidebarView;
+};
 
 /**
  * Header for a nested sidebar view (Vercel / Cloudflare drill-in pattern).
@@ -42,18 +42,18 @@ type SidebarViewHeaderProps = {
  * the nav groups below, not a redundant title row.
  */
 export function SidebarViewHeader(props: SidebarViewHeaderProps) {
-  const { t } = useTranslation()
-  const { setOpenMobile } = useSidebar()
+  const { t } = useTranslation();
+  const { setOpenMobile } = useSidebar();
 
   return (
-    <SidebarHeader className='border-sidebar-border border-b px-2 py-2'>
+    <SidebarHeader className="border-sidebar-border border-b px-2 py-2">
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
             tooltip={t(props.view.parent.label)}
             className={cn(
-              'text-muted-foreground hover:text-foreground',
-              'gap-1.5 font-medium'
+              "text-muted-foreground hover:text-foreground",
+              "gap-1.5 font-medium",
             )}
             render={
               <Link
@@ -62,11 +62,11 @@ export function SidebarViewHeader(props: SidebarViewHeaderProps) {
               />
             }
           >
-            <ChevronLeft className='size-4 shrink-0' />
-            <span className='truncate'>{t(props.view.parent.label)}</span>
+            <ChevronLeft className="size-4 shrink-0" />
+            <span className="truncate">{t(props.view.parent.label)}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarHeader>
-  )
+  );
 }

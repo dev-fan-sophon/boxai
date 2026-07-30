@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-import { ForbiddenError } from '@/features/errors/forbidden'
+import { ForbiddenError } from "@/features/errors/forbidden";
 
-export const Route = createFileRoute('/(errors)/403')({
+export const Route = createFileRoute("/(errors)/403")({
   component: ForbiddenError,
-})
+});

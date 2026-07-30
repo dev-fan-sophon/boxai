@@ -16,58 +16,58 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
-import { deleteUser } from '../api'
-import { ERROR_MESSAGES } from '../constants'
-import { getUserActionMessage } from '../lib'
-import { useUsers } from './users-provider'
+import { deleteUser } from "../api";
+import { ERROR_MESSAGES } from "../constants";
+import { getUserActionMessage } from "../lib";
+import { useUsers } from "./users-provider";
 
 export function UsersDeleteDialog() {
-  const { t } = useTranslation()
-  const { open, setOpen, currentRow, triggerRefresh } = useUsers()
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { t } = useTranslation();
+  const { open, setOpen, currentRow, triggerRefresh } = useUsers();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!currentRow) return
+    if (!currentRow) return;
 
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      const result = await deleteUser(currentRow.id)
+      const result = await deleteUser(currentRow.id);
       if (result.success) {
-        toast.success(t(getUserActionMessage('delete')))
-        setOpen(null)
-        triggerRefresh()
+        toast.success(t(getUserActionMessage("delete")));
+        setOpen(null);
+        triggerRefresh();
       } else {
-        toast.error(result.message || t(ERROR_MESSAGES.DELETE_FAILED))
+        toast.error(result.message || t(ERROR_MESSAGES.DELETE_FAILED));
       }
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      toast.error(t(ERROR_MESSAGES.UNEXPECTED));
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
   return (
     <ConfirmDialog
-      open={open === 'delete'}
+      open={open === "delete"}
       onOpenChange={(open) => !open && setOpen(null)}
-      title={t('Are you sure?')}
+      title={t("Are you sure?")}
       desc={
         <>
-          {t('This will permanently delete user')}{' '}
-          <span className='font-semibold'>{currentRow?.username}</span>
-          {t('. This action cannot be undone.')}
+          {t("This will permanently delete user")}{" "}
+          <span className="font-semibold">{currentRow?.username}</span>
+          {t(". This action cannot be undone.")}
         </>
       }
-      confirmText={isDeleting ? t('Deleting...') : t('Delete')}
+      confirmText={isDeleting ? t("Deleting...") : t("Delete")}
       destructive
       isLoading={isDeleting}
       handleConfirm={handleDelete}
     />
-  )
+  );
 }

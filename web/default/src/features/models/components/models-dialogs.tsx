@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { DescriptionDialog } from './dialogs/description-dialog'
-import { PrefillGroupManagement } from './dialogs/prefill-group-management'
-import { SyncWizardDialog } from './dialogs/sync-wizard-dialog'
-import { UpstreamConflictDialog } from './dialogs/upstream-conflict-dialog'
-import { VendorMutateDialog } from './dialogs/vendor-mutate-dialog'
-import { ModelMutateDrawer } from './drawers/model-mutate-drawer'
-import { useModels } from './models-provider'
+import { DescriptionDialog } from "./dialogs/description-dialog";
+import { PrefillGroupManagement } from "./dialogs/prefill-group-management";
+import { SyncWizardDialog } from "./dialogs/sync-wizard-dialog";
+import { UpstreamConflictDialog } from "./dialogs/upstream-conflict-dialog";
+import { VendorMutateDialog } from "./dialogs/vendor-mutate-dialog";
+import { ModelMutateDrawer } from "./drawers/model-mutate-drawer";
+import { useModels } from "./models-provider";
 
 export function ModelsDialogs() {
   const {
@@ -32,54 +32,54 @@ export function ModelsDialogs() {
     currentVendor,
     descriptionData,
     setDescriptionData,
-  } = useModels()
+  } = useModels();
 
   return (
     <>
       {/* Model Create/Update Drawer */}
       <ModelMutateDrawer
-        open={open === 'create-model' || open === 'update-model'}
+        open={open === "create-model" || open === "update-model"}
         onOpenChange={(v) => !v && setOpen(null)}
         currentRow={currentRow}
       />
 
       {/* Vendor Create/Update Dialog */}
       <VendorMutateDialog
-        open={open === 'create-vendor' || open === 'update-vendor'}
+        open={open === "create-vendor" || open === "update-vendor"}
         onOpenChange={(v) => !v && setOpen(null)}
-        currentVendor={open === 'update-vendor' ? currentVendor : null}
+        currentVendor={open === "update-vendor" ? currentVendor : null}
       />
 
       {/* Sync Wizard Dialog */}
       <SyncWizardDialog
-        open={open === 'sync-wizard'}
+        open={open === "sync-wizard"}
         onOpenChange={(v) => !v && setOpen(null)}
       />
 
       {/* Upstream Conflict Dialog */}
       <UpstreamConflictDialog
-        open={open === 'upstream-conflict'}
+        open={open === "upstream-conflict"}
         onOpenChange={(v) => !v && setOpen(null)}
       />
 
       {/* Prefill Groups Management */}
       <PrefillGroupManagement
-        open={open === 'prefill-groups'}
+        open={open === "prefill-groups"}
         onOpenChange={(v) => !v && setOpen(null)}
       />
 
       {/* Description Dialog */}
       <DescriptionDialog
-        open={open === 'description'}
+        open={open === "description"}
         onOpenChange={(v) => {
           if (!v) {
-            setOpen(null)
-            setDescriptionData(null)
+            setOpen(null);
+            setDescriptionData(null);
           }
         }}
-        modelName={descriptionData?.modelName || ''}
-        description={descriptionData?.description || ''}
+        modelName={descriptionData?.modelName || ""}
+        description={descriptionData?.description || ""}
       />
     </>
-  )
+  );
 }

@@ -16,136 +16,136 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQueryClient } from '@tanstack/react-query'
-import { Loader2, RefreshCw, DollarSign } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, RefreshCw, DollarSign } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { Dialog } from '@/components/dialog'
-import { Button } from '@/components/ui/button'
-import { IconBadge } from '@/components/ui/icon-badge'
-import { formatCurrencyFromUSD } from '@/lib/currency'
-import { formatTimestampToDate } from '@/lib/format'
+import { Dialog } from "@/components/dialog";
+import { Button } from "@/components/ui/button";
+import { IconBadge } from "@/components/ui/icon-badge";
+import { formatCurrencyFromUSD } from "@/lib/currency";
+import { formatTimestampToDate } from "@/lib/format";
 
-import { getCodexUsage, updateChannelBalance } from '../../api'
-import { channelsQueryKeys } from '../../lib'
-import { useChannels } from '../channels-provider'
+import { getCodexUsage, updateChannelBalance } from "../../api";
+import { channelsQueryKeys } from "../../lib";
+import { useChannels } from "../channels-provider";
 import {
   CodexUsageDialog,
   type CodexUsageDialogData,
-} from './codex-usage-dialog'
+} from "./codex-usage-dialog";
 
 type BalanceQueryDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function BalanceQueryDialog({
   open,
   onOpenChange,
 }: BalanceQueryDialogProps) {
-  const { t } = useTranslation()
-  const { currentRow, setCurrentRow } = useChannels()
-  const queryClient = useQueryClient()
-  const [isQuerying, setIsQuerying] = useState(false)
-  const [balance, setBalance] = useState<number | null>(null)
+  const { t } = useTranslation();
+  const { currentRow, setCurrentRow } = useChannels();
+  const queryClient = useQueryClient();
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const [balanceUpdatedTime, setBalanceUpdatedTime] = useState<number | null>(
-    null
-  )
+    null,
+  );
   const [codexUsageResponse, setCodexUsageResponse] =
-    useState<CodexUsageDialogData | null>(null)
+    useState<CodexUsageDialogData | null>(null);
 
-  const isCodex = currentRow?.type === 57
+  const isCodex = currentRow?.type === 57;
 
   const handleQueryCodexUsage = async () => {
-    const row = currentRow
-    if (!row) return
-    setIsQuerying(true)
+    const row = currentRow;
+    if (!row) return;
+    setIsQuerying(true);
     try {
-      const res = await getCodexUsage(row.id)
+      const res = await getCodexUsage(row.id);
       if (!res.success) {
-        throw new Error(res.message || t('Failed to fetch usage'))
+        throw new Error(res.message || t("Failed to fetch usage"));
       }
-      setCodexUsageResponse(res)
+      setCodexUsageResponse(res);
     } catch (error: unknown) {
       toast.error(
-        error instanceof Error ? error.message : t('Failed to fetch usage')
-      )
+        error instanceof Error ? error.message : t("Failed to fetch usage"),
+      );
     } finally {
-      setIsQuerying(false)
+      setIsQuerying(false);
     }
-  }
+  };
 
   useEffect(() => {
-    if (!isCodex) return
-    if (!open) return
-    handleQueryCodexUsage()
+    if (!isCodex) return;
+    if (!open) return;
+    handleQueryCodexUsage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isCodex])
+  }, [open, isCodex]);
 
-  if (!currentRow) return null
+  if (!currentRow) return null;
 
   const handleQueryBalance = async () => {
-    setIsQuerying(true)
+    setIsQuerying(true);
     try {
-      const response = await updateChannelBalance(currentRow.id)
+      const response = await updateChannelBalance(currentRow.id);
       if (response.success && response.balance !== undefined) {
-        const newBalance = response.balance
-        const now = Math.floor(Date.now() / 1000)
+        const newBalance = response.balance;
+        const now = Math.floor(Date.now() / 1000);
 
-        setBalance(newBalance)
-        setBalanceUpdatedTime(now)
-        toast.success(t('Balance updated successfully'))
+        setBalance(newBalance);
+        setBalanceUpdatedTime(now);
+        toast.success(t("Balance updated successfully"));
 
         // Update currentRow immediately with new balance and timestamp
         setCurrentRow({
           ...currentRow,
           balance: newBalance,
           balance_updated_time: now,
-        })
+        });
 
         // Invalidate queries to refresh the table
         await queryClient.invalidateQueries({
           queryKey: channelsQueryKeys.lists(),
-        })
+        });
       } else {
-        toast.error(response.message || t('Failed to query balance'))
+        toast.error(response.message || t("Failed to query balance"));
       }
     } catch (error: unknown) {
       toast.error(
-        error instanceof Error ? error.message : t('Failed to query balance')
-      )
+        error instanceof Error ? error.message : t("Failed to query balance"),
+      );
     } finally {
-      setIsQuerying(false)
+      setIsQuerying(false);
     }
-  }
+  };
 
   const handleClose = () => {
-    setBalance(null)
-    setBalanceUpdatedTime(null)
-    setCodexUsageResponse(null)
-    onOpenChange(false)
-  }
+    setBalance(null);
+    setBalanceUpdatedTime(null);
+    setCodexUsageResponse(null);
+    onOpenChange(false);
+  };
 
   const formatBalance = (bal: number) =>
     formatCurrencyFromUSD(bal, {
       digitsLarge: 2,
       digitsSmall: 4,
       abbreviate: false,
-    })
+    });
 
   const formatDate = (timestamp: number) => {
-    if (!timestamp) return 'Never'
-    return formatTimestampToDate(timestamp)
-  }
+    if (!timestamp) return "Never";
+    return formatTimestampToDate(timestamp);
+  };
 
   if (isCodex) {
     return (
       <CodexUsageDialog
         open={open}
         onOpenChange={(v) => {
-          if (!v) handleClose()
+          if (!v) handleClose();
         }}
         channelName={currentRow.name}
         channelId={currentRow.id}
@@ -153,59 +153,59 @@ export function BalanceQueryDialog({
         onRefresh={handleQueryCodexUsage}
         isRefreshing={isQuerying}
       />
-    )
+    );
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={handleClose}
-      title={t('Query Balance')}
+      title={t("Query Balance")}
       description={
         <>
-          {t('Update balance for:')}
+          {t("Update balance for:")}
           <strong>{currentRow.name}</strong>
         </>
       }
-      contentHeight='auto'
-      bodyClassName='space-y-4'
+      contentHeight="auto"
+      bodyClassName="space-y-4"
       footer={
-        <Button variant='outline' onClick={handleClose} disabled={isQuerying}>
-          {t('Close')}
+        <Button variant="outline" onClick={handleClose} disabled={isQuerying}>
+          {t("Close")}
         </Button>
       }
     >
-      <div className='space-y-4 py-4'>
+      <div className="space-y-4 py-4">
         {/* Current Balance Display */}
-        <div className='bg-muted/50 rounded-lg border p-4'>
-          <div className='text-muted-foreground mb-2 flex items-center gap-2 text-sm'>
-            <IconBadge tone='success' size='xs'>
+        <div className="bg-muted/50 rounded-lg border p-4">
+          <div className="text-muted-foreground mb-2 flex items-center gap-2 text-sm">
+            <IconBadge tone="success" size="xs">
               <DollarSign />
             </IconBadge>
-            <span>{t('Current Balance')}</span>
+            <span>{t("Current Balance")}</span>
           </div>
-          <div className='text-2xl font-bold'>
+          <div className="text-2xl font-bold">
             {balance !== null
               ? formatBalance(balance)
               : formatBalance(currentRow.balance)}
           </div>
-          <div className='text-muted-foreground mt-2 text-xs'>
-            {t('Last updated:')}{' '}
+          <div className="text-muted-foreground mt-2 text-xs">
+            {t("Last updated:")}{" "}
             {formatDate(balanceUpdatedTime ?? currentRow.balance_updated_time)}
           </div>
         </div>
 
         {/* Balance Update Button */}
         <Button
-          className='w-full'
+          className="w-full"
           onClick={handleQueryBalance}
           disabled={isQuerying}
         >
-          {isQuerying && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          {!isQuerying && <RefreshCw className='mr-2 h-4 w-4' />}
-          {isQuerying ? t('Querying...') : t('Update Balance')}
+          {isQuerying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {!isQuerying && <RefreshCw className="mr-2 h-4 w-4" />}
+          {isQuerying ? t("Querying...") : t("Update Balance")}
         </Button>
       </div>
     </Dialog>
-  )
+  );
 }

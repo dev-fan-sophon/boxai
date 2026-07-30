@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Row } from '@tanstack/react-table'
+import type { Row } from "@tanstack/react-table";
 import {
   Pencil,
   Trash2,
@@ -28,152 +28,152 @@ import {
   ShieldAlert,
   Link2,
   CreditCard,
-} from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
-import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DataTableRowActionMenu } from "@/components/data-table/core/row-action-menu";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
+} from "@/components/ui/tooltip";
+import { UserSubscriptionsDialog } from "@/features/subscriptions/components/dialogs/user-subscriptions-dialog";
 
-import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
+import { manageUser, resetUserPasskey, resetUserTwoFA } from "../api";
 import {
   USER_STATUS,
   USER_ROLE,
   ERROR_MESSAGES,
   isUserDeleted,
-} from '../constants'
-import { getUserActionMessage } from '../lib'
-import type { User, ManageUserAction } from '../types'
-import { UserBindingDialog } from './dialogs/user-binding-dialog'
-import { useUsers } from './users-provider'
+} from "../constants";
+import { getUserActionMessage } from "../lib";
+import type { User, ManageUserAction } from "../types";
+import { UserBindingDialog } from "./dialogs/user-binding-dialog";
+import { useUsers } from "./users-provider";
 
 interface DataTableRowActionsProps {
-  row: Row<User>
+  row: Row<User>;
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
-  const { t } = useTranslation()
-  const user = row.original
-  const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
-  const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
-  const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
-  const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
-  const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
+  const { t } = useTranslation();
+  const user = row.original;
+  const { setOpen, setCurrentRow, triggerRefresh } = useUsers();
+  const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false);
+  const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false);
+  const [bindingDialogOpen, setBindingDialogOpen] = useState(false);
+  const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false);
 
   const handleEdit = () => {
-    setCurrentRow(user)
-    setOpen('update')
-  }
+    setCurrentRow(user);
+    setOpen("update");
+  };
 
   const handleDelete = () => {
-    setCurrentRow(user)
-    setOpen('delete')
-  }
+    setCurrentRow(user);
+    setOpen("delete");
+  };
 
-  const handleManage = async (action: Exclude<ManageUserAction, 'delete'>) => {
+  const handleManage = async (action: Exclude<ManageUserAction, "delete">) => {
     try {
-      const result = await manageUser(user.id, action)
+      const result = await manageUser(user.id, action);
       if (result.success) {
-        toast.success(t(getUserActionMessage(action)))
-        triggerRefresh()
+        toast.success(t(getUserActionMessage(action)));
+        triggerRefresh();
       } else {
         toast.error(
-          result.message || t('Failed to {{action}} user', { action })
-        )
+          result.message || t("Failed to {{action}} user", { action }),
+        );
       }
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      toast.error(t(ERROR_MESSAGES.UNEXPECTED));
     }
-  }
+  };
 
   const handleResetPasskey = async () => {
     try {
-      const result = await resetUserPasskey(user.id)
+      const result = await resetUserPasskey(user.id);
       if (result.success) {
-        toast.success(t('Passkey reset successfully'))
-        triggerRefresh()
+        toast.success(t("Passkey reset successfully"));
+        triggerRefresh();
       } else {
-        toast.error(result.message || t('Failed to reset Passkey'))
+        toast.error(result.message || t("Failed to reset Passkey"));
       }
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      toast.error(t(ERROR_MESSAGES.UNEXPECTED));
     } finally {
-      setResetPasskeyOpen(false)
+      setResetPasskeyOpen(false);
     }
-  }
+  };
 
   const handleResetTwoFA = async () => {
     try {
-      const result = await resetUserTwoFA(user.id)
+      const result = await resetUserTwoFA(user.id);
       if (result.success) {
-        toast.success(t('Two-factor authentication reset'))
-        triggerRefresh()
+        toast.success(t("Two-factor authentication reset"));
+        triggerRefresh();
       } else {
-        toast.error(result.message || t('Failed to reset 2FA'))
+        toast.error(result.message || t("Failed to reset 2FA"));
       }
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      toast.error(t(ERROR_MESSAGES.UNEXPECTED));
     } finally {
-      setResetTwoFAOpen(false)
+      setResetTwoFAOpen(false);
     }
-  }
+  };
 
-  const isDisabled = user.status === USER_STATUS.DISABLED
-  const isAdmin = user.role >= USER_ROLE.ADMIN
-  const isRoot = user.role === USER_ROLE.ROOT
+  const isDisabled = user.status === USER_STATUS.DISABLED;
+  const isAdmin = user.role >= USER_ROLE.ADMIN;
+  const isRoot = user.role === USER_ROLE.ROOT;
 
   if (isUserDeleted(user)) {
-    return null
+    return null;
   }
 
   return (
-    <div className='-ml-1.5 flex items-center gap-1'>
+    <div className="-ml-1.5 flex items-center gap-1">
       <Tooltip>
         <TooltipTrigger
           render={
             <Button
-              variant='ghost'
-              size='icon-sm'
+              variant="ghost"
+              size="icon-sm"
               onClick={handleEdit}
-              aria-label={t('Edit')}
+              aria-label={t("Edit")}
             />
           }
         >
           <Pencil />
         </TooltipTrigger>
-        <TooltipContent>{t('Edit')}</TooltipContent>
+        <TooltipContent>{t("Edit")}</TooltipContent>
       </Tooltip>
 
       <DataTableRowActionMenu
-        ariaLabel={t('Open menu')}
-        contentClassName='w-48'
+        ariaLabel={t("Open menu")}
+        contentClassName="w-48"
       >
         {isDisabled ? (
-          <DropdownMenuItem onClick={() => handleManage('enable')}>
-            {t('Enable')}
+          <DropdownMenuItem onClick={() => handleManage("enable")}>
+            {t("Enable")}
             <DropdownMenuShortcut>
               <Power size={16} />
             </DropdownMenuShortcut>
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
-            onClick={() => handleManage('disable')}
+            onClick={() => handleManage("disable")}
             disabled={isRoot}
           >
-            {t('Disable')}
+            {t("Disable")}
             <DropdownMenuShortcut>
               <PowerOff size={16} />
             </DropdownMenuShortcut>
@@ -181,8 +181,8 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         )}
 
         {isAdmin && !isRoot && (
-          <DropdownMenuItem onClick={() => handleManage('demote')}>
-            {t('Demote')}
+          <DropdownMenuItem onClick={() => handleManage("demote")}>
+            {t("Demote")}
             <DropdownMenuShortcut>
               <ArrowDown size={16} />
             </DropdownMenuShortcut>
@@ -190,8 +190,8 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         )}
 
         {!isAdmin && (
-          <DropdownMenuItem onClick={() => handleManage('promote')}>
-            {t('Promote')}
+          <DropdownMenuItem onClick={() => handleManage("promote")}>
+            {t("Promote")}
             <DropdownMenuShortcut>
               <ArrowUp size={16} />
             </DropdownMenuShortcut>
@@ -200,11 +200,11 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuItem
           onSelect={(event) => {
-            event.preventDefault()
-            setBindingDialogOpen(true)
+            event.preventDefault();
+            setBindingDialogOpen(true);
           }}
         >
-          {t('Manage Bindings')}
+          {t("Manage Bindings")}
           <DropdownMenuShortcut>
             <Link2 size={16} />
           </DropdownMenuShortcut>
@@ -212,11 +212,11 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuItem
           onSelect={(event) => {
-            event.preventDefault()
-            setSubscriptionsDialogOpen(true)
+            event.preventDefault();
+            setSubscriptionsDialogOpen(true);
           }}
         >
-          {t('Manage Subscriptions')}
+          {t("Manage Subscriptions")}
           <DropdownMenuShortcut>
             <CreditCard size={16} />
           </DropdownMenuShortcut>
@@ -226,12 +226,12 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuItem
           onSelect={(event) => {
-            event.preventDefault()
-            setResetPasskeyOpen(true)
+            event.preventDefault();
+            setResetPasskeyOpen(true);
           }}
           disabled={isRoot}
         >
-          {t('Reset Passkey')}
+          {t("Reset Passkey")}
           <DropdownMenuShortcut>
             <KeyRound size={16} />
           </DropdownMenuShortcut>
@@ -239,12 +239,12 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuItem
           onSelect={(event) => {
-            event.preventDefault()
-            setResetTwoFAOpen(true)
+            event.preventDefault();
+            setResetTwoFAOpen(true);
           }}
           disabled={isRoot}
         >
-          {t('Reset 2FA')}
+          {t("Reset 2FA")}
           <DropdownMenuShortcut>
             <ShieldAlert size={16} />
           </DropdownMenuShortcut>
@@ -254,10 +254,10 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuItem
           onClick={handleDelete}
-          className='text-destructive focus:text-destructive'
+          className="text-destructive focus:text-destructive"
           disabled={isRoot}
         >
-          {t('Delete')}
+          {t("Delete")}
           <DropdownMenuShortcut>
             <Trash2 size={16} />
           </DropdownMenuShortcut>
@@ -267,24 +267,24 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <ConfirmDialog
         open={resetPasskeyOpen}
         onOpenChange={setResetPasskeyOpen}
-        title={t('Reset Passkey')}
+        title={t("Reset Passkey")}
         desc={t(
-          'Reset Passkey for {{username}}? The user will need to register a new Passkey before using passwordless login.',
-          { username: user.username }
+          "Reset Passkey for {{username}}? The user will need to register a new Passkey before using passwordless login.",
+          { username: user.username },
         )}
-        confirmText={t('Reset Passkey')}
+        confirmText={t("Reset Passkey")}
         handleConfirm={handleResetPasskey}
       />
 
       <ConfirmDialog
         open={resetTwoFAOpen}
         onOpenChange={setResetTwoFAOpen}
-        title={t('Reset Two-Factor Authentication')}
+        title={t("Reset Two-Factor Authentication")}
         desc={t(
-          'Reset 2FA for {{username}}? The user must set up 2FA again to continue using it.',
-          { username: user.username }
+          "Reset 2FA for {{username}}? The user must set up 2FA again to continue using it.",
+          { username: user.username },
         )}
-        confirmText={t('Reset 2FA')}
+        confirmText={t("Reset 2FA")}
         handleConfirm={handleResetTwoFA}
       />
 
@@ -302,5 +302,5 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         onSuccess={triggerRefresh}
       />
     </div>
-  )
+  );
 }

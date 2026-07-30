@@ -16,17 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Save } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import * as z from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Trash2, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import * as z from "zod";
 
-import { StaticDataTable } from '@/components/data-table/static/static-data-table'
-import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
-import { Dialog } from '@/components/dialog'
+import { StaticDataTable } from "@/components/data-table/static/static-data-table";
+import { StaticRowActions } from "@/components/data-table/static/static-row-actions";
+import { Dialog } from "@/components/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,9 +36,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -47,221 +47,223 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
-import { SettingsSwitchField } from '../components/settings-form-layout'
-import { SettingsSection } from '../components/settings-section'
-import { useUpdateOption } from '../hooks/use-update-option'
+import { SettingsSwitchField } from "../components/settings-form-layout";
+import { SettingsSection } from "../components/settings-section";
+import { useUpdateOption } from "../hooks/use-update-option";
 
 type FAQ = {
-  id: number
-  question: string
-  answer: string
-}
+  id: number;
+  question: string;
+  answer: string;
+};
 
 type FAQSectionProps = {
-  enabled: boolean
-  data: string
-}
+  enabled: boolean;
+  data: string;
+};
 
 const faqSchema = z.object({
   question: z
     .string()
-    .min(1, 'Question is required')
-    .max(200, 'Question must be less than 200 characters'),
+    .min(1, "Question is required")
+    .max(200, "Question must be less than 200 characters"),
   answer: z
     .string()
-    .min(1, 'Answer is required')
-    .max(1000, 'Answer must be less than 1000 characters'),
-})
+    .min(1, "Answer is required")
+    .max(1000, "Answer must be less than 1000 characters"),
+});
 
-type FAQFormValues = z.infer<typeof faqSchema>
+type FAQFormValues = z.infer<typeof faqSchema>;
 
-const FAQ_FORM_ID = 'faq-form'
+const FAQ_FORM_ID = "faq-form";
 
 export function FAQSection({ enabled, data }: FAQSectionProps) {
-  const { t } = useTranslation()
-  const updateOption = useUpdateOption()
-  const [faqList, setFaqList] = useState<FAQ[]>([])
-  const [isEnabled, setIsEnabled] = useState(enabled)
-  const [hasChanges, setHasChanges] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
-  const [showDialog, setShowDialog] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [editingFaq, setEditingFaq] = useState<FAQ | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<'single' | 'batch'>('single')
+  const { t } = useTranslation();
+  const updateOption = useUpdateOption();
+  const [faqList, setFaqList] = useState<FAQ[]>([]);
+  const [isEnabled, setIsEnabled] = useState(enabled);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showDialog, setShowDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingFaq, setEditingFaq] = useState<FAQ | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<"single" | "batch">(
+    "single",
+  );
 
   const form = useForm<FAQFormValues>({
     resolver: zodResolver(faqSchema),
     defaultValues: {
-      question: '',
-      answer: '',
+      question: "",
+      answer: "",
     },
-  })
+  });
 
   useEffect(() => {
     try {
-      const parsed = JSON.parse(data || '[]')
+      const parsed = JSON.parse(data || "[]");
       if (Array.isArray(parsed)) {
         setFaqList(
           parsed.map((item, idx) => ({
             ...item,
             id: item.id || idx + 1,
-          }))
-        )
+          })),
+        );
       }
     } catch {
-      setFaqList([])
+      setFaqList([]);
     }
-  }, [data])
+  }, [data]);
 
   useEffect(() => {
-    setIsEnabled(enabled)
-  }, [enabled])
+    setIsEnabled(enabled);
+  }, [enabled]);
 
   const handleToggleEnabled = async (checked: boolean) => {
     try {
       await updateOption.mutateAsync({
-        key: 'console_setting.faq_enabled',
+        key: "console_setting.faq_enabled",
         value: checked,
-      })
-      setIsEnabled(checked)
-      toast.success(t('Setting saved'))
+      });
+      setIsEnabled(checked);
+      toast.success(t("Setting saved"));
     } catch {
-      toast.error(t('Failed to update setting'))
+      toast.error(t("Failed to update setting"));
     }
-  }
+  };
 
   const handleAdd = () => {
-    setEditingFaq(null)
+    setEditingFaq(null);
     form.reset({
-      question: '',
-      answer: '',
-    })
-    setShowDialog(true)
-  }
+      question: "",
+      answer: "",
+    });
+    setShowDialog(true);
+  };
 
   const handleEdit = (faq: FAQ) => {
-    setEditingFaq(faq)
+    setEditingFaq(faq);
     form.reset({
       question: faq.question,
       answer: faq.answer,
-    })
-    setShowDialog(true)
-  }
+    });
+    setShowDialog(true);
+  };
 
   const handleDelete = (faq: FAQ) => {
-    setEditingFaq(faq)
-    setDeleteTarget('single')
-    setShowDeleteDialog(true)
-  }
+    setEditingFaq(faq);
+    setDeleteTarget("single");
+    setShowDeleteDialog(true);
+  };
 
   const handleBatchDelete = () => {
     if (selectedIds.length === 0) {
-      toast.error(t('Please select items to delete'))
-      return
+      toast.error(t("Please select items to delete"));
+      return;
     }
-    setDeleteTarget('batch')
-    setShowDeleteDialog(true)
-  }
+    setDeleteTarget("batch");
+    setShowDeleteDialog(true);
+  };
 
   const confirmDelete = () => {
-    if (deleteTarget === 'single' && editingFaq) {
-      setFaqList((prev) => prev.filter((item) => item.id !== editingFaq.id))
-      setHasChanges(true)
-      toast.success(t('FAQ deleted. Click "Save Settings" to apply.'))
-    } else if (deleteTarget === 'batch') {
+    if (deleteTarget === "single" && editingFaq) {
+      setFaqList((prev) => prev.filter((item) => item.id !== editingFaq.id));
+      setHasChanges(true);
+      toast.success(t('FAQ deleted. Click "Save Settings" to apply.'));
+    } else if (deleteTarget === "batch") {
       setFaqList((prev) =>
-        prev.filter((item) => !selectedIds.includes(item.id))
-      )
-      setSelectedIds([])
-      setHasChanges(true)
+        prev.filter((item) => !selectedIds.includes(item.id)),
+      );
+      setSelectedIds([]);
+      setHasChanges(true);
       toast.success(
         t('{{count}} FAQs deleted. Click "Save Settings" to apply.', {
           count: selectedIds.length,
-        })
-      )
+        }),
+      );
     }
-    setShowDeleteDialog(false)
-    setEditingFaq(null)
-  }
+    setShowDeleteDialog(false);
+    setEditingFaq(null);
+  };
 
   const handleSubmitForm = (values: FAQFormValues) => {
     if (editingFaq) {
       setFaqList((prev) =>
         prev.map((item) =>
-          item.id === editingFaq.id ? { ...item, ...values } : item
-        )
-      )
-      toast.success(t('FAQ updated. Click "Save Settings" to apply.'))
+          item.id === editingFaq.id ? { ...item, ...values } : item,
+        ),
+      );
+      toast.success(t('FAQ updated. Click "Save Settings" to apply.'));
     } else {
-      const newId = Math.max(...faqList.map((item) => item.id), 0) + 1
-      setFaqList((prev) => [...prev, { id: newId, ...values }])
-      toast.success(t('FAQ added. Click "Save Settings" to apply.'))
+      const newId = Math.max(...faqList.map((item) => item.id), 0) + 1;
+      setFaqList((prev) => [...prev, { id: newId, ...values }]);
+      toast.success(t('FAQ added. Click "Save Settings" to apply.'));
     }
-    setHasChanges(true)
-    setShowDialog(false)
-  }
+    setHasChanges(true);
+    setShowDialog(false);
+  };
 
   const handleSaveAll = async () => {
     try {
       await updateOption.mutateAsync({
-        key: 'console_setting.faq',
+        key: "console_setting.faq",
         value: JSON.stringify(faqList),
-      })
-      setHasChanges(false)
-      toast.success(t('FAQ saved successfully'))
+      });
+      setHasChanges(false);
+      toast.success(t("FAQ saved successfully"));
     } catch {
-      toast.error(t('Failed to save FAQ'))
+      toast.error(t("Failed to save FAQ"));
     }
-  }
+  };
 
   const toggleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? faqList.map((item) => item.id) : [])
-  }
+    setSelectedIds(checked ? faqList.map((item) => item.id) : []);
+  };
 
   const toggleSelectOne = (id: number, checked: boolean) => {
     setSelectedIds((prev) =>
-      checked ? [...prev, id] : prev.filter((item) => item !== id)
-    )
-  }
+      checked ? [...prev, id] : prev.filter((item) => item !== id),
+    );
+  };
 
   return (
-    <SettingsSection title={t('FAQ')}>
-      <div className='space-y-4'>
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <Button onClick={handleAdd} size='sm'>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('Add FAQ')}
+    <SettingsSection title={t("FAQ")}>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={handleAdd} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("Add FAQ")}
             </Button>
             <Button
               onClick={handleBatchDelete}
-              size='sm'
-              variant='destructive'
+              size="sm"
+              variant="destructive"
               disabled={selectedIds.length === 0}
             >
-              <Trash2 className='mr-2 h-4 w-4' />
-              {t('Delete (')}
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t("Delete (")}
               {selectedIds.length})
             </Button>
             <Button
               onClick={handleSaveAll}
-              size='sm'
-              variant='secondary'
+              size="sm"
+              variant="secondary"
               disabled={!hasChanges || updateOption.isPending}
             >
-              <Save className='mr-2 h-4 w-4' />
-              {updateOption.isPending ? t('Saving...') : t('Save Settings')}
+              <Save className="mr-2 h-4 w-4" />
+              {updateOption.isPending ? t("Saving...") : t("Save Settings")}
             </Button>
           </div>
           <SettingsSwitchField
             checked={isEnabled}
             onCheckedChange={handleToggleEnabled}
-            label={t('Enabled')}
-            className='py-0'
+            label={t("Enabled")}
+            className="py-0"
           />
         </div>
 
@@ -271,7 +273,7 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
           emptyContent={t('No FAQ entries yet. Click "Add FAQ" to create one.')}
           columns={[
             {
-              id: 'select',
+              id: "select",
               header: (
                 <Checkbox
                   checked={
@@ -280,7 +282,7 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
                   onCheckedChange={toggleSelectAll}
                 />
               ),
-              className: 'w-12',
+              className: "w-12",
               cell: (faq) => (
                 <Checkbox
                   checked={selectedIds.includes(faq.id)}
@@ -291,25 +293,25 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
               ),
             },
             {
-              id: 'question',
-              header: t('Question'),
-              cellClassName: 'max-w-xs truncate font-medium',
+              id: "question",
+              header: t("Question"),
+              cellClassName: "max-w-xs truncate font-medium",
               cell: (faq) => faq.question,
             },
             {
-              id: 'answer',
-              header: t('Answer'),
-              cellClassName: 'text-muted-foreground max-w-md truncate',
+              id: "answer",
+              header: t("Answer"),
+              cellClassName: "text-muted-foreground max-w-md truncate",
               cell: (faq) => faq.answer,
             },
             {
-              id: 'actions',
-              header: t('Actions'),
+              id: "actions",
+              header: t("Actions"),
               cell: (faq) => (
                 <StaticRowActions
-                  editLabel={t('Edit')}
-                  deleteLabel={t('Delete')}
-                  menuLabel={t('Open menu')}
+                  editLabel={t("Edit")}
+                  deleteLabel={t("Delete")}
+                  menuLabel={t("Open menu")}
                   onEdit={() => handleEdit(faq)}
                   onDelete={() => handleDelete(faq)}
                 />
@@ -322,22 +324,22 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
       <Dialog
         open={showDialog}
         onOpenChange={setShowDialog}
-        title={editingFaq ? t('Edit FAQ') : t('Add FAQ')}
-        description={t('Create or update frequently asked questions for users')}
-        contentClassName='max-w-2xl'
-        contentHeight='auto'
-        bodyClassName='space-y-4'
+        title={editingFaq ? t("Edit FAQ") : t("Add FAQ")}
+        description={t("Create or update frequently asked questions for users")}
+        contentClassName="max-w-2xl"
+        contentHeight="auto"
+        bodyClassName="space-y-4"
         footer={
           <>
             <Button
-              type='button'
-              variant='outline'
+              type="button"
+              variant="outline"
               onClick={() => setShowDialog(false)}
             >
-              {t('Cancel')}
+              {t("Cancel")}
             </Button>
-            <Button type='submit' form={FAQ_FORM_ID}>
-              {editingFaq ? t('Update') : t('Add')}
+            <Button type="submit" form={FAQ_FORM_ID}>
+              {editingFaq ? t("Update") : t("Add")}
             </Button>
           </>
         }
@@ -346,22 +348,22 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
           <form
             id={FAQ_FORM_ID}
             onSubmit={form.handleSubmit(handleSubmitForm)}
-            className='space-y-4'
+            className="space-y-4"
           >
             <FormField
               control={form.control}
-              name='question'
+              name="question"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Question')}</FormLabel>
+                  <FormLabel>{t("Question")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t('How to reset my quota?')}
+                      placeholder={t("How to reset my quota?")}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Maximum 200 characters')}
+                    {t("Maximum 200 characters")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -369,21 +371,21 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
             />
             <FormField
               control={form.control}
-              name='answer'
+              name="answer"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Answer')}</FormLabel>
+                  <FormLabel>{t("Answer")}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t(
-                        'Visit Settings → General and adjust quota options...'
+                        "Visit Settings → General and adjust quota options...",
                       )}
                       rows={8}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Maximum 1000 characters. Supports Markdown and HTML.')}
+                    {t("Maximum 1000 characters. Supports Markdown and HTML.")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -396,23 +398,23 @@ export function FAQSection({ enabled, data }: FAQSectionProps) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Are you sure?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t("Are you sure?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTarget === 'single'
-                ? t('This FAQ entry will be removed from the list.')
-                : t('{{count}} FAQ entries will be removed from the list.', {
+              {deleteTarget === "single"
+                ? t("This FAQ entry will be removed from the list.")
+                : t("{{count}} FAQ entries will be removed from the list.", {
                     count: selectedIds.length,
                   })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-            <AlertDialogAction variant='destructive' onClick={confirmDelete}>
-              {t('Delete')}
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              {t("Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </SettingsSection>
-  )
+  );
 }

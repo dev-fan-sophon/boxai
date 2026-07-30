@@ -131,6 +131,16 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	UploadRateLimitEnable = GetEnvOrDefaultBool("UPLOAD_RATE_LIMIT_ENABLE", true)
+	UploadRateLimitNum = GetEnvOrDefault("UPLOAD_RATE_LIMIT", 10)
+	UploadRateLimitDuration = int64(GetEnvOrDefault("UPLOAD_RATE_LIMIT_DURATION", 60))
+
+	DownloadRateLimitEnable = GetEnvOrDefaultBool("DOWNLOAD_RATE_LIMIT_ENABLE", true)
+	DownloadRateLimitNum = GetEnvOrDefault("DOWNLOAD_RATE_LIMIT", 10)
+	DownloadRateLimitDuration = int64(GetEnvOrDefault("DOWNLOAD_RATE_LIMIT_DURATION", 60))
+
+	InitTrustedProxy()
 	initConstantEnv()
 }
 

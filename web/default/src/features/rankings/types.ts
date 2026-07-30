@@ -93,11 +93,19 @@ export type ModelHistoryPoint = {
   tokens: number
 }
 
+/** One slot on a history chart's time axis, including quiet buckets. */
+export type HistoryAxisBucket = {
+  ts: string
+  label: string
+}
+
 export type ModelHistorySeries = {
-  /** Flat points, ordered oldest → newest. */
+  /** Flat points, ordered oldest → newest. Buckets with no traffic are absent. */
   points: ModelHistoryPoint[]
   /** Models that appear in the series, sorted by total tokens desc. */
   models: Array<{ name: string; vendor: string; total: number }>
+  /** Complete time axis, including buckets that carry no points. */
+  axis?: HistoryAxisBucket[]
   /** Bucket count (used for sizing axis ticks). */
   buckets: number
 }
@@ -120,6 +128,8 @@ export type VendorShareSeries = {
   points: VendorSharePoint[]
   /** Vendors that appear in the series, sorted by aggregate tokens desc. */
   vendors: Array<{ name: string; total: number; share: number }>
+  /** Complete time axis, including buckets that carry no points. */
+  axis?: HistoryAxisBucket[]
   buckets: number
 }
 

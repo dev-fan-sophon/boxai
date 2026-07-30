@@ -25,6 +25,8 @@ For commercial licensing, please contact support@quantumnous.com
  */
 export const SECURITY_SECTION_IDS = [
   'rate-limit',
+  'route-throttling',
+  'trusted-proxies',
   'sensitive-words',
   'ssrf',
   'token-limits',

@@ -18,6 +18,9 @@ const (
 	rankingMoverLimit       = 6
 	rankingOthersLabel      = "Others"
 	rankingUnknownVendor    = "Unknown"
+	// Guards the generated axis against a misconfigured bucket size producing
+	// an unbounded slice; the widest real axis is a year of weekly buckets.
+	rankingMaxAxisBuckets = 800
 )
 
 type RankingsResponse struct {
@@ -75,10 +78,19 @@ type ModelHistoryModel struct {
 	Total  int64  `json:"total"`
 }
 
+// RankingHistoryBucket is one slot on a history chart's time axis. The axis is
+// emitted in full, including slots with no traffic, so a quiet day renders as a
+// zero bar instead of collapsing and making its neighbours look adjacent.
+type RankingHistoryBucket struct {
+	Ts    string `json:"ts"`
+	Label string `json:"label"`
+}
+
 type ModelHistorySeries struct {
-	Points  []ModelHistoryPoint `json:"points"`
-	Models  []ModelHistoryModel `json:"models"`
-	Buckets int                 `json:"buckets"`
+	Points  []ModelHistoryPoint    `json:"points"`
+	Models  []ModelHistoryModel    `json:"models"`
+	Axis    []RankingHistoryBucket `json:"axis"`
+	Buckets int                    `json:"buckets"`
 }
 
 type VendorSharePoint struct {
@@ -96,9 +108,10 @@ type VendorShareVendor struct {
 }
 
 type VendorShareSeries struct {
-	Points  []VendorSharePoint  `json:"points"`
-	Vendors []VendorShareVendor `json:"vendors"`
-	Buckets int                 `json:"buckets"`
+	Points  []VendorSharePoint     `json:"points"`
+	Vendors []VendorShareVendor    `json:"vendors"`
+	Axis    []RankingHistoryBucket `json:"axis"`
+	Buckets int                    `json:"buckets"`
 }
 
 type rankingPeriodConfig struct {
@@ -205,8 +218,9 @@ func buildRankingsSnapshot(config rankingPeriodConfig, now time.Time) (*Rankings
 
 	rankedModels := buildRankedModels(currentTotals, totalTokens, previousRankByModel, previousTokensByModel, meta, config.hasPrevious)
 	vendors := buildRankedVendors(currentTotals, previousTotals, totalTokens, meta, config.hasPrevious)
-	modelHistory := buildModelHistory(currentBuckets, currentTotals, meta, config)
-	vendorHistory := buildVendorShareHistory(currentBuckets, vendors, totalTokens, meta, config)
+	axis := rankingBucketAxis(config, startTime, endTime)
+	modelHistory := buildModelHistory(currentBuckets, currentTotals, meta, config, axis)
+	vendorHistory := buildVendorShareHistory(currentBuckets, vendors, totalTokens, meta, config, axis)
 	movers, droppers := buildRankingMovers(rankedModels)
 
 	return &RankingsResponse{
@@ -357,7 +371,7 @@ func ensureVendorAggregate(aggregates map[string]*vendorAggregate, meta rankingM
 	return agg
 }
 
-func buildModelHistory(buckets []model.RankingQuotaBucket, totals []model.RankingQuotaTotal, meta map[string]rankingModelMeta, config rankingPeriodConfig) ModelHistorySeries {
+func buildModelHistory(buckets []model.RankingQuotaBucket, totals []model.RankingQuotaTotal, meta map[string]rankingModelMeta, config rankingPeriodConfig, axis []RankingHistoryBucket) ModelHistorySeries {
 	topModels := make(map[string]struct{})
 	models := make([]ModelHistoryModel, 0, minInt(len(totals), rankingHistoryLimit)+1)
 	otherTotal := int64(0)
@@ -406,14 +420,32 @@ func buildModelHistory(buckets []model.RankingQuotaBucket, totals []model.Rankin
 		}
 	}
 
+	if len(axis) == 0 {
+		axis = rankingAxisFromBuckets(sortedBuckets, config)
+	}
+
 	return ModelHistorySeries{
 		Points:  points,
 		Models:  models,
-		Buckets: len(sortedBuckets),
+		Axis:    axis,
+		Buckets: len(axis),
 	}
 }
 
-func buildVendorShareHistory(buckets []model.RankingQuotaBucket, vendors []RankedVendor, totalTokens int64, meta map[string]rankingModelMeta, config rankingPeriodConfig) VendorShareSeries {
+// rankingAxisFromBuckets falls back to the buckets that actually carry data,
+// used when the range cannot produce a generated axis.
+func rankingAxisFromBuckets(sortedBuckets []int64, config rankingPeriodConfig) []RankingHistoryBucket {
+	axis := make([]RankingHistoryBucket, 0, len(sortedBuckets))
+	for _, bucket := range sortedBuckets {
+		axis = append(axis, RankingHistoryBucket{
+			Ts:    rankingBucketTs(bucket),
+			Label: rankingBucketLabel(bucket, config),
+		})
+	}
+	return axis
+}
+
+func buildVendorShareHistory(buckets []model.RankingQuotaBucket, vendors []RankedVendor, totalTokens int64, meta map[string]rankingModelMeta, config rankingPeriodConfig, axis []RankingHistoryBucket) VendorShareSeries {
 	topVendors := make(map[string]struct{})
 	vendorRows := make([]VendorShareVendor, 0, minInt(len(vendors), rankingVendorLimit)+1)
 	otherTotal := int64(0)
@@ -464,10 +496,15 @@ func buildVendorShareHistory(buckets []model.RankingQuotaBucket, vendors []Ranke
 		}
 	}
 
+	if len(axis) == 0 {
+		axis = rankingAxisFromBuckets(sortedBuckets, config)
+	}
+
 	return VendorShareSeries{
 		Points:  points,
 		Vendors: vendorRows,
-		Buckets: len(sortedBuckets),
+		Axis:    axis,
+		Buckets: len(axis),
 	}
 }
 
@@ -520,6 +557,30 @@ func sortedRankingBuckets(bucketSet map[int64]struct{}) []int64 {
 		return buckets[i] < buckets[j]
 	})
 	return buckets
+}
+
+// rankingBucketAxis lists every bucket in the range, matching the epoch
+// alignment of rankingBucketExpr so generated slots line up with the buckets
+// the database returns.
+func rankingBucketAxis(config rankingPeriodConfig, startTime int64, endTime int64) []RankingHistoryBucket {
+	size := config.bucketSize
+	if size <= 0 || endTime < startTime {
+		return nil
+	}
+	first := (startTime / size) * size
+	last := (endTime / size) * size
+	count := (last-first)/size + 1
+	if count <= 0 || count > rankingMaxAxisBuckets {
+		return nil
+	}
+	axis := make([]RankingHistoryBucket, 0, count)
+	for bucket := first; bucket <= last; bucket += size {
+		axis = append(axis, RankingHistoryBucket{
+			Ts:    rankingBucketTs(bucket),
+			Label: rankingBucketLabel(bucket, config),
+		})
+	}
+	return axis
 }
 
 func rankingBucketTs(bucket int64) string {

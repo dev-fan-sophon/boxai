@@ -17,31 +17,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-/** Theme chart colors, resolved by the browser so charts follow light/dark. */
-const THEME_CHART_COLORS = [
+/**
+ * Categorical series colors. Every entry is a theme token so charts follow the
+ * active light/dark scheme; the twelve hues are spread around the wheel so a
+ * large domain (per-user series, per-model series) stays distinguishable.
+ * Recharts renders SVG, so `var()` resolves at paint time.
+ */
+export const CHART_SERIES_COLORS: readonly string[] = [
   'var(--chart-1)',
   'var(--chart-2)',
   'var(--chart-3)',
   'var(--chart-4)',
   'var(--chart-5)',
-]
-
-/**
- * Qualitative hex palette. Used for per-user series (users need stable colors
- * that do not collapse into the five theme hues) and as the extension palette
- * when a categorical domain is larger than the theme colors.
- */
-export const USER_CHART_COLORS: readonly string[] = [
-  '#5B8FF9',
-  '#5AD8A6',
-  '#F6BD16',
-  '#E8684A',
-  '#6DC8EC',
-  '#9270CA',
-  '#FF9D4D',
-  '#269A99',
-  '#FF99C3',
-  '#5D7092',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+  'var(--chart-9)',
+  'var(--chart-10)',
+  'var(--chart-11)',
+  'var(--chart-12)',
 ]
 
 /**
@@ -50,13 +44,8 @@ export const USER_CHART_COLORS: readonly string[] = [
  */
 export function getDashboardChartColors(domainLength: number): string[] {
   const size = Math.max(1, Math.floor(domainLength) || 0)
-  const palette =
-    size > THEME_CHART_COLORS.length
-      ? [...THEME_CHART_COLORS, ...USER_CHART_COLORS]
-      : THEME_CHART_COLORS
-
   return Array.from(
     { length: size },
-    (_, index) => palette[index % palette.length]
+    (_, index) => CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length]
   )
 }

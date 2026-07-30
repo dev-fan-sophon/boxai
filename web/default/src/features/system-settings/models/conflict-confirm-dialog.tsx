@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from "react-i18next";
 
-import { StaticDataTable } from '@/components/data-table'
+import { StaticDataTable } from "@/components/data-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,22 +28,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from "@/components/ui/alert-dialog";
 
 export type ConflictItem = {
-  channel: string
-  model: string
-  current: string
-  newVal: string
-}
+  channel: string;
+  model: string;
+  current: string;
+  newVal: string;
+};
 
 type ConflictConfirmDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  conflicts: ConflictItem[]
-  onConfirm: () => void
-  isLoading?: boolean
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conflicts: ConflictItem[];
+  onConfirm: () => void;
+  isLoading?: boolean;
+};
 
 export function ConflictConfirmDialog({
   open,
@@ -52,49 +52,49 @@ export function ConflictConfirmDialog({
   onConfirm,
   isLoading = false,
 }: ConflictConfirmDialogProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className='max-w-4xl'>
+      <AlertDialogContent className="max-w-4xl">
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('Confirm Billing Conflicts')}</AlertDialogTitle>
+          <AlertDialogTitle>{t("Confirm Billing Conflicts")}</AlertDialogTitle>
           <AlertDialogDescription>
             {t(
-              'The following models have billing type conflicts (fixed price vs ratio billing). Confirm to proceed with the changes.'
+              "The following models have billing type conflicts (fixed price vs ratio billing). Confirm to proceed with the changes.",
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <StaticDataTable
-          className='max-h-96 overflow-y-auto'
+          className="max-h-96 overflow-y-auto"
           data={conflicts}
           columns={[
             {
-              id: 'channel',
-              header: t('Channel'),
-              cellClassName: 'font-medium',
+              id: "channel",
+              header: t("Channel"),
+              cellClassName: "font-medium",
               cell: (conflict) => conflict.channel,
             },
             {
-              id: 'model',
-              header: t('Model'),
-              cellClassName: 'font-mono text-sm',
+              id: "model",
+              header: t("Model"),
+              cellClassName: "font-mono text-sm",
               cell: (conflict) => conflict.model,
             },
             {
-              id: 'current',
-              header: t('Current Billing'),
+              id: "current",
+              header: t("Current Billing"),
               cell: (conflict) => (
-                <pre className='text-sm whitespace-pre-wrap'>
+                <pre className="text-sm whitespace-pre-wrap">
                   {conflict.current}
                 </pre>
               ),
             },
             {
-              id: 'new',
-              header: t('Change To'),
+              id: "new",
+              header: t("Change To"),
               cell: (conflict) => (
-                <pre className='text-sm whitespace-pre-wrap'>
+                <pre className="text-sm whitespace-pre-wrap">
                   {conflict.newVal}
                 </pre>
               ),
@@ -104,13 +104,13 @@ export function ConflictConfirmDialog({
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>
-            {t('Cancel')}
+            {t("Cancel")}
           </AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? t('Applying...') : t('Confirm Changes')}
+            {isLoading ? t("Applying...") : t("Confirm Changes")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

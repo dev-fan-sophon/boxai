@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
-import { useEffect, useState, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import * as z from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import * as z from "zod";
 
 import {
   SideDrawerSection,
@@ -33,11 +33,11 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
   sideDrawerSwitchItemClassName,
-} from '@/components/drawer-layout'
-import { JsonEditor } from '@/components/json-editor'
-import { MultiSelect } from '@/components/multi-select'
-import { TagInput } from '@/components/tag-input'
-import { Button } from '@/components/ui/button'
+} from "@/components/drawer-layout";
+import { JsonEditor } from "@/components/json-editor";
+import { MultiSelect } from "@/components/multi-select";
+import { TagInput } from "@/components/tag-input";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -46,10 +46,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -57,7 +57,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetClose,
@@ -66,81 +66,81 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
-import { useIntegrationProfiles } from '@/features/pricing/hooks/use-integration-profiles'
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useIntegrationProfiles } from "@/features/pricing/hooks/use-integration-profiles";
 import type {
   ModelCapability,
   ModelIntegration,
   Modality,
-} from '@/features/pricing/types'
+} from "@/features/pricing/types";
 
-import { createModel, updateModel, getModel, getVendors } from '../../api'
-import { getNameRuleOptions, ENDPOINT_TEMPLATES } from '../../constants'
-import { modelsQueryKeys, vendorsQueryKeys, parseModelTags } from '../../lib'
-import type { Model } from '../../types'
+import { createModel, updateModel, getModel, getVendors } from "../../api";
+import { getNameRuleOptions, ENDPOINT_TEMPLATES } from "../../constants";
+import { modelsQueryKeys, vendorsQueryKeys, parseModelTags } from "../../lib";
+import type { Model } from "../../types";
 
 const MODALITIES: Modality[] = [
-  'text',
-  'image',
-  'audio',
-  'video',
-  'pdf',
-  'file',
-]
+  "text",
+  "image",
+  "audio",
+  "video",
+  "pdf",
+  "file",
+];
 const MODALITY_LABELS: Record<Modality, string> = {
-  text: 'Text',
-  image: 'Image',
-  audio: 'Audio',
-  video: 'Video',
-  pdf: 'PDF',
-  file: 'File',
-}
+  text: "Text",
+  image: "Image",
+  audio: "Audio",
+  video: "Video",
+  pdf: "PDF",
+  file: "File",
+};
 const CAPABILITIES: ModelCapability[] = [
-  'function_calling',
-  'streaming',
-  'vision',
-  'json_mode',
-  'structured_output',
-  'reasoning',
-  'tools',
-  'system_prompt',
-  'web_search',
-  'code_interpreter',
-  'caching',
-  'embeddings',
-]
+  "function_calling",
+  "streaming",
+  "vision",
+  "json_mode",
+  "structured_output",
+  "reasoning",
+  "tools",
+  "system_prompt",
+  "web_search",
+  "code_interpreter",
+  "caching",
+  "embeddings",
+];
 const CAPABILITY_LABELS: Record<ModelCapability, string> = {
-  function_calling: 'Function calling',
-  streaming: 'Streaming',
-  vision: 'Vision',
-  json_mode: 'JSON mode',
-  structured_output: 'Structured output',
-  reasoning: 'Reasoning',
-  tools: 'Tools',
-  system_prompt: 'System prompt',
-  web_search: 'Web search',
-  code_interpreter: 'Code interpreter',
-  caching: 'Cache',
-  embeddings: 'Embeddings',
-}
-const MAX_METADATA_TOKENS = 2_147_483_647
+  function_calling: "Function calling",
+  streaming: "Streaming",
+  vision: "Vision",
+  json_mode: "JSON mode",
+  structured_output: "Structured output",
+  reasoning: "Reasoning",
+  tools: "Tools",
+  system_prompt: "System prompt",
+  web_search: "Web search",
+  code_interpreter: "Code interpreter",
+  caching: "Cache",
+  embeddings: "Embeddings",
+};
+const MAX_METADATA_TOKENS = 2_147_483_647;
 
 function parseArray<T>(value?: string): T[] {
-  if (!value) return []
+  if (!value) return [];
   try {
-    const parsed: unknown = JSON.parse(value)
-    return Array.isArray(parsed) ? (parsed as T[]) : []
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 // Model metadata form state. Billing is managed separately in Pricing Center.
 const extendedModelFormSchema = z.object({
   id: z.number().optional(),
-  model_name: z.string().min(1, 'Model name is required'),
+  model_name: z.string().min(1, "Model name is required"),
   description: z.string(),
   icon: z.string(),
   tags: z.array(z.string()),
@@ -174,74 +174,74 @@ const extendedModelFormSchema = z.object({
         .array(z.string())
         .refine(
           (groups) => groups.some((group) => group.trim()),
-          'At least one group is required'
+          "At least one group is required",
         ),
-    })
+    }),
   ),
   name_rule: z.number(),
   status: z.boolean(),
   sync_official: z.boolean(),
-})
+});
 
-type ExtendedModelFormValues = z.infer<typeof extendedModelFormSchema>
+type ExtendedModelFormValues = z.infer<typeof extendedModelFormSchema>;
 
 type ModelMutateDrawerProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  currentRow?: Model | null
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentRow?: Model | null;
+};
 
 export function ModelMutateDrawer({
   open,
   onOpenChange,
   currentRow,
 }: ModelMutateDrawerProps) {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const currentModelId = currentRow?.id
-  const isEditing = Boolean(currentModelId)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const currentModelId = currentRow?.id;
+  const isEditing = Boolean(currentModelId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: integrationProfiles = [], isLoading: profilesLoading } =
-    useIntegrationProfiles(open)
+    useIntegrationProfiles(open);
 
   // Fetch vendors for dropdown
   const { data: vendorsData } = useQuery({
     queryKey: vendorsQueryKeys.list(),
     queryFn: () => getVendors({ page_size: 1000 }),
     enabled: open,
-  })
+  });
 
-  const vendors = vendorsData?.data?.items || []
+  const vendors = vendorsData?.data?.items || [];
 
   // Fetch model detail if editing
   const { data: modelData } = useQuery({
     queryKey: modelsQueryKeys.detail(currentModelId || 0),
     queryFn: () => {
       if (!currentModelId) {
-        throw new Error('Model ID is required')
+        throw new Error("Model ID is required");
       }
-      return getModel(currentModelId)
+      return getModel(currentModelId);
     },
     enabled: open && isEditing,
-  })
+  });
 
   const form = useForm<ExtendedModelFormValues>({
     resolver: zodResolver(extendedModelFormSchema),
     defaultValues: {
-      model_name: '',
-      description: '',
-      icon: '',
+      model_name: "",
+      description: "",
+      icon: "",
       tags: [],
       vendor_id: undefined,
-      endpoints: '',
-      display_name: '',
+      endpoints: "",
+      display_name: "",
       official_discount: undefined,
       context_length: undefined,
       max_output_tokens: undefined,
-      knowledge_cutoff: '',
-      release_date: '',
-      parameter_count: '',
-      usage_notes: '',
+      knowledge_cutoff: "",
+      release_date: "",
+      parameter_count: "",
+      usage_notes: "",
       input_modalities: [],
       output_modalities: [],
       capabilities: [],
@@ -250,55 +250,58 @@ export function ModelMutateDrawer({
       status: true,
       sync_official: true,
     },
-  })
+  });
 
   // Load model metadata for editing.
   useEffect(() => {
     if (open && isEditing && modelData?.data) {
-      const model = modelData.data
+      const model = modelData.data;
       form.reset({
         id: model.id,
         model_name: model.model_name,
-        description: model.description || '',
-        icon: model.icon || '',
+        description: model.description || "",
+        icon: model.icon || "",
         tags: parseModelTags(model.tags),
         vendor_id: model.vendor_id,
-        endpoints: model.endpoints || '',
-        display_name: model.display_name || '',
+        endpoints: model.endpoints || "",
+        display_name: model.display_name || "",
         official_discount: model.official_discount || undefined,
         context_length: model.context_length,
         max_output_tokens: model.max_output_tokens,
-        knowledge_cutoff: model.knowledge_cutoff || '',
-        release_date: model.release_date || '',
-        parameter_count: model.parameter_count || '',
-        usage_notes: model.usage_notes || '',
+        knowledge_cutoff: model.knowledge_cutoff || "",
+        release_date: model.release_date || "",
+        parameter_count: model.parameter_count || "",
+        usage_notes: model.usage_notes || "",
         input_modalities: parseArray<Modality>(model.input_modalities),
         output_modalities: parseArray<Modality>(model.output_modalities),
         capabilities: parseArray<ModelCapability>(model.capabilities),
         integrations: parseArray<ModelIntegration>(model.integrations).map(
-          (item) => ({ profile_id: item.profile_id, groups: item.groups || [] })
+          (item) => ({
+            profile_id: item.profile_id,
+            groups: item.groups || [],
+          }),
         ),
         name_rule: model.name_rule || 0,
         status: model.status === 1,
         sync_official: model.sync_official === 1,
-      })
+      });
     } else if (open && !isEditing) {
       // Pre-fill model name if passed from missing models
       form.reset({
-        model_name: currentRow?.model_name || '',
-        description: '',
-        icon: '',
+        model_name: currentRow?.model_name || "",
+        description: "",
+        icon: "",
         tags: [],
         vendor_id: undefined,
-        endpoints: '',
-        display_name: '',
+        endpoints: "",
+        display_name: "",
         official_discount: undefined,
         context_length: undefined,
         max_output_tokens: undefined,
-        knowledge_cutoff: '',
-        release_date: '',
-        parameter_count: '',
-        usage_notes: '',
+        knowledge_cutoff: "",
+        release_date: "",
+        parameter_count: "",
+        usage_notes: "",
         input_modalities: [],
         output_modalities: [],
         capabilities: [],
@@ -306,24 +309,24 @@ export function ModelMutateDrawer({
         name_rule: 0,
         status: true,
         sync_official: true,
-      })
+      });
     }
-  }, [open, isEditing, modelData, currentRow, form])
+  }, [open, isEditing, modelData, currentRow, form]);
 
   const onSubmit = useCallback(
     async (values: ExtendedModelFormValues): Promise<void> => {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
       try {
         const submitData = {
           ...values,
           id: isEditing ? currentModelId : undefined,
           official_discount: values.official_discount ?? 0,
-          tags: Array.isArray(values.tags) ? values.tags.join(',') : '',
+          tags: Array.isArray(values.tags) ? values.tags.join(",") : "",
           status: values.status ? 1 : 0,
           sync_official: values.sync_official ? 1 : 0,
           input_modalities: JSON.stringify([...values.input_modalities].sort()),
           output_modalities: JSON.stringify(
-            [...values.output_modalities].sort()
+            [...values.output_modalities].sort(),
           ),
           capabilities: JSON.stringify([...values.capabilities].sort()),
           integrations: JSON.stringify(
@@ -332,91 +335,91 @@ export function ModelMutateDrawer({
                 profile_id: item.profile_id,
                 groups: [
                   ...new Set(
-                    item.groups.map((group) => group.trim()).filter(Boolean)
+                    item.groups.map((group) => group.trim()).filter(Boolean),
                   ),
                 ].sort(),
               }))
-              .sort((a, b) => a.profile_id.localeCompare(b.profile_id))
+              .sort((a, b) => a.profile_id.localeCompare(b.profile_id)),
           ),
-        }
+        };
 
         const response =
           isEditing && currentModelId
             ? await updateModel({ ...submitData, id: currentModelId })
-            : await createModel(submitData)
+            : await createModel(submitData);
 
         if (response.success) {
           toast.success(
             isEditing
-              ? 'Model updated successfully'
-              : 'Model created successfully'
-          )
-          queryClient.invalidateQueries({ queryKey: modelsQueryKeys.lists() })
-          onOpenChange(false)
+              ? "Model updated successfully"
+              : "Model created successfully",
+          );
+          queryClient.invalidateQueries({ queryKey: modelsQueryKeys.lists() });
+          onOpenChange(false);
         } else {
-          toast.error(response.message || 'Operation failed')
+          toast.error(response.message || "Operation failed");
         }
       } catch (error: unknown) {
-        toast.error((error as Error)?.message || 'Operation failed')
+        toast.error((error as Error)?.message || "Operation failed");
       } finally {
-        setIsSubmitting(false)
+        setIsSubmitting(false);
       }
     },
-    [isEditing, currentModelId, queryClient, onOpenChange]
-  )
+    [isEditing, currentModelId, queryClient, onOpenChange],
+  );
 
   const handleFillEndpointTemplate = (templateKey: string) => {
-    const template = ENDPOINT_TEMPLATES[templateKey]
+    const template = ENDPOINT_TEMPLATES[templateKey];
     if (template) {
-      const templateJson = JSON.stringify({ [templateKey]: template }, null, 2)
-      form.setValue('endpoints', templateJson)
+      const templateJson = JSON.stringify({ [templateKey]: template }, null, 2);
+      form.setValue("endpoints", templateJson);
     }
-  }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className={sideDrawerContentClassName('sm:max-w-2xl')}>
+      <SheetContent className={sideDrawerContentClassName("sm:max-w-2xl")}>
         <SheetHeader className={sideDrawerHeaderClassName()}>
           <SheetTitle>
-            {isEditing ? t('Edit Model') : t('Create Model')}
+            {isEditing ? t("Edit Model") : t("Create Model")}
           </SheetTitle>
           <SheetDescription>
             {isEditing
               ? t("Update model configuration and click save when you're done.")
               : t(
-                  'Add a new model to the system by providing the necessary information.'
+                  "Add a new model to the system by providing the necessary information.",
                 )}
           </SheetDescription>
         </SheetHeader>
 
         <Form {...form}>
           <form
-            id='model-form'
+            id="model-form"
             onSubmit={form.handleSubmit(
-              onSubmit as Parameters<typeof form.handleSubmit>[0]
+              onSubmit as Parameters<typeof form.handleSubmit>[0],
             )}
             className={sideDrawerFormClassName()}
           >
             {/* Basic Information */}
             <SideDrawerSection>
-              <h3 className='text-sm font-semibold'>
-                {t('Basic Information')}
+              <h3 className="text-sm font-semibold">
+                {t("Basic Information")}
               </h3>
 
               <FormField
                 control={form.control}
-                name='model_name'
+                name="model_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Model Name *')}</FormLabel>
+                    <FormLabel>{t("Model Name *")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t('gpt-4, claude-3-opus, etc.')}
+                        placeholder={t("gpt-4, claude-3-opus, etc.")}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      {t('The unique identifier for this model')}
+                      {t("The unique identifier for this model")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -425,13 +428,13 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='description'
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Description')}</FormLabel>
+                    <FormLabel>{t("Description")}</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder={t('Describe this model...')}
+                        placeholder={t("Describe this model...")}
                         rows={3}
                         {...field}
                       />
@@ -443,18 +446,18 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='icon'
+                name="icon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Icon')}</FormLabel>
+                    <FormLabel>{t("Icon")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t('OpenAI, Anthropic, etc.')}
+                        placeholder={t("OpenAI, Anthropic, etc.")}
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription className='text-xs'>
-                      {t('@lobehub/icons key')}
+                    <FormDescription className="text-xs">
+                      {t("@lobehub/icons key")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -463,10 +466,10 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='vendor_id'
+                name="vendor_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Vendor')}</FormLabel>
+                    <FormLabel>{t("Vendor")}</FormLabel>
                     <Select
                       items={vendors.map((vendor) => ({
                         value: String(vendor.id),
@@ -474,14 +477,14 @@ export function ModelMutateDrawer({
                       }))}
                       onValueChange={(value) =>
                         field.onChange(
-                          value ? Number.parseInt(value) : undefined
+                          value ? Number.parseInt(value) : undefined,
                         )
                       }
                       value={field.value ? String(field.value) : undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('Select vendor')} />
+                          <SelectValue placeholder={t("Select vendor")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent alignItemWithTrigger={false}>
@@ -504,19 +507,19 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='tags'
+                name="tags"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Tags')}</FormLabel>
+                    <FormLabel>{t("Tags")}</FormLabel>
                     <FormControl>
                       <TagInput
                         value={field.value || []}
                         onChange={field.onChange}
-                        placeholder={t('Add tags...')}
+                        placeholder={t("Add tags...")}
                       />
                     </FormControl>
                     <FormDescription>
-                      {t('Press Enter or comma to add tags')}
+                      {t("Press Enter or comma to add tags")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -526,21 +529,21 @@ export function ModelMutateDrawer({
 
             <SideDrawerSection>
               <div>
-                <h3 className='text-sm font-semibold'>
-                  {t('Discovery metadata')}
+                <h3 className="text-sm font-semibold">
+                  {t("Discovery metadata")}
                 </h3>
-                <p className='text-muted-foreground text-sm'>
+                <p className="text-muted-foreground text-sm">
                   {t(
-                    'Describe how this model appears in discovery and documentation.'
+                    "Describe how this model appears in discovery and documentation.",
                   )}
                 </p>
               </div>
               <FormField
                 control={form.control}
-                name='display_name'
+                name="display_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Display name')}</FormLabel>
+                    <FormLabel>{t("Display name")}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -550,37 +553,37 @@ export function ModelMutateDrawer({
               />
               <FormField
                 control={form.control}
-                name='official_discount'
+                name="official_discount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Official price discount (%)')}</FormLabel>
+                    <FormLabel>{t("Official price discount (%)")}</FormLabel>
                     <FormControl>
                       <Input
-                        type='number'
+                        type="number"
                         min={0}
                         max={99.99}
                         step={0.01}
-                        value={field.value ?? ''}
+                        value={field.value ?? ""}
                         onChange={(event) =>
                           field.onChange(
-                            event.target.value === ''
+                            event.target.value === ""
                               ? undefined
-                              : event.target.valueAsNumber
+                              : event.target.valueAsNumber,
                           )
                         }
                       />
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'Optional marketplace badge compared with the official price. This does not change billing.'
+                        "Optional marketplace badge compared with the official price. This does not change billing.",
                       )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className='grid gap-4 sm:grid-cols-2'>
-                {(['context_length', 'max_output_tokens'] as const).map(
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(["context_length", "max_output_tokens"] as const).map(
                   (name) => (
                     <FormField
                       key={name}
@@ -589,22 +592,22 @@ export function ModelMutateDrawer({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            {name === 'context_length'
-                              ? t('Context length')
-                              : t('Max output tokens')}
+                            {name === "context_length"
+                              ? t("Context length")
+                              : t("Max output tokens")}
                           </FormLabel>
                           <FormControl>
                             <Input
-                              type='number'
+                              type="number"
                               min={0}
                               max={MAX_METADATA_TOKENS}
                               step={1}
-                              value={field.value ?? ''}
+                              value={field.value ?? ""}
                               onChange={(event) =>
                                 field.onChange(
-                                  event.target.value === ''
+                                  event.target.value === ""
                                     ? undefined
-                                    : event.target.valueAsNumber
+                                    : event.target.valueAsNumber,
                                 )
                               }
                             />
@@ -613,16 +616,16 @@ export function ModelMutateDrawer({
                         </FormItem>
                       )}
                     />
-                  )
+                  ),
                 )}
                 <FormField
                   control={form.control}
-                  name='release_date'
+                  name="release_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('Release date')}</FormLabel>
+                      <FormLabel>{t("Release date")}</FormLabel>
                       <FormControl>
-                        <Input type='date' {...field} />
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -630,10 +633,10 @@ export function ModelMutateDrawer({
                 />
                 <FormField
                   control={form.control}
-                  name='knowledge_cutoff'
+                  name="knowledge_cutoff"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('Knowledge cutoff')}</FormLabel>
+                      <FormLabel>{t("Knowledge cutoff")}</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -644,18 +647,18 @@ export function ModelMutateDrawer({
               </div>
               <FormField
                 control={form.control}
-                name='parameter_count'
+                name="parameter_count"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Parameter count')}</FormLabel>
+                    <FormLabel>{t("Parameter count")}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('For example: 70B')} {...field} />
+                      <Input placeholder={t("For example: 70B")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              {(['input_modalities', 'output_modalities'] as const).map(
+              {(["input_modalities", "output_modalities"] as const).map(
                 (name) => (
                   <FormField
                     key={name}
@@ -664,9 +667,9 @@ export function ModelMutateDrawer({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {name === 'input_modalities'
-                            ? t('Input modalities')
-                            : t('Output modalities')}
+                          {name === "input_modalities"
+                            ? t("Input modalities")
+                            : t("Output modalities")}
                         </FormLabel>
                         <FormControl>
                           <MultiSelect
@@ -676,21 +679,21 @@ export function ModelMutateDrawer({
                             }))}
                             selected={field.value}
                             onChange={field.onChange}
-                            placeholder={t('Select modalities...')}
+                            placeholder={t("Select modalities...")}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )
+                ),
               )}
               <FormField
                 control={form.control}
-                name='capabilities'
+                name="capabilities"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Capabilities')}</FormLabel>
+                    <FormLabel>{t("Capabilities")}</FormLabel>
                     <FormControl>
                       <MultiSelect
                         options={CAPABILITIES.map((value) => ({
@@ -699,7 +702,7 @@ export function ModelMutateDrawer({
                         }))}
                         selected={field.value}
                         onChange={field.onChange}
-                        placeholder={t('Select capabilities...')}
+                        placeholder={t("Select capabilities...")}
                       />
                     </FormControl>
                     <FormMessage />
@@ -708,10 +711,10 @@ export function ModelMutateDrawer({
               />
               <FormField
                 control={form.control}
-                name='usage_notes'
+                name="usage_notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Usage notes')}</FormLabel>
+                    <FormLabel>{t("Usage notes")}</FormLabel>
                     <FormControl>
                       <Textarea rows={3} {...field} />
                     </FormControl>
@@ -723,72 +726,73 @@ export function ModelMutateDrawer({
 
             <SideDrawerSection>
               <div>
-                <h3 className='text-sm font-semibold'>{t('Integrations')}</h3>
-                <p className='text-muted-foreground text-sm'>
+                <h3 className="text-sm font-semibold">{t("Integrations")}</h3>
+                <p className="text-muted-foreground text-sm">
                   {t(
-                    'Assign documented integration profiles and the groups that may use them.'
+                    "Assign documented integration profiles and the groups that may use them.",
                   )}
                 </p>
               </div>
               {profilesLoading && (
-                <p className='text-muted-foreground text-sm'>
-                  {t('Loading integration profiles...')}
+                <p className="text-muted-foreground text-sm">
+                  {t("Loading integration profiles...")}
                 </p>
               )}
               <FormField
                 control={form.control}
-                name='integrations'
+                name="integrations"
                 render={({ field }) => (
                   <FormItem>
-                    <div className='space-y-3'>
+                    <div className="space-y-3">
                       {integrationProfiles.map((profile) => {
                         const assignment = field.value.find(
-                          (item) => item.profile_id === profile.id
-                        )
+                          (item) => item.profile_id === profile.id,
+                        );
                         return (
                           <div
                             key={profile.id}
-                            className='rounded-lg border p-4'
+                            className="rounded-lg border p-4"
                           >
-                            <div className='flex items-start justify-between gap-4'>
+                            <div className="flex items-start justify-between gap-4">
                               <div>
-                                <p className='font-medium'>
+                                <p className="font-medium">
                                   {t(profile.name_key)}
                                 </p>
-                                <p className='text-muted-foreground text-xs'>
-                                  {profile.protocol} · {profile.method} ·{' '}
+                                <p className="text-muted-foreground text-xs">
+                                  {profile.protocol} · {profile.method} ·{" "}
                                   <code>{profile.gateway_path_template}</code>
                                 </p>
-                                <p className='text-muted-foreground text-xs'>
-                                  {t('Authentication')}: {profile.auth_scheme} ·{' '}
-                                  {t('Streaming')}:{' '}
+                                <p className="text-muted-foreground text-xs">
+                                  {t("Authentication")}: {profile.auth_scheme} ·{" "}
+                                  {t("Streaming")}:{" "}
                                   {profile.streaming
-                                    ? t('Enabled')
-                                    : t('Disabled')}
+                                    ? t("Enabled")
+                                    : t("Disabled")}
                                 </p>
                               </div>
                               <Switch
                                 checked={Boolean(assignment)}
-                                aria-label={t('Enable integration')}
+                                aria-label={t("Enable integration")}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
                                     field.onChange([
                                       ...field.value,
                                       { profile_id: profile.id, groups: [] },
-                                    ])
+                                    ]);
                                   } else {
                                     field.onChange(
                                       field.value.filter(
-                                        (item) => item.profile_id !== profile.id
-                                      )
-                                    )
+                                        (item) =>
+                                          item.profile_id !== profile.id,
+                                      ),
+                                    );
                                   }
                                 }}
                               />
                             </div>
                             {assignment && (
-                              <div className='mt-3'>
-                                <Label>{t('Required groups')}</Label>
+                              <div className="mt-3">
+                                <Label>{t("Required groups")}</Label>
                                 <MultiSelect
                                   options={(
                                     currentRow?.enable_groups || []
@@ -803,21 +807,21 @@ export function ModelMutateDrawer({
                                       field.value.map((item) =>
                                         item.profile_id === profile.id
                                           ? { ...item, groups }
-                                          : item
-                                      )
+                                          : item,
+                                      ),
                                     )
                                   }
-                                  placeholder={t('Select or enter groups...')}
+                                  placeholder={t("Select or enter groups...")}
                                 />
                                 {assignment.groups.length === 0 && (
-                                  <p className='text-destructive mt-1 text-sm'>
-                                    {t('At least one group is required')}
+                                  <p className="text-destructive mt-1 text-sm">
+                                    {t("At least one group is required")}
                                   </p>
                                 )}
                               </div>
                             )}
                           </div>
-                        )
+                        );
                       })}
                     </div>
                     <FormMessage />
@@ -828,26 +832,26 @@ export function ModelMutateDrawer({
 
             {/* Matching Configuration */}
             <SideDrawerSection>
-              <h3 className='text-sm font-semibold'>{t('Matching Rules')}</h3>
+              <h3 className="text-sm font-semibold">{t("Matching Rules")}</h3>
 
               <FormField
                 control={form.control}
-                name='name_rule'
+                name="name_rule"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Name Rule')}</FormLabel>
+                    <FormLabel>{t("Name Rule")}</FormLabel>
                     <FormControl>
                       <RadioGroup
                         onValueChange={(value) =>
                           field.onChange(Number.parseInt(value))
                         }
                         value={String(field.value)}
-                        className='grid grid-cols-2 gap-4'
+                        className="grid grid-cols-2 gap-4"
                       >
                         {getNameRuleOptions(t).map((option) => (
                           <div
                             key={option.value}
-                            className='flex items-center space-x-2'
+                            className="flex items-center space-x-2"
                           >
                             <RadioGroupItem
                               value={String(option.value)}
@@ -855,7 +859,7 @@ export function ModelMutateDrawer({
                             />
                             <Label
                               htmlFor={`rule-${option.value}`}
-                              className='cursor-pointer font-normal'
+                              className="cursor-pointer font-normal"
                             >
                               {option.label}
                             </Label>
@@ -864,7 +868,7 @@ export function ModelMutateDrawer({
                       </RadioGroup>
                     </FormControl>
                     <FormDescription>
-                      {t('How this model name should match requests')}
+                      {t("How this model name should match requests")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -874,9 +878,9 @@ export function ModelMutateDrawer({
 
             {/* Endpoints Configuration */}
             <SideDrawerSection>
-              <div className='flex items-center justify-between'>
-                <h3 className='text-sm font-semibold'>
-                  {t('Legacy / advanced routing configuration')}
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">
+                  {t("Legacy / advanced routing configuration")}
                 </h3>
                 <Select<string>
                   items={Object.keys(ENDPOINT_TEMPLATES).map((key) => ({
@@ -887,8 +891,8 @@ export function ModelMutateDrawer({
                     v !== null && handleFillEndpointTemplate(v)
                   }
                 >
-                  <SelectTrigger size='sm' className='w-[200px]'>
-                    <SelectValue placeholder={t('Load template...')} />
+                  <SelectTrigger size="sm" className="w-[200px]">
+                    <SelectValue placeholder={t("Load template...")} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
                     <SelectGroup>
@@ -904,27 +908,27 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='endpoints'
+                name="endpoints"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Endpoint Configuration')}</FormLabel>
+                    <FormLabel>{t("Endpoint Configuration")}</FormLabel>
                     <FormControl>
                       <JsonEditor
-                        value={field.value || ''}
+                        value={field.value || ""}
                         onChange={field.onChange}
-                        keyPlaceholder='endpoint_type'
+                        keyPlaceholder="endpoint_type"
                         valuePlaceholder='{"path": "/v1/...", "method": "POST"}'
-                        keyLabel='Endpoint Type'
-                        valueLabel='Configuration'
-                        valueType='any'
+                        keyLabel="Endpoint Type"
+                        valueLabel="Configuration"
+                        valueType="any"
                         emptyMessage={t(
-                          'No endpoints configured. Switch to JSON mode or add rows to define endpoints.'
+                          "No endpoints configured. Switch to JSON mode or add rows to define endpoints.",
                         )}
                       />
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'Legacy endpoint routing only. This does not control the new integration documentation.'
+                        "Legacy endpoint routing only. This does not control the new integration documentation.",
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -935,43 +939,43 @@ export function ModelMutateDrawer({
 
             {/* Pricing is intentionally managed in one dedicated domain. */}
             <SideDrawerSection>
-              <h3 className='text-sm font-semibold'>{t('Model pricing')}</h3>
-              <p className='text-muted-foreground text-sm'>
+              <h3 className="text-sm font-semibold">{t("Model pricing")}</h3>
+              <p className="text-muted-foreground text-sm">
                 {t(
-                  'Pricing is managed in Pricing Center and is bound to the exact model name used by clients.'
+                  "Pricing is managed in Pricing Center and is bound to the exact model name used by clients.",
                 )}
               </p>
               {isEditing && (
                 <Button
-                  type='button'
-                  variant='outline'
+                  type="button"
+                  variant="outline"
                   render={
                     <Link
-                      to='/pricing-center'
+                      to="/pricing-center"
                       search={{ model: modelData?.data?.model_name }}
                     />
                   }
                 >
-                  {t('Configure pricing')}
+                  {t("Configure pricing")}
                 </Button>
               )}
             </SideDrawerSection>
 
             {/* Status & Sync */}
             <SideDrawerSection>
-              <h3 className='text-sm font-semibold'>{t('Status & Sync')}</h3>
+              <h3 className="text-sm font-semibold">{t("Status & Sync")}</h3>
 
               <FormField
                 control={form.control}
-                name='status'
+                name="status"
                 render={({ field }) => (
                   <FormItem className={sideDrawerSwitchItemClassName()}>
-                    <div className='flex flex-col gap-0.5'>
-                      <FormLabel className='text-base'>
-                        {t('Enabled')}
+                    <div className="flex flex-col gap-0.5">
+                      <FormLabel className="text-base">
+                        {t("Enabled")}
                       </FormLabel>
                       <FormDescription>
-                        {t('Enable or disable this model')}
+                        {t("Enable or disable this model")}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -986,15 +990,15 @@ export function ModelMutateDrawer({
 
               <FormField
                 control={form.control}
-                name='sync_official'
+                name="sync_official"
                 render={({ field }) => (
                   <FormItem className={sideDrawerSwitchItemClassName()}>
-                    <div className='flex flex-col gap-0.5'>
-                      <FormLabel className='text-base'>
-                        {t('Official Sync')}
+                    <div className="flex flex-col gap-0.5">
+                      <FormLabel className="text-base">
+                        {t("Official Sync")}
                       </FormLabel>
                       <FormDescription>
-                        {t('Sync this model with official upstream')}
+                        {t("Sync this model with official upstream")}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -1012,16 +1016,16 @@ export function ModelMutateDrawer({
 
         <SheetFooter className={sideDrawerFooterClassName()}>
           <SheetClose
-            render={<Button variant='outline' disabled={isSubmitting} />}
+            render={<Button variant="outline" disabled={isSubmitting} />}
           >
-            {t('Cancel')}
+            {t("Cancel")}
           </SheetClose>
-          <Button form='model-form' type='submit' disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {isEditing ? t('Update Model') : t('Save changes')}
+          <Button form="model-form" type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditing ? t("Update Model") : t("Save changes")}
           </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

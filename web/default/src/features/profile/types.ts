@@ -84,6 +84,12 @@ export interface UserProfile {
   github_id?: string
   /** Discord ID (OAuth) */
   discord_id?: string
+  /** Google ID (OAuth) */
+  google_id?: string
+  /** Facebook ID (OAuth) */
+  facebook_id?: string
+  /** Zalo ID (OAuth) */
+  zalo_id?: string
   /** OIDC ID (OAuth) */
   oidc_id?: string
   /** Telegram ID (OAuth) */

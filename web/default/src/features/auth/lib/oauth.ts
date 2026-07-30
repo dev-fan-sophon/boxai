@@ -21,6 +21,9 @@ import type { SystemStatus, OAuthProvider } from '../types'
 export {
   buildGitHubOAuthUrl,
   buildDiscordOAuthUrl,
+  buildGoogleOAuthUrl,
+  buildFacebookOAuthUrl,
+  buildZaloOAuthUrl,
   buildOIDCOAuthUrl,
   buildLinuxDOOAuthUrl,
 } from '@/lib/oauth'
@@ -54,6 +57,33 @@ export function getAvailableOAuthProviders(
       type: 'discord',
       enabled: true,
       clientId: status.discord_client_id,
+    })
+  }
+
+  if (status.google_oauth) {
+    providers.push({
+      name: 'Google',
+      type: 'google',
+      enabled: true,
+      clientId: status.google_client_id,
+    })
+  }
+
+  if (status.facebook_oauth) {
+    providers.push({
+      name: 'Facebook',
+      type: 'facebook',
+      enabled: true,
+      clientId: status.facebook_client_id,
+    })
+  }
+
+  if (status.zalo_oauth) {
+    providers.push({
+      name: 'Zalo',
+      type: 'zalo',
+      enabled: true,
+      clientId: status.zalo_app_id,
     })
   }
 
@@ -95,6 +125,9 @@ export function hasOAuthProviders(status: SystemStatus | null): boolean {
   return !!(
     status.github_oauth ||
     status.discord_oauth ||
+    status.google_oauth ||
+    status.facebook_oauth ||
+    status.zalo_oauth ||
     status.oidc_enabled ||
     status.linuxdo_oauth ||
     status.telegram_oauth ||

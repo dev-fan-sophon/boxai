@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import { z } from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -34,127 +34,127 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { testDeploymentConnectionWithKey } from '@/features/models/api'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { testDeploymentConnectionWithKey } from "@/features/models/api";
 
 import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from '../components/settings-form-layout'
-import { SettingsPageFormActions } from '../components/settings-page-context'
-import { SettingsSection } from '../components/settings-section'
-import { useUpdateOption } from '../hooks/use-update-option'
+} from "../components/settings-form-layout";
+import { SettingsPageFormActions } from "../components/settings-page-context";
+import { SettingsSection } from "../components/settings-section";
+import { useUpdateOption } from "../hooks/use-update-option";
 
 const schema = z.object({
   enabled: z.boolean(),
   apiKey: z.string().optional(),
-})
+});
 
 // NOTE: react-hook-form resolver uses the schema input type
-type Values = z.input<typeof schema>
+type Values = z.input<typeof schema>;
 
 export function IoNetDeploymentSettingsSection({
   defaultValues,
 }: {
   defaultValues: {
-    enabled: boolean
-    apiKey: string
-  }
+    enabled: boolean;
+    apiKey: string;
+  };
 }) {
-  const { t } = useTranslation()
-  const updateOption = useUpdateOption()
+  const { t } = useTranslation();
+  const updateOption = useUpdateOption();
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
       enabled: defaultValues.enabled,
-      apiKey: defaultValues.apiKey ?? '',
+      apiKey: defaultValues.apiKey ?? "",
     },
-  })
+  });
 
-  const { isDirty, isSubmitting } = form.formState
-  const enabled = form.watch('enabled')
+  const { isDirty, isSubmitting } = form.formState;
+  const enabled = form.watch("enabled");
 
   const [testState, setTestState] = useState<{
-    loading: boolean
-    ok: boolean | null
-    error: string | null
-  }>({ loading: false, ok: null, error: null })
+    loading: boolean;
+    ok: boolean | null;
+    error: string | null;
+  }>({ loading: false, ok: null, error: null });
 
   async function onSubmit(values: Values) {
-    const updates: Array<{ key: string; value: string }> = []
+    const updates: Array<{ key: string; value: string }> = [];
 
     if (values.enabled !== defaultValues.enabled) {
       updates.push({
-        key: 'model_deployment.ionet.enabled',
+        key: "model_deployment.ionet.enabled",
         value: String(values.enabled),
-      })
+      });
     }
 
-    if ((values.apiKey || '') !== (defaultValues.apiKey || '')) {
+    if ((values.apiKey || "") !== (defaultValues.apiKey || "")) {
       updates.push({
-        key: 'model_deployment.ionet.api_key',
-        value: String(values.apiKey || ''),
-      })
+        key: "model_deployment.ionet.api_key",
+        value: String(values.apiKey || ""),
+      });
     }
 
     if (updates.length === 0) {
-      toast.info(t('No changes to save'))
-      return
+      toast.info(t("No changes to save"));
+      return;
     }
 
     for (const update of updates) {
-      await updateOption.mutateAsync(update)
+      await updateOption.mutateAsync(update);
     }
 
-    form.reset(values)
+    form.reset(values);
   }
 
   const handleTestConnection = async () => {
-    setTestState({ loading: true, ok: null, error: null })
+    setTestState({ loading: true, ok: null, error: null });
     try {
-      const apiKey = form.getValues('apiKey')
-      const res = await testDeploymentConnectionWithKey(apiKey)
+      const apiKey = form.getValues("apiKey");
+      const res = await testDeploymentConnectionWithKey(apiKey);
       if (res?.success) {
-        setTestState({ loading: false, ok: true, error: null })
-        return
+        setTestState({ loading: false, ok: true, error: null });
+        return;
       }
       setTestState({
         loading: false,
         ok: false,
-        error: res?.message || t('Connection failed'),
-      })
+        error: res?.message || t("Connection failed"),
+      });
     } catch (err) {
       setTestState({
         loading: false,
         ok: false,
-        error: err instanceof Error ? err.message : t('Connection failed'),
-      })
+        error: err instanceof Error ? err.message : t("Connection failed"),
+      });
     }
-  }
+  };
 
   return (
-    <SettingsSection title={t('io.net Deployments')}>
+    <SettingsSection title={t("io.net Deployments")}>
       <Form {...form}>
-        <SettingsForm onSubmit={form.handleSubmit(onSubmit)} autoComplete='off'>
+        <SettingsForm onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending || isSubmitting}
             isSaveDisabled={!isDirty}
-            saveLabel='Save io.net settings'
+            saveLabel="Save io.net settings"
           />
           <FormField
             control={form.control}
-            name='enabled'
+            name="enabled"
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t('Enable io.net deployments')}</FormLabel>
+                  <FormLabel>{t("Enable io.net deployments")}</FormLabel>
                   <FormDescription>
-                    {t('Enable io.net model deployment service in console')}
+                    {t("Enable io.net model deployment service in console")}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -172,73 +172,73 @@ export function IoNetDeploymentSettingsSection({
             <>
               <FormField
                 control={form.control}
-                name='apiKey'
+                name="apiKey"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('io.net API Key')}</FormLabel>
-                    <div className='flex gap-2'>
+                    <FormLabel>{t("io.net API Key")}</FormLabel>
+                    <div className="flex gap-2">
                       <FormControl>
                         <Input
-                          type='password'
-                          placeholder={t('Enter API Key')}
-                          autoComplete='off'
+                          type="password"
+                          placeholder={t("Enter API Key")}
+                          autoComplete="off"
                           {...field}
                         />
                       </FormControl>
                       <Button
-                        type='button'
-                        variant='secondary'
+                        type="button"
+                        variant="secondary"
                         onClick={handleTestConnection}
                         disabled={testState.loading || updateOption.isPending}
-                        className='shrink-0'
+                        className="shrink-0"
                       >
                         {testState.loading ? (
-                          <Loader2 className='me-2 size-4 animate-spin' />
+                          <Loader2 className="me-2 size-4 animate-spin" />
                         ) : null}
-                        {t('Test Connection')}
+                        {t("Test Connection")}
                       </Button>
                     </div>
                     <FormDescription>
-                      {t('Used to authenticate with io.net deployment API')}
+                      {t("Used to authenticate with io.net deployment API")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <Alert variant='default'>
-                <AlertTitle>{t('How to get an io.net API Key')}</AlertTitle>
+              <Alert variant="default">
+                <AlertTitle>{t("How to get an io.net API Key")}</AlertTitle>
                 <AlertDescription>
-                  <div className='space-y-2'>
-                    <ul className='list-disc space-y-1 pl-5'>
-                      <li>{t('Open the io.net console API Keys page')}</li>
+                  <div className="space-y-2">
+                    <ul className="list-disc space-y-1 pl-5">
+                      <li>{t("Open the io.net console API Keys page")}</li>
                       <li>
                         {t(
-                          'Set Project to io.cloud when creating/selecting key'
+                          "Set Project to io.cloud when creating/selecting key",
                         )}
                       </li>
-                      <li>{t('Copy the key and paste it here')}</li>
+                      <li>{t("Copy the key and paste it here")}</li>
                     </ul>
                     <Button
-                      type='button'
-                      variant='outline'
+                      type="button"
+                      variant="outline"
                       onClick={() =>
-                        window.open('https://ai.io.net/ai/api-keys', '_blank')
+                        window.open("https://ai.io.net/ai/api-keys", "_blank")
                       }
                     >
-                      {t('Go to io.net API Keys')}
+                      {t("Go to io.net API Keys")}
                     </Button>
                   </div>
                 </AlertDescription>
               </Alert>
 
               {testState.ok === true ? (
-                <Alert variant='default' className='flex items-center gap-2'>
-                  <CheckCircle2 className='size-4 text-green-600' />
+                <Alert variant="default" className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-green-600" />
                   <div>
-                    <AlertTitle>{t('Connection successful')}</AlertTitle>
+                    <AlertTitle>{t("Connection successful")}</AlertTitle>
                     <AlertDescription>
-                      {t('Connected to io.net service normally.')}
+                      {t("Connected to io.net service normally.")}
                     </AlertDescription>
                   </div>
                 </Alert>
@@ -246,12 +246,12 @@ export function IoNetDeploymentSettingsSection({
 
               {testState.ok === false && testState.error ? (
                 <Alert
-                  variant='destructive'
-                  className='flex items-center gap-2'
+                  variant="destructive"
+                  className="flex items-center gap-2"
                 >
-                  <XCircle className='size-4' />
+                  <XCircle className="size-4" />
                   <div>
-                    <AlertTitle>{t('Connection failed')}</AlertTitle>
+                    <AlertTitle>{t("Connection failed")}</AlertTitle>
                     <AlertDescription>{t(testState.error)}</AlertDescription>
                   </div>
                 </Alert>
@@ -261,5 +261,5 @@ export function IoNetDeploymentSettingsSection({
         </SettingsForm>
       </Form>
     </SettingsSection>
-  )
+  );
 }

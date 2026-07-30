@@ -141,6 +141,23 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitDurationMinutes"] = strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes)
 	common.OptionMap["ModelRequestRateLimitSuccessCount"] = strconv.Itoa(setting.ModelRequestRateLimitSuccessCount)
 	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
+	common.OptionMap["GlobalApiRateLimitEnabled"] = strconv.FormatBool(common.GlobalApiRateLimitEnable)
+	common.OptionMap["GlobalApiRateLimitNum"] = strconv.Itoa(common.GlobalApiRateLimitNum)
+	common.OptionMap["GlobalApiRateLimitDuration"] = strconv.FormatInt(common.GlobalApiRateLimitDuration, 10)
+	common.OptionMap["GlobalWebRateLimitEnabled"] = strconv.FormatBool(common.GlobalWebRateLimitEnable)
+	common.OptionMap["GlobalWebRateLimitNum"] = strconv.Itoa(common.GlobalWebRateLimitNum)
+	common.OptionMap["GlobalWebRateLimitDuration"] = strconv.FormatInt(common.GlobalWebRateLimitDuration, 10)
+	common.OptionMap["CriticalRateLimitEnabled"] = strconv.FormatBool(common.CriticalRateLimitEnable)
+	common.OptionMap["CriticalRateLimitNum"] = strconv.Itoa(common.CriticalRateLimitNum)
+	common.OptionMap["CriticalRateLimitDuration"] = strconv.FormatInt(common.CriticalRateLimitDuration, 10)
+	common.OptionMap["UploadRateLimitEnabled"] = strconv.FormatBool(common.UploadRateLimitEnable)
+	common.OptionMap["UploadRateLimitNum"] = strconv.Itoa(common.UploadRateLimitNum)
+	common.OptionMap["UploadRateLimitDuration"] = strconv.FormatInt(common.UploadRateLimitDuration, 10)
+	common.OptionMap["SearchRateLimitEnabled"] = strconv.FormatBool(common.SearchRateLimitEnable)
+	common.OptionMap["SearchRateLimitNum"] = strconv.Itoa(common.SearchRateLimitNum)
+	common.OptionMap["SearchRateLimitDuration"] = strconv.FormatInt(common.SearchRateLimitDuration, 10)
+	common.OptionMap["TrustedProxyCIDRs"] = common.TrustedProxyCIDRsString()
+	common.OptionMap["CloudflareProxyEnabled"] = strconv.FormatBool(common.CloudflareProxyEnabled())
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -400,6 +417,18 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.CheckSensitiveOnPromptEnabled = boolValue
 		case "ModelRequestRateLimitEnabled":
 			setting.ModelRequestRateLimitEnabled = boolValue
+		case "GlobalApiRateLimitEnabled":
+			common.GlobalApiRateLimitEnable = boolValue
+		case "GlobalWebRateLimitEnabled":
+			common.GlobalWebRateLimitEnable = boolValue
+		case "CriticalRateLimitEnabled":
+			common.CriticalRateLimitEnable = boolValue
+		case "UploadRateLimitEnabled":
+			common.UploadRateLimitEnable = boolValue
+		case "SearchRateLimitEnabled":
+			common.SearchRateLimitEnable = boolValue
+		case "CloudflareProxyEnabled":
+			common.SetCloudflareProxyEnabled(boolValue)
 		case "StopOnSensitiveEnabled":
 			setting.StopOnSensitiveEnabled = boolValue
 		case "SMTPSSLEnabled":
@@ -570,6 +599,28 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.ModelRequestRateLimitSuccessCount, _ = strconv.Atoi(value)
 	case "ModelRequestRateLimitGroup":
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
+	case "GlobalApiRateLimitNum":
+		common.GlobalApiRateLimitNum, _ = strconv.Atoi(value)
+	case "GlobalApiRateLimitDuration":
+		common.GlobalApiRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
+	case "GlobalWebRateLimitNum":
+		common.GlobalWebRateLimitNum, _ = strconv.Atoi(value)
+	case "GlobalWebRateLimitDuration":
+		common.GlobalWebRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
+	case "CriticalRateLimitNum":
+		common.CriticalRateLimitNum, _ = strconv.Atoi(value)
+	case "CriticalRateLimitDuration":
+		common.CriticalRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
+	case "UploadRateLimitNum":
+		common.UploadRateLimitNum, _ = strconv.Atoi(value)
+	case "UploadRateLimitDuration":
+		common.UploadRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
+	case "SearchRateLimitNum":
+		common.SearchRateLimitNum, _ = strconv.Atoi(value)
+	case "SearchRateLimitDuration":
+		common.SearchRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
+	case "TrustedProxyCIDRs":
+		err = common.SetTrustedProxyCIDRs(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
 	case "DataExportInterval":
@@ -667,8 +718,6 @@ func handleConfigUpdate(key, value string) bool {
 	} else if configName == "billing_setting" {
 		InvalidatePricingCache()
 		ratio_setting.InvalidateExposedDataCache()
-	} else if configName == "theme" {
-		system_setting.UpdateAndSyncTheme()
 	}
 
 	return true // 已处理

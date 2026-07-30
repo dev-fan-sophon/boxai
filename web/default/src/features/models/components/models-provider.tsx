@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState } from "react";
 
 import type {
   Model,
@@ -26,76 +26,76 @@ import type {
   SyncDiffData,
   SyncLocale,
   SyncSource,
-} from '../types'
+} from "../types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 type DialogType =
-  | 'create-model'
-  | 'update-model'
-  | 'create-vendor'
-  | 'update-vendor'
-  | 'sync-wizard'
-  | 'upstream-conflict'
-  | 'prefill-groups'
-  | 'description'
-  | null
+  | "create-model"
+  | "update-model"
+  | "create-vendor"
+  | "update-vendor"
+  | "sync-wizard"
+  | "upstream-conflict"
+  | "prefill-groups"
+  | "description"
+  | null;
 
 type ModelsContextType = {
-  open: DialogType
-  setOpen: (open: DialogType) => void
-  currentRow: Model | null
-  setCurrentRow: (model: Model | null) => void
-  currentVendor: Vendor | null
-  setCurrentVendor: (vendor: Vendor | null) => void
-  selectedVendor: string | null
-  setSelectedVendor: (vendor: string | null) => void
-  descriptionData: { modelName: string; description: string } | null
+  open: DialogType;
+  setOpen: (open: DialogType) => void;
+  currentRow: Model | null;
+  setCurrentRow: (model: Model | null) => void;
+  currentVendor: Vendor | null;
+  setCurrentVendor: (vendor: Vendor | null) => void;
+  selectedVendor: string | null;
+  setSelectedVendor: (vendor: string | null) => void;
+  descriptionData: { modelName: string; description: string } | null;
   setDescriptionData: (
-    data: { modelName: string; description: string } | null
-  ) => void
-  upstreamConflicts: SyncDiffData['conflicts']
-  setUpstreamConflicts: (conflicts: SyncDiffData['conflicts']) => void
-  syncWizardOptions: { locale: SyncLocale; source: SyncSource }
+    data: { modelName: string; description: string } | null,
+  ) => void;
+  upstreamConflicts: SyncDiffData["conflicts"];
+  setUpstreamConflicts: (conflicts: SyncDiffData["conflicts"]) => void;
+  syncWizardOptions: { locale: SyncLocale; source: SyncSource };
   setSyncWizardOptions: React.Dispatch<
     React.SetStateAction<{ locale: SyncLocale; source: SyncSource }>
-  >
-  tabCategory: ModelTabCategory
-  setTabCategory: (category: ModelTabCategory) => void
-}
+  >;
+  tabCategory: ModelTabCategory;
+  setTabCategory: (category: ModelTabCategory) => void;
+};
 
 // ============================================================================
 // Context
 // ============================================================================
 
-const ModelsContext = createContext<ModelsContextType | undefined>(undefined)
+const ModelsContext = createContext<ModelsContextType | undefined>(undefined);
 
 // ============================================================================
 // Provider
 // ============================================================================
 
 export function ModelsProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState<DialogType>(null)
-  const [currentRow, setCurrentRow] = useState<Model | null>(null)
-  const [currentVendor, setCurrentVendor] = useState<Vendor | null>(null)
-  const [selectedVendor, setSelectedVendor] = useState<string | null>(null)
+  const [open, setOpen] = useState<DialogType>(null);
+  const [currentRow, setCurrentRow] = useState<Model | null>(null);
+  const [currentVendor, setCurrentVendor] = useState<Vendor | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [descriptionData, setDescriptionData] = useState<{
-    modelName: string
-    description: string
-  } | null>(null)
+    modelName: string;
+    description: string;
+  } | null>(null);
   const [upstreamConflicts, setUpstreamConflicts] = useState<
-    SyncDiffData['conflicts']
-  >([])
+    SyncDiffData["conflicts"]
+  >([]);
   const [syncWizardOptions, setSyncWizardOptions] = useState<{
-    locale: SyncLocale
-    source: SyncSource
+    locale: SyncLocale;
+    source: SyncSource;
   }>({
-    locale: 'zh',
-    source: 'official',
-  })
-  const [tabCategory, setTabCategory] = useState<ModelTabCategory>('metadata')
+    locale: "zh",
+    source: "official",
+  });
+  const [tabCategory, setTabCategory] = useState<ModelTabCategory>("metadata");
 
   return (
     <ModelsContext.Provider
@@ -120,7 +120,7 @@ export function ModelsProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
     </ModelsContext.Provider>
-  )
+  );
 }
 
 // ============================================================================
@@ -128,9 +128,9 @@ export function ModelsProvider({ children }: { children: React.ReactNode }) {
 // ============================================================================
 
 export function useModels() {
-  const context = useContext(ModelsContext)
+  const context = useContext(ModelsContext);
   if (!context) {
-    throw new Error('useModels must be used within ModelsProvider')
+    throw new Error("useModels must be used within ModelsProvider");
   }
-  return context
+  return context;
 }

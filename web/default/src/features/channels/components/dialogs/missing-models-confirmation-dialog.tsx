@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from "react-i18next";
 
 import {
   AlertDialog,
@@ -27,17 +27,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
-export type MissingModelsAction = 'cancel' | 'submit' | 'add'
+export type MissingModelsAction = "cancel" | "submit" | "add";
 
 type MissingModelsConfirmationDialogProps = {
-  open: boolean
-  missingModels: string[]
-  onConfirm: (action: MissingModelsAction) => void
-  onOpenChange?: (open: boolean) => void
-}
+  open: boolean;
+  missingModels: string[];
+  onConfirm: (action: MissingModelsAction) => void;
+  onOpenChange?: (open: boolean) => void;
+};
 
 /**
  * Confirmation dialog shown when models in model_mapping are missing from the models list
@@ -52,52 +52,52 @@ export function MissingModelsConfirmationDialog({
   onConfirm,
   onOpenChange,
 }: MissingModelsConfirmationDialogProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      onConfirm('cancel')
+      onConfirm("cancel");
     }
-    onOpenChange?.(newOpen)
-  }
+    onOpenChange?.(newOpen);
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t('Models not in list, may fail to invoke')}
+            {t("Models not in list, may fail to invoke")}
           </AlertDialogTitle>
           <AlertDialogDescription
-            render={<div className='space-y-3 text-sm' />}
+            render={<div className="space-y-3 text-sm" />}
           >
             <div>
               {t(
-                'The following models in the model redirect have not been added to the "Models" list and may fail during invocation due to missing available models:'
+                'The following models in the model redirect have not been added to the "Models" list and may fail during invocation due to missing available models:',
               )}
             </div>
-            <div className='rounded-md bg-red-50 p-2 font-mono text-xs break-all text-red-600 dark:bg-red-950/50 dark:text-red-400'>
-              {missingModels.join(', ')}
+            <div className="rounded-md bg-red-50 p-2 font-mono text-xs break-all text-red-600 dark:bg-red-950/50 dark:text-red-400">
+              {missingModels.join(", ")}
             </div>
             <div>
               {t(
-                'You can manually add them in "Custom Model Names", click "Fill" and then submit, or use the operations below to handle automatically.'
+                'You can manually add them in "Custom Model Names", click "Fill" and then submit, or use the operations below to handle automatically.',
               )}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className='flex-col gap-2 sm:flex-row'>
-          <AlertDialogCancel onClick={() => onConfirm('cancel')}>
-            {t('Go back and edit')}
+        <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+          <AlertDialogCancel onClick={() => onConfirm("cancel")}>
+            {t("Go back and edit")}
           </AlertDialogCancel>
-          <Button variant='secondary' onClick={() => onConfirm('submit')}>
-            {t('Submit directly')}
+          <Button variant="secondary" onClick={() => onConfirm("submit")}>
+            {t("Submit directly")}
           </Button>
-          <AlertDialogAction onClick={() => onConfirm('add')}>
-            {t('Add and submit')}
+          <AlertDialogAction onClick={() => onConfirm("add")}>
+            {t("Add and submit")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

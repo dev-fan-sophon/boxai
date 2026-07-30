@@ -16,20 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { LobeIcon } from '@/lib/lobe-icon'
-import { cn } from '@/lib/utils'
+import { LobeIcon } from "@/lib/lobe-icon";
+import { cn } from "@/lib/utils";
 
-import { FILTER_ALL } from '../constants'
-import { compareVendorNames } from '../lib/model-helpers'
-import type { PricingVendor } from '../types'
+import { FILTER_ALL } from "../constants";
+import { compareVendorNames } from "../lib/model-helpers";
+import type { PricingVendor } from "../types";
 
 export interface VendorPillsProps {
   /** Vendors that actually have visible models, unsorted. */
-  vendors: PricingVendor[]
-  value: string
-  onChange: (value: string) => void
+  vendors: PricingVendor[];
+  value: string;
+  onChange: (value: string) => void;
 }
 
 /**
@@ -38,52 +39,88 @@ export interface VendorPillsProps {
  * resets back to all vendors.
  */
 export function VendorPills(props: VendorPillsProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState<"none" | "start" | "end" | "both">(
+    "none",
+  );
+
+  // The scrollbar is hidden, so without an edge fade there is nothing on a
+  // narrow screen to signal that more vendors exist past the viewport.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const update = () => {
+      const clippedStart = scroller.scrollLeft > 1;
+      const clippedEnd =
+        scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1;
+      if (clippedStart && clippedEnd) {
+        setOverflow("both");
+        return;
+      }
+      if (clippedStart) {
+        setOverflow("start");
+        return;
+      }
+      setOverflow(clippedEnd ? "end" : "none");
+    };
+    update();
+    scroller.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(scroller);
+    return () => {
+      scroller.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [props.vendors]);
+
   const vendors = [...props.vendors].sort((a, b) =>
-    compareVendorNames(a.name, b.name)
-  )
+    compareVendorNames(a.name, b.name),
+  );
 
   const pillClassName = (active: boolean) =>
     cn(
-      'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-ui',
+      "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-ui",
       active
-        ? 'border-primary/40 bg-primary/10 text-primary'
-        : 'border-border/70 bg-card text-muted-foreground hover:border-border hover:text-foreground'
-    )
+        ? "border-primary/40 bg-primary/10 text-primary"
+        : "border-border/70 bg-card text-muted-foreground hover:border-border hover:text-foreground",
+    );
 
   return (
     <div
-      role='group'
-      aria-label={t('All Vendors')}
-      className='no-scrollbar -mx-1 flex items-center gap-1.5 overflow-x-auto px-1'
+      ref={scrollerRef}
+      role="group"
+      aria-label={t("All Vendors")}
+      data-overflow={overflow}
+      className="no-scrollbar scroll-fade-x -mx-1 flex items-center gap-1.5 overflow-x-auto px-1"
     >
       <button
-        type='button'
+        type="button"
         aria-pressed={props.value === FILTER_ALL}
         onClick={() => props.onChange(FILTER_ALL)}
         className={pillClassName(props.value === FILTER_ALL)}
       >
-        {t('All Vendors')}
+        {t("All Vendors")}
       </button>
       {vendors.map((vendor) => {
-        const active = props.value === vendor.name
+        const active = props.value === vendor.name;
         return (
           <button
             key={vendor.id}
-            type='button'
+            type="button"
             aria-pressed={active}
             onClick={() => props.onChange(active ? FILTER_ALL : vendor.name)}
             className={pillClassName(active)}
           >
             {vendor.icon && (
-              <span aria-hidden className='shrink-0'>
+              <span aria-hidden className="shrink-0">
                 <LobeIcon name={vendor.icon} size={14} />
               </span>
             )}
             {vendor.name}
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

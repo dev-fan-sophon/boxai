@@ -16,40 +16,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SettingsPage } from '../components/settings-page'
-import type { SiteSettings } from '../types'
-import { SITE_DEFAULT_SECTION } from './section-manifest'
+import { SettingsPage } from "../components/settings-page";
+import type { SiteSettings } from "../types";
+import { SITE_DEFAULT_SECTION } from "./section-manifest";
 import {
   getSiteSectionContent,
   getSiteSectionMeta,
-} from './section-registry.tsx'
+} from "./section-registry.tsx";
 
 const defaultSiteSettings: SiteSettings = {
-  'theme.frontend': 'default',
-  'branding.favicon_url': '',
-  'branding.primary_color': '',
-  'branding.token_preset': '',
-  Notice: '',
-  SystemName: 'New API',
-  Logo: '',
-  Footer: '',
-  About: '',
-  HomePageContent: '',
-  ServerAddress: '',
-  'legal.user_agreement': '',
-  'legal.privacy_policy': '',
-  HeaderNavModules: '',
-  SidebarModulesAdmin: '',
-}
+  "branding.favicon_url": "",
+  "branding.primary_color": "",
+  Notice: "",
+  SystemName: "New API",
+  Logo: "",
+  Footer: "",
+  About: "",
+  HomePageContent: "",
+  ServerAddress: "",
+  "legal.user_agreement": "",
+  "legal.privacy_policy": "",
+  HeaderNavModules: "",
+  SidebarModulesAdmin: "",
+};
 
 export function SiteSettings() {
   return (
     <SettingsPage
-      routePath='/_authenticated/system-settings/site/$section'
+      routePath="/_authenticated/system-settings/site/$section"
       defaultSettings={defaultSiteSettings}
       defaultSection={SITE_DEFAULT_SECTION}
       getSectionContent={getSiteSectionContent}
       getSectionMeta={getSiteSectionMeta}
     />
-  )
+  );
 }

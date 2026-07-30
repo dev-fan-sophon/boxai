@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate } from "@tanstack/react-router";
 /* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
@@ -24,10 +24,10 @@ import {
   useContext,
   useState,
   type ReactNode,
-} from 'react'
+} from "react";
 
-import type { UsageLogsSectionId } from '../section-manifest'
-import type { ChannelAffinityInfo } from '../types'
+import type { UsageLogsSectionId } from "../section-manifest";
+import type { ChannelAffinityInfo } from "../types";
 
 /**
  * Usage-logs page mode.
@@ -37,82 +37,82 @@ import type { ChannelAffinityInfo } from '../types'
  *
  * Mode is fixed by route so console and admin no longer share one blended page.
  */
-export type UsageLogsMode = 'self' | 'site'
+export type UsageLogsMode = "self" | "site";
 
 /** Search params shared by personal and site usage-logs routes. */
 export type UsageLogsSearch = {
-  page?: number
-  pageSize?: number
-  type?: string[]
-  filter?: string
-  model?: string
-  token?: string
-  channel?: string
-  group?: string
-  username?: string
-  requestId?: string
-  upstreamRequestId?: string
-  startTime?: number
-  endTime?: number
-}
+  page?: number;
+  pageSize?: number;
+  type?: string[];
+  filter?: string;
+  model?: string;
+  token?: string;
+  channel?: string;
+  group?: string;
+  username?: string;
+  requestId?: string;
+  upstreamRequestId?: string;
+  startTime?: number;
+  endTime?: number;
+};
 
 interface UsageLogsContextValue {
-  mode: UsageLogsMode
+  mode: UsageLogsMode;
   /** Path prefix without trailing section, e.g. `/usage-logs` or `/admin/usage-logs`. */
-  basePath: string
-  section: UsageLogsSectionId
-  searchParams: UsageLogsSearch
+  basePath: string;
+  section: UsageLogsSectionId;
+  searchParams: UsageLogsSearch;
   /** Navigate within the current mode's usage-logs section, merging search. */
   navigateLogs: (options: {
-    section?: UsageLogsSectionId
-    search?: UsageLogsSearch
-  }) => void
-  selectedUserId: number | null
-  setSelectedUserId: (userId: number | null) => void
-  userInfoDialogOpen: boolean
-  setUserInfoDialogOpen: (open: boolean) => void
-  affinityTarget: ChannelAffinityInfo | null
-  setAffinityTarget: (target: ChannelAffinityInfo | null) => void
-  affinityDialogOpen: boolean
-  setAffinityDialogOpen: (open: boolean) => void
-  sensitiveVisible: boolean
-  setSensitiveVisible: (visible: boolean) => void
+    section?: UsageLogsSectionId;
+    search?: UsageLogsSearch;
+  }) => void;
+  selectedUserId: number | null;
+  setSelectedUserId: (userId: number | null) => void;
+  userInfoDialogOpen: boolean;
+  setUserInfoDialogOpen: (open: boolean) => void;
+  affinityTarget: ChannelAffinityInfo | null;
+  setAffinityTarget: (target: ChannelAffinityInfo | null) => void;
+  affinityDialogOpen: boolean;
+  setAffinityDialogOpen: (open: boolean) => void;
+  sensitiveVisible: boolean;
+  setSensitiveVisible: (visible: boolean) => void;
 }
 
 const UsageLogsContext = createContext<UsageLogsContextValue | undefined>(
-  undefined
-)
+  undefined,
+);
 
 export function UsageLogsProvider(props: {
-  mode: UsageLogsMode
-  basePath: string
-  section: UsageLogsSectionId
-  searchParams: UsageLogsSearch
-  children: ReactNode
+  mode: UsageLogsMode;
+  basePath: string;
+  section: UsageLogsSectionId;
+  searchParams: UsageLogsSearch;
+  children: ReactNode;
 }) {
-  const navigate = useNavigate()
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
-  const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false)
+  const navigate = useNavigate();
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
   const [affinityTarget, setAffinityTarget] =
-    useState<ChannelAffinityInfo | null>(null)
-  const [affinityDialogOpen, setAffinityDialogOpen] = useState(false)
-  const [sensitiveVisible, setSensitiveVisible] = useState(true)
+    useState<ChannelAffinityInfo | null>(null);
+  const [affinityDialogOpen, setAffinityDialogOpen] = useState(false);
+  const [sensitiveVisible, setSensitiveVisible] = useState(true);
 
   const navigateLogs = useCallback(
     (options: { section?: UsageLogsSectionId; search?: UsageLogsSearch }) => {
-      const nextSection = options.section ?? props.section
+      const nextSection = options.section ?? props.section;
       const to =
-        props.mode === 'site'
-          ? '/admin/usage-logs/$section'
-          : '/usage-logs/$section'
+        props.mode === "site"
+          ? "/admin/usage-logs/$section"
+          : "/usage-logs/$section";
       void navigate({
         to,
         params: { section: nextSection },
         search: options.search ?? props.searchParams,
-      })
+      });
     },
-    [navigate, props.mode, props.searchParams, props.section]
-  )
+    [navigate, props.mode, props.searchParams, props.section],
+  );
 
   return (
     <UsageLogsContext.Provider
@@ -136,15 +136,17 @@ export function UsageLogsProvider(props: {
     >
       {props.children}
     </UsageLogsContext.Provider>
-  )
+  );
 }
 
 export function useUsageLogsContext() {
-  const context = useContext(UsageLogsContext)
+  const context = useContext(UsageLogsContext);
   if (!context) {
-    throw new Error('useUsageLogsContext must be used within UsageLogsProvider')
+    throw new Error(
+      "useUsageLogsContext must be used within UsageLogsProvider",
+    );
   }
-  return context
+  return context;
 }
 
 /**
@@ -153,11 +155,11 @@ export function useUsageLogsContext() {
  * by route mode — not by an in-page All/Mine toggle.
  */
 export function useLogsViewScope() {
-  const { mode } = useUsageLogsContext()
+  const { mode } = useUsageLogsContext();
 
   return {
     mode,
     /** Site-wide page is only mounted for admins; still true when mode is site. */
-    isAdminView: mode === 'site',
-  }
+    isAdminView: mode === "site",
+  };
 }

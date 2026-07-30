@@ -16,29 +16,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate, useSearch } from '@tanstack/react-router'
-import { SlidersHorizontal } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { Dialog } from '@/components/dialog'
-import { Button } from '@/components/ui/button'
+import { Dialog } from "@/components/dialog";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet'
-import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
-import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
-import { useLgUp, useXlUp } from '@/hooks'
-import { useAuthStore } from '@/stores/auth-store'
+} from "@/components/ui/sheet";
+import { usePricingData } from "@/features/pricing/hooks/use-pricing-data";
+import { canTryInPlayground } from "@/features/pricing/lib/playground-eligibility";
+import { useLgUp, useXlUp } from "@/hooks";
+import { useAuthStore } from "@/stores/auth-store";
 import {
   selectActiveChatMessages,
   selectActiveSession,
   usePlaygroundStore,
-} from '@/stores/playground-store'
+} from "@/stores/playground-store";
 
 import {
   createManagedToolRun,
@@ -47,129 +47,133 @@ import {
   executeManagedSearch,
   importManagedToolRun,
   submitVideo,
-} from './api'
-import { ModelCatalog } from './components/catalog/model-catalog'
-import { ModelSwitchNotice } from './components/chat/model-switch-notice'
-import { PlaygroundChat } from './components/chat/playground-chat'
-import { ChatComposer } from './components/composer/chat-composer'
+} from "./api";
+import { ModelCatalog } from "./components/catalog/model-catalog";
+import { ModelSwitchNotice } from "./components/chat/model-switch-notice";
+import { PlaygroundChat } from "./components/chat/playground-chat";
+import { ChatComposer } from "./components/composer/chat-composer";
 import {
   SettingsPanel,
   SettingsSections,
-} from './components/settings/settings-panel'
-import { ModalityQuickSwitch } from './components/shell/modality-quick-switch'
-import { PlaygroundShell } from './components/shell/playground-shell'
-import { WorkspaceHeader } from './components/shell/workspace-header'
-import { DuoWorkspace } from './components/workspace/duo-workspace'
-import { GenerationWorkspace } from './components/workspace/generation-workspace'
+} from "./components/settings/settings-panel";
+import { ModalityQuickSwitch } from "./components/shell/modality-quick-switch";
+import { PlaygroundShell } from "./components/shell/playground-shell";
+import { WorkspaceHeader } from "./components/shell/workspace-header";
+import { DuoWorkspace } from "./components/workspace/duo-workspace";
+import { GenerationWorkspace } from "./components/workspace/generation-workspace";
 import {
   useChatHandler,
   usePlaygroundConversation,
   usePlaygroundOptions,
   useSessionCloudSync,
-} from './hooks'
-import { useAutoChatTitle } from './hooks/use-auto-chat-title'
-import { useStudio } from './hooks/use-studio'
-import { persistGeneratedMediaAsset } from './lib/download-generated-media'
+} from "./hooks";
+import { useAutoChatTitle } from "./hooks/use-auto-chat-title";
+import { useStudio } from "./hooks/use-studio";
+import { persistGeneratedMediaAsset } from "./lib/download-generated-media";
 import {
   extractManagedSearchResult,
   updateManagedAssistant,
-} from './lib/managed-tools'
-import { updateAssistantMessageWithError } from './lib/message/message-update-utils'
-import { setMessageActiveVersion } from './lib/message/message-utils'
-import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
-import { getModelModality } from './lib/studio/model-modality'
-import type { Message, PlaygroundConfig, StudioModality } from './types'
+} from "./lib/managed-tools";
+import { updateAssistantMessageWithError } from "./lib/message/message-update-utils";
+import { setMessageActiveVersion } from "./lib/message/message-utils";
+import { isPlaygroundImageModel } from "./lib/studio/image-request-schema";
+import { getModelModality } from "./lib/studio/model-modality";
+import type { Message, PlaygroundConfig, StudioModality } from "./types";
 
 export function Playground() {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-  const search = useSearch({ from: '/playground/' })
-  const appliedDeepLink = useRef<string | undefined>(undefined)
-  const user = useAuthStore((state) => state.auth.user)
-  const isAuthenticated = Boolean(user)
-  const [signInDialogOpen, setSignInDialogOpen] = useState(false)
-  const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false)
-  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const search = useSearch({ from: "/playground/" });
+  const appliedDeepLink = useRef<string | undefined>(undefined);
+  const user = useAuthStore((state) => state.auth.user);
+  const isAuthenticated = Boolean(user);
+  const [signInDialogOpen, setSignInDialogOpen] = useState(false);
+  const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   // Settings panel: persisted open state on wide desktop, ephemeral overlay
   // between 1024–1279px, bottom sheet below 1024px.
-  const isDesktop = useLgUp()
-  const isWideDesktop = useXlUp()
-  const [narrowSettingsOpen, setNarrowSettingsOpen] = useState(false)
-  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false)
+  const isDesktop = useLgUp();
+  const isWideDesktop = useXlUp();
+  const [narrowSettingsOpen, setNarrowSettingsOpen] = useState(false);
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
 
-  const workspaceMode = usePlaygroundStore((state) => state.workspaceMode)
-  const setWorkspaceMode = usePlaygroundStore((state) => state.setWorkspaceMode)
-  const activeModality = usePlaygroundStore((state) => state.activeModality)
+  const workspaceMode = usePlaygroundStore((state) => state.workspaceMode);
+  const setWorkspaceMode = usePlaygroundStore(
+    (state) => state.setWorkspaceMode,
+  );
+  const activeModality = usePlaygroundStore((state) => state.activeModality);
   const setActiveModality = usePlaygroundStore(
-    (state) => state.setActiveModality
-  )
-  const selectStoreModel = usePlaygroundStore((state) => state.selectModel)
-  const selectDuo = usePlaygroundStore((state) => state.selectDuo)
-  const startNewSession = usePlaygroundStore((state) => state.startNewSession)
-  const setPrefill = usePlaygroundStore((state) => state.setPrefill)
+    (state) => state.setActiveModality,
+  );
+  const selectStoreModel = usePlaygroundStore((state) => state.selectModel);
+  const selectDuo = usePlaygroundStore((state) => state.selectDuo);
+  const startNewSession = usePlaygroundStore((state) => state.startNewSession);
+  const setPrefill = usePlaygroundStore((state) => state.setPrefill);
   const settingsPanelOpen = usePlaygroundStore(
-    (state) => state.ui.settingsPanelOpen
-  )
+    (state) => state.ui.settingsPanelOpen,
+  );
   const setSettingsPanelOpen = usePlaygroundStore(
-    (state) => state.setSettingsPanelOpen
-  )
-  const chatTools = usePlaygroundStore((state) => state.chatTools)
-  const pinnedModels = usePlaygroundStore((state) => state.pinnedModels)
+    (state) => state.setSettingsPanelOpen,
+  );
+  const chatTools = usePlaygroundStore((state) => state.chatTools);
+  const pinnedModels = usePlaygroundStore((state) => state.pinnedModels);
   const togglePinnedModel = usePlaygroundStore(
-    (state) => state.togglePinnedModel
-  )
-  const config = usePlaygroundStore((state) => state.config)
-  const parameterEnabled = usePlaygroundStore((state) => state.parameterEnabled)
-  const messages = usePlaygroundStore(selectActiveChatMessages)
-  const activeSession = usePlaygroundStore(selectActiveSession)
-  const models = usePlaygroundStore((state) => state.models)
-  const updateMessages = usePlaygroundStore((state) => state.setMessages)
-  const setModels = usePlaygroundStore((state) => state.setModels)
-  const setGroups = usePlaygroundStore((state) => state.setGroups)
-  const patchConfig = usePlaygroundStore((state) => state.updateConfig)
-  useSessionCloudSync(isAuthenticated)
-  useAutoChatTitle(isAuthenticated)
+    (state) => state.togglePinnedModel,
+  );
+  const config = usePlaygroundStore((state) => state.config);
+  const parameterEnabled = usePlaygroundStore(
+    (state) => state.parameterEnabled,
+  );
+  const messages = usePlaygroundStore(selectActiveChatMessages);
+  const activeSession = usePlaygroundStore(selectActiveSession);
+  const models = usePlaygroundStore((state) => state.models);
+  const updateMessages = usePlaygroundStore((state) => state.setMessages);
+  const setModels = usePlaygroundStore((state) => state.setModels);
+  const setGroups = usePlaygroundStore((state) => state.setGroups);
+  const patchConfig = usePlaygroundStore((state) => state.updateConfig);
+  useSessionCloudSync(isAuthenticated);
+  useAutoChatTitle(isAuthenticated);
   const updateConfig = useCallback(
     <K extends keyof PlaygroundConfig>(key: K, value: PlaygroundConfig[K]) => {
-      patchConfig({ [key]: value })
+      patchConfig({ [key]: value });
     },
-    [patchConfig]
-  )
+    [patchConfig],
+  );
 
-  const pricing = usePricingData('playground')
+  const pricing = usePricingData("playground");
   const playgroundModels = useMemo(() => {
     // Strict mode only when at least one model has an explicit playground
     // integration. Otherwise fall back to the full catalog so production
     // sites that have not configured integrations yet still work.
-    if (pricing.isLegacyPlaygroundCatalog) return pricing.models
-    const eligible = pricing.models.filter(canTryInPlayground)
-    return eligible.length > 0 ? eligible : pricing.models
-  }, [pricing.isLegacyPlaygroundCatalog, pricing.models])
-  const studio = useStudio()
+    if (pricing.isLegacyPlaygroundCatalog) return pricing.models;
+    const eligible = pricing.models.filter(canTryInPlayground);
+    return eligible.length > 0 ? eligible : pricing.models;
+  }, [pricing.isLegacyPlaygroundCatalog, pricing.models]);
+  const studio = useStudio();
   const publicModels = useMemo(
     () =>
       playgroundModels.map((model) => ({
         label: model.model_name,
         value: model.model_name,
       })),
-    [playgroundModels]
-  )
+    [playgroundModels],
+  );
   const publicGroups = useMemo(
     () =>
       Object.entries(pricing.usableGroup).map(([value, group]) => ({
         value,
         label: value,
-        desc: typeof group === 'string' ? group : group.desc,
+        desc: typeof group === "string" ? group : group.desc,
         ratio:
-          typeof group === 'string' ? pricing.groupRatio[value] : group.ratio,
+          typeof group === "string" ? pricing.groupRatio[value] : group.ratio,
       })),
-    [pricing.groupRatio, pricing.usableGroup]
-  )
+    [pricing.groupRatio, pricing.usableGroup],
+  );
   const requireAuthentication = useCallback((): boolean => {
-    if (user) return true
-    setSignInDialogOpen(true)
-    return false
-  }, [user])
+    if (user) return true;
+    setSignInDialogOpen(true);
+    return false;
+  }, [user]);
 
   const payloadOptions = useMemo(
     () => ({
@@ -177,40 +181,40 @@ export function Playground() {
       carryHistory: chatTools.carryHistory,
       visualOutput: chatTools.visualOutput,
     }),
-    [chatTools.systemPrompt, chatTools.carryHistory, chatTools.visualOutput]
-  )
+    [chatTools.systemPrompt, chatTools.carryHistory, chatTools.visualOutput],
+  );
 
   const { sendChat, stopGeneration, isGenerating } = useChatHandler({
     config,
     parameterEnabled,
     onMessageUpdate: updateMessages,
     payloadOptions,
-  })
-  const [isRouting, setIsRouting] = useState(false)
-  const isRoutingRef = useRef(false)
+  });
+  const [isRouting, setIsRouting] = useState(false);
+  const isRoutingRef = useRef(false);
   const canSubmitManagedTurn = useCallback(
     () => !isRoutingRef.current && requireAuthentication(),
-    [requireAuthentication]
-  )
+    [requireAuthentication],
+  );
 
   const routeManagedTurn = useCallback(
-    async (turnMessages: import('./types').Message[], text: string) => {
-      if (isRoutingRef.current) return
-      isRoutingRef.current = true
-      setIsRouting(true)
-      const assistantKey = turnMessages.at(-1)?.key
+    async (turnMessages: import("./types").Message[], text: string) => {
+      if (isRoutingRef.current) return;
+      isRoutingRef.current = true;
+      setIsRouting(true);
+      const assistantKey = turnMessages.at(-1)?.key;
       let directName:
-        | 'generate_image'
-        | 'generate_video'
-        | 'web_search'
-        | undefined
-      if (chatTools.mode === 'image') directName = 'generate_image'
-      if (chatTools.mode === 'video') directName = 'generate_video'
-      if (chatTools.mode === 'search') directName = 'web_search'
+        | "generate_image"
+        | "generate_video"
+        | "web_search"
+        | undefined;
+      if (chatTools.mode === "image") directName = "generate_image";
+      if (chatTools.mode === "video") directName = "generate_video";
+      if (chatTools.mode === "search") directName = "web_search";
       const setAssistantTool = (
-        managedTool: import('./types').ManagedToolCard,
-        sources?: import('./types').MessageSource[],
-        content?: string
+        managedTool: import("./types").ManagedToolCard,
+        sources?: import("./types").MessageSource[],
+        content?: string,
       ) =>
         updateMessages((previous) =>
           assistantKey
@@ -219,13 +223,15 @@ export function Playground() {
                 assistantKey,
                 managedTool,
                 sources,
-                content
+                content,
               )
-            : previous
-        )
+            : previous,
+        );
 
-      let response: Awaited<ReturnType<typeof createManagedToolRun>> | undefined
-      let action = directName
+      let response:
+        | Awaited<ReturnType<typeof createManagedToolRun>>
+        | undefined;
+      let action = directName;
       try {
         response = await createManagedToolRun({
           client_request_id: crypto.randomUUID(),
@@ -233,52 +239,52 @@ export function Playground() {
           group: config.group,
           user_text: text,
           tool_policy: {
-            mode: directName ? 'direct' : 'auto',
-            enabled: ['generate_image', 'generate_video', 'web_search'],
+            mode: directName ? "direct" : "auto",
+            enabled: ["generate_image", "generate_video", "web_search"],
             direct: directName ? { name: directName, args: {} } : undefined,
           },
-        })
-        const run = response.run
-        action = run.action === 'chat' ? undefined : run.action
-        if (run.status === 'unavailable' || run.status === 'failed') {
-          throw new Error(run.error || t('Tool is unavailable'))
+        });
+        const run = response.run;
+        action = run.action === "chat" ? undefined : run.action;
+        if (run.status === "unavailable" || run.status === "failed") {
+          throw new Error(run.error || t("Tool is unavailable"));
         }
-        if (run.action === 'chat') {
-          sendChat(turnMessages)
-          return
+        if (run.action === "chat") {
+          sendChat(turnMessages);
+          return;
         }
         const baseCard = {
           runId: run.id,
           action: run.action,
-          status: 'running' as const,
+          status: "running" as const,
           model: run.tool_model,
-        }
-        if (run.action === 'web_search') {
-          setAssistantTool(baseCard)
+        };
+        if (run.action === "web_search") {
+          setAssistantTool(baseCard);
           const raw = await executeManagedSearch(
             run.id,
-            response.execution.execution_token
-          )
-          const result = extractManagedSearchResult(raw)
+            response.execution.execution_token,
+          );
+          const result = extractManagedSearchResult(raw);
           setAssistantTool(
-            { ...baseCard, status: 'completed' },
+            { ...baseCard, status: "completed" },
             result.sources,
-            result.text
-          )
-          return
+            result.text,
+          );
+          return;
         }
-        if (run.action === 'generate_image') {
+        if (run.action === "generate_image") {
           const toolModel = String(
-            response.arguments.model || run.tool_model || ''
-          )
+            response.arguments.model || run.tool_model || "",
+          );
           if (!isPlaygroundImageModel(toolModel)) {
             throw new Error(
               t(
-                'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
-              )
-            )
+                "Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.",
+              ),
+            );
           }
-          setAssistantTool(baseCard)
+          setAssistantTool(baseCard);
           const images = await generateImages({
             model: toolModel,
             group: config.group,
@@ -288,46 +294,46 @@ export function Playground() {
               imageCount:
                 Number(response.arguments.n) || studio.settings.imageCount,
               imageSize: String(
-                response.arguments.size || studio.settings.imageSize
+                response.arguments.size || studio.settings.imageSize,
               ),
               imageQuality: String(
-                response.arguments.quality || studio.settings.imageQuality
+                response.arguments.quality || studio.settings.imageQuality,
               ),
             },
             execution: {
               runId: run.id,
               executionToken: response.execution.execution_token,
             },
-          })
+          });
           const assets = await Promise.all(
             images.map((image, index) =>
               persistGeneratedMediaAsset(
                 image.url,
                 `chat-image-${index + 1}`,
-                'image'
-              )
-            )
-          )
+                "image",
+              ),
+            ),
+          );
           await Promise.all(
             assets.map((asset) =>
               createPlaygroundRun({
-                modality: 'image',
-                model: run.tool_model || '',
+                modality: "image",
+                model: run.tool_model || "",
                 prompt: text,
                 asset_id: asset.id,
-              })
-            )
-          )
-          const urls = assets.map((asset) => asset.url)
+              }),
+            ),
+          );
+          const urls = assets.map((asset) => asset.url);
           await importManagedToolRun(run.id, {
             execution_token: response.execution.execution_token,
-            status: 'completed',
+            status: "completed",
             result: { images: urls },
-          })
-          setAssistantTool({ ...baseCard, status: 'completed', images: urls })
-          return
+          });
+          setAssistantTool({ ...baseCard, status: "completed", images: urls });
+          return;
         }
-        setAssistantTool(baseCard)
+        setAssistantTool(baseCard);
         const submission = await submitVideo({
           model: String(response.arguments.model),
           group: config.group,
@@ -338,41 +344,41 @@ export function Playground() {
               Number(response.arguments.duration) ||
               studio.settings.videoDuration,
             videoSize: String(
-              response.arguments.size || studio.settings.videoSize
+              response.arguments.size || studio.settings.videoSize,
             ),
           },
           execution: {
             runId: run.id,
             executionToken: response.execution.execution_token,
           },
-        })
+        });
         await createPlaygroundRun({
-          modality: 'video',
-          model: run.tool_model || '',
+          modality: "video",
+          model: run.tool_model || "",
           prompt: text,
           task_id: submission.taskId,
-        })
+        });
         await importManagedToolRun(run.id, {
           execution_token: response.execution.execution_token,
-          status: 'submitted',
+          status: "submitted",
           task_id: submission.taskId,
-        })
+        });
         setAssistantTool({
           ...baseCard,
-          status: 'submitted',
+          status: "submitted",
           taskId: submission.taskId,
-        })
+        });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : t('Tool failed')
-        toast.error(message)
-        if (response && response.run.status === 'ready') {
+          error instanceof Error ? error.message : t("Tool failed");
+        toast.error(message);
+        if (response && response.run.status === "ready") {
           try {
             await importManagedToolRun(response.run.id, {
               execution_token: response.execution.execution_token,
-              status: 'failed',
+              status: "failed",
               error: message,
-            })
+            });
           } catch {
             // Preserve the original execution error for the user.
           }
@@ -381,17 +387,17 @@ export function Playground() {
           setAssistantTool({
             runId: response?.run.id,
             action,
-            status: 'failed',
+            status: "failed",
             error: message,
-          })
+          });
         } else if (assistantKey) {
           updateMessages((previous) =>
-            updateAssistantMessageWithError(previous, message)
-          )
+            updateAssistantMessageWithError(previous, message),
+          );
         }
       } finally {
-        isRoutingRef.current = false
-        setIsRouting(false)
+        isRoutingRef.current = false;
+        setIsRouting(false);
       }
     },
     [
@@ -402,8 +408,8 @@ export function Playground() {
       studio.settings,
       t,
       updateMessages,
-    ]
-  )
+    ],
+  );
 
   const {
     editingMessageKey,
@@ -420,23 +426,25 @@ export function Playground() {
     routeTurn: routeManagedTurn,
     canSubmit: canSubmitManagedTurn,
     activeModel: config.model,
-  })
+  });
 
   const handleSelectMessageVersion = useCallback(
     (message: Message, index: number) => {
       updateMessages((prev) =>
         prev.map((item) =>
-          item.key === message.key ? setMessageActiveVersion(item, index) : item
-        )
-      )
+          item.key === message.key
+            ? setMessageActiveVersion(item, index)
+            : item,
+        ),
+      );
     },
-    [updateMessages]
-  )
+    [updateMessages],
+  );
 
   const handleNewSession = useCallback(() => {
-    handleEditOpenChange(false)
-    startNewSession(activeModality)
-  }, [activeModality, handleEditOpenChange, startNewSession])
+    handleEditOpenChange(false);
+    startNewSession(activeModality);
+  }, [activeModality, handleEditOpenChange, startNewSession]);
 
   const { isLoadingModels } = usePlaygroundOptions({
     isAuthenticated,
@@ -447,97 +455,97 @@ export function Playground() {
     setGroups,
     setModels,
     updateConfig,
-  })
+  });
   useEffect(() => {
-    if (!search.model || appliedDeepLink.current === search.model) return
-    if (!models.some((model) => model.value === search.model)) return
-    appliedDeepLink.current = search.model
+    if (!search.model || appliedDeepLink.current === search.model) return;
+    if (!models.some((model) => model.value === search.model)) return;
+    appliedDeepLink.current = search.model;
     const pricingModel = playgroundModels.find(
-      (model) => model.model_name === search.model
-    )
+      (model) => model.model_name === search.model,
+    );
     const modality = getModelModality(
-      pricingModel ?? { model_name: search.model }
-    )
-    selectStoreModel(search.model, undefined, { switchModality: modality })
-  }, [models, playgroundModels, search.model, selectStoreModel])
+      pricingModel ?? { model_name: search.model },
+    );
+    selectStoreModel(search.model, undefined, { switchModality: modality });
+  }, [models, playgroundModels, search.model, selectStoreModel]);
 
   const selectedCatalogModel = playgroundModels.find(
-    (model) => model.model_name === config.model
-  )
+    (model) => model.model_name === config.model,
+  );
 
   const chatModels = useMemo(
     () =>
       models.filter((option) => {
         const pricingModel = playgroundModels.find(
-          (model) => model.model_name === option.value
-        )
+          (model) => model.model_name === option.value,
+        );
         return (
           getModelModality(pricingModel ?? { model_name: option.value }) ===
-          'chat'
-        )
+          "chat"
+        );
       }),
-    [models, playgroundModels]
-  )
+    [models, playgroundModels],
+  );
 
   const availableModalities = useMemo(() => {
-    const found = new Set<StudioModality>()
+    const found = new Set<StudioModality>();
     for (const option of models) {
       const pricingModel = playgroundModels.find(
-        (model) => model.model_name === option.value
-      )
+        (model) => model.model_name === option.value,
+      );
       const modality = getModelModality(
-        pricingModel ?? { model_name: option.value }
-      )
+        pricingModel ?? { model_name: option.value },
+      );
       // Image modality only appears for GPT-format image models.
-      if (modality === 'image' && !isPlaygroundImageModel(option.value)) {
-        continue
+      if (modality === "image" && !isPlaygroundImageModel(option.value)) {
+        continue;
       }
-      found.add(modality)
+      found.add(modality);
     }
-    return [...found]
-  }, [models, playgroundModels])
+    return [...found];
+  }, [models, playgroundModels]);
 
   const selectModelByModality = useCallback(
     (modality: StudioModality, preferredPrompt?: string) => {
       // Prefer restoring the last session for this modality (and its model).
-      setActiveModality(modality)
+      setActiveModality(modality);
 
       const current = playgroundModels.find(
-        (model) => model.model_name === config.model
-      )
+        (model) => model.model_name === config.model,
+      );
       const currentMatches =
-        current != null && getModelModality(current) === modality
+        current != null && getModelModality(current) === modality;
       if (!currentMatches) {
         const match = playgroundModels.find((model) => {
           if (!models.some((item) => item.value === model.model_name)) {
-            return false
+            return false;
           }
-          if (getModelModality(model) !== modality) return false
+          if (getModelModality(model) !== modality) return false;
           if (
-            modality === 'image' &&
+            modality === "image" &&
             !isPlaygroundImageModel(model.model_name)
           ) {
-            return false
+            return false;
           }
-          return true
-        })
+          return true;
+        });
         if (!match) {
-          toast.error(t('No model available for this modality'), {
+          toast.error(t("No model available for this modality"), {
             description: t(
-              'Try another template or wait until matching models load.'
+              "Try another template or wait until matching models load.",
             ),
-          })
-          return false
+          });
+          return false;
         }
         selectStoreModel(match.model_name, undefined, {
           switchModality: modality,
-        })
+        });
       }
 
       if (preferredPrompt != null) {
-        setPrefill(preferredPrompt)
+        setPrefill(preferredPrompt);
       }
-      return true
+      return true;
     },
     [
       config.model,
@@ -547,56 +555,56 @@ export function Playground() {
       setActiveModality,
       setPrefill,
       t,
-    ]
-  )
+    ],
+  );
 
   const catalog = (
     <ModelCatalog
       available={models}
       models={playgroundModels}
-      selected={workspaceMode === 'duo' ? '' : config.model}
+      selected={workspaceMode === "duo" ? "" : config.model}
       loading={pricing.isLoading || isLoadingModels}
       error={Boolean(pricing.error)}
       onRetry={() => pricing.refetch()}
       onSelect={(model) => {
-        const modality = getModelModality(model)
+        const modality = getModelModality(model);
         selectStoreModel(model.model_name, undefined, {
           switchModality: modality,
-        })
-        setCatalogDrawerOpen(false)
+        });
+        setCatalogDrawerOpen(false);
       }}
       pinnedModels={pinnedModels}
       onTogglePin={togglePinnedModel}
-      duoEnabled={workspaceMode === 'duo'}
+      duoEnabled={workspaceMode === "duo"}
       onOpenDuo={() => {
-        selectDuo()
-        setCatalogDrawerOpen(false)
+        selectDuo();
+        setCatalogDrawerOpen(false);
       }}
     />
-  )
+  );
 
-  const duoActive = workspaceMode === 'duo'
+  const duoActive = workspaceMode === "duo";
   const desktopSettingsOpen = isWideDesktop
     ? settingsPanelOpen
-    : narrowSettingsOpen
+    : narrowSettingsOpen;
   const toggleSettings = () => {
     if (!isDesktop) {
-      setSettingsSheetOpen(true)
-      return
+      setSettingsSheetOpen(true);
+      return;
     }
     if (isWideDesktop) {
-      setSettingsPanelOpen(!settingsPanelOpen)
-      return
+      setSettingsPanelOpen(!settingsPanelOpen);
+      return;
     }
-    setNarrowSettingsOpen((open) => !open)
-  }
+    setNarrowSettingsOpen((open) => !open);
+  };
   const closeDesktopSettings = () => {
     if (isWideDesktop) {
-      setSettingsPanelOpen(false)
-      return
+      setSettingsPanelOpen(false);
+      return;
     }
-    setNarrowSettingsOpen(false)
-  }
+    setNarrowSettingsOpen(false);
+  };
 
   return (
     <PlaygroundShell
@@ -623,20 +631,20 @@ export function Playground() {
         sessionTitle={activeSession?.title}
         onOpenCatalog={() => {
           // Desktop keeps the catalog in the left rail; mobile uses a sheet.
-          if (!isDesktop) setCatalogDrawerOpen(true)
+          if (!isDesktop) setCatalogDrawerOpen(true);
         }}
         onOpenHistory={() => setHistoryDrawerOpen(true)}
         onNewSession={handleNewSession}
         actions={
           <Button
-            size='icon'
-            variant='ghost'
-            className='text-muted-foreground hover:text-foreground size-9 touch-manipulation sm:size-8'
-            aria-label={t('Settings')}
+            size="icon"
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground size-9 touch-manipulation sm:size-8"
+            aria-label={t("Settings")}
             aria-pressed={isDesktop ? desktopSettingsOpen : undefined}
             onClick={toggleSettings}
           >
-            <SlidersHorizontal className='size-4' />
+            <SlidersHorizontal className="size-4" />
           </Button>
         }
       />
@@ -646,23 +654,23 @@ export function Playground() {
           active={activeModality}
           available={availableModalities}
           onSelect={(modality) => {
-            selectModelByModality(modality)
+            selectModelByModality(modality);
           }}
         />
       )}
 
       {duoActive && (
-        <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-8'>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-8">
           <DuoWorkspace
             chatModels={chatModels}
-            onClose={() => setWorkspaceMode('model')}
+            onClose={() => setWorkspaceMode("model")}
           />
         </div>
       )}
 
-      {!duoActive && activeModality === 'chat' && (
+      {!duoActive && activeModality === "chat" && (
         <>
-          <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             <PlaygroundChat
               messages={messages}
               isLoadingMessages={false}
@@ -679,7 +687,7 @@ export function Playground() {
             />
             <ModelSwitchNotice />
           </div>
-          <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
+          <div className="playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4">
             <ChatComposer
               disabled={isGenerating || isRouting}
               isGenerating={isGenerating}
@@ -692,8 +700,8 @@ export function Playground() {
         </>
       )}
 
-      {!duoActive && activeModality !== 'chat' && (
-        <div className='flex min-h-0 flex-1 flex-col'>
+      {!duoActive && activeModality !== "chat" && (
+        <div className="flex min-h-0 flex-1 flex-col">
           <GenerationWorkspace
             modality={activeModality}
             pricingModel={selectedCatalogModel}
@@ -705,14 +713,14 @@ export function Playground() {
 
       <Sheet open={settingsSheetOpen} onOpenChange={setSettingsSheetOpen}>
         <SheetContent
-          side='bottom'
-          className='max-h-[min(88dvh,40rem)] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom,0px)]'
+          side="bottom"
+          className="max-h-[min(88dvh,40rem)] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className='bg-border mx-auto mt-1 mb-1 h-1 w-10 rounded-full' />
+          <div className="bg-border mx-auto mt-1 mb-1 h-1 w-10 rounded-full" />
           <SheetHeader>
-            <SheetTitle>{t('Settings')}</SheetTitle>
+            <SheetTitle>{t("Settings")}</SheetTitle>
           </SheetHeader>
-          <div className='px-4 pb-5'>
+          <div className="px-4 pb-5">
             <SettingsSections modality={activeModality} duoActive={duoActive} />
           </div>
         </SheetContent>
@@ -721,26 +729,26 @@ export function Playground() {
       <Dialog
         open={signInDialogOpen}
         onOpenChange={setSignInDialogOpen}
-        title={t('Sign in required')}
-        description={t('Please sign in to send requests with AI models.')}
-        contentClassName='sm:max-w-md'
+        title={t("Sign in required")}
+        description={t("Please sign in to send requests with AI models.")}
+        contentClassName="sm:max-w-md"
         footer={
           <>
             <Button
-              variant='outline'
+              variant="outline"
               onClick={() => setSignInDialogOpen(false)}
             >
-              {t('Cancel')}
+              {t("Cancel")}
             </Button>
             <Button
               onClick={() =>
                 navigate({
-                  to: '/sign-in',
-                  search: { redirect: '/playground' },
+                  to: "/sign-in",
+                  search: { redirect: "/playground" },
                 })
               }
             >
-              {t('Sign in now')}
+              {t("Sign in now")}
             </Button>
           </>
         }
@@ -748,5 +756,5 @@ export function Playground() {
         <span />
       </Dialog>
     </PlaygroundShell>
-  )
+  );
 }

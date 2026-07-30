@@ -16,23 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { AuthSettings } from '../types'
-import { createSectionRegistry } from '../utils/section-registry'
-import { BasicAuthSection } from './basic-auth-section'
-import { BotProtectionSection } from './bot-protection-section'
-import { CustomOAuthSection } from './custom-oauth/custom-oauth-section'
-import { OAuthSection } from './oauth-section'
-import { PasskeySection } from './passkey-section'
+import type { AuthSettings } from "../types";
+import { createSectionRegistry } from "../utils/section-registry";
+import { BasicAuthSection } from "./basic-auth-section";
+import { BotProtectionSection } from "./bot-protection-section";
+import { CustomOAuthSection } from "./custom-oauth/custom-oauth-section";
+import { OAuthSection } from "./oauth-section";
+import { PasskeySection } from "./passkey-section";
 import {
   AUTH_DEFAULT_SECTION,
   AUTH_SECTION_IDS,
   type AuthSectionId,
-} from './section-manifest'
+} from "./section-manifest";
 
 const AUTH_SECTIONS = [
   {
-    id: 'basic-auth',
-    titleKey: 'Basic Authentication',
+    id: "basic-auth",
+    titleKey: "Basic Authentication",
     build: (settings: AuthSettings) => (
       <BasicAuthSection
         defaultValues={{
@@ -48,8 +48,8 @@ const AUTH_SECTIONS = [
     ),
   },
   {
-    id: 'oauth',
-    titleKey: 'OAuth Integrations',
+    id: "oauth",
+    titleKey: "OAuth Integrations",
     build: (settings: AuthSettings) => (
       <OAuthSection
         serverAddress={settings.ServerAddress}
@@ -57,18 +57,27 @@ const AUTH_SECTIONS = [
           GitHubOAuthEnabled: settings.GitHubOAuthEnabled,
           GitHubClientId: settings.GitHubClientId,
           GitHubClientSecret: settings.GitHubClientSecret,
-          'discord.enabled': settings['discord.enabled'],
-          'discord.client_id': settings['discord.client_id'],
-          'discord.client_secret': settings['discord.client_secret'],
-          'oidc.enabled': settings['oidc.enabled'],
-          'oidc.display_name': settings['oidc.display_name'],
-          'oidc.client_id': settings['oidc.client_id'],
-          'oidc.client_secret': settings['oidc.client_secret'],
-          'oidc.well_known': settings['oidc.well_known'],
-          'oidc.authorization_endpoint':
-            settings['oidc.authorization_endpoint'],
-          'oidc.token_endpoint': settings['oidc.token_endpoint'],
-          'oidc.user_info_endpoint': settings['oidc.user_info_endpoint'],
+          "discord.enabled": settings["discord.enabled"],
+          "discord.client_id": settings["discord.client_id"],
+          "discord.client_secret": settings["discord.client_secret"],
+          "google.enabled": settings["google.enabled"],
+          "google.client_id": settings["google.client_id"],
+          "google.client_secret": settings["google.client_secret"],
+          "facebook.enabled": settings["facebook.enabled"],
+          "facebook.client_id": settings["facebook.client_id"],
+          "facebook.client_secret": settings["facebook.client_secret"],
+          "zalo.enabled": settings["zalo.enabled"],
+          "zalo.app_id": settings["zalo.app_id"],
+          "zalo.secret_key": settings["zalo.secret_key"],
+          "oidc.enabled": settings["oidc.enabled"],
+          "oidc.display_name": settings["oidc.display_name"],
+          "oidc.client_id": settings["oidc.client_id"],
+          "oidc.client_secret": settings["oidc.client_secret"],
+          "oidc.well_known": settings["oidc.well_known"],
+          "oidc.authorization_endpoint":
+            settings["oidc.authorization_endpoint"],
+          "oidc.token_endpoint": settings["oidc.token_endpoint"],
+          "oidc.user_info_endpoint": settings["oidc.user_info_endpoint"],
           TelegramOAuthEnabled: settings.TelegramOAuthEnabled,
           TelegramBotToken: settings.TelegramBotToken,
           TelegramBotName: settings.TelegramBotName,
@@ -85,30 +94,30 @@ const AUTH_SECTIONS = [
     ),
   },
   {
-    id: 'passkey',
-    titleKey: 'Passkey Authentication',
+    id: "passkey",
+    titleKey: "Passkey Authentication",
     build: (settings: AuthSettings) => (
       <PasskeySection
         defaultValues={{
-          'passkey.enabled': settings['passkey.enabled'],
-          'passkey.rp_display_name': settings['passkey.rp_display_name'],
-          'passkey.rp_id': settings['passkey.rp_id'],
-          'passkey.origins': settings['passkey.origins'],
-          'passkey.allow_insecure_origin':
-            settings['passkey.allow_insecure_origin'],
-          'passkey.user_verification': settings['passkey.user_verification'] as
-            | 'required'
-            | 'preferred'
-            | 'discouraged',
-          'passkey.attachment_preference':
-            settings['passkey.attachment_preference'],
+          "passkey.enabled": settings["passkey.enabled"],
+          "passkey.rp_display_name": settings["passkey.rp_display_name"],
+          "passkey.rp_id": settings["passkey.rp_id"],
+          "passkey.origins": settings["passkey.origins"],
+          "passkey.allow_insecure_origin":
+            settings["passkey.allow_insecure_origin"],
+          "passkey.user_verification": settings["passkey.user_verification"] as
+            | "required"
+            | "preferred"
+            | "discouraged",
+          "passkey.attachment_preference":
+            settings["passkey.attachment_preference"],
         }}
       />
     ),
   },
   {
-    id: 'bot-protection',
-    titleKey: 'Bot Protection',
+    id: "bot-protection",
+    titleKey: "Bot Protection",
     build: (settings: AuthSettings) => (
       <BotProtectionSection
         defaultValues={{
@@ -120,22 +129,22 @@ const AUTH_SECTIONS = [
     ),
   },
   {
-    id: 'custom-oauth',
-    titleKey: 'Custom OAuth',
+    id: "custom-oauth",
+    titleKey: "Custom OAuth",
     build: (settings: AuthSettings) => (
       <CustomOAuthSection serverAddress={settings.ServerAddress} />
     ),
   },
-] as const
+] as const;
 
 const authRegistry = createSectionRegistry<AuthSectionId, AuthSettings>({
   sectionIds: AUTH_SECTION_IDS,
   sections: AUTH_SECTIONS,
   defaultSection: AUTH_DEFAULT_SECTION,
-  basePath: '/system-settings/auth',
-  urlStyle: 'path',
-})
+  basePath: "/system-settings/auth",
+  urlStyle: "path",
+});
 
-export const getAuthSectionNavItems = authRegistry.getSectionNavItems
-export const getAuthSectionContent = authRegistry.getSectionContent
-export const getAuthSectionMeta = authRegistry.getSectionMeta
+export const getAuthSectionNavItems = authRegistry.getSectionNavItems;
+export const getAuthSectionContent = authRegistry.getSectionContent;
+export const getAuthSectionMeta = authRegistry.getSectionMeta;

@@ -16,82 +16,82 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SettingsPage } from '../components/settings-page'
-import type { ContentSettings, SystemOption } from '../types'
-import { CONTENT_DEFAULT_SECTION } from './section-manifest'
+import { SettingsPage } from "../components/settings-page";
+import type { ContentSettings, SystemOption } from "../types";
+import { CONTENT_DEFAULT_SECTION } from "./section-manifest";
 import {
   getContentSectionContent,
   getContentSectionMeta,
-} from './section-registry.tsx'
+} from "./section-registry.tsx";
 
 const defaultContentSettings: ContentSettings = {
-  'console_setting.api_info': '[]',
-  'console_setting.announcements': '[]',
-  'console_setting.faq': '[]',
-  'console_setting.uptime_kuma_groups': '[]',
-  'console_setting.api_info_enabled': true,
-  'console_setting.announcements_enabled': true,
-  'console_setting.faq_enabled': true,
-  'console_setting.uptime_kuma_enabled': false,
+  "console_setting.api_info": "[]",
+  "console_setting.announcements": "[]",
+  "console_setting.faq": "[]",
+  "console_setting.uptime_kuma_groups": "[]",
+  "console_setting.api_info_enabled": true,
+  "console_setting.announcements_enabled": true,
+  "console_setting.faq_enabled": true,
+  "console_setting.uptime_kuma_enabled": false,
   DataExportEnabled: false,
-  DataExportDefaultTime: 'hour',
+  DataExportDefaultTime: "hour",
   DataExportInterval: 5,
-  Chats: '[]',
+  Chats: "[]",
   DrawingEnabled: false,
   MjNotifyEnabled: false,
   MjAccountFilterEnabled: false,
   MjForwardUrlEnabled: false,
   MjModeClearEnabled: false,
   MjActionCheckSuccessEnabled: false,
-}
+};
 
 function resolveContentSettings(
   settings: ContentSettings,
-  raw: SystemOption[] | undefined
+  raw: SystemOption[] | undefined,
 ): ContentSettings {
-  if (!raw || raw.length === 0) return settings
+  if (!raw || raw.length === 0) return settings;
 
-  const optionMap = new Map(raw.map((item) => [item.key, item.value]))
-  const next = { ...settings }
+  const optionMap = new Map(raw.map((item) => [item.key, item.value]));
+  const next = { ...settings };
 
   const legacyMap = [
-    { current: 'console_setting.announcements', legacy: 'Announcements' },
-    { current: 'console_setting.api_info', legacy: 'ApiInfo' },
-    { current: 'console_setting.faq', legacy: 'FAQ' },
-  ] as const
+    { current: "console_setting.announcements", legacy: "Announcements" },
+    { current: "console_setting.api_info", legacy: "ApiInfo" },
+    { current: "console_setting.faq", legacy: "FAQ" },
+  ] as const;
 
   for (const { current, legacy } of legacyMap) {
     if (!optionMap.has(current)) {
-      const legacyValue = optionMap.get(legacy)
+      const legacyValue = optionMap.get(legacy);
       if (legacyValue !== undefined) {
-        next[current] = legacyValue
+        next[current] = legacyValue;
       }
     }
   }
 
-  if (!optionMap.has('console_setting.uptime_kuma_groups')) {
-    const legacyUrl = optionMap.get('UptimeKumaUrl')
-    const legacySlug = optionMap.get('UptimeKumaSlug')
+  if (!optionMap.has("console_setting.uptime_kuma_groups")) {
+    const legacyUrl = optionMap.get("UptimeKumaUrl");
+    const legacySlug = optionMap.get("UptimeKumaSlug");
     if (legacyUrl && legacySlug) {
-      next['console_setting.uptime_kuma_groups'] = JSON.stringify([
-        { id: 1, categoryName: 'Legacy', url: legacyUrl, slug: legacySlug },
-      ])
+      next["console_setting.uptime_kuma_groups"] = JSON.stringify([
+        { id: 1, categoryName: "Legacy", url: legacyUrl, slug: legacySlug },
+      ]);
     }
   }
 
-  return next
+  return next;
 }
 
 export function ContentSettings() {
   return (
     <SettingsPage
-      routePath='/_authenticated/system-settings/content/$section'
+      routePath="/_authenticated/system-settings/content/$section"
       defaultSettings={defaultContentSettings}
       defaultSection={CONTENT_DEFAULT_SECTION}
       getSectionContent={getContentSectionContent}
       getSectionMeta={getContentSectionMeta}
-      loadingMessage='Loading content settings...'
+      loadingMessage="Loading content settings..."
       resolveSettings={resolveContentSettings}
     />
-  )
+  );
 }

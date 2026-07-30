@@ -16,26 +16,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Separator as SeparatorPrimitive } from '@base-ui/react/separator'
+import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
 
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 function Separator({
   className,
-  orientation = 'horizontal',
+  orientation = "horizontal",
   ...props
 }: SeparatorPrimitive.Props) {
   return (
     <SeparatorPrimitive
-      data-slot='separator'
+      data-slot="separator"
       orientation={orientation}
       className={cn(
-        'bg-border shrink-0 data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch',
-        className
+        "bg-border shrink-0 data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Separator }
+export { Separator };

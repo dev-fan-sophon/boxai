@@ -16,25 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { SecuritySettings } from '@/features/system-settings/security'
+import { SecuritySettings } from "@/features/system-settings/security";
 import {
   SECURITY_DEFAULT_SECTION,
   SECURITY_SECTION_IDS,
-} from '@/features/system-settings/security/section-manifest'
+} from "@/features/system-settings/security/section-manifest";
 
 export const Route = createFileRoute(
-  '/_authenticated/system-settings/security/$section'
+  "/_authenticated/system-settings/security/$section",
 )({
   beforeLoad: ({ params }) => {
-    const validSections = SECURITY_SECTION_IDS as unknown as string[]
+    const validSections = SECURITY_SECTION_IDS as unknown as string[];
     if (!validSections.includes(params.section)) {
       throw redirect({
-        to: '/system-settings/security/$section',
+        to: "/system-settings/security/$section",
         params: { section: SECURITY_DEFAULT_SECTION },
-      })
+      });
     }
   },
   component: SecuritySettings,
-})
+});

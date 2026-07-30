@@ -16,19 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ConfigDrawer } from '@/components/config-drawer'
-import { LanguageSwitcher } from '@/components/language-switcher'
-import { NotificationPopover } from '@/components/notification-popover'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { useNotifications } from '@/hooks/use-notifications'
-import { useTopNavLinks } from '@/hooks/use-top-nav-links'
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { NotificationPopover } from "@/components/notification-popover";
+import { ProfileDropdown } from "@/components/profile-dropdown";
+import { Search } from "@/components/search";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useTopNavLinks } from "@/hooks/use-top-nav-links";
 
-import { defaultTopNavLinks } from '../config/top-nav.config'
-import type { TopNavLink } from '../types'
-import { Header } from './header'
-import { SystemBrand } from './system-brand'
-import { TopNav } from './top-nav'
+import { defaultTopNavLinks } from "../config/top-nav.config";
+import type { TopNavLink } from "../types";
+import { Header } from "./header";
+import { SystemBrand } from "./system-brand";
+import { TopNav } from "./top-nav";
 
 /**
  * General application Header component
@@ -57,41 +56,36 @@ type AppHeaderProps = {
   /**
    * Custom navigation links, uses default global navigation or dynamically generated from backend if not provided
    */
-  navLinks?: TopNavLink[]
+  navLinks?: TopNavLink[];
   /**
    * Whether to show top navigation bar
    * @default true
    */
-  showTopNav?: boolean
+  showTopNav?: boolean;
   /**
    * Left content, overrides TopNav if provided
    */
-  leftContent?: React.ReactNode
+  leftContent?: React.ReactNode;
   /**
    * Whether to show search box
    * @default true
    */
-  showSearch?: boolean
+  showSearch?: boolean;
   /**
    * Custom right content, overrides default right content if provided
    */
-  rightContent?: React.ReactNode
+  rightContent?: React.ReactNode;
   /**
    * Whether to show notification button
    * @default true
    */
-  showNotifications?: boolean
-  /**
-   * Whether to show config drawer
-   * @default true
-   */
-  showConfigDrawer?: boolean
+  showNotifications?: boolean;
   /**
    * Whether to show profile dropdown
    * @default true
    */
-  showProfileDropdown?: boolean
-}
+  showProfileDropdown?: boolean;
+};
 
 export function AppHeader({
   navLinks = defaultTopNavLinks,
@@ -100,28 +94,27 @@ export function AppHeader({
   showSearch = true,
   rightContent,
   showNotifications = true,
-  showConfigDrawer = true,
   showProfileDropdown = true,
 }: AppHeaderProps) {
   // Prioritize dynamically generated links from backend
-  const dynamicLinks = useTopNavLinks()
-  const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks
+  const dynamicLinks = useTopNavLinks();
+  const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks;
 
   // Notifications hook
-  const notifications = useNotifications()
+  const notifications = useNotifications();
 
   return (
     <Header>
-      <SystemBrand variant='inline' />
+      <SystemBrand variant="inline" />
 
       {leftContent ? (
-        <div className='ms-2 flex items-center'>{leftContent}</div>
+        <div className="ms-2 flex items-center">{leftContent}</div>
       ) : null}
 
       {rightContent ?? (
-        <div className='ms-auto flex items-center gap-1 sm:gap-2'>
+        <div className="ms-auto flex items-center gap-1 sm:gap-2">
           {showTopNav && (
-            <div className='me-1 hidden lg:block'>
+            <div className="me-1 hidden lg:block">
               <TopNav links={links} />
             </div>
           )}
@@ -139,10 +132,9 @@ export function AppHeader({
             />
           )}
           <LanguageSwitcher />
-          {showConfigDrawer && <ConfigDrawer />}
           {showProfileDropdown && <ProfileDropdown />}
         </div>
       )}
     </Header>
-  )
+  );
 }

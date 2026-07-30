@@ -16,23 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link, useLocation } from '@tanstack/react-router'
-import { ExternalLink, Loader2, ChevronRight } from 'lucide-react'
-import { useMemo, useCallback, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { Link, useLocation } from "@tanstack/react-router";
+import { ExternalLink, Loader2, ChevronRight } from "lucide-react";
+import { useMemo, useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenuButton,
   SidebarMenuItem,
@@ -40,17 +40,17 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from '@/components/ui/sidebar'
-import { fetchActiveChatKey } from '@/features/chat/hooks/use-active-chat-key'
-import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
+} from "@/components/ui/sidebar";
+import { fetchActiveChatKey } from "@/features/chat/hooks/use-active-chat-key";
+import { useChatPresets } from "@/features/chat/hooks/use-chat-presets";
 import {
   chatLinkRequiresApiKey,
   resolveChatUrl,
   type ChatPreset,
-} from '@/features/chat/lib/chat-links'
+} from "@/features/chat/lib/chat-links";
 
-import { normalizeHref } from '../lib/url-utils'
-import type { NavChatPresets } from '../types'
+import { normalizeHref } from "../lib/url-utils";
+import type { NavChatPresets } from "../types";
 
 /**
  * Sub-menu item for a single chat preset
@@ -62,54 +62,54 @@ function ChatMenuItem({
   onOpen,
   onNavigate,
 }: {
-  preset: ChatPreset
-  active: boolean
-  loading: boolean
-  onOpen: (preset: ChatPreset) => void | Promise<void>
-  onNavigate: () => void
+  preset: ChatPreset;
+  active: boolean;
+  loading: boolean;
+  onOpen: (preset: ChatPreset) => void | Promise<void>;
+  onNavigate: () => void;
 }) {
-  if (preset.type === 'web') {
+  if (preset.type === "web") {
     return (
       <SidebarMenuSubItem>
         <SidebarMenuSubButton
           isActive={active}
           render={
             <Link
-              to='/chat/$chatId'
+              to="/chat/$chatId"
               params={{ chatId: preset.id }}
               onClick={onNavigate}
             />
           }
         >
-          <span className='min-w-0 flex-1 truncate whitespace-nowrap'>
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap">
             {preset.name}
           </span>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
-    )
+    );
   }
 
   return (
     <SidebarMenuSubItem>
       <SidebarMenuSubButton
         onClick={() => {
-          if (!loading) void onOpen(preset)
+          if (!loading) void onOpen(preset);
         }}
-        aria-disabled={loading ? 'true' : undefined}
+        aria-disabled={loading ? "true" : undefined}
         isActive={false}
-        className='justify-between'
+        className="justify-between"
       >
-        <span className='min-w-0 flex-1 truncate whitespace-nowrap'>
+        <span className="min-w-0 flex-1 truncate whitespace-nowrap">
           {preset.name}
         </span>
         {loading ? (
-          <Loader2 className='h-4 w-4 shrink-0 animate-spin' />
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
         ) : (
-          <ExternalLink className='h-4 w-4 shrink-0' />
+          <ExternalLink className="h-4 w-4 shrink-0" />
         )}
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
-  )
+  );
 }
 
 /**
@@ -120,82 +120,84 @@ function DropdownPresetItem({
   loading,
   onOpen,
 }: {
-  preset: ChatPreset
-  loading: boolean
-  onOpen: (preset: ChatPreset) => void | Promise<void>
+  preset: ChatPreset;
+  loading: boolean;
+  onOpen: (preset: ChatPreset) => void | Promise<void>;
 }) {
-  if (preset.type === 'web') {
+  if (preset.type === "web") {
     return (
       <DropdownMenuItem
-        render={<Link to='/chat/$chatId' params={{ chatId: preset.id }} />}
+        render={<Link to="/chat/$chatId" params={{ chatId: preset.id }} />}
       >
         {preset.name}
       </DropdownMenuItem>
-    )
+    );
   }
 
   return (
     <DropdownMenuItem
       disabled={loading}
       onClick={() => {
-        if (!loading) void onOpen(preset)
+        if (!loading) void onOpen(preset);
       }}
     >
       {preset.name}
       {loading ? (
-        <Loader2 className='ml-auto h-4 w-4 animate-spin opacity-70' />
+        <Loader2 className="ml-auto h-4 w-4 animate-spin opacity-70" />
       ) : (
-        <ExternalLink className='ml-auto h-4 w-4 opacity-70' />
+        <ExternalLink className="ml-auto h-4 w-4 opacity-70" />
       )}
     </DropdownMenuItem>
-  )
+  );
 }
 
 /**
  * Dynamic chat presets navigation item
  */
 export function ChatPresetsItem({ item }: { item: NavChatPresets }) {
-  const { t } = useTranslation()
-  const { chatPresets, serverAddress } = useChatPresets()
-  const { state, isMobile, setOpenMobile } = useSidebar()
-  const href = useLocation({ select: (location) => location.href })
-  const [loadingPresetId, setLoadingPresetId] = useState<string | null>(null)
-  const loadingPresetIdRef = useRef<string | null>(null)
+  const { t } = useTranslation();
+  const { chatPresets, serverAddress } = useChatPresets();
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const href = useLocation({ select: (location) => location.href });
+  const [loadingPresetId, setLoadingPresetId] = useState<string | null>(null);
+  const loadingPresetIdRef = useRef<string | null>(null);
 
   const visiblePresets = useMemo(
-    () => chatPresets.filter((preset) => preset.type !== 'fluent'),
-    [chatPresets]
-  )
+    () => chatPresets.filter((preset) => preset.type !== "fluent"),
+    [chatPresets],
+  );
 
   const handleOpenExternal = useCallback(
     async (preset: ChatPreset) => {
-      if (preset.type === 'web') return
+      if (preset.type === "web") return;
 
-      const needsKey = chatLinkRequiresApiKey(preset.url)
-      let activeKey: string | undefined
+      const needsKey = chatLinkRequiresApiKey(preset.url);
+      let activeKey: string | undefined;
 
       if (needsKey && loadingPresetIdRef.current) {
-        toast.info(t('Preparing your chat link, please try again in a moment.'))
-        return
+        toast.info(
+          t("Preparing your chat link, please try again in a moment."),
+        );
+        return;
       }
 
       if (needsKey) {
-        loadingPresetIdRef.current = preset.id
-        setLoadingPresetId(preset.id)
+        loadingPresetIdRef.current = preset.id;
+        setLoadingPresetId(preset.id);
         try {
-          activeKey = await fetchActiveChatKey()
+          activeKey = await fetchActiveChatKey();
         } catch (error) {
           const message =
             error instanceof Error
               ? error.message
               : t(
-                  'Unable to prepare chat link. Please ensure you have an enabled API key.'
-                )
-          toast.error(message)
-          return
+                  "Unable to prepare chat link. Please ensure you have an enabled API key.",
+                );
+          toast.error(message);
+          return;
         } finally {
-          loadingPresetIdRef.current = null
-          setLoadingPresetId(null)
+          loadingPresetIdRef.current = null;
+          setLoadingPresetId(null);
         }
       }
 
@@ -203,41 +205,41 @@ export function ChatPresetsItem({ item }: { item: NavChatPresets }) {
         template: preset.url,
         apiKey: needsKey ? activeKey : undefined,
         serverAddress,
-      })
+      });
 
       if (!url) {
-        toast.error(t('Invalid chat link. Please contact the administrator.'))
-        return
+        toast.error(t("Invalid chat link. Please contact the administrator."));
+        return;
       }
 
-      if (typeof window === 'undefined') return
+      if (typeof window === "undefined") return;
 
-      window.open(url, '_blank', 'noopener')
-      setOpenMobile(false)
+      window.open(url, "_blank", "noopener");
+      setOpenMobile(false);
     },
-    [serverAddress, setOpenMobile, t]
-  )
+    [serverAddress, setOpenMobile, t],
+  );
 
-  const normalizedHref = normalizeHref(href)
+  const normalizedHref = normalizeHref(href);
 
   // Don't render if no visible presets
   if (visiblePresets.length === 0) {
-    return null
+    return null;
   }
 
   // Collapsed state on non-mobile - render dropdown menu
-  if (state === 'collapsed' && !isMobile) {
+  if (state === "collapsed" && !isMobile) {
     return (
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<SidebarMenuButton tooltip={item.title} />}
           >
-            {item.icon && <item.icon className='h-4 w-4 shrink-0' />}
-            <span className='min-w-0 flex-1 truncate'>{item.title}</span>
-            <ChevronRight className='ms-auto h-4 w-4 shrink-0 opacity-70' />
+            {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+            <ChevronRight className="ms-auto h-4 w-4 shrink-0 opacity-70" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align='start'>
+          <DropdownMenuContent align="start">
             {visiblePresets.map((preset) => (
               <DropdownPresetItem
                 key={preset.id}
@@ -249,25 +251,25 @@ export function ChatPresetsItem({ item }: { item: NavChatPresets }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-    )
+    );
   }
 
   // Expanded state - render collapsible menu
   return (
     <Collapsible
-      defaultOpen={normalizedHref.startsWith('/chat')}
-      className='group/collapsible'
+      defaultOpen={normalizedHref.startsWith("/chat")}
+      className="group/collapsible"
       render={<SidebarMenuItem />}
     >
       <CollapsibleTrigger
-        className='group/collapsible-trigger'
+        className="group/collapsible-trigger"
         render={<SidebarMenuButton />}
       >
-        {item.icon && <item.icon className='shrink-0' />}
-        <span className='min-w-0 flex-1 truncate'>{item.title}</span>
-        <ChevronRight className='ms-auto size-4 shrink-0 transition-transform duration-200 group-data-[panel-open]/collapsible-trigger:rotate-90' />
+        {item.icon && <item.icon className="shrink-0" />}
+        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+        <ChevronRight className="ms-auto size-4 shrink-0 transition-transform duration-200 group-data-[panel-open]/collapsible-trigger:rotate-90" />
       </CollapsibleTrigger>
-      <CollapsibleContent className='CollapsibleContent'>
+      <CollapsibleContent className="CollapsibleContent">
         <SidebarMenuSub>
           {visiblePresets.map((preset) => (
             <ChatMenuItem
@@ -282,5 +284,5 @@ export function ChatPresetsItem({ item }: { item: NavChatPresets }) {
         </SidebarMenuSub>
       </CollapsibleContent>
     </Collapsible>
-  )
+  );
 }

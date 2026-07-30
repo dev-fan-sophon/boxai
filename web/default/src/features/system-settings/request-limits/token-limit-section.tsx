@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-import * as z from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import * as z from "zod";
 
 import {
   Form,
@@ -30,85 +30,85 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
-import { SettingsForm } from '../components/settings-form-layout'
-import { SettingsPageFormActions } from '../components/settings-page-context'
-import { SettingsSection } from '../components/settings-section'
-import { useUpdateOption } from '../hooks/use-update-option'
+import { SettingsForm } from "../components/settings-form-layout";
+import { SettingsPageFormActions } from "../components/settings-page-context";
+import { SettingsSection } from "../components/settings-section";
+import { useUpdateOption } from "../hooks/use-update-option";
 
 const tokenLimitSchema = z.object({
   token_setting: z.object({
     max_user_tokens: z.number().min(1),
   }),
-})
+});
 
-type TokenLimitFormValues = z.output<typeof tokenLimitSchema>
-type TokenLimitFormInput = z.input<typeof tokenLimitSchema>
+type TokenLimitFormValues = z.output<typeof tokenLimitSchema>;
+type TokenLimitFormInput = z.input<typeof tokenLimitSchema>;
 
 type NormalizedTokenLimitValues = {
-  'token_setting.max_user_tokens': number
-}
+  "token_setting.max_user_tokens": number;
+};
 
 type TokenLimitSectionProps = {
-  defaultValues: NormalizedTokenLimitValues
-}
+  defaultValues: NormalizedTokenLimitValues;
+};
 
 const buildFormDefaults = (
-  defaults: TokenLimitSectionProps['defaultValues']
+  defaults: TokenLimitSectionProps["defaultValues"],
 ): TokenLimitFormInput => ({
   token_setting: {
-    max_user_tokens: defaults['token_setting.max_user_tokens'],
+    max_user_tokens: defaults["token_setting.max_user_tokens"],
   },
-})
+});
 
 const normalizeFormValues = (
-  values: TokenLimitFormValues
+  values: TokenLimitFormValues,
 ): NormalizedTokenLimitValues => ({
-  'token_setting.max_user_tokens': values.token_setting.max_user_tokens,
-})
+  "token_setting.max_user_tokens": values.token_setting.max_user_tokens,
+});
 
 export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
-  const { t } = useTranslation()
-  const updateOption = useUpdateOption()
+  const { t } = useTranslation();
+  const updateOption = useUpdateOption();
   const form = useForm<TokenLimitFormInput, unknown, TokenLimitFormValues>({
     resolver: zodResolver(tokenLimitSchema),
-    mode: 'onChange',
+    mode: "onChange",
     defaultValues: buildFormDefaults(defaultValues),
-  })
+  });
 
   useEffect(() => {
-    form.reset(buildFormDefaults(defaultValues))
-  }, [defaultValues, form])
+    form.reset(buildFormDefaults(defaultValues));
+  }, [defaultValues, form]);
 
   const onSubmit = async (values: TokenLimitFormValues) => {
-    const key = 'token_setting.max_user_tokens' as const
-    const normalized = normalizeFormValues(values)
-    const value = normalized[key]
+    const key = "token_setting.max_user_tokens" as const;
+    const normalized = normalizeFormValues(values);
+    const value = normalized[key];
     if (value !== defaultValues[key]) {
-      await updateOption.mutateAsync({ key, value })
+      await updateOption.mutateAsync({ key, value });
     }
-  }
+  };
 
   return (
-    <SettingsSection title={t('Token Limits')}>
+    <SettingsSection title={t("Token Limits")}>
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
-            saveLabel='Save token limits'
+            saveLabel="Save token limits"
           />
           <FormField
             control={form.control}
-            name='token_setting.max_user_tokens'
+            name="token_setting.max_user_tokens"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('Maximum tokens per user')}</FormLabel>
+                <FormLabel>{t("Maximum tokens per user")}</FormLabel>
                 <FormControl>
                   <Input
-                    type='number'
+                    type="number"
                     min={1}
                     step={1}
                     {...field}
@@ -119,7 +119,7 @@ export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
                 </FormControl>
                 <FormDescription>
                   {t(
-                    'Maximum number of tokens each user can create. Default 1000. Setting too large may affect performance.'
+                    "Maximum number of tokens each user can create. Default 1000. Setting too large may affect performance.",
                   )}
                 </FormDescription>
                 <FormMessage />
@@ -129,5 +129,5 @@ export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
         </SettingsForm>
       </Form>
     </SettingsSection>
-  )
+  );
 }

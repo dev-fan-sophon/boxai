@@ -16,36 +16,40 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
+  getBrandIcon,
   IconDiscord,
+  IconFacebook,
   IconGithub,
+  IconGoogle,
   IconLinuxDo,
   IconWeChat,
-} from '@/assets/brand-icons'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+  IconZalo,
+} from "@/assets/brand-icons";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-import { useOAuthLogin } from '../hooks/use-oauth-login'
-import type { SystemStatus } from '../types'
+import { useOAuthLogin } from "../hooks/use-oauth-login";
+import type { SystemStatus } from "../types";
 
 type OAuthProvidersProps = {
-  status: SystemStatus | null
-  disabled?: boolean
-  className?: string
-  onWeChatLogin?: () => void
-  isWeChatLoading?: boolean
-}
+  status: SystemStatus | null;
+  disabled?: boolean;
+  className?: string;
+  onWeChatLogin?: () => void;
+  isWeChatLoading?: boolean;
+};
 
 type ProviderButton = {
-  key: string
-  label: string
-  onClick: () => void
-  icon?: ReactNode
-  disabled?: boolean
-}
+  key: string;
+  label: string;
+  onClick: () => void;
+  icon?: ReactNode;
+  disabled?: boolean;
+};
 
 export function OAuthProviders({
   status,
@@ -54,120 +58,152 @@ export function OAuthProviders({
   onWeChatLogin,
   isWeChatLoading = false,
 }: OAuthProvidersProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const {
     isLoading,
     githubButtonText,
     githubButtonDisabled,
     handleGitHubLogin,
     handleDiscordLogin,
+    handleGoogleLogin,
+    handleFacebookLogin,
+    handleZaloLogin,
     handleOIDCLogin,
     handleLinuxDOLogin,
     handleTelegramLogin,
     handleCustomOAuthLogin,
-  } = useOAuthLogin(status)
+  } = useOAuthLogin(status);
 
-  const providerButtons: ProviderButton[] = []
+  const providerButtons: ProviderButton[] = [];
 
   if (status?.wechat_login && onWeChatLogin) {
     providerButtons.push({
-      key: 'wechat',
-      label: t('Continue with WeChat'),
+      key: "wechat",
+      label: t("Continue with WeChat"),
       onClick: onWeChatLogin,
-      icon: <IconWeChat className='h-4 w-4' />,
+      icon: <IconWeChat className="h-4 w-4" />,
       disabled: isWeChatLoading,
-    })
+    });
   }
 
   if (status?.github_oauth) {
     providerButtons.push({
-      key: 'github',
-      label: githubButtonText || t('Continue with GitHub'),
+      key: "github",
+      label: githubButtonText || t("Continue with GitHub"),
       onClick: handleGitHubLogin,
-      icon: <IconGithub className='h-4 w-4' />,
+      icon: <IconGithub className="h-4 w-4" />,
       disabled: githubButtonDisabled,
-    })
+    });
   }
 
   if (status?.discord_oauth) {
     providerButtons.push({
-      key: 'discord',
-      label: t('Continue with Discord'),
+      key: "discord",
+      label: t("Continue with Discord"),
       onClick: handleDiscordLogin,
-      icon: <IconDiscord className='h-4 w-4' />,
-    })
+      icon: <IconDiscord className="h-4 w-4" />,
+    });
+  }
+
+  if (status?.google_oauth) {
+    providerButtons.push({
+      key: "google",
+      label: t("Continue with Google"),
+      onClick: handleGoogleLogin,
+      icon: <IconGoogle className="h-4 w-4" />,
+    });
+  }
+
+  if (status?.facebook_oauth) {
+    providerButtons.push({
+      key: "facebook",
+      label: t("Continue with Facebook"),
+      onClick: handleFacebookLogin,
+      icon: <IconFacebook className="h-4 w-4" />,
+    });
+  }
+
+  if (status?.zalo_oauth) {
+    providerButtons.push({
+      key: "zalo",
+      label: t("Continue with Zalo"),
+      onClick: handleZaloLogin,
+      icon: <IconZalo className="h-4 w-4" />,
+    });
   }
 
   if (status?.oidc_enabled) {
-    const oidcDisplayName = status.oidc_display_name?.trim() || 'OIDC'
+    const oidcDisplayName = status.oidc_display_name?.trim() || "OIDC";
     providerButtons.push({
-      key: 'oidc',
-      label: t('Continue with {{name}}', { name: oidcDisplayName }),
+      key: "oidc",
+      label: t("Continue with {{name}}", { name: oidcDisplayName }),
       onClick: handleOIDCLogin,
-    })
+    });
   }
 
   if (status?.linuxdo_oauth) {
     providerButtons.push({
-      key: 'linuxdo',
-      label: t('Continue with LinuxDO'),
+      key: "linuxdo",
+      label: t("Continue with LinuxDO"),
       onClick: handleLinuxDOLogin,
-      icon: <IconLinuxDo className='h-4 w-4' />,
-    })
+      icon: <IconLinuxDo className="h-4 w-4" />,
+    });
   }
 
   if (status?.telegram_oauth) {
     providerButtons.push({
-      key: 'telegram',
-      label: t('Continue with Telegram'),
+      key: "telegram",
+      label: t("Continue with Telegram"),
       onClick: handleTelegramLogin,
-    })
+    });
   }
 
   // Custom OAuth providers
-  const customProviders = status?.custom_oauth_providers
+  const customProviders = status?.custom_oauth_providers;
   if (customProviders && customProviders.length > 0) {
     for (const provider of customProviders) {
+      const BrandIcon = getBrandIcon(provider.icon);
       providerButtons.push({
         key: `custom-${provider.slug}`,
-        label: t('Continue with {{name}}', { name: provider.name }),
+        label: t("Continue with {{name}}", { name: provider.name }),
         onClick: () => handleCustomOAuthLogin(provider),
-      })
+        icon: BrandIcon ? <BrandIcon className="h-4 w-4" /> : undefined,
+      });
     }
   }
 
-  if (providerButtons.length === 0) return null
+  if (providerButtons.length === 0) return null;
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className='relative'>
-        <div className='absolute inset-0 flex items-center'>
-          <span className='w-full border-t' />
+    <div className={cn("space-y-3", className)}>
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
         </div>
-        <div className='relative flex justify-center text-xs uppercase'>
-          <span className='bg-background text-muted-foreground px-2'>
-            {t('Or continue with')}
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background text-muted-foreground px-2">
+            {t("Or continue with")}
           </span>
         </div>
       </div>
 
-      <div className='flex flex-col gap-2'>
+      <div className="flex flex-col gap-2">
         {providerButtons.map(
           ({ key, label, onClick, icon, disabled: extraDisabled }) => (
             <Button
               key={key}
-              variant='outline'
-              type='button'
+              variant="outline"
+              type="button"
               disabled={disabled || isLoading || extraDisabled}
               onClick={onClick}
-              className='h-11 w-full justify-center gap-2 rounded-lg'
+              className="h-11 w-full justify-center gap-2 rounded-lg"
             >
               {icon}
               {label}
             </Button>
-          )
+          ),
         )}
       </div>
     </div>
-  )
+  );
 }

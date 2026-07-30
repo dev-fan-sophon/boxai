@@ -132,7 +132,7 @@ func finishAdminAudit(c *gin.Context, writer *auditResponseWriter) {
 	operatorId := c.GetInt("id")
 	operatorName := c.GetString("username")
 	operatorRole := c.GetInt("role")
-	ip := c.ClientIP()
+	ip := common.RealClientIP(c)
 	status := writer.Status()
 	success := auditResponseSuccess(status, writer.body.Bytes())
 

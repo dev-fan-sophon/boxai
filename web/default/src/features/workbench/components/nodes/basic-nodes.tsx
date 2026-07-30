@@ -20,12 +20,12 @@ For commercial licensing, please contact support@quantumnous.com
 Adapted from open-ai-canvas (https://github.com/ddcat-ai/open-ai-canvas),
 based on basketikun/infinite-canvas. AGPL-3.0; see THIRD-PARTY-LICENSES.md.
 */
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import type React from 'react'
-import { useTranslation } from 'react-i18next'
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type React from "react";
+import { useTranslation } from "react-i18next";
 
-import { NativeSelect } from '@/components/ui/native-select'
-import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -36,23 +36,23 @@ import {
   VIDEO_SIZES,
   VOICES,
   videoSizeLabel,
-} from '@/features/playground/lib/studio/generation-options'
+} from "@/features/playground/lib/studio/generation-options";
 
-import { useCanvasTheme } from '../../engine/canvas-theme'
-import { useWorkbenchModels } from '../../hooks/use-workbench-models'
-import { useCanvasStore } from '../../store/canvas-store'
-import { CanvasNodeType, type CanvasGenerationMode } from '../../types'
-import { NodeModelSelect, type CanvasNodeBodyProps } from './node-shared'
+import { useCanvasTheme } from "../../engine/canvas-theme";
+import { useWorkbenchModels } from "../../hooks/use-workbench-models";
+import { useCanvasStore } from "../../store/canvas-store";
+import { CanvasNodeType, type CanvasGenerationMode } from "../../types";
+import { NodeModelSelect, type CanvasNodeBodyProps } from "./node-shared";
 
 export function TextNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation()
-  const metadata = props.node.metadata ?? {}
+  const { t } = useTranslation();
+  const metadata = props.node.metadata ?? {};
 
   return (
     <Textarea
-      value={metadata.content ?? ''}
-      placeholder={t('Write a note or a prompt fragment')}
-      className='min-h-0 flex-1 resize-none border-none bg-transparent p-0 shadow-none focus-visible:ring-0'
+      value={metadata.content ?? ""}
+      placeholder={t("Write a note or a prompt fragment")}
+      className="min-h-0 flex-1 resize-none border-none bg-transparent p-0 shadow-none focus-visible:ring-0"
       style={{ fontSize: metadata.fontSize ?? 14 }}
       data-canvas-no-zoom
       onPointerDown={(event) => event.stopPropagation()}
@@ -60,24 +60,24 @@ export function TextNodeBody(props: CanvasNodeBodyProps) {
         props.onMetadataChange({ content: event.target.value })
       }
     />
-  )
+  );
 }
 
 export function ConfigNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation()
-  const models = useWorkbenchModels()
-  const metadata = props.node.metadata ?? {}
-  const mode = metadata.generationMode ?? 'image'
+  const { t } = useTranslation();
+  const models = useWorkbenchModels();
+  const metadata = props.node.metadata ?? {};
+  const mode = metadata.generationMode ?? "image";
 
   return (
     <div
-      className='flex h-full min-h-0 flex-col gap-2 overflow-auto'
+      className="flex h-full min-h-0 flex-col gap-2 overflow-auto"
       data-canvas-wheel-scroll
     >
-      <Row label={t('Type')}>
+      <Row label={t("Type")}>
         <NativeSelect
-          size='sm'
-          className='w-full'
+          size="sm"
+          className="w-full"
           value={mode}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
@@ -87,33 +87,33 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
             })
           }
         >
-          <option value='image'>{t('Image')}</option>
-          <option value='video'>{t('Video')}</option>
-          <option value='audio'>{t('Audio')}</option>
+          <option value="image">{t("Image")}</option>
+          <option value="video">{t("Video")}</option>
+          <option value="audio">{t("Audio")}</option>
         </NativeSelect>
       </Row>
 
-      <Row label={t('Model')}>
+      <Row label={t("Model")}>
         <NodeModelSelect
           value={metadata.model}
-          options={models.byModality(mode === 'text' ? 'chat' : mode)}
+          options={models.byModality(mode === "text" ? "chat" : mode)}
           onChange={(model) => props.onMetadataChange({ model })}
         />
       </Row>
 
-      {mode === 'image' ? (
+      {mode === "image" ? (
         <>
-          <Row label={t('Size')}>
+          <Row label={t("Size")}>
             <SelectOptions
               value={metadata.size ?? IMAGE_SIZES[0]}
               options={IMAGE_SIZES.map((size) => ({
                 value: size,
-                label: size === 'auto' ? t('Auto') : size,
+                label: size === "auto" ? t("Auto") : size,
               }))}
               onChange={(size) => props.onMetadataChange({ size })}
             />
           </Row>
-          <Row label={t('Quality')}>
+          <Row label={t("Quality")}>
             <SelectOptions
               value={metadata.quality ?? IMAGE_QUALITIES[0]}
               options={IMAGE_QUALITIES.map((quality) => ({
@@ -123,7 +123,7 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
               onChange={(quality) => props.onMetadataChange({ quality })}
             />
           </Row>
-          <Row label={t('Count')}>
+          <Row label={t("Count")}>
             <SelectOptions
               value={String(metadata.count ?? 1)}
               options={IMAGE_COUNTS.map((count) => ({
@@ -138,9 +138,9 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
         </>
       ) : null}
 
-      {mode === 'video' ? (
+      {mode === "video" ? (
         <>
-          <Row label={t('Size')}>
+          <Row label={t("Size")}>
             <SelectOptions
               value={metadata.size ?? VIDEO_SIZES[0]}
               options={VIDEO_SIZES.map((size) => ({
@@ -150,7 +150,7 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
               onChange={(size) => props.onMetadataChange({ size })}
             />
           </Row>
-          <Row label={t('Duration (seconds)')}>
+          <Row label={t("Duration (seconds)")}>
             <SelectOptions
               value={metadata.seconds ?? String(VIDEO_DURATIONS[0])}
               options={VIDEO_DURATIONS.map((duration) => ({
@@ -163,16 +163,16 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
         </>
       ) : null}
 
-      {mode === 'audio' ? (
+      {mode === "audio" ? (
         <>
-          <Row label={t('Voice')}>
+          <Row label={t("Voice")}>
             <SelectOptions
               value={metadata.audioVoice ?? VOICES[0]}
               options={VOICES.map((voice) => ({ value: voice, label: voice }))}
               onChange={(audioVoice) => props.onMetadataChange({ audioVoice })}
             />
           </Row>
-          <Row label={t('Format')}>
+          <Row label={t("Format")}>
             <SelectOptions
               value={metadata.audioFormat ?? AUDIO_FORMATS[0]}
               options={AUDIO_FORMATS.map((format) => ({
@@ -184,7 +184,7 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
               }
             />
           </Row>
-          <Row label={t('Speed')}>
+          <Row label={t("Speed")}>
             <SelectOptions
               value={metadata.audioSpeed ?? String(SPEEDS[1])}
               options={SPEEDS.map((speed) => ({
@@ -197,24 +197,24 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
         </>
       ) : null}
     </div>
-  )
+  );
 }
 
 export function FrameNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation()
-  const theme = useCanvasTheme()
-  const updateNode = useCanvasStore((state) => state.updateNode)
-  const frame = props.node.metadata?.frame
-  const collapsed = Boolean(frame?.collapsed)
+  const { t } = useTranslation();
+  const theme = useCanvasTheme();
+  const updateNode = useCanvasStore((state) => state.updateNode);
+  const frame = props.node.metadata?.frame;
+  const collapsed = Boolean(frame?.collapsed);
   const children = useCanvasStore((state) =>
-    state.nodes.filter((node) => node.parentId === props.node.id).slice(0, 24)
-  )
+    state.nodes.filter((node) => node.parentId === props.node.id).slice(0, 24),
+  );
 
   return (
-    <div className='flex h-full min-h-0 flex-col gap-1'>
+    <div className="flex h-full min-h-0 flex-col gap-1">
       <button
-        type='button'
-        className='flex shrink-0 items-center gap-1 rounded px-1 text-xs'
+        type="button"
+        className="flex shrink-0 items-center gap-1 rounded px-1 text-xs"
         style={{ color: theme.node.muted }}
         data-canvas-no-zoom
         onPointerDown={(event) => event.stopPropagation()}
@@ -240,29 +240,29 @@ export function FrameNodeBody(props: CanvasNodeBodyProps) {
         }
       >
         {collapsed ? (
-          <ChevronRight className='size-3.5' />
+          <ChevronRight className="size-3.5" />
         ) : (
-          <ChevronDown className='size-3.5' />
+          <ChevronDown className="size-3.5" />
         )}
-        {collapsed ? t('Expand frame') : t('Collapse frame')}
+        {collapsed ? t("Expand frame") : t("Collapse frame")}
       </button>
       {collapsed && children.length ? (
         <div
-          className='grid min-h-0 flex-1 grid-cols-6 gap-0.5 overflow-hidden'
-          aria-label={t('Frame contents preview')}
+          className="grid min-h-0 flex-1 grid-cols-6 gap-0.5 overflow-hidden"
+          aria-label={t("Frame contents preview")}
         >
           {children.map((child) => (
             <div
               key={child.id}
-              className='bg-muted overflow-hidden rounded-sm'
+              className="bg-muted overflow-hidden rounded-sm"
               title={child.title}
             >
               {child.type === CanvasNodeType.Image &&
               child.metadata?.content ? (
                 <img
                   src={child.metadata.content}
-                  alt=''
-                  className='size-full object-cover'
+                  alt=""
+                  className="size-full object-cover"
                 />
               ) : null}
               {child.type === CanvasNodeType.Video &&
@@ -270,12 +270,12 @@ export function FrameNodeBody(props: CanvasNodeBodyProps) {
                 <video
                   src={child.metadata.content}
                   muted
-                  className='size-full object-cover'
+                  className="size-full object-cover"
                 />
               ) : null}
               {child.type !== CanvasNodeType.Image &&
               child.type !== CanvasNodeType.Video ? (
-                <span className='line-clamp-2 p-0.5 text-[7px]'>
+                <span className="line-clamp-2 p-0.5 text-[7px]">
                   {child.metadata?.prompt ||
                     child.metadata?.content ||
                     child.metadata?.storyboard?.rows[0]?.plotDescription ||
@@ -287,30 +287,30 @@ export function FrameNodeBody(props: CanvasNodeBodyProps) {
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function Row(props: { label: string; children: React.ReactNode }) {
-  const theme = useCanvasTheme()
+  const theme = useCanvasTheme();
   return (
-    <label className='flex items-center gap-2 text-xs'>
-      <span className='w-20 shrink-0' style={{ color: theme.node.muted }}>
+    <label className="flex items-center gap-2 text-xs">
+      <span className="w-20 shrink-0" style={{ color: theme.node.muted }}>
         {props.label}
       </span>
       {props.children}
     </label>
-  )
+  );
 }
 
 function SelectOptions(props: {
-  value: string
-  options: Array<{ value: string; label: string }>
-  onChange: (value: string) => void
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
 }) {
   return (
     <NativeSelect
-      size='sm'
-      className='min-w-0 flex-1'
+      size="sm"
+      className="min-w-0 flex-1"
       value={props.value}
       onPointerDown={(event) => event.stopPropagation()}
       onChange={(event) => props.onChange(event.target.value)}
@@ -321,5 +321,5 @@ function SelectOptions(props: {
         </option>
       ))}
     </NativeSelect>
-  )
+  );
 }

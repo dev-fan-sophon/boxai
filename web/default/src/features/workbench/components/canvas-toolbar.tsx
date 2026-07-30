@@ -38,70 +38,70 @@ import {
   Video,
   ZoomIn,
   ZoomOut,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
-import { useCanvasTheme } from '../engine/canvas-theme'
+import { useCanvasTheme } from "../engine/canvas-theme";
 import {
   CanvasNodeType,
   type CanvasBackgroundMode,
   type CanvasExperienceMode,
-} from '../types'
+} from "../types";
 
 type CanvasToolbarProps = {
-  scale: number
-  canUndo: boolean
-  canRedo: boolean
-  onAddNode: (type: CanvasNodeType) => void
-  onUndo: () => void
-  onRedo: () => void
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onFitView: () => void
-  onExportDocument: () => void
-  onExportArchive: () => void
-  onImportDocument: () => void
-  onExportImage: () => void
-  backgroundMode: CanvasBackgroundMode
-  experienceMode: CanvasExperienceMode
-  onBackgroundModeChange: (mode: CanvasBackgroundMode) => void
-}
+  scale: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  onAddNode: (type: CanvasNodeType) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitView: () => void;
+  onExportDocument: () => void;
+  onExportArchive: () => void;
+  onImportDocument: () => void;
+  onExportImage: () => void;
+  backgroundMode: CanvasBackgroundMode;
+  experienceMode: CanvasExperienceMode;
+  onBackgroundModeChange: (mode: CanvasBackgroundMode) => void;
+};
 
 const NODE_BUTTONS = [
-  { type: CanvasNodeType.Image, icon: ImageIcon, label: 'Image' },
-  { type: CanvasNodeType.Video, icon: Video, label: 'Video' },
-  { type: CanvasNodeType.Audio, icon: Music, label: 'Audio' },
-  { type: CanvasNodeType.Text, icon: StickyNote, label: 'Note' },
-  { type: CanvasNodeType.Script, icon: Table, label: 'Storyboard' },
-  { type: CanvasNodeType.Config, icon: Settings2, label: 'Generation preset' },
-  { type: CanvasNodeType.Frame, icon: Frame, label: 'Frame' },
-] as const
+  { type: CanvasNodeType.Image, icon: ImageIcon, label: "Image" },
+  { type: CanvasNodeType.Video, icon: Video, label: "Video" },
+  { type: CanvasNodeType.Audio, icon: Music, label: "Audio" },
+  { type: CanvasNodeType.Text, icon: StickyNote, label: "Note" },
+  { type: CanvasNodeType.Script, icon: Table, label: "Storyboard" },
+  { type: CanvasNodeType.Config, icon: Settings2, label: "Generation preset" },
+  { type: CanvasNodeType.Frame, icon: Frame, label: "Frame" },
+] as const;
 
 export function CanvasToolbar(props: CanvasToolbarProps) {
-  const { t } = useTranslation()
-  const theme = useCanvasTheme()
+  const { t } = useTranslation();
+  const theme = useCanvasTheme();
 
   return (
     <div
       data-canvas-no-zoom
-      data-guide='canvas-toolbar'
-      className='landing-animate-scale-in absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border px-2 py-1.5 shadow-xl backdrop-blur-xl'
+      data-guide="canvas-toolbar"
+      className="landing-animate-scale-in absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border px-2 py-1.5 shadow-xl backdrop-blur-xl"
       style={{
         background: theme.toolbar.panel,
         borderColor: theme.toolbar.border,
@@ -111,26 +111,26 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
     >
       {NODE_BUTTONS.filter(
         (button) =>
-          props.experienceMode === 'professional' ||
+          props.experienceMode === "professional" ||
           ![
             CanvasNodeType.Audio,
             CanvasNodeType.Script,
             CanvasNodeType.Config,
-          ].includes(button.type)
+          ].includes(button.type),
       ).map((button) => (
         <Button
           key={button.type}
-          size='icon'
-          variant='ghost'
-          className='size-8 rounded-full'
+          size="icon"
+          variant="ghost"
+          className="size-8 rounded-full"
           title={t(button.label)}
           onClick={() => props.onAddNode(button.type)}
         >
-          <button.icon className='size-4' />
+          <button.icon className="size-4" />
         </Button>
       ))}
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation="vertical" className="mx-1 h-5" />
 
       <Select
         value={props.backgroundMode}
@@ -139,111 +139,111 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
         }
       >
         <SelectTrigger
-          size='sm'
-          className='w-24'
-          aria-label={t('Canvas background')}
+          size="sm"
+          className="w-24"
+          aria-label={t("Canvas background")}
         >
           <CircleDot />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value='dots'>{t('Dots')}</SelectItem>
-          <SelectItem value='lines'>{t('Lines')}</SelectItem>
-          <SelectItem value='blank'>{t('Blank')}</SelectItem>
+          <SelectItem value="dots">{t("Dots")}</SelectItem>
+          <SelectItem value="lines">{t("Lines")}</SelectItem>
+          <SelectItem value="blank">{t("Blank")}</SelectItem>
         </SelectContent>
       </Select>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation="vertical" className="mx-1 h-5" />
 
       <Button
-        size='icon'
-        variant='ghost'
-        className='size-8 rounded-full'
-        title={t('Undo')}
+        size="icon"
+        variant="ghost"
+        className="size-8 rounded-full"
+        title={t("Undo")}
         disabled={!props.canUndo}
         onClick={props.onUndo}
       >
-        <Undo2 className='size-4' />
+        <Undo2 className="size-4" />
       </Button>
       <Button
-        size='icon'
-        variant='ghost'
-        className='size-8 rounded-full'
-        title={t('Redo')}
+        size="icon"
+        variant="ghost"
+        className="size-8 rounded-full"
+        title={t("Redo")}
         disabled={!props.canRedo}
         onClick={props.onRedo}
       >
-        <Redo2 className='size-4' />
+        <Redo2 className="size-4" />
       </Button>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation="vertical" className="mx-1 h-5" />
 
       <Button
-        size='icon'
-        variant='ghost'
-        className='size-8 rounded-full'
-        title={t('Zoom out')}
+        size="icon"
+        variant="ghost"
+        className="size-8 rounded-full"
+        title={t("Zoom out")}
         onClick={props.onZoomOut}
       >
-        <ZoomOut className='size-4' />
+        <ZoomOut className="size-4" />
       </Button>
-      <span className='w-12 text-center text-xs tabular-nums'>
+      <span className="w-12 text-center text-xs tabular-nums">
         {Math.round(props.scale * 100)}%
       </span>
       <Button
-        size='icon'
-        variant='ghost'
-        className='size-8 rounded-full'
-        title={t('Zoom in')}
+        size="icon"
+        variant="ghost"
+        className="size-8 rounded-full"
+        title={t("Zoom in")}
         onClick={props.onZoomIn}
       >
-        <ZoomIn className='size-4' />
+        <ZoomIn className="size-4" />
       </Button>
       <Button
-        size='icon'
-        variant='ghost'
-        className='size-8 rounded-full'
-        title={t('Fit view')}
+        size="icon"
+        variant="ghost"
+        className="size-8 rounded-full"
+        title={t("Fit view")}
         onClick={props.onFitView}
       >
-        <Maximize className='size-4' />
+        <Maximize className="size-4" />
       </Button>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation="vertical" className="mx-1 h-5" />
 
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button
-              size='icon'
-              variant='ghost'
-              className='size-8 rounded-full'
-              title={t('Import / export')}
-              aria-label={t('Import / export')}
+              size="icon"
+              variant="ghost"
+              className="size-8 rounded-full"
+              title={t("Import / export")}
+              aria-label={t("Import / export")}
             >
-              <Download className='size-4' />
+              <Download className="size-4" />
             </Button>
           }
         />
-        <DropdownMenuContent align='end' sideOffset={8}>
+        <DropdownMenuContent align="end" sideOffset={8}>
           <DropdownMenuItem onClick={props.onExportDocument}>
             <Download />
-            {t('Export canvas file')}
+            {t("Export canvas file")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={props.onExportArchive}>
             <FolderArchive />
-            {t('Export canvas archive')}
+            {t("Export canvas archive")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={props.onImportDocument}>
             <Upload />
-            {t('Import canvas file')}
+            {t("Import canvas file")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={props.onExportImage}>
             <Camera />
-            {t('Export as image')}
+            {t("Export as image")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  )
+  );
 }

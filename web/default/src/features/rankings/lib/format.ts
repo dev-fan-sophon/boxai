@@ -20,6 +20,31 @@ For commercial licensing, please contact support@quantumnous.com
 // Rankings formatting helpers
 // ----------------------------------------------------------------------------
 
+const TOKEN_AXIS_UNITS: Array<{ divisor: number; suffix: string }> = [
+  { divisor: 1_000_000_000_000, suffix: 'T' },
+  { divisor: 1_000_000_000, suffix: 'B' },
+  { divisor: 1_000_000, suffix: 'M' },
+  { divisor: 1_000, suffix: 'K' },
+]
+
+/**
+ * Build a tick formatter that renders every tick on one axis in the same unit
+ * and precision. `formatTokens` picks its unit per value, which on a single
+ * axis yields mixed ticks like `500K` next to `1.00M`; ticks are only
+ * comparable when they share a scale.
+ */
+export function createTokenAxisFormatter(
+  maxValue: number
+): (value: number) => string {
+  const unit = TOKEN_AXIS_UNITS.find((entry) => maxValue >= entry.divisor)
+  return (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return '0'
+    if (!unit) return Math.round(value).toLocaleString()
+    const scaled = value / unit.divisor
+    return `${scaled.toFixed(scaled < 10 ? 1 : 0)}${unit.suffix}`
+  }
+}
+
 /** Format a token count as `1.2B`, `42M`, `980K`, or `512`. */
 export function formatTokens(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'

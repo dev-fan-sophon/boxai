@@ -16,32 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { DataTablePage, useDataTable } from '@/components/data-table'
-import { useSmDown } from '@/hooks'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { DataTablePage, useDataTable } from "@/components/data-table";
+import { useSmDown } from "@/hooks";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 
-import { getModels, searchModels, getVendors } from '../api'
+import { getModels, searchModels, getVendors } from "../api";
 import {
   DEFAULT_PAGE_SIZE,
   getModelStatusOptions,
   getSyncStatusOptions,
-} from '../constants'
-import { modelsQueryKeys, vendorsQueryKeys } from '../lib'
-import { DataTableBulkActions } from './data-table-bulk-actions'
-import { useModelsColumns } from './models-columns'
-import { useModels } from './models-provider'
+} from "../constants";
+import { modelsQueryKeys, vendorsQueryKeys } from "../lib";
+import { DataTableBulkActions } from "./data-table-bulk-actions";
+import { useModelsColumns } from "./models-columns";
+import { useModels } from "./models-provider";
 
-const route = getRouteApi('/_authenticated/models/$section')
+const route = getRouteApi("/_authenticated/models/$section");
 
 export function ModelsTable() {
-  const { t } = useTranslation()
-  const { selectedVendor } = useModels()
-  const isMobile = useSmDown()
+  const { t } = useTranslation();
+  const { selectedVendor } = useModels();
+  const isMobile = useSmDown();
 
   // URL state management
   const {
@@ -59,64 +59,64 @@ export function ModelsTable() {
       defaultPage: 1,
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
     },
-    globalFilter: { enabled: true, key: 'filter' },
+    globalFilter: { enabled: true, key: "filter" },
     columnFilters: [
-      { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'vendor_id', searchKey: 'vendor', type: 'array' },
-      { columnId: 'sync_official', searchKey: 'sync', type: 'array' },
+      { columnId: "status", searchKey: "status", type: "array" },
+      { columnId: "vendor_id", searchKey: "vendor", type: "array" },
+      { columnId: "sync_official", searchKey: "sync", type: "array" },
     ],
-  })
+  });
 
   // Extract filters from column filters
   const statusFilter =
-    (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
+    (columnFilters.find((f) => f.id === "status")?.value as string[]) || [];
   const vendorFilter =
-    (columnFilters.find((f) => f.id === 'vendor_id')?.value as string[]) || []
+    (columnFilters.find((f) => f.id === "vendor_id")?.value as string[]) || [];
   const syncFilter =
-    (columnFilters.find((f) => f.id === 'sync_official')?.value as string[]) ||
-    []
+    (columnFilters.find((f) => f.id === "sync_official")?.value as string[]) ||
+    [];
 
   // Fetch vendors for filter
   const { data: vendorsData } = useQuery({
     queryKey: vendorsQueryKeys.list(),
     queryFn: () => getVendors({ page_size: 1000 }),
-  })
+  });
 
   const vendors = useMemo(
     () => vendorsData?.data?.items || [],
-    [vendorsData?.data?.items]
-  )
+    [vendorsData?.data?.items],
+  );
 
   const vendorOptions = useMemo(() => {
     return vendors.map((v) => ({
       label: v.name,
       value: String(v.id),
-    }))
-  }, [vendors])
+    }));
+  }, [vendors]);
 
   // Apply selected vendor from context or filter
   const activeVendorFilter =
     selectedVendor ||
-    (vendorFilter.length > 0 && !vendorFilter.includes('all')
+    (vendorFilter.length > 0 && !vendorFilter.includes("all")
       ? vendorFilter[0]
-      : undefined)
+      : undefined);
 
   const statusFilterValue =
-    statusFilter.length > 0 && !statusFilter.includes('all')
+    statusFilter.length > 0 && !statusFilter.includes("all")
       ? statusFilter[0]
-      : undefined
+      : undefined;
   const syncFilterValue =
-    syncFilter.length > 0 && !syncFilter.includes('all')
+    syncFilter.length > 0 && !syncFilter.includes("all")
       ? syncFilter[0]
-      : undefined
+      : undefined;
 
   // Use search API whenever any filter is active so status/sync are applied server-side
   const shouldSearch = Boolean(
     globalFilter?.trim() ||
     activeVendorFilter ||
     statusFilterValue ||
-    syncFilterValue
-  )
+    syncFilterValue,
+  );
 
   // Fetch models data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
@@ -138,21 +138,21 @@ export function ModelsTable() {
           sync_official: syncFilterValue,
           p: pagination.pageIndex + 1,
           page_size: pagination.pageSize,
-        })
+        });
       }
       return getModels({
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
-      })
+      });
     },
-  })
+  });
 
-  const models = data?.data?.items || []
-  const totalCount = data?.data?.total || 0
-  const vendorCounts = data?.data?.vendor_counts
+  const models = data?.data?.items || [];
+  const totalCount = data?.data?.total || 0;
+  const vendorCounts = data?.data?.vendor_counts;
 
   // Columns configuration
-  const columns = useModelsColumns(vendors)
+  const columns = useModelsColumns(vendors);
 
   // React Table instance
   const { table } = useDataTable({
@@ -174,19 +174,19 @@ export function ModelsTable() {
     manualPagination: true,
     manualFiltering: true,
     ensurePageInRange,
-  })
+  });
 
   // Prepare filter options
   const vendorFilterOptions = [
     {
-      label: `${t('All Vendors')}${vendorCounts?.all ? ` (${vendorCounts.all})` : ''}`,
-      value: 'all',
+      label: `${t("All Vendors")}${vendorCounts?.all ? ` (${vendorCounts.all})` : ""}`,
+      value: "all",
     },
     ...vendorOptions.map((option) => ({
-      label: `${option.label}${vendorCounts?.[option.value] ? ` (${vendorCounts[option.value]})` : ''}`,
+      label: `${option.label}${vendorCounts?.[option.value] ? ` (${vendorCounts[option.value]})` : ""}`,
       value: option.value,
     })),
-  ]
+  ];
 
   return (
     <DataTablePage
@@ -194,30 +194,30 @@ export function ModelsTable() {
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t('No Models Found')}
+      emptyTitle={t("No Models Found")}
       emptyDescription={t(
-        'No models available. Create your first model to get started.'
+        "No models available. Create your first model to get started.",
       )}
-      skeletonKeyPrefix='model-skeleton'
+      skeletonKeyPrefix="model-skeleton"
       applyHeaderSize
       toolbarProps={{
-        searchPlaceholder: t('Filter by model name...'),
+        searchPlaceholder: t("Filter by model name..."),
         filters: [
           {
-            columnId: 'status',
-            title: t('Status'),
+            columnId: "status",
+            title: t("Status"),
             options: [...getModelStatusOptions(t)],
             singleSelect: true,
           },
           {
-            columnId: 'vendor_id',
-            title: t('Vendor'),
+            columnId: "vendor_id",
+            title: t("Vendor"),
             options: vendorFilterOptions,
             singleSelect: true,
           },
           {
-            columnId: 'sync_official',
-            title: t('Official Sync'),
+            columnId: "sync_official",
+            title: t("Official Sync"),
             options: [...getSyncStatusOptions(t)],
             singleSelect: true,
           },
@@ -225,5 +225,5 @@ export function ModelsTable() {
       }}
       bulkActions={<DataTableBulkActions table={table} />}
     />
-  )
+  );
 }

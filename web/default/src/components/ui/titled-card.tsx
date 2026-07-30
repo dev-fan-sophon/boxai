@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
 
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 import {
   Card,
@@ -26,24 +26,24 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from './card'
-import { IconBadge, type IconBadgeTone } from './icon-badge'
+} from "./card";
+import { IconBadge, type IconBadgeTone } from "./icon-badge";
 
 type TitledCardProps = {
-  title: ReactNode
-  description?: ReactNode
-  icon?: ReactNode
-  action?: ReactNode
-  children?: ReactNode
-  disableHoverEffect?: boolean
-  className?: string
-  headerClassName?: string
-  contentClassName?: string
-  iconClassName?: string
-  iconTone?: IconBadgeTone
-  titleClassName?: string
-  descriptionClassName?: string
-}
+  title: ReactNode;
+  description?: ReactNode;
+  icon?: ReactNode;
+  action?: ReactNode;
+  children?: ReactNode;
+  disableHoverEffect?: boolean;
+  className?: string;
+  headerClassName?: string;
+  contentClassName?: string;
+  iconClassName?: string;
+  iconTone?: IconBadgeTone;
+  titleClassName?: string;
+  descriptionClassName?: string;
+};
 
 export function TitledCard({
   title,
@@ -62,24 +62,24 @@ export function TitledCard({
 }: TitledCardProps) {
   return (
     <Card
-      data-card-hover={disableHoverEffect ? 'false' : undefined}
-      className={cn('gap-0 overflow-hidden py-0', className)}
+      data-card-hover={disableHoverEffect ? "false" : undefined}
+      className={cn("gap-0 overflow-hidden py-0", className)}
     >
       <CardHeader
-        className={cn('border-b p-3 !pb-3 sm:p-5 sm:!pb-5', headerClassName)}
+        className={cn("border-b p-3 !pb-3 sm:p-5 sm:!pb-5", headerClassName)}
       >
-        <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-          <div className='flex min-w-0 items-center gap-3'>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             {icon != null && (
-              <IconBadge size='title' tone={iconTone} className={iconClassName}>
+              <IconBadge size="title" tone={iconTone} className={iconClassName}>
                 {icon}
               </IconBadge>
             )}
-            <div className='min-w-0'>
+            <div className="min-w-0">
               <CardTitle
                 className={cn(
-                  'text-sm font-semibold sm:text-base',
-                  titleClassName
+                  "text-sm font-semibold sm:text-base",
+                  titleClassName,
                 )}
               >
                 {title}
@@ -87,8 +87,8 @@ export function TitledCard({
               {description != null && (
                 <CardDescription
                   className={cn(
-                    'text-muted-foreground text-xs',
-                    descriptionClassName
+                    "text-muted-foreground text-xs",
+                    descriptionClassName,
                   )}
                 >
                   {description}
@@ -97,13 +97,13 @@ export function TitledCard({
             </div>
           </div>
           {action != null && (
-            <div className='w-full shrink-0 sm:w-auto'>{action}</div>
+            <div className="w-full shrink-0 sm:w-auto">{action}</div>
           )}
         </div>
       </CardHeader>
-      <CardContent className={cn('p-3 sm:p-5', contentClassName)}>
+      <CardContent className={cn("p-3 sm:p-5", contentClassName)}>
         {children}
       </CardContent>
     </Card>
-  )
+  );
 }

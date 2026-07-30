@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import z from 'zod'
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import z from "zod";
 
-import { ModelDetails } from '@/features/pricing/components/model-details'
-import { getFreshModuleAccess } from '@/lib/nav-modules'
-import { useAuthStore } from '@/stores/auth-store'
+import { ModelDetails } from "@/features/pricing/components/model-details";
+import { getFreshModuleAccess } from "@/lib/nav-modules";
+import { useAuthStore } from "@/stores/auth-store";
 
 const modelDetailsSearchSchema = z.object({
   search: z.string().optional(),
@@ -31,28 +31,28 @@ const modelDetailsSearchSchema = z.object({
   quotaType: z.string().optional(),
   endpointType: z.string().optional(),
   tag: z.string().optional(),
-  tokenUnit: z.enum(['M', 'K']).optional(),
-  view: z.enum(['card', 'table']).optional().catch(undefined),
+  tokenUnit: z.enum(["M", "K"]).optional(),
+  view: z.enum(["card", "table"]).optional().catch(undefined),
   rechargePrice: z.boolean().optional(),
-  tab: z.enum(['overview', 'pricing', 'performance', 'integration']).optional(),
-})
+  tab: z.enum(["overview", "pricing", "performance", "integration"]).optional(),
+});
 
-export const Route = createFileRoute('/pricing/$modelId/')({
+export const Route = createFileRoute("/pricing/$modelId/")({
   validateSearch: modelDetailsSearchSchema,
   beforeLoad: async ({ location }) => {
-    const access = await getFreshModuleAccess('pricing')
+    const access = await getFreshModuleAccess("pricing");
     if (!access.enabled) {
-      throw redirect({ to: '/' })
+      throw redirect({ to: "/" });
     }
     if (access.requireAuth) {
-      const { auth } = useAuthStore.getState()
+      const { auth } = useAuthStore.getState();
       if (!auth.user) {
         throw redirect({
-          to: '/sign-in',
+          to: "/sign-in",
           search: { redirect: location.href },
-        })
+        });
       }
     }
   },
   component: ModelDetails,
-})
+});

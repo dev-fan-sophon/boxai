@@ -16,37 +16,37 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { RotateCcw, Save } from 'lucide-react'
+import { RotateCcw, Save } from "lucide-react";
 import {
   createContext,
   useContext,
   type ComponentProps,
   type ReactNode,
   type RefObject,
-} from 'react'
-import { createPortal } from 'react-dom'
-import { useTranslation } from 'react-i18next'
+} from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
 type SettingsPageContextValue = {
-  actionsContainer: HTMLDivElement | null
-  titleStatusContainer: HTMLSpanElement | null
-  suppressSectionHeader: boolean
-}
+  actionsContainer: HTMLDivElement | null;
+  titleStatusContainer: HTMLSpanElement | null;
+  suppressSectionHeader: boolean;
+};
 
 const SettingsPageContext = createContext<SettingsPageContextValue>({
   actionsContainer: null,
   titleStatusContainer: null,
   suppressSectionHeader: false,
-})
+});
 
 type SettingsPageProviderProps = {
-  actionsContainer: HTMLDivElement | null
-  titleStatusContainer?: HTMLSpanElement | null
-  children: ReactNode
-  suppressSectionHeader?: boolean
-}
+  actionsContainer: HTMLDivElement | null;
+  titleStatusContainer?: HTMLSpanElement | null;
+  children: ReactNode;
+  suppressSectionHeader?: boolean;
+};
 
 export function SettingsPageProvider(props: SettingsPageProviderProps) {
   return (
@@ -59,89 +59,89 @@ export function SettingsPageProvider(props: SettingsPageProviderProps) {
     >
       {props.children}
     </SettingsPageContext.Provider>
-  )
+  );
 }
 
 export function useSuppressSettingsSectionHeader() {
-  return useContext(SettingsPageContext).suppressSectionHeader
+  return useContext(SettingsPageContext).suppressSectionHeader;
 }
 
 type SettingsPageTitleStatusPortalProps = {
-  children: ReactNode
-}
+  children: ReactNode;
+};
 
 export function SettingsPageTitleStatusPortal(
-  props: SettingsPageTitleStatusPortalProps
+  props: SettingsPageTitleStatusPortalProps,
 ) {
-  const { titleStatusContainer } = useContext(SettingsPageContext)
+  const { titleStatusContainer } = useContext(SettingsPageContext);
 
-  if (!titleStatusContainer) return null
+  if (!titleStatusContainer) return null;
 
-  return createPortal(props.children, titleStatusContainer)
+  return createPortal(props.children, titleStatusContainer);
 }
 
 type SettingsPageActionsPortalProps = {
-  children: ReactNode
-}
+  children: ReactNode;
+};
 
 export function SettingsPageActionsPortal(
-  props: SettingsPageActionsPortalProps
+  props: SettingsPageActionsPortalProps,
 ) {
-  const { actionsContainer } = useContext(SettingsPageContext)
+  const { actionsContainer } = useContext(SettingsPageContext);
 
-  if (!actionsContainer) return null
+  if (!actionsContainer) return null;
 
   return createPortal(
-    <div className='flex flex-wrap items-center justify-end gap-2'>
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {props.children}
     </div>,
-    actionsContainer
-  )
+    actionsContainer,
+  );
 }
 
 type SettingsPageFormActionsProps = {
-  onSave: () => void
-  onReset?: () => void
-  isSaving?: boolean
-  isSaveDisabled?: boolean
-  isResetDisabled?: boolean
-  saveLabel?: string
-  savingLabel?: string
-  resetLabel?: string
-  resetVariant?: ComponentProps<typeof Button>['variant']
-  saveButtonRef?: RefObject<HTMLButtonElement | null>
-}
+  onSave: () => void;
+  onReset?: () => void;
+  isSaving?: boolean;
+  isSaveDisabled?: boolean;
+  isResetDisabled?: boolean;
+  saveLabel?: string;
+  savingLabel?: string;
+  resetLabel?: string;
+  resetVariant?: ComponentProps<typeof Button>["variant"];
+  saveButtonRef?: RefObject<HTMLButtonElement | null>;
+};
 
 export function SettingsPageFormActions(props: SettingsPageFormActionsProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const saveLabel = props.isSaving
-    ? (props.savingLabel ?? 'Saving...')
-    : (props.saveLabel ?? 'Save Changes')
+    ? (props.savingLabel ?? "Saving...")
+    : (props.saveLabel ?? "Save Changes");
 
   return (
     <SettingsPageActionsPortal>
       {props.onReset && (
         <Button
-          type='button'
-          size='sm'
-          variant={props.resetVariant ?? 'outline'}
+          type="button"
+          size="sm"
+          variant={props.resetVariant ?? "outline"}
           onClick={props.onReset}
           disabled={props.isResetDisabled || props.isSaving}
         >
-          <RotateCcw data-icon='inline-start' />
-          <span>{t(props.resetLabel ?? 'Reset')}</span>
+          <RotateCcw data-icon="inline-start" />
+          <span>{t(props.resetLabel ?? "Reset")}</span>
         </Button>
       )}
       <Button
         ref={props.saveButtonRef}
-        type='button'
-        size='sm'
+        type="button"
+        size="sm"
         onClick={props.onSave}
         disabled={props.isSaving || props.isSaveDisabled}
       >
-        <Save data-icon='inline-start' />
+        <Save data-icon="inline-start" />
         <span>{t(saveLabel)}</span>
       </Button>
     </SettingsPageActionsPortal>
-  )
+  );
 }

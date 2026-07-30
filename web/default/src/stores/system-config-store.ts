@@ -43,7 +43,6 @@ export interface SystemConfig {
   logo: string
   faviconUrl: string
   primaryColor: string
-  tokenPreset: string
   footerHtml?: string
   demoSiteEnabled?: boolean
   displayTokenStatEnabled?: boolean
@@ -83,7 +82,6 @@ export const useSystemConfigStore = create<SystemConfigState>()(
         logo: DEFAULT_LOGO,
         faviconUrl: '',
         primaryColor: '',
-        tokenPreset: '',
         businessTimezone: DEFAULT_BUSINESS_TIMEZONE,
         currency: { ...DEFAULT_CURRENCY_CONFIG },
       },

@@ -37,7 +37,7 @@ import type {
 } from '@/features/dashboard/types'
 import { getCurrentIntlLocale } from '@/i18n/languages'
 
-import { USER_CHART_COLORS } from './chart-palette'
+import { CHART_SERIES_COLORS } from './chart-palette'
 
 type FlowMetrics = {
   quota: number
@@ -267,7 +267,7 @@ function flowPathForStages(
 // paints them as SVG fills, so the flow palette must be resolved hex rather
 // than the CSS variables the DOM-based dashboard charts use.
 function colorAt(index: number, palette?: readonly string[]): string {
-  const colors = palette && palette.length > 0 ? palette : USER_CHART_COLORS
+  const colors = palette && palette.length > 0 ? palette : CHART_SERIES_COLORS
   if (colors.length === 0) return DEFAULT_FLOW_CHART_COLOR
   return colors[index % colors.length] ?? DEFAULT_FLOW_CHART_COLOR
 }

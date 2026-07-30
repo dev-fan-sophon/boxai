@@ -30,34 +30,34 @@ For commercial licensing, please contact support@quantumnous.com
  * the bundle) each brand is resolved through the generated loader registry and
  * arrives in its own chunk.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
-import { LOBE_ICON_LOADERS } from './lobe-icon-registry.generated'
+import { LOBE_ICON_LOADERS } from "./lobe-icon-registry.generated";
 
-type IconComponent = React.ComponentType<Record<string, unknown>>
-type IconProps = Record<string, string | number | boolean>
+type IconComponent = React.ComponentType<Record<string, unknown>>;
+type IconProps = Record<string, string | number | boolean>;
 
 // `undefined` = not requested yet, `null` = resolved but unavailable.
-const moduleCache = new Map<string, unknown>()
-const inFlight = new Map<string, Promise<unknown>>()
+const moduleCache = new Map<string, unknown>();
+const inFlight = new Map<string, Promise<unknown>>();
 
 function loadIconModule(baseKey: string): Promise<unknown> {
-  const existing = inFlight.get(baseKey)
-  if (existing) return existing
+  const existing = inFlight.get(baseKey);
+  if (existing) return existing;
 
-  const loader = LOBE_ICON_LOADERS[baseKey]
+  const loader = LOBE_ICON_LOADERS[baseKey];
   const request = loader
     ? loader()
         .then((module) => module.default ?? null)
         .catch(() => null)
-    : Promise.resolve(null)
+    : Promise.resolve(null);
 
   const tracked = request.then((module) => {
-    moduleCache.set(baseKey, module)
-    return module
-  })
-  inFlight.set(baseKey, tracked)
-  return tracked
+    moduleCache.set(baseKey, module);
+    return module;
+  });
+  inFlight.set(baseKey, tracked);
+  return tracked;
 }
 
 /**
@@ -66,20 +66,20 @@ function loadIconModule(baseKey: string): Promise<unknown> {
  * for an icon that was already downloaded.
  */
 function useIconModule(baseKey: string): unknown {
-  const [, setRevision] = useState(0)
+  const [, setRevision] = useState(0);
 
   useEffect(() => {
-    if (moduleCache.has(baseKey)) return
-    let active = true
+    if (moduleCache.has(baseKey)) return;
+    let active = true;
     void loadIconModule(baseKey).then(() => {
-      if (active) setRevision((revision) => revision + 1)
-    })
+      if (active) setRevision((revision) => revision + 1);
+    });
     return () => {
-      active = false
-    }
-  }, [baseKey])
+      active = false;
+    };
+  }, [baseKey]);
 
-  return moduleCache.has(baseKey) ? moduleCache.get(baseKey) : undefined
+  return moduleCache.has(baseKey) ? moduleCache.get(baseKey) : undefined;
 }
 
 /**
@@ -88,13 +88,13 @@ function useIconModule(baseKey: string): unknown {
  * @returns Parsed value (boolean, number, or string)
  */
 function parseValue(raw: string | undefined | null): string | number | boolean {
-  if (raw == null) return true
+  if (raw == null) return true;
 
-  let v = String(raw).trim()
+  let v = String(raw).trim();
 
   // Remove curly braces
-  if (v.startsWith('{') && v.endsWith('}')) {
-    v = v.slice(1, -1).trim()
+  if (v.startsWith("{") && v.endsWith("}")) {
+    v = v.slice(1, -1).trim();
   }
 
   // Remove quotes
@@ -102,105 +102,105 @@ function parseValue(raw: string | undefined | null): string | number | boolean {
     (v.startsWith('"') && v.endsWith('"')) ||
     (v.startsWith("'") && v.endsWith("'"))
   ) {
-    return v.slice(1, -1)
+    return v.slice(1, -1);
   }
 
   // Boolean
-  if (v === 'true') return true
-  if (v === 'false') return false
+  if (v === "true") return true;
+  if (v === "false") return false;
 
   // Number
-  if (/^-?\d+(?:\.\d+)?$/.test(v)) return Number(v)
+  if (/^-?\d+(?:\.\d+)?$/.test(v)) return Number(v);
 
   // Return as string
-  return v
+  return v;
 }
 
 function resolveComponent(
   module: unknown,
-  segments: string[]
+  segments: string[],
 ): { Icon: IconComponent; propStartIndex: number } | null {
-  const base = module as Record<string, unknown> | undefined
-  if (!base) return null
+  const base = module as Record<string, unknown> | undefined;
+  if (!base) return null;
 
-  const sub = segments.length > 1 ? base[segments[1]] : undefined
+  const sub = segments.length > 1 ? base[segments[1]] : undefined;
   if (sub) {
-    return { Icon: sub as IconComponent, propStartIndex: 2 }
+    return { Icon: sub as IconComponent, propStartIndex: 2 };
   }
 
-  if (typeof base !== 'function' && typeof base !== 'object') return null
+  if (typeof base !== "function" && typeof base !== "object") return null;
   return {
     Icon: base as unknown as IconComponent,
     propStartIndex: segments.length > 1 && /^[A-Z]/.test(segments[1]) ? 2 : 1,
-  }
+  };
 }
 
 function parseChainedProps(
   segments: string[],
   propStartIndex: number,
-  size: number
+  size: number,
 ): IconProps {
-  const props: IconProps = {}
+  const props: IconProps = {};
 
   for (let i = propStartIndex; i < segments.length; i++) {
-    const segment = segments[i]
-    if (!segment) continue
+    const segment = segments[i];
+    if (!segment) continue;
 
-    const equalsIndex = segment.indexOf('=')
+    const equalsIndex = segment.indexOf("=");
     if (equalsIndex === -1) {
-      props[segment.trim()] = true
-      continue
+      props[segment.trim()] = true;
+      continue;
     }
 
     props[segment.slice(0, equalsIndex).trim()] = parseValue(
-      segment.slice(equalsIndex + 1).trim()
-    )
+      segment.slice(equalsIndex + 1).trim(),
+    );
   }
 
-  if (props.size == null) props.size = size
-  return props
+  if (props.size == null) props.size = size;
+  return props;
 }
 
 function IconPlaceholder(props: { size: number; letter?: string }) {
   return (
     <div
-      className='bg-muted text-muted-foreground flex items-center justify-center rounded-full text-xs font-medium'
+      className="bg-muted text-muted-foreground flex items-center justify-center rounded-full text-xs font-medium"
       style={{ width: props.size, height: props.size }}
     >
       {props.letter}
     </div>
-  )
+  );
 }
 
 export type LobeIconProps = {
   /** Icon key from the API, e.g. "OpenAI", "OpenAI.Color", "Claude.Avatar". */
-  name: string | undefined | null
-  size?: number
-}
+  name: string | undefined | null;
+  size?: number;
+};
 
 export function LobeIcon(props: LobeIconProps) {
-  const size = props.size ?? 20
-  const trimmedName = typeof props.name === 'string' ? props.name.trim() : ''
-  const segments = trimmedName.split('.')
-  const module = useIconModule(segments[0] ?? '')
+  const size = props.size ?? 20;
+  const trimmedName = typeof props.name === "string" ? props.name.trim() : "";
+  const segments = trimmedName.split(".");
+  const module = useIconModule(segments[0] ?? "");
 
-  if (!trimmedName) return <IconPlaceholder size={size} letter='?' />
+  if (!trimmedName) return <IconPlaceholder size={size} letter="?" />;
 
   // Still downloading: keep the footprint stable without flashing a letter.
-  if (module === undefined) return <IconPlaceholder size={size} />
+  if (module === undefined) return <IconPlaceholder size={size} />;
 
-  const resolved = resolveComponent(module, segments)
+  const resolved = resolveComponent(module, segments);
   if (!resolved) {
     return (
       <IconPlaceholder
         size={size}
         letter={trimmedName.charAt(0).toUpperCase()}
       />
-    )
+    );
   }
 
-  const { Icon } = resolved
+  const { Icon } = resolved;
   return (
     <Icon {...parseChainedProps(segments, resolved.propStartIndex, size)} />
-  )
+  );
 }

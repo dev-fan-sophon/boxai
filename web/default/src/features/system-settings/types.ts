@@ -117,10 +117,8 @@ export type SystemTaskListResponse = {
 }
 
 export type SiteSettings = {
-  'theme.frontend': string
   'branding.favicon_url': string
   'branding.primary_color': string
-  'branding.token_preset': string
   Notice: string
   SystemName: string
   Logo: string
@@ -149,6 +147,15 @@ export type AuthSettings = {
   'discord.enabled': boolean
   'discord.client_id': string
   'discord.client_secret': string
+  'google.enabled': boolean
+  'google.client_id': string
+  'google.client_secret': string
+  'facebook.enabled': boolean
+  'facebook.client_id': string
+  'facebook.client_secret': string
+  'zalo.enabled': boolean
+  'zalo.app_id': string
+  'zalo.secret_key': string
   'oidc.enabled': boolean
   'oidc.display_name': string
   'oidc.client_id': string
@@ -390,6 +397,23 @@ export type SecuritySettings = {
   ModelRequestRateLimitSuccessCount: number
   ModelRequestRateLimitDurationMinutes: number
   ModelRequestRateLimitGroup: string
+  GlobalApiRateLimitEnabled: boolean
+  GlobalApiRateLimitNum: number
+  GlobalApiRateLimitDuration: number
+  GlobalWebRateLimitEnabled: boolean
+  GlobalWebRateLimitNum: number
+  GlobalWebRateLimitDuration: number
+  CriticalRateLimitEnabled: boolean
+  CriticalRateLimitNum: number
+  CriticalRateLimitDuration: number
+  UploadRateLimitEnabled: boolean
+  UploadRateLimitNum: number
+  UploadRateLimitDuration: number
+  SearchRateLimitEnabled: boolean
+  SearchRateLimitNum: number
+  SearchRateLimitDuration: number
+  TrustedProxyCIDRs: string
+  CloudflareProxyEnabled: boolean
   CheckSensitiveEnabled: boolean
   CheckSensitiveOnPromptEnabled: boolean
   SensitiveWords: string

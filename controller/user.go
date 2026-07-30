@@ -129,7 +129,7 @@ func loginMethodFromContext(c *gin.Context) string {
 // recordLoginAudit 记录登录成功审计日志（对所有用户启用，仅记录成功，不记录失败）。
 func recordLoginAudit(user *model.User, c *gin.Context) {
 	method := loginMethodFromContext(c)
-	ip := c.ClientIP()
+	ip := common.RealClientIP(c)
 	extra := map[string]interface{}{
 		"login_method": method,
 		"user_agent":   c.Request.UserAgent(),
@@ -496,6 +496,9 @@ func GetSelf(c *gin.Context) {
 		"email":             user.Email,
 		"github_id":         user.GitHubId,
 		"discord_id":        user.DiscordId,
+		"google_id":         user.GoogleId,
+		"facebook_id":       user.FacebookId,
+		"zalo_id":           user.ZaloId,
 		"oidc_id":           user.OidcId,
 		"wechat_id":         user.WeChatId,
 		"telegram_id":       user.TelegramId,

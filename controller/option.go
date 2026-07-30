@@ -44,6 +44,47 @@ func isPositiveOptionValue(value string) bool {
 	return err == nil && floatValue > 0
 }
 
+// rateLimitOptionKinds maps the IP/user throttle options to the bound they must
+// respect. Windows may not exceed the key expiration or the sliding window would
+// keep counting requests that were already evicted.
+var rateLimitOptionKinds = map[string]string{
+	"GlobalApiRateLimitNum":      "count",
+	"GlobalApiRateLimitDuration": "duration",
+	"GlobalWebRateLimitNum":      "count",
+	"GlobalWebRateLimitDuration": "duration",
+	"CriticalRateLimitNum":       "count",
+	"CriticalRateLimitDuration":  "duration",
+	"UploadRateLimitNum":         "count",
+	"UploadRateLimitDuration":    "duration",
+	"SearchRateLimitNum":         "count",
+	"SearchRateLimitDuration":    "duration",
+}
+
+func validateRateLimitOption(key string, value string) error {
+	kind, tracked := rateLimitOptionKinds[key]
+	if !tracked {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil {
+		return fmt.Errorf("%s must be an integer", key)
+	}
+	if parsed < 1 {
+		return fmt.Errorf("%s must be at least 1", key)
+	}
+	if kind == "count" {
+		if parsed > math.MaxInt32 {
+			return fmt.Errorf("%s must not exceed %d", key, int64(math.MaxInt32))
+		}
+		return nil
+	}
+	maxDuration := int64(common.RateLimitKeyExpirationDuration.Seconds())
+	if parsed > maxDuration {
+		return fmt.Errorf("%s must not exceed %d seconds", key, maxDuration)
+	}
+	return nil
+}
+
 func brandColorRelativeLuminance(value string) float64 {
 	rgb, _ := strconv.ParseUint(value[1:], 16, 32)
 	channels := []float64{
@@ -69,11 +110,17 @@ func isAccessibleBrandPrimary(value string) bool {
 		return false
 	}
 
+	// Mirrors brandPrimaryForeground/isAccessibleBrandPrimary in
+	// web/default/src/lib/colors.ts: the label is measured against whichever of
+	// white or the dark label the frontend will actually render, so a light
+	// brand color is judged on its real appearance rather than white-on-light.
 	luminance := brandColorRelativeLuminance(value)
 	whiteContrast := 1.05 / (luminance + 0.05)
+	darkContrast := (luminance + 0.05) / (0.0114 + 0.05)
+	foregroundContrast := math.Max(whiteContrast, darkContrast)
 	lightCanvasContrast := (0.947 + 0.05) / (luminance + 0.05)
 	darkCanvasContrast := (luminance + 0.05) / (0.006 + 0.05)
-	return whiteContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
+	return foregroundContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
 }
 
 func collectModelNamesFromOptionValue(raw string, modelNames map[string]struct{}) {
@@ -122,7 +169,8 @@ func GetOptions(c *gin.Context) {
 			strings.HasSuffix(k, "Secret") ||
 			strings.HasSuffix(k, "Key") ||
 			strings.HasSuffix(k, "secret") ||
-			strings.HasSuffix(k, "api_key")
+			strings.HasSuffix(k, "api_key") ||
+			strings.HasSuffix(k, "secret_key")
 		if isSensitiveKey {
 			continue
 		}
@@ -205,7 +253,16 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	}
+	if err := validateRateLimitOption(option.Key, option.Value.(string)); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	switch option.Key {
+	case "TrustedProxyCIDRs":
+		if _, parseErr := common.ParseCIDRList(option.Value.(string)); parseErr != nil {
+			common.ApiError(c, parseErr)
+			return
+		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
@@ -219,6 +276,30 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": i18n.T(c, i18n.MsgOptionDiscordOAuthConfigRequired),
+			})
+			return
+		}
+	case "google.enabled":
+		if option.Value == "true" && system_setting.GetGoogleSettings().ClientId == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": i18n.T(c, i18n.MsgOptionGoogleOAuthConfigRequired),
+			})
+			return
+		}
+	case "facebook.enabled":
+		if option.Value == "true" && system_setting.GetFacebookSettings().ClientId == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": i18n.T(c, i18n.MsgOptionFacebookOAuthConfigRequired),
+			})
+			return
+		}
+	case "zalo.enabled":
+		if option.Value == "true" && system_setting.GetZaloSettings().AppId == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": i18n.T(c, i18n.MsgOptionZaloOAuthConfigRequired),
 			})
 			return
 		}
@@ -271,14 +352,6 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
-	case "theme.frontend":
-		if option.Value != "default" && option.Value != "classic" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": i18n.T(c, i18n.MsgOptionInvalidTheme),
-			})
-			return
-		}
 	case "branding.favicon_url":
 		value := option.Value.(string)
 		if strings.HasPrefix(value, "//") {
@@ -304,15 +377,6 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": i18n.T(c, i18n.MsgOptionInvalidBrandPrimaryColor),
-			})
-			return
-		}
-	case "branding.token_preset":
-		value := option.Value.(string)
-		if value != "" && value != "box-ai" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": i18n.T(c, i18n.MsgOptionInvalidBrandTokenPreset),
 			})
 			return
 		}

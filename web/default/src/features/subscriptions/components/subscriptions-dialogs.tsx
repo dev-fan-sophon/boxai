@@ -16,24 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ResetSubscriptionsDialog } from './dialogs/reset-subscriptions-dialog'
-import { ToggleStatusDialog } from './dialogs/toggle-status-dialog'
-import { SubscriptionsMutateDrawer } from './subscriptions-mutate-drawer'
-import { useSubscriptions } from './subscriptions-provider'
+import { ResetSubscriptionsDialog } from "./dialogs/reset-subscriptions-dialog";
+import { ToggleStatusDialog } from "./dialogs/toggle-status-dialog";
+import { SubscriptionsMutateDrawer } from "./subscriptions-mutate-drawer";
+import { useSubscriptions } from "./subscriptions-provider";
 
 export function SubscriptionsDialogs() {
-  const { open, setOpen, currentRow } = useSubscriptions()
-  const isUpdate = open === 'update'
+  const { open, setOpen, currentRow } = useSubscriptions();
+  const isUpdate = open === "update";
 
   return (
     <>
       <SubscriptionsMutateDrawer
-        open={open === 'create' || isUpdate}
+        open={open === "create" || isUpdate}
         onOpenChange={(isOpen) => !isOpen && setOpen(null)}
         currentRow={isUpdate ? currentRow || undefined : undefined}
       />
       <ToggleStatusDialog />
       <ResetSubscriptionsDialog />
     </>
-  )
+  );
 }

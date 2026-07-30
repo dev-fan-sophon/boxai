@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from "react-i18next";
 
 import {
   AlertDialog,
@@ -26,27 +26,27 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ConfirmDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: React.ReactNode
-  disabled?: boolean
-  desc: React.JSX.Element | string
-  cancelBtnText?: string
-  confirmText?: React.ReactNode
-  destructive?: boolean
-  handleConfirm: () => void
-  isLoading?: boolean
-  className?: string
-  children?: React.ReactNode
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: React.ReactNode;
+  disabled?: boolean;
+  desc: React.JSX.Element | string;
+  cancelBtnText?: string;
+  confirmText?: React.ReactNode;
+  destructive?: boolean;
+  handleConfirm: () => void;
+  isLoading?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+};
 
 export function ConfirmDialog(props: ConfirmDialogProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const {
     title,
     desc,
@@ -59,11 +59,11 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
     disabled = false,
     handleConfirm,
     ...actions
-  } = props
+  } = props;
   return (
     <AlertDialog {...actions}>
       <AlertDialogContent className={cn(className)}>
-        <AlertDialogHeader className='text-start'>
+        <AlertDialogHeader className="text-start">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription render={<div />}>
             {desc}
@@ -72,17 +72,17 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
         {children}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>
-            {cancelBtnText ?? t('Cancel')}
+            {cancelBtnText ?? t("Cancel")}
           </AlertDialogCancel>
           <Button
-            variant={destructive ? 'destructive' : 'default'}
+            variant={destructive ? "destructive" : "default"}
             onClick={handleConfirm}
             disabled={disabled || isLoading}
           >
-            {confirmText ?? t('Continue')}
+            {confirmText ?? t("Continue")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

@@ -16,46 +16,46 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Code2, Copy, Eye, Plus, Trash2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { Code2, Copy, Eye, Plus, Trash2 } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { StaticDataTable } from '@/components/data-table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { StaticDataTable } from "@/components/data-table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
-import { useUpdateOption } from '../hooks/use-update-option'
+import { useUpdateOption } from "../hooks/use-update-option";
 
-const OPTION_KEY = 'tool_price_setting.prices'
+const OPTION_KEY = "tool_price_setting.prices";
 
 const DEFAULT_PRICES: Record<string, number> = {
   web_search: 10.0,
   web_search_preview: 10.0,
-  'web_search_preview:gpt-4o*': 25.0,
-  'web_search_preview:gpt-4.1*': 25.0,
-  'web_search_preview:gpt-4o-mini*': 25.0,
-  'web_search_preview:gpt-4.1-mini*': 25.0,
+  "web_search_preview:gpt-4o*": 25.0,
+  "web_search_preview:gpt-4.1*": 25.0,
+  "web_search_preview:gpt-4o-mini*": 25.0,
+  "web_search_preview:gpt-4.1-mini*": 25.0,
   file_search: 2.5,
   google_search: 14.0,
-}
+};
 
 type ToolPriceRow = {
-  id: number
-  key: string
-  price: number
-}
+  id: number;
+  key: string;
+  price: number;
+};
 
 function rowsToObject(rows: ToolPriceRow[]): Record<string, number> {
-  const prices: Record<string, number> = {}
+  const prices: Record<string, number> = {};
   for (const row of rows) {
-    const k = row.key.trim()
-    if (!k) continue
-    prices[k] = Number(row.price) || 0
+    const k = row.key.trim();
+    if (!k) continue;
+    prices[k] = Number(row.price) || 0;
   }
-  return prices
+  return prices;
 }
 
 function objectToRows(prices: Record<string, number>): ToolPriceRow[] {
@@ -63,272 +63,274 @@ function objectToRows(prices: Record<string, number>): ToolPriceRow[] {
     id: index + 1,
     key,
     price: Number(price) || 0,
-  }))
+  }));
 }
 
 function parseInitialPrices(
-  rawValue: string | undefined
+  rawValue: string | undefined,
 ): Record<string, number> {
-  if (!rawValue) return { ...DEFAULT_PRICES }
+  if (!rawValue) return { ...DEFAULT_PRICES };
   try {
-    const parsed = JSON.parse(rawValue) as unknown
+    const parsed = JSON.parse(rawValue) as unknown;
     if (
       parsed &&
-      typeof parsed === 'object' &&
+      typeof parsed === "object" &&
       !Array.isArray(parsed) &&
       Object.keys(parsed as object).length > 0
     ) {
-      return parsed as Record<string, number>
+      return parsed as Record<string, number>;
     }
   } catch {
     // fall through to defaults
   }
-  return { ...DEFAULT_PRICES }
+  return { ...DEFAULT_PRICES };
 }
 
 type ToolPriceSettingsProps = {
-  defaultValue: string
-}
+  defaultValue: string;
+};
 
 export const ToolPriceSettings = memo(function ToolPriceSettings({
   defaultValue,
 }: ToolPriceSettingsProps) {
-  const { t } = useTranslation()
-  const updateOption = useUpdateOption()
-  const [editMode, setEditMode] = useState<'visual' | 'json'>('visual')
-  const [rows, setRows] = useState<ToolPriceRow[]>([])
-  const [jsonText, setJsonText] = useState('')
-  const [jsonError, setJsonError] = useState('')
-  const [nextRowId, setNextRowId] = useState(1)
+  const { t } = useTranslation();
+  const updateOption = useUpdateOption();
+  const [editMode, setEditMode] = useState<"visual" | "json">("visual");
+  const [rows, setRows] = useState<ToolPriceRow[]>([]);
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState("");
+  const [nextRowId, setNextRowId] = useState(1);
 
   useEffect(() => {
-    const prices = parseInitialPrices(defaultValue)
-    const initialRows = objectToRows(prices)
-    setRows(initialRows)
-    setJsonText(JSON.stringify(prices, null, 2))
-    setJsonError('')
-    setNextRowId(initialRows.length + 1)
-  }, [defaultValue])
+    const prices = parseInitialPrices(defaultValue);
+    const initialRows = objectToRows(prices);
+    setRows(initialRows);
+    setJsonText(JSON.stringify(prices, null, 2));
+    setJsonError("");
+    setNextRowId(initialRows.length + 1);
+  }, [defaultValue]);
 
-  const currentPrices = useMemo(() => rowsToObject(rows), [rows])
+  const currentPrices = useMemo(() => rowsToObject(rows), [rows]);
 
   const syncFromRows = useCallback((nextRows: ToolPriceRow[]) => {
-    setRows(nextRows)
-    setJsonText(JSON.stringify(rowsToObject(nextRows), null, 2))
-    setJsonError('')
-  }, [])
+    setRows(nextRows);
+    setJsonText(JSON.stringify(rowsToObject(nextRows), null, 2));
+    setJsonError("");
+  }, []);
 
   const handleJsonChange = useCallback(
     (text: string) => {
-      setJsonText(text)
+      setJsonText(text);
       try {
-        const parsed = JSON.parse(text) as unknown
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          setJsonError(t('JSON must be an object'))
-          return
+        const parsed = JSON.parse(text) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          setJsonError(t("JSON must be an object"));
+          return;
         }
-        const nextRows = objectToRows(parsed as Record<string, number>)
-        setRows(nextRows)
-        setNextRowId(nextRows.length + 1)
-        setJsonError('')
+        const nextRows = objectToRows(parsed as Record<string, number>);
+        setRows(nextRows);
+        setNextRowId(nextRows.length + 1);
+        setJsonError("");
       } catch (error) {
-        setJsonError(error instanceof Error ? error.message : t('Invalid JSON'))
+        setJsonError(
+          error instanceof Error ? error.message : t("Invalid JSON"),
+        );
       }
     },
-    [t]
-  )
+    [t],
+  );
 
   const updateRow = useCallback(
-    (id: number, field: 'key' | 'price', value: string | number) => {
+    (id: number, field: "key" | "price", value: string | number) => {
       syncFromRows(
-        rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
-      )
+        rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+      );
     },
-    [rows, syncFromRows]
-  )
+    [rows, syncFromRows],
+  );
 
   const addRow = useCallback(() => {
-    const newRow: ToolPriceRow = { id: nextRowId, key: '', price: 0 }
-    setNextRowId((prev) => prev + 1)
-    syncFromRows([...rows, newRow])
-  }, [nextRowId, rows, syncFromRows])
+    const newRow: ToolPriceRow = { id: nextRowId, key: "", price: 0 };
+    setNextRowId((prev) => prev + 1);
+    syncFromRows([...rows, newRow]);
+  }, [nextRowId, rows, syncFromRows]);
 
   const removeRow = useCallback(
     (id: number) => {
-      syncFromRows(rows.filter((r) => r.id !== id))
+      syncFromRows(rows.filter((r) => r.id !== id));
     },
-    [rows, syncFromRows]
-  )
+    [rows, syncFromRows],
+  );
 
   const resetToDefault = useCallback(() => {
-    const initialRows = objectToRows(DEFAULT_PRICES)
-    setRows(initialRows)
-    setJsonText(JSON.stringify(DEFAULT_PRICES, null, 2))
-    setJsonError('')
-    setNextRowId(initialRows.length + 1)
-  }, [])
+    const initialRows = objectToRows(DEFAULT_PRICES);
+    setRows(initialRows);
+    setJsonText(JSON.stringify(DEFAULT_PRICES, null, 2));
+    setJsonError("");
+    setNextRowId(initialRows.length + 1);
+  }, []);
 
   const handleCopyJson = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(jsonText)
-      toast.success(t('Copied to clipboard'))
+      await navigator.clipboard.writeText(jsonText);
+      toast.success(t("Copied to clipboard"));
     } catch {
-      toast.error(t('Failed to copy'))
+      toast.error(t("Failed to copy"));
     }
-  }, [jsonText, t])
+  }, [jsonText, t]);
 
   const handleSave = useCallback(async () => {
-    if (editMode === 'json' && jsonError) {
-      toast.error(t('Please fix JSON errors before saving'))
-      return
+    if (editMode === "json" && jsonError) {
+      toast.error(t("Please fix JSON errors before saving"));
+      return;
     }
     await updateOption.mutateAsync({
       key: OPTION_KEY,
       value: JSON.stringify(currentPrices),
-    })
-  }, [currentPrices, editMode, jsonError, t, updateOption])
+    });
+  }, [currentPrices, editMode, jsonError, t, updateOption]);
 
   const toggleEditMode = useCallback(() => {
-    setEditMode((prev) => (prev === 'visual' ? 'json' : 'visual'))
-  }, [])
+    setEditMode((prev) => (prev === "visual" ? "json" : "visual"));
+  }, []);
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <Alert>
-        <AlertDescription className='space-y-1 text-sm'>
+        <AlertDescription className="space-y-1 text-sm">
           <div>
             {t(
-              'Configure per-tool unit prices ($/1K calls). Per-request models do not incur additional tool fees.'
+              "Configure per-tool unit prices ($/1K calls). Per-request models do not incur additional tool fees.",
             )}
           </div>
           <div>
-            <span className='font-medium'>{t('Format')}:</span>{' '}
-            <code className='bg-muted rounded px-1 py-0.5 text-xs'>
+            <span className="font-medium">{t("Format")}:</span>{" "}
+            <code className="bg-muted rounded px-1 py-0.5 text-xs">
               web_search_preview
-            </code>{' '}
-            {t('is the default price; ')}
-            <code className='bg-muted rounded px-1 py-0.5 text-xs'>
+            </code>{" "}
+            {t("is the default price; ")}
+            <code className="bg-muted rounded px-1 py-0.5 text-xs">
               web_search_preview:gpt-4o*
-            </code>{' '}
-            {t('overrides for matching model prefix.')}
+            </code>{" "}
+            {t("overrides for matching model prefix.")}
           </div>
         </AlertDescription>
       </Alert>
 
-      <div className='flex flex-wrap items-center justify-between gap-2'>
-        <div className='flex flex-wrap items-center gap-2'>
-          {editMode === 'visual' ? (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {editMode === "visual" ? (
             <>
-              <Button variant='outline' size='sm' onClick={addRow}>
-                <Plus className='mr-2 h-4 w-4' />
-                {t('Add')}
+              <Button variant="outline" size="sm" onClick={addRow}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("Add")}
               </Button>
-              <Button variant='ghost' size='sm' onClick={resetToDefault}>
-                {t('Restore defaults')}
+              <Button variant="ghost" size="sm" onClick={resetToDefault}>
+                {t("Restore defaults")}
               </Button>
             </>
           ) : (
             <>
-              <Button variant='ghost' size='sm' onClick={handleCopyJson}>
-                <Copy className='mr-2 h-4 w-4' />
-                {t('Copy')}
+              <Button variant="ghost" size="sm" onClick={handleCopyJson}>
+                <Copy className="mr-2 h-4 w-4" />
+                {t("Copy")}
               </Button>
-              <Button variant='ghost' size='sm' onClick={resetToDefault}>
-                {t('Restore defaults')}
+              <Button variant="ghost" size="sm" onClick={resetToDefault}>
+                {t("Restore defaults")}
               </Button>
             </>
           )}
         </div>
-        <Button variant='outline' size='sm' onClick={toggleEditMode}>
-          {editMode === 'visual' ? (
+        <Button variant="outline" size="sm" onClick={toggleEditMode}>
+          {editMode === "visual" ? (
             <>
-              <Code2 className='mr-2 h-4 w-4' />
-              {t('Switch to JSON')}
+              <Code2 className="mr-2 h-4 w-4" />
+              {t("Switch to JSON")}
             </>
           ) : (
             <>
-              <Eye className='mr-2 h-4 w-4' />
-              {t('Switch to Visual')}
+              <Eye className="mr-2 h-4 w-4" />
+              {t("Switch to Visual")}
             </>
           )}
         </Button>
       </div>
 
-      {editMode === 'visual' ? (
+      {editMode === "visual" ? (
         <StaticDataTable
           data={rows}
           getRowKey={(row) => row.id}
-          emptyClassName='text-muted-foreground py-8'
-          emptyContent={t('No tools configured')}
+          emptyClassName="text-muted-foreground py-8"
+          emptyContent={t("No tools configured")}
           columns={[
             {
-              id: 'tool',
-              header: t('Tool identifier'),
+              id: "tool",
+              header: t("Tool identifier"),
               cell: (row) => (
                 <Input
                   value={row.key}
-                  placeholder='web_search_preview:gpt-4o*'
-                  onChange={(e) => updateRow(row.id, 'key', e.target.value)}
+                  placeholder="web_search_preview:gpt-4o*"
+                  onChange={(e) => updateRow(row.id, "key", e.target.value)}
                 />
               ),
             },
             {
-              id: 'price',
-              header: t('Price ($/1K calls)'),
-              className: 'w-[200px]',
+              id: "price",
+              header: t("Price ($/1K calls)"),
+              className: "w-[200px]",
               cell: (row) => (
                 <Input
-                  type='number'
+                  type="number"
                   min={0}
                   step={0.5}
                   value={row.price}
                   onChange={(e) =>
-                    updateRow(row.id, 'price', Number(e.target.value) || 0)
+                    updateRow(row.id, "price", Number(e.target.value) || 0)
                   }
                 />
               ),
             },
             {
-              id: 'actions',
-              header: t('Actions'),
-              className: 'text-right',
-              cellClassName: 'text-right',
+              id: "actions",
+              header: t("Actions"),
+              className: "text-right",
+              cellClassName: "text-right",
               cell: (row) => (
                 <Button
-                  variant='ghost'
-                  size='icon'
+                  variant="ghost"
+                  size="icon"
                   onClick={() => removeRow(row.id)}
-                  aria-label={t('Delete')}
+                  aria-label={t("Delete")}
                 >
-                  <Trash2 className='text-destructive h-4 w-4' />
+                  <Trash2 className="text-destructive h-4 w-4" />
                 </Button>
               ),
             },
           ]}
         />
       ) : (
-        <div className='space-y-2'>
+        <div className="space-y-2">
           <Textarea
             value={jsonText}
             onChange={(e) => handleJsonChange(e.target.value)}
-            className='font-mono text-sm'
+            className="font-mono text-sm"
             rows={12}
             spellCheck={false}
           />
-          {jsonError && <p className='text-destructive text-sm'>{jsonError}</p>}
+          {jsonError && <p className="text-destructive text-sm">{jsonError}</p>}
         </div>
       )}
 
-      <div className='flex justify-end'>
+      <div className="flex justify-end">
         <Button
           onClick={handleSave}
           disabled={
-            updateOption.isPending || (editMode === 'json' && !!jsonError)
+            updateOption.isPending || (editMode === "json" && !!jsonError)
           }
         >
-          {t('Save tool prices')}
+          {t("Save tool prices")}
         </Button>
       </div>
     </div>
-  )
-})
+  );
+});

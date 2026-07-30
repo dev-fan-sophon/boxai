@@ -16,21 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from "react-i18next";
 
-import { getPrivacyPolicy } from './api'
-import { LegalDocument } from './legal-document'
+import { getPrivacyPolicy } from "./api";
+import { LegalDocument } from "./legal-document";
 
 export function PrivacyPolicy() {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <LegalDocument
-      title={t('Privacy Policy')}
-      queryKey='privacy-policy'
+      title={t("Privacy Policy")}
+      queryKey="privacy-policy"
       fetchDocument={getPrivacyPolicy}
       emptyMessage={t(
-        'The administrator has not configured a privacy policy yet.'
+        "The administrator has not configured a privacy policy yet.",
       )}
     />
-  )
+  );
 }

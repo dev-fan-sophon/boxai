@@ -16,35 +16,35 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useState } from 'react'
+import React, { useState } from "react";
 
-import { useDialogState } from '@/hooks/use-dialog'
+import { useDialogState } from "@/hooks/use-dialog";
 
-import type { PlanRecord, SubscriptionsDialogType } from '../types'
+import type { PlanRecord, SubscriptionsDialogType } from "../types";
 
 type SubscriptionsContextType = {
-  open: SubscriptionsDialogType | null
-  setOpen: (str: SubscriptionsDialogType | null) => void
-  currentRow: PlanRecord | null
-  setCurrentRow: React.Dispatch<React.SetStateAction<PlanRecord | null>>
-  refreshTrigger: number
-  triggerRefresh: () => void
-  complianceConfirmed: boolean
-}
+  open: SubscriptionsDialogType | null;
+  setOpen: (str: SubscriptionsDialogType | null) => void;
+  currentRow: PlanRecord | null;
+  setCurrentRow: React.Dispatch<React.SetStateAction<PlanRecord | null>>;
+  refreshTrigger: number;
+  triggerRefresh: () => void;
+  complianceConfirmed: boolean;
+};
 
 const SubscriptionsContext =
-  React.createContext<SubscriptionsContextType | null>(null)
+  React.createContext<SubscriptionsContextType | null>(null);
 
 export function SubscriptionsProvider({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const [open, setOpen] = useDialogState<SubscriptionsDialogType>(null)
-  const [currentRow, setCurrentRow] = useState<PlanRecord | null>(null)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [open, setOpen] = useDialogState<SubscriptionsDialogType>(null);
+  const [currentRow, setCurrentRow] = useState<PlanRecord | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1)
+  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
 
   return (
     <SubscriptionsContext
@@ -60,16 +60,16 @@ export function SubscriptionsProvider({
     >
       {children}
     </SubscriptionsContext>
-  )
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useSubscriptions = () => {
-  const ctx = React.useContext(SubscriptionsContext)
+  const ctx = React.useContext(SubscriptionsContext);
   if (!ctx) {
     throw new Error(
-      'useSubscriptions has to be used within <SubscriptionsProvider>'
-    )
+      "useSubscriptions has to be used within <SubscriptionsProvider>",
+    );
   }
-  return ctx
-}
+  return ctx;
+};

@@ -1,11 +1,9 @@
 WEB_DIR = ./web/default
-WEB_CLASSIC_DIR = ./web/classic
 API_DIR = .
 DESKTOP_DIR = ./desktop
 DESKTOP_GUI_DIR = ./desktop/surfaces/gui
 CONNECT_DIR = ./connect
 DEV_WEB_DEFAULT_PORT ?= 5173
-DEV_WEB_CLASSIC_PORT ?= 5174
 DEV_COMPOSE_FILE = docker-compose.dev.yml
 DEV_POSTGRES_SERVICE = postgres
 DEV_POSTGRES_DB = new-api
@@ -16,25 +14,18 @@ DEV_SQLITE_PATH ?= one-api.db
 export SQL_DSN ?= postgresql://root:123456@127.0.0.1:5432/new-api?sslmode=disable
 export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 
-.PHONY: all build-web build-web-classic build-all-web start-api \
-	dev-infra dev-api dev-web dev-web-local dev-web-classic dev \
+.PHONY: all build-web start-api \
+	dev-infra dev-api dev-web dev-web-local dev \
 	reset-setup deploy deploy-bootstrap \
 	desktop-build desktop-stage desktop-publish desktop-screenshots \
 	connect-dev connect-check connect-build connect-stage connect-publish
 
-all: build-all-web start-api
+all: build-web start-api
 
 build-web:
 	@echo "Building default web..."
 	@cd ./web && bun install --frozen-lockfile
 	@cd $(WEB_DIR) && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$$(cat ../../VERSION 2>/dev/null || echo dev) bun run build
-
-build-web-classic:
-	@echo "Building classic web..."
-	@cd ./web && bun install --frozen-lockfile
-	@cd $(WEB_CLASSIC_DIR) && VITE_REACT_APP_VERSION=$$(cat ../../VERSION 2>/dev/null || echo dev) bun run build
-
-build-all-web: build-web build-web-classic
 
 # Host Go API (expects Postgres/Redis on localhost — run make dev-infra first if needed)
 start-api:
@@ -64,11 +55,6 @@ dev-web-local:
 	@echo "Starting default web against local API http://127.0.0.1:3000"
 	@cd ./web && bun install --filter ./default
 	@cd $(WEB_DIR) && VITE_REACT_APP_SERVER_URL=http://127.0.0.1:3000 bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_DEFAULT_PORT)
-
-dev-web-classic:
-	@echo "Starting classic web dev server..."
-	@cd ./web && bun install --filter ./classic
-	@cd $(WEB_CLASSIC_DIR) && bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_CLASSIC_PORT)
 
 # Frontend only by default (production API). Full local stack: make dev-infra && make start-api & make dev-web-local
 dev: dev-web

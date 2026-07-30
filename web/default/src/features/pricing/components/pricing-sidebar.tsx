@@ -16,19 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronDown, RotateCcw } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import { ChevronDown, RotateCcw } from "lucide-react";
+import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { LobeIcon } from '@/lib/lobe-icon'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/collapsible";
+import { LobeIcon } from "@/lib/lobe-icon";
+import { cn } from "@/lib/utils";
 
 import {
   ENDPOINT_TYPES,
@@ -36,123 +36,123 @@ import {
   QUOTA_TYPES,
   getEndpointTypeLabels,
   getQuotaTypeLabels,
-} from '../constants'
-import { filterByEndpointType, parseTags } from '../lib/filters'
+} from "../constants";
+import { filterByEndpointType, parseTags } from "../lib/filters";
 import type {
   IntegrationProfile,
   PricingModel,
   PricingVendor,
   TokenUnit,
-} from '../types'
+} from "../types";
 
 type FilterOption = {
-  value: string
-  label: string
-  count?: number
-  suffix?: string
-  icon?: ReactNode
-}
+  value: string;
+  label: string;
+  count?: number;
+  suffix?: string;
+  icon?: ReactNode;
+};
 
 type FilterSectionProps = {
-  title: string
-  value: string
-  options: FilterOption[]
-  onChange: (value: string) => void
-}
+  title: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+};
 
 export interface PricingSidebarProps {
-  quotaTypeFilter: string
-  endpointTypeFilter: string
-  vendorFilter: string
-  groupFilter: string
-  tagFilter: string
-  onQuotaTypeChange: (value: string) => void
-  onEndpointTypeChange: (value: string) => void
-  onVendorChange: (value: string) => void
-  onGroupChange: (value: string) => void
-  onTagChange: (value: string) => void
-  vendors: PricingVendor[]
-  groups: string[]
-  groupRatios?: Record<string, number>
-  tags: string[]
-  models: PricingModel[]
-  integrationProfiles: IntegrationProfile[]
-  hasActiveFilters: boolean
-  onClearFilters: () => void
+  quotaTypeFilter: string;
+  endpointTypeFilter: string;
+  vendorFilter: string;
+  groupFilter: string;
+  tagFilter: string;
+  onQuotaTypeChange: (value: string) => void;
+  onEndpointTypeChange: (value: string) => void;
+  onVendorChange: (value: string) => void;
+  onGroupChange: (value: string) => void;
+  onTagChange: (value: string) => void;
+  vendors: PricingVendor[];
+  groups: string[];
+  groupRatios?: Record<string, number>;
+  tags: string[];
+  models: PricingModel[];
+  integrationProfiles: IntegrationProfile[];
+  hasActiveFilters: boolean;
+  onClearFilters: () => void;
   /** Optional price display settings, shown as extra sections when provided. */
-  tokenUnit?: TokenUnit
-  onTokenUnitChange?: (value: TokenUnit) => void
-  showRechargePrice?: boolean
-  onRechargePriceChange?: (value: boolean) => void
-  className?: string
+  tokenUnit?: TokenUnit;
+  onTokenUnitChange?: (value: TokenUnit) => void;
+  showRechargePrice?: boolean;
+  onRechargePriceChange?: (value: boolean) => void;
+  className?: string;
 }
 
 function countBy(
   models: PricingModel[],
-  predicate: (model: PricingModel) => boolean
+  predicate: (model: PricingModel) => boolean,
 ): number {
-  return models.reduce((count, model) => count + (predicate(model) ? 1 : 0), 0)
+  return models.reduce((count, model) => count + (predicate(model) ? 1 : 0), 0);
 }
 
 function formatGroupRatio(ratio: number | undefined): string | undefined {
-  if (ratio == null) return undefined
+  if (ratio == null) return undefined;
   const formatted = Number.isInteger(ratio)
     ? ratio.toString()
-    : ratio.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
-  return `x${formatted}`
+    : ratio.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  return `x${formatted}`;
 }
 
 function FilterChip(props: {
-  option: FilterOption
-  active: boolean
-  onClick: () => void
+  option: FilterOption;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
-      type='button'
+      type="button"
       onClick={props.onClick}
       className={cn(
-        'group inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-ui',
+        "group inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-ui",
         props.active
-          ? 'border-foreground/30 bg-foreground/5 text-foreground shadow-sm'
-          : 'border-border/70 bg-background text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground'
+          ? "border-foreground/30 bg-foreground/5 text-foreground shadow-sm"
+          : "border-border/70 bg-background text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
       )}
       title={props.option.label}
     >
       {props.option.icon && (
-        <span className='shrink-0'>{props.option.icon}</span>
+        <span className="shrink-0">{props.option.icon}</span>
       )}
-      <span className='truncate'>{props.option.label}</span>
+      <span className="truncate">{props.option.label}</span>
       {(props.option.suffix || props.option.count != null) && (
         <span
           className={cn(
-            'rounded-md px-1.5 py-0.5 text-[12px]',
+            "rounded-md px-1.5 py-0.5 text-[12px]",
             props.active
-              ? 'bg-background text-foreground'
-              : 'bg-muted text-muted-foreground'
+              ? "bg-background text-foreground"
+              : "bg-muted text-muted-foreground",
           )}
         >
           {props.option.suffix ?? props.option.count}
         </span>
       )}
     </button>
-  )
+  );
 }
 
 function FilterSection(props: FilterSectionProps) {
   return (
     <Collapsible
       defaultOpen
-      className='border-border/70 border-b pb-3 last:border-b-0'
+      className="border-border/70 border-b pb-3 last:border-b-0"
     >
-      <CollapsibleTrigger className='group flex w-full items-center justify-between py-2.5 text-left'>
-        <span className='text-foreground text-sm font-semibold'>
+      <CollapsibleTrigger className="group flex w-full items-center justify-between py-2.5 text-left">
+        <span className="text-foreground text-sm font-semibold">
           {props.title}
         </span>
-        <ChevronDown className='text-muted-foreground size-4 transition-transform group-data-[panel-open]:rotate-180' />
+        <ChevronDown className="text-muted-foreground size-4 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className='flex flex-wrap gap-1.5'>
+        <div className="flex flex-wrap gap-1.5">
           {props.options.map((option) => (
             <FilterChip
               key={option.value}
@@ -164,18 +164,18 @@ function FilterSection(props: FilterSectionProps) {
         </div>
       </CollapsibleContent>
     </Collapsible>
-  )
+  );
 }
 
 export function PricingSidebar(props: PricingSidebarProps) {
-  const { t } = useTranslation()
-  const quotaTypeLabels = getQuotaTypeLabels(t)
-  const endpointTypeLabels = getEndpointTypeLabels(t)
+  const { t } = useTranslation();
+  const quotaTypeLabels = getQuotaTypeLabels(t);
+  const endpointTypeLabels = getEndpointTypeLabels(t);
 
   const vendorOptions: FilterOption[] = [
     {
       value: FILTER_ALL,
-      label: t('All Vendors'),
+      label: t("All Vendors"),
       count: props.models.length,
     },
     ...props.vendors
@@ -184,26 +184,26 @@ export function PricingSidebar(props: PricingSidebarProps) {
         label: vendor.name,
         count: countBy(
           props.models,
-          (model) => model.vendor_name === vendor.name
+          (model) => model.vendor_name === vendor.name,
         ),
         icon: vendor.icon ? (
           <LobeIcon name={vendor.icon} size={14} />
         ) : undefined,
       }))
       .filter((vendor) => vendor.count > 0),
-  ]
+  ];
 
   const groupOptions: FilterOption[] = [
     {
       value: FILTER_ALL,
-      label: t('All Groups'),
+      label: t("All Groups"),
     },
     ...props.groups.map((group) => ({
       value: group,
       label: group,
       suffix: formatGroupRatio(props.groupRatios?.[group]),
     })),
-  ]
+  ];
 
   const quotaOptions: FilterOption[] = [
     {
@@ -221,12 +221,12 @@ export function PricingSidebar(props: PricingSidebarProps) {
       label: quotaTypeLabels[QUOTA_TYPES.REQUEST],
       count: countBy(props.models, (model) => model.quota_type === 1),
     },
-  ]
+  ];
 
   const tagOptions: FilterOption[] = [
     {
       value: FILTER_ALL,
-      label: t('All Tags'),
+      label: t("All Tags"),
       count: props.models.length,
     },
     ...props.tags.map((tag) => ({
@@ -235,14 +235,14 @@ export function PricingSidebar(props: PricingSidebarProps) {
       count: countBy(props.models, (model) =>
         parseTags(model.tags)
           .map((item) => item.toLowerCase())
-          .includes(tag.toLowerCase())
+          .includes(tag.toLowerCase()),
       ),
     })),
-  ]
+  ];
 
   const protocols = [
     ...new Set(props.integrationProfiles.map((profile) => profile.protocol)),
-  ].sort()
+  ].sort();
   const endpointOptions: FilterOption[] = [
     {
       value: ENDPOINT_TYPES.ALL,
@@ -256,95 +256,95 @@ export function PricingSidebar(props: PricingSidebarProps) {
         props.models,
         value,
         props.integrationProfiles,
-        props.groupFilter
+        props.groupFilter,
       ).length,
     })),
-  ]
+  ];
 
   return (
-    <aside className={cn('rounded-xl border p-3', props.className)}>
-      <div className='mb-2.5 flex items-center justify-between gap-2'>
+    <aside className={cn("rounded-xl border p-3", props.className)}>
+      <div className="mb-2.5 flex items-center justify-between gap-2">
         <div>
-          <h2 className='text-foreground text-sm font-bold'>{t('Filter')}</h2>
-          <p className='text-muted-foreground mt-1 text-xs'>
-            {t('Refine models by provider, group, type, and tags.')}
+          <h2 className="text-foreground text-sm font-bold">{t("Filter")}</h2>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {t("Refine models by provider, group, type, and tags.")}
           </p>
         </div>
         <Button
-          type='button'
-          variant='ghost'
-          size='sm'
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={props.onClearFilters}
           disabled={!props.hasActiveFilters}
-          className='h-7 gap-1.5 px-2 text-xs'
+          className="h-7 gap-1.5 px-2 text-xs"
         >
-          <RotateCcw className='size-3.5' />
-          {t('Reset')}
+          <RotateCcw className="size-3.5" />
+          {t("Reset")}
         </Button>
       </div>
 
       {props.hasActiveFilters && (
-        <Badge variant='secondary' className='mb-3'>
-          {t('Filters active')}
+        <Badge variant="secondary" className="mb-3">
+          {t("Filters active")}
         </Badge>
       )}
 
-      <div className='space-y-1'>
+      <div className="space-y-1">
         <FilterSection
-          title={t('Groups')}
+          title={t("Groups")}
           value={props.groupFilter}
           options={groupOptions}
           onChange={props.onGroupChange}
         />
         <FilterSection
-          title={t('All Vendors')}
+          title={t("All Vendors")}
           value={props.vendorFilter}
           options={vendorOptions}
           onChange={props.onVendorChange}
         />
         <FilterSection
-          title={t('Model Tags')}
+          title={t("Model Tags")}
           value={props.tagFilter}
           options={tagOptions}
           onChange={props.onTagChange}
         />
         <FilterSection
-          title={t('Pricing Type')}
+          title={t("Pricing Type")}
           value={props.quotaTypeFilter}
           options={quotaOptions}
           onChange={props.onQuotaTypeChange}
         />
         <FilterSection
-          title={t('Integration protocol')}
+          title={t("Integration protocol")}
           value={props.endpointTypeFilter}
           options={endpointOptions}
           onChange={props.onEndpointTypeChange}
         />
         {props.onRechargePriceChange && (
           <FilterSection
-            title={t('Price display mode')}
-            value={props.showRechargePrice ? 'recharge' : 'standard'}
+            title={t("Price display mode")}
+            value={props.showRechargePrice ? "recharge" : "standard"}
             options={[
-              { value: 'standard', label: t('Standard') },
-              { value: 'recharge', label: t('Recharge') },
+              { value: "standard", label: t("Standard") },
+              { value: "recharge", label: t("Recharge") },
             ]}
             onChange={(value) =>
-              props.onRechargePriceChange?.(value === 'recharge')
+              props.onRechargePriceChange?.(value === "recharge")
             }
           />
         )}
         {props.onTokenUnitChange && (
           <FilterSection
-            title={t('Token unit')}
-            value={props.tokenUnit ?? 'M'}
+            title={t("Token unit")}
+            value={props.tokenUnit ?? "M"}
             options={[
-              { value: 'M', label: '/1M' },
-              { value: 'K', label: '/1K' },
+              { value: "M", label: "/1M" },
+              { value: "K", label: "/1K" },
             ]}
             onChange={(value) => props.onTokenUnitChange?.(value as TokenUnit)}
           />
         )}
       </div>
     </aside>
-  )
+  );
 }

@@ -118,6 +118,22 @@ export interface OAuthPreset {
 
 export const OAUTH_PRESETS: OAuthPreset[] = [
   {
+    key: 'microsoft-entra-id',
+    name: 'Microsoft Entra ID',
+    icon: 'microsoft',
+    authorization_endpoint:
+      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    token_endpoint:
+      'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    user_info_endpoint: 'https://graph.microsoft.com/oidc/userinfo',
+    scopes: 'openid profile email',
+    user_id_field: 'sub',
+    username_field: 'email',
+    display_name_field: 'name',
+    email_field: 'email',
+    needsBaseUrl: false,
+  },
+  {
     key: 'github-enterprise',
     name: 'GitHub Enterprise',
     icon: 'github',

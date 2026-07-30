@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Row, Table } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
+import type { Row, Table } from "@tanstack/react-table";
+import { Database } from "lucide-react";
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -36,8 +36,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import * as React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Empty,
@@ -45,62 +45,62 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty'
-import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-import { tableHasCompactMeta } from './card-cell-utils'
-import { CardRowContent } from './card-row-content'
+import { tableHasCompactMeta } from "./card-cell-utils";
+import { CardRowContent } from "./card-row-content";
 
 interface MobileCardListProps<TData> {
-  table: Table<TData>
-  isLoading?: boolean
-  emptyTitle?: string
-  emptyDescription?: string
-  getRowKey?: (row: Row<TData>) => string | number
-  getRowClassName?: (row: Row<TData>) => string | undefined
+  table: Table<TData>;
+  isLoading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  getRowKey?: (row: Row<TData>) => string | number;
+  getRowClassName?: (row: Row<TData>) => string | undefined;
 }
 
 function ListSkeleton() {
   return (
-    <div className='border-border divide-border divide-y overflow-hidden rounded-md border'>
+    <div className="border-border divide-border divide-y overflow-hidden rounded-md border">
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className='px-3 py-3'>
-          <div className='flex items-center justify-between'>
-            <Skeleton className='h-4 w-32' />
-            <Skeleton className='h-5 w-16 rounded-md' />
+        <div key={i} className="px-3 py-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-5 w-16 rounded-md" />
           </div>
-          <div className='mt-1.5 grid grid-cols-2 gap-2'>
-            <div className='flex-1'>
-              <Skeleton className='mb-1 h-2 w-8' />
-              <Skeleton className='h-4 w-full' />
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <div className="flex-1">
+              <Skeleton className="mb-1 h-2 w-8" />
+              <Skeleton className="h-4 w-full" />
             </div>
-            <div className='flex-1'>
-              <Skeleton className='mb-1 h-2 w-8' />
-              <Skeleton className='h-4 w-full' />
+            <div className="flex-1">
+              <Skeleton className="mb-1 h-2 w-8" />
+              <Skeleton className="h-4 w-full" />
             </div>
           </div>
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 function FallbackListSkeleton() {
   return (
-    <div className='divide-y overflow-hidden rounded-lg border'>
+    <div className="divide-y overflow-hidden rounded-lg border">
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className='space-y-1.5 px-3 py-2.5'>
+        <div key={i} className="space-y-1.5 px-3 py-2.5">
           {[1, 2, 3].map((j) => (
-            <div key={j} className='flex items-center justify-between'>
-              <Skeleton className='h-2.5 w-16' />
-              <Skeleton className='h-3.5 w-28' />
+            <div key={j} className="flex items-center justify-between">
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="h-3.5 w-28" />
             </div>
           ))}
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /**
@@ -121,58 +121,58 @@ export function MobileCardList<TData>(props: MobileCardListProps<TData>) {
     emptyDescription,
     getRowKey,
     getRowClassName,
-  } = props
-  const { t } = useTranslation()
+  } = props;
+  const { t } = useTranslation();
 
-  const resolvedEmptyTitle = emptyTitle ?? t('No Data')
-  const resolvedEmptyDescription = emptyDescription ?? t('No data available')
+  const resolvedEmptyTitle = emptyTitle ?? t("No Data");
+  const resolvedEmptyDescription = emptyDescription ?? t("No data available");
 
-  const visibleColumns = table.getVisibleLeafColumns()
+  const visibleColumns = table.getVisibleLeafColumns();
   const hasCompactMeta = React.useMemo(
     () => tableHasCompactMeta(table),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleColumns]
-  )
+    [visibleColumns],
+  );
 
   if (isLoading) {
-    return hasCompactMeta ? <ListSkeleton /> : <FallbackListSkeleton />
+    return hasCompactMeta ? <ListSkeleton /> : <FallbackListSkeleton />;
   }
 
-  const rows = table.getRowModel().rows
+  const rows = table.getRowModel().rows;
 
   if (!rows || rows.length === 0) {
     return (
-      <div className='border-border rounded-md border p-6'>
-        <Empty className='border-none p-0'>
+      <div className="border-border rounded-md border p-6">
+        <Empty className="border-none p-0">
           <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
+            <EmptyMedia variant="icon">
+              <Database className="size-6" />
             </EmptyMedia>
             <EmptyTitle>{resolvedEmptyTitle}</EmptyTitle>
             <EmptyDescription>{resolvedEmptyDescription}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       </div>
-    )
+    );
   }
 
   return (
-    <div className='grid grid-cols-1 gap-3'>
+    <div className="grid grid-cols-1 gap-3">
       {rows.map((row) => {
-        const key = getRowKey ? getRowKey(row) : row.id
+        const key = getRowKey ? getRowKey(row) : row.id;
         return (
           <div
             key={key}
             className={cn(
-              'border-border/60 bg-card rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)]',
-              '[background-color:var(--data-table-card-bg,var(--card))]',
-              getRowClassName?.(row)
+              "border-border/60 bg-card rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)]",
+              "[background-color:var(--data-table-card-bg,var(--card))]",
+              getRowClassName?.(row),
             )}
           >
             <CardRowContent row={row} compact={hasCompactMeta} />
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

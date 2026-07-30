@@ -16,29 +16,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Wrench } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Wrench } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
-import { ErrorPage } from './error-page'
+import { ErrorPage } from "./error-page";
 
 export function MaintenanceError() {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <ErrorPage
-      code='503'
+      code="503"
       icon={<Wrench />}
-      iconTone='info'
-      title={t('Under maintenance')}
+      iconTone="info"
+      title={t("Under maintenance")}
       description={t(
-        "We're doing a short upgrade. Please try again in a few minutes."
+        "We're doing a short upgrade. Please try again in a few minutes.",
       )}
       actions={
-        <Button variant='outline' onClick={() => window.location.reload()}>
-          {t('Try again')}
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          {t("Try again")}
         </Button>
       }
     />
-  )
+  );
 }

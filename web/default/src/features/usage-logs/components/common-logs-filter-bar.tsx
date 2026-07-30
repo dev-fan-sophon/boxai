@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQueryClient, useIsFetching } from '@tanstack/react-query'
-import type { Table } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
-import { useState, useCallback, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useQueryClient, useIsFetching } from "@tanstack/react-query";
+import type { Table } from "@tanstack/react-table";
+import { Eye, EyeOff } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -30,61 +30,61 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
+} from "@/components/ui/tooltip";
 
-import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
-import { buildSearchParams } from '../lib/filter'
-import { getDefaultTimeRange } from '../lib/utils'
-import type { CommonLogFilters } from '../types'
-import { CommonLogsStats } from './common-logs-stats'
-import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
+import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from "../constants";
+import { buildSearchParams } from "../lib/filter";
+import { getDefaultTimeRange } from "../lib/utils";
+import type { CommonLogFilters } from "../types";
+import { CommonLogsStats } from "./common-logs-stats";
+import { CompactDateTimeRangePicker } from "./compact-date-time-range-picker";
 import {
   LogsFilterField,
   LogsFilterInput,
   LogsFilterToolbar,
-} from './logs-filter-toolbar'
-import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
+} from "./logs-filter-toolbar";
+import { useLogsViewScope, useUsageLogsContext } from "./usage-logs-provider";
 
-type LogTypeValue = (typeof LOG_TYPE_FILTERS)[number]['value']
+type LogTypeValue = (typeof LOG_TYPE_FILTERS)[number]["value"];
 const logTypeValueSet = new Set<string>(
-  LOG_TYPE_FILTERS.map((type) => type.value)
-)
+  LOG_TYPE_FILTERS.map((type) => type.value),
+);
 
 type CommonLogDraft = {
-  sourceKey: string
-  filters: CommonLogFilters
-  logType: LogTypeValue
-}
+  sourceKey: string;
+  filters: CommonLogFilters;
+  logType: LogTypeValue;
+};
 
 function isLogTypeValue(value: string): value is LogTypeValue {
-  return logTypeValueSet.has(value)
+  return logTypeValueSet.has(value);
 }
 
 function getLogTypeValue(value: unknown): LogTypeValue {
   return Array.isArray(value) &&
     value.length === 1 &&
-    typeof value[0] === 'string' &&
+    typeof value[0] === "string" &&
     isLogTypeValue(value[0])
     ? value[0]
-    : LOG_TYPE_ALL_VALUE
+    : LOG_TYPE_ALL_VALUE;
 }
 
 function buildSearchSourceKey(values: {
-  startTime?: unknown
-  endTime?: unknown
-  channel?: unknown
-  model?: unknown
-  token?: unknown
-  group?: unknown
-  username?: unknown
-  requestId?: unknown
-  upstreamRequestId?: unknown
-  type?: unknown
+  startTime?: unknown;
+  endTime?: unknown;
+  channel?: unknown;
+  model?: unknown;
+  token?: unknown;
+  group?: unknown;
+  username?: unknown;
+  requestId?: unknown;
+  upstreamRequestId?: unknown;
+  type?: unknown;
 }) {
   return [
     values.startTime,
@@ -96,28 +96,28 @@ function buildSearchSourceKey(values: {
     values.username,
     values.requestId,
     values.upstreamRequestId,
-    Array.isArray(values.type) ? values.type.join(',') : values.type,
+    Array.isArray(values.type) ? values.type.join(",") : values.type,
   ]
-    .map((value) => String(value ?? ''))
-    .join('\u001f')
+    .map((value) => String(value ?? ""))
+    .join("\u001f");
 }
 
 interface CommonLogsFilterBarProps<TData> {
-  table: Table<TData>
+  table: Table<TData>;
 }
 
 export function CommonLogsFilterBar<TData>(
-  props: CommonLogsFilterBarProps<TData>
+  props: CommonLogsFilterBarProps<TData>,
 ) {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const { isAdminView: isAdmin } = useLogsViewScope()
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { isAdminView: isAdmin } = useLogsViewScope();
   const { searchParams, navigateLogs, sensitiveVisible, setSensitiveVisible } =
-    useUsageLogsContext()
-  const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
+    useUsageLogsContext();
+  const fetchingLogs = useIsFetching({ queryKey: ["logs"] });
 
   const searchState = useMemo<CommonLogDraft>(() => {
-    const { start, end } = getDefaultTimeRange()
+    const { start, end } = getDefaultTimeRange();
     const sourceValues = {
       startTime: searchParams.startTime,
       endTime: searchParams.endTime,
@@ -129,7 +129,7 @@ export function CommonLogsFilterBar<TData>(
       requestId: searchParams.requestId,
       upstreamRequestId: searchParams.upstreamRequestId,
       type: searchParams.type,
-    }
+    };
     const filters: CommonLogFilters = {
       startTime: searchParams.startTime
         ? new Date(searchParams.startTime)
@@ -142,12 +142,12 @@ export function CommonLogsFilterBar<TData>(
       username: searchParams.username || undefined,
       requestId: searchParams.requestId || undefined,
       upstreamRequestId: searchParams.upstreamRequestId || undefined,
-    }
+    };
     return {
       sourceKey: buildSearchSourceKey(sourceValues),
       filters,
       logType: getLogTypeValue(searchParams.type),
-    }
+    };
   }, [
     searchParams.startTime,
     searchParams.endTime,
@@ -159,84 +159,84 @@ export function CommonLogsFilterBar<TData>(
     searchParams.requestId,
     searchParams.upstreamRequestId,
     searchParams.type,
-  ])
-  const [draft, setDraft] = useState<CommonLogDraft>(() => searchState)
+  ]);
+  const [draft, setDraft] = useState<CommonLogDraft>(() => searchState);
   const activeDraft =
-    draft.sourceKey === searchState.sourceKey ? draft : searchState
-  const filters = activeDraft.filters
-  const logType = activeDraft.logType
+    draft.sourceKey === searchState.sourceKey ? draft : searchState;
+  const filters = activeDraft.filters;
+  const logType = activeDraft.logType;
 
   const handleChange = useCallback(
     (field: keyof CommonLogFilters, value: Date | string | undefined) => {
       setDraft((current) => {
         const base =
-          current.sourceKey === searchState.sourceKey ? current : searchState
+          current.sourceKey === searchState.sourceKey ? current : searchState;
         return {
           sourceKey: searchState.sourceKey,
           filters: { ...base.filters, [field]: value },
           logType: base.logType,
-        }
-      })
+        };
+      });
     },
-    [searchState]
-  )
+    [searchState],
+  );
 
   const handleApply = useCallback(() => {
-    const filterParams = buildSearchParams(filters, 'common')
+    const filterParams = buildSearchParams(filters, "common");
     navigateLogs({
-      section: 'common',
+      section: "common",
       search: {
         ...filterParams,
         type: [logType],
         page: 1,
       },
-    })
-    queryClient.invalidateQueries({ queryKey: ['logs'] })
-    queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
-  }, [filters, logType, navigateLogs, queryClient])
+    });
+    queryClient.invalidateQueries({ queryKey: ["logs"] });
+    queryClient.invalidateQueries({ queryKey: ["usage-logs-stats"] });
+  }, [filters, logType, navigateLogs, queryClient]);
 
   const handleReset = useCallback(() => {
-    const { start, end } = getDefaultTimeRange()
-    const resetFilters: CommonLogFilters = { startTime: start, endTime: end }
+    const { start, end } = getDefaultTimeRange();
+    const resetFilters: CommonLogFilters = { startTime: start, endTime: end };
     const resetSearch = {
       type: [LOG_TYPE_ALL_VALUE],
       startTime: start.getTime(),
       endTime: end.getTime(),
-    }
+    };
     setDraft({
       sourceKey: buildSearchSourceKey(resetSearch),
       filters: resetFilters,
       logType: LOG_TYPE_ALL_VALUE,
-    })
+    });
 
     navigateLogs({
-      section: 'common',
+      section: "common",
       search: {
         page: 1,
         ...resetSearch,
       },
-    })
-    queryClient.invalidateQueries({ queryKey: ['logs'] })
-    queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
-  }, [navigateLogs, queryClient])
+    });
+    queryClient.invalidateQueries({ queryKey: ["logs"] });
+    queryClient.invalidateQueries({ queryKey: ["usage-logs-stats"] });
+  }, [navigateLogs, queryClient]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') handleApply()
+      if (e.key === "Enter") handleApply();
     },
-    [handleApply]
-  )
+    [handleApply],
+  );
 
   const hasExpandedFilters =
     !!filters.token ||
     !!filters.username ||
     !!filters.channel ||
     !!filters.requestId ||
-    !!filters.upstreamRequestId
+    !!filters.upstreamRequestId;
 
-  const hasTypeFilter = logType !== LOG_TYPE_ALL_VALUE
+  const hasTypeFilter = logType !== LOG_TYPE_ALL_VALUE;
   const hasAdditionalFilters =
-    !!filters.model || !!filters.group || hasTypeFilter || hasExpandedFilters
+    !!filters.model || !!filters.group || hasTypeFilter || hasExpandedFilters;
 
   const expandedFilterCount = [
     filters.token,
@@ -244,44 +244,45 @@ export function CommonLogsFilterBar<TData>(
     isAdmin ? filters.channel : undefined,
     filters.requestId,
     filters.upstreamRequestId,
-  ].filter(Boolean).length
-  const sensitiveType = sensitiveVisible ? 'text' : 'password'
+  ].filter(Boolean).length;
+  const sensitiveType = sensitiveVisible ? "text" : "password";
   const logTypeItems = useMemo(
     () =>
       LOG_TYPE_FILTERS.map((type) => ({
         value: type.value,
         label: t(type.label),
       })),
-    [t]
-  )
+    [t],
+  );
   const logTypeLabel =
-    logTypeItems.find((type) => type.value === logType)?.label ?? t('All Types')
+    logTypeItems.find((type) => type.value === logType)?.label ??
+    t("All Types");
 
   const statsBar = (
-    <div className='flex flex-wrap items-center gap-2'>
+    <div className="flex flex-wrap items-center gap-2">
       <CommonLogsStats />
     </div>
-  )
+  );
   const sensitiveToggle = (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
-            variant='ghost'
-            size='icon'
+            variant="ghost"
+            size="icon"
             onClick={() => setSensitiveVisible(!sensitiveVisible)}
-            aria-label={sensitiveVisible ? t('Hide') : t('Show')}
-            className='text-muted-foreground hover:text-foreground size-7'
+            aria-label={sensitiveVisible ? t("Hide") : t("Show")}
+            className="text-muted-foreground hover:text-foreground size-7"
           />
         }
       >
         {sensitiveVisible ? <Eye /> : <EyeOff />}
       </TooltipTrigger>
       <TooltipContent>
-        {sensitiveVisible ? t('Hide') : t('Show')}
+        {sensitiveVisible ? t("Hide") : t("Show")}
       </TooltipContent>
     </Tooltip>
-  )
+  );
 
   const dateRangeFilter = (
     <LogsFilterField wide>
@@ -289,33 +290,33 @@ export function CommonLogsFilterBar<TData>(
         start={filters.startTime}
         end={filters.endTime}
         onChange={({ start, end }) => {
-          handleChange('startTime', start)
-          handleChange('endTime', end)
+          handleChange("startTime", start);
+          handleChange("endTime", end);
         }}
       />
     </LogsFilterField>
-  )
+  );
   const modelFilter = (
     <LogsFilterField>
       <LogsFilterInput
-        placeholder={t('Model Name')}
-        value={filters.model || ''}
-        onChange={(e) => handleChange('model', e.target.value)}
+        placeholder={t("Model Name")}
+        value={filters.model || ""}
+        onChange={(e) => handleChange("model", e.target.value)}
         onKeyDown={handleKeyDown}
       />
     </LogsFilterField>
-  )
+  );
   const groupFilter = (
     <LogsFilterField>
       <LogsFilterInput
-        placeholder={t('Group')}
+        placeholder={t("Group")}
         type={sensitiveType}
-        value={filters.group || ''}
-        onChange={(e) => handleChange('group', e.target.value)}
+        value={filters.group || ""}
+        onChange={(e) => handleChange("group", e.target.value)}
         onKeyDown={handleKeyDown}
       />
     </LogsFilterField>
-  )
+  );
   const typeFilter = (
     <LogsFilterField>
       <Select
@@ -323,18 +324,20 @@ export function CommonLogsFilterBar<TData>(
         value={logType}
         onValueChange={(value) => {
           const nextLogType =
-            value !== null && isLogTypeValue(value) ? value : LOG_TYPE_ALL_VALUE
+            value !== null && isLogTypeValue(value)
+              ? value
+              : LOG_TYPE_ALL_VALUE;
           setDraft((current) => {
             const base =
               current.sourceKey === searchState.sourceKey
                 ? current
-                : searchState
+                : searchState;
             return {
               sourceKey: searchState.sourceKey,
               filters: base.filters,
               logType: nextLogType,
-            }
-          })
+            };
+          });
         }}
       >
         <SelectTrigger>
@@ -351,25 +354,25 @@ export function CommonLogsFilterBar<TData>(
         </SelectContent>
       </Select>
     </LogsFilterField>
-  )
+  );
   const advancedFilters = (
     <>
       <LogsFilterField>
         <LogsFilterInput
-          placeholder={t('Token Name')}
+          placeholder={t("Token Name")}
           type={sensitiveType}
-          value={filters.token || ''}
-          onChange={(e) => handleChange('token', e.target.value)}
+          value={filters.token || ""}
+          onChange={(e) => handleChange("token", e.target.value)}
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
       {isAdmin && (
         <LogsFilterField>
           <LogsFilterInput
-            placeholder={t('Username')}
+            placeholder={t("Username")}
             type={sensitiveType}
-            value={filters.username || ''}
-            onChange={(e) => handleChange('username', e.target.value)}
+            value={filters.username || ""}
+            onChange={(e) => handleChange("username", e.target.value)}
             onKeyDown={handleKeyDown}
           />
         </LogsFilterField>
@@ -377,31 +380,31 @@ export function CommonLogsFilterBar<TData>(
       {isAdmin && (
         <LogsFilterField>
           <LogsFilterInput
-            placeholder={t('Channel ID')}
-            value={filters.channel || ''}
-            onChange={(e) => handleChange('channel', e.target.value)}
+            placeholder={t("Channel ID")}
+            value={filters.channel || ""}
+            onChange={(e) => handleChange("channel", e.target.value)}
             onKeyDown={handleKeyDown}
           />
         </LogsFilterField>
       )}
       <LogsFilterField>
         <LogsFilterInput
-          placeholder={t('Request ID')}
-          value={filters.requestId || ''}
-          onChange={(e) => handleChange('requestId', e.target.value)}
+          placeholder={t("Request ID")}
+          value={filters.requestId || ""}
+          onChange={(e) => handleChange("requestId", e.target.value)}
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
       <LogsFilterField>
         <LogsFilterInput
-          placeholder={t('Upstream Request ID')}
-          value={filters.upstreamRequestId || ''}
-          onChange={(e) => handleChange('upstreamRequestId', e.target.value)}
+          placeholder={t("Upstream Request ID")}
+          value={filters.upstreamRequestId || ""}
+          onChange={(e) => handleChange("upstreamRequestId", e.target.value)}
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
     </>
-  )
+  );
 
   return (
     <LogsFilterToolbar
@@ -437,5 +440,5 @@ export function CommonLogsFilterBar<TData>(
       searchLoading={fetchingLogs > 0}
       onReset={handleReset}
     />
-  )
+  );
 }

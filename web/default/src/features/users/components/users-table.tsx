@@ -16,55 +16,55 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
-import type { OnChangeFn, SortingState } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import {
   DISABLED_ROW_DESKTOP,
   DISABLED_ROW_MOBILE,
   DataTablePage,
   useDataTable,
-} from '@/components/data-table'
-import { useSmDown } from '@/hooks'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
+} from "@/components/data-table";
+import { useSmDown } from "@/hooks";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 
-import { getUsers, searchUsers } from '../api'
+import { getUsers, searchUsers } from "../api";
 import {
   USER_STATUS,
   getUserStatusOptions,
   getUserRoleOptions,
   isUserDeleted,
-} from '../constants'
-import type { User, UserSortBy } from '../types'
-import { DataTableBulkActions } from './data-table-bulk-actions'
-import { useUsersColumns } from './users-columns'
-import { useUsers } from './users-provider'
+} from "../constants";
+import type { User, UserSortBy } from "../types";
+import { DataTableBulkActions } from "./data-table-bulk-actions";
+import { useUsersColumns } from "./users-columns";
+import { useUsers } from "./users-provider";
 
-const route = getRouteApi('/_authenticated/users/')
+const route = getRouteApi("/_authenticated/users/");
 
 const USER_SORTABLE_COLUMNS = new Set<UserSortBy>([
-  'id',
-  'username',
-  'quota',
-  'group',
-  'created_at',
-  'last_login_at',
-])
+  "id",
+  "username",
+  "quota",
+  "group",
+  "created_at",
+  "last_login_at",
+]);
 
 function isDisabledUserRow(user: User) {
-  return isUserDeleted(user) || user.status === USER_STATUS.DISABLED
+  return isUserDeleted(user) || user.status === USER_STATUS.DISABLED;
 }
 
 export function UsersTable() {
-  const { t } = useTranslation()
-  const columns = useUsersColumns()
-  const { refreshTrigger } = useUsers()
-  const isMobile = useSmDown()
-  const [sorting, setSorting] = useState<SortingState>([])
+  const { t } = useTranslation();
+  const columns = useUsersColumns();
+  const { refreshTrigger } = useUsers();
+  const isMobile = useSmDown();
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const {
     globalFilter,
@@ -78,51 +78,51 @@ export function UsersTable() {
     search: route.useSearch(),
     navigate: route.useNavigate(),
     pagination: { defaultPage: 1, defaultPageSize: isMobile ? 10 : 20 },
-    globalFilter: { enabled: true, key: 'filter' },
+    globalFilter: { enabled: true, key: "filter" },
     columnFilters: [
-      { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'role', searchKey: 'role', type: 'array' },
-      { columnId: 'group', searchKey: 'group', type: 'string' },
+      { columnId: "status", searchKey: "status", type: "array" },
+      { columnId: "role", searchKey: "role", type: "array" },
+      { columnId: "group", searchKey: "group", type: "string" },
     ],
-  })
+  });
   const statusFilter =
-    (columnFilters.find((filter) => filter.id === 'status')?.value as
+    (columnFilters.find((filter) => filter.id === "status")?.value as
       | string[]
-      | undefined) ?? []
+      | undefined) ?? [];
   const roleFilter =
-    (columnFilters.find((filter) => filter.id === 'role')?.value as
+    (columnFilters.find((filter) => filter.id === "role")?.value as
       | string[]
-      | undefined) ?? []
+      | undefined) ?? [];
   const groupFilter =
-    (columnFilters.find((filter) => filter.id === 'group')?.value as string) ??
-    ''
+    (columnFilters.find((filter) => filter.id === "group")?.value as string) ??
+    "";
 
   const sortParams = useMemo(() => {
-    const activeSort = sorting[0]
+    const activeSort = sorting[0];
     if (
       !activeSort ||
       !USER_SORTABLE_COLUMNS.has(activeSort.id as UserSortBy)
     ) {
-      return {}
+      return {};
     }
 
     return {
       sort_by: activeSort.id as UserSortBy,
-      sort_order: activeSort.desc ? 'desc' : 'asc',
-    } as const
-  }, [sorting])
+      sort_order: activeSort.desc ? "desc" : "asc",
+    } as const;
+  }, [sorting]);
 
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
-    setSorting(updater)
+    setSorting(updater);
     if (pagination.pageIndex > 0) {
-      onPaginationChange({ ...pagination, pageIndex: 0 })
+      onPaginationChange({ ...pagination, pageIndex: 0 });
     }
-  }
+  };
 
   // Fetch data with React Query
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
-      'users',
+      "users",
       pagination.pageIndex + 1,
       pagination.pageSize,
       globalFilter,
@@ -133,42 +133,44 @@ export function UsersTable() {
       refreshTrigger,
     ],
     queryFn: async () => {
-      const hasFilter = globalFilter?.trim()
+      const hasFilter = globalFilter?.trim();
       const hasColumnFilter =
-        statusFilter.length > 0 || roleFilter.length > 0 || Boolean(groupFilter)
+        statusFilter.length > 0 ||
+        roleFilter.length > 0 ||
+        Boolean(groupFilter);
       const params = {
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
         ...sortParams,
-      }
+      };
 
       const result =
         hasFilter || hasColumnFilter
           ? await searchUsers({
               ...params,
               keyword: globalFilter,
-              status: statusFilter[0] ?? '',
-              role: roleFilter[0] ?? '',
+              status: statusFilter[0] ?? "",
+              role: roleFilter[0] ?? "",
               group: groupFilter,
             })
-          : await getUsers(params)
+          : await getUsers(params);
 
       if (!result.success) {
         toast.error(
-          result.message || `Failed to ${hasFilter ? 'search' : 'load'} users`
-        )
-        return { items: [], total: 0 }
+          result.message || `Failed to ${hasFilter ? "search" : "load"} users`,
+        );
+        return { items: [], total: 0 };
       }
 
       return {
         items: result.data?.items || [],
         total: result.data?.total || 0,
-      }
+      };
     },
     placeholderData: (previousData) => previousData,
-  })
+  });
 
-  const users = data?.items || []
+  const users = data?.items || [];
 
   const { table } = useDataTable({
     data: users,
@@ -179,17 +181,17 @@ export function UsersTable() {
     pagination,
     sorting,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const searchValue = String(filterValue).toLowerCase()
+      const searchValue = String(filterValue).toLowerCase();
       const fields = [
-        row.getValue('username'),
+        row.getValue("username"),
         row.original.display_name,
         row.original.email,
-      ]
+      ];
       return fields.some((field) =>
-        String(field || '')
+        String(field || "")
           .toLowerCase()
-          .includes(searchValue)
-      )
+          .includes(searchValue),
+      );
     },
     onPaginationChange,
     onGlobalFilterChange,
@@ -200,46 +202,46 @@ export function UsersTable() {
     manualSorting: true,
     totalCount: data?.total || 0,
     ensurePageInRange,
-  })
+  });
 
   return (
     <DataTablePage
       enableCardView
-      defaultViewMode='card'
-      viewModeStorageKey='users:view-mode:v1'
+      defaultViewMode="card"
+      viewModeStorageKey="users:view-mode:v1"
       table={table}
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t('No Users Found')}
+      emptyTitle={t("No Users Found")}
       emptyDescription={t(
-        'No users available. Try adjusting your search or filters.'
+        "No users available. Try adjusting your search or filters.",
       )}
-      skeletonKeyPrefix='users-skeleton'
+      skeletonKeyPrefix="users-skeleton"
       applyHeaderSize
       toolbarProps={{
-        searchPlaceholder: t('Filter by username, name or email...'),
+        searchPlaceholder: t("Filter by username, name or email..."),
         filters: [
           {
-            columnId: 'status',
-            title: t('Status'),
+            columnId: "status",
+            title: t("Status"),
             options: getUserStatusOptions(t),
             singleSelect: true,
           },
           {
-            columnId: 'role',
-            title: t('Role'),
+            columnId: "role",
+            title: t("Role"),
             options: getUserRoleOptions(t),
             singleSelect: true,
           },
         ],
       }}
       getRowClassName={(row, { isMobile }) => {
-        if (!isDisabledUserRow(row.original)) return undefined
-        if (isMobile) return DISABLED_ROW_MOBILE
-        return DISABLED_ROW_DESKTOP
+        if (!isDisabledUserRow(row.original)) return undefined;
+        if (isMobile) return DISABLED_ROW_MOBILE;
+        return DISABLED_ROW_DESKTOP;
       }}
       bulkActions={<DataTableBulkActions table={table} />}
     />
-  )
+  );
 }

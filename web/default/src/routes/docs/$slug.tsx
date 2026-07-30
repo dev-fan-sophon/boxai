@@ -16,14 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-import { DocsPage } from '@/features/docs'
+import { DocsPage } from "@/features/docs";
 
-export const Route = createFileRoute('/docs/$slug')({
+export const Route = createFileRoute("/docs/$slug")({
   component: RouteComponent,
-})
+});
 function RouteComponent() {
-  const { slug } = Route.useParams()
-  return <DocsPage slug={slug} />
+  const { slug } = Route.useParams();
+  return <DocsPage slug={slug} />;
 }

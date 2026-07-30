@@ -16,81 +16,81 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SettingsPage } from '../components/settings-page'
-import type { ModelSettings } from '../types'
-import { MODELS_DEFAULT_SECTION } from './section-manifest'
+import { SettingsPage } from "../components/settings-page";
+import type { ModelSettings } from "../types";
+import { MODELS_DEFAULT_SECTION } from "./section-manifest";
 import {
   getModelsSectionContent,
   getModelsSectionMeta,
-} from './section-registry.tsx'
+} from "./section-registry.tsx";
 
 const defaultModelSettings: ModelSettings = {
-  'global.pass_through_request_enabled': false,
-  'global.thinking_model_blacklist': '[]',
-  'global.chat_completions_to_responses_policy': '{}',
-  'general_setting.ping_interval_enabled': false,
-  'general_setting.ping_interval_seconds': 60,
-  'gemini.safety_settings': '',
-  'gemini.version_settings': '',
-  'gemini.supported_imagine_models': '',
-  'gemini.thinking_adapter_enabled': false,
-  'gemini.thinking_adapter_budget_tokens_percentage': 0.6,
-  'gemini.function_call_thought_signature_enabled': true,
-  'gemini.remove_function_response_id_enabled': true,
-  'claude.model_headers_settings': '',
-  'claude.default_max_tokens': '',
-  'claude.thinking_adapter_enabled': true,
-  'claude.thinking_adapter_budget_tokens_percentage': 0.8,
-  'grok.violation_deduction_enabled': true,
-  'grok.violation_deduction_amount': 0.05,
-  ModelPrice: '',
-  ModelRatio: '',
-  CacheRatio: '',
-  CreateCacheRatio: '',
-  CompletionRatio: '',
-  ImageRatio: '',
-  AudioRatio: '',
-  AudioCompletionRatio: '',
+  "global.pass_through_request_enabled": false,
+  "global.thinking_model_blacklist": "[]",
+  "global.chat_completions_to_responses_policy": "{}",
+  "general_setting.ping_interval_enabled": false,
+  "general_setting.ping_interval_seconds": 60,
+  "gemini.safety_settings": "",
+  "gemini.version_settings": "",
+  "gemini.supported_imagine_models": "",
+  "gemini.thinking_adapter_enabled": false,
+  "gemini.thinking_adapter_budget_tokens_percentage": 0.6,
+  "gemini.function_call_thought_signature_enabled": true,
+  "gemini.remove_function_response_id_enabled": true,
+  "claude.model_headers_settings": "",
+  "claude.default_max_tokens": "",
+  "claude.thinking_adapter_enabled": true,
+  "claude.thinking_adapter_budget_tokens_percentage": 0.8,
+  "grok.violation_deduction_enabled": true,
+  "grok.violation_deduction_amount": 0.05,
+  ModelPrice: "",
+  ModelRatio: "",
+  CacheRatio: "",
+  CreateCacheRatio: "",
+  CompletionRatio: "",
+  ImageRatio: "",
+  AudioRatio: "",
+  AudioCompletionRatio: "",
   ExposeRatioEnabled: false,
-  'billing_setting.billing_mode': '{}',
-  'billing_setting.billing_expr': '{}',
-  'tool_price_setting.prices': '{}',
-  TopupGroupRatio: '',
-  GroupRatio: '',
-  UserUsableGroups: '',
-  GroupGroupRatio: '',
-  AutoGroups: '',
+  "billing_setting.billing_mode": "{}",
+  "billing_setting.billing_expr": "{}",
+  "tool_price_setting.prices": "{}",
+  TopupGroupRatio: "",
+  GroupRatio: "",
+  UserUsableGroups: "",
+  GroupGroupRatio: "",
+  AutoGroups: "",
   DefaultUseAutoGroup: false,
-  'group_ratio_setting.group_special_usable_group': '{}',
+  "group_ratio_setting.group_special_usable_group": "{}",
   RetryTimes: 0,
-  ChannelDisableThreshold: '',
+  ChannelDisableThreshold: "",
   AutomaticDisableChannelEnabled: false,
   AutomaticEnableChannelEnabled: false,
-  AutomaticDisableKeywords: '',
-  AutomaticDisableStatusCodes: '401',
+  AutomaticDisableKeywords: "",
+  AutomaticDisableStatusCodes: "401",
   AutomaticRetryStatusCodes:
-    '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
-  'monitor_setting.auto_test_channel_enabled': false,
-  'monitor_setting.auto_test_channel_minutes': 10,
-  'monitor_setting.channel_test_mode': 'scheduled_all',
-  'channel_affinity_setting.enabled': false,
-  'channel_affinity_setting.switch_on_success': true,
-  'channel_affinity_setting.keep_on_channel_disabled': false,
-  'channel_affinity_setting.max_entries': 100000,
-  'channel_affinity_setting.default_ttl_seconds': 3600,
-  'channel_affinity_setting.rules': '[]',
-  'model_deployment.ionet.api_key': '',
-  'model_deployment.ionet.enabled': false,
-}
+    "100-199,300-399,401-407,409-499,500-503,505-523,525-599",
+  "monitor_setting.auto_test_channel_enabled": false,
+  "monitor_setting.auto_test_channel_minutes": 10,
+  "monitor_setting.channel_test_mode": "scheduled_all",
+  "channel_affinity_setting.enabled": false,
+  "channel_affinity_setting.switch_on_success": true,
+  "channel_affinity_setting.keep_on_channel_disabled": false,
+  "channel_affinity_setting.max_entries": 100000,
+  "channel_affinity_setting.default_ttl_seconds": 3600,
+  "channel_affinity_setting.rules": "[]",
+  "model_deployment.ionet.api_key": "",
+  "model_deployment.ionet.enabled": false,
+};
 
 export function ModelSettings() {
   return (
     <SettingsPage
-      routePath='/_authenticated/system-settings/models/$section'
+      routePath="/_authenticated/system-settings/models/$section"
       defaultSettings={defaultModelSettings}
       defaultSection={MODELS_DEFAULT_SECTION}
       getSectionContent={getModelsSectionContent}
       getSectionMeta={getModelsSectionMeta}
     />
-  )
+  );
 }

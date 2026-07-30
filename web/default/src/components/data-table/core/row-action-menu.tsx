@@ -16,24 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { MoreHorizontal } from 'lucide-react'
-import * as React from 'react'
+import { MoreHorizontal } from "lucide-react";
+import * as React from "react";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 type DataTableRowActionMenuProps = {
-  children: React.ReactNode
-  ariaLabel: string
-  contentClassName?: string
-  modal?: boolean
-  onOpenChange?: (open: boolean) => void
-}
+  children: React.ReactNode;
+  ariaLabel: string;
+  contentClassName?: string;
+  modal?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
 
 export function DataTableRowActionMenu(props: DataTableRowActionMenuProps) {
   return (
@@ -41,21 +41,21 @@ export function DataTableRowActionMenu(props: DataTableRowActionMenuProps) {
       <DropdownMenuTrigger
         render={
           <Button
-            variant='ghost'
-            size='icon-sm'
-            className='text-muted-foreground hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground size-8'
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground size-8"
             aria-label={props.ariaLabel}
           />
         }
       >
-        <MoreHorizontal className='size-4' aria-hidden='true' />
+        <MoreHorizontal className="size-4" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        align='end'
-        className={cn('w-48', props.contentClassName)}
+        align="end"
+        className={cn("w-48", props.contentClassName)}
       >
         {props.children}
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

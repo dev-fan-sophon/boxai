@@ -27,7 +27,7 @@ import { getCurrentIntlLocale } from '@/i18n/languages'
 import { getCurrencyDisplay } from '@/lib/currency'
 import { formatChartTime, type TimeGranularity } from '@/lib/time'
 
-import { getDashboardChartColors, USER_CHART_COLORS } from './chart-palette'
+import { getDashboardChartColors, CHART_SERIES_COLORS } from './chart-palette'
 
 type TFunction = (key: string) => string
 type LongRow = Record<string, string | number>
@@ -475,7 +475,7 @@ export function processUserChartData(
   const rankRows = rankedUsers.map(([username, quota], index) => ({
     name: username,
     value: toDisplayQuota(quota),
-    fill: USER_CHART_COLORS[index % USER_CHART_COLORS.length],
+    fill: CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length],
   }))
 
   const timeUserMap = new Map<number, Map<string, number>>()

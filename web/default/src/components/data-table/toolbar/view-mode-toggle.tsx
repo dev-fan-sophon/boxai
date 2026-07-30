@@ -16,32 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Grid2X2, Table2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Grid2X2, Table2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 import {
   DATA_TABLE_VIEW_MODES,
   type DataTableViewMode,
-} from '../hooks/use-data-table-view-mode'
+} from "../hooks/use-data-table-view-mode";
 
 export type DataTableViewModeToggleProps = {
-  value: DataTableViewMode
-  onChange: (mode: DataTableViewMode) => void
-  className?: string
-}
+  value: DataTableViewMode;
+  onChange: (mode: DataTableViewMode) => void;
+  className?: string;
+};
 
 type Segment = {
-  value: DataTableViewMode
-  icon: React.ComponentType<{ className?: string }>
-  tooltip: string
-}
+  value: DataTableViewMode;
+  icon: React.ComponentType<{ className?: string }>;
+  tooltip: string;
+};
 
 /**
  * Reusable icon segmented control for switching a data table between table and
@@ -49,58 +49,58 @@ type Segment = {
  * model square (`pricing-toolbar.tsx`).
  */
 export function DataTableViewModeToggle(props: DataTableViewModeToggleProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const segments: Segment[] = [
     {
       value: DATA_TABLE_VIEW_MODES.CARD,
       icon: Grid2X2,
-      tooltip: t('Card view'),
+      tooltip: t("Card view"),
     },
     {
       value: DATA_TABLE_VIEW_MODES.TABLE,
       icon: Table2,
-      tooltip: t('Table view'),
+      tooltip: t("Table view"),
     },
-  ]
+  ];
 
   return (
     <div
-      role='group'
-      aria-label={t('View mode')}
+      role="group"
+      aria-label={t("View mode")}
       className={cn(
-        'bg-muted/60 inline-flex h-8 items-center rounded-lg border p-0.5',
-        props.className
+        "bg-muted/60 inline-flex h-8 items-center rounded-lg border p-0.5",
+        props.className,
       )}
     >
       {segments.map((segment) => {
-        const Icon = segment.icon
-        const isActive = segment.value === props.value
+        const Icon = segment.icon;
+        const isActive = segment.value === props.value;
         return (
           <Tooltip key={segment.value}>
             <TooltipTrigger
               render={
                 <button
-                  type='button'
+                  type="button"
                   onClick={() => props.onChange(segment.value)}
                   aria-pressed={isActive}
                   className={cn(
-                    'inline-flex h-full w-7 items-center justify-center rounded-md text-xs font-medium transition-ui',
+                    "inline-flex h-full w-7 items-center justify-center rounded-md text-xs font-medium transition-ui",
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon className='size-3.5' />
+                  <Icon className="size-3.5" />
                 </button>
               }
             />
-            <TooltipContent side='bottom' className='text-xs'>
+            <TooltipContent side="bottom" className="text-xs">
               {segment.tooltip}
             </TooltipContent>
           </Tooltip>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

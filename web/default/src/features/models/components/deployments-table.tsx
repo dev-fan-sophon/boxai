@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { DataTablePage, useDataTable } from '@/components/data-table'
+import { DataTablePage, useDataTable } from "@/components/data-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,27 +32,27 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { useSmDown } from '@/hooks'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
+} from "@/components/ui/alert-dialog";
+import { useSmDown } from "@/hooks";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 
-import { deleteDeployment, listDeployments, searchDeployments } from '../api'
-import { getDeploymentStatusOptions } from '../constants'
-import { deploymentsQueryKeys } from '../lib'
-import type { Deployment } from '../types'
-import { useDeploymentsColumns } from './deployments-columns'
-import { ExtendDeploymentDialog } from './dialogs/extend-deployment-dialog'
-import { RenameDeploymentDialog } from './dialogs/rename-deployment-dialog'
-import { UpdateConfigDialog } from './dialogs/update-config-dialog'
-import { ViewDetailsDialog } from './dialogs/view-details-dialog'
-import { ViewLogsDialog } from './dialogs/view-logs-dialog'
+import { deleteDeployment, listDeployments, searchDeployments } from "../api";
+import { getDeploymentStatusOptions } from "../constants";
+import { deploymentsQueryKeys } from "../lib";
+import type { Deployment } from "../types";
+import { useDeploymentsColumns } from "./deployments-columns";
+import { ExtendDeploymentDialog } from "./dialogs/extend-deployment-dialog";
+import { RenameDeploymentDialog } from "./dialogs/rename-deployment-dialog";
+import { UpdateConfigDialog } from "./dialogs/update-config-dialog";
+import { ViewDetailsDialog } from "./dialogs/view-details-dialog";
+import { ViewLogsDialog } from "./dialogs/view-logs-dialog";
 
-const route = getRouteApi('/_authenticated/models/$section')
+const route = getRouteApi("/_authenticated/models/$section");
 
 export function DeploymentsTable() {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const isMobile = useSmDown()
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const isMobile = useSmDown();
 
   // URL state (use dedicated keys so it won't collide with metadata table)
   const {
@@ -67,52 +67,52 @@ export function DeploymentsTable() {
     search: route.useSearch(),
     navigate: route.useNavigate(),
     pagination: {
-      pageKey: 'dPage',
-      pageSizeKey: 'dPageSize',
+      pageKey: "dPage",
+      pageSizeKey: "dPageSize",
       defaultPage: 1,
       defaultPageSize: isMobile ? 8 : 10,
     },
-    globalFilter: { enabled: true, key: 'dFilter' },
+    globalFilter: { enabled: true, key: "dFilter" },
     columnFilters: [
-      { columnId: 'status', searchKey: 'dStatus', type: 'array' },
+      { columnId: "status", searchKey: "dStatus", type: "array" },
     ],
-  })
+  });
 
-  const keyword = globalFilter ?? ''
+  const keyword = globalFilter ?? "";
   const statusFilter =
-    (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
+    (columnFilters.find((f) => f.id === "status")?.value as string[]) || [];
   const activeStatus =
-    statusFilter.length > 0 && !statusFilter.includes('all')
+    statusFilter.length > 0 && !statusFilter.includes("all")
       ? statusFilter[0]
-      : undefined
+      : undefined;
 
   // Dialog state
-  const [logsOpen, setLogsOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false);
   const [logsDeploymentId, setLogsDeploymentId] = useState<
     string | number | null
-  >(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  >(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsDeploymentId, setDetailsDeploymentId] = useState<
     string | number | null
-  >(null)
-  const [updateOpen, setUpdateOpen] = useState(false)
+  >(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
   const [updateDeploymentId, setUpdateDeploymentId] = useState<
     string | number | null
-  >(null)
-  const [extendOpen, setExtendOpen] = useState(false)
+  >(null);
+  const [extendOpen, setExtendOpen] = useState(false);
   const [extendDeploymentId, setExtendDeploymentId] = useState<
     string | number | null
-  >(null)
-  const [renameOpen, setRenameOpen] = useState(false)
+  >(null);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [renameDeploymentId, setRenameDeploymentId] = useState<
     string | number | null
-  >(null)
-  const [renameCurrentName, setRenameCurrentName] = useState<string>('')
+  >(null);
+  const [renameCurrentName, setRenameCurrentName] = useState<string>("");
 
   // Delete confirm
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Deployment | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Deployment | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: deploymentsQueryKeys.list({
@@ -128,69 +128,69 @@ export function DeploymentsTable() {
           status: activeStatus,
           p: pagination.pageIndex + 1,
           page_size: pagination.pageSize,
-        })
+        });
       }
       return listDeployments({
         status: activeStatus,
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
-      })
+      });
     },
     placeholderData: (prev) => prev,
-  })
+  });
 
-  const deployments = data?.data?.items || []
-  const totalCount = data?.data?.total || 0
+  const deployments = data?.data?.items || [];
+  const totalCount = data?.data?.total || 0;
 
   const handleDelete = async () => {
-    if (!deleteTarget) return
-    setIsDeleting(true)
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await deleteDeployment(deleteTarget.id)
+      const res = await deleteDeployment(deleteTarget.id);
       if (res?.success) {
-        toast.success(t('Deleted successfully'))
+        toast.success(t("Deleted successfully"));
         queryClient.invalidateQueries({
           queryKey: deploymentsQueryKeys.lists(),
-        })
+        });
       } else {
-        toast.error(res?.message || t('Delete failed'))
+        toast.error(res?.message || t("Delete failed"));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('Delete failed'))
+      toast.error(err instanceof Error ? err.message : t("Delete failed"));
     } finally {
-      setIsDeleting(false)
-      setDeleteOpen(false)
-      setDeleteTarget(null)
+      setIsDeleting(false);
+      setDeleteOpen(false);
+      setDeleteTarget(null);
     }
-  }
+  };
 
   const columns = useDeploymentsColumns({
     onViewLogs: (id) => {
-      setLogsDeploymentId(id)
-      setLogsOpen(true)
+      setLogsDeploymentId(id);
+      setLogsOpen(true);
     },
     onViewDetails: (id) => {
-      setDetailsDeploymentId(id)
-      setDetailsOpen(true)
+      setDetailsDeploymentId(id);
+      setDetailsOpen(true);
     },
     onUpdateConfig: (id) => {
-      setUpdateDeploymentId(id)
-      setUpdateOpen(true)
+      setUpdateDeploymentId(id);
+      setUpdateOpen(true);
     },
     onExtend: (id) => {
-      setExtendDeploymentId(id)
-      setExtendOpen(true)
+      setExtendDeploymentId(id);
+      setExtendOpen(true);
     },
     onRename: (id, currentName) => {
-      setRenameCurrentName(currentName)
-      setRenameDeploymentId(id)
-      setRenameOpen(true)
+      setRenameCurrentName(currentName);
+      setRenameDeploymentId(id);
+      setRenameOpen(true);
     },
     onDelete: (deployment) => {
-      setDeleteTarget(deployment)
-      setDeleteOpen(true)
+      setDeleteTarget(deployment);
+      setDeleteOpen(true);
     },
-  })
+  });
 
   const { table } = useDataTable({
     data: deployments,
@@ -206,14 +206,14 @@ export function DeploymentsTable() {
     manualFiltering: true,
     withSortedRowModel: false,
     ensurePageInRange,
-  })
+  });
 
   const statusFilterOptions = useMemo(() => {
     return [...getDeploymentStatusOptions(t)].map((opt) => ({
       label: opt.label,
       value: opt.value,
-    }))
-  }, [t])
+    }));
+  }, [t]);
 
   return (
     <>
@@ -222,18 +222,18 @@ export function DeploymentsTable() {
         columns={columns}
         isLoading={isLoading}
         isFetching={isFetching}
-        emptyTitle={t('No Deployments Found')}
+        emptyTitle={t("No Deployments Found")}
         emptyDescription={t(
-          'No deployments available. Create one to get started.'
+          "No deployments available. Create one to get started.",
         )}
-        skeletonKeyPrefix='deployment-skeleton'
+        skeletonKeyPrefix="deployment-skeleton"
         applyHeaderSize
         toolbarProps={{
-          searchPlaceholder: t('Search deployments...'),
+          searchPlaceholder: t("Search deployments..."),
           filters: [
             {
-              columnId: 'status',
-              title: t('Status'),
+              columnId: "status",
+              title: t("Status"),
               options: statusFilterOptions,
               singleSelect: true,
             },
@@ -244,8 +244,8 @@ export function DeploymentsTable() {
       <ViewLogsDialog
         open={logsOpen}
         onOpenChange={(open) => {
-          setLogsOpen(open)
-          if (!open) setLogsDeploymentId(null)
+          setLogsOpen(open);
+          if (!open) setLogsDeploymentId(null);
         }}
         deploymentId={logsDeploymentId}
       />
@@ -253,8 +253,8 @@ export function DeploymentsTable() {
       <ViewDetailsDialog
         open={detailsOpen}
         onOpenChange={(open) => {
-          setDetailsOpen(open)
-          if (!open) setDetailsDeploymentId(null)
+          setDetailsOpen(open);
+          if (!open) setDetailsDeploymentId(null);
         }}
         deploymentId={detailsDeploymentId}
       />
@@ -262,8 +262,8 @@ export function DeploymentsTable() {
       <UpdateConfigDialog
         open={updateOpen}
         onOpenChange={(open) => {
-          setUpdateOpen(open)
-          if (!open) setUpdateDeploymentId(null)
+          setUpdateOpen(open);
+          if (!open) setUpdateDeploymentId(null);
         }}
         deploymentId={updateDeploymentId}
       />
@@ -271,8 +271,8 @@ export function DeploymentsTable() {
       <ExtendDeploymentDialog
         open={extendOpen}
         onOpenChange={(open) => {
-          setExtendOpen(open)
-          if (!open) setExtendDeploymentId(null)
+          setExtendOpen(open);
+          if (!open) setExtendDeploymentId(null);
         }}
         deploymentId={extendDeploymentId}
       />
@@ -280,8 +280,8 @@ export function DeploymentsTable() {
       <RenameDeploymentDialog
         open={renameOpen}
         onOpenChange={(open) => {
-          setRenameOpen(open)
-          if (!open) setRenameDeploymentId(null)
+          setRenameOpen(open);
+          if (!open) setRenameDeploymentId(null);
         }}
         deploymentId={renameDeploymentId}
         currentName={renameCurrentName}
@@ -290,7 +290,7 @@ export function DeploymentsTable() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Confirm delete')}</AlertDialogTitle>
+            <AlertDialogTitle>{t("Confirm delete")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
                 'Are you sure you want to delete deployment "{{name}}"? This action cannot be undone.',
@@ -299,24 +299,24 @@ export function DeploymentsTable() {
                     deleteTarget?.container_name ||
                     deleteTarget?.deployment_name ||
                     deleteTarget?.id,
-                }
+                },
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>
-              {t('Cancel')}
+              {t("Cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              variant='destructive'
+              variant="destructive"
             >
-              {isDeleting ? t('Deleting...') : t('Delete')}
+              {isDeleting ? t("Deleting...") : t("Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

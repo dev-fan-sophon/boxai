@@ -16,34 +16,34 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Row, PaginationState } from '@tanstack/react-table'
-import { useState, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
+import type { Row, PaginationState } from "@tanstack/react-table";
+import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   DataTablePagination,
   DataTableRow,
   DataTableView,
   useDataTable,
-} from '@/components/data-table'
+} from "@/components/data-table";
 
-import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
-import type { PricingModel, TokenUnit } from '../types'
-import { usePricingColumns } from './pricing-columns'
+import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from "../constants";
+import type { PricingModel, TokenUnit } from "../types";
+import { usePricingColumns } from "./pricing-columns";
 
 export interface PricingTableProps {
-  models: PricingModel[]
-  isLoading?: boolean
-  priceRate?: number
-  usdExchangeRate?: number
-  tokenUnit?: TokenUnit
-  showRechargePrice?: boolean
-  selectedGroup?: string
-  onModelClick?: (modelName: string) => void
+  models: PricingModel[];
+  isLoading?: boolean;
+  priceRate?: number;
+  usdExchangeRate?: number;
+  tokenUnit?: TokenUnit;
+  showRechargePrice?: boolean;
+  selectedGroup?: string;
+  onModelClick?: (modelName: string) => void;
 }
 
 export function PricingTable(props: PricingTableProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const {
     models,
     isLoading = false,
@@ -53,12 +53,12 @@ export function PricingTable(props: PricingTableProps) {
     showRechargePrice = false,
     selectedGroup,
     onModelClick,
-  } = props
+  } = props;
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: DEFAULT_PRICING_PAGE_SIZE,
-  })
+  });
 
   const columns = usePricingColumns({
     tokenUnit,
@@ -66,7 +66,7 @@ export function PricingTable(props: PricingTableProps) {
     usdExchangeRate,
     showRechargePrice,
     selectedGroup,
-  })
+  });
 
   const { table } = useDataTable({
     data: models,
@@ -78,32 +78,32 @@ export function PricingTable(props: PricingTableProps) {
     withFilteredRowModel: false,
     withSortedRowModel: false,
     withFacetedRowModel: false,
-  })
+  });
 
   const handleRowClick = useCallback(
     (model: PricingModel) => {
-      onModelClick?.(model.model_name)
+      onModelClick?.(model.model_name);
     },
-    [onModelClick]
-  )
+    [onModelClick],
+  );
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <DataTableView
         table={table}
         isLoading={isLoading}
-        emptyTitle={t('No Models Found')}
-        emptyDescription={t('No models match your current filters.')}
-        skeletonKeyPrefix='pricing-skeleton'
+        emptyTitle={t("No Models Found")}
+        emptyDescription={t("No models match your current filters.")}
+        skeletonKeyPrefix="pricing-skeleton"
         applyHeaderSize
         getColumnClassName={(_columnId, kind) =>
-          kind === 'header' ? 'text-muted-foreground font-medium' : undefined
+          kind === "header" ? "text-muted-foreground font-medium" : undefined
         }
         renderRow={(row: Row<PricingModel>) => (
           <DataTableRow
             key={row.id}
             row={row}
-            className='hover:bg-muted/30 cursor-pointer transition-colors'
+            className="hover:bg-muted/30 cursor-pointer transition-colors"
             onClick={() => handleRowClick(row.original)}
           />
         )}
@@ -111,5 +111,5 @@ export function PricingTable(props: PricingTableProps) {
 
       {!isLoading && models.length > 0 && <DataTablePagination table={table} />}
     </div>
-  )
+  );
 }

@@ -32,7 +32,7 @@ export {
   openExternalSpeedTest,
   getDefaultPingStatus,
 } from './api-info'
-export { getDashboardChartColors, USER_CHART_COLORS } from './chart-palette'
+export { getDashboardChartColors, CHART_SERIES_COLORS } from './chart-palette'
 export { processChartData, processUserChartData } from './charts'
 export {
   buildDashboardFlowData,

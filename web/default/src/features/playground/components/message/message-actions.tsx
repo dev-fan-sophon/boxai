@@ -27,43 +27,43 @@ import {
   RefreshCw,
   Trash2,
   type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+} from "@/components/ui/dropdown-menu";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
-import { MESSAGE_ACTION_LABELS } from '../../constants'
-import { useMessageActionGuard } from '../../hooks/use-message-action-guard'
+import { MESSAGE_ACTION_LABELS } from "../../constants";
+import { useMessageActionGuard } from "../../hooks/use-message-action-guard";
 import {
   getActiveVersionIndex,
   getMessageActionState,
   getMessageActionsVisibilityClass,
-} from '../../lib'
-import type { Message } from '../../types'
-import { MessageActionButton } from './message-action-button'
+} from "../../lib";
+import type { Message } from "../../types";
+import { MessageActionButton } from "./message-action-button";
 
 interface MessageActionsProps {
-  message: Message
-  onCopy?: (message: Message) => void
-  onRegenerate?: (message: Message) => void
-  onToggleSource?: (message: Message) => void
-  onEdit?: (message: Message) => void
-  onDelete?: (message: Message) => void
-  onSelectVersion?: (message: Message, index: number) => void
-  isSourceVisible?: boolean
-  isGenerating?: boolean
-  alwaysVisible?: boolean
-  className?: string
+  message: Message;
+  onCopy?: (message: Message) => void;
+  onRegenerate?: (message: Message) => void;
+  onToggleSource?: (message: Message) => void;
+  onEdit?: (message: Message) => void;
+  onDelete?: (message: Message) => void;
+  onSelectVersion?: (message: Message, index: number) => void;
+  isSourceVisible?: boolean;
+  isGenerating?: boolean;
+  alwaysVisible?: boolean;
+  className?: string;
 }
 
 function MessageVersionSwitcher({
@@ -71,49 +71,49 @@ function MessageVersionSwitcher({
   disabled,
   onSelectVersion,
 }: {
-  message: Message
-  disabled: boolean
-  onSelectVersion: (message: Message, index: number) => void
+  message: Message;
+  disabled: boolean;
+  onSelectVersion: (message: Message, index: number) => void;
 }) {
-  const { t } = useTranslation()
-  const activeIndex = getActiveVersionIndex(message)
-  const total = message.versions.length
+  const { t } = useTranslation();
+  const activeIndex = getActiveVersionIndex(message);
+  const total = message.versions.length;
 
   return (
-    <div className='text-muted-foreground flex items-center text-xs tabular-nums'>
+    <div className="text-muted-foreground flex items-center text-xs tabular-nums">
       <button
-        type='button'
-        aria-label={t('Previous version')}
+        type="button"
+        aria-label={t("Previous version")}
         disabled={disabled || activeIndex === 0}
         onClick={() => onSelectVersion(message, activeIndex - 1)}
-        className='hover:text-foreground flex size-6 items-center justify-center rounded disabled:opacity-40'
+        className="hover:text-foreground flex size-6 items-center justify-center rounded disabled:opacity-40"
       >
-        <ChevronLeft className='size-3.5' aria-hidden='true' />
+        <ChevronLeft className="size-3.5" aria-hidden="true" />
       </button>
       <span>
         {activeIndex + 1}/{total}
       </span>
       <button
-        type='button'
-        aria-label={t('Next version')}
+        type="button"
+        aria-label={t("Next version")}
         disabled={disabled || activeIndex === total - 1}
         onClick={() => onSelectVersion(message, activeIndex + 1)}
-        className='hover:text-foreground flex size-6 items-center justify-center rounded disabled:opacity-40'
+        className="hover:text-foreground flex size-6 items-center justify-center rounded disabled:opacity-40"
       >
-        <ChevronRight className='size-3.5' aria-hidden='true' />
+        <ChevronRight className="size-3.5" aria-hidden="true" />
       </button>
     </div>
-  )
+  );
 }
 
 type MessageActionItem = {
-  className?: string
-  disabled?: boolean
-  icon: LucideIcon
-  label: string
-  onClick: () => void
-  variant?: 'default' | 'destructive'
-}
+  className?: string;
+  disabled?: boolean;
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  variant?: "default" | "destructive";
+};
 
 export function MessageActions({
   message,
@@ -126,42 +126,42 @@ export function MessageActions({
   isSourceVisible = false,
   isGenerating = false,
   alwaysVisible = false,
-  className = '',
+  className = "",
 }: MessageActionsProps) {
-  const { t } = useTranslation()
-  const { copiedText, copyToClipboard } = useCopyToClipboard()
-  const { guardAction } = useMessageActionGuard(isGenerating)
+  const { t } = useTranslation();
+  const { copiedText, copyToClipboard } = useCopyToClipboard();
+  const { guardAction } = useMessageActionGuard(isGenerating);
 
   const { content, hasContent, isAssistant, isLoading, isUser } =
-    getMessageActionState(message)
-  const isCopied = copiedText === content
+    getMessageActionState(message);
+  const isCopied = copiedText === content;
 
   const handleCopy = () => {
     if (!content) {
-      toast.warning(t(MESSAGE_ACTION_LABELS.NO_CONTENT))
-      return
+      toast.warning(t(MESSAGE_ACTION_LABELS.NO_CONTENT));
+      return;
     }
-    copyToClipboard(content)
-    onCopy?.(message)
-  }
+    copyToClipboard(content);
+    onCopy?.(message);
+  };
 
-  const handleRegenerate = guardAction(() => onRegenerate?.(message))
-  const handleToggleSource = () => onToggleSource?.(message)
-  const handleEdit = guardAction(() => onEdit?.(message))
-  const handleDelete = guardAction(() => onDelete?.(message))
+  const handleRegenerate = guardAction(() => onRegenerate?.(message));
+  const handleToggleSource = () => onToggleSource?.(message);
+  const handleEdit = guardAction(() => onEdit?.(message));
+  const handleDelete = guardAction(() => onDelete?.(message));
 
-  const visibilityClass = getMessageActionsVisibilityClass(alwaysVisible)
-  const actions: MessageActionItem[] = []
+  const visibilityClass = getMessageActionsVisibilityClass(alwaysVisible);
+  const actions: MessageActionItem[] = [];
 
   if (hasContent) {
     actions.push({
-      className: isCopied ? 'text-green-600' : '',
+      className: isCopied ? "text-green-600" : "",
       icon: isCopied ? Check : Copy,
       label: isCopied
         ? MESSAGE_ACTION_LABELS.COPIED
         : MESSAGE_ACTION_LABELS.COPY,
       onClick: handleCopy,
-    })
+    });
   }
 
   if (isAssistant && hasContent && !isLoading && onToggleSource) {
@@ -171,7 +171,7 @@ export function MessageActions({
         ? MESSAGE_ACTION_LABELS.SHOW_PREVIEW
         : MESSAGE_ACTION_LABELS.SHOW_SOURCE,
       onClick: handleToggleSource,
-    })
+    });
   }
 
   if ((isAssistant || isUser) && hasContent && !isLoading && onRegenerate) {
@@ -180,7 +180,7 @@ export function MessageActions({
       icon: RefreshCw,
       label: MESSAGE_ACTION_LABELS.REGENERATE,
       onClick: handleRegenerate,
-    })
+    });
   }
 
   if (hasContent && onEdit) {
@@ -189,7 +189,7 @@ export function MessageActions({
       icon: Edit,
       label: MESSAGE_ACTION_LABELS.EDIT,
       onClick: handleEdit,
-    })
+    });
   }
 
   if (onDelete) {
@@ -198,8 +198,8 @@ export function MessageActions({
       icon: Trash2,
       label: MESSAGE_ACTION_LABELS.DELETE,
       onClick: handleDelete,
-      variant: 'destructive',
-    })
+      variant: "destructive",
+    });
   }
 
   const versionSwitcher =
@@ -212,9 +212,9 @@ export function MessageActions({
         disabled={isGenerating}
         onSelectVersion={onSelectVersion}
       />
-    ) : null
+    ) : null;
 
-  if (actions.length === 0 && !versionSwitcher) return null
+  if (actions.length === 0 && !versionSwitcher) return null;
 
   return (
     <>
@@ -243,23 +243,23 @@ export function MessageActions({
           <DropdownMenuTrigger
             render={
               <Button
-                aria-label={t('Open menu')}
-                className='data-popup-open:bg-muted text-muted-foreground hover:text-foreground size-11'
-                size='icon'
-                variant='ghost'
+                aria-label={t("Open menu")}
+                className="data-popup-open:bg-muted text-muted-foreground hover:text-foreground size-11"
+                size="icon"
+                variant="ghost"
               />
             }
           >
-            <MoreHorizontal className='size-4' />
-            <span className='sr-only'>{t('Open menu')}</span>
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">{t("Open menu")}</span>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align='end' className='w-44'>
+          <DropdownMenuContent align="end" className="w-44">
             {actions.map((action) => {
-              const Icon = action.icon
+              const Icon = action.icon;
 
               return (
                 <DropdownMenuItem
-                  className='min-h-11'
+                  className="min-h-11"
                   disabled={action.disabled}
                   key={action.label}
                   onClick={action.onClick}
@@ -267,14 +267,14 @@ export function MessageActions({
                 >
                   {t(action.label)}
                   <DropdownMenuShortcut>
-                    <Icon className='size-4' />
+                    <Icon className="size-4" />
                   </DropdownMenuShortcut>
                 </DropdownMenuItem>
-              )
+              );
             })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </>
-  )
+  );
 }

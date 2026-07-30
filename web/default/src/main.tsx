@@ -20,55 +20,50 @@ import {
   QueryCache,
   QueryClient,
   QueryClientProvider,
-} from '@tanstack/react-query'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { AxiosError } from 'axios'
-import i18next from 'i18next'
-import { StrictMode } from 'react'
-import ReactDOM from 'react-dom/client'
-import { toast } from 'sonner'
+} from "@tanstack/react-query";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { AxiosError } from "axios";
+import i18next from "i18next";
+import { StrictMode } from "react";
+import ReactDOM from "react-dom/client";
+import { toast } from "sonner";
 
-import { mapStatusDataToConfig } from '@/hooks/use-system-config'
-import { getStatus } from '@/lib/api'
-import { installBuildMetadata } from '@/lib/build-metadata'
-import {
-  applyBrandTokenPresetToDom,
-  applyFaviconToDom,
-  applyPrimaryColorToDom,
-} from '@/lib/dom-utils'
-import '@/lib/dayjs'
-import { initializeFrontendCache } from '@/lib/frontend-cache'
-import { handleServerError } from '@/lib/handle-server-error'
-import { useAuthStore } from '@/stores/auth-store'
-import { useSystemConfigStore } from '@/stores/system-config-store'
+import { mapStatusDataToConfig } from "@/hooks/use-system-config";
+import { getStatus } from "@/lib/api";
+import { installBuildMetadata } from "@/lib/build-metadata";
+import { applyFaviconToDom, applyPrimaryColorToDom } from "@/lib/dom-utils";
+import "@/lib/dayjs";
+import { initializeFrontendCache } from "@/lib/frontend-cache";
+import { handleServerError } from "@/lib/handle-server-error";
+import { useAuthStore } from "@/stores/auth-store";
+import { useSystemConfigStore } from "@/stores/system-config-store";
 
-import { DirectionProvider } from './context/direction-provider'
-import { FontProvider } from './context/font-provider'
-import { ThemeProvider } from './context/theme-provider'
-import { i18nReady } from './i18n/config'
+import { DirectionProvider } from "./context/direction-provider";
+import { ThemeProvider } from "./context/theme-provider";
+import { i18nReady } from "./i18n/config";
 // Generated Routes
-import { routeTree } from './routeTree.gen'
+import { routeTree } from "./routeTree.gen";
 
 // Styles
-import './styles/index.css'
+import "./styles/index.css";
 
-initializeFrontendCache()
-installBuildMetadata()
+initializeFrontendCache();
+installBuildMetadata();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
         // eslint-disable-next-line no-console
-        if (import.meta.env.DEV) console.log({ failureCount, error })
+        if (import.meta.env.DEV) console.log({ failureCount, error });
 
-        if (failureCount >= 0 && import.meta.env.DEV) return false
-        if (failureCount > 3 && import.meta.env.PROD) return false
+        if (failureCount >= 0 && import.meta.env.DEV) return false;
+        if (failureCount > 3 && import.meta.env.PROD) return false;
 
         return !(
           error instanceof AxiosError &&
           [401, 403].includes(error.response?.status ?? 0)
-        )
+        );
       },
       // Keep focused tabs from silently re-running heavy pages like logs.
       refetchOnWindowFocus: false,
@@ -76,11 +71,11 @@ const queryClient = new QueryClient({
     },
     mutations: {
       onError: (error) => {
-        handleServerError(error)
+        handleServerError(error);
 
         if (error instanceof AxiosError) {
           if (error.response?.status === 304) {
-            toast.error(i18next.t('Content not modified!'))
+            toast.error(i18next.t("Content not modified!"));
           }
         }
       },
@@ -90,55 +85,55 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          toast.error(i18next.t('Session expired!'))
-          useAuthStore.getState().auth.reset()
-          const redirect = `${router.history.location.href}`
-          router.navigate({ to: '/sign-in', search: { redirect } })
+          toast.error(i18next.t("Session expired!"));
+          useAuthStore.getState().auth.reset();
+          const redirect = `${router.history.location.href}`;
+          router.navigate({ to: "/sign-in", search: { redirect } });
         }
         // Do not hard-navigate to /500 on background query failures.
         // Optional widgets on Profile (desktop sessions, check-in, etc.) must
         // not kick the user off the page when a single endpoint fails.
         if (error.response?.status === 500) {
-          toast.error(i18next.t('Internal Server Error!'))
+          toast.error(i18next.t("Internal Server Error!"));
         }
       }
     },
   }),
-})
+});
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
   context: { queryClient },
-  defaultPreload: 'intent',
+  defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
-})
+});
 
 // Register the router instance for type safety
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router
+    router: typeof router;
   }
 }
 
 // Render the app
-const rootElement = document.querySelector<HTMLElement>('#root')
+const rootElement = document.querySelector<HTMLElement>("#root");
 // Hydrate branding (favicon/colors) from cached status, then refresh from network.
 // Document title is owned by usePageSeo after the router mounts.
-;(function initSystemBranding() {
+(function initSystemBranding() {
   try {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    if (typeof window === "undefined" || typeof document === "undefined")
+      return;
     // Cache-first
     try {
-      const saved = localStorage.getItem('status')
+      const saved = localStorage.getItem("status");
       if (saved) {
-        const s = JSON.parse(saved)
-        const config = mapStatusDataToConfig(s)
-        useSystemConfigStore.getState().setConfig(config)
-        const favicon = config.faviconUrl || config.logo
-        if (favicon) applyFaviconToDom(favicon)
-        applyBrandTokenPresetToDom(config.tokenPreset || '')
-        applyPrimaryColorToDom(config.primaryColor || '')
+        const s = JSON.parse(saved);
+        const config = mapStatusDataToConfig(s);
+        useSystemConfigStore.getState().setConfig(config);
+        const favicon = config.faviconUrl || config.logo;
+        if (favicon) applyFaviconToDom(favicon);
+        applyPrimaryColorToDom(config.primaryColor || "");
       }
     } catch {
       /* empty */
@@ -146,27 +141,26 @@ const rootElement = document.querySelector<HTMLElement>('#root')
     // Background refresh
     getStatus()
       .then((s) => {
-        const config = mapStatusDataToConfig(s || undefined)
-        useSystemConfigStore.getState().setConfig(config)
-        const favicon = config.faviconUrl || config.logo
-        if (favicon) applyFaviconToDom(favicon)
-        applyBrandTokenPresetToDom(config.tokenPreset || '')
-        applyPrimaryColorToDom(config.primaryColor || '')
+        const config = mapStatusDataToConfig(s || undefined);
+        useSystemConfigStore.getState().setConfig(config);
+        const favicon = config.faviconUrl || config.logo;
+        if (favicon) applyFaviconToDom(favicon);
+        applyPrimaryColorToDom(config.primaryColor || "");
         try {
-          localStorage.setItem('status', JSON.stringify(s))
+          localStorage.setItem("status", JSON.stringify(s));
         } catch {
           /* empty */
         }
       })
       .catch(() => {
         /* empty */
-      })
+      });
   } catch {
     /* empty */
   }
-})()
+})();
 if (rootElement && !rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement)
+  const root = ReactDOM.createRoot(rootElement);
   // Non-English locale bundles are fetched on demand, so wait for the active
   // language before the first paint instead of flashing untranslated English.
   void i18nReady
@@ -176,14 +170,12 @@ if (rootElement && !rootElement.innerHTML) {
         <StrictMode>
           <QueryClientProvider client={queryClient}>
             <ThemeProvider>
-              <FontProvider>
-                <DirectionProvider>
-                  <RouterProvider router={router} />
-                </DirectionProvider>
-              </FontProvider>
+              <DirectionProvider>
+                <RouterProvider router={router} />
+              </DirectionProvider>
             </ThemeProvider>
           </QueryClientProvider>
-        </StrictMode>
-      )
-    })
+        </StrictMode>,
+      );
+    });
 }

@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Loader2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   AlertDialog,
@@ -28,26 +28,26 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toIntlLocale } from '@/i18n/languages'
-import { formatLocalCurrencyAmount } from '@/lib/currency'
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toIntlLocale } from "@/i18n/languages";
+import { formatLocalCurrencyAmount } from "@/lib/currency";
 
-import { DEFAULT_DISCOUNT_RATE } from '../../constants'
-import { formatCurrency, getPaymentIcon, isBankQRPayment } from '../../lib'
-import type { PaymentMethod } from '../../types'
+import { DEFAULT_DISCOUNT_RATE } from "../../constants";
+import { formatCurrency, getPaymentIcon, isBankQRPayment } from "../../lib";
+import type { PaymentMethod } from "../../types";
 
 interface PaymentConfirmDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-  topupAmount: number
-  paymentAmount: number
-  paymentMethod: PaymentMethod | undefined
-  calculating: boolean
-  processing: boolean
-  discountRate?: number
-  usdExchangeRate?: number
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  topupAmount: number;
+  paymentAmount: number;
+  paymentMethod: PaymentMethod | undefined;
+  calculating: boolean;
+  processing: boolean;
+  discountRate?: number;
+  usdExchangeRate?: number;
 }
 
 export function PaymentConfirmDialog({
@@ -62,38 +62,38 @@ export function PaymentConfirmDialog({
   discountRate = DEFAULT_DISCOUNT_RATE,
   usdExchangeRate = 1,
 }: PaymentConfirmDialogProps) {
-  const { t, i18n } = useTranslation()
-  const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false
+  const { t, i18n } = useTranslation();
+  const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false;
   const formatPaymentAmount = (amount: number) =>
     isBankQR
       ? new Intl.NumberFormat(toIntlLocale(i18n.language), {
-          style: 'currency',
-          currency: 'VND',
+          style: "currency",
+          currency: "VND",
           maximumFractionDigits: 0,
         }).format(amount)
-      : formatCurrency(amount)
-  const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0
-  const originalAmount = hasDiscount ? paymentAmount / discountRate : 0
-  const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0
+      : formatCurrency(amount);
+  const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0;
+  const originalAmount = hasDiscount ? paymentAmount / discountRate : 0;
+  const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md'>
+      <AlertDialogContent className="max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className='text-xl font-semibold'>
-            {t('Confirm Payment')}
+          <AlertDialogTitle className="text-xl font-semibold">
+            {t("Confirm Payment")}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {t('Review your payment details')}
+            {t("Review your payment details")}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Topup Amount')}
+        <div className="space-y-3 py-3 sm:space-y-4 sm:py-4">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground text-sm">
+              {t("Topup Amount")}
             </span>
-            <span className='text-lg font-semibold'>
+            <span className="text-lg font-semibold">
               {formatLocalCurrencyAmount(topupAmount * usdExchangeRate, {
                 digitsLarge: 2,
                 digitsSmall: 2,
@@ -102,19 +102,19 @@ export function PaymentConfirmDialog({
             </span>
           </div>
 
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('You Pay')}
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground text-sm">
+              {t("You Pay")}
             </span>
             {calculating ? (
-              <Skeleton className='h-6 w-24' />
+              <Skeleton className="h-6 w-24" />
             ) : (
-              <div className='flex items-baseline gap-2'>
-                <span className='text-2xl font-semibold'>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-semibold">
                   {formatPaymentAmount(paymentAmount)}
                 </span>
                 {hasDiscount && (
-                  <span className='text-muted-foreground text-sm line-through'>
+                  <span className="text-muted-foreground text-sm line-through">
                     {formatPaymentAmount(originalAmount)}
                   </span>
                 )}
@@ -123,46 +123,46 @@ export function PaymentConfirmDialog({
           </div>
 
           {hasDiscount && !calculating && (
-            <div className='bg-muted/50 rounded-lg p-3'>
-              <div className='flex items-center justify-between text-sm'>
-                <span className='text-muted-foreground'>{t('You save')}</span>
-                <span className='font-semibold text-green-600'>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("You save")}</span>
+                <span className="font-semibold text-green-600">
                   {formatPaymentAmount(discountAmount)}
                 </span>
               </div>
             </div>
           )}
 
-          <div className='border-t pt-4'>
-            <div className='flex items-center justify-between'>
-              <span className='text-muted-foreground text-sm'>
-                {t('Payment Method')}
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-sm">
+                {t("Payment Method")}
               </span>
-              <div className='flex items-center gap-2'>
+              <div className="flex items-center gap-2">
                 {getPaymentIcon(
                   paymentMethod?.type,
-                  'h-4 w-4',
+                  "h-4 w-4",
                   paymentMethod?.icon,
-                  paymentMethod?.name ? t(paymentMethod.name) : undefined
+                  paymentMethod?.name ? t(paymentMethod.name) : undefined,
                 )}
-                <span className='font-medium'>
-                  {paymentMethod?.name ? t(paymentMethod.name) : ''}
+                <span className="font-medium">
+                  {paymentMethod?.name ? t(paymentMethod.name) : ""}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
+        <AlertDialogFooter className="grid grid-cols-2 gap-2 sm:flex">
           <AlertDialogCancel disabled={processing}>
-            {t('Cancel')}
+            {t("Cancel")}
           </AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} disabled={processing}>
-            {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {t('Confirm Payment')}
+            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("Confirm Payment")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

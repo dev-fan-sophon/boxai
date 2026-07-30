@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
-import type { Table as TanstackTable } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { useQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
+import type { Table as TanstackTable } from "@tanstack/react-table";
+import { Database } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import {
   DISABLED_ROW_DESKTOP,
@@ -30,121 +30,121 @@ import {
   DataTablePage,
   useDebouncedColumnFilter,
   useDataTable,
-} from '@/components/data-table'
-import { StatusBadge } from '@/components/status-badge'
+} from "@/components/data-table";
+import { StatusBadge } from "@/components/status-badge";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { formatQuota } from '@/lib/format'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import { formatQuota } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-import { getApiKeys, searchApiKeys } from '../api'
+import { getApiKeys, searchApiKeys } from "../api";
 import {
   API_KEY_STATUS,
   API_KEY_STATUS_OPTIONS,
   API_KEY_STATUSES,
   ERROR_MESSAGES,
-} from '../constants'
-import type { ApiKey } from '../types'
-import { ApiKeyCell } from './api-keys-cells'
-import { useApiKeysColumns } from './api-keys-columns'
-import { useApiKeys } from './api-keys-provider'
-import { DataTableBulkActions } from './data-table-bulk-actions'
-import { DataTableRowActions } from './data-table-row-actions'
+} from "../constants";
+import type { ApiKey } from "../types";
+import { ApiKeyCell } from "./api-keys-cells";
+import { useApiKeysColumns } from "./api-keys-columns";
+import { useApiKeys } from "./api-keys-provider";
+import { DataTableBulkActions } from "./data-table-bulk-actions";
+import { DataTableRowActions } from "./data-table-row-actions";
 
-const route = getRouteApi('/_authenticated/keys/')
+const route = getRouteApi("/_authenticated/keys/");
 // Bump when default column priorities change so users pick up the new layout.
-const API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY = 'api-keys:column-visibility:v2'
+const API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY = "api-keys:column-visibility:v2";
 const API_KEYS_MOBILE_SKELETON_IDS = Array.from(
   { length: 5 },
-  (_, index) => `api-key-mobile-skeleton-${index + 1}`
-)
+  (_, index) => `api-key-mobile-skeleton-${index + 1}`,
+);
 
 function isDisabledApiKeyRow(apiKey: ApiKey) {
-  return apiKey.status !== API_KEY_STATUS.ENABLED
+  return apiKey.status !== API_KEY_STATUS.ENABLED;
 }
 
 function ApiKeysMobileSkeleton() {
   return (
-    <div className='divide-border overflow-hidden rounded-lg border'>
+    <div className="divide-border overflow-hidden rounded-lg border">
       {API_KEYS_MOBILE_SKELETON_IDS.map((id) => (
         <div
           key={id}
-          className='space-y-2 border-b px-3 py-2.5 last:border-b-0'
+          className="space-y-2 border-b px-3 py-2.5 last:border-b-0"
         >
-          <div className='flex items-center justify-between'>
-            <Skeleton className='h-4 w-32' />
-            <Skeleton className='h-5 w-16 rounded-md' />
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-5 w-16 rounded-md" />
           </div>
-          <div className='flex items-center justify-between gap-3'>
-            <Skeleton className='h-7 w-44' />
-            <Skeleton className='h-8 w-16' />
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-7 w-44" />
+            <Skeleton className="h-8 w-16" />
           </div>
-          <Skeleton className='h-3 w-28' />
+          <Skeleton className="h-3 w-28" />
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 function ApiKeysMobileList({
   table,
   isLoading,
 }: {
-  table: TanstackTable<ApiKey>
-  isLoading: boolean
+  table: TanstackTable<ApiKey>;
+  isLoading: boolean;
 }) {
-  const { t } = useTranslation()
-  const rows = table.getRowModel().rows
+  const { t } = useTranslation();
+  const rows = table.getRowModel().rows;
 
-  if (isLoading) return <ApiKeysMobileSkeleton />
+  if (isLoading) return <ApiKeysMobileSkeleton />;
 
   if (!rows.length) {
     return (
-      <div className='rounded-lg border p-8'>
-        <Empty className='border-none p-0'>
+      <div className="rounded-lg border p-8">
+        <Empty className="border-none p-0">
           <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
+            <EmptyMedia variant="icon">
+              <Database className="size-6" />
             </EmptyMedia>
-            <EmptyTitle>{t('No API Keys Found')}</EmptyTitle>
+            <EmptyTitle>{t("No API Keys Found")}</EmptyTitle>
             <EmptyDescription>
               {t(
-                'No API keys available. Create your first API key to get started.'
+                "No API keys available. Create your first API key to get started.",
               )}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       </div>
-    )
+    );
   }
 
   return (
-    <div className='grid grid-cols-1 gap-3'>
+    <div className="grid grid-cols-1 gap-3">
       {rows.map((row) => {
-        const apiKey = row.original
-        const statusConfig = API_KEY_STATUSES[apiKey.status]
-        const total = apiKey.used_quota + apiKey.remain_quota
+        const apiKey = row.original;
+        const statusConfig = API_KEY_STATUSES[apiKey.status];
+        const total = apiKey.used_quota + apiKey.remain_quota;
 
         return (
           <div
             key={row.id}
             className={cn(
-              'border-border/60 bg-card space-y-2.5 rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)]',
-              isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE
+              "border-border/60 bg-card space-y-2.5 rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)]",
+              isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE,
             )}
           >
-            <div className='flex items-start justify-between gap-2'>
-              <div className='min-w-0 flex-1'>
-                <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                  <span className='truncate text-sm font-semibold'>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-semibold">
                     {apiKey.name}
                   </span>
                   {statusConfig && (
@@ -155,49 +155,49 @@ function ApiKeysMobileList({
                     />
                   )}
                 </div>
-                <div className='mt-1.5 min-w-0 [&_button:first-child]:max-w-full [&_button:first-child]:truncate [&_button:first-child]:px-0'>
+                <div className="mt-1.5 min-w-0 [&_button:first-child]:max-w-full [&_button:first-child]:truncate [&_button:first-child]:px-0">
                   <ApiKeyCell apiKey={apiKey} />
                 </div>
               </div>
               <DataTableRowActions row={row} />
             </div>
 
-            <div className='text-muted-foreground flex items-center justify-between gap-2 text-xs'>
-              <span>{t('Quota')}</span>
+            <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+              <span>{t("Quota")}</span>
               {apiKey.unlimited_quota ? (
-                <span className='text-foreground font-medium'>
-                  {t('Unlimited')}
+                <span className="text-foreground font-medium">
+                  {t("Unlimited")}
                 </span>
               ) : (
-                <span className='text-foreground font-medium tabular-nums'>
+                <span className="text-foreground font-medium tabular-nums">
                   {formatQuota(apiKey.remain_quota)}
-                  <span className='text-muted-foreground font-normal'>
-                    {' / '}
+                  <span className="text-muted-foreground font-normal">
+                    {" / "}
                     {formatQuota(total)}
                   </span>
                 </span>
               )}
             </div>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 export function ApiKeysTable() {
-  const { t } = useTranslation()
-  const { refreshTrigger } = useApiKeys()
-  const [now, setNow] = useState(() => Date.now())
-  const columns = useApiKeysColumns(now)
+  const { t } = useTranslation();
+  const { refreshTrigger } = useApiKeys();
+  const [now, setNow] = useState(() => Date.now());
+  const columns = useApiKeysColumns(now);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setNow(Date.now())
-    }, 30_000)
+      setNow(Date.now());
+    }, 30_000);
 
-    return () => window.clearInterval(intervalId)
-  }, [])
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const {
     globalFilter,
@@ -211,12 +211,12 @@ export function ApiKeysTable() {
     search: route.useSearch(),
     navigate: route.useNavigate(),
     pagination: { defaultPage: 1, defaultPageSize: 20 },
-    globalFilter: { enabled: true, key: 'filter' },
+    globalFilter: { enabled: true, key: "filter" },
     columnFilters: [
-      { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: '_tokenSearch', searchKey: 'token', type: 'string' },
+      { columnId: "status", searchKey: "status", type: "array" },
+      { columnId: "_tokenSearch", searchKey: "token", type: "string" },
     ],
-  })
+  });
 
   const {
     value: tokenFilter,
@@ -224,16 +224,16 @@ export function ApiKeysTable() {
     setInputValue: setTokenFilterInput,
   } = useDebouncedColumnFilter({
     columnFilters,
-    columnId: '_tokenSearch',
+    columnId: "_tokenSearch",
     onColumnFiltersChange,
-  })
-  const shouldSearch = Boolean(globalFilter?.trim() || tokenFilter.trim())
+  });
+  const shouldSearch = Boolean(globalFilter?.trim() || tokenFilter.trim());
 
   // Fetch data with React Query
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
-      'keys',
+      "keys",
       pagination.pageIndex + 1,
       pagination.pageSize,
       globalFilter,
@@ -251,7 +251,7 @@ export function ApiKeysTable() {
         : await getApiKeys({
             p: pagination.pageIndex + 1,
             size: pagination.pageSize,
-          })
+          });
 
       if (!result.success) {
         toast.error(
@@ -259,21 +259,21 @@ export function ApiKeysTable() {
             t(
               shouldSearch
                 ? ERROR_MESSAGES.SEARCH_FAILED
-                : ERROR_MESSAGES.LOAD_FAILED
-            )
-        )
-        return { items: [], total: 0 }
+                : ERROR_MESSAGES.LOAD_FAILED,
+            ),
+        );
+        return { items: [], total: 0 };
       }
 
       return {
         items: result.data?.items || [],
         total: result.data?.total || 0,
-      }
+      };
     },
     placeholderData: (previousData) => previousData,
-  })
+  });
 
-  const apiKeys = data?.items || []
+  const apiKeys = data?.items || [];
 
   const { table } = useDataTable({
     data: apiKeys,
@@ -290,7 +290,7 @@ export function ApiKeysTable() {
     manualPagination: true,
     totalCount: data?.total || 0,
     ensurePageInRange,
-  })
+  });
 
   return (
     <DataTablePage
@@ -298,30 +298,30 @@ export function ApiKeysTable() {
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t('No API Keys Found')}
+      emptyTitle={t("No API Keys Found")}
       emptyDescription={t(
-        'No API keys available. Create your first API key to get started.'
+        "No API keys available. Create your first API key to get started.",
       )}
-      skeletonKeyPrefix='api-keys-skeleton'
+      skeletonKeyPrefix="api-keys-skeleton"
       applyHeaderSize
       enableCardView
-      defaultViewMode='card'
-      viewModeStorageKey='api-keys:view-mode:v1'
+      defaultViewMode="card"
+      viewModeStorageKey="api-keys:view-mode:v1"
       toolbarProps={{
-        searchPlaceholder: t('Filter by name...'),
+        searchPlaceholder: t("Filter by name..."),
         additionalSearch: (
           <Input
-            placeholder={t('Filter by API key...')}
-            aria-label={t('Filter by API key...')}
+            placeholder={t("Filter by API key...")}
+            aria-label={t("Filter by API key...")}
             value={tokenFilterInput}
             onChange={(e) => setTokenFilterInput(e.target.value)}
-            className='h-8 w-full sm:w-44 lg:w-52'
+            className="h-8 w-full sm:w-44 lg:w-52"
           />
         ),
         filters: [
           {
-            columnId: 'status',
-            title: t('Status'),
+            columnId: "status",
+            title: t("Status"),
             options: API_KEY_STATUS_OPTIONS,
             singleSelect: true,
           },
@@ -333,5 +333,5 @@ export function ApiKeysTable() {
       }
       bulkActions={<DataTableBulkActions table={table} />}
     />
-  )
+  );
 }

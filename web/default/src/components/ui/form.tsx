@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useRender } from '@base-ui/react/use-render'
-import * as React from 'react'
+import { useRender } from "@base-ui/react/use-render";
+import * as React from "react";
 import {
   Controller,
   FormProvider,
@@ -26,95 +26,95 @@ import {
   type ControllerProps,
   type FieldPath,
   type FieldValues,
-} from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
+} from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type FormRootContextValue = {
-  id: string
-}
+  id: string;
+};
 
-const FormRootContext = React.createContext<FormRootContextValue | null>(null)
+const FormRootContext = React.createContext<FormRootContextValue | null>(null);
 
 function getFormScopedSelector(formId: string, selector: string): string {
-  return `[data-form-root="${formId}"]${selector}`
+  return `[data-form-root="${formId}"]${selector}`;
 }
 
 function hasFormErrors(errors: unknown): boolean {
   return (
-    typeof errors === 'object' &&
+    typeof errors === "object" &&
     errors !== null &&
     Object.keys(errors).length > 0
-  )
+  );
 }
 
 function getFirstFormErrorTarget(
   invalidControl: HTMLElement | null,
-  errorMessage: HTMLElement | null
+  errorMessage: HTMLElement | null,
 ): HTMLElement | null {
-  if (!invalidControl) return errorMessage
-  if (!errorMessage) return invalidControl
+  if (!invalidControl) return errorMessage;
+  if (!errorMessage) return invalidControl;
 
-  const position = invalidControl.compareDocumentPosition(errorMessage)
+  const position = invalidControl.compareDocumentPosition(errorMessage);
   return position & Node.DOCUMENT_POSITION_PRECEDING
     ? errorMessage
-    : invalidControl
+    : invalidControl;
 }
 
 function FormValidationFocus() {
-  const formContext = React.useContext(FormRootContext)
-  const { control } = useFormContext()
-  const { errors, submitCount } = useFormState({ control })
-  const handledSubmitCountRef = React.useRef(0)
+  const formContext = React.useContext(FormRootContext);
+  const { control } = useFormContext();
+  const { errors, submitCount } = useFormState({ control });
+  const handledSubmitCountRef = React.useRef(0);
 
   React.useEffect(() => {
-    if (!formContext || submitCount === 0 || !hasFormErrors(errors)) return
-    if (handledSubmitCountRef.current === submitCount) return
+    if (!formContext || submitCount === 0 || !hasFormErrors(errors)) return;
+    if (handledSubmitCountRef.current === submitCount) return;
 
-    handledSubmitCountRef.current = submitCount
+    handledSubmitCountRef.current = submitCount;
 
     const animationFrameId = window.requestAnimationFrame(() => {
       const invalidControl = document.querySelector<HTMLElement>(
-        getFormScopedSelector(formContext.id, '[aria-invalid="true"]')
-      )
+        getFormScopedSelector(formContext.id, '[aria-invalid="true"]'),
+      );
       const errorMessage = document.querySelector<HTMLElement>(
-        getFormScopedSelector(formContext.id, '[data-slot="form-message"]')
-      )
-      const target = getFirstFormErrorTarget(invalidControl, errorMessage)
-      if (!target) return
+        getFormScopedSelector(formContext.id, '[data-slot="form-message"]'),
+      );
+      const target = getFirstFormErrorTarget(invalidControl, errorMessage);
+      if (!target) return;
 
       const formItem = target.closest<HTMLElement>(
-        getFormScopedSelector(formContext.id, '[data-slot="form-item"]')
-      )
-      const scrollTarget = formItem ?? target
+        getFormScopedSelector(formContext.id, '[data-slot="form-item"]'),
+      );
+      const scrollTarget = formItem ?? target;
       const focusTarget =
         target === invalidControl
           ? invalidControl
           : (formItem?.querySelector<HTMLElement>(
-              '[aria-invalid="true"], input, textarea, select, button, [tabindex]:not([tabindex="-1"])'
-            ) ?? null)
+              '[aria-invalid="true"], input, textarea, select, button, [tabindex]:not([tabindex="-1"])',
+            ) ?? null);
 
-      scrollTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      focusTarget?.focus({ preventScroll: true })
-    })
+      scrollTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+      focusTarget?.focus({ preventScroll: true });
+    });
 
-    return () => window.cancelAnimationFrame(animationFrameId)
-  }, [errors, formContext, submitCount])
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [errors, formContext, submitCount]);
 
-  return null
+  return null;
 }
 
 function Form<TFieldValues extends FieldValues = FieldValues>({
   children,
   ...props
 }: React.ComponentProps<typeof FormProvider<TFieldValues>>) {
-  const reactId = React.useId()
+  const reactId = React.useId();
   const id = React.useMemo(
-    () => `form-${reactId.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`,
-    [reactId]
-  )
+    () => `form-${reactId.replaceAll(/[^a-zA-Z0-9_-]/g, "_")}`,
+    [reactId],
+  );
 
   return (
     <FormRootContext.Provider value={{ id }}>
@@ -123,19 +123,19 @@ function Form<TFieldValues extends FieldValues = FieldValues>({
         {children}
       </FormProvider>
     </FormRootContext.Provider>
-  )
+  );
 }
 
 type FormFieldContextValue<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > = {
-  name: TName
-}
+  name: TName;
+};
 
 const FormFieldContext = React.createContext<FormFieldContextValue>(
-  {} as FormFieldContextValue
-)
+  {} as FormFieldContextValue,
+);
 
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
@@ -147,21 +147,21 @@ const FormField = <
     <FormFieldContext.Provider value={{ name: props.name }}>
       <Controller {...props} />
     </FormFieldContext.Provider>
-  )
-}
+  );
+};
 
 const useFormField = () => {
-  const fieldContext = React.useContext(FormFieldContext)
-  const itemContext = React.useContext(FormItemContext)
-  const { getFieldState } = useFormContext()
-  const formState = useFormState({ name: fieldContext.name })
-  const fieldState = getFieldState(fieldContext.name, formState)
+  const fieldContext = React.useContext(FormFieldContext);
+  const itemContext = React.useContext(FormItemContext);
+  const { getFieldState } = useFormContext();
+  const formState = useFormState({ name: fieldContext.name });
+  const fieldState = getFieldState(fieldContext.name, formState);
 
   if (!fieldContext) {
-    throw new Error('useFormField should be used within <FormField>')
+    throw new Error("useFormField should be used within <FormField>");
   }
 
-  const { id } = itemContext
+  const { id } = itemContext;
 
   return {
     id,
@@ -170,108 +170,109 @@ const useFormField = () => {
     formDescriptionId: `${id}-form-item-description`,
     formMessageId: `${id}-form-item-message`,
     ...fieldState,
-  }
-}
+  };
+};
 
 type FormItemContextValue = {
-  id: string
-}
+  id: string;
+};
 
 const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue
-)
+  {} as FormItemContextValue,
+);
 
-function FormItem({ className, ...props }: React.ComponentProps<'div'>) {
-  const id = React.useId()
-  const formContext = React.useContext(FormRootContext)
+function FormItem({ className, ...props }: React.ComponentProps<"div">) {
+  const id = React.useId();
+  const formContext = React.useContext(FormRootContext);
 
   return (
     <FormItemContext.Provider value={{ id }}>
       <div
-        data-slot='form-item'
+        data-slot="form-item"
         data-form-root={formContext?.id}
-        className={cn('grid gap-2', className)}
+        className={cn("grid gap-2", className)}
         {...props}
       />
     </FormItemContext.Provider>
-  )
+  );
 }
 
 function FormLabel({
   className,
   ...props
 }: React.ComponentProps<typeof Label>) {
-  const { error, formItemId } = useFormField()
+  const { error, formItemId } = useFormField();
 
   return (
     <Label
-      data-slot='form-label'
+      data-slot="form-label"
       data-error={!!error}
-      className={cn('data-[error=true]:text-destructive', className)}
+      className={cn("data-[error=true]:text-destructive", className)}
       htmlFor={formItemId}
       {...props}
     />
-  )
+  );
 }
 
 function FormControl({
   children,
   ...props
 }: { children: React.ReactElement } & Record<string, unknown>) {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
-  const formContext = React.useContext(FormRootContext)
+  const { error, formItemId, formDescriptionId, formMessageId } =
+    useFormField();
+  const formContext = React.useContext(FormRootContext);
 
   return useRender({
     render: children,
     props: {
-      'data-slot': 'form-control',
-      'data-form-root': formContext?.id,
+      "data-slot": "form-control",
+      "data-form-root": formContext?.id,
       id: formItemId,
-      'aria-describedby': !error
+      "aria-describedby": !error
         ? `${formDescriptionId}`
         : `${formDescriptionId} ${formMessageId}`,
-      'aria-invalid': !!error,
+      "aria-invalid": !!error,
       ...props,
     },
-  })
+  });
 }
 
-function FormDescription({ className, ...props }: React.ComponentProps<'p'>) {
-  const { formDescriptionId } = useFormField()
+function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
+  const { formDescriptionId } = useFormField();
 
   return (
     <p
-      data-slot='form-description'
+      data-slot="form-description"
       id={formDescriptionId}
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />
-  )
+  );
 }
 
-function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
-  const { error, formMessageId } = useFormField()
-  const formContext = React.useContext(FormRootContext)
-  const { t } = useTranslation()
-  const body = error ? String(error?.message ?? '') : props.children
+function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
+  const { error, formMessageId } = useFormField();
+  const formContext = React.useContext(FormRootContext);
+  const { t } = useTranslation();
+  const body = error ? String(error?.message ?? "") : props.children;
 
   if (!body) {
-    return null
+    return null;
   }
 
-  const translatedBody = typeof body === 'string' ? t(body) : body
+  const translatedBody = typeof body === "string" ? t(body) : body;
 
   return (
     <p
-      data-slot='form-message'
+      data-slot="form-message"
       data-form-root={formContext?.id}
       id={formMessageId}
-      className={cn('text-destructive text-sm', className)}
+      className={cn("text-destructive text-sm", className)}
       {...props}
     >
       {translatedBody}
     </p>
-  )
+  );
 }
 
 export {
@@ -283,4 +284,4 @@ export {
   FormDescription,
   FormMessage,
   FormField,
-}
+};

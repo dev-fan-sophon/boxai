@@ -18,11 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { describe, expect, it } from 'vitest'
 
-import {
-  formatSeoTitle,
-  isPrivateSeoPath,
-  resolveRouteSeo,
-} from './seo'
+import { formatSeoTitle, isPrivateSeoPath, resolveRouteSeo } from './seo'
 
 describe('formatSeoTitle', () => {
   it('joins page and site name', () => {

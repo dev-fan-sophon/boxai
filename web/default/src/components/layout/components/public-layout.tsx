@@ -16,30 +16,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { PageTransition } from '@/components/page-transition'
+import { PageTransition } from "@/components/page-transition";
 
-import type { TopNavLink } from '../types'
-import { PublicHeader, type PublicHeaderProps } from './public-header'
+import type { TopNavLink } from "../types";
+import { PublicHeader, type PublicHeaderProps } from "./public-header";
 
 type PublicLayoutProps = {
-  children: React.ReactNode
-  showMainContainer?: boolean
-  headerProps?: PublicHeaderProps
-  navLinks?: TopNavLink[]
-  showThemeSwitch?: boolean
-  showAuthButtons?: boolean
-  showNotifications?: boolean
-  logo?: React.ReactNode
-  siteName?: string
-}
+  children: React.ReactNode;
+  showMainContainer?: boolean;
+  headerProps?: PublicHeaderProps;
+  navLinks?: TopNavLink[];
+  showThemeSwitch?: boolean;
+  showAuthButtons?: boolean;
+  showNotifications?: boolean;
+  logo?: React.ReactNode;
+  siteName?: string;
+};
 
 export function PublicLayout(props: PublicLayoutProps) {
   // Route-level entrance, so the marketing and full-viewport app shells fade in
   // the same way console pages already do through `AnimatedOutlet`.
-  const content = <PageTransition>{props.children}</PageTransition>
+  const content = <PageTransition>{props.children}</PageTransition>;
 
   return (
-    <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
+    <div className="bg-background text-foreground relative min-h-svh overflow-x-clip">
       <PublicHeader
         navLinks={props.navLinks}
         showThemeSwitch={props.showThemeSwitch}
@@ -51,10 +51,10 @@ export function PublicLayout(props: PublicLayoutProps) {
       />
 
       {props.showMainContainer !== false ? (
-        <main className='container px-4 py-6 pt-20 md:px-4'>{content}</main>
+        <main className="container px-4 py-6 pt-20 md:px-4">{content}</main>
       ) : (
         content
       )}
     </div>
-  )
+  );
 }

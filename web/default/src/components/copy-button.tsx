@@ -16,31 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Check, Copy } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Check, Copy } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { MOTION_TRANSITION } from '@/lib/motion'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/tooltip";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { MOTION_TRANSITION } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 interface CopyButtonProps {
-  value: string
-  children?: ReactNode
-  className?: string
-  iconClassName?: string
-  variant?: 'ghost' | 'outline' | 'default' | 'secondary' | 'destructive'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
-  tooltip?: string
-  successTooltip?: string
-  'aria-label'?: string
+  value: string;
+  children?: ReactNode;
+  className?: string;
+  iconClassName?: string;
+  variant?: "ghost" | "outline" | "default" | "secondary" | "destructive";
+  size?: "default" | "sm" | "lg" | "icon";
+  tooltip?: string;
+  successTooltip?: string;
+  "aria-label"?: string;
 }
 
 export function CopyButton({
@@ -48,32 +48,32 @@ export function CopyButton({
   children,
   className,
   iconClassName,
-  variant = 'ghost',
-  size = 'icon',
+  variant = "ghost",
+  size = "icon",
   tooltip,
   successTooltip,
-  'aria-label': ariaLabel,
+  "aria-label": ariaLabel,
 }: CopyButtonProps) {
-  const { t } = useTranslation()
-  const shouldReduce = useReducedMotion()
-  const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const isCopied = copiedText === value
-  const resolvedTooltip = tooltip ?? t('Copy to clipboard')
-  const resolvedSuccessTooltip = successTooltip ?? t('Copied!')
-  const resolvedAriaLabel = ariaLabel ?? resolvedTooltip
-  const copiedAriaLabel = t('Copied')
+  const { t } = useTranslation();
+  const shouldReduce = useReducedMotion();
+  const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false });
+  const isCopied = copiedText === value;
+  const resolvedTooltip = tooltip ?? t("Copy to clipboard");
+  const resolvedSuccessTooltip = successTooltip ?? t("Copied!");
+  const resolvedAriaLabel = ariaLabel ?? resolvedTooltip;
+  const copiedAriaLabel = t("Copied");
 
   const icon = isCopied ? (
-    <Check className={cn('text-success', iconClassName)} />
+    <Check className={cn("text-success", iconClassName)} />
   ) : (
     <Copy className={cn(iconClassName)} />
-  )
+  );
 
   const button = (
     <Button
       variant={variant}
       size={size}
-      className={cn('shrink-0', className)}
+      className={cn("shrink-0", className)}
       onClick={() => copyToClipboard(value)}
       aria-label={isCopied ? copiedAriaLabel : resolvedAriaLabel}
     >
@@ -82,14 +82,14 @@ export function CopyButton({
       ) : (
         // The copied state reverts on a timer, so the icon swaps twice per use;
         // a cross-fade reads as feedback where a hard cut reads as a glitch.
-        <AnimatePresence initial={false} mode='wait'>
+        <AnimatePresence initial={false} mode="wait">
           <motion.span
-            key={isCopied ? 'copied' : 'idle'}
+            key={isCopied ? "copied" : "idle"}
             initial={{ opacity: 0, scale: 0.7 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.7 }}
             transition={MOTION_TRANSITION.fast}
-            className='inline-flex items-center justify-center'
+            className="inline-flex items-center justify-center"
           >
             {icon}
           </motion.span>
@@ -97,7 +97,7 @@ export function CopyButton({
       )}
       {children}
     </Button>
-  )
+  );
 
   if (tooltip || successTooltip) {
     return (
@@ -107,8 +107,8 @@ export function CopyButton({
           <p>{isCopied ? resolvedSuccessTooltip : resolvedTooltip}</p>
         </TooltipContent>
       </Tooltip>
-    )
+    );
   }
 
-  return button
+  return button;
 }

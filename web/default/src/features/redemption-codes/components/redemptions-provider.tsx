@@ -16,35 +16,35 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useState } from 'react'
+import React, { useState } from "react";
 
-import { useDialogState } from '@/hooks/use-dialog'
+import { useDialogState } from "@/hooks/use-dialog";
 
-import type { Redemption, RedemptionsDialogType } from '../types'
+import type { Redemption, RedemptionsDialogType } from "../types";
 
 type RedemptionsContextType = {
-  open: RedemptionsDialogType | null
-  setOpen: (str: RedemptionsDialogType | null) => void
-  currentRow: Redemption | null
-  setCurrentRow: React.Dispatch<React.SetStateAction<Redemption | null>>
-  refreshTrigger: number
-  triggerRefresh: () => void
-}
+  open: RedemptionsDialogType | null;
+  setOpen: (str: RedemptionsDialogType | null) => void;
+  currentRow: Redemption | null;
+  setCurrentRow: React.Dispatch<React.SetStateAction<Redemption | null>>;
+  refreshTrigger: number;
+  triggerRefresh: () => void;
+};
 
 const RedemptionsContext = React.createContext<RedemptionsContextType | null>(
-  null
-)
+  null,
+);
 
 export function RedemptionsProvider({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const [open, setOpen] = useDialogState<RedemptionsDialogType>(null)
-  const [currentRow, setCurrentRow] = useState<Redemption | null>(null)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [open, setOpen] = useDialogState<RedemptionsDialogType>(null);
+  const [currentRow, setCurrentRow] = useState<Redemption | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1)
+  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
 
   return (
     <RedemptionsContext
@@ -59,18 +59,18 @@ export function RedemptionsProvider({
     >
       {children}
     </RedemptionsContext>
-  )
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useRedemptions = () => {
-  const redemptionsContext = React.useContext(RedemptionsContext)
+  const redemptionsContext = React.useContext(RedemptionsContext);
 
   if (!redemptionsContext) {
     throw new Error(
-      'useRedemptions has to be used within <RedemptionsProvider>'
-    )
+      "useRedemptions has to be used within <RedemptionsProvider>",
+    );
   }
 
-  return redemptionsContext
-}
+  return redemptionsContext;
+};

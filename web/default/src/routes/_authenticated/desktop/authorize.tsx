@@ -16,14 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
+import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 
-import { DesktopAuthorizationPage } from '@/features/desktop-authorization'
+import { DesktopAuthorizationPage } from "@/features/desktop-authorization";
 
-export const Route = createFileRoute('/_authenticated/desktop/authorize')({
+export const Route = createFileRoute("/_authenticated/desktop/authorize")({
   validateSearch: z.object({
     request: z.string().trim().min(1).optional().catch(undefined),
   }),
   component: DesktopAuthorizationPage,
-})
+});

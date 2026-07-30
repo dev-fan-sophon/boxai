@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetRouter(router *gin.Engine, assets ThemeAssets) {
+func SetRouter(router *gin.Engine, assets WebAssets) {
 	// Published at the well-known path so the desktop connector broker can
 	// discover the desktop token signing key without extra configuration.
 	router.GET("/.well-known/jwks.json", middleware.RouteTag("api"), controller.GetDesktopJWKS)

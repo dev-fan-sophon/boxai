@@ -16,55 +16,56 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { StaticDataTable } from '@/components/data-table/static/static-data-table'
-import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
-import { EmptyState } from '@/components/empty-state'
-import { StatusBadge } from '@/components/status-badge'
-import { Button } from '@/components/ui/button'
+import { StaticDataTable } from "@/components/data-table/static/static-data-table";
+import { StaticRowActions } from "@/components/data-table/static/static-row-actions";
+import { EmptyState } from "@/components/empty-state";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
 
-import { safeJsonParseWithValidation } from '../utils/json-parser'
-import { isObjectRecord } from '../utils/json-validators'
+import { safeJsonParseWithValidation } from "../utils/json-parser";
+import { isObjectRecord } from "../utils/json-validators";
 import {
   AmountDiscountDialog,
   type AmountDiscountData,
-} from './amount-discount-dialog'
+} from "./amount-discount-dialog";
 
 type AmountDiscountVisualEditorProps = {
-  value: string
-  onChange: (value: string) => void
-}
+  value: string;
+  onChange: (value: string) => void;
+};
 
 export function AmountDiscountVisualEditor({
   value,
   onChange,
 }: AmountDiscountVisualEditorProps) {
-  const { t } = useTranslation()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editData, setEditData] = useState<AmountDiscountData | null>(null)
+  const { t } = useTranslation();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editData, setEditData] = useState<AmountDiscountData | null>(null);
 
   const discounts = useMemo(() => {
     const parsed = safeJsonParseWithValidation<Record<string, unknown>>(value, {
       fallback: {},
       validator: isObjectRecord,
-      validatorMessage: 'Amount discount must be a JSON object',
-      context: 'amount discounts',
-    })
+      validatorMessage: "Amount discount must be a JSON object",
+      context: "amount discounts",
+    });
 
     return Object.entries(parsed)
       .map(([amount, rate]) => ({
         amount: Number.parseInt(amount, 10),
         discountRate:
-          typeof rate === 'number' ? rate : Number.parseFloat(String(rate)),
+          typeof rate === "number" ? rate : Number.parseFloat(String(rate)),
       }))
       .filter(
-        (item) => !Number.isNaN(item.amount) && !Number.isNaN(item.discountRate)
+        (item) =>
+          !Number.isNaN(item.amount) && !Number.isNaN(item.discountRate),
       )
-      .sort((a, b) => a.amount - b.amount)
-  }, [value])
+      .sort((a, b) => a.amount - b.amount);
+  }, [value]);
 
   const handleSave = (data: AmountDiscountData) => {
     const discountObject = safeJsonParseWithValidation<Record<string, unknown>>(
@@ -73,17 +74,17 @@ export function AmountDiscountVisualEditor({
         fallback: {},
         validator: isObjectRecord,
         silent: true,
-      }
-    )
+      },
+    );
 
     if (editData && editData.amount !== data.amount) {
-      delete discountObject[editData.amount.toString()]
+      delete discountObject[editData.amount.toString()];
     }
 
-    discountObject[data.amount.toString()] = data.discountRate
+    discountObject[data.amount.toString()] = data.discountRate;
 
-    onChange(JSON.stringify(discountObject, null, 2))
-  }
+    onChange(JSON.stringify(discountObject, null, 2));
+  };
 
   const handleDelete = (amount: number) => {
     const discountObject = safeJsonParseWithValidation<Record<string, unknown>>(
@@ -92,105 +93,105 @@ export function AmountDiscountVisualEditor({
         fallback: {},
         validator: isObjectRecord,
         silent: true,
-      }
-    )
+      },
+    );
 
-    delete discountObject[amount.toString()]
+    delete discountObject[amount.toString()];
 
-    onChange(JSON.stringify(discountObject, null, 2))
-  }
+    onChange(JSON.stringify(discountObject, null, 2));
+  };
 
   const handleEdit = (discount: AmountDiscountData) => {
-    setEditData(discount)
-    setDialogOpen(true)
-  }
+    setEditData(discount);
+    setDialogOpen(true);
+  };
 
   const handleAdd = () => {
-    setEditData(null)
-    setDialogOpen(true)
-  }
+    setEditData(null);
+    setDialogOpen(true);
+  };
 
   const formatPercentage = (rate: number) => {
-    if (rate >= 1) return '0%'
-    const discount = Math.round((1 - rate) * 100)
-    return `${discount}%`
-  }
+    if (rate >= 1) return "0%";
+    const discount = Math.round((1 - rate) * 100);
+    return `${discount}%`;
+  };
 
   return (
-    <div className='space-y-4'>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <p className='text-muted-foreground text-sm'>
-          {t('Configure discount rates based on recharge amounts')}
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground text-sm">
+          {t("Configure discount rates based on recharge amounts")}
         </p>
         <Button
-          type='button'
+          type="button"
           onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            handleAdd()
+            e.preventDefault();
+            e.stopPropagation();
+            handleAdd();
           }}
-          size='sm'
-          className='w-full sm:w-auto'
+          size="sm"
+          className="w-full sm:w-auto"
         >
-          <Plus className='h-4 w-4 sm:mr-2' />
-          <span className='sm:inline'>{t('Add discount tier')}</span>
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="sm:inline">{t("Add discount tier")}</span>
         </Button>
       </div>
 
       {discounts.length === 0 ? (
         <EmptyState
-          className='min-h-0 p-6'
+          className="min-h-0 p-6"
           title={t(
-            'No discount tiers configured. Click "Add discount tier" to get started.'
+            'No discount tiers configured. Click "Add discount tier" to get started.',
           )}
         />
       ) : (
-        <div className='rounded-md border'>
+        <div className="rounded-md border">
           {/* Desktop table view */}
           <StaticDataTable
-            className='hidden rounded-none border-0 sm:block'
+            className="hidden rounded-none border-0 sm:block"
             data={discounts}
             getRowKey={(discount) => discount.amount}
             columns={[
               {
-                id: 'amount',
-                header: t('Recharge Amount'),
+                id: "amount",
+                header: t("Recharge Amount"),
                 cell: (discount) => (
-                  <span className='font-mono text-sm'>${discount.amount}</span>
+                  <span className="font-mono text-sm">${discount.amount}</span>
                 ),
               },
               {
-                id: 'discount-rate',
-                header: t('Discount Rate'),
+                id: "discount-rate",
+                header: t("Discount Rate"),
                 cell: (discount) => (
-                  <code className='bg-muted rounded px-1.5 py-0.5 text-sm'>
+                  <code className="bg-muted rounded px-1.5 py-0.5 text-sm">
                     {discount.discountRate.toFixed(2)}
                   </code>
                 ),
               },
               {
-                id: 'discount',
-                header: t('Discount'),
+                id: "discount",
+                header: t("Discount"),
                 cell: (discount) => (
                   <StatusBadge
-                    variant={discount.discountRate < 1 ? 'info' : 'neutral'}
-                    className='font-mono'
+                    variant={discount.discountRate < 1 ? "info" : "neutral"}
+                    className="font-mono"
                     copyable={false}
                   >
-                    {formatPercentage(discount.discountRate)} {t('off')}
+                    {formatPercentage(discount.discountRate)} {t("off")}
                   </StatusBadge>
                 ),
               },
               {
-                id: 'actions',
-                header: t('Actions'),
-                className: 'text-right',
-                cellClassName: 'text-right',
+                id: "actions",
+                header: t("Actions"),
+                className: "text-right",
+                cellClassName: "text-right",
                 cell: (discount) => (
                   <StaticRowActions
-                    editLabel={t('Edit')}
-                    deleteLabel={t('Delete')}
-                    menuLabel={t('Open menu')}
+                    editLabel={t("Edit")}
+                    deleteLabel={t("Delete")}
+                    menuLabel={t("Open menu")}
                     onEdit={() => handleEdit(discount)}
                     onDelete={() => handleDelete(discount.amount)}
                   />
@@ -200,54 +201,54 @@ export function AmountDiscountVisualEditor({
           />
 
           {/* Mobile card view */}
-          <div className='divide-y sm:hidden'>
+          <div className="divide-y sm:hidden">
             {discounts.map((discount) => (
-              <div key={discount.amount} className='p-4'>
-                <div className='mb-3 flex items-start justify-between'>
-                  <div className='flex-1'>
-                    <div className='mb-2 font-mono text-base font-medium'>
+              <div key={discount.amount} className="p-4">
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="mb-2 font-mono text-base font-medium">
                       ${discount.amount}
                     </div>
                     <StatusBadge
-                      variant={discount.discountRate < 1 ? 'info' : 'neutral'}
-                      className='font-mono'
+                      variant={discount.discountRate < 1 ? "info" : "neutral"}
+                      className="font-mono"
                       copyable={false}
                     >
-                      {formatPercentage(discount.discountRate)} {t('off')}
+                      {formatPercentage(discount.discountRate)} {t("off")}
                     </StatusBadge>
                   </div>
-                  <div className='flex gap-1'>
+                  <div className="flex gap-1">
                     <Button
-                      type='button'
-                      variant='ghost'
-                      size='sm'
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleEdit(discount)
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEdit(discount);
                       }}
                     >
-                      <Pencil className='h-4 w-4' />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      type='button'
-                      variant='ghost'
-                      size='sm'
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleDelete(discount.amount)
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(discount.amount);
                       }}
                     >
-                      <Trash2 className='h-4 w-4' />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className='text-sm'>
-                  <span className='text-muted-foreground'>
-                    {t('Discount Rate:')}{' '}
+                <div className="text-sm">
+                  <span className="text-muted-foreground">
+                    {t("Discount Rate:")}{" "}
                   </span>
-                  <code className='bg-muted rounded px-1.5 py-0.5 text-xs'>
+                  <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
                     {discount.discountRate.toFixed(2)}
                   </code>
                 </div>
@@ -264,5 +265,5 @@ export function AmountDiscountVisualEditor({
         editData={editData}
       />
     </div>
-  )
+  );
 }

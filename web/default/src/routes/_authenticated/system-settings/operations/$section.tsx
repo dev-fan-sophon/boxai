@@ -16,32 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { OperationsSettings } from '@/features/system-settings/operations'
+import { OperationsSettings } from "@/features/system-settings/operations";
 import {
   OPERATIONS_DEFAULT_SECTION,
   OPERATIONS_SECTION_IDS,
-} from '@/features/system-settings/operations/section-manifest'
+} from "@/features/system-settings/operations/section-manifest";
 
 export const Route = createFileRoute(
-  '/_authenticated/system-settings/operations/$section'
+  "/_authenticated/system-settings/operations/$section",
 )({
   beforeLoad: ({ params }) => {
-    if (params.section === 'monitoring') {
+    if (params.section === "monitoring") {
       throw redirect({
-        to: '/system-settings/models/$section',
-        params: { section: 'routing-reliability' },
-      })
+        to: "/system-settings/models/$section",
+        params: { section: "routing-reliability" },
+      });
     }
 
-    const validSections = OPERATIONS_SECTION_IDS as unknown as string[]
+    const validSections = OPERATIONS_SECTION_IDS as unknown as string[];
     if (!validSections.includes(params.section)) {
       throw redirect({
-        to: '/system-settings/operations/$section',
+        to: "/system-settings/operations/$section",
         params: { section: OPERATIONS_DEFAULT_SECTION },
-      })
+      });
     }
   },
   component: OperationsSettings,
-})
+});

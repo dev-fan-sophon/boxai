@@ -59,7 +59,7 @@ func RequestDeviceAuthCode(c *gin.Context) {
 		clientName = clientName[:50]
 	}
 
-	request, err := service.NewDeviceAuthRequest(clientName, c.ClientIP())
+	request, err := service.NewDeviceAuthRequest(clientName, common.RealClientIP(c))
 	if err != nil {
 		common.SysError("failed to create device authorization request: " + err.Error())
 		deviceAuthError(c, http.StatusInternalServerError, deviceErrorServerError, "failed to create device authorization request")

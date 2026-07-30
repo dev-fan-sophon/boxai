@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
-} from '@/components/ai-elements/conversation'
-import { Loader } from '@/components/ai-elements/loader'
-import { Message } from '@/components/ai-elements/message'
+} from "@/components/ai-elements/conversation";
+import { Loader } from "@/components/ai-elements/loader";
+import { Message } from "@/components/ai-elements/message";
 
 import {
   getChatMessageRenderState,
@@ -33,34 +33,34 @@ import {
   getMessageAlignment,
   getPreviousUserMessage,
   isErrorMessage,
-} from '../../lib'
+} from "../../lib";
 import type {
   Message as MessageType,
   PlaygroundMessageLayoutMode,
-} from '../../types'
-import { MessageActions } from '../message/message-actions'
-import { MessageErrorActions } from '../message/message-error-actions'
-import { PlaygroundMessageContent } from '../message/playground-message-content'
-import { PlaygroundMessageEditor } from '../message/playground-message-editor'
-import { PlaygroundEmptyState } from './playground-empty-state'
+} from "../../types";
+import { MessageActions } from "../message/message-actions";
+import { MessageErrorActions } from "../message/message-error-actions";
+import { PlaygroundMessageContent } from "../message/playground-message-content";
+import { PlaygroundMessageEditor } from "../message/playground-message-editor";
+import { PlaygroundEmptyState } from "./playground-empty-state";
 
-const MAX_RENDERED_HISTORY_MESSAGES = 24
+const MAX_RENDERED_HISTORY_MESSAGES = 24;
 
 interface PlaygroundChatProps {
-  messages: MessageType[]
-  onCopyMessage?: (message: MessageType) => void
-  onRegenerateMessage?: (message: MessageType) => void
-  onEditMessage?: (message: MessageType) => void
-  onDeleteMessage?: (message: MessageType) => void
-  onSelectMessageVersion?: (message: MessageType, index: number) => void
-  onSelectPrompt?: (prompt: string) => void
-  isGenerating?: boolean
-  isLoadingMessages?: boolean
-  editingKey?: string | null
-  onSaveEdit?: (newContent: string) => void
-  onCancelEdit?: (open: boolean) => void
-  onSaveEditAndSubmit?: (newContent: string) => void
-  messageLayoutMode?: PlaygroundMessageLayoutMode
+  messages: MessageType[];
+  onCopyMessage?: (message: MessageType) => void;
+  onRegenerateMessage?: (message: MessageType) => void;
+  onEditMessage?: (message: MessageType) => void;
+  onDeleteMessage?: (message: MessageType) => void;
+  onSelectMessageVersion?: (message: MessageType, index: number) => void;
+  onSelectPrompt?: (prompt: string) => void;
+  isGenerating?: boolean;
+  isLoadingMessages?: boolean;
+  editingKey?: string | null;
+  onSaveEdit?: (newContent: string) => void;
+  onCancelEdit?: (open: boolean) => void;
+  onSaveEditAndSubmit?: (newContent: string) => void;
+  messageLayoutMode?: PlaygroundMessageLayoutMode;
 }
 
 export function PlaygroundChat({
@@ -77,65 +77,65 @@ export function PlaygroundChat({
   onSaveEdit,
   onCancelEdit,
   onSaveEditAndSubmit,
-  messageLayoutMode = 'alternating',
+  messageLayoutMode = "alternating",
 }: PlaygroundChatProps) {
-  const { t } = useTranslation()
-  const [editText, setEditText] = useState('')
-  const [originalText, setOriginalText] = useState('')
+  const { t } = useTranslation();
+  const [editText, setEditText] = useState("");
+  const [originalText, setOriginalText] = useState("");
   const [sourceMessageKeys, setSourceMessageKeys] = useState<
     ReadonlySet<string>
-  >(() => new Set())
+  >(() => new Set());
   const visibleMessageOffset = Math.max(
     0,
-    messages.length - MAX_RENDERED_HISTORY_MESSAGES
-  )
-  const visibleMessages = messages.slice(visibleMessageOffset)
+    messages.length - MAX_RENDERED_HISTORY_MESSAGES,
+  );
+  const visibleMessages = messages.slice(visibleMessageOffset);
 
   function handleToggleMessageSource(message: MessageType): void {
     setSourceMessageKeys((currentKeys) => {
-      const nextKeys = new Set(currentKeys)
+      const nextKeys = new Set(currentKeys);
 
       if (nextKeys.has(message.key)) {
-        nextKeys.delete(message.key)
+        nextKeys.delete(message.key);
       } else {
-        nextKeys.add(message.key)
+        nextKeys.add(message.key);
       }
 
-      return nextKeys
-    })
+      return nextKeys;
+    });
   }
 
   useEffect(() => {
-    if (!editingKey) return
-    const content = getEditingMessageContent(messages, editingKey)
+    if (!editingKey) return;
+    const content = getEditingMessageContent(messages, editingKey);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditText(content)
+    setEditText(content);
 
-    setOriginalText(content)
-  }, [editingKey, messages])
+    setOriginalText(content);
+  }, [editingKey, messages]);
 
   let chatContent = visibleMessages.map((message, visibleMessageIndex) => {
-    const messageIndex = visibleMessageOffset + visibleMessageIndex
+    const messageIndex = visibleMessageOffset + visibleMessageIndex;
     const { alwaysShowActions, content, isEditing } = getChatMessageRenderState(
       messages,
       message,
       messageIndex,
-      editingKey
-    )
-    const isError = isErrorMessage(message)
+      editingKey,
+    );
+    const isError = isErrorMessage(message);
     const previousUserMessage = isError
       ? getPreviousUserMessage(messages, messageIndex)
-      : null
-    const alignment = getMessageAlignment(message, messageLayoutMode)
-    const isSourceVisible = sourceMessageKeys.has(message.key)
+      : null;
+    const alignment = getMessageAlignment(message, messageLayoutMode);
+    const isSourceVisible = sourceMessageKeys.has(message.key);
 
     return (
       <Message
-        className='group flex-row-reverse py-2.5'
+        className="group flex-row-reverse py-2.5"
         from={message.from}
         key={message.key}
       >
-        <div className='w-full min-w-0 flex-1 basis-full'>
+        <div className="w-full min-w-0 flex-1 basis-full">
           {isEditing ? (
             <PlaygroundMessageEditor
               editText={editText}
@@ -161,7 +161,7 @@ export function PlaygroundChat({
                   isSourceVisible={isSourceVisible}
                   isGenerating={isGenerating}
                   alwaysVisible={alwaysShowActions}
-                  className='mt-1.5'
+                  className="mt-1.5"
                 />
               }
               isSourceVisible={isSourceVisible}
@@ -193,36 +193,36 @@ export function PlaygroundChat({
           )}
         </div>
       </Message>
-    )
-  })
+    );
+  });
 
   if (visibleMessages.length === 0 && onSelectPrompt) {
     chatContent = [
-      <PlaygroundEmptyState key='empty' onSelectPrompt={onSelectPrompt} />,
-    ]
+      <PlaygroundEmptyState key="empty" onSelectPrompt={onSelectPrompt} />,
+    ];
   }
 
   if (isLoadingMessages) {
     chatContent = [
       <div
-        className='text-muted-foreground flex min-h-[min(520px,calc(100svh-18rem))] items-center justify-center gap-2 text-sm'
-        key='loading'
+        className="text-muted-foreground flex min-h-[min(520px,calc(100svh-18rem))] items-center justify-center gap-2 text-sm"
+        key="loading"
       >
         <Loader />
-        <span>{t('Loading conversation...')}</span>
+        <span>{t("Loading conversation...")}</span>
       </div>,
-    ]
+    ];
   }
 
   return (
     <Conversation>
       {/* Remove outer padding; apply padding to inner centered container to align with input */}
-      <ConversationContent className='p-0'>
-        <div className='mx-auto w-full max-w-4xl px-3 py-3 sm:px-4 sm:py-4'>
+      <ConversationContent className="p-0">
+        <div className="mx-auto w-full max-w-4xl px-3 py-3 sm:px-4 sm:py-4">
           {chatContent}
         </div>
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>
-  )
+  );
 }

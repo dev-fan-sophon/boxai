@@ -16,27 +16,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertTriangle, Loader2 } from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { Dialog } from '@/components/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { disable2FA } from '@/lib/api'
+import { Dialog } from "@/components/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { disable2FA } from "@/lib/api";
 
 // ============================================================================
 // Two-FA Disable Dialog Component
 // ============================================================================
 
 interface TwoFADisableDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
 }
 
 export function TwoFADisableDialog({
@@ -44,52 +44,52 @@ export function TwoFADisableDialog({
   onOpenChange,
   onSuccess,
 }: TwoFADisableDialogProps) {
-  const { t } = useTranslation()
-  const [loading, setLoading] = useState(false)
-  const [code, setCode] = useState('')
-  const [confirmed, setConfirmed] = useState(false)
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
 
   const handleDisable = async () => {
     if (!code) {
-      toast.error(t('Please enter your verification code or backup code'))
-      return
+      toast.error(t("Please enter your verification code or backup code"));
+      return;
     }
 
     if (!confirmed) {
-      toast.error(t('Please confirm that you understand the consequences'))
-      return
+      toast.error(t("Please confirm that you understand the consequences"));
+      return;
     }
 
     try {
-      setLoading(true)
-      const response = await disable2FA(code)
+      setLoading(true);
+      const response = await disable2FA(code);
 
       if (response.success) {
-        toast.success(t('Two-factor authentication disabled'))
-        onOpenChange(false)
-        onSuccess()
+        toast.success(t("Two-factor authentication disabled"));
+        onOpenChange(false);
+        onSuccess();
         // Reset
-        setCode('')
-        setConfirmed(false)
+        setCode("");
+        setConfirmed(false);
       } else {
-        toast.error(response.message || t('Failed to disable 2FA'))
+        toast.error(response.message || t("Failed to disable 2FA"));
       }
     } catch {
-      toast.error(t('Failed to disable 2FA'))
+      toast.error(t("Failed to disable 2FA"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleOpenChange = (open: boolean) => {
     if (!loading) {
       if (!open) {
-        setCode('')
-        setConfirmed(false)
+        setCode("");
+        setConfirmed(false);
       }
-      onOpenChange(open)
+      onOpenChange(open);
     }
-  }
+  };
 
   return (
     <Dialog
@@ -97,75 +97,75 @@ export function TwoFADisableDialog({
       onOpenChange={handleOpenChange}
       title={
         <>
-          <AlertTriangle className='h-5 w-5' />
-          {t('Disable Two-Factor Authentication')}
+          <AlertTriangle className="h-5 w-5" />
+          {t("Disable Two-Factor Authentication")}
         </>
       }
       description={t(
-        'This action will permanently remove 2FA protection from your account.'
+        "This action will permanently remove 2FA protection from your account.",
       )}
-      contentClassName='sm:max-w-md'
-      titleClassName='text-destructive flex items-center gap-2'
-      contentHeight='auto'
-      bodyClassName='space-y-4'
+      contentClassName="sm:max-w-md"
+      titleClassName="text-destructive flex items-center gap-2"
+      contentHeight="auto"
+      bodyClassName="space-y-4"
       footer={
         <>
           <Button
-            variant='outline'
+            variant="outline"
             onClick={() => handleOpenChange(false)}
             disabled={loading}
           >
-            {t('Cancel')}
+            {t("Cancel")}
           </Button>
           <Button
-            variant='destructive'
+            variant="destructive"
             onClick={handleDisable}
             disabled={loading || !code || !confirmed}
           >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {loading ? t('Disabling...') : t('Disable 2FA')}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading ? t("Disabling...") : t("Disable 2FA")}
           </Button>
         </>
       }
     >
-      <div className='space-y-4 py-4'>
-        <Alert variant='destructive'>
-          <AlertTriangle className='h-4 w-4' />
+      <div className="space-y-4 py-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {t('Warning: Disabling 2FA will make your account less secure.')}
+            {t("Warning: Disabling 2FA will make your account less secure.")}
           </AlertDescription>
         </Alert>
 
-        <div className='space-y-2'>
-          <Label htmlFor='code'>{t('Verification Code')}</Label>
+        <div className="space-y-2">
+          <Label htmlFor="code">{t("Verification Code")}</Label>
           <Input
-            id='code'
+            id="code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder={t('Enter code or backup code')}
+            placeholder={t("Enter code or backup code")}
             disabled={loading}
           />
-          <p className='text-muted-foreground text-xs'>
-            {t('Enter your authenticator code or a backup code')}
+          <p className="text-muted-foreground text-xs">
+            {t("Enter your authenticator code or a backup code")}
           </p>
         </div>
 
-        <div className='flex items-start space-x-2'>
+        <div className="flex items-start space-x-2">
           <Checkbox
-            id='confirm'
+            id="confirm"
             checked={confirmed}
             onCheckedChange={(checked) => setConfirmed(checked as boolean)}
           />
           <Label
-            htmlFor='confirm'
-            className='text-sm leading-tight font-normal'
+            htmlFor="confirm"
+            className="text-sm leading-tight font-normal"
           >
             {t(
-              'I understand that disabling 2FA will remove all protection and backup codes'
+              "I understand that disabling 2FA will remove all protection and backup codes",
             )}
           </Label>
         </div>
       </div>
     </Dialog>
-  )
+  );
 }

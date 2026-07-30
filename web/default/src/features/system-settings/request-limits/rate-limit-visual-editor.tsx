@@ -16,127 +16,127 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Plus, Search } from 'lucide-react'
-import { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Plus, Search } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { StaticDataTable } from '@/components/data-table/static/static-data-table'
-import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { toIntlLocale } from '@/i18n/languages'
+import { StaticDataTable } from "@/components/data-table/static/static-data-table";
+import { StaticRowActions } from "@/components/data-table/static/static-row-actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toIntlLocale } from "@/i18n/languages";
 
-import { safeJsonParseWithValidation } from '../utils/json-parser'
-import { isObjectRecord } from '../utils/json-validators'
-import { RateLimitDialog, type RateLimitEntryData } from './rate-limit-dialog'
+import { safeJsonParseWithValidation } from "../utils/json-parser";
+import { isObjectRecord } from "../utils/json-validators";
+import { RateLimitDialog, type RateLimitEntryData } from "./rate-limit-dialog";
 
 type RateLimitVisualEditorProps = {
-  value: string
-  onChange: (value: string) => void
-}
+  value: string;
+  onChange: (value: string) => void;
+};
 
-type RateLimitEntry = RateLimitEntryData
+type RateLimitEntry = RateLimitEntryData;
 
 export function RateLimitVisualEditor({
   value,
   onChange,
 }: RateLimitVisualEditorProps) {
-  const { t, i18n } = useTranslation()
-  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  const [searchText, setSearchText] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editData, setEditData] = useState<RateLimitEntry | null>(null)
+  const { t, i18n } = useTranslation();
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language);
+  const [searchText, setSearchText] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editData, setEditData] = useState<RateLimitEntry | null>(null);
 
   const rateLimits = useMemo(() => {
-    if (!value || value.trim() === '') return []
+    if (!value || value.trim() === "") return [];
 
     const parsed = safeJsonParseWithValidation<Record<string, unknown>>(value, {
       fallback: {},
       validator: isObjectRecord,
-      validatorMessage: 'Rate limits must be a JSON object',
-      context: 'rate limits',
-    })
+      validatorMessage: "Rate limits must be a JSON object",
+      context: "rate limits",
+    });
 
     return Object.entries(parsed)
       .map(([groupName, limits]) => {
         if (
           Array.isArray(limits) &&
           limits.length === 2 &&
-          typeof limits[0] === 'number' &&
-          typeof limits[1] === 'number'
+          typeof limits[0] === "number" &&
+          typeof limits[1] === "number"
         ) {
           return {
             groupName,
             maxRequests: limits[0],
             maxSuccess: limits[1],
-          }
+          };
         }
-        return null
+        return null;
       })
-      .filter((item): item is RateLimitEntry => item !== null)
-  }, [value])
+      .filter((item): item is RateLimitEntry => item !== null);
+  }, [value]);
 
   const filteredRateLimits = useMemo(() => {
-    if (!searchText) return rateLimits
-    const lowerSearch = searchText.toLowerCase()
+    if (!searchText) return rateLimits;
+    const lowerSearch = searchText.toLowerCase();
     return rateLimits.filter((limit) =>
-      limit.groupName.toLowerCase().includes(lowerSearch)
-    )
-  }, [rateLimits, searchText])
+      limit.groupName.toLowerCase().includes(lowerSearch),
+    );
+  }, [rateLimits, searchText]);
 
   const handleSave = (data: RateLimitEntryData) => {
     const parsed = safeJsonParseWithValidation<Record<string, unknown>>(value, {
       fallback: {},
       validator: isObjectRecord,
       silent: true,
-    })
+    });
 
     if (editData && editData.groupName !== data.groupName) {
-      delete parsed[editData.groupName]
+      delete parsed[editData.groupName];
     }
 
-    parsed[data.groupName] = [data.maxRequests, data.maxSuccess]
+    parsed[data.groupName] = [data.maxRequests, data.maxSuccess];
 
-    onChange(JSON.stringify(parsed, null, 2))
-  }
+    onChange(JSON.stringify(parsed, null, 2));
+  };
 
   const handleDelete = (groupName: string) => {
     const parsed = safeJsonParseWithValidation<Record<string, unknown>>(value, {
       fallback: {},
       validator: isObjectRecord,
       silent: true,
-    })
+    });
 
-    delete parsed[groupName]
+    delete parsed[groupName];
 
-    onChange(JSON.stringify(parsed, null, 2))
-  }
+    onChange(JSON.stringify(parsed, null, 2));
+  };
 
   const handleEdit = (limit: RateLimitEntry) => {
-    setEditData(limit)
-    setDialogOpen(true)
-  }
+    setEditData(limit);
+    setDialogOpen(true);
+  };
 
   const handleAdd = () => {
-    setEditData(null)
-    setDialogOpen(true)
-  }
+    setEditData(null);
+    setDialogOpen(true);
+  };
 
   return (
-    <div className='space-y-4'>
-      <div className='flex items-center gap-4'>
-        <div className='relative flex-1'>
-          <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
           <Input
-            placeholder={t('Search group names...')}
+            placeholder={t("Search group names...")}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className='pl-9'
+            className="pl-9"
           />
         </div>
         <Button onClick={handleAdd}>
-          <Plus className='mr-2 h-4 w-4' />
-          {t('Add group')}
+          <Plus className="mr-2 h-4 w-4" />
+          {t("Add group")}
         </Button>
       </div>
 
@@ -145,52 +145,52 @@ export function RateLimitVisualEditor({
         getRowKey={(limit) => limit.groupName}
         emptyContent={
           searchText
-            ? t('No groups match your search')
+            ? t("No groups match your search")
             : t(
-                'No group-based rate limits configured. Click "Add group" to get started.'
+                'No group-based rate limits configured. Click "Add group" to get started.',
               )
         }
         columns={[
           {
-            id: 'group',
-            header: t('Group Name'),
-            cellClassName: 'font-medium',
+            id: "group",
+            header: t("Group Name"),
+            cellClassName: "font-medium",
             cell: (limit) => limit.groupName,
           },
           {
-            id: 'max-requests',
-            header: t('Max Requests (incl. failures)'),
-            className: 'text-right',
-            cellClassName: 'text-right',
+            id: "max-requests",
+            header: t("Max Requests (incl. failures)"),
+            className: "text-right",
+            cellClassName: "text-right",
             cell: (limit) => (
-              <span className='font-mono'>
+              <span className="font-mono">
                 {limit.maxRequests === 0
-                  ? t('Unlimited')
+                  ? t("Unlimited")
                   : limit.maxRequests.toLocaleString(locale)}
               </span>
             ),
           },
           {
-            id: 'max-success',
-            header: t('Max Success'),
-            className: 'text-right',
-            cellClassName: 'text-right',
+            id: "max-success",
+            header: t("Max Success"),
+            className: "text-right",
+            cellClassName: "text-right",
             cell: (limit) => (
-              <span className='font-mono'>
+              <span className="font-mono">
                 {limit.maxSuccess.toLocaleString(locale)}
               </span>
             ),
           },
           {
-            id: 'actions',
-            header: t('Actions'),
-            className: 'text-right',
-            cellClassName: 'text-right',
+            id: "actions",
+            header: t("Actions"),
+            className: "text-right",
+            cellClassName: "text-right",
             cell: (limit) => (
               <StaticRowActions
-                editLabel={t('Edit')}
-                deleteLabel={t('Delete')}
-                menuLabel={t('Open menu')}
+                editLabel={t("Edit")}
+                deleteLabel={t("Delete")}
+                menuLabel={t("Open menu")}
                 onEdit={() => handleEdit(limit)}
                 onDelete={() => handleDelete(limit.groupName)}
               />
@@ -206,5 +206,5 @@ export function RateLimitVisualEditor({
         editData={editData}
       />
     </div>
-  )
+  );
 }

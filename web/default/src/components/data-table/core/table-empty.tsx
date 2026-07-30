@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Database } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Database } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Empty,
@@ -25,33 +25,33 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty'
-import { TableRow, TableCell } from '@/components/ui/table'
+} from "@/components/ui/empty";
+import { TableRow, TableCell } from "@/components/ui/table";
 
 interface TableEmptyProps {
   /**
    * Number of columns to span
    */
-  colSpan: number
+  colSpan: number;
   /**
    * Custom title for empty state
    * @default 'No Data'
    */
-  title?: string
+  title?: string;
   /**
    * Custom description for empty state
    * @default 'No records found. Try adjusting your filters.'
    */
-  description?: string
+  description?: string;
   /**
    * Custom icon component
    * @default Database icon
    */
-  icon?: React.ReactNode
+  icon?: React.ReactNode;
   /**
    * Additional content to display (e.g., buttons)
    */
-  children?: React.ReactNode
+  children?: React.ReactNode;
 }
 
 /**
@@ -65,17 +65,17 @@ export function TableEmpty({
   icon,
   children,
 }: TableEmptyProps) {
-  const { t } = useTranslation()
-  const resolvedTitle = title ?? t('No Data')
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("No Data");
   const resolvedDescription =
-    description ?? t('No records found. Try adjusting your filters.')
+    description ?? t("No records found. Try adjusting your filters.");
   return (
     <TableRow>
-      <TableCell colSpan={colSpan} className='h-[400px] p-0'>
+      <TableCell colSpan={colSpan} className="h-[400px] p-0">
         <Empty>
           <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              {icon || <Database className='size-6' />}
+            <EmptyMedia variant="icon">
+              {icon || <Database className="size-6" />}
             </EmptyMedia>
             <EmptyTitle>{resolvedTitle}</EmptyTitle>
             <EmptyDescription>{resolvedDescription}</EmptyDescription>
@@ -84,5 +84,5 @@ export function TableEmpty({
         </Empty>
       </TableCell>
     </TableRow>
-  )
+  );
 }

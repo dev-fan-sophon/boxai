@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-'use client'
+"use client";
 
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -33,7 +33,7 @@ import {
   PieChart,
   XAxis,
   YAxis,
-} from 'recharts'
+} from "recharts";
 
 import {
   ChartContainer,
@@ -42,60 +42,60 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from '@/components/ui/chart'
+} from "@/components/ui/chart";
 
-import { chartColor, parseChartSpec, type ChartSpec } from './chart-spec'
-import { CodeBlock, CodeBlockCopyButton, CodeBlockFrame } from './code-block'
-import { FenceViewToggle, type FenceView } from './fence-view-toggle'
+import { chartColor, parseChartSpec, type ChartSpec } from "./chart-spec";
+import { CodeBlock, CodeBlockCopyButton, CodeBlockFrame } from "./code-block";
+import { FenceViewToggle, type FenceView } from "./fence-view-toggle";
 
 /** Themed recharts renderer shared by chart fences and table visualization. */
 export function ChartSpecRenderer(props: { spec: ChartSpec }) {
-  const spec = props.spec
+  const spec = props.spec;
   const config = useMemo(() => {
-    const entries: ChartConfig = {}
+    const entries: ChartConfig = {};
     spec.yKeys.forEach((key, index) => {
-      entries[key] = { label: key, color: chartColor(index) }
-    })
-    return entries
-  }, [spec.yKeys])
+      entries[key] = { label: key, color: chartColor(index) };
+    });
+    return entries;
+  }, [spec.yKeys]);
 
   const commonAxes = (
     <>
-      <CartesianGrid vertical={false} strokeDasharray='3 3' />
+      <CartesianGrid vertical={false} strokeDasharray="3 3" />
       <XAxis dataKey={spec.xKey} tickLine={false} axisLine={false} />
       <YAxis tickLine={false} axisLine={false} width={44} />
       <ChartTooltip content={<ChartTooltipContent />} />
       <ChartLegend content={<ChartLegendContent />} />
     </>
-  )
+  );
 
-  let chart: React.ReactElement
-  if (spec.type === 'pie') {
-    const valueKey = spec.yKeys[0]
+  let chart: React.ReactElement;
+  if (spec.type === "pie") {
+    const valueKey = spec.yKeys[0];
     const pieData = spec.data.map((row, index) => ({
       key: `slice-${index}`,
       fill: chartColor(index),
-      name: String(row[spec.xKey] ?? ''),
-      value: typeof row[valueKey] === 'number' ? row[valueKey] : 0,
-    }))
+      name: String(row[spec.xKey] ?? ""),
+      value: typeof row[valueKey] === "number" ? row[valueKey] : 0,
+    }));
     chart = (
       <PieChart>
-        <ChartTooltip content={<ChartTooltipContent nameKey='name' />} />
+        <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
         <Pie
           data={pieData}
-          dataKey='value'
-          nameKey='name'
-          innerRadius='45%'
+          dataKey="value"
+          nameKey="name"
+          innerRadius="45%"
           strokeWidth={2}
         >
           {pieData.map((entry) => (
             <Cell key={entry.key} fill={entry.fill} />
           ))}
         </Pie>
-        <ChartLegend content={<ChartLegendContent nameKey='name' />} />
+        <ChartLegend content={<ChartLegendContent nameKey="name" />} />
       </PieChart>
-    )
-  } else if (spec.type === 'line') {
+    );
+  } else if (spec.type === "line") {
     chart = (
       <LineChart data={spec.data}>
         {commonAxes}
@@ -106,12 +106,12 @@ export function ChartSpecRenderer(props: { spec: ChartSpec }) {
             stroke={chartColor(index)}
             strokeWidth={2}
             dot={false}
-            type='monotone'
+            type="monotone"
           />
         ))}
       </LineChart>
-    )
-  } else if (spec.type === 'area') {
+    );
+  } else if (spec.type === "area") {
     chart = (
       <AreaChart data={spec.data}>
         {commonAxes}
@@ -122,11 +122,11 @@ export function ChartSpecRenderer(props: { spec: ChartSpec }) {
             stroke={chartColor(index)}
             fill={chartColor(index)}
             fillOpacity={0.25}
-            type='monotone'
+            type="monotone"
           />
         ))}
       </AreaChart>
-    )
+    );
   } else {
     chart = (
       <BarChart data={spec.data}>
@@ -135,71 +135,71 @@ export function ChartSpecRenderer(props: { spec: ChartSpec }) {
           <Bar key={key} dataKey={key} fill={chartColor(index)} radius={3} />
         ))}
       </BarChart>
-    )
+    );
   }
 
   return (
-    <ChartContainer config={config} className='aspect-video max-h-80 w-full'>
+    <ChartContainer config={config} className="aspect-video max-h-80 w-full">
       {chart}
     </ChartContainer>
-  )
+  );
 }
 
 type ChartFenceProps = {
-  code: string
-  final: boolean
-}
+  code: string;
+  final: boolean;
+};
 
 /**
  * Renders ```chart fences (JSON spec) as an inline data visualization once
  * the message is final; invalid or streaming specs fall back to raw JSON.
  */
 export function ChartFence(props: ChartFenceProps) {
-  const { t } = useTranslation()
-  const [view, setView] = useState<FenceView>('preview')
+  const { t } = useTranslation();
+  const [view, setView] = useState<FenceView>("preview");
   const spec = useMemo(
     () => (props.final ? parseChartSpec(props.code) : null),
-    [props.code, props.final]
-  )
+    [props.code, props.final],
+  );
 
-  if (!spec || view === 'code') {
+  if (!spec || view === "code") {
     return (
       <CodeBlock
         code={props.code}
         collapsedLines={14}
         defaultCollapsed={false}
-        language='json'
+        language="json"
         maxExpandedLines={44}
         showLineNumbers
         showToolbar
-        title={t('Chart')}
+        title={t("Chart")}
       >
         {spec !== null && (
           <FenceViewToggle
-            view='code'
+            view="code"
             onViewChange={setView}
-            previewLabelKey='Chart'
+            previewLabelKey="Chart"
           />
         )}
         <CodeBlockCopyButton />
       </CodeBlock>
-    )
+    );
   }
 
   return (
     <CodeBlockFrame
       showToolbar
-      title={spec.title || t('Chart')}
+      title={spec.title || t("Chart")}
       endActions={
         <FenceViewToggle
-          view='preview'
+          view="preview"
           onViewChange={setView}
-          previewLabelKey='Chart'
+          previewLabelKey="Chart"
         />
       }
-      bodyClassName='p-3'
+      bodyClassName="p-3"
     >
       <ChartSpecRenderer spec={spec} />
     </CodeBlockFrame>
-  )
+  );
 }

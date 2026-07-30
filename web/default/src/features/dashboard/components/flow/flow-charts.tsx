@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   ChevronRight,
@@ -28,42 +28,42 @@ import {
   Loader2,
   Route,
   WalletCards,
-} from 'lucide-react'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+} from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { MultiSelect } from '@/components/multi-select'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { MultiSelect } from "@/components/multi-select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty'
-import { IconBadge } from '@/components/ui/icon-badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Toggle } from '@/components/ui/toggle'
+} from "@/components/ui/empty";
+import { IconBadge } from "@/components/ui/icon-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toggle } from "@/components/ui/toggle";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { getFlowQuotaDates } from '@/features/dashboard/api'
+} from "@/components/ui/tooltip";
+import { getFlowQuotaDates } from "@/features/dashboard/api";
 import {
   buildDashboardFlowData,
   buildFlowSankeyRechartsData,
   buildQueryParams,
   getDefaultDays,
   getFlowStages,
-} from '@/features/dashboard/lib'
+} from "@/features/dashboard/lib";
 import {
   compactFlowSelectionLabel,
   flowDisplayState,
   requireSuccessfulFlowRows,
-} from '@/features/dashboard/lib/flow-selection'
+} from "@/features/dashboard/lib/flow-selection";
 import type {
   DashboardFilters,
   FlowLinkSelection,
@@ -72,77 +72,77 @@ import type {
   FlowNodeKind,
   FlowOverflowMode,
   FlowRole,
-} from '@/features/dashboard/types'
-import { getCurrentIntlLocale } from '@/i18n/languages'
-import { formatQuota } from '@/lib/format'
-import { ROLE } from '@/lib/roles'
-import { computeTimeRange } from '@/lib/time'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth-store'
+} from "@/features/dashboard/types";
+import { getCurrentIntlLocale } from "@/i18n/languages";
+import { formatQuota } from "@/lib/format";
+import { ROLE } from "@/lib/roles";
+import { computeTimeRange } from "@/lib/time";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
-import { useDashboardScope } from '../dashboard-scope'
-import { FlowNodeFilterControl } from './flow-node-filter'
-import { FlowSankeyChart } from './flow-sankey-chart'
+import { useDashboardScope } from "../dashboard-scope";
+import { FlowNodeFilterControl } from "./flow-node-filter";
+import { FlowSankeyChart } from "./flow-sankey-chart";
 
 interface FlowChartsProps {
-  filters?: DashboardFilters
+  filters?: DashboardFilters;
   // When false, sensitive node labels are masked in the rendered Sankey.
-  sensitiveVisible?: boolean
+  sensitiveVisible?: boolean;
 }
 
 const FLOW_METRIC_OPTIONS = [
-  { value: 'quota', labelKey: 'By quota', icon: WalletCards },
-  { value: 'tokens', labelKey: 'By tokens', icon: Hash },
-  { value: 'requests', labelKey: 'By requests', icon: Activity },
-] as const
+  { value: "quota", labelKey: "By quota", icon: WalletCards },
+  { value: "tokens", labelKey: "By tokens", icon: Hash },
+  { value: "requests", labelKey: "By requests", icon: Activity },
+] as const;
 
 const FLOW_METRIC_LABEL_KEYS: Record<FlowMetric, string> = {
-  quota: 'Quota',
-  tokens: 'Tokens',
-  requests: 'Requests',
-}
+  quota: "Quota",
+  tokens: "Tokens",
+  requests: "Requests",
+};
 
-const FLOW_TOP_LIMIT_OPTIONS = [10, 20, 50, 100] as const
+const FLOW_TOP_LIMIT_OPTIONS = [10, 20, 50, 100] as const;
 
-const DEFAULT_FLOW_TOP_NODE_LIMIT = 50
+const DEFAULT_FLOW_TOP_NODE_LIMIT = 50;
 
 const FLOW_OVERFLOW_MODE_OPTIONS = [
-  { value: 'aggregate', labelKey: 'Merge into Other' },
-  { value: 'hide', labelKey: 'Hide' },
-] as const
+  { value: "aggregate", labelKey: "Merge into Other" },
+  { value: "hide", labelKey: "Hide" },
+] as const;
 
 // A Sankey needs at least two columns to render any link.
-const MIN_VISIBLE_STAGES = 2
+const MIN_VISIBLE_STAGES = 2;
 
 const FLOW_STAGE_META: Record<
   FlowNodeKind,
   { labelKey: string; descKey: string }
 > = {
   user: {
-    labelKey: 'User',
-    descKey: 'The user who made the requests',
+    labelKey: "User",
+    descKey: "The user who made the requests",
   },
   node: {
-    labelKey: 'Node',
-    descKey: 'The deployment node that handled the requests',
+    labelKey: "Node",
+    descKey: "The deployment node that handled the requests",
   },
   token: {
-    labelKey: 'Token',
-    descKey: 'The API key used for the requests',
+    labelKey: "Token",
+    descKey: "The API key used for the requests",
   },
   group: {
-    labelKey: 'Group',
-    descKey: 'The user group applied to the requests',
+    labelKey: "Group",
+    descKey: "The user group applied to the requests",
   },
   model: {
-    labelKey: 'Model',
-    descKey: 'The model that was requested',
+    labelKey: "Model",
+    descKey: "The model that was requested",
   },
   channel: {
-    labelKey: 'Channel',
-    descKey: 'The upstream channel that served the requests',
+    labelKey: "Channel",
+    descKey: "The upstream channel that served the requests",
   },
-}
+};
 
 const FLOW_STAGE_LABEL_KEYS: Record<FlowNodeKind, string> = {
   user: FLOW_STAGE_META.user.labelKey,
@@ -151,128 +151,128 @@ const FLOW_STAGE_LABEL_KEYS: Record<FlowNodeKind, string> = {
   group: FLOW_STAGE_META.group.labelKey,
   model: FLOW_STAGE_META.model.labelKey,
   channel: FLOW_STAGE_META.channel.labelKey,
-}
+};
 
 const FLOW_OTHER_NODE_LABEL_KEYS: Record<FlowNodeKind, string> = {
-  user: 'Other users',
-  node: 'Other nodes',
-  token: 'Other tokens',
-  group: 'Other groups',
-  model: 'Other models',
-  channel: 'Other channels',
-}
+  user: "Other users",
+  node: "Other nodes",
+  token: "Other tokens",
+  group: "Other groups",
+  model: "Other models",
+  channel: "Other channels",
+};
 
 function flowNodeFilterKey(filter: FlowNodeFilter): string {
-  return `${filter.kind}\u0000${filter.id}`
+  return `${filter.kind}\u0000${filter.id}`;
 }
 
 function isSameFlowNodeFilter(
   a: FlowNodeFilter | undefined,
-  b: FlowNodeFilter
+  b: FlowNodeFilter,
 ): boolean {
-  return Boolean(a && a.kind === b.kind && a.id === b.id)
+  return Boolean(a && a.kind === b.kind && a.id === b.id);
 }
 
 function toggleSelectedValue(values: string[], value: string): string[] {
   return values.includes(value)
     ? values.filter((item) => item !== value)
-    : [...values, value]
+    : [...values, value];
 }
 
 function toggleSelectedNodeFilter(
   filters: FlowNodeFilter[],
-  filter: FlowNodeFilter
+  filter: FlowNodeFilter,
 ): FlowNodeFilter[] {
-  const key = flowNodeFilterKey(filter)
-  const hasFilter = filters.some((item) => flowNodeFilterKey(item) === key)
+  const key = flowNodeFilterKey(filter);
+  const hasFilter = filters.some((item) => flowNodeFilterKey(item) === key);
   return hasFilter
     ? filters.filter((item) => flowNodeFilterKey(item) !== key)
-    : [...filters, filter]
+    : [...filters, filter];
 }
 
 function formatFlowMetricNumber(value: number): string {
   return Intl.NumberFormat(getCurrentIntlLocale(), {
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }
 
 export function FlowCharts(props: FlowChartsProps) {
-  const { t } = useTranslation()
-  const user = useAuthStore((state) => state.auth.user)
-  const { isSiteWide } = useDashboardScope()
+  const { t } = useTranslation();
+  const user = useAuthStore((state) => state.auth.user);
+  const { isSiteWide } = useDashboardScope();
   const isRoot = Boolean(
-    isSiteWide && user?.role && user.role >= ROLE.SUPER_ADMIN
-  )
-  const isAdmin = Boolean(isSiteWide && user?.role && user.role >= ROLE.ADMIN)
-  let flowRole: FlowRole = 'user'
+    isSiteWide && user?.role && user.role >= ROLE.SUPER_ADMIN,
+  );
+  const isAdmin = Boolean(isSiteWide && user?.role && user.role >= ROLE.ADMIN);
+  let flowRole: FlowRole = "user";
   if (isRoot) {
-    flowRole = 'root'
+    flowRole = "root";
   } else if (isAdmin) {
-    flowRole = 'admin'
+    flowRole = "admin";
   }
-  const [metric, setMetric] = useState<FlowMetric>('quota')
-  const [topNodeLimit, setTopNodeLimit] = useState(DEFAULT_FLOW_TOP_NODE_LIMIT)
+  const [metric, setMetric] = useState<FlowMetric>("quota");
+  const [topNodeLimit, setTopNodeLimit] = useState(DEFAULT_FLOW_TOP_NODE_LIMIT);
   const [overflowMode, setOverflowMode] =
-    useState<FlowOverflowMode>('aggregate')
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [selectedNodes, setSelectedNodes] = useState<FlowNodeFilter[]>([])
+    useState<FlowOverflowMode>("aggregate");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<FlowNodeFilter[]>([]);
   const [activeFlowNode, setActiveFlowNode] = useState<
     FlowNodeFilter | undefined
-  >()
+  >();
   const [activeFlowLink, setActiveFlowLink] = useState<
     FlowLinkSelection | undefined
-  >()
-  const [hiddenStages, setHiddenStages] = useState<FlowNodeKind[]>([])
+  >();
+  const [hiddenStages, setHiddenStages] = useState<FlowNodeKind[]>([]);
 
-  const stages = useMemo(() => getFlowStages(flowRole), [flowRole])
+  const stages = useMemo(() => getFlowStages(flowRole), [flowRole]);
   const visibleStages = useMemo(
     () => stages.filter((stage) => !hiddenStages.includes(stage)),
-    [stages, hiddenStages]
-  )
+    [stages, hiddenStages],
+  );
   useEffect(() => {
-    const visible = new Set(visibleStages)
+    const visible = new Set(visibleStages);
     setSelectedNodes((prev) => {
-      const next = prev.filter((filter) => visible.has(filter.kind))
-      return next.length === prev.length ? prev : next
-    })
+      const next = prev.filter((filter) => visible.has(filter.kind));
+      return next.length === prev.length ? prev : next;
+    });
     setActiveFlowNode((prev) =>
-      prev && visible.has(prev.kind) ? prev : undefined
-    )
+      prev && visible.has(prev.kind) ? prev : undefined,
+    );
     // The graph reshapes when columns are toggled, so any highlighted edge may
     // no longer exist. Drop the link selection rather than leave it dangling.
-    setActiveFlowLink(undefined)
-  }, [visibleStages])
+    setActiveFlowLink(undefined);
+  }, [visibleStages]);
   const toggleStage = (stage: FlowNodeKind) => {
     setHiddenStages((prev) => {
-      const hidden = new Set(prev)
+      const hidden = new Set(prev);
       if (hidden.has(stage)) {
-        hidden.delete(stage)
+        hidden.delete(stage);
       } else {
-        const remaining = stages.filter((item) => !hidden.has(item)).length
-        if (remaining <= MIN_VISIBLE_STAGES) return prev
-        hidden.add(stage)
+        const remaining = stages.filter((item) => !hidden.has(item)).length;
+        if (remaining <= MIN_VISIBLE_STAGES) return prev;
+        hidden.add(stage);
       }
-      return stages.filter((item) => hidden.has(item))
-    })
-  }
+      return stages.filter((item) => hidden.has(item));
+    });
+  };
 
   const timeRange = useMemo(
     () =>
       computeTimeRange(
         getDefaultDays(props.filters?.time_granularity),
         props.filters?.start_timestamp,
-        props.filters?.end_timestamp
+        props.filters?.end_timestamp,
       ),
     [
       props.filters?.end_timestamp,
       props.filters?.start_timestamp,
       props.filters?.time_granularity,
-    ]
-  )
+    ],
+  );
   const flowQueryParams = useMemo(
     () => buildQueryParams(timeRange, props.filters),
-    [props.filters, timeRange]
-  )
+    [props.filters, timeRange],
+  );
 
   const {
     data: flowRows,
@@ -280,14 +280,14 @@ export function FlowCharts(props: FlowChartsProps) {
     isError,
     isLoading,
   } = useQuery({
-    queryKey: ['dashboard', 'flow', flowQueryParams, flowRole],
+    queryKey: ["dashboard", "flow", flowQueryParams, flowRole],
     queryFn: () => getFlowQuotaDates(flowQueryParams, isAdmin),
     select: (res) =>
-      requireSuccessfulFlowRows(res, t('Please try again later.')),
+      requireSuccessfulFlowRows(res, t("Please try again later.")),
     staleTime: 60_000,
-  })
+  });
 
-  const maskSensitive = props.sensitiveVisible === false
+  const maskSensitive = props.sensitiveVisible === false;
   const flowData = useMemo(
     () =>
       buildDashboardFlowData(isLoading ? [] : (flowRows ?? []), metric, {
@@ -300,7 +300,7 @@ export function FlowCharts(props: FlowChartsProps) {
         topNodeLimit,
         overflowMode,
         maskSensitive,
-        deletedTokenLabel: (tokenId) => t('Deleted ({{id}})', { id: tokenId }),
+        deletedTokenLabel: (tokenId) => t("Deleted ({{id}})", { id: tokenId }),
         otherNodeLabel: (kind) => t(FLOW_OTHER_NODE_LABEL_KEYS[kind]),
       }),
     [
@@ -317,92 +317,92 @@ export function FlowCharts(props: FlowChartsProps) {
       visibleStages,
       maskSensitive,
       t,
-    ]
-  )
+    ],
+  );
   const userFilterOptions = useMemo(
     () =>
       flowData.filterOptions.users.map((user) => ({
         label: `${user.label} · ${user.valueLabel}`,
         value: user.value,
       })),
-    [flowData.filterOptions.users]
-  )
+    [flowData.filterOptions.users],
+  );
   const nodeFilterStages = useMemo(
-    () => visibleStages.filter((stage) => stage !== 'user'),
-    [visibleStages]
-  )
+    () => visibleStages.filter((stage) => stage !== "user"),
+    [visibleStages],
+  );
   const nodeFilterOptions = useMemo(
     () =>
-      flowData.filterOptions.nodes.filter((option) => option.kind !== 'user'),
-    [flowData.filterOptions.nodes]
-  )
-  const metricLabel = t(FLOW_METRIC_LABEL_KEYS[metric])
+      flowData.filterOptions.nodes.filter((option) => option.kind !== "user"),
+    [flowData.filterOptions.nodes],
+  );
+  const metricLabel = t(FLOW_METRIC_LABEL_KEYS[metric]);
   const formatNodeMetricValue = useCallback(
     (value: number) =>
-      metric === 'quota' ? formatQuota(value) : formatFlowMetricNumber(value),
-    [metric]
-  )
+      metric === "quota" ? formatQuota(value) : formatFlowMetricNumber(value),
+    [metric],
+  );
   // Explicit filters (the chips/dropdown control) narrow the rows that feed the
   // chart. They are intentionally independent from the click-to-highlight state
   // below so selecting a filter never dims a node, it removes unrelated rows.
   const toggleFlowNodeFilter = useCallback((filter: FlowNodeFilter) => {
-    if (filter.kind === 'user') {
-      setSelectedUsers((prev) => toggleSelectedValue(prev, filter.id))
-      return
+    if (filter.kind === "user") {
+      setSelectedUsers((prev) => toggleSelectedValue(prev, filter.id));
+      return;
     }
-    setSelectedNodes((prev) => toggleSelectedNodeFilter(prev, filter))
-  }, [])
+    setSelectedNodes((prev) => toggleSelectedNodeFilter(prev, filter));
+  }, []);
   const removeFlowNodeFilter = useCallback((filter: FlowNodeFilter) => {
-    if (filter.kind === 'user') {
-      setSelectedUsers((prev) => prev.filter((item) => item !== filter.id))
-      return
+    if (filter.kind === "user") {
+      setSelectedUsers((prev) => prev.filter((item) => item !== filter.id));
+      return;
     }
-    const key = flowNodeFilterKey(filter)
+    const key = flowNodeFilterKey(filter);
     setSelectedNodes((prev) =>
-      prev.filter((item) => flowNodeFilterKey(item) !== key)
-    )
-  }, [])
+      prev.filter((item) => flowNodeFilterKey(item) !== key),
+    );
+  }, []);
   const clearFlowNodeFilters = useCallback(() => {
-    setSelectedNodes([])
-  }, [])
+    setSelectedNodes([]);
+  }, []);
   // Clicking a node or a link only drives the highlight: every node and link
   // stays on screen, but the full paths through the clicked element are
   // emphasized and the rest is dimmed. Clicking the active element again, or
   // clicking empty space inside the chart, clears the highlight.
   const selectFlowNode = useCallback((filter: FlowNodeFilter) => {
-    setActiveFlowLink(undefined)
+    setActiveFlowLink(undefined);
     setActiveFlowNode((prev) =>
-      isSameFlowNodeFilter(prev, filter) ? undefined : filter
-    )
-  }, [])
+      isSameFlowNodeFilter(prev, filter) ? undefined : filter,
+    );
+  }, []);
   const selectFlowLink = useCallback((selection: FlowLinkSelection) => {
-    setActiveFlowNode(undefined)
+    setActiveFlowNode(undefined);
     setActiveFlowLink((prev) =>
       prev &&
       prev.source === selection.source &&
       prev.target === selection.target
         ? undefined
-        : selection
-    )
-  }, [])
+        : selection,
+    );
+  }, []);
   const clearFlowSelection = useCallback(() => {
-    setActiveFlowNode(undefined)
-    setActiveFlowLink(undefined)
-  }, [])
-  const chartTitle = t('Flow')
+    setActiveFlowNode(undefined);
+    setActiveFlowLink(undefined);
+  }, []);
+  const chartTitle = t("Flow");
   const sankeyData = useMemo(
     () => buildFlowSankeyRechartsData(flowData.flow),
-    [flowData.flow]
-  )
+    [flowData.flow],
+  );
   const displayState = flowDisplayState({
     isLoading,
     isError,
     linkCount: sankeyData.links.length,
-  })
+  });
   const flowErrorMessage =
     flowError instanceof Error
       ? flowError.message
-      : t('Please try again later.')
+      : t("Please try again later.");
   let chartContent = (
     <FlowSankeyChart
       data={sankeyData}
@@ -410,57 +410,57 @@ export function FlowCharts(props: FlowChartsProps) {
       onSelectLink={selectFlowLink}
       onClearSelection={clearFlowSelection}
     />
-  )
-  if (displayState === 'loading') {
-    chartContent = <Skeleton className='h-full w-full' />
-  } else if (displayState === 'error') {
+  );
+  if (displayState === "loading") {
+    chartContent = <Skeleton className="h-full w-full" />;
+  } else if (displayState === "error") {
     chartContent = (
-      <div className='flex h-full items-center justify-center p-4'>
-        <Alert variant='destructive' className='max-w-md'>
+      <div className="flex h-full items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-md">
           <CircleAlert />
-          <AlertTitle>{t('Failed to load')}</AlertTitle>
+          <AlertTitle>{t("Failed to load")}</AlertTitle>
           <AlertDescription>{flowErrorMessage}</AlertDescription>
         </Alert>
       </div>
-    )
-  } else if (displayState === 'empty') {
+    );
+  } else if (displayState === "empty") {
     chartContent = (
-      <Empty className='h-full border-0 py-12'>
+      <Empty className="h-full border-0 py-12">
         <EmptyHeader>
-          <EmptyMedia variant='icon'>
+          <EmptyMedia variant="icon">
             <Route />
           </EmptyMedia>
-          <EmptyTitle>{t('No flow data available')}</EmptyTitle>
-          <EmptyDescription>{t('No data available')}</EmptyDescription>
+          <EmptyTitle>{t("No flow data available")}</EmptyTitle>
+          <EmptyDescription>{t("No data available")}</EmptyDescription>
         </EmptyHeader>
       </Empty>
-    )
+    );
   }
 
   return (
-    <div className='flex flex-col gap-3'>
-      <div className='flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between'>
-        <div className='flex min-w-0 flex-wrap items-end gap-2'>
-          <div className='flex min-w-0 flex-col gap-1.5'>
-            <div className='flex items-center gap-1.5'>
-              <span className='text-muted-foreground text-xs font-medium'>
-                {t('Flow width metric')}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex min-w-0 flex-wrap items-end gap-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">
+                {t("Flow width metric")}
               </span>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
                     render={
                       <button
-                        type='button'
-                        className='text-muted-foreground/60 hover:text-foreground flex size-5 shrink-0 items-center justify-center rounded-md'
-                        aria-label={t('Flow width metric')}
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground flex size-5 shrink-0 items-center justify-center rounded-md"
+                        aria-label={t("Flow width metric")}
                       />
                     }
                   >
-                    <Info className='size-3.5' />
+                    <Info className="size-3.5" />
                   </TooltipTrigger>
-                  <TooltipContent className='max-w-[14rem]'>
-                    {t('Choose how flow widths are calculated.')}
+                  <TooltipContent className="max-w-[14rem]">
+                    {t("Choose how flow widths are calculated.")}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -468,66 +468,66 @@ export function FlowCharts(props: FlowChartsProps) {
             <Tabs
               value={metric}
               onValueChange={(value) => setMetric(value as FlowMetric)}
-              className='shrink-0'
+              className="shrink-0"
             >
-              <TabsList aria-label={t('Flow width metric')}>
+              <TabsList aria-label={t("Flow width metric")}>
                 {FLOW_METRIC_OPTIONS.map((option) => {
-                  const Icon = option.icon
+                  const Icon = option.icon;
                   return (
                     <TabsTrigger
                       key={option.value}
                       value={option.value}
-                      className='gap-1.5 px-2.5 text-xs'
+                      className="gap-1.5 px-2.5 text-xs"
                     >
-                      <Icon data-icon='inline-start' aria-hidden='true' />
+                      <Icon data-icon="inline-start" aria-hidden="true" />
                       {t(option.labelKey)}
                     </TabsTrigger>
-                  )
+                  );
                 })}
               </TabsList>
             </Tabs>
           </div>
 
-          <div className='flex min-w-0 flex-col gap-1.5'>
-            <span className='text-muted-foreground text-xs font-medium'>
-              {t('Display limit')}
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">
+              {t("Display limit")}
             </span>
             <Tabs
               value={String(topNodeLimit)}
               onValueChange={(value) => setTopNodeLimit(Number(value))}
-              className='shrink-0'
+              className="shrink-0"
             >
-              <TabsList aria-label={t('Display limit')}>
+              <TabsList aria-label={t("Display limit")}>
                 {FLOW_TOP_LIMIT_OPTIONS.map((limit) => (
                   <TabsTrigger
                     key={limit}
                     value={String(limit)}
-                    className='px-2.5 text-xs'
+                    className="px-2.5 text-xs"
                   >
-                    {t('Top {{count}}', { count: limit })}
+                    {t("Top {{count}}", { count: limit })}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>
           </div>
 
-          <div className='flex min-w-0 flex-col gap-1.5'>
-            <span className='text-muted-foreground text-xs font-medium'>
-              {t('Overflow items')}
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">
+              {t("Overflow items")}
             </span>
             <Tabs
               value={overflowMode}
               onValueChange={(value) =>
                 setOverflowMode(value as FlowOverflowMode)
               }
-              className='shrink-0'
+              className="shrink-0"
             >
-              <TabsList aria-label={t('Overflow items')}>
+              <TabsList aria-label={t("Overflow items")}>
                 {FLOW_OVERFLOW_MODE_OPTIONS.map((option) => (
                   <TabsTrigger
                     key={option.value}
                     value={option.value}
-                    className='px-2.5 text-xs'
+                    className="px-2.5 text-xs"
                   >
                     {t(option.labelKey)}
                   </TabsTrigger>
@@ -549,15 +549,15 @@ export function FlowCharts(props: FlowChartsProps) {
           />
         </div>
 
-        <div className='flex min-w-0 items-center gap-2 xl:justify-end'>
+        <div className="flex min-w-0 items-center gap-2 xl:justify-end">
           {isAdmin && (
-            <div className='flex min-w-0 flex-col gap-2 sm:flex-row xl:w-[min(24rem,34vw)]'>
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row xl:w-[min(24rem,34vw)]">
               <MultiSelect
                 options={userFilterOptions}
                 selected={selectedUsers}
                 onChange={setSelectedUsers}
-                placeholder={t('All users')}
-                emptyText={t('No users')}
+                placeholder={t("All users")}
+                emptyText={t("No users")}
                 maxVisibleChips={2}
                 renderSelectedSummary={(values) =>
                   compactFlowSelectionLabel(values.length)
@@ -566,73 +566,73 @@ export function FlowCharts(props: FlowChartsProps) {
             </div>
           )}
           {isLoading && (
-            <Loader2 className='text-muted-foreground size-4 animate-spin' />
+            <Loader2 className="text-muted-foreground size-4 animate-spin" />
           )}
         </div>
       </div>
 
-      <div className='overflow-hidden rounded-lg border'>
-        <div className='flex w-full flex-col gap-2 border-b px-3 py-2 sm:px-5 sm:py-3 lg:flex-row lg:items-center lg:justify-between'>
-          <div className='flex min-w-0 items-center gap-2'>
-            <IconBadge tone='info' size='sm'>
+      <div className="overflow-hidden rounded-lg border">
+        <div className="flex w-full flex-col gap-2 border-b px-3 py-2 sm:px-5 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <IconBadge tone="info" size="sm">
               <GitBranch />
             </IconBadge>
-            <div className='text-sm font-semibold'>{chartTitle}</div>
+            <div className="text-sm font-semibold">{chartTitle}</div>
           </div>
           <TooltipProvider>
-            <div className='flex min-w-0 items-center gap-1 overflow-x-auto pb-1 lg:justify-end lg:pb-0'>
+            <div className="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 lg:justify-end lg:pb-0">
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
-                      type='button'
-                      className='text-muted-foreground/60 hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-md'
-                      aria-label={t('Show or hide flow columns')}
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-md"
+                      aria-label={t("Show or hide flow columns")}
                     />
                   }
                 >
-                  <Info className='size-3.5' />
+                  <Info className="size-3.5" />
                 </TooltipTrigger>
-                <TooltipContent className='max-w-[16rem]'>
-                  {t('Click a stage to show or hide that column')}
+                <TooltipContent className="max-w-[16rem]">
+                  {t("Click a stage to show or hide that column")}
                 </TooltipContent>
               </Tooltip>
               {stages.map((stage, index) => {
-                const meta = FLOW_STAGE_META[stage]
-                const visible = !hiddenStages.includes(stage)
+                const meta = FLOW_STAGE_META[stage];
+                const visible = !hiddenStages.includes(stage);
                 return (
                   <Fragment key={stage}>
                     {index > 0 && (
-                      <ChevronRight className='text-muted-foreground/40 size-3.5 shrink-0' />
+                      <ChevronRight className="text-muted-foreground size-3.5 shrink-0" />
                     )}
                     <Tooltip>
                       <TooltipTrigger
                         render={
                           <Toggle
-                            variant='outline'
-                            size='sm'
+                            variant="outline"
+                            size="sm"
                             pressed={visible}
                             onPressedChange={() => toggleStage(stage)}
                             aria-label={t(meta.labelKey)}
-                            className={cn('shrink-0', !visible && 'opacity-50')}
+                            className={cn("shrink-0", !visible && "opacity-50")}
                           />
                         }
                       >
-                        {!visible && <EyeOff className='size-3' />}
+                        {!visible && <EyeOff className="size-3" />}
                         {t(meta.labelKey)}
                       </TooltipTrigger>
                       <TooltipContent>{t(meta.descKey)}</TooltipContent>
                     </Tooltip>
                   </Fragment>
-                )
+                );
               })}
             </div>
           </TooltipProvider>
         </div>
-        <div className='h-[560px] p-1.5 sm:h-[680px] sm:p-2 2xl:h-[760px]'>
+        <div className="h-[560px] p-1.5 sm:h-[680px] sm:p-2 2xl:h-[760px]">
           {chartContent}
         </div>
       </div>
     </div>
-  )
+  );
 }

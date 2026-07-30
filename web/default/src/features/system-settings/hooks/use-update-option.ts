@@ -28,10 +28,8 @@ import type { UpdateOptionRequest } from '../types'
 
 // Configuration keys that require status refresh
 const STATUS_RELATED_KEYS = new Set([
-  'theme.frontend',
   'branding.favicon_url',
   'branding.primary_color',
-  'branding.token_preset',
   'SystemName',
   'Logo',
   'Footer',
@@ -73,9 +71,6 @@ export function useUpdateOption() {
             break
           case 'branding.primary_color':
             setSystemConfig({ primaryColor: value })
-            break
-          case 'branding.token_preset':
-            setSystemConfig({ tokenPreset: value === 'box-ai' ? value : '' })
             break
           case 'general_setting.business_timezone':
             setSystemConfig({ businessTimezone: value })

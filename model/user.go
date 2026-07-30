@@ -87,6 +87,9 @@ type User struct {
 	Email            string                     `json:"email" gorm:"index" validate:"max=50"`
 	GitHubId         string                     `json:"github_id" gorm:"column:github_id;index"`
 	DiscordId        string                     `json:"discord_id" gorm:"column:discord_id;index"`
+	GoogleId         string                     `json:"google_id" gorm:"column:google_id;index"`
+	FacebookId       string                     `json:"facebook_id" gorm:"column:facebook_id;index"`
+	ZaloId           string                     `json:"zalo_id" gorm:"column:zalo_id;index"`
 	OidcId           string                     `json:"oidc_id" gorm:"column:oidc_id;index"`
 	WeChatId         string                     `json:"wechat_id" gorm:"column:wechat_id;index"`
 	TelegramId       string                     `json:"telegram_id" gorm:"column:telegram_id;index"`
@@ -770,6 +773,9 @@ func (user *User) ClearBinding(bindingType string) error {
 		"email":    "email",
 		"github":   "github_id",
 		"discord":  "discord_id",
+		"google":   "google_id",
+		"facebook": "facebook_id",
+		"zalo":     "zalo_id",
 		"oidc":     "oidc_id",
 		"wechat":   "wechat_id",
 		"telegram": "telegram_id",
@@ -914,6 +920,30 @@ func (user *User) FillUserByDiscordId() error {
 	return nil
 }
 
+func (user *User) FillUserByGoogleId() error {
+	if user.GoogleId == "" {
+		return errors.New("google id 为空！")
+	}
+	DB.Where(User{GoogleId: user.GoogleId}).First(user)
+	return nil
+}
+
+func (user *User) FillUserByFacebookId() error {
+	if user.FacebookId == "" {
+		return errors.New("facebook id 为空！")
+	}
+	DB.Where(User{FacebookId: user.FacebookId}).First(user)
+	return nil
+}
+
+func (user *User) FillUserByZaloId() error {
+	if user.ZaloId == "" {
+		return errors.New("zalo id 为空！")
+	}
+	DB.Where(User{ZaloId: user.ZaloId}).First(user)
+	return nil
+}
+
 func (user *User) FillUserByOidcId() error {
 	if user.OidcId == "" {
 		return errors.New("oidc id 为空！")
@@ -975,6 +1005,18 @@ func IsGitHubIdAlreadyTaken(githubId string) bool {
 
 func IsDiscordIdAlreadyTaken(discordId string) bool {
 	return DB.Unscoped().Where("discord_id = ?", discordId).Find(&User{}).RowsAffected == 1
+}
+
+func IsGoogleIdAlreadyTaken(googleId string) bool {
+	return DB.Unscoped().Where("google_id = ?", googleId).Find(&User{}).RowsAffected == 1
+}
+
+func IsFacebookIdAlreadyTaken(facebookId string) bool {
+	return DB.Unscoped().Where("facebook_id = ?", facebookId).Find(&User{}).RowsAffected == 1
+}
+
+func IsZaloIdAlreadyTaken(zaloId string) bool {
+	return DB.Unscoped().Where("zalo_id = ?", zaloId).Find(&User{}).RowsAffected == 1
 }
 
 func IsOidcIdAlreadyTaken(oidcId string) bool {

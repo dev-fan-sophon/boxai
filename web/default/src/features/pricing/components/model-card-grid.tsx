@@ -16,125 +16,125 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
-import { LobeIcon } from '@/lib/lobe-icon'
+import { Button } from "@/components/ui/button";
+import { LobeIcon } from "@/lib/lobe-icon";
 
-import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
-import { groupModelsByVendor } from '../lib/model-helpers'
-import type { PricingModel, TokenUnit } from '../types'
-import { ModelCard } from './model-card'
+import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from "../constants";
+import { groupModelsByVendor } from "../lib/model-helpers";
+import type { PricingModel, TokenUnit } from "../types";
+import { ModelCard } from "./model-card";
 
 export interface ModelCardGridProps {
-  models: PricingModel[]
-  onModelClick: (modelName: string) => void
-  priceRate?: number
-  usdExchangeRate?: number
-  tokenUnit?: TokenUnit
-  showRechargePrice?: boolean
-  selectedGroup?: string
+  models: PricingModel[];
+  onModelClick: (modelName: string) => void;
+  priceRate?: number;
+  usdExchangeRate?: number;
+  tokenUnit?: TokenUnit;
+  showRechargePrice?: boolean;
+  selectedGroup?: string;
 }
 
 /** Content signature so page resets on real list changes, not only identity. */
 function modelsListSignature(models: PricingModel[]): string {
-  if (models.length === 0) return '0'
-  const first = models[0]
-  const last = models.at(-1)
-  const mid = models[Math.floor(models.length / 2)]
+  if (models.length === 0) return "0";
+  const first = models[0];
+  const last = models.at(-1);
+  const mid = models[Math.floor(models.length / 2)];
   return [
     models.length,
-    first?.id ?? '',
-    first?.model_name ?? '',
-    mid?.id ?? '',
-    mid?.model_name ?? '',
-    last?.id ?? '',
-    last?.model_name ?? '',
-  ].join('|')
+    first?.id ?? "",
+    first?.model_name ?? "",
+    mid?.id ?? "",
+    mid?.model_name ?? "",
+    last?.id ?? "",
+    last?.model_name ?? "",
+  ].join("|");
 }
 
 export function ModelCardGrid(props: ModelCardGridProps) {
-  const { t } = useTranslation()
-  const [page, setPage] = useState(1)
-  const pageSize = DEFAULT_PRICING_PAGE_SIZE
-  const tokenUnit = props.tokenUnit ?? DEFAULT_TOKEN_UNIT
-  const totalPages = Math.max(1, Math.ceil(props.models.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const pageSize = DEFAULT_PRICING_PAGE_SIZE;
+  const tokenUnit = props.tokenUnit ?? DEFAULT_TOKEN_UNIT;
+  const totalPages = Math.max(1, Math.ceil(props.models.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   const listSignature = useMemo(
     () => modelsListSignature(props.models),
-    [props.models]
-  )
+    [props.models],
+  );
 
   useEffect(() => {
-    setPage(1)
-  }, [listSignature])
+    setPage(1);
+  }, [listSignature]);
 
   const pagedModels = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return props.models.slice(start, start + pageSize)
-  }, [currentPage, pageSize, props.models])
+    const start = (currentPage - 1) * pageSize;
+    return props.models.slice(start, start + pageSize);
+  }, [currentPage, pageSize, props.models]);
 
   const vendorTotalCounts = useMemo(() => {
-    const counts = new Map<string, number>()
+    const counts = new Map<string, number>();
     for (const model of props.models) {
-      const key = model.vendor_name?.trim() || '__other__'
-      counts.set(key, (counts.get(key) || 0) + 1)
+      const key = model.vendor_name?.trim() || "__other__";
+      counts.set(key, (counts.get(key) || 0) + 1);
     }
-    return counts
-  }, [props.models])
+    return counts;
+  }, [props.models]);
 
   const vendorGroups = useMemo(
-    () => groupModelsByVendor(pagedModels, t('Other')),
-    [pagedModels, t]
-  )
+    () => groupModelsByVendor(pagedModels, t("Other")),
+    [pagedModels, t],
+  );
 
   if (props.models.length === 0) {
-    return null
+    return null;
   }
 
   return (
-    <div className='space-y-6 sm:space-y-8'>
+    <div className="space-y-6 sm:space-y-8">
       {vendorGroups.map((group) => {
-        const countKey = group.key.startsWith('other:')
-          ? '__other__'
-          : group.name
+        const countKey = group.key.startsWith("other:")
+          ? "__other__"
+          : group.name;
         const totalForVendor =
-          vendorTotalCounts.get(countKey) ?? group.models.length
-        const shownForVendor = group.models.length
+          vendorTotalCounts.get(countKey) ?? group.models.length;
+        const shownForVendor = group.models.length;
         const vendorIcon = group.icon ? (
           <LobeIcon name={group.icon} size={20} />
-        ) : null
-        const initial = group.name.charAt(0).toUpperCase() || '?'
+        ) : null;
+        const initial = group.name.charAt(0).toUpperCase() || "?";
         const countLabel =
           shownForVendor < totalForVendor
-            ? t('{{shown}} of {{total}} models', {
+            ? t("{{shown}} of {{total}} models", {
                 shown: shownForVendor,
                 total: totalForVendor,
               })
-            : t('{{count}} models', { count: totalForVendor })
+            : t("{{count}} models", { count: totalForVendor });
 
         return (
-          <section key={group.key} className='space-y-3 sm:space-y-4'>
-            <header className='flex min-w-0 items-center gap-2 border-b pb-2.5'>
-              <span className='flex size-5 shrink-0 items-center justify-center'>
+          <section key={group.key} className="space-y-3 sm:space-y-4">
+            <header className="flex min-w-0 items-center gap-2 border-b pb-2.5">
+              <span className="flex size-5 shrink-0 items-center justify-center">
                 {vendorIcon || (
-                  <span className='text-muted-foreground text-xs font-bold'>
+                  <span className="text-muted-foreground text-xs font-bold">
                     {initial}
                   </span>
                 )}
               </span>
-              <h2 className='truncate text-sm font-semibold tracking-tight sm:text-base'>
+              <h2 className="truncate text-sm font-semibold tracking-tight sm:text-base">
                 {group.name}
               </h2>
-              <span className='text-muted-foreground shrink-0 text-xs'>
+              <span className="text-muted-foreground shrink-0 text-xs">
                 {countLabel}
               </span>
             </header>
 
-            <div className='grid grid-cols-[repeat(auto-fill,minmax(min(270px,100%),1fr))] gap-3.5 sm:gap-4'>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(270px,100%),1fr))] gap-3.5 sm:gap-4">
               {group.models.map((model) => (
                 <ModelCard
                   key={model.id ?? model.model_name}
@@ -144,50 +144,50 @@ export function ModelCardGrid(props: ModelCardGridProps) {
                   usdExchangeRate={props.usdExchangeRate}
                   showRechargePrice={props.showRechargePrice}
                   selectedGroup={props.selectedGroup}
-                  onClick={() => props.onModelClick(model.model_name || '')}
+                  onClick={() => props.onModelClick(model.model_name || "")}
                 />
               ))}
             </div>
           </section>
-        )
+        );
       })}
 
       {totalPages > 1 && (
-        <div className='text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row'>
-          <p className='text-muted-foreground'>
-            {t('Page {{current}} of {{total}}', {
+        <div className="text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row">
+          <p className="text-muted-foreground">
+            {t("Page {{current}} of {{total}}", {
               current: currentPage,
               total: totalPages,
             })}
           </p>
-          <div className='flex items-center gap-2'>
+          <div className="flex items-center gap-2">
             <Button
-              type='button'
-              variant='outline'
-              size='sm'
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={currentPage <= 1}
-              className='gap-1.5'
+              className="gap-1.5"
             >
-              <ChevronLeft className='size-4' />
-              {t('Previous page')}
+              <ChevronLeft className="size-4" />
+              {t("Previous page")}
             </Button>
             <Button
-              type='button'
-              variant='outline'
-              size='sm'
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() =>
                 setPage((current) => Math.min(totalPages, current + 1))
               }
               disabled={currentPage >= totalPages}
-              className='gap-1.5'
+              className="gap-1.5"
             >
-              {t('Next page')}
-              <ChevronRight className='size-4' />
+              {t("Next page")}
+              <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

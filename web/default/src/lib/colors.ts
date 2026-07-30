@@ -55,23 +55,68 @@ export const colorToBgClass: Record<SemanticColor, string> = {
   slate: 'bg-slate-500',
 }
 
-export function isAccessibleBrandPrimary(color: string): boolean {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return false
+/** Label placed on a brand-colored fill when white would be too dim. */
+const BRAND_DARK_FOREGROUND = '#0b1633'
 
+/** Substitute for vendor accents that vanish into one of the two canvases. */
+const NEUTRAL_BRAND_ACCENT = '#8a8f98'
+
+/**
+ * Vendor brand colors are chosen for a logo, not for our canvases: near-black
+ * marks (OpenAI, xAI) disappear in dark mode and near-white marks disappear in
+ * light mode. Swap those for a neutral accent so a legend or share chart stays
+ * readable in both schemes; every other brand color is passed through intact.
+ */
+export function visibleBrandAccent(color: string): string {
+  const luminance = brandLuminance(color)
+  if (luminance === undefined) return color
+  return luminance < 0.05 || luminance > 0.85 ? NEUTRAL_BRAND_ACCENT : color
+}
+
+function brandLuminance(color: string): number | undefined {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return undefined
   const channels = [1, 3, 5].map((index) => {
     const channel = Number.parseInt(color.slice(index, index + 2), 16) / 255
     return channel <= 0.04045
       ? channel / 12.92
       : ((channel + 0.055) / 1.055) ** 2.4
   })
-  const luminance =
-    0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+}
 
+/**
+ * Label color for a brand-colored fill. Light brand colors get the dark label
+ * instead of washing out under white, which is what lets the accessibility
+ * check below accept a wider range of brand colors.
+ */
+export function brandPrimaryForeground(color: string): string {
+  const luminance = brandLuminance(color)
+  if (luminance === undefined) return '#ffffff'
   const whiteContrast = 1.05 / (luminance + 0.05)
+  const darkContrast = (luminance + 0.05) / (0.0114 + 0.05)
+  return whiteContrast >= darkContrast ? '#ffffff' : BRAND_DARK_FOREGROUND
+}
+
+/**
+ * A brand color is usable when its own label clears AA and the fill stays
+ * visible against both canvases. Contrast is measured against the derived
+ * label rather than white, so a light brand color is judged on how it will
+ * actually be rendered.
+ */
+export function isAccessibleBrandPrimary(color: string): boolean {
+  const luminance = brandLuminance(color)
+  if (luminance === undefined) return false
+
+  const foregroundContrast =
+    brandPrimaryForeground(color) === '#ffffff'
+      ? 1.05 / (luminance + 0.05)
+      : (luminance + 0.05) / (0.0114 + 0.05)
   const lightCanvasContrast = (0.947 + 0.05) / (luminance + 0.05)
   const darkCanvasContrast = (luminance + 0.05) / (0.006 + 0.05)
   return (
-    whiteContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
+    foregroundContrast >= 4.5 &&
+    lightCanvasContrast >= 3 &&
+    darkCanvasContrast >= 3
   )
 }
 
@@ -104,32 +149,6 @@ export function getBgColorClass(color?: string): string {
   return (
     (colorToBgClass as Record<string, string>)[color] || colorToBgClass.blue
   )
-}
-
-/**
- * Chart color palette - Modern gradient colors compatible with light/dark themes
- * Uses HSL format for better theme adaptation
- */
-export const CHART_COLORS = [
-  'hsl(217, 91%, 60%)', // blue
-  'hsl(142, 76%, 36%)', // green
-  'hsl(38, 92%, 50%)', // amber
-  'hsl(258, 90%, 66%)', // violet
-  'hsl(330, 81%, 60%)', // pink
-  'hsl(189, 94%, 43%)', // cyan
-  'hsl(25, 95%, 53%)', // orange
-  'hsl(239, 84%, 67%)', // indigo
-  'hsl(173, 80%, 40%)', // teal
-  'hsl(271, 91%, 65%)', // purple
-  'hsl(199, 89%, 48%)', // sky
-  'hsl(280, 65%, 60%)', // fuchsia
-] as const
-
-/**
- * Get a chart color by index (cycles through the palette)
- */
-export function getChartColor(index: number): string {
-  return CHART_COLORS[index % CHART_COLORS.length]
 }
 
 /**

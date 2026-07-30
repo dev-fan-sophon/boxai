@@ -13,11 +13,17 @@
   "Connection selected": "Connection selected",
   "Copy failed": "Copy failed",
   "Could not capture the video frame. Check that the video allows cross-origin access.": "Could not capture the video frame. Check that the video allows cross-origin access.",
+  "Discord ID": "Discord ID",
   "Download {{product}}": "Download {{product}}",
   "Drag a free rectangle over the image.": "Drag a free rectangle over the image.",
   "Each client keeps its own config file. Connect writes only the entry it owns, leaves everything else alone, and keeps a backup it can restore.": "Each client keeps its own config file. Connect writes only the entry it owns, leaves everything else alone, and keeps a backup it can restore.",
   "Every install is a session you can end from the website. Signing out disables its key and withdraws the config it wrote.": "Every install is a session you can end from the website. Signing out disables its key and withdraws the config it wrote.",
+  "Facebook": "Facebook",
+  "Facebook ID": "Facebook ID",
   "Fullscreen preview failed": "Fullscreen preview failed",
+  "GitHub ID": "GitHub ID",
+  "Google": "Google",
+  "Google ID": "Google ID",
   "Image crop area": "Image crop area",
   "Image processing failed. The original was kept.": "Image processing failed. The original was kept.",
   "Is this the same as CC Switch?": "Is this the same as CC Switch?",
@@ -45,5 +51,6 @@
   "Windows": "Windows",
   "Writes the config for you": "Writes the config for you",
   "Yes, outside Connect. The panel shows the official login and the BoxAI entry so the one thing it manages stays obvious, but it never removes providers you configured yourself.": "Yes, outside Connect. The panel shows the official login and the BoxAI entry so the one thing it manages stays obvious, but it never removes providers you configured yourself.",
-  "Yes. Connect signs in to your BoxAI account and configures your clients with a key issued to that account, so usage is billed and rate-limited exactly like the API. You can end the session at any time from <1>your profile</1>.": "Yes. Connect signs in to your BoxAI account and configures your clients with a key issued to that account, so usage is billed and rate-limited exactly like the API. You can end the session at any time from <1>your profile</1>."
+  "Yes. Connect signs in to your BoxAI account and configures your clients with a key issued to that account, so usage is billed and rate-limited exactly like the API. You can end the session at any time from <1>your profile</1>.": "Yes. Connect signs in to your BoxAI account and configures your clients with a key issued to that account, so usage is billed and rate-limited exactly like the API. You can end the session at any time from <1>your profile</1>.",
+  "Zalo ID": "Zalo ID"
 }

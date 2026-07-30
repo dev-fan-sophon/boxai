@@ -90,8 +90,7 @@ export function formatSeoDocumentTitle(
     let host = ''
     try {
       const o =
-        origin ||
-        (typeof window !== 'undefined' ? window.location.origin : '')
+        origin || (typeof window !== 'undefined' ? window.location.origin : '')
       if (o) host = new URL(o).host
     } catch {
       /* empty */
@@ -336,10 +335,7 @@ export const DEFAULT_SEO_DESCRIPTION =
 /**
  * Resolve default SEO for a pathname when a page does not set its own.
  */
-export function resolveRouteSeo(
-  pathname: string,
-  siteName: string
-): SeoInput {
+export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
   const path = pathname.split(/[?#]/)[0] || '/'
   const normalized =
     path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path || '/'
@@ -355,10 +351,7 @@ export function resolveRouteSeo(
   }
 
   const brand = siteName?.trim() || DEFAULT_BRAND_NAME
-  const catalog: Record<
-    string,
-    { title: string; description: string }
-  > = {
+  const catalog: Record<string, { title: string; description: string }> = {
     '/': {
       title: brand,
       description: DEFAULT_SEO_DESCRIPTION,

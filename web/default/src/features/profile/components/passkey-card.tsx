@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertTriangle, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+import { AlertTriangle, KeyRound, Loader2, ShieldAlert } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
-import { StatusBadge } from '@/components/status-badge'
+import { StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,35 +32,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { usePasskeyManagement } from '@/features/auth/passkey'
+} from "@/components/ui/card";
+import { IconBadge } from "@/components/ui/icon-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePasskeyManagement } from "@/features/auth/passkey";
 import {
   SecureVerificationDialog,
   useSecureVerification,
   type VerificationMethod,
   type VerificationMethods,
-} from '@/features/auth/secure-verification'
-import dayjs from '@/lib/dayjs'
+} from "@/features/auth/secure-verification";
+import dayjs from "@/lib/dayjs";
 
 interface PasskeyCardProps {
-  loading: boolean
+  loading: boolean;
 }
 
 export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
-  const { t } = useTranslation()
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const { t } = useTranslation();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [restrictedMethod, setRestrictedMethod] =
-    useState<VerificationMethod | null>(null)
+    useState<VerificationMethod | null>(null);
 
   const {
     status,
@@ -72,7 +72,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
     lastUsed,
     register,
     remove,
-  } = usePasskeyManagement()
+  } = usePasskeyManagement();
 
   const {
     open: verificationOpen,
@@ -87,92 +87,92 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
     fetchVerificationMethods,
   } = useSecureVerification({
     onSuccess: () => {
-      setRestrictedMethod(null)
+      setRestrictedMethod(null);
     },
-  })
+  });
 
   const dialogMethods = useMemo<VerificationMethods>(() => {
-    if (!restrictedMethod) return verificationMethods
+    if (!restrictedMethod) return verificationMethods;
     return {
       ...verificationMethods,
-      has2FA: restrictedMethod === '2fa' && verificationMethods.has2FA,
+      has2FA: restrictedMethod === "2fa" && verificationMethods.has2FA,
       hasPasskey:
-        restrictedMethod === 'passkey' && verificationMethods.hasPasskey,
-    }
-  }, [restrictedMethod, verificationMethods])
+        restrictedMethod === "passkey" && verificationMethods.hasPasskey,
+    };
+  }, [restrictedMethod, verificationMethods]);
 
   const handleRegister = useCallback(async () => {
     if (!supported) {
-      toast.info(t('This device does not support Passkey'))
-      return
+      toast.info(t("This device does not support Passkey"));
+      return;
     }
 
-    const methods = await fetchVerificationMethods()
+    const methods = await fetchVerificationMethods();
     if (!methods.has2FA) {
       // Without 2FA enabled, register directly. The browser-level Passkey prompt
       // is itself a strong proof of presence, so no extra verification is needed.
-      await register()
-      return
+      await register();
+      return;
     }
 
-    setRestrictedMethod('2fa')
+    setRestrictedMethod("2fa");
     await startVerification(register, {
-      preferredMethod: '2fa',
-      title: t('Security verification'),
+      preferredMethod: "2fa",
+      title: t("Security verification"),
       description: t(
-        'Confirm your identity with Two-factor Authentication before registering a Passkey.'
+        "Confirm your identity with Two-factor Authentication before registering a Passkey.",
       ),
-    })
-  }, [fetchVerificationMethods, register, startVerification, supported, t])
+    });
+  }, [fetchVerificationMethods, register, startVerification, supported, t]);
 
   const handleRemove = useCallback(async () => {
-    const methods = await fetchVerificationMethods()
-    let required: VerificationMethod | null = null
+    const methods = await fetchVerificationMethods();
+    let required: VerificationMethod | null = null;
     if (methods.has2FA) {
-      required = '2fa'
+      required = "2fa";
     } else if (methods.hasPasskey) {
-      required = 'passkey'
+      required = "passkey";
     }
 
     if (!required) {
       toast.error(
         t(
-          'Please enable Two-factor Authentication or Passkey before proceeding'
-        )
-      )
-      return
+          "Please enable Two-factor Authentication or Passkey before proceeding",
+        ),
+      );
+      return;
     }
 
-    if (required === 'passkey' && !methods.passkeySupported) {
-      toast.info(t('This device does not support Passkey'))
-      return
+    if (required === "passkey" && !methods.passkeySupported) {
+      toast.info(t("This device does not support Passkey"));
+      return;
     }
 
-    setConfirmOpen(false)
-    setRestrictedMethod(required)
+    setConfirmOpen(false);
+    setRestrictedMethod(required);
     await startVerification(remove, {
       preferredMethod: required,
-      title: t('Security verification'),
+      title: t("Security verification"),
       description: t(
-        'Confirm your identity before removing this Passkey from your account.'
+        "Confirm your identity before removing this Passkey from your account.",
       ),
-    })
-  }, [fetchVerificationMethods, remove, startVerification, t])
+    });
+  }, [fetchVerificationMethods, remove, startVerification, t]);
 
   const handleVerificationCancel = useCallback(() => {
-    setRestrictedMethod(null)
-    cancelVerification()
-  }, [cancelVerification])
+    setRestrictedMethod(null);
+    cancelVerification();
+  }, [cancelVerification]);
 
   const handleVerificationOpenChange = useCallback(
     (next: boolean) => {
       if (!next) {
-        setRestrictedMethod(null)
+        setRestrictedMethod(null);
       }
-      setVerificationOpen(next)
+      setVerificationOpen(next);
     },
-    [setVerificationOpen]
-  )
+    [setVerificationOpen],
+  );
 
   // Adapt the hook's `Promise<unknown>` return into the dialog's
   // `void | Promise<void>` signature without losing error propagation
@@ -180,78 +180,78 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
   const handleDialogVerify = useCallback(
     async (method: VerificationMethod, code?: string) => {
       try {
-        await executeVerification(method, code)
+        await executeVerification(method, code);
       } catch {
         // Errors are already surfaced by useSecureVerification via toast.
       }
     },
-    [executeVerification]
-  )
+    [executeVerification],
+  );
 
   if (pageLoading || loading) {
     return (
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-        <CardHeader className='p-3 sm:p-5'>
-          <Skeleton className='h-6 w-48' />
-          <Skeleton className='mt-2 h-4 w-64' />
+      <Card data-card-hover="false" className="gap-0 overflow-hidden py-0">
+        <CardHeader className="p-3 sm:p-5">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="mt-2 h-4 w-64" />
         </CardHeader>
-        <CardContent className='p-3 sm:p-5'>
-          <Skeleton className='h-20 w-full' />
+        <CardContent className="p-3 sm:p-5">
+          <Skeleton className="h-20 w-full" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   const formattedLastUsed =
     lastUsed && !Number.isNaN(Date.parse(lastUsed))
       ? dayjs(lastUsed).fromNow()
-      : t('Not used yet')
+      : t("Not used yet");
 
-  const showUnsupportedNotice = !supported && !enabled
+  const showUnsupportedNotice = !supported && !enabled;
   let backupStatus: {
-    label: string
-    variant: 'success' | 'warning' | 'neutral'
-  } | null = null
+    label: string;
+    variant: "success" | "warning" | "neutral";
+  } | null = null;
 
   if (status?.backup_eligible !== undefined) {
     backupStatus = {
-      label: t('No backup'),
-      variant: 'neutral',
-    }
+      label: t("No backup"),
+      variant: "neutral",
+    };
 
     if (status.backup_eligible) {
       backupStatus = {
-        label: status.backup_state ? t('Backed up') : t('Not backed up'),
-        variant: status.backup_state ? 'success' : 'warning',
-      }
+        label: status.backup_state ? t("Backed up") : t("Not backed up"),
+        variant: status.backup_state ? "success" : "warning",
+      };
     }
   }
 
   return (
     <>
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-        <CardHeader className='p-3 sm:p-5'>
-          <CardTitle className='text-lg tracking-tight sm:text-xl'>
-            {t('Passkey Login')}
+      <Card data-card-hover="false" className="gap-0 overflow-hidden py-0">
+        <CardHeader className="p-3 sm:p-5">
+          <CardTitle className="text-lg tracking-tight sm:text-xl">
+            {t("Passkey Login")}
           </CardTitle>
-          <CardDescription className='text-xs sm:text-sm'>
-            {t('Use Passkey to sign in without entering your password.')}
+          <CardDescription className="text-xs sm:text-sm">
+            {t("Use Passkey to sign in without entering your password.")}
           </CardDescription>
         </CardHeader>
 
-        <CardContent className='p-3 sm:p-5'>
-          <div className='space-y-6'>
-            <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between xl:flex-col 2xl:flex-row'>
-              <div className='flex items-start gap-4'>
-                <IconBadge tone='info' size='sm'>
+        <CardContent className="p-3 sm:p-5">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between xl:flex-col 2xl:flex-row">
+              <div className="flex items-start gap-4">
+                <IconBadge tone="info" size="sm">
                   <KeyRound />
                 </IconBadge>
-                <div className='space-y-1'>
-                  <div className='flex flex-wrap items-center gap-2'>
-                    <p className='font-medium'>{t('Passkey Authentication')}</p>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{t("Passkey Authentication")}</p>
                     <StatusBadge
-                      label={enabled ? t('Enabled') : t('Disabled')}
-                      variant={enabled ? 'success' : 'neutral'}
+                      label={enabled ? t("Enabled") : t("Disabled")}
+                      variant={enabled ? "success" : "neutral"}
                       showDot
                       copyable={false}
                     />
@@ -264,69 +264,69 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
                       />
                     )}
                   </div>
-                  <p className='text-muted-foreground text-sm'>
-                    {t('Last used:')} {formattedLastUsed}
+                  <p className="text-muted-foreground text-sm">
+                    {t("Last used:")} {formattedLastUsed}
                   </p>
                 </div>
               </div>
 
               {!enabled && (
                 <Button
-                  className='w-full sm:w-auto xl:w-full 2xl:w-auto'
+                  className="w-full sm:w-auto xl:w-full 2xl:w-auto"
                   onClick={handleRegister}
                   disabled={!supported || registering}
                 >
                   {registering && (
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {t('Enable Passkey')}
+                  {t("Enable Passkey")}
                 </Button>
               )}
             </div>
 
             {enabled && (
-              <div className='flex flex-col gap-3 border-t pt-6 sm:flex-row xl:flex-col 2xl:flex-row'>
+              <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row xl:flex-col 2xl:flex-row">
                 <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
                   <AlertDialogTrigger
                     render={
                       <Button
-                        variant='destructive'
-                        className='flex-1'
+                        variant="destructive"
+                        className="flex-1"
                         disabled={removing}
                       />
                     }
                   >
                     {removing ? (
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <AlertTriangle className='mr-2 h-4 w-4' />
+                      <AlertTriangle className="mr-2 h-4 w-4" />
                     )}
-                    {t('Remove Passkey')}
+                    {t("Remove Passkey")}
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        {t('Remove Passkey?')}
+                        {t("Remove Passkey?")}
                       </AlertDialogTitle>
                       <AlertDialogDescription>
                         {t(
-                          'Removing Passkey will require you to sign in with your password next time. You can re-register anytime.'
+                          "Removing Passkey will require you to sign in with your password next time. You can re-register anytime.",
                         )}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel disabled={removing}>
-                        {t('Cancel')}
+                        {t("Cancel")}
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        variant='destructive'
+                        variant="destructive"
                         disabled={removing}
                         onClick={(event) => {
-                          event.preventDefault()
-                          handleRemove()
+                          event.preventDefault();
+                          handleRemove();
                         }}
                       >
-                        {t('Remove')}
+                        {t("Remove")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -335,15 +335,15 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
             )}
 
             {showUnsupportedNotice && (
-              <div className='bg-muted/60 text-muted-foreground flex items-start gap-3 rounded-md p-4 text-sm'>
-                <ShieldAlert className='mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500' />
+              <div className="bg-muted/60 text-muted-foreground flex items-start gap-3 rounded-md p-4 text-sm">
+                <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
                 <div>
-                  <p className='text-foreground font-medium'>
-                    {t('Passkey not supported on this device')}
+                  <p className="text-foreground font-medium">
+                    {t("Passkey not supported on this device")}
                   </p>
                   <p>
                     {t(
-                      'Use a compatible browser or device with biometric authentication or a security key to register a Passkey.'
+                      "Use a compatible browser or device with biometric authentication or a security key to register a Passkey.",
                     )}
                   </p>
                 </div>
@@ -364,5 +364,5 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
         onMethodChange={switchMethod}
       />
     </>
-  )
+  );
 }

@@ -16,14 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/(auth)/register')({
+export const Route = createFileRoute("/(auth)/register")({
   beforeLoad: ({ location }) => {
     throw redirect({
-      to: '/sign-up',
+      to: "/sign-up",
       search: location.search,
       replace: true,
-    })
+    });
   },
-})
+});

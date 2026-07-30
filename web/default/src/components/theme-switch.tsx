@@ -16,64 +16,64 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Check, Moon, Sun } from 'lucide-react'
-import { useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Check, Moon, Sun } from "lucide-react";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { useTheme } from '@/context/theme-provider'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "@/context/theme-provider";
+import { cn } from "@/lib/utils";
 
 export function ThemeSwitch() {
-  const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
+  const { t } = useTranslation();
+  const { theme, setTheme } = useTheme();
 
   /* Update theme-color meta tag
    * when theme is updated */
   useEffect(() => {
-    const themeColor = theme === 'dark' ? '#020817' : '#fff'
-    const metaThemeColor = document.querySelector("meta[name='theme-color']")
-    if (metaThemeColor) metaThemeColor.setAttribute('content', themeColor)
-  }, [theme])
+    const themeColor = theme === "dark" ? "#020817" : "#fff";
+    const metaThemeColor = document.querySelector("meta[name='theme-color']");
+    if (metaThemeColor) metaThemeColor.setAttribute("content", themeColor);
+  }, [theme]);
 
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        render={<Button variant='ghost' size='icon' className='h-9 w-9' />}
+        render={<Button variant="ghost" size="icon" className="h-9 w-9" />}
       >
-        <Sun className='size-[1.2rem] scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90' />
-        <Moon className='absolute size-[1.2rem] scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0' />
-        <span className='sr-only'>{t('Toggle theme')}</span>
+        <Sun className="size-[1.2rem] scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90" />
+        <Moon className="absolute size-[1.2rem] scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0" />
+        <span className="sr-only">{t("Toggle theme")}</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          {t('Light')}{' '}
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          {t("Light")}{" "}
           <Check
             size={14}
-            className={cn('ms-auto', theme !== 'light' && 'hidden')}
+            className={cn("ms-auto", theme !== "light" && "hidden")}
           />
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          {t('Dark')}
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          {t("Dark")}
           <Check
             size={14}
-            className={cn('ms-auto', theme !== 'dark' && 'hidden')}
+            className={cn("ms-auto", theme !== "dark" && "hidden")}
           />
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          {t('System')}
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          {t("System")}
           <Check
             size={14}
-            className={cn('ms-auto', theme !== 'system' && 'hidden')}
+            className={cn("ms-auto", theme !== "system" && "hidden")}
           />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

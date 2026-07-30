@@ -16,18 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from "react-i18next";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
-import type { MultiKeyConfirmAction } from '../../types'
+import type { MultiKeyConfirmAction } from "../../types";
 
 type MultiKeyTableRowActionsProps = {
-  keyIndex: number
-  status: number
-  canDelete: boolean
-  onAction: (action: MultiKeyConfirmAction) => void
-}
+  keyIndex: number;
+  status: number;
+  canDelete: boolean;
+  onAction: (action: MultiKeyConfirmAction) => void;
+};
 
 export function MultiKeyTableRowActions({
   keyIndex,
@@ -35,42 +35,42 @@ export function MultiKeyTableRowActions({
   canDelete,
   onAction,
 }: MultiKeyTableRowActionsProps) {
-  const { t } = useTranslation()
-  const isEnabled = status === 1
+  const { t } = useTranslation();
+  const isEnabled = status === 1;
 
   return (
-    <div className='flex justify-end gap-2'>
+    <div className="flex justify-end gap-2">
       {isEnabled ? (
         <Button
-          variant='outline'
-          size='sm'
-          onClick={() => onAction({ type: 'disable', keyIndex })}
+          variant="outline"
+          size="sm"
+          onClick={() => onAction({ type: "disable", keyIndex })}
         >
-          {t('Disable')}
+          {t("Disable")}
         </Button>
       ) : (
         <Button
-          variant='outline'
-          size='sm'
-          onClick={() => onAction({ type: 'enable', keyIndex })}
+          variant="outline"
+          size="sm"
+          onClick={() => onAction({ type: "enable", keyIndex })}
         >
-          {t('Enable')}
+          {t("Enable")}
         </Button>
       )}
       <Button
-        variant='destructive'
-        size='sm'
+        variant="destructive"
+        size="sm"
         onClick={() => {
-          if (!canDelete) return
-          onAction({ type: 'delete', keyIndex })
+          if (!canDelete) return;
+          onAction({ type: "delete", keyIndex });
         }}
         disabled={!canDelete}
         title={
-          canDelete ? undefined : t('No permission to perform this action')
+          canDelete ? undefined : t("No permission to perform this action")
         }
       >
-        {t('Delete')}
+        {t("Delete")}
       </Button>
     </div>
-  )
+  );
 }

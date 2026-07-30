@@ -27,14 +27,6 @@ echo "==> building web default (v${VERSION})"
   DISABLE_ESLINT_PLUGIN=true VITE_REACT_APP_VERSION="$VERSION" bun run build
 )
 
-echo "==> building web classic"
-(
-  cd web
-  bun install --filter ./classic --frozen-lockfile
-  cd classic
-  VITE_REACT_APP_VERSION="$VERSION" bun run build
-)
-
 echo "==> building go binary"
 go mod download
 go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=${VERSION}'" -o new-api .

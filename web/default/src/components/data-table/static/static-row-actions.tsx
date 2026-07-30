@@ -16,32 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuShortcut,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 
-import { DataTableRowActionMenu } from '../core/row-action-menu'
+import { DataTableRowActionMenu } from "../core/row-action-menu";
 
 type StaticRowActionsProps = {
-  editLabel: string
-  deleteLabel: string
-  menuLabel: string
-  onEdit: () => void
-  onDelete: () => void
-  editDisabled?: boolean
-  deleteDisabled?: boolean
-}
+  editLabel: string;
+  deleteLabel: string;
+  menuLabel: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  editDisabled?: boolean;
+  deleteDisabled?: boolean;
+};
 
 export function StaticRowActions(props: StaticRowActionsProps) {
   return (
-    <div className='flex justify-end gap-1'>
+    <div className="flex justify-end gap-1">
       <Button
-        variant='ghost'
-        size='icon-sm'
+        variant="ghost"
+        size="icon-sm"
         onClick={props.onEdit}
         disabled={props.editDisabled}
         aria-label={props.editLabel}
@@ -52,7 +52,7 @@ export function StaticRowActions(props: StaticRowActionsProps) {
         <DropdownMenuItem
           onClick={props.onDelete}
           disabled={props.deleteDisabled}
-          className='text-destructive focus:text-destructive'
+          className="text-destructive focus:text-destructive"
         >
           {props.deleteLabel}
           <DropdownMenuShortcut>
@@ -61,5 +61,5 @@ export function StaticRowActions(props: StaticRowActionsProps) {
         </DropdownMenuItem>
       </DataTableRowActionMenu>
     </div>
-  )
+  );
 }
