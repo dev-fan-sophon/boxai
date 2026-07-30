@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,25 @@ func newTestClient(t *testing.T, handler http.Handler) *Client {
 		baseURL:    server.URL,
 		httpClient: &http.Client{Timeout: 5 * time.Second},
 	}
+}
+
+func phaseFromPath(path string) string {
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		if part == "phases" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return ""
+}
+
+func keysOf(m map[string]json.RawMessage) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func writeResult(t *testing.T, w http.ResponseWriter, result any) {
@@ -63,10 +84,15 @@ func TestApplyProtectionProfilePreservesOperatorRules(t *testing.T) {
 		case r.Method == http.MethodPut:
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			var payload ruleset
+			var payload map[string]json.RawMessage
 			require.NoError(t, json.Unmarshal(body, &payload))
-			submitted[payload.Phase] = payload
-			writeResult(t, w, payload)
+			// The entry point endpoint identifies the ruleset by URL and
+			// rejects a body that repeats its name, kind or phase.
+			assert.Equal(t, []string{"rules"}, keysOf(payload))
+			var parsed ruleset
+			require.NoError(t, json.Unmarshal(body, &parsed))
+			submitted[phaseFromPath(r.URL.Path)] = parsed
+			writeResult(t, w, parsed)
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -115,7 +141,7 @@ func TestApplyProtectionProfileRemovesManagedRulesWhenDisabled(t *testing.T) {
 		require.NoError(t, err)
 		var payload ruleset
 		require.NoError(t, json.Unmarshal(body, &payload))
-		submitted[payload.Phase] = payload
+		submitted[phaseFromPath(r.URL.Path)] = payload
 		writeResult(t, w, payload)
 	})
 

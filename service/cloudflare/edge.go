@@ -106,7 +106,6 @@ func (r Rule) Managed() bool {
 type ruleset struct {
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name,omitempty"`
-	Kind  string `json:"kind,omitempty"`
 	Phase string `json:"phase,omitempty"`
 	Rules []Rule `json:"rules"`
 }
@@ -290,12 +289,9 @@ func (c *Client) replaceManagedRules(ctx context.Context, phase string, managed 
 	}
 	kept = append(kept, managed...)
 
-	payload := ruleset{
-		Name:  "BoxAI edge protection",
-		Kind:  "zone",
-		Phase: phase,
-		Rules: kept,
-	}
+	// The entry point endpoint derives the ruleset identity from the URL and
+	// rejects a body that restates it, so only the rules may be sent.
+	payload := map[string]any{"rules": kept}
 	return c.request(ctx, http.MethodPut, c.zonePath("/rulesets/phases/"+phase+"/entrypoint"), payload, nil)
 }
 
