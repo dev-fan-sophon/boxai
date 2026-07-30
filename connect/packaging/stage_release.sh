@@ -42,15 +42,23 @@ mkdir -p "$STAGE"
 # the new name. The download page would then serve the old app while the updater shipped
 # the new one. Staging nothing is recoverable; staging the wrong build silently is not.
 first_match() {
-  local pattern hit
+  local pattern hit saved_ifs="$IFS"
+  # Split only on newlines. The product name contains a space, so the default IFS would
+  # tear "BoxAI Connect.app.tar.gz" into two words and match neither — staging the .dmg
+  # but silently skipping the updater artifact, which ships a release that downloads fine
+  # and can never auto-update. Unquoted $pattern still globs; only the splitting changes.
+  IFS=$'\n'
   for pattern in "$@"; do
     # shellcheck disable=SC2086
-    hit="$(ls $pattern 2>/dev/null | head -1)"
-    if [ -n "$hit" ]; then
-      echo "$hit"
-      return 0
-    fi
+    for hit in $pattern; do
+      if [ -e "$hit" ]; then
+        IFS="$saved_ifs"
+        printf '%s\n' "$hit"
+        return 0
+      fi
+    done
   done
+  IFS="$saved_ifs"
 }
 
 # Copy a build output under its stable name, plus its updater signature when tauri produced
