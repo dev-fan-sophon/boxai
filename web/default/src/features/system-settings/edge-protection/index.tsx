@@ -71,6 +71,7 @@ export function EdgeProtectionSection() {
                 firewallRules={status.firewall_rules ?? []}
                 credentialEndpoints={status.credential_endpoints ?? []}
                 ratePeriods={status.rate_periods ?? []}
+                ruleActions={status.rule_actions ?? []}
                 zoneName={status.zone_name ?? ''}
               />
             </>

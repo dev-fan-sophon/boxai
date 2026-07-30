@@ -54,7 +54,14 @@ var credentialEndpoints = []string{
 }
 
 // ratePeriods are the sliding windows Cloudflare accepts for a rate limit rule.
+// A zone's plan narrows this further, and Cloudflare reports which values it
+// will accept when a rule is rejected.
 var ratePeriods = []int{10, 60, 120, 300, 600, 3600}
+
+// ruleActions are the mitigations a rule may take. Which ones a zone may use
+// depends on its plan, so the choice is left to the administrator rather than
+// fixed here: the free plan, for instance, only blocks.
+var ruleActions = []string{"managed_challenge", "js_challenge", "challenge", "block", "log"}
 
 type Zone struct {
 	Name string `json:"name"`
@@ -116,8 +123,10 @@ type ProtectionProfile struct {
 	RateLimitEnabled  bool     `json:"rate_limit_enabled"`
 	RateLimitRequests int      `json:"rate_limit_requests"`
 	RateLimitPeriod   int      `json:"rate_limit_period"`
+	RateLimitAction   string   `json:"rate_limit_action"`
 	ChallengeEnabled  bool     `json:"challenge_enabled"`
 	ChallengeHosts    []string `json:"challenge_hosts"`
+	ChallengeAction   string   `json:"challenge_action"`
 }
 
 func (p ProtectionProfile) Validate() error {
@@ -128,9 +137,17 @@ func (p ProtectionProfile) Validate() error {
 		if !containsInt(ratePeriods, p.RateLimitPeriod) {
 			return fmt.Errorf("rate limit period must be one of %v seconds", ratePeriods)
 		}
+		if !containsString(ruleActions, p.rateLimitAction()) {
+			return fmt.Errorf("rate limit action must be one of %v", ruleActions)
+		}
 	}
-	if p.ChallengeEnabled && len(p.ChallengeHosts) == 0 {
-		return errors.New("select at least one hostname to challenge")
+	if p.ChallengeEnabled {
+		if len(p.ChallengeHosts) == 0 {
+			return errors.New("select at least one hostname to challenge")
+		}
+		if !containsString(ruleActions, p.challengeAction()) {
+			return fmt.Errorf("challenge action must be one of %v", ruleActions)
+		}
 	}
 	for _, host := range p.ChallengeHosts {
 		if strings.ContainsAny(host, "\"\\ ") || strings.TrimSpace(host) == "" {
@@ -138,6 +155,20 @@ func (p ProtectionProfile) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (p ProtectionProfile) rateLimitAction() string {
+	if p.RateLimitAction == "" {
+		return "managed_challenge"
+	}
+	return p.RateLimitAction
+}
+
+func (p ProtectionProfile) challengeAction() string {
+	if p.ChallengeAction == "" {
+		return "managed_challenge"
+	}
+	return p.ChallengeAction
 }
 
 func (c *Client) GetZone(ctx context.Context) (*Zone, error) {
@@ -244,7 +275,7 @@ func (c *Client) ApplyProtectionProfile(ctx context.Context, profile ProtectionP
 		rateLimitRules = append(rateLimitRules, Rule{
 			Description: managedRuleTag + " credential endpoint rate limit",
 			Expression:  "(" + pathExpression + ")",
-			Action:      "managed_challenge",
+			Action:      profile.rateLimitAction(),
 			Enabled:     true,
 			RateLimit: &RuleRateLimit{
 				Characteristics:   []string{"ip.src", "cf.colo.id"},
@@ -264,7 +295,7 @@ func (c *Client) ApplyProtectionProfile(ctx context.Context, profile ProtectionP
 			Description: managedRuleTag + " challenge credential endpoints",
 			Expression: fmt.Sprintf("(http.host in {%s} and %s)",
 				quoteList(profile.ChallengeHosts), pathExpression),
-			Action:  "managed_challenge",
+			Action:  profile.challengeAction(),
 			Enabled: true,
 		})
 	}
@@ -305,6 +336,10 @@ func RatePeriods() []int {
 	return append([]int(nil), ratePeriods...)
 }
 
+func RuleActions() []string {
+	return append([]string(nil), ruleActions...)
+}
+
 func quoteList(values []string) string {
 	quoted := make([]string, 0, len(values))
 	for _, value := range values {
@@ -314,6 +349,15 @@ func quoteList(values []string) string {
 }
 
 func containsInt(values []int, target int) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
 			return true

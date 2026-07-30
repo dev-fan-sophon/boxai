@@ -57,14 +57,17 @@ export type CloudflareStatus = {
   firewall_rules?: CloudflareRule[]
   credential_endpoints?: string[]
   rate_periods?: number[]
+  rule_actions?: string[]
 }
 
 export type CloudflareProtectionProfile = {
   rate_limit_enabled: boolean
   rate_limit_requests: number
   rate_limit_period: number
+  rate_limit_action: string
   challenge_enabled: boolean
   challenge_hosts: string[]
+  challenge_action: string
 }
 
 type ApiEnvelope<T> = {

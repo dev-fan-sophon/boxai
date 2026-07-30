@@ -50,8 +50,10 @@ const protectionSchema = z.object({
   rate_limit_enabled: z.boolean(),
   rate_limit_requests: z.number().int().min(1).max(1_000_000),
   rate_limit_period: z.number().int(),
+  rate_limit_action: z.string(),
   challenge_enabled: z.boolean(),
   challenge_hosts: z.string(),
+  challenge_action: z.string(),
 })
 
 type ProtectionFormValues = z.infer<typeof protectionSchema>
@@ -61,7 +63,16 @@ type ProtectionRulesCardProps = {
   firewallRules: CloudflareRule[]
   credentialEndpoints: string[]
   ratePeriods: number[]
+  ruleActions: string[]
   zoneName: string
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  managed_challenge: 'Managed challenge',
+  js_challenge: 'JavaScript challenge',
+  challenge: 'Interactive challenge',
+  block: 'Block',
+  log: 'Log only',
 }
 
 function managedRule(rules: CloudflareRule[]) {
@@ -94,10 +105,12 @@ export function ProtectionRulesCard(props: ProtectionRulesCardProps) {
       rate_limit_requests:
         currentRateLimit?.ratelimit?.requests_per_period ?? 10,
       rate_limit_period: currentRateLimit?.ratelimit?.period ?? 60,
+      rate_limit_action: currentRateLimit?.action ?? 'managed_challenge',
       challenge_enabled: Boolean(currentChallenge),
       challenge_hosts: currentChallenge
         ? hostsFromExpression(currentChallenge.expression)
         : props.zoneName,
+      challenge_action: currentChallenge?.action ?? 'managed_challenge',
     },
   })
 
@@ -106,11 +119,13 @@ export function ProtectionRulesCard(props: ProtectionRulesCardProps) {
       rate_limit_enabled: values.rate_limit_enabled,
       rate_limit_requests: values.rate_limit_requests,
       rate_limit_period: values.rate_limit_period,
+      rate_limit_action: values.rate_limit_action,
       challenge_enabled: values.challenge_enabled,
       challenge_hosts: values.challenge_hosts
         .split(/[\n,]/)
         .map((host) => host.trim())
         .filter((host) => host !== ''),
+      challenge_action: values.challenge_action,
     }
     apply.mutate(profile)
   }
@@ -214,6 +229,30 @@ export function ProtectionRulesCard(props: ProtectionRulesCardProps) {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name='rate_limit_action'
+                  render={({ field }) => (
+                    <FormItem className='sm:col-span-2'>
+                      <FormLabel>{t('Mitigation')}</FormLabel>
+                      <FormControl>
+                        <NativeSelect className='w-full' {...field}>
+                          {props.ruleActions.map((action) => (
+                            <NativeSelectOption key={action} value={action}>
+                              {t(ACTION_LABELS[action] ?? action)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Which mitigations a zone may use depends on its Cloudflare plan; the free plan only blocks.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             )}
 
@@ -241,28 +280,49 @@ export function ProtectionRulesCard(props: ProtectionRulesCardProps) {
             />
 
             {form.watch('challenge_enabled') && (
-              <FormField
-                control={form.control}
-                name='challenge_hosts'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Hostnames to challenge')}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        rows={3}
-                        className='font-mono text-sm'
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'One hostname per line. List only the hosts that serve the browser console.'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className='flex flex-col gap-4'>
+                <FormField
+                  control={form.control}
+                  name='challenge_hosts'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Hostnames to challenge')}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          rows={3}
+                          className='font-mono text-sm'
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'One hostname per line. List only the hosts that serve the browser console.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='challenge_action'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Mitigation')}</FormLabel>
+                      <FormControl>
+                        <NativeSelect className='w-full' {...field}>
+                          {props.ruleActions.map((action) => (
+                            <NativeSelectOption key={action} value={action}>
+                              {t(ACTION_LABELS[action] ?? action)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             )}
 
             <div>

@@ -98,6 +98,7 @@ func GetCloudflareStatus(c *gin.Context) {
 		"firewall_rules":       firewallRules,
 		"credential_endpoints": cloudflare.CredentialEndpoints(),
 		"rate_periods":         cloudflare.RatePeriods(),
+		"rule_actions":         cloudflare.RuleActions(),
 	})
 }
 

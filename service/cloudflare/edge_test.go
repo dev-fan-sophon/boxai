@@ -103,6 +103,7 @@ func TestApplyProtectionProfilePreservesOperatorRules(t *testing.T) {
 		RateLimitEnabled:  true,
 		RateLimitRequests: 10,
 		RateLimitPeriod:   60,
+		RateLimitAction:   "block",
 		ChallengeEnabled:  true,
 		ChallengeHosts:    []string{"console.example.com"},
 	})
@@ -111,7 +112,9 @@ func TestApplyProtectionProfilePreservesOperatorRules(t *testing.T) {
 	rateLimit := submitted[rateLimitPhase]
 	require.Len(t, rateLimit.Rules, 2)
 	assert.Equal(t, operatorRule.Description, rateLimit.Rules[0].Description)
-	assert.Equal(t, "managed_challenge", rateLimit.Rules[1].Action)
+	// The free plan only permits blocking, so the action has to follow the
+	// profile rather than a value fixed in the code.
+	assert.Equal(t, "block", rateLimit.Rules[1].Action)
 	require.NotNil(t, rateLimit.Rules[1].RateLimit)
 	assert.Equal(t, 10, rateLimit.Rules[1].RateLimit.RequestsPerPeriod)
 	assert.Equal(t, 60, rateLimit.Rules[1].RateLimit.Period)
@@ -208,6 +211,11 @@ func TestProtectionProfileValidate(t *testing.T) {
 			name:    "hostname with a quote would break the rule expression",
 			profile: ProtectionProfile{ChallengeEnabled: true, ChallengeHosts: []string{`a" or true or "`}},
 			wantErr: "invalid hostname",
+		},
+		{
+			name:    "unknown mitigation",
+			profile: ProtectionProfile{RateLimitEnabled: true, RateLimitRequests: 10, RateLimitPeriod: 60, RateLimitAction: "destroy"},
+			wantErr: "rate limit action must be one of",
 		},
 		{
 			name:    "valid profile",
