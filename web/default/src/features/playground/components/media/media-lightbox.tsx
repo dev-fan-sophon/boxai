@@ -107,73 +107,82 @@ export function MediaLightbox(props: MediaLightboxProps) {
       <DialogContent
         showCloseButton={false}
         className={cn(
-          'top-0 left-0 h-dvh w-screen max-w-none translate-x-0 translate-y-0',
-          'flex flex-col rounded-none border-0 bg-black/90 p-0 ring-0'
+          'top-0 left-0 h-dvh w-screen max-w-none translate-x-0 translate-y-0 sm:max-w-none',
+          'block rounded-none border-0 bg-black/70 p-0 ring-0',
+          'supports-backdrop-filter:bg-black/50 supports-backdrop-filter:backdrop-blur-lg'
         )}
       >
         <DialogTitle className='sr-only'>
           {item.alt || t('Image preview')}
         </DialogTitle>
 
-        <div className='flex items-center justify-between gap-2 px-3 pt-3 sm:px-4'>
-          <span className='text-xs text-white/60 tabular-nums'>
-            {count > 1 ? `${index + 1} / ${count}` : ''}
-          </span>
-          <Button
-            size='icon'
-            variant='ghost'
-            className='text-white/80 hover:bg-white/10 hover:text-white'
-            aria-label={t('Close')}
-            onClick={() => props.onOpenChange(false)}
-          >
-            <X className='size-5' />
-          </Button>
+        <div
+          className='flex h-full w-full items-center justify-center p-4 pb-24 sm:p-12 sm:pb-28'
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              props.onOpenChange(false)
+            }
+          }}
+        >
+          <img
+            key={item.url}
+            src={item.url}
+            alt={item.alt || t('Image preview')}
+            className='max-h-full max-w-full rounded-lg object-contain shadow-2xl select-none'
+            referrerPolicy='no-referrer'
+            draggable={false}
+          />
         </div>
 
-        <div className='relative flex min-h-0 flex-1 items-center justify-center px-3 sm:px-14'>
-          {count > 1 && (
+        {count > 1 && (
+          <span className='absolute top-4 left-4 rounded-full bg-black/50 px-2.5 py-1 text-xs text-white/90 tabular-nums backdrop-blur-sm'>
+            {index + 1} / {count}
+          </span>
+        )}
+        <Button
+          size='icon'
+          variant='ghost'
+          className='absolute top-3 right-3 rounded-full bg-black/50 text-white/90 backdrop-blur-sm hover:bg-black/70 hover:text-white'
+          aria-label={t('Close')}
+          onClick={() => props.onOpenChange(false)}
+        >
+          <X className='size-5' />
+        </Button>
+
+        {count > 1 && (
+          <>
             <Button
               size='icon'
               variant='ghost'
-              className='absolute left-2 z-10 text-white/80 hover:bg-white/10 hover:text-white sm:left-4'
+              className='absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm hover:bg-black/70 hover:text-white sm:left-5'
               aria-label={t('Previous image')}
               onClick={() => props.onIndexChange((index - 1 + count) % count)}
             >
               <ChevronLeft className='size-6' />
             </Button>
-          )}
-          <img
-            key={item.url}
-            src={item.url}
-            alt={item.alt || t('Image preview')}
-            className='max-h-full max-w-full object-contain select-none'
-            referrerPolicy='no-referrer'
-            draggable={false}
-          />
-          {count > 1 && (
             <Button
               size='icon'
               variant='ghost'
-              className='absolute right-2 z-10 text-white/80 hover:bg-white/10 hover:text-white sm:right-4'
+              className='absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm hover:bg-black/70 hover:text-white sm:right-5'
               aria-label={t('Next image')}
               onClick={() => props.onIndexChange((index + 1) % count)}
             >
               <ChevronRight className='size-6' />
             </Button>
-          )}
-        </div>
+          </>
+        )}
 
-        <div className='flex flex-col gap-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-6'>
+        <div className='pointer-events-none absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-2 px-4'>
           {item.caption && (
-            <p className='mx-auto line-clamp-2 max-w-2xl text-center text-xs text-pretty text-white/70'>
+            <p className='pointer-events-auto line-clamp-2 max-w-2xl rounded-lg bg-black/40 px-3 py-1 text-center text-xs text-pretty text-white/80 backdrop-blur-sm'>
               {item.caption}
             </p>
           )}
-          <div className='flex flex-wrap items-center justify-center gap-2'>
+          <div className='pointer-events-auto flex flex-wrap items-center justify-center gap-1 rounded-full bg-black/60 p-1.5 shadow-lg backdrop-blur-md'>
             <Button
               size='sm'
-              variant='secondary'
-              className='bg-white/10 text-white hover:bg-white/20'
+              variant='ghost'
+              className='rounded-full text-white hover:bg-white/15 hover:text-white'
               disabled={downloading}
               onClick={() => void download()}
             >
@@ -183,8 +192,8 @@ export function MediaLightbox(props: MediaLightboxProps) {
             {canOpenOriginal && (
               <Button
                 size='sm'
-                variant='secondary'
-                className='bg-white/10 text-white hover:bg-white/20'
+                variant='ghost'
+                className='rounded-full text-white hover:bg-white/15 hover:text-white'
                 onClick={() => window.open(item.url, '_blank', 'noopener')}
               >
                 <ExternalLink className='size-4' />

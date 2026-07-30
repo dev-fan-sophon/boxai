@@ -444,6 +444,7 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 	switch info.RelayMode {
 	case relayconstant.RelayModeImagesEdits:
 		if isJSONRequest(c) {
+			normalizeJSONImageEditReferences(&request)
 			return request, nil
 		}
 
@@ -579,6 +580,57 @@ func isJSONRequest(c *gin.Context) bool {
 		return false
 	}
 	return strings.HasPrefix(c.Request.Header.Get("Content-Type"), "application/json")
+}
+
+// normalizeJSONImageEditReferences rewrites reference entries of a JSON image
+// edit request into the `{"image_url": ...}` object form that JSON-edits
+// upstreams require. Clients speaking the flat GPT images shape send plain
+// string entries (data URLs or http URLs); those get wrapped, while object
+// entries pass through untouched. A singular `image` value is folded into
+// `images` when no usable array entry was provided.
+func normalizeJSONImageEditReferences(request *dto.ImageRequest) {
+	entries := make([]json.RawMessage, 0, 2)
+	if common.GetJsonType(request.Images) == "array" {
+		var rawEntries []json.RawMessage
+		if err := common.Unmarshal(request.Images, &rawEntries); err != nil {
+			return
+		}
+		entries = append(entries, rawEntries...)
+	}
+	if len(entries) == 0 && len(bytes.TrimSpace(request.Image)) > 0 {
+		entries = append(entries, request.Image)
+	}
+
+	normalized := make([]json.RawMessage, 0, len(entries))
+	for _, entry := range entries {
+		if common.GetJsonType(entry) != "string" {
+			normalized = append(normalized, entry)
+			continue
+		}
+		var value string
+		if err := common.Unmarshal(entry, &value); err != nil {
+			normalized = append(normalized, entry)
+			continue
+		}
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		wrapped, err := common.Marshal(map[string]string{"image_url": value})
+		if err != nil {
+			normalized = append(normalized, entry)
+			continue
+		}
+		normalized = append(normalized, wrapped)
+	}
+	if len(normalized) == 0 {
+		return
+	}
+
+	images, err := common.Marshal(normalized)
+	if err != nil {
+		return
+	}
+	request.Images = images
 }
 
 // detectImageMimeType determines the MIME type based on the file extension

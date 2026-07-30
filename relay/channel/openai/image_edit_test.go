@@ -2,6 +2,7 @@ package openai
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -94,5 +95,63 @@ func TestConvertImageEditRequestMultipart(t *testing.T) {
 		c.Request.PostForm = nil
 
 		convertAndReplay(t, c, prompt)
+	})
+}
+
+// TestConvertImageEditRequestJSONReferences verifies that JSON image edit
+// requests carry references as `{"image_url": ...}` objects when forwarded
+// upstream: plain string entries get wrapped, object entries pass through,
+// and a singular `image` string is folded into `images` when the array is
+// absent. JSON-edits upstreams reject bare string entries with
+// "images[].image_url is required".
+func TestConvertImageEditRequestJSONReferences(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newJSONContext := func(t *testing.T) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", bytes.NewReader(nil))
+		c.Request.Header.Set("Content-Type", "application/json")
+		return c
+	}
+
+	convert := func(t *testing.T, request dto.ImageRequest) dto.ImageRequest {
+		info := &relaycommon.RelayInfo{RelayMode: relayconstant.RelayModeImagesEdits}
+		converted, err := (&Adaptor{}).ConvertImageRequest(newJSONContext(t), info, request)
+		require.NoError(t, err)
+		result, ok := converted.(dto.ImageRequest)
+		require.True(t, ok)
+		return result
+	}
+
+	t.Run("wraps string entries and keeps object entries", func(t *testing.T) {
+		result := convert(t, dto.ImageRequest{
+			Model:  "gpt-image-2",
+			Prompt: "make it red",
+			Image:  json.RawMessage(`"data:image/png;base64,AAA"`),
+			Images: json.RawMessage(`["data:image/png;base64,AAA",{"image_url":"https://example.com/b.png"},""]`),
+		})
+		require.JSONEq(t,
+			`[{"image_url":"data:image/png;base64,AAA"},{"image_url":"https://example.com/b.png"}]`,
+			string(result.Images))
+	})
+
+	t.Run("folds singular image string into images", func(t *testing.T) {
+		result := convert(t, dto.ImageRequest{
+			Model:  "gpt-image-2",
+			Prompt: "make it red",
+			Image:  json.RawMessage(`"https://example.com/a.png"`),
+		})
+		require.JSONEq(t,
+			`[{"image_url":"https://example.com/a.png"}]`,
+			string(result.Images))
+	})
+
+	t.Run("leaves reference-free requests untouched", func(t *testing.T) {
+		result := convert(t, dto.ImageRequest{
+			Model:  "gpt-image-2",
+			Prompt: "generate",
+		})
+		require.Empty(t, result.Images)
+		require.Empty(t, result.Image)
 	})
 }

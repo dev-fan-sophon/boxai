@@ -159,8 +159,8 @@ export function StudioFeed(props: StudioFeedProps) {
             ? (item) => (
                 <Button
                   size='sm'
-                  variant='secondary'
-                  className='bg-white/10 text-white hover:bg-white/20'
+                  variant='ghost'
+                  className='rounded-full text-white hover:bg-white/15 hover:text-white'
                   onClick={() => {
                     props.onUseAsReference?.({ url: item.url })
                     setLightbox(null)
