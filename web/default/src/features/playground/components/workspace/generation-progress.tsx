@@ -111,6 +111,38 @@ export function GenerationProgress(props: GenerationProgressProps) {
     ? Math.min(100, Math.max(0, props.percent as number))
     : null
   const elapsedLabel = formatElapsed(elapsedMs)
+  const statusText = t(statuses[statusIndex] ?? statuses[0])
+
+  // Image tiles carry their own status, so the feed stays a row of thumbnails
+  // instead of a thumbnail plus a separate progress panel under it.
+  if (props.modality === 'image') {
+    return (
+      <div
+        className={cn(
+          'generation-progress-enter flex w-full flex-wrap items-start gap-3',
+          props.className
+        )}
+        role='status'
+        aria-live='polite'
+        aria-label={t('Generating… {{elapsed}}', { elapsed: elapsedLabel })}
+      >
+        {(['slot-a', 'slot-b', 'slot-c', 'slot-d'] as const)
+          .slice(0, count)
+          .map((id, i) => (
+            <ImagePlaceholder
+              key={id}
+              delayMs={shouldReduce ? 0 : i * 80}
+              reduceMotion={Boolean(shouldReduce)}
+              ratio={sizeMeta.ratio}
+              sizeLabel={sizeMeta.label}
+              statusText={statusText}
+              elapsedLabel={elapsedLabel}
+              percent={softPercent}
+            />
+          ))}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -122,22 +154,6 @@ export function GenerationProgress(props: GenerationProgressProps) {
       aria-live='polite'
       aria-label={t('Generating… {{elapsed}}', { elapsed: elapsedLabel })}
     >
-      {props.modality === 'image' && (
-        <div className='flex w-full flex-wrap items-start gap-3'>
-          {(['slot-a', 'slot-b', 'slot-c', 'slot-d'] as const)
-            .slice(0, count)
-            .map((id, i) => (
-              <ImagePlaceholder
-                key={id}
-                delayMs={shouldReduce ? 0 : i * 80}
-                reduceMotion={Boolean(shouldReduce)}
-                ratio={sizeMeta.ratio}
-                sizeLabel={sizeMeta.label}
-              />
-            ))}
-        </div>
-      )}
-
       {props.modality === 'video' && (
         <VideoPlaceholder reduceMotion={Boolean(shouldReduce)} />
       )}
@@ -166,7 +182,7 @@ export function GenerationProgress(props: GenerationProgressProps) {
               transition={MOTION_TRANSITION.fast}
             >
               <Shimmer className='text-sm font-medium' duration={2.4}>
-                {t(statuses[statusIndex] ?? statuses[0])}
+                {statusText}
               </Shimmer>
             </motion.div>
           </AnimatePresence>
@@ -186,11 +202,6 @@ export function GenerationProgress(props: GenerationProgressProps) {
             </span>
             <span className='sr-only'>{t('Elapsed time')}</span>
           </span>
-          {sizeMeta.label && props.modality === 'image' && (
-            <span className='bg-muted/80 text-muted-foreground rounded-full px-2 py-0.5 font-mono text-[11px]'>
-              {sizeMeta.label}
-            </span>
-          )}
           {softPercent !== null && (
             <span className='font-medium'>{Math.round(softPercent)}%</span>
           )}
@@ -237,8 +248,13 @@ export function ImagePlaceholder(props: {
   reduceMotion: boolean
   ratio: number
   sizeLabel: string | null
+  /** Rotating status copy shown inside the tile while generating */
+  statusText?: string
+  elapsedLabel?: string
+  percent?: number | null
   className?: string
 }) {
+  const { t } = useTranslation()
   return (
     <div
       className={cn(
@@ -259,21 +275,74 @@ export function ImagePlaceholder(props: {
           aria-hidden='true'
         />
       )}
-      <div className='absolute inset-0 flex flex-col items-center justify-center gap-2'>
+      <div className='absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center'>
         <div
           className={cn(
-            'bg-background/40 text-muted-foreground flex size-14 items-center justify-center rounded-full backdrop-blur-sm',
+            'bg-background/40 text-muted-foreground flex size-11 items-center justify-center rounded-full backdrop-blur-sm',
             !props.reduceMotion && 'generation-orb-pulse'
           )}
         >
-          <ImageIcon className='size-6 opacity-70' aria-hidden='true' />
+          <ImageIcon className='size-5 opacity-70' aria-hidden='true' />
         </div>
-        {props.sizeLabel && (
-          <span className='bg-background/55 text-muted-foreground rounded-full px-2.5 py-0.5 font-mono text-[11px] backdrop-blur-sm'>
-            {props.sizeLabel}
-          </span>
+        {props.statusText && (
+          <AnimatePresence mode='wait' initial={false}>
+            <motion.div
+              key={props.statusText}
+              initial={props.reduceMotion ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={props.reduceMotion ? undefined : { opacity: 0, y: -4 }}
+              transition={MOTION_TRANSITION.fast}
+            >
+              <Shimmer className='text-xs font-medium' duration={2.4}>
+                {props.statusText}
+              </Shimmer>
+            </motion.div>
+          </AnimatePresence>
         )}
+        <div className='text-muted-foreground flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] tabular-nums'>
+          {props.elapsedLabel && (
+            <span className='generation-timer inline-flex items-center gap-1.5'>
+              <span
+                className={cn(
+                  'bg-primary size-1.5 rounded-full',
+                  !props.reduceMotion && 'generation-timer-dot'
+                )}
+                aria-hidden='true'
+              />
+              <span className='text-foreground/90 font-medium'>
+                {props.elapsedLabel}
+              </span>
+              <span className='sr-only'>{t('Elapsed time')}</span>
+            </span>
+          )}
+          {props.sizeLabel && (
+            <span className='bg-background/55 text-muted-foreground rounded-full px-2 py-0.5 font-mono backdrop-blur-sm'>
+              {props.sizeLabel}
+            </span>
+          )}
+        </div>
       </div>
+      {props.statusText && (
+        <div className='bg-background/40 absolute inset-x-0 bottom-0 h-1 overflow-hidden'>
+          {typeof props.percent === 'number' ? (
+            // Scale rather than width: the bar ticks every few hundred ms and a
+            // width transition relayouts the whole tile each frame.
+            <div
+              className='bg-primary absolute inset-y-0 left-0 w-full origin-left transition-transform duration-500 ease-out motion-reduce:transition-none'
+              style={{
+                transform: `scaleX(${Math.min(Math.max(props.percent, 0), 100) / 100})`,
+              }}
+            />
+          ) : (
+            <div
+              className={cn(
+                'from-primary/10 via-primary to-primary/10 absolute inset-y-0 w-1/3 bg-gradient-to-r',
+                !props.reduceMotion && 'generation-indeterminate'
+              )}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -353,5 +422,3 @@ export function AudioPlaceholder(props: { reduceMotion: boolean }) {
     </div>
   )
 }
-
-
