@@ -16,170 +16,170 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
-import { CheckCircle2, Laptop, ShieldAlert, XCircle } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
+import { CheckCircle2, Laptop, ShieldAlert, XCircle } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SectionPageLayout } from '@/components/layout'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 
-import { approveDeviceAuth, getDeviceAuthInfo } from "./api";
-import { DeviceAuthOutcome } from "./components/device-auth-outcome";
-import { DeviceAuthRequestCard } from "./components/device-auth-request-card";
+import { approveDeviceAuth, getDeviceAuthInfo } from './api'
+import { DeviceAuthOutcome } from './components/device-auth-outcome'
+import { DeviceAuthRequestCard } from './components/device-auth-request-card'
 
-const routeApi = getRouteApi("/_authenticated/device");
+const routeApi = getRouteApi('/_authenticated/device')
 
 export function DeviceAuthorizePage() {
-  const { t } = useTranslation();
-  const search = routeApi.useSearch();
-  const [userCode, setUserCode] = useState(search.code ?? "");
-  const [submittedCode, setSubmittedCode] = useState(search.code ?? "");
-  const [outcome, setOutcome] = useState<"approved" | "denied" | null>(null);
+  const { t } = useTranslation()
+  const search = routeApi.useSearch()
+  const [userCode, setUserCode] = useState(search.code ?? '')
+  const [submittedCode, setSubmittedCode] = useState(search.code ?? '')
+  const [outcome, setOutcome] = useState<'approved' | 'denied' | null>(null)
 
   const infoQuery = useQuery({
-    queryKey: ["device-auth-info", submittedCode],
+    queryKey: ['device-auth-info', submittedCode],
     queryFn: () => getDeviceAuthInfo(submittedCode),
     enabled: submittedCode.length > 0 && outcome === null,
     retry: false,
     staleTime: 0,
-  });
+  })
 
   const decision = useMutation({
     mutationFn: (approve: boolean) => approveDeviceAuth(submittedCode, approve),
     onSuccess: (res, approve) => {
       if (res.success) {
-        setOutcome(approve ? "approved" : "denied");
+        setOutcome(approve ? 'approved' : 'denied')
       }
     },
-  });
+  })
 
   if (outcome !== null) {
     return (
       <DeviceAuthShell>
         <DeviceAuthOutcome outcome={outcome} />
       </DeviceAuthShell>
-    );
+    )
   }
 
   if (submittedCode.length === 0) {
     return (
       <DeviceAuthShell>
         <form
-          className="flex flex-col gap-4 rounded-xl border p-5"
+          className='flex flex-col gap-4 rounded-xl border p-5'
           onSubmit={(event) => {
-            event.preventDefault();
-            setSubmittedCode(userCode.trim());
+            event.preventDefault()
+            setSubmittedCode(userCode.trim())
           }}
         >
-          <div className="flex items-center gap-2">
-            <Laptop className="size-4" aria-hidden="true" />
-            <h3 className="text-sm font-semibold">
-              {t("Enter the code shown in the desktop app")}
+          <div className='flex items-center gap-2'>
+            <Laptop className='size-4' aria-hidden='true' />
+            <h3 className='text-sm font-semibold'>
+              {t('Enter the code shown in the desktop app')}
             </h3>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="device-user-code">{t("Sign-in code")}</Label>
+          <div className='flex flex-col gap-2'>
+            <Label htmlFor='device-user-code'>{t('Sign-in code')}</Label>
             <Input
-              id="device-user-code"
+              id='device-user-code'
               autoFocus
-              autoComplete="off"
-              placeholder="XXXX-XXXX"
+              autoComplete='off'
+              placeholder='XXXX-XXXX'
               value={userCode}
               onChange={(event) => setUserCode(event.target.value)}
             />
           </div>
-          <Button type="submit" disabled={userCode.trim().length === 0}>
-            {t("Continue")}
+          <Button type='submit' disabled={userCode.trim().length === 0}>
+            {t('Continue')}
           </Button>
         </form>
       </DeviceAuthShell>
-    );
+    )
   }
 
   if (infoQuery.isLoading) {
     return (
       <DeviceAuthShell>
-        <div className="flex flex-col gap-3 rounded-xl border p-5">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-9 w-full" />
+        <div className='flex flex-col gap-3 rounded-xl border p-5'>
+          <Skeleton className='h-5 w-40' />
+          <Skeleton className='h-4 w-64' />
+          <Skeleton className='h-9 w-full' />
         </div>
       </DeviceAuthShell>
-    );
+    )
   }
 
-  const info = infoQuery.data?.success ? infoQuery.data.data : undefined;
+  const info = infoQuery.data?.success ? infoQuery.data.data : undefined
   if (!info) {
     const message =
-      infoQuery.data?.message ?? t("This sign-in code could not be verified");
+      infoQuery.data?.message ?? t('This sign-in code could not be verified')
     return (
       <DeviceAuthShell>
-        <div className="flex flex-col items-start gap-4 rounded-xl border p-5">
-          <div className="flex items-center gap-2">
+        <div className='flex flex-col items-start gap-4 rounded-xl border p-5'>
+          <div className='flex items-center gap-2'>
             <ShieldAlert
-              className="text-destructive size-4"
-              aria-hidden="true"
+              className='text-destructive size-4'
+              aria-hidden='true'
             />
-            <h3 className="text-sm font-semibold">{message}</h3>
+            <h3 className='text-sm font-semibold'>{message}</h3>
           </div>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={() => {
-              setUserCode("");
-              setSubmittedCode("");
+              setUserCode('')
+              setSubmittedCode('')
             }}
           >
-            {t("Try another code")}
+            {t('Try another code')}
           </Button>
         </div>
       </DeviceAuthShell>
-    );
+    )
   }
 
   return (
     <DeviceAuthShell>
       <DeviceAuthRequestCard info={info} />
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className='flex flex-col gap-2 sm:flex-row'>
         <Button
-          type="button"
-          className="gap-1.5"
+          type='button'
+          className='gap-1.5'
           disabled={decision.isPending}
           onClick={() => decision.mutate(true)}
         >
-          <CheckCircle2 className="size-4" aria-hidden="true" />
-          {t("Authorize this device")}
+          <CheckCircle2 className='size-4' aria-hidden='true' />
+          {t('Authorize this device')}
         </Button>
         <Button
-          type="button"
-          variant="outline"
-          className="gap-1.5"
+          type='button'
+          variant='outline'
+          className='gap-1.5'
           disabled={decision.isPending}
           onClick={() => decision.mutate(false)}
         >
-          <XCircle className="size-4" aria-hidden="true" />
-          {t("Deny")}
+          <XCircle className='size-4' aria-hidden='true' />
+          {t('Deny')}
         </Button>
       </div>
     </DeviceAuthShell>
-  );
+  )
 }
 
 function DeviceAuthShell(props: { children: React.ReactNode }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <SectionPageLayout>
-      <SectionPageLayout.Title>{t("Desktop sign-in")}</SectionPageLayout.Title>
+      <SectionPageLayout.Title>{t('Desktop sign-in')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+        <div className='mx-auto flex w-full max-w-xl flex-col gap-5'>
           {props.children}
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
-  );
+  )
 }

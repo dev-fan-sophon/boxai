@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { Resolver } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import * as z from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { Resolver } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import * as z from 'zod'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -30,22 +30,22 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { isAccessibleBrandPrimary } from "@/lib/colors";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { isAccessibleBrandPrimary } from '@/lib/colors'
 
-import { FormDirtyIndicator } from "../components/form-dirty-indicator";
-import { FormNavigationGuard } from "../components/form-navigation-guard";
+import { FormDirtyIndicator } from '../components/form-dirty-indicator'
+import { FormNavigationGuard } from '../components/form-navigation-guard'
 import {
   SettingsForm,
   SettingsFormGrid,
   SettingsFormGridItem,
-} from "../components/settings-form-layout";
-import { SettingsPageFormActions } from "../components/settings-page-context";
-import { SettingsSection } from "../components/settings-section";
-import { useSettingsForm } from "../hooks/use-settings-form";
-import { useUpdateOption } from "../hooks/use-update-option";
+} from '../components/settings-form-layout'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsSection } from '../components/settings-section'
+import { useSettingsForm } from '../hooks/use-settings-form'
+import { useUpdateOption } from '../hooks/use-update-option'
 
 const _systemInfoSchema = z.object({
   SystemName: z.string().min(1),
@@ -62,22 +62,22 @@ const _systemInfoSchema = z.object({
     user_agreement: z.string().optional(),
     privacy_policy: z.string().optional(),
   }),
-});
+})
 
-type SystemInfoFormValues = z.infer<typeof _systemInfoSchema>;
+type SystemInfoFormValues = z.infer<typeof _systemInfoSchema>
 
 type SystemInfoSectionProps = {
-  defaultValues: SystemInfoFormValues;
-};
+  defaultValues: SystemInfoFormValues
+}
 
 function normalizeValue(value: unknown): string {
-  if (value === undefined || value === null) return "";
-  return typeof value === "string" ? value : String(value);
+  if (value === undefined || value === null) return ''
+  return typeof value === 'string' ? value : String(value)
 }
 
 export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
-  const { t } = useTranslation();
-  const updateOption = useUpdateOption();
+  const { t } = useTranslation()
+  const updateOption = useUpdateOption()
 
   const normalizedDefaults: SystemInfoFormValues = {
     SystemName: normalizeValue(defaultValues.SystemName),
@@ -94,21 +94,21 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       user_agreement: normalizeValue(defaultValues.legal?.user_agreement),
       privacy_policy: normalizeValue(defaultValues.legal?.privacy_policy),
     },
-  };
+  }
 
   const systemInfoSchemaWithI18n = z.object({
     SystemName: z.string().min(1, {
-      error: () => t("System name is required"),
+      error: () => t('System name is required'),
     }),
     ServerAddress: z.string().optional(),
     Logo: z
       .string()
       .refine(
         (value) =>
-          !value || value.startsWith("/") || z.url().safeParse(value).success,
+          !value || value.startsWith('/') || z.url().safeParse(value).success,
         {
-          error: () => t("Enter an absolute URL or a root-relative path"),
-        },
+          error: () => t('Enter an absolute URL or a root-relative path'),
+        }
       ),
     branding: z.object({
       favicon_url: z
@@ -116,22 +116,22 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         .refine(
           (value) =>
             !value ||
-            (value.startsWith("/") && !value.startsWith("//")) ||
+            (value.startsWith('/') && !value.startsWith('//')) ||
             z.httpUrl().safeParse(value).success,
           {
-            error: () => t("Enter an absolute URL or a root-relative path"),
-          },
+            error: () => t('Enter an absolute URL or a root-relative path'),
+          }
         ),
       primary_color: z
         .string()
         .regex(/^#[0-9A-Fa-f]{6}$/, {
-          error: () => t("Enter a color in #RRGGBB format"),
+          error: () => t('Enter a color in #RRGGBB format'),
         })
-        .or(z.literal(""))
+        .or(z.literal(''))
         .refine((value) => !value || isAccessibleBrandPrimary(value), {
           error: () =>
             t(
-              "Choose a brand color with accessible contrast in light and dark modes",
+              'Choose a brand color with accessible contrast in light and dark modes'
             ),
         }),
     }),
@@ -142,7 +142,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       user_agreement: z.string().optional(),
       privacy_policy: z.string().optional(),
     }),
-  });
+  })
 
   const { form, handleSubmit, handleReset, isDirty, isSubmitting } =
     useSettingsForm<SystemInfoFormValues>({
@@ -154,36 +154,36 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       defaultValues: normalizedDefaults,
       onSubmit: async (_data, changedFields) => {
         for (const [key, value] of Object.entries(changedFields)) {
-          let v = normalizeValue(value);
-          if (key === "ServerAddress") {
-            v = v.replace(/\/+$/, "");
+          let v = normalizeValue(value)
+          if (key === 'ServerAddress') {
+            v = v.replace(/\/+$/, '')
           }
-          await updateOption.mutateAsync({ key, value: v });
+          await updateOption.mutateAsync({ key, value: v })
         }
       },
-    });
+    })
 
-  const previewName = form.watch("SystemName");
-  const previewLogo = form.watch("Logo");
-  const previewFavicon = form.watch("branding.favicon_url");
-  const previewColor = form.watch("branding.primary_color");
+  const previewName = form.watch('SystemName')
+  const previewLogo = form.watch('Logo')
+  const previewFavicon = form.watch('branding.favicon_url')
+  const previewColor = form.watch('branding.primary_color')
 
   const applyBoxAIRecommendedValues = () => {
-    form.setValue("SystemName", "Box AI", { shouldDirty: true });
-    form.setValue("Logo", "/box-ai-icon.svg", { shouldDirty: true });
-    form.setValue("branding.favicon_url", "/box-ai-icon.svg", {
+    form.setValue('SystemName', 'Box AI', { shouldDirty: true })
+    form.setValue('Logo', '/box-ai-icon.svg', { shouldDirty: true })
+    form.setValue('branding.favicon_url', '/box-ai-icon.svg', {
       shouldDirty: true,
-    });
-    form.setValue("branding.primary_color", "#2563EB", {
+    })
+    form.setValue('branding.primary_color', '#2563EB', {
       shouldDirty: true,
-    });
-  };
+    })
+  }
 
   return (
     <>
       <FormNavigationGuard when={isDirty} />
 
-      <SettingsSection title={t("System Information")}>
+      <SettingsSection title={t('System Information')}>
         <Form {...form}>
           <SettingsForm onSubmit={handleSubmit}>
             <SettingsPageFormActions
@@ -193,46 +193,46 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
               isResetDisabled={!isDirty}
             />
             <FormDirtyIndicator isDirty={isDirty} />
-            <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3'>
+              <div className='flex min-w-0 items-center gap-3'>
                 <img
-                  src={previewFavicon || previewLogo || "/logo.png"}
-                  alt=""
-                  className="size-9 rounded-md object-contain"
+                  src={previewFavicon || previewLogo || '/logo.png'}
+                  alt=''
+                  className='size-9 rounded-md object-contain'
                 />
-                <div className="min-w-0">
-                  <div className="text-muted-foreground text-xs">
-                    {t("Live brand preview")}
+                <div className='min-w-0'>
+                  <div className='text-muted-foreground text-xs'>
+                    {t('Live brand preview')}
                   </div>
                   <div
-                    className="truncate font-semibold"
+                    className='truncate font-semibold'
                     style={{ color: previewColor || undefined }}
                   >
-                    {previewName || t("System Name")}
+                    {previewName || t('System Name')}
                   </div>
                 </div>
               </div>
               <Button
-                type="button"
-                variant="ghost"
-                size="sm"
+                type='button'
+                variant='ghost'
+                size='sm'
                 onClick={applyBoxAIRecommendedValues}
               >
-                {t("Box AI recommended values")}
+                {t('Box AI recommended values')}
               </Button>
             </div>
             <SettingsFormGrid>
               <FormField
                 control={form.control}
-                name="SystemName"
+                name='SystemName'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("System Name")}</FormLabel>
+                    <FormLabel>{t('System Name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("New API")} {...field} />
+                      <Input placeholder={t('New API')} {...field} />
                     </FormControl>
                     <FormDescription>
-                      {t("The name displayed across the application")}
+                      {t('The name displayed across the application')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -241,16 +241,16 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="ServerAddress"
+                name='ServerAddress'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Server Address")}</FormLabel>
+                    <FormLabel>{t('Server Address')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://yourdomain.com" {...field} />
+                      <Input placeholder='https://yourdomain.com' {...field} />
                     </FormControl>
                     <FormDescription>
                       {t(
-                        "The public URL of your server, used for OAuth callbacks, webhooks, and other external integrations",
+                        'The public URL of your server, used for OAuth callbacks, webhooks, and other external integrations'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -260,18 +260,18 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="Logo"
+                name='Logo'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Logo URL")}</FormLabel>
+                    <FormLabel>{t('Logo URL')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("https://example.com/logo.png")}
+                        placeholder={t('https://example.com/logo.png')}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      {t("URL to your logo image (optional)")}
+                      {t('URL to your logo image (optional)')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -280,15 +280,15 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="branding.favicon_url"
+                name='branding.favicon_url'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Browser Icon URL")}</FormLabel>
+                    <FormLabel>{t('Browser Icon URL')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="/favicon.svg" {...field} />
+                      <Input placeholder='/favicon.svg' {...field} />
                     </FormControl>
                     <FormDescription>
-                      {t("Browser icon shown in tabs and bookmarks")}
+                      {t('Browser icon shown in tabs and bookmarks')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -297,25 +297,25 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="branding.primary_color"
+                name='branding.primary_color'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Brand Primary Color")}</FormLabel>
+                    <FormLabel>{t('Brand Primary Color')}</FormLabel>
                     <FormControl>
-                      <div className="flex gap-2">
+                      <div className='flex gap-2'>
                         <Input
-                          type="color"
-                          aria-label={t("Brand Primary Color")}
-                          className="w-12 p-1"
-                          value={field.value || "#2563EB"}
+                          type='color'
+                          aria-label={t('Brand Primary Color')}
+                          className='w-12 p-1'
+                          value={field.value || '#2563EB'}
                           onChange={field.onChange}
                         />
-                        <Input placeholder="#2563EB" {...field} />
+                        <Input placeholder='#2563EB' {...field} />
                       </div>
                     </FormControl>
                     <FormDescription>
                       {t(
-                        "Primary color used by buttons and sidebar highlights",
+                        'Primary color used by buttons and sidebar highlights'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -325,21 +325,21 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="Footer"
+                name='Footer'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Footer")}</FormLabel>
+                    <FormLabel>{t('Footer')}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t(
-                          "© 2025 Your Company. All rights reserved.",
+                          '© 2025 Your Company. All rights reserved.'
                         )}
                         rows={4}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      {t("Footer text displayed at the bottom of pages")}
+                      {t('Footer text displayed at the bottom of pages')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -348,14 +348,14 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="About"
+                name='About'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("About")}</FormLabel>
+                    <FormLabel>{t('About')}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t(
-                          "Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe",
+                          'Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe'
                         )}
                         rows={4}
                         {...field}
@@ -363,7 +363,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        "Supports HTML markup or iframe embedding. Enter HTML code directly, or provide a complete URL to automatically embed it as an iframe.",
+                        'Supports HTML markup or iframe embedding. Enter HTML code directly, or provide a complete URL to automatically embed it as an iframe.'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -371,23 +371,23 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 )}
               />
 
-              <SettingsFormGridItem span="full">
+              <SettingsFormGridItem span='full'>
                 <FormField
                   control={form.control}
-                  name="HomePageContent"
+                  name='HomePageContent'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Home Page Content")}</FormLabel>
+                      <FormLabel>{t('Home Page Content')}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder={t("Welcome to our New API...")}
+                          placeholder={t('Welcome to our New API...')}
                           rows={6}
                           {...field}
                         />
                       </FormControl>
                       <FormDescription>
                         {t(
-                          "Content displayed on the home page (supports Markdown)",
+                          'Content displayed on the home page (supports Markdown)'
                         )}
                       </FormDescription>
                       <FormMessage />
@@ -398,14 +398,14 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="legal.user_agreement"
+                name='legal.user_agreement'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("User Agreement")}</FormLabel>
+                    <FormLabel>{t('User Agreement')}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t(
-                          "Provide Markdown, HTML, or an external URL for the user agreement",
+                          'Provide Markdown, HTML, or an external URL for the user agreement'
                         )}
                         rows={6}
                         {...field}
@@ -413,7 +413,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        "Leave empty to disable the agreement requirement. Supports Markdown, HTML, or a full URL to redirect users.",
+                        'Leave empty to disable the agreement requirement. Supports Markdown, HTML, or a full URL to redirect users.'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -423,14 +423,14 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name="legal.privacy_policy"
+                name='legal.privacy_policy'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Privacy Policy")}</FormLabel>
+                    <FormLabel>{t('Privacy Policy')}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t(
-                          "Provide Markdown, HTML, or an external URL for the privacy policy",
+                          'Provide Markdown, HTML, or an external URL for the privacy policy'
                         )}
                         rows={6}
                         {...field}
@@ -438,7 +438,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        "Leave empty to disable the privacy policy requirement. Supports Markdown, HTML, or a full URL to redirect users.",
+                        'Leave empty to disable the privacy policy requirement. Supports Markdown, HTML, or a full URL to redirect users.'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -450,5 +450,5 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         </Form>
       </SettingsSection>
     </>
-  );
+  )
 }

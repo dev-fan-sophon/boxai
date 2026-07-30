@@ -26,15 +26,17 @@ function containsControlCharacter(value: string): boolean {
 }
 
 /**
- * TanStack pathless layouts (`_authenticated`, `(auth)`, `(errors)`) appear in
- * route ids but must never be used as browser pathnames. Rewrite accidental
- * copies (e.g. `/_authenticated/profile/`) to the real URL (`/profile/`).
+ * TanStack pathless layouts (`_authenticated`, `_public`, `(auth)`, `(errors)`)
+ * appear in route ids but must never be used as browser pathnames. Rewrite
+ * accidental copies (e.g. `/_authenticated/profile/`) to the real URL
+ * (`/profile/`).
  */
 function stripPathlessLayoutPrefixes(pathname: string): string {
   let next = pathname
   for (;;) {
     const stripped = next
       .replace(/^\/_authenticated(?=\/|$)/, '')
+      .replace(/^\/_public(?=\/|$)/, '')
       .replace(/^\/\([^/]+\)(?=\/|$)/, '')
     if (stripped === next) break
     next = stripped || '/'

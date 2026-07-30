@@ -6,127 +6,127 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { ImageIcon, Music2, Video } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { ImageIcon, Music2, Video } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { Shimmer } from "@/components/ai-elements/shimmer";
-import { MOTION_TRANSITION } from "@/lib/motion";
-import { cn } from "@/lib/utils";
+import { Shimmer } from '@/components/ai-elements/shimmer'
+import { MOTION_TRANSITION } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 
-import type { StudioModality } from "../../types";
-import { RESULT_THUMBNAIL_HEIGHT } from "./generation-result-card";
+import type { StudioModality } from '../../types'
+import { RESULT_THUMBNAIL_HEIGHT } from './generation-result-card'
 
 type GenerationProgressProps = {
-  modality: Exclude<StudioModality, "chat">;
+  modality: Exclude<StudioModality, 'chat'>
   /** Number of image placeholders while generating */
-  imageCount?: number;
+  imageCount?: number
   /** Target image size (e.g. 1024x1536) — drives placeholder aspect ratio */
-  imageSize?: string;
+  imageSize?: string
   /** Soft progress 0–100 when the backend reports none (video indeterminate) */
-  percent?: number | null;
+  percent?: number | null
   /** Optional secondary status line (e.g. video task id) */
-  detail?: string;
-  className?: string;
-};
+  detail?: string
+  className?: string
+}
 
 function parseSizeAspect(size?: string): {
-  ratio: number;
-  label: string | null;
+  ratio: number
+  label: string | null
 } {
-  if (!size) return { ratio: 1, label: null };
-  const match = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(size.trim());
-  if (!match) return { ratio: 1, label: size };
-  const w = Number(match[1]);
-  const h = Number(match[2]);
-  if (!w || !h) return { ratio: 1, label: size };
-  return { ratio: w / h, label: `${w}×${h}` };
+  if (!size) return { ratio: 1, label: null }
+  const match = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(size.trim())
+  if (!match) return { ratio: 1, label: size }
+  const w = Number(match[1])
+  const h = Number(match[2])
+  if (!w || !h) return { ratio: 1, label: size }
+  return { ratio: w / h, label: `${w}×${h}` }
 }
 
 function formatElapsed(ms: number): string {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  if (min <= 0) return `${sec}s`;
-  return `${min}:${String(sec).padStart(2, "0")}`;
+  const totalSec = Math.max(0, Math.floor(ms / 1000))
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  if (min <= 0) return `${sec}s`
+  return `${min}:${String(sec).padStart(2, '0')}`
 }
 
-const STATUS_KEYS: Record<Exclude<StudioModality, "chat">, string[]> = {
+const STATUS_KEYS: Record<Exclude<StudioModality, 'chat'>, string[]> = {
   image: [
-    "Composing the scene…",
-    "Painting details…",
-    "Refining lighting…",
-    "Almost ready…",
+    'Composing the scene…',
+    'Painting details…',
+    'Refining lighting…',
+    'Almost ready…',
   ],
   video: [
-    "Storyboarding frames…",
-    "Rendering motion…",
-    "Encoding video…",
-    "Finishing touches…",
+    'Storyboarding frames…',
+    'Rendering motion…',
+    'Encoding video…',
+    'Finishing touches…',
   ],
   audio: [
-    "Preparing voice…",
-    "Synthesizing speech…",
-    "Balancing tone…",
-    "Almost ready…",
+    'Preparing voice…',
+    'Synthesizing speech…',
+    'Balancing tone…',
+    'Almost ready…',
   ],
-};
+}
 
 /**
  * Full-bleed generation state: shimmering placeholders, rotating status copy,
  * and a soft progress bar. Respects reduced-motion preferences.
  */
 export function GenerationProgress(props: GenerationProgressProps) {
-  const { t } = useTranslation();
-  const shouldReduce = useReducedMotion();
-  const statuses = STATUS_KEYS[props.modality];
-  const [statusIndex, setStatusIndex] = useState(0);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const sizeMeta = parseSizeAspect(props.imageSize);
+  const { t } = useTranslation()
+  const shouldReduce = useReducedMotion()
+  const statuses = STATUS_KEYS[props.modality]
+  const [statusIndex, setStatusIndex] = useState(0)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const sizeMeta = parseSizeAspect(props.imageSize)
 
   useEffect(() => {
-    if (shouldReduce) return;
+    if (shouldReduce) return
     const id = window.setInterval(() => {
-      setStatusIndex((i) => (i + 1) % statuses.length);
-    }, 2800);
-    return () => window.clearInterval(id);
-  }, [shouldReduce, statuses.length]);
+      setStatusIndex((i) => (i + 1) % statuses.length)
+    }, 2800)
+    return () => window.clearInterval(id)
+  }, [shouldReduce, statuses.length])
 
   useEffect(() => {
-    const started = performance.now();
-    setElapsedMs(0);
+    const started = performance.now()
+    setElapsedMs(0)
     const id = window.setInterval(() => {
-      setElapsedMs(performance.now() - started);
-    }, 200);
-    return () => window.clearInterval(id);
-  }, []);
+      setElapsedMs(performance.now() - started)
+    }, 200)
+    return () => window.clearInterval(id)
+  }, [])
 
-  const count = Math.min(Math.max(props.imageCount ?? 1, 1), 4);
+  const count = Math.min(Math.max(props.imageCount ?? 1, 1), 4)
   const hasHardPercent =
-    typeof props.percent === "number" &&
+    typeof props.percent === 'number' &&
     Number.isFinite(props.percent) &&
-    props.percent > 0;
+    props.percent > 0
   const softPercent = hasHardPercent
     ? Math.min(100, Math.max(0, props.percent as number))
-    : null;
-  const elapsedLabel = formatElapsed(elapsedMs);
-  const statusText = t(statuses[statusIndex] ?? statuses[0]);
+    : null
+  const elapsedLabel = formatElapsed(elapsedMs)
+  const statusText = t(statuses[statusIndex] ?? statuses[0])
 
   // Image tiles carry their own status, so the feed stays a row of thumbnails
   // instead of a thumbnail plus a separate progress panel under it.
-  if (props.modality === "image") {
+  if (props.modality === 'image') {
     return (
       <div
         className={cn(
-          "generation-progress-enter flex w-full flex-wrap items-start gap-3",
-          props.className,
+          'generation-progress-enter flex w-full flex-wrap items-start gap-3',
+          props.className
         )}
-        role="status"
-        aria-live="polite"
-        aria-label={t("Generating… {{elapsed}}", { elapsed: elapsedLabel })}
+        role='status'
+        aria-live='polite'
+        aria-label={t('Generating… {{elapsed}}', { elapsed: elapsedLabel })}
       >
-        {(["slot-a", "slot-b", "slot-c", "slot-d"] as const)
+        {(['slot-a', 'slot-b', 'slot-c', 'slot-d'] as const)
           .slice(0, count)
           .map((id, i) => (
             <ImagePlaceholder
@@ -141,39 +141,39 @@ export function GenerationProgress(props: GenerationProgressProps) {
             />
           ))}
       </div>
-    );
+    )
   }
 
   return (
     <div
       className={cn(
-        "generation-progress-enter flex w-full flex-col gap-5",
-        props.className,
+        'generation-progress-enter flex w-full flex-col gap-5',
+        props.className
       )}
-      role="status"
-      aria-live="polite"
-      aria-label={t("Generating… {{elapsed}}", { elapsed: elapsedLabel })}
+      role='status'
+      aria-live='polite'
+      aria-label={t('Generating… {{elapsed}}', { elapsed: elapsedLabel })}
     >
-      {props.modality === "video" && (
+      {props.modality === 'video' && (
         <VideoPlaceholder reduceMotion={Boolean(shouldReduce)} />
       )}
 
-      {props.modality === "audio" && (
+      {props.modality === 'audio' && (
         <AudioPlaceholder reduceMotion={Boolean(shouldReduce)} />
       )}
 
-      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3 px-2 text-center">
-        <div className="flex items-center gap-2">
+      <div className='mx-auto flex w-full max-w-md flex-col items-center gap-3 px-2 text-center'>
+        <div className='flex items-center gap-2'>
           <span
             className={cn(
-              "bg-primary/15 text-primary inline-flex size-8 items-center justify-center rounded-full",
-              !shouldReduce && "generation-orb-pulse",
+              'bg-primary/15 text-primary inline-flex size-8 items-center justify-center rounded-full',
+              !shouldReduce && 'generation-orb-pulse'
             )}
-            aria-hidden="true"
+            aria-hidden='true'
           >
             <ModalityGlyph modality={props.modality} />
           </span>
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode='wait' initial={false}>
             <motion.div
               key={statusIndex}
               initial={shouldReduce ? false : { opacity: 0, y: 4 }}
@@ -181,44 +181,44 @@ export function GenerationProgress(props: GenerationProgressProps) {
               exit={shouldReduce ? undefined : { opacity: 0, y: -4 }}
               transition={MOTION_TRANSITION.fast}
             >
-              <Shimmer className="text-sm font-medium" duration={2.4}>
+              <Shimmer className='text-sm font-medium' duration={2.4}>
                 {statusText}
               </Shimmer>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs tabular-nums">
-          <span className="generation-timer inline-flex items-center gap-1.5">
+        <div className='text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs tabular-nums'>
+          <span className='generation-timer inline-flex items-center gap-1.5'>
             <span
               className={cn(
-                "bg-primary size-1.5 rounded-full",
-                !shouldReduce && "generation-timer-dot",
+                'bg-primary size-1.5 rounded-full',
+                !shouldReduce && 'generation-timer-dot'
               )}
-              aria-hidden="true"
+              aria-hidden='true'
             />
-            <span className="text-foreground/90 font-medium">
+            <span className='text-foreground/90 font-medium'>
               {elapsedLabel}
             </span>
-            <span className="sr-only">{t("Elapsed time")}</span>
+            <span className='sr-only'>{t('Elapsed time')}</span>
           </span>
           {softPercent !== null && (
-            <span className="font-medium">{Math.round(softPercent)}%</span>
+            <span className='font-medium'>{Math.round(softPercent)}%</span>
           )}
         </div>
 
         {props.detail && (
-          <p className="text-muted-foreground max-w-full truncate font-mono text-[11px]">
+          <p className='text-muted-foreground max-w-full truncate font-mono text-[11px]'>
             {props.detail}
           </p>
         )}
 
-        <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full">
+        <div className='bg-muted relative h-1.5 w-full overflow-hidden rounded-full'>
           {softPercent !== null ? (
             // Scale rather than width: the bar ticks every few hundred ms and a
             // width transition relayouts the whole progress block each frame.
             <div
-              className="bg-primary absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform duration-500 ease-out motion-reduce:transition-none"
+              className='bg-primary absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform duration-500 ease-out motion-reduce:transition-none'
               style={{
                 transform: `scaleX(${Math.min(Math.max(softPercent, 0), 100) / 100})`,
               }}
@@ -226,41 +226,41 @@ export function GenerationProgress(props: GenerationProgressProps) {
           ) : (
             <div
               className={cn(
-                "from-primary/10 via-primary to-primary/10 absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r",
-                !shouldReduce && "generation-indeterminate",
+                'from-primary/10 via-primary to-primary/10 absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r',
+                !shouldReduce && 'generation-indeterminate'
               )}
             />
           )}
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-function ModalityGlyph(props: { modality: Exclude<StudioModality, "chat"> }) {
-  if (props.modality === "image") return <ImageIcon className="size-4" />;
-  if (props.modality === "video") return <Video className="size-4" />;
-  return <Music2 className="size-4" />;
+function ModalityGlyph(props: { modality: Exclude<StudioModality, 'chat'> }) {
+  if (props.modality === 'image') return <ImageIcon className='size-4' />
+  if (props.modality === 'video') return <Video className='size-4' />
+  return <Music2 className='size-4' />
 }
 
 export function ImagePlaceholder(props: {
-  delayMs: number;
-  reduceMotion: boolean;
-  ratio: number;
-  sizeLabel: string | null;
+  delayMs: number
+  reduceMotion: boolean
+  ratio: number
+  sizeLabel: string | null
   /** Rotating status copy shown inside the tile while generating */
-  statusText?: string;
-  elapsedLabel?: string;
-  percent?: number | null;
-  className?: string;
+  statusText?: string
+  elapsedLabel?: string
+  percent?: number | null
+  className?: string
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <div
       className={cn(
-        "border-border/70 bg-muted/40 relative overflow-hidden rounded-2xl border",
-        !props.reduceMotion && "generation-slot-enter",
-        props.className,
+        'border-border/70 bg-muted/40 relative overflow-hidden rounded-2xl border',
+        !props.reduceMotion && 'generation-slot-enter',
+        props.className
       )}
       style={{
         width: `min(100%, calc(${RESULT_THUMBNAIL_HEIGHT} * ${props.ratio}))`,
@@ -268,24 +268,24 @@ export function ImagePlaceholder(props: {
         animationDelay: props.reduceMotion ? undefined : `${props.delayMs}ms`,
       }}
     >
-      <div className="skeleton-shimmer absolute inset-0" />
+      <div className='skeleton-shimmer absolute inset-0' />
       {!props.reduceMotion && (
         <div
-          className="generation-scanline pointer-events-none absolute inset-x-0 h-1/3 opacity-70"
-          aria-hidden="true"
+          className='generation-scanline pointer-events-none absolute inset-x-0 h-1/3 opacity-70'
+          aria-hidden='true'
         />
       )}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+      <div className='absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center'>
         <div
           className={cn(
-            "bg-background/40 text-muted-foreground flex size-11 items-center justify-center rounded-full backdrop-blur-sm",
-            !props.reduceMotion && "generation-orb-pulse",
+            'bg-background/40 text-muted-foreground flex size-11 items-center justify-center rounded-full backdrop-blur-sm',
+            !props.reduceMotion && 'generation-orb-pulse'
           )}
         >
-          <ImageIcon className="size-5 opacity-70" aria-hidden="true" />
+          <ImageIcon className='size-5 opacity-70' aria-hidden='true' />
         </div>
         {props.statusText && (
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode='wait' initial={false}>
             <motion.div
               key={props.statusText}
               initial={props.reduceMotion ? false : { opacity: 0, y: 4 }}
@@ -293,42 +293,42 @@ export function ImagePlaceholder(props: {
               exit={props.reduceMotion ? undefined : { opacity: 0, y: -4 }}
               transition={MOTION_TRANSITION.fast}
             >
-              <Shimmer className="text-xs font-medium" duration={2.4}>
+              <Shimmer className='text-xs font-medium' duration={2.4}>
                 {props.statusText}
               </Shimmer>
             </motion.div>
           </AnimatePresence>
         )}
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] tabular-nums">
+        <div className='text-muted-foreground flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] tabular-nums'>
           {props.elapsedLabel && (
-            <span className="generation-timer inline-flex items-center gap-1.5">
+            <span className='generation-timer inline-flex items-center gap-1.5'>
               <span
                 className={cn(
-                  "bg-primary size-1.5 rounded-full",
-                  !props.reduceMotion && "generation-timer-dot",
+                  'bg-primary size-1.5 rounded-full',
+                  !props.reduceMotion && 'generation-timer-dot'
                 )}
-                aria-hidden="true"
+                aria-hidden='true'
               />
-              <span className="text-foreground/90 font-medium">
+              <span className='text-foreground/90 font-medium'>
                 {props.elapsedLabel}
               </span>
-              <span className="sr-only">{t("Elapsed time")}</span>
+              <span className='sr-only'>{t('Elapsed time')}</span>
             </span>
           )}
           {props.sizeLabel && (
-            <span className="bg-background/55 text-muted-foreground rounded-full px-2 py-0.5 font-mono backdrop-blur-sm">
+            <span className='bg-background/55 text-muted-foreground rounded-full px-2 py-0.5 font-mono backdrop-blur-sm'>
               {props.sizeLabel}
             </span>
           )}
         </div>
       </div>
       {props.statusText && (
-        <div className="bg-background/40 absolute inset-x-0 bottom-0 h-1 overflow-hidden">
-          {typeof props.percent === "number" ? (
+        <div className='bg-background/40 absolute inset-x-0 bottom-0 h-1 overflow-hidden'>
+          {typeof props.percent === 'number' ? (
             // Scale rather than width: the bar ticks every few hundred ms and a
             // width transition relayouts the whole tile each frame.
             <div
-              className="bg-primary absolute inset-y-0 left-0 w-full origin-left transition-transform duration-500 ease-out motion-reduce:transition-none"
+              className='bg-primary absolute inset-y-0 left-0 w-full origin-left transition-transform duration-500 ease-out motion-reduce:transition-none'
               style={{
                 transform: `scaleX(${Math.min(Math.max(props.percent, 0), 100) / 100})`,
               }}
@@ -336,37 +336,37 @@ export function ImagePlaceholder(props: {
           ) : (
             <div
               className={cn(
-                "from-primary/10 via-primary to-primary/10 absolute inset-y-0 w-1/3 bg-gradient-to-r",
-                !props.reduceMotion && "generation-indeterminate",
+                'from-primary/10 via-primary to-primary/10 absolute inset-y-0 w-1/3 bg-gradient-to-r',
+                !props.reduceMotion && 'generation-indeterminate'
               )}
             />
           )}
         </div>
       )}
     </div>
-  );
+  )
 }
 
 export function VideoPlaceholder(props: { reduceMotion: boolean }) {
   return (
-    <div className="border-border/70 bg-muted/40 relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border">
-      <div className="skeleton-shimmer absolute inset-0" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+    <div className='border-border/70 bg-muted/40 relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border'>
+      <div className='skeleton-shimmer absolute inset-0' />
+      <div className='absolute inset-0 flex flex-col items-center justify-center gap-3'>
         <div
           className={cn(
-            "bg-background/50 text-muted-foreground flex size-16 items-center justify-center rounded-full backdrop-blur-sm",
-            !props.reduceMotion && "animate-pulse",
+            'bg-background/50 text-muted-foreground flex size-16 items-center justify-center rounded-full backdrop-blur-sm',
+            !props.reduceMotion && 'animate-pulse'
           )}
         >
-          <Video className="size-7 opacity-80" aria-hidden="true" />
+          <Video className='size-7 opacity-80' aria-hidden='true' />
         </div>
-        <div className="flex gap-1.5">
-          {(["d0", "d1", "d2"] as const).map((id, i) => (
+        <div className='flex gap-1.5'>
+          {(['d0', 'd1', 'd2'] as const).map((id, i) => (
             <span
               key={id}
               className={cn(
-                "bg-muted-foreground/40 size-1.5 rounded-full",
-                !props.reduceMotion && "animate-bounce",
+                'bg-muted-foreground/40 size-1.5 rounded-full',
+                !props.reduceMotion && 'animate-bounce'
               )}
               style={
                 props.reduceMotion
@@ -378,39 +378,39 @@ export function VideoPlaceholder(props: { reduceMotion: boolean }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function AudioPlaceholder(props: { reduceMotion: boolean }) {
   const bars = [
-    { id: "b0", h: 0.35 },
-    { id: "b1", h: 0.7 },
-    { id: "b2", h: 0.5 },
-    { id: "b3", h: 0.9 },
-    { id: "b4", h: 0.45 },
-    { id: "b5", h: 0.75 },
-    { id: "b6", h: 0.4 },
-    { id: "b7", h: 0.85 },
-    { id: "b8", h: 0.55 },
-    { id: "b9", h: 0.65 },
-  ];
+    { id: 'b0', h: 0.35 },
+    { id: 'b1', h: 0.7 },
+    { id: 'b2', h: 0.5 },
+    { id: 'b3', h: 0.9 },
+    { id: 'b4', h: 0.45 },
+    { id: 'b5', h: 0.75 },
+    { id: 'b6', h: 0.4 },
+    { id: 'b7', h: 0.85 },
+    { id: 'b8', h: 0.55 },
+    { id: 'b9', h: 0.65 },
+  ]
   return (
-    <div className="border-border/70 bg-muted/40 mx-auto flex w-full max-w-md flex-col items-center gap-5 rounded-2xl border px-6 py-8">
+    <div className='border-border/70 bg-muted/40 mx-auto flex w-full max-w-md flex-col items-center gap-5 rounded-2xl border px-6 py-8'>
       <div
         className={cn(
-          "bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full",
-          !props.reduceMotion && "animate-pulse",
+          'bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full',
+          !props.reduceMotion && 'animate-pulse'
         )}
       >
-        <Music2 className="size-6" aria-hidden="true" />
+        <Music2 className='size-6' aria-hidden='true' />
       </div>
-      <div className="flex h-12 items-end gap-1" aria-hidden="true">
+      <div className='flex h-12 items-end gap-1' aria-hidden='true'>
         {bars.map((bar, i) => (
           <span
             key={bar.id}
             className={cn(
-              "bg-primary/70 w-1.5 rounded-full",
-              !props.reduceMotion && "generation-wave",
+              'bg-primary/70 w-1.5 rounded-full',
+              !props.reduceMotion && 'generation-wave'
             )}
             style={{
               height: `${bar.h * 100}%`,
@@ -420,5 +420,5 @@ export function AudioPlaceholder(props: { reduceMotion: boolean }) {
         ))}
       </div>
     </div>
-  );
+  )
 }

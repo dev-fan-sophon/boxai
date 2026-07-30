@@ -16,20 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Table as TanstackTable } from "@tanstack/react-table";
+import type { Table as TanstackTable } from '@tanstack/react-table'
 
-import { isContentSizedColumn } from "./content-sized-columns";
+import { isContentSizedColumn } from './content-sized-columns'
 
 export function DataTableColgroup<TData>({
   table,
 }: {
-  table: TanstackTable<TData>;
+  table: TanstackTable<TData>
 }) {
-  const columns = table.getVisibleLeafColumns();
+  const columns = table.getVisibleLeafColumns()
   const sizedColumns = columns.filter(
-    (column) => !isContentSizedColumn(column.id),
-  );
-  const totalSize = sizedColumns.reduce((sum, col) => sum + col.getSize(), 0);
+    (column) => !isContentSizedColumn(column.id)
+  )
+  const totalSize = sizedColumns.reduce((sum, col) => sum + col.getSize(), 0)
 
   return (
     <colgroup>
@@ -38,32 +38,32 @@ export function DataTableColgroup<TData>({
           table,
           column.id,
           column.getSize(),
-          totalSize,
-        );
+          totalSize
+        )
 
-        return <col key={column.id} style={{ width }} />;
+        return <col key={column.id} style={{ width }} />
       })}
     </colgroup>
-  );
+  )
 }
 
 function getColumnWidth<TData>(
   table: TanstackTable<TData>,
   columnId: string,
   columnSize: number,
-  totalSize: number,
+  totalSize: number
 ) {
   if (isContentSizedColumn(columnId)) {
-    return undefined;
+    return undefined
   }
 
   if (table.options.enableColumnResizing === true) {
-    return `${columnSize}px`;
+    return `${columnSize}px`
   }
 
   if (totalSize <= 0) {
-    return undefined;
+    return undefined
   }
 
-  return `${(columnSize / totalSize) * 100}%`;
+  return `${(columnSize / totalSize) * 100}%`
 }

@@ -16,24 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
-import { useMemo } from "react";
+import { Link } from '@tanstack/react-router'
+import { Menu } from 'lucide-react'
+import { useMemo } from 'react'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
-import type { TopNavLink } from "../types";
+import type { TopNavLink } from '../types'
 
 type TopNavProps = React.HTMLAttributes<HTMLElement> & {
-  links: TopNavLink[];
-};
+  links: TopNavLink[]
+}
 
 /**
  * 顶部导航栏组件
@@ -49,26 +49,26 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
         external: false,
         ...link,
       })),
-    [links],
-  );
+    [links]
+  )
 
   return (
     <>
       {/* 移动端下拉菜单 */}
-      <div className="lg:hidden">
+      <div className='lg:hidden'>
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger
             render={
               <Button
-                size="icon"
-                variant="ghost"
-                className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-7"
+                size='icon'
+                variant='ghost'
+                className='text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-7'
               />
             }
           >
             <Menu />
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="start">
+          <DropdownMenuContent side='bottom' align='start'>
             {normalizedLinks.map(
               ({ title, href, isActive, disabled, external }) => (
                 <DropdownMenuItem
@@ -77,16 +77,16 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                     external ? (
                       <a
                         href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={!isActive ? "text-muted-foreground" : ""}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className={!isActive ? 'text-muted-foreground' : ''}
                       >
                         {title}
                       </a>
                     ) : (
                       <Link
                         to={href}
-                        className={!isActive ? "text-muted-foreground" : ""}
+                        className={!isActive ? 'text-muted-foreground' : ''}
                         disabled={disabled}
                       >
                         {title}
@@ -94,7 +94,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                     )
                   }
                 />
-              ),
+              )
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -103,8 +103,8 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
       {/* 桌面端水平导航 */}
       <nav
         className={cn(
-          "hidden items-center space-x-4 lg:flex lg:space-x-4 xl:space-x-6",
-          className,
+          'hidden items-center space-x-4 lg:flex lg:space-x-4 xl:space-x-6',
+          className
         )}
         {...props}
       >
@@ -113,9 +113,9 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
             <a
               key={`${title}-${href}`}
               href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70"}`}
+              target='_blank'
+              rel='noopener noreferrer'
+              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
             >
               {title}
             </a>
@@ -124,13 +124,13 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
               key={`${title}-${href}`}
               to={href}
               disabled={disabled}
-              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70"}`}
+              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
             >
               {title}
             </Link>
-          ),
+          )
         )}
       </nav>
     </>
-  );
+  )
 }

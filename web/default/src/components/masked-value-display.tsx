@@ -16,25 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { CopyButton } from "@/components/copy-button";
-import { Button } from "@/components/ui/button";
+import { CopyButton } from '@/components/copy-button'
+import { Button } from '@/components/ui/button'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/popover'
 
 interface MaskedValueDisplayProps {
   /** 弹层内标题，如 "Full API Key" / "Full Code" */
-  label: string;
+  label: string
   /** 完整值，在 Popover 内完整展示 */
-  fullValue: string;
+  fullValue: string
   /** 表格内显示的脱敏值 */
-  maskedValue: string;
+  maskedValue: string
   /** 复制按钮的 tooltip */
-  copyTooltip: string;
+  copyTooltip: string
   /** 复制按钮的 aria-label */
-  copyAriaLabel: string;
+  copyAriaLabel: string
 }
 
 /**
@@ -42,28 +42,28 @@ interface MaskedValueDisplayProps {
  */
 export function MaskedValueDisplay(props: MaskedValueDisplayProps) {
   return (
-    <div className="flex max-w-full min-w-0 items-center">
+    <div className='flex max-w-full min-w-0 items-center'>
       <Popover>
         <PopoverTrigger
           render={
             <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 max-w-full min-w-0 justify-start truncate px-0 font-mono hover:bg-transparent aria-expanded:bg-transparent"
+              variant='ghost'
+              size='sm'
+              className='h-7 max-w-full min-w-0 justify-start truncate px-0 font-mono hover:bg-transparent aria-expanded:bg-transparent'
             />
           }
         >
-          <span className="truncate">{props.maskedValue}</span>
+          <span className='truncate'>{props.maskedValue}</span>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto max-w-[min(90vw,28rem)]"
-          align="start"
+          className='w-auto max-w-[min(90vw,28rem)]'
+          align='start'
         >
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-xs">{props.label}</p>
+          <div className='space-y-2'>
+            <p className='text-muted-foreground text-xs'>{props.label}</p>
             <pre
-              className="bg-muted/50 max-h-[50vh] overflow-auto rounded-md border px-3 py-2 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap"
-              style={{ wordBreak: "break-all" }}
+              className='bg-muted/50 max-h-[50vh] overflow-auto rounded-md border px-3 py-2 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap'
+              style={{ wordBreak: 'break-all' }}
             >
               {props.fullValue}
             </pre>
@@ -72,11 +72,11 @@ export function MaskedValueDisplay(props: MaskedValueDisplayProps) {
       </Popover>
       <CopyButton
         value={props.fullValue}
-        className="size-7"
-        iconClassName="size-3.5"
+        className='size-7'
+        iconClassName='size-3.5'
         tooltip={props.copyTooltip}
         aria-label={props.copyAriaLabel}
       />
     </div>
-  );
+  )
 }

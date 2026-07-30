@@ -16,20 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { parseCurrencyDisplayType } from "@/lib/currency";
+import { parseCurrencyDisplayType } from '@/lib/currency'
 
-import { CheckinSettingsSection } from "../general/checkin-settings-section";
-import { PricingSection } from "../general/pricing-section";
-import { QuotaSettingsSection } from "../general/quota-settings-section";
-import { PaymentSettingsSection } from "../integrations/payment-settings-section";
-import { RatioSettingsCard } from "../models/ratio-settings-card";
-import type { BillingSettings } from "../types";
-import { createSectionRegistry } from "../utils/section-registry";
+import { CheckinSettingsSection } from '../general/checkin-settings-section'
+import { PricingSection } from '../general/pricing-section'
+import { QuotaSettingsSection } from '../general/quota-settings-section'
+import { PaymentSettingsSection } from '../integrations/payment-settings-section'
+import { RatioSettingsCard } from '../models/ratio-settings-card'
+import type { BillingSettings } from '../types'
+import { createSectionRegistry } from '../utils/section-registry'
 import {
   BILLING_DEFAULT_SECTION,
   BILLING_SECTION_IDS,
   type BillingSectionId,
-} from "./section-manifest";
+} from './section-manifest'
 
 const getGroupDefaults = (settings: BillingSettings) => ({
   TopupGroupRatio: settings.TopupGroupRatio,
@@ -39,13 +39,13 @@ const getGroupDefaults = (settings: BillingSettings) => ({
   AutoGroups: settings.AutoGroups,
   DefaultUseAutoGroup: settings.DefaultUseAutoGroup,
   GroupSpecialUsableGroup:
-    settings["group_ratio_setting.group_special_usable_group"],
-});
+    settings['group_ratio_setting.group_special_usable_group'],
+})
 
 const BILLING_SECTIONS = [
   {
-    id: "quota",
-    titleKey: "Quota Settings",
+    id: 'quota',
+    titleKey: 'Quota Settings',
     build: (settings: BillingSettings) => (
       <QuotaSettingsSection
         defaultValues={{
@@ -55,19 +55,19 @@ const BILLING_SECTIONS = [
           QuotaForInvitee: settings.QuotaForInvitee,
           TopUpLink: settings.TopUpLink,
           general_setting: {
-            docs_link: settings["general_setting.docs_link"],
+            docs_link: settings['general_setting.docs_link'],
           },
           quota_setting: {
             enable_free_model_pre_consume:
-              settings["quota_setting.enable_free_model_pre_consume"],
+              settings['quota_setting.enable_free_model_pre_consume'],
           },
         }}
       />
     ),
   },
   {
-    id: "currency",
-    titleKey: "Currency & Display",
+    id: 'currency',
+    titleKey: 'Currency & Display',
     build: (settings: BillingSettings) => (
       <PricingSection
         defaultValues={{
@@ -78,47 +78,47 @@ const BILLING_SECTIONS = [
           ExposeRatioEnabled: settings.ExposeRatioEnabled,
           general_setting: {
             quota_display_type: parseCurrencyDisplayType(
-              settings["general_setting.quota_display_type"],
+              settings['general_setting.quota_display_type']
             ),
             custom_currency_symbol:
-              settings["general_setting.custom_currency_symbol"] ?? "¤",
+              settings['general_setting.custom_currency_symbol'] ?? '¤',
             custom_currency_exchange_rate:
-              settings["general_setting.custom_currency_exchange_rate"] ?? 1,
+              settings['general_setting.custom_currency_exchange_rate'] ?? 1,
             business_timezone:
-              settings["general_setting.business_timezone"] ??
-              "Asia/Ho_Chi_Minh",
+              settings['general_setting.business_timezone'] ??
+              'Asia/Ho_Chi_Minh',
           },
         }}
       />
     ),
   },
   {
-    id: "group-pricing",
-    titleKey: "Group Pricing",
+    id: 'group-pricing',
+    titleKey: 'Group Pricing',
     build: (settings: BillingSettings) => (
       <RatioSettingsCard
-        titleKey="Group Pricing"
+        titleKey='Group Pricing'
         groupDefaults={getGroupDefaults(settings)}
-        toolPricesDefault={settings["tool_price_setting.prices"]}
-        visibleTabs={["groups"]}
+        toolPricesDefault={settings['tool_price_setting.prices']}
+        visibleTabs={['groups']}
       />
     ),
   },
   {
-    id: "tool-pricing",
-    titleKey: "Tool Prices",
+    id: 'tool-pricing',
+    titleKey: 'Tool Prices',
     build: (settings: BillingSettings) => (
       <RatioSettingsCard
-        titleKey="Tool Prices"
+        titleKey='Tool Prices'
         groupDefaults={getGroupDefaults(settings)}
-        toolPricesDefault={settings["tool_price_setting.prices"]}
-        visibleTabs={["tool-prices"]}
+        toolPricesDefault={settings['tool_price_setting.prices']}
+        visibleTabs={['tool-prices']}
       />
     ),
   },
   {
-    id: "payment",
-    titleKey: "Payment Gateway",
+    id: 'payment',
+    titleKey: 'Payment Gateway',
     build: (settings: BillingSettings) => (
       <PaymentSettingsSection
         defaultValues={{
@@ -129,8 +129,8 @@ const BILLING_SECTIONS = [
           MinTopUp: settings.MinTopUp,
           CustomCallbackAddress: settings.CustomCallbackAddress,
           PayMethods: settings.PayMethods,
-          AmountOptions: settings["payment_setting.amount_options"],
-          AmountDiscount: settings["payment_setting.amount_discount"],
+          AmountOptions: settings['payment_setting.amount_options'],
+          AmountDiscount: settings['payment_setting.amount_discount'],
           StripeApiSecret: settings.StripeApiSecret,
           StripeWebhookSecret: settings.StripeWebhookSecret,
           StripePriceId: settings.StripePriceId,
@@ -142,57 +142,57 @@ const BILLING_SECTIONS = [
           CreemTestMode: settings.CreemTestMode,
           CreemProducts: settings.CreemProducts,
           bank_qr_setting: {
-            enabled: settings["bank_qr_setting.enabled"] ?? false,
-            bank_name: settings["bank_qr_setting.bank_name"] ?? "",
-            bank_bin: settings["bank_qr_setting.bank_bin"] ?? "",
-            account_number: settings["bank_qr_setting.account_number"] ?? "",
-            account_name: settings["bank_qr_setting.account_name"] ?? "",
-            min_topup: settings["bank_qr_setting.min_topup"] ?? 1,
+            enabled: settings['bank_qr_setting.enabled'] ?? false,
+            bank_name: settings['bank_qr_setting.bank_name'] ?? '',
+            bank_bin: settings['bank_qr_setting.bank_bin'] ?? '',
+            account_number: settings['bank_qr_setting.account_number'] ?? '',
+            account_name: settings['bank_qr_setting.account_name'] ?? '',
+            min_topup: settings['bank_qr_setting.min_topup'] ?? 1,
             transfer_prefix:
-              settings["bank_qr_setting.transfer_prefix"] ?? "BOXAI",
+              settings['bank_qr_setting.transfer_prefix'] ?? 'BOXAI',
           },
         }}
         waffoDefaultValues={{
           WaffoEnabled: settings.WaffoEnabled ?? false,
-          WaffoApiKey: settings.WaffoApiKey ?? "",
-          WaffoPrivateKey: settings.WaffoPrivateKey ?? "",
-          WaffoPublicCert: settings.WaffoPublicCert ?? "",
-          WaffoSandboxPublicCert: settings.WaffoSandboxPublicCert ?? "",
-          WaffoSandboxApiKey: settings.WaffoSandboxApiKey ?? "",
-          WaffoSandboxPrivateKey: settings.WaffoSandboxPrivateKey ?? "",
+          WaffoApiKey: settings.WaffoApiKey ?? '',
+          WaffoPrivateKey: settings.WaffoPrivateKey ?? '',
+          WaffoPublicCert: settings.WaffoPublicCert ?? '',
+          WaffoSandboxPublicCert: settings.WaffoSandboxPublicCert ?? '',
+          WaffoSandboxApiKey: settings.WaffoSandboxApiKey ?? '',
+          WaffoSandboxPrivateKey: settings.WaffoSandboxPrivateKey ?? '',
           WaffoSandbox: settings.WaffoSandbox ?? false,
-          WaffoMerchantId: settings.WaffoMerchantId ?? "",
-          WaffoCurrency: settings.WaffoCurrency ?? "USD",
+          WaffoMerchantId: settings.WaffoMerchantId ?? '',
+          WaffoCurrency: settings.WaffoCurrency ?? 'USD',
           WaffoUnitPrice: settings.WaffoUnitPrice ?? 1,
           WaffoMinTopUp: settings.WaffoMinTopUp ?? 1,
-          WaffoNotifyUrl: settings.WaffoNotifyUrl ?? "",
-          WaffoReturnUrl: settings.WaffoReturnUrl ?? "",
-          WaffoPayMethods: settings.WaffoPayMethods ?? "[]",
+          WaffoNotifyUrl: settings.WaffoNotifyUrl ?? '',
+          WaffoReturnUrl: settings.WaffoReturnUrl ?? '',
+          WaffoPayMethods: settings.WaffoPayMethods ?? '[]',
         }}
         waffoPancakeDefaultValues={{
-          WaffoPancakeMerchantID: settings.WaffoPancakeMerchantID ?? "",
-          WaffoPancakePrivateKey: settings.WaffoPancakePrivateKey ?? "",
-          WaffoPancakeReturnURL: settings.WaffoPancakeReturnURL ?? "",
+          WaffoPancakeMerchantID: settings.WaffoPancakeMerchantID ?? '',
+          WaffoPancakePrivateKey: settings.WaffoPancakePrivateKey ?? '',
+          WaffoPancakeReturnURL: settings.WaffoPancakeReturnURL ?? '',
         }}
-        waffoPancakeProvisionedStoreID={settings.WaffoPancakeStoreID ?? ""}
-        waffoPancakeProvisionedProductID={settings.WaffoPancakeProductID ?? ""}
+        waffoPancakeProvisionedStoreID={settings.WaffoPancakeStoreID ?? ''}
+        waffoPancakeProvisionedProductID={settings.WaffoPancakeProductID ?? ''}
       />
     ),
   },
   {
-    id: "checkin",
-    titleKey: "Check-in Rewards",
+    id: 'checkin',
+    titleKey: 'Check-in Rewards',
     build: (settings: BillingSettings) => (
       <CheckinSettingsSection
         defaultValues={{
-          enabled: settings["checkin_setting.enabled"],
-          minQuota: settings["checkin_setting.min_quota"],
-          maxQuota: settings["checkin_setting.max_quota"],
+          enabled: settings['checkin_setting.enabled'],
+          minQuota: settings['checkin_setting.min_quota'],
+          maxQuota: settings['checkin_setting.max_quota'],
         }}
       />
     ),
   },
-] as const;
+] as const
 
 const billingRegistry = createSectionRegistry<
   BillingSectionId,
@@ -201,10 +201,10 @@ const billingRegistry = createSectionRegistry<
   sectionIds: BILLING_SECTION_IDS,
   sections: BILLING_SECTIONS,
   defaultSection: BILLING_DEFAULT_SECTION,
-  basePath: "/system-settings/billing",
-  urlStyle: "path",
-});
+  basePath: '/system-settings/billing',
+  urlStyle: 'path',
+})
 
-export const getBillingSectionNavItems = billingRegistry.getSectionNavItems;
-export const getBillingSectionContent = billingRegistry.getSectionContent;
-export const getBillingSectionMeta = billingRegistry.getSectionMeta;
+export const getBillingSectionNavItems = billingRegistry.getSectionNavItems
+export const getBillingSectionContent = billingRegistry.getSectionContent
+export const getBillingSectionMeta = billingRegistry.getSectionMeta

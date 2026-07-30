@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ReactNode } from "react";
-import type { FootnoteNode, ParsedNode } from "stream-markdown-parser";
+import type { ReactNode } from 'react'
+import type { FootnoteNode, ParsedNode } from 'stream-markdown-parser'
 
-import { getNodeKey } from "./response-content";
+import { getNodeKey } from './response-content'
 import {
   hasParsedChildren,
   isBlockquoteNode,
@@ -34,8 +34,8 @@ import {
   isMathInlineNode,
   isTableNode,
   isTextNode,
-} from "./response-node-guards";
-import { renderBlockquote } from "./response-renderer-alert";
+} from './response-node-guards'
+import { renderBlockquote } from './response-renderer-alert'
 import {
   renderCodeBlock,
   renderDefinitionList,
@@ -43,215 +43,215 @@ import {
   renderList,
   renderMathBlock,
   renderMathInline,
-} from "./response-renderer-blocks";
-import { renderDetails } from "./response-renderer-details";
-import { renderFootnotes as renderFootnotesBlock } from "./response-renderer-footnotes";
+} from './response-renderer-blocks'
+import { renderDetails } from './response-renderer-details'
+import { renderFootnotes as renderFootnotesBlock } from './response-renderer-footnotes'
 import {
   renderImage,
   renderLink,
   renderTextNode,
-} from "./response-renderer-inline";
-import { renderTable } from "./response-renderer-table";
-import type { BlockRendererOptions } from "./response-types";
+} from './response-renderer-inline'
+import { renderTable } from './response-renderer-table'
+import type { BlockRendererOptions } from './response-types'
 
 function createRendererOptions(final: boolean): BlockRendererOptions {
   const options: BlockRendererOptions = {
     final,
     renderChildren: (nodes) => renderNodes(nodes, options),
-  };
-  return options;
+  }
+  return options
 }
 
 function renderNodes(
   nodes: ParsedNode[],
-  options: BlockRendererOptions,
+  options: BlockRendererOptions
 ): ReactNode {
   return nodes.map((node, index) =>
-    renderNode(node, getNodeKey(node, index), options),
-  );
+    renderNode(node, getNodeKey(node, index), options)
+  )
 }
 
 export function renderResponseNodes(
   nodes: ParsedNode[],
-  final: boolean,
+  final: boolean
 ): ReactNode {
-  return renderNodes(nodes, createRendererOptions(final));
+  return renderNodes(nodes, createRendererOptions(final))
 }
 
 export function renderResponseFootnotes(
   footnotes: FootnoteNode[],
-  final: boolean,
+  final: boolean
 ): ReactNode {
-  return renderFootnotesBlock(footnotes, createRendererOptions(final));
+  return renderFootnotesBlock(footnotes, createRendererOptions(final))
 }
 
 function renderNode(
   node: ParsedNode,
   key: string,
-  options: BlockRendererOptions,
+  options: BlockRendererOptions
 ): ReactNode {
-  const { renderChildren } = options;
+  const { renderChildren } = options
 
   if (isTextNode(node)) {
-    return renderTextNode(node);
+    return renderTextNode(node)
   }
 
   if (isHeadingNode(node)) {
-    return renderHeading(node, key, options);
+    return renderHeading(node, key, options)
   }
 
-  if (node.type === "paragraph" && hasParsedChildren(node)) {
+  if (node.type === 'paragraph' && hasParsedChildren(node)) {
     return (
-      <p className="my-3 leading-7" key={key}>
+      <p className='my-3 leading-7' key={key}>
         {renderChildren(node.children)}
       </p>
-    );
+    )
   }
 
-  if (node.type === "inline" && hasParsedChildren(node)) {
-    return <span key={key}>{renderChildren(node.children)}</span>;
+  if (node.type === 'inline' && hasParsedChildren(node)) {
+    return <span key={key}>{renderChildren(node.children)}</span>
   }
 
   if (isListNode(node)) {
-    return renderList(node, key, options);
+    return renderList(node, key, options)
   }
 
   if (isCodeBlockNode(node)) {
-    return renderCodeBlock(node, key, options);
+    return renderCodeBlock(node, key, options)
   }
 
-  if (node.type === "inline_code" && "code" in node) {
+  if (node.type === 'inline_code' && 'code' in node) {
     return (
       <code
-        className="bg-muted/70 text-foreground rounded px-1 py-0.5 font-mono text-[0.9em]"
+        className='bg-muted/70 text-foreground rounded px-1 py-0.5 font-mono text-[0.9em]'
         key={key}
       >
         {String(node.code)}
       </code>
-    );
+    )
   }
 
   if (isLinkNode(node)) {
-    return renderLink(node, key, renderChildren);
+    return renderLink(node, key, renderChildren)
   }
 
   if (isImageNode(node)) {
-    return renderImage(node, key);
+    return renderImage(node, key)
   }
 
   if (isBlockquoteNode(node)) {
-    return renderBlockquote(node, key, options);
+    return renderBlockquote(node, key, options)
   }
 
   if (isTableNode(node)) {
-    return renderTable(node, key, options);
+    return renderTable(node, key, options)
   }
 
   if (isDefinitionListNode(node)) {
-    return renderDefinitionList(node, key, options);
+    return renderDefinitionList(node, key, options)
   }
 
-  if (node.type === "strong" && hasParsedChildren(node)) {
+  if (node.type === 'strong' && hasParsedChildren(node)) {
     return (
-      <strong className="text-foreground font-semibold" key={key}>
+      <strong className='text-foreground font-semibold' key={key}>
         {renderChildren(node.children)}
       </strong>
-    );
+    )
   }
 
-  if (node.type === "emphasis" && hasParsedChildren(node)) {
-    return <em key={key}>{renderChildren(node.children)}</em>;
+  if (node.type === 'emphasis' && hasParsedChildren(node)) {
+    return <em key={key}>{renderChildren(node.children)}</em>
   }
 
-  if (node.type === "strikethrough" && hasParsedChildren(node)) {
-    return <del key={key}>{renderChildren(node.children)}</del>;
+  if (node.type === 'strikethrough' && hasParsedChildren(node)) {
+    return <del key={key}>{renderChildren(node.children)}</del>
   }
 
-  if (node.type === "highlight" && hasParsedChildren(node)) {
-    return <mark key={key}>{renderChildren(node.children)}</mark>;
+  if (node.type === 'highlight' && hasParsedChildren(node)) {
+    return <mark key={key}>{renderChildren(node.children)}</mark>
   }
 
-  if (node.type === "insert" && hasParsedChildren(node)) {
-    return <ins key={key}>{renderChildren(node.children)}</ins>;
+  if (node.type === 'insert' && hasParsedChildren(node)) {
+    return <ins key={key}>{renderChildren(node.children)}</ins>
   }
 
-  if (node.type === "subscript" && hasParsedChildren(node)) {
-    return <sub key={key}>{renderChildren(node.children)}</sub>;
+  if (node.type === 'subscript' && hasParsedChildren(node)) {
+    return <sub key={key}>{renderChildren(node.children)}</sub>
   }
 
-  if (node.type === "superscript" && hasParsedChildren(node)) {
-    return <sup key={key}>{renderChildren(node.children)}</sup>;
+  if (node.type === 'superscript' && hasParsedChildren(node)) {
+    return <sup key={key}>{renderChildren(node.children)}</sup>
   }
 
   if (
-    (node.type === "checkbox" || node.type === "checkbox_input") &&
-    "checked" in node
+    (node.type === 'checkbox' || node.type === 'checkbox_input') &&
+    'checked' in node
   ) {
     return (
       <input
         checked={Boolean(node.checked)}
-        className="accent-primary mr-2 size-4 align-[-0.15em]"
+        className='accent-primary mr-2 size-4 align-[-0.15em]'
         disabled
         key={key}
         readOnly
-        type="checkbox"
+        type='checkbox'
       />
-    );
+    )
   }
 
-  if (node.type === "hardbreak") {
-    return <br key={key} />;
+  if (node.type === 'hardbreak') {
+    return <br key={key} />
   }
 
-  if (node.type === "thematic_break") {
-    return <hr className="border-border/70 my-6" key={key} />;
+  if (node.type === 'thematic_break') {
+    return <hr className='border-border/70 my-6' key={key} />
   }
 
   if (isMathBlockNode(node)) {
-    return renderMathBlock(node, key);
+    return renderMathBlock(node, key)
   }
 
   if (isMathInlineNode(node)) {
-    return renderMathInline(node, key);
+    return renderMathInline(node, key)
   }
 
-  if (node.type === "footnote_reference" && "id" in node) {
+  if (node.type === 'footnote_reference' && 'id' in node) {
     return (
-      <sup className="text-primary mx-0.5 text-xs" key={key}>
+      <sup className='text-primary mx-0.5 text-xs' key={key}>
         <a
-          className="underline-offset-2 hover:underline"
+          className='underline-offset-2 hover:underline'
           href={`#footnote-${String(node.id)}`}
           id={`footnote-ref-${String(node.id)}`}
         >
           [{String(node.id)}]
         </a>
       </sup>
-    );
+    )
   }
 
-  if (node.type === "footnote_anchor") {
-    return null;
+  if (node.type === 'footnote_anchor') {
+    return null
   }
 
-  if (isHtmlBlockNode(node) && node.tag === "details") {
-    return renderDetails(node, key, options);
+  if (isHtmlBlockNode(node) && node.tag === 'details') {
+    return renderDetails(node, key, options)
   }
 
-  if (node.type === "html_block" && "content" in node) {
-    return <span key={key}>{String(node.content)}</span>;
+  if (node.type === 'html_block' && 'content' in node) {
+    return <span key={key}>{String(node.content)}</span>
   }
 
-  if (node.type === "html_inline" && "content" in node) {
-    return <span key={key}>{String(node.content)}</span>;
+  if (node.type === 'html_inline' && 'content' in node) {
+    return <span key={key}>{String(node.content)}</span>
   }
 
   if (hasParsedChildren(node)) {
-    return <span key={key}>{renderChildren(node.children)}</span>;
+    return <span key={key}>{renderChildren(node.children)}</span>
   }
 
-  if ("content" in node && typeof node.content === "string") {
-    return <span key={key}>{node.content}</span>;
+  if ('content' in node && typeof node.content === 'string') {
+    return <span key={key}>{node.content}</span>
   }
 
-  return <span key={key}>{node.raw}</span>;
+  return <span key={key}>{node.raw}</span>
 }

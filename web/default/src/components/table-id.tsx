@@ -16,22 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
 type TableIdProps = {
-  className?: string;
-  value: number | string;
-};
+  className?: string
+  value: number | string
+}
 
 export function TableId(props: TableIdProps) {
   return (
     <span
       className={cn(
-        "text-muted-foreground inline-block font-mono tabular-nums",
-        props.className,
+        'text-muted-foreground inline-block font-mono tabular-nums',
+        props.className
       )}
     >
       {props.value}
     </span>
-  );
+  )
 }

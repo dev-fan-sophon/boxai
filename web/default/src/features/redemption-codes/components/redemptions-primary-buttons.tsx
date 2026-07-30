@@ -16,60 +16,60 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Button } from '@/components/ui/button'
 
-import { deleteInvalidRedemptions } from "../api";
-import { ERROR_MESSAGES } from "../constants";
-import { useRedemptions } from "./redemptions-provider";
+import { deleteInvalidRedemptions } from '../api'
+import { ERROR_MESSAGES } from '../constants'
+import { useRedemptions } from './redemptions-provider'
 
 export function RedemptionsPrimaryButtons() {
-  const { t } = useTranslation();
-  const { setOpen, triggerRefresh } = useRedemptions();
+  const { t } = useTranslation()
+  const { setOpen, triggerRefresh } = useRedemptions()
   const [showDeleteInvalidConfirm, setShowDeleteInvalidConfirm] =
-    useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+    useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDeleteInvalid = async () => {
-    setIsDeleting(true);
+    setIsDeleting(true)
     try {
-      const result = await deleteInvalidRedemptions();
+      const result = await deleteInvalidRedemptions()
       if (result.success) {
-        const count = result.data || 0;
+        const count = result.data || 0
         toast.success(
-          t("Successfully deleted {{count}} invalid redemption codes", {
+          t('Successfully deleted {{count}} invalid redemption codes', {
             count,
-          }),
-        );
-        triggerRefresh();
-        setShowDeleteInvalidConfirm(false);
+          })
+        )
+        triggerRefresh()
+        setShowDeleteInvalidConfirm(false)
       } else {
-        toast.error(result.message || t(ERROR_MESSAGES.DELETE_INVALID_FAILED));
+        toast.error(result.message || t(ERROR_MESSAGES.DELETE_INVALID_FAILED))
       }
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(false)
     }
-  };
+  }
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className='flex flex-wrap gap-2'>
         <Button
-          size="sm"
-          variant="outline"
+          size='sm'
+          variant='outline'
           onClick={() => setShowDeleteInvalidConfirm(true)}
         >
-          <Trash2 className="text-destructive h-4 w-4" />
-          {t("Delete Invalid")}
+          <Trash2 className='text-destructive h-4 w-4' />
+          {t('Delete Invalid')}
         </Button>
-        <Button size="sm" onClick={() => setOpen("create")}>
-          <Plus className="h-4 w-4" />
-          {t("Create Code")}
+        <Button size='sm' onClick={() => setOpen('create')}>
+          <Plus className='h-4 w-4' />
+          {t('Create Code')}
         </Button>
       </div>
 
@@ -79,20 +79,20 @@ export function RedemptionsPrimaryButtons() {
         onOpenChange={setShowDeleteInvalidConfirm}
         handleConfirm={handleDeleteInvalid}
         isLoading={isDeleting}
-        className="max-w-md"
-        title={t("Delete Invalid Redemption Codes?")}
+        className='max-w-md'
+        title={t('Delete Invalid Redemption Codes?')}
         desc={
           <>
-            {t("This will delete all")} <strong>{t("used")}</strong>,{" "}
-            <strong>{t("disabled")}</strong>
-            {t(", and")} <strong>{t("expired")}</strong>{" "}
-            {t("redemption codes.")}
+            {t('This will delete all')} <strong>{t('used')}</strong>,{' '}
+            <strong>{t('disabled')}</strong>
+            {t(', and')} <strong>{t('expired')}</strong>{' '}
+            {t('redemption codes.')}
             <br />
-            {t("This action cannot be undone.")}
+            {t('This action cannot be undone.')}
           </>
         }
-        confirmText={t("Delete Invalid")}
+        confirmText={t('Delete Invalid')}
       />
     </>
-  );
+  )
 }

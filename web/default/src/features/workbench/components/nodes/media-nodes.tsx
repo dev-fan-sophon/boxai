@@ -20,13 +20,13 @@ For commercial licensing, please contact support@quantumnous.com
 Adapted from open-ai-canvas (https://github.com/ddcat-ai/open-ai-canvas),
 based on basketikun/infinite-canvas. AGPL-3.0; see THIRD-PARTY-LICENSES.md.
 */
-import { Image as ImageIcon, Layers, Music, Video } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Image as ImageIcon, Layers, Music, Video } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   IMAGE_COUNTS,
   IMAGE_QUALITIES,
@@ -37,11 +37,11 @@ import {
   SPEEDS,
   VOICES,
   videoSizeLabel,
-} from "@/features/playground/lib/studio/generation-options";
+} from '@/features/playground/lib/studio/generation-options'
 
-import { useCanvasTheme } from "../../engine/canvas-theme";
-import { useWorkbenchModels } from "../../hooks/use-workbench-models";
-import { useCanvasStore } from "../../store/canvas-store";
+import { useCanvasTheme } from '../../engine/canvas-theme'
+import { useWorkbenchModels } from '../../hooks/use-workbench-models'
+import { useCanvasStore } from '../../store/canvas-store'
 import {
   NodeEmptyMedia,
   NodeModelSelect,
@@ -49,27 +49,25 @@ import {
   NodeSettingsChips,
   NodeStatusOverlay,
   type CanvasNodeBodyProps,
-} from "./node-shared";
+} from './node-shared'
 
 export function ImageNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation();
-  const models = useWorkbenchModels();
-  const metadata = props.node.metadata ?? {};
-  const batchChildIds = metadata.batchChildIds ?? [];
-  const updateNodeMetadata = useCanvasStore(
-    (state) => state.updateNodeMetadata,
-  );
-  const experienceMode = useCanvasStore((state) => state.experienceMode);
-  const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight);
+  const { t } = useTranslation()
+  const models = useWorkbenchModels()
+  const metadata = props.node.metadata ?? {}
+  const batchChildIds = metadata.batchChildIds ?? []
+  const updateNodeMetadata = useCanvasStore((state) => state.updateNodeMetadata)
+  const experienceMode = useCanvasStore((state) => state.experienceMode)
+  const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight)
   const naturalAspect =
     hasNatural && metadata.naturalHeight
       ? `${metadata.naturalWidth} / ${metadata.naturalHeight}`
-      : undefined;
+      : undefined
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className='flex h-full min-h-0 flex-col gap-2'>
       <div
-        className="bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset"
+        className='bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset'
         style={naturalAspect ? { aspectRatio: naturalAspect } : undefined}
       >
         {metadata.content ? (
@@ -77,12 +75,12 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
             src={metadata.content}
             alt={props.node.title}
             draggable={false}
-            className="max-h-full max-w-full rounded-xl object-contain"
+            className='max-h-full max-w-full rounded-xl object-contain'
           />
         ) : (
           <NodeEmptyMedia
-            icon={<ImageIcon className="size-4" />}
-            label={t("Describe the image to generate")}
+            icon={<ImageIcon className='size-4' />}
+            label={t('Describe the image to generate')}
           />
         )}
         <NodeStatusOverlay
@@ -90,16 +88,16 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           errorDetails={metadata.errorDetails}
         />
         {metadata.content && hasNatural ? (
-          <span className="bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm">
+          <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm'>
             {metadata.naturalWidth}×{metadata.naturalHeight}
           </span>
         ) : null}
         {metadata.content ? (
-          <div className="absolute bottom-2 left-2">
+          <div className='absolute bottom-2 left-2'>
             <NodeSettingsChips
               items={[
-                metadata.size ?? "auto",
-                metadata.quality ?? "auto",
+                metadata.size ?? 'auto',
+                metadata.quality ?? 'auto',
                 `×${metadata.count ?? 1}`,
               ]}
             />
@@ -107,9 +105,9 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         ) : null}
         {batchChildIds.length ? (
           <Button
-            size="sm"
-            variant="secondary"
-            className="absolute right-2 bottom-2 h-6 gap-1 rounded-full px-2 text-[11px]"
+            size='sm'
+            variant='secondary'
+            className='absolute right-2 bottom-2 h-6 gap-1 rounded-full px-2 text-[11px]'
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() =>
               updateNodeMetadata(props.node.id, {
@@ -117,53 +115,53 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
               })
             }
           >
-            <Layers className="size-3" />
+            <Layers className='size-3' />
             {metadata.imageBatchExpanded
-              ? t("Collapse batch")
+              ? t('Collapse batch')
               : `${batchChildIds.length + 1}`}
           </Button>
         ) : null}
       </div>
 
       <NodePromptBar
-        value={metadata.prompt ?? ""}
-        placeholder={t("Describe the image to generate")}
+        value={metadata.prompt ?? ''}
+        placeholder={t('Describe the image to generate')}
         isGenerating={props.isGenerating}
         disabled={!metadata.model}
         onChange={(prompt) => props.onMetadataChange({ prompt })}
         onGenerate={props.onGenerate}
         onCancel={props.onCancel}
-        modality="image"
+        modality='image'
         nodeId={props.node.id}
       >
         <NodeModelSelect
           value={metadata.model}
-          options={models.byModality("image")}
+          options={models.byModality('image')}
           onChange={(model) => props.onMetadataChange({ model })}
         />
       </NodePromptBar>
 
       <div
         className={
-          experienceMode === "professional"
-            ? "flex shrink-0 flex-wrap items-center gap-2"
-            : "hidden"
+          experienceMode === 'professional'
+            ? 'flex shrink-0 flex-wrap items-center gap-2'
+            : 'hidden'
         }
         data-canvas-no-zoom
       >
-        <label className="flex items-center gap-1 text-[11px]">
+        <label className='flex items-center gap-1 text-[11px]'>
           <Checkbox
             checked={Boolean(metadata.freeResize)}
             onCheckedChange={(checked) =>
               props.onMetadataChange({ freeResize: checked === true })
             }
           />
-          {t("Free resize")}
+          {t('Free resize')}
         </label>
         <NativeSelect
-          size="sm"
-          className="min-w-0 flex-1"
-          value={metadata.size ?? "auto"}
+          size='sm'
+          className='min-w-0 flex-1'
+          value={metadata.size ?? 'auto'}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
             props.onMetadataChange({ size: event.target.value })
@@ -171,14 +169,14 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         >
           {IMAGE_SIZES.map((option) => (
             <option key={option} value={option}>
-              {option === "auto" ? t("Auto") : option}
+              {option === 'auto' ? t('Auto') : option}
             </option>
           ))}
         </NativeSelect>
         <NativeSelect
-          size="sm"
-          className="w-24"
-          value={metadata.quality ?? "auto"}
+          size='sm'
+          className='w-24'
+          value={metadata.quality ?? 'auto'}
           onChange={(event) =>
             props.onMetadataChange({ quality: event.target.value })
           }
@@ -186,16 +184,16 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           {IMAGE_QUALITIES.map((quality) => (
             <option key={quality} value={quality}>
               {t(
-                { auto: "Auto", low: "Low", medium: "Medium", high: "High" }[
+                { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High' }[
                   quality
-                ],
+                ]
               )}
             </option>
           ))}
         </NativeSelect>
         <NativeSelect
-          size="sm"
-          className="w-24"
+          size='sm'
+          className='w-24'
           value={String(metadata.count ?? 1)}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
@@ -204,56 +202,56 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         >
           {IMAGE_COUNTS.map((option) => (
             <option key={option} value={option}>
-              {t("{{count}} images", { count: option })}
+              {t('{{count}} images', { count: option })}
             </option>
           ))}
         </NativeSelect>
       </div>
       <label
         className={
-          experienceMode === "professional"
-            ? "flex shrink-0 items-center gap-2 text-[11px]"
-            : "hidden"
+          experienceMode === 'professional'
+            ? 'flex shrink-0 items-center gap-2 text-[11px]'
+            : 'hidden'
         }
         title={t(
-          "Transparent background is not supported by this generation API.",
+          'Transparent background is not supported by this generation API.'
         )}
       >
-        <Checkbox disabled checked={false} /> {t("Transparent background")}
+        <Checkbox disabled checked={false} /> {t('Transparent background')}
       </label>
     </div>
-  );
+  )
 }
 
 export function VideoNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation();
-  const theme = useCanvasTheme();
-  const models = useWorkbenchModels();
-  const metadata = props.node.metadata ?? {};
-  const experienceMode = useCanvasStore((state) => state.experienceMode);
-  const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight);
+  const { t } = useTranslation()
+  const theme = useCanvasTheme()
+  const models = useWorkbenchModels()
+  const metadata = props.node.metadata ?? {}
+  const experienceMode = useCanvasStore((state) => state.experienceMode)
+  const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight)
   const naturalAspect =
     hasNatural && metadata.naturalHeight
       ? `${metadata.naturalWidth} / ${metadata.naturalHeight}`
-      : undefined;
+      : undefined
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className='flex h-full min-h-0 flex-col gap-2'>
       <div
-        className="bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset"
+        className='bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset'
         style={naturalAspect ? { aspectRatio: naturalAspect } : undefined}
       >
         {metadata.content ? (
           <video
             src={metadata.content}
             controls
-            className="max-h-full max-w-full rounded-xl object-contain"
+            className='max-h-full max-w-full rounded-xl object-contain'
             onPointerDown={(event) => event.stopPropagation()}
           />
         ) : (
           <NodeEmptyMedia
-            icon={<Video className="size-4" />}
-            label={t("Describe the video to generate")}
+            icon={<Video className='size-4' />}
+            label={t('Describe the video to generate')}
           />
         )}
         <NodeStatusOverlay
@@ -263,26 +261,26 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           errorDetails={metadata.errorDetails}
         />
         {metadata.content && hasNatural ? (
-          <span className="bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm">
+          <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm'>
             {metadata.naturalWidth}×{metadata.naturalHeight}
           </span>
         ) : null}
       </div>
 
       <NodePromptBar
-        value={metadata.prompt ?? ""}
-        placeholder={t("Describe the video to generate")}
+        value={metadata.prompt ?? ''}
+        placeholder={t('Describe the video to generate')}
         isGenerating={props.isGenerating}
         disabled={!metadata.model}
         onChange={(prompt) => props.onMetadataChange({ prompt })}
         onGenerate={props.onGenerate}
         onCancel={props.onCancel}
-        modality="video"
+        modality='video'
         nodeId={props.node.id}
       >
         <NodeModelSelect
           value={metadata.model}
-          options={models.byModality("video")}
+          options={models.byModality('video')}
           onChange={(model) => props.onMetadataChange({ model })}
         />
       </NodePromptBar>
@@ -295,15 +293,15 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
       />
       <div
         className={
-          experienceMode === "professional"
-            ? "flex shrink-0 flex-wrap items-center gap-2"
-            : "hidden"
+          experienceMode === 'professional'
+            ? 'flex shrink-0 flex-wrap items-center gap-2'
+            : 'hidden'
         }
         data-canvas-no-zoom
       >
         <NativeSelect
-          size="sm"
-          className="min-w-0 flex-1"
+          size='sm'
+          className='min-w-0 flex-1'
           value={metadata.size ?? VIDEO_SIZES[0]}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
@@ -317,8 +315,8 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           ))}
         </NativeSelect>
         <NativeSelect
-          size="sm"
-          className="w-24"
+          size='sm'
+          className='w-24'
           value={metadata.seconds ?? String(VIDEO_DURATIONS[0])}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
@@ -327,7 +325,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         >
           {VIDEO_DURATIONS.map((option) => (
             <option key={option} value={option}>
-              {t("{{count}}s", { count: option })}
+              {t('{{count}}s', { count: option })}
             </option>
           ))}
         </NativeSelect>
@@ -335,9 +333,9 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
 
       <label
         className={
-          experienceMode === "professional"
-            ? "flex shrink-0 items-start gap-2 text-[11px]"
-            : "hidden"
+          experienceMode === 'professional'
+            ? 'flex shrink-0 items-start gap-2 text-[11px]'
+            : 'hidden'
         }
         data-canvas-no-zoom
         onPointerDown={(event) => event.stopPropagation()}
@@ -349,33 +347,33 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           }
         />
         <span style={{ color: theme.node.muted }}>
-          {t("Use the second connected image as the tail frame")}
+          {t('Use the second connected image as the tail frame')}
         </span>
       </label>
     </div>
-  );
+  )
 }
 
 export function AudioNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation();
-  const models = useWorkbenchModels();
-  const metadata = props.node.metadata ?? {};
-  const experienceMode = useCanvasStore((state) => state.experienceMode);
+  const { t } = useTranslation()
+  const models = useWorkbenchModels()
+  const metadata = props.node.metadata ?? {}
+  const experienceMode = useCanvasStore((state) => state.experienceMode)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="bg-muted/30 ring-border/50 relative flex min-h-14 flex-1 items-center overflow-hidden rounded-xl px-2 ring-1 ring-inset">
+    <div className='flex h-full min-h-0 flex-col gap-2'>
+      <div className='bg-muted/30 ring-border/50 relative flex min-h-14 flex-1 items-center overflow-hidden rounded-xl px-2 ring-1 ring-inset'>
         {metadata.content ? (
           <audio
             src={metadata.content}
             controls
-            className="w-full"
+            className='w-full'
             onPointerDown={(event) => event.stopPropagation()}
           />
         ) : (
           <NodeEmptyMedia
-            icon={<Music className="size-4" />}
-            label={t("Enter the text to speak")}
+            icon={<Music className='size-4' />}
+            label={t('Enter the text to speak')}
           />
         )}
         <NodeStatusOverlay
@@ -385,40 +383,40 @@ export function AudioNodeBody(props: CanvasNodeBodyProps) {
       </div>
 
       <NodePromptBar
-        value={metadata.prompt ?? ""}
-        placeholder={t("Enter the text to speak")}
+        value={metadata.prompt ?? ''}
+        placeholder={t('Enter the text to speak')}
         isGenerating={props.isGenerating}
         disabled={!metadata.model}
         onChange={(prompt) => props.onMetadataChange({ prompt })}
         onGenerate={props.onGenerate}
         onCancel={props.onCancel}
-        modality="audio"
+        modality='audio'
         nodeId={props.node.id}
       >
         <NodeModelSelect
           value={metadata.model}
-          options={models.byModality("audio")}
+          options={models.byModality('audio')}
           onChange={(model) => props.onMetadataChange({ model })}
         />
       </NodePromptBar>
       <NodeSettingsChips
         items={[
-          metadata.audioVoice ?? "alloy",
-          metadata.audioFormat ?? "mp3",
-          `${metadata.audioSpeed ?? "1"}×`,
+          metadata.audioVoice ?? 'alloy',
+          metadata.audioFormat ?? 'mp3',
+          `${metadata.audioSpeed ?? '1'}×`,
         ]}
       />
       <div
         className={
-          experienceMode === "professional"
-            ? "grid shrink-0 grid-cols-3 gap-2"
-            : "hidden"
+          experienceMode === 'professional'
+            ? 'grid shrink-0 grid-cols-3 gap-2'
+            : 'hidden'
         }
         data-canvas-no-zoom
       >
         <NativeSelect
-          size="sm"
-          value={metadata.audioVoice ?? "alloy"}
+          size='sm'
+          value={metadata.audioVoice ?? 'alloy'}
           onChange={(event) =>
             props.onMetadataChange({ audioVoice: event.target.value })
           }
@@ -428,8 +426,8 @@ export function AudioNodeBody(props: CanvasNodeBodyProps) {
           ))}
         </NativeSelect>
         <NativeSelect
-          size="sm"
-          value={metadata.audioFormat ?? "mp3"}
+          size='sm'
+          value={metadata.audioFormat ?? 'mp3'}
           onChange={(event) =>
             props.onMetadataChange({ audioFormat: event.target.value })
           }
@@ -439,8 +437,8 @@ export function AudioNodeBody(props: CanvasNodeBodyProps) {
           ))}
         </NativeSelect>
         <NativeSelect
-          size="sm"
-          value={metadata.audioSpeed ?? "1"}
+          size='sm'
+          value={metadata.audioSpeed ?? '1'}
           onChange={(event) =>
             props.onMetadataChange({ audioSpeed: event.target.value })
           }
@@ -452,17 +450,17 @@ export function AudioNodeBody(props: CanvasNodeBodyProps) {
           ))}
         </NativeSelect>
       </div>
-      {experienceMode === "professional" ? (
+      {experienceMode === 'professional' ? (
         <Textarea
-          value={metadata.audioInstructions ?? ""}
-          placeholder={t("Voice instructions")}
+          value={metadata.audioInstructions ?? ''}
+          placeholder={t('Voice instructions')}
           rows={2}
-          className="min-h-10 shrink-0 resize-none text-xs"
+          className='min-h-10 shrink-0 resize-none text-xs'
           onChange={(event) =>
             props.onMetadataChange({ audioInstructions: event.target.value })
           }
         />
       ) : null}
     </div>
-  );
+  )
 }

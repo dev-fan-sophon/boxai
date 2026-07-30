@@ -16,71 +16,71 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
   DataTablePage,
   DataTableRow,
   useDataTable,
-} from "@/components/data-table";
-import { useSmDown } from "@/hooks";
-import { useTableUrlState } from "@/hooks/use-table-url-state";
-import { cn } from "@/lib/utils";
+} from '@/components/data-table'
+import { useSmDown } from '@/hooks'
+import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { cn } from '@/lib/utils'
 
 import {
   DEFAULT_LOGS_DATA,
   LOG_TYPE_ALL_VALUE,
   LOG_TYPE_ENUM,
-} from "../constants";
-import { useColumnsByCategory } from "../lib/columns";
-import { parseLogOther } from "../lib/format";
-import { fetchLogsByCategory } from "../lib/utils";
-import type { LogCategory } from "../types";
-import { CommonLogsFilterBar } from "./common-logs-filter-bar";
-import { TaskLogsFilterBar } from "./task-logs-filter-bar";
-import { UsageLogsMobileList } from "./usage-logs-mobile-card";
-import { useLogsViewScope, useUsageLogsContext } from "./usage-logs-provider";
+} from '../constants'
+import { useColumnsByCategory } from '../lib/columns'
+import { parseLogOther } from '../lib/format'
+import { fetchLogsByCategory } from '../lib/utils'
+import type { LogCategory } from '../types'
+import { CommonLogsFilterBar } from './common-logs-filter-bar'
+import { TaskLogsFilterBar } from './task-logs-filter-bar'
+import { UsageLogsMobileList } from './usage-logs-mobile-card'
+import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 const logTypeRowTint: Record<number, string> = {
-  [LOG_TYPE_ENUM.ERROR]: "bg-rose-50/40 dark:bg-rose-950/20",
-  [LOG_TYPE_ENUM.REFUND]: "bg-blue-50/30 dark:bg-blue-950/15",
-};
+  [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
+  [LOG_TYPE_ENUM.REFUND]: 'bg-blue-50/30 dark:bg-blue-950/15',
+}
 
 // Warning tint for logs where a quota conversion saturated (admin-only marker).
 // Takes precedence over the per-type tint since it flags a billing anomaly.
-const quotaSaturationRowTint = "bg-amber-50/60 dark:bg-amber-950/25";
+const quotaSaturationRowTint = 'bg-amber-50/60 dark:bg-amber-950/25'
 
 function getColumnVisibilityStorageKey(
   logCategory: LogCategory,
-  isAdmin: boolean,
+  isAdmin: boolean
 ): string {
-  return `usage-logs:${logCategory}:${isAdmin ? "admin" : "user"}:column-visibility`;
+  return `usage-logs:${logCategory}:${isAdmin ? 'admin' : 'user'}:column-visibility`
 }
 
 function deserializeLogTypeFilter(value: unknown): unknown[] {
-  let values: unknown[];
+  let values: unknown[]
   if (Array.isArray(value)) {
-    values = value;
+    values = value
   } else if (value) {
-    values = [value];
+    values = [value]
   } else {
-    values = [];
+    values = []
   }
-  return values.filter((item) => String(item) !== LOG_TYPE_ALL_VALUE);
+  return values.filter((item) => String(item) !== LOG_TYPE_ALL_VALUE)
 }
 
 interface UsageLogsTableProps {
-  logCategory: LogCategory;
+  logCategory: LogCategory
 }
 
 export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
-  const { t } = useTranslation();
-  const { isAdminView: isAdmin } = useLogsViewScope();
-  const { searchParams, navigateLogs, section } = useUsageLogsContext();
-  const isMobile = useSmDown();
+  const { t } = useTranslation()
+  const { isAdminView: isAdmin } = useLogsViewScope()
+  const { searchParams, navigateLogs, section } = useUsageLogsContext()
+  const isMobile = useSmDown()
 
   const {
     columnFilters,
@@ -91,53 +91,53 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useTableUrlState({
     search: searchParams as Record<string, unknown>,
     navigate: ({ search, replace: _replace }) => {
-      let next: typeof searchParams;
-      if (typeof search === "function") {
+      let next: typeof searchParams
+      if (typeof search === 'function') {
         next = search(
-          searchParams as Record<string, unknown>,
-        ) as typeof searchParams;
+          searchParams as Record<string, unknown>
+        ) as typeof searchParams
       } else if (search === true) {
-        next = searchParams;
+        next = searchParams
       } else {
-        next = search as typeof searchParams;
+        next = search as typeof searchParams
       }
       navigateLogs({
         section,
         search: next,
-      });
+      })
     },
     pagination: { defaultPage: 1, defaultPageSize: isMobile ? 20 : 100 },
     globalFilter: { enabled: false },
     columnFilters: [
       {
-        columnId: "created_at",
-        searchKey: "type",
-        type: "array" as const,
+        columnId: 'created_at',
+        searchKey: 'type',
+        type: 'array' as const,
         deserialize: deserializeLogTypeFilter,
       },
-      { columnId: "model_name", searchKey: "model", type: "string" as const },
-      { columnId: "token_name", searchKey: "token", type: "string" as const },
-      { columnId: "group", searchKey: "group", type: "string" as const },
+      { columnId: 'model_name', searchKey: 'model', type: 'string' as const },
+      { columnId: 'token_name', searchKey: 'token', type: 'string' as const },
+      { columnId: 'group', searchKey: 'group', type: 'string' as const },
       ...(isAdmin
         ? [
             {
-              columnId: "channel",
-              searchKey: "channel",
-              type: "string" as const,
+              columnId: 'channel',
+              searchKey: 'channel',
+              type: 'string' as const,
             },
             {
-              columnId: "username",
-              searchKey: "username",
-              type: "string" as const,
+              columnId: 'username',
+              searchKey: 'username',
+              type: 'string' as const,
             },
           ]
         : []),
     ],
-  });
+  })
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
-      "logs",
+      'logs',
       logCategory,
       isAdmin,
       pagination.pageIndex + 1,
@@ -154,26 +154,26 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         pageSize: pagination.pageSize,
         searchParams,
         columnFilters,
-      });
+      })
 
       if (!result?.success) {
-        toast.error(result?.message || t("Failed to load logs"));
-        return DEFAULT_LOGS_DATA;
+        toast.error(result?.message || t('Failed to load logs'))
+        return DEFAULT_LOGS_DATA
       }
 
-      return result.data || DEFAULT_LOGS_DATA;
+      return result.data || DEFAULT_LOGS_DATA
     },
     placeholderData: (previousData, previousQuery) => {
       if (previousQuery?.queryKey[1] === logCategory) {
-        return previousData;
+        return previousData
       }
-      return undefined;
+      return undefined
     },
-  });
+  })
 
-  const logs = data?.items || [];
-  const columns = useColumnsByCategory(logCategory, isAdmin);
-  const isLoadingData = isLoading || (isFetching && !data);
+  const logs = data?.items || []
+  const columns = useColumnsByCategory(logCategory, isAdmin)
+  const isLoadingData = isLoading || (isFetching && !data)
 
   const { table } = useDataTable({
     data: logs as Record<string, unknown>[],
@@ -181,7 +181,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     columnFilters,
     columnVisibilityStorageKey: getColumnVisibilityStorageKey(
       logCategory,
-      isAdmin,
+      isAdmin
     ),
     pagination,
     enableRowSelection: false,
@@ -191,9 +191,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     manualFiltering: true,
     totalCount: data?.total || 0,
     ensurePageInRange,
-  });
+  })
 
-  const isCommon = logCategory === "common";
+  const isCommon = logCategory === 'common'
 
   return (
     <DataTablePage
@@ -201,14 +201,14 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
       isFetching={isFetching}
-      emptyTitle={t("No Logs Found")}
+      emptyTitle={t('No Logs Found')}
       emptyDescription={t(
-        "No usage logs available. Logs will appear here once API calls are made.",
+        'No usage logs available. Logs will appear here once API calls are made.'
       )}
-      skeletonKeyPrefix="usage-log-skeleton"
+      skeletonKeyPrefix='usage-log-skeleton'
       applyHeaderSize
       tableClassName={cn(
-        "[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]",
+        '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
       )}
       mobile={
         <UsageLogsMobileList
@@ -227,15 +227,15 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       renderRow={(row) => {
         const logType = (row.original as Record<string, unknown>).type as
           | number
-          | undefined;
+          | undefined
         let tintClass =
-          isCommon && logType != null ? (logTypeRowTint[logType] ?? "") : "";
+          isCommon && logType != null ? (logTypeRowTint[logType] ?? '') : ''
         if (isCommon && isAdmin) {
           const other = parseLogOther(
-            ((row.original as Record<string, unknown>).other as string) ?? "",
-          );
+            ((row.original as Record<string, unknown>).other as string) ?? ''
+          )
           if (other?.admin_info?.quota_saturation) {
-            tintClass = quotaSaturationRowTint;
+            tintClass = quotaSaturationRowTint
           }
         }
 
@@ -243,11 +243,11 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
           <DataTableRow
             key={row.id}
             row={row}
-            className={cn("transition-colors", tintClass)}
-            getColumnClassName={() => (isCommon ? "py-2" : "py-3.5")}
+            className={cn('transition-colors', tintClass)}
+            getColumnClassName={() => (isCommon ? 'py-2' : 'py-3.5')}
           />
-        );
+        )
       }}
     />
-  );
+  )
 }

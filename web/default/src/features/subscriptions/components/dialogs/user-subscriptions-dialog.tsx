@@ -16,29 +16,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Ban, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { Ban, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   DataTableRowActionMenu,
   StaticDataTable,
-} from "@/components/data-table";
+} from '@/components/data-table'
 import {
   sideDrawerContentClassName,
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
-} from "@/components/drawer-layout";
-import { StatusBadge } from "@/components/status-badge";
-import { TableId } from "@/components/table-id";
-import { Button } from "@/components/ui/button";
+} from '@/components/drawer-layout'
+import { StatusBadge } from '@/components/status-badge'
+import { TableId } from '@/components/table-id'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -46,16 +46,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { formatQuota } from "@/lib/format";
+} from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
+import { formatQuota } from '@/lib/format'
 
 import {
   getAdminPlans,
@@ -64,188 +64,188 @@ import {
   invalidateUserSubscription,
   deleteUserSubscription,
   resetUserSubscriptionsByPlan,
-} from "../../api";
-import { formatTimestamp } from "../../lib";
-import type { PlanRecord, UserSubscriptionRecord } from "../../types";
+} from '../../api'
+import { formatTimestamp } from '../../lib'
+import type { PlanRecord, UserSubscriptionRecord } from '../../types'
 
 interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: { id: number; username?: string } | null;
-  onSuccess?: () => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user: { id: number; username?: string } | null
+  onSuccess?: () => void
 }
 
 function SubscriptionStatusBadge(props: {
-  sub: UserSubscriptionRecord["subscription"];
-  t: (key: string) => string;
+  sub: UserSubscriptionRecord['subscription']
+  t: (key: string) => string
 }) {
   // eslint-disable-next-line react-hooks/purity
-  const now = Date.now() / 1000;
-  const isExpired = (props.sub.end_time || 0) > 0 && props.sub.end_time < now;
-  const isActive = props.sub.status === "active" && !isExpired;
+  const now = Date.now() / 1000
+  const isExpired = (props.sub.end_time || 0) > 0 && props.sub.end_time < now
+  const isActive = props.sub.status === 'active' && !isExpired
   if (isActive) {
     return (
       <StatusBadge
-        label={props.t("Active")}
-        variant="success"
+        label={props.t('Active')}
+        variant='success'
         copyable={false}
       />
-    );
+    )
   }
-  if (props.sub.status === "cancelled") {
+  if (props.sub.status === 'cancelled') {
     return (
       <StatusBadge
-        label={props.t("Invalidated")}
-        variant="neutral"
+        label={props.t('Invalidated')}
+        variant='neutral'
         copyable={false}
       />
-    );
+    )
   }
   return (
     <StatusBadge
-      label={props.t("Expired")}
-      variant="neutral"
+      label={props.t('Expired')}
+      variant='neutral'
       copyable={false}
     />
-  );
+  )
 }
 
 export function UserSubscriptionsDialog(props: Props) {
-  const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [plans, setPlans] = useState<PlanRecord[]>([]);
-  const [subs, setSubs] = useState<UserSubscriptionRecord[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  const [resetting, setResetting] = useState(false);
-  const [advanceResetTime, setAdvanceResetTime] = useState(true);
+  const { t } = useTranslation()
+  const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [plans, setPlans] = useState<PlanRecord[]>([])
+  const [subs, setSubs] = useState<UserSubscriptionRecord[]>([])
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('')
+  const [resetting, setResetting] = useState(false)
+  const [advanceResetTime, setAdvanceResetTime] = useState(true)
   const [resetAction, setResetAction] = useState<{
-    planId: number;
-    planTitle: string;
-  } | null>(null);
+    planId: number
+    planTitle: string
+  } | null>(null)
   const [confirmAction, setConfirmAction] = useState<{
-    type: "invalidate" | "delete";
-    subId: number;
-  } | null>(null);
+    type: 'invalidate' | 'delete'
+    subId: number
+  } | null>(null)
 
   const planTitleMap = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, string>()
     plans.forEach((p) => {
-      if (p.plan.id) map.set(p.plan.id, p.plan.title || `#${p.plan.id}`);
-    });
-    return map;
-  }, [plans]);
+      if (p.plan.id) map.set(p.plan.id, p.plan.title || `#${p.plan.id}`)
+    })
+    return map
+  }, [plans])
 
   const loadData = useCallback(async () => {
-    if (!props.user?.id) return;
-    setLoading(true);
+    if (!props.user?.id) return
+    setLoading(true)
     try {
       const [plansRes, subsRes] = await Promise.all([
         getAdminPlans(),
         getUserSubscriptions(props.user.id),
-      ]);
-      if (plansRes.success) setPlans(plansRes.data || []);
-      if (subsRes.success) setSubs(subsRes.data || []);
+      ])
+      if (plansRes.success) setPlans(plansRes.data || [])
+      if (subsRes.success) setSubs(subsRes.data || [])
     } catch {
-      toast.error(t("Loading failed"));
+      toast.error(t('Loading failed'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [props.user?.id, t]);
+  }, [props.user?.id, t])
 
   useEffect(() => {
     if (props.open && props.user?.id) {
-      setSelectedPlanId("");
-      loadData();
+      setSelectedPlanId('')
+      loadData()
     }
-  }, [props.open, props.user?.id, loadData]);
+  }, [props.open, props.user?.id, loadData])
 
   const handleCreate = async () => {
     if (!props.user?.id || !selectedPlanId) {
-      toast.error(t("Please select a subscription plan"));
-      return;
+      toast.error(t('Please select a subscription plan'))
+      return
     }
-    setCreating(true);
+    setCreating(true)
     try {
       const res = await createUserSubscription(props.user.id, {
         plan_id: Number(selectedPlanId),
-      });
+      })
       if (res.success) {
-        toast.success(res.data?.message || t("Added successfully"));
-        setSelectedPlanId("");
-        await loadData();
-        props.onSuccess?.();
+        toast.success(res.data?.message || t('Added successfully'))
+        setSelectedPlanId('')
+        await loadData()
+        props.onSuccess?.()
       }
     } catch {
-      toast.error(t("Request failed"));
+      toast.error(t('Request failed'))
     } finally {
-      setCreating(false);
+      setCreating(false)
     }
-  };
+  }
 
   const handleConfirmAction = async () => {
-    if (!confirmAction) return;
+    if (!confirmAction) return
     try {
-      if (confirmAction.type === "invalidate") {
-        const res = await invalidateUserSubscription(confirmAction.subId);
+      if (confirmAction.type === 'invalidate') {
+        const res = await invalidateUserSubscription(confirmAction.subId)
         if (res.success) {
-          toast.success(res.data?.message || t("Has been invalidated"));
-          await loadData();
-          props.onSuccess?.();
+          toast.success(res.data?.message || t('Has been invalidated'))
+          await loadData()
+          props.onSuccess?.()
         }
       } else {
-        const res = await deleteUserSubscription(confirmAction.subId);
+        const res = await deleteUserSubscription(confirmAction.subId)
         if (res.success) {
-          toast.success(t("Deleted"));
-          await loadData();
-          props.onSuccess?.();
+          toast.success(t('Deleted'))
+          await loadData()
+          props.onSuccess?.()
         }
       }
     } catch {
-      toast.error(t("Operation failed"));
+      toast.error(t('Operation failed'))
     } finally {
-      setConfirmAction(null);
+      setConfirmAction(null)
     }
-  };
+  }
 
   const handleResetConfirm = async () => {
-    if (!props.user?.id || !resetAction) return;
-    setResetting(true);
+    if (!props.user?.id || !resetAction) return
+    setResetting(true)
     try {
       const res = await resetUserSubscriptionsByPlan(props.user.id, {
         plan_id: resetAction.planId,
         advance_reset_time: advanceResetTime,
-      });
+      })
       if (res.success) {
         toast.success(
-          t("Reset {{count}} active subscriptions", {
+          t('Reset {{count}} active subscriptions', {
             count: res.data?.reset_count || 0,
-          }),
-        );
-        await loadData();
-        props.onSuccess?.();
+          })
+        )
+        await loadData()
+        props.onSuccess?.()
       }
     } catch {
-      toast.error(t("Operation failed"));
+      toast.error(t('Operation failed'))
     } finally {
-      setResetting(false);
-      setResetAction(null);
+      setResetting(false)
+      setResetAction(null)
     }
-  };
+  }
 
   return (
     <>
       <Sheet open={props.open} onOpenChange={props.onOpenChange}>
-        <SheetContent className={sideDrawerContentClassName("sm:max-w-2xl")}>
+        <SheetContent className={sideDrawerContentClassName('sm:max-w-2xl')}>
           <SheetHeader className={sideDrawerHeaderClassName()}>
-            <SheetTitle>{t("User Subscription Management")}</SheetTitle>
+            <SheetTitle>{t('User Subscription Management')}</SheetTitle>
             <SheetDescription>
-              {props.user?.username || "-"} (ID: {props.user?.id || "-"})
+              {props.user?.username || '-'} (ID: {props.user?.id || '-'})
             </SheetDescription>
           </SheetHeader>
 
           <div className={sideDrawerFormClassName()}>
-            <div className="flex gap-2">
+            <div className='flex gap-2'>
               <Select
                 items={plans.map((p) => ({
                   value: String(p.plan.id),
@@ -259,8 +259,8 @@ export function UserSubscriptionsDialog(props: Props) {
                 value={selectedPlanId}
                 onValueChange={(v) => v !== null && setSelectedPlanId(v)}
               >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={t("Select subscription plan")} />
+                <SelectTrigger className='flex-1'>
+                  <SelectValue placeholder={t('Select subscription plan')} />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
                   <SelectGroup>
@@ -277,106 +277,106 @@ export function UserSubscriptionsDialog(props: Props) {
                 onClick={handleCreate}
                 disabled={creating || !selectedPlanId}
               >
-                <Plus className="mr-1 h-4 w-4" />
-                {t("Add subscription")}
+                <Plus className='mr-1 h-4 w-4' />
+                {t('Add subscription')}
               </Button>
             </div>
 
             <StaticDataTable
               data={loading ? [] : subs}
               getRowKey={(record) => record.subscription.id}
-              emptyClassName={loading ? "py-8" : "text-muted-foreground py-8"}
+              emptyClassName={loading ? 'py-8' : 'text-muted-foreground py-8'}
               emptyContent={
-                loading ? t("Loading...") : t("No subscription records")
+                loading ? t('Loading...') : t('No subscription records')
               }
               columns={[
                 {
-                  id: "id",
-                  header: t("ID"),
+                  id: 'id',
+                  header: t('ID'),
                   cell: (record) => <TableId value={record.subscription.id} />,
                 },
                 {
-                  id: "plan",
-                  header: t("Plan"),
+                  id: 'plan',
+                  header: t('Plan'),
                   cell: (record) => {
-                    const sub = record.subscription;
+                    const sub = record.subscription
 
                     return (
                       <div>
-                        <div className="font-medium">
+                        <div className='font-medium'>
                           {planTitleMap.get(sub.plan_id) || `#${sub.plan_id}`}
                         </div>
-                        <div className="text-muted-foreground text-sm">
-                          {t("Source")}: {sub.source || "-"}
+                        <div className='text-muted-foreground text-sm'>
+                          {t('Source')}: {sub.source || '-'}
                         </div>
                       </div>
-                    );
+                    )
                   },
                 },
                 {
-                  id: "status",
-                  header: t("Status"),
+                  id: 'status',
+                  header: t('Status'),
                   cell: (record) => (
                     <SubscriptionStatusBadge sub={record.subscription} t={t} />
                   ),
                 },
                 {
-                  id: "validity",
-                  header: t("Validity"),
+                  id: 'validity',
+                  header: t('Validity'),
                   cell: (record) => {
-                    const sub = record.subscription;
+                    const sub = record.subscription
 
                     return (
-                      <div className="text-sm">
+                      <div className='text-sm'>
                         <div>
-                          {t("Start")}: {formatTimestamp(sub.start_time)}
+                          {t('Start')}: {formatTimestamp(sub.start_time)}
                         </div>
                         <div>
-                          {t("End")}: {formatTimestamp(sub.end_time)}
+                          {t('End')}: {formatTimestamp(sub.end_time)}
                         </div>
                       </div>
-                    );
+                    )
                   },
                 },
                 {
-                  id: "quota",
-                  header: t("Total Quota"),
+                  id: 'quota',
+                  header: t('Total Quota'),
                   cell: (record) => {
-                    const sub = record.subscription;
-                    const total = Number(sub.amount_total || 0);
-                    const used = Number(sub.amount_used || 0);
+                    const sub = record.subscription
+                    const total = Number(sub.amount_total || 0)
+                    const used = Number(sub.amount_used || 0)
                     return total > 0
                       ? `${formatQuota(used)}/${formatQuota(total)}`
-                      : t("Unlimited");
+                      : t('Unlimited')
                   },
                 },
                 {
-                  id: "actions",
-                  header: t("Actions"),
-                  className: "text-right",
-                  cellClassName: "text-right",
+                  id: 'actions',
+                  header: t('Actions'),
+                  className: 'text-right',
+                  cellClassName: 'text-right',
                   cell: (record) => {
-                    const sub = record.subscription;
-                    const now = Date.now() / 1000;
+                    const sub = record.subscription
+                    const now = Date.now() / 1000
                     const isExpired =
-                      (sub.end_time || 0) > 0 && sub.end_time < now;
-                    const isActive = sub.status === "active" && !isExpired;
+                      (sub.end_time || 0) > 0 && sub.end_time < now
+                    const isActive = sub.status === 'active' && !isExpired
 
                     return (
-                      <DataTableRowActionMenu ariaLabel={t("Actions")}>
+                      <DataTableRowActionMenu ariaLabel={t('Actions')}>
                         <DropdownMenuItem
                           disabled={!isActive}
                           onClick={() => {
-                            setAdvanceResetTime(true);
+                            setAdvanceResetTime(true)
                             setResetAction({
                               planId: sub.plan_id,
                               planTitle:
                                 planTitleMap.get(sub.plan_id) ||
                                 `#${sub.plan_id}`,
-                            });
+                            })
                           }}
                         >
-                          {t("Reset quota")}
+                          {t('Reset quota')}
                           <DropdownMenuShortcut>
                             <RotateCcw size={16} />
                           </DropdownMenuShortcut>
@@ -385,33 +385,33 @@ export function UserSubscriptionsDialog(props: Props) {
                           disabled={!isActive}
                           onClick={() =>
                             setConfirmAction({
-                              type: "invalidate",
+                              type: 'invalidate',
                               subId: sub.id,
                             })
                           }
                         >
-                          {t("Invalidate")}
+                          {t('Invalidate')}
                           <DropdownMenuShortcut>
                             <Ban size={16} />
                           </DropdownMenuShortcut>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          variant="destructive"
+                          variant='destructive'
                           onClick={() =>
                             setConfirmAction({
-                              type: "delete",
+                              type: 'delete',
                               subId: sub.id,
                             })
                           }
                         >
-                          {t("Delete")}
+                          {t('Delete')}
                           <DropdownMenuShortcut>
                             <Trash2 size={16} />
                           </DropdownMenuShortcut>
                         </DropdownMenuItem>
                       </DataTableRowActionMenu>
-                    );
+                    )
                   },
                 },
               ]}
@@ -425,21 +425,21 @@ export function UserSubscriptionsDialog(props: Props) {
           open
           onOpenChange={(v) => !v && setConfirmAction(null)}
           title={
-            confirmAction.type === "invalidate"
-              ? t("Confirm invalidate")
-              : t("Confirm delete")
+            confirmAction.type === 'invalidate'
+              ? t('Confirm invalidate')
+              : t('Confirm delete')
           }
           desc={
-            confirmAction.type === "invalidate"
+            confirmAction.type === 'invalidate'
               ? t(
-                  "After invalidating, this subscription will be immediately deactivated. Historical records are not affected. Continue?",
+                  'After invalidating, this subscription will be immediately deactivated. Historical records are not affected. Continue?'
                 )
               : t(
-                  "Deleting will permanently remove this subscription record (including benefit details). Continue?",
+                  'Deleting will permanently remove this subscription record (including benefit details). Continue?'
                 )
           }
           handleConfirm={handleConfirmAction}
-          destructive={confirmAction.type === "delete"}
+          destructive={confirmAction.type === 'delete'}
         />
       )}
 
@@ -447,24 +447,24 @@ export function UserSubscriptionsDialog(props: Props) {
         <ConfirmDialog
           open
           onOpenChange={(v) => !v && setResetAction(null)}
-          title={t("Reset subscription quota")}
-          desc={t("Reset active {{plan}} subscriptions for this user?", {
+          title={t('Reset subscription quota')}
+          desc={t('Reset active {{plan}} subscriptions for this user?', {
             plan: resetAction.planTitle,
           })}
-          confirmText={t("Reset quota")}
+          confirmText={t('Reset quota')}
           handleConfirm={handleResetConfirm}
           isLoading={resetting}
         >
-          <label className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
-            <span>{t("Advance next reset time")}</span>
+          <label className='flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm'>
+            <span>{t('Advance next reset time')}</span>
             <Switch
               checked={advanceResetTime}
               onCheckedChange={(checked) => setAdvanceResetTime(!!checked)}
-              aria-label={t("Advance next reset time")}
+              aria-label={t('Advance next reset time')}
             />
           </label>
         </ConfirmDialog>
       )}
     </>
-  );
+  )
 }

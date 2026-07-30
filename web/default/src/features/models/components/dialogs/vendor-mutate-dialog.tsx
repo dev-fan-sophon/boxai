@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -34,41 +34,41 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
-import { createVendor, updateVendor } from "../../api";
-import { vendorsQueryKeys, modelsQueryKeys } from "../../lib";
-import { vendorFormSchema, type Vendor } from "../../types";
+import { createVendor, updateVendor } from '../../api'
+import { vendorsQueryKeys, modelsQueryKeys } from '../../lib'
+import { vendorFormSchema, type Vendor } from '../../types'
 
 type VendorMutateDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentVendor?: Vendor | null;
-};
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currentVendor?: Vendor | null
+}
 
-const VENDOR_MUTATE_FORM_ID = "vendor-mutate-form";
+const VENDOR_MUTATE_FORM_ID = 'vendor-mutate-form'
 
 export function VendorMutateDialog({
   open,
   onOpenChange,
   currentVendor,
 }: VendorMutateDialogProps) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const isEdit = Boolean(currentVendor?.id);
-  const [isSaving, setIsSaving] = useState(false);
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const isEdit = Boolean(currentVendor?.id)
+  const [isSaving, setIsSaving] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
-      name: "",
-      description: "",
-      icon: "",
+      name: '',
+      description: '',
+      icon: '',
       status: 1,
     },
-  });
+  })
 
   // Load vendor data for editing
   useEffect(() => {
@@ -76,85 +76,83 @@ export function VendorMutateDialog({
       form.reset({
         id: currentVendor.id,
         name: currentVendor.name,
-        description: currentVendor.description || "",
-        icon: currentVendor.icon || "",
+        description: currentVendor.description || '',
+        icon: currentVendor.icon || '',
         status: currentVendor.status || 1,
-      });
+      })
     } else if (open && !isEdit) {
       form.reset({
-        name: "",
-        description: "",
-        icon: "",
+        name: '',
+        description: '',
+        icon: '',
         status: 1,
-      });
+      })
     }
-  }, [open, isEdit, currentVendor, form]);
+  }, [open, isEdit, currentVendor, form])
 
   const onSubmit = async (values: Record<string, unknown>) => {
-    setIsSaving(true);
+    setIsSaving(true)
     try {
       const response =
         isEdit && currentVendor
           ? await updateVendor({ ...values, id: currentVendor.id })
-          : await createVendor(values);
+          : await createVendor(values)
 
       if (response.success) {
         toast.success(
-          isEdit
-            ? "Vendor updated successfully"
-            : "Vendor created successfully",
-        );
-        queryClient.invalidateQueries({ queryKey: vendorsQueryKeys.lists() });
-        queryClient.invalidateQueries({ queryKey: modelsQueryKeys.lists() });
-        onOpenChange(false);
+          isEdit ? 'Vendor updated successfully' : 'Vendor created successfully'
+        )
+        queryClient.invalidateQueries({ queryKey: vendorsQueryKeys.lists() })
+        queryClient.invalidateQueries({ queryKey: modelsQueryKeys.lists() })
+        onOpenChange(false)
       } else {
-        toast.error(response.message || "Operation failed");
+        toast.error(response.message || 'Operation failed')
       }
     } catch (error: unknown) {
-      toast.error((error as Error)?.message || "Operation failed");
+      toast.error((error as Error)?.message || 'Operation failed')
     } finally {
-      setIsSaving(false);
+      setIsSaving(false)
     }
-  };
+  }
 
-  let submitLabel = t("Create");
+  let submitLabel = t('Create')
   if (isSaving) {
-    submitLabel = t("Saving...");
+    submitLabel = t('Saving...')
   } else if (isEdit) {
-    submitLabel = t("Update");
+    submitLabel = t('Update')
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? t("Edit Vendor") : t("Create Vendor")}
+      title={isEdit ? t('Edit Vendor') : t('Create Vendor')}
       description={
         isEdit
-          ? t("Update vendor information for {{name}}", {
+          ? t('Update vendor information for {{name}}', {
               name: currentVendor?.name,
             })
-          : t("Add a new vendor to the system")
+          : t('Add a new vendor to the system')
       }
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         <>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={() => onOpenChange(false)}
             disabled={isSaving}
           >
-            {t("Cancel")}
+            {t('Cancel')}
           </Button>
           <Button
-            type="submit"
+            type='submit'
             form={VENDOR_MUTATE_FORM_ID}
             disabled={isSaving}
           >
             {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : null}
             {submitLabel}
           </Button>
@@ -165,22 +163,22 @@ export function VendorMutateDialog({
         <form
           id={VENDOR_MUTATE_FORM_ID}
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4"
+          className='space-y-4'
         >
           <FormField
             control={form.control}
-            name="name"
+            name='name'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("Vendor Name *")}</FormLabel>
+                <FormLabel>{t('Vendor Name *')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder={t("OpenAI, Anthropic, etc.")}
+                    placeholder={t('OpenAI, Anthropic, etc.')}
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
-                  {t("The unique name for this vendor")}
+                  {t('The unique name for this vendor')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -189,13 +187,13 @@ export function VendorMutateDialog({
 
           <FormField
             control={form.control}
-            name="description"
+            name='description'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("Description")}</FormLabel>
+                <FormLabel>{t('Description')}</FormLabel>
                 <FormControl>
                   <Textarea
-                    placeholder={t("Describe this vendor...")}
+                    placeholder={t('Describe this vendor...')}
                     rows={3}
                     {...field}
                   />
@@ -207,18 +205,18 @@ export function VendorMutateDialog({
 
           <FormField
             control={form.control}
-            name="icon"
+            name='icon'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("Icon")}</FormLabel>
+                <FormLabel>{t('Icon')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder={t("OpenAI, Anthropic, Google, etc.")}
+                    placeholder={t('OpenAI, Anthropic, Google, etc.')}
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
-                  {t("@lobehub/icons key name")}
+                  {t('@lobehub/icons key name')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -227,5 +225,5 @@ export function VendorMutateDialog({
         </form>
       </Form>
     </Dialog>
-  );
+  )
 }

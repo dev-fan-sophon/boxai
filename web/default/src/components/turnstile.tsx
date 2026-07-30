@@ -16,21 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react'
 
 declare global {
   interface Window {
     turnstile?: {
-      render: (element: HTMLElement, options: Record<string, unknown>) => void;
-    };
+      render: (element: HTMLElement, options: Record<string, unknown>) => void
+    }
   }
 }
 
 interface TurnstileProps {
-  siteKey: string;
-  onVerify: (token: string) => void;
-  onExpire?: () => void;
-  className?: string;
+  siteKey: string
+  onVerify: (token: string) => void
+  onExpire?: () => void
+  className?: string
 }
 
 export function Turnstile({
@@ -39,38 +39,38 @@ export function Turnstile({
   onExpire,
   className,
 }: TurnstileProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const render = () => {
-      if (!ref.current || !window.turnstile) return;
+      if (!ref.current || !window.turnstile) return
       try {
         window.turnstile.render(ref.current, {
           sitekey: siteKey,
           callback: (token: string) => onVerify(token),
-          "error-callback": () => onExpire?.(),
-          "expired-callback": () => onExpire?.(),
-        });
+          'error-callback': () => onExpire?.(),
+          'expired-callback': () => onExpire?.(),
+        })
       } catch {
         /* empty */
       }
-    };
+    }
 
     if (window.turnstile) {
-      render();
-      return;
+      render()
+      return
     }
-    const scriptId = "cf-turnstile";
-    if (document.querySelector(`#${scriptId}`)) return;
-    const s = document.createElement("script");
-    s.id = scriptId;
+    const scriptId = 'cf-turnstile'
+    if (document.querySelector(`#${scriptId}`)) return
+    const s = document.createElement('script')
+    s.id = scriptId
     s.src =
-      "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-    s.async = true;
-    s.defer = true;
-    s.addEventListener("load", () => render());
-    document.head.appendChild(s);
-  }, [siteKey, onVerify, onExpire]);
+      'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+    s.async = true
+    s.defer = true
+    s.addEventListener('load', () => render())
+    document.head.appendChild(s)
+  }, [siteKey, onVerify, onExpire])
 
-  return <div ref={ref} className={className} />;
+  return <div ref={ref} className={className} />
 }

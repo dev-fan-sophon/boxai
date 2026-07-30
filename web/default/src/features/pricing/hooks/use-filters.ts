@@ -55,7 +55,7 @@ export function useFilters(
   models: PricingModel[],
   integrationProfiles: IntegrationProfile[] = []
 ) {
-  const search = useSearch({ from: '/pricing/' })
+  const search = useSearch({ from: '/_public/pricing/' })
   const navigate = useNavigate({ from: '/pricing/' })
   const filterState = search
 

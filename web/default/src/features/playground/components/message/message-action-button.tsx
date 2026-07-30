@@ -16,24 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from 'lucide-react'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip'
 
-import { MESSAGE_ACTION_BUTTON_STYLES } from "../../constants";
+import { MESSAGE_ACTION_BUTTON_STYLES } from '../../constants'
 
 interface MessageActionButtonProps {
-  icon: LucideIcon;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  className?: string;
-  variant?: "default" | "destructive";
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  className?: string
+  variant?: 'default' | 'destructive'
 }
 
 export function MessageActionButton({
@@ -41,21 +41,21 @@ export function MessageActionButton({
   label,
   onClick,
   disabled = false,
-  className = "",
-  variant = "default",
+  className = '',
+  variant = 'default',
 }: MessageActionButtonProps) {
   const baseStyle =
-    variant === "destructive"
+    variant === 'destructive'
       ? MESSAGE_ACTION_BUTTON_STYLES.DELETE
-      : MESSAGE_ACTION_BUTTON_STYLES.BASE;
+      : MESSAGE_ACTION_BUTTON_STYLES.BASE
 
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
-            variant="ghost"
-            size="icon"
+            variant='ghost'
+            size='icon'
             className={`${baseStyle} ${className}`}
             onClick={onClick}
             disabled={disabled}
@@ -69,5 +69,5 @@ export function MessageActionButton({
         <p>{label}</p>
       </TooltipContent>
     </Tooltip>
-  );
+  )
 }

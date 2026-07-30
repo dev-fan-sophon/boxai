@@ -16,149 +16,149 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from "@tanstack/react-query";
-import { Gauge, HeartPulse, Timer } from "lucide-react";
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { useQuery } from '@tanstack/react-query'
+import { Gauge, HeartPulse, Timer } from 'lucide-react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { IconBadge, type IconBadgeTone } from "@/components/ui/icon-badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getPerfMetricsSummary } from "@/features/performance-metrics/api";
+import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
 import {
   formatLatency,
   formatThroughput,
   formatUptimePct,
   getSuccessRateDotClass,
   getSuccessRateTextClass,
-} from "@/features/performance-metrics/lib/format";
-import type { PerfModelSummary } from "@/features/performance-metrics/types";
-import { cn } from "@/lib/utils";
+} from '@/features/performance-metrics/lib/format'
+import type { PerfModelSummary } from '@/features/performance-metrics/types'
+import { cn } from '@/lib/utils'
 
-const PERFORMANCE_WINDOW_HOURS = 24;
-const TOP_MODEL_LIMIT = 6;
+const PERFORMANCE_WINDOW_HOURS = 24
+const TOP_MODEL_LIMIT = 6
 
-type WeightedMetric = "avg_latency_ms" | "avg_tps" | "success_rate";
+type WeightedMetric = 'avg_latency_ms' | 'avg_tps' | 'success_rate'
 
 function simpleAverage(
   rows: PerfModelSummary[],
   metric: WeightedMetric,
-  isValid: (value: number) => boolean,
+  isValid: (value: number) => boolean
 ): number {
-  let total = 0;
-  let count = 0;
+  let total = 0
+  let count = 0
   for (const row of rows) {
-    const value = Number(row[metric]);
-    if (!isValid(value)) continue;
-    total += value;
-    count++;
+    const value = Number(row[metric])
+    if (!isValid(value)) continue
+    total += value
+    count++
   }
-  return count > 0 ? total / count : Number.NaN;
+  return count > 0 ? total / count : Number.NaN
 }
 
 export function PerformanceHealthPanel() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const metricsQuery = useQuery({
-    queryKey: ["perf-metrics-summary", PERFORMANCE_WINDOW_HOURS],
+    queryKey: ['perf-metrics-summary', PERFORMANCE_WINDOW_HOURS],
     queryFn: () => getPerfMetricsSummary(PERFORMANCE_WINDOW_HOURS),
     staleTime: 60 * 1000,
     retry: false,
-  });
+  })
 
   const models = useMemo(
     () => metricsQuery.data?.data.models ?? [],
-    [metricsQuery.data],
-  );
+    [metricsQuery.data]
+  )
 
   const summary = useMemo(() => {
     return {
       avgLatencyMs: Math.round(
         simpleAverage(
           models,
-          "avg_latency_ms",
-          (v) => Number.isFinite(v) && v > 0,
-        ),
+          'avg_latency_ms',
+          (v) => Number.isFinite(v) && v > 0
+        )
       ),
       avgTps: simpleAverage(
         models,
-        "avg_tps",
-        (v) => Number.isFinite(v) && v > 0,
+        'avg_tps',
+        (v) => Number.isFinite(v) && v > 0
       ),
-      successRate: simpleAverage(models, "success_rate", Number.isFinite),
-    };
-  }, [models]);
+      successRate: simpleAverage(models, 'success_rate', Number.isFinite),
+    }
+  }, [models])
 
-  const topModels = useMemo(() => models.slice(0, TOP_MODEL_LIMIT), [models]);
-  const loading = metricsQuery.isLoading;
-  const hasData = models.length > 0;
+  const topModels = useMemo(() => models.slice(0, TOP_MODEL_LIMIT), [models])
+  const loading = metricsQuery.isLoading
+  const hasData = models.length > 0
 
   return (
-    <section className="bg-card ring-border h-full overflow-hidden rounded-xl ring-1">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <IconBadge tone="success" size="sm">
+    <section className='bg-card ring-border h-full overflow-hidden rounded-xl ring-1'>
+      <div className='flex items-center gap-2 border-b px-4 py-3'>
+        <IconBadge tone='success' size='sm'>
           <HeartPulse />
         </IconBadge>
-        <h3 className="text-sm font-semibold">{t("Performance health")}</h3>
-        <span className="text-muted-foreground bg-muted/50 ml-auto rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums">
+        <h3 className='text-sm font-semibold'>{t('Performance health')}</h3>
+        <span className='text-muted-foreground bg-muted/50 ml-auto rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums'>
           24h
         </span>
       </div>
 
-      <div className="space-y-3 p-4 sm:p-5">
-        <div className="grid grid-cols-3 gap-2">
+      <div className='space-y-3 p-4 sm:p-5'>
+        <div className='grid grid-cols-3 gap-2'>
           <MetricCell
             icon={HeartPulse}
-            label={t("Success rate")}
+            label={t('Success rate')}
             value={formatUptimePct(summary.successRate)}
             loading={loading}
             valueClassName={getSuccessRateTextClass(summary.successRate)}
-            tone="success"
+            tone='success'
           />
           <MetricCell
             icon={Timer}
-            label={t("Average latency")}
+            label={t('Average latency')}
             value={formatLatency(summary.avgLatencyMs)}
             loading={loading}
-            tone="warning"
+            tone='warning'
           />
           <MetricCell
             icon={Gauge}
-            label={t("Throughput")}
+            label={t('Throughput')}
             value={formatThroughput(summary.avgTps)}
             loading={loading}
-            tone="info"
+            tone='info'
           />
         </div>
 
         {loading ? (
-          <div className="space-y-1">
-            {["success", "latency", "throughput"].map((key) => (
-              <Skeleton key={key} className="h-5 w-full rounded" />
+          <div className='space-y-1'>
+            {['success', 'latency', 'throughput'].map((key) => (
+              <Skeleton key={key} className='h-5 w-full rounded' />
             ))}
           </div>
         ) : (
           hasData && (
             <div>
-              <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+              <div className='grid grid-cols-1 gap-x-4 sm:grid-cols-2'>
                 {topModels.map((model) => (
                   <div
                     key={model.model_name}
-                    className="hover:bg-muted/40 flex items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 transition-colors"
+                    className='hover:bg-muted/40 flex items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 transition-colors'
                   >
-                    <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                    <span className='min-w-0 flex-1 truncate font-mono text-[11px]'>
                       {model.model_name}
                     </span>
-                    <span className="inline-flex shrink-0 items-center gap-1">
+                    <span className='inline-flex shrink-0 items-center gap-1'>
                       <span
                         className={cn(
-                          "size-1.5 rounded-full",
-                          getSuccessRateDotClass(model.success_rate),
+                          'size-1.5 rounded-full',
+                          getSuccessRateDotClass(model.success_rate)
                         )}
-                        aria-hidden="true"
+                        aria-hidden='true'
                       />
                       <span
                         className={cn(
-                          "font-mono text-[11px] font-semibold tabular-nums",
-                          getSuccessRateTextClass(model.success_rate),
+                          'font-mono text-[11px] font-semibold tabular-nums',
+                          getSuccessRateTextClass(model.success_rate)
                         )}
                       >
                         {formatUptimePct(model.success_rate)}
@@ -172,38 +172,38 @@ export function PerformanceHealthPanel() {
         )}
       </div>
     </section>
-  );
+  )
 }
 
 function MetricCell(props: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  loading: boolean;
-  valueClassName?: string;
-  tone: IconBadgeTone;
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+  loading: boolean
+  valueClassName?: string
+  tone: IconBadgeTone
 }) {
-  const Icon = props.icon;
+  const Icon = props.icon
   return (
-    <div className="bg-muted/35 rounded-xl px-3 py-2.5">
-      <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium">
-        <IconBadge tone={props.tone} size="xs">
+    <div className='bg-muted/35 rounded-xl px-3 py-2.5'>
+      <div className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium'>
+        <IconBadge tone={props.tone} size='xs'>
           <Icon />
         </IconBadge>
-        <span className="truncate">{props.label}</span>
+        <span className='truncate'>{props.label}</span>
       </div>
       {props.loading ? (
-        <Skeleton className="mt-1.5 h-5 w-16" />
+        <Skeleton className='mt-1.5 h-5 w-16' />
       ) : (
         <div
           className={cn(
-            "mt-1.5 font-mono text-sm font-semibold tabular-nums",
-            props.valueClassName,
+            'mt-1.5 font-mono text-sm font-semibold tabular-nums',
+            props.valueClassName
           )}
         >
           {props.value}
         </div>
       )}
     </div>
-  );
+  )
 }

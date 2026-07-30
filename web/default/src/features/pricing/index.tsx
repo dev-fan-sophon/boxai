@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { PublicLayout } from "@/components/layout";
-import { PageTransition } from "@/components/page-transition";
-import { useSeo } from "@/hooks/use-page-seo";
+import { PublicLayout } from '@/components/layout'
+import { PageTransition } from '@/components/page-transition'
+import { useSeo } from '@/hooks/use-page-seo'
 
 import {
   LoadingSkeleton,
@@ -30,28 +30,28 @@ import {
   PricingToolbar,
   ModelCardGrid,
   ModelDetailsDrawer,
-} from "./components";
-import { EXCLUDED_GROUPS, VIEW_MODES } from "./constants";
-import { useFilters } from "./hooks/use-filters";
-import { usePricingData } from "./hooks/use-pricing-data";
+} from './components'
+import { EXCLUDED_GROUPS, VIEW_MODES } from './constants'
+import { useFilters } from './hooks/use-filters'
+import { usePricingData } from './hooks/use-pricing-data'
 
 export function Pricing() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   useSeo(
     useMemo(
       () => ({
-        title: t("Model Pricing"),
+        title: t('Model Pricing'),
         description: t(
-          "BoxAI model pricing on you-box.com — compare token prices, capabilities, and billing modes across providers on the unified AI API gateway.",
+          'BoxAI model pricing on you-box.com — compare token prices, capabilities, and billing modes across providers on the unified AI API gateway.'
         ),
-        path: "/pricing",
+        path: '/pricing',
       }),
-      [t],
-    ),
-  );
+      [t]
+    )
+  )
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
-    null,
-  );
+    null
+  )
 
   const {
     models,
@@ -64,7 +64,7 @@ export function Pricing() {
     isLoading,
     priceRate,
     usdExchangeRate,
-  } = usePricingData();
+  } = usePricingData()
 
   const {
     searchInput,
@@ -93,34 +93,34 @@ export function Pricing() {
     availableTags,
     clearFilters,
     clearSearch,
-  } = useFilters(models || [], integrationProfiles);
+  } = useFilters(models || [], integrationProfiles)
 
   const handleModelClick = useCallback((modelName: string) => {
-    setSelectedModelName(modelName);
-  }, []);
+    setSelectedModelName(modelName)
+  }, [])
 
   const selectedModel = useMemo(
     () =>
       selectedModelName
         ? (models || []).find(
-            (model) => model.model_name === selectedModelName,
+            (model) => model.model_name === selectedModelName
           ) || null
         : null,
-    [models, selectedModelName],
-  );
+    [models, selectedModelName]
+  )
 
   const availableGroups = useMemo(
     () =>
       Object.keys(usableGroup || {}).filter(
-        (g) => !EXCLUDED_GROUPS.includes(g),
+        (g) => !EXCLUDED_GROUPS.includes(g)
       ),
-    [usableGroup],
-  );
+    [usableGroup]
+  )
 
   const handleClearAll = useCallback(() => {
-    clearFilters();
-    clearSearch();
-  }, [clearFilters, clearSearch]);
+    clearFilters()
+    clearSearch()
+  }, [clearFilters, clearSearch])
 
   const renderPricingContent = () => {
     if (filteredModels.length === 0) {
@@ -130,7 +130,7 @@ export function Pricing() {
           hasActiveFilters={hasActiveFilters}
           onClearFilters={handleClearAll}
         />
-      );
+      )
     }
 
     if (viewMode === VIEW_MODES.CARD) {
@@ -144,7 +144,7 @@ export function Pricing() {
           showRechargePrice={showRechargePrice}
           selectedGroup={groupFilter}
         />
-      );
+      )
     }
 
     return (
@@ -157,46 +157,46 @@ export function Pricing() {
         selectedGroup={groupFilter}
         onModelClick={handleModelClick}
       />
-    );
-  };
+    )
+  }
 
   if (isLoading) {
     return (
       <PublicLayout showMainContainer={false}>
-        <div className="mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8">
+        <div className='mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8'>
           <LoadingSkeleton viewMode={viewMode} />
         </div>
       </PublicLayout>
-    );
+    )
   }
 
   return (
     <PublicLayout showMainContainer={false}>
-      <div className="relative">
+      <div className='relative'>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]"
+          className='pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]'
           style={{
             background: [
-              "radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)",
-              "radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)",
-              "radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)",
-            ].join(", "),
+              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
+            ].join(', '),
             maskImage:
-              "linear-gradient(to bottom, black 40%, transparent 100%)",
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
             WebkitMaskImage:
-              "linear-gradient(to bottom, black 40%, transparent 100%)",
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
           }}
         />
-        <PageTransition className="relative mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8">
-          <main className="min-w-0 space-y-4">
-            <header className="space-y-1">
-              <h1 className="text-foreground text-xl font-semibold tracking-tight sm:text-2xl">
-                {t("Model Hub")}
+        <PageTransition className='relative mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8'>
+          <main className='min-w-0 space-y-4'>
+            <header className='space-y-1'>
+              <h1 className='text-foreground text-xl font-semibold tracking-tight sm:text-2xl'>
+                {t('Model Hub')}
               </h1>
-              <p className="text-muted-foreground max-w-2xl text-sm">
+              <p className='text-muted-foreground max-w-2xl text-sm'>
                 {t(
-                  "Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.",
+                  'Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.'
                 )}
               </p>
             </header>
@@ -242,7 +242,7 @@ export function Pricing() {
             <ModelDetailsDrawer
               open={Boolean(selectedModel)}
               onOpenChange={(open) => {
-                if (!open) setSelectedModelName(null);
+                if (!open) setSelectedModelName(null)
               }}
               model={selectedModel}
               groupRatio={groupRatio || {}}
@@ -264,5 +264,5 @@ export function Pricing() {
         </PageTransition>
       </div>
     </PublicLayout>
-  );
+  )
 }

@@ -16,120 +16,120 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { memo } from "react";
-import { useTranslation } from "react-i18next";
+import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { getSuccessRateDotClass } from "@/features/performance-metrics/lib/format";
-import { cn } from "@/lib/utils";
+import { getSuccessRateDotClass } from '@/features/performance-metrics/lib/format'
+import { cn } from '@/lib/utils'
 
 export type ModelPerfBadgeData = {
-  avg_latency_ms: number;
-  success_rate: number;
-  avg_tps: number;
-  recent_success_rates?: number[];
-};
+  avg_latency_ms: number
+  success_rate: number
+  avg_tps: number
+  recent_success_rates?: number[]
+}
 
 export interface ModelPerfBadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  perf: ModelPerfBadgeData | undefined;
+  perf: ModelPerfBadgeData | undefined
 }
 
 function formatCompactNumber(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "—";
-  return value > 1 ? String(Math.round(value)) : value.toFixed(1);
+  if (!Number.isFinite(value) || value <= 0) return '—'
+  return value > 1 ? String(Math.round(value)) : value.toFixed(1)
 }
 
 function formatCompactLatency(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) return "—";
-  if (ms >= 1_000) return `${formatCompactNumber(ms / 1_000)}s`;
-  return `${formatCompactNumber(ms)}ms`;
+  if (!Number.isFinite(ms) || ms <= 0) return '—'
+  if (ms >= 1_000) return `${formatCompactNumber(ms / 1_000)}s`
+  return `${formatCompactNumber(ms)}ms`
 }
 
 function formatCompactThroughput(tps: number): string {
-  if (!Number.isFinite(tps) || tps <= 0) return "—";
-  if (tps >= 1_000) return `${formatCompactNumber(tps / 1_000)}Kt`;
-  return `${formatCompactNumber(tps)}t`;
+  if (!Number.isFinite(tps) || tps <= 0) return '—'
+  if (tps >= 1_000) return `${formatCompactNumber(tps / 1_000)}Kt`
+  return `${formatCompactNumber(tps)}t`
 }
 
 function emptyStatusBarClass(index: number): string {
-  if (index === 0) return "bg-muted-foreground/10";
-  return "bg-muted-foreground/15";
+  if (index === 0) return 'bg-muted-foreground/10'
+  return 'bg-muted-foreground/15'
 }
 
-const STATUS_BAR_SLOTS = ["left", "mid", "right"] as const;
+const STATUS_BAR_SLOTS = ['left', 'mid', 'right'] as const
 
 export const ModelPerfBadge = memo(function ModelPerfBadge(
-  props: ModelPerfBadgeProps,
+  props: ModelPerfBadgeProps
 ) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   if (!props.perf) {
-    return null;
+    return null
   }
 
-  const { avg_latency_ms, avg_tps, success_rate } = props.perf;
+  const { avg_latency_ms, avg_tps, success_rate } = props.perf
 
   const recentRates =
     props.perf.recent_success_rates?.filter((rate) => Number.isFinite(rate)) ??
-    [];
+    []
   const statusRates =
-    recentRates.length > 0 ? recentRates.slice(-3) : [success_rate];
+    recentRates.length > 0 ? recentRates.slice(-3) : [success_rate]
   const statusBars = [
     ...Array(Math.max(0, 3 - statusRates.length)).fill(null),
     ...statusRates,
-  ].slice(-3);
+  ].slice(-3)
   const statusBarEntries = STATUS_BAR_SLOTS.map((slot, slotIndex) => ({
     slot,
     rate: statusBars[slotIndex] as number | null,
     slotIndex,
-  }));
+  }))
 
   return (
     <div
       className={cn(
-        "hidden w-[132px] grid-cols-[38px_48px_30px] gap-x-2 text-right tabular-nums min-[460px]:grid",
-        props.className,
+        'hidden w-[132px] grid-cols-[38px_48px_30px] gap-x-2 text-right tabular-nums min-[460px]:grid',
+        props.className
       )}
     >
-      <div title={t("Average latency")} className="min-w-0">
-        <div className="text-muted-foreground text-[10px] leading-4">
-          {t("Latency short")}
+      <div title={t('Average latency')} className='min-w-0'>
+        <div className='text-muted-foreground text-[10px] leading-4'>
+          {t('Latency short')}
         </div>
-        <div className="text-muted-foreground font-mono text-xs leading-4 whitespace-nowrap">
+        <div className='text-muted-foreground font-mono text-xs leading-4 whitespace-nowrap'>
           {formatCompactLatency(avg_latency_ms)}
         </div>
       </div>
-      <div title={t("Throughput")} className="min-w-0">
-        <div className="text-muted-foreground truncate text-[10px] leading-4">
-          {t("Throughput short")}
+      <div title={t('Throughput')} className='min-w-0'>
+        <div className='text-muted-foreground truncate text-[10px] leading-4'>
+          {t('Throughput short')}
         </div>
-        <div className="text-muted-foreground font-mono text-xs leading-4 whitespace-nowrap">
+        <div className='text-muted-foreground font-mono text-xs leading-4 whitespace-nowrap'>
           {formatCompactThroughput(avg_tps)}
         </div>
       </div>
       <div
-        title={`${t("Success rate")}: ${success_rate.toFixed(1)}%`}
-        className="min-w-0"
+        title={`${t('Success rate')}: ${success_rate.toFixed(1)}%`}
+        className='min-w-0'
       >
-        <div className="text-muted-foreground truncate text-[10px] leading-4">
-          {t("Status short")}
+        <div className='text-muted-foreground truncate text-[10px] leading-4'>
+          {t('Status short')}
         </div>
-        <div className="flex h-4 items-center justify-end gap-0.5">
+        <div className='flex h-4 items-center justify-end gap-0.5'>
           {statusBarEntries.map((entry) => (
             <span
               key={entry.slot}
               className={cn(
-                "w-1 rounded-full",
-                entry.slotIndex === 0 && "h-2",
-                entry.slotIndex === 1 && "h-2.5",
-                entry.slotIndex === 2 && "h-3",
+                'w-1 rounded-full',
+                entry.slotIndex === 0 && 'h-2',
+                entry.slotIndex === 1 && 'h-2.5',
+                entry.slotIndex === 2 && 'h-3',
                 entry.rate == null
                   ? emptyStatusBarClass(entry.slotIndex)
-                  : getSuccessRateDotClass(entry.rate),
+                  : getSuccessRateDotClass(entry.rate)
               )}
             />
           ))}
         </div>
       </div>
     </div>
-  );
-});
+  )
+})

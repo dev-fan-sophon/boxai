@@ -16,155 +16,153 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { t } from "i18next";
-import type { ReactNode } from "react";
-import type { BlockquoteNode, ParsedNode } from "stream-markdown-parser";
+import { t } from 'i18next'
+import type { ReactNode } from 'react'
+import type { BlockquoteNode, ParsedNode } from 'stream-markdown-parser'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
-import { hasParsedChildren } from "./response-node-guards";
+import { hasParsedChildren } from './response-node-guards'
 import type {
   AlertConfig,
   AlertKind,
   BlockRendererOptions,
-} from "./response-types";
+} from './response-types'
 
 const alertConfig = {
   note: {
-    label: "Note",
+    label: 'Note',
     className:
-      "border-blue-500/40 bg-blue-500/8 text-blue-950 dark:text-blue-100",
-    markerClassName: "text-blue-600 dark:text-blue-300",
+      'border-blue-500/40 bg-blue-500/8 text-blue-950 dark:text-blue-100',
+    markerClassName: 'text-blue-600 dark:text-blue-300',
   },
   tip: {
-    label: "Tip",
+    label: 'Tip',
     className:
-      "border-emerald-500/40 bg-emerald-500/8 text-emerald-950 dark:text-emerald-100",
-    markerClassName: "text-emerald-600 dark:text-emerald-300",
+      'border-emerald-500/40 bg-emerald-500/8 text-emerald-950 dark:text-emerald-100',
+    markerClassName: 'text-emerald-600 dark:text-emerald-300',
   },
   important: {
-    label: "Important",
+    label: 'Important',
     className:
-      "border-violet-500/40 bg-violet-500/8 text-violet-950 dark:text-violet-100",
-    markerClassName: "text-violet-600 dark:text-violet-300",
+      'border-violet-500/40 bg-violet-500/8 text-violet-950 dark:text-violet-100',
+    markerClassName: 'text-violet-600 dark:text-violet-300',
   },
   warning: {
-    label: "Warning",
+    label: 'Warning',
     className:
-      "border-amber-500/40 bg-amber-500/8 text-amber-950 dark:text-amber-100",
-    markerClassName: "text-amber-600 dark:text-amber-300",
+      'border-amber-500/40 bg-amber-500/8 text-amber-950 dark:text-amber-100',
+    markerClassName: 'text-amber-600 dark:text-amber-300',
   },
   caution: {
-    label: "Caution",
-    className: "border-red-500/40 bg-red-500/8 text-red-950 dark:text-red-100",
-    markerClassName: "text-red-600 dark:text-red-300",
+    label: 'Caution',
+    className: 'border-red-500/40 bg-red-500/8 text-red-950 dark:text-red-100',
+    markerClassName: 'text-red-600 dark:text-red-300',
   },
-} satisfies Record<AlertKind, AlertConfig>;
+} satisfies Record<AlertKind, AlertConfig>
 
 function getAlertKind(node: BlockquoteNode): AlertKind | null {
-  const firstChild = node.children[0];
-  if (!firstChild || firstChild.type !== "paragraph") {
-    return null;
+  const firstChild = node.children[0]
+  if (!firstChild || firstChild.type !== 'paragraph') {
+    return null
   }
 
   if (!hasParsedChildren(firstChild)) {
-    return null;
+    return null
   }
 
-  const firstInline = firstChild.children[0];
-  if (!firstInline || firstInline.type !== "text") {
-    return null;
+  const firstInline = firstChild.children[0]
+  if (!firstInline || firstInline.type !== 'text') {
+    return null
   }
 
-  if (!("content" in firstInline) || typeof firstInline.content !== "string") {
-    return null;
+  if (!('content' in firstInline) || typeof firstInline.content !== 'string') {
+    return null
   }
 
-  const markerPattern = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i;
-  const match = firstInline.content.match(markerPattern);
+  const markerPattern = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i
+  const match = firstInline.content.match(markerPattern)
   if (!match) {
-    return null;
+    return null
   }
 
-  return match[1].toLowerCase() as AlertKind;
+  return match[1].toLowerCase() as AlertKind
 }
 
 function getAlertChildren(node: BlockquoteNode, kind: AlertKind): ParsedNode[] {
-  const firstChild = node.children[0];
-  if (!firstChild || firstChild.type !== "paragraph") {
-    return node.children;
+  const firstChild = node.children[0]
+  if (!firstChild || firstChild.type !== 'paragraph') {
+    return node.children
   }
 
   if (!hasParsedChildren(firstChild)) {
-    return node.children;
+    return node.children
   }
 
-  const firstInline = firstChild.children[0];
-  if (!firstInline || firstInline.type !== "text") {
-    return node.children;
+  const firstInline = firstChild.children[0]
+  if (!firstInline || firstInline.type !== 'text') {
+    return node.children
   }
 
-  if (!("content" in firstInline) || typeof firstInline.content !== "string") {
-    return node.children;
+  if (!('content' in firstInline) || typeof firstInline.content !== 'string') {
+    return node.children
   }
 
-  const marker = `[!${kind.toUpperCase()}]`;
-  const content = firstInline.content
-    .replace(marker, "")
-    .replace(/^\s*\n?/, "");
+  const marker = `[!${kind.toUpperCase()}]`
+  const content = firstInline.content.replace(marker, '').replace(/^\s*\n?/, '')
   const nextParagraph = {
     ...firstChild,
     children: [
       { ...firstInline, content, raw: content },
       ...firstChild.children.slice(1),
     ],
-  };
-
-  if (!content && nextParagraph.children.length === 1) {
-    return node.children.slice(1);
   }
 
-  return [nextParagraph, ...node.children.slice(1)];
+  if (!content && nextParagraph.children.length === 1) {
+    return node.children.slice(1)
+  }
+
+  return [nextParagraph, ...node.children.slice(1)]
 }
 
 export function renderBlockquote(
   node: BlockquoteNode,
   key: string,
-  options: BlockRendererOptions,
+  options: BlockRendererOptions
 ): ReactNode {
-  const alertKind = getAlertKind(node);
+  const alertKind = getAlertKind(node)
   if (alertKind) {
-    const config = alertConfig[alertKind];
-    const alertChildren = getAlertChildren(node, alertKind);
+    const config = alertConfig[alertKind]
+    const alertChildren = getAlertChildren(node, alertKind)
 
     return (
       <aside
         className={cn(
-          "my-4 rounded-lg border px-4 py-3 text-sm",
-          "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-          config.className,
+          'my-4 rounded-lg border px-4 py-3 text-sm',
+          '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+          config.className
         )}
         key={key}
       >
         <div
           className={cn(
-            "mb-2 text-xs font-semibold tracking-wide uppercase",
-            config.markerClassName,
+            'mb-2 text-xs font-semibold tracking-wide uppercase',
+            config.markerClassName
           )}
         >
           {t(config.label)}
         </div>
         {options.renderChildren(alertChildren)}
       </aside>
-    );
+    )
   }
 
   return (
     <blockquote
-      className="border-border text-muted-foreground my-4 border-l-2 pl-4"
+      className='border-border text-muted-foreground my-4 border-l-2 pl-4'
       key={key}
     >
       {options.renderChildren(node.children)}
     </blockquote>
-  );
+  )
 }

@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { DASHBOARD_DEFAULT_SECTION } from "@/features/dashboard/section-manifest";
+import { DASHBOARD_DEFAULT_SECTION } from '@/features/dashboard/section-manifest'
 
-export const Route = createFileRoute("/_authenticated/dashboard/")({
+export const Route = createFileRoute('/_authenticated/dashboard/')({
   beforeLoad: () => {
     throw redirect({
-      to: "/dashboard/$section",
+      to: '/dashboard/$section',
       params: { section: DASHBOARD_DEFAULT_SECTION },
-    });
+    })
   },
-});
+})

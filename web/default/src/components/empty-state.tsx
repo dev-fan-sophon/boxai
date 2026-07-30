@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import { FadeIn } from "@/components/page-transition";
+import { FadeIn } from '@/components/page-transition'
 import {
   Empty,
   EmptyContent,
@@ -27,17 +27,17 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/empty'
+import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
-  icon?: LucideIcon;
-  title: string;
-  description?: ReactNode;
-  action?: ReactNode;
+  icon?: LucideIcon
+  title: string
+  description?: ReactNode
+  action?: ReactNode
   /** Drop the dashed frame when the caller already provides a container. */
-  bordered?: boolean;
-  className?: string;
+  bordered?: boolean
+  className?: string
 }
 
 /**
@@ -46,24 +46,24 @@ interface EmptyStateProps {
  * icon, copy scale, spacing and fade-in stay identical everywhere.
  */
 export function EmptyState(props: EmptyStateProps) {
-  const Icon = props.icon;
+  const Icon = props.icon
   // Mirror size classes onto FadeIn so `h-full` / `flex-1` parent chains still
   // work; keep the dashed frame + padding on Empty (rounded border lives there).
-  const sizeClassName = cn("w-full", props.className);
+  const sizeClassName = cn('w-full', props.className)
 
   return (
     <FadeIn className={sizeClassName}>
       <Empty
         className={cn(
-          "min-h-[220px] h-full",
-          props.bordered !== false && "border border-dashed",
-          props.className,
+          'min-h-[220px] h-full',
+          props.bordered !== false && 'border border-dashed',
+          props.className
         )}
       >
         <EmptyHeader>
           {Icon && (
-            <EmptyMedia variant="icon">
-              <Icon className="size-4" />
+            <EmptyMedia variant='icon'>
+              <Icon className='size-4' />
             </EmptyMedia>
           )}
           <EmptyTitle>{props.title}</EmptyTitle>
@@ -77,5 +77,5 @@ export function EmptyState(props: EmptyStateProps) {
         {props.action ? <EmptyContent>{props.action}</EmptyContent> : null}
       </Empty>
     </FadeIn>
-  );
+  )
 }

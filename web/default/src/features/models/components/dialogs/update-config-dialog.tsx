@@ -16,22 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
-import { useForm, type Resolver } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import { z } from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+import { useForm, type Resolver } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from '@/components/ui/collapsible'
 import {
   Form,
   FormControl,
@@ -39,12 +39,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
-import { getDeployment, updateDeployment } from "../../api";
-import { deploymentsQueryKeys } from "../../lib";
+import { getDeployment, updateDeployment } from '../../api'
+import { deploymentsQueryKeys } from '../../lib'
 
 const schema = z.object({
   image_url: z.string().optional(),
@@ -56,24 +56,24 @@ const schema = z.object({
   registry_secret: z.string().optional(),
   env_json: z.string().optional(),
   secret_env_json: z.string().optional(),
-});
+})
 
-type Values = z.input<typeof schema>;
+type Values = z.input<typeof schema>
 
-const UPDATE_CONFIG_FORM_ID = "update-config-form";
+const UPDATE_CONFIG_FORM_ID = 'update-config-form'
 
 function normalizeJsonObject(input?: string) {
-  if (!input || !input.trim()) return undefined;
-  const parsed = JSON.parse(input);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("JSON must be an object");
+  if (!input || !input.trim()) return undefined
+  const parsed = JSON.parse(input)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('JSON must be an object')
   }
   return Object.fromEntries(
     Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [
       k,
       String(v),
-    ]),
-  ) as Record<string, string>;
+    ])
+  ) as Record<string, string>
 }
 
 export function UpdateConfigDialog({
@@ -81,107 +81,107 @@ export function UpdateConfigDialog({
   onOpenChange,
   deploymentId,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  deploymentId: string | number | null;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  deploymentId: string | number | null
 }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
 
   const form = useForm<Values>({
     resolver: zodResolver(schema) as unknown as Resolver<Values>,
     defaultValues: {
-      image_url: "",
+      image_url: '',
       traffic_port: undefined,
-      entrypoint: "",
-      args: "",
-      command: "",
-      registry_username: "",
-      registry_secret: "",
-      env_json: "",
-      secret_env_json: "",
+      entrypoint: '',
+      args: '',
+      command: '',
+      registry_username: '',
+      registry_secret: '',
+      env_json: '',
+      secret_env_json: '',
     },
-  });
+  })
 
   const { data: detailsRes, isLoading } = useQuery({
-    queryKey: ["deployment-details-for-update", deploymentId],
+    queryKey: ['deployment-details-for-update', deploymentId],
     queryFn: () => (deploymentId ? getDeployment(deploymentId) : null),
     enabled: open && deploymentId !== null,
-  });
+  })
 
-  const details = detailsRes?.data;
+  const details = detailsRes?.data
 
   useEffect(() => {
-    if (!open || !details) return;
+    if (!open || !details) return
     const containerConfig =
-      details.container_config && typeof details.container_config === "object"
+      details.container_config && typeof details.container_config === 'object'
         ? (details.container_config as Record<string, unknown>)
-        : {};
+        : {}
     const imageUrl =
-      typeof containerConfig.image_url === "string"
+      typeof containerConfig.image_url === 'string'
         ? containerConfig.image_url
-        : "";
+        : ''
     const trafficPort =
-      typeof containerConfig.traffic_port === "number"
+      typeof containerConfig.traffic_port === 'number'
         ? containerConfig.traffic_port
-        : undefined;
+        : undefined
     const entrypointArr = Array.isArray(containerConfig.entrypoint)
       ? (containerConfig.entrypoint as unknown[])
-          .map((x) => (typeof x === "string" ? x : ""))
+          .map((x) => (typeof x === 'string' ? x : ''))
           .filter(Boolean)
-      : [];
+      : []
     const envVars =
       containerConfig.env_variables &&
-      typeof containerConfig.env_variables === "object" &&
+      typeof containerConfig.env_variables === 'object' &&
       !Array.isArray(containerConfig.env_variables)
         ? (containerConfig.env_variables as Record<string, unknown>)
-        : {};
+        : {}
 
     form.reset({
       image_url: imageUrl,
       traffic_port: trafficPort,
-      entrypoint: entrypointArr.join(" "),
-      args: "",
-      command: "",
-      registry_username: "",
-      registry_secret: "",
+      entrypoint: entrypointArr.join(' '),
+      args: '',
+      command: '',
+      registry_username: '',
+      registry_secret: '',
       env_json: Object.keys(envVars).length
         ? JSON.stringify(envVars, null, 2)
-        : "",
-      secret_env_json: "",
-    });
-  }, [open, details, form]);
+        : '',
+      secret_env_json: '',
+    })
+  }, [open, details, form])
 
   const title = useMemo(
     () =>
       deploymentId
-        ? `${t("Update configuration")} - ${deploymentId}`
-        : t("Update configuration"),
-    [deploymentId, t],
-  );
+        ? `${t('Update configuration')} - ${deploymentId}`
+        : t('Update configuration'),
+    [deploymentId, t]
+  )
 
   const onSubmit = async (values: Values) => {
-    if (!deploymentId) return;
+    if (!deploymentId) return
     try {
-      const env_variables = normalizeJsonObject(values.env_json);
-      const secret_env_variables = normalizeJsonObject(values.secret_env_json);
+      const env_variables = normalizeJsonObject(values.env_json)
+      const secret_env_variables = normalizeJsonObject(values.secret_env_json)
       const entrypoint = values.entrypoint
         ? values.entrypoint
-            .split(" ")
+            .split(' ')
             .map((x) => x.trim())
             .filter(Boolean)
-        : undefined;
+        : undefined
       const args = values.args
         ? values.args
-            .split(" ")
+            .split(' ')
             .map((x) => x.trim())
             .filter(Boolean)
-        : undefined;
+        : undefined
 
       const res = await updateDeployment(deploymentId, {
         image_url: values.image_url?.trim() || undefined,
         traffic_port:
-          typeof values.traffic_port === "number"
+          typeof values.traffic_port === 'number'
             ? values.traffic_port
             : undefined,
         registry_username: values.registry_username?.trim() || undefined,
@@ -191,78 +191,78 @@ export function UpdateConfigDialog({
         ...(args?.length ? { args } : {}),
         ...(env_variables ? { env_variables } : {}),
         ...(secret_env_variables ? { secret_env_variables } : {}),
-      });
+      })
 
       if (res.success) {
-        toast.success(t("Updated successfully"));
+        toast.success(t('Updated successfully'))
         queryClient.invalidateQueries({
           queryKey: deploymentsQueryKeys.lists(),
-        });
-        queryClient.invalidateQueries({ queryKey: ["deployment-details"] });
-        onOpenChange(false);
-        return;
+        })
+        queryClient.invalidateQueries({ queryKey: ['deployment-details'] })
+        onOpenChange(false)
+        return
       }
-      toast.error(res.message || t("Update failed"));
+      toast.error(res.message || t('Update failed'))
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("Update failed");
-      toast.error(msg);
+      const msg = err instanceof Error ? err.message : t('Update failed')
+      toast.error(msg)
     }
-  };
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      contentClassName="max-h-[calc(100dvh-2rem)] overflow-hidden max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:p-4 sm:max-w-3xl"
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      contentClassName='max-h-[calc(100dvh-2rem)] overflow-hidden max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:p-4 sm:max-w-3xl'
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         isLoading ? null : (
           <>
             <Button
-              type="button"
-              variant="outline"
+              type='button'
+              variant='outline'
               onClick={() => onOpenChange(false)}
             >
-              {t("Cancel")}
+              {t('Cancel')}
             </Button>
             <Button
-              type="submit"
+              type='submit'
               form={UPDATE_CONFIG_FORM_ID}
               disabled={form.formState.isSubmitting}
             >
               {form.formState.isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
               ) : null}
-              {t("Update")}
+              {t('Update')}
             </Button>
           </>
         )
       }
     >
       {isLoading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <div className='flex items-center justify-center py-10'>
+          <Loader2 className='text-muted-foreground h-6 w-6 animate-spin' />
         </div>
       ) : (
-        <div className="max-h-[calc(100dvh-8.5rem)] overflow-y-auto py-2 pr-1 sm:max-h-[72vh]">
+        <div className='max-h-[calc(100dvh-8.5rem)] overflow-y-auto py-2 pr-1 sm:max-h-[72vh]'>
           <Form {...form}>
             <form
               id={UPDATE_CONFIG_FORM_ID}
               onSubmit={form.handleSubmit(onSubmit)}
-              autoComplete="off"
-              className="space-y-4"
+              autoComplete='off'
+              className='space-y-4'
             >
-              <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+              <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
                 <FormField
                   control={form.control}
-                  name="image_url"
+                  name='image_url'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Image")}</FormLabel>
+                      <FormLabel>{t('Image')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="ollama/ollama:latest" {...field} />
+                        <Input placeholder='ollama/ollama:latest' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -271,24 +271,24 @@ export function UpdateConfigDialog({
 
                 <FormField
                   control={form.control}
-                  name="traffic_port"
+                  name='traffic_port'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Port")}</FormLabel>
+                      <FormLabel>{t('Port')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
+                          type='number'
                           min={1}
                           max={65535}
                           value={
-                            typeof field.value === "number" ||
-                            typeof field.value === "string"
+                            typeof field.value === 'number' ||
+                            typeof field.value === 'string'
                               ? field.value
-                              : ""
+                              : ''
                           }
                           onChange={(e) => {
-                            const v = e.target.value;
-                            field.onChange(v === "" ? undefined : Number(v));
+                            const v = e.target.value
+                            field.onChange(v === '' ? undefined : Number(v))
                           }}
                           onBlur={field.onBlur}
                           name={field.name}
@@ -301,15 +301,15 @@ export function UpdateConfigDialog({
                 />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+              <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
                 <FormField
                   control={form.control}
-                  name="entrypoint"
+                  name='entrypoint'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Entrypoint (space separated)")}</FormLabel>
+                      <FormLabel>{t('Entrypoint (space separated)')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="bash -lc" {...field} />
+                        <Input placeholder='bash -lc' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,12 +318,12 @@ export function UpdateConfigDialog({
 
                 <FormField
                   control={form.control}
-                  name="args"
+                  name='args'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Args (space separated)")}</FormLabel>
+                      <FormLabel>{t('Args (space separated)')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="--foo bar" {...field} />
+                        <Input placeholder='--foo bar' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -333,32 +333,32 @@ export function UpdateConfigDialog({
 
               <FormField
                 control={form.control}
-                name="command"
+                name='command'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Command")}</FormLabel>
+                    <FormLabel>{t('Command')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Optional" {...field} />
+                      <Input placeholder='Optional' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <Collapsible className="rounded-md border p-3">
-                <CollapsibleTrigger className="cursor-pointer text-sm">
-                  {t("Registry (optional)")}
+              <Collapsible className='rounded-md border p-3'>
+                <CollapsibleTrigger className='cursor-pointer text-sm'>
+                  {t('Registry (optional)')}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2 md:gap-4">
+                  <div className='mt-3 grid gap-3 md:grid-cols-2 md:gap-4'>
                     <FormField
                       control={form.control}
-                      name="registry_username"
+                      name='registry_username'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("Registry username")}</FormLabel>
+                          <FormLabel>{t('Registry username')}</FormLabel>
                           <FormControl>
-                            <Input autoComplete="off" {...field} />
+                            <Input autoComplete='off' {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -366,14 +366,14 @@ export function UpdateConfigDialog({
                     />
                     <FormField
                       control={form.control}
-                      name="registry_secret"
+                      name='registry_secret'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("Registry secret")}</FormLabel>
+                          <FormLabel>{t('Registry secret')}</FormLabel>
                           <FormControl>
                             <Input
-                              type="password"
-                              autoComplete="off"
+                              type='password'
+                              autoComplete='off'
                               {...field}
                             />
                           </FormControl>
@@ -385,21 +385,21 @@ export function UpdateConfigDialog({
                 </CollapsibleContent>
               </Collapsible>
 
-              <Collapsible className="rounded-md border p-3">
-                <CollapsibleTrigger className="cursor-pointer text-sm">
-                  {t("Environment variables")}
+              <Collapsible className='rounded-md border p-3'>
+                <CollapsibleTrigger className='cursor-pointer text-sm'>
+                  {t('Environment variables')}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2 md:gap-4">
+                  <div className='mt-3 grid gap-3 md:grid-cols-2 md:gap-4'>
                     <FormField
                       control={form.control}
-                      name="env_json"
+                      name='env_json'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("Env (JSON object)")}</FormLabel>
+                          <FormLabel>{t('Env (JSON object)')}</FormLabel>
                           <FormControl>
                             <Textarea
-                              className="min-h-40 font-mono text-xs"
+                              className='min-h-40 font-mono text-xs'
                               placeholder='{"KEY":"VALUE"}'
                               {...field}
                             />
@@ -410,13 +410,13 @@ export function UpdateConfigDialog({
                     />
                     <FormField
                       control={form.control}
-                      name="secret_env_json"
+                      name='secret_env_json'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("Secret env (JSON object)")}</FormLabel>
+                          <FormLabel>{t('Secret env (JSON object)')}</FormLabel>
                           <FormControl>
                             <Textarea
-                              className="min-h-40 font-mono text-xs"
+                              className='min-h-40 font-mono text-xs'
                               placeholder='{"SECRET":"VALUE"}'
                               {...field}
                             />
@@ -433,5 +433,5 @@ export function UpdateConfigDialog({
         </div>
       )}
     </Dialog>
-  );
+  )
 }

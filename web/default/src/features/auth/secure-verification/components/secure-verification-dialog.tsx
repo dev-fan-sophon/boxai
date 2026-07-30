@@ -16,30 +16,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ShieldCheck, KeyRound, Loader2 } from "lucide-react";
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { ShieldCheck, KeyRound, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import type {
   SecureVerificationState,
   VerificationMethod,
   VerificationMethods,
-} from "../types";
+} from '../types'
 
 interface SecureVerificationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  methods: VerificationMethods;
-  state: SecureVerificationState;
-  onVerify: (method: VerificationMethod, code?: string) => void | Promise<void>;
-  onCancel: () => void;
-  onCodeChange: (code: string) => void;
-  onMethodChange: (method: VerificationMethod) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  methods: VerificationMethods
+  state: SecureVerificationState
+  onVerify: (method: VerificationMethod, code?: string) => void | Promise<void>
+  onCancel: () => void
+  onCodeChange: (code: string) => void
+  onMethodChange: (method: VerificationMethod) => void
 }
 
 export function SecureVerificationDialog({
@@ -52,38 +52,38 @@ export function SecureVerificationDialog({
   onCodeChange,
   onMethodChange,
 }: SecureVerificationDialogProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const availableTabs: VerificationMethod[] = useMemo(() => {
-    const tabs: VerificationMethod[] = [];
-    if (methods.has2FA) tabs.push("2fa");
-    if (methods.hasPasskey && methods.passkeySupported) tabs.push("passkey");
-    return tabs;
-  }, [methods]);
+    const tabs: VerificationMethod[] = []
+    if (methods.has2FA) tabs.push('2fa')
+    if (methods.hasPasskey && methods.passkeySupported) tabs.push('passkey')
+    return tabs
+  }, [methods])
 
   const activeMethod =
-    state.method ?? (availableTabs.length > 0 ? availableTabs[0] : null);
+    state.method ?? (availableTabs.length > 0 ? availableTabs[0] : null)
 
   const title =
     state.title ??
     (availableTabs.length
-      ? "Additional verification required"
-      : "Verification unavailable");
+      ? 'Additional verification required'
+      : 'Verification unavailable')
 
   const description =
     state.description ??
     (availableTabs.length
-      ? "Confirm your identity before accessing this sensitive action."
-      : "Enable Two-factor Authentication or Passkey in your profile settings to continue.");
+      ? 'Confirm your identity before accessing this sensitive action.'
+      : 'Enable Two-factor Authentication or Passkey in your profile settings to continue.')
 
   const handleVerify = () => {
-    if (!activeMethod) return;
-    const payload = activeMethod === "2fa" ? state.code : undefined;
-    onVerify(activeMethod, payload);
-  };
+    if (!activeMethod) return
+    const payload = activeMethod === '2fa' ? state.code : undefined
+    onVerify(activeMethod, payload)
+  }
 
   const verifyDisabled =
     state.loading ||
-    (activeMethod === "2fa" && (!state.code.trim() || state.code.length < 6));
+    (activeMethod === '2fa' && (!state.code.trim() || state.code.length < 6))
 
   return (
     <Dialog
@@ -91,48 +91,48 @@ export function SecureVerificationDialog({
       onOpenChange={onOpenChange}
       title={
         <>
-          <ShieldCheck className="text-primary h-5 w-5" />
+          <ShieldCheck className='text-primary h-5 w-5' />
           {title}
         </>
       }
       description={description}
-      contentClassName="top-[8vh] max-w-[calc(100%-1.5rem)] translate-y-0 overflow-hidden border-none shadow-xl sm:top-1/2 sm:max-w-md sm:translate-y-[-50%] sm:rounded-xl"
-      headerClassName="border-b pb-4 text-left"
-      titleClassName="flex items-center gap-2 text-lg font-semibold"
-      descriptionClassName="text-left"
-      contentHeight="auto"
-      bodyClassName="px-1 py-1"
+      contentClassName='top-[8vh] max-w-[calc(100%-1.5rem)] translate-y-0 overflow-hidden border-none shadow-xl sm:top-1/2 sm:max-w-md sm:translate-y-[-50%] sm:rounded-xl'
+      headerClassName='border-b pb-4 text-left'
+      titleClassName='flex items-center gap-2 text-lg font-semibold'
+      descriptionClassName='text-left'
+      contentHeight='auto'
+      bodyClassName='px-1 py-1'
       showCloseButton={!state.loading}
-      footerClassName="bg-muted/30 border-t px-6 py-4 sm:flex-row sm:justify-end"
+      footerClassName='bg-muted/30 border-t px-6 py-4 sm:flex-row sm:justify-end'
       footer={
         <>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             disabled={state.loading}
             onClick={onCancel}
           >
-            {t("Cancel")}
+            {t('Cancel')}
           </Button>
           <Button
-            type="button"
+            type='button'
             onClick={handleVerify}
             disabled={availableTabs.length === 0 || verifyDisabled}
           >
-            {state.loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("Verify")}
+            {state.loading && <Loader2 className='h-4 w-4 animate-spin' />}
+            {t('Verify')}
           </Button>
         </>
       }
     >
       {availableTabs.length === 0 ? (
-        <div className="grid place-items-center gap-4 text-center">
-          <div className="bg-muted flex h-16 w-16 items-center justify-center rounded-2xl">
-            <ShieldCheck className="text-muted-foreground h-8 w-8" />
+        <div className='grid place-items-center gap-4 text-center'>
+          <div className='bg-muted flex h-16 w-16 items-center justify-center rounded-2xl'>
+            <ShieldCheck className='text-muted-foreground h-8 w-8' />
           </div>
-          <p className="text-muted-foreground text-sm">
+          <p className='text-muted-foreground text-sm'>
             {t(
-              "Enable Two-factor Authentication or Passkey in your profile to unlock sensitive operations.",
+              'Enable Two-factor Authentication or Passkey in your profile to unlock sensitive operations.'
             )}
           </p>
         </div>
@@ -140,64 +140,64 @@ export function SecureVerificationDialog({
         <Tabs
           value={activeMethod ?? availableTabs[0]}
           onValueChange={(value) => onMethodChange(value as VerificationMethod)}
-          className="gap-4"
+          className='gap-4'
         >
           <TabsList>
             {methods.has2FA && (
-              <TabsTrigger value="2fa">{t("Authenticator code")}</TabsTrigger>
+              <TabsTrigger value='2fa'>{t('Authenticator code')}</TabsTrigger>
             )}
             {methods.hasPasskey && methods.passkeySupported && (
-              <TabsTrigger value="passkey">{t("Passkey")}</TabsTrigger>
+              <TabsTrigger value='passkey'>{t('Passkey')}</TabsTrigger>
             )}
           </TabsList>
 
-          <TabsContent value="2fa" className="space-y-3">
-            <p className="text-muted-foreground text-sm">
+          <TabsContent value='2fa' className='space-y-3'>
+            <p className='text-muted-foreground text-sm'>
               {t(
-                "Enter the 6-digit Time-based One-Time Password or 8-character backup code from your authenticator app.",
+                'Enter the 6-digit Time-based One-Time Password or 8-character backup code from your authenticator app.'
               )}
             </p>
             <Input
-              inputMode="numeric"
+              inputMode='numeric'
               maxLength={8}
               value={state.code}
               onChange={(event) => onCodeChange(event.target.value)}
-              placeholder={t("Enter verification code")}
+              placeholder={t('Enter verification code')}
               disabled={state.loading}
-              autoFocus={activeMethod === "2fa"}
+              autoFocus={activeMethod === '2fa'}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !verifyDisabled) {
-                  event.preventDefault();
-                  handleVerify();
+                if (event.key === 'Enter' && !verifyDisabled) {
+                  event.preventDefault()
+                  handleVerify()
                 }
               }}
             />
           </TabsContent>
 
-          <TabsContent value="passkey" className="space-y-4">
-            <div className="bg-muted/50 flex items-center justify-center rounded-lg p-4">
-              <div className="text-muted-foreground flex items-center gap-3">
-                <KeyRound className="text-primary h-6 w-6" />
-                <div className="text-left text-sm">
-                  <p className="text-foreground font-medium">
-                    {t("Use your Passkey")}
+          <TabsContent value='passkey' className='space-y-4'>
+            <div className='bg-muted/50 flex items-center justify-center rounded-lg p-4'>
+              <div className='text-muted-foreground flex items-center gap-3'>
+                <KeyRound className='text-primary h-6 w-6' />
+                <div className='text-left text-sm'>
+                  <p className='text-foreground font-medium'>
+                    {t('Use your Passkey')}
                   </p>
                   <p>
                     {t(
-                      "We will prompt your device to confirm using biometrics or your hardware key.",
+                      'We will prompt your device to confirm using biometrics or your hardware key.'
                     )}
                   </p>
                 </div>
               </div>
             </div>
             {!methods.passkeySupported && (
-              <p className="text-destructive text-sm">
-                {t("This device does not support Passkey verification.")}
+              <p className='text-destructive text-sm'>
+                {t('This device does not support Passkey verification.')}
               </p>
             )}
           </TabsContent>
         </Tabs>
       )}
     </Dialog>
-  );
+  )
 }

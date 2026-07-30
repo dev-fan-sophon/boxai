@@ -16,45 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { PageTransition } from "@/components/page-transition";
-
-import type { TopNavLink } from "../types";
-import { PublicHeader, type PublicHeaderProps } from "./public-header";
+import { PageTransition } from '@/components/page-transition'
 
 type PublicLayoutProps = {
-  children: React.ReactNode;
-  showMainContainer?: boolean;
-  headerProps?: PublicHeaderProps;
-  navLinks?: TopNavLink[];
-  showThemeSwitch?: boolean;
-  showAuthButtons?: boolean;
-  showNotifications?: boolean;
-  logo?: React.ReactNode;
-  siteName?: string;
-};
+  children: React.ReactNode
+  showMainContainer?: boolean
+}
 
+/**
+ * Page content wrapper for public routes. The shell and header belong to the
+ * `/_public` layout route so they survive navigation between public pages.
+ */
 export function PublicLayout(props: PublicLayoutProps) {
   // Route-level entrance, so the marketing and full-viewport app shells fade in
   // the same way console pages already do through `AnimatedOutlet`.
-  const content = <PageTransition>{props.children}</PageTransition>;
+  const content = <PageTransition>{props.children}</PageTransition>
 
-  return (
-    <div className="bg-background text-foreground relative min-h-svh overflow-x-clip">
-      <PublicHeader
-        navLinks={props.navLinks}
-        showThemeSwitch={props.showThemeSwitch}
-        showAuthButtons={props.showAuthButtons}
-        showNotifications={props.showNotifications}
-        logo={props.logo}
-        siteName={props.siteName}
-        {...props.headerProps}
-      />
+  if (props.showMainContainer === false) return content
 
-      {props.showMainContainer !== false ? (
-        <main className="container px-4 py-6 pt-20 md:px-4">{content}</main>
-      ) : (
-        content
-      )}
-    </div>
-  );
+  return <main className='container px-4 py-6 pt-20 md:px-4'>{content}</main>
 }

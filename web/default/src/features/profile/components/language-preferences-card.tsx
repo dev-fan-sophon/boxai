@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Languages, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { Languages, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
   Select,
@@ -28,104 +28,104 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select'
 import {
   INTERFACE_LANGUAGE_OPTIONS,
   normalizeInterfaceLanguage,
-} from "@/i18n/languages";
-import { useAuthStore } from "@/stores/auth-store";
+} from '@/i18n/languages'
+import { useAuthStore } from '@/stores/auth-store'
 
-import { updateUserLanguage } from "../api";
-import { parseUserSettings } from "../lib";
-import type { UserProfile } from "../types";
-import { ProfileSectionLabel, ProfileSurface } from "./profile-surface";
+import { updateUserLanguage } from '../api'
+import { parseUserSettings } from '../lib'
+import type { UserProfile } from '../types'
+import { ProfileSectionLabel, ProfileSurface } from './profile-surface'
 
 type LanguagePreferencesCardProps = {
-  profile: UserProfile | null;
-  onProfileUpdate: () => void;
-};
+  profile: UserProfile | null
+  onProfileUpdate: () => void
+}
 
 export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
-  const { t, i18n } = useTranslation();
-  const { auth } = useAuthStore();
-  const [saving, setSaving] = useState(false);
+  const { t, i18n } = useTranslation()
+  const { auth } = useAuthStore()
+  const [saving, setSaving] = useState(false)
 
   const savedLanguage = useMemo(() => {
-    const settings = parseUserSettings(props.profile?.setting);
-    return normalizeInterfaceLanguage(settings.language || i18n.language);
-  }, [props.profile?.setting, i18n.language]);
+    const settings = parseUserSettings(props.profile?.setting)
+    return normalizeInterfaceLanguage(settings.language || i18n.language)
+  }, [props.profile?.setting, i18n.language])
 
-  const [currentLanguage, setCurrentLanguage] = useState(savedLanguage);
+  const [currentLanguage, setCurrentLanguage] = useState(savedLanguage)
 
   useEffect(() => {
-    setCurrentLanguage(savedLanguage);
-  }, [savedLanguage]);
+    setCurrentLanguage(savedLanguage)
+  }, [savedLanguage])
 
   const handleLanguageChange = async (language: string | null) => {
-    if (!language) return;
-    const nextLanguage = normalizeInterfaceLanguage(language);
-    if (nextLanguage === currentLanguage) return;
+    if (!language) return
+    const nextLanguage = normalizeInterfaceLanguage(language)
+    if (nextLanguage === currentLanguage) return
 
-    const previousLanguage = currentLanguage;
-    setCurrentLanguage(nextLanguage);
-    setSaving(true);
-    await i18n.changeLanguage(nextLanguage);
+    const previousLanguage = currentLanguage
+    setCurrentLanguage(nextLanguage)
+    setSaving(true)
+    await i18n.changeLanguage(nextLanguage)
 
     try {
-      const response = await updateUserLanguage(nextLanguage);
+      const response = await updateUserLanguage(nextLanguage)
       if (!response.success) {
-        throw new Error(response.message || t("Failed to update settings"));
+        throw new Error(response.message || t('Failed to update settings'))
       }
 
       if (auth.user) {
         const existingSetting =
-          typeof auth.user.setting === "string"
+          typeof auth.user.setting === 'string'
             ? parseUserSettings(auth.user.setting)
-            : (auth.user.setting ?? {});
+            : (auth.user.setting ?? {})
         auth.setUser({
           ...auth.user,
           setting: JSON.stringify({
             ...existingSetting,
             language: nextLanguage,
           }),
-        });
+        })
       }
 
-      props.onProfileUpdate();
-      toast.success(t("Language preference saved"));
+      props.onProfileUpdate()
+      toast.success(t('Language preference saved'))
     } catch {
-      setCurrentLanguage(previousLanguage);
-      await i18n.changeLanguage(previousLanguage);
-      toast.error(t("Failed to update settings"));
+      setCurrentLanguage(previousLanguage)
+      await i18n.changeLanguage(previousLanguage)
+      toast.error(t('Failed to update settings'))
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   return (
     <div>
       <ProfileSectionLabel
-        title={t("Language Preferences")}
-        description={t("Set the language used across the interface")}
+        title={t('Language Preferences')}
+        description={t('Set the language used across the interface')}
       />
       <ProfileSurface padded>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="bg-muted/50 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl">
-              <Languages className="size-4" />
+        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex min-w-0 items-start gap-3'>
+            <div className='bg-muted/50 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl'>
+              <Languages className='size-4' />
             </div>
-            <div className="min-w-0 space-y-1">
-              <div className="text-sm font-medium">
-                {t("Interface Language")}
+            <div className='min-w-0 space-y-1'>
+              <div className='text-sm font-medium'>
+                {t('Interface Language')}
               </div>
-              <p className="text-muted-foreground line-clamp-2 text-xs sm:text-sm">
+              <p className='text-muted-foreground line-clamp-2 text-xs sm:text-sm'>
                 {t(
-                  "Language preferences sync across your signed-in devices and affect API error messages.",
+                  'Language preferences sync across your signed-in devices and affect API error messages.'
                 )}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:min-w-48">
+          <div className='flex items-center gap-2 sm:min-w-48'>
             <Select
               items={INTERFACE_LANGUAGE_OPTIONS.map((language) => ({
                 value: language.code,
@@ -135,8 +135,8 @@ export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
               onValueChange={handleLanguageChange}
               disabled={saving}
             >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder={t("Select language")} />
+              <SelectTrigger className='w-full sm:w-48'>
+                <SelectValue placeholder={t('Select language')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
                 <SelectGroup>
@@ -149,11 +149,11 @@ export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
               </SelectContent>
             </Select>
             {saving && (
-              <Loader2 className="text-muted-foreground size-4 animate-spin" />
+              <Loader2 className='text-muted-foreground size-4 animate-spin' />
             )}
           </div>
         </div>
       </ProfileSurface>
     </div>
-  );
+  )
 }

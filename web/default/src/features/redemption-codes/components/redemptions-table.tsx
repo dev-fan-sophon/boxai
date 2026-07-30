@@ -16,48 +16,48 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
   DISABLED_ROW_DESKTOP,
   DISABLED_ROW_MOBILE,
   DataTablePage,
   useDataTable,
-} from "@/components/data-table";
-import { useSmDown } from "@/hooks";
-import { useTableUrlState } from "@/hooks/use-table-url-state";
+} from '@/components/data-table'
+import { useSmDown } from '@/hooks'
+import { useTableUrlState } from '@/hooks/use-table-url-state'
 
-import { getRedemptions, searchRedemptions } from "../api";
+import { getRedemptions, searchRedemptions } from '../api'
 import {
   ERROR_MESSAGES,
   REDEMPTION_STATUS,
   getRedemptionStatusOptions,
-} from "../constants";
-import { isRedemptionExpired } from "../lib";
-import type { Redemption } from "../types";
-import { DataTableBulkActions } from "./data-table-bulk-actions";
-import { useRedemptionsColumns } from "./redemptions-columns";
-import { RedemptionsMobileList } from "./redemptions-mobile-list";
-import { useRedemptions } from "./redemptions-provider";
+} from '../constants'
+import { isRedemptionExpired } from '../lib'
+import type { Redemption } from '../types'
+import { DataTableBulkActions } from './data-table-bulk-actions'
+import { useRedemptionsColumns } from './redemptions-columns'
+import { RedemptionsMobileList } from './redemptions-mobile-list'
+import { useRedemptions } from './redemptions-provider'
 
-const route = getRouteApi("/_authenticated/redemption-codes/");
+const route = getRouteApi('/_authenticated/redemption-codes/')
 
 function isDisabledRedemptionRow(redemption: Redemption) {
   return (
     redemption.status !== REDEMPTION_STATUS.ENABLED ||
     isRedemptionExpired(redemption.expired_time, redemption.status)
-  );
+  )
 }
 
 export function RedemptionsTable() {
-  const { t } = useTranslation();
-  const columns = useRedemptionsColumns();
-  const { refreshTrigger } = useRedemptions();
-  const isMobile = useSmDown();
+  const { t } = useTranslation()
+  const columns = useRedemptionsColumns()
+  const { refreshTrigger } = useRedemptions()
+  const isMobile = useSmDown()
 
   const {
     globalFilter,
@@ -71,19 +71,19 @@ export function RedemptionsTable() {
     search: route.useSearch(),
     navigate: route.useNavigate(),
     pagination: { defaultPage: 1, defaultPageSize: isMobile ? 10 : 20 },
-    globalFilter: { enabled: true, key: "filter" },
-    columnFilters: [{ columnId: "status", searchKey: "status", type: "array" }],
-  });
+    globalFilter: { enabled: true, key: 'filter' },
+    columnFilters: [{ columnId: 'status', searchKey: 'status', type: 'array' }],
+  })
   const statusFilter =
-    (columnFilters.find((filter) => filter.id === "status")?.value as
+    (columnFilters.find((filter) => filter.id === 'status')?.value as
       | string[]
-      | undefined) ?? [];
-  const statusFilterValue = statusFilter[0] ?? "";
+      | undefined) ?? []
+  const statusFilterValue = statusFilter[0] ?? ''
 
   // Fetch data with React Query
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
-      "redemptions",
+      'redemptions',
       pagination.pageIndex + 1,
       pagination.pageSize,
       globalFilter,
@@ -91,12 +91,12 @@ export function RedemptionsTable() {
       refreshTrigger,
     ],
     queryFn: async () => {
-      const hasFilter = globalFilter?.trim();
-      const hasStatusFilter = statusFilterValue !== "";
+      const hasFilter = globalFilter?.trim()
+      const hasStatusFilter = statusFilterValue !== ''
       const params = {
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
-      };
+      }
 
       const result =
         hasFilter || hasStatusFilter
@@ -105,7 +105,7 @@ export function RedemptionsTable() {
               keyword: globalFilter,
               status: statusFilterValue,
             })
-          : await getRedemptions(params);
+          : await getRedemptions(params)
 
       if (!result.success) {
         toast.error(
@@ -113,21 +113,21 @@ export function RedemptionsTable() {
             t(
               hasFilter || hasStatusFilter
                 ? ERROR_MESSAGES.SEARCH_FAILED
-                : ERROR_MESSAGES.LOAD_FAILED,
-            ),
-        );
-        return { items: [], total: 0 };
+                : ERROR_MESSAGES.LOAD_FAILED
+            )
+        )
+        return { items: [], total: 0 }
       }
 
       return {
         items: result.data?.items || [],
         total: result.data?.total || 0,
-      };
+      }
     },
     placeholderData: (previousData) => previousData,
-  });
+  })
 
-  const redemptions = data?.items || [];
+  const redemptions = data?.items || []
 
   const { table } = useDataTable({
     data: redemptions,
@@ -137,11 +137,11 @@ export function RedemptionsTable() {
     globalFilter,
     pagination,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const name = String(row.getValue("name")).toLowerCase();
-      const id = String(row.getValue("id"));
-      const searchValue = String(filterValue).toLowerCase();
+      const name = String(row.getValue('name')).toLowerCase()
+      const id = String(row.getValue('id'))
+      const searchValue = String(filterValue).toLowerCase()
 
-      return name.includes(searchValue) || id.includes(searchValue);
+      return name.includes(searchValue) || id.includes(searchValue)
     },
     onPaginationChange,
     onGlobalFilterChange,
@@ -150,34 +150,34 @@ export function RedemptionsTable() {
     manualFiltering: true,
     totalCount: data?.total || 0,
     ensurePageInRange,
-  });
+  })
 
   const redemptionStatusOptions = useMemo(
     () => getRedemptionStatusOptions(t),
-    [t],
-  );
+    [t]
+  )
 
   return (
     <DataTablePage
       enableCardView
-      defaultViewMode="card"
-      viewModeStorageKey="redemptions:view-mode:v1"
+      defaultViewMode='card'
+      viewModeStorageKey='redemptions:view-mode:v1'
       table={table}
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t("No Redemption Codes Found")}
+      emptyTitle={t('No Redemption Codes Found')}
       emptyDescription={t(
-        "No redemption codes available. Create your first redemption code to get started.",
+        'No redemption codes available. Create your first redemption code to get started.'
       )}
-      skeletonKeyPrefix="redemptions-skeleton"
+      skeletonKeyPrefix='redemptions-skeleton'
       applyHeaderSize
       toolbarProps={{
-        searchPlaceholder: t("Filter by name or ID..."),
+        searchPlaceholder: t('Filter by name or ID...'),
         filters: [
           {
-            columnId: "status",
-            title: t("Status"),
+            columnId: 'status',
+            title: t('Status'),
             options: redemptionStatusOptions,
             singleSelect: true,
           },
@@ -185,10 +185,10 @@ export function RedemptionsTable() {
       }}
       mobile={<RedemptionsMobileList table={table} isLoading={isLoading} />}
       getRowClassName={(row, { isMobile }) => {
-        if (!isDisabledRedemptionRow(row.original)) return undefined;
-        return isMobile ? DISABLED_ROW_MOBILE : DISABLED_ROW_DESKTOP;
+        if (!isDisabledRedemptionRow(row.original)) return undefined
+        return isMobile ? DISABLED_ROW_MOBILE : DISABLED_ROW_DESKTOP
       }}
       bulkActions={<DataTableBulkActions table={table} />}
     />
-  );
+  )
 }

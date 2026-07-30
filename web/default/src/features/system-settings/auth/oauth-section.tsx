@@ -16,17 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
-import { ExternalLink } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import * as z from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import axios from 'axios'
+import { ExternalLink } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import * as z from 'zod'
 
-import { CopyButton } from "@/components/copy-button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CopyButton } from '@/components/copy-button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Form,
   FormControl,
@@ -35,25 +35,25 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { FormDirtyIndicator } from "../components/form-dirty-indicator";
-import { FormNavigationGuard } from "../components/form-navigation-guard";
+import { FormDirtyIndicator } from '../components/form-dirty-indicator'
+import { FormNavigationGuard } from '../components/form-navigation-guard'
 import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from "../components/settings-form-layout";
-import { SettingsPageFormActions } from "../components/settings-page-context";
-import { SettingsSection } from "../components/settings-section";
-import { useUpdateOption } from "../hooks/use-update-option";
+} from '../components/settings-form-layout'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsSection } from '../components/settings-section'
+import { useUpdateOption } from '../hooks/use-update-option'
 import {
   buildOAuthCallbackUrl,
   resolveOAuthSiteUrl,
-} from "./oauth-callback-url";
+} from './oauth-callback-url'
 
 /**
  * react-hook-form 7 treats dotted `name` strings as nested paths. To keep
@@ -107,86 +107,86 @@ const oauthSchema = z.object({
   WeChatServerAddress: z.string(),
   WeChatServerToken: z.string(),
   WeChatAccountQRCodeImageURL: z.string(),
-});
+})
 
-type OAuthFormValues = z.infer<typeof oauthSchema>;
+type OAuthFormValues = z.infer<typeof oauthSchema>
 
 type FlatOAuthDefaults = {
-  GitHubOAuthEnabled: boolean;
-  GitHubClientId: string;
-  GitHubClientSecret: string;
-  "discord.enabled": boolean;
-  "discord.client_id": string;
-  "discord.client_secret": string;
-  "google.enabled": boolean;
-  "google.client_id": string;
-  "google.client_secret": string;
-  "facebook.enabled": boolean;
-  "facebook.client_id": string;
-  "facebook.client_secret": string;
-  "zalo.enabled": boolean;
-  "zalo.app_id": string;
-  "zalo.secret_key": string;
-  "oidc.enabled": boolean;
-  "oidc.display_name": string;
-  "oidc.client_id": string;
-  "oidc.client_secret": string;
-  "oidc.well_known": string;
-  "oidc.authorization_endpoint": string;
-  "oidc.token_endpoint": string;
-  "oidc.user_info_endpoint": string;
-  TelegramOAuthEnabled: boolean;
-  TelegramBotToken: string;
-  TelegramBotName: string;
-  LinuxDOOAuthEnabled: boolean;
-  LinuxDOClientId: string;
-  LinuxDOClientSecret: string;
-  LinuxDOMinimumTrustLevel: string;
-  WeChatAuthEnabled: boolean;
-  WeChatServerAddress: string;
-  WeChatServerToken: string;
-  WeChatAccountQRCodeImageURL: string;
-};
+  GitHubOAuthEnabled: boolean
+  GitHubClientId: string
+  GitHubClientSecret: string
+  'discord.enabled': boolean
+  'discord.client_id': string
+  'discord.client_secret': string
+  'google.enabled': boolean
+  'google.client_id': string
+  'google.client_secret': string
+  'facebook.enabled': boolean
+  'facebook.client_id': string
+  'facebook.client_secret': string
+  'zalo.enabled': boolean
+  'zalo.app_id': string
+  'zalo.secret_key': string
+  'oidc.enabled': boolean
+  'oidc.display_name': string
+  'oidc.client_id': string
+  'oidc.client_secret': string
+  'oidc.well_known': string
+  'oidc.authorization_endpoint': string
+  'oidc.token_endpoint': string
+  'oidc.user_info_endpoint': string
+  TelegramOAuthEnabled: boolean
+  TelegramBotToken: string
+  TelegramBotName: string
+  LinuxDOOAuthEnabled: boolean
+  LinuxDOClientId: string
+  LinuxDOClientSecret: string
+  LinuxDOMinimumTrustLevel: string
+  WeChatAuthEnabled: boolean
+  WeChatServerAddress: string
+  WeChatServerToken: string
+  WeChatAccountQRCodeImageURL: string
+}
 
 const oauthTabContentClassName =
-  "grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2 [&>[data-slot=form-item]]:min-w-0 lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2";
+  'grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2 [&>[data-slot=form-item]]:min-w-0 lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2'
 
 type OAuthSetupGuideRow = {
-  label: ReactNode;
-  value: string;
-  copyLabel: string;
-};
+  label: ReactNode
+  value: string
+  copyLabel: string
+}
 
 type OAuthSetupGuideProps = {
-  title: string;
-  description: ReactNode;
-  rows: OAuthSetupGuideRow[];
-  children?: ReactNode;
-};
+  title: string
+  description: ReactNode
+  rows: OAuthSetupGuideRow[]
+  children?: ReactNode
+}
 
 function OAuthSetupGuide(props: OAuthSetupGuideProps) {
   return (
-    <Alert className="lg:col-span-2">
+    <Alert className='lg:col-span-2'>
       <AlertTitle>{props.title}</AlertTitle>
-      <AlertDescription className="space-y-3 text-sm">
+      <AlertDescription className='space-y-3 text-sm'>
         <div>{props.description}</div>
-        <div className="space-y-2">
+        <div className='space-y-2'>
           {props.rows.map((row) => (
             <div
               key={`${String(row.label)}-${row.value}`}
-              className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between"
+              className='flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between'
             >
-              <span className="text-muted-foreground shrink-0">
+              <span className='text-muted-foreground shrink-0'>
                 {row.label}
               </span>
-              <span className="flex min-w-0 items-center gap-2">
-                <code className="bg-muted text-foreground min-w-0 rounded px-1.5 py-0.5 text-xs break-all">
+              <span className='flex min-w-0 items-center gap-2'>
+                <code className='bg-muted text-foreground min-w-0 rounded px-1.5 py-0.5 text-xs break-all'>
                   {row.value}
                 </code>
                 <CopyButton
                   value={row.value}
-                  size="icon"
-                  className="size-7"
+                  size='icon'
+                  className='size-7'
                   tooltip={row.copyLabel}
                   aria-label={row.copyLabel}
                 />
@@ -197,80 +197,80 @@ function OAuthSetupGuide(props: OAuthSetupGuideProps) {
         {props.children}
       </AlertDescription>
     </Alert>
-  );
+  )
 }
 
 const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
   GitHubOAuthEnabled: defaults.GitHubOAuthEnabled,
-  GitHubClientId: defaults.GitHubClientId ?? "",
-  GitHubClientSecret: defaults.GitHubClientSecret ?? "",
+  GitHubClientId: defaults.GitHubClientId ?? '',
+  GitHubClientSecret: defaults.GitHubClientSecret ?? '',
   discord: {
-    enabled: defaults["discord.enabled"],
-    client_id: defaults["discord.client_id"] ?? "",
-    client_secret: defaults["discord.client_secret"] ?? "",
+    enabled: defaults['discord.enabled'],
+    client_id: defaults['discord.client_id'] ?? '',
+    client_secret: defaults['discord.client_secret'] ?? '',
   },
   google: {
-    enabled: defaults["google.enabled"],
-    client_id: defaults["google.client_id"] ?? "",
-    client_secret: defaults["google.client_secret"] ?? "",
+    enabled: defaults['google.enabled'],
+    client_id: defaults['google.client_id'] ?? '',
+    client_secret: defaults['google.client_secret'] ?? '',
   },
   facebook: {
-    enabled: defaults["facebook.enabled"],
-    client_id: defaults["facebook.client_id"] ?? "",
-    client_secret: defaults["facebook.client_secret"] ?? "",
+    enabled: defaults['facebook.enabled'],
+    client_id: defaults['facebook.client_id'] ?? '',
+    client_secret: defaults['facebook.client_secret'] ?? '',
   },
   zalo: {
-    enabled: defaults["zalo.enabled"],
-    app_id: defaults["zalo.app_id"] ?? "",
-    secret_key: defaults["zalo.secret_key"] ?? "",
+    enabled: defaults['zalo.enabled'],
+    app_id: defaults['zalo.app_id'] ?? '',
+    secret_key: defaults['zalo.secret_key'] ?? '',
   },
   oidc: {
-    enabled: defaults["oidc.enabled"],
-    display_name: defaults["oidc.display_name"] ?? "",
-    client_id: defaults["oidc.client_id"] ?? "",
-    client_secret: defaults["oidc.client_secret"] ?? "",
-    well_known: defaults["oidc.well_known"] ?? "",
-    authorization_endpoint: defaults["oidc.authorization_endpoint"] ?? "",
-    token_endpoint: defaults["oidc.token_endpoint"] ?? "",
-    user_info_endpoint: defaults["oidc.user_info_endpoint"] ?? "",
+    enabled: defaults['oidc.enabled'],
+    display_name: defaults['oidc.display_name'] ?? '',
+    client_id: defaults['oidc.client_id'] ?? '',
+    client_secret: defaults['oidc.client_secret'] ?? '',
+    well_known: defaults['oidc.well_known'] ?? '',
+    authorization_endpoint: defaults['oidc.authorization_endpoint'] ?? '',
+    token_endpoint: defaults['oidc.token_endpoint'] ?? '',
+    user_info_endpoint: defaults['oidc.user_info_endpoint'] ?? '',
   },
   TelegramOAuthEnabled: defaults.TelegramOAuthEnabled,
-  TelegramBotToken: defaults.TelegramBotToken ?? "",
-  TelegramBotName: defaults.TelegramBotName ?? "",
+  TelegramBotToken: defaults.TelegramBotToken ?? '',
+  TelegramBotName: defaults.TelegramBotName ?? '',
   LinuxDOOAuthEnabled: defaults.LinuxDOOAuthEnabled,
-  LinuxDOClientId: defaults.LinuxDOClientId ?? "",
-  LinuxDOClientSecret: defaults.LinuxDOClientSecret ?? "",
-  LinuxDOMinimumTrustLevel: defaults.LinuxDOMinimumTrustLevel ?? "",
+  LinuxDOClientId: defaults.LinuxDOClientId ?? '',
+  LinuxDOClientSecret: defaults.LinuxDOClientSecret ?? '',
+  LinuxDOMinimumTrustLevel: defaults.LinuxDOMinimumTrustLevel ?? '',
   WeChatAuthEnabled: defaults.WeChatAuthEnabled,
-  WeChatServerAddress: defaults.WeChatServerAddress ?? "",
-  WeChatServerToken: defaults.WeChatServerToken ?? "",
-  WeChatAccountQRCodeImageURL: defaults.WeChatAccountQRCodeImageURL ?? "",
-});
+  WeChatServerAddress: defaults.WeChatServerAddress ?? '',
+  WeChatServerToken: defaults.WeChatServerToken ?? '',
+  WeChatAccountQRCodeImageURL: defaults.WeChatAccountQRCodeImageURL ?? '',
+})
 
 const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   GitHubOAuthEnabled: values.GitHubOAuthEnabled,
   GitHubClientId: values.GitHubClientId,
   GitHubClientSecret: values.GitHubClientSecret,
-  "discord.enabled": values.discord.enabled,
-  "discord.client_id": values.discord.client_id,
-  "discord.client_secret": values.discord.client_secret,
-  "google.enabled": values.google.enabled,
-  "google.client_id": values.google.client_id,
-  "google.client_secret": values.google.client_secret,
-  "facebook.enabled": values.facebook.enabled,
-  "facebook.client_id": values.facebook.client_id,
-  "facebook.client_secret": values.facebook.client_secret,
-  "zalo.enabled": values.zalo.enabled,
-  "zalo.app_id": values.zalo.app_id,
-  "zalo.secret_key": values.zalo.secret_key,
-  "oidc.enabled": values.oidc.enabled,
-  "oidc.display_name": values.oidc.display_name,
-  "oidc.client_id": values.oidc.client_id,
-  "oidc.client_secret": values.oidc.client_secret,
-  "oidc.well_known": values.oidc.well_known,
-  "oidc.authorization_endpoint": values.oidc.authorization_endpoint,
-  "oidc.token_endpoint": values.oidc.token_endpoint,
-  "oidc.user_info_endpoint": values.oidc.user_info_endpoint,
+  'discord.enabled': values.discord.enabled,
+  'discord.client_id': values.discord.client_id,
+  'discord.client_secret': values.discord.client_secret,
+  'google.enabled': values.google.enabled,
+  'google.client_id': values.google.client_id,
+  'google.client_secret': values.google.client_secret,
+  'facebook.enabled': values.facebook.enabled,
+  'facebook.client_id': values.facebook.client_id,
+  'facebook.client_secret': values.facebook.client_secret,
+  'zalo.enabled': values.zalo.enabled,
+  'zalo.app_id': values.zalo.app_id,
+  'zalo.secret_key': values.zalo.secret_key,
+  'oidc.enabled': values.oidc.enabled,
+  'oidc.display_name': values.oidc.display_name,
+  'oidc.client_id': values.oidc.client_id,
+  'oidc.client_secret': values.oidc.client_secret,
+  'oidc.well_known': values.oidc.well_known,
+  'oidc.authorization_endpoint': values.oidc.authorization_endpoint,
+  'oidc.token_endpoint': values.oidc.token_endpoint,
+  'oidc.user_info_endpoint': values.oidc.user_info_endpoint,
   TelegramOAuthEnabled: values.TelegramOAuthEnabled,
   TelegramBotToken: values.TelegramBotToken,
   TelegramBotName: values.TelegramBotName,
@@ -282,95 +282,95 @@ const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   WeChatServerAddress: values.WeChatServerAddress,
   WeChatServerToken: values.WeChatServerToken,
   WeChatAccountQRCodeImageURL: values.WeChatAccountQRCodeImageURL,
-});
+})
 
 type OAuthSectionProps = {
-  defaultValues: FlatOAuthDefaults;
-  serverAddress: string;
-};
+  defaultValues: FlatOAuthDefaults
+  serverAddress: string
+}
 
 export function OAuthSection(props: OAuthSectionProps) {
-  const { t } = useTranslation();
-  const updateOption = useUpdateOption();
-  const [activeTab, setActiveTab] = useState("github");
-  const siteUrl = resolveOAuthSiteUrl(props.serverAddress, t("Site URL"));
+  const { t } = useTranslation()
+  const updateOption = useUpdateOption()
+  const [activeTab, setActiveTab] = useState('github')
+  const siteUrl = resolveOAuthSiteUrl(props.serverAddress, t('Site URL'))
   const githubCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "github",
-    t("Site URL"),
-  );
+    'github',
+    t('Site URL')
+  )
   const discordCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "discord",
-    t("Site URL"),
-  );
+    'discord',
+    t('Site URL')
+  )
   const googleCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "google",
-    t("Site URL"),
-  );
+    'google',
+    t('Site URL')
+  )
   const facebookCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "facebook",
-    t("Site URL"),
-  );
+    'facebook',
+    t('Site URL')
+  )
   const zaloCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "zalo",
-    t("Site URL"),
-  );
+    'zalo',
+    t('Site URL')
+  )
   const oidcCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "oidc",
-    t("Site URL"),
-  );
+    'oidc',
+    t('Site URL')
+  )
   const linuxDOCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
-    "linuxdo",
-    t("Site URL"),
-  );
+    'linuxdo',
+    t('Site URL')
+  )
 
   const formDefaults = useMemo(
     () => buildFormDefaults(props.defaultValues),
-    [props.defaultValues],
-  );
+    [props.defaultValues]
+  )
 
   const form = useForm<OAuthFormValues>({
     resolver: zodResolver(oauthSchema),
     defaultValues: formDefaults,
-  });
+  })
 
-  const baselineRef = useRef<FlatOAuthDefaults>(props.defaultValues);
+  const baselineRef = useRef<FlatOAuthDefaults>(props.defaultValues)
   const baselineSerializedRef = useRef<string>(
-    JSON.stringify(props.defaultValues),
-  );
+    JSON.stringify(props.defaultValues)
+  )
 
   useEffect(() => {
-    const serialized = JSON.stringify(props.defaultValues);
-    if (serialized === baselineSerializedRef.current) return;
-    baselineRef.current = props.defaultValues;
-    baselineSerializedRef.current = serialized;
-    form.reset(buildFormDefaults(props.defaultValues));
-  }, [props.defaultValues, form]);
+    const serialized = JSON.stringify(props.defaultValues)
+    if (serialized === baselineSerializedRef.current) return
+    baselineRef.current = props.defaultValues
+    baselineSerializedRef.current = serialized
+    form.reset(buildFormDefaults(props.defaultValues))
+  }, [props.defaultValues, form])
 
   const onSubmit = async (values: OAuthFormValues) => {
-    let finalValues = values;
+    let finalValues = values
 
-    if (values.oidc.well_known && values.oidc.well_known.trim() !== "") {
-      const wellKnown = values.oidc.well_known.trim();
+    if (values.oidc.well_known && values.oidc.well_known.trim() !== '') {
+      const wellKnown = values.oidc.well_known.trim()
       if (
-        !wellKnown.startsWith("http://") &&
-        !wellKnown.startsWith("https://")
+        !wellKnown.startsWith('http://') &&
+        !wellKnown.startsWith('https://')
       ) {
-        toast.error(t("Well-Known URL must start with http:// or https://"));
-        return;
+        toast.error(t('Well-Known URL must start with http:// or https://'))
+        return
       }
 
       try {
-        const res = await axios.create().get(wellKnown);
-        const authEndpoint = res.data["authorization_endpoint"] || "";
-        const tokenEndpoint = res.data["token_endpoint"] || "";
-        const userInfoEndpoint = res.data["userinfo_endpoint"] || "";
+        const res = await axios.create().get(wellKnown)
+        const authEndpoint = res.data['authorization_endpoint'] || ''
+        const tokenEndpoint = res.data['token_endpoint'] || ''
+        const userInfoEndpoint = res.data['userinfo_endpoint'] || ''
 
         finalValues = {
           ...values,
@@ -380,57 +380,57 @@ export function OAuthSection(props: OAuthSectionProps) {
             token_endpoint: tokenEndpoint,
             user_info_endpoint: userInfoEndpoint,
           },
-        };
+        }
 
-        form.setValue("oidc.authorization_endpoint", authEndpoint);
-        form.setValue("oidc.token_endpoint", tokenEndpoint);
-        form.setValue("oidc.user_info_endpoint", userInfoEndpoint);
+        form.setValue('oidc.authorization_endpoint', authEndpoint)
+        form.setValue('oidc.token_endpoint', tokenEndpoint)
+        form.setValue('oidc.user_info_endpoint', userInfoEndpoint)
 
-        toast.success(t("OIDC configuration fetched successfully"));
+        toast.success(t('OIDC configuration fetched successfully'))
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error(err);
+        console.error(err)
         toast.error(
           t(
-            "Failed to fetch OIDC configuration. Please check the URL and network status",
-          ),
-        );
-        return;
+            'Failed to fetch OIDC configuration. Please check the URL and network status'
+          )
+        )
+        return
       }
     }
 
-    const normalized = normalizeFormValues(finalValues);
+    const normalized = normalizeFormValues(finalValues)
     const changedKeys = (
       Object.keys(normalized) as Array<keyof FlatOAuthDefaults>
-    ).filter((key) => normalized[key] !== baselineRef.current[key]);
+    ).filter((key) => normalized[key] !== baselineRef.current[key])
 
     if (changedKeys.length === 0) {
-      toast.info(t("No changes to save"));
-      return;
+      toast.info(t('No changes to save'))
+      return
     }
 
     for (const key of changedKeys) {
       await updateOption.mutateAsync({
         key,
         value: normalized[key],
-      });
+      })
     }
 
-    baselineRef.current = normalized;
-    baselineSerializedRef.current = JSON.stringify(normalized);
-    form.reset(buildFormDefaults(normalized));
-  };
+    baselineRef.current = normalized
+    baselineSerializedRef.current = JSON.stringify(normalized)
+    form.reset(buildFormDefaults(normalized))
+  }
 
   const handleReset = () => {
-    form.reset(buildFormDefaults(baselineRef.current));
-    toast.success(t("Form reset to saved values"));
-  };
+    form.reset(buildFormDefaults(baselineRef.current))
+    toast.success(t('Form reset to saved values'))
+  }
 
   return (
     <>
       <FormNavigationGuard when={form.formState.isDirty} />
 
-      <SettingsSection title={t("OAuth Integrations")}>
+      <SettingsSection title={t('OAuth Integrations')}>
         <Form {...form}>
           <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
             <SettingsPageFormActions
@@ -442,47 +442,47 @@ export function OAuthSection(props: OAuthSectionProps) {
             <FormDirtyIndicator isDirty={form.formState.isDirty} />
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9">
-                <TabsTrigger value="github">{t("GitHub")}</TabsTrigger>
-                <TabsTrigger value="google">{t("Google")}</TabsTrigger>
-                <TabsTrigger value="facebook">{t("Facebook")}</TabsTrigger>
-                <TabsTrigger value="discord">{t("Discord")}</TabsTrigger>
-                <TabsTrigger value="zalo">{t("Zalo")}</TabsTrigger>
-                <TabsTrigger value="oidc">{t("OIDC")}</TabsTrigger>
-                <TabsTrigger value="telegram">{t("Telegram")}</TabsTrigger>
-                <TabsTrigger value="linuxdo">{t("LinuxDO")}</TabsTrigger>
-                <TabsTrigger value="wechat">{t("WeChat")}</TabsTrigger>
+              <TabsList className='grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9'>
+                <TabsTrigger value='github'>{t('GitHub')}</TabsTrigger>
+                <TabsTrigger value='google'>{t('Google')}</TabsTrigger>
+                <TabsTrigger value='facebook'>{t('Facebook')}</TabsTrigger>
+                <TabsTrigger value='discord'>{t('Discord')}</TabsTrigger>
+                <TabsTrigger value='zalo'>{t('Zalo')}</TabsTrigger>
+                <TabsTrigger value='oidc'>{t('OIDC')}</TabsTrigger>
+                <TabsTrigger value='telegram'>{t('Telegram')}</TabsTrigger>
+                <TabsTrigger value='linuxdo'>{t('LinuxDO')}</TabsTrigger>
+                <TabsTrigger value='wechat'>{t('WeChat')}</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="github" className={oauthTabContentClassName}>
+              <TabsContent value='github' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={t(
-                    "Set these values in the provider application before enabling login.",
+                    'Set these values in the provider application before enabling login.'
                   )}
                   rows={[
                     {
-                      label: t("Homepage URL"),
+                      label: t('Homepage URL'),
                       value: siteUrl,
-                      copyLabel: t("Copy homepage URL"),
+                      copyLabel: t('Copy homepage URL'),
                     },
                     {
-                      label: t("Authorization callback URL"),
+                      label: t('Authorization callback URL'),
                       value: githubCallbackUrl,
-                      copyLabel: t("Copy callback URL"),
+                      copyLabel: t('Copy callback URL'),
                     },
                   ]}
                 />
 
                 <FormField
                   control={form.control}
-                  name="GitHubOAuthEnabled"
+                  name='GitHubOAuthEnabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable GitHub OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable GitHub OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with GitHub")}
+                          {t('Allow users to sign in with GitHub')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -497,15 +497,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="GitHubClientId"
+                  name='GitHubClientId'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client ID")}</FormLabel>
+                      <FormLabel>{t('Client ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your GitHub OAuth Client ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your GitHub OAuth Client ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -521,16 +521,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="GitHubClientSecret"
+                  name='GitHubClientSecret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client Secret")}</FormLabel>
+                      <FormLabel>{t('Client Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your GitHub OAuth Client Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your GitHub OAuth Client Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -545,45 +545,45 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="google" className={oauthTabContentClassName}>
+              <TabsContent value='google' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={t(
-                    "Set these values in the provider application before enabling login.",
+                    'Set these values in the provider application before enabling login.'
                   )}
                   rows={[
                     {
-                      label: t("Homepage URL"),
+                      label: t('Homepage URL'),
                       value: siteUrl,
-                      copyLabel: t("Copy homepage URL"),
+                      copyLabel: t('Copy homepage URL'),
                     },
                     {
-                      label: t("Authorized redirect URI"),
+                      label: t('Authorized redirect URI'),
                       value: googleCallbackUrl,
-                      copyLabel: t("Copy redirect URL"),
+                      copyLabel: t('Copy redirect URL'),
                     },
                   ]}
                 >
                   <a
-                    href="https://console.cloud.google.com/apis/credentials"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline"
+                    href='https://console.cloud.google.com/apis/credentials'
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline'
                   >
-                    {t("Manage your Google OAuth client")}
-                    <ExternalLink className="size-3" aria-hidden="true" />
+                    {t('Manage your Google OAuth client')}
+                    <ExternalLink className='size-3' aria-hidden='true' />
                   </a>
                 </OAuthSetupGuide>
 
                 <FormField
                   control={form.control}
-                  name="google.enabled"
+                  name='google.enabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable Google OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable Google OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with Google")}
+                          {t('Allow users to sign in with Google')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -598,15 +598,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="google.client_id"
+                  name='google.client_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client ID")}</FormLabel>
+                      <FormLabel>{t('Client ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your Google OAuth Client ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your Google OAuth Client ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -622,16 +622,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="google.client_secret"
+                  name='google.client_secret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client Secret")}</FormLabel>
+                      <FormLabel>{t('Client Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your Google OAuth Client Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your Google OAuth Client Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -647,58 +647,58 @@ export function OAuthSection(props: OAuthSectionProps) {
               </TabsContent>
 
               <TabsContent
-                value="facebook"
+                value='facebook'
                 className={oauthTabContentClassName}
               >
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={
-                    <div className="space-y-1">
+                    <div className='space-y-1'>
                       <p>
                         {t(
-                          "Set these values in the provider application before enabling login.",
+                          'Set these values in the provider application before enabling login.'
                         )}
                       </p>
                       <p>
                         {t(
-                          "Facebook only returns an email address once your app is approved for the email permission; users without one can bind an email later.",
+                          'Facebook only returns an email address once your app is approved for the email permission; users without one can bind an email later.'
                         )}
                       </p>
                     </div>
                   }
                   rows={[
                     {
-                      label: t("Homepage URL"),
+                      label: t('Homepage URL'),
                       value: siteUrl,
-                      copyLabel: t("Copy homepage URL"),
+                      copyLabel: t('Copy homepage URL'),
                     },
                     {
-                      label: t("Valid OAuth Redirect URI"),
+                      label: t('Valid OAuth Redirect URI'),
                       value: facebookCallbackUrl,
-                      copyLabel: t("Copy redirect URL"),
+                      copyLabel: t('Copy redirect URL'),
                     },
                   ]}
                 >
                   <a
-                    href="https://developers.facebook.com/apps/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline"
+                    href='https://developers.facebook.com/apps/'
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline'
                   >
-                    {t("Manage your Facebook app")}
-                    <ExternalLink className="size-3" aria-hidden="true" />
+                    {t('Manage your Facebook app')}
+                    <ExternalLink className='size-3' aria-hidden='true' />
                   </a>
                 </OAuthSetupGuide>
 
                 <FormField
                   control={form.control}
-                  name="facebook.enabled"
+                  name='facebook.enabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable Facebook OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable Facebook OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with Facebook")}
+                          {t('Allow users to sign in with Facebook')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -713,15 +713,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="facebook.client_id"
+                  name='facebook.client_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("App ID")}</FormLabel>
+                      <FormLabel>{t('App ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your Facebook App ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your Facebook App ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -737,16 +737,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="facebook.client_secret"
+                  name='facebook.client_secret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("App Secret")}</FormLabel>
+                      <FormLabel>{t('App Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your Facebook App Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your Facebook App Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -761,51 +761,51 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="zalo" className={oauthTabContentClassName}>
+              <TabsContent value='zalo' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={
-                    <div className="space-y-1">
+                    <div className='space-y-1'>
                       <p>
                         {t(
-                          "Set these values in the provider application before enabling login.",
+                          'Set these values in the provider application before enabling login.'
                         )}
                       </p>
                       <p>
                         {t(
-                          "Zalo never returns an email address, so accounts are created without one and users bind an email from their profile.",
+                          'Zalo never returns an email address, so accounts are created without one and users bind an email from their profile.'
                         )}
                       </p>
                     </div>
                   }
                   rows={[
                     {
-                      label: t("Callback URL"),
+                      label: t('Callback URL'),
                       value: zaloCallbackUrl,
-                      copyLabel: t("Copy callback URL"),
+                      copyLabel: t('Copy callback URL'),
                     },
                   ]}
                 >
                   <a
-                    href="https://developers.zalo.me/apps"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline"
+                    href='https://developers.zalo.me/apps'
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline'
                   >
-                    {t("Manage your Zalo app")}
-                    <ExternalLink className="size-3" aria-hidden="true" />
+                    {t('Manage your Zalo app')}
+                    <ExternalLink className='size-3' aria-hidden='true' />
                   </a>
                 </OAuthSetupGuide>
 
                 <FormField
                   control={form.control}
-                  name="zalo.enabled"
+                  name='zalo.enabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable Zalo OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable Zalo OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with Zalo")}
+                          {t('Allow users to sign in with Zalo')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -820,15 +820,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="zalo.app_id"
+                  name='zalo.app_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("App ID")}</FormLabel>
+                      <FormLabel>{t('App ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your Zalo App ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your Zalo App ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -844,16 +844,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="zalo.secret_key"
+                  name='zalo.secret_key'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("App Secret Key")}</FormLabel>
+                      <FormLabel>{t('App Secret Key')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your Zalo App Secret Key")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your Zalo App Secret Key')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -868,35 +868,35 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="discord" className={oauthTabContentClassName}>
+              <TabsContent value='discord' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={t(
-                    "Set these values in the provider application before enabling login.",
+                    'Set these values in the provider application before enabling login.'
                   )}
                   rows={[
                     {
-                      label: t("Homepage URL"),
+                      label: t('Homepage URL'),
                       value: siteUrl,
-                      copyLabel: t("Copy homepage URL"),
+                      copyLabel: t('Copy homepage URL'),
                     },
                     {
-                      label: t("Authorization callback URL"),
+                      label: t('Authorization callback URL'),
                       value: discordCallbackUrl,
-                      copyLabel: t("Copy callback URL"),
+                      copyLabel: t('Copy callback URL'),
                     },
                   ]}
                 />
 
                 <FormField
                   control={form.control}
-                  name="discord.enabled"
+                  name='discord.enabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable Discord OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable Discord OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with Discord")}
+                          {t('Allow users to sign in with Discord')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -911,15 +911,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="discord.client_id"
+                  name='discord.client_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client ID")}</FormLabel>
+                      <FormLabel>{t('Client ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your Discord OAuth Client ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your Discord OAuth Client ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -935,16 +935,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="discord.client_secret"
+                  name='discord.client_secret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client Secret")}</FormLabel>
+                      <FormLabel>{t('Client Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your Discord OAuth Client Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your Discord OAuth Client Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -959,46 +959,46 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="oidc" className={oauthTabContentClassName}>
+              <TabsContent value='oidc' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={
-                    <div className="space-y-1">
+                    <div className='space-y-1'>
                       <p>
                         {t(
-                          "Set these values in the provider application before enabling login.",
+                          'Set these values in the provider application before enabling login.'
                         )}
                       </p>
                       <p>
                         {t(
-                          "OIDC discovery can fill the endpoint fields automatically when the provider supports it.",
+                          'OIDC discovery can fill the endpoint fields automatically when the provider supports it.'
                         )}
                       </p>
                     </div>
                   }
                   rows={[
                     {
-                      label: t("Homepage URL"),
+                      label: t('Homepage URL'),
                       value: siteUrl,
-                      copyLabel: t("Copy homepage URL"),
+                      copyLabel: t('Copy homepage URL'),
                     },
                     {
-                      label: t("Redirect URL"),
+                      label: t('Redirect URL'),
                       value: oidcCallbackUrl,
-                      copyLabel: t("Copy redirect URL"),
+                      copyLabel: t('Copy redirect URL'),
                     },
                   ]}
                 />
 
                 <FormField
                   control={form.control}
-                  name="oidc.enabled"
+                  name='oidc.enabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable OIDC")}</FormLabel>
+                        <FormLabel>{t('Enable OIDC')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with OpenID Connect")}
+                          {t('Allow users to sign in with OpenID Connect')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -1013,15 +1013,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.display_name"
+                  name='oidc.display_name'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("OIDC Display Name")}</FormLabel>
+                      <FormLabel>{t('OIDC Display Name')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("e.g. Company SSO")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('e.g. Company SSO')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1040,15 +1040,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.client_id"
+                  name='oidc.client_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client ID")}</FormLabel>
+                      <FormLabel>{t('Client ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("OIDC Client ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('OIDC Client ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1064,16 +1064,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.client_secret"
+                  name='oidc.client_secret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client Secret")}</FormLabel>
+                      <FormLabel>{t('Client Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("OIDC Client Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('OIDC Client Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1089,17 +1089,17 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.well_known"
+                  name='oidc.well_known'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Well-Known URL")}</FormLabel>
+                      <FormLabel>{t('Well-Known URL')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t(
-                            "https://provider.com/.well-known/openid-configuration",
+                            'https://provider.com/.well-known/openid-configuration'
                           )}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1109,7 +1109,7 @@ export function OAuthSection(props: OAuthSectionProps) {
                         />
                       </FormControl>
                       <FormDescription>
-                        {t("Auto-discovers endpoints from the provider")}
+                        {t('Auto-discovers endpoints from the provider')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1118,17 +1118,17 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.authorization_endpoint"
+                  name='oidc.authorization_endpoint'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {t("Authorization Endpoint (Optional)")}
+                        {t('Authorization Endpoint (Optional)')}
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Override auto-discovered endpoint")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Override auto-discovered endpoint')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1144,15 +1144,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.token_endpoint"
+                  name='oidc.token_endpoint'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Token Endpoint (Optional)")}</FormLabel>
+                      <FormLabel>{t('Token Endpoint (Optional)')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Override auto-discovered endpoint")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Override auto-discovered endpoint')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1168,17 +1168,17 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="oidc.user_info_endpoint"
+                  name='oidc.user_info_endpoint'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {t("User Info Endpoint (Optional)")}
+                        {t('User Info Endpoint (Optional)')}
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Override auto-discovered endpoint")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Override auto-discovered endpoint')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1194,18 +1194,18 @@ export function OAuthSection(props: OAuthSectionProps) {
               </TabsContent>
 
               <TabsContent
-                value="telegram"
+                value='telegram'
                 className={oauthTabContentClassName}
               >
                 <FormField
                   control={form.control}
-                  name="TelegramOAuthEnabled"
+                  name='TelegramOAuthEnabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable Telegram OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable Telegram OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with Telegram")}
+                          {t('Allow users to sign in with Telegram')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -1220,16 +1220,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="TelegramBotToken"
+                  name='TelegramBotToken'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Bot Token")}</FormLabel>
+                      <FormLabel>{t('Bot Token')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Your Telegram Bot Token")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Your Telegram Bot Token')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1245,15 +1245,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="TelegramBotName"
+                  name='TelegramBotName'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Bot Name")}</FormLabel>
+                      <FormLabel>{t('Bot Name')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("Your Bot Name")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('Your Bot Name')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1268,40 +1268,40 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="linuxdo" className={oauthTabContentClassName}>
+              <TabsContent value='linuxdo' className={oauthTabContentClassName}>
                 <OAuthSetupGuide
-                  title={t("Setup guide")}
+                  title={t('Setup guide')}
                   description={t(
-                    "Set these values in the provider application before enabling login.",
+                    'Set these values in the provider application before enabling login.'
                   )}
                   rows={[
                     {
-                      label: t("Authorization callback URL"),
+                      label: t('Authorization callback URL'),
                       value: linuxDOCallbackUrl,
-                      copyLabel: t("Copy callback URL"),
+                      copyLabel: t('Copy callback URL'),
                     },
                   ]}
                 >
                   <a
-                    href="https://connect.linux.do/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline"
+                    href='https://connect.linux.do/'
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-primary inline-flex w-fit items-center gap-1 underline underline-offset-3 hover:no-underline'
                   >
-                    {t("Manage your LinuxDO OAuth app")}
-                    <ExternalLink className="size-3" aria-hidden="true" />
+                    {t('Manage your LinuxDO OAuth app')}
+                    <ExternalLink className='size-3' aria-hidden='true' />
                   </a>
                 </OAuthSetupGuide>
 
                 <FormField
                   control={form.control}
-                  name="LinuxDOOAuthEnabled"
+                  name='LinuxDOOAuthEnabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable LinuxDO OAuth")}</FormLabel>
+                        <FormLabel>{t('Enable LinuxDO OAuth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with LinuxDO")}
+                          {t('Allow users to sign in with LinuxDO')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -1316,15 +1316,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="LinuxDOClientId"
+                  name='LinuxDOClientId'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client ID")}</FormLabel>
+                      <FormLabel>{t('Client ID')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("LinuxDO Client ID")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('LinuxDO Client ID')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1340,16 +1340,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="LinuxDOClientSecret"
+                  name='LinuxDOClientSecret'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Client Secret")}</FormLabel>
+                      <FormLabel>{t('Client Secret')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("LinuxDO Client Secret")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('LinuxDO Client Secret')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1365,15 +1365,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="LinuxDOMinimumTrustLevel"
+                  name='LinuxDOMinimumTrustLevel'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Minimum Trust Level")}</FormLabel>
+                      <FormLabel>{t('Minimum Trust Level')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="0"
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder='0'
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1383,7 +1383,7 @@ export function OAuthSection(props: OAuthSectionProps) {
                         />
                       </FormControl>
                       <FormDescription>
-                        {t("Minimum LinuxDO trust level required")}
+                        {t('Minimum LinuxDO trust level required')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1391,16 +1391,16 @@ export function OAuthSection(props: OAuthSectionProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="wechat" className={oauthTabContentClassName}>
+              <TabsContent value='wechat' className={oauthTabContentClassName}>
                 <FormField
                   control={form.control}
-                  name="WeChatAuthEnabled"
+                  name='WeChatAuthEnabled'
                   render={({ field }) => (
                     <SettingsSwitchItem>
                       <SettingsSwitchContent>
-                        <FormLabel>{t("Enable WeChat Auth")}</FormLabel>
+                        <FormLabel>{t('Enable WeChat Auth')}</FormLabel>
                         <FormDescription>
-                          {t("Allow users to sign in with WeChat")}
+                          {t('Allow users to sign in with WeChat')}
                         </FormDescription>
                       </SettingsSwitchContent>
                       <FormControl>
@@ -1415,15 +1415,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="WeChatServerAddress"
+                  name='WeChatServerAddress'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Server Address")}</FormLabel>
+                      <FormLabel>{t('Server Address')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("https://wechat-server.example.com")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('https://wechat-server.example.com')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1439,16 +1439,16 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="WeChatServerToken"
+                  name='WeChatServerToken'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("Server Token")}</FormLabel>
+                      <FormLabel>{t('Server Token')}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
-                          placeholder={t("Server Token")}
-                          autoComplete="new-password"
-                          value={field.value ?? ""}
+                          type='password'
+                          placeholder={t('Server Token')}
+                          autoComplete='new-password'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1464,15 +1464,15 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
-                  name="WeChatAccountQRCodeImageURL"
+                  name='WeChatAccountQRCodeImageURL'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("QR Code Image URL")}</FormLabel>
+                      <FormLabel>{t('QR Code Image URL')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t("https://example.com/qr-code.png")}
-                          autoComplete="off"
-                          value={field.value ?? ""}
+                          placeholder={t('https://example.com/qr-code.png')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(event.target.value)
                           }
@@ -1491,5 +1491,5 @@ export function OAuthSection(props: OAuthSectionProps) {
         </Form>
       </SettingsSection>
     </>
-  );
+  )
 }

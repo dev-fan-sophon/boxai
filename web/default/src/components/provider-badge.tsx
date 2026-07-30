@@ -16,18 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { LobeIcon } from "@/lib/lobe-icon";
-import { cn } from "@/lib/utils";
+import { LobeIcon } from '@/lib/lobe-icon'
+import { cn } from '@/lib/utils'
 
-import { StatusBadge, type StatusBadgeProps } from "./status-badge";
+import { StatusBadge, type StatusBadgeProps } from './status-badge'
 
-type ProviderBadgeProps = Omit<StatusBadgeProps, "children" | "label"> & {
-  iconKey?: string | null;
-  iconSize?: number;
-  label: string;
+type ProviderBadgeProps = Omit<StatusBadgeProps, 'children' | 'label'> & {
+  iconKey?: string | null
+  iconSize?: number
+  label: string
   /** Color the label text by provider name. Set false for a neutral label. */
-  colorText?: boolean;
-};
+  colorText?: boolean
+}
 
 export function ProviderBadge({
   className,
@@ -37,22 +37,22 @@ export function ProviderBadge({
   colorText = true,
   ...badgeProps
 }: ProviderBadgeProps) {
-  const icon = iconKey ? <LobeIcon name={iconKey} size={iconSize} /> : null;
+  const icon = iconKey ? <LobeIcon name={iconKey} size={iconSize} /> : null
 
   return (
     <div
-      data-slot="provider-badge"
-      className={cn("flex max-w-full min-w-0 items-center gap-1.5", className)}
+      data-slot='provider-badge'
+      className={cn('flex max-w-full min-w-0 items-center gap-1.5', className)}
     >
-      {icon && <span className="flex shrink-0 items-center">{icon}</span>}
+      {icon && <span className='flex shrink-0 items-center'>{icon}</span>}
       <StatusBadge
         label={label}
         autoColor={colorText ? label : undefined}
-        variant={colorText ? undefined : "neutral"}
-        size="sm"
-        className={cn("min-w-0 shrink overflow-hidden", !icon && "pl-0")}
+        variant={colorText ? undefined : 'neutral'}
+        size='sm'
+        className={cn('min-w-0 shrink overflow-hidden', !icon && 'pl-0')}
         {...badgeProps}
       />
     </div>
-  );
+  )
 }

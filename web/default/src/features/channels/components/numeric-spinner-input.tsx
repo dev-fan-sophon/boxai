@@ -16,22 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Minus, Plus } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { Minus, Plus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 interface NumericSpinnerInputProps {
-  value: number | null | undefined;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  disabled?: boolean;
-  className?: string;
-  label?: string;
+  value: number | null | undefined
+  onChange: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
+  disabled?: boolean
+  className?: string
+  label?: string
 }
 
 export function NumericSpinnerInput({
@@ -44,133 +44,133 @@ export function NumericSpinnerInput({
   className,
   label,
 }: NumericSpinnerInputProps) {
-  const { t } = useTranslation();
-  const [localValue, setLocalValue] = useState(String(value ?? 0));
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation()
+  const [localValue, setLocalValue] = useState(String(value ?? 0))
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!editing) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocalValue(String(value ?? 0));
+      setLocalValue(String(value ?? 0))
     }
-  }, [value, editing]);
+  }, [value, editing])
 
   const clamp = (v: number) => {
-    let result = v;
-    if (min !== undefined) result = Math.max(min, result);
-    if (max !== undefined) result = Math.min(max, result);
-    return result;
-  };
+    let result = v
+    if (min !== undefined) result = Math.max(min, result)
+    if (max !== undefined) result = Math.min(max, result)
+    return result
+  }
 
   const handleIncrement = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (disabled) return;
-    const next = clamp((Number(localValue) || 0) + step);
-    setLocalValue(String(next));
-    onChange(next);
-  };
+    e.stopPropagation()
+    if (disabled) return
+    const next = clamp((Number(localValue) || 0) + step)
+    setLocalValue(String(next))
+    onChange(next)
+  }
 
   const handleDecrement = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (disabled) return;
-    const next = clamp((Number(localValue) || 0) - step);
-    setLocalValue(String(next));
-    onChange(next);
-  };
+    e.stopPropagation()
+    if (disabled) return
+    const next = clamp((Number(localValue) || 0) - step)
+    setLocalValue(String(next))
+    onChange(next)
+  }
 
   const handleStartEdit = () => {
-    if (disabled) return;
-    setEditing(true);
-    requestAnimationFrame(() => inputRef.current?.select());
-  };
+    if (disabled) return
+    setEditing(true)
+    requestAnimationFrame(() => inputRef.current?.select())
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    if (raw === "" || raw === "-") {
-      setLocalValue(raw);
-      return;
+    const raw = e.target.value
+    if (raw === '' || raw === '-') {
+      setLocalValue(raw)
+      return
     }
-    if (!/^-?\d+$/.test(raw)) return;
-    setLocalValue(raw);
-  };
+    if (!/^-?\d+$/.test(raw)) return
+    setLocalValue(raw)
+  }
 
   const commitValue = () => {
-    setEditing(false);
-    const num = Number(localValue);
-    if (Number.isNaN(num) || localValue === "" || localValue === "-") {
-      setLocalValue(String(value ?? 0));
-      return;
+    setEditing(false)
+    const num = Number(localValue)
+    if (Number.isNaN(num) || localValue === '' || localValue === '-') {
+      setLocalValue(String(value ?? 0))
+      return
     }
-    const clamped = clamp(num);
-    setLocalValue(String(clamped));
+    const clamped = clamp(num)
+    setLocalValue(String(clamped))
     if (clamped !== (value ?? 0)) {
-      onChange(clamped);
+      onChange(clamped)
     }
-  };
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitValue();
-    } else if (e.key === "Escape") {
-      setEditing(false);
-      setLocalValue(String(value ?? 0));
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitValue()
+    } else if (e.key === 'Escape') {
+      setEditing(false)
+      setLocalValue(String(value ?? 0))
     }
-  };
+  }
 
-  const atMin = min !== undefined && Number(localValue) <= min;
-  const atMax = max !== undefined && Number(localValue) >= max;
+  const atMin = min !== undefined && Number(localValue) <= min
+  const atMax = max !== undefined && Number(localValue) >= max
 
   return (
-    <div className={cn("inline-flex items-center", className)}>
+    <div className={cn('inline-flex items-center', className)}>
       {label && (
-        <Label className="text-muted-foreground mr-1.5 text-xs">{label}</Label>
+        <Label className='text-muted-foreground mr-1.5 text-xs'>{label}</Label>
       )}
       <div
         className={cn(
-          "group/spinner border-input inline-flex h-7 items-center gap-0 rounded-md border transition-colors",
-          !disabled && "hover:bg-muted/60",
-          editing && "bg-muted/60 ring-primary/30 ring-1",
+          'group/spinner border-input inline-flex h-7 items-center gap-0 rounded-md border transition-colors',
+          !disabled && 'hover:bg-muted/60',
+          editing && 'bg-muted/60 ring-primary/30 ring-1'
         )}
       >
         <button
-          type="button"
+          type='button'
           tabIndex={-1}
-          aria-label={t("Decrement")}
+          aria-label={t('Decrement')}
           onClick={handleDecrement}
           disabled={disabled || atMin}
           className={cn(
-            "text-muted-foreground/0 group-hover/spinner:text-muted-foreground flex h-7 w-6 shrink-0 items-center justify-center rounded-l-md transition-colors",
+            'text-muted-foreground/0 group-hover/spinner:text-muted-foreground flex h-7 w-6 shrink-0 items-center justify-center rounded-l-md transition-colors',
             !disabled &&
               !atMin &&
-              "group-hover/spinner:hover:text-foreground group-hover/spinner:hover:bg-muted",
-            (disabled || atMin) && "group-hover/spinner:opacity-30",
+              'group-hover/spinner:hover:text-foreground group-hover/spinner:hover:bg-muted',
+            (disabled || atMin) && 'group-hover/spinner:opacity-30'
           )}
         >
-          <Minus className="size-3" />
+          <Minus className='size-3' />
         </button>
 
         {editing ? (
           <input
             ref={inputRef}
-            type="text"
+            type='text'
             value={localValue}
             onChange={handleInputChange}
             onBlur={commitValue}
             onKeyDown={handleKeyDown}
-            className="h-7 w-10 bg-transparent text-center font-mono text-sm outline-none"
+            className='h-7 w-10 bg-transparent text-center font-mono text-sm outline-none'
             autoFocus
           />
         ) : (
           <button
-            type="button"
+            type='button'
             onClick={handleStartEdit}
             disabled={disabled}
             title={localValue}
             className={cn(
-              "h-7 min-w-8 max-w-16 cursor-text truncate px-1 text-center font-mono text-sm tabular-nums",
-              disabled && "cursor-default opacity-50",
+              'h-7 min-w-8 max-w-16 cursor-text truncate px-1 text-center font-mono text-sm tabular-nums',
+              disabled && 'cursor-default opacity-50'
             )}
           >
             {localValue}
@@ -178,22 +178,22 @@ export function NumericSpinnerInput({
         )}
 
         <button
-          type="button"
+          type='button'
           tabIndex={-1}
-          aria-label={t("Increment")}
+          aria-label={t('Increment')}
           onClick={handleIncrement}
           disabled={disabled || atMax}
           className={cn(
-            "text-muted-foreground/0 group-hover/spinner:text-muted-foreground flex h-7 w-6 shrink-0 items-center justify-center rounded-r-md transition-colors",
+            'text-muted-foreground/0 group-hover/spinner:text-muted-foreground flex h-7 w-6 shrink-0 items-center justify-center rounded-r-md transition-colors',
             !disabled &&
               !atMax &&
-              "group-hover/spinner:hover:text-foreground group-hover/spinner:hover:bg-muted",
-            (disabled || atMax) && "group-hover/spinner:opacity-30",
+              'group-hover/spinner:hover:text-foreground group-hover/spinner:hover:bg-muted',
+            (disabled || atMax) && 'group-hover/spinner:opacity-30'
           )}
         >
-          <Plus className="size-3" />
+          <Plus className='size-3' />
         </button>
       </div>
     </div>
-  );
+  )
 }

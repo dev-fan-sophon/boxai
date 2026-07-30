@@ -16,27 +16,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-"use client";
+'use client'
 
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes } from 'react'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
-export type PromptInputTabsListProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputTabsListProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputTabsList = ({
   className,
   ...props
-}: PromptInputTabsListProps) => <div className={cn(className)} {...props} />;
+}: PromptInputTabsListProps) => <div className={cn(className)} {...props} />
 
-export type PromptInputTabProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputTabProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputTab = ({
   className,
   ...props
-}: PromptInputTabProps) => <div className={cn(className)} {...props} />;
+}: PromptInputTabProps) => <div className={cn(className)} {...props} />
 
-export type PromptInputTabLabelProps = HTMLAttributes<HTMLHeadingElement>;
+export type PromptInputTabLabelProps = HTMLAttributes<HTMLHeadingElement>
 
 export const PromptInputTabLabel = ({
   className,
@@ -44,23 +44,23 @@ export const PromptInputTabLabel = ({
 }: PromptInputTabLabelProps) => (
   <h3
     className={cn(
-      "text-muted-foreground mb-2 px-3 text-xs font-medium",
-      className,
+      'text-muted-foreground mb-2 px-3 text-xs font-medium',
+      className
     )}
     {...props}
   />
-);
+)
 
-export type PromptInputTabBodyProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputTabBodyProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputTabBody = ({
   className,
   ...props
 }: PromptInputTabBodyProps) => (
-  <div className={cn("space-y-1", className)} {...props} />
-);
+  <div className={cn('space-y-1', className)} {...props} />
+)
 
-export type PromptInputTabItemProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputTabItemProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputTabItem = ({
   className,
@@ -68,9 +68,9 @@ export const PromptInputTabItem = ({
 }: PromptInputTabItemProps) => (
   <div
     className={cn(
-      "hover:bg-accent flex items-center gap-2 px-3 py-2 text-xs",
-      className,
+      'hover:bg-accent flex items-center gap-2 px-3 py-2 text-xs',
+      className
     )}
     {...props}
   />
-);
+)

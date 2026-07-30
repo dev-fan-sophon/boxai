@@ -16,59 +16,49 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import {
-  createFileRoute,
-  useNavigate,
-  useSearch,
-} from "@tanstack/react-router";
-import i18next from "i18next";
-import { useEffect } from "react";
-import { toast } from "sonner";
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import i18next from 'i18next'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
 
-import { wechatLoginByCode } from "@/features/auth/api";
-import { getSelf } from "@/lib/api";
-import { normalizeReturnTarget } from "@/lib/normalize-return-target";
-import { useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { wechatLoginByCode } from '@/features/auth/api'
+import { getSelf } from '@/lib/api'
+import { normalizeReturnTarget } from '@/lib/normalize-return-target'
+import { useAuthStore, type AuthUser } from '@/stores/auth-store'
 
 function OAuthComponent() {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/(auth)/oauth" }) as {
-    redirect?: string;
-    provider?:
-      | "github"
-      | "discord"
-      | "oidc"
-      | "linuxdo"
-      | "telegram"
-      | "wechat";
-    code?: string;
-    state?: string;
-  };
+  const navigate = useNavigate()
+  const search = useSearch({ from: '/(auth)/oauth' }) as {
+    redirect?: string
+    provider?: 'github' | 'discord' | 'oidc' | 'linuxdo' | 'telegram' | 'wechat'
+    code?: string
+    state?: string
+  }
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
       try {
-        if (search?.provider === "wechat" && search.code) {
-          await wechatLoginByCode(search.code);
+        if (search?.provider === 'wechat' && search.code) {
+          await wechatLoginByCode(search.code)
         }
-        const res = await getSelf();
+        const res = await getSelf()
         if (res?.success) {
-          useAuthStore.getState().auth.setUser(res.data as AuthUser);
-          const target = normalizeReturnTarget(search?.redirect);
-          navigate({ to: target, replace: true });
-          return;
+          useAuthStore.getState().auth.setUser(res.data as AuthUser)
+          const target = normalizeReturnTarget(search?.redirect)
+          navigate({ to: target, replace: true })
+          return
         }
       } catch {
         /* empty */
       }
-      toast.error(i18next.t("OAuth failed"));
-      navigate({ to: "/sign-in", replace: true });
-    })();
-  }, [navigate, search]);
+      toast.error(i18next.t('OAuth failed'))
+      navigate({ to: '/sign-in', replace: true })
+    })()
+  }, [navigate, search])
 
-  return null;
+  return null
 }
 
-export const Route = createFileRoute("/(auth)/oauth")({
+export const Route = createFileRoute('/(auth)/oauth')({
   component: OAuthComponent,
-});
+})

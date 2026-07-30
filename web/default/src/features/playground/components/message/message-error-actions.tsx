@@ -16,17 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Edit, RefreshCw, Trash2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Edit, RefreshCw, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-import { MessageActionButton } from "./message-action-button";
+import { MessageActionButton } from './message-action-button'
 
 type MessageErrorActionsProps = {
-  disabled?: boolean;
-  onDelete?: () => void;
-  onEditPrompt?: () => void;
-  onRetry?: () => void;
-};
+  disabled?: boolean
+  onDelete?: () => void
+  onEditPrompt?: () => void
+  onRetry?: () => void
+}
 
 export function MessageErrorActions({
   disabled = false,
@@ -34,19 +34,19 @@ export function MessageErrorActions({
   onEditPrompt,
   onRetry,
 }: MessageErrorActionsProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   if (!onRetry && !onEditPrompt && !onDelete) {
-    return null;
+    return null
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 pt-2">
+    <div className='flex flex-wrap items-center gap-0.5 pt-2'>
       {onRetry && (
         <MessageActionButton
           disabled={disabled}
           icon={RefreshCw}
-          label={t("Retry")}
+          label={t('Retry')}
           onClick={onRetry}
         />
       )}
@@ -55,7 +55,7 @@ export function MessageErrorActions({
         <MessageActionButton
           disabled={disabled}
           icon={Edit}
-          label={t("Edit")}
+          label={t('Edit')}
           onClick={onEditPrompt}
         />
       )}
@@ -64,11 +64,11 @@ export function MessageErrorActions({
         <MessageActionButton
           disabled={disabled}
           icon={Trash2}
-          label={t("Delete")}
+          label={t('Delete')}
           onClick={onDelete}
-          variant="destructive"
+          variant='destructive'
         />
       )}
     </div>
-  );
+  )
 }

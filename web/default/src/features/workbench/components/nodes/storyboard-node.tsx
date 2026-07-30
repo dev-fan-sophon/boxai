@@ -20,23 +20,23 @@ For commercial licensing, please contact support@quantumnous.com
 Adapted from open-ai-canvas (https://github.com/ddcat-ai/open-ai-canvas),
 based on basketikun/infinite-canvas. AGPL-3.0; see THIRD-PARTY-LICENSES.md.
 */
-import { Film, Loader2, Play, Plus, Sparkles, Trash2 } from "lucide-react";
-import { nanoid } from "nanoid";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { Film, Loader2, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { nanoid } from 'nanoid'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { usePlaygroundStore } from "@/stores/playground-store";
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
   STORYBOARD_FOOTER_HEIGHT,
   STORYBOARD_HEADER_HEIGHT,
   STORYBOARD_ROW_HEIGHT,
-} from "../../constants";
-import { createStoryboardRow } from "../../engine/canvas-domain";
-import { requestStoryboardShots } from "../../engine/canvas-storyboard-ai";
+} from '../../constants'
+import { createStoryboardRow } from '../../engine/canvas-domain'
+import { requestStoryboardShots } from '../../engine/canvas-storyboard-ai'
 import {
   claimStoryboardBatchItems,
   createStoryboardBatch,
@@ -44,123 +44,121 @@ import {
   retryStoryboardBatchItem,
   setStoryboardBatchItemStatus,
   stopStoryboardBatch,
-} from "../../engine/canvas-storyboard-batch";
-import { useCanvasTheme } from "../../engine/canvas-theme";
-import { useCanvasGeneration } from "../../hooks/use-canvas-generation";
-import { useWorkbenchModels } from "../../hooks/use-workbench-models";
-import { useCanvasStore } from "../../store/canvas-store";
+} from '../../engine/canvas-storyboard-batch'
+import { useCanvasTheme } from '../../engine/canvas-theme'
+import { useCanvasGeneration } from '../../hooks/use-canvas-generation'
+import { useWorkbenchModels } from '../../hooks/use-workbench-models'
+import { useCanvasStore } from '../../store/canvas-store'
 import {
   CanvasNodeType,
   type StoryboardBatch,
   type StoryboardRow,
-} from "../../types";
-import { NodeModelSelect, type CanvasNodeBodyProps } from "./node-shared";
+} from '../../types'
+import { NodeModelSelect, type CanvasNodeBodyProps } from './node-shared'
 
 function readStoryboardRows(nodeId: string): StoryboardRow[] {
   return (
     useCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.metadata
       ?.storyboard?.rows ?? []
-  );
+  )
 }
 
 export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation();
-  const theme = useCanvasTheme();
-  const models = useWorkbenchModels();
-  const { generateNode } = useCanvasGeneration({ enabled: !props.readOnly });
-  const processingBatchItemsRef = useRef(new Set<string>());
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [ideaOpen, setIdeaOpen] = useState(false);
-  const [idea, setIdea] = useState("");
-  const [shotCount, setShotCount] = useState(6);
+  const { t } = useTranslation()
+  const theme = useCanvasTheme()
+  const models = useWorkbenchModels()
+  const { generateNode } = useCanvasGeneration({ enabled: !props.readOnly })
+  const processingBatchItemsRef = useRef(new Set<string>())
+  const [isDrafting, setIsDrafting] = useState(false)
+  const [ideaOpen, setIdeaOpen] = useState(false)
+  const [idea, setIdea] = useState('')
+  const [shotCount, setShotCount] = useState(6)
 
-  const metadata = props.node.metadata ?? {};
+  const metadata = props.node.metadata ?? {}
   const rows = useMemo(
     () => metadata.storyboard?.rows ?? [],
-    [metadata.storyboard?.rows],
-  );
-  const batch = metadata.storyboard?.batch;
+    [metadata.storyboard?.rows]
+  )
+  const batch = metadata.storyboard?.batch
   const anyRowLoading =
-    Boolean(batch?.items.some((item) => item.status === "running")) ||
+    Boolean(batch?.items.some((item) => item.status === 'running')) ||
     isDrafting ||
-    rows.some((row) => row.status === "loading");
+    rows.some((row) => row.status === 'loading')
 
   const patchRow = useCallback(
     (rowId: string, patch: Partial<StoryboardRow>) => {
-      useCanvasStore
-        .getState()
-        .updateStoryboardRow(props.node.id, rowId, patch);
+      useCanvasStore.getState().updateStoryboardRow(props.node.id, rowId, patch)
     },
-    [props.node.id],
-  );
+    [props.node.id]
+  )
 
   const writeBatch = useCallback(
     (nextBatch: StoryboardBatch) => {
-      const store = useCanvasStore.getState();
-      const node = store.nodes.find((item) => item.id === props.node.id);
-      if (!node?.metadata?.storyboard) return;
+      const store = useCanvasStore.getState()
+      const node = store.nodes.find((item) => item.id === props.node.id)
+      if (!node?.metadata?.storyboard) return
       store.updateNodeMetadata(node.id, {
         storyboard: { ...node.metadata.storyboard, batch: nextBatch },
-      });
+      })
     },
-    [props.node.id],
-  );
+    [props.node.id]
+  )
 
   const addShot = useCallback(() => {
-    const current = readStoryboardRows(props.node.id);
+    const current = readStoryboardRows(props.node.id)
     useCanvasStore
       .getState()
       .setStoryboardRows(props.node.id, [
         ...current,
         createStoryboardRow(current.length + 1),
-      ]);
-  }, [props.node.id]);
+      ])
+  }, [props.node.id])
 
   const deleteRow = useCallback(
     (rowId: string) => {
       if (
         batch?.items.some(
-          (item) => item.status === "running" || item.status === "waiting",
+          (item) => item.status === 'running' || item.status === 'waiting'
         )
       ) {
-        return;
+        return
       }
-      const current = readStoryboardRows(props.node.id);
+      const current = readStoryboardRows(props.node.id)
       const next = current
         .filter((row) => row.id !== rowId)
-        .map((row, index) => ({ ...row, shotNumber: index + 1 }));
-      useCanvasStore.getState().setStoryboardRows(props.node.id, next);
+        .map((row, index) => ({ ...row, shotNumber: index + 1 }))
+      useCanvasStore.getState().setStoryboardRows(props.node.id, next)
     },
-    [batch, props.node.id],
-  );
+    [batch, props.node.id]
+  )
 
   const generateRowImage = useCallback(
     async (row: StoryboardRow, index: number) => {
-      const store = useCanvasStore.getState();
-      const node = store.nodes.find((item) => item.id === props.node.id);
-      if (!node) return;
+      const store = useCanvasStore.getState()
+      const node = store.nodes.find((item) => item.id === props.node.id)
+      if (!node) return
 
       const latestRow =
         node.metadata?.storyboard?.rows.find((item) => item.id === row.id) ??
-        row;
-      if (!latestRow.imageGenerationPrompt.trim()) return;
+        row
+      if (!latestRow.imageGenerationPrompt.trim()) return
 
       store.updateStoryboardRow(node.id, latestRow.id, {
-        status: "loading",
+        status: 'loading',
         errorDetails: undefined,
-      });
+      })
 
       try {
-        let imageNodeId = latestRow.imageNodeId;
+        let imageNodeId = latestRow.imageNodeId
         if (imageNodeId) {
-          const existing = store.nodes.find((item) => item.id === imageNodeId);
+          const existing = store.nodes.find((item) => item.id === imageNodeId)
           if (!existing) {
-            imageNodeId = undefined;
+            imageNodeId = undefined
           } else {
             store.updateNodeMetadata(imageNodeId, {
               prompt: latestRow.imageGenerationPrompt,
               model: node.metadata?.model,
-            });
+            })
           }
         }
 
@@ -174,88 +172,88 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
             {
               prompt: latestRow.imageGenerationPrompt,
               model: node.metadata?.model,
-            },
-          );
-          imageNodeId = imageNode.id;
+            }
+          )
+          imageNodeId = imageNode.id
           store.connectNodes(node.id, imageNode.id, {
-            firstHandleType: "source",
+            firstHandleType: 'source',
             fromHandleId: `row:${latestRow.id}`,
-          });
+          })
           store.updateStoryboardRow(node.id, latestRow.id, {
             imageNodeId: imageNode.id,
-          });
+          })
         }
 
-        await generateNode(imageNodeId);
+        await generateNode(imageNodeId)
 
         const imageNode = useCanvasStore
           .getState()
-          .nodes.find((item) => item.id === imageNodeId);
-        if (imageNode?.metadata?.status === "error") {
+          .nodes.find((item) => item.id === imageNodeId)
+        if (imageNode?.metadata?.status === 'error') {
           store.updateStoryboardRow(node.id, latestRow.id, {
-            status: "error",
+            status: 'error',
             errorDetails:
-              imageNode.metadata.errorDetails || t("Generation failed"),
-          });
-          return;
+              imageNode.metadata.errorDetails || t('Generation failed'),
+          })
+          return
         }
 
         store.updateStoryboardRow(node.id, latestRow.id, {
-          status: "idle",
+          status: 'idle',
           errorDetails: undefined,
-        });
+        })
       } catch (error) {
         store.updateStoryboardRow(node.id, latestRow.id, {
-          status: "error",
+          status: 'error',
           errorDetails:
             error instanceof Error && error.message
               ? error.message
-              : t("Generation failed"),
-        });
+              : t('Generation failed'),
+        })
       }
     },
-    [generateNode, props.node.id, t],
-  );
+    [generateNode, props.node.id, t]
+  )
 
   const generateRowVideo = useCallback(
     async (row: StoryboardRow) => {
-      const store = useCanvasStore.getState();
-      const node = store.nodes.find((item) => item.id === props.node.id);
-      if (!node) return;
+      const store = useCanvasStore.getState()
+      const node = store.nodes.find((item) => item.id === props.node.id)
+      if (!node) return
 
       const latestRow =
         node.metadata?.storyboard?.rows.find((item) => item.id === row.id) ??
-        row;
+        row
       const imageNode = latestRow.imageNodeId
         ? store.nodes.find((item) => item.id === latestRow.imageNodeId)
-        : undefined;
+        : undefined
       if (!imageNode?.metadata?.content) {
-        toast.error(t("Generate the shot image first"));
-        return;
+        toast.error(t('Generate the shot image first'))
+        return
       }
 
       const motion =
         latestRow.videoMotionPrompt.trim() ||
-        latestRow.imageGenerationPrompt.trim();
+        latestRow.imageGenerationPrompt.trim()
       const prompt = latestRow.negativePrompt.trim()
         ? `${motion}\nNegative: ${latestRow.negativePrompt.trim()}`
-        : motion;
+        : motion
       const seconds = latestRow.durationSeconds
         ? String(latestRow.durationSeconds)
-        : undefined;
+        : undefined
 
       store.updateStoryboardRow(node.id, latestRow.id, {
-        status: "loading",
+        status: 'loading',
         errorDetails: undefined,
-      });
+      })
 
       try {
-        let videoNodeId = latestRow.videoNodeId;
+        let videoNodeId = latestRow.videoNodeId
         if (
           videoNodeId &&
           !store.nodes.some((item) => item.id === videoNodeId)
         ) {
-          videoNodeId = undefined;
+          videoNodeId = undefined
         }
 
         if (videoNodeId) {
@@ -263,7 +261,7 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
             prompt,
             seconds,
             model: node.metadata?.videoModel,
-          });
+          })
         } else {
           const videoNode = store.addNode(
             CanvasNodeType.Video,
@@ -271,185 +269,185 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
               x: imageNode.position.x + imageNode.width + 240,
               y: imageNode.position.y,
             },
-            { prompt, seconds, model: node.metadata?.videoModel },
-          );
-          videoNodeId = videoNode.id;
+            { prompt, seconds, model: node.metadata?.videoModel }
+          )
+          videoNodeId = videoNode.id
           store.connectNodes(imageNode.id, videoNode.id, {
-            firstHandleType: "source",
-          });
+            firstHandleType: 'source',
+          })
           store.updateStoryboardRow(node.id, latestRow.id, {
             videoNodeId: videoNode.id,
-          });
+          })
         }
 
-        await generateNode(videoNodeId);
+        await generateNode(videoNodeId)
 
         const generated = useCanvasStore
           .getState()
-          .nodes.find((item) => item.id === videoNodeId);
-        if (generated?.metadata?.status === "error") {
+          .nodes.find((item) => item.id === videoNodeId)
+        if (generated?.metadata?.status === 'error') {
           store.updateStoryboardRow(node.id, latestRow.id, {
-            status: "error",
+            status: 'error',
             errorDetails:
-              generated.metadata.errorDetails || t("Generation failed"),
-          });
-          return;
+              generated.metadata.errorDetails || t('Generation failed'),
+          })
+          return
         }
 
         store.updateStoryboardRow(node.id, latestRow.id, {
-          status: "idle",
+          status: 'idle',
           errorDetails: undefined,
-        });
+        })
       } catch (error) {
         store.updateStoryboardRow(node.id, latestRow.id, {
-          status: "error",
+          status: 'error',
           errorDetails:
             error instanceof Error && error.message
               ? error.message
-              : t("Generation failed"),
-        });
+              : t('Generation failed'),
+        })
       }
     },
-    [generateNode, props.node.id, t],
-  );
+    [generateNode, props.node.id, t]
+  )
 
   const draftShotsWithAi = useCallback(async () => {
-    const trimmedIdea = idea.trim();
-    if (!trimmedIdea || isDrafting) return;
-    const chatModel = models.byModality("chat")[0]?.value;
+    const trimmedIdea = idea.trim()
+    if (!trimmedIdea || isDrafting) return
+    const chatModel = models.byModality('chat')[0]?.value
     if (!chatModel) {
-      toast.error(t("No chat model is available"));
-      return;
+      toast.error(t('No chat model is available'))
+      return
     }
-    setIsDrafting(true);
+    setIsDrafting(true)
     try {
       const shots = await requestStoryboardShots({
         model: chatModel,
         group: usePlaygroundStore.getState().config.group,
         idea: trimmedIdea,
         shotCount,
-      });
+      })
       if (!shots.length) {
-        toast.error(t("The model did not return any shots"));
-        return;
+        toast.error(t('The model did not return any shots'))
+        return
       }
-      const current = readStoryboardRows(props.node.id);
+      const current = readStoryboardRows(props.node.id)
       const appended = shots.map((shot, index) => ({
         ...createStoryboardRow(current.length + index + 1),
         plotDescription: shot.plotDescription,
         imageGenerationPrompt: shot.imageGenerationPrompt,
         videoMotionPrompt: shot.videoMotionPrompt,
         durationSeconds: shot.durationSeconds,
-      }));
+      }))
       useCanvasStore
         .getState()
-        .setStoryboardRows(props.node.id, [...current, ...appended]);
-      setIdeaOpen(false);
-      setIdea("");
-      toast.success(t("Added {{count}} shots", { count: appended.length }));
+        .setStoryboardRows(props.node.id, [...current, ...appended])
+      setIdeaOpen(false)
+      setIdea('')
+      toast.success(t('Added {{count}} shots', { count: appended.length }))
     } catch (error) {
       toast.error(
         error instanceof Error && error.message
           ? error.message
-          : t("Generation failed"),
-      );
+          : t('Generation failed')
+      )
     } finally {
-      setIsDrafting(false);
+      setIsDrafting(false)
     }
-  }, [idea, isDrafting, models, props.node.id, shotCount, t]);
+  }, [idea, isDrafting, models, props.node.id, shotCount, t])
 
   const startBatch = useCallback(
-    (kind: StoryboardBatch["kind"]) => {
-      if (props.readOnly) return;
+    (kind: StoryboardBatch['kind']) => {
+      if (props.readOnly) return
       const currentBatch = useCanvasStore
         .getState()
         .nodes.find((item) => item.id === props.node.id)?.metadata
-        ?.storyboard?.batch;
+        ?.storyboard?.batch
       if (
         currentBatch?.items.some(
-          (item) => item.status === "running" || item.status === "waiting",
+          (item) => item.status === 'running' || item.status === 'waiting'
         )
       ) {
-        return;
+        return
       }
       const eligible = readStoryboardRows(props.node.id).filter((row) =>
-        kind === "image"
+        kind === 'image'
           ? Boolean(row.imageGenerationPrompt.trim())
-          : Boolean(row.imageNodeId),
-      );
-      if (!eligible.length) return;
-      writeBatch(createStoryboardBatch(nanoid(), kind, eligible));
+          : Boolean(row.imageNodeId)
+      )
+      if (!eligible.length) return
+      writeBatch(createStoryboardBatch(nanoid(), kind, eligible))
     },
-    [props.node.id, props.readOnly, writeBatch],
-  );
+    [props.node.id, props.readOnly, writeBatch]
+  )
 
   useEffect(() => {
-    if (props.readOnly) return;
-    if (!batch) return;
-    let reconciled = batch;
+    if (props.readOnly) return
+    if (!batch) return
+    let reconciled = batch
     batch.items.forEach((item) => {
       if (
-        item.status !== "running" ||
+        item.status !== 'running' ||
         processingBatchItemsRef.current.has(`${batch.id}:${item.rowId}`)
       ) {
-        return;
+        return
       }
-      const row = rows.find((candidate) => candidate.id === item.rowId);
+      const row = rows.find((candidate) => candidate.id === item.rowId)
       const generatedNodeId =
-        batch.kind === "video" ? row?.videoNodeId : row?.imageNodeId;
+        batch.kind === 'video' ? row?.videoNodeId : row?.imageNodeId
       const generatedNode = useCanvasStore
         .getState()
-        .nodes.find((node) => node.id === generatedNodeId);
-      const generatedStatus = generatedNode?.metadata?.status ?? "missing";
+        .nodes.find((node) => node.id === generatedNodeId)
+      const generatedStatus = generatedNode?.metadata?.status ?? 'missing'
       reconciled = reconcileStoryboardBatchItem(
         reconciled,
         item.rowId,
         generatedStatus,
         Boolean(generatedNode?.metadata?.taskId),
-        t("Generation was interrupted. Retry this item."),
-      );
-    });
+        t('Generation was interrupted. Retry this item.')
+      )
+    })
     if (reconciled !== batch) {
-      writeBatch(reconciled);
-      return;
+      writeBatch(reconciled)
+      return
     }
-    if (batch.stopped) return;
-    const claimed = claimStoryboardBatchItems(batch, 2);
-    if (!claimed.rowIds.length) return;
-    writeBatch(claimed.batch);
+    if (batch.stopped) return
+    const claimed = claimStoryboardBatchItems(batch, 2)
+    if (!claimed.rowIds.length) return
+    writeBatch(claimed.batch)
 
     claimed.rowIds.forEach((rowId) => {
-      const key = `${batch.id}:${rowId}`;
-      if (processingBatchItemsRef.current.has(key)) return;
-      processingBatchItemsRef.current.add(key);
-      const currentRows = readStoryboardRows(props.node.id);
-      const rowIndex = currentRows.findIndex((row) => row.id === rowId);
-      const row = currentRows[rowIndex];
-      if (!row) return;
+      const key = `${batch.id}:${rowId}`
+      if (processingBatchItemsRef.current.has(key)) return
+      processingBatchItemsRef.current.add(key)
+      const currentRows = readStoryboardRows(props.node.id)
+      const rowIndex = currentRows.findIndex((row) => row.id === rowId)
+      const row = currentRows[rowIndex]
+      if (!row) return
       const run =
-        batch.kind === "image"
+        batch.kind === 'image'
           ? generateRowImage(row, rowIndex)
-          : generateRowVideo(row);
+          : generateRowVideo(row)
       void run.finally(() => {
-        processingBatchItemsRef.current.delete(key);
+        processingBatchItemsRef.current.delete(key)
         const storeNode = useCanvasStore
           .getState()
-          .nodes.find((item) => item.id === props.node.id);
-        const latestBatch = storeNode?.metadata?.storyboard?.batch;
+          .nodes.find((item) => item.id === props.node.id)
+        const latestBatch = storeNode?.metadata?.storyboard?.batch
         const latestRow = storeNode?.metadata?.storyboard?.rows.find(
-          (item) => item.id === rowId,
-        );
-        if (!latestBatch || latestBatch.id !== batch.id) return;
+          (item) => item.id === rowId
+        )
+        if (!latestBatch || latestBatch.id !== batch.id) return
         writeBatch(
           setStoryboardBatchItemStatus(
             latestBatch,
             rowId,
-            latestRow?.status === "error" ? "failed" : "succeeded",
-            latestRow?.errorDetails,
-          ),
-        );
-      });
-    });
+            latestRow?.status === 'error' ? 'failed' : 'succeeded',
+            latestRow?.errorDetails
+          )
+        )
+      })
+    })
   }, [
     batch,
     generateRowImage,
@@ -459,146 +457,146 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
     rows,
     t,
     writeBatch,
-  ]);
+  ])
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-canvas-no-zoom>
+    <div className='flex h-full min-h-0 flex-col' data-canvas-no-zoom>
       <div
-        className="relative flex shrink-0 flex-col gap-2 border-b px-1 pt-1 pb-2"
+        className='relative flex shrink-0 flex-col gap-2 border-b px-1 pt-1 pb-2'
         style={{
           height: STORYBOARD_HEADER_HEIGHT,
           borderColor: theme.node.stroke,
         }}
       >
         <Input
-          value={metadata.workflowTitle ?? ""}
-          placeholder={t("Storyboard title")}
-          className="h-7 shrink-0 text-xs"
+          value={metadata.workflowTitle ?? ''}
+          placeholder={t('Storyboard title')}
+          className='h-7 shrink-0 text-xs'
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) =>
             props.onMetadataChange({ workflowTitle: event.target.value })
           }
         />
-        <div className="flex shrink-0 items-center gap-2">
+        <div className='flex shrink-0 items-center gap-2'>
           <span
-            className="shrink-0 text-xs"
+            className='shrink-0 text-xs'
             style={{ color: theme.node.muted }}
           >
-            {t("Image model")}
+            {t('Image model')}
           </span>
           <NodeModelSelect
             value={metadata.model}
-            options={models.byModality("image")}
+            options={models.byModality('image')}
             onChange={(model) => props.onMetadataChange({ model })}
           />
           <span
-            className="shrink-0 text-xs"
+            className='shrink-0 text-xs'
             style={{ color: theme.node.muted }}
           >
-            {t("Video model")}
+            {t('Video model')}
           </span>
           <NodeModelSelect
             value={metadata.videoModel}
-            options={models.byModality("video")}
+            options={models.byModality('video')}
             onChange={(videoModel) => props.onMetadataChange({ videoModel })}
           />
           <Button
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0 gap-1 px-2 text-xs"
+            size='sm'
+            variant='outline'
+            className='h-7 shrink-0 gap-1 px-2 text-xs'
             aria-expanded={ideaOpen}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setIdeaOpen((open) => !open)}
           >
-            <Sparkles className="size-3.5" />
-            {t("Draft shots with AI")}
+            <Sparkles className='size-3.5' />
+            {t('Draft shots with AI')}
           </Button>
         </div>
         {ideaOpen ? (
-          <div className="bg-popover absolute inset-x-1 top-full z-20 mt-1 flex items-center gap-2 rounded-md border p-2 shadow-md">
+          <div className='bg-popover absolute inset-x-1 top-full z-20 mt-1 flex items-center gap-2 rounded-md border p-2 shadow-md'>
             <Input
               value={idea}
-              placeholder={t("Describe the story idea")}
-              className="h-7 min-w-0 flex-1 text-xs"
+              placeholder={t('Describe the story idea')}
+              className='h-7 min-w-0 flex-1 text-xs'
               onPointerDown={(event) => event.stopPropagation()}
               onChange={(event) => setIdea(event.target.value)}
             />
             <Input
-              type="number"
+              type='number'
               min={1}
               max={20}
               value={shotCount}
-              className="h-7 w-14 shrink-0 text-xs"
+              className='h-7 w-14 shrink-0 text-xs'
               onPointerDown={(event) => event.stopPropagation()}
               onChange={(event) => {
-                const next = Number(event.target.value);
+                const next = Number(event.target.value)
                 setShotCount(
-                  Number.isFinite(next) ? Math.min(20, Math.max(1, next)) : 6,
-                );
+                  Number.isFinite(next) ? Math.min(20, Math.max(1, next)) : 6
+                )
               }}
             />
             <Button
-              size="sm"
-              className="h-7 gap-1 px-2 text-xs"
+              size='sm'
+              className='h-7 gap-1 px-2 text-xs'
               disabled={isDrafting || !idea.trim()}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => {
-                void draftShotsWithAi();
+                void draftShotsWithAi()
               }}
             >
               {isDrafting ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Loader2 className='size-3.5 animate-spin' />
               ) : (
-                <Sparkles className="size-3.5" />
+                <Sparkles className='size-3.5' />
               )}
-              {t("Generate")}
+              {t('Generate')}
             </Button>
           </div>
         ) : null}
       </div>
 
       <div
-        className="min-h-0 flex-1 overflow-auto"
+        className='min-h-0 flex-1 overflow-auto'
         data-canvas-wheel-scroll
         data-canvas-no-zoom
       >
         {rows.length === 0 ? (
           <div
-            className="flex h-full min-h-[96px] flex-col items-center justify-center gap-3 px-3 text-center text-xs"
+            className='flex h-full min-h-[96px] flex-col items-center justify-center gap-3 px-3 text-center text-xs'
             style={{ color: theme.node.placeholder }}
           >
-            <span>{t("Add your first shot to start the storyboard")}</span>
+            <span>{t('Add your first shot to start the storyboard')}</span>
             <Button
-              size="sm"
-              className="h-7 gap-1 px-2 text-xs"
+              size='sm'
+              className='h-7 gap-1 px-2 text-xs'
               onPointerDown={(event) => event.stopPropagation()}
               onClick={addShot}
             >
-              <Plus className="size-3.5" />
-              {t("Add shot")}
+              <Plus className='size-3.5' />
+              {t('Add shot')}
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className='flex flex-col'>
             {rows.map((row, index) => (
               <div
                 key={row.id}
-                className="relative flex items-center gap-1 border-b px-1"
+                className='relative flex items-center gap-1 border-b px-1'
                 style={{
                   height: STORYBOARD_ROW_HEIGHT,
                   borderColor: theme.node.stroke,
                 }}
               >
                 <span
-                  className="w-8 shrink-0 text-center text-[11px] font-medium"
+                  className='w-8 shrink-0 text-center text-[11px] font-medium'
                   style={{ color: theme.node.muted }}
                 >
                   #{row.shotNumber}
                 </span>
                 <Input
                   value={row.plotDescription}
-                  placeholder={t("Plot")}
-                  className="h-7 min-w-0 flex-1 text-xs"
+                  placeholder={t('Plot')}
+                  className='h-7 min-w-0 flex-1 text-xs'
                   onPointerDown={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     patchRow(row.id, { plotDescription: event.target.value })
@@ -606,8 +604,8 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                 />
                 <Input
                   value={row.imageGenerationPrompt}
-                  placeholder={t("Image prompt")}
-                  className="h-7 min-w-0 flex-[1.2] text-xs"
+                  placeholder={t('Image prompt')}
+                  className='h-7 min-w-0 flex-[1.2] text-xs'
                   onPointerDown={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     patchRow(row.id, {
@@ -617,8 +615,8 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                 />
                 <Input
                   value={row.videoMotionPrompt}
-                  placeholder={t("Video motion")}
-                  className="h-7 min-w-0 flex-1 text-xs"
+                  placeholder={t('Video motion')}
+                  className='h-7 min-w-0 flex-1 text-xs'
                   onPointerDown={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     patchRow(row.id, {
@@ -627,104 +625,104 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                   }
                 />
                 <Input
-                  type="number"
+                  type='number'
                   min={0}
                   step={0.5}
                   value={row.durationSeconds}
-                  className="h-7 w-14 shrink-0 text-xs"
+                  className='h-7 w-14 shrink-0 text-xs'
                   onPointerDown={(event) => event.stopPropagation()}
                   onChange={(event) => {
-                    const next = Number(event.target.value);
+                    const next = Number(event.target.value)
                     patchRow(row.id, {
                       durationSeconds: Number.isFinite(next) ? next : 0,
-                    });
+                    })
                   }}
                 />
-                <div className="flex w-28 shrink-0 items-center justify-end gap-1">
-                  {row.status === "loading" ? (
+                <div className='flex w-28 shrink-0 items-center justify-end gap-1'>
+                  {row.status === 'loading' ? (
                     <Loader2
-                      className="size-3.5 animate-spin"
+                      className='size-3.5 animate-spin'
                       style={{ color: theme.accent.primary }}
                     />
                   ) : null}
-                  {row.status === "error" ? (
+                  {row.status === 'error' ? (
                     <span
-                      className="max-w-[52px] truncate text-[10px]"
+                      className='max-w-[52px] truncate text-[10px]'
                       style={{ color: theme.accent.danger }}
                       title={row.errorDetails}
                     >
-                      {row.errorDetails || t("Generation failed")}
+                      {row.errorDetails || t('Generation failed')}
                     </span>
                   ) : null}
                   {batch?.items.find((item) => item.rowId === row.id) ? (
                     <button
-                      type="button"
-                      className="max-w-[58px] truncate text-[10px] underline-offset-2 hover:underline"
+                      type='button'
+                      className='max-w-[58px] truncate text-[10px] underline-offset-2 hover:underline'
                       title={t(
                         batch.items.find((item) => item.rowId === row.id)
-                          ?.status ?? "waiting",
+                          ?.status ?? 'waiting'
                       )}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={() => {
                         const item = batch.items.find(
-                          (entry) => entry.rowId === row.id,
-                        );
+                          (entry) => entry.rowId === row.id
+                        )
                         if (
-                          item?.status === "failed" ||
-                          item?.status === "cancelled"
+                          item?.status === 'failed' ||
+                          item?.status === 'cancelled'
                         ) {
-                          writeBatch(retryStoryboardBatchItem(batch, row.id));
+                          writeBatch(retryStoryboardBatchItem(batch, row.id))
                         }
                       }}
                     >
                       {t(
                         batch.items.find((item) => item.rowId === row.id)
-                          ?.status ?? "waiting",
+                          ?.status ?? 'waiting'
                       )}
                     </button>
                   ) : null}
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    className="size-7 p-0"
-                    disabled={row.status === "loading" || anyRowLoading}
-                    title={t("Generate")}
+                    size='sm'
+                    variant='ghost'
+                    className='size-7 p-0'
+                    disabled={row.status === 'loading' || anyRowLoading}
+                    title={t('Generate')}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => {
-                      void generateRowImage(row, index);
+                      void generateRowImage(row, index)
                     }}
                   >
-                    <Play className="size-3.5" />
+                    <Play className='size-3.5' />
                   </Button>
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    className="size-7 p-0"
-                    disabled={row.status === "loading" || anyRowLoading}
-                    title={t("Generate video")}
+                    size='sm'
+                    variant='ghost'
+                    className='size-7 p-0'
+                    disabled={row.status === 'loading' || anyRowLoading}
+                    title={t('Generate video')}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => {
-                      void generateRowVideo(row);
+                      void generateRowVideo(row)
                     }}
                   >
-                    <Film className="size-3.5" />
+                    <Film className='size-3.5' />
                   </Button>
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    className="size-7 p-0"
-                    disabled={row.status === "loading"}
-                    title={t("Delete shot")}
+                    size='sm'
+                    variant='ghost'
+                    className='size-7 p-0'
+                    disabled={row.status === 'loading'}
+                    title={t('Delete shot')}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => deleteRow(row.id)}
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className='size-3.5' />
                   </Button>
                 </div>
                 <span
                   data-handle-id={`row:${row.id}`}
-                  data-handle-type="source"
-                  className="absolute top-1/2 right-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full border"
+                  data-handle-type='source'
+                  className='absolute top-1/2 right-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full border'
                   style={{
                     background: theme.accent.primary,
                     borderColor: theme.node.fill,
@@ -738,74 +736,74 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
 
       {rows.length > 0 ? (
         <div
-          className="flex shrink-0 items-center gap-2 border-t px-1 pt-2"
+          className='flex shrink-0 items-center gap-2 border-t px-1 pt-2'
           style={{
             minHeight: STORYBOARD_FOOTER_HEIGHT,
             borderColor: theme.node.stroke,
           }}
         >
           <Button
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1 px-2 text-xs"
+            size='sm'
+            variant='outline'
+            className='h-7 gap-1 px-2 text-xs'
             onPointerDown={(event) => event.stopPropagation()}
             onClick={addShot}
           >
-            <Plus className="size-3.5" />
-            {t("Add shot")}
+            <Plus className='size-3.5' />
+            {t('Add shot')}
           </Button>
           <Button
-            size="sm"
-            className="ml-auto h-7 gap-1 px-2 text-xs"
+            size='sm'
+            className='ml-auto h-7 gap-1 px-2 text-xs'
             disabled={anyRowLoading && !batch}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => {
               if (
                 batch &&
-                batch.items.some((item) => item.status === "waiting")
+                batch.items.some((item) => item.status === 'waiting')
               ) {
-                writeBatch(stopStoryboardBatch(batch));
+                writeBatch(stopStoryboardBatch(batch))
               } else {
-                startBatch("image");
+                startBatch('image')
               }
             }}
           >
-            {batch?.kind === "image" &&
-            batch.items.some((item) => item.status === "running") ? (
-              <Loader2 className="size-3.5 animate-spin" />
+            {batch?.kind === 'image' &&
+            batch.items.some((item) => item.status === 'running') ? (
+              <Loader2 className='size-3.5 animate-spin' />
             ) : (
-              <Play className="size-3.5" />
+              <Play className='size-3.5' />
             )}
-            {batch?.kind === "image" &&
-            batch.items.some((item) => item.status === "waiting")
-              ? t("Stop pending items")
-              : t("Generate all shots")}
+            {batch?.kind === 'image' &&
+            batch.items.some((item) => item.status === 'waiting')
+              ? t('Stop pending items')
+              : t('Generate all shots')}
           </Button>
           <Button
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1 px-2 text-xs"
+            size='sm'
+            variant='outline'
+            className='h-7 gap-1 px-2 text-xs'
             disabled={anyRowLoading && !batch}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => {
               if (
                 batch &&
-                batch.items.some((item) => item.status === "waiting")
+                batch.items.some((item) => item.status === 'waiting')
               ) {
-                writeBatch(stopStoryboardBatch(batch));
+                writeBatch(stopStoryboardBatch(batch))
               } else {
-                startBatch("video");
+                startBatch('video')
               }
             }}
           >
-            <Film className="size-3.5" />
-            {batch?.kind === "video" &&
-            batch.items.some((item) => item.status === "waiting")
-              ? t("Stop pending items")
-              : t("Generate all videos")}
+            <Film className='size-3.5' />
+            {batch?.kind === 'video' &&
+            batch.items.some((item) => item.status === 'waiting')
+              ? t('Stop pending items')
+              : t('Generate all videos')}
           </Button>
         </div>
       ) : null}
     </div>
-  );
+  )
 }

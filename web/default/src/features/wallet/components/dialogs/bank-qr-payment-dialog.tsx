@@ -16,159 +16,159 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertTriangle, Download, Landmark } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import { useRef, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { AlertTriangle, Download, Landmark } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { CopyButton } from "@/components/copy-button";
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
-import { toIntlLocale } from "@/i18n/languages";
+import { CopyButton } from '@/components/copy-button'
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
+import { toIntlLocale } from '@/i18n/languages'
 
-import type { BankQRPaymentData } from "../../types";
-import { TopUpProofDialog } from "./top-up-proof-dialog";
+import type { BankQRPaymentData } from '../../types'
+import { TopUpProofDialog } from './top-up-proof-dialog'
 
 interface BankQRPaymentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  payment: BankQRPaymentData | null;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  payment: BankQRPaymentData | null
 }
 
 export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
-  const { t, i18n } = useTranslation();
-  const qrContainerRef = useRef<HTMLDivElement>(null);
-  const [proofOpen, setProofOpen] = useState(false);
+  const { t, i18n } = useTranslation()
+  const qrContainerRef = useRef<HTMLDivElement>(null)
+  const [proofOpen, setProofOpen] = useState(false)
 
   if (!props.payment) {
-    return null;
+    return null
   }
-  const payment = props.payment;
+  const payment = props.payment
 
   const formattedAmount = new Intl.NumberFormat(toIntlLocale(i18n.language), {
-    style: "currency",
-    currency: "VND",
+    style: 'currency',
+    currency: 'VND',
     maximumFractionDigits: 0,
-  }).format(props.payment.amount);
+  }).format(props.payment.amount)
 
   const downloadQRCode = () => {
-    const svg = qrContainerRef.current?.querySelector("svg");
-    if (!svg) return;
+    const svg = qrContainerRef.current?.querySelector('svg')
+    if (!svg) return
 
     const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `vietqr-${payment.trade_no}.svg`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+      type: 'image/svg+xml;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `vietqr-${payment.trade_no}.svg`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <>
       <Dialog
         open={props.open}
         onOpenChange={props.onOpenChange}
-        title={t("Pay by bank transfer")}
+        title={t('Pay by bank transfer')}
         description={t(
-          "Scan the VietQR code or copy the bank details to complete your transfer.",
+          'Scan the VietQR code or copy the bank details to complete your transfer.'
         )}
-        contentClassName="sm:max-w-xl"
+        contentClassName='sm:max-w-xl'
         footer={
           <>
-            <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-              {t("Submit later")}
+            <Button variant='outline' onClick={() => props.onOpenChange(false)}>
+              {t('Submit later')}
             </Button>
             <Button
               onClick={() => {
-                props.onOpenChange(false);
-                setProofOpen(true);
+                props.onOpenChange(false)
+                setProofOpen(true)
               }}
             >
-              {t("Submit payment proof")}
+              {t('Submit payment proof')}
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="border-warning/40 bg-warning/10 text-warning-foreground flex gap-3 rounded-lg border p-3 text-sm">
+        <div className='space-y-4'>
+          <div className='border-warning/40 bg-warning/10 text-warning-foreground flex gap-3 rounded-lg border p-3 text-sm'>
             <AlertTriangle
-              className="mt-0.5 size-4 shrink-0"
-              aria-hidden="true"
+              className='mt-0.5 size-4 shrink-0'
+              aria-hidden='true'
             />
             <div>
-              <p className="font-medium">{t("Transfer the exact amount")}</p>
+              <p className='font-medium'>{t('Transfer the exact amount')}</p>
               <p>
                 {t(
-                  "Use the exact transfer content below. Your payment will be fulfilled after an administrator verifies it.",
+                  'Use the exact transfer content below. Your payment will be fulfilled after an administrator verifies it.'
                 )}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-[220px_1fr]">
-            <div className="flex flex-col items-center gap-2">
+          <div className='grid gap-5 sm:grid-cols-[220px_1fr]'>
+            <div className='flex flex-col items-center gap-2'>
               <div
                 ref={qrContainerRef}
-                className="rounded-xl border bg-white p-3 shadow-sm"
+                className='rounded-xl border bg-white p-3 shadow-sm'
               >
                 <QRCodeSVG
                   value={props.payment.payload}
                   size={192}
-                  level="M"
+                  level='M'
                   includeMargin
                 />
               </div>
-              <p className="text-muted-foreground text-center text-xs">
-                {t("Scan with your banking app")}
+              <p className='text-muted-foreground text-center text-xs'>
+                {t('Scan with your banking app')}
               </p>
-              <Button variant="outline" size="sm" onClick={downloadQRCode}>
-                <Download aria-hidden="true" />
-                {t("Download QR code")}
+              <Button variant='outline' size='sm' onClick={downloadQRCode}>
+                <Download aria-hidden='true' />
+                {t('Download QR code')}
               </Button>
             </div>
 
-            <div className="space-y-3">
-              <div className="bg-primary/5 border-primary/20 rounded-lg border p-3 text-center">
-                <p className="text-muted-foreground text-xs">
-                  {t("Exact transfer amount")}
+            <div className='space-y-3'>
+              <div className='bg-primary/5 border-primary/20 rounded-lg border p-3 text-center'>
+                <p className='text-muted-foreground text-xs'>
+                  {t('Exact transfer amount')}
                 </p>
-                <div className="flex items-center justify-center gap-1">
-                  <p className="text-primary text-2xl font-bold tabular-nums">
+                <div className='flex items-center justify-center gap-1'>
+                  <p className='text-primary text-2xl font-bold tabular-nums'>
                     {formattedAmount}
                   </p>
                   <CopyButton
                     value={String(props.payment.amount)}
-                    tooltip={t("Copy amount")}
-                    aria-label={t("Copy amount")}
+                    tooltip={t('Copy amount')}
+                    aria-label={t('Copy amount')}
                   />
                 </div>
               </div>
 
               <PaymentDetail
-                label={t("Bank")}
+                label={t('Bank')}
                 value={props.payment.bank_name}
-                icon={<Landmark className="size-4" aria-hidden="true" />}
+                icon={<Landmark className='size-4' aria-hidden='true' />}
               />
               <PaymentDetail
-                label={t("Account number")}
+                label={t('Account number')}
                 value={props.payment.account_number}
-                copyLabel={t("Copy account number")}
+                copyLabel={t('Copy account number')}
               />
               <PaymentDetail
-                label={t("Account holder")}
+                label={t('Account holder')}
                 value={props.payment.account_name}
               />
               <PaymentDetail
-                label={t("Transfer content")}
+                label={t('Transfer content')}
                 value={props.payment.transfer_content}
-                copyLabel={t("Copy transfer content")}
+                copyLabel={t('Copy transfer content')}
                 emphasis
               />
               <PaymentDetail
-                label={t("Order number")}
+                label={t('Order number')}
                 value={props.payment.trade_no}
               />
             </div>
@@ -181,27 +181,27 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
         tradeNo={payment.trade_no}
       />
     </>
-  );
+  )
 }
 
 interface PaymentDetailProps {
-  label: string;
-  value: string;
-  copyLabel?: string;
-  icon?: ReactNode;
-  emphasis?: boolean;
+  label: string
+  value: string
+  copyLabel?: string
+  icon?: ReactNode
+  emphasis?: boolean
 }
 
 function PaymentDetail(props: PaymentDetailProps) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b pb-2">
-      <div className="min-w-0">
-        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+    <div className='flex items-center justify-between gap-2 border-b pb-2'>
+      <div className='min-w-0'>
+        <p className='text-muted-foreground flex items-center gap-1.5 text-xs'>
           {props.icon}
           {props.label}
         </p>
         <p
-          className={`text-sm break-all ${props.emphasis ? "text-primary font-bold" : "font-medium"}`}
+          className={`text-sm break-all ${props.emphasis ? 'text-primary font-bold' : 'font-medium'}`}
         >
           {props.value}
         </p>
@@ -214,5 +214,5 @@ function PaymentDetail(props: PaymentDetailProps) {
         />
       ) : null}
     </div>
-  );
+  )
 }

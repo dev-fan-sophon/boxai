@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-export const Route = createFileRoute("/console/log")({
+export const Route = createFileRoute('/console/log')({
   beforeLoad: () => {
-    throw redirect({ to: "/usage-logs" });
+    throw redirect({ to: '/usage-logs' })
   },
-});
+})

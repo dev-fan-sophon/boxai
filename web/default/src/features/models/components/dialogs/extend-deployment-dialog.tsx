@@ -16,23 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 
-import { estimatePrice, extendDeployment, getDeployment } from "../../api";
-import { deploymentsQueryKeys } from "../../lib";
+import { estimatePrice, extendDeployment, getDeployment } from '../../api'
+import { deploymentsQueryKeys } from '../../lib'
 
 function toInt(value: unknown, fallback: number) {
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : fallback;
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : fallback
 }
 
 export function ExtendDeploymentDialog({
@@ -40,39 +40,39 @@ export function ExtendDeploymentDialog({
   onOpenChange,
   deploymentId,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  deploymentId: string | number | null;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  deploymentId: string | number | null
 }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [hours, setHours] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [hours, setHours] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (open) setHours(1);
-  }, [open]);
+    if (open) setHours(1)
+  }, [open])
 
   const { data: detailsRes, isLoading: isLoadingDetails } = useQuery({
-    queryKey: ["deployment-details-for-extend", deploymentId],
+    queryKey: ['deployment-details-for-extend', deploymentId],
     queryFn: () => (deploymentId ? getDeployment(deploymentId) : null),
     enabled: open && deploymentId !== null,
-  });
+  })
 
-  const details = detailsRes?.data;
+  const details = detailsRes?.data
 
   const priceParams = useMemo(() => {
-    if (!details) return null;
-    const hardwareId = toInt(details.hardware_id, 0);
-    const gpusPerContainer = toInt(details.gpus_per_container, 0);
-    const replicaCount = toInt(details.total_containers, 0);
-    const locations = Array.isArray(details.locations) ? details.locations : [];
+    if (!details) return null
+    const hardwareId = toInt(details.hardware_id, 0)
+    const gpusPerContainer = toInt(details.gpus_per_container, 0)
+    const replicaCount = toInt(details.total_containers, 0)
+    const locations = Array.isArray(details.locations) ? details.locations : []
     const locationIds = locations
       .map((x) => {
-        if (!x || typeof x !== "object") return 0;
-        return toInt((x as Record<string, unknown>)?.id, 0);
+        if (!x || typeof x !== 'object') return 0
+        return toInt((x as Record<string, unknown>)?.id, 0)
       })
-      .filter((x) => x > 0);
+      .filter((x) => x > 0)
 
     if (
       hardwareId <= 0 ||
@@ -80,7 +80,7 @@ export function ExtendDeploymentDialog({
       replicaCount <= 0 ||
       locationIds.length === 0
     ) {
-      return null;
+      return null
     }
 
     return {
@@ -88,15 +88,15 @@ export function ExtendDeploymentDialog({
       gpus_per_container: gpusPerContainer,
       replica_count: replicaCount,
       location_ids: locationIds,
-    };
-  }, [details]);
+    }
+  }, [details])
 
   const {
     data: priceRes,
     isLoading: isLoadingPrice,
     isFetching: isFetchingPrice,
   } = useQuery({
-    queryKey: ["deployment-extend-price", deploymentId, hours, priceParams],
+    queryKey: ['deployment-extend-price', deploymentId, hours, priceParams],
     queryFn: () =>
       priceParams
         ? estimatePrice({
@@ -105,136 +105,136 @@ export function ExtendDeploymentDialog({
             gpus_per_container: priceParams.gpus_per_container,
             replica_count: priceParams.replica_count,
             duration_hours: hours,
-            currency: "usdc",
+            currency: 'usdc',
           })
         : null,
     enabled: open && Boolean(priceParams) && hours > 0,
-  });
+  })
 
   const priceSummary = useMemo(() => {
-    const data = priceRes?.data;
-    if (!data || typeof data !== "object") return "";
-    const record = data as Record<string, unknown>;
-    const breakdown = record.price_breakdown;
-    let total: unknown = record.total_cost;
+    const data = priceRes?.data
+    if (!data || typeof data !== 'object') return ''
+    const record = data as Record<string, unknown>
+    const breakdown = record.price_breakdown
+    let total: unknown = record.total_cost
     if (
       breakdown &&
-      typeof breakdown === "object" &&
+      typeof breakdown === 'object' &&
       !Array.isArray(breakdown)
     ) {
-      const b = breakdown as Record<string, unknown>;
-      total = b.total_cost ?? b.totalCost ?? b.TotalCost ?? total;
+      const b = breakdown as Record<string, unknown>
+      total = b.total_cost ?? b.totalCost ?? b.TotalCost ?? total
     }
-    const currency = record.currency ?? "USDC";
-    if (total === undefined || total === null) return "";
-    return `${String(total)} ${String(currency).toUpperCase()}`.trim();
-  }, [priceRes]);
+    const currency = record.currency ?? 'USDC'
+    if (total === undefined || total === null) return ''
+    return `${String(total)} ${String(currency).toUpperCase()}`.trim()
+  }, [priceRes])
 
-  const canSubmit = Boolean(deploymentId) && hours > 0 && !isSubmitting;
+  const canSubmit = Boolean(deploymentId) && hours > 0 && !isSubmitting
 
-  let estimatedCostContent: ReactNode;
+  let estimatedCostContent: ReactNode
   if (isLoadingPrice || isFetchingPrice) {
     estimatedCostContent = (
-      <span className="inline-flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        {t("Calculating...")}
+      <span className='inline-flex items-center gap-2'>
+        <Loader2 className='h-4 w-4 animate-spin' />
+        {t('Calculating...')}
       </span>
-    );
+    )
   } else if (priceParams) {
-    estimatedCostContent = priceSummary || t("Not available");
+    estimatedCostContent = priceSummary || t('Not available')
   } else {
-    estimatedCostContent = t("Not available");
+    estimatedCostContent = t('Not available')
   }
 
   const onSubmit = async () => {
-    if (!deploymentId) return;
-    const h = toInt(hours, 1);
+    if (!deploymentId) return
+    const h = toInt(hours, 1)
     if (h <= 0) {
-      toast.error(t("Please enter a valid duration"));
-      return;
+      toast.error(t('Please enter a valid duration'))
+      return
     }
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const res = await extendDeployment(deploymentId, h);
+      const res = await extendDeployment(deploymentId, h)
       if (res.success) {
-        toast.success(t("Extended successfully"));
+        toast.success(t('Extended successfully'))
         queryClient.invalidateQueries({
           queryKey: deploymentsQueryKeys.lists(),
-        });
-        queryClient.invalidateQueries({ queryKey: ["deployment-details"] });
-        onOpenChange(false);
-        return;
+        })
+        queryClient.invalidateQueries({ queryKey: ['deployment-details'] })
+        onOpenChange(false)
+        return
       }
-      toast.error(res.message || t("Extend failed"));
+      toast.error(res.message || t('Extend failed'))
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : t("Extend failed"));
+      toast.error(err instanceof Error ? err.message : t('Extend failed'))
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t("Extend deployment")}
-      contentClassName="sm:max-w-lg"
-      footerClassName="mt-4"
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      title={t('Extend deployment')}
+      contentClassName='sm:max-w-lg'
+      footerClassName='mt-4'
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("Cancel")}
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
+            {t('Cancel')}
           </Button>
           <Button onClick={() => void onSubmit()} disabled={!canSubmit}>
             {isSubmitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : null}
-            {t("Extend")}
+            {t('Extend')}
           </Button>
         </>
       }
     >
       {isLoadingDetails ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <div className='flex items-center justify-center py-10'>
+          <Loader2 className='text-muted-foreground h-6 w-6 animate-spin' />
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="text-muted-foreground text-sm">
-            {t("Deployment ID")}:{" "}
-            <span className="font-mono">{deploymentId}</span>
+        <div className='space-y-4'>
+          <div className='text-muted-foreground text-sm'>
+            {t('Deployment ID')}:{' '}
+            <span className='font-mono'>{deploymentId}</span>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-sm font-medium">{t("Duration (hours)")}</div>
+          <div className='space-y-2'>
+            <div className='text-sm font-medium'>{t('Duration (hours)')}</div>
             <Input
-              type="number"
+              type='number'
               min={1}
               value={hours}
               onChange={(e) => setHours(toInt(e.target.value, 1))}
             />
-            <div className="text-muted-foreground text-xs">
-              {t("This will extend the deployment by the specified hours.")}
+            <div className='text-muted-foreground text-xs'>
+              {t('This will extend the deployment by the specified hours.')}
             </div>
           </div>
 
           <Separator />
 
-          <div className="space-y-1">
-            <div className="text-sm font-medium">{t("Estimated cost")}</div>
-            <div className="text-muted-foreground text-sm">
+          <div className='space-y-1'>
+            <div className='text-sm font-medium'>{t('Estimated cost')}</div>
+            <div className='text-muted-foreground text-sm'>
               {estimatedCostContent}
             </div>
             {!priceParams ? (
-              <div className="text-muted-foreground text-xs">
-                {t("Unable to estimate price for this deployment.")}
+              <div className='text-muted-foreground text-xs'>
+                {t('Unable to estimate price for this deployment.')}
               </div>
             ) : null}
           </div>
         </div>
       )}
     </Dialog>
-  );
+  )
 }

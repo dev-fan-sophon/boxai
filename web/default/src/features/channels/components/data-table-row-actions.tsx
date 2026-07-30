@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQueryClient } from "@tanstack/react-query";
-import type { Row } from "@tanstack/react-table";
+import { useQueryClient } from '@tanstack/react-query'
+import type { Row } from '@tanstack/react-table'
 import {
   MoreHorizontal,
   Boxes,
@@ -33,12 +33,12 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-} from "lucide-react";
-import { useContext, useState } from "react";
-import { useTranslation } from "react-i18next";
+} from 'lucide-react'
+import { useContext, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,20 +46,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip'
 import {
   ADMIN_PERMISSION_ACTIONS,
   ADMIN_PERMISSION_RESOURCES,
   hasPermission,
-} from "@/lib/admin-permissions";
-import { useAuthStore } from "@/stores/auth-store";
+} from '@/lib/admin-permissions'
+import { useAuthStore } from '@/stores/auth-store'
 
-import { MODEL_FETCHABLE_TYPES } from "../constants";
+import { MODEL_FETCHABLE_TYPES } from '../constants'
 import {
   channelsQueryKeys,
   handleDeleteChannel,
@@ -67,121 +67,121 @@ import {
   handleToggleChannelStatus,
   isChannelEnabled,
   isMultiKeyChannel,
-} from "../lib";
-import { parseUpstreamUpdateMeta } from "../lib/upstream-update-utils";
-import type { Channel } from "../types";
-import { ChannelRowActionsLayoutContext } from "./channel-row-actions-context";
-import { useChannels } from "./channels-provider";
+} from '../lib'
+import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
+import type { Channel } from '../types'
+import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
+import { useChannels } from './channels-provider'
 
 interface DataTableRowActionsProps {
-  row: Row<Channel>;
+  row: Row<Channel>
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
-  const { t } = useTranslation();
-  const layout = useContext(ChannelRowActionsLayoutContext);
-  const channel = row.original;
-  const { setOpen, setCurrentRow, upstream } = useChannels();
-  const queryClient = useQueryClient();
-  const currentUser = useAuthStore((s) => s.auth.user);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const { t } = useTranslation()
+  const layout = useContext(ChannelRowActionsLayoutContext)
+  const channel = row.original
+  const { setOpen, setCurrentRow, upstream } = useChannels()
+  const queryClient = useQueryClient()
+  const currentUser = useAuthStore((s) => s.auth.user)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false)
 
-  const isEnabled = isChannelEnabled(channel);
-  const isMultiKey = isMultiKeyChannel(channel);
+  const isEnabled = isChannelEnabled(channel)
+  const isMultiKey = isMultiKeyChannel(channel)
   const canEditSensitive = hasPermission(
     currentUser,
     ADMIN_PERMISSION_RESOURCES.CHANNEL,
-    ADMIN_PERMISSION_ACTIONS.SENSITIVE_WRITE,
-  );
+    ADMIN_PERMISSION_ACTIONS.SENSITIVE_WRITE
+  )
 
   const handleEdit = () => {
-    setCurrentRow(channel);
-    setOpen("update-channel");
-  };
+    setCurrentRow(channel)
+    setOpen('update-channel')
+  }
 
   const handleTest = () => {
-    setCurrentRow(channel);
-    setOpen("test-channel");
-  };
+    setCurrentRow(channel)
+    setOpen('test-channel')
+  }
 
   const handleDirectTest = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    setIsTesting(true);
+    e.stopPropagation()
+    setIsTesting(true)
     try {
       await handleTestChannel(channel.id, { channelName: channel.name }, () => {
-        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() });
-      });
+        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
+      })
     } finally {
-      setIsTesting(false);
+      setIsTesting(false)
     }
-  };
+  }
 
   const handleQueryBalance = () => {
-    setCurrentRow(channel);
-    setOpen("balance-query");
-  };
+    setCurrentRow(channel)
+    setOpen('balance-query')
+  }
 
   const handleFetchModels = () => {
-    setCurrentRow(channel);
-    setOpen("fetch-models");
-  };
+    setCurrentRow(channel)
+    setOpen('fetch-models')
+  }
 
   const handleManageOllamaModels = () => {
-    setCurrentRow(channel);
-    setOpen("ollama-models");
-  };
+    setCurrentRow(channel)
+    setOpen('ollama-models')
+  }
 
   const handleCopy = () => {
-    setCurrentRow(channel);
-    setOpen("copy-channel");
-  };
+    setCurrentRow(channel)
+    setOpen('copy-channel')
+  }
 
   const handleManageKeys = () => {
-    setCurrentRow(channel);
-    setOpen("multi-key-manage");
-  };
+    setCurrentRow(channel)
+    setOpen('multi-key-manage')
+  }
 
   const handleToggleStatus = async (
-    e?: React.MouseEvent<HTMLButtonElement>,
+    e?: React.MouseEvent<HTMLButtonElement>
   ) => {
-    e?.stopPropagation();
-    setIsTogglingStatus(true);
+    e?.stopPropagation()
+    setIsTogglingStatus(true)
     try {
-      await handleToggleChannelStatus(channel.id, channel.status, queryClient);
+      await handleToggleChannelStatus(channel.id, channel.status, queryClient)
     } finally {
-      setIsTogglingStatus(false);
+      setIsTogglingStatus(false)
     }
-  };
+  }
 
-  let statusIcon = <Power className="size-4" />;
+  let statusIcon = <Power className='size-4' />
   if (isTogglingStatus) {
-    statusIcon = <Loader2 className="size-4 animate-spin" />;
+    statusIcon = <Loader2 className='size-4 animate-spin' />
   } else if (isEnabled) {
-    statusIcon = <PowerOff className="size-4" />;
+    statusIcon = <PowerOff className='size-4' />
   }
 
   return (
-    <div className="-ml-1.5 flex items-center gap-1">
-      {layout !== "card" && (
+    <div className='-ml-1.5 flex items-center gap-1'>
+      {layout !== 'card' && (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
-                variant="ghost"
-                size="icon-sm"
+                variant='ghost'
+                size='icon-sm'
                 onClick={(e) => {
-                  e.stopPropagation();
-                  handleEdit();
+                  e.stopPropagation()
+                  handleEdit()
                 }}
-                aria-label={t("Edit")}
+                aria-label={t('Edit')}
               />
             }
           >
-            <Pencil className="size-4" />
+            <Pencil className='size-4' />
           </TooltipTrigger>
-          <TooltipContent>{t("Edit")}</TooltipContent>
+          <TooltipContent>{t('Edit')}</TooltipContent>
         </Tooltip>
       )}
 
@@ -189,41 +189,41 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         <TooltipTrigger
           render={
             <Button
-              variant="ghost"
-              size="icon-sm"
+              variant='ghost'
+              size='icon-sm'
               onClick={handleDirectTest}
               disabled={isTesting}
-              aria-label={t("Test Connection")}
+              aria-label={t('Test Connection')}
             />
           }
         >
           {isTesting ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className='size-4 animate-spin' />
           ) : (
-            <Gauge className="size-4" />
+            <Gauge className='size-4' />
           )}
         </TooltipTrigger>
-        <TooltipContent>{t("Test Connection")}</TooltipContent>
+        <TooltipContent>{t('Test Connection')}</TooltipContent>
       </Tooltip>
 
-      {layout === "card" && (
+      {layout === 'card' && (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
-                variant="ghost"
-                size="icon-sm"
+                variant='ghost'
+                size='icon-sm'
                 onClick={(e) => {
-                  e.stopPropagation();
-                  handleTest();
+                  e.stopPropagation()
+                  handleTest()
                 }}
-                aria-label={t("Test Channel Connection")}
+                aria-label={t('Test Channel Connection')}
               />
             }
           >
-            <PlugZap className="size-4" />
+            <PlugZap className='size-4' />
           </TooltipTrigger>
-          <TooltipContent>{t("Test Channel Connection")}</TooltipContent>
+          <TooltipContent>{t('Test Channel Connection')}</TooltipContent>
         </Tooltip>
       )}
 
@@ -231,15 +231,15 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         <TooltipTrigger
           render={
             <Button
-              variant="ghost"
-              size="icon-sm"
+              variant='ghost'
+              size='icon-sm'
               onClick={handleToggleStatus}
               disabled={isTogglingStatus}
-              aria-label={isEnabled ? t("Disable") : t("Enable")}
+              aria-label={isEnabled ? t('Disable') : t('Enable')}
               className={
                 isEnabled
-                  ? "text-destructive hover:text-destructive"
-                  : "text-success hover:text-success"
+                  ? 'text-destructive hover:text-destructive'
+                  : 'text-success hover:text-success'
               }
             />
           }
@@ -247,7 +247,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           {statusIcon}
         </TooltipTrigger>
         <TooltipContent>
-          {isEnabled ? t("Disable") : t("Enable")}
+          {isEnabled ? t('Disable') : t('Enable')}
         </TooltipContent>
       </Tooltip>
 
@@ -255,18 +255,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
-              className="data-popup-open:bg-muted flex h-8 w-8 p-0"
+              variant='ghost'
+              className='data-popup-open:bg-muted flex h-8 w-8 p-0'
             />
           }
         >
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">{t("Open menu")}</span>
+          <MoreHorizontal className='h-4 w-4' />
+          <span className='sr-only'>{t('Open menu')}</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {layout === "card" && (
+        <DropdownMenuContent align='end' className='w-48'>
+          {layout === 'card' && (
             <DropdownMenuItem onClick={handleEdit}>
-              {t("Edit")}
+              {t('Edit')}
               <DropdownMenuShortcut>
                 <Pencil size={16} />
               </DropdownMenuShortcut>
@@ -275,7 +275,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
           {/* Test Connection */}
           <DropdownMenuItem onClick={handleTest}>
-            {t("Test Connection")}
+            {t('Test Connection')}
             <DropdownMenuShortcut>
               <PlugZap size={16} />
             </DropdownMenuShortcut>
@@ -283,7 +283,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
           {/* Query Balance */}
           <DropdownMenuItem onClick={handleQueryBalance}>
-            {t("Query Balance")}
+            {t('Query Balance')}
             <DropdownMenuShortcut>
               <DollarSign size={16} />
             </DropdownMenuShortcut>
@@ -291,7 +291,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
           {/* Fetch Models */}
           <DropdownMenuItem onClick={handleFetchModels}>
-            {t("Fetch Models")}
+            {t('Fetch Models')}
             <DropdownMenuShortcut>
               <Download size={16} />
             </DropdownMenuShortcut>
@@ -301,7 +301,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           {MODEL_FETCHABLE_TYPES.has(channel.type) && (
             <DropdownMenuItem
               onClick={() => {
-                const meta = parseUpstreamUpdateMeta(channel.settings);
+                const meta = parseUpstreamUpdateMeta(channel.settings)
                 if (
                   meta.pendingAddModels.length > 0 ||
                   meta.pendingRemoveModels.length > 0
@@ -310,14 +310,14 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                     channel,
                     meta.pendingAddModels,
                     meta.pendingRemoveModels,
-                    meta.pendingAddModels.length > 0 ? "add" : "remove",
-                  );
+                    meta.pendingAddModels.length > 0 ? 'add' : 'remove'
+                  )
                 } else {
-                  upstream.detectChannelUpdates(channel);
+                  upstream.detectChannelUpdates(channel)
                 }
               }}
             >
-              {t("Upstream Updates")}
+              {t('Upstream Updates')}
               <DropdownMenuShortcut>
                 <RefreshCw size={16} />
               </DropdownMenuShortcut>
@@ -327,7 +327,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           {/* Ollama Models (only for Ollama channels) */}
           {channel.type === 4 && (
             <DropdownMenuItem onClick={handleManageOllamaModels}>
-              {t("Manage Ollama Models")}
+              {t('Manage Ollama Models')}
               <DropdownMenuShortcut>
                 <Boxes size={16} />
               </DropdownMenuShortcut>
@@ -341,21 +341,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             disabled={!canEditSensitive}
             onClick={canEditSensitive ? handleCopy : undefined}
           >
-            {t("Copy Channel")}
+            {t('Copy Channel')}
             <DropdownMenuShortcut>
               <Copy size={16} />
             </DropdownMenuShortcut>
           </DropdownMenuItem>
           {!canEditSensitive && (
-            <DropdownMenuItem disabled className="text-xs normal-case">
-              {t("No permission to perform this action")}
+            <DropdownMenuItem disabled className='text-xs normal-case'>
+              {t('No permission to perform this action')}
             </DropdownMenuItem>
           )}
 
           {/* Manage Keys (only for multi-key channels) */}
           {isMultiKey && (
             <DropdownMenuItem onClick={handleManageKeys}>
-              {t("Manage Keys")}
+              {t('Manage Keys')}
               <DropdownMenuShortcut>
                 <Key size={16} />
               </DropdownMenuShortcut>
@@ -368,13 +368,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           <DropdownMenuItem
             disabled={!canEditSensitive}
             onSelect={(e) => {
-              e.preventDefault();
-              if (!canEditSensitive) return;
-              setDeleteConfirmOpen(true);
+              e.preventDefault()
+              if (!canEditSensitive) return
+              setDeleteConfirmOpen(true)
             }}
-            className="text-destructive focus:text-destructive"
+            className='text-destructive focus:text-destructive'
           >
-            {t("Delete")}
+            {t('Delete')}
             <DropdownMenuShortcut>
               <Trash2 size={16} />
             </DropdownMenuShortcut>
@@ -385,19 +385,19 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title={t("Delete Channel")}
+        title={t('Delete Channel')}
         desc={t(
           'Are you sure you want to delete channel "{{name}}"? This action cannot be undone.',
-          { name: channel.name },
+          { name: channel.name }
         )}
-        confirmText={t("Delete")}
+        confirmText={t('Delete')}
         destructive
         handleConfirm={() => {
-          if (!canEditSensitive) return;
-          handleDeleteChannel(channel.id, queryClient);
-          setDeleteConfirmOpen(false);
+          if (!canEditSensitive) return
+          handleDeleteChannel(channel.id, queryClient)
+          setDeleteConfirmOpen(false)
         }}
       />
     </div>
-  );
+  )
 }

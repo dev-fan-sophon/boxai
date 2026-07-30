@@ -683,7 +683,6 @@ func upsertBeforeHeadClose(s, snippet string) string {
 	return s[:realIdx] + snippet + real + s[realIdx+len(real):]
 }
 
-
 func mapEsc(values []string, esc func(string) string) []string {
 	out := make([]string, 0, len(values))
 	for _, v := range values {
@@ -762,8 +761,10 @@ func buildPrerenderHTML(page SEOPage, title, desc, baseURL string) string {
 		}
 		links.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a></li>`, html.EscapeString(href), html.EscapeString(label)))
 	}
+	// Visually hidden rather than display:none, so crawlers still read the copy
+	// while users never see it flash before the client app mounts.
 	return fmt.Sprintf(
-		`<div id="seo-prerender" data-seo="1">`+
+		`<div id="seo-prerender" data-seo="1" style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%%);white-space:nowrap">`+
 			`<main>`+
 			`<h1>%s</h1>`+
 			`<p>%s</p>`+

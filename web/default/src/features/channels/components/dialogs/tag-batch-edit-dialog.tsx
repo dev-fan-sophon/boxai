@@ -16,257 +16,257 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, AlertCircle } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Dialog } from "@/components/dialog";
-import { MultiSelect } from "@/components/multi-select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog } from '@/components/dialog'
+import { MultiSelect } from '@/components/multi-select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
 
 import {
   getTagModels,
   editTagChannels,
   getAllModels,
   getGroups,
-} from "../../api";
-import { channelsQueryKeys } from "../../lib";
-import type { TagOperationParams } from "../../types";
-import { useChannels } from "../channels-provider";
-import { ModelMappingEditor } from "../model-mapping-editor";
+} from '../../api'
+import { channelsQueryKeys } from '../../lib'
+import type { TagOperationParams } from '../../types'
+import { useChannels } from '../channels-provider'
+import { ModelMappingEditor } from '../model-mapping-editor'
 
 type TagBatchEditDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
 
 export function TagBatchEditDialog({
   open,
   onOpenChange,
 }: TagBatchEditDialogProps) {
-  const { t } = useTranslation();
-  const { currentTag } = useChannels();
-  const queryClient = useQueryClient();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const { t } = useTranslation()
+  const { currentTag } = useChannels()
+  const queryClient = useQueryClient()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Form fields
-  const [newTag, setNewTag] = useState("");
-  const [models, setModels] = useState("");
-  const [modelMapping, setModelMapping] = useState("");
-  const [groups, setGroups] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('')
+  const [models, setModels] = useState('')
+  const [modelMapping, setModelMapping] = useState('')
+  const [groups, setGroups] = useState<string[]>([])
 
   // Fetch available groups
   const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
-    queryKey: ["groups"],
+    queryKey: ['groups'],
     queryFn: getGroups,
-  });
+  })
 
   // Transform groups to multi-select options
   const groupOptions = useMemo(() => {
-    if (!groupsData?.data) return [];
-    const allGroups = new Set([...groupsData.data, ...groups]);
+    if (!groupsData?.data) return []
+    const allGroups = new Set([...groupsData.data, ...groups])
     return [...allGroups].map((group) => ({
       value: group,
       label: group,
-    }));
-  }, [groupsData, groups]);
+    }))
+  }, [groupsData, groups])
 
   useEffect(() => {
     if (open && currentTag) {
-      loadTagData();
+      loadTagData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentTag]);
+  }, [open, currentTag])
 
   const loadTagData = async () => {
-    if (!currentTag) return;
+    if (!currentTag) return
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
       // Fetch current tag models
-      const tagModelsResponse = await getTagModels(currentTag);
+      const tagModelsResponse = await getTagModels(currentTag)
       if (tagModelsResponse.success && tagModelsResponse.data) {
-        setModels(tagModelsResponse.data);
+        setModels(tagModelsResponse.data)
       }
 
       // Fetch all available models (for future use if needed)
-      const allModelsResponse = await getAllModels();
+      const allModelsResponse = await getAllModels()
       if (allModelsResponse.success && allModelsResponse.data) {
         // Available models could be used for autocomplete in the future
       }
 
       // Initialize new tag with current tag name
-      setNewTag(currentTag);
+      setNewTag(currentTag)
     } catch (_error: unknown) {
       toast.error(
-        _error instanceof Error ? _error.message : t("Failed to load tag data"),
-      );
+        _error instanceof Error ? _error.message : t('Failed to load tag data')
+      )
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleSave = async () => {
-    if (!currentTag) return;
+    if (!currentTag) return
 
     // Validate model mapping JSON if provided
     if (modelMapping.trim()) {
       try {
-        JSON.parse(modelMapping);
+        JSON.parse(modelMapping)
       } catch {
-        toast.error(t("Model mapping must be valid JSON"));
-        return;
+        toast.error(t('Model mapping must be valid JSON'))
+        return
       }
     }
 
-    setIsSaving(true);
+    setIsSaving(true)
     try {
       const params: Record<string, string | undefined> = {
         tag: currentTag,
-      };
+      }
 
       if (newTag !== currentTag) {
-        params.new_tag = newTag || undefined;
+        params.new_tag = newTag || undefined
       }
 
       if (models.trim()) {
-        params.models = models;
+        params.models = models
       }
 
       if (modelMapping.trim()) {
-        params.model_mapping = modelMapping;
+        params.model_mapping = modelMapping
       }
 
       if (groups.length > 0) {
-        params.groups = groups.join(",");
+        params.groups = groups.join(',')
       }
 
       // Check if there are any changes
       if (Object.keys(params).length === 1) {
-        toast.warning(t("No changes made"));
-        return;
+        toast.warning(t('No changes made'))
+        return
       }
 
       const response = await editTagChannels(
-        params as unknown as TagOperationParams,
-      );
+        params as unknown as TagOperationParams
+      )
       if (response.success) {
-        toast.success(t("Tag updated successfully"));
-        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() });
-        handleClose();
+        toast.success(t('Tag updated successfully'))
+        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
+        handleClose()
       } else {
-        toast.error(response.message || t("Failed to update tag"));
+        toast.error(response.message || t('Failed to update tag'))
       }
     } catch (error: unknown) {
       toast.error(
-        error instanceof Error ? error.message : t("Failed to update tag"),
-      );
+        error instanceof Error ? error.message : t('Failed to update tag')
+      )
     } finally {
-      setIsSaving(false);
+      setIsSaving(false)
     }
-  };
+  }
 
   const handleClose = () => {
-    setNewTag("");
-    setModels("");
-    setModelMapping("");
-    setGroups([]);
-    onOpenChange(false);
-  };
+    setNewTag('')
+    setModels('')
+    setModelMapping('')
+    setGroups([])
+    onOpenChange(false)
+  }
 
-  if (!currentTag) return null;
+  if (!currentTag) return null
 
   return (
     <Dialog
       open={open}
       onOpenChange={handleClose}
-      title={t("Batch Edit by Tag")}
+      title={t('Batch Edit by Tag')}
       description={
         <>
-          {t("Edit all channels with tag:")}
+          {t('Edit all channels with tag:')}
           <strong>{currentTag}</strong>
         </>
       }
-      contentClassName="max-w-2xl"
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      contentClassName='max-w-2xl'
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         !isLoading ? (
           <>
-            <Button variant="outline" onClick={handleClose} disabled={isSaving}>
-              {t("Cancel")}
+            <Button variant='outline' onClick={handleClose} disabled={isSaving}>
+              {t('Cancel')}
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
               ) : null}
-              {isSaving ? t("Saving...") : t("Save Changes")}
+              {isSaving ? t('Saving...') : t('Save Changes')}
             </Button>
           </>
         ) : null
       }
     >
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        <div className='flex items-center justify-center py-12'>
+          <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
         </div>
       ) : (
-        <div className="space-y-4 py-4">
+        <div className='space-y-4 py-4'>
           <Alert>
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className='h-4 w-4' />
             <AlertDescription>
               {t(
-                "All edits are overwrite operations. Leave fields empty to keep current values unchanged.",
+                'All edits are overwrite operations. Leave fields empty to keep current values unchanged.'
               )}
             </AlertDescription>
           </Alert>
 
           {/* Tag Name */}
-          <div className="space-y-2">
-            <Label htmlFor="new-tag">{t("Tag Name")}</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='new-tag'>{t('Tag Name')}</Label>
             <Input
-              id="new-tag"
-              placeholder={t("Enter new tag name (leave empty to disband tag)")}
+              id='new-tag'
+              placeholder={t('Enter new tag name (leave empty to disband tag)')}
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
               disabled={isSaving}
             />
-            <p className="text-muted-foreground text-xs">
-              {t("Leave empty to disband the tag")}
+            <p className='text-muted-foreground text-xs'>
+              {t('Leave empty to disband the tag')}
             </p>
           </div>
 
           {/* Models */}
-          <div className="space-y-2">
-            <Label htmlFor="models">{t("Models")}</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='models'>{t('Models')}</Label>
             <Textarea
-              id="models"
+              id='models'
               placeholder={t(
-                "Comma-separated model names (leave empty to keep current)",
+                'Comma-separated model names (leave empty to keep current)'
               )}
               value={models}
               onChange={(e) => setModels(e.target.value)}
               disabled={isSaving}
               rows={3}
             />
-            <p className="text-muted-foreground text-xs">
+            <p className='text-muted-foreground text-xs'>
               {t(
-                "Current models for the longest channel in this tag. May not include all models from all channels.",
+                'Current models for the longest channel in this tag. May not include all models from all channels.'
               )}
             </p>
           </div>
 
           {/* Model Mapping */}
-          <div className="space-y-2">
-            <Label htmlFor="model-mapping">{t("Model Mapping")}</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='model-mapping'>{t('Model Mapping')}</Label>
             <ModelMappingEditor
               value={modelMapping}
               onChange={setModelMapping}
@@ -275,24 +275,24 @@ export function TagBatchEditDialog({
           </div>
 
           {/* Groups */}
-          <div className="space-y-2">
-            <Label htmlFor="groups">{t("Groups")}</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='groups'>{t('Groups')}</Label>
             {isLoadingGroups ? (
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className='h-10 w-full' />
             ) : (
               <MultiSelect
                 options={groupOptions}
                 selected={groups}
                 onChange={setGroups}
-                placeholder={t("Select groups (leave empty to keep current)")}
+                placeholder={t('Select groups (leave empty to keep current)')}
               />
             )}
-            <p className="text-muted-foreground text-xs">
-              {t("User groups that can access channels with this tag")}
+            <p className='text-muted-foreground text-xs'>
+              {t('User groups that can access channels with this tag')}
             </p>
           </div>
         </div>
       )}
     </Dialog>
-  );
+  )
 }

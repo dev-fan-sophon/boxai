@@ -16,24 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router'
 
-import { PublicLayout } from "@/components/layout";
-import { AgentsView } from "@/features/agents";
-import { getFreshModuleAccess } from "@/lib/nav-modules";
+import { UserAgreement } from '@/features/legal'
 
-export const Route = createFileRoute("/agents/")({
-  beforeLoad: async () => {
-    const access = await getFreshModuleAccess("agents");
-    if (!access.enabled) throw redirect({ to: "/" });
-  },
-  component: AgentsPage,
-});
-
-function AgentsPage() {
-  return (
-    <PublicLayout showMainContainer={false}>
-      <AgentsView />
-    </PublicLayout>
-  );
-}
+export const Route = createFileRoute('/_public/user-agreement')({
+  component: UserAgreement,
+})

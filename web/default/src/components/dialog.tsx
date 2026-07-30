@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import * as React from "react";
+import * as React from 'react'
 
 import {
   Dialog as DialogRoot,
@@ -26,28 +26,28 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 type DialogProps = React.ComponentProps<typeof DialogRoot> & {
-  title: React.ReactNode;
-  description?: React.ReactNode;
-  children: React.ReactNode;
-  trigger?: React.ReactElement;
-  footer?: React.ReactNode;
-  contentHeight?: React.CSSProperties["height"];
-  contentClassName?: string;
-  headerClassName?: string;
-  titleClassName?: string;
-  descriptionClassName?: string;
-  bodyClassName?: string;
-  footerClassName?: string;
-  initialFocus?: boolean;
-  showCloseButton?: boolean;
-};
+  title: React.ReactNode
+  description?: React.ReactNode
+  children: React.ReactNode
+  trigger?: React.ReactElement
+  footer?: React.ReactNode
+  contentHeight?: React.CSSProperties['height']
+  contentClassName?: string
+  headerClassName?: string
+  titleClassName?: string
+  descriptionClassName?: string
+  bodyClassName?: string
+  footerClassName?: string
+  initialFocus?: boolean
+  showCloseButton?: boolean
+}
 
 const dialogContentMotionClassName =
-  "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 duration-100";
+  'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 duration-100'
 
 export function Dialog({
   title,
@@ -55,7 +55,7 @@ export function Dialog({
   children,
   trigger,
   footer,
-  contentHeight = "auto",
+  contentHeight = 'auto',
   contentClassName,
   headerClassName,
   titleClassName,
@@ -71,20 +71,20 @@ export function Dialog({
       {trigger ? <DialogTrigger render={trigger} /> : null}
       <DialogContent
         className={cn(
-          "flex max-h-[calc(100vh-2rem)] w-full flex-col gap-4 overflow-hidden p-4 sm:max-w-2xl sm:p-6",
+          'flex max-h-[calc(100vh-2rem)] w-full flex-col gap-4 overflow-hidden p-4 sm:max-w-2xl sm:p-6',
           contentClassName,
-          dialogContentMotionClassName,
+          dialogContentMotionClassName
         )}
         initialFocus={initialFocus}
         showCloseButton={showCloseButton}
         style={
           {
-            "--dialog-content-height": contentHeight,
+            '--dialog-content-height': contentHeight,
           } as React.CSSProperties
         }
       >
         <DialogHeader
-          className={cn("flex-shrink-0 text-start", headerClassName)}
+          className={cn('flex-shrink-0 text-start', headerClassName)}
         >
           <DialogTitle className={titleClassName}>{title}</DialogTitle>
           {description ? (
@@ -96,16 +96,16 @@ export function Dialog({
 
         <div
           className={cn(
-            "-mx-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain",
-            "h-[var(--dialog-content-height)] max-h-[calc(100vh-14rem)]",
+            '-mx-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain',
+            'h-[var(--dialog-content-height)] max-h-[calc(100vh-14rem)]'
           )}
         >
           <div
             className={cn(
-              "min-w-0 px-1 py-1",
-              "[&_form]:overflow-x-visible",
-              "[&_[data-slot=scroll-area-viewport]]:px-1 [&_[data-slot=scroll-area-viewport]]:py-1",
-              bodyClassName,
+              'min-w-0 px-1 py-1',
+              '[&_form]:overflow-x-visible',
+              '[&_[data-slot=scroll-area-viewport]]:px-1 [&_[data-slot=scroll-area-viewport]]:py-1',
+              bodyClassName
             )}
           >
             {children}
@@ -115,8 +115,8 @@ export function Dialog({
         {footer ? (
           <DialogFooter
             className={cn(
-              "flex-shrink-0 gap-2 sm:-mx-6 sm:-mb-6 sm:justify-end sm:p-6",
-              footerClassName,
+              'flex-shrink-0 gap-2 sm:-mx-6 sm:-mb-6 sm:justify-end sm:p-6',
+              footerClassName
             )}
           >
             {footer}
@@ -124,5 +124,5 @@ export function Dialog({
         ) : null}
       </DialogContent>
     </DialogRoot>
-  );
+  )
 }

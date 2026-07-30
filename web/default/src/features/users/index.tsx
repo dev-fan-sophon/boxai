@@ -16,24 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from "@/components/layout";
+import { SectionPageLayout } from '@/components/layout'
 
-import { UsersDeleteDialog } from "./components/users-delete-dialog";
-import { UsersMutateDrawer } from "./components/users-mutate-drawer";
-import { UsersPrimaryButtons } from "./components/users-primary-buttons";
-import { UsersProvider, useUsers } from "./components/users-provider";
-import { UsersTable } from "./components/users-table";
+import { UsersDeleteDialog } from './components/users-delete-dialog'
+import { UsersMutateDrawer } from './components/users-mutate-drawer'
+import { UsersPrimaryButtons } from './components/users-primary-buttons'
+import { UsersProvider, useUsers } from './components/users-provider'
+import { UsersTable } from './components/users-table'
 
 function UsersContent() {
-  const { t } = useTranslation();
-  const { open, setOpen, currentRow } = useUsers();
+  const { t } = useTranslation()
+  const { open, setOpen, currentRow } = useUsers()
 
   return (
     <>
       <SectionPageLayout fixedContent>
-        <SectionPageLayout.Title>{t("Users")}</SectionPageLayout.Title>
+        <SectionPageLayout.Title>{t('Users')}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>
           <UsersPrimaryButtons />
         </SectionPageLayout.Actions>
@@ -43,13 +43,13 @@ function UsersContent() {
       </SectionPageLayout>
 
       <UsersMutateDrawer
-        open={open === "create" || open === "update"}
+        open={open === 'create' || open === 'update'}
         onOpenChange={(isOpen) => !isOpen && setOpen(null)}
-        currentRow={open === "update" ? currentRow || undefined : undefined}
+        currentRow={open === 'update' ? currentRow || undefined : undefined}
       />
       <UsersDeleteDialog />
     </>
-  );
+  )
 }
 
 export function Users() {
@@ -57,5 +57,5 @@ export function Users() {
     <UsersProvider>
       <UsersContent />
     </UsersProvider>
-  );
+  )
 }

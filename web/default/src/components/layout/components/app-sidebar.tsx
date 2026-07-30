@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
-import { Sidebar, SidebarContent, SidebarRail } from "@/components/ui/sidebar";
-import { useLayout } from "@/context/layout-provider";
-import { useSidebarView } from "@/hooks/use-sidebar-view";
-import { MOTION_TRANSITION, MOTION_VARIANTS } from "@/lib/motion";
+import { Sidebar, SidebarContent, SidebarRail } from '@/components/ui/sidebar'
+import { useLayout } from '@/context/layout-provider'
+import { useSidebarView } from '@/hooks/use-sidebar-view'
+import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
-import { NavGroup } from "./nav-group";
-import { SidebarAccountFooter } from "./sidebar-account-footer";
-import { SidebarViewHeader } from "./sidebar-view-header";
+import { NavGroup } from './nav-group'
+import { SidebarAccountFooter } from './sidebar-account-footer'
+import { SidebarViewHeader } from './sidebar-view-header'
 
 /**
  * Application sidebar.
@@ -45,16 +45,16 @@ import { SidebarViewHeader } from "./sidebar-view-header";
  * in the registry; this component requires no changes.
  */
 export function AppSidebar() {
-  const { collapsible, variant } = useLayout();
-  const { key, view, navGroups } = useSidebarView();
-  const shouldReduce = useReducedMotion();
+  const { collapsible, variant } = useLayout()
+  const { key, view, navGroups } = useSidebarView()
+  const shouldReduce = useReducedMotion()
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
       {view && <SidebarViewHeader view={view} />}
 
-      <SidebarContent className="py-2">
-        <AnimatePresence mode="wait" initial={false}>
+      <SidebarContent className='py-2'>
+        <AnimatePresence mode='wait' initial={false}>
           <motion.div
             key={key}
             initial={
@@ -63,7 +63,7 @@ export function AppSidebar() {
             animate={MOTION_VARIANTS.sidebarSlide.animate}
             exit={shouldReduce ? undefined : MOTION_VARIANTS.sidebarSlide.exit}
             transition={MOTION_TRANSITION.fast}
-            className="flex flex-col"
+            className='flex flex-col'
           >
             {navGroups.map((props) => (
               <NavGroup key={props.id || props.title} {...props} />
@@ -72,9 +72,9 @@ export function AppSidebar() {
         </AnimatePresence>
       </SidebarContent>
 
-      {key === "__root" && <SidebarAccountFooter />}
+      {key === '__root' && <SidebarAccountFooter />}
 
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

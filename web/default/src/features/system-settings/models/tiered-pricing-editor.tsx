@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronDown, Copy, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Copy, Plus, Trash2 } from 'lucide-react'
 import {
   memo,
   useCallback,
@@ -28,21 +28,21 @@ import {
   type FocusEvent,
   type InputHTMLAttributes,
   type MouseEvent as ReactMouseEvent,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+} from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/collapsible'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -50,9 +50,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import {
   BILLING_EXTRA_VARS,
   COMMON_TIMEZONES,
@@ -81,7 +81,7 @@ import {
   type RequestRuleGroup,
   type TimeCondition,
   type TimeFunc,
-} from "@/features/pricing/lib/billing-expr";
+} from '@/features/pricing/lib/billing-expr'
 import {
   CACHE_MODE_GENERIC,
   CACHE_MODE_TIMED,
@@ -98,265 +98,265 @@ import {
   normalizeVisualConfig,
   normalizeVisualTier,
   tryParseVisualConfig,
-} from "@/features/pricing/lib/tier-expr";
-import { cn } from "@/lib/utils";
-import { getBusinessTimezone } from "@/stores/system-config-store";
+} from '@/features/pricing/lib/tier-expr'
+import { cn } from '@/lib/utils'
+import { getBusinessTimezone } from '@/stores/system-config-store'
 
-const PRICE_SUFFIX = "$/1M tokens";
+const PRICE_SUFFIX = '$/1M tokens'
 const CACHE_PRICE_VARS = BILLING_EXTRA_VARS.filter(
-  (variable) => variable.group === "cache",
-);
+  (variable) => variable.group === 'cache'
+)
 const MEDIA_PRICE_VARS = BILLING_EXTRA_VARS.filter(
-  (variable) => variable.group === "media",
-);
+  (variable) => variable.group === 'media'
+)
 
 const CONDITION_INPUT_OPTIONS: {
-  value: TierConditionInput["var"];
-  labelKey: string;
+  value: TierConditionInput['var']
+  labelKey: string
 }[] = [
-  { value: "len", labelKey: "Full input length" },
-  { value: "p", labelKey: "Billable input tokens" },
-  { value: "c", labelKey: "Billable output tokens" },
-];
-const OPS: TierConditionInput["op"][] = ["<", "<=", ">", ">="];
+  { value: 'len', labelKey: 'Full input length' },
+  { value: 'p', labelKey: 'Billable input tokens' },
+  { value: 'c', labelKey: 'Billable output tokens' },
+]
+const OPS: TierConditionInput['op'][] = ['<', '<=', '>', '>=']
 
 type Preset = {
-  key: string;
-  label: string;
-  expr: string;
-  requestRules?: RequestRuleGroup[];
-};
+  key: string
+  label: string
+  expr: string
+  requestRules?: RequestRuleGroup[]
+}
 
 type PresetGroup = {
-  group: string;
-  presets: Preset[];
-};
+  group: string
+  presets: Preset[]
+}
 
 const PRESET_GROUPS: PresetGroup[] = [
   {
-    group: "Fixed price",
+    group: 'Fixed price',
     presets: [
-      { key: "flat", label: "Flat", expr: 'tier("base", p * 2 + c * 4)' },
+      { key: 'flat', label: 'Flat', expr: 'tier("base", p * 2 + c * 4)' },
       {
-        key: "claude-opus",
-        label: "Claude Opus 4.6",
+        key: 'claude-opus',
+        label: 'Claude Opus 4.6',
         expr: 'tier("base", p * 5 + c * 25 + cr * 0.5 + cc * 6.25 + cc1h * 10)',
       },
       {
-        key: "gpt-5.4",
-        label: "GPT-5.4",
+        key: 'gpt-5.4',
+        label: 'GPT-5.4',
         expr: 'len <= 272000 ? tier("standard", p * 2.5 + c * 15 + cr * 0.25) : tier("long_context", p * 5 + c * 22.5 + cr * 0.5)',
       },
     ],
   },
   {
-    group: "Tiered",
+    group: 'Tiered',
     presets: [
       {
-        key: "claude-sonnet",
-        label: "Claude Sonnet 4.5",
+        key: 'claude-sonnet',
+        label: 'Claude Sonnet 4.5',
         expr: 'len <= 200000 ? tier("standard", p * 3 + c * 15 + cr * 0.3 + cc * 3.75 + cc1h * 6) : tier("long_context", p * 6 + c * 22.5 + cr * 0.6 + cc * 7.5 + cc1h * 12)',
       },
       {
-        key: "qwen3-max",
-        label: "Qwen3 Max",
+        key: 'qwen3-max',
+        label: 'Qwen3 Max',
         expr: 'len <= 32000 ? tier("short", p * 1.2 + c * 6 + cr * 0.24 + cc * 1.5) : len <= 128000 ? tier("mid", p * 2.4 + c * 12 + cr * 0.48 + cc * 3) : tier("long", p * 3 + c * 15 + cr * 0.6 + cc * 3.75)',
       },
       {
-        key: "glm-4.5-air",
-        label: "GLM-4.5 Air",
+        key: 'glm-4.5-air',
+        label: 'GLM-4.5 Air',
         expr: 'len < 32000 && c < 200 ? tier("short_output", p * 0.8 + c * 2 + cr * 0.16) : len < 32000 && c >= 200 ? tier("long_output", p * 0.8 + c * 6 + cr * 0.16) : tier("mid_context", p * 1.2 + c * 8 + cr * 0.24)',
       },
       {
-        key: "doubao-seed-1.8",
-        label: "Doubao Seed 1.8",
+        key: 'doubao-seed-1.8',
+        label: 'Doubao Seed 1.8',
         expr: 'len <= 32000 && c <= 200 ? tier("discount", p * 0.8 + c * 2 + cr * 0.16 + cc * 0.17) : len <= 32000 ? tier("short", p * 0.8 + c * 8 + cr * 0.16 + cc * 0.17) : len <= 128000 ? tier("mid", p * 1.2 + c * 16 + cr * 0.16 + cc * 0.17) : tier("long", p * 2.4 + c * 24 + cr * 0.16 + cc * 0.17)',
       },
     ],
   },
   {
-    group: "Multimodal",
+    group: 'Multimodal',
     presets: [
       {
-        key: "gpt-image-1-mini",
-        label: "GPT Image 1 Mini",
+        key: 'gpt-image-1-mini',
+        label: 'GPT Image 1 Mini',
         expr: 'tier("base", p * 2 + c * 8 + img * 2.5)',
       },
       {
-        key: "gemini-2.5-flash",
-        label: "Gemini 2.5 Flash",
+        key: 'gemini-2.5-flash',
+        label: 'Gemini 2.5 Flash',
         expr: 'tier("base", p * 0.3 + c * 2.5 + cr * 0.03 + ai * 1.0)',
       },
       {
-        key: "gemini-3-pro-image",
-        label: "Gemini 3 Pro Image",
+        key: 'gemini-3-pro-image',
+        label: 'Gemini 3 Pro Image',
         expr: 'tier("base", p * 2 + c * 12 + img_o * 120)',
       },
       {
-        key: "qwen3-omni-flash",
-        label: "Qwen3 Omni Flash",
+        key: 'qwen3-omni-flash',
+        label: 'Qwen3 Omni Flash',
         expr: 'tier("base", p * 0.43 + c * 3.06 + img * 0.78 + ai * 3.81 + ao * 15.11)',
       },
     ],
   },
   {
-    group: "Request rule",
+    group: 'Request rule',
     presets: [
       {
-        key: "claude-opus-fast",
-        label: "Claude Opus 4.6 Fast",
+        key: 'claude-opus-fast',
+        label: 'Claude Opus 4.6 Fast',
         expr: 'tier("base", p * 5 + c * 25 + cr * 0.5 + cc * 6.25 + cc1h * 10)',
         requestRules: [
           {
             conditions: [
               {
-                source: SOURCE_HEADER as "header",
-                path: "anthropic-beta",
+                source: SOURCE_HEADER as 'header',
+                path: 'anthropic-beta',
                 mode: MATCH_CONTAINS,
-                value: "fast-mode-2026-02-01",
+                value: 'fast-mode-2026-02-01',
               },
             ],
-            multiplier: "6",
+            multiplier: '6',
           },
         ],
       },
       {
-        key: "gpt-5.4-tiers",
-        label: "GPT-5.4 Priority/Flex",
+        key: 'gpt-5.4-tiers',
+        label: 'GPT-5.4 Priority/Flex',
         expr: 'len <= 272000 ? tier("standard", p * 2.5 + c * 15 + cr * 0.25) : tier("long_context", p * 5 + c * 22.5 + cr * 0.5)',
         requestRules: [
           {
             conditions: [
               {
-                source: SOURCE_PARAM as "param",
-                path: "service_tier",
+                source: SOURCE_PARAM as 'param',
+                path: 'service_tier',
                 mode: MATCH_EQ,
-                value: "priority",
+                value: 'priority',
               },
             ],
-            multiplier: "2",
+            multiplier: '2',
           },
           {
             conditions: [
               {
-                source: SOURCE_PARAM as "param",
-                path: "service_tier",
+                source: SOURCE_PARAM as 'param',
+                path: 'service_tier',
                 mode: MATCH_EQ,
-                value: "flex",
+                value: 'flex',
               },
             ],
-            multiplier: "0.5",
+            multiplier: '0.5',
           },
         ],
       },
     ],
   },
   {
-    group: "Time-based",
+    group: 'Time-based',
     presets: [
       {
-        key: "night-discount",
-        label: "Night discount (50%)",
+        key: 'night-discount',
+        label: 'Night discount (50%)',
         expr: 'tier("base", p * 3 + c * 15)',
         requestRules: [
           {
             conditions: [
               {
-                source: SOURCE_TIME as "time",
-                timeFunc: "hour",
-                timezone: "Asia/Ho_Chi_Minh",
+                source: SOURCE_TIME as 'time',
+                timeFunc: 'hour',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_RANGE,
-                value: "",
-                rangeStart: "21",
-                rangeEnd: "6",
+                value: '',
+                rangeStart: '21',
+                rangeEnd: '6',
               },
             ],
-            multiplier: "0.5",
+            multiplier: '0.5',
           },
         ],
       },
       {
-        key: "weekend-discount",
-        label: "Weekend discount (80%)",
+        key: 'weekend-discount',
+        label: 'Weekend discount (80%)',
         expr: 'tier("base", p * 3 + c * 15)',
         requestRules: [
           {
             conditions: [
               {
-                source: SOURCE_TIME as "time",
-                timeFunc: "weekday",
-                timezone: "Asia/Ho_Chi_Minh",
+                source: SOURCE_TIME as 'time',
+                timeFunc: 'weekday',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_EQ,
-                value: "0",
-                rangeStart: "",
-                rangeEnd: "",
+                value: '0',
+                rangeStart: '',
+                rangeEnd: '',
               },
             ],
-            multiplier: "0.8",
+            multiplier: '0.8',
           },
           {
             conditions: [
               {
-                source: SOURCE_TIME as "time",
-                timeFunc: "weekday",
-                timezone: "Asia/Ho_Chi_Minh",
+                source: SOURCE_TIME as 'time',
+                timeFunc: 'weekday',
+                timezone: 'Asia/Ho_Chi_Minh',
                 mode: MATCH_EQ,
-                value: "6",
-                rangeStart: "",
-                rangeEnd: "",
+                value: '6',
+                rangeStart: '',
+                rangeEnd: '',
               },
             ],
-            multiplier: "0.8",
+            multiplier: '0.8',
           },
         ],
       },
     ],
   },
-];
+]
 
 function unitCostToPrice(uc: number | string): number {
-  return Number(uc) || 0;
+  return Number(uc) || 0
 }
 
 function priceToUnitCost(price: number | string): number {
-  return Number(price) || 0;
+  return Number(price) || 0
 }
 
 function formatTokenHint(n: number | string | null | undefined): string {
-  if (n == null || n === "" || Number.isNaN(Number(n))) return "";
-  const v = Number(n);
-  if (v === 0) return "= 0";
-  if (v >= 1_000_000) return `= ${(v / 1_000_000).toLocaleString()}M tokens`;
-  if (v >= 1_000) return `= ${(v / 1_000).toLocaleString()}K tokens`;
-  return `= ${v.toLocaleString()} tokens`;
+  if (n == null || n === '' || Number.isNaN(Number(n))) return ''
+  const v = Number(n)
+  if (v === 0) return '= 0'
+  if (v >= 1_000_000) return `= ${(v / 1_000_000).toLocaleString()}M tokens`
+  if (v >= 1_000) return `= ${(v / 1_000).toLocaleString()}K tokens`
+  return `= ${v.toLocaleString()} tokens`
 }
 
 function formatNumberDraft(value: number | string): string {
-  if (value === "") return "";
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? String(value) : "0";
+  if (value === '') return ''
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '0'
   }
-  return value;
+  return value
 }
 
 function parseNumberDraft(value: string): number {
-  if (value.trim() === "") return 0;
-  const next = Number(value);
-  return Number.isFinite(next) ? next : 0;
+  if (value.trim() === '') return 0
+  const next = Number(value)
+  return Number.isFinite(next) ? next : 0
 }
 
 function isZeroDraft(value: string): boolean {
-  return value.trim() !== "" && parseNumberDraft(value) === 0;
+  return value.trim() !== '' && parseNumberDraft(value) === 0
 }
 
 type DraftNumberInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  "type" | "value" | "onChange"
+  'type' | 'value' | 'onChange'
 > & {
-  value: number | string;
-  onValueChange: (next: number) => void;
-  selectZeroOnFocus?: boolean;
-};
+  value: number | string
+  onValueChange: (next: number) => void
+  selectZeroOnFocus?: boolean
+}
 
 function DraftNumberInput({
   value,
@@ -367,56 +367,56 @@ function DraftNumberInput({
   onMouseUp,
   ...props
 }: DraftNumberInputProps) {
-  const [draft, setDraft] = useState(() => formatNumberDraft(value));
-  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(() => formatNumberDraft(value))
+  const [focused, setFocused] = useState(false)
 
   useEffect(() => {
     if (!focused) {
-      setDraft(formatNumberDraft(value));
+      setDraft(formatNumberDraft(value))
     }
-  }, [focused, value]);
+  }, [focused, value])
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextDraft = event.target.value;
-    setDraft(nextDraft);
-    onValueChange(parseNumberDraft(nextDraft));
-  };
+    const nextDraft = event.target.value
+    setDraft(nextDraft)
+    onValueChange(parseNumberDraft(nextDraft))
+  }
 
   const handleFocus = (event: FocusEvent<HTMLInputElement>) => {
-    setFocused(true);
-    onFocus?.(event);
+    setFocused(true)
+    onFocus?.(event)
     if (selectZeroOnFocus && isZeroDraft(event.currentTarget.value)) {
-      event.currentTarget.select();
+      event.currentTarget.select()
     }
-  };
+  }
 
   const handleMouseUp = (event: ReactMouseEvent<HTMLInputElement>) => {
-    onMouseUp?.(event);
+    onMouseUp?.(event)
     if (selectZeroOnFocus && isZeroDraft(event.currentTarget.value)) {
-      event.preventDefault();
-      event.currentTarget.select();
+      event.preventDefault()
+      event.currentTarget.select()
     }
-  };
+  }
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
-    const normalized = parseNumberDraft(event.currentTarget.value);
-    setFocused(false);
-    setDraft(String(normalized));
-    onValueChange(normalized);
-    onBlur?.(event);
-  };
+    const normalized = parseNumberDraft(event.currentTarget.value)
+    setFocused(false)
+    setDraft(String(normalized))
+    onValueChange(normalized)
+    onBlur?.(event)
+  }
 
   return (
     <Input
       {...props}
-      type="number"
+      type='number'
       value={draft}
       onChange={handleChange}
       onFocus={handleFocus}
       onMouseUp={handleMouseUp}
       onBlur={handleBlur}
     />
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -424,19 +424,19 @@ function DraftNumberInput({
 // ---------------------------------------------------------------------------
 
 type ConditionRowProps = {
-  condition: TierConditionInput;
-  onChange: (next: TierConditionInput) => void;
-  onRemove: () => void;
-};
+  condition: TierConditionInput
+  onChange: (next: TierConditionInput) => void
+  onRemove: () => void
+}
 
 function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const currentInputOption = CONDITION_INPUT_OPTIONS.find(
-    (option) => option.value === condition.var,
-  );
+    (option) => option.value === condition.var
+  )
 
   return (
-    <div className="flex items-center gap-2">
+    <div className='flex items-center gap-2'>
       <Select
         items={CONDITION_INPUT_OPTIONS.map((option) => ({
           value: option.value,
@@ -444,10 +444,10 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
         }))}
         value={condition.var}
         onValueChange={(value) =>
-          onChange({ ...condition, var: value as TierConditionInput["var"] })
+          onChange({ ...condition, var: value as TierConditionInput['var'] })
         }
       >
-        <SelectTrigger className="w-32" size="sm">
+        <SelectTrigger className='w-32' size='sm'>
           <SelectValue>
             {currentInputOption
               ? t(currentInputOption.labelKey)
@@ -468,10 +468,10 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
         items={OPS.map((op) => ({ value: op, label: op }))}
         value={condition.op}
         onValueChange={(value) =>
-          onChange({ ...condition, op: value as TierConditionInput["op"] })
+          onChange({ ...condition, op: value as TierConditionInput['op'] })
         }
       >
-        <SelectTrigger className="w-20" size="sm">
+        <SelectTrigger className='w-20' size='sm'>
           <SelectValue />
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
@@ -488,23 +488,23 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
         min={0}
         value={condition.value}
         onValueChange={(value) => onChange({ ...condition, value })}
-        placeholder={t("tokens")}
-        className="w-32"
+        placeholder={t('tokens')}
+        className='w-32'
       />
-      <span className="text-muted-foreground text-xs">
+      <span className='text-muted-foreground text-xs'>
         {formatTokenHint(condition.value)}
       </span>
       <Button
-        variant="ghost"
-        size="icon"
+        variant='ghost'
+        size='icon'
         onClick={onRemove}
-        aria-label={t("Remove")}
-        className="ml-auto"
+        aria-label={t('Remove')}
+        className='ml-auto'
       >
-        <Trash2 className="text-destructive h-4 w-4" />
+        <Trash2 className='text-destructive h-4 w-4' />
       </Button>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -512,26 +512,26 @@ function ConditionRow({ condition, onChange, onRemove }: ConditionRowProps) {
 // ---------------------------------------------------------------------------
 
 type PriceFieldProps = {
-  label: string;
-  hint?: string;
-  value: number;
-  onChange: (next: number) => void;
-};
+  label: string
+  hint?: string
+  value: number
+  onChange: (next: number) => void
+}
 
 function PriceField({ label, hint, value, onChange }: PriceFieldProps) {
   return (
-    <div className="w-36 space-y-0.5">
-      <Label className="text-muted-foreground text-xs">{label}</Label>
+    <div className='w-36 space-y-0.5'>
+      <Label className='text-muted-foreground text-xs'>{label}</Label>
       <DraftNumberInput
         min={0}
         step={0.000001}
         value={Number.isFinite(value) ? value : 0}
         onValueChange={onChange}
-        className="h-8 w-full"
+        className='h-8 w-full'
       />
-      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+      {hint && <p className='text-muted-foreground text-xs'>{hint}</p>}
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -539,13 +539,13 @@ function PriceField({ label, hint, value, onChange }: PriceFieldProps) {
 // ---------------------------------------------------------------------------
 
 type VisualTierCardProps = {
-  tier: VisualTier;
-  index: number;
-  total: number;
-  onChange: (next: VisualTier) => void;
-  onRemove: () => void;
-  onAddCondition: () => void;
-};
+  tier: VisualTier
+  index: number
+  total: number
+  onChange: (next: VisualTier) => void
+  onRemove: () => void
+  onAddCondition: () => void
+}
 
 function VisualTierCard({
   tier,
@@ -555,33 +555,33 @@ function VisualTierCard({
   onRemove,
   onAddCondition,
 }: VisualTierCardProps) {
-  const { t } = useTranslation();
-  const cacheMode = getTierCacheMode(tier);
+  const { t } = useTranslation()
+  const cacheMode = getTierCacheMode(tier)
   const conditionEntries = tier.conditions.map((condition, conditionIndex) => ({
     condition,
     conditionIndex,
     key: `tier-condition-${conditionIndex}`,
-  }));
+  }))
 
   const handleConditionChange = (
     conditionIndex: number,
-    next: TierConditionInput,
+    next: TierConditionInput
   ) => {
-    const conditions = [...tier.conditions];
-    conditions[conditionIndex] = next;
-    onChange({ ...tier, conditions });
-  };
+    const conditions = [...tier.conditions]
+    conditions[conditionIndex] = next
+    onChange({ ...tier, conditions })
+  }
 
   const handleConditionRemove = (conditionIndex: number) => {
     onChange({
       ...tier,
       conditions: tier.conditions.filter((_, i) => i !== conditionIndex),
-    });
-  };
+    })
+  }
 
   const handlePriceChange = (field: keyof VisualTier, value: number) => {
-    onChange({ ...tier, [field]: value });
-  };
+    onChange({ ...tier, [field]: value })
+  }
 
   const handleCacheModeChange = (mode: CacheMode) => {
     onChange({
@@ -589,26 +589,26 @@ function VisualTierCard({
       cache_mode: mode,
       cache_create_1h_unit_cost:
         mode === CACHE_MODE_TIMED ? (tier.cache_create_1h_unit_cost ?? 0) : 0,
-    });
-  };
+    })
+  }
 
-  const inputUnitPrice = unitCostToPrice(tier.input_unit_cost);
-  const outputUnitPrice = unitCostToPrice(tier.output_unit_cost);
+  const inputUnitPrice = unitCostToPrice(tier.input_unit_cost)
+  const outputUnitPrice = unitCostToPrice(tier.output_unit_cost)
   const hasMediaPricing = MEDIA_PRICE_VARS.some((variable) => {
-    const fieldKey = variable.tierField as keyof VisualTier;
-    return unitCostToPrice((tier[fieldKey] as number | undefined) ?? 0) > 0;
-  });
-  const [mediaOpen, setMediaOpen] = useState(hasMediaPricing);
+    const fieldKey = variable.tierField as keyof VisualTier
+    return unitCostToPrice((tier[fieldKey] as number | undefined) ?? 0) > 0
+  })
+  const [mediaOpen, setMediaOpen] = useState(hasMediaPricing)
 
   useEffect(() => {
-    if (hasMediaPricing) setMediaOpen(true);
-  }, [hasMediaPricing]);
+    if (hasMediaPricing) setMediaOpen(true)
+  }, [hasMediaPricing])
 
   const renderPriceVariable = (
-    variable: (typeof BILLING_EXTRA_VARS)[number],
+    variable: (typeof BILLING_EXTRA_VARS)[number]
   ) => {
-    const fieldKey = variable.tierField as keyof VisualTier;
-    const value = unitCostToPrice((tier[fieldKey] as number | undefined) ?? 0);
+    const fieldKey = variable.tierField as keyof VisualTier
+    const value = unitCostToPrice((tier[fieldKey] as number | undefined) ?? 0)
 
     return (
       <PriceField
@@ -617,57 +617,57 @@ function VisualTierCard({
         value={value}
         onChange={(next) => handlePriceChange(fieldKey, priceToUnitCost(next))}
       />
-    );
-  };
+    )
+  }
 
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">
-            {t("Tier")} {index + 1} / {total}
+    <div className='space-y-3 rounded-lg border p-3'>
+      <div className='flex flex-wrap items-center justify-between gap-2'>
+        <div className='flex items-center gap-2'>
+          <Badge variant='outline'>
+            {t('Tier')} {index + 1} / {total}
           </Badge>
           {tier.conditions.length === 0 && (
-            <Badge variant="secondary">{t("Fallback tier")}</Badge>
+            <Badge variant='secondary'>{t('Fallback tier')}</Badge>
           )}
           <Input
             value={tier.label}
             onChange={(event) =>
               onChange({ ...tier, label: event.target.value })
             }
-            placeholder={t("Tier name")}
-            className="h-7 w-36"
+            placeholder={t('Tier name')}
+            className='h-7 w-36'
           />
         </div>
         <Button
-          variant="ghost"
-          size="icon"
+          variant='ghost'
+          size='icon'
           onClick={onRemove}
           disabled={total <= 1}
-          aria-label={t("Remove tier")}
+          aria-label={t('Remove tier')}
         >
-          <Trash2 className="text-destructive h-4 w-4" />
+          <Trash2 className='text-destructive h-4 w-4' />
         </Button>
       </div>
 
       {/* Conditions */}
-      <div className="space-y-1.5">
-        <div className="flex h-7 items-center justify-between">
-          <Label className="text-xs font-medium">{t("Tier conditions")}</Label>
+      <div className='space-y-1.5'>
+        <div className='flex h-7 items-center justify-between'>
+          <Label className='text-xs font-medium'>{t('Tier conditions')}</Label>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={onAddCondition}
             disabled={tier.conditions.length >= 2}
-            className="h-7 px-2 text-xs"
+            className='h-7 px-2 text-xs'
           >
-            <Plus className="mr-1 h-3 w-3" />
-            {t("Add condition")}
+            <Plus className='mr-1 h-3 w-3' />
+            {t('Add condition')}
           </Button>
         </div>
         {tier.conditions.length === 0 ? (
-          <p className="text-muted-foreground text-xs">
-            {t("Always matches (default tier).")}
+          <p className='text-muted-foreground text-xs'>
+            {t('Always matches (default tier).')}
           </p>
         ) : (
           conditionEntries.map((entry) => (
@@ -683,62 +683,62 @@ function VisualTierCard({
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <Label className="text-sm font-semibold">{t("Token prices")}</Label>
-          <span className="bg-muted text-muted-foreground rounded-md px-2 py-1 text-xs">
+      <div className='space-y-2'>
+        <div className='flex items-center justify-between gap-3'>
+          <Label className='text-sm font-semibold'>{t('Token prices')}</Label>
+          <span className='bg-muted text-muted-foreground rounded-md px-2 py-1 text-xs'>
             {PRICE_SUFFIX}
           </span>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div className='space-y-3'>
+          <div className='flex flex-wrap gap-x-4 gap-y-2'>
             <PriceField
-              label={t("Input price")}
+              label={t('Input price')}
               value={inputUnitPrice}
               onChange={(value) =>
-                handlePriceChange("input_unit_cost", priceToUnitCost(value))
+                handlePriceChange('input_unit_cost', priceToUnitCost(value))
               }
             />
             <PriceField
-              label={t("Output price")}
+              label={t('Output price')}
               value={outputUnitPrice}
               onChange={(value) =>
-                handlePriceChange("output_unit_cost", priceToUnitCost(value))
+                handlePriceChange('output_unit_cost', priceToUnitCost(value))
               }
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex h-7 items-center">
+          <div className='space-y-2'>
+            <div className='flex h-7 items-center'>
               <Tabs
                 value={cacheMode}
                 onValueChange={(value) =>
                   value !== null && handleCacheModeChange(value as CacheMode)
                 }
               >
-                <TabsList className="h-8">
+                <TabsList className='h-8'>
                   <TabsTrigger
                     value={CACHE_MODE_GENERIC}
-                    className="px-2 text-xs"
+                    className='px-2 text-xs'
                   >
-                    {t("Generic cache")}
+                    {t('Generic cache')}
                   </TabsTrigger>
                   <TabsTrigger
                     value={CACHE_MODE_TIMED}
-                    className="px-2 text-xs"
+                    className='px-2 text-xs'
                   >
-                    {t("Time-sliced cache (Claude)")}
+                    {t('Time-sliced cache (Claude)')}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <div className='flex flex-wrap gap-x-4 gap-y-2'>
               {CACHE_PRICE_VARS.map((variable) => {
-                if (variable.key === "cc1h" && cacheMode !== CACHE_MODE_TIMED) {
-                  return null;
+                if (variable.key === 'cc1h' && cacheMode !== CACHE_MODE_TIMED) {
+                  return null
                 }
-                return renderPriceVariable(variable);
+                return renderPriceVariable(variable)
               })}
             </div>
           </div>
@@ -746,30 +746,30 @@ function VisualTierCard({
       </div>
 
       {/* Media prices */}
-      <div className="space-y-1.5">
+      <div className='space-y-1.5'>
         <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs"
+          type='button'
+          variant='ghost'
+          size='sm'
+          className='h-7 px-2 text-xs'
           onClick={() => setMediaOpen((prev) => !prev)}
         >
           <ChevronDown
             className={cn(
-              "mr-1 h-3 w-3 transition-transform",
-              mediaOpen && "rotate-180",
+              'mr-1 h-3 w-3 transition-transform',
+              mediaOpen && 'rotate-180'
             )}
           />
-          {t("Media pricing")}
+          {t('Media pricing')}
         </Button>
         {mediaOpen && (
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+          <div className='flex flex-wrap gap-x-4 gap-y-2'>
             {MEDIA_PRICE_VARS.map(renderPriceVariable)}
           </div>
         )}
       </div>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -777,39 +777,39 @@ function VisualTierCard({
 // ---------------------------------------------------------------------------
 
 type VisualEditorProps = {
-  visualConfig: VisualConfig | null;
-  onChange: (next: VisualConfig) => void;
-};
+  visualConfig: VisualConfig | null
+  onChange: (next: VisualConfig) => void
+}
 
 function VisualEditor({ visualConfig, onChange }: VisualEditorProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const config = useMemo(
     () => normalizeVisualConfig(visualConfig),
-    [visualConfig],
-  );
+    [visualConfig]
+  )
   const tierEntries = config.tiers.map((tier, index) => ({
     tier,
     index,
     key: `visual-tier-${index}`,
-  }));
+  }))
 
   const handleTierChange = (index: number, next: VisualTier) => {
-    const tiers = [...config.tiers];
-    tiers[index] = normalizeVisualTier(next);
-    onChange({ ...config, tiers });
-  };
+    const tiers = [...config.tiers]
+    tiers[index] = normalizeVisualTier(next)
+    onChange({ ...config, tiers })
+  }
 
   const handleAddTier = () => {
-    const tiers = [...config.tiers];
-    const lastIndex = tiers.length - 1;
+    const tiers = [...config.tiers]
+    const lastIndex = tiers.length - 1
     // When adding a new fallback, give the previous catch-all tier a default
     // upper-bound condition so the expression compiles into a sane two-tier
     // shape. Mirrors the classic editor's UX for adding tiers.
     if (lastIndex >= 0 && tiers[lastIndex].conditions.length === 0) {
       tiers[lastIndex] = normalizeVisualTier({
         ...tiers[lastIndex],
-        conditions: [{ var: "len", op: "<", value: 200000 }],
-      });
+        conditions: [{ var: 'len', op: '<', value: 200000 }],
+      })
     }
     tiers.push(
       normalizeVisualTier({
@@ -817,27 +817,25 @@ function VisualEditor({ visualConfig, onChange }: VisualEditorProps) {
         conditions: [],
         input_unit_cost: 0,
         output_unit_cost: 0,
-      }),
-    );
-    onChange({ ...config, tiers });
-  };
+      })
+    )
+    onChange({ ...config, tiers })
+  }
 
   const handleRemoveTier = (index: number) => {
-    const tiers = config.tiers.filter((_, i) => i !== index);
-    onChange({ ...config, tiers: tiers.length > 0 ? tiers : config.tiers });
-  };
+    const tiers = config.tiers.filter((_, i) => i !== index)
+    onChange({ ...config, tiers: tiers.length > 0 ? tiers : config.tiers })
+  }
 
   const handleAddCondition = (index: number) => {
-    const tier = config.tiers[index];
-    if (tier.conditions.length >= 2) return;
+    const tier = config.tiers[index]
+    if (tier.conditions.length >= 2) return
     // Prefer `len` (input length) over `p`/`c` for tier conditions because
     // `p` is subject to auto-exclusion when sub-categories like `cr` are
     // priced separately, which can misroute long-input requests into shorter
     // tiers when cache-hits reduce the effective `p`.
-    const usedVars = new Set(tier.conditions.map((c) => c.var));
-    const nextVar: TierConditionInput["var"] = usedVars.has("len")
-      ? "c"
-      : "len";
+    const usedVars = new Set(tier.conditions.map((c) => c.var))
+    const nextVar: TierConditionInput['var'] = usedVars.has('len') ? 'c' : 'len'
     onChange({
       ...config,
       tiers: config.tiers.map((current, i) =>
@@ -846,19 +844,19 @@ function VisualEditor({ visualConfig, onChange }: VisualEditorProps) {
               ...current,
               conditions: [
                 ...tier.conditions,
-                { var: nextVar, op: "<", value: 200000 },
+                { var: nextVar, op: '<', value: 200000 },
               ],
             }
-          : current,
+          : current
       ),
-    });
-  };
+    })
+  }
 
   return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs">
+    <div className='space-y-2'>
+      <p className='text-muted-foreground text-xs'>
         {t(
-          "Each tier supports up to 2 conditions. The last tier without conditions is the fallback.",
+          'Each tier supports up to 2 conditions. The last tier without conditions is the fallback.'
         )}
       </p>
       {tierEntries.map((entry) => (
@@ -873,16 +871,16 @@ function VisualEditor({ visualConfig, onChange }: VisualEditorProps) {
         />
       ))}
       <Button
-        variant="outline"
-        size="sm"
-        className="h-9 w-36 justify-center"
+        variant='outline'
+        size='sm'
+        className='h-9 w-36 justify-center'
         onClick={handleAddTier}
       >
-        <Plus className="mr-2 h-4 w-4" />
-        {t("Add tier")}
+        <Plus className='mr-2 h-4 w-4' />
+        {t('Add tier')}
       </Button>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -890,26 +888,26 @@ function VisualEditor({ visualConfig, onChange }: VisualEditorProps) {
 // ---------------------------------------------------------------------------
 
 type RawExprEditorProps = {
-  exprString: string;
-  onChange: (value: string) => void;
-};
+  exprString: string
+  onChange: (value: string) => void
+}
 
 function RawExprEditor({ exprString, onChange }: RawExprEditorProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
-    <div className="space-y-3">
+    <div className='space-y-3'>
       <Alert>
-        <AlertDescription className="space-y-1 text-xs">
+        <AlertDescription className='space-y-1 text-xs'>
           <div>
-            {t("Variables")}: <code>len</code>, <code>p</code>, <code>c</code>,{" "}
-            <code>cr</code>, <code>cc</code>, <code>cc1h</code>,{" "}
-            <code>img</code>, <code>img_o</code>, <code>ai</code>,{" "}
+            {t('Variables')}: <code>len</code>, <code>p</code>, <code>c</code>,{' '}
+            <code>cr</code>, <code>cc</code>, <code>cc1h</code>,{' '}
+            <code>img</code>, <code>img_o</code>, <code>ai</code>,{' '}
             <code>ao</code>
           </div>
           <div>
-            {t("Functions")}: <code>tier(name, value)</code>, <code>max</code>,{" "}
-            <code>min</code>, <code>ceil</code>, <code>floor</code>,{" "}
-            <code>abs</code>, <code>header(name)</code>,{" "}
+            {t('Functions')}: <code>tier(name, value)</code>, <code>max</code>,{' '}
+            <code>min</code>, <code>ceil</code>, <code>floor</code>,{' '}
+            <code>abs</code>, <code>header(name)</code>,{' '}
             <code>param(path)</code>, <code>has(source, text)</code>
           </div>
         </AlertDescription>
@@ -919,11 +917,11 @@ function RawExprEditor({ exprString, onChange }: RawExprEditorProps) {
         onChange={(event) => onChange(event.target.value)}
         placeholder='tier("base", p * 3 + c * 15)'
         rows={6}
-        className="font-mono text-xs"
+        className='font-mono text-xs'
         spellCheck={false}
       />
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -931,77 +929,77 @@ function RawExprEditor({ exprString, onChange }: RawExprEditorProps) {
 // ---------------------------------------------------------------------------
 
 type RuleConditionRowProps = {
-  condition: RequestCondition;
-  onChange: (next: RequestCondition) => void;
-  onRemove: () => void;
-};
+  condition: RequestCondition
+  onChange: (next: RequestCondition) => void
+  onRemove: () => void
+}
 
 function RuleConditionRow({
   condition,
   onChange,
   onRemove,
 }: RuleConditionRowProps) {
-  const { t } = useTranslation();
-  const matchOptions = getRequestRuleMatchOptions(condition.source);
+  const { t } = useTranslation()
+  const matchOptions = getRequestRuleMatchOptions(condition.source)
   const getMatchLabel = (mode: string) => {
     switch (mode) {
       case MATCH_EQ:
-        return t("Equals");
+        return t('Equals')
       case MATCH_CONTAINS:
-        return t("Contains");
+        return t('Contains')
       case MATCH_EXISTS:
-        return t("Exists");
+        return t('Exists')
       case MATCH_GT:
-        return t("Greater than");
+        return t('Greater than')
       case MATCH_GTE:
-        return t("Greater than or equal");
+        return t('Greater than or equal')
       case MATCH_LT:
-        return t("Less than");
+        return t('Less than')
       case MATCH_LTE:
-        return t("Less than or equal");
+        return t('Less than or equal')
       case MATCH_RANGE:
-        return t("Overnight range");
+        return t('Overnight range')
       default:
-        return mode;
+        return mode
     }
-  };
+  }
   const getTimeFuncLabel = (timeFunc: TimeFunc) => {
     switch (timeFunc) {
-      case "hour":
-        return t("Hour of day");
-      case "minute":
-        return t("Minute");
-      case "weekday":
-        return t("Weekday");
-      case "month":
-        return t("Month number");
-      case "day":
-        return t("Day of month");
+      case 'hour':
+        return t('Hour of day')
+      case 'minute':
+        return t('Minute')
+      case 'weekday':
+        return t('Weekday')
+      case 'month':
+        return t('Month number')
+      case 'day':
+        return t('Day of month')
       default:
-        return timeFunc;
+        return timeFunc
     }
-  };
-  let sourceLabel = t("Time");
+  }
+  let sourceLabel = t('Time')
   if (condition.source === SOURCE_PARAM) {
-    sourceLabel = t("Body param");
+    sourceLabel = t('Body param')
   } else if (condition.source === SOURCE_HEADER) {
-    sourceLabel = t("Header");
+    sourceLabel = t('Header')
   }
 
   const handleSourceChange = (source: string) => {
     if (source === SOURCE_TIME) {
-      onChange(createEmptyTimeCondition(getBusinessTimezone()));
+      onChange(createEmptyTimeCondition(getBusinessTimezone()))
     } else if (source === SOURCE_HEADER || source === SOURCE_PARAM) {
       onChange({
         ...createEmptyCondition(),
-        source: source as "param" | "header",
-      });
+        source: source as 'param' | 'header',
+      })
     }
-  };
+  }
 
   const handleModeChange = (mode: string) => {
-    onChange({ ...condition, mode } as RequestCondition);
-  };
+    onChange({ ...condition, mode } as RequestCondition)
+  }
 
   const renderTimeCondition = (timeCond: TimeCondition) => (
     <>
@@ -1015,7 +1013,7 @@ function RuleConditionRow({
           onChange({ ...timeCond, timeFunc: value as TimeFunc })
         }
       >
-        <SelectTrigger className="w-32" size="sm">
+        <SelectTrigger className='w-32' size='sm'>
           <SelectValue>{getTimeFuncLabel(timeCond.timeFunc)}</SelectValue>
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
@@ -1038,7 +1036,7 @@ function RuleConditionRow({
           value !== null && onChange({ ...timeCond, timezone: value })
         }
       >
-        <SelectTrigger className="w-56" size="sm">
+        <SelectTrigger className='w-56' size='sm'>
           <SelectValue>
             {COMMON_TIMEZONES.find((tz) => tz.value === timeCond.timezone)
               ?.label ?? timeCond.timezone}
@@ -1062,7 +1060,7 @@ function RuleConditionRow({
         value={timeCond.mode}
         onValueChange={(v) => v !== null && handleModeChange(v)}
       >
-        <SelectTrigger className="w-32" size="sm">
+        <SelectTrigger className='w-32' size='sm'>
           <SelectValue>{getMatchLabel(timeCond.mode)}</SelectValue>
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
@@ -1082,17 +1080,17 @@ function RuleConditionRow({
             onValueChange={(value) =>
               onChange({ ...timeCond, rangeStart: String(value) })
             }
-            placeholder={t("Start")}
-            className="w-20"
+            placeholder={t('Start')}
+            className='w-20'
           />
-          <span className="text-muted-foreground text-xs">~</span>
+          <span className='text-muted-foreground text-xs'>~</span>
           <DraftNumberInput
             value={timeCond.rangeEnd}
             onValueChange={(value) =>
               onChange({ ...timeCond, rangeEnd: String(value) })
             }
-            placeholder={t("End")}
-            className="w-20"
+            placeholder={t('End')}
+            className='w-20'
           />
         </>
       ) : (
@@ -1101,12 +1099,12 @@ function RuleConditionRow({
           onValueChange={(value) =>
             onChange({ ...timeCond, value: String(value) })
           }
-          placeholder={t("Value")}
-          className="w-24"
+          placeholder={t('Value')}
+          className='w-24'
         />
       )}
     </>
-  );
+  )
 
   const renderParamHeaderCondition = (phCond: ParamHeaderCondition) => (
     <>
@@ -1114,9 +1112,9 @@ function RuleConditionRow({
         value={phCond.path}
         onChange={(event) => onChange({ ...phCond, path: event.target.value })}
         placeholder={
-          phCond.source === SOURCE_HEADER ? "X-Header-Name" : "service_tier"
+          phCond.source === SOURCE_HEADER ? 'X-Header-Name' : 'service_tier'
         }
-        className="w-44"
+        className='w-44'
       />
       <Select
         items={matchOptions.map((option) => ({
@@ -1126,7 +1124,7 @@ function RuleConditionRow({
         value={phCond.mode}
         onValueChange={(v) => v !== null && handleModeChange(v)}
       >
-        <SelectTrigger className="w-32" size="sm">
+        <SelectTrigger className='w-32' size='sm'>
           <SelectValue>{getMatchLabel(phCond.mode)}</SelectValue>
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
@@ -1145,32 +1143,32 @@ function RuleConditionRow({
           onChange={(event) =>
             onChange({ ...phCond, value: event.target.value })
           }
-          placeholder={t("Value")}
-          className="w-44"
+          placeholder={t('Value')}
+          className='w-44'
         />
       )}
     </>
-  );
+  )
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className='flex flex-wrap items-center gap-2'>
       <Select
         items={[
-          { value: SOURCE_PARAM, label: t("Body param") },
-          { value: SOURCE_HEADER, label: t("Header") },
-          { value: SOURCE_TIME, label: t("Time") },
+          { value: SOURCE_PARAM, label: t('Body param') },
+          { value: SOURCE_HEADER, label: t('Header') },
+          { value: SOURCE_TIME, label: t('Time') },
         ]}
         value={condition.source}
         onValueChange={(v) => v !== null && handleSourceChange(v)}
       >
-        <SelectTrigger className="w-28" size="sm">
+        <SelectTrigger className='w-28' size='sm'>
           <SelectValue>{sourceLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false}>
           <SelectGroup>
-            <SelectItem value={SOURCE_PARAM}>{t("Body param")}</SelectItem>
-            <SelectItem value={SOURCE_HEADER}>{t("Header")}</SelectItem>
-            <SelectItem value={SOURCE_TIME}>{t("Time")}</SelectItem>
+            <SelectItem value={SOURCE_PARAM}>{t('Body param')}</SelectItem>
+            <SelectItem value={SOURCE_HEADER}>{t('Header')}</SelectItem>
+            <SelectItem value={SOURCE_TIME}>{t('Time')}</SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>
@@ -1178,16 +1176,16 @@ function RuleConditionRow({
         ? renderTimeCondition(condition as TimeCondition)
         : renderParamHeaderCondition(condition as ParamHeaderCondition)}
       <Button
-        variant="ghost"
-        size="icon"
+        variant='ghost'
+        size='icon'
         onClick={onRemove}
-        aria-label={t("Remove condition")}
-        className="ml-auto"
+        aria-label={t('Remove condition')}
+        className='ml-auto'
       >
-        <Trash2 className="text-destructive h-4 w-4" />
+        <Trash2 className='text-destructive h-4 w-4' />
       </Button>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1195,11 +1193,11 @@ function RuleConditionRow({
 // ---------------------------------------------------------------------------
 
 type RuleGroupCardProps = {
-  group: RequestRuleGroup;
-  index: number;
-  onChange: (next: RequestRuleGroup) => void;
-  onRemove: () => void;
-};
+  group: RequestRuleGroup
+  index: number
+  onChange: (next: RequestRuleGroup) => void
+  onRemove: () => void
+}
 
 function RuleGroupCard({
   group,
@@ -1207,23 +1205,23 @@ function RuleGroupCard({
   onChange,
   onRemove,
 }: RuleGroupCardProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const conditionEntries = group.conditions.map(
     (condition, conditionIndex) => ({
       condition,
       conditionIndex,
       key: `rule-condition-${conditionIndex}`,
-    }),
-  );
+    })
+  )
 
   const handleConditionChange = (
     conditionIndex: number,
-    next: RequestCondition,
+    next: RequestCondition
   ) => {
-    const conditions = [...group.conditions];
-    conditions[conditionIndex] = next;
-    onChange({ ...group, conditions });
-  };
+    const conditions = [...group.conditions]
+    conditions[conditionIndex] = next
+    onChange({ ...group, conditions })
+  }
 
   const handleAddCondition = (timeMode: boolean) => {
     onChange({
@@ -1234,26 +1232,26 @@ function RuleGroupCard({
           ? createEmptyTimeCondition(getBusinessTimezone())
           : createEmptyCondition(),
       ],
-    });
-  };
+    })
+  }
 
   return (
-    <div className="bg-muted/30 space-y-3 rounded-md border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <Badge variant="outline">
-          {t("Rule group")} #{index + 1}
+    <div className='bg-muted/30 space-y-3 rounded-md border p-3'>
+      <div className='flex items-center justify-between gap-2'>
+        <Badge variant='outline'>
+          {t('Rule group')} #{index + 1}
         </Badge>
         <Button
-          variant="ghost"
-          size="icon"
+          variant='ghost'
+          size='icon'
           onClick={onRemove}
-          aria-label={t("Remove rule group")}
+          aria-label={t('Remove rule group')}
         >
-          <Trash2 className="text-destructive h-4 w-4" />
+          <Trash2 className='text-destructive h-4 w-4' />
         </Button>
       </div>
 
-      <div className="space-y-2">
+      <div className='space-y-2'>
         {conditionEntries.map((entry) => (
           <RuleConditionRow
             key={entry.key}
@@ -1265,34 +1263,34 @@ function RuleGroupCard({
               onChange({
                 ...group,
                 conditions: group.conditions.filter(
-                  (_, i) => i !== entry.conditionIndex,
+                  (_, i) => i !== entry.conditionIndex
                 ),
               })
             }
           />
         ))}
-        <div className="flex flex-wrap gap-2">
+        <div className='flex flex-wrap gap-2'>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={() => handleAddCondition(false)}
           >
-            <Plus className="mr-1 h-3 w-3" />
-            {t("Add param/header")}
+            <Plus className='mr-1 h-3 w-3' />
+            {t('Add param/header')}
           </Button>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={() => handleAddCondition(true)}
           >
-            <Plus className="mr-1 h-3 w-3" />
-            {t("Add time condition")}
+            <Plus className='mr-1 h-3 w-3' />
+            {t('Add time condition')}
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Label className="text-xs">{t("Multiplier")}</Label>
+      <div className='flex items-center gap-2'>
+        <Label className='text-xs'>{t('Multiplier')}</Label>
         <DraftNumberInput
           min={0}
           step={0.000001}
@@ -1300,15 +1298,15 @@ function RuleGroupCard({
           onValueChange={(value) =>
             onChange({ ...group, multiplier: String(value) })
           }
-          className="w-32"
-          placeholder="1.0"
+          className='w-32'
+          placeholder='1.0'
         />
-        <span className="text-muted-foreground text-xs">
-          {t("Final cost = base × multiplier when conditions match")}
+        <span className='text-muted-foreground text-xs'>
+          {t('Final cost = base × multiplier when conditions match')}
         </span>
       </div>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1316,45 +1314,45 @@ function RuleGroupCard({
 // ---------------------------------------------------------------------------
 
 type PresetSectionProps = {
-  applyPreset: (preset: Preset) => void;
-};
+  applyPreset: (preset: Preset) => void
+}
 
 function PresetSection({ applyPreset }: PresetSectionProps) {
-  const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? PRESET_GROUPS : PRESET_GROUPS.slice(0, 2);
-  const hasMore = PRESET_GROUPS.length > 2;
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? PRESET_GROUPS : PRESET_GROUPS.slice(0, 2)
+  const hasMore = PRESET_GROUPS.length > 2
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">{t("Preset templates")}</span>
+    <div className='space-y-2'>
+      <div className='flex items-center gap-2'>
+        <span className='text-sm font-medium'>{t('Preset templates')}</span>
         {hasMore && (
           <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
+            variant='ghost'
+            size='sm'
+            className='h-6 px-2 text-xs'
             onClick={() => setExpanded((prev) => !prev)}
           >
-            {expanded ? t("Collapse") : t("More templates...")}
+            {expanded ? t('Collapse') : t('More templates...')}
           </Button>
         )}
       </div>
-      <div className="space-y-1">
+      <div className='space-y-1'>
         {visible.map((presetGroup) => (
           <div
             key={presetGroup.group}
-            className="flex flex-wrap items-center gap-2"
+            className='flex flex-wrap items-center gap-2'
           >
-            <Badge variant="secondary" className="min-w-[60px] justify-center">
+            <Badge variant='secondary' className='min-w-[60px] justify-center'>
               {t(presetGroup.group)}
             </Badge>
             {presetGroup.presets.map((preset) => (
               <Button
                 key={preset.key}
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
+                variant='outline'
+                size='sm'
+                className='h-7 text-xs'
                 onClick={() => applyPreset(preset)}
               >
                 {preset.label}
@@ -1364,7 +1362,7 @@ function PresetSection({ applyPreset }: PresetSectionProps) {
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1372,13 +1370,13 @@ function PresetSection({ applyPreset }: PresetSectionProps) {
 // ---------------------------------------------------------------------------
 
 type EstimatorProps = {
-  effectiveExpr: string;
-};
+  effectiveExpr: string
+}
 
 function CostEstimator({ effectiveExpr }: EstimatorProps) {
-  const { t } = useTranslation();
-  const [promptTokens, setPromptTokens] = useState(0);
-  const [completionTokens, setCompletionTokens] = useState(0);
+  const { t } = useTranslation()
+  const [promptTokens, setPromptTokens] = useState(0)
+  const [completionTokens, setCompletionTokens] = useState(0)
   const [extras, setExtras] = useState<ExtraTokenValues>({
     cacheReadTokens: 0,
     cacheCreateTokens: 0,
@@ -1387,40 +1385,40 @@ function CostEstimator({ effectiveExpr }: EstimatorProps) {
     imageOutputTokens: 0,
     audioInputTokens: 0,
     audioOutputTokens: 0,
-  });
+  })
 
   const usesExtras = useMemo(
     () => exprUsesExtraVars(effectiveExpr),
-    [effectiveExpr],
-  );
+    [effectiveExpr]
+  )
 
   const result = useMemo(
     () =>
       evalExprLocally(effectiveExpr, promptTokens, completionTokens, extras),
-    [effectiveExpr, promptTokens, completionTokens, extras],
-  );
+    [effectiveExpr, promptTokens, completionTokens, extras]
+  )
 
   return (
-    <div className="bg-muted/30 space-y-3 rounded-md border p-3">
-      <div className="space-y-1">
-        <h4 className="text-sm font-medium">{t("Token estimator")}</h4>
-        <p className="text-muted-foreground text-xs">
+    <div className='bg-muted/30 space-y-3 rounded-md border p-3'>
+      <div className='space-y-1'>
+        <h4 className='text-sm font-medium'>{t('Token estimator')}</h4>
+        <p className='text-muted-foreground text-xs'>
           {t(
-            "Enter token counts to preview the estimated cost (excluding group multipliers).",
+            'Enter token counts to preview the estimated cost (excluding group multipliers).'
           )}
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">{t("Input tokens")}</Label>
+      <div className='grid grid-cols-2 gap-3'>
+        <div className='space-y-1'>
+          <Label className='text-xs'>{t('Input tokens')}</Label>
           <DraftNumberInput
             min={0}
             value={promptTokens}
             onValueChange={setPromptTokens}
           />
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">{t("Output tokens")}</Label>
+        <div className='space-y-1'>
+          <Label className='text-xs'>{t('Output tokens')}</Label>
           <DraftNumberInput
             min={0}
             value={completionTokens}
@@ -1429,19 +1427,19 @@ function CostEstimator({ effectiveExpr }: EstimatorProps) {
         </div>
       </div>
       {usesExtras && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className='grid grid-cols-2 gap-3'>
           {BILLING_EXTRA_VARS.map((variable) => {
             // BILLING_EXTRA_VARS only contains pricing variables; they are
             // guaranteed to have a non-null `field` (the `len` condition-only
             // variable is filtered out). Narrow the type here for safety.
-            if (!variable.field) return null;
+            if (!variable.field) return null
             const stateKey = variable.field.replace(
-              "Price",
-              "Tokens",
-            ) as keyof ExtraTokenValues;
+              'Price',
+              'Tokens'
+            ) as keyof ExtraTokenValues
             return (
-              <div key={variable.key} className="space-y-1">
-                <Label className="text-xs">{t(variable.shortLabel)}</Label>
+              <div key={variable.key} className='space-y-1'>
+                <Label className='text-xs'>{t(variable.shortLabel)}</Label>
                 <DraftNumberInput
                   min={0}
                   value={extras[stateKey]}
@@ -1453,37 +1451,37 @@ function CostEstimator({ effectiveExpr }: EstimatorProps) {
                   }
                 />
               </div>
-            );
+            )
           })}
         </div>
       )}
       <div
         className={cn(
-          "rounded-md border p-3 text-sm",
+          'rounded-md border p-3 text-sm',
           result.error
-            ? "border-destructive/50 bg-destructive/10 text-destructive"
-            : "border-primary/50 bg-primary/10",
+            ? 'border-destructive/50 bg-destructive/10 text-destructive'
+            : 'border-primary/50 bg-primary/10'
         )}
       >
         {result.error ? (
           <span>
-            {t("Expression error")}: {result.error}
+            {t('Expression error')}: {result.error}
           </span>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="font-medium">
-              {t("Estimated quota cost")}: {result.cost.toLocaleString()}
+          <div className='flex items-center gap-2'>
+            <span className='font-medium'>
+              {t('Estimated quota cost')}: {result.cost.toLocaleString()}
             </span>
             {result.matchedTier && (
-              <Badge variant="outline" className="text-xs">
-                {t("Hit tier")}: {result.matchedTier}
+              <Badge variant='outline' className='text-xs'>
+                {t('Hit tier')}: {result.matchedTier}
               </Badge>
             )}
           </div>
         )}
       </div>
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1567,71 +1565,71 @@ len <= 128000
 5. Price coefficients are the provider's official $/1M tokens prices
 6. If cache/image/audio don't need separate pricing, omit those variables; their tokens are included in p/c automatically
 
-Please generate a billing expression based on the model information and pricing requirements provided.`;
+Please generate a billing expression based on the model information and pricing requirements provided.`
 
 type LlmPromptHelperProps = {
-  modelName?: string;
-};
+  modelName?: string
+}
 
 function LlmPromptHelper({ modelName }: LlmPromptHelperProps) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
 
   const prompt = useMemo(() => {
     if (modelName) {
-      return `${LLM_PROMPT_TEMPLATE}\n\nCurrent model: ${modelName}`;
+      return `${LLM_PROMPT_TEMPLATE}\n\nCurrent model: ${modelName}`
     }
-    return LLM_PROMPT_TEMPLATE;
-  }, [modelName]);
+    return LLM_PROMPT_TEMPLATE
+  }, [modelName])
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(prompt);
-      toast.success(t("Copied to clipboard"));
+      await navigator.clipboard.writeText(prompt)
+      toast.success(t('Copied to clipboard'))
     } catch {
-      toast.error(t("Failed to copy"));
+      toast.error(t('Failed to copy'))
     }
-  }, [prompt, t]);
+  }, [prompt, t])
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
         render={
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" />
+          <Button variant='ghost' size='sm' className='h-7 px-2 text-xs' />
         }
       >
-        <Copy className="mr-1.5 h-3 w-3" />
-        {t("LLM prompt helper")}
+        <Copy className='mr-1.5 h-3 w-3' />
+        {t('LLM prompt helper')}
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2">
-        <div className="bg-muted/30 rounded-md border p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-muted-foreground text-xs">
+      <CollapsibleContent className='mt-2'>
+        <div className='bg-muted/30 rounded-md border p-3'>
+          <div className='mb-2 flex items-center justify-between'>
+            <p className='text-muted-foreground text-xs'>
               {t(
-                "Copy this prompt and send it to an LLM (e.g. ChatGPT / Claude) to help design your billing expression.",
+                'Copy this prompt and send it to an LLM (e.g. ChatGPT / Claude) to help design your billing expression.'
               )}
             </p>
             <Button
-              variant="outline"
-              size="sm"
-              className="ml-3 shrink-0"
+              variant='outline'
+              size='sm'
+              className='ml-3 shrink-0'
               onClick={handleCopy}
             >
-              <Copy className="mr-1.5 h-3 w-3" />
-              {t("Copy prompt")}
+              <Copy className='mr-1.5 h-3 w-3' />
+              {t('Copy prompt')}
             </Button>
           </div>
           <Textarea
             value={prompt}
             readOnly
             rows={8}
-            className="font-mono text-xs"
+            className='font-mono text-xs'
             spellCheck={false}
           />
         </div>
       </CollapsibleContent>
     </Collapsible>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1639,14 +1637,14 @@ function LlmPromptHelper({ modelName }: LlmPromptHelperProps) {
 // ---------------------------------------------------------------------------
 
 export type TieredPricingEditorProps = {
-  modelName?: string;
-  billingExpr: string;
-  requestRuleExpr: string;
-  onBillingExprChange: (next: string) => void;
-  onRequestRuleExprChange: (next: string) => void;
-};
+  modelName?: string
+  billingExpr: string
+  requestRuleExpr: string
+  onBillingExprChange: (next: string) => void
+  onRequestRuleExprChange: (next: string) => void
+}
 
-type EditorMode = "visual" | "raw";
+type EditorMode = 'visual' | 'raw'
 
 export const TieredPricingEditor = memo(function TieredPricingEditor({
   modelName,
@@ -1655,125 +1653,125 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
   onBillingExprChange,
   onRequestRuleExprChange,
 }: TieredPricingEditorProps) {
-  const { t } = useTranslation();
-  const [editorMode, setEditorMode] = useState<EditorMode>("visual");
+  const { t } = useTranslation()
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual')
   const [visualConfig, setVisualConfig] = useState<VisualConfig | null>(() =>
-    tryParseVisualConfig(currentExpr),
-  );
+    tryParseVisualConfig(currentExpr)
+  )
   const [rawExpr, setRawExpr] = useState(() =>
-    combineBillingExpr(currentExpr || "", currentRequestRuleExpr || ""),
-  );
+    combineBillingExpr(currentExpr || '', currentRequestRuleExpr || '')
+  )
   const [requestRuleGroups, setRequestRuleGroups] = useState<
     RequestRuleGroup[]
-  >(() => tryParseRequestRuleExpr(currentRequestRuleExpr) || []);
+  >(() => tryParseRequestRuleExpr(currentRequestRuleExpr) || [])
   const requestRuleGroupEntries = requestRuleGroups.map(
     (group, groupIndex) => ({
       group,
       groupIndex,
       key: `request-rule-group-${groupIndex}`,
-    }),
-  );
-  const initRef = useRef(false);
+    })
+  )
+  const initRef = useRef(false)
 
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-    const parsedConfig = tryParseVisualConfig(currentExpr);
+    if (initRef.current) return
+    initRef.current = true
+    const parsedConfig = tryParseVisualConfig(currentExpr)
     if (parsedConfig) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisualConfig(parsedConfig);
-      setEditorMode("visual");
+      setVisualConfig(parsedConfig)
+      setEditorMode('visual')
     } else if (currentExpr) {
-      setVisualConfig(null);
-      setEditorMode("raw");
+      setVisualConfig(null)
+      setEditorMode('raw')
     } else {
-      setVisualConfig(createDefaultVisualConfig());
+      setVisualConfig(createDefaultVisualConfig())
     }
     setRawExpr(
-      combineBillingExpr(currentExpr || "", currentRequestRuleExpr || ""),
-    );
-    setRequestRuleGroups(tryParseRequestRuleExpr(currentRequestRuleExpr) || []);
-  }, [currentExpr, currentRequestRuleExpr]);
+      combineBillingExpr(currentExpr || '', currentRequestRuleExpr || '')
+    )
+    setRequestRuleGroups(tryParseRequestRuleExpr(currentRequestRuleExpr) || [])
+  }, [currentExpr, currentRequestRuleExpr])
 
   useEffect(() => {
-    initRef.current = false;
-  }, [modelName]);
+    initRef.current = false
+  }, [modelName])
 
   const canUseVisualRules = useMemo(() => {
-    if (!currentRequestRuleExpr) return true;
-    return tryParseRequestRuleExpr(currentRequestRuleExpr) !== null;
-  }, [currentRequestRuleExpr]);
+    if (!currentRequestRuleExpr) return true
+    return tryParseRequestRuleExpr(currentRequestRuleExpr) !== null
+  }, [currentRequestRuleExpr])
 
   const effectiveExpr = useMemo(() => {
-    if (editorMode === "visual") {
-      return generateExprFromVisualConfig(visualConfig);
+    if (editorMode === 'visual') {
+      return generateExprFromVisualConfig(visualConfig)
     }
-    const { billingExpr } = splitBillingExprAndRequestRules(rawExpr);
-    return billingExpr;
-  }, [editorMode, visualConfig, rawExpr]);
+    const { billingExpr } = splitBillingExprAndRequestRules(rawExpr)
+    return billingExpr
+  }, [editorMode, visualConfig, rawExpr])
 
   useEffect(() => {
     if (effectiveExpr !== currentExpr) {
-      onBillingExprChange(effectiveExpr);
+      onBillingExprChange(effectiveExpr)
     }
-  }, [effectiveExpr, currentExpr, onBillingExprChange]);
+  }, [effectiveExpr, currentExpr, onBillingExprChange])
 
   useEffect(() => {
-    if (editorMode !== "visual") return;
+    if (editorMode !== 'visual') return
     const ruleExpr = buildRequestRuleExpr(
       requestRuleGroups,
-      getBusinessTimezone(),
-    );
+      getBusinessTimezone()
+    )
     if (ruleExpr !== currentRequestRuleExpr) {
-      onRequestRuleExprChange(ruleExpr);
+      onRequestRuleExprChange(ruleExpr)
     }
   }, [
     editorMode,
     requestRuleGroups,
     currentRequestRuleExpr,
     onRequestRuleExprChange,
-  ]);
+  ])
 
   const handleVisualChange = useCallback((next: VisualConfig) => {
-    setVisualConfig(next);
-  }, []);
+    setVisualConfig(next)
+  }, [])
 
   const handleRawChange = useCallback(
     (value: string) => {
-      setRawExpr(value);
+      setRawExpr(value)
       const { requestRuleExpr: ruleStr } =
-        splitBillingExprAndRequestRules(value);
-      onRequestRuleExprChange(ruleStr);
+        splitBillingExprAndRequestRules(value)
+      onRequestRuleExprChange(ruleStr)
     },
-    [onRequestRuleExprChange],
-  );
+    [onRequestRuleExprChange]
+  )
 
   const handleModeChange = useCallback(
     (next: EditorMode) => {
-      if (next === "visual") {
+      if (next === 'visual') {
         const { billingExpr, requestRuleExpr: ruleStr } =
-          splitBillingExprAndRequestRules(rawExpr);
-        const parsed = tryParseVisualConfig(billingExpr);
+          splitBillingExprAndRequestRules(rawExpr)
+        const parsed = tryParseVisualConfig(billingExpr)
         if (parsed) {
-          setVisualConfig(parsed);
+          setVisualConfig(parsed)
         } else {
-          setVisualConfig(createDefaultVisualConfig());
+          setVisualConfig(createDefaultVisualConfig())
         }
-        const parsedGroups = tryParseRequestRuleExpr(ruleStr);
-        setRequestRuleGroups(parsedGroups || []);
-        onRequestRuleExprChange(ruleStr);
+        const parsedGroups = tryParseRequestRuleExpr(ruleStr)
+        setRequestRuleGroups(parsedGroups || [])
+        onRequestRuleExprChange(ruleStr)
       } else {
-        const expr = generateExprFromVisualConfig(visualConfig);
+        const expr = generateExprFromVisualConfig(visualConfig)
         const ruleExpr = buildRequestRuleExpr(
           requestRuleGroups,
-          getBusinessTimezone(),
-        );
-        setRawExpr(combineBillingExpr(expr, ruleExpr) || expr);
+          getBusinessTimezone()
+        )
+        setRawExpr(combineBillingExpr(expr, ruleExpr) || expr)
       }
-      setEditorMode(next);
+      setEditorMode(next)
     },
-    [rawExpr, visualConfig, requestRuleGroups, onRequestRuleExprChange],
-  );
+    [rawExpr, visualConfig, requestRuleGroups, onRequestRuleExprChange]
+  )
 
   const applyPreset = useCallback(
     (preset: Preset) => {
@@ -1782,59 +1780,56 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
         conditions: group.conditions.map((condition) =>
           condition.source === SOURCE_TIME
             ? { ...condition, timezone: getBusinessTimezone() }
-            : condition,
+            : condition
         ),
-      }));
-      const ruleExpr = buildRequestRuleExpr(
-        presetGroups,
-        getBusinessTimezone(),
-      );
-      const combined = combineBillingExpr(preset.expr, ruleExpr) || preset.expr;
-      setRawExpr(combined);
-      const parsed = tryParseVisualConfig(preset.expr);
+      }))
+      const ruleExpr = buildRequestRuleExpr(presetGroups, getBusinessTimezone())
+      const combined = combineBillingExpr(preset.expr, ruleExpr) || preset.expr
+      setRawExpr(combined)
+      const parsed = tryParseVisualConfig(preset.expr)
       if (parsed) {
-        setVisualConfig(parsed);
-        setEditorMode("visual");
+        setVisualConfig(parsed)
+        setEditorMode('visual')
       } else {
-        setEditorMode("raw");
-        setVisualConfig(null);
+        setEditorMode('raw')
+        setVisualConfig(null)
       }
-      setRequestRuleGroups(presetGroups);
-      onRequestRuleExprChange(ruleExpr);
+      setRequestRuleGroups(presetGroups)
+      onRequestRuleExprChange(ruleExpr)
     },
-    [onRequestRuleExprChange],
-  );
+    [onRequestRuleExprChange]
+  )
 
   const handleRuleGroupsChange = useCallback((next: RequestRuleGroup[]) => {
-    setRequestRuleGroups(next);
-  }, []);
+    setRequestRuleGroups(next)
+  }, [])
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <Field className="gap-2">
-          <FieldLabel>{t("Editor mode")}</FieldLabel>
+    <div className='space-y-5'>
+      <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end'>
+        <Field className='gap-2'>
+          <FieldLabel>{t('Editor mode')}</FieldLabel>
           <Select
             items={[
-              { value: "visual", label: t("Visual editor") },
-              { value: "raw", label: t("Expression editor") },
+              { value: 'visual', label: t('Visual editor') },
+              { value: 'raw', label: t('Expression editor') },
             ]}
             value={editorMode}
             onValueChange={(value) => handleModeChange(value as EditorMode)}
           >
-            <SelectTrigger className="w-full sm:w-56" size="sm">
+            <SelectTrigger className='w-full sm:w-56' size='sm'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
               <SelectGroup>
-                <SelectItem value="visual">{t("Visual editor")}</SelectItem>
-                <SelectItem value="raw">{t("Expression editor")}</SelectItem>
+                <SelectItem value='visual'>{t('Visual editor')}</SelectItem>
+                <SelectItem value='raw'>{t('Expression editor')}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
-        {editorMode === "raw" && (
-          <div className="sm:pb-0.5">
+        {editorMode === 'raw' && (
+          <div className='sm:pb-0.5'>
             <LlmPromptHelper modelName={modelName} />
           </div>
         )}
@@ -1842,8 +1837,8 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
 
       <PresetSection applyPreset={applyPreset} />
 
-      <div className="bg-muted/30 space-y-3 rounded-md border p-3">
-        {editorMode === "visual" ? (
+      <div className='bg-muted/30 space-y-3 rounded-md border p-3'>
+        {editorMode === 'visual' ? (
           <VisualEditor
             visualConfig={visualConfig}
             onChange={handleVisualChange}
@@ -1852,24 +1847,24 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
           <RawExprEditor exprString={rawExpr} onChange={handleRawChange} />
         )}
 
-        {editorMode === "visual" && (
-          <div className="space-y-3 border-t pt-3">
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">
-                {t("Request rule pricing")}
+        {editorMode === 'visual' && (
+          <div className='space-y-3 border-t pt-3'>
+            <div className='space-y-1'>
+              <h4 className='text-sm font-medium'>
+                {t('Request rule pricing')}
               </h4>
-              <p className="text-muted-foreground text-xs">
+              <p className='text-muted-foreground text-xs'>
                 {t(
-                  "When conditions match, the final price is multiplied by X. Multiple matches multiply together; values < 1 act as discounts.",
+                  'When conditions match, the final price is multiplied by X. Multiple matches multiply together; values < 1 act as discounts.'
                 )}
               </p>
             </div>
 
             {currentRequestRuleExpr && !canUseVisualRules ? (
               <Alert>
-                <AlertDescription className="text-xs">
+                <AlertDescription className='text-xs'>
                   {t(
-                    "This expression is too complex for the visual editor. Please switch to expression mode to edit.",
+                    'This expression is too complex for the visual editor. Please switch to expression mode to edit.'
                   )}
                 </AlertDescription>
               </Alert>
@@ -1881,23 +1876,23 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
                     group={entry.group}
                     index={entry.groupIndex}
                     onChange={(next) => {
-                      const updated = [...requestRuleGroups];
-                      updated[entry.groupIndex] = next;
-                      handleRuleGroupsChange(updated);
+                      const updated = [...requestRuleGroups]
+                      updated[entry.groupIndex] = next
+                      handleRuleGroupsChange(updated)
                     }}
                     onRemove={() =>
                       handleRuleGroupsChange(
                         requestRuleGroups.filter(
-                          (_, i) => i !== entry.groupIndex,
-                        ),
+                          (_, i) => i !== entry.groupIndex
+                        )
                       )
                     }
                   />
                 ))}
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-36 justify-center"
+                  variant='outline'
+                  size='sm'
+                  className='h-9 w-36 justify-center'
                   onClick={() =>
                     handleRuleGroupsChange([
                       ...requestRuleGroups,
@@ -1905,8 +1900,8 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
                     ])
                   }
                 >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("Add rule group")}
+                  <Plus className='mr-2 h-4 w-4' />
+                  {t('Add rule group')}
                 </Button>
               </>
             )}
@@ -1916,5 +1911,5 @@ export const TieredPricingEditor = memo(function TieredPricingEditor({
 
       <CostEstimator effectiveExpr={effectiveExpr} />
     </div>
-  );
-});
+  )
+})

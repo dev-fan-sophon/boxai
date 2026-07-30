@@ -16,37 +16,37 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Info } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from "@/components/layout";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SectionPageLayout } from '@/components/layout'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
-import { SubscriptionsDialogs } from "./components/subscriptions-dialogs";
-import { SubscriptionsPrimaryButtons } from "./components/subscriptions-primary-buttons";
+import { SubscriptionsDialogs } from './components/subscriptions-dialogs'
+import { SubscriptionsPrimaryButtons } from './components/subscriptions-primary-buttons'
 import {
   SubscriptionsProvider,
   useSubscriptions,
-} from "./components/subscriptions-provider";
-import { SubscriptionsTable } from "./components/subscriptions-table";
+} from './components/subscriptions-provider'
+import { SubscriptionsTable } from './components/subscriptions-table'
 
 function SubscriptionsContent() {
-  const { t } = useTranslation();
-  const { complianceConfirmed } = useSubscriptions();
+  const { t } = useTranslation()
+  const { complianceConfirmed } = useSubscriptions()
 
   return (
     <>
       <SectionPageLayout fixedContent>
         <SectionPageLayout.Title>
-          {t("Subscription Management")}
+          {t('Subscription Management')}
         </SectionPageLayout.Title>
         <SectionPageLayout.Actions>
-          <div className="flex items-center gap-2">
-            <Alert variant="default" className="hidden px-3 py-2 sm:flex">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-xs">
+          <div className='flex items-center gap-2'>
+            <Alert variant='default' className='hidden px-3 py-2 sm:flex'>
+              <Info className='h-4 w-4' />
+              <AlertDescription className='text-xs'>
                 {t(
-                  "Stripe/Creem requires creating products on the third-party platform and entering the ID",
+                  'Stripe/Creem requires creating products on the third-party platform and entering the ID'
                 )}
               </AlertDescription>
             </Alert>
@@ -54,17 +54,17 @@ function SubscriptionsContent() {
           </div>
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          <div className="flex h-full min-h-0 flex-col gap-4">
+          <div className='flex h-full min-h-0 flex-col gap-4'>
             {!complianceConfirmed ? (
-              <Alert variant="destructive" className="shrink-0">
+              <Alert variant='destructive' className='shrink-0'>
                 <AlertDescription>
                   {t(
-                    "Subscription plan creation and changes are locked until the administrator confirms compliance terms in Payment Gateway settings.",
+                    'Subscription plan creation and changes are locked until the administrator confirms compliance terms in Payment Gateway settings.'
                   )}
                 </AlertDescription>
               </Alert>
             ) : null}
-            <div className="min-h-0 flex-1">
+            <div className='min-h-0 flex-1'>
               <SubscriptionsTable />
             </div>
           </div>
@@ -73,7 +73,7 @@ function SubscriptionsContent() {
 
       <SubscriptionsDialogs />
     </>
-  );
+  )
 }
 
 export function Subscriptions() {
@@ -81,5 +81,5 @@ export function Subscriptions() {
     <SubscriptionsProvider>
       <SubscriptionsContent />
     </SubscriptionsProvider>
-  );
+  )
 }

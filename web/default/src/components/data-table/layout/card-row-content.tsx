@@ -16,25 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Cell, Row } from "@tanstack/react-table";
-import * as React from "react";
+import type { Cell, Row } from '@tanstack/react-table'
+import * as React from 'react'
 
-import { StatusBadgeTypeContext } from "@/components/status-badge";
+import { StatusBadgeTypeContext } from '@/components/status-badge'
 
-import { getCellLabel, renderCellContent } from "./card-cell-utils";
+import { getCellLabel, renderCellContent } from './card-cell-utils'
 
 function orderCardCells<TData>(
-  cells: Cell<TData, unknown>[],
+  cells: Cell<TData, unknown>[]
 ): Cell<TData, unknown>[] {
   return [...cells].sort((a, b) => {
-    const aOrder = a.column.columnDef.meta?.mobileOrder;
-    const bOrder = b.column.columnDef.meta?.mobileOrder;
+    const aOrder = a.column.columnDef.meta?.mobileOrder
+    const bOrder = b.column.columnDef.meta?.mobileOrder
 
-    if (aOrder == null && bOrder == null) return 0;
-    if (aOrder == null) return 1;
-    if (bOrder == null) return -1;
-    return aOrder - bOrder;
-  });
+    if (aOrder == null && bOrder == null) return 0
+    if (aOrder == null) return 1
+    if (bOrder == null) return -1
+    return aOrder - bOrder
+  })
 }
 
 /**
@@ -64,39 +64,39 @@ function orderCardCells<TData>(
 function CompactContent<TData>({ row }: { row: Row<TData> }) {
   const allCells = row
     .getVisibleCells()
-    .filter((cell) => cell.column.id !== "select");
+    .filter((cell) => cell.column.id !== 'select')
 
   // Read each cell's meta once, then reuse for all categorisation checks.
   const cellMetas = React.useMemo(
     () => allCells.map((c) => c.column.columnDef.meta),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allCells.map((c) => c.id).join(",")],
-  );
+    [allCells.map((c) => c.id).join(',')]
+  )
 
-  const titleCell = allCells.find((_, i) => cellMetas[i]?.mobileTitle);
-  const badgeCell = allCells.find((_, i) => cellMetas[i]?.mobileBadge);
-  const actionsCell = allCells.find((c) => c.column.id === "actions");
+  const titleCell = allCells.find((_, i) => cellMetas[i]?.mobileTitle)
+  const badgeCell = allCells.find((_, i) => cellMetas[i]?.mobileBadge)
+  const actionsCell = allCells.find((c) => c.column.id === 'actions')
   const fieldCells = orderCardCells(
     allCells.filter(
       (c, i) =>
         c !== titleCell &&
         c !== badgeCell &&
         c !== actionsCell &&
-        !cellMetas[i]?.mobileHidden,
-    ),
-  );
+        !cellMetas[i]?.mobileHidden
+    )
+  )
 
   return (
     <>
       {/* Row 1: Title + Badge */}
-      <div className="flex items-center justify-between gap-2">
+      <div className='flex items-center justify-between gap-2'>
         {titleCell && (
-          <div className="min-w-0 flex-1 text-sm font-medium [&_[data-slot=status-badge]]:max-w-full [&_[data-slot=status-badge]]:whitespace-normal">
+          <div className='min-w-0 flex-1 text-sm font-medium [&_[data-slot=status-badge]]:max-w-full [&_[data-slot=status-badge]]:whitespace-normal'>
             {renderCellContent(titleCell)}
           </div>
         )}
         {badgeCell && (
-          <div className="flex-none [&_[data-slot=status-badge]]:max-w-none">
+          <div className='flex-none [&_[data-slot=status-badge]]:max-w-none'>
             {renderCellContent(badgeCell)}
           </div>
         )}
@@ -104,35 +104,35 @@ function CompactContent<TData>({ row }: { row: Row<TData> }) {
 
       {/* Row 2: Key fields wrap into compact columns instead of squeezing */}
       {fieldCells.length > 0 && (
-        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+        <div className='mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5'>
           {fieldCells.map((cell) => {
-            const label = getCellLabel(cell);
+            const label = getCellLabel(cell)
             return (
-              <div key={cell.id} className="min-w-0 flex-1 overflow-hidden">
+              <div key={cell.id} className='min-w-0 flex-1 overflow-hidden'>
                 {label && (
-                  <div className="text-muted-foreground mb-0.5 text-[10px] leading-none select-none">
+                  <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
                     {label}
                   </div>
                 )}
-                <div className="min-w-0 overflow-hidden text-xs [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0">
-                  <StatusBadgeTypeContext.Provider value="text">
-                    {renderCellContent(cell) ?? "-"}
+                <div className='min-w-0 overflow-hidden text-xs [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0'>
+                  <StatusBadgeTypeContext.Provider value='text'>
+                    {renderCellContent(cell) ?? '-'}
                   </StatusBadgeTypeContext.Provider>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       )}
 
       {/* Actions */}
       {actionsCell && (
-        <div className="mt-1 -mb-0.5 flex justify-end">
+        <div className='mt-1 -mb-0.5 flex justify-end'>
           {renderCellContent(actionsCell)}
         </div>
       )}
     </>
-  );
+  )
 }
 
 /**
@@ -142,62 +142,62 @@ function CompactContent<TData>({ row }: { row: Row<TData> }) {
 function FallbackContent<TData>({ row }: { row: Row<TData> }) {
   const allCells = row
     .getVisibleCells()
-    .filter((cell) => cell.column.id !== "select");
+    .filter((cell) => cell.column.id !== 'select')
 
   const cellMetas = React.useMemo(
     () => allCells.map((c) => c.column.columnDef.meta),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allCells.map((c) => c.id).join(",")],
-  );
+    [allCells.map((c) => c.id).join(',')]
+  )
 
-  const actionsCell = allCells.find((c) => c.column.id === "actions");
+  const actionsCell = allCells.find((c) => c.column.id === 'actions')
   const contentCells = orderCardCells(
     allCells.filter(
-      (c, i) => c.column.id !== "actions" && !cellMetas[i]?.mobileHidden,
-    ),
-  );
+      (c, i) => c.column.id !== 'actions' && !cellMetas[i]?.mobileHidden
+    )
+  )
 
   return (
     <>
       {contentCells.map((cell) => {
-        const label = getCellLabel(cell);
+        const label = getCellLabel(cell)
 
         if (!label) {
           return (
             <div
               key={cell.id}
-              className="flex justify-end overflow-hidden [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0"
+              className='flex justify-end overflow-hidden [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0'
             >
-              <StatusBadgeTypeContext.Provider value="text">
+              <StatusBadgeTypeContext.Provider value='text'>
                 {renderCellContent(cell)}
               </StatusBadgeTypeContext.Provider>
             </div>
-          );
+          )
         }
 
         return (
           <div
             key={cell.id}
-            className="flex items-start justify-between gap-2 overflow-hidden"
+            className='flex items-start justify-between gap-2 overflow-hidden'
           >
-            <span className="text-muted-foreground shrink-0 text-[10px] font-medium select-none">
+            <span className='text-muted-foreground shrink-0 text-[10px] font-medium select-none'>
               {label}
             </span>
-            <div className="flex min-w-0 flex-1 items-center justify-end overflow-hidden text-xs [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0">
-              <StatusBadgeTypeContext.Provider value="text">
-                {renderCellContent(cell) ?? "-"}
+            <div className='flex min-w-0 flex-1 items-center justify-end overflow-hidden text-xs [&_:is([data-slot=badge-cell],[data-slot=provider-badge],[data-slot=status-badge])]:ml-0'>
+              <StatusBadgeTypeContext.Provider value='text'>
+                {renderCellContent(cell) ?? '-'}
               </StatusBadgeTypeContext.Provider>
             </div>
           </div>
-        );
+        )
       })}
       {actionsCell && (
-        <div className="-mb-0.5 flex justify-end pt-0.5">
+        <div className='-mb-0.5 flex justify-end pt-0.5'>
           {renderCellContent(actionsCell)}
         </div>
       )}
     </>
-  );
+  )
 }
 
 /**
@@ -206,12 +206,12 @@ function FallbackContent<TData>({ row }: { row: Row<TData> }) {
  * and pass it down to avoid recomputation per row.
  */
 export function CardRowContent<TData>(props: {
-  row: Row<TData>;
-  compact: boolean;
+  row: Row<TData>
+  compact: boolean
 }) {
   return props.compact ? (
     <CompactContent row={props.row} />
   ) : (
     <FallbackContent row={props.row} />
-  );
+  )
 }

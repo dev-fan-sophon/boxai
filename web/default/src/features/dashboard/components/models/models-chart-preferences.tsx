@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Save, Settings2 } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Save, Settings2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -30,66 +30,66 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select'
 import {
   CONSUMPTION_DISTRIBUTION_CHART_OPTIONS,
   MODEL_ANALYTICS_CHART_OPTIONS,
   TIME_GRANULARITY_OPTIONS,
   TIME_RANGE_PRESETS,
-} from "@/features/dashboard/constants";
+} from '@/features/dashboard/constants'
 import type {
   ConsumptionDistributionChartType,
   DashboardChartPreferences,
   ModelAnalyticsChartTab,
-} from "@/features/dashboard/types";
-import type { TimeGranularity } from "@/lib/time";
+} from '@/features/dashboard/types'
+import type { TimeGranularity } from '@/lib/time'
 
 interface ModelsChartPreferencesProps {
-  preferences: DashboardChartPreferences;
-  onPreferencesChange: (preferences: DashboardChartPreferences) => void;
+  preferences: DashboardChartPreferences
+  onPreferencesChange: (preferences: DashboardChartPreferences) => void
 }
 
 export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<DashboardChartPreferences>(
-    props.preferences,
-  );
+    props.preferences
+  )
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) setDraft(props.preferences);
-    setOpen(nextOpen);
-  };
+    if (nextOpen) setDraft(props.preferences)
+    setOpen(nextOpen)
+  }
 
   const handleSave = () => {
-    props.onPreferencesChange(draft);
-    setOpen(false);
-  };
+    props.onPreferencesChange(draft)
+    setOpen(false)
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
       trigger={
-        <Button variant="outline" size="sm">
-          <Settings2 className="mr-2 h-4 w-4" />
-          {t("Preferences")}
+        <Button variant='outline' size='sm'>
+          <Settings2 className='mr-2 h-4 w-4' />
+          {t('Preferences')}
         </Button>
       }
-      title={t("Model Analytics Defaults")}
-      description={t("Set default ranges and charts for model analytics.")}
-      contentClassName="sm:max-w-md"
-      contentHeight="auto"
-      bodyClassName="grid gap-3"
+      title={t('Model Analytics Defaults')}
+      description={t('Set default ranges and charts for model analytics.')}
+      contentClassName='sm:max-w-md'
+      contentHeight='auto'
+      bodyClassName='grid gap-3'
       footer={
-        <Button onClick={handleSave} type="button">
-          <Save className="mr-2 h-4 w-4" />
-          {t("Save Preferences")}
+        <Button onClick={handleSave} type='button'>
+          <Save className='mr-2 h-4 w-4' />
+          {t('Save Preferences')}
         </Button>
       }
     >
-      <div className="grid gap-1.5">
-        <Label htmlFor="default-time-range">{t("Default range")}</Label>
+      <div className='grid gap-1.5'>
+        <Label htmlFor='default-time-range'>{t('Default range')}</Label>
         <Select
           items={TIME_RANGE_PRESETS.map((option) => ({
             value: String(option.days),
@@ -103,8 +103,8 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             }))
           }
         >
-          <SelectTrigger id="default-time-range">
-            <SelectValue placeholder={t("Select default range")} />
+          <SelectTrigger id='default-time-range'>
+            <SelectValue placeholder={t('Select default range')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -117,9 +117,9 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="default-time-granularity">
-          {t("Default time granularity")}
+      <div className='grid gap-1.5'>
+        <Label htmlFor='default-time-granularity'>
+          {t('Default time granularity')}
         </Label>
         <Select
           items={TIME_GRANULARITY_OPTIONS.map((option) => ({
@@ -134,8 +134,8 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             }))
           }
         >
-          <SelectTrigger id="default-time-granularity">
-            <SelectValue placeholder={t("Select time granularity")} />
+          <SelectTrigger id='default-time-granularity'>
+            <SelectValue placeholder={t('Select time granularity')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -148,9 +148,9 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="consumption-distribution-chart">
-          {t("Default consumption chart")}
+      <div className='grid gap-1.5'>
+        <Label htmlFor='consumption-distribution-chart'>
+          {t('Default consumption chart')}
         </Label>
         <Select
           items={CONSUMPTION_DISTRIBUTION_CHART_OPTIONS.map((option) => ({
@@ -166,8 +166,8 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             }))
           }
         >
-          <SelectTrigger id="consumption-distribution-chart">
-            <SelectValue placeholder={t("Select default chart")} />
+          <SelectTrigger id='consumption-distribution-chart'>
+            <SelectValue placeholder={t('Select default chart')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -180,9 +180,9 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="model-analytics-chart">
-          {t("Default model call chart")}
+      <div className='grid gap-1.5'>
+        <Label htmlFor='model-analytics-chart'>
+          {t('Default model call chart')}
         </Label>
         <Select
           items={MODEL_ANALYTICS_CHART_OPTIONS.map((option) => ({
@@ -197,8 +197,8 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
             }))
           }
         >
-          <SelectTrigger id="model-analytics-chart">
-            <SelectValue placeholder={t("Select default chart")} />
+          <SelectTrigger id='model-analytics-chart'>
+            <SelectValue placeholder={t('Select default chart')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -212,5 +212,5 @@ export function ModelsChartPreferences(props: ModelsChartPreferencesProps) {
         </Select>
       </div>
     </Dialog>
-  );
+  )
 }

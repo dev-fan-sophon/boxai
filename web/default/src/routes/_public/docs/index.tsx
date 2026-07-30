@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { PrivacyPolicy } from "@/features/legal";
-
-export const Route = createFileRoute("/privacy-policy")({
-  component: PrivacyPolicy,
-});
+export const Route = createFileRoute('/_public/docs/')({
+  beforeLoad: () => {
+    throw redirect({ to: '/docs/$slug', params: { slug: 'what-is-boxai' } })
+  },
+})

@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { ErrorState } from "@/components/error-state";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { LoadingState } from "@/components/loading-state";
+import { ErrorState } from '@/components/error-state'
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { LoadingState } from '@/components/loading-state'
 import {
   Card,
   CardContent,
@@ -33,61 +33,61 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useSystemConfig } from "@/hooks/use-system-config";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/card'
+import { Form } from '@/components/ui/form'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useSystemConfig } from '@/hooks/use-system-config'
+import { cn } from '@/lib/utils'
 
-import { buildSetupPayload, getSetupStatus, submitSetup } from "./api";
-import { AdminStep } from "./components/admin-step";
-import { CompleteStep } from "./components/complete-step";
-import { DatabaseStep } from "./components/database-step";
-import { StepNavigation } from "./components/step-navigation";
-import { UsageModeStep } from "./components/usage-mode-step";
-import type { SetupFormValues, SetupStatus } from "./types";
+import { buildSetupPayload, getSetupStatus, submitSetup } from './api'
+import { AdminStep } from './components/admin-step'
+import { CompleteStep } from './components/complete-step'
+import { DatabaseStep } from './components/database-step'
+import { StepNavigation } from './components/step-navigation'
+import { UsageModeStep } from './components/usage-mode-step'
+import type { SetupFormValues, SetupStatus } from './types'
 
 const STEPS = [
   {
-    titleKey: "Database check",
-    descriptionKey: "Verify your database connection",
+    titleKey: 'Database check',
+    descriptionKey: 'Verify your database connection',
   },
   {
-    titleKey: "Administrator account",
-    descriptionKey: "Create credentials for the root user",
+    titleKey: 'Administrator account',
+    descriptionKey: 'Create credentials for the root user',
   },
   {
-    titleKey: "Usage mode",
-    descriptionKey: "Choose how the platform will operate",
+    titleKey: 'Usage mode',
+    descriptionKey: 'Choose how the platform will operate',
   },
   {
-    titleKey: "Review & initialize",
-    descriptionKey: "Confirm settings and finish setup",
+    titleKey: 'Review & initialize',
+    descriptionKey: 'Confirm settings and finish setup',
   },
-];
+]
 
 const DEFAULT_FORM_VALUES: SetupFormValues = {
-  username: "",
-  password: "",
-  confirmPassword: "",
-  usageMode: "external",
-};
+  username: '',
+  password: '',
+  confirmPassword: '',
+  usageMode: 'external',
+}
 
 export function SetupWizard() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { systemName, logo, loading: systemConfigLoading } = useSystemConfig();
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { systemName, logo, loading: systemConfigLoading } = useSystemConfig()
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [setupStatus, setSetupStatus] = useState<SetupStatus | undefined>();
+  const [currentStep, setCurrentStep] = useState(0)
+  const [setupStatus, setSetupStatus] = useState<SetupStatus | undefined>()
 
   const form = useForm<SetupFormValues>({
     defaultValues: DEFAULT_FORM_VALUES,
-    mode: "onBlur",
-  });
+    mode: 'onBlur',
+  })
 
-  const watchedValues = form.watch();
+  const watchedValues = form.watch()
 
   const {
     data: statusResponse,
@@ -95,100 +95,100 @@ export function SetupWizard() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["setup-status"],
+    queryKey: ['setup-status'],
     queryFn: getSetupStatus,
     retry: false,
-  });
+  })
 
   const mutation = useMutation({
-    mutationKey: ["setup-submit"],
+    mutationKey: ['setup-submit'],
     mutationFn: submitSetup,
     onSuccess: async (response) => {
       if (response.success) {
-        toast.success(t("System initialized successfully! Redirecting…"));
-        await queryClient.invalidateQueries({ queryKey: ["setup-status"] });
+        toast.success(t('System initialized successfully! Redirecting…'))
+        await queryClient.invalidateQueries({ queryKey: ['setup-status'] })
         setTimeout(() => {
-          navigate({ to: "/" });
-        }, 1200);
+          navigate({ to: '/' })
+        }, 1200)
       } else {
         toast.error(
-          response.message || t("Initialization failed, please try again."),
-        );
+          response.message || t('Initialization failed, please try again.')
+        )
       }
     },
     onError: () => {
-      toast.error(t("Failed to initialize system"));
+      toast.error(t('Failed to initialize system'))
     },
-  });
+  })
 
   useEffect(() => {
-    if (!statusResponse) return;
+    if (!statusResponse) return
 
     if (!statusResponse.success) {
-      toast.error(statusResponse.message || t("Failed to load setup status"));
-      return;
+      toast.error(statusResponse.message || t('Failed to load setup status'))
+      return
     }
 
-    const status = statusResponse.data;
-    if (!status) return;
+    const status = statusResponse.data
+    if (!status) return
 
     if (status.status) {
-      navigate({ to: "/" });
-      return;
+      navigate({ to: '/' })
+      return
     }
 
-    setSetupStatus(status);
-    setCurrentStep(0);
+    setSetupStatus(status)
+    setCurrentStep(0)
 
     // Pre-fill usage mode if backend echoes it
     if (status.SelfUseModeEnabled) {
-      form.setValue("usageMode", "self", {
+      form.setValue('usageMode', 'self', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
+      })
     } else if (status.DemoSiteEnabled) {
-      form.setValue("usageMode", "demo", {
+      form.setValue('usageMode', 'demo', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
+      })
     } else {
-      form.setValue("usageMode", "external", {
+      form.setValue('usageMode', 'external', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusResponse, navigate, form]);
+  }, [statusResponse, navigate, form])
 
   useEffect(() => {
-    if (!setupStatus) return;
+    if (!setupStatus) return
 
     // Reset admin fields when backend reports they are already initialized
     if (setupStatus.root_init) {
-      form.setValue("username", "", {
+      form.setValue('username', '', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
-      form.setValue("password", "", {
+      })
+      form.setValue('password', '', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
-      form.setValue("confirmPassword", "", {
+      })
+      form.setValue('confirmPassword', '', {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
-      });
+      })
     }
-  }, [setupStatus, form]);
+  }, [setupStatus, form])
 
   const currentStepComponent = useMemo(() => {
     if (currentStep === 0) {
-      return <DatabaseStep status={setupStatus} />;
+      return <DatabaseStep status={setupStatus} />
     }
     if (currentStep === 1) {
       return (
@@ -196,186 +196,186 @@ export function SetupWizard() {
           form={form}
           rootInitialized={Boolean(setupStatus?.root_init)}
         />
-      );
+      )
     }
     if (currentStep === 2) {
-      return <UsageModeStep form={form} />;
+      return <UsageModeStep form={form} />
     }
-    return <CompleteStep status={setupStatus} values={watchedValues} />;
-  }, [currentStep, setupStatus, form, watchedValues]);
+    return <CompleteStep status={setupStatus} values={watchedValues} />
+  }, [currentStep, setupStatus, form, watchedValues])
 
   const validateAdminStep = () => {
-    if (setupStatus?.root_init) return true;
+    if (setupStatus?.root_init) return true
 
-    const username = form.getValues("username")?.trim();
-    const password = form.getValues("password")?.trim();
-    const confirmPassword = form.getValues("confirmPassword")?.trim();
+    const username = form.getValues('username')?.trim()
+    const password = form.getValues('password')?.trim()
+    const confirmPassword = form.getValues('confirmPassword')?.trim()
 
     if (!username) {
-      form.setError("username", {
-        type: "manual",
-        message: t("Please enter an administrator username"),
-      });
-      toast.error(t("Please enter an administrator username"));
-      return false;
+      form.setError('username', {
+        type: 'manual',
+        message: t('Please enter an administrator username'),
+      })
+      toast.error(t('Please enter an administrator username'))
+      return false
     }
 
     if (!password || password.length < 8) {
-      form.setError("password", {
-        type: "manual",
-        message: t("Password must be at least 8 characters"),
-      });
-      toast.error(t("Password must be at least 8 characters"));
-      return false;
+      form.setError('password', {
+        type: 'manual',
+        message: t('Password must be at least 8 characters'),
+      })
+      toast.error(t('Password must be at least 8 characters'))
+      return false
     }
 
     if (password !== confirmPassword) {
-      form.setError("confirmPassword", {
-        type: "manual",
-        message: t("Passwords do not match"),
-      });
-      toast.error(t("Passwords do not match"));
-      return false;
+      form.setError('confirmPassword', {
+        type: 'manual',
+        message: t('Passwords do not match'),
+      })
+      toast.error(t('Passwords do not match'))
+      return false
     }
 
-    return true;
-  };
+    return true
+  }
 
   const validateUsageModeStep = () => {
-    const usageMode = form.getValues("usageMode");
+    const usageMode = form.getValues('usageMode')
     if (!usageMode) {
-      form.setError("usageMode", {
-        type: "manual",
-        message: t("Select a usage mode to continue"),
-      });
-      toast.error(t("Select a usage mode to continue"));
-      return false;
+      form.setError('usageMode', {
+        type: 'manual',
+        message: t('Select a usage mode to continue'),
+      })
+      toast.error(t('Select a usage mode to continue'))
+      return false
     }
-    return true;
-  };
+    return true
+  }
 
   const handleNextStep = () => {
-    if (currentStep === 1 && !validateAdminStep()) return;
-    if (currentStep === 2 && !validateUsageModeStep()) return;
+    if (currentStep === 1 && !validateAdminStep()) return
+    if (currentStep === 2 && !validateUsageModeStep()) return
 
-    setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1));
-  };
+    setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1))
+  }
 
   const handlePreviousStep = () => {
-    setCurrentStep((step) => Math.max(step - 1, 0));
-  };
+    setCurrentStep((step) => Math.max(step - 1, 0))
+  }
 
   const handleSubmit = async () => {
-    const adminValid = validateAdminStep();
-    const usageValid = validateUsageModeStep();
-    if (!adminValid || !usageValid) return;
+    const adminValid = validateAdminStep()
+    const usageValid = validateUsageModeStep()
+    if (!adminValid || !usageValid) return
 
     const payload = buildSetupPayload(
       form.getValues(),
-      Boolean(setupStatus?.root_init),
-    );
+      Boolean(setupStatus?.root_init)
+    )
 
-    mutation.mutate(payload);
-  };
+    mutation.mutate(payload)
+  }
 
   return (
-    <div className="bg-muted/40 relative min-h-svh py-10">
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+    <div className='bg-muted/40 relative min-h-svh py-10'>
+      <div className='absolute top-4 right-4 sm:top-6 sm:right-6'>
         <LanguageSwitcher />
       </div>
-      <div className="container mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative h-12 w-12">
+      <div className='container mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6'>
+        <div className='flex flex-col items-center gap-3'>
+          <div className='relative h-12 w-12'>
             {systemConfigLoading ? (
-              <Skeleton className="absolute inset-0 rounded-full" />
+              <Skeleton className='absolute inset-0 rounded-full' />
             ) : (
               <img
                 src={logo}
-                alt={t("System logo")}
-                className="h-12 w-12 rounded-full object-cover shadow-sm"
+                alt={t('System logo')}
+                className='h-12 w-12 rounded-full object-cover shadow-sm'
               />
             )}
           </div>
           {systemConfigLoading ? (
-            <Skeleton className="h-7 w-40" />
+            <Skeleton className='h-7 w-40' />
           ) : (
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {t("Initialize")} {systemName}
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('Initialize')} {systemName}
             </h1>
           )}
-          <p className="text-muted-foreground text-center text-sm sm:text-base">
+          <p className='text-muted-foreground text-center text-sm sm:text-base'>
             {t(
-              "Follow the guided steps to prepare your workspace before the first login.",
+              'Follow the guided steps to prepare your workspace before the first login.'
             )}
           </p>
         </div>
 
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-xl font-semibold">
-              {t("System setup wizard")}
+        <Card className='shadow-lg'>
+          <CardHeader className='space-y-2'>
+            <CardTitle className='text-xl font-semibold'>
+              {t('System setup wizard')}
             </CardTitle>
             <CardDescription>
-              {t("Complete these steps to finish the initial installation.")}
+              {t('Complete these steps to finish the initial installation.')}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <ol className="grid gap-3 sm:grid-cols-4">
+          <CardContent className='space-y-6'>
+            <ol className='grid gap-3 sm:grid-cols-4'>
               {STEPS.map((step, index) => {
-                const isActive = currentStep === index;
-                const isCompleted = currentStep > index;
-                let stepCardClass = "border-muted bg-card";
+                const isActive = currentStep === index
+                const isCompleted = currentStep > index
+                let stepCardClass = 'border-muted bg-card'
                 if (isActive) {
-                  stepCardClass = "border-primary ring-primary/20 ring-2";
+                  stepCardClass = 'border-primary ring-primary/20 ring-2'
                 } else if (isCompleted) {
-                  stepCardClass = "border-primary/40 bg-primary/5";
+                  stepCardClass = 'border-primary/40 bg-primary/5'
                 }
                 let stepBadgeClass =
-                  "border-muted-foreground/40 text-muted-foreground";
+                  'border-muted-foreground/40 text-muted-foreground'
                 if (isActive || isCompleted) {
                   stepBadgeClass =
-                    "border-primary bg-primary text-primary-foreground";
+                    'border-primary bg-primary text-primary-foreground'
                 }
                 return (
                   <li
                     key={step.titleKey}
-                    className={cn("rounded-xl border p-3", stepCardClass)}
+                    className={cn('rounded-xl border p-3', stepCardClass)}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className='flex items-start gap-3'>
                       <span
                         className={cn(
-                          "flex size-6 items-center justify-center rounded-md border text-xs font-semibold",
-                          stepBadgeClass,
+                          'flex size-6 items-center justify-center rounded-md border text-xs font-semibold',
+                          stepBadgeClass
                         )}
                       >
                         {index + 1}
                       </span>
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold">
+                      <div className='space-y-1'>
+                        <p className='text-sm font-semibold'>
                           {t(step.titleKey)}
                         </p>
-                        <p className="text-muted-foreground text-xs">
+                        <p className='text-muted-foreground text-xs'>
                           {t(step.descriptionKey)}
                         </p>
                       </div>
                     </div>
                   </li>
-                );
+                )
               })}
             </ol>
 
-            {isLoading && <LoadingState message={t("Loading setup status…")} />}
+            {isLoading && <LoadingState message={t('Loading setup status…')} />}
             {!isLoading && isError && (
               <ErrorState
-                title={t("We could not load the setup status.")}
+                title={t('We could not load the setup status.')}
                 onRetry={() => refetch()}
               />
             )}
             {!isLoading && !isError && (
               <Form {...form}>
                 <form
-                  className="space-y-6"
+                  className='space-y-6'
                   onSubmit={(event) => event.preventDefault()}
                 >
                   {currentStepComponent}
@@ -385,7 +385,7 @@ export function SetupWizard() {
           </CardContent>
 
           {!isLoading && !isError && (
-            <CardFooter className="w-full justify-end border-t">
+            <CardFooter className='w-full justify-end border-t'>
               <StepNavigation
                 currentStep={currentStep}
                 totalSteps={STEPS.length}
@@ -399,5 +399,5 @@ export function SetupWizard() {
         </Card>
       </div>
     </div>
-  );
+  )
 }

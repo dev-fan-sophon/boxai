@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertTriangle, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { AlertTriangle, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { FadeIn } from "@/components/page-transition";
-import { Button } from "@/components/ui/button";
+import { FadeIn } from '@/components/page-transition'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
@@ -29,31 +29,31 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/empty'
+import { cn } from '@/lib/utils'
 
 interface ErrorStateProps {
-  icon?: LucideIcon;
-  title?: string;
-  description?: string;
-  onRetry?: () => void;
-  action?: ReactNode;
-  className?: string;
+  icon?: LucideIcon
+  title?: string
+  description?: string
+  onRetry?: () => void
+  action?: ReactNode
+  className?: string
 }
 
 export function ErrorState(props: ErrorStateProps) {
-  const { t } = useTranslation();
-  const Icon = props.icon ?? AlertTriangle;
+  const { t } = useTranslation()
+  const Icon = props.icon ?? AlertTriangle
 
   return (
     <FadeIn>
-      <Empty className={cn("min-h-[300px]", props.className)}>
+      <Empty className={cn('min-h-[300px]', props.className)}>
         <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Icon className="text-destructive size-6" />
+          <EmptyMedia variant='icon'>
+            <Icon className='text-destructive size-6' />
           </EmptyMedia>
           <EmptyTitle>
-            {props.title ?? t("Oops! Something went wrong")}
+            {props.title ?? t('Oops! Something went wrong')}
           </EmptyTitle>
           {props.description != null && (
             <EmptyDescription>{props.description}</EmptyDescription>
@@ -61,13 +61,13 @@ export function ErrorState(props: ErrorStateProps) {
         </EmptyHeader>
         <EmptyContent>
           {props.onRetry != null && (
-            <Button variant="outline" size="sm" onClick={props.onRetry}>
-              {t("Retry")}
+            <Button variant='outline' size='sm' onClick={props.onRetry}>
+              {t('Retry')}
             </Button>
           )}
           {props.action}
         </EmptyContent>
       </Empty>
     </FadeIn>
-  );
+  )
 }

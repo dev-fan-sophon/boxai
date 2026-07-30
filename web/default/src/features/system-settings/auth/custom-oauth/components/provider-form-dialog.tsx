@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { type Resolver, useForm, useWatch } from "react-hook-form";
-import { useTranslation } from "react-i18next";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect } from 'react'
+import { type Resolver, useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 
-import { CopyButton } from "@/components/copy-button";
-import { Dialog } from "@/components/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { CopyButton } from '@/components/copy-button'
+import { Dialog } from '@/components/dialog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -33,8 +33,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -42,175 +42,175 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 
 import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from "../../../components/settings-form-layout";
-import { buildOAuthCallbackUrl } from "../../oauth-callback-url";
+} from '../../../components/settings-form-layout'
+import { buildOAuthCallbackUrl } from '../../oauth-callback-url'
 import {
   useCreateProvider,
   useUpdateProvider,
-} from "../hooks/use-custom-oauth-mutations";
+} from '../hooks/use-custom-oauth-mutations'
 import {
   customOAuthFormSchema,
   AUTH_STYLE_OPTIONS,
   type CustomOAuthProvider,
   type CustomOAuthFormValues,
-} from "../types";
-import { DiscoveryButton } from "./discovery-button";
-import { PresetSelector } from "./preset-selector";
+} from '../types'
+import { DiscoveryButton } from './discovery-button'
+import { PresetSelector } from './preset-selector'
 
 type ProviderFormDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  provider?: CustomOAuthProvider | null;
-  serverAddress: string;
-};
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  provider?: CustomOAuthProvider | null
+  serverAddress: string
+}
 
-const PROVIDER_FORM_ID = "custom-oauth-provider-form";
+const PROVIDER_FORM_ID = 'custom-oauth-provider-form'
 
 export function ProviderFormDialog(props: ProviderFormDialogProps) {
-  const { t } = useTranslation();
-  const isEditing = !!props.provider;
-  const createProvider = useCreateProvider();
-  const updateProvider = useUpdateProvider();
+  const { t } = useTranslation()
+  const isEditing = !!props.provider
+  const createProvider = useCreateProvider()
+  const updateProvider = useUpdateProvider()
 
   const form = useForm<CustomOAuthFormValues>({
     resolver: zodResolver(
-      customOAuthFormSchema,
+      customOAuthFormSchema
     ) as unknown as Resolver<CustomOAuthFormValues>,
     defaultValues: {
-      name: "",
-      slug: "",
-      icon: "",
+      name: '',
+      slug: '',
+      icon: '',
       enabled: true,
-      client_id: "",
-      client_secret: "",
-      authorization_endpoint: "",
-      token_endpoint: "",
-      user_info_endpoint: "",
-      scopes: "",
-      user_id_field: "",
-      username_field: "",
-      display_name_field: "",
-      email_field: "",
-      well_known: "",
+      client_id: '',
+      client_secret: '',
+      authorization_endpoint: '',
+      token_endpoint: '',
+      user_info_endpoint: '',
+      scopes: '',
+      user_id_field: '',
+      username_field: '',
+      display_name_field: '',
+      email_field: '',
+      well_known: '',
       auth_style: 0,
-      access_policy: "",
-      access_denied_message: "",
+      access_policy: '',
+      access_denied_message: '',
     },
-  });
-  const watchedSlug = useWatch({ control: form.control, name: "slug" });
-  const callbackPath = watchedSlug?.trim() || "{slug}";
+  })
+  const watchedSlug = useWatch({ control: form.control, name: 'slug' })
+  const callbackPath = watchedSlug?.trim() || '{slug}'
   const callbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
     callbackPath,
-    t("Site URL"),
-  );
+    t('Site URL')
+  )
 
   useEffect(() => {
     if (props.open && props.provider) {
       form.reset({
         name: props.provider.name,
         slug: props.provider.slug,
-        icon: props.provider.icon || "",
+        icon: props.provider.icon || '',
         enabled: props.provider.enabled,
         client_id: props.provider.client_id,
-        client_secret: props.provider.client_secret || "",
+        client_secret: props.provider.client_secret || '',
         authorization_endpoint: props.provider.authorization_endpoint,
         token_endpoint: props.provider.token_endpoint,
         user_info_endpoint: props.provider.user_info_endpoint,
-        scopes: props.provider.scopes || "",
+        scopes: props.provider.scopes || '',
         user_id_field: props.provider.user_id_field,
-        username_field: props.provider.username_field || "",
-        display_name_field: props.provider.display_name_field || "",
-        email_field: props.provider.email_field || "",
-        well_known: props.provider.well_known || "",
+        username_field: props.provider.username_field || '',
+        display_name_field: props.provider.display_name_field || '',
+        email_field: props.provider.email_field || '',
+        well_known: props.provider.well_known || '',
         auth_style: props.provider.auth_style ?? 0,
-        access_policy: props.provider.access_policy || "",
-        access_denied_message: props.provider.access_denied_message || "",
-      });
+        access_policy: props.provider.access_policy || '',
+        access_denied_message: props.provider.access_denied_message || '',
+      })
     } else if (props.open && !props.provider) {
       form.reset({
-        name: "",
-        slug: "",
-        icon: "",
+        name: '',
+        slug: '',
+        icon: '',
         enabled: true,
-        client_id: "",
-        client_secret: "",
-        authorization_endpoint: "",
-        token_endpoint: "",
-        user_info_endpoint: "",
-        scopes: "",
-        user_id_field: "",
-        username_field: "",
-        display_name_field: "",
-        email_field: "",
-        well_known: "",
+        client_id: '',
+        client_secret: '',
+        authorization_endpoint: '',
+        token_endpoint: '',
+        user_info_endpoint: '',
+        scopes: '',
+        user_id_field: '',
+        username_field: '',
+        display_name_field: '',
+        email_field: '',
+        well_known: '',
         auth_style: 0,
-        access_policy: "",
-        access_denied_message: "",
-      });
+        access_policy: '',
+        access_denied_message: '',
+      })
     }
-  }, [props.open, props.provider, form]);
+  }, [props.open, props.provider, form])
 
   const onSubmit = async (values: CustomOAuthFormValues) => {
     if (isEditing && props.provider) {
       const res = await updateProvider.mutateAsync({
         id: props.provider.id,
         data: values,
-      });
+      })
       if (res.success) {
-        props.onOpenChange(false);
+        props.onOpenChange(false)
       }
     } else {
       const res = await createProvider.mutateAsync(
-        values as Omit<CustomOAuthProvider, "id">,
-      );
+        values as Omit<CustomOAuthProvider, 'id'>
+      )
       if (res.success) {
-        props.onOpenChange(false);
+        props.onOpenChange(false)
       }
     }
-  };
+  }
 
-  const isPending = createProvider.isPending || updateProvider.isPending;
-  let submitLabel = t("Create Provider");
+  const isPending = createProvider.isPending || updateProvider.isPending
+  let submitLabel = t('Create Provider')
   if (isPending) {
-    submitLabel = t("Saving...");
+    submitLabel = t('Saving...')
   } else if (isEditing) {
-    submitLabel = t("Update Provider");
+    submitLabel = t('Update Provider')
   }
 
   return (
     <Dialog
       open={props.open}
       onOpenChange={props.onOpenChange}
-      title={isEditing ? t("Edit OAuth Provider") : t("Add OAuth Provider")}
+      title={isEditing ? t('Edit OAuth Provider') : t('Add OAuth Provider')}
       description={
         isEditing
-          ? t("Update the configuration for this custom OAuth provider.")
-          : t("Configure a new custom OAuth provider for user authentication.")
+          ? t('Update the configuration for this custom OAuth provider.')
+          : t('Configure a new custom OAuth provider for user authentication.')
       }
-      contentClassName="max-h-[85vh] overflow-y-auto sm:max-w-2xl"
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      contentClassName='max-h-[85vh] overflow-y-auto sm:max-w-2xl'
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         <>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={() => props.onOpenChange(false)}
             disabled={isPending}
           >
-            {t("Cancel")}
+            {t('Cancel')}
           </Button>
-          <Button type="submit" form={PROVIDER_FORM_ID} disabled={isPending}>
+          <Button type='submit' form={PROVIDER_FORM_ID} disabled={isPending}>
             {submitLabel}
           </Button>
         </>
@@ -225,27 +225,27 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           {!isEditing && <PresetSelector form={form} />}
 
           <Alert>
-            <AlertTitle>{t("OAuth callback URL")}</AlertTitle>
-            <AlertDescription className="space-y-3 text-sm">
+            <AlertTitle>{t('OAuth callback URL')}</AlertTitle>
+            <AlertDescription className='space-y-3 text-sm'>
               <p>
                 {t(
-                  "This callback URL updates from the slug field and is the value to register with your provider.",
+                  'This callback URL updates from the slug field and is the value to register with your provider.'
                 )}
               </p>
-              <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-muted-foreground shrink-0">
-                  {t("Authorization callback URL")}
+              <div className='flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between'>
+                <span className='text-muted-foreground shrink-0'>
+                  {t('Authorization callback URL')}
                 </span>
-                <span className="flex min-w-0 items-center gap-2">
-                  <code className="bg-muted text-foreground min-w-0 rounded px-1.5 py-0.5 text-xs break-all">
+                <span className='flex min-w-0 items-center gap-2'>
+                  <code className='bg-muted text-foreground min-w-0 rounded px-1.5 py-0.5 text-xs break-all'>
                     {callbackUrl}
                   </code>
                   <CopyButton
                     value={callbackUrl}
-                    size="icon"
-                    className="size-7"
-                    tooltip={t("Copy callback URL")}
-                    aria-label={t("Copy callback URL")}
+                    size='icon'
+                    className='size-7'
+                    tooltip={t('Copy callback URL')}
+                    aria-label={t('Copy callback URL')}
                   />
                 </span>
               </div>
@@ -253,18 +253,18 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           </Alert>
 
           {/* Basic Info */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("Basic Info")}</h4>
+          <div className='space-y-4'>
+            <h4 className='text-sm font-medium'>{t('Basic Info')}</h4>
 
             <FormField
               control={form.control}
-              name="enabled"
+              name='enabled'
               render={({ field }) => (
                 <SettingsSwitchItem>
                   <SettingsSwitchContent>
-                    <FormLabel>{t("Enabled")}</FormLabel>
+                    <FormLabel>{t('Enabled')}</FormLabel>
                     <FormDescription>
-                      {t("Allow users to sign in with this provider")}
+                      {t('Allow users to sign in with this provider')}
                     </FormDescription>
                   </SettingsSwitchContent>
                   <FormControl>
@@ -277,15 +277,15 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <FormField
                 control={form.control}
-                name="name"
+                name='name'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Provider Name")}</FormLabel>
+                    <FormLabel>{t('Provider Name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("e.g. My GitLab")} {...field} />
+                      <Input placeholder={t('e.g. My GitLab')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -294,15 +294,15 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
               <FormField
                 control={form.control}
-                name="slug"
+                name='slug'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Slug")}</FormLabel>
+                    <FormLabel>{t('Slug')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("e.g. my-gitlab")} {...field} />
+                      <Input placeholder={t('e.g. my-gitlab')} {...field} />
                     </FormControl>
                     <FormDescription>
-                      {t("Used in URLs and API routes")}
+                      {t('Used in URLs and API routes')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -312,18 +312,18 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="icon"
+              name='icon'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Icon")}</FormLabel>
+                  <FormLabel>{t('Icon')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t("Icon identifier (e.g. github, gitlab)")}
+                      placeholder={t('Icon identifier (e.g. github, gitlab)')}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {t("Optional icon identifier for the login button")}
+                    {t('Optional icon identifier for the login button')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -334,19 +334,19 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           <Separator />
 
           {/* Credentials */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("Credentials")}</h4>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className='space-y-4'>
+            <h4 className='text-sm font-medium'>{t('Credentials')}</h4>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <FormField
                 control={form.control}
-                name="client_id"
+                name='client_id'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Client ID")}</FormLabel>
+                    <FormLabel>{t('Client ID')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("OAuth Client ID")}
-                        autoComplete="off"
+                        placeholder={t('OAuth Client ID')}
+                        autoComplete='off'
                         {...field}
                       />
                     </FormControl>
@@ -357,15 +357,15 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
               <FormField
                 control={form.control}
-                name="client_secret"
+                name='client_secret'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Client Secret")}</FormLabel>
+                    <FormLabel>{t('Client Secret')}</FormLabel>
                     <FormControl>
                       <Input
-                        type="password"
-                        placeholder={t("OAuth Client Secret")}
-                        autoComplete="new-password"
+                        type='password'
+                        placeholder={t('OAuth Client Secret')}
+                        autoComplete='new-password'
                         {...field}
                       />
                     </FormControl>
@@ -377,10 +377,10 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="auth_style"
+              name='auth_style'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Auth Style")}</FormLabel>
+                  <FormLabel>{t('Auth Style')}</FormLabel>
                   <Select
                     items={AUTH_STYLE_OPTIONS.map((option) => ({
                       value: String(option.value),
@@ -390,7 +390,7 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
                     onValueChange={(val) => field.onChange(Number(val))}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className='w-full'>
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
@@ -408,7 +408,7 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {t("How client credentials are sent to the token endpoint")}
+                    {t('How client credentials are sent to the token endpoint')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -419,29 +419,29 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           <Separator />
 
           {/* Endpoints */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">{t("Endpoints")}</h4>
+          <div className='space-y-4'>
+            <div className='flex items-center justify-between'>
+              <h4 className='text-sm font-medium'>{t('Endpoints')}</h4>
               <DiscoveryButton form={form} />
             </div>
 
             <FormField
               control={form.control}
-              name="well_known"
+              name='well_known'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Well-Known URL")}</FormLabel>
+                  <FormLabel>{t('Well-Known URL')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder={t(
-                        "https://provider.com/.well-known/openid-configuration",
+                        'https://provider.com/.well-known/openid-configuration'
                       )}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
                     {t(
-                      'OIDC discovery URL. Click "Auto-discover" to fetch endpoints automatically.',
+                      'OIDC discovery URL. Click "Auto-discover" to fetch endpoints automatically.'
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -451,13 +451,13 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="authorization_endpoint"
+              name='authorization_endpoint'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Authorization Endpoint")}</FormLabel>
+                  <FormLabel>{t('Authorization Endpoint')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://provider.com/oauth/authorize"
+                      placeholder='https://provider.com/oauth/authorize'
                       {...field}
                     />
                   </FormControl>
@@ -468,13 +468,13 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="token_endpoint"
+              name='token_endpoint'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Token Endpoint")}</FormLabel>
+                  <FormLabel>{t('Token Endpoint')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://provider.com/oauth/token"
+                      placeholder='https://provider.com/oauth/token'
                       {...field}
                     />
                   </FormControl>
@@ -485,13 +485,13 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="user_info_endpoint"
+              name='user_info_endpoint'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("User Info Endpoint")}</FormLabel>
+                  <FormLabel>{t('User Info Endpoint')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://provider.com/api/user"
+                      placeholder='https://provider.com/api/user'
                       {...field}
                     />
                   </FormControl>
@@ -502,18 +502,18 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="scopes"
+              name='scopes'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Scopes")}</FormLabel>
+                  <FormLabel>{t('Scopes')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t("e.g. openid profile email")}
+                      placeholder={t('e.g. openid profile email')}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {t("Space-separated OAuth scopes")}
+                    {t('Space-separated OAuth scopes')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -524,23 +524,23 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           <Separator />
 
           {/* Field Mapping */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("Field Mapping")}</h4>
+          <div className='space-y-4'>
+            <h4 className='text-sm font-medium'>{t('Field Mapping')}</h4>
             <FormDescription>
               {t(
-                "Map fields from the user info response to local user attributes. Supports nested paths (e.g. ocs.data.id).",
+                'Map fields from the user info response to local user attributes. Supports nested paths (e.g. ocs.data.id).'
               )}
             </FormDescription>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <FormField
                 control={form.control}
-                name="user_id_field"
+                name='user_id_field'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("User ID Field")}</FormLabel>
+                    <FormLabel>{t('User ID Field')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="id" {...field} />
+                      <Input placeholder='id' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -549,12 +549,12 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
               <FormField
                 control={form.control}
-                name="username_field"
+                name='username_field'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Username Field")}</FormLabel>
+                    <FormLabel>{t('Username Field')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="login" {...field} />
+                      <Input placeholder='login' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -563,12 +563,12 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
               <FormField
                 control={form.control}
-                name="display_name_field"
+                name='display_name_field'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Display Name Field")}</FormLabel>
+                    <FormLabel>{t('Display Name Field')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="name" {...field} />
+                      <Input placeholder='name' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -577,12 +577,12 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
               <FormField
                 control={form.control}
-                name="email_field"
+                name='email_field'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("Email Field")}</FormLabel>
+                    <FormLabel>{t('Email Field')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="email" {...field} />
+                      <Input placeholder='email' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -594,27 +594,27 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
           <Separator />
 
           {/* Advanced */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("Advanced")}</h4>
+          <div className='space-y-4'>
+            <h4 className='text-sm font-medium'>{t('Advanced')}</h4>
 
             <FormField
               control={form.control}
-              name="access_policy"
+              name='access_policy'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Access Policy (JSON)")}</FormLabel>
+                  <FormLabel>{t('Access Policy (JSON)')}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t(
-                        "Optional JSON policy to restrict access based on user info fields",
+                        'Optional JSON policy to restrict access based on user info fields'
                       )}
-                      className="min-h-[80px] font-mono text-xs"
+                      className='min-h-[80px] font-mono text-xs'
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
                     {t(
-                      "JSON-based access control rules. Leave empty to allow all users.",
+                      'JSON-based access control rules. Leave empty to allow all users.'
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -624,14 +624,14 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
 
             <FormField
               control={form.control}
-              name="access_denied_message"
+              name='access_denied_message'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("Access Denied Message")}</FormLabel>
+                  <FormLabel>{t('Access Denied Message')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder={t(
-                        "Custom message shown when access is denied",
+                        'Custom message shown when access is denied'
                       )}
                       {...field}
                     />
@@ -644,5 +644,5 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
         </SettingsForm>
       </Form>
     </Dialog>
-  );
+  )
 }

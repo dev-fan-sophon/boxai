@@ -16,10 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { Home } from "@/features/home";
+import { PublicHeader } from '@/components/layout'
 
-export const Route = createFileRoute("/")({
-  component: Home,
-});
+// The header lives on the layout route so it keeps a single instance across
+// public navigations; remounting it per page replayed the scroll-collapse
+// animation and re-measured the nav on every route change.
+function PublicRouteLayout() {
+  return (
+    <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
+      <PublicHeader />
+      <Outlet />
+    </div>
+  )
+}
+
+export const Route = createFileRoute('/_public')({
+  component: PublicRouteLayout,
+})

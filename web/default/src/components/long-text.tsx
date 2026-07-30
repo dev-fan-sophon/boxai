@@ -16,69 +16,69 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react'
 
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/popover'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 type LongTextProps = {
-  children: React.ReactNode;
-  className?: string;
-  contentClassName?: string;
-};
+  children: React.ReactNode
+  className?: string
+  contentClassName?: string
+}
 
 export function LongText({
   children,
-  className = "",
-  contentClassName = "",
+  className = '',
+  contentClassName = '',
 }: LongTextProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isOverflown, setIsOverflown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null)
+  const [isOverflown, setIsOverflown] = useState(false)
 
   useEffect(() => {
-    const element = ref.current;
+    const element = ref.current
     if (!element) {
-      return;
+      return
     }
 
     const updateOverflow = () => {
-      setIsOverflown(checkOverflow(element));
-    };
+      setIsOverflown(checkOverflow(element))
+    }
 
-    updateOverflow();
+    updateOverflow()
 
     // Re-check when the content (e.g. language switch) or the
     // container size changes, not only on mount.
-    const observer = new ResizeObserver(updateOverflow);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [children]);
+    const observer = new ResizeObserver(updateOverflow)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [children])
 
   if (!isOverflown) {
     return (
-      <div ref={ref} className={cn("truncate", className)}>
+      <div ref={ref} className={cn('truncate', className)}>
         {children}
       </div>
-    );
+    )
   }
 
   return (
     <>
-      <div className="hidden sm:block">
+      <div className='hidden sm:block'>
         <TooltipProvider delay={0}>
           <Tooltip>
             <TooltipTrigger
-              render={<div ref={ref} className={cn("truncate", className)} />}
+              render={<div ref={ref} className={cn('truncate', className)} />}
             >
               {children}
             </TooltipTrigger>
@@ -88,20 +88,20 @@ export function LongText({
           </Tooltip>
         </TooltipProvider>
       </div>
-      <div className="sm:hidden">
+      <div className='sm:hidden'>
         <Popover>
           <PopoverTrigger
-            render={<div ref={ref} className={cn("truncate", className)} />}
+            render={<div ref={ref} className={cn('truncate', className)} />}
           >
             {children}
           </PopoverTrigger>
-          <PopoverContent className={cn("w-fit", contentClassName)}>
+          <PopoverContent className={cn('w-fit', contentClassName)}>
             <p>{children}</p>
           </PopoverContent>
         </Popover>
       </div>
     </>
-  );
+  )
 }
 
 const checkOverflow = (textContainer: HTMLDivElement | null) => {
@@ -109,7 +109,7 @@ const checkOverflow = (textContainer: HTMLDivElement | null) => {
     return (
       textContainer.offsetHeight < textContainer.scrollHeight ||
       textContainer.offsetWidth < textContainer.scrollWidth
-    );
+    )
   }
-  return false;
-};
+  return false
+}

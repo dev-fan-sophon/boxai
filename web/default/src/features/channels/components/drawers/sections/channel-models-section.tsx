@@ -16,31 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Boxes } from "lucide-react";
-import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { Boxes } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
   SideDrawerSection,
   SideDrawerSectionHeader,
-} from "@/components/drawer-layout";
+} from '@/components/drawer-layout'
 
 type ChannelModelsSectionProps = {
-  children: ReactNode;
-};
+  children: ReactNode
+}
 
 export function ChannelModelsSection(props: ChannelModelsSectionProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   return (
     <SideDrawerSection>
       <SideDrawerSectionHeader
-        title={t("Models & Groups")}
-        description={t("Published models, groups, and model remapping rules.")}
-        icon={<Boxes className="h-4 w-4" aria-hidden="true" />}
-        iconTone="chart-4"
+        title={t('Models & Groups')}
+        description={t('Published models, groups, and model remapping rules.')}
+        icon={<Boxes className='h-4 w-4' aria-hidden='true' />}
+        iconTone='chart-4'
       />
       {props.children}
     </SideDrawerSection>
-  );
+  )
 }

@@ -17,82 +17,82 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo, type ReactNode } from "react";
-import type { TableCellNode, TableNode } from "stream-markdown-parser";
+import { useMemo, type ReactNode } from 'react'
+import type { TableCellNode, TableNode } from 'stream-markdown-parser'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
-import { extractTableData } from "./chart-spec";
-import { getNodeKey } from "./response-content";
-import { TableTools } from "./response-table-tools";
-import type { BlockRendererOptions } from "./response-types";
+import { extractTableData } from './chart-spec'
+import { getNodeKey } from './response-content'
+import { TableTools } from './response-table-tools'
+import type { BlockRendererOptions } from './response-types'
 
 function getTableCellAlignClass(
-  align: TableCellNode["align"] | undefined,
+  align: TableCellNode['align'] | undefined
 ): string {
-  if (align === "right") {
-    return "text-right";
+  if (align === 'right') {
+    return 'text-right'
   }
 
-  if (align === "center") {
-    return "text-center";
+  if (align === 'center') {
+    return 'text-center'
   }
 
-  return "text-left";
+  return 'text-left'
 }
 
 function renderTableCell(
   node: TableCellNode,
   key: string,
-  options: BlockRendererOptions,
+  options: BlockRendererOptions
 ): ReactNode {
-  const alignClass = getTableCellAlignClass(node.align);
+  const alignClass = getTableCellAlignClass(node.align)
 
   if (node.header) {
     return (
       <th
         className={cn(
-          "text-muted-foreground px-3 py-2 text-xs font-semibold whitespace-nowrap",
-          alignClass,
+          'text-muted-foreground px-3 py-2 text-xs font-semibold whitespace-nowrap',
+          alignClass
         )}
         key={key}
       >
         {options.renderChildren(node.children)}
       </th>
-    );
+    )
   }
 
   return (
-    <td className={cn("px-3 py-2 align-top", alignClass)} key={key}>
+    <td className={cn('px-3 py-2 align-top', alignClass)} key={key}>
       {options.renderChildren(node.children)}
     </td>
-  );
+  )
 }
 
 function ResponseTable(props: {
-  node: TableNode;
-  options: BlockRendererOptions;
+  node: TableNode
+  options: BlockRendererOptions
 }) {
-  const { node, options } = props;
-  const tableData = useMemo(() => extractTableData(node), [node]);
+  const { node, options } = props
+  const tableData = useMemo(() => extractTableData(node), [node])
 
   return (
-    <div className="group/table relative my-4">
+    <div className='group/table relative my-4'>
       {options.final && <TableTools data={tableData} />}
-      <div className="border-border/70 w-full overflow-x-auto rounded-lg border">
-        <table className="my-0 w-full min-w-max border-separate border-spacing-0 text-sm">
-          <thead className="bg-muted/60">
-            <tr className="border-border/70">
+      <div className='border-border/70 w-full overflow-x-auto rounded-lg border'>
+        <table className='my-0 w-full min-w-max border-separate border-spacing-0 text-sm'>
+          <thead className='bg-muted/60'>
+            <tr className='border-border/70'>
               {node.header.cells.map((cell, index) =>
-                renderTableCell(cell, getNodeKey(cell, index), options),
+                renderTableCell(cell, getNodeKey(cell, index), options)
               )}
             </tr>
           </thead>
-          <tbody className="divide-border/70 divide-y">
+          <tbody className='divide-border/70 divide-y'>
             {node.rows.map((row, rowIndex) => (
-              <tr className="border-border/70" key={getNodeKey(row, rowIndex)}>
+              <tr className='border-border/70' key={getNodeKey(row, rowIndex)}>
                 {row.cells.map((cell, cellIndex) =>
-                  renderTableCell(cell, getNodeKey(cell, cellIndex), options),
+                  renderTableCell(cell, getNodeKey(cell, cellIndex), options)
                 )}
               </tr>
             ))}
@@ -100,13 +100,13 @@ function ResponseTable(props: {
         </table>
       </div>
     </div>
-  );
+  )
 }
 
 export function renderTable(
   node: TableNode,
   key: string,
-  options: BlockRendererOptions,
+  options: BlockRendererOptions
 ): ReactNode {
-  return <ResponseTable key={key} node={node} options={options} />;
+  return <ResponseTable key={key} node={node} options={options} />
 }

@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 
 import {
   Form,
@@ -26,8 +26,8 @@ import {
   FormDescription,
   FormField,
   FormLabel,
-} from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
+} from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 
 import {
   SettingsControlChildren,
@@ -35,53 +35,53 @@ import {
   SettingsSwitchContent,
   SettingsControlGroup,
   SettingsSwitchItem,
-} from "../components/settings-form-layout";
-import { SettingsPageFormActions } from "../components/settings-page-context";
-import { SettingsSection } from "../components/settings-section";
-import { useUpdateOption } from "../hooks/use-update-option";
+} from '../components/settings-form-layout'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsSection } from '../components/settings-section'
+import { useUpdateOption } from '../hooks/use-update-option'
 import {
   SIDEBAR_MODULES_DEFAULT,
   type SidebarModulesAdminConfig,
   serializeSidebarModulesAdmin,
-} from "./config";
+} from './config'
 
 type SidebarModulesSectionProps = {
-  config: SidebarModulesAdminConfig;
-  initialSerialized: string;
-};
+  config: SidebarModulesAdminConfig
+  initialSerialized: string
+}
 
-type SidebarFormValues = SidebarModulesAdminConfig;
+type SidebarFormValues = SidebarModulesAdminConfig
 
 const toTitleCase = (value: string) =>
   value
-    .replaceAll(/[_-]+/g, " ")
-    .replaceAll(/\b\w/g, (char) => char.toUpperCase());
+    .replaceAll(/[_-]+/g, ' ')
+    .replaceAll(/\b\w/g, (char) => char.toUpperCase())
 
 export function SidebarModulesSection({
   config,
   initialSerialized,
 }: SidebarModulesSectionProps) {
-  const { t } = useTranslation();
-  const updateOption = useUpdateOption();
+  const { t } = useTranslation()
+  const updateOption = useUpdateOption()
 
   const sectionMeta: Record<string, { title: string; description: string }> = {
     chat: {
-      title: t("Chat area"),
-      description: t("Chat session management"),
+      title: t('Chat area'),
+      description: t('Chat session management'),
     },
     console: {
-      title: t("Console area"),
-      description: t("Dashboards, tokens, and usage analytics."),
+      title: t('Console area'),
+      description: t('Dashboards, tokens, and usage analytics.'),
     },
     personal: {
-      title: t("Personal area"),
-      description: t("Wallet management and personal preferences."),
+      title: t('Personal area'),
+      description: t('Wallet management and personal preferences.'),
     },
     admin: {
-      title: t("Admin area"),
-      description: t("Global configuration and administrative tools."),
+      title: t('Admin area'),
+      description: t('Global configuration and administrative tools.'),
     },
-  };
+  }
 
   const moduleMeta: Record<
     string,
@@ -89,116 +89,116 @@ export function SidebarModulesSection({
   > = {
     chat: {
       chat: {
-        title: t("Chat"),
-        description: t("Access previous conversations and start new ones."),
+        title: t('Chat'),
+        description: t('Access previous conversations and start new ones.'),
       },
     },
     console: {
       detail: {
-        title: t("Dashboard"),
-        description: t("Aggregated usage metrics and trend charts."),
+        title: t('Dashboard'),
+        description: t('Aggregated usage metrics and trend charts.'),
       },
       token: {
-        title: t("Token management"),
-        description: t("Create, revoke, and audit API tokens."),
+        title: t('Token management'),
+        description: t('Create, revoke, and audit API tokens.'),
       },
       log: {
-        title: t("Usage logs"),
-        description: t("Detailed request logs for investigations."),
+        title: t('Usage logs'),
+        description: t('Detailed request logs for investigations.'),
       },
       midjourney: {
-        title: t("Drawing logs"),
-        description: t("History of MjProxy-style image tasks."),
+        title: t('Drawing logs'),
+        description: t('History of MjProxy-style image tasks.'),
       },
       task: {
-        title: t("Task logs"),
-        description: t("Background job tracker for queued work."),
+        title: t('Task logs'),
+        description: t('Background job tracker for queued work.'),
       },
     },
     personal: {
       topup: {
-        title: t("Wallet"),
-        description: t("Top up balance and view billing history."),
+        title: t('Wallet'),
+        description: t('Top up balance and view billing history.'),
       },
       personal: {
-        title: t("Profile"),
-        description: t("Personal settings and profile management."),
+        title: t('Profile'),
+        description: t('Personal settings and profile management.'),
       },
     },
     admin: {
       channel: {
-        title: t("Channels"),
-        description: t("Configure upstream providers and routing."),
+        title: t('Channels'),
+        description: t('Configure upstream providers and routing.'),
       },
       models: {
-        title: t("Models"),
-        description: t("Manage catalog visibility and pricing."),
+        title: t('Models'),
+        description: t('Manage catalog visibility and pricing.'),
       },
       redemption: {
-        title: t("Redeem codes"),
-        description: t("Create and review invite or credit codes."),
+        title: t('Redeem codes'),
+        description: t('Create and review invite or credit codes.'),
       },
       user: {
-        title: t("Users"),
-        description: t("Administer user accounts and roles."),
+        title: t('Users'),
+        description: t('Administer user accounts and roles.'),
       },
       setting: {
-        title: t("System settings"),
-        description: t("Advanced platform configuration."),
+        title: t('System settings'),
+        description: t('Advanced platform configuration.'),
       },
       subscription: {
-        title: t("Subscription Management"),
-        description: t("Manage subscription plans and pricing."),
+        title: t('Subscription Management'),
+        description: t('Manage subscription plans and pricing.'),
       },
     },
-  };
-  const formDefaults = useMemo(() => config, [config]);
+  }
+  const formDefaults = useMemo(() => config, [config])
 
   const form = useForm<SidebarFormValues>({
     defaultValues: formDefaults,
-  });
+  })
 
   useEffect(() => {
-    form.reset(formDefaults);
-  }, [formDefaults, form]);
+    form.reset(formDefaults)
+  }, [formDefaults, form])
 
   const onSubmit = async (values: SidebarFormValues) => {
-    const serialized = serializeSidebarModulesAdmin(values);
+    const serialized = serializeSidebarModulesAdmin(values)
     if (serialized === initialSerialized) {
-      return;
+      return
     }
 
     await updateOption.mutateAsync({
-      key: "SidebarModulesAdmin",
+      key: 'SidebarModulesAdmin',
       value: serialized,
-    });
-  };
+    })
+  }
 
   const resetToDefault = () => {
-    form.reset(SIDEBAR_MODULES_DEFAULT);
-  };
+    form.reset(SIDEBAR_MODULES_DEFAULT)
+  }
 
-  const sections = Object.entries(config);
+  const sections = Object.entries(config)
 
   return (
-    <SettingsSection title={t("Sidebar modules")}>
+    <SettingsSection title={t('Sidebar modules')}>
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             onReset={resetToDefault}
             isSaving={updateOption.isPending}
-            resetLabel="Reset to default"
-            saveLabel="Save sidebar modules"
+            resetLabel='Reset to default'
+            saveLabel='Save sidebar modules'
           />
           {sections.map(([sectionKey, sectionConfig]) => {
             const sectionInfo = sectionMeta[sectionKey] ?? {
               title: toTitleCase(sectionKey),
-              description: t("Custom sidebar section"),
-            };
+              description: t('Custom sidebar section'),
+            }
             const modules = Object.entries(sectionConfig).filter(
-              ([moduleKey]) => moduleKey !== "enabled",
-            );
+              ([moduleKey]) => moduleKey !== 'enabled'
+            )
 
             return (
               <SettingsControlGroup key={sectionKey}>
@@ -224,12 +224,12 @@ export function SidebarModulesSection({
                   )}
                 />
 
-                <SettingsControlChildren className="grid gap-3 md:grid-cols-2">
+                <SettingsControlChildren className='grid gap-3 md:grid-cols-2'>
                   {modules.map(([moduleKey]) => {
                     const moduleInfo = moduleMeta[sectionKey]?.[moduleKey] ?? {
                       title: toTitleCase(moduleKey),
-                      description: t("Custom module"),
-                    };
+                      description: t('Custom module'),
+                    }
                     return (
                       <FormField
                         key={`${sectionKey}.${moduleKey}`}
@@ -237,7 +237,7 @@ export function SidebarModulesSection({
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         name={`${sectionKey}.${moduleKey}` as any}
                         render={({ field }) => (
-                          <SettingsSwitchItem className="py-2">
+                          <SettingsSwitchItem className='py-2'>
                             <SettingsSwitchContent>
                               <FormLabel>{moduleInfo.title}</FormLabel>
                               <FormDescription>
@@ -257,14 +257,14 @@ export function SidebarModulesSection({
                           </SettingsSwitchItem>
                         )}
                       />
-                    );
+                    )
                   })}
                 </SettingsControlChildren>
               </SettingsControlGroup>
-            );
+            )
           })}
         </SettingsForm>
       </Form>
     </SettingsSection>
-  );
+  )
 }

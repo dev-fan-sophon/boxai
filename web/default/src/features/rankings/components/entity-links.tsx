@@ -16,19 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from "@tanstack/react-router";
+import { Link } from '@tanstack/react-router'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
 type EntityLinkBaseProps = {
-  className?: string;
-  children?: React.ReactNode;
-};
+  className?: string
+  children?: React.ReactNode
+}
 
 type ModelLinkProps = EntityLinkBaseProps & {
   /** model_name as it appears in the pricing API. Used as the route param. */
-  modelName: string;
-};
+  modelName: string
+}
 
 /**
  * Link wrapping a model name. Navigates to the existing model details
@@ -42,22 +42,22 @@ type ModelLinkProps = EntityLinkBaseProps & {
 export function ModelLink(props: ModelLinkProps) {
   return (
     <Link
-      to="/pricing/$modelId"
+      to='/pricing/$modelId'
       params={{ modelId: props.modelName }}
       className={cn(
-        "decoration-foreground/30 hover:decoration-foreground underline decoration-1 underline-offset-4 transition-colors",
-        props.className,
+        'decoration-foreground/30 hover:decoration-foreground underline decoration-1 underline-offset-4 transition-colors',
+        props.className
       )}
     >
       {props.children ?? props.modelName}
     </Link>
-  );
+  )
 }
 
 type VendorLinkProps = EntityLinkBaseProps & {
   /** Display name of the vendor (e.g. "Google", "OpenAI"). */
-  vendor: string;
-};
+  vendor: string
+}
 
 /**
  * Link wrapping a vendor name. Navigates to the pricing page filtered by
@@ -69,14 +69,14 @@ type VendorLinkProps = EntityLinkBaseProps & {
 export function VendorLink(props: VendorLinkProps) {
   return (
     <Link
-      to="/pricing"
+      to='/pricing'
       search={{ vendor: props.vendor }}
       className={cn(
-        "hover:text-foreground underline decoration-current/40 decoration-1 underline-offset-2 transition-colors hover:decoration-current",
-        props.className,
+        'hover:text-foreground underline decoration-current/40 decoration-1 underline-offset-2 transition-colors hover:decoration-current',
+        props.className
       )}
     >
       {props.children ?? props.vendor}
     </Link>
-  );
+  )
 }

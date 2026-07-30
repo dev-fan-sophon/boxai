@@ -16,55 +16,55 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-"use client";
+'use client'
 
-import { memo, useMemo } from "react";
-import { getMarkdown, parseMarkdownToStructure } from "stream-markdown-parser";
+import { memo, useMemo } from 'react'
+import { getMarkdown, parseMarkdownToStructure } from 'stream-markdown-parser'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
-import { getMarkdownContent, parseResponseContent } from "./response-content";
+import { getMarkdownContent, parseResponseContent } from './response-content'
 import {
   renderResponseFootnotes,
   renderResponseNodes,
-} from "./response-renderer";
-import type { ResponseProps } from "./response-types";
+} from './response-renderer'
+import type { ResponseProps } from './response-types'
 
-const markdown = getMarkdown("new-api-response");
-const MAX_PARSED_MARKDOWN_CHARS = 20_000;
+const markdown = getMarkdown('new-api-response')
+const MAX_PARSED_MARKDOWN_CHARS = 20_000
 
 export const Response = memo((props: ResponseProps) => {
-  const content = getMarkdownContent(props.children);
-  const shouldParseMarkdown = content.length <= MAX_PARSED_MARKDOWN_CHARS;
+  const content = getMarkdownContent(props.children)
+  const shouldParseMarkdown = content.length <= MAX_PARSED_MARKDOWN_CHARS
   const nodes = useMemo(() => {
     if (!shouldParseMarkdown) {
-      return [];
+      return []
     }
 
     return parseMarkdownToStructure(content, markdown, {
       final: props.final ?? true,
       validateLink: markdown.options.validateLink,
-    });
-  }, [content, props.final, shouldParseMarkdown]);
-  const isFinal = props.final ?? true;
-  const parsedContent = useMemo(() => parseResponseContent(nodes), [nodes]);
+    })
+  }, [content, props.final, shouldParseMarkdown])
+  const isFinal = props.final ?? true
+  const parsedContent = useMemo(() => parseResponseContent(nodes), [nodes])
   const renderedContent =
     parsedContent.bodyNodes.length > 0
       ? renderResponseNodes(parsedContent.bodyNodes, isFinal)
-      : content;
-  const footnotes = renderResponseFootnotes(parsedContent.footnotes, isFinal);
+      : content
+  const footnotes = renderResponseFootnotes(parsedContent.footnotes, isFinal)
 
   return (
     <div
       className={cn(
-        "size-full min-w-0 text-pretty [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-        props.className,
+        'size-full min-w-0 text-pretty [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+        props.className
       )}
     >
       {renderedContent}
       {footnotes}
     </div>
-  );
-});
+  )
+})
 
-Response.displayName = "Response";
+Response.displayName = 'Response'

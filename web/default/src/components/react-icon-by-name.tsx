@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { IconBaseProps } from "react-icons";
+import type { IconBaseProps } from 'react-icons'
 
-import { PAYMENT_ICON_REGISTRY } from "@/lib/payment-icons";
+import { PAYMENT_ICON_REGISTRY } from '@/lib/payment-icons'
 
 type ReactIconByNameProps = IconBaseProps & {
-  name?: string | null;
-};
+  name?: string | null
+}
 
 export function ReactIconByName({ name, ...props }: ReactIconByNameProps) {
-  const Icon = name ? PAYMENT_ICON_REGISTRY[name.trim()] : undefined;
-  if (!Icon) return null;
-  return <Icon {...props} />;
+  const Icon = name ? PAYMENT_ICON_REGISTRY[name.trim()] : undefined
+  if (!Icon) return null
+  return <Icon {...props} />
 }

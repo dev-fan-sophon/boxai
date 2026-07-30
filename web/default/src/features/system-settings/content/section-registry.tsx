@@ -16,98 +16,98 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ContentSettings } from "../types";
-import { createSectionRegistry } from "../utils/section-registry";
-import { AnnouncementsSection } from "./announcements-section";
-import { ApiInfoSection } from "./api-info-section";
-import { ChatSettingsSection } from "./chat-settings-section";
-import { DashboardSection } from "./dashboard-section";
-import { DrawingSettingsSection } from "./drawing-settings-section";
-import { FAQSection } from "./faq-section";
+import type { ContentSettings } from '../types'
+import { createSectionRegistry } from '../utils/section-registry'
+import { AnnouncementsSection } from './announcements-section'
+import { ApiInfoSection } from './api-info-section'
+import { ChatSettingsSection } from './chat-settings-section'
+import { DashboardSection } from './dashboard-section'
+import { DrawingSettingsSection } from './drawing-settings-section'
+import { FAQSection } from './faq-section'
 import {
   CONTENT_DEFAULT_SECTION,
   CONTENT_SECTION_IDS,
   type ContentSectionId,
-} from "./section-manifest";
-import { UptimeKumaSection } from "./uptime-kuma-section";
+} from './section-manifest'
+import { UptimeKumaSection } from './uptime-kuma-section'
 
 /**
  * Validate and coerce DataExportDefaultTime to a safe value
  */
-function validateDataExportDefaultTime(value: string): "week" | "hour" | "day" {
-  if (value === "week" || value === "hour" || value === "day") {
-    return value;
+function validateDataExportDefaultTime(value: string): 'week' | 'hour' | 'day' {
+  if (value === 'week' || value === 'hour' || value === 'day') {
+    return value
   }
   // Default to 'hour' if value is unexpected
-  return "hour";
+  return 'hour'
 }
 
 const CONTENT_SECTIONS = [
   {
-    id: "dashboard",
-    titleKey: "Data Dashboard",
+    id: 'dashboard',
+    titleKey: 'Data Dashboard',
     build: (settings: ContentSettings) => (
       <DashboardSection
         defaultValues={{
           DataExportEnabled: settings.DataExportEnabled,
           DataExportInterval: settings.DataExportInterval,
           DataExportDefaultTime: validateDataExportDefaultTime(
-            settings.DataExportDefaultTime,
+            settings.DataExportDefaultTime
           ),
         }}
       />
     ),
   },
   {
-    id: "announcements",
-    titleKey: "Announcements",
+    id: 'announcements',
+    titleKey: 'Announcements',
     build: (settings: ContentSettings) => (
       <AnnouncementsSection
-        enabled={settings["console_setting.announcements_enabled"]}
-        data={settings["console_setting.announcements"]}
+        enabled={settings['console_setting.announcements_enabled']}
+        data={settings['console_setting.announcements']}
       />
     ),
   },
   {
-    id: "api-info",
-    titleKey: "API Addresses",
+    id: 'api-info',
+    titleKey: 'API Addresses',
     build: (settings: ContentSettings) => (
       <ApiInfoSection
-        enabled={settings["console_setting.api_info_enabled"]}
-        data={settings["console_setting.api_info"]}
+        enabled={settings['console_setting.api_info_enabled']}
+        data={settings['console_setting.api_info']}
       />
     ),
   },
   {
-    id: "faq",
-    titleKey: "FAQ",
+    id: 'faq',
+    titleKey: 'FAQ',
     build: (settings: ContentSettings) => (
       <FAQSection
-        enabled={settings["console_setting.faq_enabled"]}
-        data={settings["console_setting.faq"]}
+        enabled={settings['console_setting.faq_enabled']}
+        data={settings['console_setting.faq']}
       />
     ),
   },
   {
-    id: "uptime-kuma",
-    titleKey: "Uptime Kuma",
+    id: 'uptime-kuma',
+    titleKey: 'Uptime Kuma',
     build: (settings: ContentSettings) => (
       <UptimeKumaSection
-        enabled={settings["console_setting.uptime_kuma_enabled"]}
-        data={settings["console_setting.uptime_kuma_groups"]}
+        enabled={settings['console_setting.uptime_kuma_enabled']}
+        data={settings['console_setting.uptime_kuma_groups']}
       />
     ),
   },
   {
-    id: "chat",
-    titleKey: "Chat Presets",
+    id: 'chat',
+    titleKey: 'Chat Presets',
     build: (settings: ContentSettings) => (
       <ChatSettingsSection defaultValue={settings.Chats} />
     ),
   },
   {
-    id: "drawing",
-    titleKey: "Drawing",
+    id: 'drawing',
+    titleKey: 'Drawing',
     build: (settings: ContentSettings) => (
       <DrawingSettingsSection
         defaultValues={{
@@ -121,7 +121,7 @@ const CONTENT_SECTIONS = [
       />
     ),
   },
-] as const;
+] as const
 
 const contentRegistry = createSectionRegistry<
   ContentSectionId,
@@ -130,10 +130,10 @@ const contentRegistry = createSectionRegistry<
   sectionIds: CONTENT_SECTION_IDS,
   sections: CONTENT_SECTIONS,
   defaultSection: CONTENT_DEFAULT_SECTION,
-  basePath: "/system-settings/content",
-  urlStyle: "path",
-});
+  basePath: '/system-settings/content',
+  urlStyle: 'path',
+})
 
-export const getContentSectionNavItems = contentRegistry.getSectionNavItems;
-export const getContentSectionContent = contentRegistry.getSectionContent;
-export const getContentSectionMeta = contentRegistry.getSectionMeta;
+export const getContentSectionNavItems = contentRegistry.getSectionNavItems
+export const getContentSectionContent = contentRegistry.getSectionContent
+export const getContentSectionMeta = contentRegistry.getSectionMeta

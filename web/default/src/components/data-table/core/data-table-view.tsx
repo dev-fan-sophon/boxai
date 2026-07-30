@@ -16,55 +16,55 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Row, Table as TanstackTable } from "@tanstack/react-table";
-import * as React from "react";
+import type { Row, Table as TanstackTable } from '@tanstack/react-table'
+import * as React from 'react'
 
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
 import {
   getPinnedColumnMap,
   getResolvedColumnClassNameFromMap,
-} from "./column-pinning";
-import { DataTableColgroup } from "./data-table-colgroup";
-import { DataTableHeader } from "./data-table-header";
-import { DataTableRow } from "./data-table-row";
-import { TableEmpty } from "./table-empty";
-import { getTableSizeStyle } from "./table-sizing";
-import { TableSkeleton } from "./table-skeleton";
+} from './column-pinning'
+import { DataTableColgroup } from './data-table-colgroup'
+import { DataTableHeader } from './data-table-header'
+import { DataTableRow } from './data-table-row'
+import { TableEmpty } from './table-empty'
+import { getTableSizeStyle } from './table-sizing'
+import { TableSkeleton } from './table-skeleton'
 import type {
   DataTableColumnClassName,
   DataTablePinnedColumn,
   DataTableViewProps,
-} from "./types";
+} from './types'
 
 export type {
   DataTableColumnClassName,
   DataTablePinnedColumn,
   DataTableRenderRowHelpers,
   DataTableViewProps,
-} from "./types";
-export { DataTableRow } from "./data-table-row";
-export { DataTableRowActionMenu } from "./row-action-menu";
+} from './types'
+export { DataTableRow } from './data-table-row'
+export { DataTableRowActionMenu } from './row-action-menu'
 
 export function DataTableView<TData>(props: DataTableViewProps<TData>) {
-  const rows = props.rows ?? props.table.getRowModel().rows;
+  const rows = props.rows ?? props.table.getRowModel().rows
   const colSpan = React.useMemo(
     () => props.table.getVisibleLeafColumns().length,
-    [props.table],
-  );
+    [props.table]
+  )
   const columnClassName = useResolvedColumnClassName(
     props.table,
     props.getColumnClassName,
-    props.pinnedColumns,
-  );
+    props.pinnedColumns
+  )
 
   return (
     <div
       className={cn(
         // Soft edge chrome — avoid heavy outlined panels.
-        "border-border/60 bg-card overflow-hidden rounded-xl border",
-        props.containerClassName,
+        'border-border/60 bg-card overflow-hidden rounded-xl border',
+        props.containerClassName
       )}
       {...props.containerProps}
     >
@@ -84,7 +84,7 @@ export function DataTableView<TData>(props: DataTableViewProps<TData>) {
         />
       )}
     </div>
-  );
+  )
 }
 
 function UnifiedTableView<TData>({
@@ -93,12 +93,12 @@ function UnifiedTableView<TData>({
   colSpan,
   getColumnClassName,
 }: {
-  props: DataTableViewProps<TData>;
-  rows: Row<TData>[];
-  colSpan: number;
-  getColumnClassName: DataTableColumnClassName;
+  props: DataTableViewProps<TData>
+  rows: Row<TData>[]
+  colSpan: number
+  getColumnClassName: DataTableColumnClassName
 }) {
-  const tableSizing = getTableSizing(props);
+  const tableSizing = getTableSizing(props)
 
   return (
     <div className={props.tableContainerClassName}>
@@ -114,7 +114,7 @@ function UnifiedTableView<TData>({
         {renderTableBody(props, rows, colSpan, getColumnClassName)}
       </Table>
     </div>
-  );
+  )
 }
 
 function SplitHeaderTableView<TData>({
@@ -123,34 +123,34 @@ function SplitHeaderTableView<TData>({
   colSpan,
   getColumnClassName,
 }: {
-  props: DataTableViewProps<TData>;
-  rows: Row<TData>[];
-  colSpan: number;
-  getColumnClassName: DataTableColumnClassName;
+  props: DataTableViewProps<TData>
+  rows: Row<TData>[]
+  colSpan: number
+  getColumnClassName: DataTableColumnClassName
 }) {
-  const tableSizing = getTableSizing(props);
+  const tableSizing = getTableSizing(props)
 
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col",
-        props.tableContainerClassName,
+        'flex h-full min-h-0 flex-col',
+        props.tableContainerClassName
       )}
     >
       <div
         className={cn(
-          "min-h-0 flex-1 overflow-auto",
-          "**:data-[slot=table-header]:[--table-header-bg:var(--table-header)]",
-          "**:data-[slot=table-header]:bg-(--table-header-bg)",
+          'min-h-0 flex-1 overflow-auto',
+          '**:data-[slot=table-header]:[--table-header-bg:var(--table-header)]',
+          '**:data-[slot=table-header]:bg-(--table-header-bg)',
           props.splitHeaderScrollClassName,
-          props.bodyContainerClassName,
+          props.bodyContainerClassName
         )}
       >
         <table
-          data-slot="table"
+          data-slot='table'
           className={cn(
-            "w-full caption-bottom text-sm tabular-nums [&_td]:text-sm [&_td_*]:text-sm [&_th]:text-sm [&_th_*]:text-sm",
-            props.tableClassName,
+            'w-full caption-bottom text-sm tabular-nums [&_td]:text-sm [&_td_*]:text-sm [&_th]:text-sm [&_th_*]:text-sm',
+            props.tableClassName
           )}
           style={tableSizing.style}
         >
@@ -158,7 +158,7 @@ function SplitHeaderTableView<TData>({
           <DataTableHeader
             table={props.table}
             applyHeaderSize={props.applyHeaderSize}
-            className={cn("sticky top-0 z-10", props.tableHeaderClassName)}
+            className={cn('sticky top-0 z-10', props.tableHeaderClassName)}
             rowClassName={props.tableHeaderRowClassName}
             getColumnClassName={getColumnClassName}
           />
@@ -166,104 +166,104 @@ function SplitHeaderTableView<TData>({
         </table>
       </div>
     </div>
-  );
+  )
 }
 
 function useResolvedColumnClassName<TData>(
   table: TanstackTable<TData>,
   getColumnClassName?: DataTableColumnClassName,
-  pinnedColumns?: DataTablePinnedColumn[],
+  pinnedColumns?: DataTablePinnedColumn[]
 ) {
   const allPinnedColumns = React.useMemo(() => {
-    const metaPinnedColumns = getMetaPinnedColumns(table);
-    return mergePinnedColumns(pinnedColumns, metaPinnedColumns);
-  }, [table, pinnedColumns]);
+    const metaPinnedColumns = getMetaPinnedColumns(table)
+    return mergePinnedColumns(pinnedColumns, metaPinnedColumns)
+  }, [table, pinnedColumns])
 
   const pinnedColumnById = React.useMemo(
     () => getPinnedColumnMap(allPinnedColumns),
-    [allPinnedColumns],
-  );
+    [allPinnedColumns]
+  )
 
   return React.useMemo(
     () =>
       getResolvedColumnClassNameFromMap(getColumnClassName, pinnedColumnById),
-    [getColumnClassName, pinnedColumnById],
-  );
+    [getColumnClassName, pinnedColumnById]
+  )
 }
 
 function getMetaPinnedColumns<TData>(
-  table: TanstackTable<TData>,
+  table: TanstackTable<TData>
 ): DataTablePinnedColumn[] {
   return table.getAllColumns().flatMap((column) => {
-    const side = column.columnDef.meta?.pinned;
+    const side = column.columnDef.meta?.pinned
     if (!side) {
-      return [];
+      return []
     }
 
-    return [{ columnId: column.id, side }];
-  });
+    return [{ columnId: column.id, side }]
+  })
 }
 
 function mergePinnedColumns(
   explicitPinnedColumns: DataTablePinnedColumn[] | undefined,
-  metaPinnedColumns: DataTablePinnedColumn[],
+  metaPinnedColumns: DataTablePinnedColumn[]
 ): DataTablePinnedColumn[] | undefined {
   if (!metaPinnedColumns.length) {
-    return explicitPinnedColumns;
+    return explicitPinnedColumns
   }
 
   if (!explicitPinnedColumns?.length) {
-    return metaPinnedColumns;
+    return metaPinnedColumns
   }
 
   const explicitColumnIds = new Set(
-    explicitPinnedColumns.map((column) => column.columnId),
-  );
+    explicitPinnedColumns.map((column) => column.columnId)
+  )
 
   return [
     ...explicitPinnedColumns,
     ...metaPinnedColumns.filter(
-      (column) => !explicitColumnIds.has(column.columnId),
+      (column) => !explicitColumnIds.has(column.columnId)
     ),
-  ];
+  ]
 }
 
 function getTableSizing<TData>(props: DataTableViewProps<TData>): {
-  colgroup?: React.ReactNode;
-  style?: React.CSSProperties;
+  colgroup?: React.ReactNode
+  style?: React.CSSProperties
 } {
   if (props.colgroup) {
-    return { colgroup: props.colgroup };
+    return { colgroup: props.colgroup }
   }
 
   if (!props.splitHeader && !props.applyHeaderSize) {
-    return {};
+    return {}
   }
 
   return {
     colgroup: <DataTableColgroup table={props.table} />,
     style: getTableSizeStyle(props.table),
-  };
+  }
 }
 
 function renderTableBody<TData>(
   props: DataTableViewProps<TData>,
   rows: Row<TData>[],
   colSpan: number,
-  getColumnClassName: DataTableColumnClassName,
+  getColumnClassName: DataTableColumnClassName
 ) {
   return (
     <TableBody className={props.tableBodyClassName}>
       {renderTableBodyContent(props, rows, colSpan, getColumnClassName)}
     </TableBody>
-  );
+  )
 }
 
 function renderTableBodyContent<TData>(
   props: DataTableViewProps<TData>,
   rows: Row<TData>[],
   colSpan: number,
-  getColumnClassName: DataTableColumnClassName,
+  getColumnClassName: DataTableColumnClassName
 ) {
   if (props.isLoading) {
     return (
@@ -272,26 +272,26 @@ function renderTableBodyContent<TData>(
         keyPrefix={props.skeletonKeyPrefix}
         rowHeight={props.skeletonRowHeight}
       />
-    );
+    )
   }
 
   if (rows.length === 0) {
-    return renderEmptyState(props, colSpan);
+    return renderEmptyState(props, colSpan)
   }
 
   return rows.map((row) =>
     props.renderRow
       ? props.renderRow(row, {
           getCellClassName: (columnId, className) =>
-            cn(getColumnClassName(columnId, "cell"), className),
+            cn(getColumnClassName(columnId, 'cell'), className),
         })
-      : renderDefaultRow(props, row, getColumnClassName),
-  );
+      : renderDefaultRow(props, row, getColumnClassName)
+  )
 }
 
 function renderEmptyState<TData>(
   props: DataTableViewProps<TData>,
-  colSpan: number,
+  colSpan: number
 ) {
   if (props.emptyContent) {
     return (
@@ -300,7 +300,7 @@ function renderEmptyState<TData>(
           {props.emptyContent}
         </TableCell>
       </TableRow>
-    );
+    )
   }
 
   return (
@@ -312,13 +312,13 @@ function renderEmptyState<TData>(
     >
       {props.emptyAction}
     </TableEmpty>
-  );
+  )
 }
 
 function renderDefaultRow<TData>(
   props: DataTableViewProps<TData>,
   row: Row<TData>,
-  getColumnClassName: DataTableColumnClassName,
+  getColumnClassName: DataTableColumnClassName
 ) {
   return (
     <DataTableRow
@@ -328,5 +328,5 @@ function renderDefaultRow<TData>(
       getColumnClassName={getColumnClassName}
       cellRenderColumns={props.table.options.columns}
     />
-  );
+  )
 }

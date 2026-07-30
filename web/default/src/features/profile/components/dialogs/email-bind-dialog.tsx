@@ -16,28 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Dialog } from "@/components/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useCountdown } from "@/hooks/use-countdown";
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useCountdown } from '@/hooks/use-countdown'
 
-import { sendEmailVerification, bindEmail } from "../../api";
+import { sendEmailVerification, bindEmail } from '../../api'
 
 // ============================================================================
 // Email Bind Dialog Component
 // ============================================================================
 
 interface EmailBindDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentEmail?: string;
-  onSuccess: () => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currentEmail?: string
+  onSuccess: () => void
 }
 
 export function EmailBindDialog({
@@ -46,11 +46,11 @@ export function EmailBindDialog({
   currentEmail,
   onSuccess,
 }: EmailBindDialogProps) {
-  const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const { t } = useTranslation()
+  const [loading, setLoading] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const {
     secondsLeft,
     isActive,
@@ -58,141 +58,141 @@ export function EmailBindDialog({
     reset: resetCountdown,
   } = useCountdown({
     initialSeconds: 60,
-  });
+  })
 
   const handleSendCode = async () => {
-    if (!email || !email.includes("@")) {
-      toast.error(t("Please enter a valid email address"));
-      return;
+    if (!email || !email.includes('@')) {
+      toast.error(t('Please enter a valid email address'))
+      return
     }
 
     try {
-      setSendingCode(true);
-      const response = await sendEmailVerification(email);
+      setSendingCode(true)
+      const response = await sendEmailVerification(email)
 
       if (response.success) {
-        toast.success(t("Verification code sent! Please check your email."));
-        startCountdown();
+        toast.success(t('Verification code sent! Please check your email.'))
+        startCountdown()
       } else {
-        toast.error(response.message || t("Failed to send verification code"));
+        toast.error(response.message || t('Failed to send verification code'))
       }
     } catch {
-      toast.error(t("Failed to send verification code"));
+      toast.error(t('Failed to send verification code'))
     } finally {
-      setSendingCode(false);
+      setSendingCode(false)
     }
-  };
+  }
 
   const handleBind = async () => {
     if (!email || !code) {
-      toast.error(t("Please enter email and verification code"));
-      return;
+      toast.error(t('Please enter email and verification code'))
+      return
     }
 
     try {
-      setLoading(true);
-      const response = await bindEmail(email, code);
+      setLoading(true)
+      const response = await bindEmail(email, code)
 
       if (response.success) {
-        toast.success(t("Email bound successfully!"));
-        onOpenChange(false);
-        onSuccess();
+        toast.success(t('Email bound successfully!'))
+        onOpenChange(false)
+        onSuccess()
         // Reset form
-        setEmail("");
-        setCode("");
-        resetCountdown();
+        setEmail('')
+        setCode('')
+        resetCountdown()
       } else {
-        toast.error(response.message || t("Failed to bind email"));
+        toast.error(response.message || t('Failed to bind email'))
       }
     } catch {
-      toast.error(t("Failed to bind email"));
+      toast.error(t('Failed to bind email'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleOpenChange = (open: boolean) => {
     if (!loading) {
-      onOpenChange(open);
+      onOpenChange(open)
       if (!open) {
         // Reset form when closing
-        setEmail("");
-        setCode("");
-        resetCountdown();
+        setEmail('')
+        setCode('')
+        resetCountdown()
       }
     }
-  };
+  }
 
-  let sendCodeLabel = t("Send");
+  let sendCodeLabel = t('Send')
   if (isActive) {
-    sendCodeLabel = `${secondsLeft}s`;
+    sendCodeLabel = `${secondsLeft}s`
   } else if (sendingCode) {
-    sendCodeLabel = t("Sending...");
+    sendCodeLabel = t('Sending...')
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      title={t("Bind Email")}
+      title={t('Bind Email')}
       description={
         currentEmail
-          ? t("Current email: {{email}}. Enter a new email to change.", {
+          ? t('Current email: {{email}}. Enter a new email to change.', {
               email: currentEmail,
             })
-          : t("Bind an email address to your account.")
+          : t('Bind an email address to your account.')
       }
-      contentClassName="sm:max-w-md"
-      contentHeight="auto"
-      bodyClassName="space-y-4"
+      contentClassName='sm:max-w-md'
+      contentHeight='auto'
+      bodyClassName='space-y-4'
       footer={
         <>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={() => handleOpenChange(false)}
             disabled={loading}
           >
-            {t("Cancel")}
+            {t('Cancel')}
           </Button>
           <Button
-            type="button"
+            type='button'
             onClick={handleBind}
             disabled={loading || !email || !code}
           >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? t("Binding...") : t("Bind Email")}
+            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+            {loading ? t('Binding...') : t('Bind Email')}
           </Button>
         </>
       }
     >
-      <div className="space-y-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">{t("Email Address")}</Label>
+      <div className='space-y-4 py-4'>
+        <div className='space-y-2'>
+          <Label htmlFor='email'>{t('Email Address')}</Label>
           <Input
-            id="email"
-            type="email"
+            id='email'
+            type='email'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("Enter your email")}
+            placeholder={t('Enter your email')}
             disabled={loading}
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="code">{t("Verification Code")}</Label>
-          <div className="flex gap-2">
+        <div className='space-y-2'>
+          <Label htmlFor='code'>{t('Verification Code')}</Label>
+          <div className='flex gap-2'>
             <Input
-              id="code"
+              id='code'
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder={t("Enter code")}
+              placeholder={t('Enter code')}
               disabled={loading}
               maxLength={6}
             />
             <Button
-              type="button"
-              variant="outline"
+              type='button'
+              variant='outline'
               onClick={handleSendCode}
               disabled={sendingCode || isActive || !email}
             >
@@ -202,5 +202,5 @@ export function EmailBindDialog({
         </div>
       </div>
     </Dialog>
-  );
+  )
 }

@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useLocation, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from "lucide-react";
-import React from "react";
-import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from '@tanstack/react-router'
+import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
+import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
   Command,
@@ -30,41 +30,41 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
-import { useSearch } from "@/context/search-context";
-import { useTheme } from "@/context/theme-provider";
-import { useSidebarData } from "@/hooks/use-sidebar-data";
+} from '@/components/ui/command'
+import { useSearch } from '@/context/search-context'
+import { useTheme } from '@/context/theme-provider'
+import { useSidebarData } from '@/hooks/use-sidebar-data'
 
-import { getNavGroupsForPath } from "./layout/lib/sidebar-view-registry";
-import { ScrollArea } from "./ui/scroll-area";
+import { getNavGroupsForPath } from './layout/lib/sidebar-view-registry'
+import { ScrollArea } from './ui/scroll-area'
 
 export function CommandMenu() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { setTheme } = useTheme();
-  const { open, setOpen } = useSearch();
-  const { pathname } = useLocation();
-  const sidebarData = useSidebarData();
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { setTheme } = useTheme()
+  const { open, setOpen } = useSearch()
+  const { pathname } = useLocation()
+  const sidebarData = useSidebarData()
 
   // Use the active nested sidebar view's nav groups when one matches
   // the current URL; otherwise fall back to the root navigation.
-  const navGroups = getNavGroupsForPath(pathname, t) ?? sidebarData.navGroups;
+  const navGroups = getNavGroupsForPath(pathname, t) ?? sidebarData.navGroups
 
   const runCommand = React.useCallback(
     (command: () => unknown) => {
-      setOpen(false);
-      command();
+      setOpen(false)
+      command()
     },
-    [setOpen],
-  );
+    [setOpen]
+  )
 
   return (
     <CommandDialog modal open={open} onOpenChange={setOpen}>
       <Command>
-        <CommandInput placeholder={t("Type a command or search...")} />
+        <CommandInput placeholder={t('Type a command or search...')} />
         <CommandList>
-          <ScrollArea className="h-72 pe-1">
-            <CommandEmpty>{t("No results found.")}</CommandEmpty>
+          <ScrollArea className='h-72 pe-1'>
+            <CommandEmpty>{t('No results found.')}</CommandEmpty>
             {navGroups.map((group) => (
               <CommandGroup key={group.id || group.title} heading={group.title}>
                 {group.items.map((navItem) => {
@@ -74,15 +74,15 @@ export function CommandMenu() {
                         key={String(navItem.url)}
                         value={navItem.title}
                         onSelect={() => {
-                          runCommand(() => navigate({ to: navItem.url }));
+                          runCommand(() => navigate({ to: navItem.url }))
                         }}
                       >
-                        <div className="flex size-4 items-center justify-center">
-                          <ArrowRight className="text-muted-foreground size-2" />
+                        <div className='flex size-4 items-center justify-center'>
+                          <ArrowRight className='text-muted-foreground size-2' />
                         </div>
                         {navItem.title}
                       </CommandItem>
-                    );
+                    )
                   }
 
                   return navItem.items?.map((subItem) => (
@@ -90,37 +90,37 @@ export function CommandMenu() {
                       key={`${navItem.title}-${String(subItem.url)}`}
                       value={`${navItem.title}-${subItem.url}`}
                       onSelect={() => {
-                        runCommand(() => navigate({ to: subItem.url }));
+                        runCommand(() => navigate({ to: subItem.url }))
                       }}
                     >
-                      <div className="flex size-4 items-center justify-center">
-                        <ArrowRight className="text-muted-foreground size-2" />
+                      <div className='flex size-4 items-center justify-center'>
+                        <ArrowRight className='text-muted-foreground size-2' />
                       </div>
                       {navItem.title} <ChevronRight /> {subItem.title}
                     </CommandItem>
-                  ));
+                  ))
                 })}
               </CommandGroup>
             ))}
             <CommandSeparator />
-            <CommandGroup heading="Theme">
-              <CommandItem onSelect={() => runCommand(() => setTheme("light"))}>
-                <Sun /> <span>{t("Light")}</span>
+            <CommandGroup heading='Theme'>
+              <CommandItem onSelect={() => runCommand(() => setTheme('light'))}>
+                <Sun /> <span>{t('Light')}</span>
               </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => setTheme("dark"))}>
-                <Moon className="scale-90" />
-                <span>{t("Dark")}</span>
+              <CommandItem onSelect={() => runCommand(() => setTheme('dark'))}>
+                <Moon className='scale-90' />
+                <span>{t('Dark')}</span>
               </CommandItem>
               <CommandItem
-                onSelect={() => runCommand(() => setTheme("system"))}
+                onSelect={() => runCommand(() => setTheme('system'))}
               >
                 <Laptop />
-                <span>{t("System")}</span>
+                <span>{t('System')}</span>
               </CommandItem>
             </CommandGroup>
           </ScrollArea>
         </CommandList>
       </Command>
     </CommandDialog>
-  );
+  )
 }

@@ -16,28 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { BillingSettings } from "@/features/system-settings/billing";
+import { BillingSettings } from '@/features/system-settings/billing'
 import {
   BILLING_DEFAULT_SECTION,
   BILLING_SECTION_IDS,
-} from "@/features/system-settings/billing/section-manifest";
+} from '@/features/system-settings/billing/section-manifest'
 
 export const Route = createFileRoute(
-  "/_authenticated/system-settings/billing/$section",
+  '/_authenticated/system-settings/billing/$section'
 )({
   beforeLoad: ({ params }) => {
-    if (params.section === "model-pricing") {
-      throw redirect({ to: "/pricing-center" });
+    if (params.section === 'model-pricing') {
+      throw redirect({ to: '/pricing-center' })
     }
-    const validSections = BILLING_SECTION_IDS as unknown as string[];
+    const validSections = BILLING_SECTION_IDS as unknown as string[]
     if (!validSections.includes(params.section)) {
       throw redirect({
-        to: "/system-settings/billing/$section",
+        to: '/system-settings/billing/$section',
         params: { section: BILLING_DEFAULT_SECTION },
-      });
+      })
     }
   },
   component: BillingSettings,
-});
+})

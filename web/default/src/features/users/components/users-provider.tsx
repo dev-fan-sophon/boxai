@@ -16,29 +16,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useState } from "react";
+import React, { useState } from 'react'
 
-import { useDialogState } from "@/hooks/use-dialog";
+import { useDialogState } from '@/hooks/use-dialog'
 
-import type { User, UsersDialogType } from "../types";
+import type { User, UsersDialogType } from '../types'
 
 type UsersContextType = {
-  open: UsersDialogType | null;
-  setOpen: (str: UsersDialogType | null) => void;
-  currentRow: User | null;
-  setCurrentRow: React.Dispatch<React.SetStateAction<User | null>>;
-  refreshTrigger: number;
-  triggerRefresh: () => void;
-};
+  open: UsersDialogType | null
+  setOpen: (str: UsersDialogType | null) => void
+  currentRow: User | null
+  setCurrentRow: React.Dispatch<React.SetStateAction<User | null>>
+  refreshTrigger: number
+  triggerRefresh: () => void
+}
 
-const UsersContext = React.createContext<UsersContextType | null>(null);
+const UsersContext = React.createContext<UsersContextType | null>(null)
 
 export function UsersProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useDialogState<UsersDialogType>(null);
-  const [currentRow, setCurrentRow] = useState<User | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [open, setOpen] = useDialogState<UsersDialogType>(null)
+  const [currentRow, setCurrentRow] = useState<User | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
+  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1)
 
   return (
     <UsersContext
@@ -53,16 +53,16 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
     </UsersContext>
-  );
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useUsers = () => {
-  const usersContext = React.useContext(UsersContext);
+  const usersContext = React.useContext(UsersContext)
 
   if (!usersContext) {
-    throw new Error("useUsers has to be used within <UsersContext>");
+    throw new Error('useUsers has to be used within <UsersContext>')
   }
 
-  return usersContext;
-};
+  return usersContext
+}

@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SettingsPage } from "../components/settings-page";
-import type { AuthSettings } from "../types";
-import { AUTH_DEFAULT_SECTION } from "./section-manifest";
+import { SettingsPage } from '../components/settings-page'
+import type { AuthSettings } from '../types'
+import { AUTH_DEFAULT_SECTION } from './section-manifest'
 import {
   getAuthSectionContent,
   getAuthSectionMeta,
-} from "./section-registry.tsx";
+} from './section-registry.tsx'
 
 const defaultAuthSettings: AuthSettings = {
   PasswordLoginEnabled: true,
@@ -31,62 +31,62 @@ const defaultAuthSettings: AuthSettings = {
   RegisterEnabled: true,
   EmailDomainRestrictionEnabled: false,
   EmailAliasRestrictionEnabled: false,
-  EmailDomainWhitelist: "",
-  ServerAddress: "",
+  EmailDomainWhitelist: '',
+  ServerAddress: '',
   GitHubOAuthEnabled: false,
-  GitHubClientId: "",
-  GitHubClientSecret: "",
-  "discord.enabled": false,
-  "discord.client_id": "",
-  "discord.client_secret": "",
-  "google.enabled": false,
-  "google.client_id": "",
-  "google.client_secret": "",
-  "facebook.enabled": false,
-  "facebook.client_id": "",
-  "facebook.client_secret": "",
-  "zalo.enabled": false,
-  "zalo.app_id": "",
-  "zalo.secret_key": "",
-  "oidc.enabled": false,
-  "oidc.display_name": "",
-  "oidc.client_id": "",
-  "oidc.client_secret": "",
-  "oidc.well_known": "",
-  "oidc.authorization_endpoint": "",
-  "oidc.token_endpoint": "",
-  "oidc.user_info_endpoint": "",
+  GitHubClientId: '',
+  GitHubClientSecret: '',
+  'discord.enabled': false,
+  'discord.client_id': '',
+  'discord.client_secret': '',
+  'google.enabled': false,
+  'google.client_id': '',
+  'google.client_secret': '',
+  'facebook.enabled': false,
+  'facebook.client_id': '',
+  'facebook.client_secret': '',
+  'zalo.enabled': false,
+  'zalo.app_id': '',
+  'zalo.secret_key': '',
+  'oidc.enabled': false,
+  'oidc.display_name': '',
+  'oidc.client_id': '',
+  'oidc.client_secret': '',
+  'oidc.well_known': '',
+  'oidc.authorization_endpoint': '',
+  'oidc.token_endpoint': '',
+  'oidc.user_info_endpoint': '',
   TelegramOAuthEnabled: false,
-  TelegramBotToken: "",
-  TelegramBotName: "",
+  TelegramBotToken: '',
+  TelegramBotName: '',
   LinuxDOOAuthEnabled: false,
-  LinuxDOClientId: "",
-  LinuxDOClientSecret: "",
-  LinuxDOMinimumTrustLevel: "0",
+  LinuxDOClientId: '',
+  LinuxDOClientSecret: '',
+  LinuxDOMinimumTrustLevel: '0',
   WeChatAuthEnabled: false,
-  WeChatServerAddress: "",
-  WeChatServerToken: "",
-  WeChatAccountQRCodeImageURL: "",
+  WeChatServerAddress: '',
+  WeChatServerToken: '',
+  WeChatAccountQRCodeImageURL: '',
   TurnstileCheckEnabled: false,
-  TurnstileSiteKey: "",
-  TurnstileSecretKey: "",
-  "passkey.enabled": false,
-  "passkey.rp_display_name": "",
-  "passkey.rp_id": "",
-  "passkey.origins": "",
-  "passkey.allow_insecure_origin": false,
-  "passkey.user_verification": "preferred",
-  "passkey.attachment_preference": "",
-};
+  TurnstileSiteKey: '',
+  TurnstileSecretKey: '',
+  'passkey.enabled': false,
+  'passkey.rp_display_name': '',
+  'passkey.rp_id': '',
+  'passkey.origins': '',
+  'passkey.allow_insecure_origin': false,
+  'passkey.user_verification': 'preferred',
+  'passkey.attachment_preference': '',
+}
 
 export function AuthSettings() {
   return (
     <SettingsPage
-      routePath="/_authenticated/system-settings/auth/$section"
+      routePath='/_authenticated/system-settings/auth/$section'
       defaultSettings={defaultAuthSettings}
       defaultSection={AUTH_DEFAULT_SECTION}
       getSectionContent={getAuthSectionContent}
       getSectionMeta={getAuthSectionMeta}
     />
-  );
+  )
 }

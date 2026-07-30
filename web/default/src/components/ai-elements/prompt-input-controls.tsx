@@ -16,16 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-"use client";
+'use client'
 
-import type { ChatStatus } from "ai";
+import type { ChatStatus } from 'ai'
 import {
   Loader2Icon,
   PlusIcon,
   SendIcon,
   SquareIcon,
   XIcon,
-} from "lucide-react";
+} from 'lucide-react'
 import {
   type ChangeEvent,
   Children,
@@ -34,39 +34,37 @@ import {
   type HTMLAttributes,
   type KeyboardEventHandler,
   useState,
-} from "react";
-import { useTranslation } from "react-i18next";
+} from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from "@/components/ui/input-group";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/input-group'
+import { cn } from '@/lib/utils'
 
 import {
   useOptionalPromptInputController,
   usePromptInputAttachments,
-} from "./prompt-input-context";
+} from './prompt-input-context'
 
-export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputBody = ({
   className,
   ...props
 }: PromptInputBodyProps) => (
-  <div className={cn("contents", className)} {...props} />
-);
+  <div className={cn('contents', className)} {...props} />
+)
 
-export type PromptInputTextareaProps = ComponentProps<
-  typeof InputGroupTextarea
->;
+export type PromptInputTextareaProps = ComponentProps<typeof InputGroupTextarea>
 
 export const PromptInputTextarea = ({
   onChange,
@@ -74,79 +72,79 @@ export const PromptInputTextarea = ({
   placeholder,
   ...props
 }: PromptInputTextareaProps) => {
-  const { t } = useTranslation();
-  const controller = useOptionalPromptInputController();
-  const attachments = usePromptInputAttachments();
-  const resolvedPlaceholder = placeholder ?? t("What would you like to know?");
-  const [isComposing, setIsComposing] = useState(false);
+  const { t } = useTranslation()
+  const controller = useOptionalPromptInputController()
+  const attachments = usePromptInputAttachments()
+  const resolvedPlaceholder = placeholder ?? t('What would you like to know?')
+  const [isComposing, setIsComposing] = useState(false)
 
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       if (isComposing || e.nativeEvent.isComposing) {
-        return;
+        return
       }
       if (e.shiftKey) {
-        return;
+        return
       }
-      e.preventDefault();
-      e.currentTarget.form?.requestSubmit();
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
     }
 
     // Remove last attachment when Backspace is pressed and textarea is empty
     if (
-      e.key === "Backspace" &&
-      e.currentTarget.value === "" &&
+      e.key === 'Backspace' &&
+      e.currentTarget.value === '' &&
       attachments.files.length > 0
     ) {
-      e.preventDefault();
+      e.preventDefault()
       const lastAttachment =
-        attachments.files.length > 0 ? attachments.files.at(-1) : undefined;
+        attachments.files.length > 0 ? attachments.files.at(-1) : undefined
       if (lastAttachment) {
-        attachments.remove(lastAttachment.id);
+        attachments.remove(lastAttachment.id)
       }
     }
-  };
+  }
 
   const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
-    const items = event.clipboardData?.items;
+    const items = event.clipboardData?.items
 
     if (!items) {
-      return;
+      return
     }
 
-    const files: File[] = [];
+    const files: File[] = []
 
     for (const item of items) {
-      if (item.kind === "file") {
-        const file = item.getAsFile();
+      if (item.kind === 'file') {
+        const file = item.getAsFile()
         if (file) {
-          files.push(file);
+          files.push(file)
         }
       }
     }
 
     if (files.length > 0) {
-      event.preventDefault();
-      attachments.add(files);
+      event.preventDefault()
+      attachments.add(files)
     }
-  };
+  }
 
   const controlledProps = controller
     ? {
         value: controller.textInput.value,
         onChange: (e: ChangeEvent<HTMLTextAreaElement>) => {
-          controller.textInput.setInput(e.currentTarget.value);
-          onChange?.(e);
+          controller.textInput.setInput(e.currentTarget.value)
+          onChange?.(e)
         },
       }
     : {
         onChange,
-      };
+      }
 
   return (
     <InputGroupTextarea
-      className={cn("field-sizing-content max-h-48 min-h-16", className)}
-      name="message"
+      className={cn('field-sizing-content max-h-48 min-h-16', className)}
+      name='message'
       onCompositionEnd={() => setIsComposing(false)}
       onCompositionStart={() => setIsComposing(true)}
       onKeyDown={handleKeyDown}
@@ -155,78 +153,78 @@ export const PromptInputTextarea = ({
       {...props}
       {...controlledProps}
     />
-  );
-};
+  )
+}
 
 export type PromptInputHeaderProps = Omit<
   ComponentProps<typeof InputGroupAddon>,
-  "align"
->;
+  'align'
+>
 
 export const PromptInputHeader = ({
   className,
   ...props
 }: PromptInputHeaderProps) => (
   <InputGroupAddon
-    align="block-end"
-    className={cn("order-first flex-wrap gap-1", className)}
+    align='block-end'
+    className={cn('order-first flex-wrap gap-1', className)}
     {...props}
   />
-);
+)
 
 export type PromptInputFooterProps = Omit<
   ComponentProps<typeof InputGroupAddon>,
-  "align"
->;
+  'align'
+>
 
 export const PromptInputFooter = ({
   className,
   ...props
 }: PromptInputFooterProps) => (
   <InputGroupAddon
-    align="block-end"
-    className={cn("justify-between gap-1", className)}
+    align='block-end'
+    className={cn('justify-between gap-1', className)}
     {...props}
   />
-);
+)
 
-export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>
 
 export const PromptInputTools = ({
   className,
   ...props
 }: PromptInputToolsProps) => (
-  <div className={cn("flex items-center gap-1", className)} {...props} />
-);
+  <div className={cn('flex items-center gap-1', className)} {...props} />
+)
 
-export type PromptInputButtonProps = ComponentProps<typeof InputGroupButton>;
+export type PromptInputButtonProps = ComponentProps<typeof InputGroupButton>
 
 export const PromptInputButton = ({
-  variant = "ghost",
+  variant = 'ghost',
   className,
   size,
   ...props
 }: PromptInputButtonProps) => {
   const newSize =
-    size ?? (Children.count(props.children) > 1 ? "sm" : "icon-sm");
+    size ?? (Children.count(props.children) > 1 ? 'sm' : 'icon-sm')
 
   return (
     <InputGroupButton
       className={cn(className)}
       size={newSize}
-      type="button"
+      type='button'
       variant={variant}
       {...props}
     />
-  );
-};
+  )
+}
 
-export type PromptInputActionMenuProps = ComponentProps<typeof DropdownMenu>;
+export type PromptInputActionMenuProps = ComponentProps<typeof DropdownMenu>
 export const PromptInputActionMenu = (props: PromptInputActionMenuProps) => (
   <DropdownMenu {...props} />
-);
+)
 
-export type PromptInputActionMenuTriggerProps = PromptInputButtonProps;
+export type PromptInputActionMenuTriggerProps = PromptInputButtonProps
 
 export const PromptInputActionMenuTrigger = ({
   className,
@@ -236,66 +234,66 @@ export const PromptInputActionMenuTrigger = ({
   <DropdownMenuTrigger
     render={<PromptInputButton className={className} {...props} />}
   >
-    {children ?? <PlusIcon className="size-4" />}
+    {children ?? <PlusIcon className='size-4' />}
   </DropdownMenuTrigger>
-);
+)
 
 export type PromptInputActionMenuContentProps = ComponentProps<
   typeof DropdownMenuContent
->;
+>
 export const PromptInputActionMenuContent = ({
   className,
   ...props
 }: PromptInputActionMenuContentProps) => (
-  <DropdownMenuContent align="start" className={cn(className)} {...props} />
-);
+  <DropdownMenuContent align='start' className={cn(className)} {...props} />
+)
 
 export type PromptInputActionMenuItemProps = ComponentProps<
   typeof DropdownMenuItem
->;
+>
 export const PromptInputActionMenuItem = ({
   className,
   ...props
 }: PromptInputActionMenuItemProps) => (
   <DropdownMenuItem className={cn(className)} {...props} />
-);
+)
 
 // Note: Actions that perform side-effects (like opening a file dialog)
 // are provided in opt-in modules (e.g., prompt-input-attachments).
 
 export type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
-  status?: ChatStatus;
-};
+  status?: ChatStatus
+}
 
 export const PromptInputSubmit = ({
   className,
-  variant = "default",
-  size = "icon-sm",
+  variant = 'default',
+  size = 'icon-sm',
   status,
   children,
   ...props
 }: PromptInputSubmitProps) => {
-  const { t } = useTranslation();
-  let Icon = <SendIcon className="size-4" />;
+  const { t } = useTranslation()
+  let Icon = <SendIcon className='size-4' />
 
-  if (status === "submitted") {
-    Icon = <Loader2Icon className="size-4 animate-spin" />;
-  } else if (status === "streaming") {
-    Icon = <SquareIcon className="size-4" />;
-  } else if (status === "error") {
-    Icon = <XIcon className="size-4" />;
+  if (status === 'submitted') {
+    Icon = <Loader2Icon className='size-4 animate-spin' />
+  } else if (status === 'streaming') {
+    Icon = <SquareIcon className='size-4' />
+  } else if (status === 'error') {
+    Icon = <XIcon className='size-4' />
   }
 
   return (
     <InputGroupButton
-      aria-label={t("Submit")}
+      aria-label={t('Submit')}
       className={cn(className)}
       size={size}
-      type="submit"
+      type='submit'
       variant={variant}
       {...props}
     >
       {children ?? Icon}
     </InputGroupButton>
-  );
-};
+  )
+}

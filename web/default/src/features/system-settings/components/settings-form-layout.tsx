@@ -16,68 +16,68 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from 'react'
 
-import { FormItem } from "@/components/ui/form";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+import { FormItem } from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 
 type SettingsFormGridProps = {
-  children: ReactNode;
-  className?: string;
-};
+  children: ReactNode
+  className?: string
+}
 
 type SettingsFormGridItemProps = SettingsFormGridProps & {
-  span?: "default" | "full";
-};
+  span?: 'default' | 'full'
+}
 
-type SettingsSwitchItemProps = ComponentProps<typeof FormItem>;
-type SettingsSwitchRowProps = ComponentProps<"div">;
-type SettingsControlGroupProps = ComponentProps<"div">;
-type SettingsControlChildrenProps = ComponentProps<"div">;
+type SettingsSwitchItemProps = ComponentProps<typeof FormItem>
+type SettingsSwitchRowProps = ComponentProps<'div'>
+type SettingsControlGroupProps = ComponentProps<'div'>
+type SettingsControlChildrenProps = ComponentProps<'div'>
 type SettingsSwitchFieldProps = SettingsSwitchRowProps & {
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  label: ReactNode;
-  description?: ReactNode;
-  disabled?: boolean;
-};
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  label: ReactNode
+  description?: ReactNode
+  disabled?: boolean
+}
 
 const settingsSwitchRowClassName =
-  "flex min-w-0 flex-row items-center justify-between gap-4 py-2.5";
+  'flex min-w-0 flex-row items-center justify-between gap-4 py-2.5'
 
 export function SettingsFormGrid(props: SettingsFormGridProps) {
   return (
     <div
-      data-settings-form-span="full"
+      data-settings-form-span='full'
       className={cn(
-        "grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2",
-        "lg:[&>[data-settings-form-span=full]]:col-span-2",
-        "[&>[data-slot=form-item]]:min-w-0",
-        "lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2",
-        "lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2",
-        props.className,
+        'grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2',
+        'lg:[&>[data-settings-form-span=full]]:col-span-2',
+        '[&>[data-slot=form-item]]:min-w-0',
+        'lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2',
+        'lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2',
+        props.className
       )}
     >
       {props.children}
     </div>
-  );
+  )
 }
 
 export function SettingsFormGridItem(props: SettingsFormGridItemProps) {
   return (
     <div
-      data-settings-form-span={props.span === "full" ? "full" : undefined}
+      data-settings-form-span={props.span === 'full' ? 'full' : undefined}
       className={cn(
-        "min-w-0",
-        props.span === "full" && "lg:col-span-2",
-        props.className,
+        'min-w-0',
+        props.span === 'full' && 'lg:col-span-2',
+        props.className
       )}
     >
       {props.children}
     </div>
-  );
+  )
 }
 
 export function SettingsSwitchItem({
@@ -86,11 +86,11 @@ export function SettingsSwitchItem({
 }: SettingsSwitchItemProps) {
   return (
     <FormItem
-      data-settings-form-span="full"
+      data-settings-form-span='full'
       className={cn(settingsSwitchRowClassName, className)}
       {...props}
     />
-  );
+  )
 }
 
 export function SettingsSwitchRow({
@@ -99,11 +99,11 @@ export function SettingsSwitchRow({
 }: SettingsSwitchRowProps) {
   return (
     <div
-      data-settings-form-span="full"
+      data-settings-form-span='full'
       className={cn(settingsSwitchRowClassName, className)}
       {...props}
     />
-  );
+  )
 }
 
 export function SettingsSwitchField({
@@ -118,9 +118,9 @@ export function SettingsSwitchField({
   return (
     <SettingsSwitchRow className={className} {...props}>
       <SettingsSwitchContent>
-        <Label className="text-sm font-medium">{label}</Label>
+        <Label className='text-sm font-medium'>{label}</Label>
         {description ? (
-          <p className="text-muted-foreground text-xs">{description}</p>
+          <p className='text-muted-foreground text-xs'>{description}</p>
         ) : null}
       </SettingsSwitchContent>
       <Switch
@@ -129,15 +129,15 @@ export function SettingsSwitchField({
         disabled={disabled}
       />
     </SettingsSwitchRow>
-  );
+  )
 }
 
 export function SettingsSwitchContent(props: SettingsFormGridProps) {
   return (
-    <div className={cn("min-w-0 space-y-0.5", props.className)}>
+    <div className={cn('min-w-0 space-y-0.5', props.className)}>
       {props.children}
     </div>
-  );
+  )
 }
 
 export function SettingsControlGroup({
@@ -146,14 +146,14 @@ export function SettingsControlGroup({
 }: SettingsControlGroupProps) {
   return (
     <div
-      data-settings-form-span="full"
+      data-settings-form-span='full'
       className={cn(
-        "bg-muted/20 min-w-0 space-y-3 rounded-xl border px-3 py-2.5",
-        className,
+        'bg-muted/20 min-w-0 space-y-3 rounded-xl border px-3 py-2.5',
+        className
       )}
       {...props}
     />
-  );
+  )
 }
 
 export function SettingsControlChildren({
@@ -162,26 +162,26 @@ export function SettingsControlChildren({
 }: SettingsControlChildrenProps) {
   return (
     <div
-      className={cn("border-border/70 ml-2 min-w-0 border-l pl-3", className)}
+      className={cn('border-border/70 ml-2 min-w-0 border-l pl-3', className)}
       {...props}
     />
-  );
+  )
 }
 
-export function SettingsForm({ className, ...props }: ComponentProps<"form">) {
+export function SettingsForm({ className, ...props }: ComponentProps<'form'>) {
   return (
     <form
       className={cn(
-        "grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2",
-        "lg:[&>*:not([data-slot=form-item])]:col-span-2",
-        "lg:[&>[data-settings-form-span=full]]:col-span-2",
-        "lg:[&>[data-slot=alert]]:col-span-2",
-        "[&>[data-slot=form-item]]:min-w-0",
-        "lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2",
-        "lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2",
-        className,
+        'grid min-w-0 gap-x-5 gap-y-6 lg:grid-cols-2',
+        'lg:[&>*:not([data-slot=form-item])]:col-span-2',
+        'lg:[&>[data-settings-form-span=full]]:col-span-2',
+        'lg:[&>[data-slot=alert]]:col-span-2',
+        '[&>[data-slot=form-item]]:min-w-0',
+        'lg:[&>[data-slot=form-item]:has(textarea)]:col-span-2',
+        'lg:[&>[data-slot=form-item]:has([data-slot=switch])]:col-span-2',
+        className
       )}
       {...props}
     />
-  );
+  )
 }

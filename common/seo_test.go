@@ -97,6 +97,7 @@ func TestInjectSEOIntoHTML(t *testing.T) {
 	assert.Contains(t, out, `id="app-jsonld"`)
 	assert.Contains(t, out, `id="seo-prerender"`)
 	assert.Contains(t, out, "<h1>")
+	assert.Contains(t, out, `clip-path:inset(50%)`)
 	assert.True(t, strings.Index(out, `id="seo-prerender"`) < strings.Index(out, `id="root"`))
 
 	// Private path forces noindex even if flag is false

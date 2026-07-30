@@ -16,36 +16,36 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate, useRouter } from "@tanstack/react-router";
-import { SearchX } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useNavigate, useRouter } from '@tanstack/react-router'
+import { SearchX } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 
-import { ErrorPage } from "./error-page";
+import { ErrorPage } from './error-page'
 
 export function NotFoundError() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { history } = useRouter();
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { history } = useRouter()
   return (
     <ErrorPage
-      code="404"
+      code='404'
       icon={<SearchX />}
-      title={t("Page not found")}
+      title={t('Page not found')}
       description={t(
-        "This page doesn't exist or may have been moved. Check the URL, or head back home.",
+        "This page doesn't exist or may have been moved. Check the URL, or head back home."
       )}
       actions={
         <>
-          <Button variant="outline" onClick={() => history.go(-1)}>
-            {t("Go Back")}
+          <Button variant='outline' onClick={() => history.go(-1)}>
+            {t('Go Back')}
           </Button>
-          <Button onClick={() => navigate({ to: "/" })}>
-            {t("Back to Home")}
+          <Button onClick={() => navigate({ to: '/' })}>
+            {t('Back to Home')}
           </Button>
         </>
       }
     />
-  );
+  )
 }

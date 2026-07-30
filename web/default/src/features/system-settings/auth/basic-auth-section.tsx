@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import * as z from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import * as z from 'zod'
 
 import {
   Form,
@@ -30,19 +30,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 
 import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsSwitchItem,
-} from "../components/settings-form-layout";
-import { SettingsPageFormActions } from "../components/settings-page-context";
-import { SettingsSection } from "../components/settings-section";
-import { useResetForm } from "../hooks/use-reset-form";
-import { useUpdateOption } from "../hooks/use-update-option";
+} from '../components/settings-form-layout'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsSection } from '../components/settings-section'
+import { useResetForm } from '../hooks/use-reset-form'
+import { useUpdateOption } from '../hooks/use-update-option'
 
 const basicAuthSchema = z.object({
   PasswordLoginEnabled: z.boolean(),
@@ -52,62 +52,62 @@ const basicAuthSchema = z.object({
   EmailDomainRestrictionEnabled: z.boolean(),
   EmailAliasRestrictionEnabled: z.boolean(),
   EmailDomainWhitelist: z.string(),
-});
+})
 
-type BasicAuthFormValues = z.infer<typeof basicAuthSchema>;
+type BasicAuthFormValues = z.infer<typeof basicAuthSchema>
 
 type BasicAuthSectionProps = {
-  defaultValues: BasicAuthFormValues;
-};
+  defaultValues: BasicAuthFormValues
+}
 
 export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
-  const { t } = useTranslation();
-  const updateOption = useUpdateOption();
+  const { t } = useTranslation()
+  const updateOption = useUpdateOption()
 
   const formDefaults = useMemo<BasicAuthFormValues>(
     () => ({
       ...defaultValues,
-      EmailDomainWhitelist: defaultValues.EmailDomainWhitelist.split(",")
+      EmailDomainWhitelist: defaultValues.EmailDomainWhitelist.split(',')
         .map((domain) => domain.trim())
         .filter(Boolean)
-        .join("\n"),
+        .join('\n'),
     }),
-    [defaultValues],
-  );
+    [defaultValues]
+  )
 
   const form = useForm<BasicAuthFormValues>({
     resolver: zodResolver(basicAuthSchema),
     defaultValues: formDefaults,
-  });
+  })
 
-  useResetForm(form, formDefaults);
+  useResetForm(form, formDefaults)
 
   const onSubmit = async (data: BasicAuthFormValues) => {
-    const updates: Array<{ key: string; value: string | boolean }> = [];
+    const updates: Array<{ key: string; value: string | boolean }> = []
 
     Object.entries(data).forEach(([key, value]) => {
-      if (key === "EmailDomainWhitelist") {
-        if (typeof value !== "string") return;
+      if (key === 'EmailDomainWhitelist') {
+        if (typeof value !== 'string') return
         const domains = value
-          .split("\n")
+          .split('\n')
           .map((domain) => domain.trim())
           .filter(Boolean)
-          .join(",");
+          .join(',')
         if (domains !== defaultValues.EmailDomainWhitelist) {
-          updates.push({ key, value: domains });
+          updates.push({ key, value: domains })
         }
       } else if (value !== defaultValues[key as keyof typeof defaultValues]) {
-        updates.push({ key, value });
+        updates.push({ key, value })
       }
-    });
+    })
 
     for (const update of updates) {
-      await updateOption.mutateAsync(update);
+      await updateOption.mutateAsync(update)
     }
-  };
+  }
 
   return (
-    <SettingsSection title={t("Basic Authentication")}>
+    <SettingsSection title={t('Basic Authentication')}>
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
@@ -116,13 +116,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
           />
           <FormField
             control={form.control}
-            name="PasswordLoginEnabled"
+            name='PasswordLoginEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Password Login")}</FormLabel>
+                  <FormLabel>{t('Password Login')}</FormLabel>
                   <FormDescription>
-                    {t("Allow users to log in with password")}
+                    {t('Allow users to log in with password')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -137,13 +137,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="RegisterEnabled"
+            name='RegisterEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Registration Enabled")}</FormLabel>
+                  <FormLabel>{t('Registration Enabled')}</FormLabel>
                   <FormDescription>
-                    {t("Allow new users to register")}
+                    {t('Allow new users to register')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -158,13 +158,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="PasswordRegisterEnabled"
+            name='PasswordRegisterEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Password Registration")}</FormLabel>
+                  <FormLabel>{t('Password Registration')}</FormLabel>
                   <FormDescription>
-                    {t("Allow registration with password")}
+                    {t('Allow registration with password')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -179,13 +179,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="EmailVerificationEnabled"
+            name='EmailVerificationEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Email Verification")}</FormLabel>
+                  <FormLabel>{t('Email Verification')}</FormLabel>
                   <FormDescription>
-                    {t("Require email verification for new accounts")}
+                    {t('Require email verification for new accounts')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -200,13 +200,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="EmailDomainRestrictionEnabled"
+            name='EmailDomainRestrictionEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Email Domain Restriction")}</FormLabel>
+                  <FormLabel>{t('Email Domain Restriction')}</FormLabel>
                   <FormDescription>
-                    {t("Only allow specific email domains")}
+                    {t('Only allow specific email domains')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -221,13 +221,13 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="EmailAliasRestrictionEnabled"
+            name='EmailAliasRestrictionEnabled'
             render={({ field }) => (
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
-                  <FormLabel>{t("Email Alias Restriction")}</FormLabel>
+                  <FormLabel>{t('Email Alias Restriction')}</FormLabel>
                   <FormDescription>
-                    {t("Block email aliases (e.g., user+alias@domain.com)")}
+                    {t('Block email aliases (e.g., user+alias@domain.com)')}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
@@ -242,20 +242,20 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
 
           <FormField
             control={form.control}
-            name="EmailDomainWhitelist"
+            name='EmailDomainWhitelist'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("Email Domain Whitelist")}</FormLabel>
+                <FormLabel>{t('Email Domain Whitelist')}</FormLabel>
                 <FormControl>
                   <Textarea
-                    placeholder={t("example.com&#10;company.com")}
+                    placeholder={t('example.com&#10;company.com')}
                     rows={4}
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
                   {t(
-                    "One domain per line (only used when domain restriction is enabled)",
+                    'One domain per line (only used when domain restriction is enabled)'
                   )}
                 </FormDescription>
                 <FormMessage />
@@ -265,5 +265,5 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
         </SettingsForm>
       </Form>
     </SettingsSection>
-  );
+  )
 }

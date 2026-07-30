@@ -16,53 +16,53 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest'
 
-import { handleDropdownMenuItemSelect } from "./dropdown-menu-events";
+import { handleDropdownMenuItemSelect } from './dropdown-menu-events'
 
 function createMenuEvent() {
-  let defaultPrevented = false;
-  let baseUIHandlerPrevented = false;
+  let defaultPrevented = false
+  let baseUIHandlerPrevented = false
 
   return {
     get defaultPrevented() {
-      return defaultPrevented;
+      return defaultPrevented
     },
     preventDefault() {
-      defaultPrevented = true;
+      defaultPrevented = true
     },
     preventBaseUIHandler() {
-      baseUIHandlerPrevented = true;
+      baseUIHandlerPrevented = true
     },
     get baseUIHandlerPrevented() {
-      return baseUIHandlerPrevented;
+      return baseUIHandlerPrevented
     },
   } as unknown as Parameters<typeof handleDropdownMenuItemSelect>[0] & {
-    baseUIHandlerPrevented: boolean;
-  };
+    baseUIHandlerPrevented: boolean
+  }
 }
 
-describe("DropdownMenuItem onSelect compatibility", () => {
-  it("calls the Radix-style onSelect handler on item click", () => {
-    const event = createMenuEvent();
-    let selected = false;
+describe('DropdownMenuItem onSelect compatibility', () => {
+  it('calls the Radix-style onSelect handler on item click', () => {
+    const event = createMenuEvent()
+    let selected = false
 
     handleDropdownMenuItemSelect(event, undefined, () => {
-      selected = true;
-    });
+      selected = true
+    })
 
-    expect(selected).toBe(true);
-    expect(event.baseUIHandlerPrevented).toBe(false);
-  });
+    expect(selected).toBe(true)
+    expect(event.baseUIHandlerPrevented).toBe(false)
+  })
 
-  it("keeps the Base UI menu open when onSelect prevents default", () => {
-    const event = createMenuEvent();
+  it('keeps the Base UI menu open when onSelect prevents default', () => {
+    const event = createMenuEvent()
 
     handleDropdownMenuItemSelect(event, undefined, (selectEvent) => {
-      selectEvent.preventDefault();
-    });
+      selectEvent.preventDefault()
+    })
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(event.baseUIHandlerPrevented).toBe(true);
-  });
-});
+    expect(event.defaultPrevented).toBe(true)
+    expect(event.baseUIHandlerPrevented).toBe(true)
+  })
+})

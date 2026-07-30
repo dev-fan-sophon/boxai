@@ -16,70 +16,70 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
-import { ErrorState } from "@/components/error-state";
-import { PublicLayout } from "@/components/layout";
-import { PageTransition } from "@/components/page-transition";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from '@/components/error-state'
+import { PublicLayout } from '@/components/layout'
+import { PageTransition } from '@/components/page-transition'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import {
   MarketShareSection,
   ModelsSection,
   PulseSection,
   RankingsHero,
-} from "./components";
-import { useRankings } from "./hooks/use-rankings";
-import type { RankingPeriod } from "./types";
+} from './components'
+import { useRankings } from './hooks/use-rankings'
+import type { RankingPeriod } from './types'
 
 const VALID_PERIODS: ReadonlySet<RankingPeriod> = new Set([
-  "today",
-  "week",
-  "month",
-  "year",
-]);
+  'today',
+  'week',
+  'month',
+  'year',
+])
 
 export function Rankings() {
-  const { t } = useTranslation();
-  const search = useSearch({ from: "/rankings/" });
-  const navigate = useNavigate();
+  const { t } = useTranslation()
+  const search = useSearch({ from: '/_public/rankings/' })
+  const navigate = useNavigate()
 
   const period: RankingPeriod = VALID_PERIODS.has(
-    search.period as RankingPeriod,
+    search.period as RankingPeriod
   )
     ? (search.period as RankingPeriod)
-    : "week";
+    : 'week'
 
-  const rankingsQuery = useRankings(period);
-  const snapshot = rankingsQuery.data?.data;
+  const rankingsQuery = useRankings(period)
+  const snapshot = rankingsQuery.data?.data
 
   const handlePeriodChange = (next: RankingPeriod) => {
     navigate({
-      to: "/rankings",
+      to: '/rankings',
       search: (prev) => ({ ...prev, period: next }),
-    });
-  };
+    })
+  }
 
   return (
     <PublicLayout showMainContainer={false}>
-      <div className="relative">
+      <div className='relative'>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]"
+          className='pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]'
           style={{
             background: [
-              "radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)",
-              "radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)",
-              "radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)",
-            ].join(", "),
+              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
+            ].join(', '),
             maskImage:
-              "linear-gradient(to bottom, black 40%, transparent 100%)",
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
             WebkitMaskImage:
-              "linear-gradient(to bottom, black 40%, transparent 100%)",
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
           }}
         />
-        <PageTransition className="relative mx-auto w-full max-w-[1280px] space-y-8 px-3 pt-16 pb-10 sm:px-6 sm:pt-20 sm:pb-12 xl:px-8">
+        <PageTransition className='relative mx-auto w-full max-w-[1280px] space-y-8 px-3 pt-16 pb-10 sm:px-6 sm:pt-20 sm:pb-12 xl:px-8'>
           <RankingsHero period={period} onPeriodChange={handlePeriodChange} />
 
           {rankingsQuery.isLoading && <RankingsLoading />}
@@ -88,7 +88,7 @@ export function Rankings() {
               message={
                 rankingsQuery.error instanceof Error
                   ? rankingsQuery.error.message
-                  : t("Unable to load rankings data")
+                  : t('Unable to load rankings data')
               }
             />
           )}
@@ -115,26 +115,26 @@ export function Rankings() {
         </PageTransition>
       </div>
     </PublicLayout>
-  );
+  )
 }
 
 function RankingsLoading() {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-[420px] w-full rounded-xl" />
-      <Skeleton className="h-[360px] w-full rounded-xl" />
-      <Skeleton className="h-[180px] w-full rounded-xl" />
+    <div className='space-y-6'>
+      <Skeleton className='h-[420px] w-full rounded-xl' />
+      <Skeleton className='h-[360px] w-full rounded-xl' />
+      <Skeleton className='h-[180px] w-full rounded-xl' />
     </div>
-  );
+  )
 }
 
 function RankingsError(props: { message: string }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <ErrorState
-      className="bg-card min-h-[240px] border border-dashed"
-      title={t("Unable to load rankings")}
+      className='bg-card min-h-[240px] border border-dashed'
+      title={t('Unable to load rankings')}
       description={props.message}
     />
-  );
+  )
 }

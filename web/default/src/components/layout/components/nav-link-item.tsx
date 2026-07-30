@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from "@tanstack/react-router";
+import { Link } from '@tanstack/react-router'
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 
-import type { TopNavLink } from "../types";
+import type { TopNavLink } from '../types'
 
 interface NavLinkItemProps {
-  link: TopNavLink;
-  className?: string;
+  link: TopNavLink
+  className?: string
 }
 
 /**
@@ -33,36 +33,36 @@ interface NavLinkItemProps {
  */
 export function NavLinkItem({ link, className }: NavLinkItemProps) {
   const linkClassName = cn(
-    "text-muted-foreground hover:text-foreground transition-colors",
-    link.disabled && "pointer-events-none opacity-50",
-    className,
-  );
+    'text-muted-foreground hover:text-foreground transition-colors',
+    link.disabled && 'pointer-events-none opacity-50',
+    className
+  )
 
   if (link.external) {
     return (
       <a
         href={link.href}
-        target="_blank"
-        rel="noopener noreferrer"
+        target='_blank'
+        rel='noopener noreferrer'
         className={linkClassName}
         aria-disabled={link.disabled}
       >
         {link.title}
       </a>
-    );
+    )
   }
 
   return (
     <Link to={link.href} className={linkClassName} disabled={link.disabled}>
       {link.title}
     </Link>
-  );
+  )
 }
 
 interface NavLinkListProps {
-  links: TopNavLink[];
-  className?: string;
-  itemClassName?: string;
+  links: TopNavLink[]
+  className?: string
+  itemClassName?: string
 }
 
 /**
@@ -84,5 +84,5 @@ export function NavLinkList({
         />
       ))}
     </>
-  );
+  )
 }

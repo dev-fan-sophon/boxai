@@ -16,20 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import * as React from "react";
+import * as React from 'react'
 
-import { StatusBadgeList } from "@/components/status-badge";
+import { StatusBadgeList } from '@/components/status-badge'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip'
 
 interface BadgeListCellProps {
-  items: React.ReactNode[];
-  max?: number;
-  tooltipClassName?: string;
+  items: React.ReactNode[]
+  max?: number
+  tooltipClassName?: string
 }
 
 /**
@@ -43,15 +43,15 @@ export function BadgeListCell({
   tooltipClassName,
 }: BadgeListCellProps) {
   if (items.length === 0) {
-    return <span className="text-muted-foreground text-xs">-</span>;
+    return <span className='text-muted-foreground text-xs'>-</span>
   }
 
-  const showTooltip = items.length > max;
+  const showTooltip = items.length > max
 
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger render={<div className="-ml-1.5 max-w-full" />}>
+        <TooltipTrigger render={<div className='-ml-1.5 max-w-full' />}>
           <StatusBadgeList
             items={items}
             max={max}
@@ -60,16 +60,16 @@ export function BadgeListCell({
         </TooltipTrigger>
         {showTooltip && (
           <TooltipContent
-            side="top"
+            side='top'
             className={
               tooltipClassName ??
-              "border-border bg-popover max-h-48 max-w-[320px] overflow-y-auto p-2"
+              'border-border bg-popover max-h-48 max-w-[320px] overflow-y-auto p-2'
             }
           >
-            <div className="flex flex-wrap gap-1">{items}</div>
+            <div className='flex flex-wrap gap-1'>{items}</div>
           </TooltipContent>
         )}
       </Tooltip>
     </TooltipProvider>
-  );
+  )
 }

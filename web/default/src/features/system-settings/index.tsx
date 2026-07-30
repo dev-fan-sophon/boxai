@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Outlet } from "@tanstack/react-router";
+import { Outlet } from '@tanstack/react-router'
 
 export function SystemSettings() {
-  return <Outlet />;
+  return <Outlet />
 }

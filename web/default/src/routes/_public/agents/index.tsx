@@ -16,25 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect, useParams } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { WorkbenchEditor } from "@/features/workbench";
-import { useAuthStore } from "@/stores/auth-store";
+import { PublicLayout } from '@/components/layout'
+import { AgentsView } from '@/features/agents'
+import { getFreshModuleAccess } from '@/lib/nav-modules'
 
-export const Route = createFileRoute("/inspiration/$projectId")({
-  beforeLoad: ({ location }) => {
-    if (useAuthStore.getState().auth.user) return;
-    throw redirect({ to: "/sign-in", search: { redirect: location.href } });
+export const Route = createFileRoute('/_public/agents/')({
+  beforeLoad: async () => {
+    const access = await getFreshModuleAccess('agents')
+    if (!access.enabled) throw redirect({ to: '/' })
   },
-  component: InspirationProjectPage,
-});
+  component: AgentsPage,
+})
 
-function InspirationProjectPage() {
-  const { projectId } = useParams({ from: "/inspiration/$projectId" });
-
+function AgentsPage() {
   return (
-    <div className="min-h-0 flex-1">
-      <WorkbenchEditor projectId={Number(projectId)} />
-    </div>
-  );
+    <PublicLayout showMainContainer={false}>
+      <AgentsView />
+    </PublicLayout>
+  )
 }

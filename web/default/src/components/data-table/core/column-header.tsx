@@ -16,39 +16,39 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Column } from "@tanstack/react-table";
+import type { Column } from '@tanstack/react-table'
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
   ChevronsUpDown as CaretSortIcon,
   EyeOff as EyeNoneIcon,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 type DataTableColumnHeaderProps<TData, TValue> =
   React.HTMLAttributes<HTMLDivElement> & {
-    column: Column<TData, TValue>;
-    title: React.ReactNode;
-  };
+    column: Column<TData, TValue>
+    title: React.ReactNode
+  }
 
-function SortIcon(props: { sorted: false | "asc" | "desc" }) {
-  if (props.sorted === "desc") {
-    return <ArrowDownIcon className="ms-2 h-4 w-4" />;
+function SortIcon(props: { sorted: false | 'asc' | 'desc' }) {
+  if (props.sorted === 'desc') {
+    return <ArrowDownIcon className='ms-2 h-4 w-4' />
   }
-  if (props.sorted === "asc") {
-    return <ArrowUpIcon className="ms-2 h-4 w-4" />;
+  if (props.sorted === 'asc') {
+    return <ArrowUpIcon className='ms-2 h-4 w-4' />
   }
-  return <CaretSortIcon className="ms-2 h-4 w-4" />;
+  return <CaretSortIcon className='ms-2 h-4 w-4' />
 }
 
 export function DataTableColumnHeader<TData, TValue>({
@@ -56,46 +56,46 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    return <div className={cn(className)}>{title}</div>
   }
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
+    <div className={cn('flex items-center space-x-2', className)}>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
-              size="sm"
-              className="data-popup-open:bg-accent -ms-3 h-8"
+              variant='ghost'
+              size='sm'
+              className='data-popup-open:bg-accent -ms-3 h-8'
             />
           }
         >
           <span>{title}</span>
           <SortIcon sorted={column.getIsSorted()} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align='start'>
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <ArrowUpIcon className="text-muted-foreground size-3.5" />
-            {t("Asc")}
+            <ArrowUpIcon className='text-muted-foreground size-3.5' />
+            {t('Asc')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <ArrowDownIcon className="text-muted-foreground size-3.5" />
-            {t("Desc")}
+            <ArrowDownIcon className='text-muted-foreground size-3.5' />
+            {t('Desc')}
           </DropdownMenuItem>
           {column.getCanHide() && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-                <EyeNoneIcon className="text-muted-foreground size-3.5" />
-                {t("Hide")}
+                <EyeNoneIcon className='text-muted-foreground size-3.5' />
+                {t('Hide')}
               </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
+  )
 }

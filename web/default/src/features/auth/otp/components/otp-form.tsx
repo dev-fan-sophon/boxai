@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import type { z } from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import type { z } from 'zod'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -33,140 +33,140 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
   InputOTPSeparator,
-} from "@/components/ui/input-otp";
-import { login2fa } from "@/features/auth/api";
+} from '@/components/ui/input-otp'
+import { login2fa } from '@/features/auth/api'
 import {
   otpFormSchema,
   OTP_LENGTH,
   BACKUP_CODE_LENGTH,
-} from "@/features/auth/constants";
-import { useAuthRedirect } from "@/features/auth/hooks/use-auth-redirect";
-import { saveUserId } from "@/features/auth/lib/storage";
+} from '@/features/auth/constants'
+import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
+import { saveUserId } from '@/features/auth/lib/storage'
 import {
   isValidOTP,
   isValidBackupCode,
   formatBackupCode,
   cleanBackupCode,
-} from "@/features/auth/lib/validation";
-import type { User } from "@/features/users/types";
-import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth-store";
+} from '@/features/auth/lib/validation'
+import type { User } from '@/features/users/types'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
-type OtpFormProps = React.HTMLAttributes<HTMLFormElement>;
+type OtpFormProps = React.HTMLAttributes<HTMLFormElement>
 
 export function OtpForm({ className, ...props }: OtpFormProps) {
-  const { t } = useTranslation();
-  const [isLoading, setIsLoading] = useState(false);
-  const [useBackupCode, setUseBackupCode] = useState(false);
+  const { t } = useTranslation()
+  const [isLoading, setIsLoading] = useState(false)
+  const [useBackupCode, setUseBackupCode] = useState(false)
 
-  const { auth } = useAuthStore();
-  const { redirectToLogin } = useAuthRedirect();
+  const { auth } = useAuthStore()
+  const { redirectToLogin } = useAuthRedirect()
 
   const form = useForm<z.infer<typeof otpFormSchema>>({
     resolver: zodResolver(otpFormSchema),
-    defaultValues: { otp: "" },
-  });
+    defaultValues: { otp: '' },
+  })
 
-  const otp = form.watch("otp");
+  const otp = form.watch('otp')
 
   async function onSubmit(data: z.infer<typeof otpFormSchema>) {
     // Validate based on mode
     if (useBackupCode) {
       if (!isValidBackupCode(data.otp)) {
-        toast.error(t("Backup code must be in format XXXX-XXXX"));
-        return;
+        toast.error(t('Backup code must be in format XXXX-XXXX'))
+        return
       }
     } else {
       if (!isValidOTP(data.otp)) {
-        toast.error(t("Verification code must be 6 digits"));
-        return;
+        toast.error(t('Verification code must be 6 digits'))
+        return
       }
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
       // Remove all hyphens from backup code before sending to backend
-      const code = useBackupCode ? cleanBackupCode(data.otp) : data.otp;
-      const res = await login2fa({ code });
+      const code = useBackupCode ? cleanBackupCode(data.otp) : data.otp
+      const res = await login2fa({ code })
 
       if (!res.success) {
-        toast.error(res.message || t("Invalid code"));
-        return;
+        toast.error(res.message || t('Invalid code'))
+        return
       }
 
       // Handle user data from 2FA login response
-      const userData = res.data;
+      const userData = res.data
       if (!userData) {
-        throw new Error("No user data received from login");
+        throw new Error('No user data received from login')
       }
 
       // Update auth store
-      auth.setUser(userData as User);
+      auth.setUser(userData as User)
 
       // Store user ID in localStorage for compatibility
       if (userData.id) {
-        saveUserId(userData.id);
+        saveUserId(userData.id)
       }
 
-      toast.success(t("Signed in"));
-      redirectToLogin(); // This will redirect to dashboard via the redirect logic
+      toast.success(t('Signed in'))
+      redirectToLogin() // This will redirect to dashboard via the redirect logic
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error("2FA verification error:", error);
+      console.error('2FA verification error:', error)
       const errorMessage =
-        error instanceof Error ? error.message : t("Verification failed");
-      toast.error(errorMessage);
+        error instanceof Error ? error.message : t('Verification failed')
+      toast.error(errorMessage)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
   function handleToggleMode() {
-    setUseBackupCode(!useBackupCode);
-    form.setValue("otp", "");
+    setUseBackupCode(!useBackupCode)
+    form.setValue('otp', '')
   }
 
   function handleBackToLogin() {
-    redirectToLogin();
+    redirectToLogin()
   }
 
   const isFormValid = useBackupCode
     ? otp.length >= BACKUP_CODE_LENGTH
-    : otp.length >= OTP_LENGTH;
+    : otp.length >= OTP_LENGTH
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn("grid gap-4", className)}
+        className={cn('grid gap-4', className)}
         {...props}
       >
         <FormField
           control={form.control}
-          name="otp"
+          name='otp'
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {useBackupCode ? t("Backup Code") : t("Verification Code")}
+                {useBackupCode ? t('Backup Code') : t('Verification Code')}
               </FormLabel>
               <FormControl>
                 {useBackupCode ? (
                   <Input
-                    placeholder={t("Enter backup code (e.g., CAWD-OQDV)")}
+                    placeholder={t('Enter backup code (e.g., CAWD-OQDV)')}
                     {...field}
                     maxLength={BACKUP_CODE_LENGTH}
-                    autoComplete="off"
-                    className="font-mono uppercase"
+                    autoComplete='off'
+                    className='font-mono uppercase'
                     onChange={(e) => {
-                      const formatted = formatBackupCode(e.target.value);
-                      field.onChange(formatted);
+                      const formatted = formatBackupCode(e.target.value)
+                      field.onChange(formatted)
                     }}
                   />
                 ) : (
@@ -192,10 +192,10 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
                   </InputOTP>
                 )}
               </FormControl>
-              <FormDescription className="text-muted-foreground text-xs">
+              <FormDescription className='text-muted-foreground text-xs'>
                 {useBackupCode
-                  ? t("Each backup code can only be used once.")
-                  : t("Verification code updates every 30 seconds.")}
+                  ? t('Each backup code can only be used once.')
+                  : t('Verification code updates every 30 seconds.')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -203,36 +203,36 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
         />
 
         <Button
-          type="submit"
-          className="mt-2 w-full"
+          type='submit'
+          className='mt-2 w-full'
           disabled={!isFormValid || isLoading}
         >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {t("Verify and Sign In")}
+          {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
+          {t('Verify and Sign In')}
         </Button>
 
-        <div className="flex items-center justify-center gap-2 text-sm">
+        <div className='flex items-center justify-center gap-2 text-sm'>
           <Button
-            type="button"
-            variant="link"
-            size="sm"
-            className="text-primary h-auto p-0"
+            type='button'
+            variant='link'
+            size='sm'
+            className='text-primary h-auto p-0'
             onClick={handleToggleMode}
           >
-            {useBackupCode ? t("Use authenticator code") : t("Use backup code")}
+            {useBackupCode ? t('Use authenticator code') : t('Use backup code')}
           </Button>
-          <span className="text-muted-foreground">·</span>
+          <span className='text-muted-foreground'>·</span>
           <Button
-            type="button"
-            variant="link"
-            size="sm"
-            className="text-primary h-auto p-0"
+            type='button'
+            variant='link'
+            size='sm'
+            className='text-primary h-auto p-0'
             onClick={handleBackToLogin}
           >
-            {t("Back to login")}
+            {t('Back to login')}
           </Button>
         </div>
       </form>
     </Form>
-  );
+  )
 }

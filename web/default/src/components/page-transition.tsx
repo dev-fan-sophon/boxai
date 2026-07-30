@@ -16,14 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Outlet, useRouterState } from "@tanstack/react-router";
+import { Outlet, useRouterState } from '@tanstack/react-router'
 import {
   AnimatePresence,
   motion,
   useReducedMotion,
   type Variants,
-} from "motion/react";
-import type { ReactNode } from "react";
+} from 'motion/react'
+import type { ReactNode } from 'react'
 
 import {
   CARD_ITEM_VARIANTS,
@@ -34,18 +34,18 @@ import {
   STAGGER_VARIANTS,
   TABLE_ROW_VARIANTS,
   TABLE_STAGGER_VARIANTS,
-} from "@/lib/motion";
+} from '@/lib/motion'
 
 interface PageTransitionProps {
-  children: ReactNode;
-  className?: string;
+  children: ReactNode
+  className?: string
 }
 
 export function PageTransition(props: PageTransitionProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>;
+    return <div className={props.className}>{props.children}</div>
   }
 
   return (
@@ -57,25 +57,25 @@ export function PageTransition(props: PageTransitionProps) {
     >
       {props.children}
     </motion.div>
-  );
+  )
 }
 
 export function AnimatedOutlet() {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
   // Key the page transition by the matched route id, not the resolved pathname.
   // Navigating between params of the same route (e.g. dashboard tabs served by
   // /dashboard/$section) then re-renders in place instead of remounting the
   // route component and discarding its state (such as the selected time range).
   const routeKey = useRouterState({
     select: (s) => s.matches.at(-1)?.routeId ?? s.location.pathname,
-  });
+  })
 
   if (shouldReduce) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className='flex min-h-0 flex-1 flex-col'>
         <Outlet />
       </div>
-    );
+    )
   }
 
   return (
@@ -84,42 +84,42 @@ export function AnimatedOutlet() {
       initial={MOTION_VARIANTS.pageEnter.initial}
       animate={MOTION_VARIANTS.pageEnter.animate}
       transition={MOTION_TRANSITION.fast}
-      className="flex min-h-0 flex-1 flex-col"
+      className='flex min-h-0 flex-1 flex-col'
     >
       <Outlet />
     </motion.div>
-  );
+  )
 }
 
 interface StaggerContainerProps {
-  children: ReactNode;
-  className?: string;
-  variants?: Variants;
+  children: ReactNode
+  className?: string
+  variants?: Variants
 }
 
 export function StaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>;
+    return <div className={props.className}>{props.children}</div>
   }
 
   return (
     <motion.div
       variants={props.variants ?? STAGGER_VARIANTS}
-      initial="initial"
-      animate="animate"
+      initial='initial'
+      animate='animate'
       className={props.className}
     >
       {props.children}
     </motion.div>
-  );
+  )
 }
 
 interface StaggerItemProps {
-  children: ReactNode;
-  className?: string;
-  variants?: Variants;
+  children: ReactNode
+  className?: string
+  variants?: Variants
 }
 
 export function StaggerItem(props: StaggerItemProps) {
@@ -130,26 +130,26 @@ export function StaggerItem(props: StaggerItemProps) {
     >
       {props.children}
     </motion.div>
-  );
+  )
 }
 
 export function TableStaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return props.children;
+    return props.children
   }
 
   return (
     <motion.tbody
       variants={TABLE_STAGGER_VARIANTS}
-      initial="initial"
-      animate="animate"
+      initial='initial'
+      animate='animate'
       className={props.className}
     >
       {props.children}
     </motion.tbody>
-  );
+  )
 }
 
 export function TableStaggerRow(props: StaggerItemProps) {
@@ -157,26 +157,26 @@ export function TableStaggerRow(props: StaggerItemProps) {
     <motion.tr variants={TABLE_ROW_VARIANTS} className={props.className}>
       {props.children}
     </motion.tr>
-  );
+  )
 }
 
 export function CardStaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>;
+    return <div className={props.className}>{props.children}</div>
   }
 
   return (
     <motion.div
       variants={CARD_STAGGER_VARIANTS}
-      initial="initial"
-      animate="animate"
+      initial='initial'
+      animate='animate'
       className={props.className}
     >
       {props.children}
     </motion.div>
-  );
+  )
 }
 
 export function CardStaggerItem(props: StaggerItemProps) {
@@ -184,14 +184,14 @@ export function CardStaggerItem(props: StaggerItemProps) {
     <motion.div variants={CARD_ITEM_VARIANTS} className={props.className}>
       {props.children}
     </motion.div>
-  );
+  )
 }
 
 interface RevealProps {
   /** Render the children when true, play the exit animation when false. */
-  show: boolean;
-  children: ReactNode;
-  className?: string;
+  show: boolean
+  children: ReactNode
+  className?: string
 }
 
 /**
@@ -201,11 +201,11 @@ interface RevealProps {
  * scale. For whole panels or route content use `PageTransition` instead.
  */
 export function Reveal(props: RevealProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    if (!props.show) return null;
-    return <div className={props.className}>{props.children}</div>;
+    if (!props.show) return null
+    return <div className={props.className}>{props.children}</div>
   }
 
   return (
@@ -222,20 +222,20 @@ export function Reveal(props: RevealProps) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }
 
 interface FadeInProps {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
+  children: ReactNode
+  className?: string
+  delay?: number
 }
 
 export function FadeIn(props: FadeInProps) {
-  const shouldReduce = useReducedMotion();
+  const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>;
+    return <div className={props.className}>{props.children}</div>
   }
 
   return (
@@ -250,5 +250,5 @@ export function FadeIn(props: FadeInProps) {
     >
       {props.children}
     </motion.div>
-  );
+  )
 }
