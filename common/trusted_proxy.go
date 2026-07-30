@@ -58,7 +58,29 @@ var (
 	trustedProxyNetworks   []*net.IPNet
 	operatedProxyNetworks  []*net.IPNet
 	cloudflareEdgeNetworks []*net.IPNet
+	trustedProxyObserver   func([]string)
 )
+
+// OnTrustedProxyChange registers the router so its own proxy list follows the
+// administrator's edits. Without it gin keeps the boot-time list and its
+// ClientIP, which feeds the access log, disagrees with RealClientIP as soon as
+// the deployment is moved behind or away from a proxy.
+func OnTrustedProxyChange(observer func([]string)) {
+	trustedProxyMutex.Lock()
+	trustedProxyObserver = observer
+	trustedProxyMutex.Unlock()
+	notifyTrustedProxyChange()
+}
+
+func notifyTrustedProxyChange() {
+	trustedProxyMutex.RLock()
+	observer := trustedProxyObserver
+	cidrs := collectTrustedProxyCIDRs()
+	trustedProxyMutex.RUnlock()
+	if observer != nil {
+		observer(cidrs)
+	}
+}
 
 func InitTrustedProxy() {
 	if err := SetTrustedProxyCIDRs(GetEnvOrDefaultString("TRUSTED_PROXY_CIDRS", "")); err != nil {
@@ -163,10 +185,12 @@ func collectTrustedProxyCIDRs() []string {
 
 func rebuildTrustedProxyNetworks() {
 	trustedProxyMutex.Lock()
-	defer trustedProxyMutex.Unlock()
 	trustedProxyNetworks = parseNetworks(collectTrustedProxyCIDRs())
 	operatedProxyNetworks = parseNetworks(append(append([]string{}, localProxyCIDRs...), operatorProxyCIDRs...))
 	cloudflareEdgeNetworks = parseNetworks(cloudflareEdgeCIDRs)
+	trustedProxyMutex.Unlock()
+
+	notifyTrustedProxyChange()
 }
 
 func parseNetworks(cidrs []string) []*net.IPNet {

@@ -183,3 +183,29 @@ func TestTrustedProxyCIDRsIncludesCloudflareOnlyWhenEnabled(t *testing.T) {
 	assert.Contains(t, TrustedProxyCIDRs(), "192.0.2.0/24")
 	assert.NotContains(t, TrustedProxyCIDRs(), "162.158.0.0/15")
 }
+
+// The router keeps its own copy of the proxy list, so an administrator toggling
+// Cloudflare mode must reach it too. Otherwise gin's ClientIP, which feeds the
+// access log, keeps reporting the edge address that RealClientIP has already
+// seen through.
+func TestOnTrustedProxyChangeTracksEdits(t *testing.T) {
+	resetTrustedProxyState(t)
+	defer func() {
+		OnTrustedProxyChange(nil)
+		resetTrustedProxyState(t)
+	}()
+
+	var applied []string
+	OnTrustedProxyChange(func(cidrs []string) { applied = cidrs })
+	require.NotEmpty(t, applied, "registering an observer reports the current list")
+	assert.NotContains(t, applied, "162.158.0.0/15")
+
+	SetCloudflareProxyEnabled(true)
+	assert.Contains(t, applied, "162.158.0.0/15")
+
+	require.NoError(t, SetTrustedProxyCIDRs("203.0.113.0/24"))
+	assert.Contains(t, applied, "203.0.113.0/24")
+
+	SetCloudflareProxyEnabled(false)
+	assert.NotContains(t, applied, "162.158.0.0/15")
+}

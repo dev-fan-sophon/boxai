@@ -181,6 +181,11 @@ func main() {
 	if err := server.SetTrustedProxies(common.TrustedProxyCIDRs()); err != nil {
 		common.FatalLog("failed to set trusted proxies: " + err.Error())
 	}
+	common.OnTrustedProxyChange(func(cidrs []string) {
+		if err := server.SetTrustedProxies(cidrs); err != nil {
+			common.SysError("failed to apply trusted proxies: " + err.Error())
+		}
+	})
 	// This will cause SSE not to work!!!
 	//server.Use(gzip.Gzip(gzip.DefaultCompression))
 	server.Use(middleware.RequestId())
