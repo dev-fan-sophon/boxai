@@ -109,9 +109,9 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
         value !== defaultValues[key as keyof RateLimitFormValues]
     )
 
-    for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value: value ?? '' })
-    }
+    await updateOption.mutateAsync(
+      updates.map(([key, value]) => ({ key, value: value ?? '' }))
+    )
   }
 
   return (

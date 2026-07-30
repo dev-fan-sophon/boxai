@@ -215,9 +215,9 @@ export function RouteRateLimitSection(props: RouteRateLimitSectionProps) {
         value !== props.defaultValues[key as keyof RouteRateLimitFormValues]
     )
 
-    for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value })
-    }
+    await updateOption.mutateAsync(
+      updates.map(([key, value]) => ({ key, value }))
+    )
   }
 
   return (

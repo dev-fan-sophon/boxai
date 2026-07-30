@@ -150,15 +150,14 @@ export function ApiInfoSection({ enabled, data }: ApiInfoSectionProps) {
   })
 
   const handleToggleEnabled = async (checked: boolean) => {
-    try {
-      await updateOption.mutateAsync({
-        key: 'console_setting.api_info_enabled',
-        value: checked,
-      })
+    const result = await updateOption
+      .mutateAsync([
+        { key: 'console_setting.api_info_enabled', value: checked },
+      ])
+      .catch(() => null)
+
+    if (result?.success) {
       setIsEnabledDraft(checked)
-      toast.success(t('Setting saved'))
-    } catch {
-      toast.error(t('Failed to update setting'))
     }
   }
 
@@ -237,16 +236,17 @@ export function ApiInfoSection({ enabled, data }: ApiInfoSectionProps) {
   }
 
   const handleSaveAll = async () => {
-    try {
-      const result = await updateOption.mutateAsync({
-        key: 'console_setting.api_info',
-        value: JSON.stringify(apiInfoList),
-      })
-      if (result.success) {
-        setDraftApiInfoList(null)
-      }
-    } catch {
-      toast.error(t('Failed to save API info'))
+    const result = await updateOption
+      .mutateAsync([
+        {
+          key: 'console_setting.api_info',
+          value: JSON.stringify(apiInfoList),
+        },
+      ])
+      .catch(() => null)
+
+    if (result?.success) {
+      setDraftApiInfoList(null)
     }
   }
 

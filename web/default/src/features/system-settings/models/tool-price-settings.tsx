@@ -182,10 +182,12 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       toast.error(t('Please fix JSON errors before saving'))
       return
     }
-    await updateOption.mutateAsync({
-      key: OPTION_KEY,
-      value: JSON.stringify(currentPrices),
-    })
+    await updateOption.mutateAsync([
+      {
+        key: OPTION_KEY,
+        value: JSON.stringify(currentPrices),
+      },
+    ])
   }, [currentPrices, editMode, jsonError, t, updateOption])
 
   const toggleEditMode = useCallback(() => {

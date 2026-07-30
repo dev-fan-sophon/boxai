@@ -87,7 +87,7 @@ export function TokenLimitSection({ defaultValues }: TokenLimitSectionProps) {
     const normalized = normalizeFormValues(values)
     const value = normalized[key]
     if (value !== defaultValues[key]) {
-      await updateOption.mutateAsync({ key, value })
+      await updateOption.mutateAsync([{ key, value }])
     }
   }
 

@@ -66,10 +66,12 @@ export function NoticeSection({ defaultValue }: NoticeSectionProps) {
     if (normalized === (defaultValue ?? '')) {
       return
     }
-    await updateOption.mutateAsync({
-      key: 'Notice',
-      value: normalized,
-    })
+    await updateOption.mutateAsync([
+      {
+        key: 'Notice',
+        value: normalized,
+      },
+    ])
   }
 
   return (

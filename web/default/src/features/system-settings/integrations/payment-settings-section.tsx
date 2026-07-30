@@ -708,8 +708,11 @@ export function PaymentSettingsSection({
       return
     }
 
-    for (const update of updates) {
-      await updateOption.mutateAsync(update)
+    if (updates.length > 0) {
+      const result = await updateOption.mutateAsync(updates)
+      if (!result.success) {
+        return
+      }
     }
 
     if (hasBankQRChanges) {
@@ -719,7 +722,10 @@ export function PaymentSettingsSection({
         return
       }
       await queryClient.invalidateQueries({ queryKey: ['system-options'] })
-      toast.success(t('Setting updated successfully'))
+      if (updates.length === 0) {
+        // Otherwise the option batch above already reported the save.
+        toast.success(t('Setting updated successfully'))
+      }
     }
 
     if (!hasWaffoPancakeChanges) {

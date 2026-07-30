@@ -270,13 +270,12 @@ export function RoutingReliabilitySection({
       return
     }
 
-    for (const key of updates) {
-      const value = normalized[key]
-      await updateOption.mutateAsync({
+    await updateOption.mutateAsync(
+      updates.map((key) => ({
         key,
-        value,
-      })
-    }
+        value: normalized[key],
+      }))
+    )
 
     baselineRef.current = normalized
   }

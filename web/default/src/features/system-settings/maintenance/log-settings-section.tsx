@@ -258,10 +258,12 @@ export function LogSettingsSection({
 
   const onSubmit = async (values: LogSettingsFormValues) => {
     if (values.LogConsumeEnabled === defaultEnabled) return
-    await updateOption.mutateAsync({
-      key: 'LogConsumeEnabled',
-      value: values.LogConsumeEnabled,
-    })
+    await updateOption.mutateAsync([
+      {
+        key: 'LogConsumeEnabled',
+        value: values.LogConsumeEnabled,
+      },
+    ])
   }
 
   const handleRequestCleanLogs = () => {

@@ -236,12 +236,12 @@ export function PerformanceSection(props: Props) {
       return
     }
 
-    for (const key of changedKeys) {
-      await updateOption.mutateAsync({
+    await updateOption.mutateAsync(
+      changedKeys.map((key) => ({
         key,
         value: normalized[key],
-      })
-    }
+      }))
+    )
 
     baselineRef.current = normalized
     baselineSerializedRef.current = JSON.stringify(normalized)

@@ -168,10 +168,12 @@ export function SidebarModulesSection({
       return
     }
 
-    await updateOption.mutateAsync({
-      key: 'SidebarModulesAdmin',
-      value: serialized,
-    })
+    await updateOption.mutateAsync([
+      {
+        key: 'SidebarModulesAdmin',
+        value: serialized,
+      },
+    ])
   }
 
   const resetToDefault = () => {

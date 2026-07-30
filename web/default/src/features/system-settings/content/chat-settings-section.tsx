@@ -121,10 +121,12 @@ export function ChatSettingsSection({
       return
     }
 
-    await updateOption.mutateAsync({
-      key: 'Chats',
-      value: normalized,
-    })
+    await updateOption.mutateAsync([
+      {
+        key: 'Chats',
+        value: normalized,
+      },
+    ])
   }
 
   return (

@@ -167,12 +167,12 @@ export function MonitoringSettingsSection({
       return
     }
 
-    for (const key of updates) {
-      await updateOption.mutateAsync({
+    await updateOption.mutateAsync(
+      updates.map((key) => ({
         key,
         value: normalized[key],
-      })
-    }
+      }))
+    )
 
     baselineRef.current = normalized
     baselineSerializedRef.current = JSON.stringify(normalized)

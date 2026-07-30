@@ -131,15 +131,14 @@ export function UptimeKumaSection({ enabled, data }: UptimeKumaSectionProps) {
   }, [enabled])
 
   const handleToggleEnabled = async (checked: boolean) => {
-    try {
-      await updateOption.mutateAsync({
-        key: 'console_setting.uptime_kuma_enabled',
-        value: checked,
-      })
+    const result = await updateOption
+      .mutateAsync([
+        { key: 'console_setting.uptime_kuma_enabled', value: checked },
+      ])
+      .catch(() => null)
+
+    if (result?.success) {
       setIsEnabled(checked)
-      toast.success(t('Setting saved'))
-    } catch {
-      toast.error(t('Failed to update setting'))
     }
   }
 
@@ -215,15 +214,17 @@ export function UptimeKumaSection({ enabled, data }: UptimeKumaSectionProps) {
   }
 
   const handleSaveAll = async () => {
-    try {
-      await updateOption.mutateAsync({
-        key: 'console_setting.uptime_kuma_groups',
-        value: JSON.stringify(groups),
-      })
+    const result = await updateOption
+      .mutateAsync([
+        {
+          key: 'console_setting.uptime_kuma_groups',
+          value: JSON.stringify(groups),
+        },
+      ])
+      .catch(() => null)
+
+    if (result?.success) {
       setHasChanges(false)
-      toast.success(t('Uptime Kuma groups saved successfully'))
-    } catch {
-      toast.error(t('Failed to save Uptime Kuma groups'))
     }
   }
 

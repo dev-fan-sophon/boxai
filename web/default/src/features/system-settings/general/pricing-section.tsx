@@ -121,6 +121,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
       >,
       defaultValues,
       onSubmit: async (_data, changedFields) => {
+        const requests: { key: string; value: string | boolean }[] = []
         for (const [key, value] of Object.entries(changedFields)) {
           if (value === undefined || value === null) continue
           if (typeof value === 'object') continue
@@ -133,10 +134,13 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
             serialized = Number.isFinite(value) ? String(value) : '0'
           }
 
-          await updateOption.mutateAsync({
+          requests.push({
             key,
             value: serialized,
           })
+        }
+        if (requests.length > 0) {
+          await updateOption.mutateAsync(requests)
         }
       },
     })

@@ -75,9 +75,9 @@ export function SensitiveWordsSection({
         value !== defaultValues[key as keyof SensitiveFormValues]
     )
 
-    for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value: value ?? '' })
-    }
+    await updateOption.mutateAsync(
+      updates.map(([key, value]) => ({ key, value: value ?? '' }))
+    )
   }
 
   return (

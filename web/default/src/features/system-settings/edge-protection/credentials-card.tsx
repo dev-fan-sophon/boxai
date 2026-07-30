@@ -38,6 +38,7 @@ import {
 import { Input } from '@/components/ui/input'
 
 import { useUpdateOption } from '../hooks/use-update-option'
+import type { UpdateOptionRequest } from '../types'
 import { verifyCloudflareCredentials } from './api'
 import { CLOUDFLARE_STATUS_QUERY_KEY } from './use-cloudflare'
 
@@ -87,35 +88,35 @@ export function CredentialsCard(props: CredentialsCardProps) {
   }, [props.zoneId, props.accountId, form])
 
   const onSubmit = async (values: CredentialsFormValues) => {
+    const updates: UpdateOptionRequest[] = []
+
     // The options endpoint never returns the stored token, so an empty field
     // means "keep the current one" rather than "clear it".
     if (values.CloudflareApiToken !== '') {
-      await updateOption.mutateAsync({
+      updates.push({
         key: 'CloudflareApiToken',
         value: values.CloudflareApiToken,
       })
     }
     if (values.CloudflareZoneId !== props.zoneId) {
-      await updateOption.mutateAsync({
+      updates.push({
         key: 'CloudflareZoneId',
         value: values.CloudflareZoneId,
       })
     }
     if (values.CloudflareAccountId !== props.accountId) {
-      await updateOption.mutateAsync({
+      updates.push({
         key: 'CloudflareAccountId',
         value: values.CloudflareAccountId,
       })
     }
 
+    await updateOption.mutateAsync(updates)
+
     form.setValue('CloudflareApiToken', '')
 
     const verification = await verifyCloudflareCredentials()
-    if (verification.success) {
-      toast.success(
-        t('Connected to {{zone}}', { zone: verification.data?.zone_name ?? '' })
-      )
-    } else {
+    if (!verification.success) {
       toast.error(verification.message)
     }
     void queryClient.invalidateQueries({

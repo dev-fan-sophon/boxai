@@ -165,10 +165,12 @@ export function HeaderNavigationSection({
       return
     }
 
-    await updateOption.mutateAsync({
-      key: 'HeaderNavModules',
-      value: serialized,
-    })
+    await updateOption.mutateAsync([
+      {
+        key: 'HeaderNavModules',
+        value: serialized,
+      },
+    ])
   }
 
   const resetToDefault = () => {

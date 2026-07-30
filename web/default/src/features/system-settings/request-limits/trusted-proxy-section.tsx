@@ -90,9 +90,9 @@ export function TrustedProxySection(props: TrustedProxySectionProps) {
         value !== props.defaultValues[key as keyof TrustedProxyFormValues]
     )
 
-    for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value })
-    }
+    await updateOption.mutateAsync(
+      updates.map(([key, value]) => ({ key, value }))
+    )
   }
 
   return (

@@ -70,8 +70,10 @@ export function SystemBehaviorSection({
       ([key, value]) => value !== defaultValues[key as keyof BehaviorFormValues]
     )
 
-    for (const [key, value] of updates) {
-      await updateOption.mutateAsync({ key, value })
+    if (updates.length > 0) {
+      await updateOption.mutateAsync(
+        updates.map(([key, value]) => ({ key, value }))
+      )
     }
   }
 

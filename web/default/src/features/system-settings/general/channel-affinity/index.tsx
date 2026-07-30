@@ -319,12 +319,9 @@ export function ChannelAffinitySection(props: Props) {
         return
       }
 
-      for (const u of updates) {
-        await updateOption.mutateAsync(u)
-      }
-      toast.success(t('Saved successfully'))
+      await updateOption.mutateAsync(updates)
     } catch {
-      toast.error(t('Failed to save'))
+      // Request failures are already reported by the shared axios interceptor.
     } finally {
       setSaving(false)
     }
