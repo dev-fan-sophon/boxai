@@ -295,21 +295,13 @@ export function PlaygroundMessageContent({
             </div>
           )}
           {message.managedTool.images && (
-            <div
-              className={cn(
-                'mt-3 grid gap-2',
-                message.managedTool.images.length > 1
-                  ? 'sm:grid-cols-2'
-                  : 'max-w-md'
-              )}
-            >
+            <div className='mt-3 flex flex-wrap gap-2'>
               {message.managedTool.images.map((url, index) => (
                 <ManagedToolImage
                   key={url}
                   url={url}
                   index={index}
                   alt={t('Generated image')}
-                  downloadLabel={t('Download')}
                   onOpen={() => {
                     const items = (message.managedTool?.images ?? []).map(
                       (imageUrl, imageIndex) => ({
@@ -419,58 +411,24 @@ function ManagedToolImage(props: {
   url: string
   index: number
   alt: string
-  downloadLabel: string
   onOpen?: () => void
 }) {
-  const [sizeLabel, setSizeLabel] = useState<string | null>(null)
-
   return (
-    <div
-      className='generation-result-enter border-border/70 bg-muted/30 relative overflow-hidden rounded-xl border'
+    <button
+      type='button'
+      className='generation-result-enter border-border/70 bg-muted/30 focus-visible:ring-ring cursor-zoom-in overflow-hidden rounded-xl border outline-none focus-visible:ring-2'
       style={{ animationDelay: `${props.index * 70}ms` }}
+      aria-label={props.alt}
+      onClick={props.onOpen}
     >
       <img
         src={props.url}
         alt={props.alt}
-        className='generation-image-reveal max-h-80 w-full object-cover'
+        className='generation-image-reveal size-32 object-cover transition-transform duration-200 hover:scale-105 sm:size-40'
         referrerPolicy='no-referrer'
         loading='lazy'
         decoding='async'
-        onLoad={(event) => {
-          const img = event.currentTarget
-          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-            setSizeLabel(`${img.naturalWidth}×${img.naturalHeight}`)
-          }
-        }}
       />
-      {props.onOpen && (
-        <button
-          type='button'
-          className='absolute inset-0 cursor-zoom-in'
-          aria-label={props.alt}
-          onClick={props.onOpen}
-        />
-      )}
-      {sizeLabel && (
-        <span className='generation-size-badge bg-background/85 text-foreground/90 absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm'>
-          {sizeLabel}
-        </span>
-      )}
-      <Button
-        size='icon-sm'
-        variant='secondary'
-        className='absolute right-2 bottom-2'
-        aria-label={props.downloadLabel}
-        onClick={() =>
-          void downloadGeneratedMedia(
-            props.url,
-            `image-${props.index + 1}`,
-            'image'
-          )
-        }
-      >
-        <Download aria-hidden='true' />
-      </Button>
-    </div>
+    </button>
   )
 }
