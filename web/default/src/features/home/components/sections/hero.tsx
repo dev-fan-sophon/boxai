@@ -17,11 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Braces, Layers3, Sparkles } from 'lucide-react'
+import {
+  ArrowRight,
+  Braces,
+  Clapperboard,
+  Layers3,
+  Sparkles,
+} from 'lucide-react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 
 import { useHomeStats } from '../../hooks'
 import { HeroEcosystem } from '../hero-ecosystem'
@@ -34,9 +43,19 @@ interface HeroProps {
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
   const { systemName } = useSystemConfig()
+  const { status } = useStatus()
   const statsQuery = useHomeStats()
   const stats = statsQuery.data?.data
   const brand = systemName || 'BoxAI'
+
+  // The workspace CTA has to follow the same switch as the header link, or the
+  // hero sends visitors to a route that redirects them straight back here.
+  const workspaceEnabled = useMemo(
+    () =>
+      parseHeaderNavModulesFromStatus(status as Record<string, unknown> | null)
+        .playground.enabled,
+    [status]
+  )
 
   const facts = stats
     ? [
@@ -52,21 +71,17 @@ export function Hero(props: HeroProps) {
             count: stats.active_vendors,
           }),
         },
-        {
-          icon: Braces,
-          label: t('{{count}} Supported Endpoint Types', {
-            count: stats.endpoint_types,
-          }),
-        },
+        { icon: Clapperboard, label: t('Text, image, and video') },
       ]
     : [
         { icon: Layers3, label: t('Unified Model Catalog') },
         { icon: Braces, label: t('Unified API Access') },
+        { icon: Clapperboard, label: t('Text, image, and video') },
       ]
 
   return (
     <section
-      aria-label={t('Multi-dimensional API Integration Platform')}
+      aria-label={t('Unified AI gateway, workspace, and desktop apps')}
       className='relative z-10 overflow-hidden px-6 pt-24 pb-16 md:pt-32 md:pb-20 lg:pt-36 lg:pb-24'
     >
       <div
@@ -88,26 +103,25 @@ export function Hero(props: HeroProps) {
             style={{ animationDelay: '0ms' }}
           >
             <Sparkles className='size-3.5' />
-            <span>{t('AI Aggregation Platform')}</span>
+            <span>{t('Gateway, workspace, and desktop apps')}</span>
           </div>
 
           <h1
-            className='landing-animate-fade-up text-[clamp(2.25rem,4.5vw,3.4rem)] leading-[1.12] font-bold tracking-tight opacity-0'
+            className='landing-animate-fade-up text-[clamp(2.25rem,4.5vw,3.4rem)] leading-[1.12] font-bold tracking-tight text-balance opacity-0'
             style={{ animationDelay: '60ms' }}
           >
             <span className='bg-gradient-to-r from-blue-500 via-blue-600 to-violet-500 bg-clip-text text-transparent'>
               {brand}
             </span>{' '}
-            {t('Unified AI API Gateway')}
+            {t('Every model, one account')}
           </h1>
 
           <p
-            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-xl text-base leading-relaxed opacity-0 md:text-[15px]'
+            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-md text-base leading-relaxed text-pretty opacity-0 md:text-[15px]'
             style={{ animationDelay: '120ms' }}
           >
-            <span className='text-foreground font-medium'>{brand}</span>{' '}
             {t(
-              '(you-box.com) helps developers and enterprises access OpenAI, Claude, Gemini and more through one unified API.'
+              'One unified API, a browser workspace, and desktop apps, all on you-box.com.'
             )}
           </p>
 
@@ -143,9 +157,15 @@ export function Hero(props: HeroProps) {
             <Button
               variant='outline'
               className='border-border/50 hover:border-border hover:bg-muted/50 h-11 rounded-full px-6 text-sm font-medium'
-              render={<Link to='/pricing' />}
+              render={
+                workspaceEnabled ? (
+                  <Link to='/playground' />
+                ) : (
+                  <Link to='/pricing' />
+                )
+              }
             >
-              {t('View Pricing')}
+              {workspaceEnabled ? t('Try the Workspace') : t('Model Hub')}
             </Button>
           </div>
         </div>
@@ -154,7 +174,7 @@ export function Hero(props: HeroProps) {
           className='landing-animate-fade-up opacity-0 lg:col-span-7'
           style={{ animationDelay: '280ms' }}
         >
-          <HeroEcosystem vendors={stats?.vendors ?? []} />
+          <HeroEcosystem brand={brand} vendors={stats?.vendors ?? []} />
         </div>
       </div>
     </section>

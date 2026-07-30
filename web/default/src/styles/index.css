@@ -436,6 +436,100 @@ For commercial licensing, please contact support@quantumnous.com
   }
 }
 
+/* ── Hero orbit ──────────────────────────────────────────────────────────────
+ * The chips are placed from `--x`/`--rx` and `--y` (percent of the orbit box)
+ * rather than from utilities, because the same numbers also produce the vector
+ * each chip travels: on first paint they all sit on the brand badge at the
+ * centre and burst outwards to their orbit, then settle into a slow drift.
+ *
+ * `--burst-x` / `--burst-y` are container query units, so the orbit box has to
+ * be the query container. That only holds from `sm` up, where an aspect ratio
+ * gives it a size independent of its contents; below `sm` the chips are a plain
+ * centered wrap, so placement, burst and container all switch off together and
+ * a fade is all that is left. */
+.hero-orbit-chip {
+  animation: fade-enter var(--motion-duration-page) var(--motion-ease-out)
+    var(--burst-delay, 0ms) both;
+}
+
+@keyframes hero-orbit-burst {
+  from {
+    opacity: 0;
+    transform: translate(var(--burst-x, 0), var(--burst-y, 0)) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+/* Ambient tier stretched to several multiples of itself: this loop is never
+ * waited on, so anything near the interactive durations would read as the
+ * layout still settling. It starts where the burst ended, which is what keeps
+ * the handoff from showing as a jump. */
+@keyframes hero-orbit-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+@media (min-width: 40rem) {
+  .hero-orbit {
+    container-type: size;
+  }
+
+  .hero-orbit-chip {
+    position: absolute;
+    left: var(--x, auto);
+    right: var(--rx, auto);
+    top: var(--y);
+    animation:
+      hero-orbit-burst var(--motion-duration-expressive)
+        var(--motion-ease-emphasized) var(--burst-delay, 0ms) both,
+      hero-orbit-drift calc(var(--motion-duration-ambient) * 5)
+        var(--motion-ease-out)
+        calc(var(--burst-delay, 0ms) + var(--motion-duration-expressive))
+        infinite alternate;
+  }
+}
+
+/* The badge the chips come out of, and the rings they cross on the way. The
+ * badge is centred with a transform utility, so its entrance can only touch
+ * opacity — animating `transform` here would drop the centring for good. */
+.hero-orbit-core {
+  animation: fade-enter var(--motion-duration-overlay) var(--motion-ease-out)
+    both;
+}
+
+.hero-orbit-ring {
+  animation: hero-orbit-ring var(--motion-duration-expressive)
+    var(--motion-ease-out) var(--motion-duration-overlay) both;
+}
+
+@keyframes hero-orbit-ring {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-orbit-chip,
+  .hero-orbit-core,
+  .hero-orbit-ring {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Micro-interactions — Vercel-style subtle hover/active feedback */
 @media (prefers-reduced-motion: no-preference) {
   /* The one card-hover spec for the whole app. `ui/Card` opts in by default and

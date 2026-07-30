@@ -52,7 +52,7 @@ export function CTA(props: CTAProps) {
           {t('Start Building')}
         </p>
         <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
-          {t('Connect to Available AI Models')}
+          {t('Start with the API, the workspace, or the apps')}
         </h2>
         <div className='mt-8 flex items-center justify-center gap-3'>
           <Button
@@ -70,7 +70,7 @@ export function CTA(props: CTAProps) {
             className='border-border/50 hover:border-border hover:bg-muted/50 rounded-full'
             render={<Link to='/pricing' />}
           >
-            {t('View Pricing')}
+            {t('Model Hub')}
           </Button>
         </div>
       </AnimateInView>

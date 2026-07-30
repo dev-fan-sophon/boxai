@@ -27,7 +27,6 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { Button } from '@/components/ui/button'
 import { useStatus } from '@/hooks/use-status'
 import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'
@@ -48,7 +47,6 @@ export function HowItWorks() {
         'Go to Wallet and choose an available payment method and amount.'
       ),
       href: '/wallet',
-      cta: t('Go to Wallet'),
       icon: <WalletCards className='size-5' strokeWidth={1.5} />,
     },
     {
@@ -58,7 +56,6 @@ export function HowItWorks() {
         'Create keys in API Tokens, split by project, rotate anytime to reduce leak risk.'
       ),
       href: '/keys',
-      cta: t('Create Token'),
       icon: <KeyRound className='size-5' strokeWidth={1.5} />,
     },
     {
@@ -68,7 +65,6 @@ export function HowItWorks() {
         'Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.'
       ),
       href: '/pricing',
-      cta: t('Browse Models'),
       icon: <Layers3 className='size-5' strokeWidth={1.5} />,
     },
     {
@@ -79,7 +75,6 @@ export function HowItWorks() {
       ),
       href: docsUrl,
       external: docsUrl.startsWith('http'),
-      cta: t('View Integration Guide'),
       icon: <PlugZap className='size-5' strokeWidth={1.5} />,
     },
   ]
@@ -90,22 +85,14 @@ export function HowItWorks() {
       className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'
     >
       <div className='mx-auto max-w-6xl'>
-        <div className='mb-12 flex flex-col gap-4 md:mb-16 md:flex-row md:items-end md:justify-between'>
-          <AnimateInView className='max-w-2xl'>
-            <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-              {t('Quick Start')}
-            </p>
-            <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
-              {t('One unified API for the models currently available')}
-            </h2>
-          </AnimateInView>
-          <AnimateInView delay={80}>
-            <Button className='rounded-full' render={<Link to='/dashboard' />}>
-              {t('Start Now')}
-              <ArrowRight className='ml-1.5 size-4' />
-            </Button>
-          </AnimateInView>
-        </div>
+        <AnimateInView className='mb-10 max-w-2xl md:mb-14'>
+          <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
+            {t('Quick Start')}
+          </p>
+          <h2 className='text-2xl font-bold tracking-tight text-balance md:text-3xl'>
+            {t('One unified API for the models currently available')}
+          </h2>
+        </AnimateInView>
 
         <div className='grid items-start gap-10 lg:grid-cols-12'>
           <AnimateInView delay={100} className='lg:col-span-6'>
@@ -154,9 +141,6 @@ export function HowItWorks() {
                   </div>
                   <p className='text-muted-foreground text-sm leading-relaxed'>
                     {step.desc}
-                  </p>
-                  <p className='text-foreground mt-3 text-xs font-medium'>
-                    {step.cta}
                   </p>
                 </>
               )
