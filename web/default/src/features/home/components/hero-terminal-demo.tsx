@@ -253,7 +253,7 @@ export function HeroTerminalDemo(props: HeroTerminalDemoProps) {
           </span>
           <code
             className={cn(
-              'text-foreground/75 truncate font-mono text-[12.5px] transition-opacity duration-200',
+              'text-foreground/75 truncate font-mono text-[12.5px] transition-opacity duration-control',
               transitioning ? 'opacity-0' : 'opacity-100'
             )}
           >
@@ -294,7 +294,7 @@ function RequestBlock(props: { demo: ApiDemoConfig; transitioning: boolean }) {
       <SectionLabel>Request</SectionLabel>
       <div
         className={cn(
-          'mt-2 transition-opacity duration-200',
+          'mt-2 transition-opacity duration-control',
           transitioning ? 'opacity-0' : 'opacity-100'
         )}
       >
@@ -338,7 +338,7 @@ function ResponseBlock(props: { demo: ApiDemoConfig; transitioning: boolean }) {
       <SectionLabel>Response</SectionLabel>
       <div
         className={cn(
-          'mt-2 transition-opacity duration-200',
+          'mt-2 transition-opacity duration-control',
           transitioning ? 'opacity-0' : 'opacity-100'
         )}
       >

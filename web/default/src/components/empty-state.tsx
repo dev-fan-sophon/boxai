@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { FadeIn } from '@/components/page-transition'
+import { FadeIn } from '@/components/page-enter'
 import {
   Empty,
   EmptyContent,

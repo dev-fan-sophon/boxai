@@ -80,10 +80,10 @@ export function CanvasEmptyState(props: {
               key={starter.kind}
               type='button'
               onClick={() => props.onStart(starter.kind)}
-              className='border-border/60 hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-ring group rounded-xl border p-3.5 text-left transition-[border-color,background-color,transform] duration-200 outline-none hover:-translate-y-0.5 focus-visible:ring-2'
+              className='border-border/60 hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-ring group duration-control rounded-xl border p-3.5 text-left transition-[border-color,background-color,transform] outline-none hover:-translate-y-0.5 focus-visible:ring-2'
             >
               <span
-                className={`flex size-8 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:scale-105 ${starter.chip}`}
+                className={`duration-control flex size-8 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform group-hover:scale-105 ${starter.chip}`}
               >
                 <starter.icon className='size-4' />
               </span>

@@ -17,13 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { ChevronRight, Key, Shield, Trash2 } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDialogs } from '@/hooks/use-dialog'
-import { MOTION_TRANSITION } from '@/lib/motion'
+import { MOTION_SPRING, MOTION_TRANSITION } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 import type { UserProfile } from '../types'
@@ -45,7 +45,6 @@ export function ProfileSecurityCard({
 }: ProfileSecurityCardProps) {
   const { t } = useTranslation()
   const dialogs = useDialogs<DialogKey>()
-  const shouldReduce = useReducedMotion()
 
   if (loading) {
     return (
@@ -104,13 +103,13 @@ export function ProfileSecurityCard({
             key={item.title}
             type='button'
             onClick={item.action}
-            initial={shouldReduce ? false : { opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...MOTION_TRANSITION.fast, delay: index * 0.04 }}
-            whileHover={shouldReduce ? undefined : { y: -2 }}
-            whileTap={shouldReduce ? undefined : { scale: 0.98 }}
+            whileHover={{ y: -2, transition: MOTION_SPRING.smooth }}
+            whileTap={{ scale: 0.98, transition: MOTION_SPRING.snappy }}
             className={cn(
-              'group/sec border-border/50 bg-card/80 relative flex flex-col gap-3 rounded-2xl border p-4 text-left shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_4%,transparent)] backdrop-blur-sm transition-[border-color,background-color,box-shadow] duration-200',
+              'group/sec border-border/50 bg-card/80 relative flex flex-col gap-3 rounded-2xl border p-4 text-left shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_4%,transparent)] backdrop-blur-sm transition-[border-color,background-color,box-shadow] duration-control',
               'hover:border-border hover:bg-card focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
               item.variant === 'destructive' &&
                 'hover:border-destructive/40 hover:bg-destructive/5'
@@ -120,11 +119,11 @@ export function ProfileSecurityCard({
               <IconBadge
                 tone={item.tone}
                 size='md'
-                className='transition-transform duration-200 group-hover/sec:scale-105'
+                className='duration-control transition-transform group-hover/sec:scale-105'
               >
                 <item.icon />
               </IconBadge>
-              <ChevronRight className='text-muted-foreground transition-ui size-4 opacity-0 duration-200 group-hover/sec:translate-x-0.5 group-hover/sec:opacity-100' />
+              <ChevronRight className='text-muted-foreground transition-ui duration-control size-4 opacity-0 group-hover/sec:translate-x-0.5 group-hover/sec:opacity-100' />
             </div>
             <div className='min-w-0 space-y-1'>
               <p

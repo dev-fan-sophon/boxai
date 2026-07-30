@@ -298,7 +298,7 @@ export function NodeStatusOverlay(props: {
         {typeof props.progress === 'number' ? (
           <span className='bg-foreground/10 h-1 w-24 overflow-hidden rounded-full'>
             <span
-              className='block h-full w-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none'
+              className='duration-expressive block h-full w-full origin-left rounded-full transition-transform motion-reduce:transition-none'
               style={{
                 transform: `scaleX(${Math.min(Math.max(props.progress, 0), 100) / 100})`,
                 background: theme.accent.primary,

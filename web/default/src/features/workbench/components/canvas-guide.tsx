@@ -128,7 +128,7 @@ export function CanvasGuide(props: { open: boolean; onClose: () => void }) {
         <div
           // The spotlight tracks an arbitrary element's box, so position and
           // size really are the animated properties here.
-          className='pointer-events-none absolute rounded-2xl transition-[top,left,width,height,box-shadow] duration-300 ease-out motion-reduce:transition-none'
+          className='duration-overlay pointer-events-none absolute rounded-2xl transition-[top,left,width,height,box-shadow] ease-out motion-reduce:transition-none'
           style={{
             top: rect.top,
             left: rect.left,
@@ -150,7 +150,7 @@ export function CanvasGuide(props: { open: boolean; onClose: () => void }) {
       />
 
       <div
-        className='landing-animate-scale-in bg-popover text-popover-foreground absolute rounded-2xl border p-4 shadow-2xl transition-[top,left] duration-300 ease-out motion-reduce:transition-none'
+        className='landing-animate-scale-in bg-popover text-popover-foreground duration-overlay absolute rounded-2xl border p-4 shadow-2xl transition-[top,left] ease-out motion-reduce:transition-none'
         style={{ top: cardTop, left: cardLeft, width: CARD_WIDTH }}
       >
         <div className='flex items-center gap-2'>

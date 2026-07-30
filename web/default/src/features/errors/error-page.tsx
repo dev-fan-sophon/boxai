@@ -20,7 +20,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PageTransition } from '@/components/page-transition'
+import { PageTransition } from '@/components/page-enter'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'

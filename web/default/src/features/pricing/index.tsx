@@ -20,7 +20,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
-import { PageTransition } from '@/components/page-transition'
+import { PageTransition } from '@/components/page-enter'
 import { useSeo } from '@/hooks/use-page-seo'
 
 import {

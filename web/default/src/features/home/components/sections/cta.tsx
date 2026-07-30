@@ -63,7 +63,7 @@ export function CTA(props: CTAProps) {
             }
           >
             {t('Get Started')}
-            <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
+            <ArrowRight className='duration-control ml-1 size-3.5 transition-transform group-hover:translate-x-0.5' />
           </Button>
           <Button
             variant='outline'

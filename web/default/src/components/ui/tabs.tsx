@@ -57,14 +57,35 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = 'default',
+  children,
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot='tabs-list'
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      className={cn('relative', tabsListVariants({ variant }), className)}
       {...props}
+    >
+      {/* Behind the tabs by DOM order, so the triggers keep their own stacking
+       * without needing a z-index. */}
+      {variant === 'default' && <TabsIndicator />}
+      {children}
+    </TabsPrimitive.List>
+  )
+}
+
+/**
+ * The active pill, as one element that travels rather than a background that
+ * blinks from tab to tab. Base UI publishes the active tab's box on the
+ * indicator as `--active-tab-*`, so both orientations fall out of the same four
+ * declarations and no measurement code is needed here.
+ */
+function TabsIndicator() {
+  return (
+    <TabsPrimitive.Indicator
+      data-slot='tabs-indicator'
+      className='bg-background dark:border-input dark:bg-input/30 duration-control ease-emphasized absolute top-0 left-0 h-[var(--active-tab-height)] w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] translate-y-[var(--active-tab-top)] rounded-md border border-transparent shadow-sm transition-[translate,width,height] motion-reduce:transition-none'
     />
   )
 }
@@ -74,9 +95,11 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot='tabs-trigger'
       className={cn(
-        "text-foreground/60 hover:text-foreground focus-visible:border-foreground/40 focus-visible:ring-0 focus-visible:outline-ring dark:text-muted-foreground dark:hover:text-foreground relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap transition-ui group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "text-foreground/60 hover:text-foreground focus-visible:border-foreground/40 focus-visible:ring-0 focus-visible:outline-ring dark:text-muted-foreground dark:hover:text-foreground relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap transition-ui group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent',
-        'data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground',
+        // Only the label changes here; the active surface is drawn by
+        // `TabsIndicator` so it can travel between tabs instead of blinking.
+        'data-active:text-foreground dark:data-active:text-foreground',
         'after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100',
         className
       )}

@@ -75,6 +75,8 @@ const MEDIA_HERO: Record<
 
 export function ModelHero(props: ModelHeroProps) {
   const { t } = useTranslation()
+  // Kept for the decorative CSS halo below, which is a keyframe class rather
+  // than a motion value and so is invisible to `MotionConfig`.
   const shouldReduce = useReducedMotion()
   const media = props.modality ? MEDIA_HERO[props.modality] : null
   const title = media
@@ -161,8 +163,6 @@ export function ModelHero(props: ModelHeroProps) {
       )}
     </div>
   )
-
-  if (shouldReduce) return content
 
   return (
     <motion.div

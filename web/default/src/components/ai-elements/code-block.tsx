@@ -425,7 +425,7 @@ export const CodeBlockFrame = ({
     <div className='relative min-w-0'>
       <div
         className={cn(
-          'code-block-scroll max-w-full overflow-auto transition-[max-height] duration-200 ease-out',
+          'code-block-scroll max-w-full overflow-auto transition-[max-height] duration-control ease-out',
           bodyClassName
         )}
         style={{ maxHeight: bodyMaxHeight }}

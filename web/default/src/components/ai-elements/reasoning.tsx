@@ -172,7 +172,7 @@ export const ReasoningTrigger = memo(
             <span className='grid size-3.5 place-items-center'>
               <ChevronDownIcon
                 className={cn(
-                  'size-3.5 transition-transform duration-200 ease-out',
+                  'size-3.5 transition-transform duration-control ease-out',
                   isOpen ? 'rotate-180' : 'rotate-0'
                 )}
               />
@@ -203,7 +203,7 @@ export const ReasoningContent = memo(
         )}
         {...props}
       >
-        <div className='transition-[opacity,transform] duration-200 ease-out group-data-[closed]/reasoning-content:-translate-y-1 group-data-[closed]/reasoning-content:opacity-0 group-data-[open]/reasoning-content:translate-y-0 group-data-[open]/reasoning-content:opacity-100 motion-reduce:transition-none'>
+        <div className='duration-control transition-[opacity,transform] ease-out group-data-[closed]/reasoning-content:-translate-y-1 group-data-[closed]/reasoning-content:opacity-0 group-data-[open]/reasoning-content:translate-y-0 group-data-[open]/reasoning-content:opacity-100 motion-reduce:transition-none'>
           <Response
             className='grid gap-1.5 [&_li]:my-0.5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_p]:leading-5 [&_ul]:my-1.5'
             final={!isStreaming}

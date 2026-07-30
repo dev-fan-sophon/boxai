@@ -18,14 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import i18n from 'i18next'
 
+// `short` is the badge shown on the compact language trigger in the header.
 export const INTERFACE_LANGUAGE_OPTIONS = [
-  { code: 'zhCN', label: '简体中文' },
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'ru', label: 'Русский' },
-  { code: 'ja', label: '日本語' },
-  { code: 'vi', label: 'Tiếng Việt' },
-  { code: 'zhTW', label: '繁體中文' },
+  { code: 'zhCN', label: '简体中文', short: '简' },
+  { code: 'en', label: 'English', short: 'EN' },
+  { code: 'fr', label: 'Français', short: 'FR' },
+  { code: 'ru', label: 'Русский', short: 'RU' },
+  { code: 'ja', label: '日本語', short: 'JA' },
+  { code: 'vi', label: 'Tiếng Việt', short: 'VI' },
+  { code: 'zhTW', label: '繁體中文', short: '繁' },
 ] as const
 
 export type InterfaceLanguageCode =

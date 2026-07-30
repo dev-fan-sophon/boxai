@@ -60,7 +60,7 @@ function FooterLinkItem(props: { link: FooterLink }) {
         href={props.link.href}
         target='_blank'
         rel='noopener noreferrer'
-        className='text-muted-foreground hover:text-foreground text-sm transition-colors duration-200'
+        className='text-muted-foreground hover:text-foreground duration-control text-sm transition-colors'
       >
         {label}
       </a>
@@ -70,7 +70,7 @@ function FooterLinkItem(props: { link: FooterLink }) {
   return (
     <Link
       to={props.link.href}
-      className='text-muted-foreground hover:text-foreground text-sm transition-colors duration-200'
+      className='text-muted-foreground hover:text-foreground duration-control text-sm transition-colors'
     >
       {label}
     </Link>
@@ -112,7 +112,7 @@ function LegalLinks(props: { leadingSeparator?: boolean }) {
           )}
           <Link
             to={item.href}
-            className='hover:text-foreground transition-colors duration-200'
+            className='hover:text-foreground duration-control transition-colors'
           >
             {item.label}
           </Link>

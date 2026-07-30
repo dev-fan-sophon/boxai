@@ -220,7 +220,7 @@ export function InspirationProjects(props: {
                   src={project.cover}
                   alt=''
                   loading='lazy'
-                  className='size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]'
+                  className='duration-expressive size-full object-cover transition-transform group-hover:scale-[1.03]'
                 />
               ) : (
                 <span className='text-muted-foreground flex size-full items-center justify-center'>

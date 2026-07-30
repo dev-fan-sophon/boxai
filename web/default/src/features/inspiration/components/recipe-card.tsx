@@ -70,9 +70,9 @@ export function RecipeCard(props: RecipeCardProps) {
             loading='lazy'
             decoding='async'
             alt={props.recipe.title}
-            className='size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]'
+            className='duration-expressive ease-emphasized size-full object-cover transition-transform group-hover:scale-[1.06]'
           />
-          <div className='absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100' />
+          <div className='duration-overlay absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 opacity-0 transition-opacity group-hover:opacity-100' />
           <span className='absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm'>
             {isVideo ? (
               <Play className='size-3' aria-hidden='true' />
@@ -81,7 +81,7 @@ export function RecipeCard(props: RecipeCardProps) {
             )}
             {isVideo ? t('Video series') : t('Image series')}
           </span>
-          <span className='transition-ui pointer-events-none absolute right-3 bottom-3 inline-flex translate-y-1 items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-black opacity-0 shadow-sm duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100'>
+          <span className='transition-ui duration-overlay pointer-events-none absolute right-3 bottom-3 inline-flex translate-y-1 items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-black opacity-0 shadow-sm ease-out group-hover:translate-y-0 group-hover:opacity-100'>
             {t('Use template')}
             <ArrowUpRight className='size-3.5' aria-hidden='true' />
           </span>
@@ -104,7 +104,7 @@ export function RecipeCard(props: RecipeCardProps) {
         type='button'
         aria-label={props.favorite ? t('Remove favorite') : t('Favorite')}
         className={cn(
-          'absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-[background-color,transform] duration-200 hover:scale-105 hover:bg-black/60',
+          'absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-[background-color,transform] duration-control hover:scale-105 hover:bg-black/60',
           props.favorite && 'text-rose-400'
         )}
         onClick={props.onFavorite}

@@ -47,6 +47,12 @@ type AuthPromptTarget = {
   href: string
 }
 
+// Detail routes (`/pricing/gpt-5`, `/docs/streaming`) keep their section lit.
+function isNavLinkActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export interface PublicHeaderProps {
   navLinks?: TopNavLink[]
   showThemeSwitch?: boolean
@@ -199,13 +205,13 @@ export function PublicHeader(props: PublicHeaderProps) {
       <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
         <div
           className={cn(
-            'pointer-events-auto mx-auto transition-[max-width,padding] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+            'pointer-events-auto mx-auto transition-[max-width,padding] duration-expressive ease-emphasized motion-reduce:transition-none',
             scrolled ? 'max-w-[52rem] px-3 pt-3' : 'max-w-7xl px-4 pt-0 md:px-6'
           )}
         >
           <nav
             className={cn(
-              'flex items-center justify-between transition-[height,padding,border-radius,background-color,box-shadow] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+              'flex items-center justify-between transition-[height,padding,border-radius,background-color,box-shadow] duration-expressive ease-emphasized motion-reduce:transition-none',
               scrolled
                 ? 'bg-background/60 ring-border/50 shadow-raised h-12 rounded-2xl pr-1.5 pl-4 ring-[0.5px] backdrop-blur-2xl'
                 : 'h-16 px-2'
@@ -216,7 +222,7 @@ export function PublicHeader(props: PublicHeaderProps) {
               to={homeUrl}
               className='group flex shrink-0 items-center gap-2.5'
             >
-              <div className='flex size-7 shrink-0 items-center justify-center transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none'>
+              <div className='duration-overlay flex size-7 shrink-0 items-center justify-center transition-transform group-hover:scale-105 motion-reduce:transition-none'>
                 {loading && <Skeleton className='size-full rounded-lg' />}
                 {!loading && customLogo}
                 {!loading && !customLogo && (
@@ -236,7 +242,14 @@ export function PublicHeader(props: PublicHeaderProps) {
             {/* Desktop nav */}
             <div className='hidden items-center gap-0.5 lg:flex'>
               {links.map((link) => {
-                const isActive = pathname === link.href
+                const isActive = isNavLinkActive(pathname, link.href)
+                const linkClassName = cn(
+                  'transition-ui duration-control rounded-full px-3 py-1.5 text-[13px] font-medium',
+                  isActive
+                    ? 'bg-foreground/[0.06] text-foreground'
+                    : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
+                  link.disabled && 'pointer-events-none opacity-50'
+                )
                 if (link.external) {
                   return (
                     <a
@@ -247,10 +260,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                       aria-disabled={link.disabled}
                       tabIndex={link.disabled ? -1 : undefined}
                       onClick={(event) => handleNavLinkClick(event, link)}
-                      className={cn(
-                        'text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200',
-                        link.disabled && 'pointer-events-none opacity-50'
-                      )}
+                      className={linkClassName}
                     >
                       {t(link.title)}
                     </a>
@@ -262,13 +272,8 @@ export function PublicHeader(props: PublicHeaderProps) {
                     to={link.href}
                     disabled={link.disabled}
                     onClick={(event) => handleNavLinkClick(event, link)}
-                    className={cn(
-                      'rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200',
-                      isActive
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
-                      link.disabled && 'pointer-events-none opacity-50'
-                    )}
+                    className={linkClassName}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     {t(link.title)}
                   </Link>
@@ -278,7 +283,7 @@ export function PublicHeader(props: PublicHeaderProps) {
               {(showLanguageSwitcher ||
                 showThemeSwitch ||
                 showNotifications) && (
-                <div className='bg-border/40 mx-2 h-4 w-px' />
+                <div className='bg-border/50 mx-2 h-4 w-px' />
               )}
 
               {showLanguageSwitcher && <LanguageSwitcher />}
@@ -298,9 +303,9 @@ export function PublicHeader(props: PublicHeaderProps) {
 
               {showAuthButtons && (
                 <>
-                  <div className='bg-border/40 mx-1 h-4 w-px' />
+                  <div className='bg-border/50 mx-1 h-4 w-px' />
                   {loading ? (
-                    <Skeleton className='h-8 w-20 rounded-lg' />
+                    <Skeleton className='h-8 w-20 rounded-full' />
                   ) : (
                     <>
                       {showConsoleCta &&
@@ -353,26 +358,26 @@ export function PublicHeader(props: PublicHeaderProps) {
                 type='button'
                 variant='ghost'
                 size='icon'
-                className='size-9'
+                className='text-muted-foreground hover:text-foreground rounded-full'
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label={t('Toggle navigation menu')}
               >
                 <div className='relative size-4'>
                   <span
                     className={cn(
-                      'absolute inset-x-0 block h-[1.5px] origin-center rounded-full bg-current transition-[top,transform] duration-300 motion-reduce:transition-none',
+                      'absolute inset-x-0 block h-[1.5px] origin-center rounded-full bg-current transition-[top,transform] duration-overlay motion-reduce:transition-none',
                       mobileOpen ? 'top-[7px] rotate-45' : 'top-[3px]'
                     )}
                   />
                   <span
                     className={cn(
-                      'absolute inset-x-0 top-[7px] block h-[1.5px] rounded-full bg-current transition-[transform,opacity] duration-300 motion-reduce:transition-none',
+                      'absolute inset-x-0 top-[7px] block h-[1.5px] rounded-full bg-current transition-[transform,opacity] duration-overlay motion-reduce:transition-none',
                       mobileOpen ? 'scale-x-0 opacity-0' : 'opacity-100'
                     )}
                   />
                   <span
                     className={cn(
-                      'absolute inset-x-0 block h-[1.5px] origin-center rounded-full bg-current transition-[top,transform] duration-300 motion-reduce:transition-none',
+                      'absolute inset-x-0 block h-[1.5px] origin-center rounded-full bg-current transition-[top,transform] duration-overlay motion-reduce:transition-none',
                       mobileOpen ? 'top-[7px] -rotate-45' : 'top-[11px]'
                     )}
                   />
@@ -386,7 +391,7 @@ export function PublicHeader(props: PublicHeaderProps) {
       {/* Mobile full-screen overlay */}
       <div
         className={cn(
-          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:pointer-events-none lg:hidden',
+          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-expressive ease-emphasized lg:pointer-events-none lg:hidden',
           mobileOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
@@ -395,9 +400,9 @@ export function PublicHeader(props: PublicHeaderProps) {
         <div className='flex h-full flex-col justify-between px-8 pt-20 pb-10'>
           <nav className='flex flex-col gap-1'>
             {links.map((link, i) => {
-              const isActive = pathname === link.href
+              const isActive = isNavLinkActive(pathname, link.href)
               const linkClassName = cn(
-                'flex items-center gap-3 py-3 text-base font-medium tracking-tight transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+                'flex items-center gap-3 py-3 text-base font-medium tracking-tight transition-[transform,opacity] duration-expressive ease-emphasized motion-reduce:transition-none',
                 mobileOpen
                   ? 'translate-y-0 opacity-100'
                   : 'translate-y-4 opacity-0',
@@ -432,6 +437,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                   onClick={(event) => handleNavLinkClick(event, link, true)}
                   className={linkClassName}
                   style={transitionStyle}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   {t(link.title)}
                 </Link>
@@ -441,7 +447,7 @@ export function PublicHeader(props: PublicHeaderProps) {
 
           <div
             className={cn(
-              'flex flex-col gap-3 transition-[transform,opacity] duration-500 motion-reduce:transition-none',
+              'flex flex-col gap-3 transition-[transform,opacity] duration-expressive motion-reduce:transition-none',
               mobileOpen
                 ? 'translate-y-0 opacity-100'
                 : 'translate-y-4 opacity-0'

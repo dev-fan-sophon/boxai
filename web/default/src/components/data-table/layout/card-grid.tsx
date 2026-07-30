@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { Row, Table } from '@tanstack/react-table'
 import { Database } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -30,11 +30,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  CARD_STAGGER_VARIANTS,
-  MOTION_TRANSITION,
-  MOTION_VARIANTS,
-} from '@/lib/motion'
+import { CARD_STAGGER, MOTION_SPRING } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 import { tableHasCompactMeta } from './card-cell-utils'
@@ -80,8 +76,6 @@ export interface DataTableCardGridProps<TData> {
 const DEFAULT_GRID_CLASSNAME =
   'grid grid-cols-1 gap-3 sm:gap-3.5 md:grid-cols-2 xl:grid-cols-3'
 
-const cardItemTransition = MOTION_TRANSITION.default
-
 function CardGridSkeleton(props: {
   gridClassName?: string
   keyPrefix?: string
@@ -118,7 +112,6 @@ function CardGridSkeleton(props: {
  */
 export function DataTableCardGrid<TData>(props: DataTableCardGridProps<TData>) {
   const { t } = useTranslation()
-  const shouldReduce = useReducedMotion()
 
   const resolvedEmptyTitle = props.emptyTitle ?? t('No Data')
   const resolvedEmptyDescription =
@@ -158,39 +151,10 @@ export function DataTableCardGrid<TData>(props: DataTableCardGridProps<TData>) {
 
   const gridClass = props.gridClassName ?? DEFAULT_GRID_CLASSNAME
 
-  if (shouldReduce) {
-    return (
-      <div className={gridClass}>
-        {rows.map((row) => {
-          const key = props.getRowKey ? props.getRowKey(row) : row.id
-          const isSelected = row.getIsSelected()
-          return (
-            <div
-              key={key}
-              data-slot='data-table-card'
-              data-state={isSelected ? 'selected' : undefined}
-              className={cn(
-                'border-border/60 bg-card hover:border-border hover:bg-card/90 rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)] transition-[background-color,border-color,box-shadow] duration-150',
-                'data-[state=selected]:border-primary/35 data-[state=selected]:bg-primary/5',
-                props.getRowClassName?.(row)
-              )}
-            >
-              {props.renderCard ? (
-                props.renderCard(row, { compact, isSelected })
-              ) : (
-                <CardRowContent row={row} compact={compact} />
-              )}
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
     <motion.div
       className={gridClass}
-      variants={CARD_STAGGER_VARIANTS}
+      variants={CARD_STAGGER.container}
       initial='initial'
       animate='animate'
     >
@@ -202,20 +166,14 @@ export function DataTableCardGrid<TData>(props: DataTableCardGridProps<TData>) {
             key={key}
             data-slot='data-table-card'
             data-state={isSelected ? 'selected' : undefined}
-            variants={{
-              initial: MOTION_VARIANTS.cardItem.initial,
-              animate: {
-                ...MOTION_VARIANTS.cardItem.animate,
-                transition: cardItemTransition,
-              },
-            }}
+            variants={CARD_STAGGER.item}
             // Matches `--card-hover-lift` in index.css. It has to stay a motion
             // value rather than the shared `data-card-hover` CSS rule, because
             // the stagger variants leave an inline transform that a stylesheet
             // hover rule cannot override.
-            whileHover={{ y: -2, transition: MOTION_TRANSITION.fast }}
+            whileHover={{ y: -2, transition: MOTION_SPRING.smooth }}
             className={cn(
-              'border-border/60 bg-card hover:border-border rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)] transition-[background-color,border-color,box-shadow] duration-150',
+              'border-border/60 bg-card hover:border-border rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)] transition-[background-color,border-color,box-shadow] duration-control',
               'data-[state=selected]:border-primary/35 data-[state=selected]:bg-primary/5',
               props.getRowClassName?.(row)
             )}

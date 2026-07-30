@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { Sidebar, SidebarContent, SidebarRail } from '@/components/ui/sidebar'
 import { useLayout } from '@/context/layout-provider'
@@ -47,7 +47,6 @@ import { SidebarViewHeader } from './sidebar-view-header'
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const { key, view, navGroups } = useSidebarView()
-  const shouldReduce = useReducedMotion()
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
@@ -57,11 +56,9 @@ export function AppSidebar() {
         <AnimatePresence mode='wait' initial={false}>
           <motion.div
             key={key}
-            initial={
-              shouldReduce ? false : MOTION_VARIANTS.sidebarSlide.initial
-            }
+            initial={MOTION_VARIANTS.sidebarSlide.initial}
             animate={MOTION_VARIANTS.sidebarSlide.animate}
-            exit={shouldReduce ? undefined : MOTION_VARIANTS.sidebarSlide.exit}
+            exit={MOTION_VARIANTS.sidebarSlide.exit}
             transition={MOTION_TRANSITION.fast}
             className='flex flex-col'
           >

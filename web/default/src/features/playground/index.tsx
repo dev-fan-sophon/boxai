@@ -80,6 +80,8 @@ import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
 import { getModelModality } from './lib/studio/model-modality'
 import type { Message, PlaygroundConfig, StudioModality } from './types'
 
+import './styles/playground.css'
+
 export function Playground() {
   const { t } = useTranslation()
   const navigate = useNavigate()

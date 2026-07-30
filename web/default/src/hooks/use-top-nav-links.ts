@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
@@ -45,9 +44,9 @@ export type TopNavLink = {
  *
  * Default strip: Home · Workspace · Agents · Inspiration · Model Hub · Rankings.
  * Console/Dashboard is a CTA in PublicHeader, not a strip text link.
+ * Titles stay English i18n source keys; consumers translate them.
  */
 export function useTopNavLinks(): TopNavLink[] {
-  const { t } = useTranslation()
   const { status } = useStatus()
   const user = useAuthStore((state) => state.auth.user)
 
@@ -66,31 +65,31 @@ export function useTopNavLinks(): TopNavLink[] {
   // Dashboard is rendered as a primary CTA button in PublicHeader, not here.
 
   if (modules?.home !== false) {
-    links.push({ title: t('Home'), href: '/' })
+    links.push({ title: 'Home', href: '/' })
   }
 
   if (modules.playground.enabled) {
-    links.push({ title: t('Workspace'), href: '/playground' })
+    links.push({ title: 'Workspace', href: '/playground' })
   }
 
   if (modules.agents.enabled) {
-    links.push({ title: t('Agents'), href: '/agents' })
+    links.push({ title: 'Agents', href: '/agents' })
   }
 
   if (modules.inspiration.enabled) {
-    links.push({ title: t('Inspiration'), href: '/inspiration' })
+    links.push({ title: 'Inspiration', href: '/inspiration' })
   }
 
   const pricing = modules?.pricing
   if (pricing && typeof pricing === 'object' && pricing.enabled) {
     const requiresAuth = pricing.requireAuth && !isAuthed
-    links.push({ title: t('Model Hub'), href: '/pricing', requiresAuth })
+    links.push({ title: 'Model Hub', href: '/pricing', requiresAuth })
   }
 
   const rankings = modules?.rankings
   if (rankings && typeof rankings === 'object' && rankings.enabled) {
     const requiresAuth = rankings.requireAuth && !isAuthed
-    links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
+    links.push({ title: 'Rankings', href: '/rankings', requiresAuth })
   }
 
   return links

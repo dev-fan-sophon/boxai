@@ -24,6 +24,7 @@ import {
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
 import i18next from 'i18next'
+import { MotionConfig } from 'motion/react'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { toast } from 'sonner'
@@ -170,7 +171,14 @@ if (rootElement && !rootElement.innerHTML) {
           <QueryClientProvider client={queryClient}>
             <ThemeProvider>
               <DirectionProvider>
-                <RouterProvider router={router} />
+                {/* `user` follows the OS setting and drops transforms and
+                 * layout animations while keeping opacity, which is what the
+                 * preference actually asks for — a hard cut is not more
+                 * accessible, just less legible. One provider replaces the
+                 * per-component branching this app used to carry. */}
+                <MotionConfig reducedMotion='user'>
+                  <RouterProvider router={router} />
+                </MotionConfig>
               </DirectionProvider>
             </ThemeProvider>
           </QueryClientProvider>

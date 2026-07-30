@@ -79,6 +79,8 @@ const STATUS_KEYS: Record<Exclude<StudioModality, 'chat'>, string[]> = {
  */
 export function GenerationProgress(props: GenerationProgressProps) {
   const { t } = useTranslation()
+  // Still needed beyond `MotionConfig`: this gates the rotating status copy and
+  // the decorative CSS keyframe classes below, neither of which motion sees.
   const shouldReduce = useReducedMotion()
   const statuses = STATUS_KEYS[props.modality]
   const [statusIndex, setStatusIndex] = useState(0)
@@ -176,9 +178,9 @@ export function GenerationProgress(props: GenerationProgressProps) {
           <AnimatePresence mode='wait' initial={false}>
             <motion.div
               key={statusIndex}
-              initial={shouldReduce ? false : { opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={shouldReduce ? undefined : { opacity: 0, y: -4 }}
+              exit={{ opacity: 0, y: -4 }}
               transition={MOTION_TRANSITION.fast}
             >
               <Shimmer className='text-sm font-medium' duration={2.4}>
@@ -218,7 +220,7 @@ export function GenerationProgress(props: GenerationProgressProps) {
             // Scale rather than width: the bar ticks every few hundred ms and a
             // width transition relayouts the whole progress block each frame.
             <div
-              className='bg-primary absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform duration-500 ease-out motion-reduce:transition-none'
+              className='bg-primary duration-expressive absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform ease-out motion-reduce:transition-none'
               style={{
                 transform: `scaleX(${Math.min(Math.max(softPercent, 0), 100) / 100})`,
               }}
@@ -328,7 +330,7 @@ export function ImagePlaceholder(props: {
             // Scale rather than width: the bar ticks every few hundred ms and a
             // width transition relayouts the whole tile each frame.
             <div
-              className='bg-primary absolute inset-y-0 left-0 w-full origin-left transition-transform duration-500 ease-out motion-reduce:transition-none'
+              className='bg-primary duration-expressive absolute inset-y-0 left-0 w-full origin-left transition-transform ease-out motion-reduce:transition-none'
               style={{
                 transform: `scaleX(${Math.min(Math.max(props.percent, 0), 100) / 100})`,
               }}

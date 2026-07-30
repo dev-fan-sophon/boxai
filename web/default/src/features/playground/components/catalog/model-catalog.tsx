@@ -464,7 +464,7 @@ function ModelCard(props: {
       <div
         aria-hidden='true'
         className={cn(
-          'pointer-events-none absolute opacity-[0.09] saturate-150 transition-opacity duration-200 group-hover:opacity-[0.16] dark:opacity-[0.14] dark:group-hover:opacity-[0.22]',
+          'pointer-events-none absolute opacity-[0.09] saturate-150 transition-opacity duration-control group-hover:opacity-[0.16] dark:opacity-[0.14] dark:group-hover:opacity-[0.22]',
           WATERMARK_CLASSES[variant]
         )}
       >
@@ -520,7 +520,7 @@ function ModelCard(props: {
             // The pin button occupies the same corner; crossfade so the two
             // never stack on top of each other.
             props.onTogglePin &&
-              'transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0',
+              'transition-opacity duration-control group-focus-within:opacity-0 group-hover:opacity-0',
             props.onTogglePin && pinned && 'opacity-0'
           )}
           aria-label={t(modalityLabelKey(modelModality))}

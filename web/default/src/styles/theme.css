@@ -98,6 +98,14 @@ For commercial licensing, please contact support@quantumnous.com
   --shadow-panel: var(--elevation-panel);
   --shadow-lifted: var(--elevation-lifted);
 
+  /*
+   * Easing. The project curve, exposed as the `ease-emphasized` utility so call
+   * sites stop hand-writing the same `cubic-bezier(0.16, 1, 0.3, 1)`. Tailwind's
+   * built-in `--ease-out` is deliberately left alone; overriding it would
+   * silently retime every existing `ease-out` in the app.
+   */
+  --ease-emphasized: var(--motion-ease-emphasized);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

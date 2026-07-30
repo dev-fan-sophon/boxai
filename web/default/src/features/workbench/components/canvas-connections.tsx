@@ -135,7 +135,7 @@ const ConnectionPath = memo(function ConnectionPath(
         fill='none'
         stroke={strokeColor}
         strokeWidth={strokeWidth}
-        className='pointer-events-none transition-[stroke,stroke-width] duration-150'
+        className='duration-control pointer-events-none transition-[stroke,stroke-width]'
         strokeLinecap='round'
       />
       {active ? (
@@ -152,7 +152,7 @@ const ConnectionPath = memo(function ConnectionPath(
         cy={to.y}
         r={3.5}
         fill={active ? theme.accent.primary : theme.frame.stroke}
-        className='pointer-events-none transition-[fill] duration-150'
+        className='duration-control pointer-events-none transition-[fill]'
       />
     </g>
   )

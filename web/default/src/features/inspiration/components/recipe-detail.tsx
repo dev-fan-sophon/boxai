@@ -337,7 +337,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
                 {t('More details')}
                 <ChevronDown
                   className={cn(
-                    'size-4 transition-transform duration-200',
+                    'size-4 transition-transform duration-control',
                     detailsOpen && 'rotate-180'
                   )}
                   aria-hidden='true'
@@ -345,7 +345,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
               </button>
 
               {detailsOpen ? (
-                <div className='animate-in fade-in slide-in-from-top-1 space-y-5 pt-2 duration-200'>
+                <div className='animate-in fade-in slide-in-from-top-1 duration-control space-y-5 pt-2'>
                   {recipe.explanation ? (
                     <p className='text-muted-foreground text-xs text-pretty'>
                       {recipe.explanation}

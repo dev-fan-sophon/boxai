@@ -155,6 +155,9 @@ function LineSparkline(props: {
   const rawGradientId = useId()
   const gradientId = `stat-card-line-${rawGradientId.replaceAll(':', '')}`
   const paths = buildLineSparkline(props.values)
+  // `MotionConfig reducedMotion` only suppresses transform and layout
+  // animations. A stroke drawing itself along `pathLength` is neither, so this
+  // one still has to opt out by hand.
   const shouldReduce = useReducedMotion()
   const animate = Boolean(props.animate) && !shouldReduce
 
@@ -209,8 +212,7 @@ function BarSparkline(props: {
   animate?: boolean
 }) {
   const sparkline = normalizeSparkline(props.values)
-  const shouldReduce = useReducedMotion()
-  const animate = Boolean(props.animate) && !shouldReduce
+  const animate = Boolean(props.animate)
 
   return (
     <div className='flex h-9 items-end gap-1' aria-hidden='true'>

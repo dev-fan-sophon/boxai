@@ -1,0 +1,379 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+/* Media generation animations and the playground shell skin. Owned by the
+ * playground route and loaded with it, instead of riding along in the global
+ * stylesheet that every page pays for. */
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-indeterminate,
+  .generation-wave,
+  .generation-glow-pulse,
+  .generation-orb-pulse,
+  .generation-timer-dot,
+  .generation-scanline,
+  .generation-progress-enter,
+  .generation-slot-enter,
+  .generation-result-enter,
+  .generation-image-reveal,
+  .generation-size-badge {
+    animation: none !important;
+  }
+
+  .generation-progress-enter,
+  .generation-slot-enter,
+  .generation-result-enter,
+  .generation-image-reveal,
+  .generation-size-badge {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Playground media generation progress */
+@keyframes generation-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes generation-wave {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes generation-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes generation-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 35%, transparent);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--primary) 0%, transparent);
+  }
+}
+
+@keyframes generation-timer-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes generation-scanline {
+  0% {
+    top: -35%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.55;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes generation-progress-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes generation-slot-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes generation-result-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes generation-image-reveal {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes generation-size-badge {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Ambient loops. These keep explicit periods rather than reading a duration
+ * tier: a tier budgets how long the user waits for a transition to resolve,
+ * while a loop never resolves — its period is a rhythm chosen against whatever
+ * it depicts (a scanline sweep, a slow halo, a ticking second).
+ * `--motion-duration-ambient` is the default heartbeat for the ones with
+ * nothing more specific to say. */
+.generation-indeterminate {
+  animation: generation-indeterminate 1.4s ease-in-out infinite;
+}
+
+.generation-wave {
+  animation: generation-wave 1.1s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.generation-glow-pulse {
+  animation: generation-glow-pulse 4s ease-in-out infinite;
+}
+
+.generation-orb-pulse {
+  animation: generation-orb-pulse 2.2s ease-in-out infinite;
+}
+
+.generation-timer-dot {
+  animation: generation-timer-dot var(--motion-duration-ambient) ease-in-out
+    infinite;
+}
+
+.generation-scanline {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in oklab, var(--primary) 22%, transparent) 45%,
+    transparent 100%
+  );
+  animation: generation-scanline 2.4s ease-in-out infinite;
+}
+
+.generation-progress-enter {
+  animation: generation-progress-enter var(--motion-duration-page)
+    var(--motion-ease-emphasized) both;
+}
+
+.generation-slot-enter {
+  animation: generation-slot-enter var(--motion-duration-page)
+    var(--motion-ease-emphasized) both;
+}
+
+.generation-result-enter {
+  animation: generation-result-enter var(--motion-duration-page)
+    var(--motion-ease-emphasized) both;
+}
+
+/* The image itself is the payoff of the whole generation, so it gets the slow
+ * tier the surrounding chrome does not. */
+.generation-image-reveal {
+  animation: generation-image-reveal var(--motion-duration-expressive)
+    var(--motion-ease-emphasized) both;
+}
+
+.generation-size-badge {
+  animation: generation-size-badge var(--motion-duration-page)
+    var(--motion-ease-emphasized) 0.12s both;
+}
+
+/* Playground shell: mobile-first polish + ambient stage */
+.playground-page {
+  --playground-composer-glow: color-mix(
+    in oklab,
+    var(--primary) 18%,
+    transparent
+  );
+}
+
+.playground-workbench {
+  isolation: isolate;
+}
+
+.playground-topbar,
+.playground-workspace-header {
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.playground-stage {
+  background:
+    radial-gradient(
+      120% 70% at 50% -10%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--muted) 35%, transparent),
+      transparent 28%
+    );
+}
+
+.playground-composer-dock {
+  position: relative;
+}
+
+.playground-composer-dock::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 8%;
+  top: -1.25rem;
+  height: 2.5rem;
+  background: radial-gradient(
+    60% 100% at 50% 100%,
+    var(--playground-composer-glow),
+    transparent 70%
+  );
+  opacity: 0.7;
+}
+
+.playground-composer-surface {
+  position: relative;
+}
+
+.playground-composer-surface::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0
+    color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+@media (max-width: 639px) {
+  .playground-workbench {
+    --playground-touch-min: 2.25rem;
+  }
+
+  .playground-topbar,
+  .playground-workspace-header {
+    /* Keep chrome compact on phones so the stage has room */
+    min-height: 2.75rem;
+  }
+
+  .playground-composer-dock {
+    /* Prevent iOS focus jump / rubber-band overscroll fighting the dock */
+    overscroll-behavior: contain;
+  }
+}
+
+.playground-modality-switch {
+  scrollbar-width: none;
+}
+
+.playground-modality-switch::-webkit-scrollbar {
+  display: none;
+}
+/* Dark-mode contrast polish for playground reading surfaces */
+.dark .playground-stage {
+  background:
+    radial-gradient(
+      120% 70% at 50% -10%,
+      color-mix(in oklab, var(--primary) 14%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--muted) 28%, transparent),
+      transparent 30%
+    );
+}
+
+.dark .playground-topbar,
+.dark .playground-workspace-header,
+.dark .playground-modality-switch {
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  border-color: color-mix(in oklab, var(--border) 85%, transparent);
+}
+
+.dark .playground-composer-surface {
+  background: color-mix(in oklab, var(--background) 92%, var(--muted) 8%);
+  border-color: color-mix(in oklab, var(--border) 90%, transparent);
+}
+
+.dark .playground-composer-dock {
+  --playground-composer-glow: color-mix(
+    in oklab,
+    var(--primary) 28%,
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playground-composer-surface,
+  .playground-topbar button,
+  .playground-workspace-header button,
+  .playground-modality-switch button {
+    transition: none !important;
+  }
+}

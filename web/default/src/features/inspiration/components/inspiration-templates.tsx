@@ -159,7 +159,7 @@ export function InspirationTemplates(props: InspirationTemplatesProps) {
           onClick={props.onCreateBlank}
           className='border-border/60 hover:border-primary/50 hover:bg-accent/30 group focus-visible:ring-ring flex min-h-[14rem] flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed p-6 text-center transition-[border-color,background-color] outline-none focus-visible:ring-2 disabled:opacity-60'
         >
-          <span className='bg-primary/10 text-primary flex size-10 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110'>
+          <span className='bg-primary/10 text-primary duration-overlay flex size-10 items-center justify-center rounded-full transition-transform group-hover:scale-110'>
             {props.creating ? (
               <Loader2 className='size-4 animate-spin' />
             ) : (

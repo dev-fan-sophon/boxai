@@ -90,7 +90,7 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
     <figure
       className={cn(
         'border-border/80 bg-muted/40 group relative overflow-hidden rounded-2xl border',
-        'ring-foreground/5 ring-1 ring-inset transition-shadow duration-300',
+        'ring-foreground/5 ring-1 ring-inset transition-shadow duration-overlay',
         'generation-result-enter hover:border-border hover:shadow-md'
       )}
       style={{

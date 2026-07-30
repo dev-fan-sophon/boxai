@@ -185,7 +185,7 @@ function RingProgress(props: RingProgressProps) {
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         className={cn(
-          'transition-[stroke-dashoffset] duration-500',
+          'transition-[stroke-dashoffset] duration-expressive',
           ringColorClass(props.percent)
         )}
       />

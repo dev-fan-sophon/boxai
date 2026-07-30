@@ -288,7 +288,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
       aria-label={t('{{title}} canvas node', { title: node.title })}
       aria-selected={props.selected}
       className={cn(
-        'group absolute flex flex-col overflow-hidden text-xs outline-none transition-[box-shadow,border-color,opacity,transform] duration-200 ease-out motion-reduce:transition-none',
+        'group absolute flex flex-col overflow-hidden text-xs outline-none transition-[box-shadow,border-color,opacity,transform] duration-control ease-out motion-reduce:transition-none',
         frame ? 'rounded-2xl border' : 'rounded-xl border',
         generating && 'canvas-node-generating',
         props.dragging && 'scale-[1.01]'
@@ -347,7 +347,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
       >
         <span
           className={cn(
-            'flex size-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+            'flex size-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform duration-control group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100',
             accent.chip,
             generating && 'animate-pulse'
           )}
@@ -444,7 +444,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
             title={t('Drag to the next step')}
             data-handle-type='source'
             data-guide='node-handle'
-            className='absolute top-1/2 -right-2 size-6 -translate-y-1/2 rounded-full border-2 opacity-70 transition-[opacity,transform,box-shadow] duration-150 group-focus-within:opacity-100 group-hover:scale-110 group-hover:opacity-100 hover:opacity-100 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3.5'
+            className='duration-control absolute top-1/2 -right-2 size-6 -translate-y-1/2 rounded-full border-2 opacity-70 transition-[opacity,transform,box-shadow] group-focus-within:opacity-100 group-hover:scale-110 group-hover:opacity-100 hover:opacity-100 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3.5'
             style={{
               background: theme.node.panel,
               borderColor: accent.ring,
@@ -465,7 +465,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
             type='button'
             aria-label={t('Connect into this node')}
             data-handle-type='target'
-            className='absolute top-1/2 -left-2 size-6 -translate-y-1/2 rounded-full border-2 opacity-70 transition-[opacity,transform,box-shadow] duration-150 group-focus-within:opacity-100 group-hover:scale-110 group-hover:opacity-100 hover:opacity-100 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3.5'
+            className='duration-control absolute top-1/2 -left-2 size-6 -translate-y-1/2 rounded-full border-2 opacity-70 transition-[opacity,transform,box-shadow] group-focus-within:opacity-100 group-hover:scale-110 group-hover:opacity-100 hover:opacity-100 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3.5'
             style={{
               background: theme.node.panel,
               borderColor: theme.node.faint,
@@ -501,7 +501,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
                 type='button'
                 key={corner}
                 aria-label={t('Resize {{corner}} handle', { corner })}
-                className='absolute size-5 cursor-nwse-resize rounded-[4px] border-2 transition-transform duration-150 hover:scale-125 active:scale-110 motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3'
+                className='duration-control absolute size-5 cursor-nwse-resize rounded-[4px] border-2 transition-transform hover:scale-125 active:scale-110 motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-3'
                 style={{
                   background: theme.node.panel,
                   borderColor: accent.ring,

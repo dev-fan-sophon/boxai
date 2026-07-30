@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Wallet } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -51,7 +51,6 @@ export function SidebarAccountFooter() {
   const { state } = useSidebar()
   const user = useAuthStore((s) => s.auth.user)
   const setUser = useAuthStore((s) => s.auth.setUser)
-  const shouldReduce = useReducedMotion()
   const collapsed = state === 'collapsed'
 
   useEffect(() => {
@@ -124,7 +123,7 @@ export function SidebarAccountFooter() {
             </div>
           ) : (
             <motion.div
-              initial={shouldReduce ? false : { opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={MOTION_TRANSITION.fast}
               className='w-full space-y-2'

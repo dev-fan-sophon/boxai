@@ -27,7 +27,7 @@ import {
   Wallet,
   WalletCards,
 } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -71,7 +71,6 @@ function AnimatedStatValue(props: {
 
 export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
   const { t } = useTranslation()
-  const shouldReduce = useReducedMotion()
 
   if (loading) {
     return (
@@ -170,7 +169,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
 
       <div className='relative p-5 sm:p-7'>
         <motion.div
-          initial={shouldReduce ? false : { opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={MOTION_TRANSITION.default}
           className='flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6'
@@ -256,7 +255,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
         {stats.map((item, index) => (
           <motion.div
             key={item.key}
-            initial={shouldReduce ? false : { opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               ...MOTION_TRANSITION.default,
@@ -271,7 +270,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               <IconBadge
                 tone={item.tone}
                 size='stat'
-                className='transition-transform duration-200 group-hover/stat:scale-105'
+                className='duration-control transition-transform group-hover/stat:scale-105'
               >
                 <item.icon />
               </IconBadge>

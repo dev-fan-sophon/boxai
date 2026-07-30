@@ -16,23 +16,36 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { PageTransition } from '@/components/page-enter'
 
-type PublicLayoutProps = {
-  children: React.ReactNode
-  showMainContainer?: boolean
+/* Canvas generation glow — a node's soft halo while work is running */
+@keyframes canvas-node-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
-/**
- * Page content wrapper for public routes. The shell and header belong to the
- * `/_public` layout route so they survive navigation between public pages.
- */
-export function PublicLayout(props: PublicLayoutProps) {
-  // Route-level entrance, so the marketing and full-viewport app shells fade in
-  // the same way console pages already do through `AnimatedOutlet`.
-  const content = <PageTransition>{props.children}</PageTransition>
+.canvas-node-generating {
+  animation: canvas-node-glow 1.8s ease-in-out infinite;
+}
 
-  if (props.showMainContainer === false) return content
+/* Pending connection drag line flows forward */
+@keyframes canvas-connection-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
 
-  return <main className='container px-4 py-6 pt-20 md:px-4'>{content}</main>
+.canvas-pending-connection {
+  animation: canvas-connection-flow 0.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-node-generating,
+  .canvas-pending-connection {
+    animation: none !important;
+  }
 }

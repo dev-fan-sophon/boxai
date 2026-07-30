@@ -25,7 +25,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 
 import { useVideoTaskResult } from '../../hooks/use-video-task-result'
 import { downloadGeneratedMedia } from '../../lib/download-generated-media'
@@ -340,7 +339,6 @@ function VideoRunContent(props: {
   onDownload: (url: string, filename: string, kind: 'video') => Promise<void>
 }) {
   const { t } = useTranslation()
-  const shouldReduce = useReducedMotion()
   const { run } = props
   const shouldPoll =
     !run.resultUrl &&
@@ -373,7 +371,6 @@ function VideoRunContent(props: {
         modality='video'
         percent={task.percent}
         detail={run.taskId}
-        className={cn(shouldReduce && 'motion-reduce:animate-none')}
       />
     )
   }

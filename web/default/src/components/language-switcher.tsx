@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Languages, Check } from 'lucide-react'
+import { Languages } from 'lucide-react'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,7 +24,9 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -32,7 +34,6 @@ import {
   normalizeInterfaceLanguage,
 } from '@/i18n/languages'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function LanguageSwitcher() {
@@ -56,27 +57,32 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        render={<Button variant='ghost' size='icon' className='h-9 w-9' />}
+        aria-label={t('Change language')}
+        render={
+          <Button
+            variant='ghost'
+            size='icon'
+            className='text-muted-foreground hover:text-foreground rounded-full'
+          />
+        }
       >
-        <Languages className='size-[1.2rem]' />
-        <span className='sr-only'>{t('Change language')}</span>
+        <Languages className='size-4' />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            onClick={() => handleChangeLanguage(lang.code)}
-          >
-            {lang.label}
-            <Check
-              size={14}
-              className={cn(
-                'ms-auto',
-                currentLanguage !== lang.code && 'hidden'
-              )}
-            />
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent align='end' sideOffset={8} className='w-44'>
+        <DropdownMenuRadioGroup
+          value={currentLanguage}
+          onValueChange={(value) => void handleChangeLanguage(String(value))}
+        >
+          <DropdownMenuLabel>{t('Language')}</DropdownMenuLabel>
+          {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
+            <DropdownMenuRadioItem key={lang.code} value={lang.code}>
+              <span className='text-muted-foreground w-5 shrink-0 text-[11px] font-medium'>
+                {lang.short}
+              </span>
+              {lang.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

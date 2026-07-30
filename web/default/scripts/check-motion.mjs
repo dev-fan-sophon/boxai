@@ -18,19 +18,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /**
- * Motion lint — the two transition rules oxlint cannot express, because they
- * are about Tailwind class content rather than JS syntax.
+ * Motion lint — the transition rules oxlint cannot express, because they are
+ * about Tailwind class content rather than JS syntax.
  *
  *  1. `transition-all` is banned. It interpolates every property that happens
  *     to change, including layout ones, and re-runs on every class swap. Use
- *     `transition-ui` (the project whitelist utility in `src/styles/index.css`)
+ *     `transition-ui` (the project whitelist utility in `src/styles/motion.css`)
  *     or an explicit `transition-[a,b]` list.
  *  2. `transition-[...]` may not name a layout-triggering property. Animating
  *     width/height/top/aspect-ratio relayouts the subtree every frame; prefer
  *     `transform` (scale/translate) or `opacity`.
+ *  3. Durations and easings must come from the motion tiers, not from a literal.
+ *     A hand-picked `duration-200` next to a `duration-300` is how a UI ends up
+ *     with a dozen slightly different speeds that no one can retune centrally.
+ *     Use `duration-control|overlay|page|ambient` and `ease-emphasized`.
  *
  * Files in LAYOUT_TRANSITION_ALLOWLIST animate geometry for a real reason and
  * are exempt from rule 2 — each entry carries that reason.
+ *
+ * Rule 3 carries a budget rather than an allowlist: the remaining literals are
+ * being migrated tier by tier, and the budget only ever ratchets down.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -61,6 +68,13 @@ const LAYOUT_PROPERTIES = new Set([
   'border-radius',
 ])
 
+/**
+ * Remaining hand-written `duration-<n>` / `ease-[cubic-bezier(...)]` literals.
+ * Ratchet only: the migration to the motion tiers lowered this to zero, and
+ * nothing raises it.
+ */
+const LITERAL_TIMING_BUDGET = 0
+
 /** Geometry animations that are deliberate. Keep the reason with the entry. */
 const LAYOUT_TRANSITION_ALLOWLIST = new Map([
   [
@@ -83,6 +97,10 @@ const LAYOUT_TRANSITION_ALLOWLIST = new Map([
     'src/components/layout/components/public-header.tsx',
     'The scroll-condensing header genuinely reflows its max-width and padding.',
   ],
+  [
+    'src/components/ui/tabs.tsx',
+    'The active-tab indicator is absolutely positioned and childless, so sizing it to the tab it tracks relayouts nothing.',
+  ],
 ])
 
 function* walk(dir) {
@@ -97,6 +115,7 @@ function* walk(dir) {
 }
 
 const problems = []
+const literalTimings = []
 
 for (const file of walk(SRC)) {
   const rel = relative(ROOT, file)
@@ -110,6 +129,14 @@ for (const file of walk(SRC)) {
       problems.push(
         `${at}  transition-all is banned — use transition-ui or an explicit transition-[a,b] list.`
       )
+    }
+
+    for (const match of line.matchAll(/\bduration-(?:\d+|\[[^\]]+\])/g)) {
+      literalTimings.push(`${at}  ${match[0]}`)
+    }
+
+    for (const match of line.matchAll(/\bease-\[[^\]]*cubic-bezier[^\]]*\]/g)) {
+      literalTimings.push(`${at}  ${match[0]}`)
     }
 
     if (allowLayout) return
@@ -134,4 +161,28 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
-console.log('motion lint: no transition-all or layout-property transitions.')
+if (literalTimings.length > LITERAL_TIMING_BUDGET) {
+  console.error(
+    `motion lint: ${literalTimings.length} literal durations/easings, budget is ${LITERAL_TIMING_BUDGET}.\n`
+  )
+  for (const timing of literalTimings) console.error(`  ${timing}`)
+  console.error(
+    '\nUse duration-control | duration-overlay | duration-page | duration-ambient,'
+  )
+  console.error('or ease-emphasized, so every surface retunes from one place.')
+  process.exit(1)
+}
+
+if (literalTimings.length < LITERAL_TIMING_BUDGET) {
+  console.error(
+    `motion lint: ${literalTimings.length} literal timings remain, below the recorded budget of ${LITERAL_TIMING_BUDGET}.`
+  )
+  console.error(
+    `Lower LITERAL_TIMING_BUDGET to ${literalTimings.length} in ${join('scripts', 'check-motion.mjs')} to lock in the progress.`
+  )
+  process.exit(1)
+}
+
+console.log(
+  'motion lint: no transition-all, no layout-property transitions, no literal timings.'
+)

@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { PageTransition } from '@/components/page-transition'
+import { PageTransition } from '@/components/page-enter'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSystemConfig } from '@/hooks/use-system-config'
 

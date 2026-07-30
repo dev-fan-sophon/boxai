@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
 import { PublicLayout } from '@/components/layout'
-import { PageTransition } from '@/components/page-transition'
+import { PageTransition } from '@/components/page-enter'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import {

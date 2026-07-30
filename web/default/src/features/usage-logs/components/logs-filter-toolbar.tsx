@@ -127,7 +127,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
       )}
       <ChevronDown
         className={cn(
-          'size-3.5 transition-transform duration-200',
+          'size-3.5 transition-transform duration-control',
           advancedOpen && 'rotate-180'
         )}
       />
@@ -165,7 +165,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
               >
                 <ChevronDown
                   className={cn(
-                    'size-3.5 transition-transform duration-200',
+                    'size-3.5 transition-transform duration-control',
                     !mobilePanelCollapsed && 'rotate-180'
                   )}
                 />

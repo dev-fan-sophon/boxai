@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,7 @@ type TopNavProps = React.HTMLAttributes<HTMLElement> & {
  * 在大屏幕显示水平导航，在小屏幕显示下拉菜单
  */
 export function TopNav({ className, links, ...props }: TopNavProps) {
+  const { t } = useTranslation()
   // 规范化链接，确保所有可选属性都有默认值
   const normalizedLinks = useMemo(
     () =>
@@ -81,7 +83,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                         rel='noopener noreferrer'
                         className={!isActive ? 'text-muted-foreground' : ''}
                       >
-                        {title}
+                        {t(title)}
                       </a>
                     ) : (
                       <Link
@@ -89,7 +91,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                         className={!isActive ? 'text-muted-foreground' : ''}
                         disabled={disabled}
                       >
-                        {title}
+                        {t(title)}
                       </Link>
                     )
                   }
@@ -117,7 +119,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
               rel='noopener noreferrer'
               className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
             >
-              {title}
+              {t(title)}
             </a>
           ) : (
             <Link
@@ -126,7 +128,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
               disabled={disabled}
               className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
             >
-              {title}
+              {t(title)}
             </Link>
           )
         )}

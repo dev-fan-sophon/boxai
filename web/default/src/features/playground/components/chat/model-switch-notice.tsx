@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { FadeIn } from '@/components/page-transition'
+import { FadeIn } from '@/components/page-enter'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 /** How long the mid-thread model-switch chip stays visible. */

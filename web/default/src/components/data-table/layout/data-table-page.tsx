@@ -436,7 +436,7 @@ function renderMobile<TData>(
           getColumnClassName={props.getColumnClassName}
           pinnedColumns={props.pinnedColumns}
           containerClassName={cn(
-            'transition-opacity duration-150',
+            'transition-opacity duration-control',
             isFetchingOnly && 'pointer-events-none opacity-60',
             props.tableClassName
           )}
@@ -495,7 +495,7 @@ function renderDesktop<TData>(
       <div
         className={cn(
           fixedHeight && 'min-h-0 flex-1 overflow-y-auto',
-          'transition-opacity duration-150',
+          'transition-opacity duration-control',
           isFetchingOnly && 'pointer-events-none opacity-60'
         )}
       >
@@ -537,7 +537,7 @@ function renderDesktop<TData>(
       pinnedColumns={props.pinnedColumns}
       containerClassName={cn(
         fixedHeight && 'min-h-0 flex-1',
-        'transition-opacity duration-150',
+        'transition-opacity duration-control',
         isFetchingOnly && 'pointer-events-none opacity-60',
         props.tableClassName
       )}

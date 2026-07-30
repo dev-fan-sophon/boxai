@@ -22,7 +22,7 @@ import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
-import { FadeIn } from '@/components/page-transition'
+import { FadeIn } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'

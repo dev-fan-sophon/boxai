@@ -69,7 +69,7 @@ export function ComposerShell(props: ComposerShellProps) {
           // The composer manages its own disabled look; keep the InputGroup
           // from dimming the whole surface (and the Stop button) with it.
           'has-[[data-slot=input-group-control]:disabled]:opacity-100 has-[[data-slot=input-group-control]:disabled]:bg-background/95 dark:has-[[data-slot=input-group-control]:disabled]:bg-background/85',
-          'shadow-panel transition-[border-color,box-shadow,transform] duration-200',
+          'shadow-panel transition-[border-color,box-shadow,transform] duration-control',
           'focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-lifted',
           props.dragActive &&
             'border-primary/70 ring-primary/25 bg-primary/[0.04] border-dashed',

@@ -260,8 +260,7 @@ export function PlaygroundMessageContent({
               {isToolRunning && (
                 <span
                   className={cn(
-                    'bg-primary size-1.5 rounded-full',
-                    !shouldReduce && 'animate-pulse'
+                    'bg-primary size-1.5 rounded-full animate-pulse'
                   )}
                   aria-hidden='true'
                 />
@@ -425,7 +424,7 @@ function ManagedToolImage(props: {
       <img
         src={props.url}
         alt={props.alt}
-        className='generation-image-reveal size-32 object-cover transition-transform duration-200 hover:scale-105 sm:size-40'
+        className='generation-image-reveal duration-control size-32 object-cover transition-transform hover:scale-105 sm:size-40'
         referrerPolicy='no-referrer'
         loading='lazy'
         decoding='async'

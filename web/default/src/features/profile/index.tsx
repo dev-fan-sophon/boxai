@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -42,10 +42,6 @@ function FadeIn(props: {
   delay?: number
   className?: string
 }) {
-  const shouldReduce = useReducedMotion()
-  if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>
-  }
   return (
     <motion.div
       className={props.className}

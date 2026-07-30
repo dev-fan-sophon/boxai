@@ -17,51 +17,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Outlet, useRouterState } from '@tanstack/react-router'
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-  type Variants,
-} from 'motion/react'
+import { AnimatePresence, motion, type Variants } from 'motion/react'
 import type { ReactNode } from 'react'
 
 import {
-  CARD_ITEM_VARIANTS,
-  CARD_STAGGER_VARIANTS,
+  CARD_STAGGER,
   MOTION_TRANSITION,
   MOTION_VARIANTS,
-  STAGGER_ITEM_VARIANTS,
-  STAGGER_VARIANTS,
-  TABLE_ROW_VARIANTS,
-  TABLE_STAGGER_VARIANTS,
+  STAGGER,
+  TABLE_STAGGER,
 } from '@/lib/motion'
 
-interface PageTransitionProps {
-  children: ReactNode
-  className?: string
-}
-
-export function PageTransition(props: PageTransitionProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>
-  }
-
-  return (
-    <motion.div
-      initial={MOTION_VARIANTS.pageEnter.initial}
-      animate={MOTION_VARIANTS.pageEnter.animate}
-      transition={MOTION_TRANSITION.default}
-      className={props.className}
-    >
-      {props.children}
-    </motion.div>
-  )
-}
+/*
+ * Motion-backed transitions for the console. Everything here needs the runtime
+ * for a real reason — an exit animation, or variant orchestration across a
+ * list. Enter-only surfaces live in `page-enter.tsx` and stay on CSS so the
+ * public pages never load `motion/react`.
+ *
+ * Reduced motion is handled once, by the `MotionConfig reducedMotion='user'` in
+ * `src/main.tsx`. Branching per component the way this file used to swapped
+ * `motion.div` for a plain `div`, which changes the element type and makes
+ * React remount the whole subtree — losing the state inside it.
+ */
 
 export function AnimatedOutlet() {
-  const shouldReduce = useReducedMotion()
   // Key the page transition by the matched route id, not the resolved pathname.
   // Navigating between params of the same route (e.g. dashboard tabs served by
   // /dashboard/$section) then re-renders in place instead of remounting the
@@ -69,14 +48,6 @@ export function AnimatedOutlet() {
   const routeKey = useRouterState({
     select: (s) => s.matches.at(-1)?.routeId ?? s.location.pathname,
   })
-
-  if (shouldReduce) {
-    return (
-      <div className='flex min-h-0 flex-1 flex-col'>
-        <Outlet />
-      </div>
-    )
-  }
 
   return (
     <motion.div
@@ -98,15 +69,9 @@ interface StaggerContainerProps {
 }
 
 export function StaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>
-  }
-
   return (
     <motion.div
-      variants={props.variants ?? STAGGER_VARIANTS}
+      variants={props.variants ?? STAGGER.container}
       initial='initial'
       animate='animate'
       className={props.className}
@@ -125,7 +90,7 @@ interface StaggerItemProps {
 export function StaggerItem(props: StaggerItemProps) {
   return (
     <motion.div
-      variants={props.variants ?? STAGGER_ITEM_VARIANTS}
+      variants={props.variants ?? STAGGER.item}
       className={props.className}
     >
       {props.children}
@@ -134,15 +99,9 @@ export function StaggerItem(props: StaggerItemProps) {
 }
 
 export function TableStaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    return props.children
-  }
-
   return (
     <motion.tbody
-      variants={TABLE_STAGGER_VARIANTS}
+      variants={TABLE_STAGGER.container}
       initial='initial'
       animate='animate'
       className={props.className}
@@ -154,22 +113,16 @@ export function TableStaggerContainer(props: StaggerContainerProps) {
 
 export function TableStaggerRow(props: StaggerItemProps) {
   return (
-    <motion.tr variants={TABLE_ROW_VARIANTS} className={props.className}>
+    <motion.tr variants={TABLE_STAGGER.item} className={props.className}>
       {props.children}
     </motion.tr>
   )
 }
 
 export function CardStaggerContainer(props: StaggerContainerProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>
-  }
-
   return (
     <motion.div
-      variants={CARD_STAGGER_VARIANTS}
+      variants={CARD_STAGGER.container}
       initial='initial'
       animate='animate'
       className={props.className}
@@ -181,7 +134,7 @@ export function CardStaggerContainer(props: StaggerContainerProps) {
 
 export function CardStaggerItem(props: StaggerItemProps) {
   return (
-    <motion.div variants={CARD_ITEM_VARIANTS} className={props.className}>
+    <motion.div variants={CARD_STAGGER.item} className={props.className}>
       {props.children}
     </motion.div>
   )
@@ -201,13 +154,6 @@ interface RevealProps {
  * scale. For whole panels or route content use `PageTransition` instead.
  */
 export function Reveal(props: RevealProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    if (!props.show) return null
-    return <div className={props.className}>{props.children}</div>
-  }
-
   return (
     <AnimatePresence initial={false}>
       {props.show && (
@@ -222,33 +168,5 @@ export function Reveal(props: RevealProps) {
         </motion.div>
       )}
     </AnimatePresence>
-  )
-}
-
-interface FadeInProps {
-  children: ReactNode
-  className?: string
-  delay?: number
-}
-
-export function FadeIn(props: FadeInProps) {
-  const shouldReduce = useReducedMotion()
-
-  if (shouldReduce) {
-    return <div className={props.className}>{props.children}</div>
-  }
-
-  return (
-    <motion.div
-      initial={MOTION_VARIANTS.fadeIn.initial}
-      animate={MOTION_VARIANTS.fadeIn.animate}
-      transition={{
-        ...MOTION_TRANSITION.default,
-        delay: props.delay,
-      }}
-      className={props.className}
-    >
-      {props.children}
-    </motion.div>
   )
 }

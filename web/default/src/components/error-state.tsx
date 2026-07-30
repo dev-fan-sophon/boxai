@@ -20,7 +20,7 @@ import { AlertTriangle, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { FadeIn } from '@/components/page-transition'
+import { FadeIn } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'
 import {
   Empty,

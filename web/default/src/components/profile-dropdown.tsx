@@ -59,9 +59,15 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
-          render={<Button variant='ghost' className='relative size-6 p-0' />}
+          aria-label={t('Profile')}
+          render={
+            <Button
+              variant='ghost'
+              className='ring-border/60 hover:ring-border relative size-7 rounded-full p-0 ring-1'
+            />
+          }
         >
-          <Avatar className='size-6'>
+          <Avatar className='size-7'>
             <AvatarFallback
               className={`${avatarFallbackClassName} text-[11px]`}
               style={avatarFallbackStyle}
@@ -70,9 +76,9 @@ export function ProfileDropdown() {
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' sideOffset={8} className='w-56'>
-          <div className='flex items-center gap-2 px-1.5 py-1.5'>
-            <Avatar className='size-8'>
+        <DropdownMenuContent align='end' sideOffset={8} className='w-60'>
+          <div className='flex items-center gap-2.5 px-2 py-2'>
+            <Avatar className='size-9'>
               <AvatarFallback
                 className={`${avatarFallbackClassName} text-xs`}
                 style={avatarFallbackStyle}
@@ -84,16 +90,12 @@ export function ProfileDropdown() {
               <p className='text-foreground truncate text-sm font-medium'>
                 {displayName}
               </p>
-              <div className='flex items-center gap-1.5'>
-                <span className='text-muted-foreground text-xs'>
-                  {roleLabel}
-                </span>
+              <div className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+                <span className='truncate'>{roleLabel}</span>
                 {user?.group && (
                   <>
-                    <span className='text-muted-foreground text-xs'>·</span>
-                    <span className='text-muted-foreground truncate text-xs'>
-                      {String(user.group)}
-                    </span>
+                    <span aria-hidden='true'>·</span>
+                    <span className='truncate'>{String(user.group)}</span>
                   </>
                 )}
               </div>

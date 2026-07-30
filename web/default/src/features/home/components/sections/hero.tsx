@@ -138,7 +138,7 @@ export function Hero(props: HeroProps) {
               }
             >
               {t('Get Started')}
-              <ArrowRight className='ml-1.5 size-4 transition-transform duration-200 group-hover:translate-x-0.5' />
+              <ArrowRight className='duration-control ml-1.5 size-4 transition-transform group-hover:translate-x-0.5' />
             </Button>
             <Button
               variant='outline'
