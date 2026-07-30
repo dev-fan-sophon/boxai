@@ -24,6 +24,11 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4
+        with:
+          # Action inputs resolve from the workspace root, so the working-directory
+          # default does not apply — without this it reads the repo-root package.json,
+          # which has no packageManager, and fails with "No pnpm version is specified".
+          package_json_file: connect/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: connect/.node-version
