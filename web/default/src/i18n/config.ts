@@ -20,15 +20,16 @@ import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+import enOverrides from './en-overrides.generated.json'
 import { convertDetectedLanguage } from './languages'
-import en from './locales/en.json'
 
 type LocaleModule = { default: { translation: Record<string, string> } }
 
 /**
- * Each locale bundle is ~500 kB, so only the active one is fetched. English
- * stays bundled because it is the fallback for every other language and 79 of
- * its entries differ from their (English source string) keys.
+ * Each locale bundle is ~500 kB, so only the active one is fetched. English is
+ * the fallback for every other language, but its keys are the English source
+ * strings and i18next returns the key on a miss, so only the 69 entries that
+ * differ from their key need to be bundled (see scripts/gen-en-overrides.mjs).
  */
 const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
   zhCN: () => import('./locales/zh.json'),
@@ -58,7 +59,7 @@ export const i18nReady = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en },
+    resources: { en: { translation: enOverrides } },
     partialBundledLanguages: true,
     fallbackLng: 'en',
     supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],

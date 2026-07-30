@@ -93,24 +93,21 @@ export default defineConfig(({ envMode }) => {
     splitChunks: {
       preset: 'default',
       cacheGroups: {
-        'vendor-react': {
-          test: /node_modules[\\/](react|react-dom)[\\/]/,
-          name: 'vendor-react',
-          chunks: 'all',
+        // `chunks: 'initial'` is load-bearing: with 'all' these groups also
+        // absorb the copies of a package that only route chunks import, and a
+        // group referenced by the entry becomes an initial chunk, so the public
+        // pages ended up downloading every console-only primitive up front.
+        'vendor-tanstack': {
+          test: /node_modules[\\/]@tanstack[\\/]/,
+          name: 'vendor-tanstack',
+          chunks: 'initial',
           priority: 0,
           enforce: true,
         },
         'vendor-ui-primitives': {
           test: /node_modules[\\/](@base-ui|@radix-ui)[\\/]/,
           name: 'vendor-ui-primitives',
-          chunks: 'all',
-          priority: 0,
-          enforce: true,
-        },
-        'vendor-tanstack': {
-          test: /node_modules[\\/]@tanstack[\\/]/,
-          name: 'vendor-tanstack',
-          chunks: 'all',
+          chunks: 'initial',
           priority: 0,
           enforce: true,
         },

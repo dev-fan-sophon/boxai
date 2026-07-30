@@ -8,7 +8,7 @@
     "build": "rsbuild build",
     "build:check": "tsgo -b && rsbuild build",
     "typecheck": "tsgo -b",
-    "lint": "oxlint -c .oxlintrc.json . && node scripts/check-motion.mjs && node scripts/check-icon-imports.mjs && node scripts/check-status-colors.mjs && node scripts/gen-lobe-icons.mjs --check",
+    "lint": "oxlint -c .oxlintrc.json . && node scripts/check-motion.mjs && node scripts/check-icon-imports.mjs && node scripts/check-status-colors.mjs && node scripts/gen-lobe-icons.mjs --check && node scripts/gen-en-overrides.mjs --check",
     "lint:fix": "oxlint -c .oxlintrc.json . --fix",
     "lint:motion": "node scripts/check-motion.mjs",
     "lint:icons": "node scripts/check-icon-imports.mjs",
@@ -19,7 +19,7 @@
     "format": "node scripts/format-with-protected-headers.mjs --write",
     "copyright:check": "node scripts/add-copyright.mjs --check",
     "copyright": "node scripts/add-copyright.mjs",
-    "i18n:sync": "node scripts/sync-i18n.mjs",
+    "i18n:sync": "node scripts/sync-i18n.mjs && node scripts/gen-en-overrides.mjs",
     "knip": "knip",
     "lint:colors": "node scripts/check-status-colors.mjs"
   },
