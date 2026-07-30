@@ -50,6 +50,12 @@ var auditRouteActions = map[string]string{
 	"POST /api/option/payment_compliance":       "option.payment_compliance",
 	"DELETE /api/option/channel_affinity_cache": "option.clear_affinity_cache",
 
+	// Cloudflare 边缘防护（root）
+	"PUT /api/cloudflare/dns-proxy":    "cloudflare.dns_proxy",
+	"PUT /api/cloudflare/zone-setting": "cloudflare.zone_setting",
+	"PUT /api/cloudflare/bot":          "cloudflare.bot",
+	"PUT /api/cloudflare/protection":   "cloudflare.protection",
+
 	// 自定义 OAuth（root）
 	"POST /api/custom-oauth-provider/":      "custom_oauth.create",
 	"PUT /api/custom-oauth-provider/:id":    "custom_oauth.update",

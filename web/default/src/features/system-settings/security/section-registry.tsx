@@ -16,24 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { RateLimitSection } from "../request-limits/rate-limit-section";
-import { RouteRateLimitSection } from "../request-limits/route-rate-limit-section";
-import { SensitiveWordsSection } from "../request-limits/sensitive-words-section";
-import { SSRFSection } from "../request-limits/ssrf-section";
-import { TokenLimitSection } from "../request-limits/token-limit-section";
-import { TrustedProxySection } from "../request-limits/trusted-proxy-section";
-import type { SecuritySettings } from "../types";
-import { createSectionRegistry } from "../utils/section-registry";
+import { EdgeProtectionSection } from '../edge-protection'
+import { RateLimitSection } from '../request-limits/rate-limit-section'
+import { RouteRateLimitSection } from '../request-limits/route-rate-limit-section'
+import { SensitiveWordsSection } from '../request-limits/sensitive-words-section'
+import { SSRFSection } from '../request-limits/ssrf-section'
+import { TokenLimitSection } from '../request-limits/token-limit-section'
+import { TrustedProxySection } from '../request-limits/trusted-proxy-section'
+import type { SecuritySettings } from '../types'
+import { createSectionRegistry } from '../utils/section-registry'
 import {
   SECURITY_DEFAULT_SECTION,
   SECURITY_SECTION_IDS,
   type SecuritySectionId,
-} from "./section-manifest";
+} from './section-manifest'
 
 const SECURITY_SECTIONS = [
   {
-    id: "rate-limit",
-    titleKey: "Rate Limiting",
+    id: 'rate-limit',
+    titleKey: 'Rate Limiting',
     build: (settings: SecuritySettings) => (
       <RateLimitSection
         defaultValues={{
@@ -49,8 +50,8 @@ const SECURITY_SECTIONS = [
     ),
   },
   {
-    id: "route-throttling",
-    titleKey: "Route Throttling",
+    id: 'route-throttling',
+    titleKey: 'Route Throttling',
     build: (settings: SecuritySettings) => (
       <RouteRateLimitSection
         defaultValues={{
@@ -74,8 +75,8 @@ const SECURITY_SECTIONS = [
     ),
   },
   {
-    id: "trusted-proxies",
-    titleKey: "Trusted Proxies",
+    id: 'trusted-proxies',
+    titleKey: 'Trusted Proxies',
     build: (settings: SecuritySettings) => (
       <TrustedProxySection
         defaultValues={{
@@ -86,8 +87,13 @@ const SECURITY_SECTIONS = [
     ),
   },
   {
-    id: "sensitive-words",
-    titleKey: "Sensitive Words",
+    id: 'edge-protection',
+    titleKey: 'Edge Protection',
+    build: () => <EdgeProtectionSection />,
+  },
+  {
+    id: 'sensitive-words',
+    titleKey: 'Sensitive Words',
     build: (settings: SecuritySettings) => (
       <SensitiveWordsSection
         defaultValues={{
@@ -99,42 +105,42 @@ const SECURITY_SECTIONS = [
     ),
   },
   {
-    id: "ssrf",
-    titleKey: "SSRF Protection",
+    id: 'ssrf',
+    titleKey: 'SSRF Protection',
     build: (settings: SecuritySettings) => (
       <SSRFSection
         defaultValues={{
-          "fetch_setting.enable_ssrf_protection":
-            settings["fetch_setting.enable_ssrf_protection"],
-          "fetch_setting.allow_private_ip":
-            settings["fetch_setting.allow_private_ip"],
-          "fetch_setting.domain_filter_mode":
-            settings["fetch_setting.domain_filter_mode"],
-          "fetch_setting.ip_filter_mode":
-            settings["fetch_setting.ip_filter_mode"],
-          "fetch_setting.domain_list": settings["fetch_setting.domain_list"],
-          "fetch_setting.ip_list": settings["fetch_setting.ip_list"],
-          "fetch_setting.allowed_ports":
-            settings["fetch_setting.allowed_ports"],
-          "fetch_setting.apply_ip_filter_for_domain":
-            settings["fetch_setting.apply_ip_filter_for_domain"],
+          'fetch_setting.enable_ssrf_protection':
+            settings['fetch_setting.enable_ssrf_protection'],
+          'fetch_setting.allow_private_ip':
+            settings['fetch_setting.allow_private_ip'],
+          'fetch_setting.domain_filter_mode':
+            settings['fetch_setting.domain_filter_mode'],
+          'fetch_setting.ip_filter_mode':
+            settings['fetch_setting.ip_filter_mode'],
+          'fetch_setting.domain_list': settings['fetch_setting.domain_list'],
+          'fetch_setting.ip_list': settings['fetch_setting.ip_list'],
+          'fetch_setting.allowed_ports':
+            settings['fetch_setting.allowed_ports'],
+          'fetch_setting.apply_ip_filter_for_domain':
+            settings['fetch_setting.apply_ip_filter_for_domain'],
         }}
       />
     ),
   },
   {
-    id: "token-limits",
-    titleKey: "Token Limits",
+    id: 'token-limits',
+    titleKey: 'Token Limits',
     build: (settings: SecuritySettings) => (
       <TokenLimitSection
         defaultValues={{
-          "token_setting.max_user_tokens":
-            settings["token_setting.max_user_tokens"],
+          'token_setting.max_user_tokens':
+            settings['token_setting.max_user_tokens'],
         }}
       />
     ),
   },
-] as const;
+] as const
 
 const securityRegistry = createSectionRegistry<
   SecuritySectionId,
@@ -143,10 +149,10 @@ const securityRegistry = createSectionRegistry<
   sectionIds: SECURITY_SECTION_IDS,
   sections: SECURITY_SECTIONS,
   defaultSection: SECURITY_DEFAULT_SECTION,
-  basePath: "/system-settings/security",
-  urlStyle: "path",
-});
+  basePath: '/system-settings/security',
+  urlStyle: 'path',
+})
 
-export const getSecuritySectionNavItems = securityRegistry.getSectionNavItems;
-export const getSecuritySectionContent = securityRegistry.getSectionContent;
-export const getSecuritySectionMeta = securityRegistry.getSectionMeta;
+export const getSecuritySectionNavItems = securityRegistry.getSectionNavItems
+export const getSecuritySectionContent = securityRegistry.getSectionContent
+export const getSecuritySectionMeta = securityRegistry.getSectionMeta

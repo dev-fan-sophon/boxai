@@ -158,6 +158,9 @@ func InitOptionMap() {
 	common.OptionMap["SearchRateLimitDuration"] = strconv.FormatInt(common.SearchRateLimitDuration, 10)
 	common.OptionMap["TrustedProxyCIDRs"] = common.TrustedProxyCIDRsString()
 	common.OptionMap["CloudflareProxyEnabled"] = strconv.FormatBool(common.CloudflareProxyEnabled())
+	common.OptionMap["CloudflareApiToken"] = ""
+	common.OptionMap["CloudflareZoneId"] = ""
+	common.OptionMap["CloudflareAccountId"] = ""
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -621,6 +624,12 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SearchRateLimitDuration, _ = strconv.ParseInt(value, 10, 64)
 	case "TrustedProxyCIDRs":
 		err = common.SetTrustedProxyCIDRs(value)
+	case "CloudflareApiToken":
+		system_setting.SetCloudflareAPIToken(value)
+	case "CloudflareZoneId":
+		system_setting.SetCloudflareZoneID(value)
+	case "CloudflareAccountId":
+		system_setting.SetCloudflareAccountID(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
 	case "DataExportInterval":

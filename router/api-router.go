@@ -234,6 +234,18 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/waffo-pancake/subscription-product-options", controller.ListWaffoPancakeSubscriptionProductOptions)
 		}
 
+		// Cloudflare edge protection management (root only)
+		cloudflareRoute := apiRouter.Group("/cloudflare")
+		cloudflareRoute.Use(middleware.RootAuth())
+		{
+			cloudflareRoute.GET("/status", controller.GetCloudflareStatus)
+			cloudflareRoute.POST("/verify", controller.TestCloudflareCredentials)
+			cloudflareRoute.PUT("/dns-proxy", controller.UpdateCloudflareDNSProxy)
+			cloudflareRoute.PUT("/zone-setting", controller.UpdateCloudflareZoneSetting)
+			cloudflareRoute.PUT("/bot", controller.UpdateCloudflareBotFightMode)
+			cloudflareRoute.PUT("/protection", controller.ApplyCloudflareProtection)
+		}
+
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())

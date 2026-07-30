@@ -27,6 +27,7 @@ export const SECURITY_SECTION_IDS = [
   'rate-limit',
   'route-throttling',
   'trusted-proxies',
+  'edge-protection',
   'sensitive-words',
   'ssrf',
   'token-limits',

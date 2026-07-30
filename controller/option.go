@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,8 @@ var completionRatioMetaOptionKeys = []string{
 	"AudioRatio",
 	"AudioCompletionRatio",
 }
+
+var cloudflareIdentifierPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 func isPaymentComplianceOptionKey(key string) bool {
 	return strings.HasPrefix(key, "payment_setting.compliance_")
@@ -261,6 +264,12 @@ func UpdateOption(c *gin.Context) {
 	case "TrustedProxyCIDRs":
 		if _, parseErr := common.ParseCIDRList(option.Value.(string)); parseErr != nil {
 			common.ApiError(c, parseErr)
+			return
+		}
+	case "CloudflareZoneId", "CloudflareAccountId":
+		identifier := strings.TrimSpace(option.Value.(string))
+		if identifier != "" && !cloudflareIdentifierPattern.MatchString(identifier) {
+			common.ApiErrorMsg(c, "Cloudflare IDs are 32 hexadecimal characters")
 			return
 		}
 	case "GitHubOAuthEnabled":
