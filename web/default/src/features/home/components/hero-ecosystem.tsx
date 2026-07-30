@@ -52,7 +52,22 @@ interface HeroEcosystemProps {
 /** Delay before the first chip leaves the badge: the hero's own reveal runs at
  * 280ms, so the burst reads as a consequence of the section landing. */
 const BURST_LEAD_MS = 320
-const BURST_STEP_MS = 45
+/** How long the whole burst takes to finish handing out departures. */
+const BURST_SPREAD_MS = 620
+/**
+ * Fractional part of the golden ratio. Walking it modulo 1 spreads the chips
+ * across the window without ever revisiting a slot, so they leave the badge in
+ * a scattered order instead of marching down one column and then the other —
+ * and it stays a pure function of the index, so the order is the same on every
+ * render rather than a fresh random draw.
+ */
+const GOLDEN_RATIO_FRACTION = 0.618033988749895
+
+function burstDelay(index: number) {
+  return Math.round(
+    BURST_LEAD_MS + ((index * GOLDEN_RATIO_FRACTION) % 1) * BURST_SPREAD_MS
+  )
+}
 
 /**
  * Floating surface + provider bubble cloud: the product surfaces BoxAI hands
@@ -175,7 +190,7 @@ export function HeroEcosystem(props: HeroEcosystemProps) {
                   ? `${50 - (item.x ?? 50)}cqw`
                   : `${item.rx - 50}cqw`,
               '--burst-y': `${50 - item.y}cqh`,
-              '--burst-delay': `${BURST_LEAD_MS + index * BURST_STEP_MS}ms`,
+              '--burst-delay': `${burstDelay(index)}ms`,
             } as React.CSSProperties
           }
         >
