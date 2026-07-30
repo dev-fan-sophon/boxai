@@ -271,7 +271,9 @@ export function DataTableRowActions<TData>({
           </DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => navigate({ to: '/connect' })}
+          onClick={() =>
+            navigate({ to: '/dashboard/$section', params: { section: 'connect' } })
+          }
         >
           {t('Set up BoxAI Connect')}
           <DropdownMenuShortcut>

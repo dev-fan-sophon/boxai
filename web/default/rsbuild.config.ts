@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -7,6 +8,33 @@ import { pluginTailwindcss } from '@rsbuild/plugin-tailwindcss'
 import { tanstackRouter } from '@tanstack/router-plugin/rspack'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/** `ANALYZE=1 bun run build` → dist/stats.json, consumed by scripts/analyze-bundle.mjs. */
+const bundleStatsPlugin = {
+  apply(compiler: {
+    hooks: {
+      done: { tap: (name: string, fn: (stats: unknown) => void) => void }
+    }
+  }) {
+    compiler.hooks.done.tap('boxai-bundle-stats', (stats) => {
+      const json = (
+        stats as { toJson: (opts: Record<string, boolean>) => unknown }
+      ).toJson({
+        assets: true,
+        chunks: true,
+        chunkModules: true,
+        modules: true,
+        // Import graphs blow the JSON string length limit, so tracing "why is
+        // this module here?" is opt-in via ANALYZE_REASONS=1.
+        reasons: Boolean(process.env.ANALYZE_REASONS),
+        source: false,
+      })
+      const out = path.resolve(__dirname, 'dist/stats.json')
+      fs.mkdirSync(path.dirname(out), { recursive: true })
+      fs.writeFileSync(out, JSON.stringify(json))
+    })
+  },
+}
 
 function stripSecureCookieFlag(proxyRes: {
   headers: Record<string, string | string[] | undefined>
@@ -131,6 +159,7 @@ export default defineConfig(({ envMode }) => {
             // Prod: keep route-based code splitting.
             autoCodeSplitting: isProd,
           }),
+          ...(process.env.ANALYZE ? [bundleStatsPlugin] : []),
         ],
       },
     },

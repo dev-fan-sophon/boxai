@@ -19,13 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { Dashboard } from '@/features/dashboard'
-import { DASHBOARD_SECTION_IDS } from '@/features/dashboard/section-registry'
+import { DASHBOARD_ANALYTICS_SECTION_IDS } from '@/features/dashboard/section-manifest'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
-const SITE_ANALYTICS_SECTIONS = DASHBOARD_SECTION_IDS.filter(
-  (section) => section !== 'overview'
-) as string[]
+const SITE_ANALYTICS_SECTIONS = DASHBOARD_ANALYTICS_SECTION_IDS as readonly string[]
 
 export const Route = createFileRoute(
   '/_authenticated/admin/analytics/$section'

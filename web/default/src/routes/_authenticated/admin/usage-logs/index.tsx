@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { USAGE_LOGS_DEFAULT_SECTION } from '@/features/usage-logs/section-registry'
+import { USAGE_LOGS_DEFAULT_SECTION } from '@/features/usage-logs/section-manifest'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 

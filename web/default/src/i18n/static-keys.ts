@@ -598,6 +598,18 @@ export const STATIC_I18N_KEYS = [
   'Which platforms are supported?',
   'macOS 12 or later on Apple Silicon, and Windows 10 or later on 64-bit. Intel Macs and Linux are not packaged yet.',
 
+  // Client apps metadata (features/client-apps/constants.ts)
+  'BoxAI Connect',
+  'BoxAI Desktop',
+  'Point your AI coding clients at BoxAI, without editing a config file',
+  'Sign in once in your browser. BoxAI Connect writes the endpoint and key into Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode and more — backing up what was there and restoring it whenever you want.',
+  'An AI coworker that runs on your own machine',
+  'BoxAI Desktop is an AI coworker that runs on your own machine, works with your files, terminal, and connected apps, and returns finished work.',
+  'Download and install the app for your platform.',
+  'Sign in from the app; approve the request in this browser session.',
+  'Pick the clients to configure — Connect writes each config file and keeps a backup.',
+  'Describe a task and let the coworker run it on your machine.',
+
   // Misc
   'Cancel',
   'Status',

@@ -33,6 +33,7 @@ import { isLikelyHtml } from '@/lib/content-format'
 import { useAuthStore } from '@/stores/auth-store'
 
 import {
+  ClientApps,
   CTA,
   Features,
   Hero,
@@ -160,6 +161,7 @@ export function Home() {
       <SupportedApps />
       <HowItWorks />
       <UsageOverview />
+      <ClientApps />
       <Features />
       <CTA isAuthenticated={isAuthenticated} />
       <Footer

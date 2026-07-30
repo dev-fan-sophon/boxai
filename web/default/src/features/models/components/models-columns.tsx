@@ -32,7 +32,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatTimestampToDate } from '@/lib/format'
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 
 import {
   getModelStatusConfig,
@@ -47,7 +47,7 @@ import { DescriptionCell } from './description-cell'
 function getCompactModelIcon(iconKey: string) {
   const baseIconKey = iconKey.split('.')[0]
 
-  return getLobeIcon(`${baseIconKey}.Avatar.type={'platform'}`, 20)
+  return <LobeIcon name={`${baseIconKey}.Avatar.type={'platform'}`} size={20} />
 }
 
 /**
@@ -75,14 +75,14 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
           checked={table.getIsAllPageRowsSelected()}
           indeterminate={table.getIsSomePageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
+          aria-label={t('Select all')}
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label='Select row'
+          aria-label={t('Select row')}
         />
       ),
       enableSorting: false,

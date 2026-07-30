@@ -1,5 +1,4 @@
 {
-  "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.": "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.",
   "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.": "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.",
   "Backs up and restores": "Backs up and restores",
   "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.": "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.",
@@ -14,6 +13,7 @@
   "Image processing failed. The original was kept.": "Image processing failed. The original was kept.",
   "Is this the same as CC Switch?": "Is this the same as CC Switch?",
   "It is kept. Connect backs up each client config before it writes, adds only the provider entry it owns, and restores your original file when you switch away or sign out.": "It is kept. Connect backs up each client config before it writes, adds only the provider entry it owns, and restores your original file when you switch away or sign out.",
+  "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.": "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.",
   "Manage MCP servers and skills across every client from a single panel instead of seven separate files.": "Manage MCP servers and skills across every client from a single panel instead of seven separate files.",
   "One place for MCP and skills": "One place for MCP and skills",
   "Sign in once in your browser. BoxAI Connect writes the endpoint and key into Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode and more — backing up what was there and restoring it whenever you want.": "Sign in once in your browser. BoxAI Connect writes the endpoint and key into Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode and more — backing up what was there and restoring it whenever you want.",

@@ -40,7 +40,7 @@ import {
   type ModelsSectionId,
   MODELS_DEFAULT_SECTION,
   MODELS_SECTION_IDS,
-} from './section-registry'
+} from './section-manifest'
 
 const route = getRouteApi('/_authenticated/models/$section')
 

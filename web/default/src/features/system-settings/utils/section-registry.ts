@@ -22,8 +22,12 @@ import type { ReactNode } from 'react'
 /**
  * Section definition for settings pages
  */
-export type SectionDefinition<TSettings, TExtraArgs extends unknown[] = []> = {
-  id: string
+export type SectionDefinition<
+  TSectionId extends string,
+  TSettings,
+  TExtraArgs extends unknown[] = [],
+> = {
+  id: TSectionId
   titleKey: string
   build: (settings: TSettings, ...extraArgs: TExtraArgs) => ReactNode
 }
@@ -36,7 +40,12 @@ export type SectionRegistryConfig<
   TSettings,
   TExtraArgs extends unknown[] = [],
 > = {
-  sections: readonly SectionDefinition<TSettings, TExtraArgs>[]
+  /**
+   * Declared in the feature's `section-manifest.ts` so route files can validate
+   * URLs without importing the section components.
+   */
+  sectionIds: readonly [TSectionId, ...TSectionId[]]
+  sections: readonly SectionDefinition<TSectionId, TSettings, TExtraArgs>[]
   defaultSection: TSectionId
   basePath: string
   /** 'query' = `${basePath}?section=${id}`, 'path' = `${basePath}/${id}` */
@@ -51,14 +60,26 @@ export function createSectionRegistry<
   TSettings,
   TExtraArgs extends unknown[] = [],
 >(config: SectionRegistryConfig<TSectionId, TSettings, TExtraArgs>) {
-  const { sections, defaultSection, basePath, urlStyle = 'query' } = config
+  const {
+    sectionIds,
+    sections,
+    defaultSection,
+    basePath,
+    urlStyle = 'query',
+  } = config
 
   type SectionId = TSectionId
 
-  const sectionIds = sections.map((section) => section.id) as [
-    SectionId,
-    ...SectionId[],
-  ]
+  if (import.meta.env.DEV) {
+    const unbuilt = sectionIds.filter(
+      (id) => !sections.some((section) => section.id === id)
+    )
+    if (unbuilt.length > 0) {
+      throw new Error(
+        `${basePath}: section manifest lists ids with no section definition: ${unbuilt.join(', ')}`
+      )
+    }
+  }
 
   /**
    * Get navigation items for sidebar

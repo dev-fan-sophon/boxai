@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { FILTER_ALL } from '../constants'
@@ -77,7 +77,7 @@ export function VendorPills(props: VendorPillsProps) {
           >
             {vendor.icon && (
               <span aria-hidden className='shrink-0'>
-                {getLobeIcon(vendor.icon, 14)}
+                <LobeIcon name={vendor.icon} size={14} />
               </span>
             )}
             {vendor.name}

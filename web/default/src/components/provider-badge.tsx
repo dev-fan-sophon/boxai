@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { StatusBadge, type StatusBadgeProps } from './status-badge'
@@ -37,7 +37,7 @@ export function ProviderBadge({
   colorText = true,
   ...badgeProps
 }: ProviderBadgeProps) {
-  const icon = iconKey ? getLobeIcon(iconKey, iconSize) : null
+  const icon = iconKey ? <LobeIcon name={iconKey} size={iconSize} /> : null
 
   return (
     <div

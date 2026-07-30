@@ -36,6 +36,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { SUPPORTED_PAYMENT_ICON_NAMES } from '@/lib/payment-icons'
 
 const createPaymentMethodDialogSchema = (t: (key: string) => string) =>
   z.object({
@@ -267,9 +268,15 @@ export function PaymentMethodDialog({
                   <div className='flex items-center gap-2'>
                     <Input
                       placeholder={t('e.g., SiAlipay')}
+                      list='payment-icon-names'
                       {...field}
                       className='flex-1'
                     />
+                    <datalist id='payment-icon-names'>
+                      {SUPPORTED_PAYMENT_ICON_NAMES.map((iconName) => (
+                        <option key={iconName} value={iconName} />
+                      ))}
+                    </datalist>
                     {iconValue && (
                       <ReactIconByName
                         name={iconValue}
@@ -281,7 +288,7 @@ export function PaymentMethodDialog({
                 </FormControl>
                 <FormDescription>
                   {t(
-                    'Enter a react-icons component name. Invalid names show no icon.'
+                    'Pick a payment or banking icon name from the suggestions. Unsupported names show no icon.'
                   )}
                 </FormDescription>
                 <FormMessage />

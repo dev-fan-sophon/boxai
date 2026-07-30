@@ -57,11 +57,11 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   const handlePopoverOpen = useCallback(
     (open: boolean) => {
       setPopoverOpen(open)
-      if (open && !resolvedFullKey) {
+      if (open) {
         resolveRealKey(apiKey.id)
       }
     },
-    [resolvedFullKey, resolveRealKey, apiKey.id]
+    [resolveRealKey, apiKey.id]
   )
 
   const handleCopy = useCallback(async () => {

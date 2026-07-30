@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useSmDown } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 
 import { getChannels, searchChannels, getGroups } from '../api'
 import {
@@ -391,7 +391,7 @@ export function ChannelsTable() {
           label: getChannelTypeLabel(item.type),
           value: String(item.type),
           count: item.count,
-          iconNode: getLobeIcon(`${iconName}.Color`, 16),
+          iconNode: <LobeIcon name={`${iconName}.Color`} size={16} />,
         }
       }),
     ]

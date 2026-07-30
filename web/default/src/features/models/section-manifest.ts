@@ -16,25 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { cn } from '@/lib/utils'
+/**
+ * Route-facing section metadata, kept free of component imports.
+ *
+ * TanStack Router only code-splits a route's `component`; `beforeLoad` stays in
+ * the entry bundle. Importing the section registry here would therefore drag
+ * every settings panel into the JavaScript every anonymous visitor downloads.
+ */
+export const MODELS_SECTION_IDS = ['metadata', 'deployments'] as const
 
-function AspectRatio({
-  ratio,
-  className,
-  ...props
-}: React.ComponentProps<'div'> & { ratio: number }) {
-  return (
-    <div
-      data-slot='aspect-ratio'
-      style={
-        {
-          '--ratio': ratio,
-        } as React.CSSProperties
-      }
-      className={cn('relative aspect-(--ratio)', className)}
-      {...props}
-    />
-  )
-}
+export type ModelsSectionId = (typeof MODELS_SECTION_IDS)[number]
 
-export { AspectRatio }
+export const MODELS_DEFAULT_SECTION: ModelsSectionId = 'metadata'

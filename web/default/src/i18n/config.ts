@@ -16,34 +16,50 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import i18n from 'i18next'
+import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
 import { convertDetectedLanguage } from './languages'
 import en from './locales/en.json'
-import fr from './locales/fr.json'
-import ja from './locales/ja.json'
-import ru from './locales/ru.json'
-import vi from './locales/vi.json'
-import zhTW from './locales/zh-TW.json'
-import zhCN from './locales/zh.json'
 
-export const resources = {
-  en,
-  zhCN,
-  fr,
-  ru,
-  ja,
-  vi,
-  zhTW,
-} as const
+type LocaleModule = { default: { translation: Record<string, string> } }
 
-i18n
+/**
+ * Each locale bundle is ~500 kB, so only the active one is fetched. English
+ * stays bundled because it is the fallback for every other language and 79 of
+ * its entries differ from their (English source string) keys.
+ */
+const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
+  zhCN: () => import('./locales/zh.json'),
+  zhTW: () => import('./locales/zh-TW.json'),
+  fr: () => import('./locales/fr.json'),
+  ru: () => import('./locales/ru.json'),
+  ja: () => import('./locales/ja.json'),
+  vi: () => import('./locales/vi.json'),
+}
+
+const lazyLocaleBackend: BackendModule = {
+  type: 'backend',
+  init: () => {},
+  // i18next only awaits the returned promise when `read` declares exactly two
+  // parameters; with any other arity it waits on a callback instead and the
+  // load never settles.
+  read: async (language, _namespace) => {
+    const load = localeLoaders[language]
+    if (!load) return {}
+    const module = await load()
+    return module.default.translation
+  },
+}
+
+export const i18nReady = i18n
+  .use(lazyLocaleBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
+    resources: { en },
+    partialBundledLanguages: true,
     fallbackLng: 'en',
     supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],
     load: 'currentOnly',

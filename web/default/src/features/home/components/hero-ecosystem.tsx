@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import type { HomeStatsVendor } from '../types'
@@ -98,7 +98,7 @@ export function HeroEcosystem(props: HeroEcosystemProps) {
     .map((vendor, index) => ({
       label: vendor.name,
       tone: 'bg-background text-foreground ring-border/60',
-      icon: vendor.icon ? getLobeIcon(vendor.icon, 14) : null,
+      icon: vendor.icon ? <LobeIcon name={vendor.icon} size={14} /> : null,
       className: providerPositions[index],
     }))
 

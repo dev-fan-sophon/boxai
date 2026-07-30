@@ -24,16 +24,16 @@ import { useTranslation } from 'react-i18next'
 import { DataTableViewOptions } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { useSmDown } from '@/hooks'
 import { cn } from '@/lib/utils'
 
@@ -136,7 +136,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
 
   if (isMobile && props.mobilePinnedFilters != null) {
     return (
-      <Drawer open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+      <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
         <div
           className={cn('bg-card/50 rounded-lg border p-2.5', props.className)}
         >
@@ -171,24 +171,26 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
                 />
               </Button>
               {props.actionStart}
-              <DrawerTrigger asChild>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  className={cn(
-                    'text-muted-foreground hover:text-foreground gap-1 px-2',
-                    activeMobileFilterCount > 0 &&
-                      'text-primary hover:text-primary'
-                  )}
-                >
-                  {t('Filter')}
-                  {activeMobileFilterCount > 0 && (
-                    <Badge className='ml-0.5 size-5 justify-center p-0 text-[10px]'>
-                      {activeMobileFilterCount}
-                    </Badge>
-                  )}
-                </Button>
-              </DrawerTrigger>
+              <SheetTrigger
+                render={
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    className={cn(
+                      'text-muted-foreground hover:text-foreground gap-1 px-2',
+                      activeMobileFilterCount > 0 &&
+                        'text-primary hover:text-primary'
+                    )}
+                  />
+                }
+              >
+                {t('Filter')}
+                {activeMobileFilterCount > 0 && (
+                  <Badge className='ml-0.5 size-5 justify-center p-0 text-[10px]'>
+                    {activeMobileFilterCount}
+                  </Badge>
+                )}
+              </SheetTrigger>
               <Button
                 type='button'
                 onClick={props.onSearch}
@@ -202,14 +204,14 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
           </div>
         </div>
 
-        <DrawerContent className='max-h-[85dvh] p-0'>
+        <SheetContent side='bottom' className='max-h-[85dvh] gap-0 p-0'>
           <div className='mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden'>
-            <DrawerHeader className='border-border/70 border-b px-4 py-3 text-left'>
-              <DrawerTitle>{t('Filter')}</DrawerTitle>
-              <DrawerDescription>
+            <SheetHeader className='border-border/70 border-b px-4 py-3 text-left'>
+              <SheetTitle>{t('Filter')}</SheetTitle>
+              <SheetDescription>
                 {t('Adjust filters, then search to refresh the logs.')}
-              </DrawerDescription>
-            </DrawerHeader>
+              </SheetDescription>
+            </SheetHeader>
             <div className='flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-3'>
               {props.mobileFilters ?? (
                 <>
@@ -218,7 +220,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
                 </>
               )}
             </div>
-            <DrawerFooter className='border-border/70 grid grid-cols-2 gap-2 border-t px-4 py-3'>
+            <SheetFooter className='border-border/70 grid grid-cols-2 gap-2 border-t px-4 py-3'>
               <Button
                 type='button'
                 variant='outline'
@@ -235,10 +237,10 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
                 {props.searchLoading && <Loader2 className='animate-spin' />}
                 {t('Search')}
               </Button>
-            </DrawerFooter>
+            </SheetFooter>
           </div>
-        </DrawerContent>
-      </Drawer>
+        </SheetContent>
+      </Sheet>
     )
   }
 

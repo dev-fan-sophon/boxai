@@ -25,6 +25,11 @@ import { GeminiSettingsCard } from './gemini-settings-card'
 import { GlobalSettingsCard } from './global-settings-card'
 import { GrokSettingsCard } from './grok-settings-card'
 import { RoutingReliabilitySection } from './routing-reliability-section'
+import {
+  MODELS_DEFAULT_SECTION,
+  MODELS_SECTION_IDS,
+  type ModelSectionId,
+} from './section-manifest'
 
 function formatJsonForEditor(value: string, fallback: string) {
   const raw = (value ?? '').toString().trim()
@@ -181,17 +186,14 @@ const MODELS_SECTIONS = [
   },
 ] as const
 
-export type ModelSectionId = (typeof MODELS_SECTIONS)[number]['id']
-
 const modelsRegistry = createSectionRegistry<ModelSectionId, ModelSettings>({
+  sectionIds: MODELS_SECTION_IDS,
   sections: MODELS_SECTIONS,
-  defaultSection: 'global',
+  defaultSection: MODELS_DEFAULT_SECTION,
   basePath: '/system-settings/models',
   urlStyle: 'path',
 })
 
-export const MODELS_SECTION_IDS = modelsRegistry.sectionIds
-export const MODELS_DEFAULT_SECTION = modelsRegistry.defaultSection
 export const getModelsSectionNavItems = modelsRegistry.getSectionNavItems
 export const getModelsSectionContent = modelsRegistry.getSectionContent
 export const getModelsSectionMeta = modelsRegistry.getSectionMeta

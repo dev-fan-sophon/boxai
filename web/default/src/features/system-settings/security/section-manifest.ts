@@ -16,24 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+/**
+ * Route-facing section metadata, kept free of component imports.
+ *
+ * TanStack Router only code-splits a route's `component`; `beforeLoad` stays in
+ * the entry bundle. Importing the section registry here would therefore drag
+ * every settings panel into the JavaScript every anonymous visitor downloads.
+ */
+export const SECURITY_SECTION_IDS = [
+  'rate-limit',
+  'sensitive-words',
+  'ssrf',
+  'token-limits',
+] as const
 
-import { PublicLayout } from '@/components/layout'
-import { ConnectView } from '@/features/connect'
-import { getFreshModuleAccess } from '@/lib/nav-modules'
+export type SecuritySectionId = (typeof SECURITY_SECTION_IDS)[number]
 
-export const Route = createFileRoute('/connect/')({
-  beforeLoad: async () => {
-    const access = await getFreshModuleAccess('connect')
-    if (!access.enabled) throw redirect({ to: '/' })
-  },
-  component: ConnectPage,
-})
-
-function ConnectPage() {
-  return (
-    <PublicLayout showMainContainer={false}>
-      <ConnectView />
-    </PublicLayout>
-  )
-}
+export const SECURITY_DEFAULT_SECTION: SecuritySectionId = 'rate-limit'

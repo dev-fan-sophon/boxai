@@ -222,7 +222,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 }
 .dark [data-theme-preset='rose-garden'] {
   --primary: oklch(0.6476 0.2348 10.36);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.8131 0.1129 5.67);
   --secondary-foreground: oklch(0.9227 0.0029 34.49);
   --ring: oklch(0.6476 0.2348 10.36);
@@ -232,7 +232,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --chart-4: oklch(0.8131 0.1129 5.67);
   --chart-5: oklch(0.9429 0.0283 5.52);
   --sidebar-primary: oklch(0.6476 0.2348 10.36);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.6476 0.2348 10.36);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.6476 0.2348 10.36);
@@ -296,7 +296,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 }
 .dark [data-theme-preset='sunset-glow'] {
   --primary: oklch(0.6387 0.1822 23.51);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.7938 0.1248 42.42);
   --secondary-foreground: oklch(0 0 0);
   --ring: oklch(0.6387 0.1822 23.51);
@@ -306,7 +306,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --chart-4: oklch(0.8964 0.0724 43.73);
   --chart-5: oklch(0.9381 0.0241 16.66);
   --sidebar-primary: oklch(0.6387 0.1822 23.51);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.6387 0.1822 23.51);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.6387 0.1822 23.51);
@@ -333,7 +333,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 }
 .dark [data-theme-preset='forest-whisper'] {
   --primary: oklch(0.5991 0.1318 180.39);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.6578 0.0485 247.35);
   --secondary-foreground: oklch(1 0 0);
   --ring: oklch(0.5991 0.1318 180.39);
@@ -343,7 +343,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --chart-4: oklch(0.7294 0.0416 244.67);
   --chart-5: oklch(0.9511 0.0547 177.24);
   --sidebar-primary: oklch(0.5991 0.1318 180.39);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.5991 0.1318 180.39);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5991 0.1318 180.39);
@@ -370,7 +370,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 }
 .dark [data-theme-preset='ocean-breeze'] {
   --primary: oklch(0.623 0.188 259.81);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.5854 0.2041 277.12);
   --secondary-foreground: oklch(0 0 0);
   --ring: oklch(0.623 0.188 259.81);
@@ -380,7 +380,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --chart-4: oklch(0.785 0.1007 274.72);
   --chart-5: oklch(0.932 0.0281 255.58);
   --sidebar-primary: oklch(0.623 0.188 259.81);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.623 0.188 259.81);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.623 0.188 259.81);
@@ -407,7 +407,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 }
 .dark [data-theme-preset='lavender-dream'] {
   --primary: oklch(0.6359 0.1699 307.95);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.811 0.0589 201.14);
   --secondary-foreground: oklch(0 0 0);
   --ring: oklch(0.6359 0.1699 307.95);
@@ -417,7 +417,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --chart-4: oklch(0.8611 0.0504 198.03);
   --chart-5: oklch(0.947 0.0212 309.77);
   --sidebar-primary: oklch(0.6359 0.1699 307.95);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.6359 0.1699 307.95);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.6359 0.1699 307.95);
@@ -638,7 +638,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
 
   /* Clay/coral — Anthropic's signature accent, used scarcely on CTAs. */
   --primary: oklch(0.685 0.142 38); /* ≈ #d97757 */
-  --primary-foreground: oklch(0.99 0.005 95);
+  --primary-foreground: oklch(0.145 0 0);
 
   --secondary: oklch(0.925 0.008 92);
   --secondary-foreground: oklch(0.255 0.005 60);
@@ -674,7 +674,7 @@ body[data-brand-token-preset='box-ai']:not([data-theme-preset]):not(
   --sidebar: oklch(0.955 0.008 92);
   --sidebar-foreground: oklch(0.255 0.005 60);
   --sidebar-primary: oklch(0.685 0.142 38);
-  --sidebar-primary-foreground: oklch(0.99 0.005 95);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.915 0.009 92);
   --sidebar-accent-foreground: oklch(0.205 0.005 60);
   --sidebar-border: oklch(0.895 0.008 92);

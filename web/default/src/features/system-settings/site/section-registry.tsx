@@ -28,6 +28,11 @@ import { NoticeSection } from '../maintenance/notice-section'
 import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import {
+  SITE_DEFAULT_SECTION,
+  SITE_SECTION_IDS,
+  type SiteSectionId,
+} from './section-manifest'
 
 const SITE_SECTIONS = [
   {
@@ -98,17 +103,14 @@ const SITE_SECTIONS = [
   },
 ] as const
 
-export type SiteSectionId = (typeof SITE_SECTIONS)[number]['id']
-
 const siteRegistry = createSectionRegistry<SiteSectionId, SiteSettings>({
+  sectionIds: SITE_SECTION_IDS,
   sections: SITE_SECTIONS,
-  defaultSection: 'system-info',
+  defaultSection: SITE_DEFAULT_SECTION,
   basePath: '/system-settings/site',
   urlStyle: 'path',
 })
 
-export const SITE_SECTION_IDS = siteRegistry.sectionIds
-export const SITE_DEFAULT_SECTION = siteRegistry.defaultSection
 export const getSiteSectionNavItems = siteRegistry.getSectionNavItems
 export const getSiteSectionContent = siteRegistry.getSectionContent
 export const getSiteSectionMeta = siteRegistry.getSectionMeta

@@ -37,7 +37,7 @@ import {
   isUsageLogsSectionId,
   USAGE_LOGS_DEFAULT_SECTION,
   type UsageLogsSectionId,
-} from './section-registry'
+} from './section-manifest'
 
 const TASK_LOG_SECTIONS = ['drawing', 'task'] as const
 

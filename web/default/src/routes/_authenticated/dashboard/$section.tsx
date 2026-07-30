@@ -22,7 +22,7 @@ import { Dashboard } from '@/features/dashboard'
 import {
   DASHBOARD_SECTION_IDS,
   DASHBOARD_DEFAULT_SECTION,
-} from '@/features/dashboard/section-registry'
+} from '@/features/dashboard/section-manifest'
 
 export const Route = createFileRoute('/_authenticated/dashboard/$section')({
   beforeLoad: ({ params }) => {

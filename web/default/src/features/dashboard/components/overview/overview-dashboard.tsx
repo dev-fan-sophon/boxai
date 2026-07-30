@@ -36,6 +36,7 @@ import {
 } from '@/components/page-transition'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ClientAppsPanel } from '@/features/client-apps/components/client-apps-panel'
 import { getApiKeys } from '@/features/keys/api'
 import { useStatus } from '@/hooks/use-status'
 import { getUserModels } from '@/lib/api'
@@ -292,6 +293,8 @@ export function OverviewDashboard() {
       )}
 
       <SummaryCards />
+
+      <ClientAppsPanel />
 
       {visiblePanels.length > 0 && (
         <CardStaggerContainer

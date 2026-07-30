@@ -20,7 +20,7 @@ import { AlertCircle, CheckCircle2, Circle, Server } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import { CHANNEL_TYPE_OPTIONS } from '../../constants'
@@ -90,7 +90,10 @@ export function ChannelTypeLogo(props: {
 
   return (
     <span className={cn('inline-flex shrink-0', props.className)}>
-      {getLobeIcon(`${getChannelTypeIcon(props.type)}.Color`, props.size ?? 16)}
+      <LobeIcon
+        name={`${getChannelTypeIcon(props.type)}.Color`}
+        size={props.size ?? 16}
+      />
     </span>
   )
 }

@@ -18,12 +18,12 @@ import { DesktopHero } from './components/desktop-hero'
 import { InstallGuide } from './components/install-guide'
 import { ScreenshotShowcase } from './components/screenshot-showcase'
 import { TrustPanel } from './components/trust-panel'
-import { useDesktopRelease } from './hooks/use-desktop-release'
 import { detectPlatform, primaryDownload } from '@/features/downloads/release'
+import { useAppRelease } from '@/features/downloads/use-app-release'
 
 export function AgentsView() {
   const { t } = useTranslation()
-  const { release, loading, failed, fallbackUrl } = useDesktopRelease()
+  const { release, loading, failed, fallbackUrl } = useAppRelease('desktop')
   const downloads = release?.downloads ?? []
   const primary = primaryDownload(downloads, detectPlatform())
 

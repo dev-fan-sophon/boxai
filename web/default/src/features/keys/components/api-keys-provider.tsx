@@ -45,6 +45,14 @@ type ApiKeysContextType = {
 
 const ApiKeysContext = React.createContext<ApiKeysContextType | null>(null)
 
+/**
+ * How long a revealed plaintext key stays in memory. The backend only returns
+ * it from an explicit, rate-limited reveal call, so caching past the user's
+ * immediate copy/paste keeps secrets in a live React tree (and any heap
+ * snapshot taken from it) for no benefit — re-revealing costs one request.
+ */
+const RESOLVED_KEY_TTL_MS = 60_000
+
 export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const [open, setOpen] = useDialogState<ApiKeysDialogType>(null)
@@ -58,6 +66,29 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
 
   const [copiedKeyId, setCopiedKeyId] = useState<number | null>(null)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const expiryTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>(
+    {}
+  )
+
+  const forgetKeyAfterTtl = useCallback((id: number) => {
+    clearTimeout(expiryTimersRef.current[id])
+    expiryTimersRef.current[id] = setTimeout(() => {
+      delete expiryTimersRef.current[id]
+      setResolvedKeys((prev) => {
+        if (!(id in prev)) return prev
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }, RESOLVED_KEY_TTL_MS)
+  }, [])
+
+  useEffect(() => {
+    const timers = expiryTimersRef.current
+    return () => {
+      for (const timer of Object.values(timers)) clearTimeout(timer)
+    }
+  }, [])
 
   useEffect(() => {
     return () => clearTimeout(copiedTimerRef.current)
@@ -75,7 +106,10 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRealKey = useCallback(
     async (id: number): Promise<string | null> => {
-      if (resolvedKeys[id]) return resolvedKeys[id]
+      if (resolvedKeys[id]) {
+        forgetKeyAfterTtl(id)
+        return resolvedKeys[id]
+      }
       if (id in pendingRequests.current) return pendingRequests.current[id]
 
       const request = (async () => {
@@ -85,6 +119,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
           if (res.success && res.data?.key) {
             const fullKey = `sk-${res.data.key}`
             setResolvedKeys((prev) => ({ ...prev, [id]: fullKey }))
+            forgetKeyAfterTtl(id)
             return fullKey
           }
           toast.error(res.message || t(ERROR_MESSAGES.UNEXPECTED))
@@ -105,7 +140,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
       pendingRequests.current[id] = request
       return request
     },
-    [resolvedKeys, t]
+    [resolvedKeys, t, forgetKeyAfterTtl]
   )
 
   const resolveRealKeysBatch = useCallback(
@@ -129,6 +164,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
             newKeys[Number(idStr)] = `sk-${key}`
           }
           setResolvedKeys((prev) => ({ ...prev, ...newKeys }))
+          for (const id of Object.keys(newKeys)) forgetKeyAfterTtl(Number(id))
 
           const result: Record<number, string> = { ...newKeys }
           for (const id of ids) {
@@ -151,7 +187,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [resolvedKeys, t]
+    [resolvedKeys, t, forgetKeyAfterTtl]
   )
 
   return (

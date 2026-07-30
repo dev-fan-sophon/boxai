@@ -51,9 +51,9 @@ import {
 } from './lib'
 import {
   type DashboardSectionId,
+  DASHBOARD_ANALYTICS_SECTION_IDS,
   DASHBOARD_DEFAULT_SECTION,
-  DASHBOARD_SECTION_IDS,
-} from './section-registry'
+} from './section-manifest'
 import type {
   DashboardChartPreferences,
   DashboardFilters,
@@ -113,6 +113,21 @@ const LazyFlowCharts = lazy(() =>
     default: m.FlowCharts,
   }))
 )
+
+const LazyClientAppConsole = lazy(() =>
+  import('@/features/client-apps/components/client-app-console').then((m) => ({
+    default: m.ClientAppConsole,
+  }))
+)
+
+function ClientAppConsoleFallback() {
+  return (
+    <div className='space-y-3 sm:space-y-4'>
+      <Skeleton className='h-48 w-full rounded-xl' />
+      <Skeleton className='h-40 w-full rounded-xl' />
+    </div>
+  )
+}
 
 function LogStatCardsFallback() {
   return (
@@ -187,6 +202,12 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   users: {
     titleKey: 'User Analytics',
   },
+  connect: {
+    titleKey: 'BoxAI Connect',
+  },
+  desktop: {
+    titleKey: 'BoxAI Desktop',
+  },
 }
 
 function DashboardContent() {
@@ -242,11 +263,12 @@ function DashboardContent() {
   )
 
   const meta = SECTION_META[activeSection] ?? SECTION_META.overview
+  const isClientAppSection =
+    activeSection === 'connect' || activeSection === 'desktop'
   // Site-wide admin page exposes multi-user analytics; console stays personal.
   const visibleSections = useMemo(
     () =>
-      DASHBOARD_SECTION_IDS.filter((section) => {
-        if (section === 'overview') return false
+      DASHBOARD_ANALYTICS_SECTION_IDS.filter((section) => {
         if (section === 'users') return isSiteWide
         // Personal console analytics: models only (flow is multi-user oriented).
         if (!isSiteWide && section === 'flow') return false
@@ -271,7 +293,9 @@ function DashboardContent() {
     [isSiteWide, navigate]
   )
   const showSectionTabs =
-    activeSection !== 'overview' && visibleSections.length > 1
+    activeSection !== 'overview' &&
+    !isClientAppSection &&
+    visibleSections.length > 1
   const modelActions =
     activeSection === 'models' ? (
       <>
@@ -334,7 +358,7 @@ function DashboardContent() {
       <SectionPageLayout.Title>{t(pageTitleKey)}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='space-y-3 sm:space-y-4'>
-          {activeSection !== 'overview' && (
+          {activeSection !== 'overview' && !isClientAppSection && (
             <div className='flex flex-wrap items-center justify-between gap-1.5 sm:gap-2'>
               {showSectionTabs ? (
                 <Tabs value={activeSection} onValueChange={handleSectionChange}>
@@ -357,6 +381,15 @@ function DashboardContent() {
             </div>
           )}
           {activeSection === 'overview' && !isSiteWide && <OverviewDashboard />}
+          {isClientAppSection && !isSiteWide && (
+            <FadeIn>
+              <Suspense fallback={<ClientAppConsoleFallback />}>
+                <LazyClientAppConsole
+                  app={activeSection === 'connect' ? 'connect' : 'desktop'}
+                />
+              </Suspense>
+            </FadeIn>
+          )}
           {activeSection === 'models' && (
             <>
               <FadeIn>

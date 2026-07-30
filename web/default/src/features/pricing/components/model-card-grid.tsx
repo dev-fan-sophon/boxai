@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { getLobeIcon } from '@/lib/lobe-icon'
+import { LobeIcon } from '@/lib/lobe-icon'
 
 import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
 import { groupModelsByVendor } from '../lib/model-helpers'
@@ -104,7 +104,9 @@ export function ModelCardGrid(props: ModelCardGridProps) {
         const totalForVendor =
           vendorTotalCounts.get(countKey) ?? group.models.length
         const shownForVendor = group.models.length
-        const vendorIcon = group.icon ? getLobeIcon(group.icon, 20) : null
+        const vendorIcon = group.icon ? (
+          <LobeIcon name={group.icon} size={20} />
+        ) : null
         const initial = group.name.charAt(0).toUpperCase() || '?'
         const countLabel =
           shownForVendor < totalForVendor

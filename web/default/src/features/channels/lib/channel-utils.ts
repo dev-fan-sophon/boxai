@@ -41,7 +41,7 @@ export function getChannelTypeLabel(type: number): string {
 }
 
 /**
- * Get channel type icon name for getLobeIcon
+ * Get channel type icon name for LobeIcon
  * Maps channel types to Lobe icon names using type number (language-independent)
  */
 export function getChannelTypeIcon(type: number): string {

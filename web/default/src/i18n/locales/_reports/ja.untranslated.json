@@ -1,5 +1,4 @@
 {
-  "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.": "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.",
   "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.": "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.",
   "Backs up and restores": "Backs up and restores",
   "Before you install": "Before you install",
@@ -23,6 +22,7 @@
   "Image processing failed. The original was kept.": "Image processing failed. The original was kept.",
   "Is this the same as CC Switch?": "Is this the same as CC Switch?",
   "It is kept. Connect backs up each client config before it writes, adds only the provider entry it owns, and restores your original file when you switch away or sign out.": "It is kept. Connect backs up each client config before it writes, adds only the provider entry it owns, and restores your original file when you switch away or sign out.",
+  "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.": "macOS 12 or later on Apple Silicon and Intel, and Windows 10 or later on 64-bit. Linux is not packaged.",
   "Manage MCP servers and skills across every client from a single panel instead of seven separate files.": "Manage MCP servers and skills across every client from a single panel instead of seven separate files.",
   "Models come from your account": "Models come from your account",
   "Nothing selected": "Nothing selected",

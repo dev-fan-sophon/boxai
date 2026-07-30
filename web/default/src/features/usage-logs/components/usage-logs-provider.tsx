@@ -26,7 +26,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import type { UsageLogsSectionId } from '../section-registry'
+import type { UsageLogsSectionId } from '../section-manifest'
 import type { ChannelAffinityInfo } from '../types'
 
 /**

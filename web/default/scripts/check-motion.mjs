@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-
 /**
  * Motion lint — the two transition rules oxlint cannot express, because they
  * are about Tailwind class content rather than JS syntax.
@@ -67,10 +66,6 @@ const LAYOUT_TRANSITION_ALLOWLIST = new Map([
   [
     'src/components/ui/sidebar.tsx',
     'The sidebar collapse *is* a width animation; there is no transform equivalent.',
-  ],
-  [
-    'src/components/ui/navigation-menu.tsx',
-    'Base UI morphs the popup between panels of different size.',
   ],
   [
     'src/components/ui/progress.tsx',
