@@ -56,6 +56,8 @@ var (
 	cloudflareEdgeCIDRs    = cloudflareEdgeCIDRsFallback
 	cloudflareProxyEnabled bool
 	trustedProxyNetworks   []*net.IPNet
+	operatedProxyNetworks  []*net.IPNet
+	cloudflareEdgeNetworks []*net.IPNet
 )
 
 func InitTrustedProxy() {
@@ -162,13 +164,28 @@ func collectTrustedProxyCIDRs() []string {
 func rebuildTrustedProxyNetworks() {
 	trustedProxyMutex.Lock()
 	defer trustedProxyMutex.Unlock()
-	networks := make([]*net.IPNet, 0, len(localProxyCIDRs)+len(operatorProxyCIDRs)+len(cloudflareEdgeCIDRs))
-	for _, cidr := range collectTrustedProxyCIDRs() {
+	trustedProxyNetworks = parseNetworks(collectTrustedProxyCIDRs())
+	operatedProxyNetworks = parseNetworks(append(append([]string{}, localProxyCIDRs...), operatorProxyCIDRs...))
+	cloudflareEdgeNetworks = parseNetworks(cloudflareEdgeCIDRs)
+}
+
+func parseNetworks(cidrs []string) []*net.IPNet {
+	networks := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
 		if _, network, err := net.ParseCIDR(cidr); err == nil {
 			networks = append(networks, network)
 		}
 	}
-	trustedProxyNetworks = networks
+	return networks
+}
+
+func containsIP(networks []*net.IPNet, ip net.IP) bool {
+	for _, network := range networks {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func IsTrustedProxy(ip net.IP) bool {
@@ -177,12 +194,48 @@ func IsTrustedProxy(ip net.IP) bool {
 	}
 	trustedProxyMutex.RLock()
 	defer trustedProxyMutex.RUnlock()
-	for _, network := range trustedProxyNetworks {
-		if network.Contains(ip) {
-			return true
+	return containsIP(trustedProxyNetworks, ip)
+}
+
+// isOperatedProxy reports whether the address belongs to a proxy we run
+// ourselves, as opposed to the Cloudflare edge. Only our own proxies may be
+// skipped when locating the address that reached our infrastructure.
+func isOperatedProxy(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	trustedProxyMutex.RLock()
+	defer trustedProxyMutex.RUnlock()
+	return containsIP(operatedProxyNetworks, ip)
+}
+
+func isCloudflareEdge(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	trustedProxyMutex.RLock()
+	defer trustedProxyMutex.RUnlock()
+	return containsIP(cloudflareEdgeNetworks, ip)
+}
+
+// ingressIP returns the address that connected to the outermost proxy we
+// operate. Entries appended by our own proxies are skipped, so the result is
+// whoever actually reached our infrastructure from the outside.
+func ingressIP(peer net.IP, forwardedFor string) net.IP {
+	if !isOperatedProxy(peer) {
+		return peer
+	}
+	items := strings.Split(forwardedFor, ",")
+	for i := len(items) - 1; i >= 0; i-- {
+		ip := net.ParseIP(strings.TrimSpace(items[i]))
+		if ip == nil {
+			return nil
+		}
+		if !isOperatedProxy(ip) {
+			return ip
 		}
 	}
-	return false
+	return nil
 }
 
 // RealClientIP resolves the originating client address, honouring forwarding
@@ -201,12 +254,17 @@ func RealClientIP(c *gin.Context) string {
 		}
 		return peer
 	}
-	if CloudflareProxyEnabled() {
+	forwardedFor := c.GetHeader("X-Forwarded-For")
+	// CF-Connecting-IP is only meaningful on a request that actually traversed
+	// Cloudflare. A deployment that also answers on a hostname bypassing the
+	// edge would otherwise let any client set the header and pick its own
+	// address for rate limiting and token allowlists.
+	if CloudflareProxyEnabled() && isCloudflareEdge(ingressIP(peerIP, forwardedFor)) {
 		if ip := net.ParseIP(strings.TrimSpace(c.GetHeader(CloudflareConnectingIPHeader))); ip != nil {
 			return ip.String()
 		}
 	}
-	if ip := clientIPFromForwardedFor(c.GetHeader("X-Forwarded-For")); ip != "" {
+	if ip := clientIPFromForwardedFor(forwardedFor); ip != "" {
 		return ip
 	}
 	if ip := net.ParseIP(strings.TrimSpace(c.GetHeader("X-Real-IP"))); ip != nil {

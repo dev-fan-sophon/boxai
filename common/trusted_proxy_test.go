@@ -66,11 +66,28 @@ func TestRealClientIP(t *testing.T) {
 			expectedClientIP: "198.51.100.23",
 		},
 		{
-			name:             "cloudflare header wins while proxy mode is on",
+			name:             "cloudflare header wins behind a proxy fed by the edge",
 			remoteAddr:       "127.0.0.1:8080",
-			headers:          map[string]string{CloudflareConnectingIPHeader: "1.2.3.4", "X-Forwarded-For": "198.51.100.23"},
+			headers:          map[string]string{CloudflareConnectingIPHeader: "1.2.3.4", "X-Forwarded-For": "1.2.3.4, 162.158.1.1"},
 			cloudflareProxy:  true,
 			expectedClientIP: "1.2.3.4",
+		},
+		{
+			// A hostname pointed straight at the origin still reaches the same
+			// process. Trusting the header there would let any client pick its
+			// own address for rate limiting and token allowlists.
+			name:             "cloudflare header ignored when the request bypassed the edge",
+			remoteAddr:       "127.0.0.1:8080",
+			headers:          map[string]string{CloudflareConnectingIPHeader: "1.2.3.4", "X-Forwarded-For": "203.0.113.9"},
+			cloudflareProxy:  true,
+			expectedClientIP: "203.0.113.9",
+		},
+		{
+			name:             "forged cloudflare hop cannot be appended by the client",
+			remoteAddr:       "127.0.0.1:8080",
+			headers:          map[string]string{CloudflareConnectingIPHeader: "1.2.3.4", "X-Forwarded-For": "162.158.1.1, 203.0.113.9"},
+			cloudflareProxy:  true,
+			expectedClientIP: "203.0.113.9",
 		},
 		{
 			name:             "forwarded chain stops at the first untrusted hop",
