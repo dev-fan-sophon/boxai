@@ -1,10 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Wallet } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   SidebarFooter,
   SidebarMenu,
@@ -12,27 +11,25 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { getSelfSubscriptionFull } from '@/features/subscriptions/api'
 import { getSelf } from '@/lib/api'
-import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatQuota } from '@/lib/format'
 import { MOTION_TRANSITION } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
+type SubscriptionQuota = { unlimited: boolean; remaining: number } | null
+
 /**
- * Sidebar account strip: identity + live balance, designed as part of the
- * sidebar chrome rather than a separate bordered card.
+ * Sidebar account strip: wallet balance plus remaining subscription quota.
+ * Identity lives in the header profile dropdown, so this stays numbers-only.
  */
 export function SidebarAccountFooter() {
   const { t } = useTranslation()
   const { state } = useSidebar()
   const user = useAuthStore((s) => s.auth.user)
   const setUser = useAuthStore((s) => s.auth.setUser)
+  const [subscription, setSubscription] = useState<SubscriptionQuota>(null)
   const collapsed = state === 'collapsed'
 
   useEffect(() => {
@@ -50,116 +47,101 @@ export function SidebarAccountFooter() {
     }
   }, [setUser])
 
+  useEffect(() => {
+    let cancelled = false
+    void getSelfSubscriptionFull()
+      .then((res) => {
+        if (cancelled || !res.success || !res.data) return
+        const now = Date.now() / 1000
+        const active = (res.data.subscriptions || []).filter(
+          (record) =>
+            record.subscription?.status === 'active' &&
+            (record.subscription?.end_time || 0) > now
+        )
+        if (active.length === 0) {
+          setSubscription(null)
+          return
+        }
+        if (
+          active.some((record) => (record.subscription?.amount_total || 0) <= 0)
+        ) {
+          setSubscription({ unlimited: true, remaining: 0 })
+          return
+        }
+        const remaining = active.reduce((sum, record) => {
+          const total = record.subscription?.amount_total || 0
+          const used = record.subscription?.amount_used || 0
+          return sum + Math.max(0, total - used)
+        }, 0)
+        setSubscription({ unlimited: false, remaining })
+      })
+      .catch(() => {
+        setSubscription(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   if (!user) return null
 
-  const display =
-    user.display_name?.trim() ||
-    user.email?.trim() ||
-    user.username ||
-    t('Account')
   const balance = formatQuota(user.quota ?? 0)
-  const avatarName = user.username || display
-  const avatarFallback = getUserAvatarFallback(avatarName)
-  const avatarStyle = getUserAvatarStyle(avatarName)
+  let subscriptionLabel: string | null = null
+  if (subscription?.unlimited) {
+    subscriptionLabel = t('Unlimited')
+  } else if (subscription) {
+    subscriptionLabel = formatQuota(subscription.remaining)
+  }
+  let collapsedLabel = `${t('Account balance')}: ${balance}`
+  if (subscriptionLabel) {
+    collapsedLabel += ` · ${t('Subscription remaining')}: ${subscriptionLabel}`
+  }
 
   return (
     <SidebarFooter className='border-sidebar-border/50 gap-0 border-t p-2'>
       <SidebarMenu>
         <SidebarMenuItem>
           {collapsed ? (
-            <div className='flex flex-col items-center gap-1.5 py-1'>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Link
-                      to='/profile'
-                      className='ring-sidebar-ring focus-visible:ring-2 focus-visible:outline-none'
-                      aria-label={display}
-                    />
-                  }
-                >
-                  <Avatar size='sm' className='size-8 rounded-lg'>
-                    <AvatarFallback
-                      className='rounded-lg text-[11px] font-semibold text-white'
-                      style={avatarStyle}
-                    >
-                      {avatarFallback}
-                    </AvatarFallback>
-                  </Avatar>
-                </TooltipTrigger>
-                <TooltipContent side='right'>
-                  <p className='font-medium'>{display}</p>
-                  <p className='text-muted-foreground text-xs'>
-                    {t('Account balance')}: {balance}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-              <SidebarMenuButton
-                tooltip={`${t('Top up')} · ${balance}`}
-                render={<Link to='/wallet' />}
-                className='size-8'
-              >
-                <Wallet className='size-4' />
-                <span>{t('Top up')}</span>
-              </SidebarMenuButton>
-            </div>
+            <SidebarMenuButton
+              render={<Link to='/wallet' />}
+              className='size-8 justify-center'
+              aria-label={collapsedLabel}
+              tooltip={collapsedLabel}
+            >
+              <Wallet className='size-4' />
+            </SidebarMenuButton>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={MOTION_TRANSITION.fast}
-              className='w-full space-y-2'
             >
               <Link
-                to='/profile'
+                to='/wallet'
                 className={cn(
-                  'group/account hover:bg-sidebar-accent/60 flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5',
+                  'hover:bg-sidebar-accent/60 flex w-full flex-col gap-1 rounded-lg px-1.5 py-1.5',
                   'ring-sidebar-ring transition-colors focus-visible:ring-2 focus-visible:outline-none'
                 )}
               >
-                <Avatar size='sm' className='size-8 shrink-0 rounded-lg'>
-                  <AvatarFallback
-                    className='rounded-lg text-[11px] font-semibold text-white'
-                    style={avatarStyle}
-                  >
-                    {avatarFallback}
-                  </AvatarFallback>
-                </Avatar>
-                <div className='min-w-0 flex-1'>
-                  <p
-                    className='text-sidebar-foreground truncate text-xs font-medium'
-                    title={display}
-                  >
-                    {display}
-                  </p>
-                  <p className='text-muted-foreground truncate text-[11px] tabular-nums'>
-                    ID {user.id}
-                  </p>
-                </div>
-                <ChevronRight className='text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover/account:opacity-100' />
-              </Link>
-
-              <div className='flex items-center gap-2 px-1.5'>
-                <div className='min-w-0 flex-1'>
-                  <p className='text-muted-foreground text-[10px] tracking-wide uppercase'>
+                <span className='flex items-baseline justify-between gap-2'>
+                  <span className='text-muted-foreground text-[10px] tracking-wide uppercase'>
                     {t('Account balance')}
-                  </p>
-                  <p className='text-sidebar-foreground truncate text-sm font-semibold tabular-nums'>
+                  </span>
+                  <span className='text-sidebar-foreground truncate text-sm font-semibold tabular-nums'>
                     {balance}
-                  </p>
-                </div>
-                <Link
-                  to='/wallet'
-                  className={cn(
-                    'bg-primary text-primary-foreground hover:bg-primary/90',
-                    'inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-medium',
-                    'ring-sidebar-ring transition-colors focus-visible:ring-2 focus-visible:outline-none'
-                  )}
-                >
-                  <Wallet className='size-3.5' />
-                  {t('Top up')}
-                </Link>
-              </div>
+                  </span>
+                </span>
+                {subscriptionLabel && (
+                  <span className='flex items-baseline justify-between gap-2'>
+                    <span className='text-muted-foreground text-[10px] tracking-wide uppercase'>
+                      {t('Subscription remaining')}
+                    </span>
+                    <span className='text-muted-foreground truncate text-xs font-medium tabular-nums'>
+                      {subscriptionLabel}
+                    </span>
+                  </span>
+                )}
+              </Link>
             </motion.div>
           )}
         </SidebarMenuItem>
