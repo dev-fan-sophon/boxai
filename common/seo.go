@@ -25,7 +25,8 @@ const DefaultBrandName = "BoxAI"
 
 // DefaultSEODescription is used when a page has no more specific copy.
 // Keep BoxAI and the public hostname co-mentioned for brand+domain queries.
-const DefaultSEODescription = "BoxAI (you-box.com) is a unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin."
+// Market positioning: Vietnam primary, other overseas markets secondary.
+const DefaultSEODescription = "BoxAI (you-box.com) is a unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin."
 
 // HomeSEOTitleTemplate builds the homepage document title.
 // Example: "BoxAI · Unified AI API Gateway | you-box.com"
@@ -41,7 +42,7 @@ func PublicSEOPages() []SEOPage {
 			Priority:    "1.0",
 			Changefreq:  "daily",
 			Heading:     "BoxAI — Unified AI API Gateway",
-			Body:        "BoxAI (you-box.com) is a unified AI API gateway for OpenAI, Claude, Gemini and more. Manage keys, usage, billing, and model access through one endpoint at https://you-box.com.",
+			Body:        "BoxAI (you-box.com) is a unified AI API gateway for OpenAI, Claude, Gemini and more — built primarily for Vietnam, with secondary support for other overseas markets. Manage keys, usage, billing, and model access through one endpoint at https://you-box.com.",
 		},
 		{
 			Path:        "/pricing",
@@ -55,11 +56,11 @@ func PublicSEOPages() []SEOPage {
 		{
 			Path:        "/docs/what-is-boxai",
 			Title:       "What is BoxAI",
-			Description: "What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access.",
+			Description: "What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.",
 			Priority:    "0.85",
 			Changefreq:  "monthly",
 			Heading:     "What is BoxAI?",
-			Body:        "BoxAI (https://you-box.com) is the official unified AI API gateway. One API for OpenAI-compatible, Claude, Gemini and other providers, with keys, usage, and billing in one place.",
+			Body:        "BoxAI (https://you-box.com) is the official unified AI API gateway, focused primarily on Vietnam with secondary support for other overseas markets. One API for OpenAI-compatible, Claude, Gemini and other providers, with keys, usage, and billing in one place.",
 		},
 		{
 			Path:        "/docs/getting-started",
@@ -100,11 +101,11 @@ func PublicSEOPages() []SEOPage {
 		{
 			Path:        "/about",
 			Title:       "About BoxAI",
-			Description: "About BoxAI (you-box.com) — the unified AI API gateway for multi-model access, billing, and admin.",
+			Description: "About BoxAI (you-box.com) — unified AI API gateway for multi-model access, billing, and admin. Primary market: Vietnam; secondary: other overseas markets.",
 			Priority:    "0.5",
 			Changefreq:  "monthly",
 			Heading:     "About BoxAI",
-			Body:        "BoxAI at https://you-box.com is a unified gateway for multi-provider AI APIs with billing, access control, and an admin dashboard.",
+			Body:        "BoxAI at https://you-box.com is a unified gateway for multi-provider AI APIs with billing, access control, and an admin dashboard. Primary market: Vietnam; secondary: other overseas markets.",
 		},
 		{
 			Path:        "/privacy-policy",
@@ -437,7 +438,8 @@ func InjectSEOIntoHTML(indexHTML []byte, page SEOPage, siteName, baseURL, imageU
 		}
 	}
 	if imageURL == "" {
-		imageURL = AbsoluteURL(baseURL, "/logo.png")
+		// Prefer the social share card (1200×630); square logo is for schema/JSON-LD.
+		imageURL = AbsoluteURL(baseURL, "/og-image.png")
 	} else if strings.HasPrefix(imageURL, "/") {
 		imageURL = AbsoluteURL(baseURL, imageURL)
 	}

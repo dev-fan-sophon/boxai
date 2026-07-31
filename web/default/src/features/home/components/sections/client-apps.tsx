@@ -12,7 +12,6 @@ import {
 function ClientAppShowcase(props: { app: ClientAppId; delay: number }) {
   const { t } = useTranslation()
   const meta = CLIENT_APPS[props.app]
-  const AppIcon = meta.icon
   const { release, loading, failed, fallbackUrl } = useAppRelease(props.app)
   const downloads = release?.downloads ?? []
   const primary = primaryDownload(downloads, detectPlatform())
@@ -25,9 +24,13 @@ function ClientAppShowcase(props: { app: ClientAppId; delay: number }) {
         className='border-border/50 bg-card hover:border-border flex h-full flex-col rounded-2xl border p-6 shadow-xs md:p-7'
       >
         <div className='flex items-start gap-4'>
-          <div className='bg-muted text-foreground flex size-11 shrink-0 items-center justify-center rounded-xl'>
-            <AppIcon className='size-5' strokeWidth={1.5} aria-hidden='true' />
-          </div>
+          <img
+            src={meta.logoSrc}
+            alt=''
+            aria-hidden='true'
+            draggable={false}
+            className='size-12 shrink-0 rounded-[22%] object-contain shadow-xs ring-1 ring-border/40'
+          />
           <div>
             <h3 className='text-lg font-semibold tracking-tight'>{appName}</h3>
             <p className='text-muted-foreground mt-1 text-sm leading-relaxed text-pretty'>

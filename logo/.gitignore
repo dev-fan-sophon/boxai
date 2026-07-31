@@ -1,0 +1,4 @@
+# Design source only (large WeChat export). Regenerated assets stay tracked.
+WechatIMG179.jpg
+*.jpg
+!exports/**

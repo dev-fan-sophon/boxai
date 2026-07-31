@@ -3,7 +3,6 @@ import { ArrowDownToLine, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { IconBadge } from '@/components/ui/icon-badge'
 import { detectPlatform, primaryDownload } from '@/features/downloads/release'
 import {
   useAppRelease,
@@ -17,7 +16,6 @@ import { useClientAppSessions } from '../hooks/use-client-app-sessions'
 function ClientAppCard(props: { app: ClientAppId; connected: number }) {
   const { t } = useTranslation()
   const meta = CLIENT_APPS[props.app]
-  const AppIcon = meta.icon
   const { release, fallbackUrl } = useAppRelease(props.app)
   const primary = primaryDownload(release?.downloads ?? [], detectPlatform())
   const downloadUrl = primary?.url || fallbackUrl
@@ -25,9 +23,13 @@ function ClientAppCard(props: { app: ClientAppId; connected: number }) {
   return (
     <div className='bg-card ring-border flex flex-col gap-3 rounded-xl px-4 py-3.5 ring-1'>
       <div className='flex items-start gap-3'>
-        <IconBadge size='md' tone='primary'>
-          <AppIcon aria-hidden='true' />
-        </IconBadge>
+        <img
+          src={meta.logoSrc}
+          alt=''
+          aria-hidden='true'
+          draggable={false}
+          className='size-8 shrink-0 rounded-[22%] object-contain shadow-xs ring-1 ring-border/40'
+        />
         <div className='min-w-0 flex-1'>
           <div className='flex flex-wrap items-center gap-2'>
             <p className='truncate text-sm font-semibold'>{t(meta.nameKey)}</p>

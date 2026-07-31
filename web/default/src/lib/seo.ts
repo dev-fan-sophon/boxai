@@ -312,7 +312,7 @@ export function isPrivateSeoPath(pathname: string): boolean {
 }
 
 export const DEFAULT_SEO_DESCRIPTION =
-  'BoxAI (you-box.com) is a unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin.'
+  'BoxAI (you-box.com) is a unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin.'
 
 /**
  * Resolve default SEO for a pathname when a page does not set its own.
@@ -346,7 +346,7 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
     '/about': {
       title: 'About BoxAI',
       description:
-        'About BoxAI (you-box.com) — the unified AI API gateway for multi-model access, billing, and admin.',
+        'About BoxAI (you-box.com) — unified AI API gateway for multi-model access, billing, and admin. Primary market: Vietnam; secondary: other overseas markets.',
     },
     '/privacy-policy': {
       title: 'Privacy Policy',
@@ -361,7 +361,7 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
     '/docs/what-is-boxai': {
       title: 'What is BoxAI',
       description:
-        'What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access.',
+        'What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.',
     },
     '/docs/getting-started': {
       title: 'Getting Started',

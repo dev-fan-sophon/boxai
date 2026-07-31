@@ -74,10 +74,12 @@ export function Icon({
         </svg>
       );
     case "logo":
-      // The OpenWorker mark — a 6-point star, matching the app + macOS tray icon.
+      // BoxAI spiral mark (simplified for 24px chrome). Filled currentColor so
+      // titlebar / greeting pick up --accent (Desktop warm coral).
       return (
         <svg {...s} fill="currentColor" stroke="none">
-          <path d="M12.00 1.80 L13.35 9.66 L20.83 6.90 L14.70 12.00 L20.83 17.10 L13.35 14.34 L12.00 22.20 L10.65 14.34 L3.17 17.10 L9.30 12.00 L3.17 6.90 L10.65 9.66 Z" />
+          <path d="M12 3.2c2.4 1.1 3.8 2.9 4.2 5.1.6-1.8 1.9-3.1 3.8-3.8-1.2 2.6-1 5-.1 6.9 1.5-.9 3.2-1 5.1-.2-1.9 1.8-3.9 2.4-5.9 2.1 1.3 1.5 1.9 3.3 1.6 5.4-2.2-1.4-4.1-1.6-5.8-.9.3 1.9-.4 3.8-2.1 5.4.2-2.1-.6-3.9-2.1-5.2-1.1 1.8-2.9 2.8-5.2 3 .8-2 .7-3.9-.1-5.6-1.9.7-3.8.4-5.7-.9 1.9-.5 3.5-.3 4.9.4C5.4 12.6 4.7 10.6 5 8.2c1.9.9 3.6.9 5.1.1C9.4 6.7 9 4.7 9.6 2.4c1.5 1.1 2.7 1.2 2.4.8z" />
+          <circle cx="12" cy="12" r="1.55" />
         </svg>
       );
     case "sidebar":

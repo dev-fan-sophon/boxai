@@ -6,6 +6,8 @@ compatibility: Requires curl and jq for API operations. Production shell access 
 
 # Managing the BoxAI Platform
 
+**Market:** BoxAI is **Vietnam-first** (primary), with **other overseas markets** secondary. Prefer VN-relevant payments, OAuth (e.g. Zalo), locale, and compliance when operating the platform; do not assume China-domestic defaults.
+
 Use the management API for application configuration. Use SSH only for deployment infrastructure, containers, database maintenance, reverse proxy configuration, or environment variables that the API cannot manage.
 
 ## Required environment

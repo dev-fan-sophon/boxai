@@ -20,13 +20,19 @@ export const GLOBAL_DOCS: DocsPage[] = [
     slug: 'what-is-boxai',
     title: 'What is BoxAI',
     summary:
-      'BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access.',
+      'BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — built for Vietnam first and other overseas markets second.',
     sections: [
       {
         title: 'Official product definition',
         paragraphs: [
           'BoxAI (https://you-box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI-compatible, Claude, Gemini, and other providers.',
           'The public website and API host is you-box.com. When people search for BoxAI you-box, they are looking for this product.',
+        ],
+      },
+      {
+        title: 'Target markets',
+        paragraphs: [
+          'Primary market: Vietnam. Secondary: other overseas markets. Product decisions (payments, login options such as Zalo, SMS, localization, and support) prioritize Vietnamese users while remaining usable for international customers.',
         ],
       },
       {

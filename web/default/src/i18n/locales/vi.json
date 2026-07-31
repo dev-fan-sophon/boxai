@@ -871,9 +871,11 @@
     "Box AI recommended values": "Giá trị Box AI đề xuất",
     "BoxAI": "BoxAI",
     "BoxAI (https://you-box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI-compatible, Claude, Gemini, and other providers.": "BoxAI (https://you-box.com) là cổng API AI thống nhất chính thức. Một base URL, bộ khóa API và tài khoản thanh toán cho OpenAI-compatible, Claude, Gemini và khác.",
-    "BoxAI (you-box.com) — unified AI API gateway for multi-model access, built for developers and teams.": "BoxAI (you-box.com) — cổng API AI thống nhất đa mô hình cho nhà phát triển và nhóm.",
-    "BoxAI (you-box.com) is a unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin.": "BoxAI (you-box.com) gom OpenAI, Claude, Gemini và 40+ nhà cung cấp. Một endpoint cho mô hình, thanh toán, giới hạn và quản trị.",
-    "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access.": "BoxAI (you-box.com) là cổng API AI thống nhất cho mô hình đa nhà cung cấp, thanh toán và truy cập nhà phát triển.",
+    "BoxAI (you-box.com) — unified AI API gateway for multi-model access, built for Vietnam first and other overseas markets second.": "BoxAI (you-box.com) — cổng API AI thống nhất đa mô hình, xây dựng ưu tiên Việt Nam và hỗ trợ phụ các thị trường nước ngoài khác.",
+    "BoxAI (you-box.com) is a unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin.": "BoxAI (you-box.com) là cổng API AI thống nhất xây dựng ưu tiên Việt Nam, hỗ trợ phụ các thị trường nước ngoài khác. Một endpoint cho OpenAI, Claude, Gemini và 40+ nhà cung cấp — mô hình, thanh toán, giới hạn và quản trị.",
+    "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — built for Vietnam first and other overseas markets second.": "BoxAI (you-box.com) là cổng API AI thống nhất cho mô hình đa nhà cung cấp, thanh toán và truy cập nhà phát triển — ưu tiên Việt Nam, hỗ trợ phụ thị trường nước ngoài khác.",
+    "Primary market: Vietnam. Secondary: other overseas markets. Product decisions (payments, login options such as Zalo, SMS, localization, and support) prioritize Vietnamese users while remaining usable for international customers.": "Thị trường chính: Việt Nam. Phụ: các thị trường nước ngoài khác. Quyết định sản phẩm (thanh toán, đăng nhập như Zalo, SMS, bản địa hóa và hỗ trợ) ưu tiên người dùng Việt Nam, đồng thời vẫn dùng được cho khách quốc tế.",
+    "Target markets": "Thị trường mục tiêu",
     "BoxAI &lt;noreply@example.com&gt;": "BoxAI &lt;noreply@example.com&gt;",
     "BoxAI Connect": "BoxAI Connect",
     "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.": "BoxAI Connect là ứng dụng máy tính giúp đăng nhập tài khoản BoxAI của bạn và cấu hình Claude Code, Codex CLI, Gemini CLI cùng các trình lập trình AI khác để dùng BoxAI.",
@@ -6105,7 +6107,6 @@
     "Undo": "Hoàn tác",
     "Unexpected release payload": "Dữ liệu phiên bản không mong đợi",
     "Unified AI API Gateway": "Cổng API AI thống nhất",
-    "Unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin.": "Cổng API AI thống nhất gom OpenAI, Claude, Gemini và hơn 40 nhà cung cấp. Một endpoint cho mô hình, thanh toán, giới hạn tốc độ và quản trị.",
     "Unified AI gateway, workspace, and desktop apps": "Cổng AI hợp nhất, không gian làm việc và ứng dụng máy tính",
     "Unified API Access": "Truy cập API hợp nhất",
     "Unified API access, real-time usage monitoring, flexible model switching — one panel for all AI capabilities.": "API thống nhất, giám sát usage, đổi mô hình linh hoạt — một bảng điều khiển.",
@@ -6676,6 +6677,7 @@
     "Zone setting updated": "Đã cập nhật thiết lập vùng",
     "Zoom": "Zoom",
     "Zoom in": "Phóng to",
-    "Zoom out": "Thu nhỏ"
+    "Zoom out": "Thu nhỏ",
+    "Unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin.": "Cổng API AI thống nhất xây dựng ưu tiên Việt Nam, hỗ trợ phụ các thị trường nước ngoài khác. Một endpoint cho OpenAI, Claude, Gemini và 40+ nhà cung cấp — mô hình, thanh toán, giới hạn và quản trị."
   }
 }

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { IconBadge } from '@/components/ui/icon-badge'
 import { TitledCard } from '@/components/ui/titled-card'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import {
@@ -24,7 +23,6 @@ import { ClientAppSessionsCard } from './client-app-sessions-card'
 export function ClientAppConsole(props: { app: ClientAppId }) {
   const { t } = useTranslation()
   const meta = CLIENT_APPS[props.app]
-  const AppIcon = meta.icon
   const { release, loading, failed, fallbackUrl } = useAppRelease(props.app)
   const downloads = release?.downloads ?? []
   const primary = primaryDownload(downloads, detectPlatform())
@@ -55,9 +53,13 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
       <section className='bg-card ring-border flex flex-col gap-4 rounded-xl px-4 py-4 ring-1 sm:px-5 sm:py-5'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div className='flex min-w-0 items-start gap-3'>
-            <IconBadge size='lg' tone='primary'>
-              <AppIcon aria-hidden='true' />
-            </IconBadge>
+            <img
+              src={meta.logoSrc}
+              alt=''
+              aria-hidden='true'
+              draggable={false}
+              className='size-10 shrink-0 rounded-[22%] object-contain shadow-xs ring-1 ring-border/40'
+            />
             <div className='min-w-0'>
               <div className='flex flex-wrap items-center gap-2'>
                 <h2 className='text-base font-semibold sm:text-lg'>

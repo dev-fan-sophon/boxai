@@ -4,11 +4,9 @@ import {
   FileText,
   FlaskConical,
   Key,
-  Laptop,
   LayoutDashboard,
   Lightbulb,
   BadgeDollarSign,
-  Plug,
   Radio,
   ServerCog,
   Settings,
@@ -21,6 +19,10 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import {
+  BoxAIConnectIcon,
+  BoxAIDesktopIcon,
+} from '@/features/client-apps/icons'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -71,12 +73,12 @@ export function useSidebarData(): SidebarData {
           {
             title: t('BoxAI Connect'),
             url: '/dashboard/connect',
-            icon: Plug,
+            icon: BoxAIConnectIcon,
           },
           {
             title: t('BoxAI Desktop'),
             url: '/dashboard/desktop',
-            icon: Laptop,
+            icon: BoxAIDesktopIcon,
           },
         ],
       },

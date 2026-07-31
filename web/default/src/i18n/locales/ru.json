@@ -871,9 +871,11 @@
     "Box AI recommended values": "Рекомендуемые значения Box AI",
     "BoxAI": "BoxAI",
     "BoxAI (https://you-box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI-compatible, Claude, Gemini, and other providers.": "BoxAI (https://you-box.com) — официальный единый AI API-шлюз. Один base URL, ключи и биллинг для OpenAI-compatible, Claude, Gemini и др.",
-    "BoxAI (you-box.com) — unified AI API gateway for multi-model access, built for developers and teams.": "BoxAI (you-box.com) — единый AI API-шлюз для мультимодельного доступа, для разработчиков и команд.",
-    "BoxAI (you-box.com) is a unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin.": "BoxAI (you-box.com) объединяет OpenAI, Claude, Gemini и 40+ провайдеров. Один endpoint для моделей, биллинга, лимитов и админки.",
-    "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access.": "BoxAI (you-box.com) — единый AI API-шлюз для мультипровайдерных моделей, биллинга и доступа разработчиков.",
+    "BoxAI (you-box.com) — unified AI API gateway for multi-model access, built for Vietnam first and other overseas markets second.": "BoxAI (you-box.com) — единый AI API-шлюз для мультимодельного доступа: Вьетнам в приоритете, другие зарубежные рынки — во вторую очередь.",
+    "BoxAI (you-box.com) is a unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin.": "BoxAI (you-box.com) — единый AI API-шлюз в первую очередь для Вьетнама, во вторую — для других зарубежных рынков. Один endpoint для OpenAI, Claude, Gemini и 40+ провайдеров — модели, биллинг, лимиты и админка.",
+    "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — built for Vietnam first and other overseas markets second.": "BoxAI (you-box.com) — единый AI API-шлюз для мультипровайдерных моделей, биллинга и доступа разработчиков — в первую очередь Вьетнам, затем другие зарубежные рынки.",
+    "Primary market: Vietnam. Secondary: other overseas markets. Product decisions (payments, login options such as Zalo, SMS, localization, and support) prioritize Vietnamese users while remaining usable for international customers.": "Основной рынок: Вьетнам. Вторичный: другие зарубежные рынки. Решения по продукту (платежи, вход вроде Zalo, SMS, локализация и поддержка) в приоритете для вьетнамских пользователей, при этом сервис остаётся удобным для международных клиентов.",
+    "Target markets": "Целевые рынки",
     "BoxAI &lt;noreply@example.com&gt;": "BoxAI &lt;noreply@example.com&gt;",
     "BoxAI Connect": "BoxAI Connect",
     "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.": "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.",
@@ -6105,7 +6107,6 @@
     "Undo": "Отменить",
     "Unexpected release payload": "Неожиданный формат данных релиза",
     "Unified AI API Gateway": "Единый AI API-шлюз",
-    "Unified AI API gateway aggregating OpenAI, Claude, Gemini and 40+ providers. One endpoint for models, billing, rate limits, and admin.": "Единый AI API-шлюз с OpenAI, Claude, Gemini и 40+ провайдерами. Один endpoint для моделей, биллинга, лимитов и администрирования.",
     "Unified AI gateway, workspace, and desktop apps": "Единый ИИ-шлюз, рабочая область и десктопные приложения",
     "Unified API Access": "Единый доступ к API",
     "Unified API access, real-time usage monitoring, flexible model switching — one panel for all AI capabilities.": "Единый API, мониторинг usage, смена моделей — одна панель.",
@@ -6676,6 +6677,7 @@
     "Zone setting updated": "Настройка зоны обновлена",
     "Zoom": "Zoom",
     "Zoom in": "Приблизить",
-    "Zoom out": "Отдалить"
+    "Zoom out": "Отдалить",
+    "Unified AI API gateway built for Vietnam first and other overseas markets second. One endpoint for OpenAI, Claude, Gemini and 40+ providers — models, billing, rate limits, and admin.": "Единый AI API-шлюз в первую очередь для Вьетнама, во вторую — для других зарубежных рынков. Один endpoint для OpenAI, Claude, Gemini и 40+ провайдеров — модели, биллинг, лимиты и админка."
   }
 }

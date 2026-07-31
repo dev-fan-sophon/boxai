@@ -2,6 +2,8 @@
 
 Canonical production and local ops for this repository.
 
+**Product market:** Vietnam primary; other overseas markets secondary (see root `AGENTS.md` / `README.md`).
+
 ## Architecture
 
 | Component | Production | Local default |

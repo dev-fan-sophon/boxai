@@ -66,7 +66,7 @@ func injectIndexSEO(c *gin.Context, requestPath string, indexHTML []byte) []byte
 	}
 	imageURL := strings.TrimSpace(common.Logo)
 	if imageURL == "" {
-		imageURL = "/logo.png"
+		imageURL = "/og-image.png"
 	}
 
 	if page, ok := common.LookupSEOPage(path); ok {

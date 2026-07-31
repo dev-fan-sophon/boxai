@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 const iconBadgeVariants = cva(
-  'flex shrink-0 items-center justify-center [&>svg]:shrink-0',
+  // svg = Lucide marks; img = product brand marks (Desktop / Connect).
+  'flex shrink-0 items-center justify-center [&>svg]:shrink-0 [&>img]:shrink-0',
   {
     variants: {
       tone: {
@@ -21,12 +22,12 @@ const iconBadgeVariants = cva(
         'chart-5': 'bg-chart-5/10 text-chart-5',
       },
       size: {
-        xs: 'size-5 rounded-md [&>svg]:size-3',
-        sm: 'size-7 rounded-md [&>svg]:size-3.5',
-        md: 'size-8 rounded-lg [&>svg]:size-4',
-        title: 'size-8 rounded-lg sm:size-9 [&>svg]:size-4',
-        lg: 'size-10 rounded-xl [&>svg]:size-5',
-        stat: 'size-5 rounded-md sm:size-7 [&>svg]:size-3 sm:[&>svg]:size-3.5',
+        xs: 'size-5 rounded-md [&>svg]:size-3 [&>img]:size-3',
+        sm: 'size-7 rounded-md [&>svg]:size-3.5 [&>img]:size-3.5',
+        md: 'size-8 rounded-lg [&>svg]:size-4 [&>img]:size-4',
+        title: 'size-8 rounded-lg sm:size-9 [&>svg]:size-4 sm:[&>svg]:size-4 [&>img]:size-4',
+        lg: 'size-10 rounded-xl [&>svg]:size-5 [&>img]:size-5',
+        stat: 'size-5 rounded-md sm:size-7 [&>svg]:size-3 sm:[&>svg]:size-3.5 [&>img]:size-3 sm:[&>img]:size-3.5',
       },
     },
     defaultVariants: {

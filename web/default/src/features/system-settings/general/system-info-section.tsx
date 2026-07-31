@@ -153,12 +153,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
   const previewColor = form.watch('branding.primary_color')
 
   const applyBoxAIRecommendedValues = () => {
-    form.setValue('SystemName', 'Box AI', { shouldDirty: true })
-    form.setValue('Logo', '/box-ai-icon.svg', { shouldDirty: true })
-    form.setValue('branding.favicon_url', '/box-ai-icon.svg', {
+    form.setValue('SystemName', 'BoxAI', { shouldDirty: true })
+    form.setValue('Logo', '/logo.svg', { shouldDirty: true })
+    form.setValue('branding.favicon_url', '/favicon.ico', {
       shouldDirty: true,
     })
-    form.setValue('branding.primary_color', '#2563EB', {
+    form.setValue('branding.primary_color', '#E05A3A', {
       shouldDirty: true,
     })
   }
@@ -291,10 +291,10 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                           type='color'
                           aria-label={t('Brand Primary Color')}
                           className='w-12 p-1'
-                          value={field.value || '#2563EB'}
+                          value={field.value || '#E05A3A'}
                           onChange={field.onChange}
                         />
-                        <Input placeholder='#2563EB' {...field} />
+                        <Input placeholder='#E05A3A' {...field} />
                       </div>
                     </FormControl>
                     <FormDescription>

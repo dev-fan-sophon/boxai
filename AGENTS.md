@@ -6,14 +6,26 @@ DO NOT send optional commentary
 
 This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI providers (OpenAI, Claude, Gemini, Azure, AWS Bedrock, etc.) behind a unified API, with user management, billing, rate limiting, and an admin dashboard.
 
+**Product market (hard rule for product/copy/integrations):**
+
+| Priority | Market | Implications |
+|----------|--------|--------------|
+| **Primary** | **Vietnam** | UX, payments (e.g. Waffo), OAuth (Zalo), i18n (`vi`), SMS/phone auth, compliance, and default assumptions prefer VN users (`+84`, local payment rails, Vietnamese copy quality). |
+| **Secondary** | **Other overseas markets** | English and other locales, international OAuth/payments, and multi-region readiness matter — but do **not** optimize as if China mainland were the home market. |
+
+When choosing vendors (SMS, payment, OAuth, KYC, support language), default to **Vietnam-first, other overseas second**. Do not treat BoxAI as a China-domestic product.
+
+Public site: `https://you-box.com`. Product name: **BoxAI**.
+
 ## Tech Stack
 
 - **Backend**: Go 1.22+, Gin web framework, GORM v2 ORM
 - **Frontend**: React 19, TypeScript, Rsbuild, Base UI, Tailwind CSS
 - **Databases**: SQLite, MySQL, PostgreSQL (all three must be supported)
 - **Cache**: Redis (go-redis) + in-memory cache
-- **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
+- **Auth**: JWT, WebAuthn/Passkeys, OAuth (Zalo, GitHub, Discord, Google, OIDC, etc.)
 - **Frontend package manager**: Bun (preferred over npm/yarn/pnpm)
+- **Primary UI locale focus**: Vietnamese (`vi`) + English; also zh/fr/ru/ja
 
 ## Architecture
 
