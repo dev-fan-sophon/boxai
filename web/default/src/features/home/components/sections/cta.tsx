@@ -49,7 +49,7 @@ export function CTA(props: CTAProps) {
           </Button>
           <Button
             variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 rounded-full'
+            className='border-border/50 hover:border-border hover:bg-muted/50'
             render={<Link to='/pricing' />}
           >
             {t('Model Hub')}

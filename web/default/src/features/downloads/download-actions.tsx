@@ -30,7 +30,7 @@ export function DownloadActions(props: {
 
   if (props.loading) {
     return (
-      <Button size='lg' className='rounded-full' disabled aria-disabled='true'>
+      <Button size='lg' disabled aria-disabled='true'>
         <ArrowDownToLine aria-hidden='true' />
         {t('Checking for the latest build')}
       </Button>
@@ -47,12 +47,7 @@ export function DownloadActions(props: {
     // column stretches it across the whole text measure.
     return (
       <div className='flex flex-col items-start gap-2'>
-        <Button
-          size='lg'
-          className='rounded-full'
-          disabled
-          aria-disabled='true'
-        >
+        <Button size='lg' disabled aria-disabled='true'>
           <ArrowDownToLine aria-hidden='true' />
           {props.failed
             ? t('Downloads are unavailable right now')
@@ -85,7 +80,6 @@ export function DownloadActions(props: {
     <div className='flex flex-wrap items-center gap-2'>
       <Button
         size='lg'
-        className='rounded-full'
         render={<a href={primaryUrl} download rel='noopener noreferrer' />}
       >
         <ArrowDownToLine aria-hidden='true' />
@@ -99,7 +93,6 @@ export function DownloadActions(props: {
               <Button
                 size='lg'
                 variant='outline'
-                className='rounded-full'
                 aria-label={t('Other platforms')}
               />
             }

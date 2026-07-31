@@ -226,7 +226,7 @@ export function PublicHeader(props: PublicHeaderProps) {
               {links.map((link) => {
                 const isActive = isNavLinkActive(pathname, link.href)
                 const linkClassName = cn(
-                  'transition-ui duration-control rounded-full px-3 py-1.5 text-[13px] font-medium',
+                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-[13px] font-medium',
                   isActive
                     ? 'bg-foreground/[0.06] text-foreground'
                     : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
@@ -287,7 +287,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                 <>
                   <div className='bg-border/50 mx-1 h-4 w-px' />
                   {loading ? (
-                    <Skeleton className='h-8 w-20 rounded-full' />
+                    <Skeleton className='h-8 w-20 rounded-lg' />
                   ) : (
                     <>
                       {showConsoleCta &&
@@ -318,7 +318,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                         <Button
                           size='sm'
                           variant='outline'
-                          className='h-8 rounded-full px-3.5 text-xs font-medium'
+                          className='h-8 px-3.5 text-xs font-medium'
                           render={<Link to='/sign-in' />}
                         >
                           {t('Sign in')}
@@ -466,7 +466,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                   <Link
                     to='/sign-in'
                     onClick={() => setMobileOpen(false)}
-                    className='border-border bg-background text-foreground inline-flex h-10 items-center justify-center rounded-full border text-sm font-medium transition-opacity hover:opacity-90'
+                    className='border-border bg-background text-foreground inline-flex h-10 items-center justify-center rounded-lg border text-sm font-medium transition-opacity hover:opacity-90'
                   >
                     {t('Sign in')}
                   </Link>

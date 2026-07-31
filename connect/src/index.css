@@ -11,8 +11,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    /* Connect rose-coral — sibling of web #E05A3A / Desktop warm coral */
-    --primary: 357 60% 58%;
+    /* Connect: same coral family as web/Desktop, slightly less saturated */
+    --primary: 14 58% 59%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 4.8% 95.9%;
@@ -28,7 +28,7 @@
 
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 357 60% 58%;
+    --ring: 14 58% 59%;
 
     --radius: 0.5rem;
   }
@@ -41,7 +41,7 @@
     --popover: 240 5% 16%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 357 58% 60%;
+    --primary: 14 58% 62%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 5% 18%;
@@ -57,7 +57,7 @@
 
     --border: 240 5% 24%;
     --input: 240 5% 24%;
-    --ring: 357 58% 60%;
+    --ring: 14 58% 62%;
   }
 }
 

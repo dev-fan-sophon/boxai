@@ -23,17 +23,15 @@ Source mark: spiral / vortex flower (coral → peach gradient, cream core).
 
 UI theme default (`web/default/src/styles/theme.css`) and admin “BoxAI recommended values” both use `#E05A3A`.
 
-## Product siblings (same mark, distinct hue)
+## Product siblings (same coral mark)
 
-Same spiral; **HSV hue shift** + plate so Dock / taskbar icons are easy to tell apart.
+| Product | Treatment | Mark | Plate | UI accent |
+|---------|-----------|------|-------|-----------|
+| **Web** | Coral logo | `#F08050` | transparent | `#E05A3A` |
+| **Desktop** | **Same coral logo as-is** | original | `#0B0B0C` | `#E05A3A` |
+| **Connect** | Same logo, **saturation ×0.78 only** | slightly softer coral | `#0B0B0C` | `#D4785C` |
 
-| Product | Hue | Mark ≈ | Plate | UI accent | Code |
-|---------|-----|--------|-------|-----------|------|
-| **Web** | 0° (base) | `#F08050` | transparent | `#E05A3A` | `web/default` |
-| **Desktop** | +10° warm peach | `#F09048` | `#14110F` | `#EA6B2F` | `desktop/.../styles.css` `--accent`, `src/branding.ts` |
-| **Connect** | −22° rose | `#E87070` | `#0E1218` | `#D4545A` | `connect/src/index.css` `--primary`, `config/branding.ts` |
-
-Exports: `exports/mark-desktop.png`, `exports/mark-connect.png`, `exports/app-icon-desktop-512.png`, `exports/app-icon-connect-512.png`, matching SVGs.
+No hue swap / flat recolor. Dock distinction is subtle by design.
 
 ## Where logos appear (full stack)
 
@@ -66,17 +64,13 @@ Code touchpoints:
 - `common/seo.go` / `router/web-router.go` — server HTML SEO inject
 - `web/default/src/lib/seo.ts` — client SEO + JSON-LD Organization.logo
 
-### Desktop (`desktop/surfaces/gui/`) — warm peach-coral
+### Desktop (`desktop/surfaces/gui/`) — same coral as web
 
-- `assets/icon.png` — UI asset
-- `src-tauri/icons/*` — Tauri app icon, `.icns`, `.ico`, Windows Store tiles, `tray.png` / `tray.rgba`
-- In-app mark: `src/components/Icon.tsx` (`name="logo"`, `currentColor` → `--accent`)
-- Tokens: `src/branding.ts`, `src/styles.css` `--accent: #ea6b2f`
+- Icons + tray under `src-tauri/icons/`; UI accent `#e05a3a`
 
-### Connect (`connect/`) — cool rose-coral
+### Connect (`connect/`) — slightly less saturated coral
 
-- `src-tauri/icons/*` — Tauri app icon set + `icon.svg`
-- Tokens: `src/config/branding.ts`, `src/index.css` `--primary: 357 60% 58%`
+- Icons under `src-tauri/icons/`; UI primary `#D4785C` (sat only)
 
 ## Processing pipeline (original → kit)
 

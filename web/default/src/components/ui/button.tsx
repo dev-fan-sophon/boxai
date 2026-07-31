@@ -19,11 +19,9 @@ const buttonVariants = cva(
         destructive:
           'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
         link: 'text-primary underline-offset-4 hover:underline',
-        // Marketing call to action. The gradient runs between two theme tokens
-        // so it tracks a configured brand color instead of pinning blue/violet,
-        // and the label uses the derived primary foreground so a light brand
-        // color stays legible.
-        cta: 'rounded-full bg-gradient-to-r from-primary to-chart-2 text-primary-foreground shadow-md hover:from-primary/90 hover:to-chart-2/90',
+        // Marketing call to action. Same radius as default (rounded-lg); gradient
+        // tracks brand tokens so it stays legible with light brand colors.
+        cta: 'bg-gradient-to-r from-primary to-chart-2 text-primary-foreground shadow-md hover:from-primary/90 hover:to-chart-2/90',
       },
       size: {
         default:

@@ -66,7 +66,7 @@ export function DesktopCta(props: {
         {!isAuthenticated && (
           <Button
             variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 mt-3 rounded-full'
+            className='border-border/50 hover:border-border hover:bg-muted/50 mt-3'
             render={<Link to='/sign-up' />}
           >
             {t('Create a BoxAI account')}

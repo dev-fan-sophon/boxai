@@ -31,34 +31,29 @@ MARK_MID = "#F08050"
 MARK_CENTER = "#FFF3E0"
 INK = "#0B0B0C"
 
-# Product siblings: same mark, distinct hue + plate (Dock / taskbar).
+# Web + Desktop = coral as-is; Connect = same mark, saturation only.
 PRODUCTS = {
     "web": {
-        "hue_shift": 0.0,
-        "sat_mul": 1.0,
-        "val_mul": 1.0,
+        "mode": "as_is",
         "plate": None,
         "ui": "#E05A3A",
         "mark_mid": "#F08050",
     },
     "desktop": {
-        "hue_shift": 10.0,  # warm peach-coral
-        "sat_mul": 1.03,
-        "val_mul": 1.01,
-        "plate": "#14110F",
-        "ui": "#EA6B2F",
-        "mark_mid": "#F09048",
+        "mode": "as_is",
+        "plate": "#0B0B0C",
+        "ui": "#E05A3A",
+        "mark_mid": "#F08050",
         "icons_dir": "desktop/surfaces/gui/src-tauri/icons",
         "asset_icon": "desktop/surfaces/gui/assets/icon.png",
         "tray": True,
     },
     "connect": {
-        "hue_shift": -22.0,  # cool rose-coral
-        "sat_mul": 1.0,
-        "val_mul": 0.98,
-        "plate": "#0E1218",
-        "ui": "#D4545A",
-        "mark_mid": "#E87070",
+        "mode": "desat",
+        "sat_mul": 0.78,
+        "plate": "#0B0B0C",
+        "ui": "#D4785C",
+        "mark_mid": "#E48F73",
         "icons_dir": "connect/src-tauri/icons",
         "tray": False,
     },
@@ -124,15 +119,13 @@ def clean_source_to_master(src: Path, out: Path) -> Image.Image:
     return canvas
 
 
-def shift_mark_hsv(
-    img: Image.Image, hue_deg: float, sat_mul: float = 1.0, val_mul: float = 1.0
-) -> Image.Image:
-    """HSV-shift warm mark colors; preserve cream center and alpha."""
+def desaturate_mark(img: Image.Image, sat_mul: float = 0.78) -> Image.Image:
+    """Connect only: lower saturation; keep hue and lighting of the coral mark."""
     arr = np.array(img).astype(np.float32)
     a = arr[:, :, 3]
     r, g, b = arr[:, :, 0] / 255.0, arr[:, :, 1] / 255.0, arr[:, :, 2] / 255.0
-    cream = (arr[:, :, 0] > 230) & (arr[:, :, 1] > 200) & (arr[:, :, 2] > 160) & (a > 40)
-    mask = (a > 20) & ~cream
+    cream = (arr[:, :, 0] > 220) & (arr[:, :, 1] > 200) & (arr[:, :, 2] > 160) & (a > 40)
+    mask = (a > 16) & ~cream
     mx = np.maximum(np.maximum(r, g), b)
     mn = np.minimum(np.minimum(r, g), b)
     diff = mx - mn
@@ -145,23 +138,21 @@ def shift_mark_hsv(
     h = np.where((mx == r) & (diff > 0), (bc - gc) / 6.0 % 1.0, h)
     h = np.where((mx == g) & (diff > 0), (2.0 + rc - bc) / 6.0, h)
     h = np.where((mx == b) & (diff > 0), (4.0 + gc - rc) / 6.0, h)
-    h2 = (h + hue_deg / 360.0) % 1.0
     s2 = np.clip(s * sat_mul, 0, 1)
-    v2 = np.clip(v * val_mul, 0, 1)
-    i = np.floor(h2 * 6).astype(np.int32)
-    f = h2 * 6 - i
-    p = v2 * (1 - s2)
-    q = v2 * (1 - f * s2)
-    t = v2 * (1 - (1 - f) * s2)
+    i = np.floor(h * 6).astype(np.int32)
+    f = h * 6 - i
+    p = v * (1 - s2)
+    q = v * (1 - f * s2)
+    t = v * (1 - (1 - f) * s2)
     im = i % 6
-    r2 = np.choose(im, [v2, q, p, p, t, v2])
-    g2 = np.choose(im, [t, v2, v2, q, p, p])
-    b2 = np.choose(im, [p, p, t, v2, v2, q])
+    r2 = np.choose(im, [v, q, p, p, t, v])
+    g2 = np.choose(im, [t, v, v, q, p, p])
+    b2 = np.choose(im, [p, p, t, v, v, q])
     out = arr.copy()
     out[:, :, 0] = np.where(mask, r2 * 255, arr[:, :, 0])
     out[:, :, 1] = np.where(mask, g2 * 255, arr[:, :, 1])
     out[:, :, 2] = np.where(mask, b2 * 255, arr[:, :, 2])
-    return Image.fromarray(out.astype(np.uint8), "RGBA")
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
 def resize_mark(master: Image.Image, size: int, pad_ratio: float = 0.08) -> Image.Image:
@@ -398,8 +389,11 @@ def main() -> None:
     for key, cfg in PRODUCTS.items():
         if key == "web":
             continue
-        print(f"  {key}: hue={cfg['hue_shift']} plate={cfg['plate']} ui={cfg['ui']}")
-        mark = shift_mark_hsv(work, cfg["hue_shift"], cfg["sat_mul"], cfg["val_mul"])
+        print(f"  {key}: mode={cfg.get('mode')} plate={cfg['plate']} ui={cfg['ui']}")
+        if cfg.get("mode") == "desat":
+            mark = desaturate_mark(work, float(cfg.get("sat_mul", 0.78)))
+        else:
+            mark = work  # as_is — Web / Desktop coral body
         plate = cfg["plate"] or INK
         icons = ROOT / cfg["icons_dir"]
 

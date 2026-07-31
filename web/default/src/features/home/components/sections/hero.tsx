@@ -138,7 +138,8 @@ export function Hero(props: HeroProps) {
             </Button>
             <Button
               variant='outline'
-              className='border-border/50 hover:border-border hover:bg-muted/50 h-11 rounded-full px-6 text-sm font-medium'
+              size='lg'
+              className='border-border/50 hover:border-border hover:bg-muted/50 h-11 px-6 text-sm font-medium'
               render={
                 workspaceEnabled ? (
                   <Link to='/playground' />
