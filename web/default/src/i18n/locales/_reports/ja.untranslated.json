@@ -16,6 +16,7 @@
   "Connection selected": "Connection selected",
   "Copy failed": "Copy failed",
   "Could not capture the video frame. Check that the video allows cross-origin access.": "Could not capture the video frame. Check that the video allows cross-origin access.",
+  "D{{offset}}": "D{{offset}}",
   "Discord ID": "Discord ID",
   "Download {{product}}": "Download {{product}}",
   "Drag a free rectangle over the image.": "Drag a free rectangle over the image.",
