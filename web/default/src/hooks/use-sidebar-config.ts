@@ -16,11 +16,9 @@ type SidebarModulesAdminConfig = Record<string, SidebarSectionConfig>
 type SidebarModulesUserConfig = SidebarModulesAdminConfig | null
 
 /**
- * Default sidebar modules configuration
- */
-/**
  * Apilio-style defaults for regular console:
- * Dashboard / Token / Wallet / Logs.
+ * Dashboard / Token / Wallet. Usage logs stay off by default — operators
+ * re-enable them under System Settings → Sidebar modules when needed.
  * External chat-app presets (chat.chat) stay off by default.
  */
 const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
@@ -32,9 +30,9 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     enabled: true,
     detail: true,
     token: true,
-    log: true,
-    midjourney: true,
-    task: true,
+    log: false,
+    midjourney: false,
+    task: false,
   },
   personal: {
     enabled: true,
@@ -85,27 +83,31 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/dashboard/overview': { section: 'console', module: 'detail' },
   '/dashboard/models': { section: 'console', module: 'detail' },
   '/keys': { section: 'console', module: 'token' },
+  // Personal usage logs only. Admin site-wide logs are intentionally unmapped
+  // so turning console.log off for regular users does not hide operator tools.
   '/usage-logs': { section: 'console', module: 'log' },
   '/usage-logs/common': { section: 'console', module: 'log' },
   '/usage-logs/drawing': { section: 'console', module: 'midjourney' },
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/billing': { section: 'personal', module: 'topup' },
   '/profile': { section: 'personal', module: 'personal' },
-  // Admin site-wide analytics/logs use the same module toggles as their
-  // personal counterparts so operators can hide both surfaces together.
+  // Site analytics share the dashboard module toggle with the personal detail view.
   '/admin/analytics': { section: 'console', module: 'detail' },
   '/admin/analytics/models': { section: 'console', module: 'detail' },
   '/admin/analytics/flow': { section: 'console', module: 'detail' },
   '/admin/analytics/users': { section: 'console', module: 'detail' },
-  '/admin/usage-logs': { section: 'console', module: 'log' },
-  '/admin/usage-logs/common': { section: 'console', module: 'log' },
-  '/admin/usage-logs/drawing': { section: 'console', module: 'midjourney' },
-  '/admin/usage-logs/task': { section: 'console', module: 'task' },
   '/channels': { section: 'admin', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },
   '/models/metadata': { section: 'admin', module: 'models' },
   '/models/deployments': { section: 'admin', module: 'models' },
   '/users': { section: 'admin', module: 'user' },
+  // Commerce tabs live under Pricing Center; keep the same module keys so the
+  // System Settings sidebar-modules switches still apply.
+  '/pricing-center/redemption': { section: 'admin', module: 'redemption' },
+  '/pricing-center/topup-reviews': {
+    section: 'admin',
+    module: 'topup_review',
+  },
   '/redemption-codes': { section: 'admin', module: 'redemption' },
   '/topup-reviews': { section: 'admin', module: 'topup_review' },
   '/system-settings': { section: 'admin', module: 'setting' },

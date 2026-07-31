@@ -7,23 +7,38 @@ import { RedemptionsPrimaryButtons } from './components/redemptions-primary-butt
 import { RedemptionsProvider } from './components/redemptions-provider'
 import { RedemptionsTable } from './components/redemptions-table'
 
-export function Redemptions() {
+/**
+ * @param embedded When true, omit the page chrome so the table can sit inside
+ *   Pricing Center as a tab panel. The host supplies the page title.
+ */
+export function Redemptions(props: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
-  return (
+  const body = (
     <RedemptionsProvider>
-      <SectionPageLayout fixedContent>
-        <SectionPageLayout.Title>
-          {t('Redemption Codes')}
-        </SectionPageLayout.Title>
-        <SectionPageLayout.Actions>
-          <RedemptionsPrimaryButtons />
-        </SectionPageLayout.Actions>
-        <SectionPageLayout.Content>
-          <RedemptionsTable />
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
-
+      {props.embedded ? (
+        <div className='flex h-full min-h-0 flex-col gap-3'>
+          <div className='flex shrink-0 justify-end'>
+            <RedemptionsPrimaryButtons />
+          </div>
+          <div className='min-h-0 flex-1'>
+            <RedemptionsTable />
+          </div>
+        </div>
+      ) : (
+        <SectionPageLayout fixedContent>
+          <SectionPageLayout.Title>
+            {t('Redemption Codes')}
+          </SectionPageLayout.Title>
+          <SectionPageLayout.Actions>
+            <RedemptionsPrimaryButtons />
+          </SectionPageLayout.Actions>
+          <SectionPageLayout.Content>
+            <RedemptionsTable />
+          </SectionPageLayout.Content>
+        </SectionPageLayout>
+      )}
       <RedemptionsDialogs />
     </RedemptionsProvider>
   )
+  return body
 }

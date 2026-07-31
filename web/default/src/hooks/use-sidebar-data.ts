@@ -5,13 +5,9 @@ import {
   FlaskConical,
   Key,
   LayoutDashboard,
-  Lightbulb,
   BadgeDollarSign,
   Radio,
-  ServerCog,
   Settings,
-  Ticket,
-  ClipboardCheck,
   User,
   Users,
   Wallet,
@@ -151,15 +147,19 @@ export function useSidebarData(): SidebarData {
             icon: Box,
           },
           {
+            // Commerce surface: model pricing (root) + redemption / top-up
+            // reviews (admin+). Entry is admin-visible; tab-level guards keep
+            // pricing/payment tabs root-only.
             title: t('Pricing Center'),
             url: '/pricing-center',
+            activeUrls: ['/pricing-center'],
+            configUrls: [
+              '/pricing-center',
+              '/pricing-center/redemption',
+              '/pricing-center/topup-reviews',
+            ],
             icon: BadgeDollarSign,
-            requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
-            title: t('Inspiration templates'),
-            url: '/inspiration-admin',
-            icon: Lightbulb,
+            requiredRole: ROLE.ADMIN,
           },
           {
             title: t('Users'),
@@ -168,22 +168,8 @@ export function useSidebarData(): SidebarData {
             icon: Users,
           },
           {
-            title: t('Redemption Codes'),
-            url: '/redemption-codes',
-            icon: Ticket,
-          },
-          {
-            title: t('Top-up Reviews'),
-            url: '/topup-reviews',
-            icon: ClipboardCheck,
-          },
-          {
-            title: t('System Info'),
-            url: '/system-info',
-            icon: ServerCog,
-            requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
+            // Nested drill-in also hosts inspiration templates (Content) and
+            // cluster System Info (Operations). Keep a single root entry.
             title: t('System Settings'),
             url: '/system-settings/site',
             activeUrls: ['/system-settings'],

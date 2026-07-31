@@ -14,7 +14,10 @@ import { parseCurrencyDisplayType } from '@/lib/currency'
 import type { PricingCenterTab } from './tabs'
 
 export function PricingSettingsTab(props: {
-  tab: Exclude<PricingCenterTab, 'models' | 'subscriptions'>
+  tab: Exclude<
+    PricingCenterTab,
+    'models' | 'subscriptions' | 'redemption' | 'topup-reviews'
+  >
 }) {
   const { t } = useTranslation()
   const { data, isLoading } = useSystemOptions()

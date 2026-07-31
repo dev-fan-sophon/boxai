@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { SectionPageLayout } from '@/components/layout'
+// Leaf import: avoid `@/components/layout` barrel (pulls authenticated layout
+// and creates a cycle via system-settings sidebar view → this feature).
+import { SectionPageLayout } from '@/components/layout/components/section-page-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,7 +44,11 @@ const queryKeys = {
 
 type ConfirmState = { title: string; description: string; run: () => void }
 
-export function InspirationAdmin() {
+/**
+ * @param embedded When true, omit page chrome so System Settings can host the
+ *   panel under Content → Inspiration templates.
+ */
+export function InspirationAdmin(props: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
@@ -95,13 +101,7 @@ export function InspirationAdmin() {
     (version) => version.id === detail.data?.template.published_version_id
   )
 
-  return (
-    <>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>
-          {t('Official inspiration templates')}
-        </SectionPageLayout.Title>
-        <SectionPageLayout.Content>
+  const panel = (
           <div className='flex flex-col gap-6'>
             <p className='text-muted-foreground text-sm'>
               {t('Manage official recipes, releases, and categories.')}
@@ -244,8 +244,20 @@ export function InspirationAdmin() {
               </TabsContent>
             </Tabs>
           </div>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
+  )
+
+  return (
+    <>
+      {props.embedded ? (
+        panel
+      ) : (
+        <SectionPageLayout>
+          <SectionPageLayout.Title>
+            {t('Official inspiration templates')}
+          </SectionPageLayout.Title>
+          <SectionPageLayout.Content>{panel}</SectionPageLayout.Content>
+        </SectionPageLayout>
+      )}
       <VersionEditor
         open={editingDraft}
         version={draft ?? publishedVersion}

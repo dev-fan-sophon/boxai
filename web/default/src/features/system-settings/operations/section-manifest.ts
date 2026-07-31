@@ -13,6 +13,8 @@ export const OPERATIONS_SECTION_IDS = [
   'logs',
   'performance',
   'update-checker',
+  // Cluster instances + background tasks (formerly top-level /system-info).
+  'system-info',
 ] as const
 
 export type OperationsSectionId = (typeof OPERATIONS_SECTION_IDS)[number]

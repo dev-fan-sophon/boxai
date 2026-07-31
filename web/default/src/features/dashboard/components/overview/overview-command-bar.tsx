@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -84,6 +85,7 @@ function SignalValue(props: { signal: CommandBarSignal }) {
 
 export function OverviewCommandBar(props: OverviewCommandBarProps) {
   const { t } = useTranslation()
+  const usageLogsVisible = useIsSidebarModuleVisible('/usage-logs')
 
   return (
     <section className='bg-card relative overflow-hidden rounded-2xl border shadow-xs'>
@@ -133,15 +135,17 @@ export function OverviewCommandBar(props: OverviewCommandBarProps) {
             <KeyRound data-icon='inline-start' />
             {t('API Keys')}
           </Button>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='max-sm:hidden'
-            render={<Link to='/usage-logs' />}
-          >
-            <FileText data-icon='inline-start' />
-            {t('Usage Logs')}
-          </Button>
+          {usageLogsVisible && (
+            <Button
+              variant='ghost'
+              size='sm'
+              className='max-sm:hidden'
+              render={<Link to='/usage-logs' />}
+            >
+              <FileText data-icon='inline-start' />
+              {t('Usage Logs')}
+            </Button>
+          )}
         </div>
       </div>
     </section>

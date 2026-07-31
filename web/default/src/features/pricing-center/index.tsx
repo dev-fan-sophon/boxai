@@ -1,15 +1,25 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Suspense, lazy, useState, type ReactNode } from 'react'
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SettingsPageProvider } from '@/features/system-settings/components/settings-page-context'
+import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
+import { useAuthStore } from '@/stores/auth-store'
 
 import {
   PRICING_CENTER_TABS,
   PRICING_CENTER_TAB_TITLE_KEYS,
+  canAccessPricingCenterTab,
   type PricingCenterTab,
 } from './tabs'
 
@@ -31,16 +41,58 @@ const SubscriptionsTab = lazy(() =>
   }))
 )
 
+const RedemptionsTab = lazy(() =>
+  import('@/features/redemption-codes').then((module) => ({
+    default: module.Redemptions,
+  }))
+)
+
+const TopUpReviewsTab = lazy(() =>
+  import('@/features/topup-reviews').then((module) => ({
+    default: module.TopUpReviews,
+  }))
+)
+
 export function PricingCenter(props: {
   tab: PricingCenterTab
   initialModelFilter?: string
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const role = useAuthStore((state) => state.auth.user?.role)
+  const redemptionVisible = useIsSidebarModuleVisible(
+    '/pricing-center/redemption'
+  )
+  const topupReviewsVisible = useIsSidebarModuleVisible(
+    '/pricing-center/topup-reviews'
+  )
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
   const [titleStatusContainer, setTitleStatusContainer] =
     useState<HTMLSpanElement | null>(null)
+
+  const visibleTabs = useMemo(
+    () =>
+      PRICING_CENTER_TABS.filter((tab) => {
+        if (!canAccessPricingCenterTab(tab, role)) return false
+        if (tab === 'redemption') return redemptionVisible
+        if (tab === 'topup-reviews') return topupReviewsVisible
+        return true
+      }),
+    [role, redemptionVisible, topupReviewsVisible]
+  )
+
+  // Module toggles can hide the active tab after load; bounce to the first
+  // remaining tab instead of rendering an empty shell.
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(props.tab)) {
+      void navigate({
+        to: '/pricing-center/$tab',
+        params: { tab: visibleTabs[0] },
+        replace: true,
+      })
+    }
+  }, [navigate, props.tab, visibleTabs])
 
   const handleTabChange = (value: string) => {
     if (value === props.tab) return
@@ -57,14 +109,22 @@ export function PricingCenter(props: {
     )
   } else if (props.tab === 'subscriptions') {
     tabContent = <SubscriptionsTab />
+  } else if (props.tab === 'redemption') {
+    tabContent = <RedemptionsTab embedded />
+  } else if (props.tab === 'topup-reviews') {
+    tabContent = <TopUpReviewsTab embedded />
   } else {
     tabContent = <PricingSettingsTab tab={props.tab} />
   }
 
+  const isFixed =
+    props.tab === 'models' ||
+    props.tab === 'subscriptions' ||
+    props.tab === 'redemption' ||
+    props.tab === 'topup-reviews'
+
   return (
-    <SectionPageLayout
-      fixedContent={props.tab === 'models' || props.tab === 'subscriptions'}
-    >
+    <SectionPageLayout fixedContent={isFixed}>
       <SectionPageLayout.Title>
         <span className='inline-flex max-w-full min-w-0 items-center gap-2 align-middle'>
           <span className='truncate'>{t('Pricing Center')}</span>
@@ -82,19 +142,25 @@ export function PricingCenter(props: {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className='flex h-full min-h-0 flex-col gap-3'>
-          <Tabs
-            value={props.tab}
-            onValueChange={handleTabChange}
-            className='shrink-0'
-          >
-            <TabsList className='grid w-fit max-w-full grid-cols-5'>
-              {PRICING_CENTER_TABS.map((tab) => (
-                <TabsTrigger key={tab} value={tab}>
-                  {t(PRICING_CENTER_TAB_TITLE_KEYS[tab])}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <div className='shrink-0 overflow-x-auto pb-0.5'>
+            <Tabs
+              value={props.tab}
+              onValueChange={handleTabChange}
+              className='w-max'
+            >
+              <TabsList>
+                {visibleTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab}
+                    className='px-2.5 text-xs whitespace-nowrap'
+                  >
+                    {t(PRICING_CENTER_TAB_TITLE_KEYS[tab])}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
 
           <div className='min-h-0 flex-1'>
             <SettingsPageProvider

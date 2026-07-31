@@ -52,18 +52,20 @@ export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
   about: false,
 }
 
+// Keep in lockstep with DEFAULT_SIDEBAR_MODULES in hooks/use-sidebar-config.ts.
+// Usage logs default off; operators re-enable via the sidebar-modules form.
 export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
   chat: {
     enabled: true,
-    chat: true,
+    chat: false,
   },
   console: {
     enabled: true,
     detail: true,
     token: true,
-    log: true,
-    midjourney: true,
-    task: true,
+    log: false,
+    midjourney: false,
+    task: false,
   },
   personal: {
     enabled: true,
@@ -77,6 +79,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     redemption: true,
     user: true,
     setting: true,
+    topup_review: true,
   },
 }
 

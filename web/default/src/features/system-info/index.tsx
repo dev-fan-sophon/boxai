@@ -1,13 +1,33 @@
 import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from '@/components/layout'
+// Leaf import: avoid `@/components/layout` barrel (cycle via system-settings nav).
+import { SectionPageLayout } from '@/components/layout/components/section-page-layout'
 import { Badge } from '@/components/ui/badge'
 
 import { SystemInstancesPanel } from './components/system-instances-panel'
 import { SystemTasksPanel } from './components/system-tasks-panel'
 
-export function SystemInfo() {
+/**
+ * Cluster runtime panel (instances + background tasks).
+ *
+ * Distinct from System Settings → Site → System Information (branding copy).
+ *
+ * @param embedded When true, omit page chrome so System Settings → Operations
+ *   can host this panel under "System Info".
+ */
+export function SystemInfo(props: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
+
+  const panel = (
+    <div className='space-y-4'>
+      <SystemInstancesPanel />
+      <SystemTasksPanel />
+    </div>
+  )
+
+  if (props.embedded) {
+    return panel
+  }
 
   return (
     <SectionPageLayout>
@@ -19,12 +39,7 @@ export function SystemInfo() {
           </Badge>
         </span>
       </SectionPageLayout.Title>
-      <SectionPageLayout.Content>
-        <div className='space-y-4'>
-          <SystemInstancesPanel />
-          <SystemTasksPanel />
-        </div>
-      </SectionPageLayout.Content>
+      <SectionPageLayout.Content>{panel}</SectionPageLayout.Content>
     </SectionPageLayout>
   )
 }

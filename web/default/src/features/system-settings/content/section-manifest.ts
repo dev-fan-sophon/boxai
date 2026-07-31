@@ -13,6 +13,7 @@ export const CONTENT_SECTION_IDS = [
   'uptime-kuma',
   'chat',
   'drawing',
+  'inspiration',
 ] as const
 
 export type ContentSectionId = (typeof CONTENT_SECTION_IDS)[number]

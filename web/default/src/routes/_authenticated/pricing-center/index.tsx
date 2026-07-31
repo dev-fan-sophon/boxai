@@ -1,15 +1,18 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { z } from 'zod'
 
-import { PRICING_CENTER_DEFAULT_TAB } from '@/features/pricing-center/tabs'
+import { defaultPricingCenterTab } from '@/features/pricing-center/tabs'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated/pricing-center/')({
-  validateSearch: z.object({ model: z.string().optional() }),
-  beforeLoad: ({ search }) => {
+  beforeLoad: () => {
+    const role = useAuthStore.getState().auth.user?.role
+    if (role === undefined || role < ROLE.ADMIN) {
+      throw redirect({ to: '/403' })
+    }
     throw redirect({
       to: '/pricing-center/$tab',
-      params: { tab: PRICING_CENTER_DEFAULT_TAB },
-      search,
+      params: { tab: defaultPricingCenterTab(role) },
     })
   },
 })

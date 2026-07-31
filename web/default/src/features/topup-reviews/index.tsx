@@ -46,7 +46,11 @@ function getStatusLabel(value: TopUpSubmissionStatus) {
   return 'Submitted'
 }
 
-export function TopUpReviews() {
+/**
+ * @param embedded When true, omit page chrome so the host (Pricing Center tab)
+ *   owns the title and layout.
+ */
+export function TopUpReviews(props: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
   const [items, setItems] = useState<TopUpReview[]>([])
   const [status, setStatus] = useState('submitted')
@@ -118,11 +122,8 @@ export function TopUpReviews() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  return (
+  const panel = (
     <>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>{t('Top-up Reviews')}</SectionPageLayout.Title>
-        <SectionPageLayout.Content>
           <div className='space-y-4'>
             <form
               className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
@@ -324,8 +325,21 @@ export function TopUpReviews() {
               </div>
             </div>
           </PageFooterPortal>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
+    </>
+  )
+
+  return (
+    <>
+      {props.embedded ? (
+        panel
+      ) : (
+        <SectionPageLayout>
+          <SectionPageLayout.Title>
+            {t('Top-up Reviews')}
+          </SectionPageLayout.Title>
+          <SectionPageLayout.Content>{panel}</SectionPageLayout.Content>
+        </SectionPageLayout>
+      )}
       <Dialog
         open={rejectItem !== null}
         onOpenChange={(open) => !open && setRejectItem(null)}

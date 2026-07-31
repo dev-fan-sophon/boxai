@@ -86,7 +86,9 @@ export function SidebarModulesSection({
       },
       log: {
         title: t('Usage logs'),
-        description: t('Detailed request logs for investigations.'),
+        description: t(
+          'Personal request logs for regular users. Off by default.'
+        ),
       },
       midjourney: {
         title: t('Drawing logs'),
@@ -118,7 +120,15 @@ export function SidebarModulesSection({
       },
       redemption: {
         title: t('Redeem codes'),
-        description: t('Create and review invite or credit codes.'),
+        description: t(
+          'Pricing Center tab for invite and credit code management.'
+        ),
+      },
+      topup_review: {
+        title: t('Top-up Reviews'),
+        description: t(
+          'Pricing Center tab for Bank QR payment proof reviews.'
+        ),
       },
       user: {
         title: t('Users'),

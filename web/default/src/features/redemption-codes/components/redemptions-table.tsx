@@ -26,7 +26,9 @@ import { useRedemptionsColumns } from './redemptions-columns'
 import { RedemptionsMobileList } from './redemptions-mobile-list'
 import { useRedemptions } from './redemptions-provider'
 
-const route = getRouteApi('/_authenticated/redemption-codes/')
+// Table URL state lives on the Pricing Center tab route (commerce host).
+// Legacy /redemption-codes redirects here and must not keep its own search.
+const route = getRouteApi('/_authenticated/pricing-center/$tab')
 
 function isDisabledRedemptionRow(redemption: Redemption) {
   return (

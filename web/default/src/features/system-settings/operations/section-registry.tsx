@@ -12,6 +12,7 @@ import {
   OPERATIONS_SECTION_IDS,
   type OperationsSectionId,
 } from './section-manifest'
+import { OperationsSystemInfoSection } from './system-info-section'
 
 const OPERATIONS_SECTIONS = [
   {
@@ -127,6 +128,11 @@ const OPERATIONS_SECTIONS = [
         startTime={startTime}
       />
     ),
+  },
+  {
+    id: 'system-info',
+    titleKey: 'System Info',
+    build: () => <OperationsSystemInfoSection />,
   },
 ] as const
 

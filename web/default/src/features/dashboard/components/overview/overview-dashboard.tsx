@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CircleGauge,
   CreditCard,
-  FileText,
   KeyRound,
   Play,
   RadioTower,
@@ -92,15 +91,6 @@ function OverviewToolbar(props: {
           <Button variant='outline' size='sm' render={<Link to='/keys' />}>
             <KeyRound data-icon='inline-start' />
             {t('API Keys')}
-          </Button>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='hidden sm:inline-flex'
-            render={<Link to='/usage-logs' />}
-          >
-            <FileText data-icon='inline-start' />
-            {t('Usage Logs')}
           </Button>
         </div>
       </div>

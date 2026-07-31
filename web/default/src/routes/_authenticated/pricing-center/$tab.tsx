@@ -3,22 +3,39 @@ import { z } from 'zod'
 
 import { PricingCenter } from '@/features/pricing-center'
 import {
-  PRICING_CENTER_DEFAULT_TAB,
+  canAccessPricingCenterTab,
+  defaultPricingCenterTab,
   isPricingCenterTab,
 } from '@/features/pricing-center/tabs'
+import { REDEMPTION_FILTER_VALUES } from '@/features/redemption-codes/constants'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated/pricing-center/$tab')({
-  validateSearch: z.object({ model: z.string().optional() }),
+  validateSearch: z.object({
+    model: z.string().optional(),
+    page: z.number().optional().catch(1),
+    pageSize: z.number().optional().catch(10),
+    filter: z.string().optional().catch(''),
+    status: z.array(z.enum(REDEMPTION_FILTER_VALUES)).optional().catch([]),
+  }),
   beforeLoad: ({ params }) => {
-    if (useAuthStore.getState().auth.user?.role !== ROLE.SUPER_ADMIN) {
+    const role = useAuthStore.getState().auth.user?.role
+    if (role === undefined || role < ROLE.ADMIN) {
       throw redirect({ to: '/403' })
     }
+
     if (!isPricingCenterTab(params.tab)) {
       throw redirect({
         to: '/pricing-center/$tab',
-        params: { tab: PRICING_CENTER_DEFAULT_TAB },
+        params: { tab: defaultPricingCenterTab(role) },
+      })
+    }
+
+    if (!canAccessPricingCenterTab(params.tab, role)) {
+      throw redirect({
+        to: '/pricing-center/$tab',
+        params: { tab: defaultPricingCenterTab(role) },
       })
     }
   },
@@ -30,6 +47,6 @@ function PricingCenterRoute() {
   const params = Route.useParams()
   const tab = isPricingCenterTab(params.tab)
     ? params.tab
-    : PRICING_CENTER_DEFAULT_TAB
+    : defaultPricingCenterTab(useAuthStore.getState().auth.user?.role)
   return <PricingCenter tab={tab} initialModelFilter={search.model} />
 }

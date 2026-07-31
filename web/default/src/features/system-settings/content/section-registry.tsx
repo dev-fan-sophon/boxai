@@ -6,6 +6,7 @@ import { ChatSettingsSection } from './chat-settings-section'
 import { DashboardSection } from './dashboard-section'
 import { DrawingSettingsSection } from './drawing-settings-section'
 import { FAQSection } from './faq-section'
+import { InspirationSection } from './inspiration-section'
 import {
   CONTENT_DEFAULT_SECTION,
   CONTENT_SECTION_IDS,
@@ -102,6 +103,11 @@ const CONTENT_SECTIONS = [
         }}
       />
     ),
+  },
+  {
+    id: 'inspiration',
+    titleKey: 'Inspiration templates',
+    build: () => <InspirationSection />,
   },
 ] as const
 
