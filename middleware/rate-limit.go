@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -99,9 +101,38 @@ func rateLimitFactory(mark string, config rateLimitConfig) func(c *gin.Context) 
 }
 
 func GlobalWebRateLimit() func(c *gin.Context) {
-	return rateLimitFactory("GW", func() (bool, int, int64) {
+	// Fingerprinted SPA assets already sit on Cloudflare CDN, but a cache MISS
+	// still reaches origin. Counting those bursts against the shared per-IP web
+	// bucket turns one homepage cold load (dozens of /static/* files) into a
+	// 429 white-screen for every client behind the same NAT. Skip immutable
+	// static assets here; HTML document routes remain throttled.
+	limiter := rateLimitFactory("GW", func() (bool, int, int64) {
 		return common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration
 	})
+	return func(c *gin.Context) {
+		if skipGlobalWebRateLimit(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+// skipGlobalWebRateLimit reports whether path is a cacheable frontend asset
+// that must not consume the shared per-IP Global Web budget.
+func skipGlobalWebRateLimit(requestPath string) bool {
+	if requestPath == "/static" || strings.HasPrefix(requestPath, "/static/") {
+		return true
+	}
+	switch strings.ToLower(path.Ext(requestPath)) {
+	case ".js", ".css", ".map", ".mjs", ".cjs",
+		".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".avif",
+		".woff", ".woff2", ".ttf", ".otf", ".eot",
+		".wasm", ".txt", ".webmanifest":
+		return true
+	default:
+		return false
+	}
 }
 
 func GlobalAPIRateLimit() func(c *gin.Context) {
