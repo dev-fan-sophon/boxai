@@ -1,10 +1,12 @@
 {
+  "≈ ${{usd}}": "≈ ${{usd}}",
   "Access Token": "Access Token",
   "Agent ID *": "Agent ID *",
   "Agents": "Agents",
   "API Endpoints": "API Endpoints",
   "Authorization Endpoint": "Authorization Endpoint",
   "Bot Token": "Bot Token",
+  "BoxAI &lt;noreply@example.com&gt;": "BoxAI &lt;noreply@example.com&gt;",
   "BoxAI Connect": "BoxAI Connect",
   "Completion": "Completion",
   "Connect": "Connect",

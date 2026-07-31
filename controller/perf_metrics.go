@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/QuantumNous/new-api/model"
-	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/dev-fan-sophon/boxai/model"
+	perfmetrics "github.com/dev-fan-sophon/boxai/pkg/perf_metrics"
+	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"

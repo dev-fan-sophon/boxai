@@ -1,6 +1,6 @@
 package system_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import "github.com/dev-fan-sophon/boxai/setting/config"
 
 type BrandingSettings struct {
 	FaviconURL   string `json:"favicon_url"`

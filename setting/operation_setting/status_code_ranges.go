@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/types"
+	"github.com/dev-fan-sophon/boxai/types"
 )
 
 type StatusCodeRange struct {

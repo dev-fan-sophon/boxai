@@ -1,7 +1,7 @@
 package system_setting
 
 import (
-	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/dev-fan-sophon/boxai/setting/config"
 )
 
 // ConnectSettings controls BoxAI Connect, the desktop app that points AI coding

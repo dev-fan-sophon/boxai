@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relaymedia "github.com/QuantumNous/new-api/service/relayconvert/internal/media"
-	sharedclaude "github.com/QuantumNous/new-api/service/relayconvert/internal/shared/claude"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	relaymedia "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/media"
+	sharedclaude "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/claude"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
 	"github.com/gin-gonic/gin"
 )
 

@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/i18n"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/pkg/vietqr"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/i18n"
+	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/pkg/vietqr"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )

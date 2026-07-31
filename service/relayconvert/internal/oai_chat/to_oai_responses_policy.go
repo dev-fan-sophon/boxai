@@ -1,8 +1,8 @@
 package oaichat
 
 import (
-	"github.com/QuantumNous/new-api/service/relayconvert/internal/matcher"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/matcher"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
 )
 
 func ShouldChatCompletionsUseResponsesPolicy(policy model_setting.ChatCompletionsToResponsesPolicy, channelID int, channelType int, model string) bool {

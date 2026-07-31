@@ -3,8 +3,8 @@ package model_setting_test
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/relay/channel/gemini"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/dev-fan-sophon/boxai/relay/channel/gemini"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
 	"github.com/stretchr/testify/assert"
 )
 

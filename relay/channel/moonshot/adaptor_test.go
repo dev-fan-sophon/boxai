@@ -3,9 +3,9 @@ package moonshot
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/stretchr/testify/require"
 )
 

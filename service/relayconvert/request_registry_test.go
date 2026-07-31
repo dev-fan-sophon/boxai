@@ -3,13 +3,13 @@ package relayconvert
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/dto"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	sharedgemini "github.com/QuantumNous/new-api/service/relayconvert/internal/shared/gemini"
-	"github.com/QuantumNous/new-api/setting/model_setting"
-	"github.com/QuantumNous/new-api/types"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
+	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	sharedgemini "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/gemini"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

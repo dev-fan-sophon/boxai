@@ -4,12 +4,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relaymeta "github.com/QuantumNous/new-api/service/relayconvert/internal/meta"
-	"github.com/QuantumNous/new-api/setting/model_setting"
-	"github.com/QuantumNous/new-api/setting/reasoning"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	relaymeta "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/meta"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
+	"github.com/dev-fan-sophon/boxai/setting/reasoning"
 )
 
 var SupportedMimeTypes = map[string]bool{

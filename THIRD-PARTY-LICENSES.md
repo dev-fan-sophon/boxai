@@ -161,18 +161,6 @@ license allow-list live in `desktop/packaging/vendor_skills.py` (`--check` verif
 Anthropic's `docx` / `pdf` / `pptx` / `xlsx` document skills are NOT redistributable and are
 never bundled; users may install them themselves through the in-app skill marketplace.
 
-## Adapted Source Code (frontend)
-
-Files under `web/default/src/features/workbench/` adapt the infinite-canvas engine
-(viewport, node graph, connection, frame, and storyboard logic) from the projects below.
-Each adapted file keeps an attribution header. Both upstreams are AGPL-3.0, the same
-license as this project.
-
-| Area              | Upstream                                                          | License    |
-|-------------------|-------------------------------------------------------------------|------------|
-| workbench canvas  | `ddcat-ai/open-ai-canvas` (https://github.com/ddcat-ai/open-ai-canvas) | AGPL-3.0 |
-| workbench canvas  | `basketikun/infinite-canvas` (upstream of open-ai-canvas)          | AGPL-3.0   |
-
 ## License Texts
 
 ### Apache-2.0

@@ -3,7 +3,7 @@ package system_setting
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/dev-fan-sophon/boxai/setting/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

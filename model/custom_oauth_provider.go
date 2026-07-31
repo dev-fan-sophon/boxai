@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
+	"github.com/dev-fan-sophon/boxai/common"
 )
 
 type accessPolicyPayload struct {

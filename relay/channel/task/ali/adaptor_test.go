@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/dev-fan-sophon/boxai/common"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/stretchr/testify/require"
 )
 

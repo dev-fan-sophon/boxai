@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/dev-fan-sophon/boxai/constant"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/gin-gonic/gin"
 )
 

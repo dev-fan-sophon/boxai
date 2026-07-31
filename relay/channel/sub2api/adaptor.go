@@ -1,6 +1,6 @@
 package sub2api
 
-import "github.com/QuantumNous/new-api/relay/channel/newapi"
+import "github.com/dev-fan-sophon/boxai/relay/channel/newapi"
 
 // Adaptor shares the multiprotocol wire contract but only consumes the
 // credential stored on this user channel; platform management secrets are not

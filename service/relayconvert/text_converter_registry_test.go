@@ -3,7 +3,7 @@ package relayconvert
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/types"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

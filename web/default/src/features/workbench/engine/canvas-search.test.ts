@@ -1,4 +1,3 @@
-/* Copyright (C) 2023-2026 QuantumNous. Licensed under AGPL-3.0. */
 import { describe, expect, it } from 'vitest'
 
 import { CanvasNodeType, type CanvasNodeData } from '../types'

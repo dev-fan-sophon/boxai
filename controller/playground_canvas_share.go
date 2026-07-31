@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )

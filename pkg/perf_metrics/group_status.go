@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/QuantumNous/new-api/model"
+	"github.com/dev-fan-sophon/boxai/model"
 )
 
 // Display window for group-status heat map (matches Code Go UX).

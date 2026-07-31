@@ -69,8 +69,8 @@ func TestInjectSEOIntoHTML(t *testing.T) {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>New API</title>
-    <meta name="title" content="New API" />
+    <title>BoxAI</title>
+    <meta name="title" content="BoxAI" />
     <meta
       name="description"
       content="Unified AI API gateway and admin dashboard."

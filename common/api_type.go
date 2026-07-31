@@ -1,6 +1,6 @@
 package common
 
-import "github.com/QuantumNous/new-api/constant"
+import "github.com/dev-fan-sophon/boxai/constant"
 
 func ChannelType2APIType(channelType int) (int, bool) {
 	apiType := -1

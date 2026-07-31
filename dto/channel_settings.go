@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/QuantumNous/new-api/constant"
+	"github.com/dev-fan-sophon/boxai/constant"
 )
 
 type ChannelSettings struct {

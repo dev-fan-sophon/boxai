@@ -3,7 +3,7 @@ package system_setting
 import (
 	"strings"
 
-	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/dev-fan-sophon/boxai/setting/config"
 )
 
 // DesktopSettings controls the desktop client device-authorization flow: the

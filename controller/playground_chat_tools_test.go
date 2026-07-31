@@ -3,7 +3,7 @@ package controller
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/service"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/service/storage"
+	"github.com/dev-fan-sophon/boxai/service/storage"
 	"github.com/google/uuid"
 )
 

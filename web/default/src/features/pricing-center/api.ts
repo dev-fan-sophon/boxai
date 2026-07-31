@@ -1,4 +1,3 @@
-/* Copyright (C) 2023-2026 QuantumNous */
 import { api } from '@/lib/api'
 
 import type { ModelPricing, PricingModelRecord } from './model-pricing-domain'

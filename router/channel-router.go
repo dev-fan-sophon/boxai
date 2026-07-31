@@ -3,9 +3,9 @@ package router
 import (
 	"net/http"
 
-	"github.com/QuantumNous/new-api/controller"
-	"github.com/QuantumNous/new-api/middleware"
-	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/dev-fan-sophon/boxai/controller"
+	"github.com/dev-fan-sophon/boxai/middleware"
+	"github.com/dev-fan-sophon/boxai/service/authz"
 	"github.com/gin-gonic/gin"
 )
 

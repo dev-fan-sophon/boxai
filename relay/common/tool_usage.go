@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	basecommon "github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	basecommon "github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 )
 
 var reservedBillableToolNames = map[string]struct{}{

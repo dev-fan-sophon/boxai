@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/dto"
-	relaymedia "github.com/QuantumNous/new-api/service/relayconvert/internal/media"
-	"github.com/QuantumNous/new-api/types"
+	"github.com/dev-fan-sophon/boxai/dto"
+	relaymedia "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/media"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

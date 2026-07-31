@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/controller"
-	"github.com/QuantumNous/new-api/middleware"
-	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/controller"
+	"github.com/dev-fan-sophon/boxai/middleware"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -48,7 +48,7 @@ func injectIndexSEO(c *gin.Context, requestPath string, indexHTML []byte) []byte
 	path := common.NormalizePublicPath(requestPath)
 	siteName := strings.TrimSpace(common.SystemName)
 	if siteName == "" {
-		siteName = "New API"
+		siteName = "BoxAI"
 	}
 	base := common.SiteBaseURL(system_setting.ServerAddress)
 	if base == "" && c != nil && c.Request != nil {

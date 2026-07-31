@@ -29,7 +29,7 @@ echo "==> building web default (v${VERSION})"
 
 echo "==> building go binary"
 go mod download
-go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=${VERSION}'" -o new-api .
+go build -ldflags "-s -w -X 'github.com/dev-fan-sophon/boxai/common.Version=${VERSION}'" -o new-api .
 
 mkdir -p "${APP_ROOT}/bin" "${APP_ROOT}/logs" "${APP_ROOT}/data"
 install -m 755 new-api "${APP_ROOT}/bin/new-api"

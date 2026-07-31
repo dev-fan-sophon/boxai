@@ -1,28 +1,10 @@
-new-api Notices
+BoxAI Notices
 
-new-api
-Copyright (c) QuantumNous and contributors.
+BoxAI
+Copyright (c) BoxAI contributors.
 
-This project is licensed under the GNU Affero General Public License v3.0.
-See LICENSE for the full project license terms.
-
-==== Additional Terms under AGPLv3 Section 7 ====
-
-Pursuant to Section 7(b) of the GNU Affero General Public License version 3,
-the following reasonable legal notice and author attribution must be preserved
-by modified versions in the Appropriate Legal Notices and in any prominent
-about, legal, footer, or attribution location presented by the user interface:
-
-"Frontend design and development by New API contributors."
-
-Modified versions that present a user interface must also preserve a visible
-link to the original project in a prominent about, legal, footer, or
-attribution location:
-
-https://github.com/QuantumNous/new-api
-
-Modified versions must not misrepresent the origin of the software and must
-mark their changes in accordance with AGPLv3 Section 7(c).
+This product is a self-hosted AI API gateway and related tooling maintained as
+the BoxAI project (https://github.com/dev-fan-sophon/boxai).
 
 ==== Third-Party Notices ====
 
@@ -32,15 +14,15 @@ THIRD-PARTY-LICENSES.md.
 
 Apache-2.0 upstream NOTICE entries identified for direct dependencies are
 reproduced below. Preserve this file with Docker images, standalone binaries,
-frontend bundles, and Electron desktop installers distributed to users.
+frontend bundles, and desktop installers distributed to users.
 
 ==== Separately Licensed Subtrees ====
 
 connect/
 BoxAI Connect, a desktop client for configuring AI coding clients. It is an
 independent program derived from CC Switch (Copyright (c) 2024-2025 Jason
-Young) and is distributed under the MIT License, not under this project's
-AGPLv3 terms. Its license text, lineage, and third-party notices live in
+Young) and is distributed under the MIT License, not under the rest of this
+repository's terms. Its license text, lineage, and third-party notices live in
 connect/LICENSE, connect/UPSTREAM.md, and connect/THIRD_PARTY_NOTICES.md.
 
 ==== Apache-2.0 Notices ====
@@ -57,13 +39,6 @@ Copyright (c) 2014, Paul Querna
 
 This product includes software developed by
 Paul Querna (http://paul.querna.org/).
-
-==== Adapted Source Code Notices ====
-
-The workbench infinite canvas (web/default/src/features/workbench/) adapts code from
-open-ai-canvas (https://github.com/ddcat-ai/open-ai-canvas) and its upstream
-infinite-canvas project, both licensed under AGPL-3.0. Adapted files carry an
-attribution header; see THIRD-PARTY-LICENSES.md.
 
 ==== Electron / Chromium Notices ====
 

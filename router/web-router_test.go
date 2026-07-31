@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/middleware"
-	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/middleware"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,8 +18,8 @@ const sampleIndexHTML = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>New API</title>
-    <meta name="title" content="New API" />
+    <title>BoxAI</title>
+    <meta name="title" content="BoxAI" />
     <meta name="description" content="Unified AI API gateway and admin dashboard." />
   </head>
   <body>

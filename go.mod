@@ -1,4 +1,4 @@
-module github.com/QuantumNous/new-api
+module github.com/dev-fan-sophon/boxai
 
 // +heroku goVersion go1.18
 go 1.25.1

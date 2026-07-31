@@ -1,4 +1,4 @@
-# AGENTS.md — Project Conventions for new-api
+# AGENTS.md — Project Conventions for BoxAI
 
 DO NOT send optional commentary
 
@@ -50,16 +50,14 @@ would break its lockfile and its diffability against upstream.
 
 **`connect/` is a vendored MIT fork.** BoxAI Connect derives from
 [CC Switch](https://github.com/farion1231/cc-switch) and stays under the MIT
-License it inherited — it is a separate program that contains no new-api code,
-so the AGPLv3 §7 additional terms in the root `NOTICE` do not attach to it. Do
-not stamp the `Copyright (C) 2023-2026 QuantumNous` AGPL header onto files under
-`connect/`; that would assert authorship over upstream's code. BoxAI-authored
-files there live in `connect/src-tauri/src/boxai/` and
+License it inherited — it is a separate program that contains no new-api code.
+BoxAI-authored files there live in `connect/src-tauri/src/boxai/` and
 `connect/src/components/boxai/`. Lineage and licensing: `connect/UPSTREAM.md`,
 `connect/LICENSE`, `connect/THIRD_PARTY_NOTICES.md`. Upstream `cc-switch`
 identifiers inside the fork are deliberately left alone — some are markers
 written into *other applications'* config files, and renaming them orphans real
-user state.
+user state. Do not reintroduce per-file copyright/license header blocks in
+source files (including under `connect/`).
 
 ## Internationalization (i18n)
 

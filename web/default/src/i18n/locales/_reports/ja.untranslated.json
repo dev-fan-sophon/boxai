@@ -1,7 +1,9 @@
 {
+  "≈ ${{usd}}": "≈ ${{usd}}",
   "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.": "Approve the sign-in in your browser under the session you already have. The key is issued to the app and never shown, pasted, or typed.",
   "Backs up and restores": "Backs up and restores",
   "Before you install": "Before you install",
+  "BoxAI &lt;noreply@example.com&gt;": "BoxAI &lt;noreply@example.com&gt;",
   "BoxAI Connect": "BoxAI Connect",
   "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.": "BoxAI Connect is a desktop app that signs in to your BoxAI account and configures Claude Code, Codex CLI, Gemini CLI and other AI coding clients to use it.",
   "BoxAI Connect is built on CC Switch and keeps its features. It adds BoxAI sign-in and the managed provider, and it stores its data separately, so it never touches an existing CC Switch installation.": "BoxAI Connect is built on CC Switch and keeps its features. It adds BoxAI sign-in and the managed provider, and it stores its data separately, so it never touches an existing CC Switch installation.",

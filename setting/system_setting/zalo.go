@@ -1,6 +1,6 @@
 package system_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import "github.com/dev-fan-sophon/boxai/setting/config"
 
 // ZaloSettings holds the Zalo Social API (OAuth v4) credentials.
 // Zalo names them "App ID" and "App Secret Key" in its developer console.

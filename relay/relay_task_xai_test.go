@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/model"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/dev-fan-sophon/boxai/constant"
+	"github.com/dev-fan-sophon/boxai/model"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/stretchr/testify/require"
 )
 
