@@ -67,8 +67,6 @@ export interface PricingToolbarProps {
   onSortChange: (value: string) => void
   tokenUnit: TokenUnit
   onTokenUnitChange: (value: TokenUnit) => void
-  showRechargePrice: boolean
-  onRechargePriceChange: (value: boolean) => void
   viewMode: ViewMode
   onViewModeChange: (value: ViewMode) => void
   quotaTypeFilter: string
@@ -362,8 +360,6 @@ export function PricingToolbar(props: PricingToolbarProps) {
               onTagChange={props.onTagChange}
               tokenUnit={props.tokenUnit}
               onTokenUnitChange={props.onTokenUnitChange}
-              showRechargePrice={props.showRechargePrice}
-              onRechargePriceChange={props.onRechargePriceChange}
               vendors={props.vendors}
               groups={props.groups}
               groupRatios={props.groupRatios}

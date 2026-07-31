@@ -23,7 +23,6 @@ type FilterState = {
   tag?: string
   tokenUnit?: TokenUnit
   view?: ViewMode
-  rechargePrice?: boolean
 }
 
 function normalizeViewMode(value: unknown): ViewMode {
@@ -53,7 +52,6 @@ export function useFilters(
       ? filterState.tokenUnit
       : DEFAULT_TOKEN_UNIT
   const viewMode = normalizeViewMode(filterState.view)
-  const showRechargePrice = filterState.rechargePrice === true
 
   const updateFilters = useCallback(
     (updates: Record<string, unknown>) => {
@@ -109,10 +107,6 @@ export function useFilters(
   const setViewMode = useCallback(
     (v: ViewMode) =>
       updateFilters({ view: v === VIEW_MODES.CARD ? undefined : v }),
-    [updateFilters]
-  )
-  const setShowRechargePrice = useCallback(
-    (v: boolean) => updateFilters({ rechargePrice: v || undefined }),
     [updateFilters]
   )
 
@@ -190,7 +184,6 @@ export function useFilters(
     tagFilter,
     tokenUnit,
     viewMode,
-    showRechargePrice,
     setSearchInput,
     setSortBy,
     setVendorFilter,
@@ -200,7 +193,6 @@ export function useFilters(
     setTagFilter,
     setTokenUnit,
     setViewMode,
-    setShowRechargePrice,
     filteredModels,
     hasActiveFilters,
     activeFilterCount,

@@ -28,10 +28,7 @@ import { ModelPriceRows, type ModelPriceRowItem } from './model-price-rows'
 export interface ModelCardProps {
   model: PricingModel
   onClick: () => void
-  priceRate?: number
-  usdExchangeRate?: number
   tokenUnit?: TokenUnit
-  showRechargePrice?: boolean
   selectedGroup?: string
 }
 
@@ -120,9 +117,6 @@ function collectMetaChips(
 export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   const { t } = useTranslation()
   const tokenUnit = props.tokenUnit ?? DEFAULT_TOKEN_UNIT
-  const priceRate = props.priceRate ?? 1
-  const usdExchangeRate = props.usdExchangeRate ?? 1
-  const showRechargePrice = props.showRechargePrice ?? false
   const isTokenBased = isTokenBasedModel(props.model)
   const isNew = isRecentlyReleased(props.model)
   const title = props.model.display_name || props.model.model_name
@@ -139,9 +133,6 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   const dynamicSummary = isDynamicPricing
     ? getDynamicPricingSummary(props.model, {
         tokenUnit,
-        showRechargePrice,
-        priceRate,
-        usdExchangeRate,
         groupRatioMultiplier: getDynamicDisplayGroupRatio(
           props.model,
           props.selectedGroup
@@ -209,9 +200,6 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           props.model,
           'input',
           tokenUnit,
-          showRechargePrice,
-          priceRate,
-          usdExchangeRate,
           props.selectedGroup
         ),
       },
@@ -224,9 +212,6 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           props.model,
           'output',
           tokenUnit,
-          showRechargePrice,
-          priceRate,
-          usdExchangeRate,
           props.selectedGroup
         ),
       },
@@ -240,9 +225,6 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           props.model,
           'cache',
           tokenUnit,
-          showRechargePrice,
-          priceRate,
-          usdExchangeRate,
           props.selectedGroup
         ),
       })
@@ -263,13 +245,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
             label: t('Per request'),
             tone: 'default',
             emphasized: true,
-            formatted: formatRequestPrice(
-              props.model,
-              showRechargePrice,
-              priceRate,
-              usdExchangeRate,
-              props.selectedGroup
-            ),
+            formatted: formatRequestPrice(props.model, props.selectedGroup),
           },
         ]}
       />

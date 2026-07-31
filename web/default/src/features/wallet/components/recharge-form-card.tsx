@@ -11,6 +11,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TitledCard } from '@/components/ui/titled-card'
+import { toIntlLocale } from '@/i18n/languages'
+import {
+  formatCurrencyFromUSD,
+  isCurrencyDisplayEnabled,
+} from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -19,7 +24,7 @@ import {
   getDiscountLabel,
   getPaymentIcon,
   getMinTopupAmount,
-  calculatePresetPricing,
+  isBankQRPayment,
 } from '../lib'
 import type {
   PaymentMethod,
@@ -49,8 +54,6 @@ interface RechargeFormCardProps {
   redeeming: boolean
   topupLink?: string
   loading?: boolean
-  priceRatio?: number
-  usdExchangeRate?: number
   onOpenBilling?: () => void
   creemProducts?: CreemProduct[]
   enableCreemTopup?: boolean
@@ -96,8 +99,6 @@ export function RechargeFormCard({
   redeeming,
   topupLink,
   loading,
-  priceRatio = 1,
-  usdExchangeRate = 1,
   onOpenBilling,
   creemProducts,
   enableCreemTopup,
@@ -108,7 +109,7 @@ export function RechargeFormCard({
   onWaffoMethodSelect,
   enableWaffoPancakeTopup,
 }: RechargeFormCardProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
   const [termsAccepted, setTermsAccepted] = useState(false)
 
@@ -139,6 +140,15 @@ export function RechargeFormCard({
   const redemptionEnabled = topupInfo?.enable_redemption !== false
   const methodMin = selectedPaymentMethod?.min_topup || 0
   const effectiveMin = Math.max(minTopup, methodMin)
+  // Bank QR settles in VND regardless of the site display currency.
+  const formatAmountDue = (amount: number) =>
+    selectedPaymentMethod && isBankQRPayment(selectedPaymentMethod.type)
+      ? new Intl.NumberFormat(toIntlLocale(i18n.language), {
+          style: 'currency',
+          currency: 'VND',
+          maximumFractionDigits: 0,
+        }).format(amount)
+      : formatCurrency(amount)
   const canContinue =
     Boolean(selectedPaymentMethod) &&
     topupAmount >= effectiveMin &&
@@ -281,24 +291,21 @@ export function RechargeFormCard({
                         preset.discount ||
                         topupInfo?.discount?.[preset.value] ||
                         1.0
-                      const {
-                        displayValue,
-                        actualPrice,
-                        savedAmount,
-                        hasDiscount,
-                      } = calculatePresetPricing(
-                        preset.value,
-                        priceRatio,
-                        discount,
-                        usdExchangeRate
-                      )
+                      const hasDiscount = discount < 1.0
                       const selected = selectedPreset === preset.value
+                      // Presets are USD credit units; the gateway-specific
+                      // payable amount is calculated server-side in step 03.
+                      const creditLabel = isCurrencyDisplayEnabled()
+                        ? formatCurrencyFromUSD(preset.value, {
+                            abbreviate: false,
+                          })
+                        : formatNumber(preset.value)
                       return (
                         <Button
                           key={preset.value}
                           variant='outline'
                           className={cn(
-                            'flex min-h-14 flex-col items-start rounded-lg px-3 py-2.5 text-left whitespace-normal',
+                            'flex min-h-12 flex-col items-start rounded-lg px-3 py-2.5 text-left whitespace-normal',
                             selected
                               ? 'border-foreground bg-foreground/5'
                               : 'border-muted'
@@ -307,7 +314,7 @@ export function RechargeFormCard({
                         >
                           <div className='flex w-full items-center justify-between gap-1'>
                             <span className='text-base font-semibold tabular-nums'>
-                              {formatNumber(displayValue)}
+                              {creditLabel}
                             </span>
                             {hasDiscount && (
                               <span className='text-xs font-medium text-green-600'>
@@ -315,12 +322,6 @@ export function RechargeFormCard({
                               </span>
                             )}
                           </div>
-                          <span className='text-muted-foreground mt-1 text-[11px]'>
-                            {formatCurrency(actualPrice)}
-                            {hasDiscount && savedAmount > 0
-                              ? ` · −${formatCurrency(savedAmount)}`
-                              : ''}
-                          </span>
                         </Button>
                       )
                     })}
@@ -383,7 +384,7 @@ export function RechargeFormCard({
                       <Skeleton className='h-5 w-16' />
                     ) : (
                       <span className='text-base font-semibold tabular-nums'>
-                        {formatCurrency(paymentAmount)}
+                        {formatAmountDue(paymentAmount)}
                       </span>
                     )}
                   </div>

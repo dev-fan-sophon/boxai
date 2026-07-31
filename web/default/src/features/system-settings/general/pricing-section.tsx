@@ -129,7 +129,21 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
 
   const displayType = form.watch('general_setting.quota_display_type') ?? 'USD'
   const displayInCurrencyEnabled = form.watch('DisplayInCurrencyEnabled')
+  // USD, CNY, and VND are the supported currencies; CUSTOM and TOKENS stay
+  // selectable only on sites that already use them.
   const showTokensOnlyOption = displayType === 'TOKENS'
+  const showCustomOption = displayType === 'CUSTOM'
+  const displayModeItems = [
+    { value: 'USD', label: t('USD') },
+    { value: 'CNY', label: t('CNY') },
+    { value: 'VND', label: t('VND') },
+    ...(showCustomOption
+      ? [{ value: 'CUSTOM', label: t('Custom Currency') }]
+      : []),
+    ...(showTokensOnlyOption
+      ? [{ value: 'TOKENS', label: t('Tokens Only') }]
+      : []),
+  ]
   const showQuotaPerUnit =
     displayType === 'TOKENS' ||
     defaultValues.QuotaPerUnit !== DEFAULT_CURRENCY_CONFIG.quotaPerUnit
@@ -186,13 +200,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                 <FormItem>
                   <FormLabel>{t('Display Mode')}</FormLabel>
                   <Select
-                    items={[
-                      { value: 'USD', label: t('USD') },
-                      { value: 'CNY', label: t('CNY') },
-                      { value: 'VND', label: t('VND') },
-                      { value: 'CUSTOM', label: t('Custom Currency') },
-                      { value: 'TOKENS', label: t('Tokens Only') },
-                    ]}
+                    items={displayModeItems}
                     value={field.value}
                     onValueChange={field.onChange}
                   >
@@ -203,17 +211,11 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                     </FormControl>
                     <SelectContent alignItemWithTrigger={false}>
                       <SelectGroup>
-                        <SelectItem value='USD'>{t('USD')}</SelectItem>
-                        <SelectItem value='CNY'>{t('CNY')}</SelectItem>
-                        <SelectItem value='VND'>{t('VND')}</SelectItem>
-                        <SelectItem value='CUSTOM'>
-                          {t('Custom Currency')}
-                        </SelectItem>
-                        {showTokensOnlyOption && (
-                          <SelectItem value='TOKENS'>
-                            {t('Tokens Only')}
+                        {displayModeItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -241,7 +243,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'Real exchange rate between USD and your payment gateway currency'
+                        'Units of the display currency per 1 USD. Also converts bank QR transfer amounts.'
                       )}
                     </FormDescription>
                     <FormMessage />

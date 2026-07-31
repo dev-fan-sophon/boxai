@@ -149,6 +149,9 @@ export function DynamicPricingBreakdown({
     if (currency.quotaDisplayType === 'CNY') {
       return { symbol: '¥', rate: currency.usdExchangeRate || 7 }
     }
+    if (currency.quotaDisplayType === 'VND') {
+      return { symbol: '₫', rate: currency.usdExchangeRate || 26000 }
+    }
     if (currency.quotaDisplayType === 'CUSTOM') {
       return {
         symbol: currency.customCurrencySymbol || '¤',

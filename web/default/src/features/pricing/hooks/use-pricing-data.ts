@@ -1,15 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import { useStatus } from '@/hooks/use-status'
-
 import { getPlaygroundCatalog, getPricing } from '../api'
 
 type PricingDataSource = 'pricing' | 'playground'
 
 export function usePricingData(source: PricingDataSource = 'pricing') {
-  const { status } = useStatus()
-
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['pricing', source],
     queryFn: source === 'playground' ? getPlaygroundCatalog : getPricing,
@@ -17,16 +13,6 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     refetchOnMount: source === 'playground' ? 'always' : true,
     refetchOnWindowFocus: source === 'playground' ? 'always' : true,
   })
-
-  // Ensure rates never reach zero to prevent division errors
-  const priceRate = useMemo(
-    () => Math.max((status?.price as number) ?? 1, 0.001),
-    [status?.price]
-  )
-  const usdExchangeRate = useMemo(
-    () => Math.max((status?.usd_exchange_rate as number) ?? priceRate, 0.001),
-    [status?.usd_exchange_rate, priceRate]
-  )
 
   const models = useMemo(() => {
     // Real /api/pricing payload only — empty list when the site has no models.
@@ -65,7 +51,5 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     isLoading,
     error,
     refetch,
-    priceRate,
-    usdExchangeRate,
   }
 }

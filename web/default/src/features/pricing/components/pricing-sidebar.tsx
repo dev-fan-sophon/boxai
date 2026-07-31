@@ -64,8 +64,6 @@ export interface PricingSidebarProps {
   /** Optional price display settings, shown as extra sections when provided. */
   tokenUnit?: TokenUnit
   onTokenUnitChange?: (value: TokenUnit) => void
-  showRechargePrice?: boolean
-  onRechargePriceChange?: (value: boolean) => void
   className?: string
 }
 
@@ -302,19 +300,6 @@ export function PricingSidebar(props: PricingSidebarProps) {
           options={endpointOptions}
           onChange={props.onEndpointTypeChange}
         />
-        {props.onRechargePriceChange && (
-          <FilterSection
-            title={t('Price display mode')}
-            value={props.showRechargePrice ? 'recharge' : 'standard'}
-            options={[
-              { value: 'standard', label: t('Standard') },
-              { value: 'recharge', label: t('Recharge') },
-            ]}
-            onChange={(value) =>
-              props.onRechargePriceChange?.(value === 'recharge')
-            }
-          />
-        )}
         {props.onTokenUnitChange && (
           <FilterSection
             title={t('Token unit')}
