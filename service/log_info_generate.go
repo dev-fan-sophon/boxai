@@ -159,8 +159,8 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interf
 	if relayInfo.BillingSource != "" {
 		other["billing_source"] = relayInfo.BillingSource
 	}
-	if relayInfo.UserSetting.BillingPreference != "" {
-		other["billing_preference"] = relayInfo.UserSetting.BillingPreference
+	if relayInfo.OverageSubscriptionId != 0 {
+		other["overage_subscription_id"] = relayInfo.OverageSubscriptionId
 	}
 	if relayInfo.BillingSource == "subscription" {
 		if relayInfo.SubscriptionId != 0 {

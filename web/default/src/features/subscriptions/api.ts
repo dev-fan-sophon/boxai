@@ -214,12 +214,19 @@ export async function getPublicPlans(): Promise<ApiResponse<PlanRecord[]>> {
   return res.data
 }
 
-export async function updateBillingPreference(
-  preference: string
-): Promise<ApiResponse<{ billing_preference?: string }>> {
-  const res = await api.put('/api/subscription/self/preference', {
-    billing_preference: preference,
-  })
+export async function updateOverageSettings(data: {
+  enabled: boolean
+  limit_usd: number
+}): Promise<ApiResponse<{ overage_enabled: boolean; overage_limit_usd: number }>> {
+  const res = await api.put('/api/subscription/self/overage', data)
+  return res.data
+}
+
+export async function updateSubscriptionRenewal(data: {
+  user_subscription_id: number
+  auto_renew: boolean
+}): Promise<ApiResponse<{ auto_renew: boolean }>> {
+  const res = await api.post('/api/subscription/self/renewal', data)
   return res.data
 }
 

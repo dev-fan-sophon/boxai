@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+	stripesubscription "github.com/stripe/stripe-go/v81/subscription"
 	"github.com/thanhpk/randstr"
 )
 
@@ -108,6 +109,50 @@ func SubscriptionRequestStripePay(c *gin.Context) {
 			"pay_link": payLink,
 		},
 	})
+}
+
+type SubscriptionRenewalRequest struct {
+	UserSubscriptionId int  `json:"user_subscription_id"`
+	AutoRenew          bool `json:"auto_renew"`
+}
+
+// SubscriptionUpdateRenewal lets the owner cancel (at period end) or resume the
+// provider-side auto renewal of a recurring subscription.
+func SubscriptionUpdateRenewal(c *gin.Context) {
+	userId := c.GetInt("id")
+	var req SubscriptionRenewalRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.UserSubscriptionId <= 0 {
+		common.ApiErrorMsg(c, "参数错误")
+		return
+	}
+	sub, err := model.GetUserSubscriptionById(req.UserSubscriptionId)
+	if err != nil || sub == nil || sub.UserId != userId {
+		common.ApiErrorMsg(c, "订阅不存在")
+		return
+	}
+	if sub.ProviderSubscriptionId == "" {
+		common.ApiErrorMsg(c, "该订阅为一次性购买，无自动续费")
+		return
+	}
+	if !strings.HasPrefix(setting.StripeApiSecret, "sk_") && !strings.HasPrefix(setting.StripeApiSecret, "rk_") {
+		common.ApiErrorMsg(c, "Stripe 未配置或密钥无效")
+		return
+	}
+
+	stripe.Key = setting.StripeApiSecret
+	_, err = stripesubscription.Update(sub.ProviderSubscriptionId, &stripe.SubscriptionParams{
+		CancelAtPeriodEnd: stripe.Bool(!req.AutoRenew),
+	})
+	if err != nil {
+		logger.LogError(c.Request.Context(), fmt.Sprintf("Stripe 更新订阅续费状态失败 subscription=%s auto_renew=%t error=%q", sub.ProviderSubscriptionId, req.AutoRenew, err.Error()))
+		common.ApiErrorMsg(c, "更新自动续费状态失败")
+		return
+	}
+	if _, err := model.SetAutoRenewByProviderSubscriptionId(sub.ProviderSubscriptionId, req.AutoRenew); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"auto_renew": req.AutoRenew})
 }
 
 func genStripeSubscriptionLink(referenceId string, customerId string, email string, priceId string) (string, error) {

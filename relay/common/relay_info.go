@@ -141,6 +141,10 @@ type RelayInfo struct {
 	// SubscriptionPlanId / SubscriptionPlanTitle are used for logging/UI display.
 	SubscriptionPlanId    int
 	SubscriptionPlanTitle string
+	// OverageSubscriptionId is the user_subscriptions.id whose overage counter this
+	// wallet-funded request is attributed to (subscription quota exhausted, wallet
+	// fallback within the user's overage limit). 0 for plain wallet billing.
+	OverageSubscriptionId int
 	// RequestId is used for idempotent pre-consume/refund
 	RequestId string
 	// SubscriptionAmountTotal / SubscriptionAmountUsedAfterPreConsume are used to compute remaining in logs.

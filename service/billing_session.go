@@ -14,6 +14,7 @@ import (
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 )
 
 // ---------------------------------------------------------------------------
@@ -236,6 +237,7 @@ func (s *BillingSession) reserveFunding(delta int) error {
 			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 		}
 		funding.consumed += delta
+		funding.trackOverage(delta)
 		return nil
 	case *SubscriptionFunding:
 		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, int64(delta)); err != nil {
@@ -260,6 +262,7 @@ func (s *BillingSession) rollbackFundingReserve(delta int) {
 			common.SysLog("error rolling back wallet funding reserve: " + err.Error())
 		} else {
 			funding.consumed -= delta
+			funding.trackOverage(-delta)
 		}
 	case *SubscriptionFunding:
 		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, -int64(delta)); err != nil {
@@ -332,22 +335,27 @@ func (s *BillingSession) syncRelayInfo() {
 		info.SubscriptionId = 0
 		info.SubscriptionPreConsumed = 0
 	}
+	if wallet, ok := s.funding.(*WalletFunding); ok {
+		info.OverageSubscriptionId = wallet.overageSubscriptionId
+	} else {
+		info.OverageSubscriptionId = 0
+	}
 }
 
 // ---------------------------------------------------------------------------
 // NewBillingSession 工厂 — 根据计费偏好创建会话并处理回退
 // ---------------------------------------------------------------------------
 
-// NewBillingSession 根据用户计费偏好创建 BillingSession，处理 subscription_first / wallet_first 的回退。
+// NewBillingSession 创建计费会话。资金链固定为：
+// 有订阅 → 订阅额度 → 额外用量（钱包余额，需用户开启且在每周期上限内）→ 拒绝；
+// 无订阅 → 钱包余额（pay-as-you-go）。
 func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int) (*BillingSession, *types.NewAPIError) {
 	if relayInfo == nil {
 		return nil, types.NewError(fmt.Errorf("relayInfo is nil"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	pref := common.NormalizeBillingPreference(relayInfo.UserSetting.BillingPreference)
-
-	// 钱包路径需要先检查用户额度
-	tryWallet := func() (*BillingSession, *types.NewAPIError) {
+	// 钱包路径需要先检查用户额度。overageSubscriptionId > 0 时本次消费计入该订阅周期的额外用量。
+	tryWallet := func(overageSubscriptionId int) (*BillingSession, *types.NewAPIError) {
 		userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
@@ -368,7 +376,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 
 		session := &BillingSession{
 			relayInfo: relayInfo,
-			funding:   &WalletFunding{userId: relayInfo.UserId},
+			funding:   &WalletFunding{userId: relayInfo.UserId, overageSubscriptionId: overageSubscriptionId},
 		}
 		if apiErr := session.preConsume(c, preConsumedQuota); apiErr != nil {
 			return nil, apiErr
@@ -398,45 +406,56 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		return session, nil
 	}
 
-	switch pref {
-	case "subscription_only":
-		return trySubscription()
-	case "wallet_only":
-		return tryWallet()
-	case "wallet_first":
-		session, err := tryWallet()
-		if err != nil {
-			if err.GetErrorCode() == types.ErrorCodeInsufficientUserQuota {
-				return trySubscription()
-			}
-			return nil, err
-		}
-		return session, nil
-	case "subscription_first":
-		fallthrough
-	default:
-		hasSub, subCheckErr := model.HasActiveUserSubscription(relayInfo.UserId)
-		if subCheckErr != nil {
-			return nil, types.NewError(subCheckErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
-		}
-		if !hasSub {
-			return tryWallet()
-		}
-		session, apiErr := trySubscription()
-		if apiErr != nil {
-			if apiErr.GetErrorCode() == types.ErrorCodeInsufficientUserQuota {
-				// 仅当用户的活跃订阅允许钱包回退时才回退到钱包，否则返回订阅额度不足错误
-				allowOverflow, overflowErr := model.UserActiveSubscriptionsAllowWalletOverflow(relayInfo.UserId)
-				if overflowErr != nil {
-					return nil, types.NewError(overflowErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
-				}
-				if allowOverflow {
-					return tryWallet()
-				}
-				return nil, apiErr
-			}
-			return nil, apiErr
-		}
+	hasSub, subCheckErr := model.HasActiveUserSubscription(relayInfo.UserId)
+	if subCheckErr != nil {
+		return nil, types.NewError(subCheckErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+	}
+	if !hasSub {
+		return tryWallet(0)
+	}
+
+	session, apiErr := trySubscription()
+	if apiErr == nil {
 		return session, nil
 	}
+	if apiErr.GetErrorCode() != types.ErrorCodeInsufficientUserQuota {
+		return nil, apiErr
+	}
+
+	// 订阅额度不足 → 额外用量回退。套餐必须允许（AllowWalletOverflow），
+	// 用户必须显式开启，且不超过用户设定的每周期上限。
+	allowOverflow, overflowErr := model.UserActiveSubscriptionsAllowWalletOverflow(relayInfo.UserId)
+	if overflowErr != nil {
+		return nil, types.NewError(overflowErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+	}
+	if !allowOverflow {
+		return nil, apiErr
+	}
+	if !relayInfo.UserSetting.OverageEnabled {
+		return nil, types.NewErrorWithStatusCode(
+			fmt.Errorf("订阅额度已用完。可在控制台钱包页开启\"额外用量\"后使用余额继续，或等待额度重置"),
+			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+	}
+	primarySub, primaryErr := model.GetPrimaryActiveSubscriptionForOverage(relayInfo.UserId)
+	if primaryErr != nil {
+		return nil, types.NewError(primaryErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+	}
+	overageSubscriptionId := 0
+	if primarySub != nil {
+		overageSubscriptionId = primarySub.Id
+		if limitUsd := relayInfo.UserSetting.OverageLimitUsd; limitUsd > 0 {
+			// 上限是软限额（并发请求可能轻微超出），只做阈值比较，不参与计费换算。
+			limitQuota := decimal.NewFromFloat(limitUsd).
+				Mul(decimal.NewFromFloat(common.QuotaPerUnit)).
+				IntPart()
+			if primarySub.OverageUsed+int64(preConsumedQuota) > limitQuota {
+				return nil, types.NewErrorWithStatusCode(
+					fmt.Errorf("额外用量已达本周期上限，可在控制台钱包页调整上限或等待额度重置"),
+					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			}
+		}
+	}
+	return tryWallet(overageSubscriptionId)
 }

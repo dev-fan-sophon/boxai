@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
@@ -25,6 +25,12 @@ const PricingSettingsTab = lazy(() =>
   }))
 )
 
+const SubscriptionsTab = lazy(() =>
+  import('./subscriptions-tab').then((module) => ({
+    default: module.SubscriptionsTab,
+  }))
+)
+
 export function PricingCenter(props: {
   tab: PricingCenterTab
   initialModelFilter?: string
@@ -44,8 +50,21 @@ export function PricingCenter(props: {
     })
   }
 
+  let tabContent: ReactNode
+  if (props.tab === 'models') {
+    tabContent = (
+      <ModelPricingTab initialModelFilter={props.initialModelFilter} />
+    )
+  } else if (props.tab === 'subscriptions') {
+    tabContent = <SubscriptionsTab />
+  } else {
+    tabContent = <PricingSettingsTab tab={props.tab} />
+  }
+
   return (
-    <SectionPageLayout fixedContent={props.tab === 'models'}>
+    <SectionPageLayout
+      fixedContent={props.tab === 'models' || props.tab === 'subscriptions'}
+    >
       <SectionPageLayout.Title>
         <span className='inline-flex max-w-full min-w-0 items-center gap-2 align-middle'>
           <span className='truncate'>{t('Pricing Center')}</span>
@@ -68,7 +87,7 @@ export function PricingCenter(props: {
             onValueChange={handleTabChange}
             className='shrink-0'
           >
-            <TabsList className='grid w-fit max-w-full grid-cols-4'>
+            <TabsList className='grid w-fit max-w-full grid-cols-5'>
               {PRICING_CENTER_TABS.map((tab) => (
                 <TabsTrigger key={tab} value={tab}>
                   {t(PRICING_CENTER_TAB_TITLE_KEYS[tab])}
@@ -90,13 +109,7 @@ export function PricingCenter(props: {
                   </div>
                 }
               >
-                {props.tab === 'models' ? (
-                  <ModelPricingTab
-                    initialModelFilter={props.initialModelFilter}
-                  />
-                ) : (
-                  <PricingSettingsTab tab={props.tab} />
-                )}
+                {tabContent}
               </Suspense>
             </SettingsPageProvider>
           </div>

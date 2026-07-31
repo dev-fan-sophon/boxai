@@ -51,6 +51,9 @@ export const userSubscriptionSchema = z.object({
   amount_total: z.number(),
   amount_used: z.number(),
   next_reset_time: z.number().optional(),
+  overage_used: z.number().optional(),
+  provider_subscription_id: z.string().optional(),
+  auto_renew: z.boolean().optional(),
 })
 
 export type UserSubscription = z.infer<typeof userSubscriptionSchema>
@@ -124,7 +127,8 @@ export interface SubscriptionResetResult {
 // ============================================================================
 
 export interface SelfSubscriptionData {
-  billing_preference: string
+  overage_enabled: boolean
+  overage_limit_usd: number
   subscriptions: UserSubscriptionRecord[]
   all_subscriptions: UserSubscriptionRecord[]
   pending_bank_qr_orders: PendingBankQRSubscriptionOrder[]

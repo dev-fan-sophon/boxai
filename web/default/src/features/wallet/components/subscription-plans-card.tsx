@@ -10,17 +10,11 @@ import {
 } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { TitledCard } from '@/components/ui/titled-card'
 import {
   Tooltip,
@@ -30,7 +24,8 @@ import {
 import {
   getPublicPlans,
   getSelfSubscriptionFull,
-  updateBillingPreference,
+  updateOverageSettings,
+  updateSubscriptionRenewal,
 } from '@/features/subscriptions/api'
 import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/dialogs/subscription-purchase-dialog'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
@@ -39,6 +34,7 @@ import type {
   PlanRecord,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
+import { formatCurrencyFromUSD } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -58,24 +54,6 @@ function getEpayMethods(payMethods: PaymentMethod[] = []): PaymentMethod[] {
   )
 }
 
-function getBillingPreferenceLabel(
-  preference: string,
-  t: (key: string) => string
-): string {
-  switch (preference) {
-    case 'subscription_first':
-      return t('Subscription First')
-    case 'wallet_first':
-      return t('Wallet First')
-    case 'subscription_only':
-      return t('Subscription Only')
-    case 'wallet_only':
-      return t('Wallet Only')
-    default:
-      return preference
-  }
-}
-
 export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const { t } = useTranslation()
 
@@ -89,8 +67,10 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const [pendingBankQROrders, setPendingBankQROrders] = useState<
     PendingBankQRSubscriptionOrder[]
   >([])
-  const [billingPreference, setBillingPreference] =
-    useState('subscription_first')
+  const [overageEnabled, setOverageEnabled] = useState(false)
+  const [overageLimitInput, setOverageLimitInput] = useState('')
+  const [savedOverageLimit, setSavedOverageLimit] = useState(0)
+  const [renewalBusyId, setRenewalBusyId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -123,9 +103,10 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
     try {
       const res = await getSelfSubscriptionFull()
       if (res.success && res.data) {
-        setBillingPreference(
-          res.data.billing_preference || 'subscription_first'
-        )
+        setOverageEnabled(!!res.data.overage_enabled)
+        const limit = Number(res.data.overage_limit_usd || 0)
+        setSavedOverageLimit(limit)
+        setOverageLimitInput(limit > 0 ? String(limit) : '')
         setActiveSubscriptions(res.data.subscriptions || [])
         setAllSubscriptions(res.data.all_subscriptions || [])
         setPendingBankQROrders(res.data.pending_bank_qr_orders || [])
@@ -153,22 +134,70 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
     }
   }
 
-  const handlePreferenceChange = async (pref: string) => {
-    const previous = billingPreference
-    setBillingPreference(pref)
+  const saveOverageSettings = async (enabled: boolean, limitUsd: number) => {
     try {
-      const res = await updateBillingPreference(pref)
+      const res = await updateOverageSettings({
+        enabled,
+        limit_usd: limitUsd,
+      })
       if (res.success) {
         toast.success(t('Updated successfully'))
-        const normalized = res.data?.billing_preference || pref
-        setBillingPreference(normalized)
+        setOverageEnabled(!!res.data?.overage_enabled)
+        const limit = Number(res.data?.overage_limit_usd || 0)
+        setSavedOverageLimit(limit)
+        setOverageLimitInput(limit > 0 ? String(limit) : '')
+        return true
+      }
+      toast.error(res.message || t('Update failed'))
+    } catch {
+      toast.error(t('Request failed'))
+    }
+    return false
+  }
+
+  const handleOverageToggle = async (enabled: boolean) => {
+    const previous = overageEnabled
+    setOverageEnabled(enabled)
+    const ok = await saveOverageSettings(enabled, savedOverageLimit)
+    if (!ok) setOverageEnabled(previous)
+  }
+
+  const parsedOverageLimit = overageLimitInput.trim()
+    ? Number(overageLimitInput)
+    : 0
+  const overageLimitValid =
+    Number.isFinite(parsedOverageLimit) &&
+    parsedOverageLimit >= 0 &&
+    parsedOverageLimit <= 10000
+  const overageLimitDirty = overageLimitValid
+    ? parsedOverageLimit !== savedOverageLimit
+    : false
+
+  const handleOverageLimitSave = async () => {
+    if (!overageLimitValid) return
+    await saveOverageSettings(overageEnabled, parsedOverageLimit)
+  }
+
+  const handleRenewalChange = async (
+    subscriptionId: number,
+    autoRenew: boolean
+  ) => {
+    setRenewalBusyId(subscriptionId)
+    try {
+      const res = await updateSubscriptionRenewal({
+        user_subscription_id: subscriptionId,
+        auto_renew: autoRenew,
+      })
+      if (res.success) {
+        toast.success(t('Updated successfully'))
+        await fetchSelfSubscription()
       } else {
         toast.error(res.message || t('Update failed'))
-        setBillingPreference(previous)
       }
     } catch {
       toast.error(t('Request failed'))
-      setBillingPreference(previous)
+    } finally {
+      setRenewalBusyId(null)
     }
   }
 
@@ -176,12 +205,21 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const hasAny = allSubscriptions.length > 0
   const isAvailable =
     loading || plans.length > 0 || hasAny || pendingBankQROrders.length > 0
-  const disablePref = !hasActive
-  const isSubPref =
-    billingPreference === 'subscription_first' ||
-    billingPreference === 'subscription_only'
-  const displayPref =
-    disablePref && isSubPref ? 'wallet_first' : billingPreference
+
+  // Mirrors the backend overage attribution rule: the active subscription that
+  // ends first carries the per-period overage counter.
+  const primaryActiveSub = useMemo(() => {
+    if (activeSubscriptions.length === 0) return null
+    return [...activeSubscriptions].sort((a, b) => {
+      const endDiff =
+        (a.subscription?.end_time || 0) - (b.subscription?.end_time || 0)
+      if (endDiff !== 0) return endDiff
+      return (a.subscription?.id || 0) - (b.subscription?.id || 0)
+    })[0]
+  }, [activeSubscriptions])
+  const overageUsed = Number(
+    primaryActiveSub?.subscription?.overage_used || 0
+  )
 
   const planPurchaseCountMap = useMemo(() => {
     const map = new Map<number, number>()
@@ -317,95 +355,70 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
                 )}
               </span>
             </div>
-            <div className='flex w-full items-center gap-2 sm:w-auto'>
-              <Select
-                items={[
-                  {
-                    value: 'subscription_first',
-                    label: (
-                      <>
-                        {getBillingPreferenceLabel('subscription_first', t)}
-                        {disablePref ? ` (${t('No Active')})` : ''}
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'wallet_first',
-                    label: getBillingPreferenceLabel('wallet_first', t),
-                  },
-                  {
-                    value: 'subscription_only',
-                    label: (
-                      <>
-                        {getBillingPreferenceLabel('subscription_only', t)}
-                        {disablePref ? ` (${t('No Active')})` : ''}
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'wallet_only',
-                    label: getBillingPreferenceLabel('wallet_only', t),
-                  },
-                ]}
-                value={displayPref}
-                onValueChange={(v) => v !== null && handlePreferenceChange(v)}
-              >
-                <SelectTrigger className='h-8 flex-1 text-xs sm:w-[140px] sm:flex-none'>
-                  <SelectValue>
-                    {getBillingPreferenceLabel(displayPref, t)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    <SelectItem
-                      value='subscription_first'
-                      disabled={disablePref}
-                    >
-                      {getBillingPreferenceLabel('subscription_first', t)}
-                      {disablePref ? ` (${t('No Active')})` : ''}
-                    </SelectItem>
-                    <SelectItem value='wallet_first'>
-                      {getBillingPreferenceLabel('wallet_first', t)}
-                    </SelectItem>
-                    <SelectItem
-                      value='subscription_only'
-                      disabled={disablePref}
-                    >
-                      {getBillingPreferenceLabel('subscription_only', t)}
-                      {disablePref ? ` (${t('No Active')})` : ''}
-                    </SelectItem>
-                    <SelectItem value='wallet_only'>
-                      {getBillingPreferenceLabel('wallet_only', t)}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-8 w-8'
-                onClick={handleRefresh}
-                disabled={refreshing}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
-                />
-              </Button>
-            </div>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-8 w-8'
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+              />
+            </Button>
           </div>
 
-          {disablePref && isSubPref && (
-            <p className='text-muted-foreground mt-2 text-xs'>
-              {t(
-                'Preference saved as {{pref}}, but no active subscription. Wallet will be used automatically.',
-                {
-                  pref:
-                    billingPreference === 'subscription_only'
-                      ? t('Subscription Only')
-                      : t('Subscription First'),
-                }
+          {hasActive && (
+            <div className='bg-muted/40 mt-3 space-y-2.5 rounded-lg border p-3'>
+              <div className='flex items-center justify-between gap-3'>
+                <div className='min-w-0'>
+                  <p className='text-sm font-medium'>{t('Extra usage')}</p>
+                  <p className='text-muted-foreground text-xs'>
+                    {t(
+                      'When subscription quota runs out, continue with wallet balance at pay-as-you-go rates'
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  checked={overageEnabled}
+                  onCheckedChange={handleOverageToggle}
+                />
+              </div>
+              {overageEnabled && (
+                <div className='flex flex-wrap items-center gap-2'>
+                  <span className='text-muted-foreground text-xs'>
+                    {t('Per-period limit (USD)')}
+                  </span>
+                  <Input
+                    type='number'
+                    min={0}
+                    max={10000}
+                    step='1'
+                    value={overageLimitInput}
+                    onChange={(e) => setOverageLimitInput(e.target.value)}
+                    placeholder={t('No limit')}
+                    className='h-8 w-28 text-xs'
+                  />
+                  {overageLimitDirty && (
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='h-8'
+                      onClick={handleOverageLimitSave}
+                      disabled={!overageLimitValid}
+                    >
+                      {t('Save')}
+                    </Button>
+                  )}
+                  <span className='text-muted-foreground text-xs'>
+                    {t('This period used')}: {formatQuota(overageUsed)}
+                    {savedOverageLimit > 0
+                      ? ` / ${formatCurrencyFromUSD(savedOverageLimit)}`
+                      : ''}
+                  </span>
+                </div>
               )}
-            </p>
+            </div>
           )}
 
           {hasAny && (
@@ -522,6 +535,37 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
                       {totalAmount > 0 && isActive && (
                         <Progress value={usagePercent} className='mt-2 h-1.5' />
                       )}
+                      {isActive && subscription?.provider_subscription_id && (
+                        <div className='mt-2 flex items-center justify-between gap-2'>
+                          <span
+                            className={cn(
+                              subscription?.auto_renew
+                                ? textColorMap.success
+                                : 'text-muted-foreground'
+                            )}
+                          >
+                            {subscription?.auto_renew
+                              ? t('Auto-renews at period end')
+                              : t('Auto-renew cancelled')}
+                          </span>
+                          <Button
+                            size='sm'
+                            variant='ghost'
+                            className='h-6 px-2 text-xs'
+                            disabled={renewalBusyId === subscription?.id}
+                            onClick={() =>
+                              handleRenewalChange(
+                                subscription.id,
+                                !subscription.auto_renew
+                              )
+                            }
+                          >
+                            {subscription?.auto_renew
+                              ? t('Cancel auto-renew')
+                              : t('Resume auto-renew')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -543,7 +587,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
               const plan = p?.plan
               if (!plan) return null
               const totalAmount = Number(plan.total_amount || 0)
-              const price = Number(plan.price_amount || 0).toFixed(2)
+              const price = Number(plan.price_amount || 0)
               const isPopular = index === 0 && plans.length > 1
               const limit = Number(plan.max_purchase_per_user || 0)
               const count = planPurchaseCountMap.get(plan.id) || 0
@@ -595,7 +639,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
 
                     <div className='py-2'>
                       <span className='text-primary text-2xl font-bold'>
-                        ${price}
+                        {formatCurrencyFromUSD(price)}
                       </span>
                     </div>
 

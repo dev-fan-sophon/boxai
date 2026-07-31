@@ -19,9 +19,13 @@ type SubscriptionPlanDTO struct {
 	Plan model.SubscriptionPlan `json:"plan"`
 }
 
-type BillingPreferenceRequest struct {
-	BillingPreference string `json:"billing_preference"`
+type SubscriptionOverageRequest struct {
+	Enabled  bool    `json:"enabled"`
+	LimitUsd float64 `json:"limit_usd"`
 }
+
+// maxOverageLimitUsd bounds the per-period overage cap a user may configure.
+const maxOverageLimitUsd = 10000
 
 type SubscriptionBalancePayRequest struct {
 	PlanId int `json:"plan_id"`
@@ -53,7 +57,6 @@ func GetSubscriptionPlans(c *gin.Context) {
 func GetSubscriptionSelf(c *gin.Context) {
 	userId := c.GetInt("id")
 	settingMap, _ := model.GetUserSetting(userId, false)
-	pref := common.NormalizeBillingPreference(settingMap.BillingPreference)
 
 	// Get all subscriptions (including expired)
 	allSubscriptions, err := model.GetAllUserSubscriptions(userId)
@@ -72,21 +75,28 @@ func GetSubscriptionSelf(c *gin.Context) {
 	}
 
 	common.ApiSuccess(c, gin.H{
-		"billing_preference":     pref,
+		"overage_enabled":        settingMap.OverageEnabled,
+		"overage_limit_usd":      settingMap.OverageLimitUsd,
 		"subscriptions":          activeSubscriptions, // all active subscriptions
 		"all_subscriptions":      allSubscriptions,    // all subscriptions including expired
 		"pending_bank_qr_orders": pendingBankQROrders,
 	})
 }
 
-func UpdateSubscriptionPreference(c *gin.Context) {
+// UpdateSubscriptionOverage stores the user's overage (wallet fallback) settings:
+// whether wallet balance may continue after subscription quota is exhausted, and
+// an optional per-period USD cap.
+func UpdateSubscriptionOverage(c *gin.Context) {
 	userId := c.GetInt("id")
-	var req BillingPreferenceRequest
+	var req SubscriptionOverageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorMsg(c, "参数错误")
 		return
 	}
-	pref := common.NormalizeBillingPreference(req.BillingPreference)
+	if req.LimitUsd < 0 || req.LimitUsd > maxOverageLimitUsd {
+		common.ApiErrorMsg(c, fmt.Sprintf("额外用量上限需在 0 到 %d 美元之间", maxOverageLimitUsd))
+		return
+	}
 
 	user, err := model.GetUserById(userId, true)
 	if err != nil {
@@ -94,12 +104,16 @@ func UpdateSubscriptionPreference(c *gin.Context) {
 		return
 	}
 	current := user.GetSetting()
-	current.BillingPreference = pref
+	current.OverageEnabled = req.Enabled
+	current.OverageLimitUsd = req.LimitUsd
 	if err := model.UpdateUserSetting(user.Id, current); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, gin.H{"billing_preference": pref})
+	common.ApiSuccess(c, gin.H{
+		"overage_enabled":   req.Enabled,
+		"overage_limit_usd": req.LimitUsd,
+	})
 }
 
 func SubscriptionRequestBalancePay(c *gin.Context) {

@@ -1,15 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { Subscriptions } from '@/features/subscriptions'
-import { ROLE } from '@/lib/roles'
-import { useAuthStore } from '@/stores/auth-store'
-
+// Subscription plan management moved into the Pricing Center.
 export const Route = createFileRoute('/_authenticated/subscriptions/')({
   beforeLoad: () => {
-    const { auth } = useAuthStore.getState()
-    if (!auth.user || auth.user.role < ROLE.ADMIN) {
-      throw redirect({ to: '/403' })
-    }
+    throw redirect({
+      to: '/pricing-center/$tab',
+      params: { tab: 'subscriptions' },
+    })
   },
-  component: Subscriptions,
 })

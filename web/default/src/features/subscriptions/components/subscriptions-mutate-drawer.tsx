@@ -43,7 +43,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import {
+  formatCurrencyFromUSD,
+  getCurrencyDisplay,
+  getCurrencyLabel,
+} from '@/lib/currency'
 
 import {
   createPlan,
@@ -92,6 +96,8 @@ export function SubscriptionsMutateDrawer({
     resolver: zodResolver(schema) as unknown as Resolver<PlanFormValues>,
     defaultValues: PLAN_FORM_DEFAULTS,
   })
+  const showLocalPricePreview =
+    currencyMeta.kind === 'currency' && currencyLabel !== 'USD'
 
   useEffect(() => {
     if (open) {
@@ -308,7 +314,7 @@ export function SubscriptionsMutateDrawer({
                   name='price_amount'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('Plan Price')}</FormLabel>
+                      <FormLabel>{t('Plan Price (USD)')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -323,8 +329,11 @@ export function SubscriptionsMutateDrawer({
                         />
                       </FormControl>
                       <FormDescription>
+                        {showLocalPricePreview && Number(field.value) > 0
+                          ? `≈ ${formatCurrencyFromUSD(Number(field.value))} · `
+                          : ''}
                         {t(
-                          'Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.'
+                          'Stored in USD (pricing baseline); shown to users in the site display currency.'
                         )}
                       </FormDescription>
                       <FormMessage />
@@ -551,9 +560,16 @@ export function SubscriptionsMutateDrawer({
                   name='allow_wallet_overflow'
                   render={({ field }) => (
                     <FormItem className={sideDrawerSwitchItemClassName()}>
-                      <FormLabel className='!mt-0'>
-                        {t('Allow wallet balance after quota used up')}
-                      </FormLabel>
+                      <div className='space-y-1'>
+                        <FormLabel className='!mt-0'>
+                          {t('Allow extra usage')}
+                        </FormLabel>
+                        <FormDescription>
+                          {t(
+                            'Subscribers may continue with wallet balance at pay-as-you-go rates after the included quota is used up; each user controls their own switch and limit.'
+                          )}
+                        </FormDescription>
+                      </div>
                       <FormControl>
                         <Switch
                           checked={field.value}
@@ -748,6 +764,11 @@ export function SubscriptionsMutateDrawer({
                     <FormControl>
                       <Input {...field} placeholder='price_...' />
                     </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Must be a recurring Stripe Price. Stripe charges automatically each cycle and renewal periods are provisioned from paid invoices.'
+                      )}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

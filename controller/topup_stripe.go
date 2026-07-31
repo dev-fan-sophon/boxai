@@ -182,6 +182,10 @@ func StripeWebhook(c *gin.Context) {
 		sessionAsyncPaymentSucceeded(ctx, event, callerIp)
 	case stripe.EventTypeCheckoutSessionAsyncPaymentFailed:
 		sessionAsyncPaymentFailed(ctx, event, callerIp)
+	case stripe.EventTypeInvoicePaid:
+		stripeInvoicePaid(ctx, event, callerIp)
+	case stripe.EventTypeCustomerSubscriptionUpdated, stripe.EventTypeCustomerSubscriptionDeleted:
+		stripeSubscriptionLifecycle(ctx, event, callerIp)
 	default:
 		logger.LogInfo(ctx, fmt.Sprintf("Stripe webhook 忽略事件 event_type=%s client_ip=%s", string(event.Type), callerIp))
 	}
@@ -264,6 +268,14 @@ func fulfillOrder(ctx context.Context, event stripe.Event, referenceId string, c
 
 	LockOrder(referenceId)
 	defer UnlockOrder(referenceId)
+	// Subscription-mode checkouts carry the recurring subscription id; persist it
+	// on the pending order so the created period can be matched to renewal
+	// invoices. No-op for one-time top-up checkouts.
+	if providerSubId := event.GetObjectValue("subscription"); providerSubId != "" {
+		if err := model.SetSubscriptionOrderProviderSubscriptionId(referenceId, providerSubId); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("Stripe 记录订阅ID失败 trade_no=%s subscription=%s error=%q", referenceId, providerSubId, err.Error()))
+		}
+	}
 	payload := map[string]any{
 		"customer":     customerId,
 		"amount_total": event.GetObjectValue("amount_total"),
@@ -287,6 +299,100 @@ func fulfillOrder(ctx context.Context, event stripe.Event, referenceId string, c
 	total, _ := strconv.ParseFloat(event.GetObjectValue("amount_total"), 64)
 	currency := strings.ToUpper(event.GetObjectValue("currency"))
 	logger.LogInfo(ctx, fmt.Sprintf("Stripe 充值成功 trade_no=%s amount_total=%.2f currency=%s event_type=%s client_ip=%s", referenceId, total/100, currency, string(event.Type), callerIp))
+}
+
+// stripeInvoicePaid provisions renewal periods for recurring subscriptions.
+// The initial period is provisioned by checkout.session.completed, so invoices
+// with billing_reason=subscription_create are skipped here.
+func stripeInvoicePaid(ctx context.Context, event stripe.Event, callerIp string) {
+	providerSubId := event.GetObjectValue("subscription")
+	if providerSubId == "" {
+		logger.LogInfo(ctx, fmt.Sprintf("Stripe invoice.paid 与订阅无关，忽略 client_ip=%s", callerIp))
+		return
+	}
+	billingReason := event.GetObjectValue("billing_reason")
+	if billingReason == "subscription_create" {
+		logger.LogInfo(ctx, fmt.Sprintf("Stripe invoice.paid 为首期账单，由 checkout 完成发放 subscription=%s client_ip=%s", providerSubId, callerIp))
+		return
+	}
+	invoiceId := event.GetObjectValue("id")
+	if invoiceId == "" {
+		logger.LogWarn(ctx, fmt.Sprintf("Stripe invoice.paid 缺少发票ID subscription=%s client_ip=%s", providerSubId, callerIp))
+		return
+	}
+
+	prev := model.GetLatestSubscriptionByProviderSubscriptionId(providerSubId)
+	if prev == nil {
+		logger.LogWarn(ctx, fmt.Sprintf("Stripe 续费发票找不到对应的本地订阅 subscription=%s invoice=%s client_ip=%s", providerSubId, invoiceId, callerIp))
+		return
+	}
+	plan, err := model.GetSubscriptionPlanById(prev.PlanId)
+	if err != nil {
+		logger.LogError(ctx, fmt.Sprintf("Stripe 续费发票对应套餐不存在 subscription=%s plan_id=%d invoice=%s error=%q", providerSubId, prev.PlanId, invoiceId, err.Error()))
+		return
+	}
+
+	money := plan.PriceAmount
+	if amountPaid, parseErr := strconv.ParseFloat(event.GetObjectValue("amount_paid"), 64); parseErr == nil && amountPaid > 0 {
+		money = amountPaid / 100
+	}
+
+	tradeNo := model.RenewalTradeNoPrefix + invoiceId
+	LockOrder(tradeNo)
+	defer UnlockOrder(tradeNo)
+	order := &model.SubscriptionOrder{
+		UserId:                 prev.UserId,
+		PlanId:                 plan.Id,
+		Money:                  money,
+		TradeNo:                tradeNo,
+		PaymentMethod:          model.PaymentMethodStripe,
+		PaymentProvider:        model.PaymentProviderStripe,
+		Status:                 common.TopUpStatusPending,
+		CreateTime:             time.Now().Unix(),
+		ProviderSubscriptionId: providerSubId,
+	}
+	if err := order.Insert(); err != nil {
+		// Unique trade_no violation means an earlier delivery already created the
+		// order; completion below is idempotent either way.
+		logger.LogInfo(ctx, fmt.Sprintf("Stripe 续费订单已存在，继续完成流程 trade_no=%s error=%q", tradeNo, err.Error()))
+	}
+	payload := map[string]any{
+		"invoice_id":     invoiceId,
+		"billing_reason": billingReason,
+		"customer":       event.GetObjectValue("customer"),
+		"event_type":     string(event.Type),
+	}
+	if err := model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(payload), model.PaymentProviderStripe, ""); err != nil {
+		logger.LogError(ctx, fmt.Sprintf("Stripe 订阅续期发放失败 trade_no=%s subscription=%s user_id=%d error=%q", tradeNo, providerSubId, prev.UserId, err.Error()))
+		return
+	}
+	logger.LogInfo(ctx, fmt.Sprintf("Stripe 订阅续期发放成功 trade_no=%s subscription=%s user_id=%d plan_id=%d money=%.2f billing_reason=%s client_ip=%s",
+		tradeNo, providerSubId, prev.UserId, plan.Id, money, billingReason, callerIp))
+}
+
+// stripeSubscriptionLifecycle syncs the local auto-renew flag with the provider
+// subscription state (cancelled at period end, resumed, or deleted).
+func stripeSubscriptionLifecycle(ctx context.Context, event stripe.Event, callerIp string) {
+	providerSubId := event.GetObjectValue("id")
+	if providerSubId == "" {
+		logger.LogWarn(ctx, fmt.Sprintf("Stripe 订阅生命周期事件缺少订阅ID event_type=%s client_ip=%s", string(event.Type), callerIp))
+		return
+	}
+	autoRenew := false
+	if event.Type == stripe.EventTypeCustomerSubscriptionUpdated {
+		autoRenew = event.GetObjectValue("cancel_at_period_end") != "true"
+		switch event.GetObjectValue("status") {
+		case "canceled", "unpaid", "incomplete_expired":
+			autoRenew = false
+		}
+	}
+	rows, err := model.SetAutoRenewByProviderSubscriptionId(providerSubId, autoRenew)
+	if err != nil {
+		logger.LogError(ctx, fmt.Sprintf("Stripe 同步订阅续费状态失败 subscription=%s auto_renew=%t error=%q", providerSubId, autoRenew, err.Error()))
+		return
+	}
+	logger.LogInfo(ctx, fmt.Sprintf("Stripe 同步订阅续费状态 subscription=%s auto_renew=%t rows=%d event_type=%s client_ip=%s",
+		providerSubId, autoRenew, rows, string(event.Type), callerIp))
 }
 
 func sessionExpired(ctx context.Context, event stripe.Event) {

@@ -14,7 +14,8 @@ type UserSetting struct {
 	AcceptUnsetRatioModel            bool    `json:"accept_unset_model_ratio_model,omitempty"`       // AcceptUnsetRatioModel 是否接受未设置价格的模型
 	RecordIpLog                      bool    `json:"record_ip_log,omitempty"`                        // 是否记录请求和错误日志IP
 	SidebarModules                   string  `json:"sidebar_modules,omitempty"`                      // SidebarModules 左侧边栏模块配置
-	BillingPreference                string  `json:"billing_preference,omitempty"`                   // BillingPreference 扣费策略（订阅/钱包）
+	OverageEnabled                   bool    `json:"overage_enabled,omitempty"`                      // OverageEnabled 订阅额度用尽后是否允许用钱包余额继续（额外用量）
+	OverageLimitUsd                  float64 `json:"overage_limit_usd,omitempty"`                    // OverageLimitUsd 每个订阅周期的额外用量上限（USD，0=不限）
 	Language                         string  `json:"language,omitempty"`                             // Language 用户语言偏好 (zh, en)
 }
 

@@ -34,11 +34,22 @@ const (
 	SubscriptionResetCustom  = "custom"
 )
 
+// UserSubscription.Source values
+const (
+	SubscriptionSourceOrder   = "order"
+	SubscriptionSourceAdmin   = "admin"
+	SubscriptionSourceRenewal = "renewal"
+)
+
 var (
 	ErrSubscriptionOrderNotFound      = errors.New("subscription order not found")
 	ErrSubscriptionOrderStatusInvalid = errors.New("subscription order status invalid")
 	ErrSubscriptionPurchaseLimit      = errors.New("subscription purchase limit reached")
 )
+
+// RenewalTradeNoPrefix marks subscription orders provisioned from a provider
+// renewal invoice (e.g. Stripe invoice.paid) rather than a user checkout.
+const RenewalTradeNoPrefix = "sub_inv_"
 
 const (
 	subscriptionPlanCacheNamespace     = "new-api:subscription_plan:v1"
@@ -226,6 +237,10 @@ type SubscriptionOrder struct {
 	CreateTime      int64  `json:"create_time"`
 	CompleteTime    int64  `json:"complete_time"`
 
+	// Provider-side recurring subscription id (e.g. Stripe sub_xxx), used to
+	// provision renewal periods from webhook events.
+	ProviderSubscriptionId string `json:"provider_subscription_id" gorm:"type:varchar(128);default:'';index"`
+
 	ProviderPayload string `json:"provider_payload" gorm:"type:text"`
 }
 
@@ -303,6 +318,17 @@ type UserSubscription struct {
 
 	// Whether wallet fallback is allowed after this subscription's quota is exhausted (snapshot from plan)
 	AllowWalletOverflow bool `json:"allow_wallet_overflow"`
+
+	// Wallet quota consumed as overage while this subscription was the active
+	// period. Reset together with AmountUsed on quota resets.
+	OverageUsed int64 `json:"overage_used" gorm:"type:bigint;not null;default:0"`
+
+	// Provider-side recurring subscription id (e.g. Stripe sub_xxx). Empty for
+	// one-time purchases (balance, Bank QR, Epay, admin bind).
+	ProviderSubscriptionId string `json:"provider_subscription_id" gorm:"type:varchar(128);default:'';index"`
+
+	// Whether the provider will automatically charge and renew this subscription.
+	AutoRenew bool `json:"auto_renew"`
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
@@ -525,7 +551,10 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	if err := lockForUpdate(tx).Select("id", "group").First(&user, userId).Error; err != nil {
 		return nil, err
 	}
-	if plan.MaxPurchasePerUser > 0 {
+	// Renewal periods of an already-purchased recurring subscription must not be
+	// blocked by the per-user purchase limit, or the provider keeps charging
+	// while provisioning silently fails.
+	if plan.MaxPurchasePerUser > 0 && source != SubscriptionSourceRenewal {
 		var count int64
 		if err := tx.Model(&UserSubscription{}).
 			Where("user_id = ? AND plan_id = ?", userId, plan.Id).
@@ -536,7 +565,7 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 			return nil, ErrSubscriptionPurchaseLimit
 		}
 	}
-	nowUnix := GetDBTimestamp()
+	nowUnix := dbTimestamp(tx)
 	now := time.Unix(nowUnix, 0)
 	endUnix, err := calcPlanEndTime(now, plan)
 	if err != nil {
@@ -626,7 +655,9 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		if order.Status != common.TopUpStatusPending {
 			return ErrSubscriptionOrderStatusInvalid
 		}
-		plan, err := GetSubscriptionPlanById(order.PlanId)
+		// Must resolve the plan through the transaction: a cache miss otherwise
+		// reads via the global DB pool and deadlocks single-connection SQLite.
+		plan, err := getSubscriptionPlanByIdTx(tx, order.PlanId)
 		if err != nil {
 			return err
 		}
@@ -634,9 +665,21 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 			// still allow completion for already purchased orders
 		}
 		upgradeGroup = strings.TrimSpace(plan.UpgradeGroup)
-		_, err = CreateUserSubscriptionFromPlanTx(tx, order.UserId, plan, "order")
+		source := SubscriptionSourceOrder
+		if strings.HasPrefix(order.TradeNo, RenewalTradeNoPrefix) {
+			source = SubscriptionSourceRenewal
+		}
+		sub, err := CreateUserSubscriptionFromPlanTx(tx, order.UserId, plan, source)
 		if err != nil {
 			return err
+		}
+		if order.ProviderSubscriptionId != "" {
+			if err := tx.Model(sub).Updates(map[string]interface{}{
+				"provider_subscription_id": order.ProviderSubscriptionId,
+				"auto_renew":               true,
+			}).Error; err != nil {
+				return err
+			}
 		}
 		if err := upsertSubscriptionTopUpTx(tx, &order); err != nil {
 			return err
@@ -1028,6 +1071,7 @@ func resetUserSubscriptionTx(tx *gorm.DB, sub *UserSubscription, plan *Subscript
 		return errors.New("invalid reset args")
 	}
 	sub.AmountUsed = 0
+	sub.OverageUsed = 0
 	if advanceResetTime {
 		nextReset := calcNextResetTime(time.Unix(now, 0), plan, sub.EndTime)
 		sub.NextResetTime = nextReset
@@ -1303,6 +1347,7 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 		return nil
 	}
 	sub.AmountUsed = 0
+	sub.OverageUsed = 0
 	sub.LastResetTime = base.Unix()
 	sub.NextResetTime = next
 	return tx.Save(sub).Error
@@ -1579,6 +1624,114 @@ func GetSubscriptionPlanInfoByUserSubscriptionId(userSubscriptionId int) (*Subsc
 	}
 	_ = getSubscriptionPlanInfoCache().SetWithTTL(cacheKey, *info, subscriptionPlanInfoCacheTTL())
 	return info, nil
+}
+
+// GetUserSubscriptionById fetches a single user subscription instance.
+func GetUserSubscriptionById(userSubscriptionId int) (*UserSubscription, error) {
+	if userSubscriptionId <= 0 {
+		return nil, errors.New("invalid userSubscriptionId")
+	}
+	var sub UserSubscription
+	if err := DB.Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}
+
+// GetPrimaryActiveSubscriptionForOverage returns the active subscription that
+// overage (wallet fallback) usage is attributed to. It uses the same ordering
+// as PreConsumeUserSubscription so the counter follows the period that is
+// consumed first and resets together with it.
+func GetPrimaryActiveSubscriptionForOverage(userId int) (*UserSubscription, error) {
+	if userId <= 0 {
+		return nil, errors.New("invalid userId")
+	}
+	now := GetDBTimestamp()
+	var sub UserSubscription
+	query := DB.Where("user_id = ? AND status = ? AND end_time > ?", userId, "active", now).
+		Order("end_time asc, id asc").
+		Limit(1).
+		Find(&sub)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+	if query.RowsAffected == 0 {
+		return nil, nil
+	}
+	return &sub, nil
+}
+
+// AddUserSubscriptionOverage adjusts the overage counter (floor 0). Positive
+// delta records wallet spend beyond the subscription quota, negative refunds it.
+func AddUserSubscriptionOverage(userSubscriptionId int, delta int64) error {
+	if userSubscriptionId <= 0 {
+		return errors.New("invalid userSubscriptionId")
+	}
+	if delta == 0 {
+		return nil
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var sub UserSubscription
+		if err := lockForUpdate(tx).
+			Where("id = ?", userSubscriptionId).
+			First(&sub).Error; err != nil {
+			return err
+		}
+		newUsed := sub.OverageUsed + delta
+		if newUsed < 0 {
+			newUsed = 0
+		}
+		sub.OverageUsed = newUsed
+		return tx.Save(&sub).Error
+	})
+}
+
+// GetLatestSubscriptionByProviderSubscriptionId finds the newest period
+// provisioned for a provider-side recurring subscription.
+func GetLatestSubscriptionByProviderSubscriptionId(providerSubscriptionId string) *UserSubscription {
+	providerSubscriptionId = strings.TrimSpace(providerSubscriptionId)
+	if providerSubscriptionId == "" {
+		return nil
+	}
+	var sub UserSubscription
+	query := DB.Where("provider_subscription_id = ?", providerSubscriptionId).
+		Order("id desc").
+		Limit(1).
+		Find(&sub)
+	if query.Error != nil || query.RowsAffected == 0 {
+		return nil
+	}
+	return &sub
+}
+
+// SetAutoRenewByProviderSubscriptionId syncs the auto-renew flag from provider
+// subscription lifecycle webhooks (cancelled / resumed).
+func SetAutoRenewByProviderSubscriptionId(providerSubscriptionId string, autoRenew bool) (int64, error) {
+	providerSubscriptionId = strings.TrimSpace(providerSubscriptionId)
+	if providerSubscriptionId == "" {
+		return 0, errors.New("providerSubscriptionId is empty")
+	}
+	res := DB.Model(&UserSubscription{}).
+		Where("provider_subscription_id = ?", providerSubscriptionId).
+		Updates(map[string]interface{}{
+			"auto_renew": autoRenew,
+			"updated_at": common.GetTimestamp(),
+		})
+	return res.RowsAffected, res.Error
+}
+
+// SetSubscriptionOrderProviderSubscriptionId stores the provider subscription id
+// on a pending order before completion, so the created UserSubscription can be
+// linked to future renewal invoices. Missing orders are ignored (top-up flow).
+func SetSubscriptionOrderProviderSubscriptionId(tradeNo string, providerSubscriptionId string) error {
+	tradeNo = strings.TrimSpace(tradeNo)
+	providerSubscriptionId = strings.TrimSpace(providerSubscriptionId)
+	if tradeNo == "" || providerSubscriptionId == "" {
+		return nil
+	}
+	return DB.Model(&SubscriptionOrder{}).
+		Where("trade_no = ?", tradeNo).
+		Update("provider_subscription_id", providerSubscriptionId).Error
 }
 
 // Update subscription used amount by delta (positive consume more, negative refund).

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 )
 
@@ -29,9 +31,24 @@ type FundingSource interface {
 type WalletFunding struct {
 	userId   int
 	consumed int // 实际预扣的用户额度
+	// overageSubscriptionId > 0 时，本次钱包消费属于订阅的"额外用量"，
+	// 同步累计到对应订阅周期的 overage 计数器（软限额，随周期重置）。
+	overageSubscriptionId int
 }
 
 func (w *WalletFunding) Source() string { return BillingSourceWallet }
+
+// trackOverage 尽力累计额外用量计数。计数器仅用于限额判断和展示，
+// 失败时记录日志但不阻断计费主链路。
+func (w *WalletFunding) trackOverage(delta int) {
+	if w.overageSubscriptionId <= 0 || delta == 0 {
+		return
+	}
+	if err := model.AddUserSubscriptionOverage(w.overageSubscriptionId, int64(delta)); err != nil {
+		common.SysLog(fmt.Sprintf("error tracking subscription overage (subscriptionId=%d, delta=%d): %s",
+			w.overageSubscriptionId, delta, err.Error()))
+	}
+}
 
 func (w *WalletFunding) PreConsume(amount int) error {
 	if amount <= 0 {
@@ -41,6 +58,7 @@ func (w *WalletFunding) PreConsume(amount int) error {
 		return err
 	}
 	w.consumed = amount
+	w.trackOverage(amount)
 	return nil
 }
 
@@ -49,9 +67,17 @@ func (w *WalletFunding) Settle(delta int) error {
 		return nil
 	}
 	if delta > 0 {
-		return model.DecreaseUserQuota(w.userId, delta, false)
+		if err := model.DecreaseUserQuota(w.userId, delta, false); err != nil {
+			return err
+		}
+		w.trackOverage(delta)
+		return nil
 	}
-	return model.IncreaseUserQuota(w.userId, -delta, false)
+	if err := model.IncreaseUserQuota(w.userId, -delta, false); err != nil {
+		return err
+	}
+	w.trackOverage(delta)
+	return nil
 }
 
 func (w *WalletFunding) Refund() error {
@@ -60,7 +86,11 @@ func (w *WalletFunding) Refund() error {
 	}
 	// IncreaseUserQuota 是 quota += N 的非幂等操作，不能重试，否则会多退额度。
 	// 订阅的 RefundSubscriptionPreConsume 有 requestId 幂等保护所以可以重试。
-	return model.IncreaseUserQuota(w.userId, w.consumed, false)
+	if err := model.IncreaseUserQuota(w.userId, w.consumed, false); err != nil {
+		return err
+	}
+	w.trackOverage(-w.consumed)
+	return nil
 }
 
 // ---------------------------------------------------------------------------
