@@ -114,33 +114,38 @@ func InitEnv() {
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 	CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
 
-	// Initialize rate limit variables
-	// Shared office NAT egress makes per-IP budgets apply to many humans at once.
-	// Keep throttles on, but use defaults that tolerate SPA polling + a few
-	// concurrent operators without white-screening the homepage.
+	// Initialize rate limit variables.
+	// BoxAI is an API gateway: legitimate clients (playground polling, dashboards,
+	// multi-tab consoles, office NAT) generate high request rates per public IP.
+	// Keep IP throttles as abuse backstops, not as product-level quotas — token
+	// auth + billing already govern /v1 relay usage (ModelRequestRateLimit is
+	// separate and off by default).
 	GlobalApiRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_API_RATE_LIMIT_ENABLE", true)
-	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 1200)
+	// ~100 rps/IP over a 3-minute window for /api/* control plane traffic.
+	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 18000)
 	GlobalApiRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_API_RATE_LIMIT_DURATION", 180))
 
 	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", true)
-	// HTML / SPA shell only after static assets are exempted from this bucket.
-	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 600)
+	// HTML / SPA shell only (static assets skip this bucket).
+	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 3000)
 	GlobalWebRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
 	CriticalRateLimitEnable = GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)
-	CriticalRateLimitNum = GetEnvOrDefault("CRITICAL_RATE_LIMIT", 20)
-	CriticalRateLimitDuration = int64(GetEnvOrDefault("CRITICAL_RATE_LIMIT_DURATION", 20*60))
+	// Login/register/pay still need brute-force friction, but office NAT must
+	// not lock out a whole floor after a few retries.
+	CriticalRateLimitNum = GetEnvOrDefault("CRITICAL_RATE_LIMIT", 120)
+	CriticalRateLimitDuration = int64(GetEnvOrDefault("CRITICAL_RATE_LIMIT_DURATION", 10*60))
 
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
-	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
+	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 60)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
 
 	UploadRateLimitEnable = GetEnvOrDefaultBool("UPLOAD_RATE_LIMIT_ENABLE", true)
-	UploadRateLimitNum = GetEnvOrDefault("UPLOAD_RATE_LIMIT", 10)
+	UploadRateLimitNum = GetEnvOrDefault("UPLOAD_RATE_LIMIT", 60)
 	UploadRateLimitDuration = int64(GetEnvOrDefault("UPLOAD_RATE_LIMIT_DURATION", 60))
 
 	DownloadRateLimitEnable = GetEnvOrDefaultBool("DOWNLOAD_RATE_LIMIT_ENABLE", true)
-	DownloadRateLimitNum = GetEnvOrDefault("DOWNLOAD_RATE_LIMIT", 10)
+	DownloadRateLimitNum = GetEnvOrDefault("DOWNLOAD_RATE_LIMIT", 120)
 	DownloadRateLimitDuration = int64(GetEnvOrDefault("DOWNLOAD_RATE_LIMIT_DURATION", 60))
 
 	InitTrustedProxy()
