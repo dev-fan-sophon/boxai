@@ -1,21 +1,3 @@
-/*
-Copyright (C) 2023-2026 QuantumNous
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-For commercial licensing, please contact support@quantumnous.com
-*/
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertTriangle, Save } from 'lucide-react'
 import {
@@ -49,11 +31,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -63,6 +40,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
+import {
+  formatLocalRate,
+  readEditingCurrencyMode,
+  storeEditingCurrencyMode,
+  useLocalPriceCurrency,
+  type EditingCurrencyMode,
+} from './editing-currency'
 import {
   EMPTY_LANE_ENABLED,
   EMPTY_LANE_PRICES,
@@ -147,6 +131,10 @@ export const ModelPricingEditorPanel = forwardRef<
   ref
 ) {
   const { t } = useTranslation()
+  const localCurrency = useLocalPriceCurrency()
+  const [currencyMode, setCurrencyMode] = useState<EditingCurrencyMode>(() =>
+    readEditingCurrencyMode()
+  )
   const [pricingMode, setPricingMode] = useState<PricingMode>('per-token')
   const [promptPrice, setPromptPrice] = useState('')
   const [lanePrices, setLanePrices] = useState<Record<LaneKey, string>>({
@@ -159,6 +147,12 @@ export const ModelPricingEditorPanel = forwardRef<
   const [requestRuleExpr, setRequestRuleExpr] = useState('')
   const [editorReloadToken, setEditorReloadToken] = useState(0)
   const isEditMode = !!editData
+  const activeCurrency = currencyMode === 'LOCAL' ? localCurrency : null
+
+  const handleCurrencyModeChange = (mode: EditingCurrencyMode) => {
+    setCurrencyMode(mode)
+    storeEditingCurrencyMode(mode)
+  }
 
   const form = useForm<ModelPricingFormValues>({
     resolver: zodResolver(createModelPricingSchema(t)),
@@ -552,6 +546,55 @@ export const ModelPricingEditorPanel = forwardRef<
                   />
                 )}
 
+                {localCurrency && (
+                  <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2'>
+                    <p className='text-muted-foreground text-xs'>
+                      {t('Prices are stored in USD. 1 USD = {{local}}', {
+                        local: formatLocalRate(localCurrency),
+                      })}
+                    </p>
+                    <div
+                      className='bg-muted/50 flex gap-1 rounded-lg p-1'
+                      role='tablist'
+                      aria-label={t('Editing currency')}
+                    >
+                      {(
+                        [
+                          { mode: 'USD' as const, label: 'USD' },
+                          {
+                            mode: 'LOCAL' as const,
+                            label: localCurrency.code,
+                          },
+                        ] as Array<{
+                          mode: EditingCurrencyMode
+                          label: string
+                        }>
+                      ).map((option) => {
+                        const active = currencyMode === option.mode
+                        return (
+                          <button
+                            key={option.mode}
+                            type='button'
+                            role='tab'
+                            aria-selected={active}
+                            className={cn(
+                              'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                              active
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                            onClick={() =>
+                              handleCurrencyModeChange(option.mode)
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <Tabs
                   value={pricingMode}
                   onValueChange={handleModeChange}
@@ -576,10 +619,15 @@ export const ModelPricingEditorPanel = forwardRef<
                         <PriceInput
                           value={promptPrice}
                           placeholder='3'
+                          currency={activeCurrency}
                           onChange={handlePromptPriceChange}
                         />
                         <FieldDescription>
-                          {t('USD price per 1M input tokens.')}
+                          {activeCurrency
+                            ? t('Price shown in {{code}}; saved as USD.', {
+                                code: activeCurrency.code,
+                              })
+                            : t('USD price per 1M input tokens.')}
                         </FieldDescription>
                       </Field>
 
@@ -600,6 +648,7 @@ export const ModelPricingEditorPanel = forwardRef<
                               value={lanePrices[lane.key]}
                               enabled={laneEnabled[lane.key]}
                               disabled={disabled}
+                              currency={activeCurrency}
                               onEnabledChange={(checked) =>
                                 handleLaneToggle(lane.key, checked)
                               }
@@ -623,28 +672,27 @@ export const ModelPricingEditorPanel = forwardRef<
                             <Field>
                               <FieldLabel>{t('Fixed price')}</FieldLabel>
                               <FormControl>
-                                <InputGroup>
-                                  <InputGroupAddon>$</InputGroupAddon>
-                                  <InputGroupInput
-                                    inputMode='decimal'
-                                    placeholder='0.01'
-                                    {...field}
-                                    onChange={(event) => {
-                                      const value = event.target.value
-                                      if (numericDraftRegex.test(value)) {
-                                        field.onChange(value)
-                                      }
-                                    }}
-                                  />
-                                  <InputGroupAddon align='inline-end'>
-                                    {t('per request')}
-                                  </InputGroupAddon>
-                                </InputGroup>
+                                <PriceInput
+                                  value={field.value ?? ''}
+                                  placeholder='0.01'
+                                  currency={activeCurrency}
+                                  endAddonLabel={t('per request')}
+                                  onChange={(value) => {
+                                    if (numericDraftRegex.test(value)) {
+                                      field.onChange(value)
+                                    }
+                                  }}
+                                />
                               </FormControl>
                               <FieldDescription>
-                                {t(
-                                  'Cost in USD per request, regardless of tokens used.'
-                                )}
+                                {activeCurrency
+                                  ? t(
+                                      'Price shown in {{code}}; saved as USD.',
+                                      { code: activeCurrency.code }
+                                    )
+                                  : t(
+                                      'Cost in USD per request, regardless of tokens used.'
+                                    )}
                               </FieldDescription>
                               <FormMessage />
                             </Field>
@@ -656,6 +704,11 @@ export const ModelPricingEditorPanel = forwardRef<
 
                   <TabsContent value='tiered_expr' className='pt-0'>
                     <FieldGroup className='gap-5'>
+                      {activeCurrency && (
+                        <p className='text-muted-foreground text-xs'>
+                          {t('Billing expressions always use USD prices.')}
+                        </p>
+                      )}
                       <TieredPricingEditor
                         key={editorReloadToken}
                         modelName={watchedValues.name}

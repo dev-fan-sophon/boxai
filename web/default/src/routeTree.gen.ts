@@ -19,7 +19,6 @@ import { Route as ConsoleTopupRouteImport } from './routes/console/topup'
 import { Route as ConsoleLogRouteImport } from './routes/console/log'
 import { Route as PublicUserAgreementRouteImport } from './routes/_public/user-agreement'
 import { Route as PublicPrivacyPolicyRouteImport } from './routes/_public/privacy-policy'
-import { Route as AuthenticatedPricingCenterRouteImport } from './routes/_authenticated/pricing-center'
 import { Route as AuthenticatedInspirationAdminRouteImport } from './routes/_authenticated/inspiration-admin'
 import { Route as AuthenticatedDeviceRouteImport } from './routes/_authenticated/device'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
@@ -53,6 +52,7 @@ import { Route as AuthenticatedSystemInfoIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
+import { Route as AuthenticatedPricingCenterIndexRouteImport } from './routes/_authenticated/pricing-center/index'
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authenticated/keys/index'
 import { Route as AuthenticatedGroupStatusIndexRouteImport } from './routes/_authenticated/group-status/index'
@@ -62,6 +62,7 @@ import { Route as ShareCanvasTokenRouteImport } from './routes/share/canvas/$tok
 import { Route as PublicInspirationProjectIdRouteImport } from './routes/_public/inspiration/$projectId'
 import { Route as PublicDocsSlugRouteImport } from './routes/_public/docs/$slug'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
+import { Route as AuthenticatedPricingCenterTabRouteImport } from './routes/_authenticated/pricing-center/$tab'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedDesktopAuthorizeRouteImport } from './routes/_authenticated/desktop/authorize'
@@ -135,12 +136,6 @@ const PublicPrivacyPolicyRoute = PublicPrivacyPolicyRouteImport.update({
   path: '/privacy-policy',
   getParentRoute: () => PublicRouteRoute,
 } as any)
-const AuthenticatedPricingCenterRoute =
-  AuthenticatedPricingCenterRouteImport.update({
-    id: '/pricing-center',
-    path: '/pricing-center',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedInspirationAdminRoute =
   AuthenticatedInspirationAdminRouteImport.update({
     id: '/inspiration-admin',
@@ -316,6 +311,12 @@ const AuthenticatedProfileIndexRoute =
     path: '/profile/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPricingCenterIndexRoute =
+  AuthenticatedPricingCenterIndexRouteImport.update({
+    id: '/pricing-center/',
+    path: '/pricing-center/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedModelsIndexRoute =
   AuthenticatedModelsIndexRouteImport.update({
     id: '/models/',
@@ -365,6 +366,12 @@ const AuthenticatedUsageLogsSectionRoute =
   AuthenticatedUsageLogsSectionRouteImport.update({
     id: '/usage-logs/$section',
     path: '/usage-logs/$section',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPricingCenterTabRoute =
+  AuthenticatedPricingCenterTabRouteImport.update({
+    id: '/pricing-center/$tab',
+    path: '/pricing-center/$tab',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedModelsSectionRoute =
@@ -535,7 +542,6 @@ export interface FileRoutesByFullPath {
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/device': typeof AuthenticatedDeviceRoute
   '/inspiration-admin': typeof AuthenticatedInspirationAdminRoute
-  '/pricing-center': typeof AuthenticatedPricingCenterRoute
   '/privacy-policy': typeof PublicPrivacyPolicyRoute
   '/user-agreement': typeof PublicUserAgreementRoute
   '/console/log': typeof ConsoleLogRoute
@@ -548,6 +554,7 @@ export interface FileRoutesByFullPath {
   '/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/docs/$slug': typeof PublicDocsSlugRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
@@ -557,6 +564,7 @@ export interface FileRoutesByFullPath {
   '/group-status/': typeof AuthenticatedGroupStatusIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
+  '/pricing-center/': typeof AuthenticatedPricingCenterIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
@@ -610,7 +618,6 @@ export interface FileRoutesByTo {
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/device': typeof AuthenticatedDeviceRoute
   '/inspiration-admin': typeof AuthenticatedInspirationAdminRoute
-  '/pricing-center': typeof AuthenticatedPricingCenterRoute
   '/privacy-policy': typeof PublicPrivacyPolicyRoute
   '/user-agreement': typeof PublicUserAgreementRoute
   '/console/log': typeof ConsoleLogRoute
@@ -623,6 +630,7 @@ export interface FileRoutesByTo {
   '/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/docs/$slug': typeof PublicDocsSlugRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
@@ -632,6 +640,7 @@ export interface FileRoutesByTo {
   '/group-status': typeof AuthenticatedGroupStatusIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
+  '/pricing-center': typeof AuthenticatedPricingCenterIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
@@ -690,7 +699,6 @@ export interface FileRoutesById {
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
   '/_authenticated/device': typeof AuthenticatedDeviceRoute
   '/_authenticated/inspiration-admin': typeof AuthenticatedInspirationAdminRoute
-  '/_authenticated/pricing-center': typeof AuthenticatedPricingCenterRoute
   '/_public/privacy-policy': typeof PublicPrivacyPolicyRoute
   '/_public/user-agreement': typeof PublicUserAgreementRoute
   '/console/log': typeof ConsoleLogRoute
@@ -704,6 +712,7 @@ export interface FileRoutesById {
   '/_authenticated/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/_authenticated/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_public/docs/$slug': typeof PublicDocsSlugRoute
   '/_public/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
@@ -713,6 +722,7 @@ export interface FileRoutesById {
   '/_authenticated/group-status/': typeof AuthenticatedGroupStatusIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
+  '/_authenticated/pricing-center/': typeof AuthenticatedPricingCenterIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
@@ -770,7 +780,6 @@ export interface FileRouteTypes {
     | '/chat2link'
     | '/device'
     | '/inspiration-admin'
-    | '/pricing-center'
     | '/privacy-policy'
     | '/user-agreement'
     | '/console/log'
@@ -783,6 +792,7 @@ export interface FileRouteTypes {
     | '/desktop/authorize'
     | '/errors/$error'
     | '/models/$section'
+    | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/docs/$slug'
     | '/inspiration/$projectId'
@@ -792,6 +802,7 @@ export interface FileRouteTypes {
     | '/group-status/'
     | '/keys/'
     | '/models/'
+    | '/pricing-center/'
     | '/profile/'
     | '/redemption-codes/'
     | '/subscriptions/'
@@ -845,7 +856,6 @@ export interface FileRouteTypes {
     | '/chat2link'
     | '/device'
     | '/inspiration-admin'
-    | '/pricing-center'
     | '/privacy-policy'
     | '/user-agreement'
     | '/console/log'
@@ -858,6 +868,7 @@ export interface FileRouteTypes {
     | '/desktop/authorize'
     | '/errors/$error'
     | '/models/$section'
+    | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/docs/$slug'
     | '/inspiration/$projectId'
@@ -867,6 +878,7 @@ export interface FileRouteTypes {
     | '/group-status'
     | '/keys'
     | '/models'
+    | '/pricing-center'
     | '/profile'
     | '/redemption-codes'
     | '/subscriptions'
@@ -924,7 +936,6 @@ export interface FileRouteTypes {
     | '/_authenticated/chat2link'
     | '/_authenticated/device'
     | '/_authenticated/inspiration-admin'
-    | '/_authenticated/pricing-center'
     | '/_public/privacy-policy'
     | '/_public/user-agreement'
     | '/console/log'
@@ -938,6 +949,7 @@ export interface FileRouteTypes {
     | '/_authenticated/desktop/authorize'
     | '/_authenticated/errors/$error'
     | '/_authenticated/models/$section'
+    | '/_authenticated/pricing-center/$tab'
     | '/_authenticated/usage-logs/$section'
     | '/_public/docs/$slug'
     | '/_public/inspiration/$projectId'
@@ -947,6 +959,7 @@ export interface FileRouteTypes {
     | '/_authenticated/group-status/'
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
+    | '/_authenticated/pricing-center/'
     | '/_authenticated/profile/'
     | '/_authenticated/redemption-codes/'
     | '/_authenticated/subscriptions/'
@@ -1071,13 +1084,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/privacy-policy'
       preLoaderRoute: typeof PublicPrivacyPolicyRouteImport
       parentRoute: typeof PublicRouteRoute
-    }
-    '/_authenticated/pricing-center': {
-      id: '/_authenticated/pricing-center'
-      path: '/pricing-center'
-      fullPath: '/pricing-center'
-      preLoaderRoute: typeof AuthenticatedPricingCenterRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inspiration-admin': {
       id: '/_authenticated/inspiration-admin'
@@ -1310,6 +1316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pricing-center/': {
+      id: '/_authenticated/pricing-center/'
+      path: '/pricing-center'
+      fullPath: '/pricing-center/'
+      preLoaderRoute: typeof AuthenticatedPricingCenterIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/models/': {
       id: '/_authenticated/models/'
       path: '/models'
@@ -1371,6 +1384,13 @@ declare module '@tanstack/react-router' {
       path: '/usage-logs/$section'
       fullPath: '/usage-logs/$section'
       preLoaderRoute: typeof AuthenticatedUsageLogsSectionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pricing-center/$tab': {
+      id: '/_authenticated/pricing-center/$tab'
+      path: '/pricing-center/$tab'
+      fullPath: '/pricing-center/$tab'
+      preLoaderRoute: typeof AuthenticatedPricingCenterTabRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/models/$section': {
@@ -1639,18 +1659,19 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
   AuthenticatedDeviceRoute: typeof AuthenticatedDeviceRoute
   AuthenticatedInspirationAdminRoute: typeof AuthenticatedInspirationAdminRoute
-  AuthenticatedPricingCenterRoute: typeof AuthenticatedPricingCenterRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedDesktopAuthorizeRoute: typeof AuthenticatedDesktopAuthorizeRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
+  AuthenticatedPricingCenterTabRoute: typeof AuthenticatedPricingCenterTabRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedGroupStatusIndexRoute: typeof AuthenticatedGroupStatusIndexRoute
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
+  AuthenticatedPricingCenterIndexRoute: typeof AuthenticatedPricingCenterIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
@@ -1671,18 +1692,19 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
   AuthenticatedDeviceRoute: AuthenticatedDeviceRoute,
   AuthenticatedInspirationAdminRoute: AuthenticatedInspirationAdminRoute,
-  AuthenticatedPricingCenterRoute: AuthenticatedPricingCenterRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedDesktopAuthorizeRoute: AuthenticatedDesktopAuthorizeRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
+  AuthenticatedPricingCenterTabRoute: AuthenticatedPricingCenterTabRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedGroupStatusIndexRoute: AuthenticatedGroupStatusIndexRoute,
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
+  AuthenticatedPricingCenterIndexRoute: AuthenticatedPricingCenterIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,
