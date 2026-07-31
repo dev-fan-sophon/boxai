@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import { defaultTopNavLinks } from '../config/top-nav.config'
 import type { TopNavLink } from '../types'
+import { BrandWordmark } from './brand-wordmark'
 import { HeaderLogo } from './header-logo'
 
 const AUTH_PROMPT_SECONDS = 5
@@ -216,9 +217,14 @@ export function PublicHeader(props: PublicHeaderProps) {
                   />
                 )}
               </div>
-              <span className='text-sm font-semibold tracking-tight'>
-                {loading ? <Skeleton className='h-4 w-16' /> : displaySiteName}
-              </span>
+              {loading ? (
+                <Skeleton className='h-4 w-16' />
+              ) : (
+                <BrandWordmark
+                  name={displaySiteName}
+                  className='text-[15px] leading-none'
+                />
+              )}
             </Link>
 
             {/* Desktop nav */}

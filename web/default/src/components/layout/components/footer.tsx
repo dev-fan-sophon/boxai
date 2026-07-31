@@ -7,6 +7,8 @@ import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
 
+import { BrandWordmark } from './brand-wordmark'
+
 interface FooterLink {
   text: string
   href: string
@@ -185,9 +187,7 @@ export function Footer(props: FooterProps) {
                 alt={displayName}
                 className='size-7 rounded-lg object-contain'
               />
-              <span className='text-sm font-semibold tracking-tight'>
-                {displayName}
-              </span>
+              <BrandWordmark name={displayName} className='text-sm' />
             </Link>
             <p className='text-muted-foreground mt-3 max-w-[240px] text-xs leading-relaxed'>
               {t(

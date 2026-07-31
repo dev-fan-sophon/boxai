@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-labelledby="wm-title">
+  <title id="wm-title">BoxAI</title>
+  <!-- Geometric wordmark: tight tracking, AI in brand coral -->
+  <text
+    x="0"
+    y="34"
+    font-family="ui-sans-serif, system-ui, 'Public Sans', 'Segoe UI', sans-serif"
+    font-size="36"
+    font-weight="650"
+    letter-spacing="-1.6"
+    fill="#F7F8FA"
+  >Box</text>
+  <text
+    x="78"
+    y="34"
+    font-family="ui-sans-serif, system-ui, 'Public Sans', 'Segoe UI', sans-serif"
+    font-size="36"
+    font-weight="750"
+    letter-spacing="-2.2"
+    fill="url(#boxai-ai-grad)"
+  >AI</text>
+  <defs>
+    <linearGradient id="boxai-ai-grad" x1="78" y1="8" x2="160" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF9A6B"/>
+      <stop offset="0.45" stop-color="#F08050"/>
+      <stop offset="1" stop-color="#E05A3A"/>
+    </linearGradient>
+  </defs>
+</svg>
