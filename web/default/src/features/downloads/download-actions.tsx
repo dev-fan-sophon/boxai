@@ -25,6 +25,12 @@ export function DownloadActions(props: {
   fallbackUrl: string
   /** Product name for the fallback label, e.g. "BoxAI Desktop". */
   productName: string
+  /**
+   * Drop the label from the platform picker, keeping only its chevron. In a
+   * narrow card the labelled pair wraps onto two lines once translated, which
+   * leaves the primary button of every card sitting at a different height.
+   */
+  compact?: boolean
 }) {
   const { t } = useTranslation()
 
@@ -91,13 +97,13 @@ export function DownloadActions(props: {
           <DropdownMenuTrigger
             render={
               <Button
-                size='lg'
+                size={props.compact ? 'icon-lg' : 'lg'}
                 variant='outline'
                 aria-label={t('Other platforms')}
               />
             }
           >
-            {t('Other platforms')}
+            {!props.compact && t('Other platforms')}
             <ChevronDown className='size-4' aria-hidden='true' />
           </DropdownMenuTrigger>
           <DropdownMenuContent align='start' className='w-72'>

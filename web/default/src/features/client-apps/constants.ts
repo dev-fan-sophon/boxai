@@ -2,7 +2,8 @@ import type { ElementType } from 'react'
 
 import type { ClientAppId } from '@/features/downloads/use-app-release'
 
-import { BoxAIConnectIcon, BoxAIDesktopIcon, CLIENT_APP_LOGO } from './icons'
+import { BoxAIConnectIcon, BoxAIDesktopIcon } from './icons'
+import { CLIENT_APP_LOGO } from './logos'
 
 export type ClientAppMeta = {
   id: ClientAppId
@@ -18,6 +19,8 @@ export type ClientAppMeta = {
   section: 'connect' | 'desktop'
   /** Setup steps shown on the console page and in the marketing section. */
   stepKeys: readonly string[]
+  /** What the app does, for the marketing card. */
+  highlightKeys: readonly string[]
 }
 
 /**
@@ -43,23 +46,50 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
       'Sign in from the app; approve the request in this browser session.',
       'Pick the clients to configure — Connect writes each config file and keeps a backup.',
     ],
+    highlightKeys: [
+      'Writes the endpoint and key into each client for you',
+      'Backs up every config it touches, restorable in one click',
+      'Switch the whole toolchain to another provider in seconds',
+    ],
   },
   desktop: {
     id: 'desktop',
     nameKey: 'BoxAI Desktop',
-    taglineKey: 'An AI coworker that runs on your own machine',
+    taglineKey: 'An AI coworker for the office work you do every day',
     descriptionKey:
-      'BoxAI Desktop is an AI coworker that runs on your own machine, works with your files, terminal, and connected apps, and returns finished work.',
+      'BoxAI Desktop turns everyday office work into finished files. It reads the folders and documents already on your machine, drafts the report, spreadsheet, or deck, and hands back something you can send.',
     icon: BoxAIDesktopIcon,
     logoSrc: CLIENT_APP_LOGO.desktop.src,
     section: 'desktop',
     stepKeys: [
       'Download and install the app for your platform.',
       'Sign in from the app; approve the request in this browser session.',
-      'Describe a task and let the coworker run it on your machine.',
+      'Describe the deliverable and let the coworker produce it on your machine.',
+    ],
+    highlightKeys: [
+      'Documents, spreadsheets, and decks come back as real files',
+      'Works with the folders, inboxes, and tools the job already lives in',
+      'Standing reports and briefs run on a schedule without you',
     ],
   },
 }
+
+/**
+ * Announced products that have no release manifest yet. Deliberately outside
+ * `CLIENT_APPS`, because every entry there is expected to resolve to a download.
+ */
+export const UPCOMING_CLIENT_APPS = [
+  {
+    id: 'coding',
+    nameKey: 'BoxAI Coding',
+    taglineKey: 'A coding agent that ships changes, not suggestions',
+    highlightKeys: [
+      'Reads the repository, plans the change, and edits across files',
+      'Runs the build and the tests before it hands the work back',
+      'Same balance, keys, and usage history as the rest of BoxAI',
+    ],
+  },
+] as const
 
 /**
  * The clients BoxAI Connect writes a provider into, and the file it writes.

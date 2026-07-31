@@ -186,18 +186,26 @@ export function PublicHeader(props: PublicHeaderProps) {
   return (
     <>
       <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
+        {/*
+          The condensed pill hugs its content instead of snapping to a fixed
+          width: the nav strip is translated, and locales such as Vietnamese are
+          roughly twice as wide as English, which used to force the links to wrap
+          inside the pill.
+        */}
         <div
           className={cn(
             'pointer-events-auto mx-auto transition-[max-width,padding] duration-expressive ease-emphasized motion-reduce:transition-none',
-            scrolled ? 'max-w-[52rem] px-3 pt-3' : 'max-w-7xl px-4 pt-0 md:px-6'
+            scrolled
+              ? 'w-fit max-w-full px-3 pt-3'
+              : 'max-w-7xl px-4 pt-0 md:px-6'
           )}
         >
           <nav
             className={cn(
-              'flex items-center justify-between transition-[height,padding,border-radius,background-color,box-shadow] duration-expressive ease-emphasized motion-reduce:transition-none',
+              'flex items-center transition-[height,padding,border-radius,background-color,box-shadow] duration-expressive ease-emphasized motion-reduce:transition-none',
               scrolled
-                ? 'bg-background/60 ring-border/50 shadow-raised h-12 rounded-2xl pr-1.5 pl-4 ring-[0.5px] backdrop-blur-2xl'
-                : 'h-16 px-2'
+                ? 'bg-background/60 ring-border/50 shadow-raised h-12 gap-6 rounded-2xl pr-1.5 pl-4 ring-[0.5px] backdrop-blur-2xl'
+                : 'h-16 justify-between px-2'
             )}
           >
             {/* Logo */}
@@ -227,12 +235,14 @@ export function PublicHeader(props: PublicHeaderProps) {
               )}
             </Link>
 
-            {/* Desktop nav */}
-            <div className='hidden items-center gap-0.5 lg:flex'>
+            {/* Desktop nav — `xl` rather than `lg`, because the translated
+                strip plus the actions does not fit a 1024px viewport in the
+                wider locales. */}
+            <div className='hidden items-center gap-0.5 xl:flex'>
               {links.map((link) => {
                 const isActive = isNavLinkActive(pathname, link.href)
                 const linkClassName = cn(
-                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-[13px] font-medium',
+                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap',
                   isActive
                     ? 'bg-foreground/[0.06] text-foreground'
                     : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
@@ -337,7 +347,7 @@ export function PublicHeader(props: PublicHeaderProps) {
             </div>
 
             {/* Mobile: compact actions + hamburger */}
-            <div className='flex items-center gap-2 lg:hidden'>
+            <div className='ml-auto flex items-center gap-2 xl:hidden'>
               {showThemeSwitch && <ThemeSwitch />}
               {showAuthButtons && !loading && isAuthenticated && (
                 <ProfileDropdown />
@@ -379,7 +389,7 @@ export function PublicHeader(props: PublicHeaderProps) {
       {/* Mobile full-screen overlay */}
       <div
         className={cn(
-          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-expressive ease-emphasized lg:pointer-events-none lg:hidden',
+          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-expressive ease-emphasized xl:pointer-events-none xl:hidden',
           mobileOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'

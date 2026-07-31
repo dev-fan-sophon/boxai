@@ -37,7 +37,7 @@ const PAIRED = new RegExp(
   `bg-(${STATUS_FAMILIES.join('|')})-\\d{2,3}(?:/\\d+)?[^'"\`]*?\\btext-\\1-\\d{2,3}`
 )
 
-const BUDGET = 38
+const BUDGET = 36
 
 const root = process.cwd()
 const files = globSync('src/**/*.{ts,tsx}', { cwd: root, absolute: true })

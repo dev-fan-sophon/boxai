@@ -6,23 +6,36 @@ import {
   PlugZap,
   WalletCards,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
 import { useStatus } from '@/hooks/use-status'
-import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'
 
-import { HeroTerminalDemo } from '../hero-terminal-demo'
+import { useHomeStats } from '../../hooks'
+import { ConsolePreview, type ConsoleStep } from '../console-preview'
+
+/** How long a step stays on screen before the walkthrough moves itself on. */
+const STEP_DWELL_MS = 6000
+
+const STEP_ORDER: ConsoleStep[] = ['wallet', 'keys', 'models', 'integrate']
 
 export function HowItWorks() {
   const { t } = useTranslation()
   const { status } = useStatus()
+  const statsQuery = useHomeStats()
+  const stats = statsQuery.data?.data
   const docsUrl =
     (status?.docs_link as string | undefined) || 'https://you-box.com'
+  const [active, setActive] = useState<ConsoleStep>('wallet')
+  // Once the visitor picks a step, the tour stops driving the preview out from
+  // under them.
+  const [pinned, setPinned] = useState(false)
 
   const steps = [
     {
+      id: 'wallet' as const,
       num: '01',
       title: t('Top Up Account'),
       desc: t(
@@ -32,6 +45,7 @@ export function HowItWorks() {
       icon: <WalletCards className='size-5' strokeWidth={1.5} />,
     },
     {
+      id: 'keys' as const,
       num: '02',
       title: t('Create API Key'),
       desc: t(
@@ -41,6 +55,7 @@ export function HowItWorks() {
       icon: <KeyRound className='size-5' strokeWidth={1.5} />,
     },
     {
+      id: 'models' as const,
       num: '03',
       title: t('Choose Models'),
       desc: t(
@@ -50,6 +65,7 @@ export function HowItWorks() {
       icon: <Layers3 className='size-5' strokeWidth={1.5} />,
     },
     {
+      id: 'integrate' as const,
       num: '04',
       title: t('Integrate Apps'),
       desc: t(
@@ -60,6 +76,22 @@ export function HowItWorks() {
       icon: <PlugZap className='size-5' strokeWidth={1.5} />,
     },
   ]
+
+  useEffect(() => {
+    if (pinned) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const id = setInterval(() => {
+      setActive((current) => {
+        const next = STEP_ORDER.indexOf(current) + 1
+        return STEP_ORDER[next % STEP_ORDER.length]
+      })
+    }, STEP_DWELL_MS)
+    return () => clearInterval(id)
+  }, [pinned])
+
+  const host =
+    typeof window === 'undefined' ? 'you-box.com' : window.location.host
 
   return (
     <section
@@ -74,79 +106,100 @@ export function HowItWorks() {
           <h2 className='text-2xl font-bold tracking-tight text-balance md:text-3xl'>
             {t('One unified API for the models currently available')}
           </h2>
+          <p className='text-muted-foreground mt-4 text-sm leading-relaxed text-pretty md:text-base'>
+            {t(
+              'Four screens in the console take you from an empty account to a working call.'
+            )}
+          </p>
         </AnimateInView>
 
-        <div className='grid items-start gap-10 lg:grid-cols-12'>
-          <AnimateInView delay={100} className='lg:col-span-6'>
-            <div className='mb-3 flex items-center justify-between'>
-              <p className='text-sm font-semibold'>
-                {t('Unified API Example')}
-              </p>
-              <span
-                className={cn(
-                  'rounded-full px-2.5 py-0.5 text-[11px] font-medium',
-                  tone('success', { bordered: true })
-                )}
-              >
-                {t('Multiple API Formats')}
-              </span>
-            </div>
-            <HeroTerminalDemo />
-          </AnimateInView>
-
-          <div className='space-y-3 lg:col-span-6'>
-            <p className='text-muted-foreground mb-1 text-xs font-medium tracking-widest uppercase'>
-              {t('Integration Workflow')}
-            </p>
-            {steps.map((step, i) => {
-              const cardClass =
-                'group border-border/50 bg-background/70 hover:border-border hover:bg-muted/20 block rounded-2xl border p-4 shadow-xs transition-ui'
-              const body = (
-                <>
-                  <div className='mb-3 flex items-start justify-between gap-3'>
-                    <div className='flex items-center gap-3'>
-                      <div className='border-border/50 bg-muted/40 text-muted-foreground flex size-10 items-center justify-center rounded-xl border'>
+        <div className='grid items-start gap-8 lg:grid-cols-12 lg:gap-10'>
+          <div className='space-y-2 lg:col-span-5'>
+            {steps.map((step, index) => {
+              const isActive = step.id === active
+              return (
+                <AnimateInView key={step.id} delay={100 + index * 70}>
+                  <div
+                    className={cn(
+                      'transition-ui duration-control rounded-2xl border p-4',
+                      isActive
+                        ? 'border-border bg-card shadow-xs'
+                        : 'border-border/40 bg-background/40 hover:border-border/70'
+                    )}
+                  >
+                    <button
+                      type='button'
+                      onClick={() => {
+                        setActive(step.id)
+                        setPinned(true)
+                      }}
+                      aria-pressed={isActive}
+                      className='flex w-full items-center gap-3 text-left'
+                    >
+                      <span
+                        className={cn(
+                          'transition-ui duration-control flex size-10 shrink-0 items-center justify-center rounded-xl border',
+                          isActive
+                            ? 'border-chart-1/30 bg-chart-1/10 text-chart-1'
+                            : 'border-border/50 bg-muted/40 text-muted-foreground'
+                        )}
+                      >
                         {step.icon}
-                      </div>
-                      <div>
-                        <div className='flex items-center gap-2'>
+                      </span>
+                      <span className='min-w-0'>
+                        <span className='flex items-center gap-2'>
                           <span className='text-muted-foreground font-mono text-[11px]'>
                             {step.num}
                           </span>
-                          <h3 className='text-sm font-semibold'>
+                          <span className='text-sm font-semibold'>
                             {step.title}
-                          </h3>
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight className='text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5' />
-                  </div>
-                  <p className='text-muted-foreground text-sm leading-relaxed'>
-                    {step.desc}
-                  </p>
-                </>
-              )
+                          </span>
+                        </span>
+                      </span>
+                    </button>
 
-              return (
-                <AnimateInView key={step.num} delay={120 + i * 70}>
-                  {step.external ? (
-                    <a
-                      href={step.href}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className={cardClass}
-                    >
-                      {body}
-                    </a>
-                  ) : (
-                    <Link to={step.href} className={cardClass}>
-                      {body}
-                    </Link>
-                  )}
+                    <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
+                      {step.desc}
+                    </p>
+
+                    {step.external ? (
+                      <a
+                        href={step.href}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
+                      >
+                        {t('Read the docs')}
+                        <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                      </a>
+                    ) : (
+                      <Link
+                        to={step.href}
+                        className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
+                      >
+                        {t('Open in console')}
+                        <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                      </Link>
+                    )}
+                  </div>
                 </AnimateInView>
               )
             })}
           </div>
+
+          <AnimateInView
+            delay={140}
+            animation='fade-left'
+            className='lg:sticky lg:top-24 lg:col-span-7'
+          >
+            <ConsolePreview
+              step={active}
+              host={host}
+              models={stats?.top_models ?? []}
+              modelCount={stats?.available_models}
+              vendorCount={stats?.active_vendors}
+            />
+          </AnimateInView>
         </div>
       </div>
     </section>

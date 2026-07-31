@@ -512,6 +512,71 @@
   }
 }
 
+/* ── Surface card previews ───────────────────────────────────────────────────
+ * The little live panels inside the "what you get" cards. All three loops are
+ * ambient: nothing waits on them, so they run several multiples slower than the
+ * interactive tiers and never read as the page still loading. `--loop-delay`
+ * staggers sibling rows/tiles from the markup. */
+@keyframes surface-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes surface-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(240%);
+  }
+}
+
+@keyframes surface-caret {
+  0%,
+  48% {
+    opacity: 1;
+  }
+  52%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.surface-pulse {
+  animation: surface-pulse calc(var(--motion-duration-ambient) * 1.6)
+    var(--motion-ease-out) var(--loop-delay, 0ms) infinite;
+}
+
+/* The travelling highlight over a media tile. Lives on an absolutely
+ * positioned child rather than a background-position loop, so it composites on
+ * transform alone. */
+.surface-sweep {
+  animation: surface-sweep calc(var(--motion-duration-ambient) * 2.5)
+    var(--motion-ease-out) var(--loop-delay, 0ms) infinite;
+}
+
+.surface-caret {
+  animation: surface-caret calc(var(--motion-duration-ambient) * 0.9) step-end
+    infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface-pulse,
+  .surface-sweep,
+  .surface-caret {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Micro-interactions — Vercel-style subtle hover/active feedback */
 @media (prefers-reduced-motion: no-preference) {
   /* The one card-hover spec for the whole app. `ui/Card` opts in by default and
