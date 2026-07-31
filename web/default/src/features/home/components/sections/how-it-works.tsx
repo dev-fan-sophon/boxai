@@ -41,7 +41,7 @@ export function HowItWorks() {
       desc: t(
         'Go to Wallet and choose an available payment method and amount.'
       ),
-      href: '/wallet',
+      href: '/billing',
       icon: <WalletCards className='size-5' strokeWidth={1.5} />,
     },
     {

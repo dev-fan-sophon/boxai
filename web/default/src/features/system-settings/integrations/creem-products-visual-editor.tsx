@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import {
   formatCreemPrice,
   formatQuotaShort,
-} from '@/features/wallet/lib/format'
+} from '@/features/billing/lib/format'
 
 import { safeJsonParseWithValidation } from '../utils/json-parser'
 import { isArray } from '../utils/json-validators'

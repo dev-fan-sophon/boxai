@@ -21,7 +21,7 @@ export type ConsoleStep = 'wallet' | 'keys' | 'models' | 'integrate'
 
 /** Paths shown in the address pill, matching the real console routes. */
 const STEP_PATHS: Record<ConsoleStep, string> = {
-  wallet: '/wallet',
+  wallet: '/billing',
   keys: '/keys',
   models: '/pricing',
   integrate: '/v1/chat/completions',

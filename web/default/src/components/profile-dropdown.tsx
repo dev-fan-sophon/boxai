@@ -29,7 +29,7 @@ export function ProfileDropdown() {
   const user = useAuthStore((state) => state.auth.user)
   const { displayName, roleLabel } = useUserDisplay(user)
   const isSuperAdmin = user?.role === ROLE.SUPER_ADMIN
-  const isWalletVisible = useIsSidebarModuleVisible('/wallet')
+  const isBillingVisible = useIsSidebarModuleVisible('/billing')
   const avatarName = user?.username || displayName
   const avatarFallback = getUserAvatarFallback(avatarName)
   const avatarFallbackStyle = useMemo(
@@ -91,10 +91,10 @@ export function ProfileDropdown() {
             {t('Profile')}
           </DropdownMenuItem>
 
-          {isWalletVisible && (
-            <DropdownMenuItem onClick={() => navigate({ to: '/wallet' })}>
+          {isBillingVisible && (
+            <DropdownMenuItem onClick={() => navigate({ to: '/billing' })}>
               <Wallet className='size-4' />
-              {t('Wallet')}
+              {t('Billing')}
             </DropdownMenuItem>
           )}
 

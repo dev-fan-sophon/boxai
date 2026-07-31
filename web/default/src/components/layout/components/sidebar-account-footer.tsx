@@ -103,7 +103,7 @@ export function SidebarAccountFooter() {
         <SidebarMenuItem>
           {collapsed ? (
             <SidebarMenuButton
-              render={<Link to='/wallet' />}
+              render={<Link to='/billing' />}
               className='size-8 justify-center'
               aria-label={collapsedLabel}
               tooltip={collapsedLabel}
@@ -117,7 +117,7 @@ export function SidebarAccountFooter() {
               transition={MOTION_TRANSITION.fast}
             >
               <Link
-                to='/wallet'
+                to='/billing'
                 className={cn(
                   'hover:bg-sidebar-accent/60 flex w-full flex-col gap-1 rounded-lg px-1.5 py-1.5',
                   'ring-sidebar-ring transition-colors focus-visible:ring-2 focus-visible:outline-none'

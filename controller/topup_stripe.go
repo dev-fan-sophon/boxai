@@ -456,7 +456,7 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 		successURL = paymentReturnPath("/usage-logs")
 	}
 	if cancelURL == "" {
-		cancelURL = paymentReturnPath("/wallet")
+		cancelURL = paymentReturnPath("/billing")
 	}
 
 	params := &stripe.CheckoutSessionParams{

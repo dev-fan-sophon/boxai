@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { BankQRPaymentDialog } from '@/features/wallet/components/dialogs/bank-qr-payment-dialog'
-import type { BankQRPaymentData } from '@/features/wallet/types'
+import { BankQRPaymentDialog } from '@/features/billing/components/dialogs/bank-qr-payment-dialog'
+import type { BankQRPaymentData } from '@/features/billing/types'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'

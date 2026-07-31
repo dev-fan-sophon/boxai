@@ -14,6 +14,7 @@ import { PasskeyCard } from './components/passkey-card'
 import { ProfileHeader } from './components/profile-header'
 import { ProfileSecurityCard } from './components/profile-security-card'
 import { ProfileSettingsCard } from './components/profile-settings-card'
+import { ReferralRewardsCard } from './components/referral-rewards-card'
 import { ProfileSectionLabel } from './components/profile-surface'
 import { SidebarModulesCard } from './components/sidebar-modules-card'
 import { TwoFACard } from './components/two-fa-card'
@@ -76,6 +77,14 @@ export function Profile() {
                 <LanguagePreferencesCard
                   profile={profile}
                   onProfileUpdate={refreshProfile}
+                />
+              </FadeIn>
+
+              <FadeIn delay={0.18}>
+                <ReferralRewardsCard
+                  profile={profile}
+                  loading={loading}
+                  onTransferred={refreshProfile}
                 />
               </FadeIn>
             </div>

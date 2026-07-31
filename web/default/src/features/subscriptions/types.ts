@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { BankQRPaymentData } from '@/features/wallet/types'
+import type { BankQRPaymentData } from '@/features/billing/types'
 
 // ============================================================================
 // Subscription Plan Schema & Types

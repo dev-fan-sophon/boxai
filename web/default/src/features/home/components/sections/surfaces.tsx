@@ -165,7 +165,7 @@ export function Surfaces() {
     icon: ReactNode
     title: string
     description: string
-    to: '/wallet' | '/keys' | '/usage-logs'
+    to: '/billing' | '/keys' | '/usage-logs'
     cta: string
     aside?: ReactNode
   }[] = [
@@ -175,7 +175,7 @@ export function Surfaces() {
       description: t(
         'Top up once. The API, the workspace, and the apps all draw from the same wallet.'
       ),
-      to: '/wallet',
+      to: '/billing',
       cta: t('Open Wallet'),
     },
     {

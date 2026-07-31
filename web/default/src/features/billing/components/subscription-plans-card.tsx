@@ -1,5 +1,5 @@
 import { Crown, RefreshCw, Sparkles, Check } from 'lucide-react'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -22,15 +22,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  getPublicPlans,
-  getSelfSubscriptionFull,
   updateOverageSettings,
   updateSubscriptionRenewal,
 } from '@/features/subscriptions/api'
 import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/dialogs/subscription-purchase-dialog'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
-  PendingBankQRSubscriptionOrder,
   PlanRecord,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
@@ -38,11 +35,17 @@ import { formatCurrencyFromUSD } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import type { SubscriptionCenterData } from '../hooks/use-subscription-center'
 import type { PaymentMethod, TopupInfo } from '../types'
 import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
 
 interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
+  data: SubscriptionCenterData
+  loading: boolean
+  refreshing: boolean
+  onRefresh: () => Promise<void> | void
+  onOverageChange: (enabled: boolean, limitUsd: number) => void
   onAvailabilityChange?: (available: boolean) => void
   userQuota?: number
   onPurchaseSuccess?: () => void | Promise<void>
@@ -57,22 +60,15 @@ function getEpayMethods(payMethods: PaymentMethod[] = []): PaymentMethod[] {
 export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const { t } = useTranslation()
 
-  const [plans, setPlans] = useState<PlanRecord[]>([])
-  const [activeSubscriptions, setActiveSubscriptions] = useState<
-    UserSubscriptionRecord[]
-  >([])
-  const [allSubscriptions, setAllSubscriptions] = useState<
-    UserSubscriptionRecord[]
-  >([])
-  const [pendingBankQROrders, setPendingBankQROrders] = useState<
-    PendingBankQRSubscriptionOrder[]
-  >([])
-  const [overageEnabled, setOverageEnabled] = useState(false)
+  const plans = props.data.plans
+  const activeSubscriptions = props.data.activeSubscriptions
+  const allSubscriptions = props.data.allSubscriptions
+  const pendingBankQROrders = props.data.pendingBankQROrders
+  const savedOverageLimit = props.data.overageLimitUsd
+  const overageEnabled = props.data.overageEnabled
+  const loading = props.loading
   const [overageLimitInput, setOverageLimitInput] = useState('')
-  const [savedOverageLimit, setSavedOverageLimit] = useState(0)
   const [renewalBusyId, setRenewalBusyId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
 
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
@@ -88,51 +84,11 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
     [props.topupInfo?.pay_methods]
   )
 
-  const fetchPlans = useCallback(async () => {
-    try {
-      const res = await getPublicPlans()
-      if (res.success) {
-        setPlans(res.data || [])
-      }
-    } catch {
-      setPlans([])
-    }
-  }, [])
-
-  const fetchSelfSubscription = useCallback(async () => {
-    try {
-      const res = await getSelfSubscriptionFull()
-      if (res.success && res.data) {
-        setOverageEnabled(!!res.data.overage_enabled)
-        const limit = Number(res.data.overage_limit_usd || 0)
-        setSavedOverageLimit(limit)
-        setOverageLimitInput(limit > 0 ? String(limit) : '')
-        setActiveSubscriptions(res.data.subscriptions || [])
-        setAllSubscriptions(res.data.all_subscriptions || [])
-        setPendingBankQROrders(res.data.pending_bank_qr_orders || [])
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
-
+  // The dirty-check compares against the saved limit, so the input mirrors
+  // whatever the shared subscription state currently holds.
   useEffect(() => {
-    const init = async () => {
-      setLoading(true)
-      await Promise.all([fetchPlans(), fetchSelfSubscription()])
-      setLoading(false)
-    }
-    init()
-  }, [fetchPlans, fetchSelfSubscription])
-
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    try {
-      await fetchSelfSubscription()
-    } finally {
-      setRefreshing(false)
-    }
-  }
+    setOverageLimitInput(savedOverageLimit > 0 ? String(savedOverageLimit) : '')
+  }, [savedOverageLimit])
 
   const saveOverageSettings = async (enabled: boolean, limitUsd: number) => {
     try {
@@ -142,10 +98,10 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
       })
       if (res.success) {
         toast.success(t('Updated successfully'))
-        setOverageEnabled(!!res.data?.overage_enabled)
-        const limit = Number(res.data?.overage_limit_usd || 0)
-        setSavedOverageLimit(limit)
-        setOverageLimitInput(limit > 0 ? String(limit) : '')
+        props.onOverageChange(
+          !!res.data?.overage_enabled,
+          Number(res.data?.overage_limit_usd || 0)
+        )
         return true
       }
       toast.error(res.message || t('Update failed'))
@@ -156,10 +112,9 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   }
 
   const handleOverageToggle = async (enabled: boolean) => {
-    const previous = overageEnabled
-    setOverageEnabled(enabled)
+    props.onOverageChange(enabled, savedOverageLimit)
     const ok = await saveOverageSettings(enabled, savedOverageLimit)
-    if (!ok) setOverageEnabled(previous)
+    if (!ok) props.onOverageChange(!enabled, savedOverageLimit)
   }
 
   const parsedOverageLimit = overageLimitInput.trim()
@@ -190,7 +145,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
       })
       if (res.success) {
         toast.success(t('Updated successfully'))
-        await fetchSelfSubscription()
+        await props.onRefresh()
       } else {
         toast.error(res.message || t('Update failed'))
       }
@@ -359,11 +314,11 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
               variant='ghost'
               size='icon'
               className='h-8 w-8'
-              onClick={handleRefresh}
-              disabled={refreshing}
+              onClick={() => void props.onRefresh()}
+              disabled={props.refreshing}
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                className={`h-3.5 w-3.5 ${props.refreshing ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
@@ -697,7 +652,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
         onOpenChange={(open) => {
           setPurchaseOpen(open)
           if (!open) {
-            fetchSelfSubscription()
+            void props.onRefresh()
           }
         }}
         plan={selectedPlan}
@@ -724,7 +679,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
         open={proofTradeNo !== null}
         onOpenChange={(open) => !open && setProofTradeNo(null)}
         tradeNo={proofTradeNo}
-        onSubmitted={() => void fetchSelfSubscription()}
+        onSubmitted={() => void props.onRefresh()}
       />
     </>
   )

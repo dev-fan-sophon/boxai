@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { CreemProduct } from '@/features/wallet/types'
+import type { CreemProduct } from '@/features/billing/types'
 
 import { safeNumberFieldProps } from '../utils/numeric-field'
 

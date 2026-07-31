@@ -43,7 +43,7 @@ import { Route as PublicInspirationIndexRouteImport } from './routes/_public/ins
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
 import { Route as PublicAgentsIndexRouteImport } from './routes/_public/agents/index'
 import { Route as PublicAboutIndexRouteImport } from './routes/_public/about/index'
-import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
+import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedTopupReviewsIndexRouteImport } from './routes/_authenticated/topup-reviews/index'
@@ -258,10 +258,10 @@ const PublicAboutIndexRoute = PublicAboutIndexRouteImport.update({
   path: '/about/',
   getParentRoute: () => PublicRouteRoute,
 } as any)
-const AuthenticatedWalletIndexRoute =
-  AuthenticatedWalletIndexRouteImport.update({
-    id: '/wallet/',
-    path: '/wallet/',
+const AuthenticatedBillingIndexRoute =
+  AuthenticatedBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
@@ -573,7 +573,7 @@ export interface FileRoutesByFullPath {
   '/topup-reviews/': typeof AuthenticatedTopupReviewsIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
-  '/wallet/': typeof AuthenticatedWalletIndexRoute
+  '/billing/': typeof AuthenticatedBillingIndexRoute
   '/about/': typeof PublicAboutIndexRoute
   '/agents/': typeof PublicAgentsIndexRoute
   '/docs/': typeof PublicDocsIndexRoute
@@ -649,7 +649,7 @@ export interface FileRoutesByTo {
   '/topup-reviews': typeof AuthenticatedTopupReviewsIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
-  '/wallet': typeof AuthenticatedWalletIndexRoute
+  '/billing': typeof AuthenticatedBillingIndexRoute
   '/about': typeof PublicAboutIndexRoute
   '/agents': typeof PublicAgentsIndexRoute
   '/docs': typeof PublicDocsIndexRoute
@@ -731,7 +731,7 @@ export interface FileRoutesById {
   '/_authenticated/topup-reviews/': typeof AuthenticatedTopupReviewsIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
-  '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
+  '/_authenticated/wallet/': typeof AuthenticatedBillingIndexRoute
   '/_public/about/': typeof PublicAboutIndexRoute
   '/_public/agents/': typeof PublicAgentsIndexRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
@@ -811,7 +811,7 @@ export interface FileRouteTypes {
     | '/topup-reviews/'
     | '/usage-logs/'
     | '/users/'
-    | '/wallet/'
+    | '/billing/'
     | '/about/'
     | '/agents/'
     | '/docs/'
@@ -887,7 +887,7 @@ export interface FileRouteTypes {
     | '/topup-reviews'
     | '/usage-logs'
     | '/users'
-    | '/wallet'
+    | '/billing'
     | '/about'
     | '/agents'
     | '/docs'
@@ -1255,9 +1255,9 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/wallet/': {
       id: '/_authenticated/wallet/'
-      path: '/wallet'
-      fullPath: '/wallet/'
-      preLoaderRoute: typeof AuthenticatedWalletIndexRouteImport
+      path: '/billing'
+      fullPath: '/billing/'
+      preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/users/': {
@@ -1679,7 +1679,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTopupReviewsIndexRoute: typeof AuthenticatedTopupReviewsIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
-  AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
+  AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedAdminAnalyticsSectionRoute: typeof AuthenticatedAdminAnalyticsSectionRoute
   AuthenticatedAdminUsageLogsSectionRoute: typeof AuthenticatedAdminUsageLogsSectionRoute
   AuthenticatedAdminAnalyticsIndexRoute: typeof AuthenticatedAdminAnalyticsIndexRoute
@@ -1713,7 +1713,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTopupReviewsIndexRoute: AuthenticatedTopupReviewsIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
-  AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
+  AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedAdminAnalyticsSectionRoute:
     AuthenticatedAdminAnalyticsSectionRoute,
   AuthenticatedAdminUsageLogsSectionRoute:

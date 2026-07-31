@@ -214,7 +214,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               <Button
                 size='sm'
                 className='h-8 gap-1.5'
-                render={<Link to='/wallet' />}
+                render={<Link to='/billing' />}
               >
                 <Wallet className='size-3.5' />
                 {t('Top up')}

@@ -312,11 +312,11 @@ export function SummaryCards() {
           </div>
           <Button
             className='w-full justify-between'
-            render={<Link to='/wallet' />}
+            render={<Link to='/billing' />}
           >
             <span className='inline-flex items-center gap-2'>
               <Wallet className='size-4' aria-hidden='true' />
-              {t('Wallet')}
+              {t('Billing')}
             </span>
             <ArrowRight data-icon='inline-end' />
           </Button>

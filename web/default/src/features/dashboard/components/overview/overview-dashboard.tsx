@@ -37,7 +37,7 @@ import { ApiInfoPanel } from './api-info-panel'
 import { PerformanceHealthPanel } from './performance-health-panel'
 import { SummaryCards } from './summary-cards'
 
-type DashboardActionPath = '/keys' | '/wallet' | '/playground'
+type DashboardActionPath = '/keys' | '/billing' | '/playground'
 type OverviewPanelKey = 'performance' | 'announcements' | 'api-info'
 
 interface OverviewSignal {
@@ -232,7 +232,7 @@ export function OverviewDashboard() {
     } else if (remainQuota <= 0 && usedQuota <= 0) {
       nextAction = {
         title: t('Add credits'),
-        to: '/wallet',
+        to: '/billing',
         icon: CreditCard,
       }
     } else if (requestCount <= 0) {

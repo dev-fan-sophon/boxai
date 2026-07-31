@@ -23,11 +23,11 @@ import {
   approveTopUpReview,
   getTopUpReviews,
   rejectTopUpReview,
-} from '@/features/wallet/api'
+} from '@/features/billing/api'
 import type {
   TopUpReview,
   TopUpSubmissionStatus,
-} from '@/features/wallet/types'
+} from '@/features/billing/types'
 import { getCurrentIntlLocale } from '@/i18n/languages'
 import { formatDateTimeObject } from '@/lib/time'
 

@@ -60,8 +60,8 @@ export function useSidebarData(): SidebarData {
             icon: Key,
           },
           {
-            title: t('Wallet'),
-            url: '/wallet',
+            title: t('Billing'),
+            url: '/billing',
             icon: Wallet,
           },
         ],
@@ -163,7 +163,8 @@ export function useSidebarData(): SidebarData {
           },
           {
             title: t('Users'),
-            url: '/users',
+            url: '/users/overview',
+            activeUrls: ['/users'],
             icon: Users,
           },
           {
