@@ -40,8 +40,16 @@ export const colorToBgClass: Record<SemanticColor, string> = {
 /** Label placed on a brand-colored fill when white would be too dim. */
 const BRAND_DARK_FOREGROUND = '#0b1633'
 
+/**
+ * Fallback soft coral when dark-mode primary cannot be derived safely.
+ * Must match common.DefaultBrandPrimaryDark / DeriveDarkBrandPrimary(#E05A3A).
+ */
+export const DEFAULT_BRAND_PRIMARY_DARK = '#FF9072'
+
 /** Substitute for vendor accents that vanish into one of the two canvases. */
 const NEUTRAL_BRAND_ACCENT = '#8a8f98'
+
+const HEX_RGB = /^#[0-9A-Fa-f]{6}$/
 
 /**
  * Vendor brand colors are chosen for a logo, not for our canvases: near-black
@@ -56,7 +64,7 @@ export function visibleBrandAccent(color: string): string {
 }
 
 function brandLuminance(color: string): number | undefined {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return undefined
+  if (!HEX_RGB.test(color)) return undefined
   const channels = [1, 3, 5].map((index) => {
     const channel = Number.parseInt(color.slice(index, index + 2), 16) / 255
     return channel <= 0.04045
@@ -79,27 +87,128 @@ export function brandPrimaryForeground(color: string): string {
   return whiteContrast >= darkContrast ? '#ffffff' : BRAND_DARK_FOREGROUND
 }
 
+function foregroundContrastRatio(color: string): number | undefined {
+  const luminance = brandLuminance(color)
+  if (luminance === undefined) return undefined
+  return brandPrimaryForeground(color) === '#ffffff'
+    ? 1.05 / (luminance + 0.05)
+    : (luminance + 0.05) / (0.0114 + 0.05)
+}
+
 /**
- * A brand color is usable when its own label clears AA and the fill stays
- * visible against both canvases. Contrast is measured against the derived
- * label rather than white, so a light brand color is judged on how it will
- * actually be rendered.
+ * Light-scheme brand seed: label AA + visible against the light canvas.
+ * Mirrors common.IsAccessibleBrandPrimaryForLight.
+ */
+export function isAccessibleBrandPrimaryForLight(color: string): boolean {
+  const luminance = brandLuminance(color)
+  const fg = foregroundContrastRatio(color)
+  if (luminance === undefined || fg === undefined) return false
+  const lightCanvasContrast = (0.947 + 0.05) / (luminance + 0.05)
+  return fg >= 4.5 && lightCanvasContrast >= 3
+}
+
+/**
+ * Dark-scheme brand fill: label AA + visible against the dark canvas.
+ * Mirrors common.IsAccessibleBrandPrimaryForDark.
+ */
+export function isAccessibleBrandPrimaryForDark(color: string): boolean {
+  const luminance = brandLuminance(color)
+  const fg = foregroundContrastRatio(color)
+  if (luminance === undefined || fg === undefined) return false
+  const darkCanvasContrast = (luminance + 0.05) / (0.006 + 0.05)
+  return fg >= 4.5 && darkCanvasContrast >= 3
+}
+
+/**
+ * Dual-scheme check (legacy / vendor accents). Admin brand options use the
+ * scheme-specific helpers; light seed and dark override are validated apart.
  */
 export function isAccessibleBrandPrimary(color: string): boolean {
-  const luminance = brandLuminance(color)
-  if (luminance === undefined) return false
-
-  const foregroundContrast =
-    brandPrimaryForeground(color) === '#ffffff'
-      ? 1.05 / (luminance + 0.05)
-      : (luminance + 0.05) / (0.0114 + 0.05)
-  const lightCanvasContrast = (0.947 + 0.05) / (luminance + 0.05)
-  const darkCanvasContrast = (luminance + 0.05) / (0.006 + 0.05)
   return (
-    foregroundContrast >= 4.5 &&
-    lightCanvasContrast >= 3 &&
-    darkCanvasContrast >= 3
+    isAccessibleBrandPrimaryForLight(color) &&
+    isAccessibleBrandPrimaryForDark(color)
   )
+}
+
+type Oklab = { L: number; a: number; b: number }
+
+function srgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+function linearToSrgb(c: number): number {
+  return c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055
+}
+
+function hexToOklab(color: string): Oklab | undefined {
+  if (!HEX_RGB.test(color)) return undefined
+  const r = srgbToLinear(Number.parseInt(color.slice(1, 3), 16) / 255)
+  const g = srgbToLinear(Number.parseInt(color.slice(3, 5), 16) / 255)
+  const b = srgbToLinear(Number.parseInt(color.slice(5, 7), 16) / 255)
+  const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+  const m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+  const s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+  const l_ = Math.cbrt(l)
+  const m_ = Math.cbrt(m)
+  const s_ = Math.cbrt(s)
+  return {
+    L: 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    a: 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+  }
+}
+
+function oklabToHex(lab: Oklab): string {
+  const l_ = lab.L + 0.3963377774 * lab.a + 0.2158037573 * lab.b
+  const m_ = lab.L - 0.1055613458 * lab.a - 0.0638541728 * lab.b
+  const s_ = lab.L - 0.0894841775 * lab.a - 1.291485548 * lab.b
+  const l = l_ * l_ * l_
+  const m = m_ * m_ * m_
+  const s = s_ * s_ * s_
+  const r = linearToSrgb(+4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s)
+  const g = linearToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s)
+  const b = linearToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)
+  const channel = (c: number) => {
+    const v = Math.round(Math.min(1, Math.max(0, c)) * 255)
+    return v.toString(16).padStart(2, '0').toUpperCase()
+  }
+  return `#${channel(r)}${channel(g)}${channel(b)}`
+}
+
+/**
+ * Lift + slight desaturate for dark-scheme solid fills (industry pattern:
+ * same hue family, softer on navy canvases). Must match common.DeriveDarkBrandPrimary.
+ */
+export function deriveDarkBrandPrimary(color: string): string {
+  const lab = hexToOklab(color)
+  if (!lab) return DEFAULT_BRAND_PRIMARY_DARK
+
+  let targetL = lab.L * 1.12 + 0.14
+  if (targetL < 0.64) targetL = 0.64
+  if (targetL > 0.78) targetL = 0.78
+  lab.L = targetL
+  lab.a *= 0.88
+  lab.b *= 0.88
+
+  let hex = oklabToHex(lab)
+  for (let i = 0; i < 10 && !isAccessibleBrandPrimaryForDark(hex); i++) {
+    lab.L = Math.min(0.86, lab.L + 0.025)
+    hex = oklabToHex(lab)
+  }
+  return isAccessibleBrandPrimaryForDark(hex) ? hex : DEFAULT_BRAND_PRIMARY_DARK
+}
+
+/**
+ * Configured dark override when valid; otherwise derived from the light seed.
+ * Mirrors common.EffectiveDarkBrandPrimary.
+ */
+export function effectiveDarkBrandPrimary(
+  light: string,
+  darkOverride = ''
+): string {
+  if (isAccessibleBrandPrimaryForDark(darkOverride)) return darkOverride
+  if (HEX_RGB.test(light)) return deriveDarkBrandPrimary(light)
+  return DEFAULT_BRAND_PRIMARY_DARK
 }
 
 export const avatarColorMap: Record<SemanticColor, string> = {

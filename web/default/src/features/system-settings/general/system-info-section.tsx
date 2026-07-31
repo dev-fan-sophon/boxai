@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { isAccessibleBrandPrimary } from '@/lib/colors'
+import {
+  deriveDarkBrandPrimary,
+  isAccessibleBrandPrimaryForDark,
+  isAccessibleBrandPrimaryForLight,
+} from '@/lib/colors'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
@@ -36,6 +40,7 @@ const _systemInfoSchema = z.object({
   branding: z.object({
     favicon_url: z.string().optional(),
     primary_color: z.string().optional(),
+    primary_color_dark: z.string().optional(),
   }),
   Footer: z.string().optional(),
   About: z.string().optional(),
@@ -68,6 +73,9 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     branding: {
       favicon_url: normalizeValue(defaultValues.branding?.favicon_url),
       primary_color: normalizeValue(defaultValues.branding?.primary_color),
+      primary_color_dark: normalizeValue(
+        defaultValues.branding?.primary_color_dark
+      ),
     },
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
@@ -110,11 +118,21 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
           error: () => t('Enter a color in #RRGGBB format'),
         })
         .or(z.literal(''))
-        .refine((value) => !value || isAccessibleBrandPrimary(value), {
+        .refine((value) => !value || isAccessibleBrandPrimaryForLight(value), {
           error: () =>
             t(
-              'Choose a brand color with accessible contrast in light and dark modes'
+              'Choose a brand color with accessible contrast in light mode'
             ),
+        }),
+      primary_color_dark: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/, {
+          error: () => t('Enter a color in #RRGGBB format'),
+        })
+        .or(z.literal(''))
+        .refine((value) => !value || isAccessibleBrandPrimaryForDark(value), {
+          error: () =>
+            t('Choose a dark brand color with accessible contrast in dark mode'),
         }),
     }),
     Footer: z.string().optional(),
@@ -151,6 +169,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
   const previewLogo = form.watch('Logo')
   const previewFavicon = form.watch('branding.favicon_url')
   const previewColor = form.watch('branding.primary_color')
+  const previewColorDark = form.watch('branding.primary_color_dark')
+  const autoDarkPreview =
+    previewColor && isAccessibleBrandPrimaryForLight(previewColor)
+      ? deriveDarkBrandPrimary(previewColor)
+      : '#FF9072'
+  const effectiveDarkPreview = previewColorDark || autoDarkPreview
 
   const applyBoxAIRecommendedValues = () => {
     form.setValue('SystemName', 'BoxAI', { shouldDirty: true })
@@ -159,6 +183,10 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       shouldDirty: true,
     })
     form.setValue('branding.primary_color', '#E05A3A', {
+      shouldDirty: true,
+    })
+    // Empty dark → auto-derive soft coral for navy dark canvases.
+    form.setValue('branding.primary_color_dark', '', {
       shouldDirty: true,
     })
   }
@@ -284,12 +312,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 name='branding.primary_color'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Brand Primary Color')}</FormLabel>
+                    <FormLabel>{t('Brand Primary Color (light)')}</FormLabel>
                     <FormControl>
                       <div className='flex gap-2'>
                         <Input
                           type='color'
-                          aria-label={t('Brand Primary Color')}
+                          aria-label={t('Brand Primary Color (light)')}
                           className='w-12 p-1'
                           value={field.value || '#E05A3A'}
                           onChange={field.onChange}
@@ -299,9 +327,74 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'Primary color used by buttons and sidebar highlights'
+                        'Light-mode buttons, rings, and sidebar highlights. Dark mode uses a softer auto-derived fill unless you set a dark override.'
                       )}
                     </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='branding.primary_color_dark'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Brand Primary Color (dark)')}</FormLabel>
+                    <FormControl>
+                      <div className='flex gap-2'>
+                        <Input
+                          type='color'
+                          aria-label={t('Brand Primary Color (dark)')}
+                          className='w-12 p-1'
+                          value={field.value || effectiveDarkPreview}
+                          onChange={field.onChange}
+                        />
+                        <Input
+                          placeholder={autoDarkPreview}
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Optional. Leave empty to auto-derive a softer dark fill from the light brand color (recommended). Current auto: {{color}}',
+                        { color: autoDarkPreview }
+                      )}
+                    </FormDescription>
+                    <div className='flex flex-wrap items-center gap-2 pt-1'>
+                      <span
+                        className='inline-block size-6 rounded-md border'
+                        style={{ backgroundColor: previewColor || '#E05A3A' }}
+                        title={t('Light')}
+                      />
+                      <span className='text-muted-foreground text-xs'>→</span>
+                      <span
+                        className='inline-block size-6 rounded-md border'
+                        style={{ backgroundColor: effectiveDarkPreview }}
+                        title={t('Dark')}
+                      />
+                      <span className='text-muted-foreground text-xs'>
+                        {previewColorDark
+                          ? t('Custom dark override')
+                          : t('Auto-derived dark')}
+                      </span>
+                      {previewColorDark ? (
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          className='h-7 px-2 text-xs'
+                          onClick={() =>
+                            form.setValue('branding.primary_color_dark', '', {
+                              shouldDirty: true,
+                            })
+                          }
+                        >
+                          {t('Use auto dark')}
+                        </Button>
+                      ) : null}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

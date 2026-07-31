@@ -12,6 +12,7 @@ import type { UpdateOptionRequest } from '../types'
 const STATUS_RELATED_KEYS = new Set([
   'branding.favicon_url',
   'branding.primary_color',
+  'branding.primary_color_dark',
   'SystemName',
   'Logo',
   'Footer',
@@ -84,6 +85,12 @@ export function useUpdateOption() {
             break
           case 'branding.primary_color':
             setSystemConfig({ primaryColor: value })
+            break
+          case 'branding.primary_color_dark':
+            setSystemConfig({
+              primaryColorDark: value,
+              primaryColorDarkCustom: value !== '',
+            })
             break
           case 'general_setting.business_timezone':
             setSystemConfig({ businessTimezone: value })

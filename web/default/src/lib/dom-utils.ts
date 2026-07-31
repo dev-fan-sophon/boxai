@@ -1,4 +1,9 @@
-import { brandPrimaryForeground, isAccessibleBrandPrimary } from '@/lib/colors'
+import {
+  brandPrimaryForeground,
+  effectiveDarkBrandPrimary,
+  isAccessibleBrandPrimaryForDark,
+  isAccessibleBrandPrimaryForLight,
+} from '@/lib/colors'
 
 export function applyDocumentTitleToDom(title: string) {
   if (typeof document === 'undefined' || !title) return
@@ -25,23 +30,60 @@ export function applyFaviconToDom(url: string) {
   }
 }
 
-export function applyPrimaryColorToDom(color: string) {
+/**
+ * Only brand tokens — never set --primary/--sidebar-primary here.
+ * theme.css binds those per scheme so .dark can switch to the soft fill.
+ * Setting --primary inline would override .dark and pin the light seed forever.
+ */
+const BRAND_CSS_VARS = [
+  '--brand-primary',
+  '--brand-primary-foreground',
+  '--brand-primary-dark',
+  '--brand-primary-dark-foreground',
+] as const
+
+/**
+ * Apply admin brand colors to the document root.
+ *
+ * - Light scheme: `--brand-primary` → `--primary` (via theme.css)
+ * - Dark scheme: `--brand-primary-dark` (override or auto-derived soft fill)
+ * - Invalid / empty light color clears overrides so CSS defaults apply
+ */
+export function applyPrimaryColorToDom(color: string, darkColor = '') {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  // The label is derived from the same color so a light brand primary keeps a
-  // readable button/sidebar label instead of white-on-light.
-  const values: Record<string, string> = {
-    '--brand-primary': color,
-    '--primary': color,
-    '--sidebar-primary': color,
-    '--brand-primary-foreground': brandPrimaryForeground(color),
-  }
-  const validColor = isAccessibleBrandPrimary(color)
-  for (const [property, value] of Object.entries(values)) {
-    if (validColor) {
-      root.style.setProperty(property, value)
-    } else {
+  const light = color.trim()
+  const darkOverride = darkColor.trim()
+
+  // Drop any legacy inline --primary from older clients so theme.css wins.
+  root.style.removeProperty('--primary')
+  root.style.removeProperty('--primary-foreground')
+  root.style.removeProperty('--sidebar-primary')
+  root.style.removeProperty('--sidebar-primary-foreground')
+
+  if (!isAccessibleBrandPrimaryForLight(light)) {
+    for (const property of BRAND_CSS_VARS) {
       root.style.removeProperty(property)
     }
+    if (isAccessibleBrandPrimaryForDark(darkOverride)) {
+      root.style.setProperty('--brand-primary-dark', darkOverride)
+      root.style.setProperty(
+        '--brand-primary-dark-foreground',
+        brandPrimaryForeground(darkOverride)
+      )
+    }
+    return
   }
+
+  const dark = effectiveDarkBrandPrimary(light, darkOverride)
+  root.style.setProperty('--brand-primary', light)
+  root.style.setProperty(
+    '--brand-primary-foreground',
+    brandPrimaryForeground(light)
+  )
+  root.style.setProperty('--brand-primary-dark', dark)
+  root.style.setProperty(
+    '--brand-primary-dark-foreground',
+    brandPrimaryForeground(dark)
+  )
 }

@@ -88,42 +88,10 @@ func validateRateLimitOption(key string, value string) error {
 	return nil
 }
 
-func brandColorRelativeLuminance(value string) float64 {
-	rgb, _ := strconv.ParseUint(value[1:], 16, 32)
-	channels := []float64{
-		float64((rgb>>16)&0xff) / 255,
-		float64((rgb>>8)&0xff) / 255,
-		float64(rgb&0xff) / 255,
-	}
-	for index, channel := range channels {
-		if channel <= 0.04045 {
-			channels[index] = channel / 12.92
-		} else {
-			channels[index] = math.Pow((channel+0.055)/1.055, 2.4)
-		}
-	}
-	return 0.2126*channels[0] + 0.7152*channels[1] + 0.0722*channels[2]
-}
-
+// isAccessibleBrandPrimary is the dual-scheme check kept for legacy tests.
+// Option updates use scheme-specific helpers in common.
 func isAccessibleBrandPrimary(value string) bool {
-	if len(value) != 7 || value[0] != '#' {
-		return false
-	}
-	if _, err := strconv.ParseUint(value[1:], 16, 32); err != nil {
-		return false
-	}
-
-	// Mirrors brandPrimaryForeground/isAccessibleBrandPrimary in
-	// web/default/src/lib/colors.ts: the label is measured against whichever of
-	// white or the dark label the frontend will actually render, so a light
-	// brand color is judged on its real appearance rather than white-on-light.
-	luminance := brandColorRelativeLuminance(value)
-	whiteContrast := 1.05 / (luminance + 0.05)
-	darkContrast := (luminance + 0.05) / (0.0114 + 0.05)
-	foregroundContrast := math.Max(whiteContrast, darkContrast)
-	lightCanvasContrast := (0.947 + 0.05) / (luminance + 0.05)
-	darkCanvasContrast := (luminance + 0.05) / (0.006 + 0.05)
-	return foregroundContrast >= 4.5 && lightCanvasContrast >= 3 && darkCanvasContrast >= 3
+	return common.IsAccessibleBrandPrimary(value)
 }
 
 func collectModelNamesFromOptionValue(raw string, modelNames map[string]struct{}) {
@@ -381,11 +349,22 @@ func UpdateOption(c *gin.Context) {
 			}
 		}
 	case "branding.primary_color":
+		// Light-scheme seed: validated against the light canvas only. Dark mode
+		// uses branding.primary_color_dark or an auto-derived softer fill.
 		value := option.Value.(string)
-		if value != "" && !isAccessibleBrandPrimary(value) {
+		if value != "" && !common.IsAccessibleBrandPrimaryForLight(value) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": i18n.T(c, i18n.MsgOptionInvalidBrandPrimaryColor),
+			})
+			return
+		}
+	case "branding.primary_color_dark":
+		value := option.Value.(string)
+		if value != "" && !common.IsAccessibleBrandPrimaryForDark(value) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": i18n.T(c, i18n.MsgOptionInvalidBrandPrimaryColorDark),
 			})
 			return
 		}

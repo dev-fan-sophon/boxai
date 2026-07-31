@@ -101,6 +101,7 @@ export type SystemTaskListResponse = {
 export type SiteSettings = {
   'branding.favicon_url': string
   'branding.primary_color': string
+  'branding.primary_color_dark': string
   Notice: string
   SystemName: string
   Logo: string

@@ -24,7 +24,18 @@ export interface SystemConfig {
   systemName: string
   logo: string
   faviconUrl: string
+  /** Light-scheme brand seed (#RRGGBB). */
   primaryColor: string
+  /**
+   * Dark-scheme brand fill. From /api/status this is the *effective* value
+   * (override or auto-derived). Empty means CSS defaults.
+   */
+  primaryColorDark: string
+  /**
+   * True when admin set branding.primary_color_dark explicitly.
+   * Used by settings forms; runtime theming only needs primaryColorDark.
+   */
+  primaryColorDarkCustom?: boolean
   footerHtml?: string
   demoSiteEnabled?: boolean
   displayTokenStatEnabled?: boolean
@@ -64,6 +75,7 @@ export const useSystemConfigStore = create<SystemConfigState>()(
         logo: DEFAULT_LOGO,
         faviconUrl: '',
         primaryColor: '',
+        primaryColorDark: '',
         businessTimezone: DEFAULT_BUSINESS_TIMEZONE,
         currency: { ...DEFAULT_CURRENCY_CONFIG },
       },

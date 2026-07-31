@@ -9,6 +9,7 @@ import {
 const defaultSiteSettings: SiteSettings = {
   'branding.favicon_url': '',
   'branding.primary_color': '',
+  'branding.primary_color_dark': '',
   Notice: '',
   SystemName: 'BoxAI',
   Logo: '',

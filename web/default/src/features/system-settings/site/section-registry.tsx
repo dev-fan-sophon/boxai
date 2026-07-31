@@ -28,6 +28,7 @@ const SITE_SECTIONS = [
           branding: {
             favicon_url: settings['branding.favicon_url'],
             primary_color: settings['branding.primary_color'],
+            primary_color_dark: settings['branding.primary_color_dark'],
           },
           Footer: settings.Footer,
           About: settings.About,

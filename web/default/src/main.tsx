@@ -115,7 +115,10 @@ const rootElement = document.querySelector<HTMLElement>('#root')
         useSystemConfigStore.getState().setConfig(config)
         const favicon = config.faviconUrl || config.logo
         if (favicon) applyFaviconToDom(favicon)
-        applyPrimaryColorToDom(config.primaryColor || '')
+        applyPrimaryColorToDom(
+          config.primaryColor || '',
+          config.primaryColorDark || ''
+        )
       }
     } catch {
       /* empty */
@@ -127,7 +130,10 @@ const rootElement = document.querySelector<HTMLElement>('#root')
         useSystemConfigStore.getState().setConfig(config)
         const favicon = config.faviconUrl || config.logo
         if (favicon) applyFaviconToDom(favicon)
-        applyPrimaryColorToDom(config.primaryColor || '')
+        applyPrimaryColorToDom(
+          config.primaryColor || '',
+          config.primaryColorDark || ''
+        )
         try {
           localStorage.setItem('status', JSON.stringify(s))
         } catch {

@@ -117,6 +117,7 @@
   --card-foreground: #0b1633;
   --popover: #ffffff;
   --popover-foreground: #0b1633;
+  /* Brand seed for light scheme. Dark scheme rebinds to --brand-primary-dark. */
   --primary: var(--brand-primary, #e05a3a);
   --primary-foreground: var(--brand-primary-foreground, #ffffff);
   --secondary: #eef2ff;
@@ -204,8 +205,12 @@
   --card-foreground: #eef4ff;
   --popover: #101f3d;
   --popover-foreground: #eef4ff;
-  --primary: var(--brand-primary, #e05a3a);
-  --primary-foreground: var(--brand-primary-foreground, #ffffff);
+  /*
+   * Dark brand fill: softer derived coral by default (#ff9072 from #e05a3a).
+   * Runtime may set --brand-primary-dark from status / admin override.
+   */
+  --primary: var(--brand-primary-dark, #ff9072);
+  --primary-foreground: var(--brand-primary-dark-foreground, #0b1633);
   --secondary: #172a50;
   --secondary-foreground: #dce8ff;
   --muted: #132440;
@@ -237,7 +242,7 @@
   /* Soft dark edges — subtle separation without harsh boxes. */
   --border: rgb(255 255 255 / 8%);
   --input: rgb(255 255 255 / 12%);
-  --ring: var(--brand-primary, #e05a3a);
+  --ring: var(--brand-primary-dark, #ff9072);
   --chart-1: #60a5fa;
   --chart-2: #a78bfa;
   --chart-3: #22d3ee;
@@ -255,8 +260,11 @@
   --overview-accent-3: #22d3ee;
   --sidebar: #050d20;
   --sidebar-foreground: #eaf1ff;
-  --sidebar-primary: var(--brand-primary, #e05a3a);
-  --sidebar-primary-foreground: var(--brand-primary-foreground, #ffffff);
+  --sidebar-primary: var(--brand-primary-dark, #ff9072);
+  --sidebar-primary-foreground: var(
+    --brand-primary-dark-foreground,
+    #0b1633
+  );
   --sidebar-accent: #172b52;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 8%);

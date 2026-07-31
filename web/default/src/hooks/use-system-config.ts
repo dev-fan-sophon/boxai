@@ -23,6 +23,8 @@ interface StatusApiResponse {
     logo?: string
     favicon_url?: string
     primary_color?: string
+    primary_color_dark?: string
+    primary_color_dark_custom?: boolean
     footer_html?: string
     demo_site_enabled?: boolean
     display_token_stat_enabled?: boolean
@@ -83,6 +85,8 @@ export function mapStatusDataToConfig(
     logo: data.logo || DEFAULT_LOGO,
     faviconUrl: data.favicon_url || '',
     primaryColor: data.primary_color || '',
+    primaryColorDark: data.primary_color_dark || '',
+    primaryColorDarkCustom: Boolean(data.primary_color_dark_custom),
     footerHtml: data.footer_html,
     demoSiteEnabled: data.demo_site_enabled,
     displayTokenStatEnabled: data.display_token_stat_enabled,
@@ -163,12 +167,18 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
   // Apply branding to the DOM when config changes.
   // Document title is owned by usePageSeo / applySeo so route-specific titles are not clobbered.
   useEffect(() => {
-    applyPrimaryColorToDom(config.primaryColor)
+    applyPrimaryColorToDom(config.primaryColor, config.primaryColorDark)
     const favicon = config.faviconUrl || config.logo
     if (favicon && (config.faviconUrl || config.logo === loadedLogoUrl)) {
       applyFaviconToDom(favicon)
     }
-  }, [config.faviconUrl, config.logo, config.primaryColor, loadedLogoUrl])
+  }, [
+    config.faviconUrl,
+    config.logo,
+    config.primaryColor,
+    config.primaryColorDark,
+    loadedLogoUrl,
+  ])
 
   useEffect(() => {
     const { logo } = config

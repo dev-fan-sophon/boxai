@@ -22,6 +22,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// effectiveBrandPrimaryDark returns the dark-scheme brand fill for /api/status.
+// Empty when neither seed nor override is configured so the frontend keeps CSS defaults.
+func effectiveBrandPrimaryDark(branding *system_setting.BrandingSettings) string {
+	if branding == nil {
+		return ""
+	}
+	light := strings.TrimSpace(branding.PrimaryColor)
+	dark := strings.TrimSpace(branding.PrimaryColorDark)
+	if light == "" && dark == "" {
+		return ""
+	}
+	return common.EffectiveDarkBrandPrimary(light, dark)
+}
+
 func TestStatus(c *gin.Context) {
 	err := model.PingDB()
 	if err != nil {
@@ -74,8 +88,14 @@ func GetStatus(c *gin.Context) {
 		"telegram_bot_name":           common.TelegramBotName,
 		"system_name":                 common.SystemName,
 		"logo":                        common.Logo,
-		"favicon_url":                 brandingSetting.FaviconURL,
-		"primary_color":               brandingSetting.PrimaryColor,
+		"favicon_url": brandingSetting.FaviconURL,
+		// Light-scheme brand fill (admin seed). Empty means CSS default.
+		"primary_color": brandingSetting.PrimaryColor,
+		// Dark-scheme brand fill. Empty when no brand color configured.
+		// When set: admin override if present, else auto-derived soft fill.
+		"primary_color_dark": effectiveBrandPrimaryDark(brandingSetting),
+		// True when admin set an explicit dark override (not auto-derived).
+		"primary_color_dark_custom": strings.TrimSpace(brandingSetting.PrimaryColorDark) != "",
 		"footer_html":                 common.Footer,
 		"wechat_qrcode":               common.WeChatAccountQRCodeImageURL,
 		"wechat_login":                common.WeChatAuthEnabled,
