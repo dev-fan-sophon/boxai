@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/i18n"
@@ -274,6 +275,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	user.ApplyAcquisition(model.RegisterSourceOAuth+":"+strings.TrimSuffix(provider.GetProviderPrefix(), "_"), common.RealClientIP(c), readAcquisition(c))
 
 	// Handle affiliate code
 	affCode := session.Get("aff")

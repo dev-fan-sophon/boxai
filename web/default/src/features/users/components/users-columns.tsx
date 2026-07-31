@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatQuota, formatTimestamp } from '@/lib/format'
+import { formatNumber, formatQuota, formatTimestamp } from '@/lib/format'
 
 import {
   USER_STATUS,
@@ -20,11 +20,11 @@ import {
   USER_ROLES,
   isUserDeleted,
 } from '../constants'
-import type { User } from '../types'
+import type { AdminUserRow } from '../types'
 import { DataTableRowActions } from './data-table-row-actions'
 import { UserQuotaCell } from './user-quota-cell'
 
-export function useUsersColumns(): ColumnDef<User>[] {
+export function useUsersColumns(): ColumnDef<AdminUserRow>[] {
   const { t } = useTranslation()
   return [
     {
@@ -271,6 +271,89 @@ export function useUsersColumns(): ColumnDef<User>[] {
         )
       },
       size: 240,
+      enableSorting: false,
+      meta: { priority: 'detail', mobileHidden: true },
+    },
+    {
+      id: 'tags',
+      header: t('Tags'),
+      cell: ({ row }) => {
+        const tags = row.original.tags ?? []
+        if (tags.length === 0) {
+          return <span className='text-muted-foreground text-sm'>-</span>
+        }
+        return (
+          <div className='flex max-w-full flex-wrap gap-1'>
+            {tags.map((tag) => (
+              <StatusBadge
+                key={tag}
+                label={tag}
+                variant='neutral'
+                copyable={false}
+              />
+            ))}
+          </div>
+        )
+      },
+      size: 180,
+      enableSorting: false,
+      meta: { priority: 'secondary', mobileHidden: true },
+    },
+    {
+      id: 'last_active_at',
+      header: t('Last Active'),
+      cell: ({ row }) => {
+        const ts = row.original.lifecycle?.last_active_at
+        return (
+          <span className='text-muted-foreground text-sm'>
+            {ts ? formatTimestamp(ts) : t('Never')}
+          </span>
+        )
+      },
+      size: 180,
+      meta: { priority: 'secondary', mobileHidden: true },
+    },
+    {
+      id: 'quota_30',
+      header: t('Spend (30d)'),
+      cell: ({ row }) => (
+        <span className='text-sm tabular-nums'>
+          {formatQuota(row.original.lifecycle?.quota_30 ?? 0)}
+        </span>
+      ),
+      size: 140,
+      meta: { priority: 'detail', mobileHidden: true },
+    },
+    {
+      id: 'topup_money',
+      header: t('Lifetime spend'),
+      cell: ({ row }) => {
+        const lifecycle = row.original.lifecycle
+        return (
+          <div className='flex flex-col text-sm'>
+            <span className='tabular-nums'>
+              {formatNumber(
+                Math.round((lifecycle?.topup_money ?? 0) * 100) / 100
+              )}
+            </span>
+            <span className='text-muted-foreground text-xs'>
+              {t('{{count}} orders', { count: lifecycle?.topup_count ?? 0 })}
+            </span>
+          </div>
+        )
+      },
+      size: 160,
+      meta: { priority: 'secondary', mobileOrder: 45 },
+    },
+    {
+      id: 'register_source',
+      header: t('Signup channel'),
+      cell: ({ row }) => (
+        <span className='text-muted-foreground text-sm'>
+          {row.original.register_source || t('Unknown')}
+        </span>
+      ),
+      size: 160,
       enableSorting: false,
       meta: { priority: 'detail', mobileHidden: true },
     },

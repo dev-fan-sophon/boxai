@@ -109,6 +109,12 @@ type User struct {
 	Setting          string                     `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string                     `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string                     `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	RegisterIp       string                     `json:"register_ip,omitempty" gorm:"type:varchar(64);column:register_ip;index;default:''"`
+	RegisterSource   string                     `json:"register_source,omitempty" gorm:"type:varchar(32);column:register_source;index;default:''"`
+	RegisterReferrer string                     `json:"register_referrer,omitempty" gorm:"type:varchar(255);column:register_referrer;default:''"`
+	UtmSource        string                     `json:"utm_source,omitempty" gorm:"type:varchar(64);column:utm_source;index;default:''"`
+	UtmMedium        string                     `json:"utm_medium,omitempty" gorm:"type:varchar(64);column:utm_medium;default:''"`
+	UtmCampaign      string                     `json:"utm_campaign,omitempty" gorm:"type:varchar(64);column:utm_campaign;index;default:''"`
 	CreatedAt        int64                      `json:"created_at" gorm:"autoCreateTime;column:created_at"`
 	LastLoginAt      int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`

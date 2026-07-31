@@ -77,6 +77,18 @@ func TestInitOnSlaveOnlyLoadsPolicies(t *testing.T) {
 	assert.False(t, Can(2, common.RoleAdminUser, ChannelRead))
 }
 
+// adminUserOperationsBaseline is the effective user_operations row an admin gets
+// with no per-user override: analytics is part of the admin baseline, the
+// destructive actions are reserved for root.
+func adminUserOperationsBaseline() map[string]bool {
+	return map[string]bool{
+		ActionAnalytics: true,
+		ActionExport:    false,
+		ActionBulk:      false,
+		ActionCampaign:  false,
+	}
+}
+
 func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 	db := newAuthzTestDB(t)
 	require.NoError(t, Init(db))
@@ -105,6 +117,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 			ActionSensitiveWrite: true,
 			ActionSecretView:     false,
 		},
+		ResourceUserOperations: adminUserOperationsBaseline(),
 	}, ExplicitUserPermissions(42))
 	assert.Equal(t, PermissionsMap{
 		ResourceChannel: {
@@ -133,6 +146,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 			ActionSensitiveWrite: false,
 			ActionSecretView:     false,
 		},
+		ResourceUserOperations: adminUserOperationsBaseline(),
 	}, ExplicitUserPermissions(42))
 	assert.Empty(t, ExplicitUserOverrides(42))
 }

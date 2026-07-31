@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/dev-fan-sophon/boxai/controller"
 	"github.com/dev-fan-sophon/boxai/middleware"
+	"github.com/dev-fan-sophon/boxai/service/authz"
 
 	// Import oauth package to register providers via init()
 	_ "github.com/dev-fan-sophon/boxai/oauth"
@@ -338,6 +339,38 @@ func SetApiRouter(router *gin.Engine) {
 			systemInfoRoute.GET("/instances", controller.ListSystemInstances)
 			systemInfoRoute.DELETE("/stale-instances", controller.DeleteStaleSystemInstances)
 			systemInfoRoute.DELETE("/instances/:node_name", controller.DeleteStaleSystemInstance)
+		}
+
+		// User operations console: growth analytics, directory, segments, campaigns.
+		apiRouter.POST("/acquisition/track", anonymousRequestBodyLimit, controller.TrackAcquisition)
+		userOpsRoute := apiRouter.Group("/admin/users")
+		userOpsRoute.Use(middleware.AdminAuth())
+		{
+			analyticsRoute := userOpsRoute.Group("/stats")
+			analyticsRoute.Use(middleware.RequirePermission(authz.UserOperationsAnalytics))
+			{
+				analyticsRoute.GET("/overview", controller.GetUserGrowthOverview)
+				analyticsRoute.GET("/funnel", controller.GetUserFunnelAnalytics)
+				analyticsRoute.GET("/retention", controller.GetUserRetentionAnalytics)
+				analyticsRoute.GET("/revenue", controller.GetUserRevenueAnalytics)
+				analyticsRoute.GET("/acquisition", controller.GetUserAcquisitionAnalytics)
+			}
+			userOpsRoute.POST("/query", controller.QueryAdminUsers)
+			userOpsRoute.GET("/tags", controller.ListUserTags)
+			userOpsRoute.GET("/:id/profile", controller.GetAdminUserProfile)
+			userOpsRoute.POST("/bulk", middleware.RequirePermission(authz.UserOperationsBulk), controller.BulkUserAction)
+			userOpsRoute.POST("/export", middleware.RequirePermission(authz.UserOperationsExport), controller.ExportAdminUsers)
+		}
+		segmentRoute := apiRouter.Group("/admin/segments")
+		segmentRoute.Use(middleware.AdminAuth())
+		{
+			segmentRoute.GET("", controller.ListUserSegments)
+			segmentRoute.POST("", controller.CreateUserSegment)
+			segmentRoute.POST("/preview", controller.PreviewUserSegment)
+			segmentRoute.PUT("/:id", controller.UpdateUserSegment)
+			segmentRoute.DELETE("/:id", controller.DeleteUserSegment)
+			segmentRoute.GET("/campaigns", controller.ListUserCampaigns)
+			segmentRoute.POST("/campaigns", middleware.RequirePermission(authz.UserOperationsCampaign), controller.SendUserCampaign)
 		}
 
 		dataRoute := apiRouter.Group("/data")

@@ -28,6 +28,11 @@ var auditContentTemplates = map[string]string{
 	"user.passkey_register": "Registered a passkey",
 	"user.passkey_delete":   "Deleted a passkey",
 	"user.reset_passkey":    "Reset the user passkey",
+	"user.bulk_action":      "Ran bulk action ${action} on ${count} of ${targets} matched users",
+	"user.export":           "Exported ${count} user records",
+	"segment.create":        "Created user segment ${name} (ID: ${id})",
+	"segment.update":        "Updated user segment ${name} (ID: ${id})",
+	"segment.delete":        "Deleted user segment (ID: ${id})",
 	"option.update":         "Updated system setting ${key}",
 	"pricing.update":        "Updated model pricing for ${count} model(s) at revision ${revision}",
 
@@ -50,6 +55,7 @@ var auditContentTemplates = map[string]string{
 
 	"subscription.plan_reset":      "Reset active subscriptions for plan ${plan_id}",
 	"subscription.user_plan_reset": "Reset active plan ${plan_id} subscriptions for user ${target_user_id}",
+	"segment.campaign_send":        "Sent campaign ${name} to ${count} users (segment ${segment})",
 	"topup.submission_approve":     "Approved Bank QR payment proof for order ${trade_no}",
 	"topup.submission_reject":      "Rejected Bank QR payment proof for order ${trade_no}",
 }

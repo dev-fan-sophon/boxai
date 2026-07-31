@@ -255,6 +255,7 @@ func Register(c *gin.Context) {
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
 	}
+	cleanUser.ApplyAcquisition(model.RegisterSourcePassword, common.RealClientIP(c), readAcquisition(c))
 	if err := cleanUser.Insert(inviterId); err != nil {
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
@@ -990,6 +991,7 @@ func CreateUser(c *gin.Context) {
 		DisplayName: user.DisplayName,
 		Role:        user.Role, // 保持管理员设置的角色
 	}
+	cleanUser.ApplyAcquisition(model.RegisterSourceAdmin, common.RealClientIP(c), model.AcquisitionAttribution{})
 	authzTouched := false
 	if err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := cleanUser.InsertWithTx(tx, 0); err != nil {

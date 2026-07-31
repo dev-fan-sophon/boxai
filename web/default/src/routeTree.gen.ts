@@ -43,7 +43,6 @@ import { Route as PublicInspirationIndexRouteImport } from './routes/_public/ins
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
 import { Route as PublicAgentsIndexRouteImport } from './routes/_public/agents/index'
 import { Route as PublicAboutIndexRouteImport } from './routes/_public/about/index'
-import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedTopupReviewsIndexRouteImport } from './routes/_authenticated/topup-reviews/index'
@@ -58,9 +57,11 @@ import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedGroupStatusIndexRouteImport } from './routes/_authenticated/group-status/index'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
+import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
 import { Route as ShareCanvasTokenRouteImport } from './routes/share/canvas/$token'
 import { Route as PublicInspirationProjectIdRouteImport } from './routes/_public/inspiration/$projectId'
 import { Route as PublicDocsSlugRouteImport } from './routes/_public/docs/$slug'
+import { Route as AuthenticatedUsersSectionRouteImport } from './routes/_authenticated/users/$section'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedPricingCenterTabRouteImport } from './routes/_authenticated/pricing-center/$tab'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
@@ -258,12 +259,6 @@ const PublicAboutIndexRoute = PublicAboutIndexRouteImport.update({
   path: '/about/',
   getParentRoute: () => PublicRouteRoute,
 } as any)
-const AuthenticatedBillingIndexRoute =
-  AuthenticatedBillingIndexRouteImport.update({
-    id: '/billing/',
-    path: '/billing/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -346,6 +341,12 @@ const AuthenticatedChannelsIndexRoute =
     path: '/channels/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBillingIndexRoute =
+  AuthenticatedBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ShareCanvasTokenRoute = ShareCanvasTokenRouteImport.update({
   id: '/share/canvas/$token',
   path: '/share/canvas/$token',
@@ -362,6 +363,12 @@ const PublicDocsSlugRoute = PublicDocsSlugRouteImport.update({
   path: '/docs/$slug',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const AuthenticatedUsersSectionRoute =
+  AuthenticatedUsersSectionRouteImport.update({
+    id: '/users/$section',
+    path: '/users/$section',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUsageLogsSectionRoute =
   AuthenticatedUsageLogsSectionRouteImport.update({
     id: '/usage-logs/$section',
@@ -556,9 +563,11 @@ export interface FileRoutesByFullPath {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
+  '/users/$section': typeof AuthenticatedUsersSectionRoute
   '/docs/$slug': typeof PublicDocsSlugRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
+  '/billing/': typeof AuthenticatedBillingIndexRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/group-status/': typeof AuthenticatedGroupStatusIndexRoute
@@ -573,7 +582,6 @@ export interface FileRoutesByFullPath {
   '/topup-reviews/': typeof AuthenticatedTopupReviewsIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
-  '/billing/': typeof AuthenticatedBillingIndexRoute
   '/about/': typeof PublicAboutIndexRoute
   '/agents/': typeof PublicAgentsIndexRoute
   '/docs/': typeof PublicDocsIndexRoute
@@ -632,9 +640,11 @@ export interface FileRoutesByTo {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
+  '/users/$section': typeof AuthenticatedUsersSectionRoute
   '/docs/$slug': typeof PublicDocsSlugRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
+  '/billing': typeof AuthenticatedBillingIndexRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/group-status': typeof AuthenticatedGroupStatusIndexRoute
@@ -649,7 +659,6 @@ export interface FileRoutesByTo {
   '/topup-reviews': typeof AuthenticatedTopupReviewsIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
-  '/billing': typeof AuthenticatedBillingIndexRoute
   '/about': typeof PublicAboutIndexRoute
   '/agents': typeof PublicAgentsIndexRoute
   '/docs': typeof PublicDocsIndexRoute
@@ -714,9 +723,11 @@ export interface FileRoutesById {
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
   '/_authenticated/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
+  '/_authenticated/users/$section': typeof AuthenticatedUsersSectionRoute
   '/_public/docs/$slug': typeof PublicDocsSlugRoute
   '/_public/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
+  '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/group-status/': typeof AuthenticatedGroupStatusIndexRoute
@@ -731,7 +742,6 @@ export interface FileRoutesById {
   '/_authenticated/topup-reviews/': typeof AuthenticatedTopupReviewsIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
-  '/_authenticated/wallet/': typeof AuthenticatedBillingIndexRoute
   '/_public/about/': typeof PublicAboutIndexRoute
   '/_public/agents/': typeof PublicAgentsIndexRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
@@ -794,9 +804,11 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
+    | '/users/$section'
     | '/docs/$slug'
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
+    | '/billing/'
     | '/channels/'
     | '/dashboard/'
     | '/group-status/'
@@ -811,7 +823,6 @@ export interface FileRouteTypes {
     | '/topup-reviews/'
     | '/usage-logs/'
     | '/users/'
-    | '/billing/'
     | '/about/'
     | '/agents/'
     | '/docs/'
@@ -870,9 +881,11 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
+    | '/users/$section'
     | '/docs/$slug'
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
+    | '/billing'
     | '/channels'
     | '/dashboard'
     | '/group-status'
@@ -887,7 +900,6 @@ export interface FileRouteTypes {
     | '/topup-reviews'
     | '/usage-logs'
     | '/users'
-    | '/billing'
     | '/about'
     | '/agents'
     | '/docs'
@@ -951,9 +963,11 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$section'
     | '/_authenticated/pricing-center/$tab'
     | '/_authenticated/usage-logs/$section'
+    | '/_authenticated/users/$section'
     | '/_public/docs/$slug'
     | '/_public/inspiration/$projectId'
     | '/share/canvas/$token'
+    | '/_authenticated/billing/'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/group-status/'
@@ -968,7 +982,6 @@ export interface FileRouteTypes {
     | '/_authenticated/topup-reviews/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
-    | '/_authenticated/wallet/'
     | '/_public/about/'
     | '/_public/agents/'
     | '/_public/docs/'
@@ -1253,13 +1266,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicAboutIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/_authenticated/wallet/': {
-      id: '/_authenticated/wallet/'
-      path: '/billing'
-      fullPath: '/billing/'
-      preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/users/': {
       id: '/_authenticated/users/'
       path: '/users'
@@ -1358,6 +1364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChannelsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing/': {
+      id: '/_authenticated/billing/'
+      path: '/billing'
+      fullPath: '/billing/'
+      preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/share/canvas/$token': {
       id: '/share/canvas/$token'
       path: '/share/canvas/$token'
@@ -1378,6 +1391,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/$slug'
       preLoaderRoute: typeof PublicDocsSlugRouteImport
       parentRoute: typeof PublicRouteRoute
+    }
+    '/_authenticated/users/$section': {
+      id: '/_authenticated/users/$section'
+      path: '/users/$section'
+      fullPath: '/users/$section'
+      preLoaderRoute: typeof AuthenticatedUsersSectionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/usage-logs/$section': {
       id: '/_authenticated/usage-logs/$section'
@@ -1666,6 +1686,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
   AuthenticatedPricingCenterTabRoute: typeof AuthenticatedPricingCenterTabRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
+  AuthenticatedUsersSectionRoute: typeof AuthenticatedUsersSectionRoute
+  AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedGroupStatusIndexRoute: typeof AuthenticatedGroupStatusIndexRoute
@@ -1679,7 +1701,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTopupReviewsIndexRoute: typeof AuthenticatedTopupReviewsIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
-  AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedAdminAnalyticsSectionRoute: typeof AuthenticatedAdminAnalyticsSectionRoute
   AuthenticatedAdminUsageLogsSectionRoute: typeof AuthenticatedAdminUsageLogsSectionRoute
   AuthenticatedAdminAnalyticsIndexRoute: typeof AuthenticatedAdminAnalyticsIndexRoute
@@ -1699,6 +1720,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
   AuthenticatedPricingCenterTabRoute: AuthenticatedPricingCenterTabRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
+  AuthenticatedUsersSectionRoute: AuthenticatedUsersSectionRoute,
+  AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedGroupStatusIndexRoute: AuthenticatedGroupStatusIndexRoute,
@@ -1713,7 +1736,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTopupReviewsIndexRoute: AuthenticatedTopupReviewsIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
-  AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedAdminAnalyticsSectionRoute:
     AuthenticatedAdminAnalyticsSectionRoute,
   AuthenticatedAdminUsageLogsSectionRoute:

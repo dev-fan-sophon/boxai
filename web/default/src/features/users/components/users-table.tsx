@@ -14,37 +14,48 @@ import {
 import { useSmDown } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 
-import { getUsers, searchUsers } from '../api'
+import { queryAdminUsers } from '../api'
 import {
   USER_STATUS,
   getUserStatusOptions,
   getUserRoleOptions,
   isUserDeleted,
 } from '../constants'
-import type { User, UserSortBy } from '../types'
+import { compactFilter } from '../lib/ops'
+import type {
+  AdminUserRow,
+  AdminUserSortBy,
+  UserQueryFilter,
+  UserSortOrder,
+} from '../types'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { useUsersColumns } from './users-columns'
 import { useUsers } from './users-provider'
 
-const route = getRouteApi('/_authenticated/users/')
+const route = getRouteApi('/_authenticated/users/$section')
 
-const USER_SORTABLE_COLUMNS = new Set<UserSortBy>([
+const USER_SORTABLE_COLUMNS = new Set<AdminUserSortBy>([
   'id',
   'username',
   'quota',
-  'group',
+  'used_quota',
   'created_at',
   'last_login_at',
+  'last_active_at',
+  'topup_money',
+  'topup_count',
+  'quota_30',
+  'active_days',
 ])
 
-function isDisabledUserRow(user: User) {
+function isDisabledUserRow(user: AdminUserRow) {
   return isUserDeleted(user) || user.status === USER_STATUS.DISABLED
 }
 
 export function UsersTable() {
   const { t } = useTranslation()
   const columns = useUsersColumns()
-  const { refreshTrigger } = useUsers()
+  const { refreshTrigger, advancedFilter } = useUsers()
   const isMobile = useSmDown()
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -68,13 +79,17 @@ export function UsersTable() {
     ],
   })
   const statusFilter =
-    (columnFilters.find((filter) => filter.id === 'status')?.value as
-      | string[]
-      | undefined) ?? []
+    (
+      columnFilters.find((filter) => filter.id === 'status')?.value as
+        | string[]
+        | undefined
+    )?.[0] ?? ''
   const roleFilter =
-    (columnFilters.find((filter) => filter.id === 'role')?.value as
-      | string[]
-      | undefined) ?? []
+    (
+      columnFilters.find((filter) => filter.id === 'role')?.value as
+        | string[]
+        | undefined
+    )?.[0] ?? ''
   const groupFilter =
     (columnFilters.find((filter) => filter.id === 'group')?.value as string) ??
     ''
@@ -83,16 +98,30 @@ export function UsersTable() {
     const activeSort = sorting[0]
     if (
       !activeSort ||
-      !USER_SORTABLE_COLUMNS.has(activeSort.id as UserSortBy)
+      !USER_SORTABLE_COLUMNS.has(activeSort.id as AdminUserSortBy)
     ) {
       return {}
     }
 
     return {
-      sort_by: activeSort.id as UserSortBy,
-      sort_order: activeSort.desc ? 'desc' : 'asc',
-    } as const
+      sort_by: activeSort.id as AdminUserSortBy,
+      sort_order: (activeSort.desc ? 'desc' : 'asc') as UserSortOrder,
+    }
   }, [sorting])
+
+  // Toolbar filters live in the URL, the audience sheet keeps richer predicates
+  // in memory; the query endpoint takes a single merged filter object.
+  const requestFilter: UserQueryFilter = useMemo(
+    () =>
+      compactFilter({
+        ...advancedFilter,
+        keyword: globalFilter || advancedFilter.keyword,
+        group: groupFilter || advancedFilter.group,
+        status: statusFilter ? Number(statusFilter) : advancedFilter.status,
+        role: roleFilter ? Number(roleFilter) : advancedFilter.role,
+      }),
+    [advancedFilter, globalFilter, groupFilter, statusFilter, roleFilter]
+  )
 
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
     setSorting(updater)
@@ -101,56 +130,37 @@ export function UsersTable() {
     }
   }
 
-  // Fetch data with React Query
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
       'users',
       pagination.pageIndex + 1,
       pagination.pageSize,
-      globalFilter,
-      statusFilter,
-      roleFilter,
-      groupFilter,
+      requestFilter,
       sortParams,
       refreshTrigger,
     ],
     queryFn: async () => {
-      const hasFilter = globalFilter?.trim()
-      const hasColumnFilter =
-        statusFilter.length > 0 || roleFilter.length > 0 || Boolean(groupFilter)
-      const params = {
-        p: pagination.pageIndex + 1,
+      const result = await queryAdminUsers({
+        filter: requestFilter,
+        page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
         ...sortParams,
-      }
-
-      const result =
-        hasFilter || hasColumnFilter
-          ? await searchUsers({
-              ...params,
-              keyword: globalFilter,
-              status: statusFilter[0] ?? '',
-              role: roleFilter[0] ?? '',
-              group: groupFilter,
-            })
-          : await getUsers(params)
+      })
 
       if (!result.success) {
-        toast.error(
-          result.message || `Failed to ${hasFilter ? 'search' : 'load'} users`
-        )
-        return { items: [], total: 0 }
+        toast.error(result.message || 'Failed to load users')
+        return { items: [] as AdminUserRow[], total: 0 }
       }
 
       return {
-        items: result.data?.items || [],
-        total: result.data?.total || 0,
+        items: result.data?.items ?? [],
+        total: result.data?.total ?? 0,
       }
     },
     placeholderData: (previousData) => previousData,
   })
 
-  const users = data?.items || []
+  const users = data?.items ?? []
 
   const { table } = useDataTable({
     data: users,
@@ -160,19 +170,6 @@ export function UsersTable() {
     globalFilter,
     pagination,
     sorting,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const searchValue = String(filterValue).toLowerCase()
-      const fields = [
-        row.getValue('username'),
-        row.original.display_name,
-        row.original.email,
-      ]
-      return fields.some((field) =>
-        String(field || '')
-          .toLowerCase()
-          .includes(searchValue)
-      )
-    },
     onPaginationChange,
     onGlobalFilterChange,
     onColumnFiltersChange,
@@ -180,7 +177,7 @@ export function UsersTable() {
     manualPagination: true,
     manualFiltering: true,
     manualSorting: true,
-    totalCount: data?.total || 0,
+    totalCount: data?.total ?? 0,
     ensurePageInRange,
   })
 

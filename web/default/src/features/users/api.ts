@@ -10,7 +10,26 @@ import type {
   ManageUserAction,
   ManageUserQuotaPayload,
   ApiResponse,
+  AcquisitionAnalytics,
+  AdminUserQueryRequest,
+  AdminUserQueryResult,
+  BulkUserActionRequest,
+  BulkUserActionResult,
+  RevenueAnalytics,
+  UserCampaign,
+  UserFunnelStage,
+  UserGrowthOverview,
+  UserProfile,
+  UserQueryFilter,
+  UserRetentionCohort,
+  UserSegment,
+  UserTagCount,
 } from './types'
+
+export interface AnalyticsTimeRange {
+  start_timestamp: number
+  end_timestamp: number
+}
 
 // ============================================================================
 // User Management APIs
@@ -198,5 +217,147 @@ export async function adminUnbindCustomOAuth(
   const res = await api.delete(
     `/api/user/${userId}/oauth/bindings/${providerId}`
   )
+  return res.data
+}
+
+// ============================================================================
+// Operations Console: growth analytics
+// ============================================================================
+
+export async function getUserGrowthOverview(
+  range: AnalyticsTimeRange
+): Promise<ApiResponse<UserGrowthOverview>> {
+  const res = await api.get('/api/admin/users/stats/overview', {
+    params: range,
+  })
+  return res.data
+}
+
+export async function getUserFunnel(
+  range: AnalyticsTimeRange
+): Promise<ApiResponse<UserFunnelStage[]>> {
+  const res = await api.get('/api/admin/users/stats/funnel', { params: range })
+  return res.data
+}
+
+export async function getUserRetention(
+  range: AnalyticsTimeRange,
+  offsets = 14
+): Promise<ApiResponse<UserRetentionCohort[]>> {
+  const res = await api.get('/api/admin/users/stats/retention', {
+    params: { ...range, offsets },
+  })
+  return res.data
+}
+
+export async function getRevenueAnalytics(
+  range: AnalyticsTimeRange
+): Promise<ApiResponse<RevenueAnalytics>> {
+  const res = await api.get('/api/admin/users/stats/revenue', { params: range })
+  return res.data
+}
+
+export async function getAcquisitionAnalytics(
+  range: AnalyticsTimeRange
+): Promise<ApiResponse<AcquisitionAnalytics>> {
+  const res = await api.get('/api/admin/users/stats/acquisition', {
+    params: range,
+  })
+  return res.data
+}
+
+// ============================================================================
+// Operations Console: directory, profile, bulk actions
+// ============================================================================
+
+export async function queryAdminUsers(
+  request: AdminUserQueryRequest
+): Promise<ApiResponse<AdminUserQueryResult>> {
+  const res = await api.post('/api/admin/users/query', request)
+  return res.data
+}
+
+export async function getAdminUserProfile(
+  id: number
+): Promise<ApiResponse<UserProfile>> {
+  const res = await api.get(`/api/admin/users/${id}/profile`)
+  return res.data
+}
+
+export async function getUserTags(): Promise<ApiResponse<UserTagCount[]>> {
+  const res = await api.get('/api/admin/users/tags')
+  return res.data
+}
+
+export async function runBulkUserAction(
+  request: BulkUserActionRequest
+): Promise<ApiResponse<BulkUserActionResult>> {
+  const res = await api.post('/api/admin/users/bulk', request)
+  return res.data
+}
+
+export async function exportAdminUsers(
+  request: AdminUserQueryRequest
+): Promise<Blob> {
+  const res = await api.post('/api/admin/users/export', request, {
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
+
+// ============================================================================
+// Operations Console: segments and campaigns
+// ============================================================================
+
+export async function listUserSegments(): Promise<ApiResponse<UserSegment[]>> {
+  const res = await api.get('/api/admin/segments')
+  return res.data
+}
+
+export async function createUserSegment(payload: {
+  name: string
+  description: string
+  filter: UserQueryFilter
+}): Promise<ApiResponse<UserSegment>> {
+  const res = await api.post('/api/admin/segments', payload)
+  return res.data
+}
+
+export async function updateUserSegment(
+  id: number,
+  payload: { name: string; description: string; filter: UserQueryFilter }
+): Promise<ApiResponse<UserSegment>> {
+  const res = await api.put(`/api/admin/segments/${id}`, payload)
+  return res.data
+}
+
+export async function deleteUserSegment(id: number): Promise<ApiResponse> {
+  const res = await api.delete(`/api/admin/segments/${id}`)
+  return res.data
+}
+
+export async function previewUserSegment(
+  filter: UserQueryFilter
+): Promise<ApiResponse<{ total: number }>> {
+  const res = await api.post('/api/admin/segments/preview', { filter })
+  return res.data
+}
+
+export async function listUserCampaigns(): Promise<
+  ApiResponse<UserCampaign[]>
+> {
+  const res = await api.get('/api/admin/segments/campaigns')
+  return res.data
+}
+
+export async function sendUserCampaign(payload: {
+  name: string
+  segment_id?: number
+  filter?: UserQueryFilter
+  user_ids?: number[]
+  subject: string
+  content: string
+}): Promise<ApiResponse<UserCampaign>> {
+  const res = await api.post('/api/admin/segments/campaigns', payload)
   return res.data
 }

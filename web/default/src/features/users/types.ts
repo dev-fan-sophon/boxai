@@ -136,3 +136,322 @@ export interface ManageUserQuotaPayload {
 // ============================================================================
 
 export type UsersDialogType = 'create' | 'update' | 'delete'
+
+// ============================================================================
+// Operations Console: audience filters
+// ============================================================================
+
+/** Serialized audience definition shared by the directory, segments, campaigns. */
+export interface UserQueryFilter {
+  keyword?: string
+  group?: string
+  role?: number | null
+  status?: number | null
+  register_source?: string
+  utm_source?: string
+  utm_campaign?: string
+  tags?: string[]
+  inviter_id?: number | null
+  created_after?: number
+  created_before?: number
+  last_login_after?: number
+  last_login_before?: number
+  active_after?: number
+  inactive_days?: number
+  never_active?: boolean
+  min_quota?: number | null
+  max_quota?: number | null
+  min_used_quota?: number | null
+  min_topup_money?: number | null
+  max_topup_money?: number | null
+  min_topup_count?: number | null
+  has_paid?: boolean | null
+  has_subscription?: boolean | null
+}
+
+export interface UserLifecycle {
+  user_id: number
+  first_active_at: number
+  last_active_at: number
+  active_days: number
+  active_days_30: number
+  total_requests: number
+  total_quota_used: number
+  quota_7: number
+  quota_30: number
+  first_paid_at: number
+  last_paid_at: number
+  topup_count: number
+  topup_money: number
+  topup_amount: number
+  refreshed_at: number
+}
+
+export interface AdminUserRow extends User {
+  register_source?: string
+  register_ip?: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  register_referrer?: string
+  lifecycle?: UserLifecycle
+  tags?: string[]
+}
+
+export type AdminUserSortBy =
+  | 'id'
+  | 'username'
+  | 'quota'
+  | 'used_quota'
+  | 'created_at'
+  | 'last_login_at'
+  | 'last_active_at'
+  | 'topup_money'
+  | 'topup_count'
+  | 'quota_30'
+  | 'active_days'
+
+export interface AdminUserQueryRequest {
+  filter: UserQueryFilter
+  page?: number
+  page_size?: number
+  sort_by?: AdminUserSortBy
+  sort_order?: UserSortOrder
+}
+
+export interface AdminUserQueryResult {
+  items: AdminUserRow[]
+  total: number
+  page: number
+  page_size: number
+}
+
+// ============================================================================
+// Operations Console: analytics
+// ============================================================================
+
+export interface UserGrowthSummary {
+  total_users: number
+  new_users: number
+  active_users: number
+  paying_users: number
+  new_paying_users: number
+  revenue: number
+  paid_orders: number
+  quota_consumed: number
+  requests: number
+  outstanding_quota: number
+  arpu: number
+  arppu: number
+}
+
+export interface UserGrowthTrendPoint {
+  day: number
+  new_users: number
+  active_users: number
+  paying_users: number
+  revenue: number
+  quota: number
+}
+
+export interface UserGrowthOverview {
+  current: UserGrowthSummary
+  previous: UserGrowthSummary
+  trend: UserGrowthTrendPoint[]
+}
+
+export interface UserFunnelStage {
+  key: string
+  count: number
+}
+
+export interface UserRetentionCohort {
+  cohort: number
+  size: number
+  retained: number[]
+}
+
+export interface RevenueChannelStat {
+  provider: string
+  orders: number
+  success_orders: number
+  revenue: number
+}
+
+export interface RevenueTrendPoint {
+  day: number
+  topup_revenue: number
+  subscription_revenue: number
+  orders: number
+}
+
+export interface SubscriptionPlanStat {
+  plan_id: number
+  plan_name: string
+  active: number
+  new_sold: number
+  revenue: number
+}
+
+export interface RevenueDistributionBucket {
+  label: string
+  users: number
+}
+
+export interface RevenueAnalytics {
+  trend: RevenueTrendPoint[]
+  channels: RevenueChannelStat[]
+  plans: SubscriptionPlanStat[]
+  lifetime_buckets: RevenueDistributionBucket[]
+  repeat_buyers: number
+  first_time_buyers: number
+}
+
+export interface AcquisitionChannelStat {
+  channel: string
+  users: number
+  activated: number
+  paid: number
+  revenue: number
+}
+
+export interface InviterStat {
+  user_id: number
+  username: string
+  invited: number
+  paid_invited: number
+  revenue: number
+}
+
+export interface AcquisitionAnalytics {
+  sources: AcquisitionChannelStat[]
+  utm_sources: AcquisitionChannelStat[]
+  campaigns: AcquisitionChannelStat[]
+  groups: AcquisitionChannelStat[]
+  top_inviters: InviterStat[]
+}
+
+// ============================================================================
+// Operations Console: profile, segments, campaigns
+// ============================================================================
+
+export interface UserDailyMetric {
+  day: number
+  requests: number
+  tokens: number
+  quota: number
+}
+
+export interface UserProfileRef {
+  id: number
+  username: string
+  email: string
+}
+
+export interface UserProfileModelUsage {
+  model_name: string
+  requests: number
+  tokens: number
+  quota: number
+}
+
+export interface UserProfileTopUp {
+  id: number
+  amount: number
+  money: number
+  trade_no: string
+  payment_method: string
+  payment_provider: string
+  status: string
+  create_time: number
+  complete_time: number
+}
+
+export interface UserProfileSubscription {
+  id: number
+  plan_id: number
+  amount_total: number
+  amount_used: number
+  start_time: number
+  end_time: number
+  status: string
+  source: string
+}
+
+export interface UserProfileLogEvent {
+  id: number
+  created_at: number
+  content: string
+  ip: string
+}
+
+export interface UserProfile {
+  user: AdminUserRow
+  lifecycle: UserLifecycle | null
+  tags: string[]
+  inviter: UserProfileRef | null
+  invitees: UserProfileRef[]
+  invitee_count: number
+  daily_metrics: UserDailyMetric[]
+  top_ups: UserProfileTopUp[]
+  subscriptions: UserProfileSubscription[]
+  top_models: UserProfileModelUsage[]
+  token_count: number
+  checkin_count: number
+  login_events: UserProfileLogEvent[] | null
+  audit_events: UserProfileLogEvent[] | null
+}
+
+export interface UserSegment {
+  id: number
+  name: string
+  description: string
+  filter: string
+  cached_count: number
+  refreshed_at: number
+  created_by: number
+  created_at: number
+  updated_at: number
+}
+
+export interface UserCampaign {
+  id: number
+  segment_id: number
+  name: string
+  type: string
+  status: string
+  target_count: number
+  success_count: number
+  failed_count: number
+  message: string
+  created_at: number
+  finished_at: number
+}
+
+export interface UserTagCount {
+  tag: string
+  users: number
+}
+
+export type BulkUserActionType =
+  | 'quota_grant'
+  | 'group_set'
+  | 'tag_add'
+  | 'tag_remove'
+  | 'enable'
+  | 'disable'
+
+export interface BulkUserActionRequest {
+  action: BulkUserActionType
+  user_ids?: number[]
+  filter?: UserQueryFilter
+  segment_id?: number
+  quota?: number
+  group?: string
+  tag?: string
+}
+
+export interface BulkUserActionResult {
+  targets: number
+  applied: number
+}

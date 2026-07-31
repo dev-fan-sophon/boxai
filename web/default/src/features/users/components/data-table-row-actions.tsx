@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   Link2,
   CreditCard,
+  UserSearch,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,18 +39,19 @@ import {
   isUserDeleted,
 } from '../constants'
 import { getUserActionMessage } from '../lib'
-import type { User, ManageUserAction } from '../types'
+import type { AdminUserRow, ManageUserAction } from '../types'
 import { UserBindingDialog } from './dialogs/user-binding-dialog'
 import { useUsers } from './users-provider'
 
 interface DataTableRowActionsProps {
-  row: Row<User>
+  row: Row<AdminUserRow>
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const user = row.original
-  const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
+  const { setOpen, setCurrentRow, triggerRefresh, setProfileUserId } =
+    useUsers()
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
@@ -123,6 +125,22 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   return (
     <div className='-ml-1.5 flex items-center gap-1'>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant='ghost'
+              size='icon-sm'
+              onClick={() => setProfileUserId(user.id)}
+              aria-label={t('View profile')}
+            />
+          }
+        >
+          <UserSearch />
+        </TooltipTrigger>
+        <TooltipContent>{t('View profile')}</TooltipContent>
+      </Tooltip>
+
       <Tooltip>
         <TooltipTrigger
           render={

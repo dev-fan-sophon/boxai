@@ -109,6 +109,9 @@ func main() {
 	// 数据看板
 	go model.UpdateQuotaData()
 
+	// 用户运营指标滚动聚合（增长 / 留存 / 收入分析的数据底座）
+	go model.StartUserMetricRollupTask(common.GetEnvOrDefault("USER_METRIC_ROLLUP_INTERVAL", 30))
+
 	if os.Getenv("CHANNEL_UPDATE_FREQUENCY") != "" {
 		frequency, err := strconv.Atoi(os.Getenv("CHANNEL_UPDATE_FREQUENCY"))
 		if err != nil {

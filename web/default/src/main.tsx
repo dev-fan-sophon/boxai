@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 
 import { mapStatusDataToConfig } from '@/hooks/use-system-config'
 import { getStatus } from '@/lib/api'
+import { captureAttribution } from '@/lib/attribution'
 import { installBuildMetadata } from '@/lib/build-metadata'
 import { applyFaviconToDom, applyPrimaryColorToDom } from '@/lib/dom-utils'
 import '@/lib/dayjs'
@@ -32,6 +33,7 @@ import './styles/index.css'
 
 initializeFrontendCache()
 installBuildMetadata()
+captureAttribution()
 
 const queryClient = new QueryClient({
   defaultOptions: {

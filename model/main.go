@@ -312,6 +312,11 @@ func migrateDB() error {
 		&InspirationEvent{},
 		&PlaygroundAgent{},
 		&PlaygroundUploadSession{},
+		&UserDailyMetric{},
+		&UserLifecycle{},
+		&UserTag{},
+		&UserSegment{},
+		&UserCampaign{},
 	)
 	if err != nil {
 		return err
@@ -390,6 +395,11 @@ func migrateDBFast() error {
 		{&InspirationEvent{}, "InspirationEvent"},
 		{&PlaygroundAgent{}, "PlaygroundAgent"},
 		{&PlaygroundUploadSession{}, "PlaygroundUploadSession"},
+		{&UserDailyMetric{}, "UserDailyMetric"},
+		{&UserLifecycle{}, "UserLifecycle"},
+		{&UserTag{}, "UserTag"},
+		{&UserSegment{}, "UserSegment"},
+		{&UserCampaign{}, "UserCampaign"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))
