@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TitledCard } from '@/components/ui/titled-card'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import {
   detectPlatform,
@@ -135,12 +136,17 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
             {CONNECT_CLIENTS.map((client) => (
               <li
                 key={client.name}
-                className='bg-muted/40 rounded-lg border px-3 py-2'
+                className='bg-muted/40 flex items-start gap-2.5 rounded-lg border px-3 py-2'
               >
-                <p className='text-sm font-medium'>{client.name}</p>
-                <p className='text-muted-foreground mt-0.5 font-mono text-xs break-all'>
-                  {client.config}
-                </p>
+                <span className='mt-0.5 flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md'>
+                  <LobeIcon name={client.icon} size={18} />
+                </span>
+                <div className='min-w-0'>
+                  <p className='text-sm font-medium'>{client.name}</p>
+                  <p className='text-muted-foreground mt-0.5 font-mono text-xs break-all'>
+                    {client.config}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>

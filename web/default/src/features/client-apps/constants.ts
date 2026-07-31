@@ -67,13 +67,51 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
  * Must stay in step with `SUPPORTED_APPS` in
  * `connect/src-tauri/src/boxai/provider_seed.rs`. A client advertised here that
  * the app does not seed is a promise the download does not keep.
+ *
+ * `icon` is a `@lobehub/icons` key for `LobeIcon` (prefer `.Color` when available).
+ * `href` is the product home / docs the marketing strip links to.
  */
 export const CONNECT_CLIENTS = [
-  { name: 'Claude Code', config: '~/.claude/settings.json' },
-  { name: 'Codex CLI', config: '~/.codex/config.toml' },
-  { name: 'Gemini CLI', config: '~/.gemini/settings.json' },
-  { name: 'Grok Build', config: '~/.grok/config.toml' },
-  { name: 'OpenCode', config: '~/.config/opencode' },
-  { name: 'OpenClaw', config: '~/.openclaw/openclaw.json' },
-  { name: 'Hermes', config: '~/.hermes/config.yaml' },
+  {
+    name: 'Claude Code',
+    config: '~/.claude/settings.json',
+    icon: 'ClaudeCode.Color',
+    href: 'https://docs.anthropic.com/en/docs/claude-code',
+  },
+  {
+    name: 'Codex CLI',
+    config: '~/.codex/config.toml',
+    icon: 'Codex.Color',
+    href: 'https://developers.openai.com/codex',
+  },
+  {
+    name: 'Gemini CLI',
+    config: '~/.gemini/settings.json',
+    icon: 'GeminiCLI.Color',
+    href: 'https://github.com/google-gemini/gemini-cli',
+  },
+  {
+    name: 'Grok Build',
+    config: '~/.grok/config.toml',
+    icon: 'Grok.Color',
+    href: 'https://grok.x.ai',
+  },
+  {
+    name: 'OpenCode',
+    config: '~/.config/opencode',
+    icon: 'OpenCode.Color',
+    href: 'https://opencode.ai',
+  },
+  {
+    name: 'OpenClaw',
+    config: '~/.openclaw/openclaw.json',
+    icon: 'OpenClaw.Color',
+    href: 'https://openclaw.ai',
+  },
+  {
+    name: 'Hermes',
+    config: '~/.hermes/config.yaml',
+    icon: 'HermesAgent.Color',
+    href: 'https://github.com/HermesAgent/hermes',
+  },
 ] as const
