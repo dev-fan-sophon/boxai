@@ -388,6 +388,17 @@ Phases 1-2 give an end-to-end docx. Phase 4 is the first shippable user experien
 
 ## 10. Measured behaviour and open items
 
+**Rollout state:** generally available since 2026-08-01. `document_builder.enabled = true` with
+`enabled_groups = []`, which means every group. Rollback is a single option flip of
+`document_builder.enabled`.
+
+Per-model build outcomes are queryable directly, which is the evidence base for open item 6:
+
+```sql
+select chat_model, status, count(*) n, round(avg(duration_ms)) avg_ms
+from playground_document_builds group by 1, 2 order by 1, 2;
+```
+
 Measured against production (`doc-builder.you-box.com`) on 2026-08-01, admin account, `default`
 group:
 
