@@ -517,7 +517,9 @@ export async function finishAgentRun(
     const locked = await lockRunAndConversation(tx, runId, userId)
     if (!locked) return null
     const { run, conversation: conv } = locked
-    if (!run || run.status !== 'running') return null
+    if (!run || (run.status !== 'running' && run.status !== 'stopping')) {
+      return null
+    }
     const now = nowSeconds()
     if (
       !conv ||
@@ -538,6 +540,12 @@ export async function finishAgentRun(
       return null
     }
 
+    const responseStatus =
+      run.status === 'stopping' || response.status === 'stopped'
+        ? 'stopped'
+        : (response.status ?? 'complete')
+    const finalResponse = { ...response, status: responseStatus }
+
     let assistant: MessageRow | undefined
     if (run.assistantMessageId) {
       ;[assistant] = await tx
@@ -545,7 +553,7 @@ export async function finishAgentRun(
         .from(messages)
         .where(eq(messages.id, run.assistantMessageId))
       if (!assistant) throw new Error('assistant message not found')
-      assistant = await addRevision(tx, assistant, response)
+      assistant = await addRevision(tx, assistant, finalResponse)
     } else {
       if (!run.userMessageId) throw new Error('user message not found')
       const [userMessage] = await tx
@@ -564,13 +572,13 @@ export async function finishAgentRun(
           userId,
           parentMessageId: userMessage.id,
           role: 'assistant',
-          content: response.content,
-          contentJson: response.contentJson ?? '',
-          model: response.model ?? '',
-          toolJson: response.toolJson ?? '',
-          clientKey: response.clientKey,
-          source: response.source ?? 'web',
-          status: response.status ?? 'complete',
+          content: finalResponse.content,
+          contentJson: finalResponse.contentJson ?? '',
+          model: finalResponse.model ?? '',
+          toolJson: finalResponse.toolJson ?? '',
+          clientKey: finalResponse.clientKey,
+          source: finalResponse.source ?? 'web',
+          status: responseStatus,
           activeRevision: 1,
           seq: Number(seqRow?.max ?? -1) + 1,
           createdAt: now,
@@ -585,7 +593,7 @@ export async function finishAgentRun(
       .update(agentRuns)
       .set({
         assistantMessageId: assistant.id,
-        status: response.status === 'stopped' ? 'stopped' : 'completed',
+        status: responseStatus === 'stopped' ? 'stopped' : 'completed',
         updatedAt: now,
       })
       .where(eq(agentRuns.id, runId))
@@ -612,7 +620,9 @@ export async function failAgentRun(
     const locked = await lockRunAndConversation(tx, runId, userId)
     if (!locked) return
     const { run } = locked
-    if (!run || run.status !== 'running') return
+    if (!run || (run.status !== 'running' && run.status !== 'stopping')) {
+      return
+    }
     const now = nowSeconds()
     await tx
       .update(agentRuns)
@@ -634,6 +644,29 @@ export async function failAgentRun(
   })
 }
 
+export async function requestAgentRunStop(
+  runId: string,
+  userId: number,
+  conversationId: number
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const locked = await lockRunAndConversation(
+      tx,
+      runId,
+      userId,
+      conversationId
+    )
+    if (!locked) return false
+    if (locked.run.status === 'stopping') return true
+    if (locked.run.status !== 'running') return false
+    await tx
+      .update(agentRuns)
+      .set({ status: 'stopping', updatedAt: nowSeconds() })
+      .where(eq(agentRuns.id, runId))
+    return true
+  })
+}
+
 export async function stopAgentRun(
   runId: string,
   userId: number,
@@ -646,7 +679,12 @@ export async function stopAgentRun(
       userId,
       conversationId
     )
-    if (!locked || locked.run.status !== 'running') return false
+    if (
+      !locked ||
+      (locked.run.status !== 'running' && locked.run.status !== 'stopping')
+    ) {
+      return false
+    }
     const { run } = locked
     const now = nowSeconds()
     await tx

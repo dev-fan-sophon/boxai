@@ -9,6 +9,7 @@ import {
   AGENT_RUN_LEASE_SECONDS,
   activateMessageRevision,
   AgentConflictError,
+  requestAgentRunStop,
   stopAgentRun,
   deleteAgentMessage,
   editAgentMessage,
@@ -808,7 +809,8 @@ conversationsRoute.post('/:id/runs/:runId/cancel', async (c) => {
   const id = parseId(c.req.param('id'))
   if (id === null) return fail(c, 'invalid id')
   const runId = c.req.param('runId')
+  const requested = await requestAgentRunStop(runId, userId, id)
   const aborted = await abortActiveRun(runId, userId, id)
-  const stopped = await stopAgentRun(runId, userId, id)
-  return ok(c, { stopped: aborted || stopped })
+  const stopped = aborted ? false : await stopAgentRun(runId, userId, id)
+  return ok(c, { stopped: requested || aborted || stopped })
 })

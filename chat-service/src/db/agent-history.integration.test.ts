@@ -403,6 +403,45 @@ integrationTest('agent history PostgreSQL transactions', () => {
     expect([...rows]).toEqual([{ status: 'stopped' }])
   })
 
+  test('persists partial output after a durable stop request races settlement', async () => {
+    if (!sql) return
+    const conversationId = await createConversation()
+    const started = await history.startAgentRun({
+      conversationId,
+      userId: 7,
+      trigger: 'submit-message',
+      incoming: {
+        content: 'write a long answer',
+        contentJson: '',
+        clientKey: 'stop-race-user',
+        source: 'web',
+      },
+      requestKey: crypto.randomUUID(),
+      model: 'test-model',
+    })
+
+    expect(
+      await history.requestAgentRunStop(started.runId, 7, conversationId)
+    ).toBe(true)
+    const saved = await history.finishAgentRun(started.runId, 7, {
+      content: 'partial answer',
+      contentJson: JSON.stringify([{ type: 'text', text: 'partial answer' }]),
+      clientKey: 'stop-race-assistant',
+      model: 'test-model',
+      status: 'complete',
+    })
+
+    expect(saved?.message.content).toBe('partial answer')
+    expect(saved?.message.status).toBe('stopped')
+    expect(await history.stopAgentRun(started.runId, 7, conversationId)).toBe(
+      false
+    )
+    const rows = await sql<{ status: string }[]>`
+      SELECT status FROM playground_agent_runs WHERE id = ${started.runId}
+    `
+    expect([...rows]).toEqual([{ status: 'stopped' }])
+  })
+
   test('does not apply memory extracted from a superseded transcript', async () => {
     if (!sql) return
     const conversationId = await createConversation()
