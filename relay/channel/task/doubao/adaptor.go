@@ -142,7 +142,8 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	}
 	hasVideo := hasVideoInMetadata(req.Metadata)
 	resolution, _ := req.Metadata["resolution"].(string)
-	ratio, ok := GetVideoInputRatio(info.OriginModelName, resolution, hasVideo)
+	// 价格表以上游官方模型名为键；渠道映射后 OriginModelName 是对外别名，会查不到。
+	ratio, ok := GetVideoInputRatio(info.UpstreamModelName, resolution, hasVideo)
 	if !ok || ratio == 1.0 {
 		return nil
 	}
