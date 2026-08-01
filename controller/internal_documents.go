@@ -50,6 +50,7 @@ func InternalPrepareDocumentBuild(c *gin.Context) {
 		AssetIds       []int  `json:"asset_ids"`
 	}
 	if err := common.DecodeJson(c.Request.Body, &body); err != nil {
+		common.SysError("internal document prompt decode failed: " + err.Error())
 		common.ApiErrorMsg(c, "invalid request")
 		return
 	}
@@ -128,6 +129,7 @@ func InternalBuildDocument(c *gin.Context) {
 		ChatModel      string   `json:"chat_model"`
 	}
 	if err := common.DecodeJson(c.Request.Body, &body); err != nil {
+		common.SysError("internal document build decode failed: " + err.Error())
 		common.ApiErrorMsg(c, "invalid request")
 		return
 	}
