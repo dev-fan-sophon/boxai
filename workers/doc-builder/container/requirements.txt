@@ -1,0 +1,34 @@
+# Pinned so a rebuilt image produces byte-identical behaviour for the same build script.
+# The set mirrors Anthropic's and Google's published code-execution containers; see
+# docs/document-artifacts.md § 2.3 for what is deliberately excluded and why.
+#
+# Resolved against the Python 3.11 that ships in cloudflare/sandbox:0.12.4-python. Do not copy
+# versions from PyPI's "latest" — several current releases require 3.12 and will not install here.
+# Re-resolve the whole file whenever the base image tag moves:
+#
+#   docker run --rm --platform linux/amd64 --entrypoint sh docker.io/cloudflare/sandbox:<tag>-python \
+#     -c "python3 -m pip install -q <names…> && python3 -m pip freeze"
+
+# Documents
+python-docx==1.2.0
+openpyxl==3.1.5
+xlsxwriter==3.2.9
+python-pptx==1.0.2
+pypdf==6.14.2
+pdfplumber==0.11.10
+reportlab==5.0.0
+fpdf2==2.8.7
+img2pdf==0.6.3
+lxml==6.1.1
+
+# Data and charts. These four already ship in the base image; pinning them here makes the
+# contract explicit, so a future base bump that drops one fails the build instead of the request.
+pandas==3.0.3
+numpy==2.4.6
+matplotlib==3.11.0
+pillow==12.3.0
+tabulate==0.10.0
+
+# Text
+striprtf==0.0.32
+Markdown==3.10.3

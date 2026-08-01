@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -66,9 +67,14 @@ func CreatePlaygroundChatToolRun(c *gin.Context) {
 	if req.ToolPolicy.Mode == "direct" {
 		action = strings.TrimSpace(req.ToolPolicy.Direct.Name)
 	}
-	if action != service.PlaygroundToolChat && action != service.PlaygroundToolImage && action != service.PlaygroundToolVideo && action != service.PlaygroundToolSearch {
+	if action != service.PlaygroundToolChat && action != service.PlaygroundToolImage && action != service.PlaygroundToolVideo && action != service.PlaygroundToolSearch && action != service.PlaygroundToolDocument {
 		common.ApiErrorMsg(c, "invalid direct tool")
 		return
+	}
+	// Document generation is gated by a rollout allowlist. Falling back to chat keeps the turn
+	// useful for a user outside the rollout instead of failing it at build time.
+	if action == service.PlaygroundToolDocument && !service.DocumentBuilderAvailable(req.Group) {
+		action = service.PlaygroundToolChat
 	}
 	if action != service.PlaygroundToolChat && req.ToolPolicy.Mode != "direct" && !stringSliceContains(req.ToolPolicy.Enabled, action) {
 		action = service.PlaygroundToolChat
@@ -296,6 +302,10 @@ func respondPlaygroundToolRun(c *gin.Context, r *model.PlaygroundChatToolRun) {
 		endpoint = "/pg/video/generations"
 	} else if r.Action == service.PlaygroundToolSearch {
 		endpoint = "/pg/responses"
+	} else if r.Action == service.PlaygroundToolDocument {
+		// Documents are built server-side; the client's first call fetches the authoring prompt
+		// rather than hitting a relay endpoint directly.
+		endpoint = fmt.Sprintf("/api/playground/documents/runs/%d/prompt", r.Id)
 	}
 	common.ApiSuccess(c, gin.H{"run": r, "arguments": args, "sources": sources, "result": result, "execution": gin.H{"endpoint": endpoint, "method": "POST", "execution_token": r.ExecutionToken}})
 }

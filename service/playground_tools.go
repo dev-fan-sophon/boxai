@@ -5,10 +5,11 @@ import "strings"
 const MaxPlaygroundSearchQueryRunes = 1500
 
 const (
-	PlaygroundToolChat   = "chat"
-	PlaygroundToolImage  = "generate_image"
-	PlaygroundToolVideo  = "generate_video"
-	PlaygroundToolSearch = "web_search"
+	PlaygroundToolChat     = "chat"
+	PlaygroundToolImage    = "generate_image"
+	PlaygroundToolVideo    = "generate_video"
+	PlaygroundToolSearch   = "web_search"
+	PlaygroundToolDocument = "generate_document"
 )
 
 // ClassifyPlaygroundTool deliberately prefers precision. Questions about how
@@ -35,6 +36,22 @@ func ClassifyPlaygroundTool(text string) string {
 		[]string{"生成", "画", "绘制", "制作", "做", "设计", "generate", "create", "make", "draw", "design"},
 		[]string{"图片", "照片", "头像", "海报", "插画", "图像", "logo", "image", "picture", "photo", "avatar", "poster", "illustration"}) {
 		return PlaygroundToolImage
+	}
+	// A document request has to name a deliverable, not merely mention a file. "Summarise this
+	// PDF" is a chat turn about an upload and must not start a build; "export it as PDF" is a
+	// build even though it names no verb from the create list.
+	documentNouns := []string{"文档", "文件", "报告", "报表", "表格", "工作表", "简历", "合同", "发票",
+		"计划书", "方案书", "说明书", "白皮书", "演示文稿", "幻灯片", "ppt", "word", "excel", "pdf",
+		"docx", "xlsx", "pptx", "csv", "powerpoint", "spreadsheet", "worksheet", "document",
+		"report", "resume", "invoice", "contract", "proposal", "slide", "deck", "presentation"}
+	if containsAny(s, documentNouns...) {
+		exportIntent := containsAny(s, "导出", "另存", "存成", "保存为", "export", "save as", "download as")
+		readIntent := containsAny(s, "总结", "摘要", "解释", "翻译", "分析一下", "summarize", "summarise", "explain", "translate")
+		createIntent := containsAny(s, "生成", "制作", "做", "写", "整理", "创建", "新建", "输出",
+			"generate", "create", "make", "write", "build", "draft", "prepare", "produce")
+		if exportIntent || (createIntent && !readIntent) {
+			return PlaygroundToolDocument
+		}
 	}
 	return PlaygroundToolChat
 }

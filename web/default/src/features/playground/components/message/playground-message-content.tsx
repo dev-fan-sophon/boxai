@@ -46,6 +46,7 @@ import { downloadGeneratedMedia } from '../../lib/download-generated-media'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
+import { ManagedDocumentArtifacts } from './managed-document-artifacts'
 import {
   ImagePlaceholder,
   VideoPlaceholder,
@@ -71,6 +72,11 @@ const MANAGED_TOOL_META: Record<
     titleKey: 'Web search',
     Icon: Globe,
     tile: 'bg-info/15 text-info',
+  },
+  generate_document: {
+    titleKey: 'Document generation',
+    Icon: FileText,
+    tile: 'bg-chart-2/15 text-chart-2',
   },
 }
 
@@ -144,6 +150,7 @@ export function PlaygroundMessageContent({
     (toolStatus === 'completed' ||
       toolStatus === 'success' ||
       Boolean(message.managedTool?.images?.length) ||
+      Boolean(message.managedTool?.documents?.length) ||
       Boolean(toolVideoUrl))
   const isToolRunning =
     Boolean(message.managedTool) && !isToolFailed && !isToolDone
@@ -275,6 +282,44 @@ export function PlaygroundMessageContent({
               <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
               <div className='skeleton-shimmer h-3 w-2/3 rounded-full' />
             </div>
+          )}
+          {isToolRunning &&
+            message.managedTool.action === 'generate_document' && (
+              <div className='mt-3'>
+                <p className='text-muted-foreground mb-2 text-xs'>
+                  {(message.managedTool.documentAttempts ?? 1) > 1
+                    ? t('Fixing the build script (attempt {{attempt}})', {
+                        attempt: message.managedTool.documentAttempts,
+                      })
+                    : t('Writing and running the build script')}
+                </p>
+                <div className='space-y-1.5' aria-hidden='true'>
+                  <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
+                  <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
+                </div>
+              </div>
+            )}
+          {message.managedTool.documents && (
+            <ManagedDocumentArtifacts
+              artifacts={message.managedTool.documents}
+            />
+          )}
+          {message.managedTool.documentCode && isMessageFinal && (
+            <details className='mt-3'>
+              <summary className='text-muted-foreground hover:text-foreground cursor-pointer text-xs'>
+                {t('Show the script that produced this')}
+              </summary>
+              <div className='mt-2'>
+                <CodeBlock code={message.managedTool.documentCode} language='python'>
+                  <CodeBlockCopyButton />
+                </CodeBlock>
+              </div>
+              {message.managedTool.documentLogs && (
+                <pre className='bg-muted/40 mt-2 max-h-40 overflow-auto rounded-lg p-3 text-xs whitespace-pre-wrap'>
+                  {message.managedTool.documentLogs}
+                </pre>
+              )}
+            </details>
           )}
           {message.managedTool.images && (
             <div className='mt-3 flex flex-wrap gap-2'>

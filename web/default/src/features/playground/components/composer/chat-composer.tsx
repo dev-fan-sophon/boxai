@@ -1,5 +1,6 @@
 import {
   Bot,
+  FileText,
   Globe,
   Image,
   Paperclip,
@@ -36,7 +37,7 @@ import { useChatAttachments } from './attachments/use-chat-attachments'
 import { ComposerShell } from './composer'
 import { useComposerText } from './use-composer'
 
-type ToolMode = 'auto' | 'image' | 'video' | 'search'
+type ToolMode = 'auto' | 'image' | 'video' | 'search' | 'document'
 
 const TOOL_MODES: Array<{
   value: ToolMode
@@ -47,6 +48,7 @@ const TOOL_MODES: Array<{
   { value: 'image', labelKey: 'Image', Icon: Image },
   { value: 'video', labelKey: 'Video', Icon: Video },
   { value: 'search', labelKey: 'Search', Icon: Globe },
+  { value: 'document', labelKey: 'Document', Icon: FileText },
 ]
 
 type ChatComposerProps = {

@@ -1,6 +1,6 @@
 export type WorkbenchChatTools = {
   webSearch: boolean
-  mode: 'auto' | 'image' | 'video' | 'search'
+  mode: 'auto' | 'image' | 'video' | 'search' | 'document'
   carryHistory: boolean
   longMemory: boolean
   maxToolLoops: number
@@ -80,7 +80,8 @@ export function normalizeChatTools(
   if (
     value?.mode === 'image' ||
     value?.mode === 'video' ||
-    value?.mode === 'search'
+    value?.mode === 'search' ||
+    value?.mode === 'document'
   ) {
     mode = value.mode
   }

@@ -25,6 +25,15 @@ func TestClassifyPlaygroundTool(t *testing.T) {
 		{"生成一个总结", PlaygroundToolChat},
 		{"如何生成图片", PlaygroundToolChat},
 		{"你好", PlaygroundToolChat},
+		{"帮我写一份季度报告", PlaygroundToolDocument},
+		{"做一个销售数据表格", PlaygroundToolDocument},
+		{"生成一份产品介绍 PPT", PlaygroundToolDocument},
+		{"create a project proposal document", PlaygroundToolDocument},
+		{"把这份内容导出成 PDF", PlaygroundToolDocument},
+		{"总结一下这个 PDF", PlaygroundToolChat},
+		{"summarize the attached report", PlaygroundToolChat},
+		{"翻译这份合同", PlaygroundToolChat},
+		{"制作复古海报", PlaygroundToolImage},
 	}
 	for _, tt := range tests {
 		t.Run(tt.text, func(t *testing.T) { assert.Equal(t, tt.want, ClassifyPlaygroundTool(tt.text)) })

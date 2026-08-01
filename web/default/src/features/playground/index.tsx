@@ -28,6 +28,7 @@ import {
   generateImages,
   executeManagedSearch,
   importManagedToolRun,
+  releasePlaygroundDocumentSandbox,
   submitVideo,
 } from './api'
 import { ModelCatalog } from './components/catalog/model-catalog'
@@ -51,6 +52,10 @@ import {
 } from './hooks'
 import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
+import {
+  runDocumentBuild,
+  toDocumentArtifacts,
+} from './lib/document-build'
 import { persistGeneratedMediaAsset } from './lib/download-generated-media'
 import {
   extractManagedSearchResult,
@@ -172,6 +177,22 @@ export function Playground() {
   })
   const [isRouting, setIsRouting] = useState(false)
   const isRoutingRef = useRef(false)
+  // A warm container bills for memory while it waits, so leaving the conversation that owns one
+  // should stop paying for it instead of waiting out the sleep timer.
+  const documentSandboxRef = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    const live = documentSandboxRef.current
+    if (!live || live === activeSession?.serverId) return
+    documentSandboxRef.current = undefined
+    void releasePlaygroundDocumentSandbox(live).catch(() => {})
+  }, [activeSession?.serverId])
+  useEffect(
+    () => () => {
+      const live = documentSandboxRef.current
+      if (live) void releasePlaygroundDocumentSandbox(live).catch(() => {})
+    },
+    []
+  )
   const canSubmitManagedTurn = useCallback(
     () => !isRoutingRef.current && requireAuthentication(),
     [requireAuthentication]
@@ -187,10 +208,12 @@ export function Playground() {
         | 'generate_image'
         | 'generate_video'
         | 'web_search'
+        | 'generate_document'
         | undefined
       if (chatTools.mode === 'image') directName = 'generate_image'
       if (chatTools.mode === 'video') directName = 'generate_video'
       if (chatTools.mode === 'search') directName = 'web_search'
+      if (chatTools.mode === 'document') directName = 'generate_document'
       const setAssistantTool = (
         managedTool: import('./types').ManagedToolCard,
         sources?: import('./types').MessageSource[],
@@ -218,7 +241,12 @@ export function Playground() {
           user_text: text,
           tool_policy: {
             mode: directName ? 'direct' : 'auto',
-            enabled: ['generate_image', 'generate_video', 'web_search'],
+            enabled: [
+              'generate_image',
+              'generate_video',
+              'web_search',
+              'generate_document',
+            ],
             direct: directName ? { name: directName, args: {} } : undefined,
           },
         })
@@ -249,6 +277,41 @@ export function Playground() {
             result.sources,
             result.text
           )
+          return
+        }
+        if (run.action === 'generate_document') {
+          setAssistantTool(baseCard)
+          // Only attachments that reached the server have an asset id; a text file read in the
+          // browser has none and is already in the prompt as text.
+          const attachmentIds = (turnMessages.at(-2)?.attachments ?? [])
+            .map((attachment) => attachment.assetId)
+            .filter((id): id is number => typeof id === 'number' && id > 0)
+          if (activeSession?.serverId) {
+            documentSandboxRef.current = activeSession.serverId
+          }
+          const outcome = await runDocumentBuild({
+            runId: run.id,
+            executionToken: response.execution.execution_token,
+            model: config.model,
+            group: config.group,
+            userText: text,
+            conversationId: activeSession?.serverId,
+            assetIds: attachmentIds,
+            onAttempt: (attempt) =>
+              setAssistantTool({ ...baseCard, documentAttempts: attempt }),
+          })
+          const documents = toDocumentArtifacts(
+            outcome.result.assets,
+            outcome.result.unverified
+          )
+          setAssistantTool({
+            ...baseCard,
+            status: 'completed',
+            documents,
+            documentCode: outcome.code,
+            documentLogs: outcome.result.logs,
+            documentAttempts: outcome.attempts,
+          })
           return
         }
         if (run.action === 'generate_image') {
@@ -379,6 +442,7 @@ export function Playground() {
       }
     },
     [
+      activeSession?.serverId,
       chatTools.mode,
       config.group,
       config.model,

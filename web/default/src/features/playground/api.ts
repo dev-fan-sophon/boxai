@@ -24,6 +24,7 @@ export type ManagedToolAction =
   | 'generate_image'
   | 'generate_video'
   | 'web_search'
+  | 'generate_document'
 
 export type ManagedToolRunResponse = {
   run: {
@@ -90,12 +91,89 @@ export async function createManagedToolRun(input: {
   user_text: string
   tool_policy: {
     mode: 'auto' | 'direct'
-    enabled: Array<'generate_image' | 'generate_video' | 'web_search'>
+    enabled: Array<Exclude<ManagedToolAction, 'chat'>>
     direct?: { name: string; args: Record<string, unknown> }
   }
 }): Promise<ManagedToolRunResponse> {
   const response = await api.post('/api/playground/chat/runs', input)
   return requireManagedSuccess(response)
+}
+
+export type DocumentBuildAsset = {
+  id: number
+  name: string
+  url?: string
+  mime: string
+  size: number
+  kind: string
+}
+
+export type DocumentPromptResponse = {
+  system_prompt: string
+  inputs: string[]
+  previous: string[]
+}
+
+export type DocumentBuildResponse = {
+  status: 'completed' | 'failed'
+  build_id: number
+  attempt: number
+  assets?: DocumentBuildAsset[]
+  logs?: string
+  error?: string
+  can_retry?: boolean
+  retry_prompt?: string
+  /** Documents that could not be reopened by the library that owns their format. */
+  unverified?: string[]
+}
+
+/**
+ * Fetches the instructions that turn the user's own model into a build-script author, and tells
+ * the backend which attachments this build may read.
+ */
+export async function preparePlaygroundDocumentRun(
+  runId: number,
+  input: {
+    execution_token: string
+    conversation_id?: number
+    asset_ids?: number[]
+  }
+): Promise<DocumentPromptResponse> {
+  const response = await api.post(
+    `/api/playground/documents/runs/${runId}/prompt`,
+    input
+  )
+  if (!response.data?.success) {
+    throw new Error(response.data?.message || 'Document request failed')
+  }
+  return response.data.data as DocumentPromptResponse
+}
+
+/**
+ * Runs one model-authored script in the sandbox. A script that fails still resolves: the response
+ * carries the prompt for the next attempt.
+ */
+export async function buildPlaygroundDocument(
+  runId: number,
+  input: { execution_token: string; code: string }
+): Promise<DocumentBuildResponse> {
+  const response = await api.post(
+    `/api/playground/documents/runs/${runId}/build`,
+    input
+  )
+  if (!response.data?.success) {
+    throw new Error(response.data?.message || 'Document build failed')
+  }
+  return response.data.data as DocumentBuildResponse
+}
+
+/** Idle containers bill for memory, so leaving a conversation should stop paying for one. */
+export async function releasePlaygroundDocumentSandbox(
+  conversationId: number
+): Promise<void> {
+  await api.post('/api/playground/documents/sandbox/release', {
+    conversation_id: conversationId,
+  })
 }
 
 export async function importManagedToolRun(

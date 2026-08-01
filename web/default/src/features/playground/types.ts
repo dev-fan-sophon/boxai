@@ -10,15 +10,36 @@ export type ManagedToolStatus =
   | 'completed'
   | 'failed'
 
+export type ManagedDocumentArtifact = {
+  assetId: number
+  name: string
+  url?: string
+  mime: string
+  size: number
+  /** False when the file could not be reopened by the library that owns its format. */
+  verified: boolean
+}
+
 export type ManagedToolCard = {
   runId?: number
-  action: 'generate_image' | 'generate_video' | 'web_search'
+  action:
+    | 'generate_image'
+    | 'generate_video'
+    | 'web_search'
+    | 'generate_document'
   status: ManagedToolStatus
   model?: string
   taskId?: string
   images?: string[]
   videoUrl?: string
   error?: string
+  documents?: ManagedDocumentArtifact[]
+  /** The script the model wrote, shown in a collapsed panel for trust and debugging. */
+  documentCode?: string
+  documentLogs?: string
+  /** How many builds it took, so a document that needed self-heal is not silently equal to one
+   *  that worked first time. */
+  documentAttempts?: number
 }
 
 export type MessageSource = {

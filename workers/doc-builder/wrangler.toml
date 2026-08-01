@@ -1,0 +1,61 @@
+name = "boxai-doc-builder"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "4379d21a3d3eadc0e37d63abff091f31"
+
+# Custom domain rather than a route pattern, matching desktop-broker: wrangler then owns the DNS
+# record and the edge cert. The hostname is public but every request must carry a valid HMAC
+# signature (src/auth.ts), so only the Go backend can reach the build path.
+[[routes]]
+pattern = "doc-builder.you-box.com"
+custom_domain = true
+
+# Two container classes over one image, because instance_type is fixed per container config and
+# the two workloads have very different memory profiles (see docs/document-artifacts.md § 2.4).
+# The image tag must stay pinned to the @cloudflare/sandbox version in package.json.
+[[containers]]
+class_name = "DocSandboxBasic"
+image = "./Dockerfile"
+instance_type = "basic"
+max_instances = 40
+
+[[containers]]
+class_name = "DocSandboxStandard"
+image = "./Dockerfile"
+instance_type = "standard-2"
+max_instances = 20
+
+[[durable_objects.bindings]]
+class_name = "DocSandboxBasic"
+name = "SANDBOX_BASIC"
+
+[[durable_objects.bindings]]
+class_name = "DocSandboxStandard"
+name = "SANDBOX_STANDARD"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DocSandboxBasic", "DocSandboxStandard"]
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "boxai-playground"
+
+# Chromium renders the PDFs that reportlab cannot make look good. A build script signals this by
+# writing <name>.pdf.html instead of a PDF. The binding needs no API token, but quickAction only
+# works against the real service, so `wrangler dev` must be run with --remote to exercise it.
+[browser]
+binding = "BROWSER"
+
+[vars]
+# Streaming binary reads (readFile with encoding "none") and streaming writes both require the
+# RPC transport; without it every artifact would round-trip through base64 in Worker memory.
+SANDBOX_TRANSPORT = "rpc"
+ARTIFACT_PREFIX = "doc-builds"
+
+# Secrets (wrangler secret put …): SERVICE_SECRET — shared with the Go backend, used for the
+# HMAC request signature.
+
+[observability]
+enabled = true

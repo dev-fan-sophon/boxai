@@ -1,0 +1,13 @@
+# Baked into the image so charts pick up Vietnamese and CJK glyphs without the build script
+# having to configure fonts. A missing glyph renders as a tofu box, which is invisible to the
+# model and very visible to the user.
+# font.family must be the list, not font.sans-serif. Only a list here gives per-glyph fallback
+# across families; a font.sans-serif preference list picks one family and renders every glyph it
+# lacks as a tofu box, which is exactly the failure this file exists to prevent. Verified against
+# matplotlib 3.11 in this image: Latin and Vietnamese come from Noto Sans, CJK falls through.
+backend: Agg
+font.family: Noto Sans, Noto Sans CJK SC, DejaVu Sans
+axes.unicode_minus: False
+figure.dpi: 150
+savefig.dpi: 150
+savefig.bbox: tight
