@@ -105,6 +105,18 @@ func InternalServiceAuth() func(c *gin.Context) {
 	}
 }
 
+// RequireInternalService rejects requests whose auth context was not produced
+// by the internal service path. Used on routes registered inside mixed-auth
+// groups (e.g. /pg) that must never be reachable by a browser session.
+func RequireInternalService() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		if !c.GetBool("internal_service") {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "not found"})
+			c.Abort()
+		}
+	}
+}
+
 // InternalServiceSecretAuth guards internal endpoints that run before a user
 // is known, e.g. resolving a forwarded browser session into a user.
 func InternalServiceSecretAuth() func(c *gin.Context) {

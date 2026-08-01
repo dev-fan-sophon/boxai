@@ -37,6 +37,9 @@ func SetApiRouter(router *gin.Engine) {
 		internalActAsRouter.POST("/playground/documents/sandbox/release", controller.ReleasePlaygroundDocumentSandbox)
 		internalActAsRouter.GET("/playground/assets/:id/content", controller.GetPlaygroundAssetContent)
 		internalActAsRouter.POST("/playground/assets/import", controller.ImportPlaygroundAsset)
+		internalActAsRouter.POST("/playground/assets/upload", controller.UploadPlaygroundAsset)
+		internalActAsRouter.GET("/playground/tool-models", controller.InternalPlaygroundToolModels)
+		internalActAsRouter.GET("/playground/tasks/:taskId", controller.InternalPlaygroundTaskStatus)
 	}
 
 	{

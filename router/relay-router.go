@@ -70,6 +70,8 @@ func SetRelayRouter(router *gin.Engine) {
 		playgroundRouter.POST("/images/edits", middleware.Distribute(), controller.PlaygroundImageEdit)
 		playgroundRouter.POST("/audio/speech", middleware.Distribute(), controller.PlaygroundAudio)
 		playgroundRouter.POST("/video/generations", middleware.Distribute(), controller.PlaygroundVideo)
+		// boxai-chat only: direct search without the browser run contract.
+		playgroundRouter.POST("/internal/search", middleware.RequireInternalService(), controller.PrepareInternalPlaygroundSearch(), middleware.Distribute(), controller.InternalPlaygroundSearch)
 	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))
