@@ -56,6 +56,13 @@ func InternalPlaygroundToolModels(c *gin.Context) {
 	}
 	searchModel := ""
 	searchGroup := ""
+	documentAvailable := false
+	for _, group := range abilityGroups {
+		if service.DocumentBuilderAvailable(group) {
+			documentAvailable = true
+			break
+		}
+	}
 	if abilities, err := model.GetEnabledGrokPlaygroundSearchAbilities(abilityGroups); err == nil {
 		for _, group := range abilityGroups {
 			groupModels := make([]string, 0, len(abilities))
@@ -76,7 +83,7 @@ func InternalPlaygroundToolModels(c *gin.Context) {
 		"video_model":  selectToolModel(models, service.PlaygroundToolVideo),
 		"search_model": searchModel,
 		"search_group": searchGroup,
-		"document":     service.DocumentBuilderAvailable(abilityGroups[0]),
+		"document":     documentAvailable,
 	})
 }
 

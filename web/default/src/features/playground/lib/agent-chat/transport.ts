@@ -324,6 +324,7 @@ export async function sendAgentChat(options: AgentChatOptions): Promise<void> {
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let receivedDone = false
   try {
     for (;;) {
       const { done, value } = await reader.read()
@@ -333,7 +334,10 @@ export async function sendAgentChat(options: AgentChatOptions): Promise<void> {
       while (boundary !== -1) {
         const data = frameData(buffer.slice(0, boundary))
         buffer = buffer.slice(boundary + 2)
-        if (data === SSE_DONE) return
+        if (data === SSE_DONE) {
+          receivedDone = true
+          break
+        }
         if (data) {
           try {
             handleChunk(JSON.parse(data) as UIMessageChunk)
@@ -343,9 +347,14 @@ export async function sendAgentChat(options: AgentChatOptions): Promise<void> {
         }
         boundary = buffer.indexOf('\n\n')
       }
+      if (receivedDone) return
     }
   } catch {
     if (options.signal?.aborted) return
+    callbacks.onError(ERROR_MESSAGES.CONNECTION_CLOSED)
+    return
+  }
+  if (!options.signal?.aborted && !receivedDone) {
     callbacks.onError(ERROR_MESSAGES.CONNECTION_CLOSED)
   }
 }

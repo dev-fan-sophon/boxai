@@ -58,6 +58,7 @@ type ChatComposerProps = {
   isGenerating?: boolean
   isModelLoading?: boolean
   onOpenModelCatalog?: () => void
+  allowAttachments?: boolean
 }
 
 /**
@@ -77,11 +78,12 @@ export function ChatComposer(props: ChatComposerProps) {
   const groups = usePlaygroundStore((state) => state.groups)
   const toolMode = usePlaygroundStore((state) => state.chatTools.mode)
   const setChatTools = usePlaygroundStore((state) => state.setChatTools)
+  const allowAttachments = props.allowAttachments !== false
 
   const { canSubmit, shouldShowStop } = getInputControlState({
     disabled: props.disabled,
     groups,
-    hasAttachments: attachments.attachments.length > 0,
+    hasAttachments: allowAttachments && attachments.attachments.length > 0,
     hasStopHandler: Boolean(props.onStop),
     isAddingAttachments: attachments.isAdding || attachments.isParsing,
     isGenerating: props.isGenerating,
@@ -93,8 +95,11 @@ export function ChatComposer(props: ChatComposerProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     if (attachments.isAdding || attachments.isParsing) return
     const submittableText = getSubmittableInputText(message, props.disabled)
-    if (!submittableText && attachments.attachments.length === 0) return
-    if (props.onSubmit(submittableText ?? '', attachments.attachments)) {
+    const submittedAttachments = allowAttachments
+      ? attachments.attachments
+      : undefined
+    if (!submittableText && !submittedAttachments?.length) return
+    if (props.onSubmit(submittableText ?? '', submittedAttachments)) {
       setText('')
       attachments.clear()
     }
@@ -113,27 +118,41 @@ export function ChatComposer(props: ChatComposerProps) {
       canSubmit={canSubmit}
       showStop={shouldShowStop}
       onStop={props.onStop}
-      onPaste={attachments.handlePaste}
-      onDrop={(event) => {
-        setDragActive(false)
-        attachments.handleDrop(event)
-      }}
-      onDragOver={(event) => {
-        attachments.handleDragOver(event)
-        setDragActive(true)
-      }}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-          setDragActive(false)
-        }
-      }}
-      dragActive={dragActive}
+      onPaste={allowAttachments ? attachments.handlePaste : undefined}
+      onDrop={
+        allowAttachments
+          ? (event) => {
+              setDragActive(false)
+              attachments.handleDrop(event)
+            }
+          : undefined
+      }
+      onDragOver={
+        allowAttachments
+          ? (event) => {
+              attachments.handleDragOver(event)
+              setDragActive(true)
+            }
+          : undefined
+      }
+      onDragLeave={
+        allowAttachments
+          ? (event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                setDragActive(false)
+              }
+            }
+          : undefined
+      }
+      dragActive={allowAttachments && dragActive}
       attachments={
-        <ChatAttachmentStrip
-          attachments={attachments.attachments}
-          onRemove={attachments.removeAt}
-          onRetry={attachments.retryAt}
-        />
+        allowAttachments ? (
+          <ChatAttachmentStrip
+            attachments={attachments.attachments}
+            onRemove={attachments.removeAt}
+            onRetry={attachments.retryAt}
+          />
+        ) : undefined
       }
       tools={
         <>
@@ -162,38 +181,44 @@ export function ChatComposer(props: ChatComposerProps) {
               </TooltipContent>
             </Tooltip>
           )}
-          <input
-            ref={fileInputRef}
-            type='file'
-            accept={`image/*,${DOCUMENT_ACCEPT}`}
-            multiple
-            disabled={props.disabled || attachments.isAdding}
-            className='hidden'
-            onChange={(event) => {
-              void attachments.addFiles(event.target.files)
-              event.target.value = ''
-            }}
-          />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <PromptInputButton
-                  aria-label={t('Attach images or documents')}
-                  className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                  disabled={
-                    props.disabled || attachments.isAdding || attachments.isFull
+          {allowAttachments && (
+            <>
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept={`image/*,${DOCUMENT_ACCEPT}`}
+                multiple
+                disabled={props.disabled || attachments.isAdding}
+                className='hidden'
+                onChange={(event) => {
+                  void attachments.addFiles(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <PromptInputButton
+                      aria-label={t('Attach images or documents')}
+                      className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
+                      disabled={
+                        props.disabled ||
+                        attachments.isAdding ||
+                        attachments.isFull
+                      }
+                      onClick={() => fileInputRef.current?.click()}
+                      variant='ghost'
+                    >
+                      <Paperclip size={16} />
+                    </PromptInputButton>
                   }
-                  onClick={() => fileInputRef.current?.click()}
-                  variant='ghost'
-                >
-                  <Paperclip size={16} />
-                </PromptInputButton>
-              }
-            />
-            <TooltipContent>
-              <p>{t('Attach images or documents')}</p>
-            </TooltipContent>
-          </Tooltip>
+                />
+                <TooltipContent>
+                  <p>{t('Attach images or documents')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
 
           <DropdownMenu>
             <Tooltip>

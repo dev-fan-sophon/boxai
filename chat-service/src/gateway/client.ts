@@ -65,7 +65,9 @@ async function gatewayFetch<T>(
 }
 
 /** Resolves a browser session cookie (forwarded verbatim) into the user. */
-export async function resolveSession(cookieHeader: string): Promise<GatewayUser> {
+export async function resolveSession(
+  cookieHeader: string
+): Promise<GatewayUser> {
   return gatewayFetch<GatewayUser>('/api/internal/session', {
     headers: { Cookie: cookieHeader },
   })
@@ -86,9 +88,11 @@ export async function prepareDocumentBuild(
   userId: number,
   body: {
     request_text: string
+    group: string
     conversation_id?: number
     asset_ids?: number[]
-  }
+  },
+  signal?: AbortSignal
 ): Promise<DocumentPromptResponse> {
   return gatewayFetch<DocumentPromptResponse>(
     '/api/internal/playground/documents/prompt',
@@ -96,6 +100,7 @@ export async function prepareDocumentBuild(
       method: 'POST',
       actAsUserId: userId,
       body: JSON.stringify(body),
+      signal,
     }
   )
 }
@@ -125,6 +130,7 @@ export async function buildDocument(
   userId: number,
   body: {
     external_run_id: string
+    group: string
     conversation_id?: number
     asset_ids?: number[]
     formats: string[]
@@ -132,7 +138,8 @@ export async function buildDocument(
     previous_names: string[]
     code: string
     chat_model: string
-  }
+  },
+  signal?: AbortSignal
 ): Promise<DocumentBuildResponse> {
   return gatewayFetch<DocumentBuildResponse>(
     '/api/internal/playground/documents/build',
@@ -140,6 +147,7 @@ export async function buildDocument(
       method: 'POST',
       actAsUserId: userId,
       body: JSON.stringify(body),
+      signal,
     }
   )
 }
@@ -166,12 +174,14 @@ export type SearchResult = {
 /** Direct billed web search through the gateway's pinned Grok channel. */
 export async function webSearch(
   userId: number,
-  body: { query: string; group?: string }
+  body: { query: string; group?: string },
+  signal?: AbortSignal
 ): Promise<SearchResult> {
   return gatewayFetch<SearchResult>('/pg/internal/search', {
     method: 'POST',
     actAsUserId: userId,
     body: JSON.stringify(body),
+    signal,
   })
 }
 
@@ -185,12 +195,16 @@ export type ToolModels = {
 
 export async function toolModels(
   userId: number,
-  group?: string
+  group?: string,
+  signal?: AbortSignal
 ): Promise<ToolModels> {
   const query = group ? `?group=${encodeURIComponent(group)}` : ''
   return gatewayFetch<ToolModels>(
     `/api/internal/playground/tool-models${query}`,
-    { actAsUserId: userId }
+    {
+      actAsUserId: userId,
+      signal,
+    }
   )
 }
 
@@ -204,11 +218,15 @@ export type TaskStatus = {
 
 export async function taskStatus(
   userId: number,
-  taskId: string
+  taskId: string,
+  signal?: AbortSignal
 ): Promise<TaskStatus> {
   return gatewayFetch<TaskStatus>(
     `/api/internal/playground/tasks/${encodeURIComponent(taskId)}`,
-    { actAsUserId: userId }
+    {
+      actAsUserId: userId,
+      signal,
+    }
   )
 }
 
@@ -223,19 +241,22 @@ export type ImportedAsset = {
 
 export async function importAsset(
   userId: number,
-  body: { source_url: string; kind: 'image' | 'video' | 'audio' }
+  body: { source_url: string; kind: 'image' | 'video' | 'audio' },
+  signal?: AbortSignal
 ): Promise<ImportedAsset> {
   return gatewayFetch<ImportedAsset>('/api/internal/playground/assets/import', {
     method: 'POST',
     actAsUserId: userId,
     body: JSON.stringify(body),
+    signal,
   })
 }
 
 export async function uploadAsset(
   userId: number,
   file: Blob,
-  filename: string
+  filename: string,
+  signal?: AbortSignal
 ): Promise<ImportedAsset> {
   const form = new FormData()
   form.set('file', file, filename)
@@ -243,6 +264,7 @@ export async function uploadAsset(
     method: 'POST',
     actAsUserId: userId,
     body: form,
+    signal,
   })
 }
 
@@ -251,12 +273,24 @@ export async function uploadAsset(
  * custom fetch so every upstream call goes through the gateway's /pg relay
  * and bills the acted-as user.
  */
-export function billedRelayFetch(userId: number): typeof globalThis.fetch {
+export function billedRelayFetch(
+  userId: number,
+  group?: string
+): typeof globalThis.fetch {
   const billed = (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     headers.set('X-BoxAI-Internal-Secret', config.internalSecret)
     headers.set('X-BoxAI-Act-As-User', String(userId))
-    return fetch(input, { ...init, headers })
+    let body = init?.body
+    if (
+      group &&
+      typeof body === 'string' &&
+      headers.get('content-type')?.includes('application/json')
+    ) {
+      const payload = JSON.parse(body) as Record<string, unknown>
+      body = JSON.stringify({ ...payload, group })
+    }
+    return fetch(input, { ...init, body, headers })
   }
   // Bun's fetch type carries preconnect; delegate to keep the type honest.
   return Object.assign(billed, { preconnect: fetch.preconnect })

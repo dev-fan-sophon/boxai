@@ -17,11 +17,12 @@ export function webSearchTool(context: ToolContext) {
         .max(2000)
         .describe('The search query, in the language of the expected sources'),
     }),
-    execute: async ({ query }) => {
-      const result = await webSearch(context.userId, {
-        query,
-        group: context.group,
-      })
+    execute: async ({ query }, options) => {
+      const result = await webSearch(
+        context.userId,
+        { query, group: context.group },
+        options?.abortSignal
+      )
       return {
         text: result.text,
         sources: result.sources,

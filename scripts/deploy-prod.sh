@@ -251,7 +251,6 @@ APP_ROOT="$2"
 SERVICE_NAME="$3"
 export PATH="/usr/local/go/bin:${HOME}/.bun/bin:/usr/local/bin:${PATH}"
 export BOXAI_APP_ROOT="$APP_ROOT"
-ln -sfn "${APP_ROOT}/releases/${REF}" "${APP_ROOT}/current"
 # Ensure infra compose is present even without --bootstrap
 if [[ ! -f "${APP_ROOT}/docker-compose.infra.yml" ]]; then
   cp -f "${APP_ROOT}/releases/${REF}/deploy/docker-compose.infra.yml" "${APP_ROOT}/docker-compose.infra.yml"
@@ -312,6 +311,8 @@ systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}.service"
 # Build
 bash "${APP_ROOT}/releases/${REF}/scripts/server/build-native.sh" "${APP_ROOT}/releases/${REF}"
+# Only expose a release to systemd after every build/install step succeeded.
+ln -sfn "${APP_ROOT}/releases/${REF}" "${APP_ROOT}/current"
 # Ensure docker app is not holding the port
 for c in boxai boxai2; do
   if docker ps -aq -f "name=^${c}$" | grep -q .; then
@@ -330,14 +331,20 @@ if [[ -f "${APP_ROOT}/chat.env" ]]; then
   systemctl daemon-reload
   systemctl enable boxai-chat.service
   systemctl restart boxai-chat.service
-  sleep 2
-  if curl -fsS http://127.0.0.1:3100/healthz | grep -q '"ok"'; then
-    echo "CHAT_HEALTH_OK"
-  else
-    echo "CHAT_HEALTH_FAIL" >&2
+  chat_ready=0
+  for _ in $(seq 1 20); do
+    if curl -fsS http://127.0.0.1:3100/readyz | grep -q '"ok"'; then
+      chat_ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$chat_ready" -ne 1 ]]; then
+    echo "CHAT_READY_FAIL" >&2
     journalctl -u boxai-chat -n 50 --no-pager || true
     exit 1
   fi
+  echo "CHAT_READY_OK"
 else
   echo "chat.env absent; skipping boxai-chat unit"
 fi

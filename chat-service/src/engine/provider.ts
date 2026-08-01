@@ -9,11 +9,15 @@ import { billedRelayFetch } from '../gateway/client'
  * routing, quota, and billing for the acted-as user. The chat service never
  * talks to an upstream vendor directly and never holds vendor keys.
  */
-export function userModel(userId: number, modelId: string): LanguageModel {
+export function userModel(
+  userId: number,
+  modelId: string,
+  group: string
+): LanguageModel {
   const provider = createOpenAICompatible({
     name: 'boxai-gateway',
     baseURL: `${config.gatewayBaseUrl}/pg`,
-    fetch: billedRelayFetch(userId),
+    fetch: billedRelayFetch(userId, group),
   })
   return provider.chatModel(modelId)
 }

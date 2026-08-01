@@ -58,39 +58,48 @@ export function generateDocumentTool(context: ToolContext) {
         ),
     }),
     execute: async ({ request }, options) => {
+      const signal = options?.abortSignal
       const externalRunId = crypto.randomUUID()
-      const prepared = await prepareDocumentBuild(context.userId, {
-        request_text: request,
-        conversation_id: context.conversationId,
-        asset_ids: context.assetIds,
-      })
+      const prepared = await prepareDocumentBuild(
+        context.userId,
+        {
+          request_text: request,
+          group: context.group,
+          conversation_id: context.conversationId,
+          asset_ids: context.assetIds,
+        },
+        signal
+      )
 
       let authoringSystem = prepared.system_prompt
       let outcome: DocumentBuildResponse | undefined
       for (let attempt = 1; attempt <= prepared.max_attempts; attempt++) {
-        if (options?.abortSignal?.aborted) {
-          throw new Error('document build was cancelled')
-        }
+        signal?.throwIfAborted()
         const authored = await generateText({
-          model: userModel(context.userId, context.modelId),
+          model: userModel(context.userId, context.modelId, context.group),
           system: authoringSystem,
           prompt: request,
-          abortSignal: options?.abortSignal,
+          abortSignal: signal,
         })
         const code = extractDocumentCode(authored.text)
         if (!code) {
           throw new Error('the model did not return a build script')
         }
-        outcome = await buildDocument(context.userId, {
-          external_run_id: externalRunId,
-          conversation_id: context.conversationId,
-          asset_ids: context.assetIds,
-          formats: prepared.formats,
-          previous_keys: prepared.previous_keys,
-          previous_names: prepared.previous_names,
-          code,
-          chat_model: context.modelId,
-        })
+        outcome = await buildDocument(
+          context.userId,
+          {
+            external_run_id: externalRunId,
+            group: context.group,
+            conversation_id: context.conversationId,
+            asset_ids: context.assetIds,
+            formats: prepared.formats,
+            previous_keys: prepared.previous_keys,
+            previous_names: prepared.previous_names,
+            code,
+            chat_model: context.modelId,
+          },
+          signal
+        )
         if (outcome.status === 'completed') {
           return {
             documents: (outcome.assets ?? []).map((asset) => ({

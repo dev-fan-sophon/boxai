@@ -18,8 +18,9 @@ type UsePlaygroundConversationOptions = {
   routeTurn?: (messages: Message[], text: string) => Promise<void>
   /**
    * Server-owned agent turn. When present it replaces both the managed-tool
-   * router and the legacy completion call for plain new text turns; edits and
-   * regenerates stay on the legacy path.
+   * router and the legacy completion call. Until the server exposes mutation
+   * and attachment protocols, those operations are blocked so local state
+   * cannot diverge from server-owned history.
    */
   agentTurn?: (messages: Message[], text: string) => Promise<void>
   canSubmit: () => boolean
@@ -43,6 +44,7 @@ export function usePlaygroundConversation({
   const handleSendMessage = useCallback(
     (text: string, attachments?: ChatAttachment[]): boolean => {
       if (!canSubmit()) return false
+      if (agentTurn && attachments?.length) return false
       const nextMessages = appendUserMessagePair(
         messages,
         text,
@@ -73,7 +75,7 @@ export function usePlaygroundConversation({
 
   const handleRegenerateMessage = useCallback(
     (message: Message) => {
-      if (!canSubmit()) return
+      if (agentTurn || !canSubmit()) return
       const nextMessages = createRegeneratedMessages(
         messages,
         message.key,
@@ -102,12 +104,24 @@ export function usePlaygroundConversation({
         sendChat(nextMessages)
       }
     },
-    [canSubmit, messages, updateMessages, sendChat, routeTurn, activeModel]
+    [
+      agentTurn,
+      canSubmit,
+      messages,
+      updateMessages,
+      sendChat,
+      routeTurn,
+      activeModel,
+    ]
   )
 
-  const handleEditMessage = useCallback((message: Message) => {
-    setEditingMessageKey(message.key)
-  }, [])
+  const handleEditMessage = useCallback(
+    (message: Message) => {
+      if (agentTurn) return
+      setEditingMessageKey(message.key)
+    },
+    [agentTurn]
+  )
 
   const handleEditOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -117,7 +131,7 @@ export function usePlaygroundConversation({
 
   const applyEdit = useCallback(
     (newContent: string, shouldSubmit: boolean) => {
-      if (!editingMessageKey) return
+      if (agentTurn || !editingMessageKey) return
       if (shouldSubmit && !canSubmit()) return
 
       const editResult = applyMessageEdit(
@@ -149,6 +163,7 @@ export function usePlaygroundConversation({
     },
     [
       canSubmit,
+      agentTurn,
       editingMessageKey,
       messages,
       updateMessages,
@@ -160,11 +175,12 @@ export function usePlaygroundConversation({
 
   const handleDeleteMessage = useCallback(
     (message: Message) => {
+      if (agentTurn) return
       updateMessages((previousMessages) =>
         removeMessageByKey(previousMessages, message.key)
       )
     },
-    [updateMessages]
+    [agentTurn, updateMessages]
   )
 
   return {

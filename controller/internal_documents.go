@@ -27,10 +27,25 @@ import (
 // InternalPrepareDocumentBuild returns the authoring system prompt plus the
 // continuation state (previous artifacts, last code) for a conversation. The
 // chat service passes that state back verbatim on the build call.
+func internalDocumentBuilderAvailable(c *gin.Context, requestedGroup string) bool {
+	abilityGroups, ok := internalAbilityGroups(c, requestedGroup)
+	if !ok {
+		return false
+	}
+	for _, group := range abilityGroups {
+		if service.DocumentBuilderAvailable(group) {
+			return true
+		}
+	}
+	common.ApiErrorMsg(c, "document generation is not available")
+	return false
+}
+
 func InternalPrepareDocumentBuild(c *gin.Context) {
 	userId := c.GetInt("id")
 	var body struct {
 		RequestText    string `json:"request_text"`
+		Group          string `json:"group"`
 		ConversationId int    `json:"conversation_id"`
 		AssetIds       []int  `json:"asset_ids"`
 	}
@@ -38,8 +53,7 @@ func InternalPrepareDocumentBuild(c *gin.Context) {
 		common.ApiErrorMsg(c, "invalid request")
 		return
 	}
-	if !service.DocumentBuilderAvailable(c.GetString("group")) {
-		common.ApiErrorMsg(c, "document generation is not available")
+	if !internalDocumentBuilderAvailable(c, body.Group) {
 		return
 	}
 	if len(body.AssetIds) > 8 {
@@ -104,6 +118,7 @@ func InternalBuildDocument(c *gin.Context) {
 	userId := c.GetInt("id")
 	var body struct {
 		ExternalRunId  string   `json:"external_run_id"`
+		Group          string   `json:"group"`
 		ConversationId int      `json:"conversation_id"`
 		AssetIds       []int    `json:"asset_ids"`
 		Formats        []string `json:"formats"`
@@ -133,22 +148,11 @@ func InternalBuildDocument(c *gin.Context) {
 		common.ApiErrorMsg(c, "invalid previous artifacts")
 		return
 	}
-	if !service.DocumentBuilderAvailable(c.GetString("group")) {
-		common.ApiErrorMsg(c, "document generation is not available")
+	if !internalDocumentBuilderAvailable(c, body.Group) {
 		return
 	}
 
 	settings := system_setting.GetDocumentBuilderSettings()
-	attempts, err := model.CountPlaygroundDocumentBuildAttemptsByExternalRun(body.ExternalRunId, userId)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if int(attempts) >= settings.MaxAttempts {
-		common.ApiErrorMsg(c, "this document has used all of its build attempts")
-		return
-	}
-
 	release, err := service.AcquireDocumentBuildSlot(userId, settings.MaxConcurrentPerUser,
 		time.Duration(settings.WallClockSeconds+60)*time.Second)
 	if err != nil {
@@ -164,13 +168,17 @@ func InternalBuildDocument(c *gin.Context) {
 		ConversationId: body.ConversationId,
 		SandboxKey:     service.PlaygroundDocumentSandboxKey(userId, body.ConversationId),
 		Status:         model.PlaygroundDocumentBuildBuilding,
-		Attempt:        int(attempts) + 1,
 		ChatModel:      body.ChatModel,
 		Instance:       settings.InstanceType,
 		Code:           code,
 	}
-	if err := model.CreatePlaygroundDocumentBuild(build); err != nil {
+	claimed, err := model.CreateInternalPlaygroundDocumentBuildAttempt(build, settings.MaxAttempts)
+	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+	if !claimed {
+		common.ApiErrorMsg(c, "this document has used all of its build attempts")
 		return
 	}
 

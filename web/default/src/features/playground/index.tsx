@@ -946,10 +946,16 @@ export function Playground() {
               <PlaygroundChat
                 messages={messages}
                 isLoadingMessages={false}
-                onRegenerateMessage={handleRegenerateMessage}
-                onEditMessage={handleEditMessage}
-                onDeleteMessage={handleDeleteMessage}
-                onSelectMessageVersion={handleSelectMessageVersion}
+                onRegenerateMessage={
+                  agentChatEnabled ? undefined : handleRegenerateMessage
+                }
+                onEditMessage={agentChatEnabled ? undefined : handleEditMessage}
+                onDeleteMessage={
+                  agentChatEnabled ? undefined : handleDeleteMessage
+                }
+                onSelectMessageVersion={
+                  agentChatEnabled ? undefined : handleSelectMessageVersion
+                }
                 onSelectPrompt={handleSendMessage}
                 isGenerating={isGenerating || isAgentStreaming}
                 editingKey={editingMessageKey}
@@ -963,6 +969,7 @@ export function Playground() {
             </div>
             <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
               <ChatComposer
+                allowAttachments={!agentChatEnabled}
                 disabled={isGenerating || isRouting || isAgentStreaming}
                 isGenerating={isGenerating || isAgentStreaming}
                 isModelLoading={isLoadingModels}

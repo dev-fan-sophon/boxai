@@ -3,8 +3,8 @@ import { z } from 'zod'
 
 import { config } from '../config'
 import { billedRelayFetch, importAsset, uploadAsset } from '../gateway/client'
-import { resolveToolModels } from './tool-models'
 import type { ToolContext } from './index'
+import { resolveToolModels } from './tool-models'
 
 type ImageGenerationItem = { url?: string; b64_json?: string }
 
@@ -20,12 +20,13 @@ export function generateImageTool(context: ToolContext) {
         .max(4000)
         .describe('A detailed visual description of the image to generate'),
     }),
-    execute: async ({ prompt }) => {
-      const models = await resolveToolModels(context)
+    execute: async ({ prompt }, options) => {
+      const signal = options?.abortSignal
+      const models = await resolveToolModels(context, signal)
       if (!models.image_model) {
         throw new Error('no image model is available for this group')
       }
-      const response = await billedRelayFetch(context.userId)(
+      const response = await billedRelayFetch(context.userId, context.group)(
         `${config.gatewayBaseUrl}/pg/images/generations`,
         {
           method: 'POST',
@@ -36,6 +37,7 @@ export function generateImageTool(context: ToolContext) {
             prompt,
             n: 1,
           }),
+          signal,
         }
       )
       if (!response.ok) {
@@ -50,10 +52,14 @@ export function generateImageTool(context: ToolContext) {
       for (const item of items) {
         if (item.url && /^https?:\/\//.test(item.url)) {
           assets.push(
-            await importAsset(context.userId, {
-              source_url: item.url,
-              kind: 'image',
-            })
+            await importAsset(
+              context.userId,
+              {
+                source_url: item.url,
+                kind: 'image',
+              },
+              signal
+            )
           )
         } else if (item.b64_json) {
           const bytes = Uint8Array.from(atob(item.b64_json), (ch) =>
@@ -63,7 +69,8 @@ export function generateImageTool(context: ToolContext) {
             await uploadAsset(
               context.userId,
               new Blob([bytes], { type: 'image/png' }),
-              `generated-${Date.now()}.png`
+              `generated-${Date.now()}.png`,
+              signal
             )
           )
         }

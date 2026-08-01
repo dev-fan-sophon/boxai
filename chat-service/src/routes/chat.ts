@@ -1,7 +1,7 @@
+import type { UIMessage } from 'ai'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { UIMessage } from 'ai'
 
 import { sessionAuth } from '../auth'
 import type { AuthEnv } from '../auth'
@@ -83,32 +83,40 @@ chatRoute.post('/', sessionAuth, async (c) => {
       })
       .returning()
     if (!conv) {
-      return c.json({ success: false, message: 'could not create conversation' }, 500)
+      return c.json(
+        { success: false, message: 'could not create conversation' },
+        500
+      )
     }
   }
   const conversation = conv
+  const selectedGroup = group || conversation.group || user.group
 
   // Context is assembled before the new turn is persisted so the incoming
   // message is not duplicated into the history window.
   const context = await assembleContext(conversation, { longMemory })
 
-  await appendMessage(conversation.id, user.id, {
+  const appended = await appendMessage(conversation.id, user.id, {
     role: 'user',
     content: userText,
     model,
     clientKey: incoming.id,
     source: source ?? 'web',
   })
+  if (!appended) {
+    return c.json({ success: false, message: 'message already submitted' }, 409)
+  }
 
   const result = await runAgent({
     userId: user.id,
     modelId: model,
+    group: selectedGroup,
     system,
     messages: [incoming],
     contextMessages: context,
     tools: buildTools({
       userId: user.id,
-      group: group || user.group,
+      group: selectedGroup,
       modelId: model,
       conversationId: conversation.id,
       assetIds,

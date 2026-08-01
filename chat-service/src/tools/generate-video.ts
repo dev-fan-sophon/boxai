@@ -3,11 +3,29 @@ import { z } from 'zod'
 
 import { config } from '../config'
 import { billedRelayFetch, taskStatus } from '../gateway/client'
-import { resolveToolModels } from './tool-models'
 import type { ToolContext } from './index'
+import { resolveToolModels } from './tool-models'
 
 const POLL_INTERVAL_MS = 5_000
 const POLL_TIMEOUT_MS = 6 * 60_000
+
+export function waitForVideoPoll(signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted()
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>
+    const onAbort = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      reject(signal?.reason ?? new Error('video generation was cancelled'))
+    }
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, POLL_INTERVAL_MS)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) onAbort()
+  })
+}
 
 export function generateVideoTool(context: ToolContext) {
   return tool({
@@ -22,11 +40,12 @@ export function generateVideoTool(context: ToolContext) {
         .describe('A detailed description of the video to generate'),
     }),
     execute: async ({ prompt }, options) => {
-      const models = await resolveToolModels(context)
+      const signal = options?.abortSignal
+      const models = await resolveToolModels(context, signal)
       if (!models.video_model) {
         throw new Error('no video model is available for this group')
       }
-      const response = await billedRelayFetch(context.userId)(
+      const response = await billedRelayFetch(context.userId, context.group)(
         `${config.gatewayBaseUrl}/pg/video/generations`,
         {
           method: 'POST',
@@ -36,6 +55,7 @@ export function generateVideoTool(context: ToolContext) {
             group: context.group,
             prompt,
           }),
+          signal,
         }
       )
       if (!response.ok) {
@@ -58,11 +78,8 @@ export function generateVideoTool(context: ToolContext) {
 
       const deadline = Date.now() + POLL_TIMEOUT_MS
       while (Date.now() < deadline) {
-        if (options?.abortSignal?.aborted) {
-          throw new Error('video generation was cancelled')
-        }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
-        const status = await taskStatus(context.userId, taskId)
+        await waitForVideoPoll(signal)
+        const status = await taskStatus(context.userId, taskId, signal)
         if (status.status === 'SUCCESS' && status.video_url) {
           return {
             model: models.video_model,

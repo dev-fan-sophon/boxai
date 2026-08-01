@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // PlaygroundDocumentBuild records one execution of a model-authored build script in the sandbox.
@@ -61,19 +63,44 @@ func UpdatePlaygroundDocumentBuild(id int, updates map[string]any) error {
 	return DB.Model(&PlaygroundDocumentBuild{}).Where("id = ?", id).Updates(updates).Error
 }
 
+// CreateInternalPlaygroundDocumentBuildAttempt atomically claims the next
+// self-heal attempt for a chat-service run. Locking the owning user row gives
+// every supported SQL dialect a stable row to serialize on, so concurrent
+// requests cannot both spend the same attempt.
+func CreateInternalPlaygroundDocumentBuildAttempt(build *PlaygroundDocumentBuild, maxAttempts int) (bool, error) {
+	claimed := false
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var user User
+		if err := lockForUpdate(tx).Select("id").First(&user, build.UserId).Error; err != nil {
+			return err
+		}
+		var attempts int64
+		if err := tx.Model(&PlaygroundDocumentBuild{}).
+			Where("external_run_id = ? AND user_id = ?", build.ExternalRunId, build.UserId).
+			Count(&attempts).Error; err != nil {
+			return err
+		}
+		if int(attempts) >= maxAttempts {
+			return nil
+		}
+		now := time.Now().Unix()
+		build.Attempt = int(attempts) + 1
+		build.CreatedAt = now
+		build.UpdatedAt = now
+		if err := tx.Create(build).Error; err != nil {
+			return err
+		}
+		claimed = true
+		return nil
+	})
+	return claimed, err
+}
+
 // CountPlaygroundDocumentBuildAttempts returns how many builds a run has already spent, so the
 // self-heal loop cannot be extended by replaying the endpoint.
 func CountPlaygroundDocumentBuildAttempts(runId, userId int) (int64, error) {
 	var n int64
 	err := DB.Model(&PlaygroundDocumentBuild{}).Where("run_id = ? AND user_id = ?", runId, userId).Count(&n).Error
-	return n, err
-}
-
-// CountPlaygroundDocumentBuildAttemptsByExternalRun is the attempt cap for builds
-// requested by the boxai-chat service, which has no gateway tool-run row.
-func CountPlaygroundDocumentBuildAttemptsByExternalRun(externalRunId string, userId int) (int64, error) {
-	var n int64
-	err := DB.Model(&PlaygroundDocumentBuild{}).Where("external_run_id = ? AND user_id = ?", externalRunId, userId).Count(&n).Error
 	return n, err
 }
 
