@@ -56,7 +56,11 @@ import {
 import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
 import { useArtifactPreviewStore } from './lib/artifact-preview-store'
-import { runDocumentBuild, toDocumentArtifacts } from './lib/document-build'
+import {
+  buildDocumentConversationContext,
+  runDocumentBuild,
+  toDocumentArtifacts,
+} from './lib/document-build'
 import { persistGeneratedMediaAsset } from './lib/download-generated-media'
 import {
   extractManagedSearchResult,
@@ -372,6 +376,11 @@ export function Playground() {
             model: config.model,
             group: config.group,
             userText: text,
+            // Everything before this turn's user message and assistant
+            // placeholder is the material the document is built from.
+            conversationContext: buildDocumentConversationContext(
+              turnMessages.slice(0, -2)
+            ),
             conversationId: activeSession?.serverId,
             assetIds: attachmentIds,
             onAttempt: (attempt) =>

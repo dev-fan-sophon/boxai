@@ -5,7 +5,8 @@ import {
   type DocumentBuildAsset,
   type DocumentBuildResponse,
 } from '../api'
-import type { ManagedDocumentArtifact } from '../types'
+import type { ManagedDocumentArtifact, Message } from '../types'
+import { getCurrentVersion } from './message/message-utils'
 
 const FENCE = /```[ \t]*([A-Za-z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/g
 
@@ -61,6 +62,32 @@ export type DocumentBuildOutcome = {
   attempts: number
 }
 
+// Tail cap keeps the build call affordable while keeping the most recent
+// turns, which are the ones a "make this a document" request refers to.
+const MAX_DOCUMENT_CONTEXT_CHARS = 12000
+
+/**
+ * The chat transcript the build model writes the document FROM. Without it,
+ * "make this a PDF" reaches the model as a bare instruction and it invents
+ * plausible content instead of using the conversation.
+ */
+export function buildDocumentConversationContext(messages: Message[]): string {
+  const blocks: string[] = []
+  for (const message of messages) {
+    if (message.from !== 'user' && message.from !== 'assistant') continue
+    const content = getCurrentVersion(message).content.trim()
+    if (!content) continue
+    blocks.push(
+      `${message.from === 'user' ? 'User' : 'Assistant'}:\n${content}`
+    )
+  }
+  const context = blocks.join('\n\n')
+  if (context.length > MAX_DOCUMENT_CONTEXT_CHARS) {
+    return context.slice(-MAX_DOCUMENT_CONTEXT_CHARS)
+  }
+  return context
+}
+
 /**
  * Drives one document request from intent to files.
  *
@@ -76,6 +103,7 @@ export async function runDocumentBuild(input: {
   model: string
   group: string
   userText: string
+  conversationContext?: string
   conversationId?: number
   assetIds?: number[]
   signal?: AbortSignal
@@ -89,6 +117,9 @@ export async function runDocumentBuild(input: {
   })
 
   let systemPrompt = prepared.system_prompt
+  const userMessage = input.conversationContext
+    ? `Conversation so far. The document's content must come from here, not be invented:\n\n${input.conversationContext}\n\n---\n\nBuild request: ${input.userText}`
+    : input.userText
   let attempt = 0
   // The server is the authority on the cap; this only stops a runaway loop if it ever stopped
   // saying so.
@@ -104,7 +135,7 @@ export async function runDocumentBuild(input: {
         stream: false,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: input.userText },
+          { role: 'user', content: userMessage },
         ],
       },
       input.signal

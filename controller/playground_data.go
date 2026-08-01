@@ -300,13 +300,20 @@ func GetPlaygroundAssetContent(c *gin.Context) {
 		c.Header("Vary", "Origin")
 		c.Header("Access-Control-Expose-Headers", "Content-Type, Content-Length, Content-Disposition")
 	}
-	// Documents are only ever fetched as bytes, never previewed in a frame, so
-	// they never render inline on our own origin.
-	if forceDownload || asset.Kind == "document" {
-		name := asset.Name
-		if name == "" {
-			name = "download"
-		}
+	name := asset.Name
+	if name == "" {
+		name = "download"
+	}
+	// Documents are fetched as bytes rather than rendered on our origin, with
+	// one exception: PDFs may render inline (?inline=1) because the browser's
+	// PDF viewer is an isolated surface that cannot script the embedding
+	// origin — the same exposure class as the inline images we already serve.
+	// Every other document type stays an attachment.
+	inlinePdf := !forceDownload && c.Query("inline") == "1" && asset.Mime == "application/pdf"
+	if inlinePdf {
+		c.Header("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filepath.Base(name)}))
+		c.Header("Cache-Control", "private, max-age=3600")
+	} else if forceDownload || asset.Kind == "document" {
 		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filepath.Base(name)}))
 		if forceDownload {
 			c.Header("Cache-Control", "private, no-store")

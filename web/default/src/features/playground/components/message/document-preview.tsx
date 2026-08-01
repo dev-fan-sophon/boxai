@@ -26,6 +26,9 @@ export function DocumentPreview({
   const [parse, setParse] = useState<PlaygroundDocumentParseState | null>(null)
   const [error, setError] = useState('')
   const isImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(artifact.name)
+  const isPdf =
+    artifact.mime === 'application/pdf' || /\.pdf$/i.test(artifact.name)
+  const renderPdfInline = isPdf && Boolean(artifact.url)
 
   const load = useCallback(async () => {
     setParse(null)
@@ -49,8 +52,8 @@ export function DocumentPreview({
   }, [artifact.assetId, t])
 
   useEffect(() => {
-    if (!isImage) void load()
-  }, [isImage, load])
+    if (!isImage && !renderPdfInline) void load()
+  }, [isImage, renderPdfInline, load])
 
   if (isImage) {
     return (
@@ -59,6 +62,31 @@ export function DocumentPreview({
         alt={artifact.name}
         className='max-h-full w-full rounded-lg border object-contain'
       />
+    )
+  }
+  if (renderPdfInline && artifact.url) {
+    // The real file with its real layout, rendered by the browser's built-in
+    // PDF viewer; the text-extraction fallback below only covers other
+    // formats. An <object> degrades to the download link on browsers that
+    // cannot render PDFs inline.
+    const inlineUrl = `${artifact.url}${artifact.url.includes('?') ? '&' : '?'}inline=1`
+    return (
+      <object
+        data={inlineUrl}
+        type='application/pdf'
+        aria-label={artifact.name}
+        className='border-border h-full min-h-[60vh] w-full rounded-lg border'
+      >
+        <div className='p-4 text-sm'>
+          <a
+            href={artifact.url}
+            download={artifact.name}
+            className='text-primary underline underline-offset-4'
+          >
+            {t('Download')} {artifact.name}
+          </a>
+        </div>
+      </object>
     )
   }
   if (error) {
@@ -81,8 +109,8 @@ export function DocumentPreview({
     )
   }
   return (
-    <pre className='bg-muted/40 rounded-lg p-4 text-sm whitespace-pre-wrap'>
+    <div className='bg-muted/30 border-border rounded-lg border p-4 text-sm leading-6 whitespace-pre-wrap'>
       {parse.text}
-    </pre>
+    </div>
   )
 }
