@@ -46,6 +46,12 @@ export type ChatSession = PlaygroundSessionBase & {
     answerModels: string[]
     summaryModel: string
   }
+  /**
+   * Server-generated rolling summary. Turns up to and including the message
+   * keyed memorySummaryTailKey are replaced by the summary in request payloads.
+   */
+  memorySummary?: string
+  memorySummaryTailKey?: string
 }
 
 export type StudioSession = PlaygroundSessionBase & {

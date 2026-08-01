@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  BUILTIN_ASSISTANT_SYSTEM_PROMPT,
   DEFAULT_CHAT_TOOLS,
   DEFAULT_WORKBENCH_PREFS,
+  LEGACY_BUILTIN_ASSISTANT_SYSTEM_PROMPT,
   loadWorkbenchPrefs,
   normalizeChatTools,
 } from './workbench-prefs'
@@ -13,25 +13,24 @@ afterEach(() => {
 })
 
 describe('DEFAULT_CHAT_TOOLS', () => {
-  it('ships with the built-in assistant system prompt', () => {
-    expect(DEFAULT_CHAT_TOOLS.systemPrompt).toBe(
-      BUILTIN_ASSISTANT_SYSTEM_PROMPT
-    )
-    expect(BUILTIN_ASSISTANT_SYSTEM_PROMPT.length).toBeGreaterThan(0)
+  it('ships without a custom persona (platform base prompt is always applied)', () => {
+    expect(DEFAULT_CHAT_TOOLS.systemPrompt).toBe('')
   })
 })
 
 describe('normalizeChatTools', () => {
-  it('fills blank system prompts with the built-in assistant prompt', () => {
-    expect(normalizeChatTools({ systemPrompt: '' }).systemPrompt).toBe(
-      BUILTIN_ASSISTANT_SYSTEM_PROMPT
-    )
-    expect(normalizeChatTools({ systemPrompt: '  \n' }).systemPrompt).toBe(
-      BUILTIN_ASSISTANT_SYSTEM_PROMPT
-    )
-    expect(normalizeChatTools(null).systemPrompt).toBe(
-      BUILTIN_ASSISTANT_SYSTEM_PROMPT
-    )
+  it('keeps blank persona prompts empty', () => {
+    expect(normalizeChatTools({ systemPrompt: '' }).systemPrompt).toBe('')
+    expect(normalizeChatTools({ systemPrompt: '  \n' }).systemPrompt).toBe('')
+    expect(normalizeChatTools(null).systemPrompt).toBe('')
+  })
+
+  it('migrates the retired built-in persona back to empty', () => {
+    expect(
+      normalizeChatTools({
+        systemPrompt: LEGACY_BUILTIN_ASSISTANT_SYSTEM_PROMPT,
+      }).systemPrompt
+    ).toBe('')
   })
 
   it('keeps a custom persona when provided', () => {

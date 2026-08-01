@@ -212,6 +212,8 @@ function chatSessionFromServerConversation(
     messages,
     kind: item.kind === 'duo' ? 'duo' : 'chat',
     duoMeta,
+    memorySummary: item.summary || undefined,
+    memorySummaryTailKey: item.summary_tail_key || undefined,
     isDraft: false,
     createdAt: (item.created_at || 0) * 1000 || Date.now(),
     updatedAt: (item.updated_at || 0) * 1000 || Date.now(),
@@ -437,6 +439,13 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
 
         if (rewritten) {
           await putConversationMessages(serverId, toServerMessages(finalized))
+          // The replace renumbers seqs and the server wipes the rolling
+          // summary; drop the local copy too, or payload-builder keeps
+          // substituting a summary of the pre-edit turns for real history.
+          patchSessionById(sessionId, {
+            memorySummary: undefined,
+            memorySummaryTailKey: undefined,
+          })
           st.acked = new Map(
             finalized.map((message) => [
               message.key,
@@ -450,11 +459,16 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           const pending = finalized.filter(
             (message) => !st.acked.has(message.key)
           )
+          // Long-memory consent travels with every append so the server only
+          // extracts cross-conversation memories when the toggle is on.
+          const longMemory =
+            usePlaygroundStore.getState().chatTools.longMemory === true
           for (let i = 0; i < pending.length; i += APPEND_BATCH_SIZE) {
             const batch = pending.slice(i, i + APPEND_BATCH_SIZE)
             const result = await appendConversationMessages(
               serverId,
-              toServerMessages(batch)
+              toServerMessages(batch),
+              { longMemory }
             )
             for (const message of batch) {
               st.acked.set(message.key, getMessageContent(message))
@@ -590,6 +604,8 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
               patchSessionById(local.id, {
                 title: item.title || local.title,
                 pinned: Boolean(item.pinned),
+                memorySummary: item.summary || undefined,
+                memorySummaryTailKey: item.summary_tail_key || undefined,
               })
               if (
                 local.id ===

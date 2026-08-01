@@ -478,6 +478,11 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundDataRoute.GET("/canvas/projects/:id/share", controller.GetPlaygroundCanvasShareStatus)
 			playgroundDataRoute.DELETE("/canvas/projects/:id/share", controller.RevokePlaygroundCanvasShare)
 
+			playgroundDataRoute.GET("/memories", controller.ListPlaygroundUserMemories)
+			playgroundDataRoute.PATCH("/memories/:id", controller.UpdatePlaygroundUserMemory)
+			playgroundDataRoute.DELETE("/memories/:id", controller.DeletePlaygroundUserMemory)
+			playgroundDataRoute.DELETE("/memories", controller.ClearPlaygroundUserMemories)
+
 			playgroundDataRoute.GET("/personas", controller.ListPlaygroundPersonas)
 			playgroundDataRoute.POST("/personas", controller.CreatePlaygroundPersona)
 			playgroundDataRoute.PATCH("/personas/:id", controller.UpdatePlaygroundPersona)

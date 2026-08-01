@@ -146,13 +146,37 @@ export interface Message {
 
 // API payload types
 export interface ChatCompletionMessage {
-  role: MessageRole
+  role: MessageRole | 'tool'
   content: string | ContentPart[]
+  tool_calls?: ChatToolCall[]
+  tool_call_id?: string
 }
 
 export type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } }
+
+export type ChatToolCall = {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
+}
+
+export type ChatToolCallDelta = {
+  index?: number
+  id?: string
+  type?: string
+  function?: { name?: string; arguments?: string }
+}
+
+export type ChatToolDefinition = {
+  type: 'function'
+  function: {
+    name: string
+    description?: string
+    parameters?: Record<string, unknown>
+  }
+}
 
 export interface ChatCompletionRequest {
   model: string
@@ -166,6 +190,8 @@ export interface ChatCompletionRequest {
   frequency_penalty?: number
   presence_penalty?: number
   seed?: number
+  tools?: ChatToolDefinition[]
+  tool_choice?: 'auto'
 }
 
 export interface ChatCompletionChunk {
@@ -179,6 +205,7 @@ export interface ChatCompletionChunk {
       role?: MessageRole
       content?: string
       reasoning_content?: string
+      tool_calls?: ChatToolCallDelta[]
     }
     finish_reason: string | null
   }>
@@ -200,6 +227,7 @@ export interface ChatCompletionResponse {
       role: MessageRole
       content: string
       reasoning_content?: string
+      tool_calls?: ChatToolCall[]
     }
     finish_reason: string
   }>

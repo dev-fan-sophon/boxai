@@ -1,5 +1,9 @@
 import { ERROR_MESSAGES } from '../../constants'
-import type { ChatCompletionChunk, MessageTokenUsage } from '../../types'
+import type {
+  ChatCompletionChunk,
+  ChatToolCallDelta,
+  MessageTokenUsage,
+} from '../../types'
 
 const STREAM_DONE_MESSAGE = '[DONE]'
 const STREAM_CLOSED_READY_STATE = 2
@@ -9,6 +13,7 @@ export type StreamUpdateType = 'reasoning' | 'content'
 export type StreamMessageUpdate =
   | { type: StreamUpdateType; chunk: string }
   | { type: 'usage'; usage: MessageTokenUsage }
+  | { type: 'tool_calls'; deltas: ChatToolCallDelta[] }
 
 type StreamErrorPayload = {
   error?: {
@@ -80,6 +85,10 @@ export function parseStreamMessageUpdates(data: string): StreamMessageUpdate[] {
 
   if (delta.content) {
     updates.push({ type: 'content', chunk: delta.content })
+  }
+
+  if (Array.isArray(delta.tool_calls) && delta.tool_calls.length > 0) {
+    updates.push({ type: 'tool_calls', deltas: delta.tool_calls })
   }
 
   return updates

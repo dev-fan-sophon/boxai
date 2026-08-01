@@ -9,6 +9,9 @@ import {
   isChatCompletionPayloadTooLarge,
 } from './payload-builder'
 
+// Stable marker from the platform base layer (lib/prompt/system-prompt.ts).
+const PLATFORM_MARKER = 'You are BoxAI Assistant'
+
 function userMessage(content: string, key = content): Message {
   return {
     key,
@@ -27,6 +30,13 @@ function assistantMessage(content: string, key = content): Message {
   }
 }
 
+function systemContent(payload: {
+  messages: { role: string; content: unknown }[]
+}): string {
+  expect(payload.messages[0]?.role).toBe('system')
+  return String(payload.messages[0]?.content)
+}
+
 describe('buildChatCompletionPayload', () => {
   it('does not emit legacy search controls in ordinary chat payloads', () => {
     const payload = buildChatCompletionPayload(
@@ -38,28 +48,62 @@ describe('buildChatCompletionPayload', () => {
     expect(payload).not.toHaveProperty('managed_tool_run_id')
     expect(payload).not.toHaveProperty('web_search')
     expect(payload).not.toHaveProperty('max_tool_loops')
+    expect(payload).not.toHaveProperty('tools')
+    expect(payload).not.toHaveProperty('tool_choice')
   })
-  it('omits whitespace-only system prompts', () => {
+
+  it('offers the web_search function tool only when requested', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('latest news')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { webSearchTool: true }
+    )
+
+    expect(payload.tool_choice).toBe('auto')
+    expect(payload.tools).toHaveLength(1)
+    expect(payload.tools?.[0].function.name).toBe('web_search')
+  })
+
+  it('always injects the platform base prompt, even without a persona', () => {
     const payload = buildChatCompletionPayload(
       [userMessage('hello')],
       DEFAULT_CONFIG,
       DEFAULT_PARAMETER_ENABLED,
       { systemPrompt: '   \n\t  ' }
     )
-    expect(payload.messages).toEqual([{ role: 'user', content: 'hello' }])
+    const system = systemContent(payload)
+    expect(system).toContain(PLATFORM_MARKER)
+    expect(system).toContain('Current date and time:')
+    expect(payload.messages.slice(1)).toEqual([
+      { role: 'user', content: 'hello' },
+    ])
   })
 
-  it('prepends a trimmed system prompt before history', () => {
+  it('names the answering model in the base prompt when provided', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hello')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { modelName: 'gpt-5' }
+    )
+    expect(systemContent(payload)).toContain(
+      'The model answering this conversation is gpt-5.'
+    )
+  })
+
+  it('layers a trimmed persona after the platform base prompt', () => {
     const payload = buildChatCompletionPayload(
       [userMessage('hello'), assistantMessage('hi')],
       DEFAULT_CONFIG,
       DEFAULT_PARAMETER_ENABLED,
       { systemPrompt: '  You are helpful.  ', carryHistory: true }
     )
-    expect(payload.messages[0]).toEqual({
-      role: 'system',
-      content: 'You are helpful.',
-    })
+    const system = systemContent(payload)
+    expect(system).toContain('You are helpful.')
+    expect(system.indexOf(PLATFORM_MARKER)).toBeLessThan(
+      system.indexOf('You are helpful.')
+    )
     expect(payload.messages.slice(1)).toEqual([
       { role: 'user', content: 'hello' },
       { role: 'assistant', content: 'hi' },
@@ -77,30 +121,20 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED,
       { carryHistory: false, systemPrompt: 'persona' }
     )
-    expect(payload.messages).toEqual([
-      { role: 'system', content: 'persona' },
-      { role: 'user', content: 'second' },
-    ])
+    expect(payload.messages).toHaveLength(2)
+    expect(systemContent(payload)).toContain('persona')
+    expect(payload.messages[1]).toEqual({ role: 'user', content: 'second' })
   })
 
-  it('returns only system when history is empty and system is set', () => {
-    const payload = buildChatCompletionPayload(
-      [],
-      DEFAULT_CONFIG,
-      DEFAULT_PARAMETER_ENABLED,
-      { systemPrompt: 'solo', carryHistory: false }
-    )
-    expect(payload.messages).toEqual([{ role: 'system', content: 'solo' }])
-  })
-
-  it('returns empty messages when history is empty and no system prompt', () => {
+  it('emits only the system message when history is empty', () => {
     const payload = buildChatCompletionPayload(
       [],
       DEFAULT_CONFIG,
       DEFAULT_PARAMETER_ENABLED,
       { carryHistory: false }
     )
-    expect(payload.messages).toEqual([])
+    expect(payload.messages).toHaveLength(1)
+    expect(systemContent(payload)).toContain(PLATFORM_MARKER)
   })
 
   it('appends the visual-output capability prompt when enabled', () => {
@@ -110,23 +144,11 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED,
       { systemPrompt: 'persona', visualOutput: true }
     )
-    expect(payload.messages[0]).toEqual({
-      role: 'system',
-      content: `persona\n\n${VISUAL_OUTPUT_SYSTEM_PROMPT}`,
-    })
-  })
-
-  it('injects the visual-output prompt alone without a persona', () => {
-    const payload = buildChatCompletionPayload(
-      [userMessage('hi')],
-      DEFAULT_CONFIG,
-      DEFAULT_PARAMETER_ENABLED,
-      { visualOutput: true }
+    const system = systemContent(payload)
+    expect(system).toContain(VISUAL_OUTPUT_SYSTEM_PROMPT)
+    expect(system.indexOf(PLATFORM_MARKER)).toBeLessThan(
+      system.indexOf(VISUAL_OUTPUT_SYSTEM_PROMPT)
     )
-    expect(payload.messages[0]).toEqual({
-      role: 'system',
-      content: VISUAL_OUTPUT_SYSTEM_PROMPT,
-    })
   })
 
   it('omits the visual-output prompt when disabled', () => {
@@ -136,13 +158,67 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED,
       { systemPrompt: 'persona', visualOutput: false }
     )
-    expect(payload.messages[0]).toEqual({
-      role: 'system',
-      content: 'persona',
-    })
+    expect(systemContent(payload)).not.toContain(VISUAL_OUTPUT_SYSTEM_PROMPT)
   })
 
-  it('clamps oversized system prompts before send', () => {
+  it('injects long-term memories as background facts', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('hi')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { memories: ['Lives in Hanoi', '  ', 'Prefers concise replies'] }
+    )
+    const system = systemContent(payload)
+    expect(system).toContain('Long-term memory about this user')
+    expect(system).toContain('- Lives in Hanoi')
+    expect(system).toContain('- Prefers concise replies')
+  })
+
+  it('replaces summarized turns with the rolling summary block', () => {
+    const payload = buildChatCompletionPayload(
+      [
+        userMessage('old question', 'u1'),
+        assistantMessage('old answer', 'a1'),
+        userMessage('new question', 'u2'),
+      ],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { summary: 'They discussed X.', summaryTailKey: 'a1' }
+    )
+    expect(systemContent(payload)).toContain('They discussed X.')
+    expect(payload.messages.slice(1)).toEqual([
+      { role: 'user', content: 'new question' },
+    ])
+  })
+
+  it('keeps full history when the summary tail key is missing', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('one', 'u1'), userMessage('two', 'u2')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { summary: 'stale summary', summaryTailKey: 'gone' }
+    )
+    expect(systemContent(payload)).not.toContain('stale summary')
+    expect(payload.messages.slice(1)).toEqual([
+      { role: 'user', content: 'one' },
+      { role: 'user', content: 'two' },
+    ])
+  })
+
+  it('never drops the entire history for a summary covering every turn', () => {
+    const payload = buildChatCompletionPayload(
+      [userMessage('only', 'u1')],
+      DEFAULT_CONFIG,
+      DEFAULT_PARAMETER_ENABLED,
+      { summary: 'covers everything', summaryTailKey: 'u1' }
+    )
+    expect(systemContent(payload)).not.toContain('covers everything')
+    expect(payload.messages.slice(1)).toEqual([
+      { role: 'user', content: 'only' },
+    ])
+  })
+
+  it('clamps oversized persona prompts before send', () => {
     const huge = 'x'.repeat(12_000)
     const payload = buildChatCompletionPayload(
       [userMessage('hi')],
@@ -150,8 +226,8 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED,
       { systemPrompt: huge }
     )
-    expect(payload.messages[0]?.role).toBe('system')
-    expect(String(payload.messages[0]?.content).length).toBe(8000)
+    expect(systemContent(payload)).toContain('x'.repeat(8000))
+    expect(systemContent(payload)).not.toContain('x'.repeat(8001))
   })
 
   it('requests stream usage only for streaming payloads', () => {
@@ -196,7 +272,7 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED
     )
 
-    expect(payload.messages).toEqual([
+    expect(payload.messages.slice(1)).toEqual([
       {
         role: 'user',
         content: [
@@ -233,7 +309,7 @@ describe('buildChatCompletionPayload', () => {
       DEFAULT_PARAMETER_ENABLED
     )
 
-    expect(payload.messages).toEqual([
+    expect(payload.messages.slice(1)).toEqual([
       {
         role: 'user',
         content: [

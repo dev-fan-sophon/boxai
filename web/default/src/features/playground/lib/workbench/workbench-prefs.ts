@@ -21,11 +21,11 @@ export type WorkbenchPrefs = {
 }
 
 /**
- * Built-in playground assistant prompt (desktop chat–style).
- * Used as the default Role-play persona; blank prefs migrate here.
- * Users can replace it with a custom persona (empty Apply falls back to this).
+ * Retired default persona. The platform base prompt
+ * (lib/prompt/system-prompt.ts) now carries these behaviors on every turn, so
+ * prefs still holding this exact text migrate back to "no custom persona".
  */
-export const BUILTIN_ASSISTANT_SYSTEM_PROMPT = [
+export const LEGACY_BUILTIN_ASSISTANT_SYSTEM_PROMPT = [
   'You are a helpful chat assistant.',
   'Answer clearly and concisely.',
   'Use Markdown when it improves readability (lists, headings, code fences).',
@@ -40,7 +40,7 @@ export const DEFAULT_CHAT_TOOLS: WorkbenchChatTools = {
   carryHistory: true,
   longMemory: false,
   maxToolLoops: 3,
-  systemPrompt: BUILTIN_ASSISTANT_SYSTEM_PROMPT,
+  systemPrompt: '',
   visualOutput: true,
 }
 
@@ -85,15 +85,19 @@ export function normalizeChatTools(
   ) {
     mode = value.mode
   }
-  const systemPrompt = clampSystemPrompt(value?.systemPrompt).trim()
+  let systemPrompt = clampSystemPrompt(value?.systemPrompt).trim()
+  // The old default persona is now part of the platform base prompt; keeping
+  // it as a persona would double-inject the outdated wording.
+  if (systemPrompt === LEGACY_BUILTIN_ASSISTANT_SYSTEM_PROMPT) {
+    systemPrompt = ''
+  }
   return {
     webSearch: value?.webSearch === true,
     mode,
     carryHistory: value?.carryHistory !== false,
     longMemory: value?.longMemory === true,
     maxToolLoops: clampInt(value?.maxToolLoops, 1, 20, 3),
-    // Blank / missing → built-in assistant prompt (legacy empty prefs migrate here)
-    systemPrompt: systemPrompt || BUILTIN_ASSISTANT_SYSTEM_PROMPT,
+    systemPrompt,
     visualOutput: value?.visualOutput !== false,
   }
 }

@@ -37,6 +37,8 @@ export function createChatSession(input?: {
   draft?: string
   kind?: 'chat' | 'duo'
   duoMeta?: ChatSession['duoMeta']
+  memorySummary?: string
+  memorySummaryTailKey?: string
   createdAt?: number
   updatedAt?: number
 }): ChatSession {
@@ -52,6 +54,8 @@ export function createChatSession(input?: {
     messages,
     kind: input?.kind ?? 'chat',
     duoMeta: input?.duoMeta,
+    memorySummary: input?.memorySummary,
+    memorySummaryTailKey: input?.memorySummaryTailKey,
     draft: input?.draft,
     isDraft: input?.isDraft ?? messages.length === 0,
     createdAt: input?.createdAt ?? ts,

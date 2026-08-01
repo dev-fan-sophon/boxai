@@ -18,11 +18,15 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import { createPersona, deletePersona, listPersonas } from '../../api'
 import {
-  BUILTIN_ASSISTANT_SYSTEM_PROMPT,
-  MAX_SYSTEM_PROMPT_CHARS,
-} from '../../lib/workbench/workbench-prefs'
+  clearUserMemories,
+  createPersona,
+  deletePersona,
+  deleteUserMemory,
+  listPersonas,
+  listUserMemories,
+} from '../../api'
+import { MAX_SYSTEM_PROMPT_CHARS } from '../../lib/workbench/workbench-prefs'
 
 /**
  * Chat tool preferences: web search, history carry-over, long memory,
@@ -34,8 +38,17 @@ export function ChatToolsSection() {
   const chatTools = usePlaygroundStore((state) => state.chatTools)
   const setChatTools = usePlaygroundStore((state) => state.setChatTools)
   const [roleOpen, setRoleOpen] = useState(false)
+  const [memoryOpen, setMemoryOpen] = useState(false)
   const [draftPrompt, setDraftPrompt] = useState('')
   const [personaName, setPersonaName] = useState('')
+
+  const memoriesQuery = useQuery({
+    queryKey: ['playground', 'memories'],
+    queryFn: listUserMemories,
+    enabled: memoryOpen,
+  })
+  const invalidateMemories = () =>
+    queryClient.invalidateQueries({ queryKey: ['playground', 'memories'] })
 
   const personasQuery = useQuery({
     queryKey: ['playground', 'personas'],
@@ -59,10 +72,8 @@ export function ChatToolsSection() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  // Built-in assistant prompt is the default, not a custom "persona".
-  const hasPersona =
-    chatTools.systemPrompt.trim().length > 0 &&
-    chatTools.systemPrompt.trim() !== BUILTIN_ASSISTANT_SYSTEM_PROMPT
+  // The platform base prompt is always applied; a persona only layers on top.
+  const hasPersona = chatTools.systemPrompt.trim().length > 0
 
   return (
     <div className='space-y-3'>
@@ -77,11 +88,25 @@ export function ChatToolsSection() {
       <ToggleRow
         id='settings-long-memory'
         label={t('Long memory')}
-        description={t('Mark this session as memory-aware (local flag).')}
+        description={t(
+          'Remember key facts about you and reuse them across conversations.'
+        )}
         checked={chatTools.longMemory}
         onCheckedChange={(checked) => setChatTools({ longMemory: checked })}
         icon={Brain}
       />
+      {chatTools.longMemory && (
+        <div className='flex justify-end'>
+          <Button
+            size='sm'
+            variant='outline'
+            className='h-7 text-xs'
+            onClick={() => setMemoryOpen(true)}
+          >
+            {t('Manage memory')}
+          </Button>
+        </div>
+      )}
       <ToggleRow
         id='settings-visual-output'
         label={t('Visual output')}
@@ -123,7 +148,7 @@ export function ChatToolsSection() {
         onOpenChange={setRoleOpen}
         title={t('Role play')}
         description={t(
-          'Set a system persona. It is prepended to chat requests when non-empty. Save to cloud to reuse later.'
+          'Add a role or style on top of the default assistant behavior. Save to cloud to reuse later.'
         )}
         contentClassName='sm:max-w-lg border-border bg-popover text-foreground'
         footer={
@@ -224,6 +249,94 @@ export function ChatToolsSection() {
               {draftPrompt.length}/{MAX_SYSTEM_PROMPT_CHARS}
             </p>
           </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={memoryOpen}
+        onOpenChange={setMemoryOpen}
+        title={t('Long memory')}
+        description={t(
+          'Facts saved from your conversations and shared with the model on every chat turn.'
+        )}
+        contentClassName='sm:max-w-lg border-border bg-popover text-foreground'
+        footer={
+          <>
+            <Button
+              variant='outline'
+              disabled={(memoriesQuery.data?.items.length ?? 0) === 0}
+              onClick={() => {
+                void clearUserMemories()
+                  .then(() => {
+                    void invalidateMemories()
+                    toast.success(t('Memories cleared'))
+                  })
+                  .catch((error: unknown) => {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : t('Request error occurred')
+                    )
+                  })
+              }}
+            >
+              {t('Clear all')}
+            </Button>
+            <Button onClick={() => setMemoryOpen(false)}>{t('Close')}</Button>
+          </>
+        }
+      >
+        <div className='space-y-2'>
+          {memoriesQuery.data?.enabled === false && (
+            <p className='text-warning text-xs'>
+              {t(
+                'Automatic memory extraction is not configured on this server.'
+              )}
+            </p>
+          )}
+          {(memoriesQuery.data?.items.length ?? 0) === 0 ? (
+            <p className='text-muted-foreground text-sm'>
+              {t(
+                'No memories saved yet. They are collected automatically as you chat.'
+              )}
+            </p>
+          ) : (
+            <ul className='max-h-64 space-y-1 overflow-y-auto'>
+              {memoriesQuery.data?.items.map((memory) => (
+                <li
+                  key={memory.id}
+                  className='border-border bg-muted/40 flex items-start gap-1 rounded-md border px-2 py-1.5'
+                >
+                  <span className='text-foreground min-w-0 flex-1 text-sm break-words'>
+                    {memory.content}
+                  </span>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='text-muted-foreground hover:text-destructive size-7 shrink-0'
+                    aria-label={t('Delete')}
+                    onClick={() => {
+                      void deleteUserMemory(memory.id)
+                        .then(() => {
+                          void invalidateMemories()
+                          toast.success(t('Memory deleted'))
+                        })
+                        .catch((error: unknown) => {
+                          toast.error(
+                            error instanceof Error
+                              ? error.message
+                              : t('Request error occurred')
+                          )
+                        })
+                    }}
+                  >
+                    <Trash2 className='size-3.5' />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Dialog>
     </div>

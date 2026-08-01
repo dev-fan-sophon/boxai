@@ -17,6 +17,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -815,6 +816,11 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	// The replace renumbered seq and recreated rows, so the rolling summary and
+	// its cursors no longer describe this thread.
+	if err := model.ResetPlaygroundConversationSummary(id, userId); err != nil {
+		common.SysError(fmt.Sprintf("failed to reset playground summary (conversation %d): %s", id, err.Error()))
+	}
 	autoTitlePlaygroundConversation(id, userId, msgs)
 	common.ApiSuccess(c, gin.H{"count": len(msgs)})
 }
@@ -828,6 +834,9 @@ func AppendPlaygroundConversationMessages(c *gin.Context) {
 	}
 	var body struct {
 		Messages []playgroundMessageInput `json:"messages"`
+		// LongMemory mirrors the client's workbench toggle: cross-conversation
+		// memory extraction only runs on turns synced with consent.
+		LongMemory bool `json:"long_memory"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		common.ApiError(c, err)
@@ -856,6 +865,12 @@ func AppendPlaygroundConversationMessages(c *gin.Context) {
 		return
 	}
 	autoTitlePlaygroundConversation(id, userId, msgs)
+	if len(inserted) > 0 {
+		longMemory := body.LongMemory
+		gopool.Go(func() {
+			service.RunPlaygroundMemoryMaintenance(userId, id, longMemory)
+		})
+	}
 	common.ApiSuccess(c, gin.H{
 		"messages": inserted,
 		"appended": len(inserted),

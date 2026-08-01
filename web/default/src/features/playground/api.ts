@@ -647,6 +647,9 @@ export type ServerConversation = {
   meta_json?: string
   pinned?: boolean
   source?: string
+  /** Rolling summary of turns up to the message keyed summary_tail_key. */
+  summary?: string
+  summary_tail_key?: string
   created_at: number
   updated_at: number
 }
@@ -737,10 +740,12 @@ export async function putConversationMessages(
 
 export async function appendConversationMessages(
   id: number,
-  messages: ServerConversationMessageInput[]
+  messages: ServerConversationMessageInput[],
+  options?: { longMemory?: boolean }
 ): Promise<{ messages: ServerMessage[]; appended: number; skipped: number }> {
   const res = await api.post(`${API_ENDPOINTS.CONVERSATIONS}/${id}/messages`, {
     messages,
+    long_memory: options?.longMemory === true,
   })
   if (!res.data?.success) throw new Error(res.data?.message || 'Append failed')
   return res.data.data
@@ -842,6 +847,44 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 // ---- Personas ----
+
+// ---- Long-term user memories ----
+
+export type PlaygroundUserMemory = {
+  id: number
+  user_id: number
+  content: string
+  category: string
+  source_conversation_id: number
+  created_at: number
+  updated_at: number
+}
+
+export async function listUserMemories(): Promise<{
+  items: PlaygroundUserMemory[]
+  enabled: boolean
+}> {
+  const res = await api.get('/api/playground/memories')
+  if (!res.data?.success) return { items: [], enabled: false }
+  return {
+    items: (res.data.data?.items ?? []) as PlaygroundUserMemory[],
+    enabled: Boolean(res.data.data?.enabled),
+  }
+}
+
+export async function deleteUserMemory(id: number): Promise<void> {
+  const res = await api.delete(`/api/playground/memories/${id}`)
+  if (!res.data?.success) {
+    throw new Error(res.data?.message || 'Request error occurred')
+  }
+}
+
+export async function clearUserMemories(): Promise<void> {
+  const res = await api.delete('/api/playground/memories')
+  if (!res.data?.success) {
+    throw new Error(res.data?.message || 'Request error occurred')
+  }
+}
 
 export type PlaygroundPersona = {
   id: number

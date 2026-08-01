@@ -6,15 +6,37 @@ import type {
   ParameterEnabled,
 } from '../../types'
 import { formatMessageForAPI, isValidMessage } from '../message/message-utils'
+import {
+  buildMemoryBlock,
+  buildPlatformSystemPrompt,
+  buildSummaryBlock,
+} from '../prompt/system-prompt'
 import { clampSystemPrompt } from '../workbench/workbench-prefs'
+import { WEB_SEARCH_TOOL_DEFINITION } from './web-search-tool'
 
 export type BuildChatPayloadOptions = {
-  /** Prepended as a system message when non-empty */
+  /** Custom persona, layered after the always-on platform base prompt */
   systemPrompt?: string
   /** When false, only the latest user turn is sent (plus system prompt) */
   carryHistory?: boolean
   /** When true, appends the platform visual-output capability prompt */
   visualOutput?: boolean
+  /** Engine display name surfaced in the platform base prompt */
+  modelName?: string
+  /** Long-term user memories injected when the user enabled long memory */
+  memories?: string[]
+  /**
+   * Rolling server-side summary of turns up to and including the message whose
+   * key equals summaryTailKey. When the tail key is found in the history, the
+   * covered turns are dropped and replaced by the summary block.
+   */
+  summary?: string
+  summaryTailKey?: string
+  /**
+   * Offers the platform web_search function tool so the model can decide to
+   * search mid-conversation. Execution stays in the managed search run.
+   */
+  webSearchTool?: boolean
 }
 
 /**
@@ -53,6 +75,7 @@ export function buildChatCompletionPayload(
 ): ChatCompletionRequest {
   // Filter and format valid messages
   let sourceMessages = messages.filter(isValidMessage)
+  let activeSummary = ''
   if (options?.carryHistory === false) {
     // Keep the last user message only (and any trailing assistant is not needed for request)
     const lastUserIndex = [...sourceMessages]
@@ -63,6 +86,16 @@ export function buildChatCompletionPayload(
       lastUserIndex === undefined
         ? []
         : sourceMessages.slice(lastUserIndex, lastUserIndex + 1)
+  } else if (options?.summary && options.summaryTailKey) {
+    // Rolling-summary window: drop turns the server already summarized. When
+    // the tail key is missing (edited/rewritten thread) keep full history.
+    const tailIndex = sourceMessages.findIndex(
+      (message) => message.key === options.summaryTailKey
+    )
+    if (tailIndex >= 0 && tailIndex < sourceMessages.length - 1) {
+      sourceMessages = sourceMessages.slice(tailIndex + 1)
+      activeSummary = options.summary
+    }
   }
 
   const processedMessages: ChatCompletionMessage[] =
@@ -70,17 +103,18 @@ export function buildChatCompletionPayload(
 
   const personaPrompt = clampSystemPrompt(options?.systemPrompt).trim()
   const systemPrompt = [
-    personaPrompt,
+    buildPlatformSystemPrompt({ modelName: options?.modelName }),
     options?.visualOutput ? VISUAL_OUTPUT_SYSTEM_PROMPT : '',
+    personaPrompt,
+    buildMemoryBlock(options?.memories ?? []),
+    buildSummaryBlock(activeSummary),
   ]
     .filter(Boolean)
     .join('\n\n')
-  if (systemPrompt) {
-    processedMessages.unshift({
-      role: 'system',
-      content: systemPrompt,
-    })
-  }
+  processedMessages.unshift({
+    role: 'system',
+    content: systemPrompt,
+  })
 
   const payload: ChatCompletionRequest = {
     model: config.model,
@@ -115,6 +149,11 @@ export function buildChatCompletionPayload(
 
   if (parameterEnabled.seed && config.seed !== null) {
     payload.seed = config.seed
+  }
+
+  if (options?.webSearchTool) {
+    payload.tools = [WEB_SEARCH_TOOL_DEFINITION]
+    payload.tool_choice = 'auto'
   }
 
   return payload

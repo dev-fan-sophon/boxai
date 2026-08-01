@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { SlidersHorizontal } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -28,6 +29,7 @@ import {
   generateImages,
   executeManagedSearch,
   importManagedToolRun,
+  listUserMemories,
   releasePlaygroundDocumentSandbox,
   submitVideo,
 } from './api'
@@ -52,10 +54,7 @@ import {
 } from './hooks'
 import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
-import {
-  runDocumentBuild,
-  toDocumentArtifacts,
-} from './lib/document-build'
+import { runDocumentBuild, toDocumentArtifacts } from './lib/document-build'
 import { persistGeneratedMediaAsset } from './lib/download-generated-media'
 import {
   extractManagedSearchResult,
@@ -63,6 +62,7 @@ import {
 } from './lib/managed-tools'
 import { updateAssistantMessageWithError } from './lib/message/message-update-utils'
 import { setMessageActiveVersion } from './lib/message/message-utils'
+import { isChatSession } from './lib/session/session-utils'
 import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
 import { getModelModality } from './lib/studio/model-modality'
 import type { Message, PlaygroundConfig, StudioModality } from './types'
@@ -160,13 +160,77 @@ export function Playground() {
     return false
   }, [user])
 
+  const memoriesQuery = useQuery({
+    queryKey: ['playground', 'memories'],
+    queryFn: listUserMemories,
+    enabled: isAuthenticated && chatTools.longMemory,
+    staleTime: 60_000,
+  })
+  const memoryContents = useMemo(
+    () => memoriesQuery.data?.items.map((memory) => memory.content) ?? [],
+    [memoriesQuery.data]
+  )
+  const activeChat = isChatSession(activeSession) ? activeSession : undefined
+  // Auto mode lets the model decide to search; forced tool modes bypass chat.
+  const webSearchToolEnabled = chatTools.mode === 'auto'
   const payloadOptions = useMemo(
     () => ({
       systemPrompt: chatTools.systemPrompt,
       carryHistory: chatTools.carryHistory,
       visualOutput: chatTools.visualOutput,
+      modelName: config.model,
+      memories: chatTools.longMemory ? memoryContents : undefined,
+      summary: activeChat?.memorySummary,
+      summaryTailKey: activeChat?.memorySummaryTailKey,
+      webSearchTool: webSearchToolEnabled,
     }),
-    [chatTools.systemPrompt, chatTools.carryHistory, chatTools.visualOutput]
+    [
+      chatTools.systemPrompt,
+      chatTools.carryHistory,
+      chatTools.visualOutput,
+      chatTools.longMemory,
+      config.model,
+      memoryContents,
+      activeChat?.memorySummary,
+      activeChat?.memorySummaryTailKey,
+      webSearchToolEnabled,
+    ]
+  )
+
+  const executeWebSearchTool = useCallback(
+    async (query: string) => {
+      const response = await createManagedToolRun({
+        client_request_id: crypto.randomUUID(),
+        model: config.model,
+        group: config.group,
+        // The model-generated query is the run prompt; direct mode skips the
+        // server-side intent classifier.
+        user_text: query,
+        tool_policy: {
+          mode: 'direct',
+          enabled: ['web_search'],
+          direct: { name: 'web_search', args: {} },
+        },
+      })
+      const run = response.run
+      if (run.status === 'unavailable' || run.status === 'failed') {
+        throw new Error(run.error || t('Tool is unavailable'))
+      }
+      const raw = await executeManagedSearch(
+        run.id,
+        response.execution.execution_token
+      )
+      const result = extractManagedSearchResult(raw)
+      return { runId: run.id, text: result.text }
+    },
+    [config.group, config.model, t]
+  )
+  const webSearchToolRunner = useMemo(
+    () =>
+      webSearchToolEnabled
+        ? { maxLoops: chatTools.maxToolLoops, execute: executeWebSearchTool }
+        : undefined,
+    [chatTools.maxToolLoops, executeWebSearchTool, webSearchToolEnabled]
   )
 
   const { sendChat, stopGeneration, isGenerating } = useChatHandler({
@@ -174,6 +238,7 @@ export function Playground() {
     parameterEnabled,
     onMessageUpdate: updateMessages,
     payloadOptions,
+    webSearchTool: webSearchToolRunner,
   })
   const [isRouting, setIsRouting] = useState(false)
   const isRoutingRef = useRef(false)

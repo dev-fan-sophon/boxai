@@ -116,9 +116,18 @@ type PlaygroundConversation struct {
 	Pinned   bool   `json:"pinned"`
 	// Source is the client that created the thread: "web" | "desktop".
 	// Empty on legacy rows (treated as web).
-	Source    string `json:"source" gorm:"type:varchar(20)"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt int64  `json:"updated_at" gorm:"bigint;index"`
+	Source string `json:"source" gorm:"type:varchar(20)"`
+	// Summary is the rolling platform-generated recap of every turn up to and
+	// including the message whose client_key is SummaryTailKey (seq SummarySeq).
+	// Clients replace older turns with this summary when building requests.
+	Summary        string `json:"summary" gorm:"type:text"`
+	SummaryTailKey string `json:"summary_tail_key" gorm:"type:varchar(64)"`
+	SummarySeq     int    `json:"-"`
+	// MemorySeq is the highest message seq already scanned for long-memory
+	// extraction.
+	MemorySeq int   `json:"-"`
+	CreatedAt int64 `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt int64 `json:"updated_at" gorm:"bigint;index"`
 }
 
 func (PlaygroundConversation) TableName() string { return "playground_conversations" }
