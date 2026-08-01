@@ -61,7 +61,7 @@ export default defineConfig(({ envMode }) => {
   const isProd = envMode === 'production'
   const isRemoteApi = !/localhost|127\.0\.0\.1/.test(serverUrl)
   const devProxy = Object.fromEntries(
-    (['/api', '/mj', '/pg'] as const).map((key) => [
+    (['/api', '/mj', '/pg', '/chat-api'] as const).map((key) => [
       key,
       {
         target: serverUrl,

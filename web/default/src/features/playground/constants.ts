@@ -17,6 +17,8 @@ export const MESSAGE_STATUS = {
 // API endpoints
 export const API_ENDPOINTS = {
   CHAT_COMPLETIONS: '/pg/chat/completions',
+  /** boxai-chat microservice; the edge maps /chat-api onto its /v1 router. */
+  AGENT_CHAT: '/chat-api/v1/chat',
   USER_MODELS: '/api/user/models',
   USER_GROUPS: '/api/user/self/groups',
   IMAGE_GENERATIONS: '/pg/images/generations',

@@ -16,6 +16,12 @@ type UsePlaygroundConversationOptions = {
   ) => void
   sendChat: (messages: Message[]) => void
   routeTurn?: (messages: Message[], text: string) => Promise<void>
+  /**
+   * Server-owned agent turn. When present it replaces both the managed-tool
+   * router and the legacy completion call for plain new text turns; edits and
+   * regenerates stay on the legacy path.
+   */
+  agentTurn?: (messages: Message[], text: string) => Promise<void>
   canSubmit: () => boolean
   /** Model stamped onto new assistant placeholders for provenance. */
   activeModel?: string
@@ -26,6 +32,7 @@ export function usePlaygroundConversation({
   updateMessages,
   sendChat,
   routeTurn,
+  agentTurn,
   canSubmit,
   activeModel,
 }: UsePlaygroundConversationOptions) {
@@ -43,14 +50,25 @@ export function usePlaygroundConversation({
         activeModel
       )
       updateMessages(nextMessages)
-      if (routeTurn && text.trim() && !attachments?.length) {
+      const isPlainTextTurn = Boolean(text.trim()) && !attachments?.length
+      if (agentTurn && isPlainTextTurn) {
+        void agentTurn(nextMessages, text)
+      } else if (routeTurn && isPlainTextTurn) {
         void routeTurn(nextMessages, text)
       } else {
         sendChat(nextMessages)
       }
       return true
     },
-    [canSubmit, messages, updateMessages, sendChat, routeTurn, activeModel]
+    [
+      canSubmit,
+      messages,
+      updateMessages,
+      sendChat,
+      routeTurn,
+      agentTurn,
+      activeModel,
+    ]
   )
 
   const handleRegenerateMessage = useCallback(

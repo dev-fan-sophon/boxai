@@ -48,13 +48,16 @@ import { ArtifactPreviewPanel } from './components/workspace/artifact-preview-pa
 import { DuoWorkspace } from './components/workspace/duo-workspace'
 import { GenerationWorkspace } from './components/workspace/generation-workspace'
 import {
+  patchSessionById,
   useChatHandler,
   usePlaygroundConversation,
   usePlaygroundOptions,
   useSessionCloudSync,
 } from './hooks'
+import { useAgentChat } from './hooks/use-agent-chat'
 import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
+import { isAgentChatEnabled } from './lib/agent-chat/flag'
 import { useArtifactPreviewStore } from './lib/artifact-preview-store'
 import {
   buildDocumentConversationContext,
@@ -246,6 +249,29 @@ export function Playground() {
     payloadOptions,
     webSearchTool: webSearchToolRunner,
   })
+  const activeChatId = activeChat?.id
+  const bindAgentConversation = useCallback(
+    (conversationId: number) => {
+      if (!activeChatId) return
+      patchSessionById(activeChatId, {
+        serverId: conversationId,
+        isDraft: false,
+      })
+    },
+    [activeChatId]
+  )
+  const { sendAgentTurn, stopAgentTurn, isAgentStreaming } = useAgentChat({
+    config,
+    onMessageUpdate: updateMessages,
+    systemPrompt: chatTools.systemPrompt,
+    visualOutput: chatTools.visualOutput,
+    longMemory: chatTools.longMemory,
+    conversationId: activeChat?.serverId,
+    onConversationId: bindAgentConversation,
+  })
+  // Read once per mount: flipping the flag mid-session would leave an in-flight
+  // turn split across two transports.
+  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
   const [isRouting, setIsRouting] = useState(false)
   const isRoutingRef = useRef(false)
   // A warm container bills for memory while it waits, so leaving the conversation that owns one
@@ -665,9 +691,15 @@ export function Playground() {
     updateMessages,
     sendChat,
     routeTurn: routeManagedTurn,
+    agentTurn: agentChatEnabled ? sendAgentTurn : undefined,
     canSubmit: canSubmitManagedTurn,
     activeModel: config.model,
   })
+
+  const handleStopGeneration = useCallback(() => {
+    stopAgentTurn()
+    stopGeneration()
+  }, [stopAgentTurn, stopGeneration])
 
   const handleSelectMessageVersion = useCallback(
     (message: Message, index: number) => {
@@ -919,7 +951,7 @@ export function Playground() {
                 onDeleteMessage={handleDeleteMessage}
                 onSelectMessageVersion={handleSelectMessageVersion}
                 onSelectPrompt={handleSendMessage}
-                isGenerating={isGenerating}
+                isGenerating={isGenerating || isAgentStreaming}
                 editingKey={editingMessageKey}
                 onCancelEdit={handleEditOpenChange}
                 onSaveEdit={(newContent) => applyEdit(newContent, false)}
@@ -931,11 +963,11 @@ export function Playground() {
             </div>
             <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
               <ChatComposer
-                disabled={isGenerating || isRouting}
-                isGenerating={isGenerating}
+                disabled={isGenerating || isRouting || isAgentStreaming}
+                isGenerating={isGenerating || isAgentStreaming}
                 isModelLoading={isLoadingModels}
                 onOpenModelCatalog={() => setCatalogDrawerOpen(true)}
-                onStop={stopGeneration}
+                onStop={handleStopGeneration}
                 onSubmit={handleSendMessage}
               />
             </div>

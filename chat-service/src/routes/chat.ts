@@ -9,6 +9,7 @@ import { assembleContext } from '../context/assemble'
 import { db } from '../db'
 import { appendMessage } from '../db/append'
 import { conversations } from '../db/schema'
+import { encodeLegacyToolJson } from '../db/tool-json'
 import { runAgent } from '../engine/run-agent'
 import { truncateRunes } from '../http'
 import { runMemoryMaintenance } from '../memory/maintenance'
@@ -117,20 +118,22 @@ chatRoute.post('/', sessionAuth, async (c) => {
 
   const response = result.toUIMessageStreamResponse({
     originalMessages: [incoming],
+    // The response message id doubles as the persisted client_key; without it
+    // the assistant row would sync back to clients under a different key and
+    // duplicate the turn.
+    generateMessageId: () => crypto.randomUUID(),
     onEnd: async ({ responseMessage, isAborted }) => {
       const text = messageText(responseMessage)
       const parts = responseMessage.parts ?? []
-      const hasToolParts = parts.some((part) =>
-        String((part as UIMessagePart).type).startsWith('tool-')
-      )
-      if (!text.trim() && !hasToolParts) {
+      const toolJson = encodeLegacyToolJson(parts)
+      if (!text.trim() && !toolJson) {
         return
       }
       await appendMessage(conversation.id, user.id, {
         role: 'assistant',
         content: text,
         model,
-        toolJson: hasToolParts ? JSON.stringify(parts) : '',
+        toolJson,
         clientKey: responseMessage.id,
         source: source ?? 'web',
       }).catch((error) =>

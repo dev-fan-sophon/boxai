@@ -35,6 +35,7 @@ import {
   type StudioRunSummary,
   type StudioSession,
 } from '../lib'
+import { isAgentChatEnabled } from '../lib/agent-chat/flag'
 import type { Message } from '../types'
 
 const SYNC_DEBOUNCE_MS = 300
@@ -222,7 +223,7 @@ function chatSessionFromServerConversation(
   return session
 }
 
-function patchSessionById(
+export function patchSessionById(
   sessionId: string,
   patch: Partial<PlaygroundSession>
 ): void {
@@ -360,6 +361,9 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
       st.inflight = true
       try {
         let serverId = session.serverId
+        // With the agent transport on, the chat service creates the thread and
+        // persists both turns itself; this client must not race those writes.
+        const agentOwned = isAgentChatEnabled()
         const kind = session.kind === 'duo' ? 'duo' : 'chat'
         const meta =
           kind === 'duo' && session.duoMeta
@@ -369,6 +373,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
               }
             : undefined
         if (!serverId) {
+          if (agentOwned) return
           if (finalizedChatMessages(session.messages).length === 0) return
           const created = await createConversation({
             title: session.title,
@@ -422,60 +427,62 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           }
         }
 
-        // Local rewrite (edit / regenerate / delete) invalidates append-only
-        // sync; fall back to a full snapshot replace.
-        const finalized = finalizedChatMessages(session.messages)
-        const localByKey = new Map(
-          finalized.map((message) => [message.key, message])
-        )
-        let rewritten = false
-        for (const [key, ackedContent] of st.acked) {
-          const local = localByKey.get(key)
-          if (!local || getMessageContent(local) !== ackedContent) {
-            rewritten = true
-            break
-          }
-        }
-
-        if (rewritten) {
-          await putConversationMessages(serverId, toServerMessages(finalized))
-          // The replace renumbers seqs and the server wipes the rolling
-          // summary; drop the local copy too, or payload-builder keeps
-          // substituting a summary of the pre-edit turns for real history.
-          patchSessionById(sessionId, {
-            memorySummary: undefined,
-            memorySummaryTailKey: undefined,
-          })
-          st.acked = new Map(
-            finalized.map((message) => [
-              message.key,
-              getMessageContent(message),
-            ])
+        if (!agentOwned) {
+          // Local rewrite (edit / regenerate / delete) invalidates append-only
+          // sync; fall back to a full snapshot replace.
+          const finalized = finalizedChatMessages(session.messages)
+          const localByKey = new Map(
+            finalized.map((message) => [message.key, message])
           )
-          // Server ids were recreated by the replace; refetch on next pull.
-          st.reconciled = false
-          st.maxServerMsgId = 0
-        } else {
-          const pending = finalized.filter(
-            (message) => !st.acked.has(message.key)
-          )
-          // Long-memory consent travels with every append so the server only
-          // extracts cross-conversation memories when the toggle is on.
-          const longMemory =
-            usePlaygroundStore.getState().chatTools.longMemory === true
-          for (let i = 0; i < pending.length; i += APPEND_BATCH_SIZE) {
-            const batch = pending.slice(i, i + APPEND_BATCH_SIZE)
-            const result = await appendConversationMessages(
-              serverId,
-              toServerMessages(batch),
-              { longMemory }
-            )
-            for (const message of batch) {
-              st.acked.set(message.key, getMessageContent(message))
+          let rewritten = false
+          for (const [key, ackedContent] of st.acked) {
+            const local = localByKey.get(key)
+            if (!local || getMessageContent(local) !== ackedContent) {
+              rewritten = true
+              break
             }
-            for (const inserted of result.messages) {
-              if (inserted.id > st.maxServerMsgId) {
-                st.maxServerMsgId = inserted.id
+          }
+
+          if (rewritten) {
+            await putConversationMessages(serverId, toServerMessages(finalized))
+            // The replace renumbers seqs and the server wipes the rolling
+            // summary; drop the local copy too, or payload-builder keeps
+            // substituting a summary of the pre-edit turns for real history.
+            patchSessionById(sessionId, {
+              memorySummary: undefined,
+              memorySummaryTailKey: undefined,
+            })
+            st.acked = new Map(
+              finalized.map((message) => [
+                message.key,
+                getMessageContent(message),
+              ])
+            )
+            // Server ids were recreated by the replace; refetch on next pull.
+            st.reconciled = false
+            st.maxServerMsgId = 0
+          } else {
+            const pending = finalized.filter(
+              (message) => !st.acked.has(message.key)
+            )
+            // Long-memory consent travels with every append so the server only
+            // extracts cross-conversation memories when the toggle is on.
+            const longMemory =
+              usePlaygroundStore.getState().chatTools.longMemory === true
+            for (let i = 0; i < pending.length; i += APPEND_BATCH_SIZE) {
+              const batch = pending.slice(i, i + APPEND_BATCH_SIZE)
+              const result = await appendConversationMessages(
+                serverId,
+                toServerMessages(batch),
+                { longMemory }
+              )
+              for (const message of batch) {
+                st.acked.set(message.key, getMessageContent(message))
+              }
+              for (const inserted of result.messages) {
+                if (inserted.id > st.maxServerMsgId) {
+                  st.maxServerMsgId = inserted.id
+                }
               }
             }
           }
