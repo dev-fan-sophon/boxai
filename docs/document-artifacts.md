@@ -163,6 +163,7 @@ Anthropic's published mitigations for the equivalent feature are the baseline we
 | Runaway or looping build | Hard wall-clock timeout (120 s), then `destroy()`. |
 | Resource abuse | Max 2 concurrent builds per user; artifact size capped at 20 MB; every build logged with user, duration, instance type, and outcome. |
 | Cross-conversation data leakage | Sandbox key includes the owner; ownership is re-verified server-side on every build and every artifact read. |
+| Hostile artifact filename | The name a script chooses becomes an R2 key and a `Content-Disposition` value, so it is untrusted. Traversal, absolute paths, backslashes, and the whole Unicode control and format range are rejected — the latter covers the bidi overrides used to disguise an executable extension as a document one. Names in the user's own language are **not** rejected: see § 10.8. |
 | Public sharing of injected content | Document artifacts are served through owner-scoped signed URLs. Public share of a document artifact is off by default. |
 | Secrets reaching the sandbox | No secrets are passed in. If an outbound call is ever needed, it goes through the Worker-proxy + short-lived JWT pattern, never a real credential in the container. |
 
@@ -343,8 +344,15 @@ maintain. The generated script is stored on `playground_document_builds` so § 5
 
 - Build progress card in the message stream, reusing the managed-tool card layout: queued →
   building → rendering → done, with cancel.
-- Preview per format: `mammoth` for docx, a table view for xlsx, pdf.js for PDF, an image strip
-  for pptx. All previews render inside the existing sandboxed iframe.
+- Preview reuses the **server-side document parser that already backs uploads**
+  (`playground_document_parse`), which reads docx, xlsx, pptx and PDF. Documents preview as
+  extracted text; images preview directly.
+
+  The alternative — rendering the real file in a frame — was rejected because the asset content
+  endpoint deliberately serves every `kind=document` asset as `Content-Disposition: attachment`
+  so a generated file can never execute on our own origin. Weakening that to get a prettier
+  preview would trade a real security property for a cosmetic one. Downloading gives the real
+  file.
 - Actions: download, save to asset library, regenerate, and a follow-up prompt affordance for
   edits that carries `parent_run_id`.
 - The generated script is viewable in a collapsed panel, both for trust and for debugging.
@@ -378,7 +386,24 @@ entitlements are confirmed active.
 
 Phases 1-2 give an end-to-end docx. Phase 4 is the first shippable user experience.
 
-## 10. Open items
+## 10. Measured behaviour and open items
+
+Measured against production (`doc-builder.you-box.com`) on 2026-08-01, admin account, `default`
+group:
+
+| Case | Result |
+|------|--------|
+| docx, cold container | 10.4 s |
+| docx, warm container, reopening the previous version | 6.1 s |
+| xlsx with an embedded bar chart | 10.3 s |
+| pptx | 7.7 s |
+| PDF via reportlab with `STSong-Light` | 8.4 s |
+| PDF via Browser Run (Chromium) | 7.2 s, 230 KB with embedded fonts |
+| matplotlib PNG with CJK labels | 10.7 s |
+| Script raises → build failure, `can_retry: true` | 8.8 s |
+| Full turn including the model authoring the script | 18-46 s, first attempt succeeded for both `gemini-3.6-flash` and `deepseek-v4-flash` across docx, xlsx and PDF |
+
+Open items:
 
 1. Measure real cold start and end-to-end latency from Vietnam; container placement will likely be
    Singapore or Hong Kong.
@@ -390,3 +415,10 @@ Phases 1-2 give an end-to-end docx. Phase 4 is the first shippable user experien
 6. Per-model build success rate needs to be in the usage log from day one — it is the evidence
    base for any future decision to restrict which models can author build scripts (§ 5.1).
 7. Revisit metering once usage data exists.
+8. **Anything a build script controls must fail as a build failure, never as a transport error.**
+   The first production run found this the hard way: the artifact-name check was ASCII-only, so a
+   Chinese request that produced `2026-Q1-运营报告.docx` was rejected — and rejected as an HTTP
+   400, which the backend reads as "the service is unavailable". A perfectly good document became
+   a dead turn that self-heal never saw. The name rule now allows any language and the file-count
+   and size caps return through the same retryable channel. When adding a new artifact-level
+   check, put it on that channel.

@@ -20,7 +20,9 @@ const MAX_TIMEOUT_MS = 180_000;
 const MAX_SLEEP_AFTER_SECONDS = 900;
 const DEFAULT_ARTIFACT_BYTES = 20 * 1024 * 1024;
 
-/** Relative, no traversal, no absolute paths — these become filenames inside the container. */
+/** Paths the backend chooses: the R2 artifact prefix and the names inputs are written under.
+ *  These are server-generated and already sanitized, so they stay strictly ASCII. Names the
+ *  build script chooses go through artifactNameProblem instead. */
 const SAFE_PATH = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,127}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:\-]{0,127}$/;
 
@@ -183,18 +185,19 @@ async function exportArtifacts(
   build: BuildRequest,
   entries: ManifestEntry[],
 ): Promise<{ exported: ExportedArtifact[]; error: string }> {
-  if (entries.length > MAX_FILES) badRequest("build produced too many files");
+  // Everything below is chosen by the build script, so a violation is a build failure the model
+  // can fix on the next attempt, never a transport error that kills the turn.
+  if (entries.length > MAX_FILES) {
+    return { exported: [], error: `write at most ${MAX_FILES} files to /workspace/out` };
+  }
   let total = 0;
   const exported: ExportedArtifact[] = [];
   for (const entry of entries) {
-    // The build script is model-authored and the model reads user-supplied content, so a
-    // filename is untrusted input on its way into an R2 key.
-    if (!SAFE_PATH.test(entry.name) || entry.name.includes("..")) {
-      badRequest(`artifact name is malformed: ${entry.name}`);
-    }
+    const nameProblem = artifactNameProblem(entry.name);
+    if (nameProblem) return { exported, error: `${entry.name}: ${nameProblem}` };
     total += entry.bytes;
     if (entry.bytes > build.maxArtifactBytes || total > build.maxArtifactBytes) {
-      badRequest(`artifacts exceed the ${build.maxArtifactBytes} byte limit`);
+      return { exported, error: `artifacts exceed the ${build.maxArtifactBytes} byte limit` };
     }
 
     if (entry.name.endsWith(HTML_PDF_SUFFIX)) {
@@ -233,6 +236,31 @@ async function exportArtifacts(
     });
   }
   return { exported, error: "" };
+}
+
+/**
+ * Explains why an artifact name cannot be used, or returns "" when it can.
+ *
+ * The name is chosen by a model-authored script that has read user-supplied content, and it ends
+ * up in an R2 key and a Content-Disposition header, so it is untrusted input. It is still allowed
+ * to be Vietnamese or Chinese: users ask for documents in their own language and naming the file
+ * in that language is the correct answer, not an attack.
+ *
+ * What is rejected is what can actually do harm: traversal, absolute paths, backslashes, and the
+ * Unicode control and format categories, which include the bidi overrides used to disguise an
+ * executable extension as a document one.
+ */
+export function artifactNameProblem(name: string): string {
+  if (name.length === 0 || name.length > 128) return "file name must be 1-128 characters";
+  if (/[\p{C}\\]/u.test(name)) return "file name contains an unsupported character";
+  if (name.startsWith("/")) return "write to a relative path under /workspace/out";
+  for (const segment of name.split("/")) {
+    if (segment === "" || segment === "." || segment === "..") return "file name has an empty path segment";
+    if (segment.startsWith(".")) return "file name must not start with a dot";
+  }
+  if (!/^[\p{L}\p{N}]/u.test(name)) return "file name must start with a letter or a digit";
+  if (!/\.[A-Za-z0-9]{1,8}$/.test(name)) return "file name must end with a file extension";
+  return "";
 }
 
 /** Returns the PDF bytes, or a message explaining why there are none. */
