@@ -277,6 +277,16 @@ export const STATIC_I18N_KEYS = [
   'Web search',
   'Platform tool',
 
+  // Playground managed tool stages (ManagedToolCard.stage, translated at render)
+  'Searching the web',
+  'Preparing the sandbox',
+  'Writing the build script',
+  'Running the build in the sandbox',
+  'Generating images',
+  'Saving results',
+  'Submitting the video task',
+  'Waiting for the video to render',
+
   // Playground parameter controls
   'Temperature',
   'Top P',

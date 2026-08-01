@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -255,8 +255,19 @@ export function PlaygroundMessageContent({
                 />
               )}
               {t(toolStatus || message.managedTool.status)}
+              {isToolRunning && message.managedTool.startedAt && (
+                <ToolElapsedTime startedAt={message.managedTool.startedAt} />
+              )}
             </span>
           </div>
+          {isToolRunning && message.managedTool.stage && (
+            <p className='text-muted-foreground mt-2 truncate text-xs'>
+              {t(message.managedTool.stage)}
+              {message.managedTool.stageDetail
+                ? ` · ${message.managedTool.stageDetail}`
+                : ''}
+            </p>
+          )}
           {toolError && (
             <p className='text-destructive mt-2 text-sm'>{toolError}</p>
           )}
@@ -435,6 +446,21 @@ export function PlaygroundMessageContent({
       />
     </div>
   )
+}
+
+/** Live elapsed time for a running tool, so long executions don't look frozen. */
+function ToolElapsedTime(props: { startedAt: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const seconds = Math.max(0, Math.floor((now - props.startedAt) / 1000))
+  const label =
+    seconds >= 60
+      ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
+      : `${seconds}s`
+  return <span className='tabular-nums opacity-70'>{label}</span>
 }
 
 function ManagedToolImage(props: {

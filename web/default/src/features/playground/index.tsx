@@ -44,6 +44,7 @@ import {
 import { ModalityQuickSwitch } from './components/shell/modality-quick-switch'
 import { PlaygroundShell } from './components/shell/playground-shell'
 import { WorkspaceHeader } from './components/shell/workspace-header'
+import { ArtifactPreviewPanel } from './components/workspace/artifact-preview-panel'
 import { DuoWorkspace } from './components/workspace/duo-workspace'
 import { GenerationWorkspace } from './components/workspace/generation-workspace'
 import {
@@ -54,6 +55,7 @@ import {
 } from './hooks'
 import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
+import { useArtifactPreviewStore } from './lib/artifact-preview-store'
 import { runDocumentBuild, toDocumentArtifacts } from './lib/document-build'
 import { persistGeneratedMediaAsset } from './lib/download-generated-media'
 import {
@@ -258,6 +260,11 @@ export function Playground() {
     },
     []
   )
+  // A preview opened in another conversation must not linger over the new one.
+  useEffect(() => {
+    useArtifactPreviewStore.getState().close()
+  }, [activeSession?.id])
+
   const canSubmitManagedTurn = useCallback(
     () => !isRoutingRef.current && requireAuthentication(),
     [requireAuthentication]
@@ -329,9 +336,14 @@ export function Playground() {
           action: run.action,
           status: 'running' as const,
           model: run.tool_model,
+          startedAt: Date.now(),
         }
         if (run.action === 'web_search') {
-          setAssistantTool(baseCard)
+          setAssistantTool({
+            ...baseCard,
+            stage: 'Searching the web',
+            stageDetail: text,
+          })
           const raw = await executeManagedSearch(
             run.id,
             response.execution.execution_token
@@ -345,7 +357,7 @@ export function Playground() {
           return
         }
         if (run.action === 'generate_document') {
-          setAssistantTool(baseCard)
+          setAssistantTool({ ...baseCard, stage: 'Preparing the sandbox' })
           // Only attachments that reached the server have an asset id; a text file read in the
           // browser has none and is already in the prompt as text.
           const attachmentIds = (turnMessages.at(-2)?.attachments ?? [])
@@ -364,6 +376,15 @@ export function Playground() {
             assetIds: attachmentIds,
             onAttempt: (attempt) =>
               setAssistantTool({ ...baseCard, documentAttempts: attempt }),
+            onStage: (stage, attempt) =>
+              setAssistantTool({
+                ...baseCard,
+                documentAttempts: attempt,
+                stage:
+                  stage === 'generate'
+                    ? 'Writing the build script'
+                    : 'Running the build in the sandbox',
+              }),
           })
           const documents = toDocumentArtifacts(
             outcome.result.assets,
@@ -390,7 +411,7 @@ export function Playground() {
               )
             )
           }
-          setAssistantTool(baseCard)
+          setAssistantTool({ ...baseCard, stage: 'Generating images' })
           const images = await generateImages({
             model: toolModel,
             group: config.group,
@@ -411,6 +432,7 @@ export function Playground() {
               executionToken: response.execution.execution_token,
             },
           })
+          setAssistantTool({ ...baseCard, stage: 'Saving results' })
           const assets = await Promise.all(
             images.map((image, index) =>
               persistGeneratedMediaAsset(
@@ -439,7 +461,7 @@ export function Playground() {
           setAssistantTool({ ...baseCard, status: 'completed', images: urls })
           return
         }
-        setAssistantTool(baseCard)
+        setAssistantTool({ ...baseCard, stage: 'Submitting the video task' })
         const submission = await submitVideo({
           model: String(response.arguments.model),
           group: config.group,
@@ -473,6 +495,7 @@ export function Playground() {
           ...baseCard,
           status: 'submitted',
           taskId: submission.taskId,
+          stage: 'Waiting for the video to render',
         })
       } catch (error) {
         const message =
@@ -774,35 +797,40 @@ export function Playground() {
       )}
 
       {!duoActive && activeModality === 'chat' && (
-        <>
-          <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
-            <PlaygroundChat
-              messages={messages}
-              isLoadingMessages={false}
-              onRegenerateMessage={handleRegenerateMessage}
-              onEditMessage={handleEditMessage}
-              onDeleteMessage={handleDeleteMessage}
-              onSelectMessageVersion={handleSelectMessageVersion}
-              onSelectPrompt={handleSendMessage}
-              isGenerating={isGenerating}
-              editingKey={editingMessageKey}
-              onCancelEdit={handleEditOpenChange}
-              onSaveEdit={(newContent) => applyEdit(newContent, false)}
-              onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
-            />
-            <ModelSwitchNotice />
+        <div className='flex min-h-0 flex-1'>
+          <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
+            <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
+              <PlaygroundChat
+                messages={messages}
+                isLoadingMessages={false}
+                onRegenerateMessage={handleRegenerateMessage}
+                onEditMessage={handleEditMessage}
+                onDeleteMessage={handleDeleteMessage}
+                onSelectMessageVersion={handleSelectMessageVersion}
+                onSelectPrompt={handleSendMessage}
+                isGenerating={isGenerating}
+                editingKey={editingMessageKey}
+                onCancelEdit={handleEditOpenChange}
+                onSaveEdit={(newContent) => applyEdit(newContent, false)}
+                onSaveEditAndSubmit={(newContent) =>
+                  applyEdit(newContent, true)
+                }
+              />
+              <ModelSwitchNotice />
+            </div>
+            <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
+              <ChatComposer
+                disabled={isGenerating || isRouting}
+                isGenerating={isGenerating}
+                isModelLoading={isLoadingModels}
+                onOpenModelCatalog={() => setCatalogDrawerOpen(true)}
+                onStop={stopGeneration}
+                onSubmit={handleSendMessage}
+              />
+            </div>
           </div>
-          <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
-            <ChatComposer
-              disabled={isGenerating || isRouting}
-              isGenerating={isGenerating}
-              isModelLoading={isLoadingModels}
-              onOpenModelCatalog={() => setCatalogDrawerOpen(true)}
-              onStop={stopGeneration}
-              onSubmit={handleSendMessage}
-            />
-          </div>
-        </>
+          <ArtifactPreviewPanel />
+        </div>
       )}
 
       {!duoActive && activeModality !== 'chat' && (

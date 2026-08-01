@@ -33,6 +33,12 @@ export type ManagedToolCard = {
   images?: string[]
   videoUrl?: string
   error?: string
+  /** i18n key of the current phase, shown while running so long tools don't look frozen. */
+  stage?: string
+  /** Free-text companion to the stage (search query, file being written). */
+  stageDetail?: string
+  /** Epoch ms when the tool started; drives the live elapsed timer on the card. */
+  startedAt?: number
   documents?: ManagedDocumentArtifact[]
   /** The script the model wrote, shown in a collapsed panel for trust and debugging. */
   documentCode?: string

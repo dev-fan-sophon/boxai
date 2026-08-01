@@ -354,6 +354,12 @@ func CreatePlaygroundAsset(a *PlaygroundAsset) error {
 	return DB.Create(a).Error
 }
 
+// SetPlaygroundAssetContentHash backfills the parse-cache key on a legacy
+// asset uploaded before document parsing existed.
+func SetPlaygroundAssetContentHash(id int, contentHash string) error {
+	return DB.Model(&PlaygroundAsset{}).Where("id = ?", id).Update("content_hash", contentHash).Error
+}
+
 func GetPlaygroundAsset(id int, userId int) (*PlaygroundAsset, error) {
 	var a PlaygroundAsset
 	err := DB.Where("id = ? AND user_id = ?", id, userId).First(&a).Error

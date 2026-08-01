@@ -103,8 +103,10 @@ func GetPlaygroundAssetParse(c *gin.Context) {
 	if asset == nil {
 		return
 	}
+	// A legacy asset without a hash simply has no parse yet; the start
+	// endpoint backfills the hash on demand.
 	if asset.ContentHash == "" {
-		common.ApiErrorMsg(c, "document was uploaded before parsing support; please re-attach the file")
+		common.ApiErrorMsg(c, "document has not been parsed yet")
 		return
 	}
 	parse, err := model.GetPlaygroundDocumentParseByHash(asset.ContentHash)

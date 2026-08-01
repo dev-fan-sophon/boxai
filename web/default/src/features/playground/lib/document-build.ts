@@ -80,6 +80,7 @@ export async function runDocumentBuild(input: {
   assetIds?: number[]
   signal?: AbortSignal
   onAttempt?: (attempt: number) => void
+  onStage?: (stage: 'generate' | 'build', attempt: number) => void
 }): Promise<DocumentBuildOutcome> {
   const prepared = await preparePlaygroundDocumentRun(input.runId, {
     execution_token: input.executionToken,
@@ -94,6 +95,7 @@ export async function runDocumentBuild(input: {
   for (let guard = 0; guard < 5; guard += 1) {
     attempt += 1
     input.onAttempt?.(attempt)
+    input.onStage?.('generate', attempt)
 
     const reply = await sendChatCompletion(
       {
@@ -113,6 +115,7 @@ export async function runDocumentBuild(input: {
       throw new Error('The model did not return a build script')
     }
 
+    input.onStage?.('build', attempt)
     const result = await buildPlaygroundDocument(input.runId, {
       execution_token: input.executionToken,
       code,

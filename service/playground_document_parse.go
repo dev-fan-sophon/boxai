@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -50,7 +52,18 @@ func RunPlaygroundDocumentParse(ctx context.Context, asset *model.PlaygroundAsse
 		return nil, fmt.Errorf("asset is not a document")
 	}
 	if asset.ContentHash == "" {
-		return nil, fmt.Errorf("document was uploaded before parsing support; please re-attach the file")
+		// Legacy upload from before the parse cache existed: hash the stored
+		// bytes now instead of forcing the user to re-attach the file.
+		content, readErr := readPlaygroundAssetContent(ctx, asset)
+		if readErr != nil {
+			return nil, fmt.Errorf("could not read stored document: %w", readErr)
+		}
+		sum := sha256.Sum256(content)
+		hash := hex.EncodeToString(sum[:])
+		if err := model.SetPlaygroundAssetContentHash(asset.Id, hash); err != nil {
+			return nil, err
+		}
+		asset.ContentHash = hash
 	}
 
 	if parse, err := model.GetPlaygroundDocumentParseByHash(asset.ContentHash); err == nil {

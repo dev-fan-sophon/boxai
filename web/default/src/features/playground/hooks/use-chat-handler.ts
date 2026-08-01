@@ -302,7 +302,14 @@ export function useChatHandler({
         )
         lastRoundUsageRef.current = null
       }
-      setWebSearchCard({ action: 'web_search', status: 'running' })
+      const startedAt = Date.now()
+      setWebSearchCard({
+        action: 'web_search',
+        status: 'running',
+        stage: 'Searching the web',
+        stageDetail: extracted.query,
+        startedAt,
+      })
       let card: ManagedToolCard
       let resultText: string
       try {
@@ -311,12 +318,20 @@ export function useChatHandler({
           action: 'web_search',
           status: 'completed',
           runId: result.runId,
+          stageDetail: extracted.query,
+          startedAt,
         }
         resultText = result.text
       } catch (error) {
         const message =
           error instanceof Error ? error.message : t('Tool failed')
-        card = { action: 'web_search', status: 'failed', error: message }
+        card = {
+          action: 'web_search',
+          status: 'failed',
+          error: message,
+          stageDetail: extracted.query,
+          startedAt,
+        }
         resultText = WEB_SEARCH_FAILED_RESULT
       }
       if (token !== turnTokenRef.current) return
