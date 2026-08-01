@@ -33,5 +33,12 @@ export async function runAgent(input: AgentRunInput) {
     tools: input.tools,
     stopWhen: stepCountIs(input.maxSteps ?? 8),
     abortSignal: input.abortSignal,
+    onToolExecutionEnd: (event) => {
+      if (event.toolOutput.type !== 'tool-error') return
+      const error = event.toolOutput.error
+      const message =
+        error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+      console.error(`tool ${event.toolOutput.toolName} failed: ${message}`)
+    },
   })
 }
