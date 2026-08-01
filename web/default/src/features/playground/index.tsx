@@ -260,18 +260,29 @@ export function Playground() {
     },
     [activeChatId]
   )
-  const { sendAgentTurn, stopAgentTurn, isAgentStreaming } = useAgentChat({
+  // Read once per mount: flipping the flag mid-session would leave an in-flight
+  // turn split across two transports.
+  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
+  const {
+    messages: agentMessages,
+    sendAgentTurn,
+    regenerateAgentMessage,
+    saveAgentMessage,
+    removeAgentMessage,
+    selectAgentMessageVersion,
+    stopAgentTurn,
+    isAgentStreaming,
+  } = useAgentChat({
+    enabled: agentChatEnabled,
+    chatId: activeChatId || 'agent-draft',
     config,
-    onMessageUpdate: updateMessages,
     systemPrompt: chatTools.systemPrompt,
     visualOutput: chatTools.visualOutput,
     longMemory: chatTools.longMemory,
     conversationId: activeChat?.serverId,
     onConversationId: bindAgentConversation,
   })
-  // Read once per mount: flipping the flag mid-session would leave an in-flight
-  // turn split across two transports.
-  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
+  const displayedMessages = agentChatEnabled ? agentMessages : messages
   const [isRouting, setIsRouting] = useState(false)
   const isRoutingRef = useRef(false)
   // A warm container bills for memory while it waits, so leaving the conversation that owns one
@@ -687,29 +698,40 @@ export function Playground() {
     applyEdit,
     handleDeleteMessage,
   } = usePlaygroundConversation({
-    messages,
+    messages: displayedMessages,
     updateMessages,
     sendChat,
     routeTurn: routeManagedTurn,
-    agentTurn: agentChatEnabled ? sendAgentTurn : undefined,
+    agentActions: agentChatEnabled
+      ? {
+          send: sendAgentTurn,
+          regenerate: regenerateAgentMessage,
+          save: saveAgentMessage,
+          remove: removeAgentMessage,
+        }
+      : undefined,
     canSubmit: canSubmitManagedTurn,
     activeModel: config.model,
   })
 
   const handleStopGeneration = useCallback(() => {
-    stopAgentTurn()
+    void stopAgentTurn()
     stopGeneration()
   }, [stopAgentTurn, stopGeneration])
 
   const handleSelectMessageVersion = useCallback(
     (message: Message, index: number) => {
+      if (agentChatEnabled) {
+        selectAgentMessageVersion(message, index)
+        return
+      }
       updateMessages((prev) =>
         prev.map((item) =>
           item.key === message.key ? setMessageActiveVersion(item, index) : item
         )
       )
     },
-    [updateMessages]
+    [agentChatEnabled, selectAgentMessageVersion, updateMessages]
   )
 
   const handleNewSession = useCallback(() => {
@@ -944,18 +966,12 @@ export function Playground() {
           <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
             <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
               <PlaygroundChat
-                messages={messages}
+                messages={displayedMessages}
                 isLoadingMessages={false}
-                onRegenerateMessage={
-                  agentChatEnabled ? undefined : handleRegenerateMessage
-                }
-                onEditMessage={agentChatEnabled ? undefined : handleEditMessage}
-                onDeleteMessage={
-                  agentChatEnabled ? undefined : handleDeleteMessage
-                }
-                onSelectMessageVersion={
-                  agentChatEnabled ? undefined : handleSelectMessageVersion
-                }
+                onRegenerateMessage={handleRegenerateMessage}
+                onEditMessage={handleEditMessage}
+                onDeleteMessage={handleDeleteMessage}
+                onSelectMessageVersion={handleSelectMessageVersion}
                 onSelectPrompt={handleSendMessage}
                 isGenerating={isGenerating || isAgentStreaming}
                 editingKey={editingMessageKey}
@@ -969,7 +985,7 @@ export function Playground() {
             </div>
             <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
               <ChatComposer
-                allowAttachments={!agentChatEnabled}
+                allowAttachments
                 disabled={isGenerating || isRouting || isAgentStreaming}
                 isGenerating={isGenerating || isAgentStreaming}
                 isModelLoading={isLoadingModels}

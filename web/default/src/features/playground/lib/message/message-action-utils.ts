@@ -5,15 +5,18 @@ import { getMessageContent, hasMessageContent } from './message-utils'
 type MessageActionState = {
   content: string
   hasContent: boolean
+  hasPayload: boolean
   isAssistant: boolean
   isLoading: boolean
   isUser: boolean
 }
 
 export function getMessageActionState(message: Message): MessageActionState {
+  const hasContent = hasMessageContent(message)
   return {
     content: getMessageContent(message),
-    hasContent: hasMessageContent(message),
+    hasContent,
+    hasPayload: hasContent || Boolean(message.attachments?.length),
     isAssistant: message.from === MESSAGE_ROLES.ASSISTANT,
     isUser: message.from === MESSAGE_ROLES.USER,
     isLoading:

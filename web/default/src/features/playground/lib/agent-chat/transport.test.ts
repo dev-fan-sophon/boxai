@@ -1,62 +1,142 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ERROR_MESSAGES } from '../../constants'
-import { sendAgentChat, type AgentChatCallbacks } from './transport'
+import {
+  agentUIMessageToPlayground,
+  attachmentFileParts,
+  loadAgentConversation,
+} from './transport'
+
+const originalFetch = globalThis.fetch
 
 afterEach(() => {
-  vi.unstubAllGlobals()
+  globalThis.fetch = originalFetch
 })
 
-function callbacks(onError: (message: string) => void): AgentChatCallbacks {
-  return {
-    onConversationId: () => {},
-    onAssistantId: () => {},
-    onTextDelta: () => {},
-    onReasoningDelta: () => {},
-    onReasoningEnd: () => {},
-    onToolCard: () => {},
-    onSources: () => {},
-    onError,
-  }
-}
-
-const request = {
-  model: 'test-model',
-  messageKey: 'user-1',
-  text: 'hello',
-}
-
-describe('sendAgentChat stream completion', () => {
-  it('reports a clean EOF without the SSE completion marker', async () => {
-    const onError = vi.fn()
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response('data: {"type":"text-delta","delta":"partial"}\n\n', {
-          headers: { 'content-type': 'text/event-stream' },
-        })
-      )
-    )
-
-    await sendAgentChat({ request, callbacks: callbacks(onError) })
-
-    expect(onError).toHaveBeenCalledOnce()
-    expect(onError).toHaveBeenCalledWith(ERROR_MESSAGES.CONNECTION_CLOSED)
+describe('agent chat attachment transport', () => {
+  it('sends only stable private asset URLs to AI SDK', () => {
+    expect(
+      attachmentFileParts([
+        {
+          id: 'asset-7',
+          name: 'report.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          text: '',
+          assetId: 7,
+        },
+      ])
+    ).toEqual([
+      {
+        type: 'file',
+        filename: 'report.pdf',
+        mediaType: 'application/pdf',
+        url: '/api/playground/assets/7/content',
+      },
+    ])
   })
 
-  it('accepts a stream that ends with the completion marker', async () => {
-    const onError = vi.fn()
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response('data: [DONE]\n\n', {
-          headers: { 'content-type': 'text/event-stream' },
+  it('rejects attachments that have not reached private asset storage', () => {
+    expect(() =>
+      attachmentFileParts([
+        {
+          id: 'bad',
+          name: 'bad.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          text: 'browser-only text',
+        },
+      ])
+    ).toThrow('was not uploaded')
+  })
+})
+
+describe('agent chat history adapters', () => {
+  it('hydrates attachments and immutable revisions from server history', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            conversation: { id: 3, revision: 8 },
+            messages: [
+              {
+                id: 11,
+                conversation_id: 3,
+                user_id: 2,
+                role: 'user',
+                content: 'summarize',
+                content_json: JSON.stringify([
+                  { type: 'text', text: 'summarize' },
+                  {
+                    type: 'file',
+                    filename: 'report.pdf',
+                    mediaType: 'application/pdf',
+                    url: '/api/playground/assets/7/content',
+                  },
+                ]),
+                model: 'test-model',
+                client_key: 'user-1',
+                status: 'complete',
+                active_revision: 2,
+                created_at: 100,
+                updated_at: 101,
+                revisions: [
+                  {
+                    revision: 1,
+                    content: 'old prompt',
+                    status: 'complete',
+                    created_at: 90,
+                  },
+                  {
+                    revision: 2,
+                    content: 'summarize',
+                    content_json: JSON.stringify([
+                      { type: 'text', text: 'summarize' },
+                      {
+                        type: 'file',
+                        filename: 'report.pdf',
+                        mediaType: 'application/pdf',
+                        url: '/api/playground/assets/7/content',
+                      },
+                    ]),
+                    status: 'complete',
+                    created_at: 101,
+                  },
+                ],
+              },
+            ],
+          },
         })
       )
     )
 
-    await sendAgentChat({ request, callbacks: callbacks(onError) })
+    const loaded = await loadAgentConversation(3)
+    expect(loaded.revision).toBe(8)
+    expect(loaded.messages[0]?.parts).toEqual([
+      { type: 'text', text: 'summarize' },
+      {
+        type: 'file',
+        filename: 'report.pdf',
+        mediaType: 'application/pdf',
+        url: '/api/playground/assets/7/content',
+      },
+    ])
 
-    expect(onError).not.toHaveBeenCalled()
+    const firstMessage = loaded.messages[0]
+    if (!firstMessage) throw new Error('expected the server message to load')
+    const projected = agentUIMessageToPlayground(firstMessage, false)
+    expect(projected.attachments).toEqual([
+      {
+        id: 'asset-7-0',
+        name: 'report.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document',
+        text: '',
+        assetId: 7,
+        status: 'done',
+      },
+    ])
+    expect(projected.activeVersion).toBe(1)
+    expect(projected.versions.map((version) => version.id)).toEqual(['1', '2'])
   })
 })

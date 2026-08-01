@@ -8,6 +8,7 @@ import {
   createProject,
   deleteConversation,
   deleteProject,
+  getConversation,
   getProject,
   listConversationMessages,
   listConversations,
@@ -390,8 +391,28 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           st.lastMetaFingerprint = chatMetaFingerprint(session)
         }
 
-        // Pull turns this client has not seen yet (bootstrap or cross-device).
-        if (!st.reconciled || options?.pull) {
+        // Agent history, including attachments and revisions, is hydrated by
+        // AI SDK from boxai-chat. Only reconcile metadata here; merging the
+        // legacy message DTO would discard those richer server contracts.
+        if (agentOwned && (!st.reconciled || options?.pull)) {
+          const remote = await getConversation(serverId)
+          const remoteTitle = remote.conversation.title?.trim()
+          if (
+            remoteTitle &&
+            remoteTitle !== session.title &&
+            (session.title === 'New chat' || session.title === 'Cloud chat')
+          ) {
+            patchSessionById(sessionId, { title: remoteTitle })
+            session = findSession()
+            if (!session) return
+          }
+          st.reconciled = true
+          st.lastMetaFingerprint = chatMetaFingerprint(session)
+        }
+
+        // Pull turns this legacy client has not seen yet (bootstrap or
+        // cross-device).
+        if (!agentOwned && (!st.reconciled || options?.pull)) {
           if (!st.reconciled) {
             st.maxServerMsgId = 0
             st.acked = new Map()

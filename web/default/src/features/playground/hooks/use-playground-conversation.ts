@@ -16,13 +16,12 @@ type UsePlaygroundConversationOptions = {
   ) => void
   sendChat: (messages: Message[]) => void
   routeTurn?: (messages: Message[], text: string) => Promise<void>
-  /**
-   * Server-owned agent turn. When present it replaces both the managed-tool
-   * router and the legacy completion call. Until the server exposes mutation
-   * and attachment protocols, those operations are blocked so local state
-   * cannot diverge from server-owned history.
-   */
-  agentTurn?: (messages: Message[], text: string) => Promise<void>
+  agentActions?: {
+    send: (text: string, attachments?: ChatAttachment[]) => boolean
+    regenerate: (message: Message) => void
+    save: (message: Message, content: string, shouldSubmit: boolean) => void
+    remove: (message: Message) => void
+  }
   canSubmit: () => boolean
   /** Model stamped onto new assistant placeholders for provenance. */
   activeModel?: string
@@ -33,7 +32,7 @@ export function usePlaygroundConversation({
   updateMessages,
   sendChat,
   routeTurn,
-  agentTurn,
+  agentActions,
   canSubmit,
   activeModel,
 }: UsePlaygroundConversationOptions) {
@@ -44,7 +43,7 @@ export function usePlaygroundConversation({
   const handleSendMessage = useCallback(
     (text: string, attachments?: ChatAttachment[]): boolean => {
       if (!canSubmit()) return false
-      if (agentTurn && attachments?.length) return false
+      if (agentActions) return agentActions.send(text, attachments)
       const nextMessages = appendUserMessagePair(
         messages,
         text,
@@ -53,9 +52,7 @@ export function usePlaygroundConversation({
       )
       updateMessages(nextMessages)
       const isPlainTextTurn = Boolean(text.trim()) && !attachments?.length
-      if (agentTurn && isPlainTextTurn) {
-        void agentTurn(nextMessages, text)
-      } else if (routeTurn && isPlainTextTurn) {
+      if (routeTurn && isPlainTextTurn) {
         void routeTurn(nextMessages, text)
       } else {
         sendChat(nextMessages)
@@ -68,14 +65,18 @@ export function usePlaygroundConversation({
       updateMessages,
       sendChat,
       routeTurn,
-      agentTurn,
+      agentActions,
       activeModel,
     ]
   )
 
   const handleRegenerateMessage = useCallback(
     (message: Message) => {
-      if (agentTurn || !canSubmit()) return
+      if (!canSubmit()) return
+      if (agentActions) {
+        agentActions.regenerate(message)
+        return
+      }
       const nextMessages = createRegeneratedMessages(
         messages,
         message.key,
@@ -105,7 +106,7 @@ export function usePlaygroundConversation({
       }
     },
     [
-      agentTurn,
+      agentActions,
       canSubmit,
       messages,
       updateMessages,
@@ -115,13 +116,9 @@ export function usePlaygroundConversation({
     ]
   )
 
-  const handleEditMessage = useCallback(
-    (message: Message) => {
-      if (agentTurn) return
-      setEditingMessageKey(message.key)
-    },
-    [agentTurn]
-  )
+  const handleEditMessage = useCallback((message: Message) => {
+    setEditingMessageKey(message.key)
+  }, [])
 
   const handleEditOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -131,8 +128,16 @@ export function usePlaygroundConversation({
 
   const applyEdit = useCallback(
     (newContent: string, shouldSubmit: boolean) => {
-      if (agentTurn || !editingMessageKey) return
+      if (!editingMessageKey) return
       if (shouldSubmit && !canSubmit()) return
+
+      if (agentActions) {
+        const message = messages.find((item) => item.key === editingMessageKey)
+        if (!message) return
+        setEditingMessageKey(null)
+        agentActions.save(message, newContent, shouldSubmit)
+        return
+      }
 
       const editResult = applyMessageEdit(
         messages,
@@ -163,7 +168,7 @@ export function usePlaygroundConversation({
     },
     [
       canSubmit,
-      agentTurn,
+      agentActions,
       editingMessageKey,
       messages,
       updateMessages,
@@ -175,12 +180,15 @@ export function usePlaygroundConversation({
 
   const handleDeleteMessage = useCallback(
     (message: Message) => {
-      if (agentTurn) return
+      if (agentActions) {
+        agentActions.remove(message)
+        return
+      }
       updateMessages((previousMessages) =>
         removeMessageByKey(previousMessages, message.key)
       )
     },
-    [agentTurn, updateMessages]
+    [agentActions, updateMessages]
   )
 
   return {

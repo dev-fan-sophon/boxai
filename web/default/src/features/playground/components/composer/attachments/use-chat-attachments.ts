@@ -5,11 +5,11 @@ import { toast } from 'sonner'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { uploadPlaygroundAsset } from '../../../api'
+import { isAgentChatEnabled } from '../../../lib/agent-chat/flag'
 import { rememberAttachmentAsset } from '../../../lib/attachments/attachment-assets'
 import {
   isServerParsedDocument,
   isTextDocumentFile,
-  readTextDocument,
 } from '../../../lib/attachments/document-extract'
 import {
   DocumentParseError,
@@ -51,15 +51,11 @@ async function buildImageAttachment(file: File): Promise<ChatAttachment> {
     mimeType: file.type,
     dataUrl,
   }
-  // Upload so the image survives a reload. Failure is non-fatal: the turn
-  // still sends the inline bytes, only cross-reload replay is lost.
-  try {
-    const asset = await uploadPlaygroundAsset(file, undefined, 'attachment')
-    rememberAttachmentAsset(asset.id, dataUrl)
-    attachment.assetId = asset.id
-  } catch {
-    // keep inline-only attachment
-  }
+  // Asset storage is the durable source of truth for server-owned history.
+  // Do not admit an inline-only image that would disappear after reload.
+  const asset = await uploadPlaygroundAsset(file, undefined, 'attachment')
+  rememberAttachmentAsset(asset.id, dataUrl)
+  attachment.assetId = asset.id
   return attachment
 }
 
@@ -74,6 +70,7 @@ async function buildImageAttachment(file: File): Promise<ChatAttachment> {
 export function useChatAttachments() {
   const { t } = useTranslation()
   const group = usePlaygroundStore((state) => state.config.group)
+  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [isAdding, setIsAdding] = useState(false)
   const isAddingRef = useRef(false)
@@ -155,12 +152,12 @@ export function useChatAttachments() {
       mimeType: file.type || 'application/octet-stream',
       text: '',
       assetId,
-      status: 'processing',
+      status: agentChatEnabled ? 'done' : 'processing',
     }
     setAttachments((prev) =>
       prev.length < MAX_CHAT_ATTACHMENTS ? [...prev, attachment] : prev
     )
-    void runParse(attachment.id, assetId)
+    if (!agentChatEnabled) void runParse(attachment.id, assetId)
   }
 
   const addFiles = async (files: FileList | File[] | null) => {
@@ -217,7 +214,7 @@ export function useChatAttachments() {
 
     for (const entry of acceptedFiles) {
       if (operationRef.current !== operation) return
-      if (entry.kind === 'document') {
+      if (entry.kind === 'document' || entry.kind === 'text') {
         await addDocumentFile(entry.file)
         continue
       }
@@ -229,27 +226,6 @@ export function useChatAttachments() {
           )
           continue
         }
-        const text = await readTextDocument(entry.file)
-        if (text.trim() === '') {
-          toast.error(
-            t('No readable text found in {{name}}.', { name: entry.file.name })
-          )
-          continue
-        }
-        setAttachments((prev) =>
-          prev.length < MAX_CHAT_ATTACHMENTS
-            ? [
-                ...prev,
-                {
-                  id: crypto.randomUUID(),
-                  kind: 'document',
-                  name: entry.file.name,
-                  mimeType: entry.file.type || 'text/plain',
-                  text,
-                },
-              ]
-            : prev
-        )
       } catch {
         toast.error(t('Could not read {{name}}.', { name: entry.file.name }))
       }
@@ -269,7 +245,8 @@ export function useChatAttachments() {
     if (
       attachment?.kind === 'document' &&
       attachment.assetId !== undefined &&
-      attachment.status === 'failed'
+      attachment.status === 'failed' &&
+      !agentChatEnabled
     ) {
       void runParse(attachment.id, attachment.assetId)
     }

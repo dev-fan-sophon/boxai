@@ -114,7 +114,7 @@ export function MessageActions({
   const { copiedText, copyToClipboard } = useCopyToClipboard()
   const { guardAction } = useMessageActionGuard(isGenerating)
 
-  const { content, hasContent, isAssistant, isLoading, isUser } =
+  const { content, hasContent, hasPayload, isAssistant, isLoading, isUser } =
     getMessageActionState(message)
   const isCopied = copiedText === content
 
@@ -156,7 +156,7 @@ export function MessageActions({
     })
   }
 
-  if ((isAssistant || isUser) && hasContent && !isLoading && onRegenerate) {
+  if ((isAssistant || isUser) && hasPayload && !isLoading && onRegenerate) {
     actions.push({
       disabled: isGenerating,
       icon: RefreshCw,
@@ -165,7 +165,7 @@ export function MessageActions({
     })
   }
 
-  if (hasContent && onEdit) {
+  if (hasPayload && onEdit) {
     actions.push({
       disabled: isGenerating,
       icon: Edit,
@@ -185,7 +185,7 @@ export function MessageActions({
   }
 
   const versionSwitcher =
-    isAssistant &&
+    (isAssistant || isUser) &&
     !isLoading &&
     message.versions.length > 1 &&
     onSelectVersion ? (
