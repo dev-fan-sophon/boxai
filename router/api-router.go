@@ -19,6 +19,26 @@ func SetApiRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	anonymousRequestBodyLimit := middleware.AnonymousRequestBodyLimit()
+
+	// Gateway-internal API for trusted sibling services (boxai-chat). Guarded
+	// by the shared INTERNAL_SERVICE_SECRET; disabled when the secret is unset.
+	internalRouter := apiRouter.Group("/internal")
+	internalRouter.Use(middleware.InternalServiceSecretAuth())
+	{
+		internalRouter.GET("/session", controller.ValidateInternalSession)
+	}
+	// Act-as endpoints: the sibling service names the user it works for, and
+	// ownership checks and billing run in that user's context.
+	internalActAsRouter := apiRouter.Group("/internal")
+	internalActAsRouter.Use(middleware.InternalServiceAuth())
+	{
+		internalActAsRouter.POST("/playground/documents/prompt", controller.InternalPrepareDocumentBuild)
+		internalActAsRouter.POST("/playground/documents/build", controller.InternalBuildDocument)
+		internalActAsRouter.POST("/playground/documents/sandbox/release", controller.ReleasePlaygroundDocumentSandbox)
+		internalActAsRouter.GET("/playground/assets/:id/content", controller.GetPlaygroundAssetContent)
+		internalActAsRouter.POST("/playground/assets/import", controller.ImportPlaygroundAsset)
+	}
+
 	{
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", anonymousRequestBodyLimit, controller.PostSetup)

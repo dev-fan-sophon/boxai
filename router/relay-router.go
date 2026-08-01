@@ -62,7 +62,7 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter := router.Group("/pg")
 	playgroundRouter.Use(middleware.RouteTag("relay"))
 	playgroundRouter.Use(middleware.SystemPerformanceCheck())
-	playgroundRouter.Use(middleware.UserAuth())
+	playgroundRouter.Use(middleware.UserOrInternalServiceAuth())
 	{
 		playgroundRouter.POST("/chat/completions", middleware.Distribute(), controller.Playground)
 		playgroundRouter.POST("/responses", controller.PreparePlaygroundSearch(), middleware.Distribute(), controller.PlaygroundResponses)

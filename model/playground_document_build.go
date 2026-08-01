@@ -15,8 +15,12 @@ type PlaygroundDocumentBuild struct {
 	Id     int `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserId int `json:"-" gorm:"not null;index"`
 	// RunId links back to the playground_chat_tool_runs row that the chat turn created.
-	RunId          int `json:"run_id" gorm:"index"`
-	ConversationId int `json:"conversation_id" gorm:"index"`
+	// Zero for builds requested by the boxai-chat service, which tracks its own runs.
+	RunId int `json:"run_id" gorm:"index"`
+	// ExternalRunId is the boxai-chat run identifier for builds requested through the
+	// internal API, so the self-heal attempt cap survives service restarts.
+	ExternalRunId  string `json:"external_run_id,omitempty" gorm:"type:varchar(64);index"`
+	ConversationId int    `json:"conversation_id" gorm:"index"`
 	// SandboxKey is the conversation-scoped container identity, doc:{user_id}:{conversation_id}.
 	SandboxKey string `json:"-" gorm:"type:varchar(191);index"`
 	Status     string `json:"status" gorm:"type:varchar(32);not null;index"` // building | completed | failed
@@ -62,6 +66,14 @@ func UpdatePlaygroundDocumentBuild(id int, updates map[string]any) error {
 func CountPlaygroundDocumentBuildAttempts(runId, userId int) (int64, error) {
 	var n int64
 	err := DB.Model(&PlaygroundDocumentBuild{}).Where("run_id = ? AND user_id = ?", runId, userId).Count(&n).Error
+	return n, err
+}
+
+// CountPlaygroundDocumentBuildAttemptsByExternalRun is the attempt cap for builds
+// requested by the boxai-chat service, which has no gateway tool-run row.
+func CountPlaygroundDocumentBuildAttemptsByExternalRun(externalRunId string, userId int) (int64, error) {
+	var n int64
+	err := DB.Model(&PlaygroundDocumentBuild{}).Where("external_run_id = ? AND user_id = ?", externalRunId, userId).Count(&n).Error
 	return n, err
 }
 
