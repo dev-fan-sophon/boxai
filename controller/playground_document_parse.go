@@ -32,7 +32,7 @@ func ownedDocumentAsset(c *gin.Context) *model.PlaygroundAsset {
 	return asset
 }
 
-func playgroundParseDTO(assetId int, parse *model.PlaygroundDocumentParse) gin.H {
+func playgroundParseDTOWithPagePrefix(assetId int, parse *model.PlaygroundDocumentParse, pagePrefix string) gin.H {
 	dto := gin.H{
 		"status":     parse.Status,
 		"parser":     parse.Parser,
@@ -46,7 +46,7 @@ func playgroundParseDTO(assetId int, parse *model.PlaygroundDocumentParse) gin.H
 	case model.PlaygroundParseStatusNeedsOCR:
 		pageURLs := make([]string, 0, parse.OcrPageCount)
 		for page := 1; page <= parse.OcrPageCount; page++ {
-			pageURLs = append(pageURLs, fmt.Sprintf("/api/playground/assets/%d/parse/pages/%d", assetId, page))
+			pageURLs = append(pageURLs, fmt.Sprintf("%s/%d/parse/pages/%d", pagePrefix, assetId, page))
 		}
 		dto["ocr"] = gin.H{
 			"model":           parse.OcrModel,
@@ -57,6 +57,93 @@ func playgroundParseDTO(assetId int, parse *model.PlaygroundDocumentParse) gin.H
 		}
 	}
 	return dto
+}
+
+func playgroundParseDTO(assetId int, parse *model.PlaygroundDocumentParse) gin.H {
+	return playgroundParseDTOWithPagePrefix(assetId, parse, "/api/playground/assets")
+}
+
+func internalPlaygroundParseDTO(assetId int, parse *model.PlaygroundDocumentParse) gin.H {
+	return playgroundParseDTOWithPagePrefix(assetId, parse, "/api/internal/playground/assets")
+}
+
+// GetInternalPlaygroundAsset returns canonical owner-scoped metadata to a
+// trusted act-as caller without exposing storage or parse-cache internals.
+func GetInternalPlaygroundAsset(c *gin.Context) {
+	userId := c.GetInt("id")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ApiErrorMsg(c, "invalid asset id")
+		return
+	}
+	asset, err := model.GetPlaygroundAsset(id, userId)
+	if err != nil {
+		common.ApiErrorMsg(c, "asset not found")
+		return
+	}
+	if asset.URL == "" {
+		asset.URL = playgroundAssetContentURL(asset.Id)
+	}
+	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
+}
+
+// GetInternalPlaygroundAssetParse reports the cached parse contract to a
+// trusted act-as caller. OCR page URLs remain owner-scoped internal routes.
+func GetInternalPlaygroundAssetParse(c *gin.Context) {
+	asset := ownedDocumentAsset(c)
+	if asset == nil {
+		return
+	}
+	if asset.ContentHash == "" {
+		common.ApiErrorMsg(c, "document has not been parsed yet")
+		return
+	}
+	parse, err := model.GetPlaygroundDocumentParseByHash(asset.ContentHash)
+	if err != nil {
+		common.ApiErrorMsg(c, "document has not been parsed yet")
+		return
+	}
+	common.ApiSuccess(c, internalPlaygroundParseDTO(asset.Id, parse))
+}
+
+// EnsureInternalPlaygroundAssetParse extracts native document text or returns
+// an owner-scoped OCR contract. The trusted caller executes OCR through the
+// normal billed relay and imports the result with that one-time token.
+func EnsureInternalPlaygroundAssetParse(c *gin.Context) {
+	asset := ownedDocumentAsset(c)
+	if asset == nil {
+		return
+	}
+	userGroup, err := model.GetUserGroup(c.GetInt("id"), false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	var body struct {
+		Group string `json:"group"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	group := strings.TrimSpace(body.Group)
+	if group == "" {
+		group = userGroup
+	} else if !service.GroupInUserUsableGroups(userGroup, group) {
+		common.ApiErrorMsg(c, "group is not available to this user")
+		return
+	}
+	abilityGroups := []string{group}
+	if group == "auto" {
+		abilityGroups = service.GetUserAutoGroup(userGroup)
+	}
+	parse, err := service.RunPlaygroundDocumentParse(c.Request.Context(), asset, abilityGroups)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if parse.Status == model.PlaygroundParseStatusFailed {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"success": false, "message": parse.ErrorMessage, "data": gin.H{"status": parse.Status}})
+		return
+	}
+	common.ApiSuccess(c, internalPlaygroundParseDTO(asset.Id, parse))
 }
 
 // StartPlaygroundAssetParse runs (or resumes) the server-side document parse

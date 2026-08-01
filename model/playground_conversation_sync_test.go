@@ -15,7 +15,7 @@ func setupPlaygroundConversationTestDB(t *testing.T) {
 	old := DB
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&PlaygroundConversation{}, &PlaygroundMessage{}))
+	require.NoError(t, db.AutoMigrate(&PlaygroundConversation{}, &PlaygroundMessage{}, &PlaygroundMessageRevision{}, &PlaygroundAgentRun{}))
 	DB = db
 	t.Cleanup(func() { DB = old })
 }
@@ -62,6 +62,74 @@ func TestAppendPlaygroundMessagesRejectsForeignConversation(t *testing.T) {
 	require.NoError(t, CreatePlaygroundConversation(conv))
 
 	_, err := AppendPlaygroundMessages(conv.Id, 8, []PlaygroundMessage{{Role: "user", Content: "steal"}})
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+}
+
+func TestLegacyMessageMutationRejectsAgentManagedConversation(t *testing.T) {
+	setupPlaygroundConversationTestDB(t)
+	conv := &PlaygroundConversation{UserId: 7, Revision: 1}
+	require.NoError(t, CreatePlaygroundConversation(conv))
+
+	_, err := AppendPlaygroundMessages(conv.Id, 7, []PlaygroundMessage{{Role: "user", Content: "legacy append"}})
+	require.ErrorIs(t, err, ErrPlaygroundConversationAgentManaged)
+	err = ReplacePlaygroundMessages(conv.Id, 7, []PlaygroundMessage{{Role: "user", Content: "legacy replace"}})
+	require.ErrorIs(t, err, ErrPlaygroundConversationAgentManaged)
+
+	require.NoError(t, DB.Model(conv).Update("revision", 0).Error)
+	require.NoError(t, DB.Create(&PlaygroundAgentRun{
+		Id: "run", ConversationId: conv.Id, UserId: 7, RequestKey: "request", Operation: "append",
+		Status: "running", LeaseExpiresAt: time.Now().Add(time.Minute).Unix(),
+	}).Error)
+	require.NoError(t, DB.Model(conv).Update("active_run_id", "run").Error)
+	_, err = AppendPlaygroundMessages(conv.Id, 7, []PlaygroundMessage{{Role: "user", Content: "during run"}})
+	require.ErrorIs(t, err, ErrPlaygroundConversationAgentManaged)
+
+	require.NoError(t, DB.Model(&PlaygroundAgentRun{}).Where("id = ?", "run").Update("lease_expires_at", time.Now().Add(-time.Minute).Unix()).Error)
+	inserted, err := AppendPlaygroundMessages(conv.Id, 7, []PlaygroundMessage{{Role: "user", Content: "after expiry"}})
+	require.NoError(t, err)
+	assert.Len(t, inserted, 1)
+}
+
+func TestDeletePlaygroundConversationDeletesAgentHistory(t *testing.T) {
+	setupPlaygroundConversationTestDB(t)
+	conv := &PlaygroundConversation{UserId: 7}
+	require.NoError(t, CreatePlaygroundConversation(conv))
+	message := PlaygroundMessage{ConversationId: conv.Id, UserId: 7, Role: "user", Content: "hello"}
+	require.NoError(t, DB.Create(&message).Error)
+	require.NoError(t, DB.Create(&PlaygroundMessageRevision{MessageId: message.Id, ConversationId: conv.Id, UserId: 7, Revision: 1, Content: "hello"}).Error)
+	require.NoError(t, DB.Create(&PlaygroundAgentRun{Id: "run", ConversationId: conv.Id, UserId: 7, RequestKey: "request", Operation: "append", Status: "done"}).Error)
+
+	require.NoError(t, DeletePlaygroundConversation(conv.Id, 7))
+	for _, value := range []any{&PlaygroundMessageRevision{}, &PlaygroundAgentRun{}, &PlaygroundMessage{}, &PlaygroundConversation{}} {
+		var count int64
+		require.NoError(t, DB.Model(value).Count(&count).Error)
+		assert.Zero(t, count)
+	}
+}
+
+func TestDeletePlaygroundConversationRejectsActiveRun(t *testing.T) {
+	setupPlaygroundConversationTestDB(t)
+	conv := &PlaygroundConversation{UserId: 7}
+	require.NoError(t, CreatePlaygroundConversation(conv))
+	run := &PlaygroundAgentRun{
+		Id:             "active-run",
+		ConversationId: conv.Id,
+		UserId:         7,
+		RequestKey:     "active-request",
+		Operation:      "append",
+		Status:         "running",
+		LeaseExpiresAt: time.Now().Add(time.Minute).Unix(),
+	}
+	require.NoError(t, DB.Create(run).Error)
+	require.NoError(t, DB.Model(conv).Update("active_run_id", run.Id).Error)
+
+	require.ErrorIs(t, DeletePlaygroundConversation(conv.Id, 7), ErrPlaygroundConversationAgentManaged)
+	_, err := GetPlaygroundConversation(conv.Id, 7)
+	require.NoError(t, err)
+
+	require.NoError(t, DB.Model(run).Update("lease_expires_at", time.Now().Add(-time.Minute).Unix()).Error)
+	require.NoError(t, DeletePlaygroundConversation(conv.Id, 7))
+	_, err = GetPlaygroundConversation(conv.Id, 7)
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
 

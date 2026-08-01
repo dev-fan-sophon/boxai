@@ -30,14 +30,42 @@ func TestDetectPlaygroundAssetKind(t *testing.T) {
 		assert.Equal(t, "document", kind)
 	}
 
-	// Plain-text formats are read client-side; active content stays rejected.
+	// Plain-text formats are private document assets parsed by the gateway.
 	for _, mimeType := range []string{
 		"text/html",
 		"text/plain",
+		"text/csv",
+		"application/json",
+		"application/yaml",
 	} {
-		_, err = DetectPlaygroundAssetKind(mimeType)
-		assert.Error(t, err, mimeType)
+		kind, err = DetectPlaygroundAssetKind(mimeType)
+		require.NoError(t, err, mimeType)
+		assert.Equal(t, "document", kind)
 	}
+}
+
+func TestDetectPlaygroundAssetKindRejectsUnlistedTextMime(t *testing.T) {
+	_, err := DetectPlaygroundAssetKind("text/x-arbitrary")
+	require.Error(t, err)
+	assert.False(t, IsPlaygroundPlainTextMime("text/x-arbitrary"))
+}
+
+func TestSniffPlaygroundMimePlainText(t *testing.T) {
+	for _, test := range []struct{ name, declared, want string }{
+		{"markdown", "text/markdown", "text/markdown"},
+		{"csv", "text/csv", "text/csv"},
+		{"json", "application/json", "application/json"},
+		{"html", "text/html", "text/html"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			mimeType, kind, err := SniffPlaygroundMime([]byte("hello, world\r\n"), test.declared)
+			require.NoError(t, err)
+			assert.Equal(t, test.want, mimeType)
+			assert.Equal(t, "document", kind)
+		})
+	}
+	_, _, err := SniffPlaygroundMime([]byte{0xc0, 0xaf, 0x00}, "text/plain")
+	assert.Error(t, err)
 }
 
 func TestSniffPlaygroundMime_PDF(t *testing.T) {

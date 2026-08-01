@@ -29,7 +29,7 @@ const (
 	// MySQL TEXT holds 64KB; leave headroom for multi-byte truncation.
 	PlaygroundParseMaxTextBytes = 60000
 	// OCR page budget per document (product decision, billed to the user).
-	PlaygroundParseMaxOCRPages = 50
+	PlaygroundParseMaxOCRPages  = 50
 	playgroundParseOCRRenderDPI = 150
 	// Native text under this density means the PDF is a scan (or nearly so)
 	// and the text layer alone would silently drop the real content.
@@ -96,8 +96,13 @@ func executePlaygroundDocumentParse(ctx context.Context, parse *model.Playground
 	if err != nil {
 		return failPlaygroundParse(parse, "could not read stored document: "+err.Error())
 	}
+	if IsPlaygroundPlainTextMime(asset.Mime) && !utf8.Valid(content) {
+		return failPlaygroundParse(parse, "plain-text document is not valid UTF-8")
+	}
 
 	switch NormalizePlaygroundMime(asset.Mime) {
+	case "application/json", "application/xml", "application/yaml", "application/x-yaml":
+		return finishPlaygroundParse(parse, "plain-text", normalizePlaygroundText(string(content)), 0)
 	case MimeDocx, MimeXlsx, MimePptx:
 		text, extractErr := ExtractOfficeText(NormalizePlaygroundMime(asset.Mime), content)
 		if extractErr != nil {
@@ -107,8 +112,16 @@ func executePlaygroundDocumentParse(ctx context.Context, parse *model.Playground
 	case "application/pdf":
 		return parsePlaygroundPDF(ctx, parse, content, abilityGroups)
 	default:
+		if IsPlaygroundPlainTextMime(asset.Mime) {
+			return finishPlaygroundParse(parse, "plain-text", normalizePlaygroundText(string(content)), 0)
+		}
 		return failPlaygroundParse(parse, fmt.Sprintf("unsupported document type %s", asset.Mime))
 	}
+}
+
+func normalizePlaygroundText(text string) string {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	return strings.ReplaceAll(text, "\r", "\n")
 }
 
 func readPlaygroundAssetContent(ctx context.Context, asset *model.PlaygroundAsset) ([]byte, error) {

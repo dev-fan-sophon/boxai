@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
-	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -94,6 +94,19 @@ func UploadPlaygroundAsset(c *gin.Context) {
 		service.DeletePlaygroundAssetFile(backend, storageKey)
 		common.ApiError(c, err)
 		return
+	}
+	if kind == "document" && service.IsPlaygroundPlainTextMime(mimeType) {
+		parse, parseErr := service.RunPlaygroundDocumentParse(c.Request.Context(), asset, nil)
+		if parseErr != nil || parse.Status == model.PlaygroundParseStatusFailed {
+			service.DeletePlaygroundAssetFile(backend, storageKey)
+			_ = model.DeletePlaygroundAsset(asset.Id, userId)
+			if parseErr != nil {
+				common.ApiError(c, parseErr)
+			} else {
+				common.ApiErrorMsg(c, parse.ErrorMessage)
+			}
+			return
+		}
 	}
 	asset.URL = playgroundAssetContentURL(asset.Id)
 	_ = model.DB.Model(asset).Update("url", asset.URL).Error
@@ -177,6 +190,10 @@ func DeletePlaygroundAsset(c *gin.Context) {
 			return
 		}
 		common.ApiError(c, err)
+		return
+	}
+	if asset.Source == model.PlaygroundAssetSourceAttachment {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "attachment assets cannot be deleted while referenced by chat history"})
 		return
 	}
 	if err := model.DeletePlaygroundAsset(id, userId); err != nil {
@@ -479,6 +496,19 @@ func UploadPlaygroundUploadSessionFile(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if kind == "document" && service.IsPlaygroundPlainTextMime(mimeType) {
+		parse, parseErr := service.RunPlaygroundDocumentParse(c.Request.Context(), asset, nil)
+		if parseErr != nil || parse.Status == model.PlaygroundParseStatusFailed {
+			_ = model.DeletePlaygroundAsset(asset.Id, s.UserId)
+			service.DeletePlaygroundAssetFile(backend, storageKey)
+			if parseErr != nil {
+				common.ApiError(c, parseErr)
+			} else {
+				common.ApiErrorMsg(c, parse.ErrorMessage)
+			}
+			return
+		}
+	}
 	asset.URL = playgroundAssetContentURL(asset.Id)
 	_ = model.DB.Model(asset).Update("url", asset.URL).Error
 	ok, err := model.CompletePlaygroundUploadSession(s.Id, asset.Id)
@@ -697,6 +727,10 @@ func DeletePlaygroundConversation(c *gin.Context) {
 		return
 	}
 	if err := model.DeletePlaygroundConversation(id, userId); err != nil {
+		if errors.Is(err, model.ErrPlaygroundConversationAgentManaged) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "stop the active response before deleting this conversation"})
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiErrorMsg(c, "conversation not found")
 			return
@@ -816,6 +850,10 @@ func PutPlaygroundConversationMessages(c *gin.Context) {
 		return
 	}
 	if err := model.ReplacePlaygroundMessages(id, userId, msgs); err != nil {
+		if errors.Is(err, model.ErrPlaygroundConversationAgentManaged) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiErrorMsg(c, "conversation not found")
 			return
@@ -864,6 +902,10 @@ func AppendPlaygroundConversationMessages(c *gin.Context) {
 	}
 	inserted, err := model.AppendPlaygroundMessages(id, userId, msgs)
 	if err != nil {
+		if errors.Is(err, model.ErrPlaygroundConversationAgentManaged) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiErrorMsg(c, "conversation not found")
 			return

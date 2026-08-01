@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/dev-fan-sophon/boxai/service/storage"
 	"github.com/google/uuid"
@@ -57,10 +58,19 @@ var playgroundAudioMimes = map[string]bool{
 // server-side document parse pipeline. Content is only ever delivered back
 // with attachment disposition, never rendered inline on our origin.
 var playgroundDocumentMimes = map[string]bool{
-	"application/pdf": true,
-	MimeDocx:          true,
-	MimeXlsx:          true,
-	MimePptx:          true,
+	"application/pdf":           true,
+	"application/json":          true,
+	"application/xml":           true,
+	"application/yaml":          true,
+	"application/x-yaml":        true,
+	MimeDocx:                    true,
+	MimeXlsx:                    true,
+	MimePptx:                    true,
+	"text/plain":                true,
+	"text/markdown":             true,
+	"text/csv":                  true,
+	"text/tab-separated-values": true,
+	"text/html":                 true,
 }
 
 const (
@@ -134,9 +144,17 @@ func SniffPlaygroundMime(header []byte, declared string) (mimeType string, kind 
 	if detectedMime, detectedKind, ok := sniffPlaygroundContainer(header, declared); ok {
 		return detectedMime, detectedKind, nil
 	}
+	if IsPlaygroundPlainTextMime(declared) && (strings.HasPrefix(sniffed, "text/") || sniffed == "application/json" || sniffed == "application/xml") {
+		if !utf8.Valid(header) {
+			return "", "", fmt.Errorf("plain-text document is not valid UTF-8")
+		}
+		return declared, "document", nil
+	}
 
-	// Prefer sniffed when it is allowlisted
-	if k, e := DetectPlaygroundAssetKind(sniffed); e == nil {
+	// Prefer sniffed binary formats when allowlisted. Text requires an explicit
+	// text MIME or recognized filename extension so arbitrary bytes cannot be
+	// relabeled as a document (or bypass another kind's size limit).
+	if k, e := DetectPlaygroundAssetKind(sniffed); e == nil && !IsPlaygroundPlainTextMime(sniffed) {
 		return sniffed, k, nil
 	}
 
@@ -268,6 +286,9 @@ func SavePlaygroundAssetFile(userId int, originalName, declaredMime string, r io
 	if int64(len(content)) > max {
 		return "", "", "", "", "", fmt.Errorf("file exceeds size limit (%d bytes)", max)
 	}
+	if kind == "document" && IsPlaygroundPlainTextMime(mimeType) && !utf8.Valid(content) {
+		return "", "", "", "", "", fmt.Errorf("plain-text document is not valid UTF-8")
+	}
 
 	if kind == "document" {
 		sum := sha256.Sum256(content)
@@ -297,9 +318,32 @@ func normalizeDeclaredDocumentMime(originalName, declared string) string {
 		return MimeXlsx
 	case ".pptx":
 		return MimePptx
+	case ".md", ".markdown":
+		return "text/markdown"
+	case ".csv":
+		return "text/csv"
+	case ".tsv":
+		return "text/tab-separated-values"
+	case ".json":
+		return "application/json"
+	case ".xml":
+		return "application/xml"
+	case ".yaml", ".yml":
+		return "application/yaml"
+	case ".html", ".htm":
+		return "text/html"
+	case ".txt", ".log":
+		return "text/plain"
 	default:
 		return declared
 	}
+}
+
+// IsPlaygroundPlainTextMime reports whether a document can be parsed directly
+// as UTF-8 text without invoking OCR or another model.
+func IsPlaygroundPlainTextMime(mimeType string) bool {
+	mimeType = NormalizePlaygroundMime(mimeType)
+	return playgroundDocumentMimes[mimeType] && mimeType != "application/pdf" && mimeType != MimeDocx && mimeType != MimeXlsx && mimeType != MimePptx
 }
 
 // OpenPlaygroundAssetContent resolves an asset for same-origin delivery.

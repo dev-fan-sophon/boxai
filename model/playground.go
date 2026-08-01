@@ -1,12 +1,15 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"gorm.io/gorm"
 )
+
+var ErrPlaygroundConversationAgentManaged = errors.New("conversation is managed by the agent gateway")
 
 // PlaygroundAsset stores user-owned media for the playground workbench.
 type PlaygroundAsset struct {
@@ -125,19 +128,28 @@ type PlaygroundConversation struct {
 	SummarySeq     int    `json:"-"`
 	// MemorySeq is the highest message seq already scanned for long-memory
 	// extraction.
-	MemorySeq int   `json:"-"`
-	CreatedAt int64 `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt int64 `json:"updated_at" gorm:"bigint;index"`
+	MemorySeq int `json:"-"`
+	// Revision is bumped by every agent-owned history mutation. ActiveRunId
+	// fences a streaming completion so an obsolete request cannot write after
+	// an edit, delete, or regeneration changed the transcript.
+	Revision           int64  `json:"revision" gorm:"bigint"`
+	ActiveRunId        string `json:"-" gorm:"type:varchar(64);index"`
+	ActiveRunStartedAt int64  `json:"-" gorm:"bigint"`
+	CreatedAt          int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt          int64  `json:"updated_at" gorm:"bigint;index"`
 }
 
 func (PlaygroundConversation) TableName() string { return "playground_conversations" }
 
 // PlaygroundMessage is a single turn in a conversation (normalized).
 type PlaygroundMessage struct {
-	Id             int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	ConversationId int    `json:"conversation_id" gorm:"not null;index"`
-	UserId         int    `json:"user_id" gorm:"not null;index"`
-	Role           string `json:"role" gorm:"type:varchar(32);not null"` // user | assistant | system
+	Id             int `json:"id" gorm:"primaryKey;autoIncrement"`
+	ConversationId int `json:"conversation_id" gorm:"not null;index"`
+	UserId         int `json:"user_id" gorm:"not null;index"`
+	// ParentMessageId links an assistant turn to the user turn it answers.
+	// Legacy rows keep zero and are paired by sequence when first mutated.
+	ParentMessageId int    `json:"parent_message_id" gorm:"index"`
+	Role            string `json:"role" gorm:"type:varchar(32);not null"` // user | assistant | system
 	// type:text is portable across SQLite / MySQL / PostgreSQL.
 	// (MySQL TEXT is 64KB; large messages are also capped in the API layer.)
 	// Do NOT use longtext — PostgreSQL rejects it (SQLSTATE 42704).
@@ -154,12 +166,55 @@ type PlaygroundMessage struct {
 	// ClientKey is the frontend message key used for idempotent merge.
 	ClientKey string `json:"client_key" gorm:"type:varchar(64)"`
 	// Source is the client that wrote the turn: "web" | "desktop". Empty = web.
-	Source    string `json:"source" gorm:"type:varchar(20)"`
-	Seq       int    `json:"seq" gorm:"not null;index"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint"`
+	Source string `json:"source" gorm:"type:varchar(20)"`
+	// Status: complete | error | stopped. Empty on legacy rows means complete.
+	Status         string `json:"status" gorm:"type:varchar(20)"`
+	ActiveRevision int    `json:"active_revision"`
+	Seq            int    `json:"seq" gorm:"not null;index"`
+	CreatedAt      int64  `json:"created_at" gorm:"bigint"`
+	UpdatedAt      int64  `json:"updated_at" gorm:"bigint"`
 }
 
 func (PlaygroundMessage) TableName() string { return "playground_messages" }
+
+// PlaygroundMessageRevision is an immutable snapshot of one user or
+// assistant message. The message row mirrors the active snapshot for backward
+// compatibility with older clients and gateway code.
+type PlaygroundMessageRevision struct {
+	Id             int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	MessageId      int    `json:"message_id" gorm:"not null;uniqueIndex:idx_pg_message_revision"`
+	ConversationId int    `json:"conversation_id" gorm:"not null;index"`
+	UserId         int    `json:"user_id" gorm:"not null;index"`
+	Revision       int    `json:"revision" gorm:"not null;uniqueIndex:idx_pg_message_revision"`
+	Content        string `json:"content" gorm:"type:text"`
+	ContentJson    string `json:"content_json" gorm:"type:text"`
+	Model          string `json:"model" gorm:"type:varchar(191)"`
+	ToolJson       string `json:"tool_json" gorm:"type:text"`
+	Status         string `json:"status" gorm:"type:varchar(20)"`
+	CreatedAt      int64  `json:"created_at" gorm:"bigint"`
+}
+
+func (PlaygroundMessageRevision) TableName() string { return "playground_message_revisions" }
+
+// PlaygroundAgentRun is the durable idempotency and completion-fencing record
+// for one server-owned agent generation.
+type PlaygroundAgentRun struct {
+	Id                 string `json:"id" gorm:"type:varchar(64);primaryKey"`
+	ConversationId     int    `json:"conversation_id" gorm:"not null;index"`
+	UserId             int    `json:"user_id" gorm:"not null;uniqueIndex:idx_pg_agent_request"`
+	RequestKey         string `json:"request_key" gorm:"type:varchar(64);not null;uniqueIndex:idx_pg_agent_request"`
+	Operation          string `json:"operation" gorm:"type:varchar(32);not null"`
+	UserMessageId      int    `json:"user_message_id" gorm:"index"`
+	AssistantMessageId int    `json:"assistant_message_id" gorm:"index"`
+	BaseRevision       int64  `json:"base_revision" gorm:"bigint"`
+	Status             string `json:"status" gorm:"type:varchar(20);not null;index"`
+	ErrorMessage       string `json:"error" gorm:"type:text"`
+	LeaseExpiresAt     int64  `json:"lease_expires_at" gorm:"bigint;index"`
+	CreatedAt          int64  `json:"created_at" gorm:"bigint"`
+	UpdatedAt          int64  `json:"updated_at" gorm:"bigint"`
+}
+
+func (PlaygroundAgentRun) TableName() string { return "playground_agent_runs" }
 
 // PlaygroundProject is a cloud-synced Studio work item (image/video/audio).
 // Runs are immutable children linked via ProjectId on PlaygroundRun.
@@ -516,6 +571,21 @@ func UpdatePlaygroundConversation(c *PlaygroundConversation) error {
 
 func DeletePlaygroundConversation(id int, userId int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
+		var conv PlaygroundConversation
+		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", id, userId).First(&conv).Error; err != nil {
+			return err
+		}
+		if active, err := playgroundConversationHasActiveRun(tx, &conv); err != nil {
+			return err
+		} else if active {
+			return ErrPlaygroundConversationAgentManaged
+		}
+		if err := tx.Where("conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundMessageRevision{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundAgentRun{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundMessage{}).Error; err != nil {
 			return err
 		}
@@ -617,8 +687,13 @@ func ListPlaygroundRunsByProject(userId, projectId int) ([]PlaygroundRun, error)
 func ReplacePlaygroundMessages(conversationId, userId int, messages []PlaygroundMessage) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		var conv PlaygroundConversation
-		if err := tx.Where("id = ? AND user_id = ?", conversationId, userId).First(&conv).Error; err != nil {
+		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", conversationId, userId).First(&conv).Error; err != nil {
 			return err
+		}
+		if managed, err := playgroundConversationHasAgentState(tx, &conv); err != nil {
+			return err
+		} else if managed {
+			return ErrPlaygroundConversationAgentManaged
 		}
 		if err := tx.Where("conversation_id = ? AND user_id = ?", conversationId, userId).Delete(&PlaygroundMessage{}).Error; err != nil {
 			return err
@@ -657,6 +732,11 @@ func AppendPlaygroundMessages(conversationId, userId int, messages []PlaygroundM
 		// Lock the thread row to serialize seq assignment across clients.
 		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", conversationId, userId).First(&conv).Error; err != nil {
 			return err
+		}
+		if managed, err := playgroundConversationHasAgentState(tx, &conv); err != nil {
+			return err
+		} else if managed {
+			return ErrPlaygroundConversationAgentManaged
 		}
 
 		keys := make([]string, 0, len(messages))
@@ -713,6 +793,24 @@ func AppendPlaygroundMessages(conversationId, userId int, messages []PlaygroundM
 		return nil, err
 	}
 	return inserted, nil
+}
+
+func playgroundConversationHasAgentState(tx *gorm.DB, conv *PlaygroundConversation) (bool, error) {
+	if conv.Revision > 0 {
+		return true, nil
+	}
+	return playgroundConversationHasActiveRun(tx, conv)
+}
+
+func playgroundConversationHasActiveRun(tx *gorm.DB, conv *PlaygroundConversation) (bool, error) {
+	if conv.ActiveRunId == "" {
+		return false, nil
+	}
+	var count int64
+	err := tx.Model(&PlaygroundAgentRun{}).
+		Where("id = ? AND conversation_id = ? AND user_id = ? AND lease_expires_at > ?", conv.ActiveRunId, conv.Id, conv.UserId, time.Now().Unix()).
+		Count(&count).Error
+	return count > 0, err
 }
 
 // ListPlaygroundMessagesPage returns up to limit rows with id > sinceId in
