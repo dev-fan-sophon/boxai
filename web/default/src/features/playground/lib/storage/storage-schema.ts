@@ -54,15 +54,39 @@ const sourceSchema = z.object({
   publishedAt: z.string().optional(),
 })
 
+const managedDocumentArtifactSchema = z.object({
+  assetId: z.number().int().positive(),
+  name: z.string(),
+  url: z.string().optional(),
+  mime: z.string(),
+  size: z.number(),
+  verified: z.boolean(),
+})
+
+// Must cover every field of ManagedToolCard (types.ts) that should survive a
+// reload; an action or field missing here silently invalidates the whole
+// stored message on load.
 const managedToolSchema = z.object({
   runId: z.number().int().positive().optional(),
-  action: z.enum(['generate_image', 'generate_video', 'web_search']),
+  action: z.enum([
+    'generate_image',
+    'generate_video',
+    'web_search',
+    'generate_document',
+  ]),
   status: z.enum(['queued', 'running', 'submitted', 'completed', 'failed']),
   model: z.string().optional(),
   taskId: z.string().optional(),
   images: z.array(z.string()).optional(),
   videoUrl: z.string().optional(),
   error: z.string().optional(),
+  stage: z.string().optional(),
+  stageDetail: z.string().optional(),
+  startedAt: z.number().optional(),
+  documents: z.array(managedDocumentArtifactSchema).optional(),
+  documentCode: z.string().optional(),
+  documentLogs: z.string().optional(),
+  documentAttempts: z.number().optional(),
 })
 
 const attachmentIdentitySchema = {
@@ -147,4 +171,5 @@ const messageSchema = z.object({
   usage: usageSchema.optional(),
 })
 
+export { messageSchema }
 export const messagesSchema = z.array(messageSchema)

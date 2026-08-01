@@ -86,10 +86,13 @@ func DeleteAllPlaygroundUserMemories(userId int) error {
 // --- Conversation memory cursors ---
 
 // UpdatePlaygroundConversationMemoryCursor advances the extraction cursor only
-// forward, so concurrent maintenance runs cannot rewind each other.
+// forward, so concurrent maintenance runs cannot rewind each other. Rows that
+// predate the memory columns hold NULL, and `NULL < n` is NULL in SQL, so the
+// guard must treat NULL as "never advanced" or those conversations can never
+// store a cursor at all.
 func UpdatePlaygroundConversationMemoryCursor(conversationId, userId, memorySeq int) error {
 	return DB.Model(&PlaygroundConversation{}).
-		Where("id = ? AND user_id = ? AND memory_seq < ?", conversationId, userId, memorySeq).
+		Where("id = ? AND user_id = ? AND (memory_seq < ? OR memory_seq IS NULL)", conversationId, userId, memorySeq).
 		Update("memory_seq", memorySeq).Error
 }
 
@@ -99,7 +102,7 @@ func UpdatePlaygroundConversationMemoryCursor(conversationId, userId, memorySeq 
 // up the fresh summary.
 func UpdatePlaygroundConversationSummary(conversationId, userId int, summary, tailKey string, summarySeq int) error {
 	return DB.Model(&PlaygroundConversation{}).
-		Where("id = ? AND user_id = ? AND summary_seq < ?", conversationId, userId, summarySeq).
+		Where("id = ? AND user_id = ? AND (summary_seq < ? OR summary_seq IS NULL)", conversationId, userId, summarySeq).
 		Updates(map[string]any{
 			"summary":          summary,
 			"summary_tail_key": tailKey,

@@ -1,4 +1,6 @@
-import { MESSAGE_STATUS, STORAGE_KEYS } from '../../constants'
+import { t } from 'i18next'
+
+import { ERROR_MESSAGES, MESSAGE_STATUS, STORAGE_KEYS } from '../../constants'
 import type { PlaygroundConfig, ParameterEnabled, Message } from '../../types'
 import {
   finalizeMessage,
@@ -321,11 +323,38 @@ export function saveParameterEnabled(
 }
 
 /**
+ * A tool run does not survive a reload: its execution loop lived in the old
+ * page. Leaving the card in queued/running keeps a spinner (and elapsed
+ * timer) ticking forever, so it settles to failed. Submitted stays: those
+ * are server-side tasks a future poll could still resolve.
+ */
+function finalizeInterruptedToolCard(message: Message): Message {
+  const card = message.managedTool
+  if (!card || (card.status !== 'queued' && card.status !== 'running')) {
+    return message
+  }
+  return {
+    ...message,
+    managedTool: {
+      ...card,
+      status: 'failed',
+      // The key doubles as the English source string when i18n is not up yet.
+      error:
+        card.error ||
+        t(ERROR_MESSAGES.INTERRUPTED) ||
+        ERROR_MESSAGES.INTERRUPTED,
+    },
+  }
+}
+
+/**
  * Normalize, trim and sanitize messages parsed from persisted storage.
  * Shared by the legacy per-key loader and the merged playground store.
  */
 export function prepareLoadedMessages(parsed: Message[]): Message[] {
-  const normalized = parsed.map(normalizeStoredMessageForLoad)
+  const normalized = parsed
+    .map(normalizeStoredMessageForLoad)
+    .map(finalizeInterruptedToolCard)
   const trimmed = trimMessages(normalized)
   const sizeTrimmed = trimMessagesByContentSize(trimmed)
   return sanitizeMessagesOnLoad(sizeTrimmed).filter(

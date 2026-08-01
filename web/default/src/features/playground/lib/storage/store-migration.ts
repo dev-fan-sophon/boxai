@@ -36,7 +36,7 @@ import { loadMessages, prepareLoadedMessages } from './storage'
 import {
   MAX_PERSISTED_ATTACHMENT_CHARS,
   MAX_STORED_MESSAGES,
-  messagesSchema,
+  messageSchema,
   playgroundConfigSchema,
 } from './storage-schema'
 
@@ -439,7 +439,7 @@ function normalizeSessionRecord(
       : undefined
 
   if (modality === 'chat') {
-    const messages = normalizeMessagesField(value.messages)
+    const messages = salvageMessagesField(value.messages)
     const kind = value.kind === 'duo' ? 'duo' : 'chat'
     let duoMeta: { answerModels: string[]; summaryModel: string } | undefined
     if (isRecord(value.duoMeta)) {
@@ -592,13 +592,31 @@ function normalizeParameterEnabledField(value: unknown): ParameterEnabled {
   return result
 }
 
-function normalizeMessagesField(value: unknown): Message[] {
-  try {
-    const parsed = messagesSchema.parse(value) as Message[]
-    return prepareLoadedMessages(parsed)
-  } catch {
-    return readLegacyMessages()
+/**
+ * Parse stored messages row by row, dropping only the rows the schema
+ * rejects. All-or-nothing parsing turned one unrecognized field into the
+ * loss of a whole session's history, and the old whole-array fallback then
+ * injected the pre-session legacy transcript into that session — unrelated
+ * old turns silently became the conversation's context.
+ */
+function salvageMessagesField(value: unknown): Message[] {
+  if (!Array.isArray(value)) return []
+  const kept: Message[] = []
+  for (const item of value) {
+    const parsed = messageSchema.safeParse(item)
+    if (parsed.success) kept.push(parsed.data as Message)
   }
+  return prepareLoadedMessages(kept)
+}
+
+/** v2 → v3 import of the global message list; sessions never fall back here. */
+function normalizeMessagesField(value: unknown): Message[] {
+  if (!Array.isArray(value)) return readLegacyMessages()
+  const salvaged = salvageMessagesField(value)
+  // A wholly unreadable v2 list still recovers from the legacy key; that
+  // fallback is safe here because this list *is* the legacy-era transcript.
+  if (salvaged.length === 0 && value.length > 0) return readLegacyMessages()
+  return salvaged
 }
 
 function extractPersistedEnvelopeState(value: unknown): unknown {

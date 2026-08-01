@@ -222,6 +222,130 @@ describe('loadPersistedPlaygroundState', () => {
     )
   })
 
+  it('keeps document-generation cards and their artifacts across a reload', () => {
+    const documentMessage: Message = {
+      key: 'doc1',
+      from: 'assistant',
+      versions: [{ id: 'v1', content: 'built your document' }],
+      status: 'complete',
+      managedTool: {
+        action: 'generate_document',
+        status: 'completed',
+        startedAt: 1_700_000_000_000,
+        documents: [
+          {
+            assetId: 12,
+            name: 'report.pdf',
+            url: '/api/playground/assets/12/content',
+            mime: 'application/pdf',
+            size: 2048,
+            verified: true,
+          },
+        ],
+        documentAttempts: 2,
+      },
+    }
+    seedV2({
+      workspaceMode: 'model',
+      activeModality: 'chat',
+      config: { model: 'gpt-4o' },
+      sessions: [
+        {
+          id: 's_doc',
+          modality: 'chat',
+          title: 'Doc session',
+          model: 'gpt-4o',
+          group: 'default',
+          messages: [userMessage, documentMessage],
+          isDraft: false,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      activeSessionByModality: { chat: 's_doc' },
+      ui: { settingsPanelOpen: true },
+    })
+
+    const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
+    expect(messages).toHaveLength(2)
+    expect(messages[1].managedTool?.action).toBe('generate_document')
+    expect(messages[1].managedTool?.documents?.[0].name).toBe('report.pdf')
+    expect(messages[1].managedTool?.documentAttempts).toBe(2)
+  })
+
+  it('drops only the unparseable rows of a session, never importing legacy turns', () => {
+    seedLegacyKeys()
+    seedV2({
+      workspaceMode: 'model',
+      activeModality: 'chat',
+      config: { model: 'gpt-4o' },
+      sessions: [
+        {
+          id: 's_mixed',
+          modality: 'chat',
+          title: 'Mixed session',
+          model: 'gpt-4o',
+          group: 'default',
+          messages: [
+            {
+              key: 'good',
+              from: 'user',
+              versions: [{ id: 'v1', content: 'kept' }],
+            },
+            { key: 'broken', from: 'assistant', versions: 'not-an-array' },
+          ],
+          isDraft: false,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      activeSessionByModality: { chat: 's_mixed' },
+      ui: { settingsPanelOpen: true },
+    })
+
+    const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
+    expect(messages).toHaveLength(1)
+    expect(messages[0].key).toBe('good')
+  })
+
+  it('settles interrupted tool cards to failed on load', () => {
+    const runningCard: Message = {
+      key: 'run1',
+      from: 'assistant',
+      versions: [{ id: 'v1', content: 'searching…' }],
+      status: 'complete',
+      managedTool: {
+        action: 'web_search',
+        status: 'running',
+        startedAt: 1_700_000_000_000,
+      },
+    }
+    seedV2({
+      workspaceMode: 'model',
+      activeModality: 'chat',
+      config: { model: 'gpt-4o' },
+      sessions: [
+        {
+          id: 's_run',
+          modality: 'chat',
+          title: 'Interrupted session',
+          model: 'gpt-4o',
+          group: 'default',
+          messages: [userMessage, runningCard],
+          isDraft: false,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      activeSessionByModality: { chat: 's_run' },
+      ui: { settingsPanelOpen: true },
+    })
+
+    const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
+    expect(messages[1].managedTool?.status).toBe('failed')
+    expect(messages[1].managedTool?.error).toBeTruthy()
+  })
+
   it('removes persisted legacy model-switch markers during hydration', () => {
     const marker: Message = {
       key: 'model-change-1',

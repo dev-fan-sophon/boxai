@@ -136,6 +136,28 @@ func TestMaintainPlaygroundSummaryRollingWindow(t *testing.T) {
 	assert.Equal(t, 15, again.SummarySeq)
 }
 
+// Conversations created before the memory columns existed hold NULL seq
+// cursors, and `NULL < n` is NULL in SQL: without a NULL-aware guard the
+// summary write silently matches zero rows forever.
+func TestSummaryAndCursorWritesReachPreMigrationNullRows(t *testing.T) {
+	setupPlaygroundMemoryTestDB(t)
+	conv := &model.PlaygroundConversation{UserId: 1, Title: "legacy"}
+	require.NoError(t, model.CreatePlaygroundConversation(conv))
+	require.NoError(t, model.DB.Exec(
+		"UPDATE playground_conversations SET summary_seq = NULL, memory_seq = NULL WHERE id = ?",
+		conv.Id,
+	).Error)
+
+	require.NoError(t, model.UpdatePlaygroundConversationSummary(conv.Id, 1, "recovered summary", "k9", 9))
+	require.NoError(t, model.UpdatePlaygroundConversationMemoryCursor(conv.Id, 1, 9))
+
+	updated, err := model.GetPlaygroundConversation(conv.Id, 1)
+	require.NoError(t, err)
+	assert.Equal(t, "recovered summary", updated.Summary)
+	assert.Equal(t, 9, updated.SummarySeq)
+	assert.Equal(t, 9, updated.MemorySeq)
+}
+
 func TestPlaygroundMemoryEndpointFailureDegradesGracefully(t *testing.T) {
 	setupPlaygroundMemoryTestDB(t)
 	playgroundMemoryFailureUntil.Store(0)
