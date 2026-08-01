@@ -1,5 +1,5 @@
+import { consumeStream } from 'ai'
 import type { UIMessage } from 'ai'
-import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 
@@ -7,12 +7,25 @@ import { sessionAuth } from '../auth'
 import type { AuthEnv } from '../auth'
 import { assembleContext } from '../context/assemble'
 import { db } from '../db'
-import { appendMessage } from '../db/append'
+import {
+  AgentConflictError,
+  failAgentRun,
+  finishAgentRun,
+  startAgentRun,
+  stopAgentRun,
+} from '../db/agent-history'
 import { conversations } from '../db/schema'
 import { encodeLegacyToolJson } from '../db/tool-json'
+import { registerActiveRun } from '../engine/active-runs'
 import { runAgent } from '../engine/run-agent'
-import { truncateRunes } from '../http'
+import { truncateRunes, truncateUtf8 } from '../http'
 import { runMemoryMaintenance } from '../memory/maintenance'
+import {
+  assetIdFromFilePart,
+  AttachmentError,
+  canonicalizeUserMessage,
+  storedMessageParts,
+} from '../messages/content'
 import { buildTools } from '../tools'
 
 const chatRequestSchema = z.object({
@@ -21,9 +34,13 @@ const chatRequestSchema = z.object({
   group: z.string().max(50).optional(),
   system: z.string().max(20_000).optional(),
   longMemory: z.boolean().optional(),
-  assetIds: z.array(z.number().int().positive()).max(8).optional(),
   source: z.enum(['web', 'desktop']).optional(),
-  message: z.unknown(),
+  trigger: z
+    .enum(['submit-message', 'regenerate-message'])
+    .default('submit-message'),
+  messageId: z.string().min(1).max(64).optional(),
+  requestKey: z.string().uuid(),
+  message: z.unknown().optional(),
 })
 
 type UIMessagePart = { type: string; text?: string }
@@ -36,6 +53,21 @@ function messageText(message: UIMessage): string {
     .join('\n')
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function persistedAssistantParts(parts: UIMessage['parts']): string {
+  try {
+    const json = JSON.stringify(parts, (key, value) =>
+      key === 'providerMetadata' ? undefined : value
+    )
+    return Buffer.byteLength(json, 'utf8') <= 60_000 ? json : ''
+  } catch {
+    return ''
+  }
+}
+
 export const chatRoute = new Hono<AuthEnv>()
 
 chatRoute.post('/', sessionAuth, async (c) => {
@@ -44,117 +76,229 @@ chatRoute.post('/', sessionAuth, async (c) => {
     return c.json({ success: false, message: 'invalid chat request' }, 400)
   }
   const user = c.get('user')
-  const { model, group, system, conversationId, assetIds, source } = parsed.data
+  const { model, group, system, trigger, messageId, requestKey, source } =
+    parsed.data
   const longMemory = parsed.data.longMemory ?? false
-  const incoming = parsed.data.message as UIMessage
-  const userText = messageText(incoming)
-  if (!userText.trim()) {
-    return c.json({ success: false, message: 'message text is required' }, 400)
+  const requestedGroup = group || user.group
+
+  let incoming: Awaited<ReturnType<typeof canonicalizeUserMessage>> | undefined
+  if (trigger === 'submit-message') {
+    if (!parsed.data.message) {
+      return c.json({ success: false, message: 'message is required' }, 400)
+    }
+    try {
+      incoming = await canonicalizeUserMessage(
+        user.id,
+        parsed.data.message as UIMessage,
+        requestedGroup,
+        c.req.raw.signal
+      )
+    } catch (error) {
+      const status = error instanceof AttachmentError ? 400 : 400
+      return c.json({ success: false, message: errorMessage(error) }, status)
+    }
+  } else if (!messageId) {
+    return c.json(
+      { success: false, message: 'messageId is required for regeneration' },
+      400
+    )
   }
 
-  // Resolve or create the conversation; the server owns history from here on.
-  let conv: typeof conversations.$inferSelect | undefined
-  const now = Math.floor(Date.now() / 1000)
-  if (conversationId) {
-    ;[conv] = await db
-      .select()
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.id, conversationId),
-          eq(conversations.userId, user.id)
-        )
-      )
-    if (!conv) {
+  let conversationId = parsed.data.conversationId
+  if (!conversationId) {
+    if (!incoming || messageId || trigger !== 'submit-message') {
       return c.json({ success: false, message: 'conversation not found' }, 404)
     }
-  } else {
-    ;[conv] = await db
+    const now = Math.floor(Date.now() / 1000)
+    const firstFile = incoming.uiMessage.parts.find(
+      (part) => part.type === 'file'
+    )
+    const initialTitle =
+      incoming.content.trim() || firstFile?.filename || 'New chat'
+    const [created] = await db
       .insert(conversations)
       .values({
         userId: user.id,
-        title: truncateRunes(userText.trim() || 'New chat', 200),
+        title: truncateRunes(initialTitle, 48),
         model,
         group: group ?? '',
         kind: 'chat',
         source: source ?? 'web',
+        summary: '',
+        summaryTailKey: '',
+        summarySeq: 0,
+        memorySeq: 0,
+        revision: 0,
+        activeRunId: '',
+        activeRunStartedAt: 0,
         createdAt: now,
         updatedAt: now,
       })
       .returning()
-    if (!conv) {
+    if (!created) {
       return c.json(
         { success: false, message: 'could not create conversation' },
         500
       )
     }
+    conversationId = created.id
   }
-  const conversation = conv
-  const selectedGroup = group || conversation.group || user.group
+  c.header('X-Conversation-Id', String(conversationId))
 
-  // Context is assembled before the new turn is persisted so the incoming
-  // message is not duplicated into the history window.
-  const context = await assembleContext(conversation, { longMemory })
+  let started: Awaited<ReturnType<typeof startAgentRun>>
+  try {
+    started = await startAgentRun({
+      conversationId,
+      userId: user.id,
+      trigger,
+      targetMessageKey: messageId,
+      incoming: incoming
+        ? {
+            content: incoming.content,
+            contentJson: incoming.contentJson,
+            clientKey: incoming.uiMessage.id,
+            source: source ?? 'web',
+          }
+        : undefined,
+      requestKey,
+      model,
+    })
+  } catch (error) {
+    const status = error instanceof AgentConflictError ? 409 : 400
+    return c.json({ success: false, message: errorMessage(error) }, status)
+  }
 
-  const appended = await appendMessage(conversation.id, user.id, {
+  // Bind a newly created conversation even if attachment hydration or model
+  // setup fails after the user turn has already been durably accepted.
+  c.header('X-Agent-Run-Id', started.runId)
+
+  const selectedGroup = group || started.conversation.group || user.group
+  const generationController = new AbortController()
+  const abortGeneration = () =>
+    generationController.abort(c.req.raw.signal.reason)
+  if (c.req.raw.signal.aborted) abortGeneration()
+  else
+    c.req.raw.signal.addEventListener('abort', abortGeneration, { once: true })
+  const unregisterRun = registerActiveRun(
+    started.runId,
+    user.id,
+    conversationId,
+    generationController
+  )
+  let context
+  try {
+    context = await assembleContext(started.conversation, {
+      longMemory,
+      group: selectedGroup,
+      signal: generationController.signal,
+      excludeMessageId: started.assistantMessage?.id,
+    })
+  } catch (error) {
+    unregisterRun()
+    await failAgentRun(started.runId, user.id, errorMessage(error))
+    return c.json({ success: false, message: errorMessage(error) }, 400)
+  }
+
+  const userParts = storedMessageParts(
+    started.userMessage.content ?? '',
+    started.userMessage.contentJson ?? ''
+  )
+  const assetIds = userParts
+    .filter((part) => part.type === 'file')
+    .map(assetIdFromFilePart)
+    .filter((id): id is number => id !== null)
+  const originalUserMessage: UIMessage = {
+    id: started.userMessage.clientKey || `srv-${started.userMessage.id}`,
     role: 'user',
-    content: userText,
-    model,
-    clientKey: incoming.id,
-    source: source ?? 'web',
-  })
-  if (!appended) {
-    return c.json({ success: false, message: 'message already submitted' }, 409)
+    parts: userParts,
   }
 
-  const result = await runAgent({
-    userId: user.id,
-    modelId: model,
-    group: selectedGroup,
-    system,
-    messages: [incoming],
-    contextMessages: context,
-    tools: buildTools({
+  let result
+  try {
+    const tools = buildTools({
       userId: user.id,
       group: selectedGroup,
       modelId: model,
-      conversationId: conversation.id,
+      conversationId,
       assetIds,
-    }),
-    abortSignal: c.req.raw.signal,
-  })
+    })
+    result = await runAgent({
+      userId: user.id,
+      modelId: model,
+      group: selectedGroup,
+      system,
+      messages: context,
+      tools,
+      abortSignal: generationController.signal,
+      onError: (error) => {
+        console.error(`agent generation failed (run ${started.runId}):`, error)
+      },
+    })
+  } catch (error) {
+    unregisterRun()
+    await failAgentRun(started.runId, user.id, errorMessage(error))
+    return c.json({ success: false, message: errorMessage(error) }, 400)
+  }
 
   const response = result.toUIMessageStreamResponse({
-    originalMessages: [incoming],
-    // The response message id doubles as the persisted client_key; without it
-    // the assistant row would sync back to clients under a different key and
-    // duplicate the turn.
-    generateMessageId: () => crypto.randomUUID(),
+    originalMessages: [originalUserMessage],
+    generateMessageId: () =>
+      started.assistantMessage?.clientKey || crypto.randomUUID(),
+    consumeSseStream: ({ stream }) => consumeStream({ stream }),
+    onError: (error) =>
+      truncateUtf8(errorMessage(error), 500) || 'generation failed',
     onEnd: async ({ responseMessage, isAborted }) => {
-      const text = messageText(responseMessage)
-      const parts = responseMessage.parts ?? []
-      const toolJson = encodeLegacyToolJson(parts)
-      if (!text.trim() && !toolJson) {
-        return
-      }
-      await appendMessage(conversation.id, user.id, {
-        role: 'assistant',
-        content: text,
-        model,
-        toolJson,
-        clientKey: responseMessage.id,
-        source: source ?? 'web',
-      }).catch((error) =>
+      try {
+        const text = truncateUtf8(messageText(responseMessage), 60_000)
+        const parts = responseMessage.parts ?? []
+        const toolJson = encodeLegacyToolJson(parts)
+        if (!text.trim() && !toolJson) {
+          if (isAborted) {
+            await stopAgentRun(started.runId, user.id, conversationId)
+          } else {
+            await failAgentRun(
+              started.runId,
+              user.id,
+              'generation returned no content'
+            )
+          }
+          return
+        }
+        const saved = await finishAgentRun(started.runId, user.id, {
+          content: text,
+          contentJson: persistedAssistantParts(parts),
+          model,
+          toolJson,
+          clientKey: responseMessage.id,
+          source: source ?? 'web',
+          status: isAborted ? 'stopped' : 'complete',
+        })
+        if (saved && !isAborted) {
+          void runMemoryMaintenance(user.id, conversationId, longMemory)
+        }
+      } catch (error) {
         console.error(
-          `failed to persist assistant turn (conversation ${conversation.id}):`,
+          `failed to persist assistant turn (conversation ${conversationId}):`,
           error
         )
-      )
-      if (!isAborted) {
-        void runMemoryMaintenance(user.id, conversation.id, longMemory)
+        await failAgentRun(started.runId, user.id, errorMessage(error)).catch(
+          (cleanupError) => {
+            console.error(
+              `failed to clear agent run ${started.runId}:`,
+              cleanupError
+            )
+          }
+        )
+      } finally {
+        unregisterRun()
       }
     },
   })
-  response.headers.set('X-Conversation-Id', String(conversation.id))
+  response.headers.set('X-Conversation-Id', String(conversationId))
+  response.headers.set(
+    'X-Conversation-Revision',
+    String(started.conversation.revision ?? 0)
+  )
+  response.headers.set('X-Agent-Run-Id', started.runId)
   return response
 })

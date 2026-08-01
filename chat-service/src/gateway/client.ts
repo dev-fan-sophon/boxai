@@ -239,6 +239,138 @@ export type ImportedAsset = {
   url: string
 }
 
+export type ResolvedAsset = ImportedAsset & {
+  source?: string
+  visibility?: string
+  created_at?: number
+}
+
+export type ResolvedDocumentParse = {
+  status: 'processing' | 'needs_ocr' | 'done' | 'failed'
+  parser?: string
+  page_count?: number
+  text?: string
+  error?: string
+  ocr?: {
+    model: string
+    prompt: string
+    page_count: number
+    page_urls: string[]
+    execution_token: string
+  }
+}
+
+export async function getAssetMetadata(
+  userId: number,
+  assetId: number,
+  signal?: AbortSignal
+): Promise<ResolvedAsset> {
+  return gatewayFetch<ResolvedAsset>(
+    `/api/internal/playground/assets/${assetId}`,
+    {
+      actAsUserId: userId,
+      signal,
+    }
+  )
+}
+
+export async function getAssetParse(
+  userId: number,
+  assetId: number,
+  signal?: AbortSignal
+): Promise<ResolvedDocumentParse> {
+  return gatewayFetch<ResolvedDocumentParse>(
+    `/api/internal/playground/assets/${assetId}/parse`,
+    {
+      actAsUserId: userId,
+      signal,
+    }
+  )
+}
+
+export async function ensureAssetParse(
+  userId: number,
+  assetId: number,
+  group?: string,
+  signal?: AbortSignal
+): Promise<ResolvedDocumentParse> {
+  return gatewayFetch<ResolvedDocumentParse>(
+    `/api/internal/playground/assets/${assetId}/ensure-parse`,
+    {
+      method: 'POST',
+      actAsUserId: userId,
+      body: JSON.stringify({ group }),
+      signal,
+    }
+  )
+}
+
+export async function getAssetParsePageBytes(
+  userId: number,
+  assetId: number,
+  page: number,
+  signal?: AbortSignal
+): Promise<Uint8Array> {
+  const response = await fetch(
+    `${config.gatewayBaseUrl}/api/internal/playground/assets/${assetId}/parse/pages/${page}`,
+    {
+      headers: {
+        'X-BoxAI-Internal-Secret': config.internalSecret,
+        'X-BoxAI-Act-As-User': String(userId),
+      },
+      signal,
+    }
+  )
+  if (!response.ok) {
+    throw new GatewayError(
+      `gateway could not read OCR page ${page} for attachment ${assetId}`,
+      response.status
+    )
+  }
+  return new Uint8Array(await response.arrayBuffer())
+}
+
+export async function importAssetParse(
+  userId: number,
+  assetId: number,
+  body: { execution_token: string; text?: string; error?: string },
+  signal?: AbortSignal
+): Promise<ResolvedDocumentParse> {
+  return gatewayFetch<ResolvedDocumentParse>(
+    `/api/internal/playground/assets/${assetId}/parse/import`,
+    {
+      method: 'POST',
+      actAsUserId: userId,
+      body: JSON.stringify(body),
+      signal,
+    }
+  )
+}
+
+export async function getAssetBytes(
+  userId: number,
+  assetId: number,
+  signal?: AbortSignal
+): Promise<Uint8Array> {
+  const response = await fetch(
+    `${config.gatewayBaseUrl}/api/internal/playground/assets/${assetId}/content`,
+    {
+      headers: {
+        'X-BoxAI-Internal-Secret': config.internalSecret,
+        'X-BoxAI-Act-As-User': String(userId),
+      },
+      signal,
+    }
+  )
+  if (!response.ok) {
+    throw new GatewayError(
+      `gateway could not read attachment ${assetId}`,
+      response.status
+    )
+  }
+  return new Uint8Array(await response.arrayBuffer())
+}
+
 export async function importAsset(
   userId: number,
   body: { source_url: string; kind: 'image' | 'video' | 'audio' },

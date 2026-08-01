@@ -43,6 +43,7 @@ type MemoryOps = {
 
 type MessageRow = typeof messages.$inferSelect
 type ConversationRow = typeof conversations.$inferSelect
+type MemoryWriter = Pick<typeof db, 'delete' | 'insert' | 'update'>
 
 const inflight = new Set<number>()
 let failureUntil = 0
@@ -67,7 +68,10 @@ function transcriptOf(rows: MessageRow[]): string {
       continue
     }
     const line = `${row.role}: ${truncateRunes(content, MAX_TURN_RUNES)}\n`
-    if (Array.from(out).length + Array.from(line).length > MAX_TRANSCRIPT_RUNES) {
+    if (
+      Array.from(out).length + Array.from(line).length >
+      MAX_TRANSCRIPT_RUNES
+    ) {
       break
     }
     out += line
@@ -177,6 +181,7 @@ async function maintainSummary(
       and(
         eq(conversations.id, conv.id),
         eq(conversations.userId, conv.userId),
+        sql`COALESCE(${conversations.revision}, 0) = ${Number(conv.revision ?? 0)}`,
         sql`(${conversations.summarySeq} < ${tail.seq} OR ${conversations.summarySeq} IS NULL)`
       )
     )
@@ -192,14 +197,15 @@ async function maintainUserMemories(
   if (maxSeq - memorySeq < settings.extractEveryMessages) {
     return
   }
-  const advanceCursor = () =>
-    db
+  const advanceCursor = (writer: MemoryWriter) =>
+    writer
       .update(conversations)
       .set({ memorySeq: maxSeq })
       .where(
         and(
           eq(conversations.id, conv.id),
           eq(conversations.userId, conv.userId),
+          sql`COALESCE(${conversations.revision}, 0) = ${Number(conv.revision ?? 0)}`,
           sql`(${conversations.memorySeq} < ${maxSeq} OR ${conversations.memorySeq} IS NULL)`
         )
       )
@@ -207,7 +213,7 @@ async function maintainUserMemories(
   const fresh = rows.filter((row) => row.seq > memorySeq)
   const transcript = transcriptOf(fresh)
   if (!transcript) {
-    await advanceCursor()
+    await advanceCursor(db)
     return
   }
   const existing = await db
@@ -225,11 +231,37 @@ async function maintainUserMemories(
   input += `\nConversation excerpt:\n${transcript}`
   const raw = await callMemoryModel(settings, EXTRACTION_PROMPT, input)
   const ops = parseMemoryOps(raw)
-  await applyMemoryOps(conv.userId, conv.id, existing, ops, settings.maxMemories)
-  await advanceCursor()
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ revision: conversations.revision })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.id, conv.id),
+          eq(conversations.userId, conv.userId)
+        )
+      )
+      .for('update')
+    if (
+      !current ||
+      Number(current.revision ?? 0) !== Number(conv.revision ?? 0)
+    ) {
+      return
+    }
+    await applyMemoryOpsWithWriter(
+      tx,
+      conv.userId,
+      conv.id,
+      existing,
+      ops,
+      settings.maxMemories
+    )
+    await advanceCursor(tx)
+  })
 }
 
-export async function applyMemoryOps(
+async function applyMemoryOpsWithWriter(
+  writer: MemoryWriter,
   userId: number,
   conversationId: number,
   existing: Array<typeof userMemories.$inferSelect>,
@@ -245,7 +277,7 @@ export async function applyMemoryOps(
     if (!current) {
       continue
     }
-    await db
+    await writer
       .delete(userMemories)
       .where(and(eq(userMemories.id, id), eq(userMemories.userId, userId)))
     contents.delete(current.content ?? '')
@@ -260,7 +292,7 @@ export async function applyMemoryOps(
     if (!current || !content || content === current.content) {
       continue
     }
-    await db
+    await writer
       .update(userMemories)
       .set({ content, updatedAt: now })
       .where(
@@ -279,7 +311,7 @@ export async function applyMemoryOps(
       continue
     }
     const category = (add.category ?? '').trim().toLowerCase()
-    await db.insert(userMemories).values({
+    await writer.insert(userMemories).values({
       userId,
       content,
       category: MEMORY_CATEGORIES.has(category) ? category : 'other',
@@ -290,6 +322,23 @@ export async function applyMemoryOps(
     contents.add(content)
     remaining++
   }
+}
+
+export async function applyMemoryOps(
+  userId: number,
+  conversationId: number,
+  existing: Array<typeof userMemories.$inferSelect>,
+  ops: MemoryOps,
+  maxMemories: number
+): Promise<void> {
+  await applyMemoryOpsWithWriter(
+    db,
+    userId,
+    conversationId,
+    existing,
+    ops,
+    maxMemories
+  )
 }
 
 /**

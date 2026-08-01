@@ -1,9 +1,13 @@
-import { and, eq } from 'drizzle-orm'
 import type { ModelMessage } from 'ai'
+import { and, eq } from 'drizzle-orm'
 
 import { db } from '../db'
 import { messages, userMemories } from '../db/schema'
 import type { conversations } from '../db/schema'
+import {
+  createAttachmentContextBudget,
+  storedUserMessageToModelMessage,
+} from '../messages/content'
 
 type ConversationRow = typeof conversations.$inferSelect
 
@@ -18,7 +22,12 @@ const MAX_HISTORY_TURNS = 60
 
 export async function assembleContext(
   conv: ConversationRow,
-  options: { longMemory: boolean }
+  options: {
+    longMemory: boolean
+    group: string
+    signal?: AbortSignal
+    excludeMessageId?: number
+  }
 ): Promise<ModelMessage[]> {
   const context: ModelMessage[] = []
 
@@ -29,9 +38,7 @@ export async function assembleContext(
       .where(eq(userMemories.userId, conv.userId))
       .orderBy(userMemories.id)
     if (memories.length > 0) {
-      const lines = memories
-        .map((memory) => `- ${memory.content}`)
-        .join('\n')
+      const lines = memories.map((memory) => `- ${memory.content}`).join('\n')
       context.push({
         role: 'system',
         content: `Known facts about the user (long-term memory):\n${lines}`,
@@ -62,15 +69,37 @@ export async function assembleContext(
   // Turns already folded into the summary are dropped; without a summary the
   // window is simply the most recent turns.
   const verbatim = summary ? rows.filter((row) => row.seq > summarySeq) : rows
+  const attachmentBudget = createAttachmentContextBudget()
   for (const row of verbatim.slice(-MAX_HISTORY_TURNS)) {
+    if (row.id === options.excludeMessageId) continue
     if (row.role !== 'user' && row.role !== 'assistant') {
       continue
     }
     const content = (row.content ?? '').trim()
-    if (!content) {
+    if (!content && !row.contentJson) {
       continue
     }
-    context.push({ role: row.role, content })
+    if (row.role === 'user' && row.contentJson) {
+      try {
+        context.push(
+          await storedUserMessageToModelMessage(
+            conv.userId,
+            content,
+            row.contentJson,
+            options.group,
+            options.signal,
+            attachmentBudget
+          )
+        )
+        continue
+      } catch (error) {
+        console.warn(
+          `could not hydrate historical attachments (message ${row.id}):`,
+          error
+        )
+      }
+    }
+    if (content) context.push({ role: row.role, content })
   }
   return context
 }

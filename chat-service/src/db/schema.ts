@@ -34,6 +34,11 @@ export const conversations = pgTable(
     summaryTailKey: varchar('summary_tail_key', { length: 64 }).default(''),
     summarySeq: integer('summary_seq'),
     memorySeq: integer('memory_seq'),
+    revision: bigint('revision', { mode: 'number' }).default(0),
+    activeRunId: varchar('active_run_id', { length: 64 }).default(''),
+    activeRunStartedAt: bigint('active_run_started_at', {
+      mode: 'number',
+    }).default(0),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
@@ -49,6 +54,7 @@ export const messages = pgTable(
     id: bigserial('id', { mode: 'number' }).primaryKey(),
     conversationId: bigint('conversation_id', { mode: 'number' }).notNull(),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
+    parentMessageId: bigint('parent_message_id', { mode: 'number' }).default(0),
     role: varchar('role', { length: 32 }).notNull(),
     content: text('content').default(''),
     contentJson: text('content_json').default(''),
@@ -56,12 +62,71 @@ export const messages = pgTable(
     toolJson: text('tool_json').default(''),
     clientKey: varchar('client_key', { length: 64 }).default(''),
     source: varchar('source', { length: 20 }).default(''),
+    status: varchar('status', { length: 20 }).default(''),
+    activeRevision: integer('active_revision').default(0),
     seq: integer('seq').notNull(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).default(0),
   },
   (table) => [
     index('idx_playground_messages_conversation_id').on(table.conversationId),
     index('idx_playground_messages_user_id').on(table.userId),
+    index('idx_playground_messages_parent_message_id').on(
+      table.parentMessageId
+    ),
+  ]
+)
+
+export const messageRevisions = pgTable(
+  'playground_message_revisions',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    messageId: bigint('message_id', { mode: 'number' }).notNull(),
+    conversationId: bigint('conversation_id', { mode: 'number' }).notNull(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
+    revision: integer('revision').notNull(),
+    content: text('content').default(''),
+    contentJson: text('content_json').default(''),
+    model: varchar('model', { length: 191 }).default(''),
+    toolJson: text('tool_json').default(''),
+    status: varchar('status', { length: 20 }).default(''),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_pg_message_revision').on(table.messageId, table.revision),
+    index('idx_playground_message_revisions_conversation_id').on(
+      table.conversationId
+    ),
+    index('idx_playground_message_revisions_user_id').on(table.userId),
+  ]
+)
+
+export const agentRuns = pgTable(
+  'playground_agent_runs',
+  {
+    id: varchar('id', { length: 64 }).primaryKey(),
+    conversationId: bigint('conversation_id', { mode: 'number' }).notNull(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
+    requestKey: varchar('request_key', { length: 64 }).notNull(),
+    operation: varchar('operation', { length: 32 }).notNull(),
+    userMessageId: bigint('user_message_id', { mode: 'number' }).default(0),
+    assistantMessageId: bigint('assistant_message_id', {
+      mode: 'number',
+    }).default(0),
+    baseRevision: bigint('base_revision', { mode: 'number' }).default(0),
+    status: varchar('status', { length: 20 }).notNull(),
+    errorMessage: text('error_message').default(''),
+    leaseExpiresAt: bigint('lease_expires_at', { mode: 'number' }).default(0),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_pg_agent_request').on(table.userId, table.requestKey),
+    index('idx_playground_agent_runs_conversation_id').on(table.conversationId),
+    index('idx_playground_agent_runs_status').on(table.status),
+    index('idx_playground_agent_runs_lease_expires_at').on(
+      table.leaseExpiresAt
+    ),
   ]
 )
 
