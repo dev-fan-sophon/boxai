@@ -298,6 +298,20 @@ Agents must:
 - Use SSH only for named host/infra changes
 - Never dump the full production `.env` into chat or Amp secrets
 
+### boxai-chat (`/opt/boxai/chat.env`)
+
+Server-only env for the `boxai-chat.service` unit (Bun chat service on
+`127.0.0.1:3100`). The deploy script skips the unit when this file is absent.
+
+| Variable | Purpose |
+|----------|---------|
+| `INTERNAL_SERVICE_SECRET` | Shared secret with the gateway (same value must be set in `/opt/boxai/.env`); authenticates every internal gateway call |
+| `DATABASE_URL` | `postgres://…@127.0.0.1:5432/…` — same database as `SQL_DSN`, URL form |
+| `GATEWAY_BASE_URL` | Default `http://127.0.0.1:3000` |
+| `CHAT_SERVICE_PORT` / `CHAT_SERVICE_HOST` | Default `3100` / `127.0.0.1` |
+| `PLAYGROUND_MEMORY_ENABLED` / `_BASE_URL` / `_API_KEY` / `_MODEL` | Memory/summary pipeline endpoint (mirrors the gateway's former `playground_memory` admin setting) |
+| `PLAYGROUND_MEMORY_SUMMARY_ENABLED`, `_EXTRACT_EVERY`, `_MAX`, `_SUMMARY_TRIGGER`, `_SUMMARY_KEEP`, `_TIMEOUT` | Optional tuning; same defaults/clamps as the Go implementation |
+
 ---
 
 ## 5. GitHub Actions (deploy)

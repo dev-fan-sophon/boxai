@@ -9,9 +9,19 @@ Canonical production and local ops for this repository.
 | Component | Production | Local default |
 |-----------|------------|---------------|
 | **App** (Go + embedded UI) | Host binary + **systemd** `boxai.service` → `127.0.0.1:3000` | Optional `make start-api` (`go run`) |
+| **Chat service** (Bun/TypeScript, `chat-service/`) | **systemd** `boxai-chat.service` → `127.0.0.1:3100` | `cd chat-service && bun run dev` |
 | **Postgres** | Docker `boxai-postgres` → `127.0.0.1:5432` | Optional `docker-compose.dev.yml` |
 | **Redis** | Docker `boxai-redis` → `127.0.0.1:6379` | Optional `docker-compose.dev.yml` |
-| **TLS** | nginx → `http://127.0.0.1:3000` | n/a |
+| **TLS** | nginx → `http://127.0.0.1:3000`; `/chat-api/*` → `http://127.0.0.1:3100` (`deploy/nginx/chat-api.conf.example`) | n/a |
+
+**boxai-chat** owns the playground agent loop (`/chat-api/v1/chat`) and the
+migrated playground product routes. It runs from the release checkout
+(`/opt/boxai/current/chat-service`) with dependencies installed by
+`scripts/server/build-native.sh`, and reads `/opt/boxai/chat.env`
+(gateway shares `INTERNAL_SERVICE_SECRET` in `/opt/boxai/.env`; see
+`docs/environment.md` § boxai-chat). The deploy script only enables the unit
+when `/opt/boxai/chat.env` exists, so hosts are opted in explicitly.
+Health: `curl -fsS http://127.0.0.1:3100/healthz`.
 
 **There is no application Docker container in steady state.**  
 Root `Dockerfile` / `Dockerfile.dev` / empty `docker-compose.yml` are **deprecated** for BoxAI ops.

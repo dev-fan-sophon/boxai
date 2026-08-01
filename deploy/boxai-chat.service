@@ -1,0 +1,26 @@
+[Unit]
+Description=BoxAI chat service (boxai-chat)
+Documentation=https://github.com/dev-fan-sophon/boxai
+After=network-online.target boxai.service
+Wants=network-online.target
+
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/boxai/current/chat-service
+EnvironmentFile=/opt/boxai/chat.env
+Environment=NODE_ENV=production
+Environment=TZ=Asia/Shanghai
+ExecStart=/root/.bun/bin/bun run src/index.ts
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

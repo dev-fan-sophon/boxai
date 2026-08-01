@@ -171,7 +171,7 @@ git archive --format=tar --prefix="${REF}/" "${REF}" | "${SSH[@]}" \
 scp -i "$KEY_FILE" -P "$PORT" \
   -o BatchMode=yes -o IdentitiesOnly=yes \
   -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KNOWN_HOSTS" \
-  deploy/docker-compose.infra.yml deploy/boxai.service \
+  deploy/docker-compose.infra.yml deploy/boxai.service deploy/boxai-chat.service \
   "${BOXAI_SSH_USER}@${BOXAI_SSH_HOST}:${APP_ROOT}/releases/${REF}/deploy/"
 scp -i "$KEY_FILE" -P "$PORT" \
   -o BatchMode=yes -o IdentitiesOnly=yes \
@@ -322,6 +322,25 @@ done
 systemctl restart "${SERVICE_NAME}.service"
 sleep 2
 systemctl --no-pager --full status "${SERVICE_NAME}.service" | head -25
+# boxai-chat rides along once the host has been provisioned with its env
+# file; without /opt/boxai/chat.env the unit is skipped so a deploy before
+# the chat-service rollout stays green.
+if [[ -f "${APP_ROOT}/chat.env" ]]; then
+  cp -f "${APP_ROOT}/releases/${REF}/deploy/boxai-chat.service" /etc/systemd/system/boxai-chat.service
+  systemctl daemon-reload
+  systemctl enable boxai-chat.service
+  systemctl restart boxai-chat.service
+  sleep 2
+  if curl -fsS http://127.0.0.1:3100/healthz | grep -q '"ok"'; then
+    echo "CHAT_HEALTH_OK"
+  else
+    echo "CHAT_HEALTH_FAIL" >&2
+    journalctl -u boxai-chat -n 50 --no-pager || true
+    exit 1
+  fi
+else
+  echo "chat.env absent; skipping boxai-chat unit"
+fi
 # Prune old releases (keep current + one previous)
 python3 - <<PY
 import os, shutil

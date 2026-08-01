@@ -1,0 +1,29 @@
+# boxai-chat edge routing (include inside the you-box.com server block).
+#
+# /chat-api/* is the agent chat stream; the trailing slash on proxy_pass
+# strips the prefix so the service sees /v1/chat. Buffering must stay off
+# for SSE.
+location /chat-api/ {
+    proxy_pass http://127.0.0.1:3100/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+}
+
+# Cutover phase 2 (after the agent path is validated in production): move the
+# migrated playground CRUD surface to boxai-chat by routing these exact
+# prefixes to 127.0.0.1:3100 as well. Until then the Go gateway keeps serving
+# them unchanged.
+#
+# location /api/playground/conversations { proxy_pass http://127.0.0.1:3100; ... }
+# location /api/playground/memories      { proxy_pass http://127.0.0.1:3100; ... }
+# location /api/playground/personas      { proxy_pass http://127.0.0.1:3100; ... }
+# location /api/playground/agents        { proxy_pass http://127.0.0.1:3100; ... }
+# location /api/playground/canvas        { proxy_pass http://127.0.0.1:3100; ... }
+# location /api/share/canvas             { proxy_pass http://127.0.0.1:3100; ... }

@@ -27,6 +27,12 @@ echo "==> building web default (v${VERSION})"
   DISABLE_ESLINT_PLUGIN=true VITE_REACT_APP_VERSION="$VERSION" bun run build
 )
 
+echo "==> installing chat-service dependencies"
+(
+  cd chat-service
+  bun install --frozen-lockfile --production
+)
+
 echo "==> building go binary"
 go mod download
 go build -ldflags "-s -w -X 'github.com/dev-fan-sophon/boxai/common.Version=${VERSION}'" -o new-api .
