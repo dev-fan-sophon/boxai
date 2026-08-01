@@ -23,6 +23,12 @@ export type AgentRunInput = {
 }
 
 export async function runAgent(input: AgentRunInput) {
+  // Bun's inbound Request signal can corrupt the body of a nested outbound
+  // fetch when reused directly. A linked signal preserves cancellation while
+  // giving model and tool calls a regular standalone AbortSignal.
+  const abortSignal = input.abortSignal
+    ? AbortSignal.any([input.abortSignal])
+    : undefined
   return streamText({
     model: userModel(input.userId, input.modelId, input.group),
     system: input.system,
@@ -32,7 +38,7 @@ export async function runAgent(input: AgentRunInput) {
     ],
     tools: input.tools,
     stopWhen: stepCountIs(input.maxSteps ?? 8),
-    abortSignal: input.abortSignal,
+    abortSignal,
     onToolExecutionEnd: (event) => {
       if (event.toolOutput.type !== 'tool-error') return
       const error = event.toolOutput.error
