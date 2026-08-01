@@ -307,7 +307,14 @@ func respondPlaygroundToolRun(c *gin.Context, r *model.PlaygroundChatToolRun) {
 		// rather than hitting a relay endpoint directly.
 		endpoint = fmt.Sprintf("/api/playground/documents/runs/%d/prompt", r.Id)
 	}
-	common.ApiSuccess(c, gin.H{"run": r, "arguments": args, "sources": sources, "result": result, "execution": gin.H{"endpoint": endpoint, "method": "POST", "execution_token": r.ExecutionToken}})
+	resp := gin.H{"run": r, "arguments": args, "sources": sources, "result": result, "execution": gin.H{"endpoint": endpoint, "method": "POST", "execution_token": r.ExecutionToken}}
+	// A search request that also names a document deliverable ("search X, then
+	// make a PDF") chains a build client-side after the search completes.
+	// Derived from the stored prompt so every response path reports it alike.
+	if r.Action == service.PlaygroundToolSearch && service.PlaygroundDocumentFollowupIntent(r.Prompt) && service.DocumentBuilderAvailable(r.UsingGroup) {
+		resp["followup_action"] = service.PlaygroundToolDocument
+	}
+	common.ApiSuccess(c, resp)
 }
 func stringSliceContains(v []string, w string) bool {
 	for _, s := range v {

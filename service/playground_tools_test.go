@@ -43,3 +43,31 @@ func TestClassifyPlaygroundTool(t *testing.T) {
 		t.Run(tt.text, func(t *testing.T) { assert.Equal(t, tt.want, ClassifyPlaygroundTool(tt.text)) })
 	}
 }
+
+func TestPlaygroundDocumentFollowupIntent(t *testing.T) {
+	tests := []struct {
+		text string
+		want bool
+	}{
+		// Compound requests: classification picks search, the document half chains.
+		{"搜索最佳一周的ai新闻，然后整理出pdf文档", true},
+		{"搜一下今天的美元汇率，做成表格", true},
+		{"search the latest AI news and turn it into a PDF report", true},
+		// Pure search: nothing to chain.
+		{"搜索今天的 AI 新闻", false},
+		{"look up the latest Go release", false},
+		// Reading about an attached document is not a build.
+		{"搜索相关背景，然后总结一下这个 PDF", false},
+		// Guards still win over any noun.
+		{"如何把搜索结果导出成 PDF？", false},
+		{"搜索新闻，不要生成文档", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.text, func(t *testing.T) {
+			assert.Equal(t, tt.want, PlaygroundDocumentFollowupIntent(tt.text))
+		})
+	}
+	// Compound classification itself keeps picking search: the chain flag is
+	// additive, it must not steal the primary action.
+	assert.Equal(t, PlaygroundToolSearch, ClassifyPlaygroundTool("搜索最佳一周的ai新闻，然后整理出pdf文档"))
+}

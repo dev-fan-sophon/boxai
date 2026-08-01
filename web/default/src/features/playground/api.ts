@@ -37,6 +37,11 @@ export type ManagedToolRunResponse = {
   }
   arguments: Record<string, unknown>
   execution: { endpoint: string; method: string; execution_token: string }
+  /**
+   * Present when the prompt also names a document deliverable that should be
+   * built after the primary action (e.g. "search X, then make a PDF").
+   */
+  followup_action?: 'generate_document'
   sources?: {
     results?: Array<{
       title: string

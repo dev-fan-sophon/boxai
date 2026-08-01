@@ -307,6 +307,143 @@ export function Playground() {
             : previous
         )
 
+      // Runs one document build against an already-created managed run. Shared
+      // by the direct document turn and the chained build after a search.
+      const executeDocumentBuild = async (
+        docRun: { id: number; tool_model?: string },
+        executionToken: string,
+        setCard: (card: import('./types').ManagedToolCard) => void,
+        contextMessages: import('./types').Message[]
+      ) => {
+        const baseCard = {
+          runId: docRun.id,
+          action: 'generate_document' as const,
+          status: 'running' as const,
+          model: docRun.tool_model,
+          startedAt: Date.now(),
+        }
+        setCard({ ...baseCard, stage: 'Preparing the sandbox' })
+        // Only attachments that reached the server have an asset id; a text file read in the
+        // browser has none and is already in the prompt as text.
+        const attachmentIds = (turnMessages.at(-2)?.attachments ?? [])
+          .map((attachment) => attachment.assetId)
+          .filter((id): id is number => typeof id === 'number' && id > 0)
+        if (activeSession?.serverId) {
+          documentSandboxRef.current = activeSession.serverId
+        }
+        const outcome = await runDocumentBuild({
+          runId: docRun.id,
+          executionToken,
+          model: config.model,
+          group: config.group,
+          userText: text,
+          conversationContext:
+            buildDocumentConversationContext(contextMessages),
+          conversationId: activeSession?.serverId,
+          assetIds: attachmentIds,
+          onAttempt: (attempt) =>
+            setCard({ ...baseCard, documentAttempts: attempt }),
+          onStage: (stage, attempt) =>
+            setCard({
+              ...baseCard,
+              documentAttempts: attempt,
+              stage:
+                stage === 'generate'
+                  ? 'Writing the build script'
+                  : 'Running the build in the sandbox',
+            }),
+        })
+        const documents = toDocumentArtifacts(
+          outcome.result.assets,
+          outcome.result.unverified
+        )
+        setCard({
+          ...baseCard,
+          status: 'completed',
+          documents,
+          documentCode: outcome.code,
+          documentLogs: outcome.result.logs,
+          documentAttempts: outcome.attempts,
+        })
+      }
+
+      // "Search X, then make a PDF": classification picks exactly one action,
+      // so the document half of the request runs as a second managed run once
+      // the search text exists, with that text as build material.
+      const runChainedDocumentBuild = async (searchText: string) => {
+        const docKey = `doc_${crypto.randomUUID()}`
+        updateMessages((previous) => [
+          ...previous,
+          {
+            key: docKey,
+            from: 'assistant' as const,
+            versions: [{ id: `v_${docKey}`, content: '' }],
+            status: 'complete' as const,
+            createdAt: Date.now(),
+          },
+        ])
+        const setCard = (card: import('./types').ManagedToolCard) =>
+          updateMessages((previous) =>
+            updateManagedAssistant(previous, docKey, card)
+          )
+        let chained:
+          | Awaited<ReturnType<typeof createManagedToolRun>>
+          | undefined
+        try {
+          chained = await createManagedToolRun({
+            client_request_id: crypto.randomUUID(),
+            model: config.model,
+            group: config.group,
+            user_text: text,
+            tool_policy: {
+              mode: 'direct',
+              enabled: ['generate_document'],
+              direct: { name: 'generate_document', args: {} },
+            },
+          })
+          if (
+            chained.run.status === 'unavailable' ||
+            chained.run.status === 'failed'
+          ) {
+            throw new Error(chained.run.error || t('Tool is unavailable'))
+          }
+          await executeDocumentBuild(
+            chained.run,
+            chained.execution.execution_token,
+            setCard,
+            [
+              ...turnMessages.slice(0, -2),
+              {
+                key: `${docKey}_search`,
+                from: 'assistant' as const,
+                versions: [{ id: 'v1', content: searchText }],
+              },
+            ]
+          )
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : t('Tool failed')
+          toast.error(message)
+          setCard({
+            runId: chained?.run.id,
+            action: 'generate_document',
+            status: 'failed',
+            error: message,
+          })
+          if (chained && chained.run.status === 'ready') {
+            try {
+              await importManagedToolRun(chained.run.id, {
+                execution_token: chained.execution.execution_token,
+                status: 'failed',
+                error: message,
+              })
+            } catch {
+              // The card already shows the original failure.
+            }
+          }
+        }
+      }
+
       let response: Awaited<ReturnType<typeof createManagedToolRun>> | undefined
       let action = directName
       try {
@@ -358,55 +495,20 @@ export function Playground() {
             result.sources,
             result.text
           )
+          if (response.followup_action === 'generate_document') {
+            await runChainedDocumentBuild(result.text)
+          }
           return
         }
         if (run.action === 'generate_document') {
-          setAssistantTool({ ...baseCard, stage: 'Preparing the sandbox' })
-          // Only attachments that reached the server have an asset id; a text file read in the
-          // browser has none and is already in the prompt as text.
-          const attachmentIds = (turnMessages.at(-2)?.attachments ?? [])
-            .map((attachment) => attachment.assetId)
-            .filter((id): id is number => typeof id === 'number' && id > 0)
-          if (activeSession?.serverId) {
-            documentSandboxRef.current = activeSession.serverId
-          }
-          const outcome = await runDocumentBuild({
-            runId: run.id,
-            executionToken: response.execution.execution_token,
-            model: config.model,
-            group: config.group,
-            userText: text,
-            // Everything before this turn's user message and assistant
-            // placeholder is the material the document is built from.
-            conversationContext: buildDocumentConversationContext(
-              turnMessages.slice(0, -2)
-            ),
-            conversationId: activeSession?.serverId,
-            assetIds: attachmentIds,
-            onAttempt: (attempt) =>
-              setAssistantTool({ ...baseCard, documentAttempts: attempt }),
-            onStage: (stage, attempt) =>
-              setAssistantTool({
-                ...baseCard,
-                documentAttempts: attempt,
-                stage:
-                  stage === 'generate'
-                    ? 'Writing the build script'
-                    : 'Running the build in the sandbox',
-              }),
-          })
-          const documents = toDocumentArtifacts(
-            outcome.result.assets,
-            outcome.result.unverified
+          // Everything before this turn's user message and assistant
+          // placeholder is the material the document is built from.
+          await executeDocumentBuild(
+            run,
+            response.execution.execution_token,
+            setAssistantTool,
+            turnMessages.slice(0, -2)
           )
-          setAssistantTool({
-            ...baseCard,
-            status: 'completed',
-            documents,
-            documentCode: outcome.code,
-            documentLogs: outcome.result.logs,
-            documentAttempts: outcome.attempts,
-          })
           return
         }
         if (run.action === 'generate_image') {
