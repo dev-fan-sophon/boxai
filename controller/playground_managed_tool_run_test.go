@@ -142,6 +142,43 @@ func TestPreparePlaygroundSearchCanonicalizesAndPinsRun(t *testing.T) {
 	assert.Equal(t, "17", channelID)
 }
 
+func TestPrepareInternalPlaygroundSearchUsesResponsesRelayPath(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+
+	channel := &model.Channel{Id: 19, Type: constant.ChannelTypeOpenAI, Name: "grok", Status: common.ChannelStatusEnabled}
+	require.NoError(t, db.Create(channel).Error)
+	require.NoError(t, db.Create(&model.Ability{Group: "default", Model: "grok-4.5", ChannelId: channel.Id, Enabled: true}).Error)
+
+	observedPath := ""
+	router := gin.New()
+	router.POST("/pg/internal/search",
+		func(c *gin.Context) {
+			c.Set("id", 7)
+			c.Set("group", "default")
+			c.Next()
+		},
+		PrepareInternalPlaygroundSearch(),
+		func(c *gin.Context) {
+			observedPath = c.Request.URL.Path
+			c.Status(http.StatusNoContent)
+		},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/pg/internal/search", bytes.NewBufferString(`{"query":"latest news","group":"default"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	assert.Equal(t, http.StatusNoContent, recorder.Code)
+	assert.Equal(t, "/pg/responses", observedPath)
+	assert.Equal(t, "/pg/internal/search", request.URL.Path)
+}
+
 func TestPreparePlaygroundSearchRejectsInvalidContract(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)

@@ -164,6 +164,13 @@ func PrepareInternalPlaygroundSearch() gin.HandlerFunc {
 		common.SetContextKey(c, constant.ContextKeyTokenSpecificChannelId, strconv.Itoa(channelID))
 		c.Set("playground_managed_search", true)
 		c.Set("internal_search_model", searchModel)
+		// Relay aliases normally derive the upstream URL from the incoming path.
+		// This internal route still carries an OpenAI Responses body, so expose the
+		// canonical playground path while the relay runs instead of forwarding
+		// /v1/internal/search to the provider.
+		originalPath := c.Request.URL.Path
+		c.Request.URL.Path = "/pg/responses"
+		defer func() { c.Request.URL.Path = originalPath }()
 		c.Next()
 	}
 }
