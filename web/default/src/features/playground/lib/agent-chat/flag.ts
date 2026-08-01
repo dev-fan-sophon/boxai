@@ -1,16 +1,15 @@
 const AGENT_CHAT_FLAG_KEY = 'boxai:agent-chat'
 
 /**
- * Opt-in switch for the server-owned agent chat transport. While it is off the
- * playground keeps the legacy managed-tool + /pg/chat/completions path, so the
- * flag is read on every decision point instead of being cached at module load.
+ * The server-owned agent transport is the production default. Setting the
+ * local flag to "0" keeps a per-browser emergency rollback to the legacy
+ * managed-tool + /pg/chat/completions path.
  */
 export function isAgentChatEnabled(): boolean {
-  if (typeof window === 'undefined') return false
+  if (typeof window === 'undefined') return true
   try {
-    return window.localStorage.getItem(AGENT_CHAT_FLAG_KEY) === '1'
+    return window.localStorage.getItem(AGENT_CHAT_FLAG_KEY) !== '0'
   } catch {
-    // Storage can be blocked (private mode, embedded webview); stay on legacy.
-    return false
+    return true
   }
 }
