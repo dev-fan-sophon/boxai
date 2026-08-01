@@ -19,6 +19,7 @@ export type AgentRunInput = {
   tools?: ToolSet
   maxSteps?: number
   abortSignal?: AbortSignal
+  onTextDelta?: (text: string) => void
   onError?: (error: unknown) => void
 }
 
@@ -30,6 +31,9 @@ export async function runAgent(input: AgentRunInput) {
     tools: input.tools,
     stopWhen: stepCountIs(input.maxSteps ?? 8),
     abortSignal: input.abortSignal,
+    onChunk: ({ chunk }) => {
+      if (chunk.type === 'text-delta') input.onTextDelta?.(chunk.text)
+    },
     onError: ({ error }) => input.onError?.(error),
     onToolExecutionEnd: (event) => {
       if (event.toolOutput.type !== 'tool-error') return

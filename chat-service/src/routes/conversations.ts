@@ -10,6 +10,7 @@ import {
   activateMessageRevision,
   AgentConflictError,
   requestAgentRunStop,
+  finishAgentRun,
   stopAgentRun,
   deleteAgentMessage,
   editAgentMessage,
@@ -20,7 +21,11 @@ import {
   messageRevisions,
   messages,
 } from '../db/schema'
-import { abortActiveRun } from '../engine/active-runs'
+import {
+  abortActiveRun,
+  releaseActiveRun,
+  snapshotActiveRun,
+} from '../engine/active-runs'
 import { fail, ok, truncateRunes } from '../http'
 import { runMemoryMaintenance } from '../memory/maintenance'
 import { canonicalizeUserMessage } from '../messages/content'
@@ -811,6 +816,22 @@ conversationsRoute.post('/:id/runs/:runId/cancel', async (c) => {
   const runId = c.req.param('runId')
   const requested = await requestAgentRunStop(runId, userId, id)
   const aborted = await abortActiveRun(runId, userId, id)
-  const stopped = aborted ? false : await stopAgentRun(runId, userId, id)
+  let stopped = false
+  if (aborted) {
+    const snapshot = snapshotActiveRun(runId, userId, id)
+    if (snapshot?.content.trim()) {
+      const saved = await finishAgentRun(runId, userId, {
+        ...snapshot,
+        status: 'stopped',
+      })
+      stopped = Boolean(saved)
+    }
+    if (snapshot) {
+      if (!stopped) stopped = await stopAgentRun(runId, userId, id)
+      releaseActiveRun(runId, userId, id)
+    }
+  } else {
+    stopped = await stopAgentRun(runId, userId, id)
+  }
   return ok(c, { stopped: requested || aborted || stopped })
 })

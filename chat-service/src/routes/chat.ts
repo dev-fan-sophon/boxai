@@ -174,6 +174,9 @@ chatRoute.post('/', sessionAuth, async (c) => {
 
   const selectedGroup = group || started.conversation.group || user.group
   const generationController = new AbortController()
+  const assistantClientKey =
+    started.assistantMessage?.clientKey || crypto.randomUUID()
+  let streamedText = ''
   const abortGeneration = () =>
     generationController.abort(c.req.raw.signal.reason)
   if (c.req.raw.signal.aborted) abortGeneration()
@@ -183,7 +186,13 @@ chatRoute.post('/', sessionAuth, async (c) => {
     started.runId,
     user.id,
     conversationId,
-    generationController
+    generationController,
+    () => ({
+      content: streamedText,
+      clientKey: assistantClientKey,
+      model,
+      source: source ?? 'web',
+    })
   )
   let context
   try {
@@ -230,6 +239,9 @@ chatRoute.post('/', sessionAuth, async (c) => {
       messages: context,
       tools,
       abortSignal: generationController.signal,
+      onTextDelta: (text) => {
+        streamedText = truncateUtf8(streamedText + text, 60_000)
+      },
       onError: (error) => {
         console.error(`agent generation failed (run ${started.runId}):`, error)
       },
@@ -242,8 +254,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
 
   const response = result.toUIMessageStreamResponse({
     originalMessages: [originalUserMessage],
-    generateMessageId: () =>
-      started.assistantMessage?.clientKey || crypto.randomUUID(),
+    generateMessageId: () => assistantClientKey,
     consumeSseStream: ({ stream }) => consumeStream({ stream }),
     onError: (error) =>
       truncateUtf8(errorMessage(error), 500) || 'generation failed',
