@@ -1,10 +1,10 @@
 import {
   bigint,
+  bigserial,
   boolean,
   index,
   integer,
   pgTable,
-  serial,
   text,
   uniqueIndex,
   varchar,
@@ -21,8 +21,8 @@ import {
 export const conversations = pgTable(
   'playground_conversations',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     title: varchar('title', { length: 255 }).default(''),
     model: varchar('model', { length: 191 }).default(''),
     group: varchar('group', { length: 50 }).default(''),
@@ -46,9 +46,9 @@ export const conversations = pgTable(
 export const messages = pgTable(
   'playground_messages',
   {
-    id: serial('id').primaryKey(),
-    conversationId: integer('conversation_id').notNull(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    conversationId: bigint('conversation_id', { mode: 'number' }).notNull(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     role: varchar('role', { length: 32 }).notNull(),
     content: text('content').default(''),
     contentJson: text('content_json').default(''),
@@ -68,11 +68,13 @@ export const messages = pgTable(
 export const userMemories = pgTable(
   'playground_user_memories',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     content: text('content').default(''),
     category: varchar('category', { length: 32 }).default(''),
-    sourceConversationId: integer('source_conversation_id').default(0),
+    sourceConversationId: bigint('source_conversation_id', {
+      mode: 'number',
+    }).default(0),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
@@ -82,8 +84,8 @@ export const userMemories = pgTable(
 export const personas = pgTable(
   'playground_personas',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     name: varchar('name', { length: 128 }).notNull(),
     systemPrompt: text('system_prompt').default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
@@ -95,8 +97,8 @@ export const personas = pgTable(
 export const projects = pgTable(
   'playground_projects',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     modality: varchar('modality', { length: 20 }).notNull(),
     title: varchar('title', { length: 255 }).default(''),
     model: varchar('model', { length: 191 }).default(''),
@@ -113,14 +115,14 @@ export const projects = pgTable(
 export const runs = pgTable(
   'playground_runs',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
-    projectId: integer('project_id').default(0),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
+    projectId: bigint('project_id', { mode: 'number' }).default(0),
     modality: varchar('modality', { length: 20 }).notNull(),
     model: varchar('model', { length: 191 }).default(''),
     prompt: text('prompt').default(''),
     resultUrl: varchar('result_url', { length: 1024 }).default(''),
-    assetId: integer('asset_id').default(0),
+    assetId: bigint('asset_id', { mode: 'number' }).default(0),
     quota: integer('quota').default(0),
     taskId: varchar('task_id', { length: 191 }).default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
@@ -131,10 +133,10 @@ export const runs = pgTable(
 export const voices = pgTable(
   'playground_voices',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     name: varchar('name', { length: 128 }).notNull(),
-    assetId: integer('asset_id').default(0),
+    assetId: bigint('asset_id', { mode: 'number' }).default(0),
     providerVoiceId: varchar('provider_voice_id', { length: 191 }).default(''),
     status: varchar('status', { length: 40 }).default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
@@ -145,7 +147,7 @@ export const voices = pgTable(
 export const agents = pgTable(
   'playground_agents',
   {
-    id: serial('id').primaryKey(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     slug: varchar('slug', { length: 64 }).notNull(),
     title: varchar('title', { length: 255 }).notNull(),
     description: text('description').default(''),
@@ -165,8 +167,8 @@ export const agents = pgTable(
 export const canvasProjects = pgTable(
   'playground_canvas_projects',
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     title: varchar('title', { length: 255 }).notNull(),
     doc: text('doc').default(''),
     cover: varchar('cover', { length: 500 }).default(''),
@@ -174,8 +176,12 @@ export const canvasProjects = pgTable(
     // migration; writes must keep populating them.
     snapshot: text('snapshot').notNull(),
     revision: integer('revision').notNull(),
-    inspirationTemplateId: integer('inspiration_template_id').notNull(),
-    inspirationVersionId: integer('inspiration_version_id').notNull(),
+    inspirationTemplateId: bigint('inspiration_template_id', {
+      mode: 'number',
+    }).notNull(),
+    inspirationVersionId: bigint('inspiration_version_id', {
+      mode: 'number',
+    }).notNull(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
@@ -185,9 +191,9 @@ export const canvasProjects = pgTable(
 export const canvasVersions = pgTable(
   'playground_canvas_versions',
   {
-    id: serial('id').primaryKey(),
-    projectId: integer('project_id').notNull(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    projectId: bigint('project_id', { mode: 'number' }).notNull(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     title: varchar('title', { length: 255 }).notNull(),
     doc: text('doc').default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
@@ -200,9 +206,9 @@ export const canvasVersions = pgTable(
 export const canvasShares = pgTable(
   'playground_canvas_shares',
   {
-    id: serial('id').primaryKey(),
-    projectId: integer('project_id').notNull(),
-    userId: integer('user_id').notNull(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    projectId: bigint('project_id', { mode: 'number' }).notNull(),
+    userId: bigint('user_id', { mode: 'number' }).notNull(),
     tokenHash: varchar('token_hash', { length: 64 }).notNull(),
     expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
     revokedAt: bigint('revoked_at', { mode: 'number' }).notNull(),
