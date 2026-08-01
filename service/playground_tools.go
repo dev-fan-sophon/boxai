@@ -45,7 +45,9 @@ func ClassifyPlaygroundTool(text string) string {
 		"docx", "xlsx", "pptx", "csv", "powerpoint", "spreadsheet", "worksheet", "document",
 		"report", "resume", "invoice", "contract", "proposal", "slide", "deck", "presentation"}
 	if containsAny(s, documentNouns...) {
-		exportIntent := containsAny(s, "导出", "另存", "存成", "保存为", "export", "save as", "download as")
+		exportIntent := containsAny(s, "导出", "另存", "存成", "保存为", "转成", "转为", "转换成",
+			"汇总成", "汇总为", "合并成", "做成", "弄成",
+			"export", "save as", "download as", "convert", "turn into", "compile into", "combine into")
 		readIntent := containsAny(s, "总结", "摘要", "解释", "翻译", "分析一下", "summarize", "summarise", "explain", "translate")
 		createIntent := containsAny(s, "生成", "制作", "做", "写", "整理", "创建", "新建", "输出",
 			"generate", "create", "make", "write", "build", "draft", "prepare", "produce")
