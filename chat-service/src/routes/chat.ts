@@ -177,11 +177,9 @@ chatRoute.post('/', sessionAuth, async (c) => {
   const assistantClientKey =
     started.assistantMessage?.clientKey || crypto.randomUUID()
   let streamedText = ''
-  const abortGeneration = () =>
-    generationController.abort(c.req.raw.signal.reason)
-  if (c.req.raw.signal.aborted) abortGeneration()
-  else
-    c.req.raw.signal.addEventListener('abort', abortGeneration, { once: true })
+  // The SSE consumer owns settlement after the browser disconnects. Only the
+  // durable cancel endpoint aborts this controller; a reload must not discard
+  // an otherwise valid response.
   const unregisterRun = registerActiveRun(
     started.runId,
     user.id,
