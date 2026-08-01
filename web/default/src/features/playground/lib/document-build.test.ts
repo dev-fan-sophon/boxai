@@ -57,7 +57,13 @@ describe('toDocumentArtifacts', () => {
           size: 1024,
           kind: 'document',
         },
-        { id: 2, name: 'chart.png', mime: 'image/png', size: 512, kind: 'image' },
+        {
+          id: 2,
+          name: 'chart.png',
+          mime: 'image/png',
+          size: 512,
+          kind: 'image',
+        },
       ],
       ['report.docx']
     )

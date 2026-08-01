@@ -46,11 +46,11 @@ import { downloadGeneratedMedia } from '../../lib/download-generated-media'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
-import { ManagedDocumentArtifacts } from './managed-document-artifacts'
 import {
   ImagePlaceholder,
   VideoPlaceholder,
 } from '../workspace/generation-progress'
+import { ManagedDocumentArtifacts } from './managed-document-artifacts'
 import { MessageError } from './message-error'
 import { MessageMetadata } from './message-metadata'
 
@@ -310,7 +310,10 @@ export function PlaygroundMessageContent({
                 {t('Show the script that produced this')}
               </summary>
               <div className='mt-2'>
-                <CodeBlock code={message.managedTool.documentCode} language='python'>
+                <CodeBlock
+                  code={message.managedTool.documentCode}
+                  language='python'
+                >
                   <CodeBlockCopyButton />
                 </CodeBlock>
               </div>

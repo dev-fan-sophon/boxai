@@ -136,7 +136,10 @@ export function ManagedDocumentArtifacts({
           >
             <Icon className='text-muted-foreground size-5 shrink-0' />
             <span className='min-w-0 flex-1'>
-              <span className='block truncate text-sm font-medium' title={artifact.name}>
+              <span
+                className='block truncate text-sm font-medium'
+                title={artifact.name}
+              >
                 {artifact.name}
               </span>
               <span className='text-muted-foreground flex items-center gap-1.5 text-xs'>
@@ -174,7 +177,10 @@ export function ManagedDocumentArtifacts({
         )
       })}
 
-      <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && setPreview(null)}>
+      <Dialog
+        open={Boolean(preview)}
+        onOpenChange={(open) => !open && setPreview(null)}
+      >
         <DialogContent className={cn('max-w-4xl')}>
           <DialogHeader>
             <DialogTitle className='truncate'>{preview?.name}</DialogTitle>
