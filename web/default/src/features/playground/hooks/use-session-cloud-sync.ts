@@ -781,21 +781,29 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           if (
             completeConversationList &&
             isChatSession(session) &&
-            session.id === `cloud_${session.serverId}`
+            session.serverId
           ) {
-            return Boolean(
-              session.serverId && conversationIds.has(session.serverId)
-            )
+            return conversationIds.has(session.serverId)
           }
           if (
             completeProjectList &&
             isStudioSession(session) &&
-            session.id === `cloud_proj_${session.serverId}`
+            session.serverId
           ) {
-            return Boolean(session.serverId && projectIds.has(session.serverId))
+            return projectIds.has(session.serverId)
           }
           return true
         })
+        const retainedIds = new Set(retained.map((session) => session.id))
+        for (const session of latest.sessions) {
+          if (retainedIds.has(session.id)) continue
+          // This is stale browser state (usually from another signed-in
+          // account), not a user deletion. Forget its binding locally instead
+          // of issuing a pointless owner-scoped DELETE to boxai-chat.
+          knownIdsRef.current.delete(session.id)
+          serverBindingsRef.current.delete(session.id)
+          chatStatesRef.current.delete(session.id)
+        }
         const sessions = [...additions, ...retained]
         const activeSessionByModality = {
           ...latest.activeSessionByModality,
