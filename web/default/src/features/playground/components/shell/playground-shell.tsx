@@ -59,8 +59,6 @@ type PlaygroundShellProps = {
   settings?: React.ReactNode
   catalogOpen: boolean
   onCatalogOpenChange: (open: boolean) => void
-  historyOpen: boolean
-  onHistoryOpenChange: (open: boolean) => void
   children: React.ReactNode
   className?: string
 }
@@ -73,8 +71,7 @@ type PlaygroundShellProps = {
 export function PlaygroundShell(props: PlaygroundShellProps) {
   const { t } = useTranslation()
   const isDesktop = useLgUp()
-  const { catalogOpen, onCatalogOpenChange, historyOpen, onHistoryOpenChange } =
-    props
+  const { catalogOpen, onCatalogOpenChange } = props
   const [railTab, setRailTab] = useState<RailTab>('models')
 
   // On desktop the catalog sheet does not exist; open requests focus the
@@ -86,20 +83,8 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
     }
   }, [isDesktop, catalogOpen, onCatalogOpenChange])
 
-  useEffect(() => {
-    if (isDesktop && historyOpen) {
-      setRailTab('sessions')
-      onHistoryOpenChange(false)
-    }
-  }, [isDesktop, historyOpen, onHistoryOpenChange])
-
   const handleCatalogOpen = (open: boolean) => {
-    if (open) onHistoryOpenChange(false)
     onCatalogOpenChange(open)
-  }
-  const handleHistoryOpen = (open: boolean) => {
-    if (open) onCatalogOpenChange(false)
-    onHistoryOpenChange(open)
   }
 
   return (
@@ -167,27 +152,6 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
                   </div>
                 )}
               </>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={historyOpen} onOpenChange={handleHistoryOpen}>
-        <SheetContent
-          side='right'
-          className='bg-sidebar text-sidebar-foreground border-sidebar-border w-[min(92vw,22rem)] p-0 sm:max-w-sm'
-        >
-          <SheetHeader className='sr-only'>
-            <SheetTitle>{t('History')}</SheetTitle>
-            <SheetDescription>
-              {t('Browse and switch between your sessions.')}
-            </SheetDescription>
-          </SheetHeader>
-          <div className='flex h-full flex-col pt-[env(safe-area-inset-top,0px)]'>
-            {historyOpen && (
-              <SessionHistoryPanel
-                onSelectSession={() => onHistoryOpenChange(false)}
-              />
             )}
           </div>
         </SheetContent>

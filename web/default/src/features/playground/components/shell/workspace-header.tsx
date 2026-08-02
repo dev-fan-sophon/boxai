@@ -1,6 +1,5 @@
 import {
   ChevronDown,
-  History,
   ImageIcon,
   Layers,
   Music2,
@@ -31,8 +30,6 @@ type WorkspaceHeaderProps = {
   sessionTitle?: string
   /** Opens the catalog drawer on mobile (desktop catalog lives in the left rail) */
   onOpenCatalog: () => void
-  /** Opens session history as a right-side sheet */
-  onOpenHistory?: () => void
   /** Start a new session in the current modality */
   onNewSession?: () => void
   /** Extra actions rendered at the right edge (settings toggle, etc.) */
@@ -145,17 +142,6 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
         </button>
       )}
       <div className='flex shrink-0 items-center gap-0.5 sm:gap-1'>
-        {props.onOpenHistory && (
-          <Button
-            size='icon'
-            variant='ghost'
-            className='text-muted-foreground hover:text-foreground size-9 touch-manipulation sm:size-8'
-            aria-label={t('History')}
-            onClick={props.onOpenHistory}
-          >
-            <History className='size-4' />
-          </Button>
-        )}
         {props.onNewSession && (
           <Button
             size='icon'

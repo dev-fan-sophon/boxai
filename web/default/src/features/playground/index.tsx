@@ -87,7 +87,6 @@ export function Playground() {
   const isAuthenticated = Boolean(user)
   const [signInDialogOpen, setSignInDialogOpen] = useState(false)
   const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false)
-  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
   // Settings panel: persisted open state on wide desktop, ephemeral overlay
   // between 1024–1279px, bottom sheet below 1024px.
   const isDesktop = useLgUp()
@@ -907,8 +906,6 @@ export function Playground() {
       catalog={catalog}
       catalogOpen={catalogDrawerOpen}
       onCatalogOpenChange={setCatalogDrawerOpen}
-      historyOpen={historyDrawerOpen}
-      onHistoryOpenChange={setHistoryDrawerOpen}
       settings={
         <SettingsPanel
           modality={activeModality}
@@ -929,7 +926,6 @@ export function Playground() {
           // Desktop keeps the catalog in the left rail; mobile uses a sheet.
           if (!isDesktop) setCatalogDrawerOpen(true)
         }}
-        onOpenHistory={() => setHistoryDrawerOpen(true)}
         onNewSession={handleNewSession}
         actions={
           <Button
