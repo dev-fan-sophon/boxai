@@ -123,10 +123,16 @@ export function PlaygroundMessageContent({
     message.managedTool?.runId
   )
   const toolVideoUrl = videoResult.resultUrl || message.managedTool?.videoUrl
-  const toolStatus =
-    message.managedTool?.action === 'generate_video' && videoResult.status
-      ? videoResult.status.toLowerCase()
-      : message.managedTool?.status
+  let toolStatus: string | undefined = message.managedTool?.status
+  if (message.managedTool?.action === 'generate_video' && videoResult.status) {
+    if (videoResult.ready) {
+      toolStatus = 'completed'
+    } else if (videoResult.failed) {
+      toolStatus = 'failed'
+    } else {
+      toolStatus = 'running'
+    }
+  }
   const toolError =
     message.managedTool?.action === 'generate_video' && videoResult.failed
       ? videoResult.failReason
