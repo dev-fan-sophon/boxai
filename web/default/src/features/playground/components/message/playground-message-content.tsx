@@ -1,14 +1,5 @@
-import {
-  Download,
-  FileText,
-  Globe,
-  ImageIcon,
-  Sparkles,
-  Video,
-  type LucideIcon,
-} from 'lucide-react'
-import { useReducedMotion } from 'motion/react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { FileText } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -30,11 +21,9 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai-elements/sources'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { MESSAGE_STATUS } from '../../constants'
-import { useVideoTaskResult } from '../../hooks/use-video-task-result'
 import {
   getMessageAlignmentClass,
   getMessageContentState,
@@ -42,50 +31,13 @@ import {
   type MessageAlignment,
 } from '../../lib'
 import { attachmentPreviewSrc } from '../../lib/attachments/attachment-utils'
-import { downloadGeneratedMedia } from '../../lib/download-generated-media'
 import { displaySourceTitle } from '../../lib/message/message-content-utils'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
-import {
-  ImagePlaceholder,
-  VideoPlaceholder,
-} from '../workspace/generation-progress'
-import { ManagedDocumentArtifacts } from './managed-document-artifacts'
+import { ManagedToolCardView } from './managed-tool-card'
 import { MessageError } from './message-error'
 import { MessageMetadata } from './message-metadata'
-
-const MANAGED_TOOL_META: Record<
-  string,
-  { titleKey: string; Icon: LucideIcon; tile: string }
-> = {
-  generate_image: {
-    titleKey: 'Image generation',
-    Icon: ImageIcon,
-    tile: 'bg-chart-3/15 text-chart-3',
-  },
-  generate_video: {
-    titleKey: 'Video generation',
-    Icon: Video,
-    tile: 'bg-warning/15 text-warning',
-  },
-  web_search: {
-    titleKey: 'Web search',
-    Icon: Globe,
-    tile: 'bg-info/15 text-info',
-  },
-  generate_document: {
-    titleKey: 'Document generation',
-    Icon: FileText,
-    tile: 'bg-chart-2/15 text-chart-2',
-  },
-}
-
-const DEFAULT_TOOL_META = {
-  titleKey: 'Platform tool',
-  Icon: Sparkles,
-  tile: 'bg-primary/15 text-primary',
-}
 
 type PlaygroundMessageContentProps = {
   actions: ReactNode
@@ -118,48 +70,18 @@ export function PlaygroundMessageContent({
   const isMessageFinal =
     message.status !== MESSAGE_STATUS.LOADING &&
     message.status !== MESSAGE_STATUS.STREAMING
-  const videoResult = useVideoTaskResult(
-    message.managedTool?.taskId,
-    message.managedTool?.action === 'generate_video'
+  const managedTools =
+    message.managedTools ?? (message.managedTool ? [message.managedTool] : [])
+  const hasRunningTool = managedTools.some(
+    (tool) =>
+      tool.status === 'queued' ||
+      tool.status === 'running' ||
+      tool.status === 'submitted'
   )
-  const toolVideoUrl = message.managedTool?.videoUrl || videoResult.resultUrl
-  let toolStatus: string | undefined = message.managedTool?.status
-  if (message.managedTool?.action === 'generate_video' && videoResult.status) {
-    if (videoResult.ready) {
-      toolStatus = 'completed'
-    } else if (videoResult.failed) {
-      toolStatus = 'failed'
-    } else {
-      toolStatus = 'running'
-    }
-  }
-  const toolError =
-    message.managedTool?.action === 'generate_video' && videoResult.failed
-      ? videoResult.failReason
-      : message.managedTool?.error
-
-  const shouldReduce = useReducedMotion()
   const [lightbox, setLightbox] = useState<{
     items: LightboxItem[]
     index: number
   } | null>(null)
-  const toolMeta = message.managedTool
-    ? (MANAGED_TOOL_META[message.managedTool.action] ?? DEFAULT_TOOL_META)
-    : DEFAULT_TOOL_META
-  const ToolIcon = toolMeta.Icon
-  const isToolFailed =
-    Boolean(toolError) ||
-    toolStatus === 'failed' ||
-    toolStatus === 'unavailable'
-  const isToolDone =
-    !isToolFailed &&
-    (toolStatus === 'completed' ||
-      toolStatus === 'success' ||
-      Boolean(message.managedTool?.images?.length) ||
-      Boolean(message.managedTool?.documents?.length) ||
-      Boolean(toolVideoUrl))
-  const isToolRunning =
-    Boolean(message.managedTool) && !isToolFailed && !isToolDone
 
   return (
     <div
@@ -228,158 +150,16 @@ export function PlaygroundMessageContent({
         </Sources>
       )}
 
-      {message.managedTool && (
-        <section className='border-border from-muted/40 to-muted/15 mb-2 rounded-xl border bg-gradient-to-br p-3'>
-          <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
-            <span className='flex min-w-0 items-center gap-2'>
-              <span
-                className={cn(
-                  'flex size-7 shrink-0 items-center justify-center rounded-lg',
-                  toolMeta.tile
-                )}
-              >
-                <ToolIcon className='size-3.5' aria-hidden='true' />
-              </span>
-              <span className='truncate font-medium'>
-                {t(toolMeta.titleKey)}
-              </span>
-            </span>
-            <span
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs',
-                isToolFailed && 'bg-destructive/10 text-destructive',
-                isToolDone && 'bg-success/10 text-success',
-                isToolRunning && 'bg-primary/10 text-primary'
-              )}
-            >
-              {isToolRunning && (
-                <span
-                  className={cn(
-                    'bg-primary size-1.5 rounded-full animate-pulse'
-                  )}
-                  aria-hidden='true'
-                />
-              )}
-              {t(toolStatus || message.managedTool.status)}
-              {isToolRunning && message.managedTool.startedAt && (
-                <ToolElapsedTime startedAt={message.managedTool.startedAt} />
-              )}
-            </span>
-          </div>
-          {isToolRunning && message.managedTool.stage && (
-            <p className='text-muted-foreground mt-2 truncate text-xs'>
-              {t(message.managedTool.stage)}
-              {message.managedTool.stageDetail
-                ? ` · ${message.managedTool.stageDetail}`
-                : ''}
-            </p>
-          )}
-          {toolError && (
-            <p className='text-destructive mt-2 text-sm'>{toolError}</p>
-          )}
-          {isToolRunning && message.managedTool.action === 'generate_image' && (
-            <div className='mt-3'>
-              <ImagePlaceholder
-                delayMs={0}
-                reduceMotion={Boolean(shouldReduce)}
-                ratio={4 / 3}
-                sizeLabel={null}
-                className='max-w-40 rounded-xl'
-              />
-            </div>
-          )}
-          {isToolRunning && message.managedTool.action === 'generate_video' && (
-            <div className='mt-3'>
-              <VideoPlaceholder reduceMotion={Boolean(shouldReduce)} />
-            </div>
-          )}
-          {isToolRunning && message.managedTool.action === 'web_search' && (
-            <div className='mt-3 space-y-1.5' aria-hidden='true'>
-              <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
-              <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
-              <div className='skeleton-shimmer h-3 w-2/3 rounded-full' />
-            </div>
-          )}
-          {isToolRunning &&
-            message.managedTool.action === 'generate_document' && (
-              <div className='mt-3'>
-                <p className='text-muted-foreground mb-2 text-xs'>
-                  {(message.managedTool.documentAttempts ?? 1) > 1
-                    ? t('Fixing the build script (attempt {{attempt}})', {
-                        attempt: message.managedTool.documentAttempts,
-                      })
-                    : t('Writing and running the build script')}
-                </p>
-                <div className='space-y-1.5' aria-hidden='true'>
-                  <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
-                  <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
-                </div>
-              </div>
-            )}
-          {message.managedTool.documents && (
-            <ManagedDocumentArtifacts
-              artifacts={message.managedTool.documents}
+      {managedTools.length > 0 && (
+        <div className='mb-2 grid gap-2'>
+          {managedTools.map((tool, index) => (
+            <ManagedToolCardView
+              key={tool.toolCallId ?? `${tool.action}-${index}`}
+              isMessageFinal={isMessageFinal}
+              tool={tool}
             />
-          )}
-          {message.managedTool.documentCode && isMessageFinal && (
-            <details className='mt-3'>
-              <summary className='text-muted-foreground hover:text-foreground cursor-pointer text-xs'>
-                {t('Show the script that produced this')}
-              </summary>
-              <div className='mt-2'>
-                <CodeBlock
-                  code={message.managedTool.documentCode}
-                  language='python'
-                >
-                  <CodeBlockCopyButton />
-                </CodeBlock>
-              </div>
-              {message.managedTool.documentLogs && (
-                <pre className='bg-muted/40 mt-2 max-h-40 overflow-auto rounded-lg p-3 text-xs whitespace-pre-wrap'>
-                  {message.managedTool.documentLogs}
-                </pre>
-              )}
-            </details>
-          )}
-          {message.managedTool.images && (
-            <div className='mt-3 flex flex-wrap gap-2'>
-              {message.managedTool.images.map((url, index) => (
-                <ManagedToolImage
-                  key={url}
-                  url={url}
-                  index={index}
-                  alt={t('Generated image')}
-                  onOpen={() => {
-                    const items = (message.managedTool?.images ?? []).map(
-                      (imageUrl, imageIndex) => ({
-                        url: imageUrl,
-                        alt: t('Generated image'),
-                        downloadName: `image-${imageIndex + 1}`,
-                      })
-                    )
-                    setLightbox({ items, index })
-                  }}
-                />
-              ))}
-            </div>
-          )}
-          {toolVideoUrl && (
-            <div className='generation-result-enter border-border/70 bg-muted/30 group relative mt-3 overflow-hidden rounded-xl border'>
-              <video src={toolVideoUrl} controls className='w-full' />
-              <Button
-                size='icon-sm'
-                variant='secondary'
-                className='bg-background/85 absolute top-2 right-2 shadow-sm backdrop-blur-sm'
-                aria-label={t('Download')}
-                onClick={() =>
-                  void downloadGeneratedMedia(toolVideoUrl, 'video', 'video')
-                }
-              >
-                <Download aria-hidden='true' />
-              </Button>
-            </div>
-          )}
-        </section>
+          ))}
+        </div>
       )}
 
       {hasReasoning && (
@@ -393,7 +173,7 @@ export function PlaygroundMessageContent({
         </Reasoning>
       )}
 
-      {showLoader && (
+      {showLoader && !hasRunningTool && (
         <div className='flex items-center gap-2 py-2'>
           <Loader />
           <Shimmer className='text-sm' duration={1}>
@@ -460,46 +240,5 @@ export function PlaygroundMessageContent({
         }
       />
     </div>
-  )
-}
-
-/** Live elapsed time for a running tool, so long executions don't look frozen. */
-function ToolElapsedTime(props: { startedAt: number }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(timer)
-  }, [])
-  const seconds = Math.max(0, Math.floor((now - props.startedAt) / 1000))
-  const label =
-    seconds >= 60
-      ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
-      : `${seconds}s`
-  return <span className='tabular-nums opacity-70'>{label}</span>
-}
-
-function ManagedToolImage(props: {
-  url: string
-  index: number
-  alt: string
-  onOpen?: () => void
-}) {
-  return (
-    <button
-      type='button'
-      className='generation-result-enter border-border/70 bg-muted/30 focus-visible:ring-ring cursor-zoom-in overflow-hidden rounded-xl border outline-none focus-visible:ring-2'
-      style={{ animationDelay: `${props.index * 70}ms` }}
-      aria-label={props.alt}
-      onClick={props.onOpen}
-    >
-      <img
-        src={props.url}
-        alt={props.alt}
-        className='generation-image-reveal duration-control size-32 object-cover transition-transform hover:scale-105 sm:size-40'
-        referrerPolicy='no-referrer'
-        loading='lazy'
-        decoding='async'
-      />
-    </button>
   )
 }

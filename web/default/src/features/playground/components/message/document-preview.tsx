@@ -1,3 +1,4 @@
+/* oxlint-disable react/iframe-missing-sandbox -- Native browser PDF viewers cannot render in sandboxed frames. */
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,13 +10,9 @@ import {
 import type { ManagedDocumentArtifact } from '../../types'
 
 /**
- * Preview reuses the server-side document parser that already backs uploads, so no OOXML reader,
- * PDF engine or font bundle ships to the browser.
- *
- * Documents are shown as extracted text rather than rendered in a frame. The asset endpoint
- * deliberately serves every document as an attachment so a generated file can never execute on
- * our own origin, and a text preview is what remains truthful under that rule. Downloading gives
- * the real file.
+ * PDFs use the browser's native viewer with the authenticated asset URL. Other
+ * formats reuse the server-side parser, so no Office renderer ships to the
+ * browser and users can still inspect their generated content before download.
  */
 export function DocumentPreview({
   artifact,
@@ -65,28 +62,16 @@ export function DocumentPreview({
     )
   }
   if (renderPdfInline && artifact.url) {
-    // The real file with its real layout, rendered by the browser's built-in
-    // PDF viewer; the text-extraction fallback below only covers other
-    // formats. An <object> degrades to the download link on browsers that
-    // cannot render PDFs inline.
-    const inlineUrl = `${artifact.url}${artifact.url.includes('?') ? '&' : '?'}inline=1`
+    // Render the real PDF directly and ask the browser viewer to fit the page
+    // without its cramped thumbnail and toolbar chrome. The download action
+    // remains in the preview header.
+    const inlineUrl = `${artifact.url}${artifact.url.includes('?') ? '&' : '?'}inline=1#view=Fit&toolbar=0&navpanes=0&pagemode=none`
     return (
-      <object
-        data={inlineUrl}
-        type='application/pdf'
-        aria-label={artifact.name}
-        className='border-border h-full min-h-[60vh] w-full rounded-lg border'
-      >
-        <div className='p-4 text-sm'>
-          <a
-            href={artifact.url}
-            download={artifact.name}
-            className='text-primary underline underline-offset-4'
-          >
-            {t('Download')} {artifact.name}
-          </a>
-        </div>
-      </object>
+      <iframe
+        src={inlineUrl}
+        title={artifact.name}
+        className='bg-muted/20 h-full min-h-[70vh] w-full border-0'
+      />
     )
   }
   if (error) {

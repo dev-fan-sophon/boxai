@@ -84,6 +84,7 @@ export function Playground() {
   const isWideDesktop = useXlUp()
   const [narrowSettingsOpen, setNarrowSettingsOpen] = useState(false)
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false)
+  const previewArtifact = useArtifactPreviewStore((state) => state.artifact)
 
   const workspaceMode = usePlaygroundStore((state) => state.workspaceMode)
   const setWorkspaceMode = usePlaygroundStore((state) => state.setWorkspaceMode)
@@ -102,6 +103,11 @@ export function Playground() {
   const setSettingsPanelOpen = usePlaygroundStore(
     (state) => state.setSettingsPanelOpen
   )
+  useEffect(() => {
+    if (!previewArtifact || !isDesktop) return
+    setSettingsPanelOpen(false)
+    setNarrowSettingsOpen(false)
+  }, [isDesktop, previewArtifact, setSettingsPanelOpen])
   const chatTools = usePlaygroundStore((state) => state.chatTools)
   const pinnedModels = usePlaygroundStore((state) => state.pinnedModels)
   const togglePinnedModel = usePlaygroundStore(
@@ -441,6 +447,7 @@ export function Playground() {
     ? settingsPanelOpen
     : narrowSettingsOpen
   const toggleSettings = () => {
+    useArtifactPreviewStore.getState().close()
     if (!isDesktop) {
       setSettingsSheetOpen(true)
       return

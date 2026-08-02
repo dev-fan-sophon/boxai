@@ -13,6 +13,7 @@ export type ManagedToolStatus =
   | 'running'
   | 'submitted'
   | 'completed'
+  | 'cancelled'
   | 'failed'
 
 export type ManagedDocumentArtifact = {
@@ -27,6 +28,7 @@ export type ManagedDocumentArtifact = {
 
 export type ManagedToolCard = {
   runId?: number
+  toolCallId?: string
   action:
     | 'generate_image'
     | 'generate_video'
@@ -129,6 +131,8 @@ export interface Message {
   durationMs?: number
   sources?: MessageSource[]
   managedTool?: ManagedToolCard
+  /** Every AI SDK tool part in this assistant turn, preserved in call order. */
+  managedTools?: ManagedToolCard[]
   /**
    * Model that produced this assistant turn. Absent on legacy messages
    * (shown as "model not recorded").
@@ -142,7 +146,7 @@ export interface Message {
   modelChangeTo?: string
   reasoning?: {
     content: string
-    duration: number
+    duration?: number
     startedAt?: number
     completedAt?: number
     durationMs?: number

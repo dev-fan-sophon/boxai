@@ -84,8 +84,10 @@ type ApiEnvelope<T> = {
 
 type ToolPayload = {
   managedTool?: ManagedToolCard
+  managedTools?: ManagedToolCard[]
   sources?: MessageSource[]
   reasoning?: Message['reasoning']
+  isReasoningStreaming?: boolean
 }
 
 function parseParts(
@@ -328,66 +330,99 @@ function documentArtifacts(
   }))
 }
 
+function managedToolFromPart(
+  part: Record<string, unknown>
+): ManagedToolCard | null {
+  if (typeof part.type !== 'string' || !part.type.startsWith('tool-')) {
+    return null
+  }
+  const action = part.type.slice(5) as ManagedToolCard['action']
+  if (
+    action !== 'web_search' &&
+    action !== 'generate_image' &&
+    action !== 'generate_video' &&
+    action !== 'generate_document'
+  ) {
+    return null
+  }
+  const toolCallId =
+    typeof part.toolCallId === 'string' ? part.toolCallId : undefined
+  if (part.state === 'output-error') {
+    return {
+      action,
+      toolCallId,
+      status: 'failed',
+      error: typeof part.errorText === 'string' ? part.errorText : undefined,
+    }
+  }
+  const output =
+    part.output && typeof part.output === 'object'
+      ? (part.output as Record<string, unknown>)
+      : {}
+  if (part.state !== 'output-available' || part.preliminary === true) {
+    return {
+      action,
+      toolCallId,
+      status: 'running',
+      stage: typeof output.stage === 'string' ? output.stage : undefined,
+      stageDetail:
+        typeof output.attempt === 'number' &&
+        typeof output.totalAttempts === 'number'
+          ? `${output.attempt}/${output.totalAttempts}`
+          : undefined,
+      documentAttempts:
+        typeof output.attempt === 'number' ? output.attempt : undefined,
+    }
+  }
+  const managedTool: ManagedToolCard = {
+    action,
+    toolCallId,
+    status: 'completed',
+  }
+  if (action === 'generate_image') {
+    managedTool.model =
+      typeof output.model === 'string' ? output.model : undefined
+    managedTool.images = Array.isArray(output.images)
+      ? (output.images as Array<{ url?: string }>)
+          .map((image) => image.url || '')
+          .filter(Boolean)
+      : []
+  } else if (action === 'generate_video') {
+    managedTool.model =
+      typeof output.model === 'string' ? output.model : undefined
+    managedTool.taskId =
+      typeof output.task_id === 'string' ? output.task_id : undefined
+    managedTool.videoUrl =
+      typeof output.video_url === 'string' ? output.video_url : undefined
+  } else if (action === 'generate_document') {
+    managedTool.documents = documentArtifacts(output)
+    managedTool.documentAttempts =
+      typeof output.attempts === 'number' ? output.attempts : undefined
+  }
+  return managedTool
+}
+
 function liveToolPayload(parts: AgentUIMessage['parts']): ToolPayload {
-  let managedTool: ManagedToolCard | undefined
+  const managedTools: ManagedToolCard[] = []
   const sources: MessageSource[] = []
   const sourceHrefs = new Set<string>()
   let reasoning = ''
+  let isReasoningStreaming = false
   for (const raw of parts) {
     const part = raw as unknown as Record<string, unknown>
     if (part.type === 'reasoning' && typeof part.text === 'string') {
       reasoning += `${reasoning ? '\n' : ''}${part.text}`
+      if (part.state === 'streaming') isReasoningStreaming = true
       continue
     }
-    if (typeof part.type !== 'string' || !part.type.startsWith('tool-')) {
-      continue
-    }
-    const action = part.type.slice(5) as ManagedToolCard['action']
-    if (
-      action !== 'web_search' &&
-      action !== 'generate_image' &&
-      action !== 'generate_video' &&
-      action !== 'generate_document'
-    ) {
-      continue
-    }
+    const managedTool = managedToolFromPart(part)
+    if (!managedTool) continue
+    managedTools.push(managedTool)
     const output =
       part.output && typeof part.output === 'object'
         ? (part.output as Record<string, unknown>)
         : {}
-    if (part.state === 'output-error') {
-      managedTool = {
-        action,
-        status: 'failed',
-        error: typeof part.errorText === 'string' ? part.errorText : undefined,
-      }
-      continue
-    }
-    if (part.state !== 'output-available') {
-      managedTool = { action, status: 'running', startedAt: Date.now() }
-      continue
-    }
-    managedTool = { action, status: 'completed' }
-    if (action === 'generate_image') {
-      managedTool.model =
-        typeof output.model === 'string' ? output.model : undefined
-      managedTool.images = Array.isArray(output.images)
-        ? (output.images as Array<{ url?: string }>)
-            .map((image) => image.url || '')
-            .filter(Boolean)
-        : []
-    } else if (action === 'generate_video') {
-      managedTool.model =
-        typeof output.model === 'string' ? output.model : undefined
-      managedTool.taskId =
-        typeof output.task_id === 'string' ? output.task_id : undefined
-      managedTool.videoUrl =
-        typeof output.video_url === 'string' ? output.video_url : undefined
-    } else if (action === 'generate_document') {
-      managedTool.documents = documentArtifacts(output)
-      managedTool.documentAttempts =
-        typeof output.attempts === 'number' ? output.attempts : undefined
-    } else if (Array.isArray(output.sources)) {
+    if (managedTool.action === 'web_search' && Array.isArray(output.sources)) {
       for (const source of output.sources as Array<{
         href?: string
         title?: string
@@ -404,9 +439,10 @@ function liveToolPayload(parts: AgentUIMessage['parts']): ToolPayload {
     }
   }
   return {
-    managedTool,
+    managedTools: managedTools.length ? managedTools : undefined,
     sources: sources.length ? sources : undefined,
-    reasoning: reasoning ? { content: reasoning, duration: 0 } : undefined,
+    reasoning: reasoning ? { content: reasoning } : undefined,
+    isReasoningStreaming,
   }
 }
 
@@ -452,6 +488,24 @@ export function agentUIMessageToPlayground(
   } else if (message.metadata?.status === 'stopped') {
     status = 'stopped'
   }
+  let managedTools = liveTool.managedTools ?? persistedTool.managedTools
+  let managedTool = managedTools ? undefined : persistedTool.managedTool
+  if (!pending) {
+    managedTools = managedTools?.map((tool) =>
+      tool.status === 'queued' ||
+      tool.status === 'running' ||
+      tool.status === 'submitted'
+        ? { ...tool, status: 'cancelled' }
+        : tool
+    )
+    if (
+      managedTool?.status === 'queued' ||
+      managedTool?.status === 'running' ||
+      managedTool?.status === 'submitted'
+    ) {
+      managedTool = { ...managedTool, status: 'cancelled' }
+    }
+  }
   return {
     key: message.id,
     from: message.role,
@@ -463,9 +517,13 @@ export function agentUIMessageToPlayground(
     attachments: attachments.length ? attachments : undefined,
     createdAt,
     model: message.metadata?.model,
-    managedTool: liveTool.managedTool ?? persistedTool.managedTool,
+    managedTool,
+    managedTools,
     sources: liveTool.sources ?? persistedTool.sources,
     reasoning: liveTool.reasoning ?? persistedTool.reasoning,
+    isReasoningStreaming: liveTool.isReasoningStreaming,
+    isReasoningComplete:
+      Boolean(liveTool.reasoning) && !liveTool.isReasoningStreaming,
     status,
   }
 }

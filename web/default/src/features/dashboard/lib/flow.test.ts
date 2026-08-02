@@ -764,7 +764,10 @@ describe('dashboard flow data', () => {
       activeNode: { kind: 'user', id: 'user:1' },
     })
     const sankey = buildFlowSankeyRechartsData(result.flow)
-    const lastDimmed = sankey.links.findLastIndex((link) => link.dimmed)
+    const lastDimmed = sankey.links.reduce(
+      (lastIndex, link, index) => (link.dimmed ? index : lastIndex),
+      -1
+    )
     const firstHighlighted = sankey.links.findIndex((link) => link.highlighted)
 
     expect(lastDimmed).toBeGreaterThanOrEqual(0)

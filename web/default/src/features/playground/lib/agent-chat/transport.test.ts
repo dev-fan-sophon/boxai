@@ -224,5 +224,104 @@ describe('agent chat history adapters', () => {
     expect(projected.sources).toEqual([
       { href: 'https://news.example/story', title: 'Story', domain: undefined },
     ])
+    expect(projected.managedTools).toHaveLength(2)
+    expect(projected.managedTools?.map((tool) => tool.toolCallId)).toEqual([
+      'search-1',
+      'search-2',
+    ])
+  })
+
+  it('keeps preliminary document output running until the final SDK result', () => {
+    const progress = agentUIMessageToPlayground(
+      {
+        id: 'assistant-document-progress',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-generate_document',
+            toolCallId: 'document-1',
+            state: 'output-available',
+            input: { request: 'Build a report' },
+            output: {
+              status: 'running',
+              stage: 'Building the document',
+              attempt: 2,
+              totalAttempts: 3,
+            },
+            preliminary: true,
+          },
+        ],
+      },
+      true
+    )
+    expect(progress.managedTools).toEqual([
+      {
+        action: 'generate_document',
+        toolCallId: 'document-1',
+        status: 'running',
+        stage: 'Building the document',
+        stageDetail: '2/3',
+        documentAttempts: 2,
+      },
+    ])
+
+    const stopped = agentUIMessageToPlayground(
+      {
+        id: 'assistant-document-stopped',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-generate_document',
+            toolCallId: 'document-1',
+            state: 'output-available',
+            input: { request: 'Build a report' },
+            output: {
+              status: 'running',
+              stage: 'Building the document',
+            },
+            preliminary: true,
+          },
+        ],
+        metadata: { status: 'stopped' },
+      },
+      false
+    )
+    expect(stopped.managedTools?.[0]?.status).toBe('cancelled')
+
+    const completed = agentUIMessageToPlayground(
+      {
+        id: 'assistant-document-complete',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-generate_document',
+            toolCallId: 'document-1',
+            state: 'output-available',
+            input: { request: 'Build a report' },
+            output: {
+              status: 'completed',
+              attempts: 2,
+              documents: [
+                {
+                  asset_id: 7,
+                  name: 'report.pdf',
+                  url: '/api/playground/assets/7/content',
+                  mime: 'application/pdf',
+                  size: 1234,
+                },
+              ],
+            },
+          },
+        ],
+      },
+      false
+    )
+    expect(completed.managedTools?.[0]).toMatchObject({
+      action: 'generate_document',
+      toolCallId: 'document-1',
+      status: 'completed',
+      documentAttempts: 2,
+      documents: [{ assetId: 7, name: 'report.pdf', verified: true }],
+    })
   })
 })

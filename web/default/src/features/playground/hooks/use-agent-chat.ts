@@ -175,8 +175,18 @@ export function useAgentChat(options: UseAgentChatOptions) {
       chatRequestFailedRef.current = true
       toast.error(errorText(error) || t(ERROR_MESSAGES.API_REQUEST_ERROR))
     },
-    onFinish: ({ isDisconnect, isError }) => {
-      if (isDisconnect || isError) chatRequestFailedRef.current = true
+    onFinish: ({ isAbort, isDisconnect, isError }) => {
+      if (isDisconnect || isError) {
+        chatRequestFailedRef.current = true
+        return
+      }
+      if (!isAbort) {
+        // A clean AI SDK stream completion is authoritative for the local UI.
+        // Durable polling remains active only for disconnects, where the
+        // server intentionally continues the run without this browser.
+        runIdRef.current = ''
+        setServerRunId('')
+      }
     },
   })
   const chatMessages = chat.messages

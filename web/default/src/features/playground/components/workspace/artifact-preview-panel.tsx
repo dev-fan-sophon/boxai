@@ -31,7 +31,7 @@ export function ArtifactPreviewPanel() {
     <aside
       role='complementary'
       aria-label={t('Artifact preview')}
-      className='bg-background lg:border-border fixed inset-0 z-50 flex flex-col lg:static lg:z-auto lg:w-[clamp(320px,38vw,540px)] lg:shrink-0 lg:border-l'
+      className='bg-background lg:border-border fixed inset-0 z-50 flex flex-col lg:static lg:z-auto lg:w-[clamp(420px,48vw,780px)] lg:shrink-0 lg:border-l'
     >
       <header className='border-border flex items-center gap-2 border-b px-4 py-3'>
         <span className='min-w-0 flex-1'>
@@ -62,7 +62,14 @@ export function ArtifactPreviewPanel() {
           <X className='size-4' />
         </Button>
       </header>
-      <div className='min-h-0 flex-1 overflow-y-auto p-4'>
+      <div
+        className={
+          artifact.mime.split(';', 1)[0].trim().toLowerCase() ===
+          'application/pdf'
+            ? 'min-h-0 flex-1 overflow-hidden'
+            : 'min-h-0 flex-1 overflow-y-auto p-4'
+        }
+      >
         <DocumentPreview key={artifact.assetId} artifact={artifact} />
       </div>
     </aside>
