@@ -2,12 +2,32 @@ import { tool } from 'ai'
 import { z } from 'zod'
 
 import { config } from '../config'
-import { billedRelayFetch, taskStatus } from '../gateway/client'
+import {
+  billedRelayFetch,
+  gatewayFailureMessage,
+  taskStatus,
+} from '../gateway/client'
 import type { ToolContext } from './index'
 import { resolveToolModels } from './tool-models'
 
 const POLL_INTERVAL_MS = 5_000
 const POLL_TIMEOUT_MS = 6 * 60_000
+const DEFAULT_VIDEO_DURATION_SECONDS = 5
+const DEFAULT_VIDEO_SIZE = '1280x720'
+
+export function videoGenerationRequest(
+  model: string,
+  group: string,
+  prompt: string
+): Record<string, unknown> {
+  return {
+    model,
+    group,
+    prompt,
+    duration: DEFAULT_VIDEO_DURATION_SECONDS,
+    size: DEFAULT_VIDEO_SIZE,
+  }
+}
 
 export function waitForVideoPoll(signal?: AbortSignal): Promise<void> {
   signal?.throwIfAborted()
@@ -50,19 +70,17 @@ export function generateVideoTool(context: ToolContext) {
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            model: models.video_model,
-            group: context.group,
-            prompt,
-          }),
+          body: JSON.stringify(
+            videoGenerationRequest(models.video_model, context.group, prompt)
+          ),
           signal,
         }
       )
       if (!response.ok) {
-        const failure = (await response.json().catch(() => ({}))) as {
-          error?: { message?: string }
-        }
-        throw new Error(failure.error?.message || 'video generation failed')
+        const failure = await response.json().catch(() => null)
+        throw new Error(
+          gatewayFailureMessage(failure) || 'video generation failed'
+        )
       }
       const body = (await response.json()) as {
         data?: { task_id?: string; id?: string }

@@ -371,8 +371,8 @@ func selectToolModel(models []string, action string) string {
 	priorities := []string{}
 	need := []string{}
 	if action == service.PlaygroundToolVideo {
-		priorities = []string{"grok-imagine-video", "grok-imagine-video-1.5"}
-		need = []string{"video", "sora", "veo", "kling", "wan"}
+		priorities = []string{"grok-imagine-video"}
+		need = []string{"video", "sora", "veo", "kling", "wan", "seedance"}
 	} else if action == service.PlaygroundToolSearch {
 		priorities = []string{"grok-4.5", "grok-4.3"}
 		need = []string{"grok-4"}
@@ -390,6 +390,15 @@ func selectToolModel(models []string, action string) string {
 	sort.Slice(fallbacks, func(i, j int) bool { return strings.ToLower(fallbacks[i]) < strings.ToLower(fallbacks[j]) })
 	for _, m := range fallbacks {
 		lower := strings.ToLower(m)
+		bare := lower
+		if i := strings.LastIndex(bare, "/"); i >= 0 {
+			bare = bare[i+1:]
+		}
+		// The chat video tool is text-to-video. xAI 1.5 is image-only in
+		// the task adapter, so selecting it guarantees a 400 before relay.
+		if action == service.PlaygroundToolVideo && bare == "grok-imagine-video-1.5" {
+			continue
+		}
 		if action == service.PlaygroundToolSearch && (strings.Contains(lower, "image") || strings.Contains(lower, "imagine") || strings.Contains(lower, "video")) {
 			continue
 		}

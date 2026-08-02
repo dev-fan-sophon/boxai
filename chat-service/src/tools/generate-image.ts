@@ -2,7 +2,12 @@ import { tool } from 'ai'
 import { z } from 'zod'
 
 import { config } from '../config'
-import { billedRelayFetch, importAsset, uploadAsset } from '../gateway/client'
+import {
+  billedRelayFetch,
+  gatewayFailureMessage,
+  importAsset,
+  uploadAsset,
+} from '../gateway/client'
 import type { ToolContext } from './index'
 import { resolveToolModels } from './tool-models'
 
@@ -41,10 +46,10 @@ export function generateImageTool(context: ToolContext) {
         }
       )
       if (!response.ok) {
-        const failure = (await response.json().catch(() => ({}))) as {
-          error?: { message?: string }
-        }
-        throw new Error(failure.error?.message || 'image generation failed')
+        const failure = await response.json().catch(() => null)
+        throw new Error(
+          gatewayFailureMessage(failure) || 'image generation failed'
+        )
       }
       const body = (await response.json()) as { data?: ImageGenerationItem[] }
       const items = body.data ?? []

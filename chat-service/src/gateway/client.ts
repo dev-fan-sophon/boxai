@@ -24,6 +24,18 @@ export class GatewayError extends Error {
 
 type GatewayEnvelope<T> = { success: boolean; message?: string; data?: T }
 
+export function gatewayFailureMessage(value: unknown): string {
+  if (typeof value !== 'object' || value === null) return ''
+  const failure = value as {
+    message?: unknown
+    error?: { message?: unknown }
+  }
+  if (typeof failure.error?.message === 'string') {
+    return failure.error.message
+  }
+  return typeof failure.message === 'string' ? failure.message : ''
+}
+
 async function gatewayFetch<T>(
   path: string,
   init: RequestInit & { actAsUserId?: number } = {}
@@ -44,11 +56,7 @@ async function gatewayFetch<T>(
     // Relay-style errors carry {error:{message}}, API errors {message}.
     let detail = ''
     try {
-      const failure = (await response.json()) as {
-        message?: string
-        error?: { message?: string }
-      }
-      detail = failure.error?.message || failure.message || ''
+      detail = gatewayFailureMessage(await response.json())
     } catch {
       // Non-JSON failure body; the status alone has to do.
     }

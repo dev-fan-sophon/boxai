@@ -142,6 +142,9 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	}
 	hasVideo := hasVideoInMetadata(req.Metadata)
 	resolution, _ := req.Metadata["resolution"].(string)
+	if resolution == "" {
+		resolution, _ = videoOutputDimensions(req.Size)
+	}
 	// 价格表以上游官方模型名为键；渠道映射后 OriginModelName 是对外别名，会查不到。
 	ratio, ok := GetVideoInputRatio(info.UpstreamModelName, resolution, hasVideo)
 	if !ok || ratio == 1.0 {
@@ -294,8 +297,19 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
 	}
 
-	if sec, _ := strconv.Atoi(req.Seconds); sec > 0 {
-		r.Duration = lo.ToPtr(dto.IntValue(sec))
+	resolution, ratio := videoOutputDimensions(req.Size)
+	if r.Resolution == "" {
+		r.Resolution = resolution
+	}
+	if r.Ratio == "" {
+		r.Ratio = ratio
+	}
+	duration := req.Duration
+	if duration == 0 {
+		duration, _ = strconv.Atoi(req.Seconds)
+	}
+	if duration > 0 {
+		r.Duration = lo.ToPtr(dto.IntValue(duration))
 	}
 
 	r.Content = lo.Reject(r.Content, func(c ContentItem, _ int) bool { return c.Type == "text" })
@@ -305,6 +319,19 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	})
 
 	return &r, nil
+}
+
+func videoOutputDimensions(size string) (string, string) {
+	switch size {
+	case "1280x720":
+		return "720p", "16:9"
+	case "720x1280":
+		return "720p", "9:16"
+	case "1920x1080":
+		return "1080p", "16:9"
+	default:
+		return "", ""
+	}
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {

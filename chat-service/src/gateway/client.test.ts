@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 
-import { billedRelayFetch } from './client'
+import { billedRelayFetch, gatewayFailureMessage } from './client'
 
 const originalFetch = globalThis.fetch
 
@@ -34,5 +34,21 @@ describe('billedRelayFetch', () => {
       model: 'test-model',
       group: 'premium',
     })
+  })
+})
+
+describe('gatewayFailureMessage', () => {
+  test('reads relay and task error envelopes', () => {
+    expect(
+      gatewayFailureMessage({ error: { message: 'relay rejected request' } })
+    ).toBe('relay rejected request')
+    expect(
+      gatewayFailureMessage({ code: 'invalid_duration', message: 'bad duration' })
+    ).toBe('bad duration')
+  })
+
+  test('ignores malformed error bodies', () => {
+    expect(gatewayFailureMessage(null)).toBe('')
+    expect(gatewayFailureMessage({ error: { message: 400 } })).toBe('')
   })
 })
