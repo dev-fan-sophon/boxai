@@ -49,6 +49,12 @@ func setupInternalServiceRouter(t *testing.T) *gin.Engine {
 	router.GET("/internal/ping", InternalServiceSecretAuth(), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
+	router.GET("/v1/content", TokenOrUserAuth(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"id":       c.GetInt("id"),
+			"internal": c.GetBool("internal_service"),
+		})
+	})
 	return router
 }
 
@@ -72,6 +78,51 @@ func TestInternalServiceAuthActAsBilling(t *testing.T) {
 	assert.Equal(t, 7, body.Id)
 	assert.Equal(t, "vip", body.Group)
 	assert.True(t, body.Internal)
+}
+
+func TestTokenOrUserAuthAcceptsInternalActAs(t *testing.T) {
+	t.Setenv("INTERNAL_SERVICE_SECRET", "test-secret")
+	router := setupInternalServiceRouter(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/content", nil)
+	request.Header.Set("X-BoxAI-Internal-Secret", "test-secret")
+	request.Header.Set("X-BoxAI-Act-As-User", "7")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var body struct {
+		Id       int  `json:"id"`
+		Internal bool `json:"internal"`
+	}
+	require.NoError(t, common.UnmarshalJsonStr(response.Body.String(), &body))
+	assert.Equal(t, 7, body.Id)
+	assert.True(t, body.Internal)
+}
+
+func TestTokenOrUserAuthRejectsInvalidInternalActAs(t *testing.T) {
+	t.Setenv("INTERNAL_SERVICE_SECRET", "test-secret")
+	router := setupInternalServiceRouter(t)
+
+	tests := []struct {
+		name   string
+		secret string
+		actAs  string
+		want   int
+	}{
+		{"wrong secret", "bad-secret", "7", http.StatusUnauthorized},
+		{"banned user", "test-secret", "8", http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/v1/content", nil)
+			request.Header.Set("X-BoxAI-Internal-Secret", tt.secret)
+			request.Header.Set("X-BoxAI-Act-As-User", tt.actAs)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			assert.Equal(t, tt.want, response.Code)
+		})
+	}
 }
 
 func TestInternalServiceAuthRejections(t *testing.T) {

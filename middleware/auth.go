@@ -311,10 +311,17 @@ func WssAuth(c *gin.Context) {
 
 }
 
-// TokenOrUserAuth allows either session-based user auth or API token auth.
-// Used for endpoints that need to be accessible from both the dashboard and API clients.
+// TokenOrUserAuth allows internal act-as, session-based user auth, or API token auth.
+// Used for endpoints that need to be accessible from sibling services, the dashboard,
+// and API clients.
 func TokenOrUserAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
+		if isInternalServiceRequest(c) {
+			if authenticateInternalService(c) {
+				c.Next()
+			}
+			return
+		}
 		// Try session auth first (dashboard users)
 		session := sessions.Default(c)
 		if id := session.Get("id"); id != nil {
