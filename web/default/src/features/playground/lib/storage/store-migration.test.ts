@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_CONFIG, STORAGE_KEYS } from '../../constants'
 import type { ChatAttachment, Message } from '../../types'
+import { listSessionsForModality } from '../session/session-utils'
 import { MAX_PERSISTED_ATTACHMENT_CHARS } from './storage-schema'
 import {
   DEFAULT_STUDIO_SETTINGS,
@@ -220,6 +221,38 @@ describe('loadPersistedPlaygroundState', () => {
     expect(chatMessagesFromSessions(state)[0].versions[0].content).toBe(
       'hello from legacy storage'
     )
+  })
+
+  it('keeps a server-owned chat visible when its local transcript is empty', () => {
+    seedV2({
+      workspaceMode: 'model',
+      activeModality: 'chat',
+      config: { model: 'gpt-5.6' },
+      sessions: [
+        {
+          id: 'cloud_57',
+          serverId: 57,
+          modality: 'chat',
+          title: 'Saved server thread',
+          model: 'gpt-5.6',
+          group: 'default',
+          messages: [],
+          isDraft: true,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      activeSessionByModality: { chat: 'cloud_57' },
+    })
+
+    const state = loadPersistedPlaygroundState()
+    expect(state.sessions[0]).toMatchObject({
+      id: 'cloud_57',
+      serverId: 57,
+      isDraft: false,
+      messages: [],
+    })
+    expect(listSessionsForModality(state.sessions, 'chat')).toHaveLength(1)
   })
 
   it('keeps document-generation cards and their artifacts across a reload', () => {

@@ -145,9 +145,14 @@ integrationTest('agent history PostgreSQL transactions', () => {
         clientKey: 'u1',
       },
       requestKey,
-      model: 'test-model',
+      model: 'next-model',
+      group: 'premium',
     })
     expect(started.operation).toBe('append')
+    expect(started.conversation).toMatchObject({
+      model: 'next-model',
+      group: 'premium',
+    })
 
     await expect(
       history.startAgentRun({

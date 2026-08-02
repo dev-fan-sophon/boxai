@@ -24,7 +24,11 @@ import {
   usePlaygroundStore,
 } from '@/stores/playground-store'
 
-import { deleteConversation, updateConversation } from '../../api'
+import {
+  deleteConversation,
+  deleteProject,
+  updateConversation,
+} from '../../api'
 import {
   hasSessionContent,
   isChatSession,
@@ -339,8 +343,12 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
           setIsDeleting(true)
           void (async () => {
             try {
-              if (isChatSession(session) && session.serverId) {
-                await deleteConversation(session.serverId)
+              if (session?.serverId) {
+                if (isChatSession(session)) {
+                  await deleteConversation(session.serverId)
+                } else {
+                  await deleteProject(session.serverId)
+                }
               }
               deleteSession(deleteId)
               setDeleteId(null)

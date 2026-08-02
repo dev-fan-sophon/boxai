@@ -55,7 +55,12 @@ import { useArtifactPreviewStore } from './lib/artifact-preview-store'
 import { isChatSession } from './lib/session/session-utils'
 import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
 import { getModelModality } from './lib/studio/model-modality'
-import type { Message, PlaygroundConfig, StudioModality } from './types'
+import type {
+  ChatAttachment,
+  Message,
+  PlaygroundConfig,
+  StudioModality,
+} from './types'
 
 import './styles/playground.css'
 
@@ -225,6 +230,32 @@ export function Playground() {
     conversationId: activeChat?.serverId,
     onConversationId: bindAgentConversation,
   })
+  const sendAgentTurnAndUpdateSession = useCallback(
+    async (text: string, attachments?: ChatAttachment[]) => {
+      const accepted = await sendAgentTurn(text, attachments)
+      if (!accepted || !activeChatId) return accepted
+      const current = usePlaygroundStore
+        .getState()
+        .sessions.find((session) => session.id === activeChatId)
+      if (
+        current &&
+        isChatSession(current) &&
+        (current.title === 'New chat' ||
+          current.title === 'Imported Playground chat')
+      ) {
+        const title = text.trim() || attachments?.[0]?.name.trim() || ''
+        if (title) {
+          patchSessionById(activeChatId, {
+            title: title.slice(0, 48),
+            isDraft: false,
+            updatedAt: Date.now(),
+          })
+        }
+      }
+      return accepted
+    },
+    [activeChatId, sendAgentTurn]
+  )
   // A preview opened in another conversation must not linger over the new one.
   useEffect(() => {
     useArtifactPreviewStore.getState().close()
@@ -240,7 +271,7 @@ export function Playground() {
     handleDeleteMessage,
   } = usePlaygroundConversation({
     messages: agentMessages,
-    send: sendAgentTurn,
+    send: sendAgentTurnAndUpdateSession,
     regenerate: regenerateAgentMessage,
     save: saveAgentMessage,
     remove: removeAgentMessage,
@@ -356,6 +387,8 @@ export function Playground() {
         }
         selectStoreModel(match.model_name, undefined, {
           switchModality: modality,
+          hasActiveChatMessages:
+            modality === 'chat' && agentMessages.length > 0,
         })
       }
 
@@ -366,6 +399,7 @@ export function Playground() {
     },
     [
       config.model,
+      agentMessages.length,
       models,
       playgroundModels,
       selectStoreModel,
@@ -387,6 +421,8 @@ export function Playground() {
         const modality = getModelModality(model)
         selectStoreModel(model.model_name, undefined, {
           switchModality: modality,
+          hasActiveChatMessages:
+            modality === 'chat' && agentMessages.length > 0,
         })
         setCatalogDrawerOpen(false)
       }}

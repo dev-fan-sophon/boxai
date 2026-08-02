@@ -442,6 +442,8 @@ export type ServerConversation = {
   /** Rolling summary of turns up to the message keyed summary_tail_key. */
   summary?: string
   summary_tail_key?: string
+  revision?: number
+  active_run_id?: string
   created_at: number
   updated_at: number
 }
@@ -461,9 +463,9 @@ export type ServerMessage = {
 export type ServerConversationMessageInput = {
   role: string
   content: string
-  content_json?: string
+  content_json?: unknown[]
   model?: string
-  tool_json?: string
+  tool_json?: unknown
   client_key?: string
   source?: string
   created_at?: number
@@ -537,7 +539,12 @@ export async function putConversationMessages(
   id: number,
   messages: ServerConversationMessageInput[]
 ): Promise<void> {
-  await api.put(`${API_ENDPOINTS.CONVERSATIONS}/${id}/messages`, { messages })
+  const res = await api.put(
+    `${API_ENDPOINTS.CONVERSATIONS}/${id}/messages`,
+    { messages },
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  if (!res.data?.success) throw new Error(res.data?.message || 'Replace failed')
 }
 
 export async function appendConversationMessages(
@@ -651,10 +658,11 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: number): Promise<void> {
-  await api.delete(`${API_ENDPOINTS.PROJECTS}/${id}`, {
+  const res = await api.delete(`${API_ENDPOINTS.PROJECTS}/${id}`, {
     skipBusinessError: true,
     skipErrorHandler: true,
   })
+  if (!res.data?.success) throw new Error(res.data?.message || 'Delete failed')
 }
 
 // ---- Personas ----

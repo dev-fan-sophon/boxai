@@ -7,7 +7,7 @@ import {
   createConversation,
   createProject,
   deleteConversation,
-  deleteProject,
+  getConversation,
   getProject,
   listConversationMessages,
   listConversations,
@@ -66,9 +66,24 @@ function toServerMessages(
       if (message.sources?.length) tool.sources = message.sources
       if (message.reasoning) tool.reasoning = message.reasoning
       const hasTool = Object.keys(tool).length > 0
+      const content = getMessageContent(message)
+      const contentParts: unknown[] = []
+      for (const attachment of message.attachments ?? []) {
+        if (!attachment.assetId) continue
+        contentParts.push({
+          type: 'file',
+          mediaType: attachment.mimeType,
+          filename: attachment.name,
+          url: `/api/playground/assets/${attachment.assetId}/content`,
+        })
+      }
+      if (contentParts.length > 0 && content) {
+        contentParts.push({ type: 'text', text: content })
+      }
       return {
         role: message.from,
-        content: getMessageContent(message),
+        content,
+        content_json: contentParts.length > 0 ? contentParts : undefined,
         model: message.model || undefined,
         client_key: message.key,
         source: 'web',
@@ -76,7 +91,7 @@ function toServerMessages(
           message.createdAt && message.createdAt > 1_000_000_000_000
             ? Math.floor(message.createdAt / 1000)
             : message.createdAt || undefined,
-        tool_json: hasTool ? JSON.stringify(tool) : undefined,
+        tool_json: hasTool ? tool : undefined,
       }
     })
 }
@@ -236,6 +251,99 @@ export function patchSessionById(
   })
 }
 
+type LegacyChatMigrationOperations = {
+  getConversation: typeof getConversation
+  createConversation: typeof createConversation
+  deleteConversation: typeof deleteConversation
+  putConversationMessages: typeof putConversationMessages
+  appendConversationMessages: typeof appendConversationMessages
+  patchSession: typeof patchSessionById
+  getSession: (sessionId: string) => PlaygroundSession | undefined
+}
+
+/** Move pre-AI-SDK browser transcripts into boxai-chat exactly once. */
+export async function migrateLegacyNormalChats(
+  candidates: PlaygroundSession[],
+  operations: LegacyChatMigrationOperations
+): Promise<void> {
+  for (const legacy of candidates) {
+    if (
+      !isChatSession(legacy) ||
+      legacy.kind === 'duo' ||
+      finalizedChatMessages(legacy.messages).length === 0
+    ) {
+      continue
+    }
+    try {
+      let serverId = legacy.serverId
+      const localMessages = toServerMessages(
+        finalizedChatMessages(legacy.messages)
+      )
+      if (serverId) {
+        const remote = await operations.getConversation(serverId)
+        if (Number(remote.conversation.revision ?? 0) > 0) {
+          operations.patchSession(legacy.id, { messages: [], isDraft: false })
+          continue
+        }
+        const remoteKeys = new Set(
+          remote.messages
+            .map((message) => message.client_key)
+            .filter((key): key is string => Boolean(key))
+        )
+        const remoteUnkeyedFingerprints = new Set(
+          remote.messages
+            .filter((message) => !message.client_key)
+            .map((message) => `${message.role}\u0000${message.content}`)
+        )
+        const pending = localMessages.filter(
+          (message) =>
+            !(
+              (message.client_key && remoteKeys.has(message.client_key)) ||
+              remoteUnkeyedFingerprints.has(
+                `${message.role}\u0000${message.content}`
+              )
+            )
+        )
+        for (
+          let index = 0;
+          index < pending.length;
+          index += APPEND_BATCH_SIZE
+        ) {
+          await operations.appendConversationMessages(
+            serverId,
+            pending.slice(index, index + APPEND_BATCH_SIZE),
+            { longMemory: false }
+          )
+        }
+      } else {
+        const created = await operations.createConversation({
+          title: legacy.title,
+          model: legacy.model,
+          group: legacy.group,
+          kind: 'chat',
+          source: 'web',
+        })
+        serverId = created.id
+        try {
+          await operations.putConversationMessages(serverId, localMessages)
+        } catch (error) {
+          await operations.deleteConversation(serverId).catch(() => undefined)
+          throw error
+        }
+      }
+      const current = operations.getSession(legacy.id)
+      if (current?.serverId && current.serverId !== serverId) continue
+      operations.patchSession(legacy.id, {
+        serverId,
+        messages: [],
+        isDraft: false,
+      })
+    } catch {
+      // Keep the local transcript intact and retry after the next login.
+    }
+  }
+}
+
 type ChatSyncState = {
   reconciled: boolean
   maxServerMsgId: number
@@ -319,7 +427,7 @@ function mergeRemoteMessagesIntoSession(
  * - opening a thread and window focus pull turns written by other devices
  * - the thread list is polled with an updated_at cursor to pick up new threads
  * - Studio projects keep the debounced metadata push
- * - Best-effort delete of cloud records when a local session is removed
+ * - pre-agent local transcripts are imported once, then removed from Zustand
  */
 export function useSessionCloudSync(userId?: number) {
   const isAuthenticated = userId !== undefined
@@ -330,10 +438,6 @@ export function useSessionCloudSync(userId?: number) {
   const timerRef = useRef<number | null>(null)
   const inflightRef = useRef(false)
   const importedRef = useRef(false)
-  const knownIdsRef = useRef<Set<string>>(new Set())
-  const serverBindingsRef = useRef<
-    Map<string, { kind: 'chat' | 'project'; serverId: number }>
-  >(new Map())
   const chatStatesRef = useRef<Map<string, ChatSyncState>>(new Map())
   const convCursorRef = useRef<number>(0)
 
@@ -344,8 +448,6 @@ export function useSessionCloudSync(userId?: number) {
     }
     inflightRef.current = false
     importedRef.current = false
-    knownIdsRef.current.clear()
-    serverBindingsRef.current.clear()
     chatStatesRef.current.clear()
     convCursorRef.current = 0
   }, [userId])
@@ -394,7 +496,6 @@ export function useSessionCloudSync(userId?: number) {
           })
           serverId = created.id
           patchSessionById(session.id, { serverId, isDraft: false })
-          serverBindingsRef.current.set(session.id, { kind: 'chat', serverId })
           st.reconciled = true
           st.lastMetaFingerprint = chatMetaFingerprint(session)
         }
@@ -534,10 +635,6 @@ export function useSessionCloudSync(userId?: number) {
           })
           serverId = created.id
           patchSessionById(session.id, { serverId, isDraft: false })
-          serverBindingsRef.current.set(session.id, {
-            kind: 'project',
-            serverId,
-          })
         } else {
           await updateProject(serverId, {
             title: session.title,
@@ -658,42 +755,6 @@ export function useSessionCloudSync(userId?: number) {
     }
   }, [isAuthenticated, reconcileDuoSession])
 
-  // Track deletions → best-effort cloud delete.
-  useEffect(() => {
-    if (!isAuthenticated) return
-    const currentIds = new Set(sessions.map((session) => session.id))
-    for (const session of sessions) {
-      if (session.serverId) {
-        serverBindingsRef.current.set(session.id, {
-          kind: isChatSession(session) ? 'chat' : 'project',
-          serverId: session.serverId,
-        })
-      }
-      knownIdsRef.current.add(session.id)
-    }
-    const removedIds: string[] = []
-    for (const prevId of knownIdsRef.current) {
-      if (!currentIds.has(prevId)) removedIds.push(prevId)
-    }
-    for (const prevId of removedIds) {
-      knownIdsRef.current.delete(prevId)
-      const binding = serverBindingsRef.current.get(prevId)
-      serverBindingsRef.current.delete(prevId)
-      if (!binding) continue
-      void (async () => {
-        try {
-          if (binding.kind === 'chat') {
-            await deleteConversation(binding.serverId)
-          } else {
-            await deleteProject(binding.serverId)
-          }
-        } catch {
-          // Ignore delete failures.
-        }
-      })()
-    }
-  }, [isAuthenticated, sessions])
-
   // One-shot pull of remote conversations + projects after login.
   useEffect(() => {
     if (!isAuthenticated || importedRef.current || inflightRef.current) return
@@ -701,7 +762,26 @@ export function useSessionCloudSync(userId?: number) {
     void (async () => {
       const importStartedAt = Date.now()
       try {
-        const state = usePlaygroundStore.getState()
+        let state = usePlaygroundStore.getState()
+
+        // Converge browser-owned chats from releases before the AI SDK cutover.
+        // Once copied, the durable transcript lives only in boxai-chat. Bound
+        // agent-managed threads are already authoritative and only need their
+        // stale local mirror removed.
+        await migrateLegacyNormalChats(state.sessions, {
+          getConversation,
+          createConversation,
+          deleteConversation,
+          putConversationMessages,
+          appendConversationMessages,
+          patchSession: patchSessionById,
+          getSession: (sessionId) =>
+            usePlaygroundStore
+              .getState()
+              .sessions.find((session) => session.id === sessionId),
+        })
+
+        state = usePlaygroundStore.getState()
         const existingChatServerIds = new Set(
           state.sessions
             .filter(isChatSession)
@@ -781,11 +861,6 @@ export function useSessionCloudSync(userId?: number) {
         const retainedIds = new Set(retained.map((session) => session.id))
         for (const session of latest.sessions) {
           if (retainedIds.has(session.id)) continue
-          // This is stale browser state (usually from another signed-in
-          // account), not a user deletion. Forget its binding locally instead
-          // of issuing a pointless owner-scoped DELETE to boxai-chat.
-          knownIdsRef.current.delete(session.id)
-          serverBindingsRef.current.delete(session.id)
           chatStatesRef.current.delete(session.id)
         }
         const sessions = [...additions, ...retained]

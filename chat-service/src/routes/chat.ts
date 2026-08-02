@@ -173,6 +173,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
         : undefined,
       requestKey,
       model,
+      group,
     })
   } catch (error) {
     const status = error instanceof AgentConflictError ? 409 : 400

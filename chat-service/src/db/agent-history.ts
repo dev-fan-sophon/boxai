@@ -34,6 +34,7 @@ export type StartAgentRunInput = {
   incoming?: AgentMessageContent & { clientKey: string; source?: string }
   requestKey: string
   model: string
+  group?: string
 }
 
 export type StartedAgentRun = {
@@ -505,6 +506,8 @@ export async function startAgentRun(
     const [updatedConversation] = await tx
       .update(conversations)
       .set({
+        model: input.model,
+        ...(input.group ? { group: input.group } : {}),
         revision: nextRevision,
         activeRunId: runId,
         activeRunStartedAt: now,

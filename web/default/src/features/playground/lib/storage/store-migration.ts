@@ -462,7 +462,10 @@ function normalizeSessionRecord(
       kind,
       duoMeta,
       draft,
-      isDraft: isDraft || messages.length === 0,
+      // Server-owned AI SDK threads intentionally do not persist their
+      // transcript in Zustand. Never turn one back into a hidden draft just
+      // because its lazy local message cache is empty.
+      isDraft: serverId === undefined && (isDraft || messages.length === 0),
       createdAt,
       updatedAt,
     }

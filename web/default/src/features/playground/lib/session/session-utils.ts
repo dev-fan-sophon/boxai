@@ -173,7 +173,10 @@ export function listSessionsForModality(
 
 export function hasSessionContent(session: PlaygroundSession): boolean {
   if (isChatSession(session)) {
-    return session.messages.length > 0
+    // Normal AI SDK threads hydrate their transcript directly from boxai-chat
+    // and deliberately keep the local session mirror empty. A server binding
+    // therefore proves that the thread is saved even before it is opened.
+    return session.serverId !== undefined || session.messages.length > 0
   }
   return Boolean(
     session.lastPrompt?.trim() ||

@@ -20,14 +20,9 @@ import {
   findSession,
   getActiveSession,
   isChatSession,
-  titleFromFirstUserMessage,
   touchSession,
   upsertSession,
 } from '@/features/playground/lib/session/session-utils'
-import {
-  applyMessageStateUpdate,
-  type MessageStateUpdater,
-} from '@/features/playground/lib/state/playground-state-utils'
 import {
   DEFAULT_STUDIO_SETTINGS,
   MAX_DUO_ANSWER_MODELS,
@@ -47,7 +42,6 @@ import {
 } from '@/features/playground/lib/workbench/workbench-prefs'
 import type {
   GroupOption,
-  Message,
   ModelOption,
   ParameterEnabled,
   PlaygroundConfig,
@@ -93,7 +87,11 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   selectModel: (
     model: string,
     group?: string,
-    options?: { switchModality?: StudioModality; startNewSession?: boolean }
+    options?: {
+      switchModality?: StudioModality
+      startNewSession?: boolean
+      hasActiveChatMessages?: boolean
+    }
   ) => void
   clearModelSwitchNotice: () => void
   selectDuo: () => void
@@ -112,10 +110,6 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
     lastSummary?: string
   }) => void
   togglePinnedModel: (modelName: string) => void
-  /** Update messages on the active chat session. */
-  setMessages: (updater: MessageStateUpdater) => void
-  /** Start a fresh chat session (does not delete the previous one). */
-  clearMessages: () => void
   startNewSession: (modality?: SessionModality) => void
   /** Discard account-owned sessions when the signed-in identity changes. */
   resetAccountData: () => void
@@ -123,12 +117,6 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   deleteSession: (sessionId: string) => void
   renameSession: (sessionId: string, title: string) => void
   togglePinSession: (sessionId: string) => void
-  updateActiveSession: (
-    patch:
-      | Partial<PlaygroundSession>
-      | ((prev: PlaygroundSession) => PlaygroundSession)
-  ) => void
-  setSessionDraft: (sessionId: string, draft: string) => void
   setModels: (models: ModelOption[]) => void
   setGroups: (groups: GroupOption[]) => void
   setPrefill: (prompt: string) => void
@@ -258,7 +246,7 @@ const playgroundPersistStorage: PersistStorage<PersistedPlaygroundState> = {
 
 export const usePlaygroundStore = create<PlaygroundStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Persisted state; real values arrive synchronously via rehydration.
       workspaceMode: 'model',
       activeModality: 'chat',
@@ -343,7 +331,8 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
               isChatSession(activeSession) &&
               previousModel &&
               previousModel !== model &&
-              (cleanedMessages?.length ?? 0) > 0
+              ((cleanedMessages?.length ?? 0) > 0 ||
+                options?.hasActiveChatMessages === true)
             ) {
               modelSwitchNotice = {
                 id: Date.now(),
@@ -432,56 +421,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
               : [modelName, ...state.pinnedModels].slice(0, MAX_PINNED_MODELS),
           }
         }),
-      setMessages: (updater) =>
-        set((state) => {
-          const current = getActiveSession(
-            state.sessions,
-            state.activeSessionByModality,
-            'chat'
-          )
-          // Ensure a chat session exists even if modality is temporarily media.
-          let sessions = state.sessions
-          let activeSessionByModality = state.activeSessionByModality
-          let chatSession = current
-          if (!chatSession || !isChatSession(chatSession)) {
-            const ensured = ensureModalitySession(
-              { ...state, sessions, activeSessionByModality },
-              'chat'
-            )
-            sessions = ensured.sessions
-            activeSessionByModality = ensured.activeSessionByModality
-            chatSession = ensured.session
-          }
-          if (!isChatSession(chatSession)) return {}
-
-          const nextMessages = applyMessageStateUpdate(
-            chatSession.messages,
-            updater
-          )
-          const autoTitle =
-            chatSession.title === 'New chat' ||
-            chatSession.title === 'Imported Playground chat'
-              ? titleFromFirstUserMessage(nextMessages)
-              : null
-          const nextSession = touchSession({
-            ...chatSession,
-            messages: nextMessages,
-            isDraft: nextMessages.length === 0,
-            title: autoTitle || chatSession.title,
-            model: state.config.model || chatSession.model,
-            group: state.config.group || chatSession.group,
-          })
-          return {
-            sessions: upsertSession(sessions, nextSession),
-            activeSessionByModality: {
-              ...activeSessionByModality,
-              chat: nextSession.id,
-            },
-            // Keep legacy field empty; selectors read from sessions.
-            messages: [],
-          }
-        }),
-      clearMessages: () => get().startNewSession('chat'),
       startNewSession: (modality) =>
         set((state) => {
           const target = modality ?? state.activeModality
@@ -600,24 +539,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
             ),
           }
         }),
-      updateActiveSession: (patch) =>
-        set((state) =>
-          withActiveSessionUpdate(state, (session) => {
-            if (typeof patch === 'function') return patch(session)
-            return { ...session, ...patch } as PlaygroundSession
-          })
-        ),
-      setSessionDraft: (sessionId, draft) =>
-        set((state) => {
-          const session = findSession(state.sessions, sessionId)
-          if (!session) return {}
-          return {
-            sessions: upsertSession(
-              state.sessions,
-              touchSession({ ...session, draft })
-            ),
-          }
-        }),
       setModels: (models) => set({ models }),
       setGroups: (groups) => set({ groups }),
       setPrefill: (prompt) =>
@@ -660,24 +581,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
     }
   )
 )
-
-const EMPTY_CHAT_MESSAGES: Message[] = []
-
-/** Active chat messages for the current chat session (empty if none). */
-export function selectActiveChatMessages(
-  state: PlaygroundStoreState
-): Message[] {
-  const session = getActiveSession(
-    state.sessions,
-    state.activeSessionByModality,
-    'chat'
-  )
-  if (!isChatSession(session)) return EMPTY_CHAT_MESSAGES
-  // Persisted and cloud messages are normalized at their boundaries. Selectors
-  // must return the store-owned array so useSyncExternalStore sees a stable
-  // snapshot even if an unexpected legacy row reaches runtime state.
-  return session.messages
-}
 
 export function selectActiveSession(
   state: PlaygroundStoreState
