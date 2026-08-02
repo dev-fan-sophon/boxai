@@ -2,10 +2,40 @@ import { afterEach, describe, expect, test } from 'bun:test'
 
 import { truncateUtf8 } from '../http'
 import {
+  attachmentAssetIdsFromContentJson,
   assetIdFromFilePart,
   canonicalizeUserMessage,
   storedMessageParts,
 } from './content'
+
+describe('attachment asset references', () => {
+  test('collects unique canonical file references only', () => {
+    expect(
+      attachmentAssetIdsFromContentJson([
+        JSON.stringify([
+          {
+            type: 'file',
+            url: '/api/playground/assets/7/content',
+            mediaType: 'application/pdf',
+          },
+          {
+            type: 'file',
+            url: '/api/playground/assets/7/content',
+            mediaType: 'application/pdf',
+          },
+          { type: 'file', url: 'https://example.com/file.pdf' },
+        ]),
+        JSON.stringify([
+          {
+            type: 'file',
+            url: '/api/playground/assets/11/content',
+            mediaType: 'image/png',
+          },
+        ]),
+      ])
+    ).toEqual([7, 11])
+  })
+})
 
 const originalFetch = globalThis.fetch
 

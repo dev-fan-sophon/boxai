@@ -24,6 +24,7 @@ import {
   assetIdFromFilePart,
   AttachmentError,
   canonicalizeUserMessage,
+  cleanupAttachmentAssets,
   storedMessageParts,
 } from '../messages/content'
 import { buildTools } from '../tools'
@@ -33,7 +34,13 @@ const chatRequestSchema = z.object({
   model: z.string().min(1).max(191),
   group: z.string().max(50).optional(),
   system: z.string().max(20_000).optional(),
+  carryHistory: z.boolean().optional(),
   longMemory: z.boolean().optional(),
+  maxSteps: z.number().int().min(1).max(21).optional(),
+  expectedRevision: z.number().int().nonnegative().optional(),
+  toolMode: z
+    .enum(['auto', 'image', 'video', 'search', 'document'])
+    .optional(),
   source: z.enum(['web', 'desktop']).optional(),
   trigger: z
     .enum(['submit-message', 'regenerate-message'])
@@ -78,7 +85,10 @@ chatRoute.post('/', sessionAuth, async (c) => {
   const user = c.get('user')
   const { model, group, system, trigger, messageId, requestKey, source } =
     parsed.data
+  const carryHistory = parsed.data.carryHistory ?? true
   const longMemory = parsed.data.longMemory ?? false
+  const maxSteps = parsed.data.maxSteps ?? 8
+  const toolMode = parsed.data.toolMode ?? 'auto'
   const requestedGroup = group || user.group
 
   let incoming: Awaited<ReturnType<typeof canonicalizeUserMessage>> | undefined
@@ -150,6 +160,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
     started = await startAgentRun({
       conversationId,
       userId: user.id,
+      expectedRevision: parsed.data.expectedRevision,
       trigger,
       targetMessageKey: messageId,
       incoming: incoming
@@ -192,13 +203,16 @@ chatRoute.post('/', sessionAuth, async (c) => {
       source: source ?? 'web',
     })
   )
+  void cleanupAttachmentAssets(user.id, started.orphanedContentJson)
   let context
   try {
     context = await assembleContext(started.conversation, {
       longMemory,
+      carryHistory,
       group: selectedGroup,
       signal: generationController.signal,
       excludeMessageId: started.assistantMessage?.id,
+      focusMessageId: started.userMessage.id,
     })
   } catch (error) {
     unregisterRun()
@@ -222,20 +236,25 @@ chatRoute.post('/', sessionAuth, async (c) => {
 
   let result
   try {
-    const tools = buildTools({
-      userId: user.id,
-      group: selectedGroup,
-      modelId: model,
-      conversationId,
-      assetIds,
-    })
+    const toolPolicy = buildTools(
+      {
+        userId: user.id,
+        group: selectedGroup,
+        modelId: model,
+        conversationId,
+        assetIds,
+      },
+      toolMode
+    )
     result = await runAgent({
       userId: user.id,
       modelId: model,
       group: selectedGroup,
       system,
       messages: context,
-      tools,
+      tools: toolPolicy.tools,
+      forceTool: toolPolicy.forceTool,
+      maxSteps,
       abortSignal: generationController.signal,
       onTextDelta: (text) => {
         streamedText = truncateUtf8(streamedText + text, 60_000)

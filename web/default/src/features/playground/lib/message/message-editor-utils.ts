@@ -10,13 +10,20 @@ type MessageEditorState = {
 export function getMessageEditorState(
   message: Message,
   editText: string,
-  originalText: string
+  originalText: string,
+  options: {
+    hasAttachments?: boolean
+    attachmentsChanged?: boolean
+    blocked?: boolean
+  } = {}
 ): MessageEditorState {
-  const hasText = editText.trim().length > 0
-  const hasChanged = editText !== originalText
+  const hasPayload =
+    editText.trim().length > 0 || options.hasAttachments === true
+  const hasChanged =
+    editText !== originalText || options.attachmentsChanged === true
 
   return {
-    canSave: hasText && hasChanged,
+    canSave: hasPayload && hasChanged && options.blocked !== true,
     hasChanged,
     showSaveAndSubmit: message.from === MESSAGE_ROLES.USER,
   }

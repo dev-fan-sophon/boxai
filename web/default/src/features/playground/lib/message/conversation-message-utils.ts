@@ -94,6 +94,7 @@ export function applyMessageEdit(
   messageKey: string,
   content: string,
   shouldSubmit: boolean,
+  attachments?: ChatAttachment[],
   model?: string
 ): ApplyMessageEditResult | null {
   const submittedAt = Date.now()
@@ -105,14 +106,18 @@ export function applyMessageEdit(
     return null
   }
 
-  const updatedMessages = messages.map((message) =>
-    message.key === messageKey
-      ? {
-          ...updateCurrentVersionContent(message, content),
-          createdAt: shouldSubmit ? submittedAt : message.createdAt,
-        }
-      : message
-  )
+  const updatedMessages = messages.map((message) => {
+    if (message.key !== messageKey) return message
+    let nextAttachments = message.attachments
+    if (message.from === MESSAGE_ROLES.USER && attachments !== undefined) {
+      nextAttachments = attachments.length > 0 ? attachments : undefined
+    }
+    return {
+      ...updateCurrentVersionContent(message, content),
+      attachments: nextAttachments,
+      createdAt: shouldSubmit ? submittedAt : message.createdAt,
+    }
+  })
 
   if (
     !shouldSubmit ||

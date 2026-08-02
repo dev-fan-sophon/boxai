@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  agentChatRequestBody,
   agentUIMessageToPlayground,
   attachmentFileParts,
   loadAgentConversation,
+  shouldPollAgentRun,
 } from './transport'
 
 const originalFetch = globalThis.fetch
@@ -47,6 +49,42 @@ describe('agent chat attachment transport', () => {
         },
       ])
     ).toThrow('was not uploaded')
+  })
+})
+
+describe('agent chat request policy', () => {
+  it('forwards history and tool controls to the server', () => {
+    expect(
+      agentChatRequestBody({
+        conversationId: 3,
+        model: 'test-model',
+        group: 'default',
+        system: 'system',
+        carryHistory: false,
+        longMemory: true,
+        maxSteps: 4,
+        toolMode: 'document',
+        expectedRevision: 9,
+        trigger: 'regenerate-message',
+        messageId: 'assistant-1',
+        requestKey: '00000000-0000-4000-8000-000000000000',
+      })
+    ).toMatchObject({
+      carryHistory: false,
+      longMemory: true,
+      maxSteps: 4,
+      toolMode: 'document',
+      expectedRevision: 9,
+      trigger: 'regenerate-message',
+    })
+  })
+
+  it('polls only when a remote run outlives the local stream', () => {
+    expect(shouldPollAgentRun('ready', 'run-1')).toBe(true)
+    expect(shouldPollAgentRun('error', 'run-1')).toBe(true)
+    expect(shouldPollAgentRun('streaming', 'run-1')).toBe(false)
+    expect(shouldPollAgentRun('submitted', 'run-1')).toBe(false)
+    expect(shouldPollAgentRun('ready', '')).toBe(false)
   })
 })
 
@@ -138,5 +176,18 @@ describe('agent chat history adapters', () => {
     ])
     expect(projected.activeVersion).toBe(1)
     expect(projected.versions.map((version) => version.id)).toEqual(['1', '2'])
+  })
+
+  it('preserves a stopped response as visibly partial', () => {
+    const projected = agentUIMessageToPlayground(
+      {
+        id: 'assistant-stopped',
+        role: 'assistant',
+        parts: [{ type: 'text', text: 'partial answer' }],
+        metadata: { status: 'stopped' },
+      },
+      false
+    )
+    expect(projected.status).toBe('stopped')
   })
 })

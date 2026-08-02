@@ -23,6 +23,7 @@ function documentStatusLine(
 
 export function ChatAttachmentStrip(props: {
   attachments: ChatAttachment[]
+  disabled?: boolean
   onRemove: (index: number) => void
   onRetry?: (index: number) => void
 }) {
@@ -91,6 +92,7 @@ export function ChatAttachmentStrip(props: {
                     {isFailed && props.onRetry && (
                       <button
                         type='button'
+                        disabled={props.disabled}
                         onClick={() => props.onRetry?.(index)}
                         className='text-destructive inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline'
                       >
@@ -104,6 +106,7 @@ export function ChatAttachmentStrip(props: {
               <button
                 type='button'
                 aria-label={t('Remove attachment')}
+                disabled={props.disabled}
                 onClick={() => props.onRemove(index)}
                 className='bg-background border-border absolute -top-1.5 -right-1.5 flex size-6 touch-manipulation items-center justify-center rounded-full border shadow-sm sm:size-auto sm:p-0.5'
               >

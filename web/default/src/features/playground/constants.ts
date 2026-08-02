@@ -11,6 +11,7 @@ export const MESSAGE_STATUS = {
   LOADING: 'loading',
   STREAMING: 'streaming',
   COMPLETE: 'complete',
+  STOPPED: 'stopped',
   ERROR: 'error',
 } as const
 

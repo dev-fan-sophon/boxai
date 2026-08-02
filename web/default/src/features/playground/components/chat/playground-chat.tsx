@@ -17,6 +17,7 @@ import {
   isErrorMessage,
 } from '../../lib'
 import type {
+  ChatAttachment,
   Message as MessageType,
   PlaygroundMessageLayoutMode,
 } from '../../types'
@@ -39,9 +40,15 @@ interface PlaygroundChatProps {
   isGenerating?: boolean
   isLoadingMessages?: boolean
   editingKey?: string | null
-  onSaveEdit?: (newContent: string) => void
+  onSaveEdit?: (
+    newContent: string,
+    attachments?: ChatAttachment[]
+  ) => Promise<boolean>
   onCancelEdit?: (open: boolean) => void
-  onSaveEditAndSubmit?: (newContent: string) => void
+  onSaveEditAndSubmit?: (
+    newContent: string,
+    attachments?: ChatAttachment[]
+  ) => Promise<boolean>
   messageLayoutMode?: PlaygroundMessageLayoutMode
 }
 

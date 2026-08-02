@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ChatDocumentAttachment, ChatImageAttachment } from '../../types'
+import { applyMessageEdit } from './conversation-message-utils'
+import { getMessageEditorState } from './message-editor-utils'
 import { buildMessageContent, createUserMessage } from './message-utils'
 
 function imageAttachment(
@@ -80,5 +82,43 @@ describe('buildMessageContent', () => {
       { type: 'text', text: 'summarize' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
     ])
+  })
+})
+
+describe('message attachment editing', () => {
+  it('replaces the attachment set atomically with the text edit', () => {
+    const original = createUserMessage('summarize', 1, [
+      documentAttachment({ id: 'old', assetId: 7 }),
+    ])
+    const replacement = documentAttachment({ id: 'new', assetId: 8 })
+    const result = applyMessageEdit(
+      [original],
+      original.key,
+      'summarize the replacement',
+      false,
+      [replacement]
+    )
+    expect(result?.messages[0]?.attachments).toEqual([replacement])
+    expect(result?.messages[0]?.versions[0]?.content).toBe(
+      'summarize the replacement'
+    )
+  })
+
+  it('allows an attachment-only edit but blocks an empty message', () => {
+    const message = createUserMessage('', 1, [
+      documentAttachment({ assetId: 7 }),
+    ])
+    expect(
+      getMessageEditorState(message, '', '', {
+        hasAttachments: true,
+        attachmentsChanged: true,
+      }).canSave
+    ).toBe(true)
+    expect(
+      getMessageEditorState(message, '', '', {
+        hasAttachments: false,
+        attachmentsChanged: true,
+      }).canSave
+    ).toBe(false)
   })
 })

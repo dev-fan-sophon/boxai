@@ -274,6 +274,16 @@ export async function getAssetMetadata(
   )
 }
 
+export async function deleteAttachmentAsset(
+  userId: number,
+  assetId: number
+): Promise<void> {
+  await gatewayFetch(`/api/internal/playground/assets/${assetId}`, {
+    method: 'DELETE',
+    actAsUserId: userId,
+  })
+}
+
 export async function getAssetParse(
   userId: number,
   assetId: number,

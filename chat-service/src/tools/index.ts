@@ -22,11 +22,37 @@ export type ToolContext = {
   assetIds?: number[]
 }
 
-export function buildTools(context: ToolContext): ToolSet {
-  return {
+export type AgentToolMode =
+  | 'auto'
+  | 'image'
+  | 'video'
+  | 'search'
+  | 'document'
+
+export type AgentToolName =
+  | 'web_search'
+  | 'generate_image'
+  | 'generate_video'
+  | 'generate_document'
+
+const forcedToolByMode: Partial<Record<AgentToolMode, AgentToolName>> = {
+  image: 'generate_image',
+  video: 'generate_video',
+  search: 'web_search',
+  document: 'generate_document',
+}
+
+export function buildTools(
+  context: ToolContext,
+  mode: AgentToolMode = 'auto'
+): { tools: ToolSet; forceTool?: AgentToolName } {
+  const tools: ToolSet = {
     web_search: webSearchTool(context),
     generate_image: generateImageTool(context),
     generate_video: generateVideoTool(context),
     generate_document: generateDocumentTool(context),
   }
+  const forceTool = forcedToolByMode[mode]
+  if (!forceTool) return { tools }
+  return { tools: { [forceTool]: tools[forceTool]! }, forceTool }
 }

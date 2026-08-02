@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -38,6 +39,32 @@ func TestImportPlaygroundAssetRejectsUnsafeSources(t *testing.T) {
 			assert.Contains(t, recorder.Body.String(), `"success":false`)
 		})
 	}
+}
+
+func TestInternalAttachmentCleanupCannotDeleteLibraryAsset(t *testing.T) {
+	db := setupVideoProxyTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}))
+	asset := &model.PlaygroundAsset{
+		UserId: 42,
+		Kind:   "image",
+		Source: model.PlaygroundAssetSourceLibrary,
+		Name:   "library.png",
+	}
+	require.NoError(t, db.Create(asset).Error)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodDelete, "/api/internal/playground/assets/1", nil)
+	ctx.Params = gin.Params{{Key: "id", Value: strconv.Itoa(asset.Id)}}
+	ctx.Set("id", 42)
+	ctx.Set("internal_service", true)
+
+	DeletePlaygroundAsset(ctx)
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	var count int64
+	require.NoError(t, db.Model(&model.PlaygroundAsset{}).Where("id = ?", asset.Id).Count(&count).Error)
+	assert.EqualValues(t, 1, count)
 }
 
 func TestCreatePlaygroundRunRejectsAnotherUsersTask(t *testing.T) {

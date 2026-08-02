@@ -278,7 +278,10 @@ export function Playground() {
     config,
     systemPrompt: chatTools.systemPrompt,
     visualOutput: chatTools.visualOutput,
+    carryHistory: chatTools.carryHistory,
     longMemory: chatTools.longMemory,
+    maxSteps: Math.min(21, chatTools.maxToolLoops + 1),
+    toolMode: chatTools.mode,
     conversationId: activeChat?.serverId,
     onConversationId: bindAgentConversation,
   })
@@ -976,9 +979,11 @@ export function Playground() {
                 isGenerating={isGenerating || isAgentStreaming}
                 editingKey={editingMessageKey}
                 onCancelEdit={handleEditOpenChange}
-                onSaveEdit={(newContent) => applyEdit(newContent, false)}
-                onSaveEditAndSubmit={(newContent) =>
-                  applyEdit(newContent, true)
+                onSaveEdit={(newContent, attachments) =>
+                  applyEdit(newContent, attachments, false)
+                }
+                onSaveEditAndSubmit={(newContent, attachments) =>
+                  applyEdit(newContent, attachments, true)
                 }
               />
               <ModelSwitchNotice />

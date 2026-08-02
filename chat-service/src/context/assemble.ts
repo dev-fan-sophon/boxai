@@ -24,9 +24,11 @@ export async function assembleContext(
   conv: ConversationRow,
   options: {
     longMemory: boolean
+    carryHistory: boolean
     group: string
     signal?: AbortSignal
     excludeMessageId?: number
+    focusMessageId: number
   }
 ): Promise<ModelMessage[]> {
   const context: ModelMessage[] = []
@@ -46,7 +48,7 @@ export async function assembleContext(
     }
   }
 
-  const summary = (conv.summary ?? '').trim()
+  const summary = options.carryHistory ? (conv.summary ?? '').trim() : ''
   const summarySeq = conv.summarySeq ?? -1
   if (summary) {
     context.push({
@@ -68,7 +70,11 @@ export async function assembleContext(
 
   // Turns already folded into the summary are dropped; without a summary the
   // window is simply the most recent turns.
-  const verbatim = summary ? rows.filter((row) => row.seq > summarySeq) : rows
+  const verbatim = options.carryHistory
+    ? summary
+      ? rows.filter((row) => row.seq > summarySeq)
+      : rows
+    : rows.filter((row) => row.id === options.focusMessageId)
   const attachmentBudget = createAttachmentContextBudget()
   for (const row of verbatim.slice(-MAX_HISTORY_TURNS)) {
     if (row.id === options.excludeMessageId) continue

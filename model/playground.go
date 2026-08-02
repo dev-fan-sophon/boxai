@@ -3,6 +3,9 @@ package model
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -10,6 +13,7 @@ import (
 )
 
 var ErrPlaygroundConversationAgentManaged = errors.New("conversation is managed by the agent gateway")
+var ErrPlaygroundAttachmentReferenced = errors.New("attachment is referenced by chat history")
 
 // PlaygroundAsset stores user-owned media for the playground workbench.
 type PlaygroundAsset struct {
@@ -463,6 +467,56 @@ func DeletePlaygroundAsset(id int, userId int) error {
 	return nil
 }
 
+func playgroundAttachmentReferenced(tx *gorm.DB, id, userId int) (bool, error) {
+	needle := "%/api/playground/assets/" + strconv.Itoa(id) + "/content%"
+	var contentJson []string
+	if err := tx.Model(&PlaygroundMessage{}).
+		Where("user_id = ? AND content_json LIKE ?", userId, needle).
+		Pluck("content_json", &contentJson).Error; err != nil {
+		return false, err
+	}
+	if slices.Contains(playgroundAttachmentIDs(contentJson), id) {
+		return true, nil
+	}
+	if err := tx.Model(&PlaygroundMessageRevision{}).
+		Where("user_id = ? AND content_json LIKE ?", userId, needle).
+		Pluck("content_json", &contentJson).Error; err != nil {
+		return false, err
+	}
+	return slices.Contains(playgroundAttachmentIDs(contentJson), id), nil
+}
+
+// DeletePlaygroundAttachmentAssetIfUnreferenced protects immutable message
+// revisions while still allowing abandoned or deleted-chat uploads to be
+// removed. The caller owns deletion of the backing storage object after the
+// database transaction commits.
+func DeletePlaygroundAttachmentAssetIfUnreferenced(id, userId int) (*PlaygroundAsset, error) {
+	var deleted PlaygroundAsset
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockForUpdate(tx).
+			Where("id = ? AND user_id = ?", id, userId).
+			First(&deleted).Error; err != nil {
+			return err
+		}
+		if deleted.Source != PlaygroundAssetSourceAttachment {
+			return errors.New("asset is not a chat attachment")
+		}
+		referenced, err := playgroundAttachmentReferenced(tx, id, userId)
+		if err != nil {
+			return err
+		}
+		if referenced {
+			return ErrPlaygroundAttachmentReferenced
+		}
+		return tx.Where("id = ? AND user_id = ?", id, userId).
+			Delete(&PlaygroundAsset{}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &deleted, nil
+}
+
 // ListPlaygroundAssetsForBackfill returns assets still stored on the local
 // backend (legacy empty backend or explicit "local"), ordered by id, for
 // migration to R2. limit <= 0 returns all matching assets.
@@ -569,8 +623,45 @@ func UpdatePlaygroundConversation(c *PlaygroundConversation) error {
 	}).Error
 }
 
-func DeletePlaygroundConversation(id int, userId int) error {
-	return DB.Transaction(func(tx *gorm.DB) error {
+func playgroundAttachmentIDs(contentJson []string) []int {
+	ids := make(map[int]struct{})
+	for _, raw := range contentJson {
+		var parts []struct {
+			Type string `json:"type"`
+			URL  string `json:"url"`
+		}
+		if raw == "" || common.UnmarshalJsonStr(raw, &parts) != nil {
+			continue
+		}
+		for _, part := range parts {
+			if part.Type != "file" {
+				continue
+			}
+			const prefix = "/api/playground/assets/"
+			const suffix = "/content"
+			if !strings.HasPrefix(part.URL, prefix) || !strings.HasSuffix(part.URL, suffix) {
+				continue
+			}
+			value := strings.TrimSuffix(strings.TrimPrefix(part.URL, prefix), suffix)
+			if strings.Contains(value, "/") {
+				continue
+			}
+			id, err := strconv.Atoi(value)
+			if err == nil && id > 0 {
+				ids[id] = struct{}{}
+			}
+		}
+	}
+	result := make([]int, 0, len(ids))
+	for id := range ids {
+		result = append(result, id)
+	}
+	return result
+}
+
+func DeletePlaygroundConversationWithAttachments(id int, userId int) ([]int, error) {
+	var attachmentIds []int
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		var conv PlaygroundConversation
 		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", id, userId).First(&conv).Error; err != nil {
 			return err
@@ -580,6 +671,19 @@ func DeletePlaygroundConversation(id int, userId int) error {
 		} else if active {
 			return ErrPlaygroundConversationAgentManaged
 		}
+		var contentJson []string
+		if err := tx.Model(&PlaygroundMessage{}).
+			Where("conversation_id = ? AND user_id = ?", id, userId).
+			Pluck("content_json", &contentJson).Error; err != nil {
+			return err
+		}
+		var revisionContentJson []string
+		if err := tx.Model(&PlaygroundMessageRevision{}).
+			Where("conversation_id = ? AND user_id = ?", id, userId).
+			Pluck("content_json", &revisionContentJson).Error; err != nil {
+			return err
+		}
+		attachmentIds = playgroundAttachmentIDs(append(contentJson, revisionContentJson...))
 		if err := tx.Where("conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundMessageRevision{}).Error; err != nil {
 			return err
 		}
@@ -587,6 +691,9 @@ func DeletePlaygroundConversation(id int, userId int) error {
 			return err
 		}
 		if err := tx.Where("conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundMessage{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("source_conversation_id = ? AND user_id = ?", id, userId).Delete(&PlaygroundUserMemory{}).Error; err != nil {
 			return err
 		}
 		res := tx.Where("id = ? AND user_id = ?", id, userId).Delete(&PlaygroundConversation{})
@@ -598,6 +705,15 @@ func DeletePlaygroundConversation(id int, userId int) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return attachmentIds, nil
+}
+
+func DeletePlaygroundConversation(id int, userId int) error {
+	_, err := DeletePlaygroundConversationWithAttachments(id, userId)
+	return err
 }
 
 // --- Project helpers ---

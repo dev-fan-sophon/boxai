@@ -1,7 +1,12 @@
 // Message types
 export type MessageRole = 'user' | 'assistant' | 'system'
 
-export type MessageStatus = 'loading' | 'streaming' | 'complete' | 'error'
+export type MessageStatus =
+  | 'loading'
+  | 'streaming'
+  | 'complete'
+  | 'stopped'
+  | 'error'
 
 export type ManagedToolStatus =
   | 'queued'

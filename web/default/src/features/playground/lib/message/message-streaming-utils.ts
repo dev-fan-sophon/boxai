@@ -140,6 +140,7 @@ export function completeAssistantMessage(message: Message): Message {
 export function isAssistantMessageFinal(message: Message): boolean {
   return (
     message.status === MESSAGE_STATUS.COMPLETE ||
+    message.status === MESSAGE_STATUS.STOPPED ||
     message.status === MESSAGE_STATUS.ERROR
   )
 }

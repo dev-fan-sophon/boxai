@@ -15,6 +15,7 @@ const sql = databaseUrl ? postgres(databaseUrl, { max: 1 }) : null
 
 type AgentHistory = typeof import('./agent-history')
 let history: AgentHistory
+let contextModule: typeof import('../context/assemble')
 
 integrationTest('agent history PostgreSQL transactions', () => {
   beforeAll(async () => {
@@ -100,6 +101,7 @@ integrationTest('agent history PostgreSQL transactions', () => {
       );
     `)
     history = await import('./agent-history')
+    contextModule = await import('../context/assemble')
   })
 
   beforeEach(async () => {
@@ -184,6 +186,53 @@ integrationTest('agent history PostgreSQL transactions', () => {
     expect(counts[0]).toMatchObject({ messages: 2, revisions: 2 })
   })
 
+  test('omits prior turns when carry history is disabled', async () => {
+    if (!sql) return
+    const conversationId = await createConversation()
+    const first = await history.startAgentRun({
+      conversationId,
+      userId: 7,
+      trigger: 'submit-message',
+      incoming: { content: 'first question', clientKey: 'history-u1' },
+      requestKey: crypto.randomUUID(),
+      model: 'test-model',
+    })
+    await history.finishAgentRun(first.runId, 7, {
+      content: 'first answer',
+      clientKey: 'history-a1',
+      model: 'test-model',
+    })
+    const second = await history.startAgentRun({
+      conversationId,
+      userId: 7,
+      trigger: 'submit-message',
+      incoming: { content: 'second question', clientKey: 'history-u2' },
+      requestKey: crypto.randomUUID(),
+      model: 'test-model',
+    })
+
+    const isolated = await contextModule.assembleContext(second.conversation, {
+      longMemory: false,
+      carryHistory: false,
+      group: 'default',
+      focusMessageId: second.userMessage.id,
+    })
+    expect(isolated).toEqual([{ role: 'user', content: 'second question' }])
+
+    const carried = await contextModule.assembleContext(second.conversation, {
+      longMemory: false,
+      carryHistory: true,
+      group: 'default',
+      focusMessageId: second.userMessage.id,
+    })
+    expect(carried).toEqual([
+      { role: 'user', content: 'first question' },
+      { role: 'assistant', content: 'first answer' },
+      { role: 'user', content: 'second question' },
+    ])
+    await history.stopAgentRun(second.runId, 7, conversationId)
+  })
+
   test('revises, invalidates memory, and fences stale runs', async () => {
     if (!sql) return
     const conversationId = await createConversation()
@@ -191,13 +240,14 @@ integrationTest('agent history PostgreSQL transactions', () => {
     const appendTurn = async (
       userKey: string,
       assistantKey: string,
-      text: string
+      text: string,
+      contentJson?: string
     ) => {
       const started = await history.startAgentRun({
         conversationId,
         userId: 7,
         trigger: 'submit-message',
-        incoming: { content: text, clientKey: userKey },
+        incoming: { content: text, contentJson, clientKey: userKey },
         requestKey: crypto.randomUUID(),
         model: 'test-model',
       })
@@ -209,7 +259,15 @@ integrationTest('agent history PostgreSQL transactions', () => {
       expect(finished).not.toBeNull()
     }
     await appendTurn('u1', 'a1', 'first')
-    await appendTurn('u2', 'a2', 'second')
+    const deletedAttachment = JSON.stringify([
+      {
+        type: 'file',
+        url: '/api/playground/assets/23/content',
+        mediaType: 'application/pdf',
+      },
+      { type: 'text', text: 'second' },
+    ])
+    await appendTurn('u2', 'a2', 'second', deletedAttachment)
 
     const now = Math.floor(Date.now() / 1000)
     await sql`
@@ -227,6 +285,7 @@ integrationTest('agent history PostgreSQL transactions', () => {
       model: 'test-model',
     })
     expect(regeneration.operation).toBe('regenerate')
+    expect(regeneration.orphanedContentJson).toContain(deletedAttachment)
     const messagesAfterRegenerate = await sql<{ client_key: string }[]>`
       SELECT client_key FROM playground_messages ORDER BY seq
     `
@@ -255,6 +314,17 @@ integrationTest('agent history PostgreSQL transactions', () => {
         { content: 'stale edit' },
         staleRevision
       )
+    ).rejects.toThrow('conversation changed')
+    await expect(
+      history.startAgentRun({
+        conversationId,
+        userId: 7,
+        expectedRevision: staleRevision,
+        trigger: 'regenerate-message',
+        targetMessageKey: 'a1',
+        requestKey: crypto.randomUUID(),
+        model: 'test-model',
+      })
     ).rejects.toThrow('conversation changed')
 
     const editedRevision = await history.editAgentMessage(
@@ -316,7 +386,7 @@ integrationTest('agent history PostgreSQL transactions', () => {
       'u1',
       activatedRevision + 1
     )
-    expect(deletedRevision).toBe(activatedRevision + 2)
+    expect(deletedRevision.revision).toBe(activatedRevision + 2)
     const messagesAfterDelete = await sql<{ client_key: string }[]>`
       SELECT client_key FROM playground_messages ORDER BY seq
     `

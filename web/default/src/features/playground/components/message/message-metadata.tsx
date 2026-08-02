@@ -67,6 +67,7 @@ export function MessageMetadata(props: MessageMetadataProps) {
       modelLabel = props.message.model
     } else if (
       props.message.status === 'complete' ||
+      props.message.status === 'stopped' ||
       props.message.status === 'error'
     ) {
       modelLabel = t('Model not recorded')
@@ -81,7 +82,9 @@ export function MessageMetadata(props: MessageMetadataProps) {
   const hasDiagnostics = Boolean(duration || usage)
   const showModelChip = Boolean(modelLabel) && modelLabel !== currentModel
 
-  if (!messageTime && !hasDiagnostics && !modelLabel) {
+  const wasStopped = props.message.status === 'stopped'
+
+  if (!messageTime && !hasDiagnostics && !modelLabel && !wasStopped) {
     return null
   }
 
@@ -102,7 +105,13 @@ export function MessageMetadata(props: MessageMetadataProps) {
       {showModelChip ? (
         <span className='font-mono opacity-90'>{modelLabel}</span>
       ) : null}
-      {showModelChip && messageTime ? <span aria-hidden='true'>·</span> : null}
+      {showModelChip && (messageTime || wasStopped) ? (
+        <span aria-hidden='true'>·</span>
+      ) : null}
+      {wasStopped ? (
+        <span className='text-warning font-medium'>{t('Stopped')}</span>
+      ) : null}
+      {wasStopped && messageTime ? <span aria-hidden='true'>·</span> : null}
       {messageTime ? <time>{messageTime}</time> : null}
 
       {expanded && hasDiagnostics ? (

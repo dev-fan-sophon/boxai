@@ -20,6 +20,7 @@ import {
   conversations,
   messageRevisions,
   messages,
+  userMemories,
 } from '../db/schema'
 import {
   abortActiveRun,
@@ -28,7 +29,10 @@ import {
 } from '../engine/active-runs'
 import { fail, ok, truncateRunes } from '../http'
 import { runMemoryMaintenance } from '../memory/maintenance'
-import { canonicalizeUserMessage } from '../messages/content'
+import {
+  canonicalizeUserMessage,
+  cleanupAttachmentAssets,
+} from '../messages/content'
 
 /**
  * Wire parity with the gateway's playground conversation endpoints: the
@@ -464,6 +468,21 @@ conversationsRoute.delete('/:id', async (c) => {
           'stop the active response before deleting this conversation'
         )
       }
+      const messageContent = await tx
+        .select({ contentJson: messages.contentJson })
+        .from(messages)
+        .where(
+          and(eq(messages.conversationId, id), eq(messages.userId, userId))
+        )
+      const revisionContent = await tx
+        .select({ contentJson: messageRevisions.contentJson })
+        .from(messageRevisions)
+        .where(
+          and(
+            eq(messageRevisions.conversationId, id),
+            eq(messageRevisions.userId, userId)
+          )
+        )
       await tx
         .delete(messageRevisions)
         .where(
@@ -472,24 +491,36 @@ conversationsRoute.delete('/:id', async (c) => {
             eq(messageRevisions.userId, userId)
           )
         )
-      await tx
-        .delete(agentRuns)
-        .where(
-          and(eq(agentRuns.conversationId, id), eq(agentRuns.userId, userId))
-        )
+      await tx.delete(agentRuns).where(
+        and(eq(agentRuns.conversationId, id), eq(agentRuns.userId, userId))
+      )
       await tx
         .delete(messages)
         .where(
           and(eq(messages.conversationId, id), eq(messages.userId, userId))
         )
-      return await tx
+      await tx.delete(userMemories).where(
+        and(
+          eq(userMemories.sourceConversationId, id),
+          eq(userMemories.userId, userId)
+        )
+      )
+      const rows = await tx
         .delete(conversations)
         .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
         .returning({ id: conversations.id })
+      return {
+        rows,
+        contentJson: [
+          ...messageContent.map((row) => row.contentJson ?? ''),
+          ...revisionContent.map((row) => row.contentJson ?? ''),
+        ],
+      }
     })
     .catch((error) => error)
   if (deleted instanceof Error) return mutationFailure(c, deleted)
-  if (!deleted || deleted.length === 0) return fail(c, 'conversation not found')
+  if (!deleted || deleted.rows.length === 0) return fail(c, 'conversation not found')
+  await cleanupAttachmentAssets(userId, deleted.contentJson)
   return ok(c, null)
 })
 
@@ -740,7 +771,10 @@ conversationsRoute.patch('/:id/messages/:key', async (c) => {
       {
         content: canonical.content,
         contentJson: canonical.contentJson,
-        status: 'complete',
+        status:
+          body.status === 'stopped' || body.status === 'error'
+            ? body.status
+            : 'complete',
       },
       body.expected_revision
     )
@@ -764,13 +798,14 @@ conversationsRoute.delete('/:id/messages/:key', async (c) => {
     return fail(c, 'expected_revision is required')
   }
   try {
-    const revision = await deleteAgentMessage(
+    const deleted = await deleteAgentMessage(
       id,
       userId,
       c.req.param('key'),
       body.expected_revision
     )
-    return ok(c, { revision })
+    await cleanupAttachmentAssets(userId, deleted.contentJson)
+    return ok(c, { revision: deleted.revision })
   } catch (error) {
     return mutationFailure(c, error)
   }

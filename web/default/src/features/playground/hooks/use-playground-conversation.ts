@@ -17,9 +17,14 @@ type UsePlaygroundConversationOptions = {
   sendChat: (messages: Message[]) => void
   routeTurn?: (messages: Message[], text: string) => Promise<void>
   agentActions?: {
-    send: (text: string, attachments?: ChatAttachment[]) => boolean
+    send: (text: string, attachments?: ChatAttachment[]) => Promise<boolean>
     regenerate: (message: Message) => void
-    save: (message: Message, content: string, shouldSubmit: boolean) => void
+    save: (
+      message: Message,
+      content: string,
+      attachments: ChatAttachment[] | undefined,
+      shouldSubmit: boolean
+    ) => Promise<boolean>
     remove: (message: Message) => void
   }
   canSubmit: () => boolean
@@ -41,7 +46,10 @@ export function usePlaygroundConversation({
   )
 
   const handleSendMessage = useCallback(
-    (text: string, attachments?: ChatAttachment[]): boolean => {
+    (
+      text: string,
+      attachments?: ChatAttachment[]
+    ): boolean | Promise<boolean> => {
       if (!canSubmit()) return false
       if (agentActions) return agentActions.send(text, attachments)
       const nextMessages = appendUserMessagePair(
@@ -127,16 +135,18 @@ export function usePlaygroundConversation({
   }, [])
 
   const applyEdit = useCallback(
-    (newContent: string, shouldSubmit: boolean) => {
-      if (!editingMessageKey) return
-      if (shouldSubmit && !canSubmit()) return
+    async (
+      newContent: string,
+      attachments: ChatAttachment[] | undefined,
+      shouldSubmit: boolean
+    ): Promise<boolean> => {
+      if (!editingMessageKey) return false
+      if (shouldSubmit && !canSubmit()) return false
 
       if (agentActions) {
         const message = messages.find((item) => item.key === editingMessageKey)
-        if (!message) return
-        setEditingMessageKey(null)
-        agentActions.save(message, newContent, shouldSubmit)
-        return
+        if (!message) return false
+        return agentActions.save(message, newContent, attachments, shouldSubmit)
       }
 
       const editResult = applyMessageEdit(
@@ -144,11 +154,11 @@ export function usePlaygroundConversation({
         editingMessageKey,
         newContent,
         shouldSubmit,
+        attachments,
         activeModel
       )
-      if (!editResult) return
+      if (!editResult) return false
 
-      setEditingMessageKey(null)
       updateMessages(editResult.messages)
 
       if (editResult.shouldSend) {
@@ -165,6 +175,7 @@ export function usePlaygroundConversation({
           sendChat(editResult.messages)
         }
       }
+      return true
     },
     [
       canSubmit,

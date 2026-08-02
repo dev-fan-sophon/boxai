@@ -7,12 +7,15 @@ import { toast } from 'sonner'
 import { API_ENDPOINTS, ERROR_MESSAGES } from '../constants'
 import {
   activateAgentMessageRevision,
+  agentChatRequestBody,
   agentUIMessageToPlayground,
   attachmentFileParts,
   cancelAgentRun,
   deleteAgentMessage,
   editAgentMessage,
   loadAgentConversation,
+  shouldPollAgentRun,
+  type AgentChatToolMode,
   type AgentUIMessage,
 } from '../lib/agent-chat/transport'
 import { buildPlatformSystemPrompt } from '../lib/prompt/system-prompt'
@@ -26,7 +29,10 @@ type UseAgentChatOptions = {
   config: PlaygroundConfig
   systemPrompt?: string
   visualOutput?: boolean
+  carryHistory?: boolean
   longMemory?: boolean
+  maxSteps?: number
+  toolMode?: AgentChatToolMode
   conversationId?: number
   onConversationId: (conversationId: number) => void
 }
@@ -41,6 +47,20 @@ function errorText(error: unknown): string {
   }
 }
 
+type PendingChatAcceptance = {
+  resolve: (accepted: boolean) => void
+  settled: boolean
+}
+
+function settleChatAcceptance(
+  pending: PendingChatAcceptance | null,
+  accepted: boolean
+): void {
+  if (!pending || pending.settled) return
+  pending.settled = true
+  pending.resolve(accepted)
+}
+
 export function useAgentChat(options: UseAgentChatOptions) {
   const { t } = useTranslation()
   const model = options.config.model
@@ -51,6 +71,8 @@ export function useAgentChat(options: UseAgentChatOptions) {
   const conversationIdRef = useRef(options.conversationId)
   const revisionRef = useRef(0)
   const runIdRef = useRef('')
+  const chatRequestFailedRef = useRef(false)
+  const chatAcceptanceRef = useRef<PendingChatAcceptance | null>(null)
   const [serverRunId, setServerRunId] = useState('')
   const loadGenerationRef = useRef(0)
   conversationIdRef.current = options.conversationId
@@ -72,7 +94,14 @@ export function useAgentChat(options: UseAgentChatOptions) {
         api: API_ENDPOINTS.AGENT_CHAT,
         credentials: 'include',
         fetch: async (url, init) => {
-          const response = await fetch(url, init)
+          let response: Response
+          try {
+            response = await fetch(url, init)
+          } catch (error) {
+            settleChatAcceptance(chatAcceptanceRef.current, false)
+            chatAcceptanceRef.current = null
+            throw error
+          }
           const conversationId = Number(
             response.headers.get('X-Conversation-Id')
           )
@@ -83,6 +112,13 @@ export function useAgentChat(options: UseAgentChatOptions) {
           const runId = response.headers.get('X-Agent-Run-Id') || ''
           runIdRef.current = runId
           if (runId) setServerRunId(runId)
+          // A run id means the turn and its attachments were committed before
+          // a later context/model setup failure produced a non-2xx response.
+          settleChatAcceptance(
+            chatAcceptanceRef.current,
+            response.ok || runId !== ''
+          )
+          chatAcceptanceRef.current = null
           return response
         },
         prepareSendMessagesRequest: ({ messages, trigger, messageId }) => {
@@ -93,22 +129,34 @@ export function useAgentChat(options: UseAgentChatOptions) {
               : messages.at(-1)
           }
           return {
-            body: {
+            body: agentChatRequestBody({
               conversationId: conversationIdRef.current,
               model,
               group,
               system,
+              carryHistory: options.carryHistory !== false,
               longMemory: longMemory === true,
-              source: 'web',
+              maxSteps: Math.min(21, Math.max(1, options.maxSteps ?? 8)),
+              toolMode: options.toolMode ?? 'auto',
+              expectedRevision: messageId ? revisionRef.current : undefined,
               trigger,
               messageId,
               requestKey: crypto.randomUUID(),
               message,
-            },
+            }),
           }
         },
       }),
-    [group, longMemory, model, onConversationId, system]
+    [
+      group,
+      longMemory,
+      model,
+      onConversationId,
+      options.carryHistory,
+      options.maxSteps,
+      options.toolMode,
+      system,
+    ]
   )
 
   const chat = useChat<AgentUIMessage>({
@@ -116,7 +164,11 @@ export function useAgentChat(options: UseAgentChatOptions) {
     transport,
     throttle: 50,
     onError: (error) => {
+      chatRequestFailedRef.current = true
       toast.error(errorText(error) || t(ERROR_MESSAGES.API_REQUEST_ERROR))
+    },
+    onFinish: ({ isDisconnect, isError }) => {
+      if (isDisconnect || isError) chatRequestFailedRef.current = true
     },
   })
   const chatMessages = chat.messages
@@ -126,54 +178,78 @@ export function useAgentChat(options: UseAgentChatOptions) {
   const chatStatus = chat.status
   const chatStop = chat.stop
 
-  const isAgentStreaming =
-    chatStatus === 'submitted' ||
-    chatStatus === 'streaming' ||
-    serverRunId !== ''
+  const isLocalStreaming =
+    chatStatus === 'submitted' || chatStatus === 'streaming'
+  const isAgentStreaming = isLocalStreaming || serverRunId !== ''
 
-  const refreshAgentConversation = useCallback(async () => {
-    const generation = loadGenerationRef.current + 1
-    loadGenerationRef.current = generation
-    const conversationId = conversationIdRef.current
-    if (!enabled || !conversationId) {
-      revisionRef.current = 0
-      runIdRef.current = ''
-      setServerRunId('')
-      chatSetMessages([])
-      return
-    }
-    try {
-      const loaded = await loadAgentConversation(conversationId)
-      if (loadGenerationRef.current !== generation) return
-      revisionRef.current = loaded.revision
-      runIdRef.current = loaded.activeRunId
-      setServerRunId(loaded.activeRunId)
-      chatSetMessages(loaded.messages)
-    } catch (error) {
-      if (loadGenerationRef.current !== generation) return
-      toast.error(errorText(error) || t(ERROR_MESSAGES.API_REQUEST_ERROR))
-    }
-  }, [chatSetMessages, enabled, t])
+  const refreshAgentConversation = useCallback(
+    async (silent = false) => {
+      const generation = loadGenerationRef.current + 1
+      loadGenerationRef.current = generation
+      const conversationId = conversationIdRef.current
+      if (!enabled || !conversationId) {
+        revisionRef.current = 0
+        runIdRef.current = ''
+        setServerRunId('')
+        chatSetMessages([])
+        return
+      }
+      try {
+        const loaded = await loadAgentConversation(conversationId)
+        if (loadGenerationRef.current !== generation) return
+        revisionRef.current = loaded.revision
+        runIdRef.current = loaded.activeRunId
+        setServerRunId(loaded.activeRunId)
+        chatSetMessages(loaded.messages)
+      } catch (error) {
+        if (loadGenerationRef.current !== generation) return
+        if (!silent) {
+          toast.error(errorText(error) || t(ERROR_MESSAGES.API_REQUEST_ERROR))
+        }
+      }
+    },
+    [chatSetMessages, enabled, t]
+  )
 
   useEffect(() => {
     runIdRef.current = ''
     setServerRunId('')
+    return () => {
+      settleChatAcceptance(chatAcceptanceRef.current, false)
+      chatAcceptanceRef.current = null
+    }
   }, [options.chatId])
 
   useEffect(() => {
-    if (isAgentStreaming) return
+    if (isLocalStreaming || serverRunId !== '') return
     void refreshAgentConversation()
   }, [
-    isAgentStreaming,
+    isLocalStreaming,
     options.chatId,
     options.conversationId,
     refreshAgentConversation,
+    serverRunId,
   ])
+
+  useEffect(() => {
+    if (!enabled || !shouldPollAgentRun(chatStatus, serverRunId)) return
+    let cancelled = false
+    let timer = 0
+    const poll = async () => {
+      await refreshAgentConversation(true)
+      if (!cancelled) timer = window.setTimeout(poll, 1_500)
+    }
+    timer = window.setTimeout(poll, 500)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [chatStatus, enabled, refreshAgentConversation, serverRunId])
 
   useEffect(() => {
     if (!options.enabled) return
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible' && !isAgentStreaming) {
+      if (document.visibilityState === 'visible' && !isLocalStreaming) {
         void refreshAgentConversation()
       }
     }
@@ -183,51 +259,84 @@ export function useAgentChat(options: UseAgentChatOptions) {
       window.removeEventListener('focus', refreshWhenVisible)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
-  }, [isAgentStreaming, options.enabled, refreshAgentConversation])
+  }, [isLocalStreaming, options.enabled, refreshAgentConversation])
 
   const runAndRefresh = useCallback(
-    async (operation: () => Promise<void>) => {
+    async (
+      operation: () => Promise<void>,
+      trackChatRequest = false
+    ): Promise<boolean> => {
+      if (trackChatRequest) chatRequestFailedRef.current = false
       try {
         await operation()
         await refreshAgentConversation()
+        return !trackChatRequest || !chatRequestFailedRef.current
       } catch (error) {
         toast.error(errorText(error) || t(ERROR_MESSAGES.API_REQUEST_ERROR))
         await refreshAgentConversation()
+        return false
       }
     },
     [refreshAgentConversation, t]
   )
 
+  const startChatRequest = useCallback(
+    (operation: () => Promise<void>): Promise<boolean> => {
+      settleChatAcceptance(chatAcceptanceRef.current, false)
+      let resolveAcceptance: (accepted: boolean) => void = () => {}
+      const accepted = new Promise<boolean>((resolve) => {
+        resolveAcceptance = resolve
+      })
+      const pending: PendingChatAcceptance = {
+        resolve: resolveAcceptance,
+        settled: false,
+      }
+      chatAcceptanceRef.current = pending
+      void runAndRefresh(operation, true).then((succeeded) => {
+        if (!succeeded) settleChatAcceptance(pending, false)
+        if (chatAcceptanceRef.current === pending && pending.settled) {
+          chatAcceptanceRef.current = null
+        }
+      })
+      return accepted
+    },
+    [runAndRefresh]
+  )
+
   const sendAgentTurn = useCallback(
-    (text: string, attachments?: ChatAttachment[]) => {
+    async (text: string, attachments?: ChatAttachment[]): Promise<boolean> => {
       if (!enabled || isAgentStreaming) return false
       try {
         const files = attachmentFileParts(attachments)
-        void runAndRefresh(() => chatSendMessage({ text, files }))
-        return true
+        return startChatRequest(() => chatSendMessage({ text, files }))
       } catch (error) {
         toast.error(errorText(error))
         return false
       }
     },
-    [chatSendMessage, enabled, isAgentStreaming, runAndRefresh]
+    [chatSendMessage, enabled, isAgentStreaming, startChatRequest]
   )
 
   const regenerateAgentMessage = useCallback(
     (message: Message) => {
       if (!enabled || isAgentStreaming) return
-      void runAndRefresh(() => chatRegenerate({ messageId: message.key }))
+      void runAndRefresh(() => chatRegenerate({ messageId: message.key }), true)
     },
     [chatRegenerate, enabled, isAgentStreaming, runAndRefresh]
   )
 
   const saveAgentMessage = useCallback(
-    (message: Message, content: string, shouldSubmit: boolean) => {
-      if (!enabled || isAgentStreaming) return
+    async (
+      message: Message,
+      content: string,
+      attachments: ChatAttachment[] | undefined,
+      shouldSubmit: boolean
+    ): Promise<boolean> => {
+      if (!enabled || isAgentStreaming) return false
       if (shouldSubmit && message.from === 'user') {
         try {
-          const files = attachmentFileParts(message.attachments)
-          void runAndRefresh(() =>
+          const files = attachmentFileParts(attachments)
+          return startChatRequest(() =>
             chatSendMessage({
               text: content,
               files,
@@ -236,21 +345,28 @@ export function useAgentChat(options: UseAgentChatOptions) {
           )
         } catch (error) {
           toast.error(errorText(error))
+          return false
         }
-        return
       }
       const conversationId = conversationIdRef.current
-      if (!conversationId) return
-      void runAndRefresh(async () => {
+      if (!conversationId) return false
+      return runAndRefresh(async () => {
         revisionRef.current = await editAgentMessage(
           conversationId,
           message,
           content,
+          attachments,
           revisionRef.current
         )
       })
     },
-    [chatSendMessage, enabled, isAgentStreaming, runAndRefresh]
+    [
+      chatSendMessage,
+      enabled,
+      isAgentStreaming,
+      runAndRefresh,
+      startChatRequest,
+    ]
   )
 
   const removeAgentMessage = useCallback(

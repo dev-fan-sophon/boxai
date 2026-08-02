@@ -1,4 +1,4 @@
-import type { FileUIPart, UIMessage } from 'ai'
+import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
 import type {
   ChatAttachment,
@@ -29,6 +29,29 @@ export type AgentMessageMetadata = {
 }
 
 export type AgentUIMessage = UIMessage<AgentMessageMetadata>
+
+export type AgentChatToolMode =
+  | 'auto'
+  | 'image'
+  | 'video'
+  | 'search'
+  | 'document'
+
+export type AgentChatRequestBodyInput = {
+  conversationId?: number
+  model: string
+  group: string
+  system: string
+  carryHistory: boolean
+  longMemory: boolean
+  maxSteps: number
+  toolMode: AgentChatToolMode
+  expectedRevision?: number
+  trigger: 'submit-message' | 'regenerate-message'
+  messageId?: string
+  requestKey: string
+  message?: AgentUIMessage
+}
 
 type AgentServerMessage = {
   id: number
@@ -134,6 +157,36 @@ function agentConversationUrl(conversationId: number): string {
   return `/chat-api/api/playground/conversations/${conversationId}`
 }
 
+export function agentChatRequestBody(input: AgentChatRequestBodyInput) {
+  return {
+    conversationId: input.conversationId,
+    model: input.model,
+    group: input.group,
+    system: input.system,
+    carryHistory: input.carryHistory,
+    longMemory: input.longMemory,
+    maxSteps: input.maxSteps,
+    toolMode: input.toolMode,
+    expectedRevision: input.expectedRevision,
+    source: 'web' as const,
+    trigger: input.trigger,
+    messageId: input.messageId,
+    requestKey: input.requestKey,
+    message: input.message,
+  }
+}
+
+export function shouldPollAgentRun(
+  chatStatus: ChatStatus,
+  activeRunId: string
+): boolean {
+  return (
+    activeRunId !== '' &&
+    chatStatus !== 'submitted' &&
+    chatStatus !== 'streaming'
+  )
+}
+
 export async function loadAgentConversation(conversationId: number): Promise<{
   messages: AgentUIMessage[]
   revision: number
@@ -153,12 +206,11 @@ export async function editAgentMessage(
   conversationId: number,
   message: Message,
   content: string,
+  attachments: ChatAttachment[] | undefined,
   expectedRevision: number
 ): Promise<number> {
   const parts = [
-    ...(message.from === 'user'
-      ? attachmentFileParts(message.attachments)
-      : []),
+    ...(message.from === 'user' ? attachmentFileParts(attachments) : []),
     { type: 'text' as const, text: content },
   ]
   const data = await apiRequest<{ revision: number }>(
@@ -168,6 +220,7 @@ export async function editAgentMessage(
       body: JSON.stringify({
         content,
         parts,
+        status: message.status,
         expected_revision: expectedRevision,
       }),
     }
@@ -394,6 +447,8 @@ export function agentUIMessageToPlayground(
     status = content ? 'streaming' : 'loading'
   } else if (message.metadata?.status === 'error') {
     status = 'error'
+  } else if (message.metadata?.status === 'stopped') {
+    status = 'stopped'
   }
   return {
     key: message.id,

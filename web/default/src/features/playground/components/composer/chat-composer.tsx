@@ -52,7 +52,10 @@ const TOOL_MODES: Array<{
 ]
 
 type ChatComposerProps = {
-  onSubmit: (text: string, attachments?: ChatAttachment[]) => boolean
+  onSubmit: (
+    text: string,
+    attachments?: ChatAttachment[]
+  ) => boolean | Promise<boolean>
   onStop?: () => void
   disabled?: boolean
   isGenerating?: boolean
@@ -92,14 +95,14 @@ export function ChatComposer(props: ChatComposerProps) {
     text,
   })
 
-  const handleSubmit = (message: PromptInputMessage) => {
+  const handleSubmit = async (message: PromptInputMessage) => {
     if (attachments.isAdding || attachments.isParsing) return
     const submittableText = getSubmittableInputText(message, props.disabled)
     const submittedAttachments = allowAttachments
       ? attachments.attachments
       : undefined
     if (!submittableText && !submittedAttachments?.length) return
-    if (props.onSubmit(submittableText ?? '', submittedAttachments)) {
+    if (await props.onSubmit(submittableText ?? '', submittedAttachments)) {
       setText('')
       attachments.clear()
     }

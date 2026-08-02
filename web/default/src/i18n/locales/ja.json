@@ -5654,6 +5654,7 @@
     "Stop pending items": "未送信項目を停止",
     "Stop Retry": "リトライ停止",
     "Stop testing": "テストを停止",
+    "Stopped": "停止済み",
     "Stopped watching this video task. It may still be running on the server.": "この動画タスクの監視を停止しました。サーバーでは引き続き実行中の可能性があります。",
     "Stopping batch test...": "バッチテストを停止中...",
     "Stopping...": "停止中...",

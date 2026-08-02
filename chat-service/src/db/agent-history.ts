@@ -28,6 +28,7 @@ export type AgentMessageContent = {
 export type StartAgentRunInput = {
   conversationId: number
   userId: number
+  expectedRevision?: number
   trigger: 'submit-message' | 'regenerate-message'
   targetMessageKey?: string
   incoming?: AgentMessageContent & { clientKey: string; source?: string }
@@ -41,6 +42,7 @@ export type StartedAgentRun = {
   userMessage: MessageRow
   assistantMessage?: MessageRow
   operation: 'append' | 'edit' | 'regenerate' | 'retry'
+  orphanedContentJson: string[]
 }
 
 function nowSeconds(): number {
@@ -253,10 +255,10 @@ async function deleteMessageRows(
   seq: number,
   inclusive: boolean,
   keepMessageId?: number
-): Promise<void> {
+): Promise<string[]> {
   const condition = inclusive ? gte(messages.seq, seq) : gt(messages.seq, seq)
   const rows = await tx
-    .select({ id: messages.id })
+    .select({ id: messages.id, contentJson: messages.contentJson })
     .from(messages)
     .where(
       and(
@@ -266,11 +268,21 @@ async function deleteMessageRows(
       )
     )
   const ids = rows.map((row) => row.id).filter((id) => id !== keepMessageId)
-  if (ids.length === 0) return
+  if (ids.length === 0) return []
+  const revisionRows = await tx
+    .select({ contentJson: messageRevisions.contentJson })
+    .from(messageRevisions)
+    .where(inArray(messageRevisions.messageId, ids))
   await tx
     .delete(messageRevisions)
     .where(inArray(messageRevisions.messageId, ids))
   await tx.delete(messages).where(inArray(messages.id, ids))
+  return [
+    ...rows
+      .filter((row) => ids.includes(row.id))
+      .map((row) => row.contentJson ?? ''),
+    ...revisionRows.map((row) => row.contentJson ?? ''),
+  ]
 }
 
 async function pairedUserMessage(
@@ -358,7 +370,12 @@ export async function startAgentRun(
   input: StartAgentRunInput
 ): Promise<StartedAgentRun> {
   return db.transaction(async (tx) => {
-    const conv = await lockConversation(tx, input.conversationId, input.userId)
+    const conv = await lockConversation(
+      tx,
+      input.conversationId,
+      input.userId,
+      input.expectedRevision
+    )
     const [duplicate] = await tx
       .select({ id: agentRuns.id })
       .from(agentRuns)
@@ -374,6 +391,7 @@ export async function startAgentRun(
     let userMessage: MessageRow | undefined
     let assistantMessage: MessageRow | undefined
     let operation: StartedAgentRun['operation']
+    let orphanedContentJson: string[] = []
 
     if (input.trigger === 'submit-message' && input.incoming) {
       if (input.targetMessageKey) {
@@ -392,7 +410,7 @@ export async function startAgentRun(
           model: input.model,
           status: 'complete',
         })
-        await deleteMessageRows(
+        orphanedContentJson = await deleteMessageRows(
           tx,
           input.conversationId,
           input.userId,
@@ -452,7 +470,7 @@ export async function startAgentRun(
       userMessage = pair.user
       assistantMessage = pair.assistant
       const boundary = assistantMessage?.seq ?? userMessage.seq
-      await deleteMessageRows(
+      orphanedContentJson = await deleteMessageRows(
         tx,
         input.conversationId,
         input.userId,
@@ -504,6 +522,7 @@ export async function startAgentRun(
       userMessage,
       assistantMessage,
       operation,
+      orphanedContentJson,
     }
   })
 }
@@ -752,7 +771,7 @@ export async function deleteAgentMessage(
   userId: number,
   messageKey: string,
   expectedRevision: number
-): Promise<number> {
+): Promise<{ revision: number; contentJson: string[] }> {
   return db.transaction(async (tx) => {
     const conv = await lockConversation(
       tx,
@@ -766,6 +785,10 @@ export async function deleteAgentMessage(
       userId,
       messageKey
     )
+    const revisionRows = await tx
+      .select({ contentJson: messageRevisions.contentJson })
+      .from(messageRevisions)
+      .where(eq(messageRevisions.messageId, target.id))
     await tx
       .delete(messageRevisions)
       .where(eq(messageRevisions.messageId, target.id))
@@ -785,7 +808,13 @@ export async function deleteAgentMessage(
         updatedAt: nowSeconds(),
       })
       .where(eq(conversations.id, conversationId))
-    return revision
+    return {
+      revision,
+      contentJson: [
+        target.contentJson ?? '',
+        ...revisionRows.map((row) => row.contentJson ?? ''),
+      ],
+    }
   })
 }
 

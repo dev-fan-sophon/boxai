@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import { uploadPlaygroundAsset } from '../../../api'
+import { deletePlaygroundAsset, uploadPlaygroundAsset } from '../../../api'
 import { isAgentChatEnabled } from '../../../lib/agent-chat/flag'
 import { rememberAttachmentAsset } from '../../../lib/attachments/attachment-assets'
 import {
@@ -23,6 +23,12 @@ const MAX_CHAT_DOCUMENT_BYTES = 20 * 1024 * 1024
 const MAX_CHAT_TEXT_BYTES = 10 * 1024 * 1024
 
 type AttachmentKind = 'image' | 'document' | 'text'
+
+function deleteAttachmentAssets(assetIds: Iterable<number>): void {
+  for (const assetId of assetIds) {
+    void deletePlaygroundAsset(assetId).catch(() => {})
+  }
+}
 
 function classifyFile(file: File): AttachmentKind | null {
   if (file.type.startsWith('image/')) return 'image'
@@ -67,23 +73,28 @@ async function buildImageAttachment(file: File): Promise<ChatAttachment> {
  * client-driven OCR pass for scanned PDFs), so their content reaches any
  * model as text. Sending is blocked while a document is still parsing.
  */
-export function useChatAttachments() {
+export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
   const { t } = useTranslation()
   const group = usePlaygroundStore((state) => state.config.group)
   const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
-  const [attachments, setAttachments] = useState<ChatAttachment[]>([])
+  const [attachments, setAttachments] = useState<ChatAttachment[]>(() => [
+    ...initialAttachments,
+  ])
   const [isAdding, setIsAdding] = useState(false)
   const isAddingRef = useRef(false)
   const operationRef = useRef(0)
+  const createdAssetIdsRef = useRef(new Set<number>())
   const groupRef = useRef(group)
   groupRef.current = group
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    const createdAssetIds = createdAssetIdsRef.current
+    return () => {
       operationRef.current += 1
-    },
-    []
-  )
+      deleteAttachmentAssets(createdAssetIds)
+      createdAssetIds.clear()
+    }
+  }, [])
 
   const updateDocument = (
     id: string,
@@ -133,7 +144,10 @@ export function useChatAttachments() {
     }
   }
 
-  const addDocumentFile = async (file: File): Promise<void> => {
+  const addDocumentFile = async (
+    file: File,
+    operation: number
+  ): Promise<void> => {
     let assetId: number
     try {
       const asset = await uploadPlaygroundAsset(file, 'document', 'attachment')
@@ -145,6 +159,11 @@ export function useChatAttachments() {
       )
       return
     }
+    if (operationRef.current !== operation) {
+      deleteAttachmentAssets([assetId])
+      return
+    }
+    createdAssetIdsRef.current.add(assetId)
     const attachment: ChatDocumentAttachment = {
       id: crypto.randomUUID(),
       kind: 'document',
@@ -215,12 +234,21 @@ export function useChatAttachments() {
     for (const entry of acceptedFiles) {
       if (operationRef.current !== operation) return
       if (entry.kind === 'document' || entry.kind === 'text') {
-        await addDocumentFile(entry.file)
+        await addDocumentFile(entry.file, operation)
         continue
       }
       try {
         if (entry.kind === 'image') {
           const attachment = await buildImageAttachment(entry.file)
+          if (operationRef.current !== operation) {
+            if (attachment.assetId) {
+              deleteAttachmentAssets([attachment.assetId])
+            }
+            return
+          }
+          if (attachment.assetId) {
+            createdAssetIdsRef.current.add(attachment.assetId)
+          }
           setAttachments((prev) =>
             prev.length < MAX_CHAT_ATTACHMENTS ? [...prev, attachment] : prev
           )
@@ -237,8 +265,16 @@ export function useChatAttachments() {
     }
   }
 
-  const removeAt = (index: number) =>
+  const removeAt = (index: number) => {
+    const attachment = attachments[index]
+    if (
+      attachment?.assetId &&
+      createdAssetIdsRef.current.delete(attachment.assetId)
+    ) {
+      void deletePlaygroundAsset(attachment.assetId).catch(() => {})
+    }
     setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const retryAt = (index: number) => {
     const attachment = attachments[index]
@@ -256,7 +292,27 @@ export function useChatAttachments() {
     operationRef.current += 1
     isAddingRef.current = false
     setIsAdding(false)
+    createdAssetIdsRef.current.clear()
     setAttachments([])
+  }
+
+  const discardCreated = () => {
+    operationRef.current += 1
+    isAddingRef.current = false
+    setIsAdding(false)
+    deleteAttachmentAssets(createdAssetIdsRef.current)
+    createdAssetIdsRef.current.clear()
+  }
+
+  const reset = () => {
+    discardCreated()
+    setAttachments([...initialAttachments])
+  }
+
+  const commit = () => {
+    const assetIds = [...createdAssetIdsRef.current]
+    createdAssetIdsRef.current.clear()
+    return assetIds
   }
 
   const handlePaste: React.ClipboardEventHandler = (event) => {
@@ -296,6 +352,9 @@ export function useChatAttachments() {
     removeAt,
     retryAt,
     clear,
+    discardCreated,
+    reset,
+    commit,
     handlePaste,
     handleDrop,
     handleDragOver,

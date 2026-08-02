@@ -36,6 +36,7 @@ func SetApiRouter(router *gin.Engine) {
 		internalActAsRouter.POST("/playground/documents/build", controller.InternalBuildDocument)
 		internalActAsRouter.POST("/playground/documents/sandbox/release", controller.ReleasePlaygroundDocumentSandbox)
 		internalActAsRouter.GET("/playground/assets/:id", controller.GetInternalPlaygroundAsset)
+		internalActAsRouter.DELETE("/playground/assets/:id", controller.DeletePlaygroundAsset)
 		internalActAsRouter.GET("/playground/assets/:id/content", controller.GetPlaygroundAssetContent)
 		internalActAsRouter.GET("/playground/assets/:id/parse", controller.GetInternalPlaygroundAssetParse)
 		internalActAsRouter.POST("/playground/assets/:id/ensure-parse", controller.EnsureInternalPlaygroundAssetParse)

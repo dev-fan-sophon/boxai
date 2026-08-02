@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,7 +16,14 @@ func setupPlaygroundConversationTestDB(t *testing.T) {
 	old := DB
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&PlaygroundConversation{}, &PlaygroundMessage{}, &PlaygroundMessageRevision{}, &PlaygroundAgentRun{}))
+	require.NoError(t, db.AutoMigrate(
+		&PlaygroundConversation{},
+		&PlaygroundMessage{},
+		&PlaygroundMessageRevision{},
+		&PlaygroundAgentRun{},
+		&PlaygroundUserMemory{},
+		&PlaygroundAsset{},
+	))
 	DB = db
 	t.Cleanup(func() { DB = old })
 }
@@ -105,6 +113,77 @@ func TestDeletePlaygroundConversationDeletesAgentHistory(t *testing.T) {
 		require.NoError(t, DB.Model(value).Count(&count).Error)
 		assert.Zero(t, count)
 	}
+}
+
+func TestDeletePlaygroundConversationReleasesAttachmentsAndDerivedMemory(t *testing.T) {
+	setupPlaygroundConversationTestDB(t)
+	conv := &PlaygroundConversation{UserId: 7}
+	require.NoError(t, CreatePlaygroundConversation(conv))
+	asset := &PlaygroundAsset{
+		UserId: 7,
+		Kind:   "document",
+		Source: PlaygroundAssetSourceAttachment,
+		Name:   "report.pdf",
+	}
+	require.NoError(t, DB.Create(asset).Error)
+	contentJson := fmt.Sprintf(`[{"type":"file","url":"/api/playground/assets/%d/content","mediaType":"application/pdf"}]`, asset.Id)
+	message := &PlaygroundMessage{
+		ConversationId: conv.Id,
+		UserId:         7,
+		Role:           "user",
+		ContentJson:    contentJson,
+	}
+	require.NoError(t, DB.Create(message).Error)
+	require.NoError(t, DB.Create(&PlaygroundMessageRevision{
+		MessageId:      message.Id,
+		ConversationId: conv.Id,
+		UserId:         7,
+		Revision:       1,
+		ContentJson:    contentJson,
+	}).Error)
+	require.NoError(t, DB.Create(&PlaygroundUserMemory{
+		UserId:               7,
+		Content:              "derived fact",
+		SourceConversationId: conv.Id,
+	}).Error)
+
+	_, err := DeletePlaygroundAttachmentAssetIfUnreferenced(asset.Id, 7)
+	require.ErrorIs(t, err, ErrPlaygroundAttachmentReferenced)
+
+	attachmentIds, err := DeletePlaygroundConversationWithAttachments(conv.Id, 7)
+	require.NoError(t, err)
+	assert.Equal(t, []int{asset.Id}, attachmentIds)
+	var memoryCount int64
+	require.NoError(t, DB.Model(&PlaygroundUserMemory{}).Count(&memoryCount).Error)
+	assert.Zero(t, memoryCount)
+
+	deleted, err := DeletePlaygroundAttachmentAssetIfUnreferenced(asset.Id, 7)
+	require.NoError(t, err)
+	assert.Equal(t, asset.Id, deleted.Id)
+}
+
+func TestDeletePlaygroundAttachmentIgnoresAssetURLInMessageText(t *testing.T) {
+	setupPlaygroundConversationTestDB(t)
+	conv := &PlaygroundConversation{UserId: 7}
+	require.NoError(t, CreatePlaygroundConversation(conv))
+	asset := &PlaygroundAsset{
+		UserId: 7,
+		Kind:   "document",
+		Source: PlaygroundAssetSourceAttachment,
+		Name:   "unused.pdf",
+	}
+	require.NoError(t, DB.Create(asset).Error)
+	contentJson := fmt.Sprintf(`[{"type":"text","text":"See /api/playground/assets/%d/content"}]`, asset.Id)
+	require.NoError(t, DB.Create(&PlaygroundMessage{
+		ConversationId: conv.Id,
+		UserId:         7,
+		Role:           "user",
+		ContentJson:    contentJson,
+	}).Error)
+
+	deleted, err := DeletePlaygroundAttachmentAssetIfUnreferenced(asset.Id, 7)
+	require.NoError(t, err)
+	assert.Equal(t, asset.Id, deleted.Id)
 }
 
 func TestDeletePlaygroundConversationRejectsActiveRun(t *testing.T) {

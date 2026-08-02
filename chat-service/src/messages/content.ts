@@ -3,7 +3,9 @@ import type { FileUIPart, ModelMessage, TextUIPart, UIMessage } from 'ai'
 
 import { userModel } from '../engine/provider'
 import {
+  deleteAttachmentAsset,
   ensureAssetParse,
+  GatewayError,
   getAssetBytes,
   getAssetMetadata,
   getAssetParse,
@@ -85,6 +87,38 @@ export function assetIdFromFilePart(part: FileUIPart): number | null {
   if (!match) return null
   const id = Number.parseInt(match[1]!, 10)
   return Number.isSafeInteger(id) && id > 0 ? id : null
+}
+
+export function attachmentAssetIdsFromContentJson(values: string[]): number[] {
+  const ids = new Set<number>()
+  for (const value of values) {
+    for (const part of parseParts(value, '')) {
+      if (part.type !== 'file') continue
+      const id = assetIdFromFilePart(part)
+      if (id) ids.add(id)
+    }
+  }
+  return [...ids]
+}
+
+export async function cleanupAttachmentAssets(
+  userId: number,
+  contentJson: string[]
+): Promise<void> {
+  const assetIds = attachmentAssetIdsFromContentJson(contentJson)
+  const outcomes = await Promise.allSettled(
+    assetIds.map((assetId) => deleteAttachmentAsset(userId, assetId))
+  )
+  outcomes.forEach((outcome, index) => {
+    if (outcome.status === 'fulfilled') return
+    if (
+      outcome.reason instanceof GatewayError &&
+      (outcome.reason.status === 404 || outcome.reason.status === 409)
+    ) {
+      return
+    }
+    console.warn(`could not clean attachment asset ${assetIds[index]}:`, outcome.reason)
+  })
 }
 
 function textFromParts(parts: PersistedPart[]): string {

@@ -192,8 +192,23 @@ func DeletePlaygroundAsset(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if c.GetBool("internal_service") && asset.Source != model.PlaygroundAssetSourceAttachment {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "asset is not a chat attachment"})
+		return
+	}
 	if asset.Source == model.PlaygroundAssetSourceAttachment {
-		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "attachment assets cannot be deleted while referenced by chat history"})
+		deleted, err := model.DeletePlaygroundAttachmentAssetIfUnreferenced(id, userId)
+		if errors.Is(err, model.ErrPlaygroundAttachmentReferenced) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "attachment asset is still referenced by chat history"})
+			return
+		}
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		service.DeletePlaygroundAssetFile(deleted.Backend, deleted.StorageKey)
+		service.UnpublishPlaygroundAssetObject(c.Request.Context(), deleted.Backend, deleted.PublicKey)
+		common.ApiSuccess(c, nil)
 		return
 	}
 	if err := model.DeletePlaygroundAsset(id, userId); err != nil {
@@ -726,7 +741,8 @@ func DeletePlaygroundConversation(c *gin.Context) {
 		common.ApiErrorMsg(c, "invalid id")
 		return
 	}
-	if err := model.DeletePlaygroundConversation(id, userId); err != nil {
+	attachmentIds, err := model.DeletePlaygroundConversationWithAttachments(id, userId)
+	if err != nil {
 		if errors.Is(err, model.ErrPlaygroundConversationAgentManaged) {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "stop the active response before deleting this conversation"})
 			return
@@ -737,6 +753,18 @@ func DeletePlaygroundConversation(c *gin.Context) {
 		}
 		common.ApiError(c, err)
 		return
+	}
+	for _, assetId := range attachmentIds {
+		asset, cleanupErr := model.DeletePlaygroundAttachmentAssetIfUnreferenced(assetId, userId)
+		if errors.Is(cleanupErr, model.ErrPlaygroundAttachmentReferenced) || errors.Is(cleanupErr, gorm.ErrRecordNotFound) {
+			continue
+		}
+		if cleanupErr != nil {
+			common.SysError(fmt.Sprintf("delete conversation attachment %d: %s", assetId, cleanupErr.Error()))
+			continue
+		}
+		service.DeletePlaygroundAssetFile(asset.Backend, asset.StorageKey)
+		service.UnpublishPlaygroundAssetObject(c.Request.Context(), asset.Backend, asset.PublicKey)
 	}
 	common.ApiSuccess(c, nil)
 }
