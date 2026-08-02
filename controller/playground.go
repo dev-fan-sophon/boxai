@@ -132,7 +132,12 @@ func managedSearchTerminalResult(response *dto.OpenAIResponsesResponse) (map[str
 		seen[href] = true
 		title, _ := candidate["title"].(string)
 		title = strings.TrimSpace(title)
-		if title == "" {
+		// xAI sometimes emits the citation marker ("1", "[2]", and so on)
+		// as the annotation title. Showing that marker as the link label makes
+		// the source list look corrupt; the hostname is the truthful fallback
+		// when the upstream did not provide a real page title.
+		citationTitle := strings.Trim(title, "[]() ")
+		if title == "" || (citationTitle != "" && strings.Trim(citationTitle, "0123456789") == "") {
 			title = parsed.Hostname()
 		}
 		sources = append(sources, map[string]string{"href": href, "title": title, "domain": parsed.Hostname()})

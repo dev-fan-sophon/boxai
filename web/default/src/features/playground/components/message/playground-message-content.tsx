@@ -43,6 +43,7 @@ import {
 } from '../../lib'
 import { attachmentPreviewSrc } from '../../lib/attachments/attachment-utils'
 import { downloadGeneratedMedia } from '../../lib/download-generated-media'
+import { displaySourceTitle } from '../../lib/message/message-content-utils'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
@@ -221,7 +222,7 @@ export function PlaygroundMessageContent({
               <Source
                 href={source.href}
                 key={`${source.href}-${source.title}`}
-                title={source.title}
+                title={displaySourceTitle(source)}
               />
             ))}
           </SourcesContent>

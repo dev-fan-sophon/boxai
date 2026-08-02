@@ -1,6 +1,21 @@
 import { MESSAGE_ROLES, MESSAGE_STATUS } from '../../constants'
-import type { Message } from '../../types'
+import type { Message, MessageSource } from '../../types'
 import { parseThinkTags } from './message-reasoning-utils'
+
+export function displaySourceTitle(source: MessageSource): string {
+  const title = source.title.trim()
+  const citationTitle =
+    /^\d+$/.test(title) ||
+    /^\[\s*\d+\s*\]$/.test(title) ||
+    /^\(\s*\d+\s*\)$/.test(title)
+  if (title && !citationTitle) return title
+  if (source.domain?.trim()) return source.domain.trim()
+  try {
+    return new URL(source.href).hostname || source.href
+  } catch {
+    return source.href
+  }
+}
 
 type MessageContentStateBase = {
   displayContent: string

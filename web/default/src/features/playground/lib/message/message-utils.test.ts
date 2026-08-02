@@ -2,8 +2,34 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChatDocumentAttachment, ChatImageAttachment } from '../../types'
 import { applyMessageEdit } from './conversation-message-utils'
+import { displaySourceTitle } from './message-content-utils'
 import { getMessageEditorState } from './message-editor-utils'
 import { buildMessageContent, createUserMessage } from './message-utils'
+
+describe('displaySourceTitle', () => {
+  it('replaces numeric citation markers with a trustworthy domain', () => {
+    expect(
+      displaySourceTitle({
+        href: 'https://news.example/story',
+        title: '[2]',
+        domain: 'news.example',
+      })
+    ).toBe('news.example')
+    expect(
+      displaySourceTitle({ href: 'https://example.org/story', title: '3' })
+    ).toBe('example.org')
+  })
+
+  it('keeps a real upstream page title', () => {
+    expect(
+      displaySourceTitle({
+        href: 'https://example.org/story',
+        title: 'Vietnam launches AI program',
+        domain: 'example.org',
+      })
+    ).toBe('Vietnam launches AI program')
+  })
+})
 
 function imageAttachment(
   overrides: Partial<ChatImageAttachment> = {}

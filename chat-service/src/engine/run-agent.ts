@@ -1,8 +1,8 @@
 import { stepCountIs, streamText } from 'ai'
 import type { ModelMessage, ToolChoice, ToolSet } from 'ai'
 
-import { userModel } from './provider'
 import type { AgentToolName } from '../tools'
+import { userModel } from './provider'
 
 /**
  * The engine is the only layer that touches the AI SDK's generation loop, so
@@ -30,9 +30,7 @@ export function agentToolChoice(
   stepNumber: number
 ): ToolChoice<ToolSet> | undefined {
   if (!forceTool) return undefined
-  return stepNumber === 0
-    ? { type: 'tool', toolName: forceTool }
-    : 'auto'
+  return stepNumber === 0 ? { type: 'tool', toolName: forceTool } : 'auto'
 }
 
 export async function runAgent(input: AgentRunInput) {
@@ -41,6 +39,19 @@ export async function runAgent(input: AgentRunInput) {
     system: input.system,
     messages: input.messages,
     tools: input.tools,
+    // The gateway speaks OpenAI Chat Completions. Avoid a model fanning one
+    // research turn out into several separately billed searches; each search
+    // tool invocation already performs a multi-turn web search upstream.
+    providerOptions: {
+      boxaiGateway: { parallel_tool_calls: false },
+    },
+    // Tools can legitimately take minutes, but a lost upstream request must
+    // eventually terminate the AI SDK stream and release the durable run.
+    timeout: {
+      totalMs: 10 * 60_000,
+      stepMs: 3 * 60_000,
+      toolMs: 7 * 60_000,
+    },
     stopWhen: stepCountIs(input.maxSteps ?? 8),
     prepareStep: input.forceTool
       ? ({ stepNumber }) => ({

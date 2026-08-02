@@ -190,4 +190,39 @@ describe('agent chat history adapters', () => {
     )
     expect(projected.status).toBe('stopped')
   })
+
+  it('deduplicates sources returned by repeated search tool calls', () => {
+    const projected = agentUIMessageToPlayground(
+      {
+        id: 'assistant-search',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-web_search',
+            toolCallId: 'search-1',
+            state: 'output-available',
+            input: { query: 'Vietnam AI news' },
+            output: {
+              sources: [{ href: 'https://news.example/story', title: 'Story' }],
+            },
+          },
+          {
+            type: 'tool-web_search',
+            toolCallId: 'search-2',
+            state: 'output-available',
+            input: { query: 'Vietnam AI policy' },
+            output: {
+              sources: [
+                { href: 'https://news.example/story', title: 'Story again' },
+              ],
+            },
+          },
+        ],
+      },
+      true
+    )
+    expect(projected.sources).toEqual([
+      { href: 'https://news.example/story', title: 'Story', domain: undefined },
+    ])
+  })
 })

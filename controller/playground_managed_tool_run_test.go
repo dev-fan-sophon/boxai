@@ -76,6 +76,7 @@ func TestManagedSearchTerminalResult(t *testing.T) {
 				Annotations: []any{
 					map[string]any{"url": "https://example.com/a#one", "title": " Example "},
 					map[string]any{"url": "https://example.com/a#two"},
+					map[string]any{"url": "https://news.example.org/story", "title": "[2]"},
 					map[string]any{"url": "javascript:alert(1)"},
 				},
 			}},
@@ -84,8 +85,9 @@ func TestManagedSearchTerminalResult(t *testing.T) {
 	result, sources, err := managedSearchTerminalResult(response)
 	require.NoError(t, err)
 	assert.Equal(t, "answer", result["text"])
-	require.Len(t, sources, 1)
+	require.Len(t, sources, 2)
 	assert.Equal(t, "https://example.com/a", sources[0]["href"])
+	assert.Equal(t, "news.example.org", sources[1]["title"])
 
 	response.Output[0].Content[0].Text = ""
 	_, _, err = managedSearchTerminalResult(response)

@@ -106,6 +106,13 @@ describe('encodeLegacyToolJson', () => {
           output: { sources: [{ href: 'https://s.example', title: 'S' }] },
         },
         {
+          type: 'tool-web_search',
+          state: 'output-available',
+          output: {
+            sources: [{ href: 'https://s.example', title: 'S again' }],
+          },
+        },
+        {
           type: 'tool-generate_document',
           state: 'output-available',
           output: { documents: [], attempts: 1 },

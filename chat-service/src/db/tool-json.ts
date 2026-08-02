@@ -88,8 +88,7 @@ function cardFromPart(part: UIPart): LegacyCard | null {
         action,
         status: 'completed',
         model: typeof output.model === 'string' ? output.model : undefined,
-        taskId:
-          typeof output.task_id === 'string' ? output.task_id : undefined,
+        taskId: typeof output.task_id === 'string' ? output.task_id : undefined,
         videoUrl:
           typeof output.video_url === 'string' ? output.video_url : undefined,
       }
@@ -129,6 +128,7 @@ function cardFromPart(part: UIPart): LegacyCard | null {
 export function encodeLegacyToolJson(parts: unknown[]): string {
   let managedTool: LegacyCard | undefined
   const sources: LegacySource[] = []
+  const sourceHrefs = new Set<string>()
   let reasoning = ''
 
   for (const raw of parts) {
@@ -150,7 +150,8 @@ export function encodeLegacyToolJson(parts: unknown[]): string {
         sources?: Array<{ href?: string; title?: string; domain?: string }>
       }
       for (const source of output.sources ?? []) {
-        if (source.href) {
+        if (source.href && !sourceHrefs.has(source.href)) {
+          sourceHrefs.add(source.href)
           sources.push({
             href: source.href,
             title: source.title ?? source.href,

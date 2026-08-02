@@ -331,6 +331,7 @@ function documentArtifacts(
 function liveToolPayload(parts: AgentUIMessage['parts']): ToolPayload {
   let managedTool: ManagedToolCard | undefined
   const sources: MessageSource[] = []
+  const sourceHrefs = new Set<string>()
   let reasoning = ''
   for (const raw of parts) {
     const part = raw as unknown as Record<string, unknown>
@@ -392,7 +393,8 @@ function liveToolPayload(parts: AgentUIMessage['parts']): ToolPayload {
         title?: string
         domain?: string
       }>) {
-        if (!source.href) continue
+        if (!source.href || sourceHrefs.has(source.href)) continue
+        sourceHrefs.add(source.href)
         sources.push({
           href: source.href,
           title: source.title || source.href,
