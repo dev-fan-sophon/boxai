@@ -433,6 +433,15 @@ export function PlaygroundMessageContent({
         </>
       )}
 
+      {!isError &&
+        !showMessageContent &&
+        Boolean(message.attachments?.length) && (
+          <>
+            <MessageMetadata alignment={alignment} message={message} />
+            {actions}
+          </>
+        )}
+
       <MediaLightbox
         open={lightbox != null}
         onOpenChange={(open) => {
