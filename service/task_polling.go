@@ -732,7 +732,7 @@ func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Tas
 	if baseURL == "" {
 		baseURL = strings.TrimRight(constant.ChannelBaseURLs[channel.Type], "/")
 	}
-	if channel.Type == constant.ChannelTypeOpenAI || channel.Type == constant.ChannelTypeSora {
+	if channel.Type == constant.ChannelTypeOpenAI {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID()), nil)
 		if err != nil {
 			return nil, err

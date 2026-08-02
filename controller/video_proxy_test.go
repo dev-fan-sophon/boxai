@@ -211,6 +211,14 @@ func TestUntrustedVideoResultURLIncludesNonXAIProviders(t *testing.T) {
 	assert.False(t, isUntrustedVideoResultURL(false, constant.ChannelTypeSora))
 }
 
+func TestSoraVideoResultURLReadsCompletedMetadata(t *testing.T) {
+	data := []byte(`{"status":"completed","metadata":{"url":" https://media.example/video.mp4?signature=test "}}`)
+
+	assert.Equal(t, "https://media.example/video.mp4?signature=test", soraVideoResultURL(data))
+	assert.Empty(t, soraVideoResultURL([]byte(`{"status":"completed"}`)))
+	assert.Empty(t, soraVideoResultURL([]byte(`not-json`)))
+}
+
 func TestVideoProxyResolvesRelativeXAIResultAgainstChannel(t *testing.T) {
 	db := setupVideoProxyTestDB(t)
 	service.InitHttpClient()

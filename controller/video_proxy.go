@@ -137,13 +137,25 @@ func VideoProxy(c *gin.Context) {
 				videoProxyError(c, http.StatusBadGateway, "server_error", "Failed to resolve Vertex video URL")
 				return
 			}
-		case constant.ChannelTypeOpenAI, constant.ChannelTypeSora:
+		case constant.ChannelTypeOpenAI:
 			videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
 			apiKey := task.PrivateData.Key
 			if apiKey == "" {
 				apiKey = channel.Key
 			}
 			req.Header.Set("Authorization", "Bearer "+apiKey)
+		case constant.ChannelTypeSora:
+			videoURL = soraVideoResultURL(task.Data)
+			if videoURL != "" {
+				untrustedResultURL = true
+			} else {
+				videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
+				apiKey := task.PrivateData.Key
+				if apiKey == "" {
+					apiKey = channel.Key
+				}
+				req.Header.Set("Authorization", "Bearer "+apiKey)
+			}
 		default:
 			// Video URL is stored in PrivateData.ResultURL (fallback to FailReason for old data)
 			videoURL = task.GetResultURL()
@@ -287,6 +299,18 @@ func isUntrustedVideoResultURL(isXAITask bool, channelType int) bool {
 		return true
 	}
 	return channelType != constant.ChannelTypeOpenAI && channelType != constant.ChannelTypeSora
+}
+
+func soraVideoResultURL(data []byte) string {
+	var response struct {
+		Metadata struct {
+			URL string `json:"url"`
+		} `json:"metadata"`
+	}
+	if err := common.Unmarshal(data, &response); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(response.Metadata.URL)
 }
 
 func copyVideoResponseHeaders(dst, src http.Header) {
