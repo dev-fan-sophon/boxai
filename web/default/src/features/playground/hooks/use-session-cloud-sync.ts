@@ -782,12 +782,6 @@ export function useSessionCloudSync(userId?: number) {
         })
 
         state = usePlaygroundStore.getState()
-        const existingChatServerIds = new Set(
-          state.sessions
-            .filter(isChatSession)
-            .map((session) => session.serverId)
-            .filter((id): id is number => typeof id === 'number')
-        )
         const existingProjectServerIds = new Set(
           state.sessions
             .filter(isStudioSession)
@@ -801,7 +795,41 @@ export function useSessionCloudSync(userId?: number) {
           page_size: 50,
         })
         for (const item of convItems.slice(0, 40)) {
-          if (existingChatServerIds.has(item.id)) continue
+          const existing = state.sessions.find(
+            (session) =>
+              isChatSession(session) && session.serverId === item.id
+          )
+          if (existing && isChatSession(existing)) {
+            const remote = chatSessionFromServerConversation(
+              item,
+              existing.messages
+            )
+            if (existing.kind === 'duo') {
+              // Duo metadata is browser-owned and may still be waiting for
+              // the debounced push. Only hydrate its server-owned memory
+              // fields here so an older list snapshot cannot undo that push.
+              patchSessionById(existing.id, {
+                memorySummary: remote.memorySummary,
+                memorySummaryTailKey: remote.memorySummaryTailKey,
+                isDraft: false,
+              })
+              continue
+            }
+            patchSessionById(existing.id, {
+              title: remote.title,
+              model: remote.model,
+              group: remote.group,
+              kind: remote.kind,
+              duoMeta: remote.duoMeta,
+              memorySummary: remote.memorySummary,
+              memorySummaryTailKey: remote.memorySummaryTailKey,
+              pinned: remote.pinned,
+              isDraft: false,
+              createdAt: remote.createdAt,
+              updatedAt: remote.updatedAt,
+            })
+            continue
+          }
           // Messages hydrate lazily when the thread is opened (activation pull).
           additions.push(chatSessionFromServerConversation(item, []))
         }

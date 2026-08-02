@@ -237,6 +237,9 @@ describe('loadPersistedPlaygroundState', () => {
           model: 'gpt-5.6',
           group: 'default',
           messages: [],
+          pinned: true,
+          memorySummary: 'Earlier turns discussed deployment safety.',
+          memorySummaryTailKey: 'message-12',
           isDraft: true,
           createdAt: 1,
           updatedAt: 2,
@@ -251,6 +254,9 @@ describe('loadPersistedPlaygroundState', () => {
       serverId: 57,
       isDraft: false,
       messages: [],
+      pinned: true,
+      memorySummary: 'Earlier turns discussed deployment safety.',
+      memorySummaryTailKey: 'message-12',
     })
     expect(listSessionsForModality(state.sessions, 'chat')).toHaveLength(1)
   })

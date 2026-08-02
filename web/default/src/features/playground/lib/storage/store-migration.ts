@@ -437,10 +437,20 @@ function normalizeSessionRecord(
     typeof value.serverId === 'number' && Number.isFinite(value.serverId)
       ? value.serverId
       : undefined
+  const pinned = value.pinned === true
 
   if (modality === 'chat') {
     const messages = salvageMessagesField(value.messages)
     const kind = value.kind === 'duo' ? 'duo' : 'chat'
+    const memorySummary =
+      typeof value.memorySummary === 'string' && value.memorySummary
+        ? value.memorySummary
+        : undefined
+    const memorySummaryTailKey =
+      typeof value.memorySummaryTailKey === 'string' &&
+      value.memorySummaryTailKey
+        ? value.memorySummaryTailKey
+        : undefined
     let duoMeta: { answerModels: string[]; summaryModel: string } | undefined
     if (isRecord(value.duoMeta)) {
       duoMeta = {
@@ -461,7 +471,10 @@ function normalizeSessionRecord(
       messages,
       kind,
       duoMeta,
+      memorySummary,
+      memorySummaryTailKey,
       draft,
+      pinned,
       // Server-owned AI SDK threads intentionally do not persist their
       // transcript in Zustand. Never turn one back into a hidden draft just
       // because its lazy local message cache is empty.
@@ -512,6 +525,7 @@ function normalizeSessionRecord(
     lastPrompt,
     runs,
     draft,
+    pinned,
     isDraft:
       isDraft ||
       (!lastPrompt &&
