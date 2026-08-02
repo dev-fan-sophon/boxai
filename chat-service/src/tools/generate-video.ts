@@ -6,7 +6,9 @@ import {
   billedRelayFetch,
   gatewayFailureMessage,
   taskStatus,
+  uploadAsset,
 } from '../gateway/client'
+import type { ImportedAsset } from '../gateway/client'
 import type { ToolContext } from './index'
 import { resolveToolModels } from './tool-models'
 
@@ -45,6 +47,34 @@ export function waitForVideoPoll(signal?: AbortSignal): Promise<void> {
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted) onAbort()
   })
+}
+
+export async function persistGeneratedVideo(
+  context: ToolContext,
+  taskId: string,
+  videoUrl: string,
+  signal?: AbortSignal
+): Promise<ImportedAsset> {
+  if (!videoUrl.startsWith('/v1/videos/')) {
+    throw new Error('video generation returned an invalid result URL')
+  }
+  const videoResponse = await billedRelayFetch(context.userId, context.group)(
+    `${config.gatewayBaseUrl}${videoUrl}`,
+    { signal }
+  )
+  if (!videoResponse.ok) {
+    const failure = await videoResponse.json().catch(() => null)
+    throw new Error(
+      gatewayFailureMessage(failure) ||
+        'generated video could not be downloaded'
+    )
+  }
+  return uploadAsset(
+    context.userId,
+    await videoResponse.blob(),
+    `generated-${taskId}.mp4`,
+    signal
+  )
 }
 
 export function generateVideoTool(context: ToolContext) {
@@ -99,10 +129,17 @@ export function generateVideoTool(context: ToolContext) {
         await waitForVideoPoll(signal)
         const status = await taskStatus(context.userId, taskId, signal)
         if (status.status === 'SUCCESS' && status.video_url) {
+          const asset = await persistGeneratedVideo(
+            context,
+            taskId,
+            status.video_url,
+            signal
+          )
           return {
             model: models.video_model,
             task_id: taskId,
-            video_url: status.video_url,
+            asset_id: asset.id,
+            video_url: asset.url,
           }
         }
         if (status.status === 'FAILURE') {

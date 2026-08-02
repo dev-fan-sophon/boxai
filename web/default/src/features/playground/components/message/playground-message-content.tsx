@@ -122,7 +122,7 @@ export function PlaygroundMessageContent({
     message.managedTool?.action === 'generate_video',
     message.managedTool?.runId
   )
-  const toolVideoUrl = videoResult.resultUrl || message.managedTool?.videoUrl
+  const toolVideoUrl = message.managedTool?.videoUrl || videoResult.resultUrl
   let toolStatus: string | undefined = message.managedTool?.status
   if (message.managedTool?.action === 'generate_video' && videoResult.status) {
     if (videoResult.ready) {
