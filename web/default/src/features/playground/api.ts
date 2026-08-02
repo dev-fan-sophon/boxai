@@ -19,186 +19,6 @@ import type {
   VideoSubmission,
 } from './types'
 
-export type ManagedToolAction =
-  | 'chat'
-  | 'generate_image'
-  | 'generate_video'
-  | 'web_search'
-  | 'generate_document'
-
-export type ManagedToolRunResponse = {
-  run: {
-    id: number
-    action: ManagedToolAction
-    status: string
-    tool_model?: string
-    task_id?: string
-    error?: string
-  }
-  arguments: Record<string, unknown>
-  execution: { endpoint: string; method: string; execution_token: string }
-  /**
-   * Present when the prompt also names a document deliverable that should be
-   * built after the primary action (e.g. "search X, then make a PDF").
-   */
-  followup_action?: 'generate_document'
-  sources?: {
-    results?: Array<{
-      title: string
-      url: string
-      snippet?: string
-      domain?: string
-      published_at?: string
-    }>
-  }
-  result?: unknown
-}
-
-export type ManagedExecutionContract = {
-  runId: number
-  executionToken: string
-}
-
-export async function executeManagedSearch(
-  runId: number,
-  executionToken: string
-): Promise<unknown> {
-  const response = await api.post('/pg/responses', {}, {
-    headers: {
-      'X-Playground-Run-Id': String(runId),
-      'X-Playground-Execution-Token': executionToken,
-    },
-    skipErrorHandler: true,
-  } as Record<string, unknown>)
-  return response.data
-}
-
-function requireManagedSuccess(response: {
-  data?: { success?: boolean; message?: string; data?: unknown }
-}): ManagedToolRunResponse {
-  if (!response.data?.success) {
-    throw new Error(response.data?.message || 'Managed tool request failed')
-  }
-  return response.data.data as ManagedToolRunResponse
-}
-
-export async function getManagedToolRun(
-  runId: number
-): Promise<ManagedToolRunResponse> {
-  const response = await api.get(`/api/playground/chat/runs/${runId}`)
-  return requireManagedSuccess(response)
-}
-
-export async function createManagedToolRun(input: {
-  client_request_id: string
-  model: string
-  group: string
-  user_text: string
-  tool_policy: {
-    mode: 'auto' | 'direct'
-    enabled: Array<Exclude<ManagedToolAction, 'chat'>>
-    direct?: { name: string; args: Record<string, unknown> }
-  }
-}): Promise<ManagedToolRunResponse> {
-  const response = await api.post('/api/playground/chat/runs', input)
-  return requireManagedSuccess(response)
-}
-
-export type DocumentBuildAsset = {
-  id: number
-  name: string
-  url?: string
-  mime: string
-  size: number
-  kind: string
-}
-
-export type DocumentPromptResponse = {
-  system_prompt: string
-  inputs: string[]
-  previous: string[]
-}
-
-export type DocumentBuildResponse = {
-  status: 'completed' | 'failed'
-  build_id: number
-  attempt: number
-  assets?: DocumentBuildAsset[]
-  logs?: string
-  error?: string
-  can_retry?: boolean
-  retry_prompt?: string
-  /** Documents that could not be reopened by the library that owns their format. */
-  unverified?: string[]
-}
-
-/**
- * Fetches the instructions that turn the user's own model into a build-script author, and tells
- * the backend which attachments this build may read.
- */
-export async function preparePlaygroundDocumentRun(
-  runId: number,
-  input: {
-    execution_token: string
-    conversation_id?: number
-    asset_ids?: number[]
-  }
-): Promise<DocumentPromptResponse> {
-  const response = await api.post(
-    `/api/playground/documents/runs/${runId}/prompt`,
-    input
-  )
-  if (!response.data?.success) {
-    throw new Error(response.data?.message || 'Document request failed')
-  }
-  return response.data.data as DocumentPromptResponse
-}
-
-/**
- * Runs one model-authored script in the sandbox. A script that fails still resolves: the response
- * carries the prompt for the next attempt.
- */
-export async function buildPlaygroundDocument(
-  runId: number,
-  input: { execution_token: string; code: string }
-): Promise<DocumentBuildResponse> {
-  const response = await api.post(
-    `/api/playground/documents/runs/${runId}/build`,
-    input
-  )
-  if (!response.data?.success) {
-    throw new Error(response.data?.message || 'Document build failed')
-  }
-  return response.data.data as DocumentBuildResponse
-}
-
-/** Idle containers bill for memory, so leaving a conversation should stop paying for one. */
-export async function releasePlaygroundDocumentSandbox(
-  conversationId: number
-): Promise<void> {
-  await api.post('/api/playground/documents/sandbox/release', {
-    conversation_id: conversationId,
-  })
-}
-
-export async function importManagedToolRun(
-  runId: number,
-  input: {
-    execution_token: string
-    status: 'submitted' | 'completed' | 'failed'
-    task_id?: string
-    result?: unknown
-    sources?: unknown
-    error?: string
-  }
-): Promise<ManagedToolRunResponse> {
-  const response = await api.post(
-    `/api/playground/chat/runs/${runId}/import`,
-    input
-  )
-  return requireManagedSuccess(response)
-}
-
 /**
  * Send chat completion request (non-streaming)
  */
@@ -318,7 +138,6 @@ export type ImageGenerateInput = {
   referenceImages?: Array<string | null | undefined>
   /** when true with reference, use /pg/images/edits */
   editMode?: boolean
-  execution?: ManagedExecutionContract
 }
 
 export async function generateImages(
@@ -342,12 +161,6 @@ export async function generateImages(
       : API_ENDPOINTS.IMAGE_GENERATIONS
   try {
     const response = await api.post(endpoint, body, {
-      headers: input.execution
-        ? {
-            'X-Playground-Run-Id': String(input.execution.runId),
-            'X-Playground-Execution-Token': input.execution.executionToken,
-          }
-        : undefined,
       skipErrorHandler: true,
     } as Record<string, unknown>)
     const items = (response.data?.data ?? []) as Array<{
@@ -377,7 +190,6 @@ export type VideoSubmitInput = {
   firstFrame?: string | null
   lastFrame?: string | null
   inputReference?: string | null
-  execution?: ManagedExecutionContract
 }
 
 export async function submitVideo(
@@ -407,14 +219,7 @@ export async function submitVideo(
       body.images = [...images, last]
     }
   }
-  const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body, {
-    headers: input.execution
-      ? {
-          'X-Playground-Run-Id': String(input.execution.runId),
-          'X-Playground-Execution-Token': input.execution.executionToken,
-        }
-      : undefined,
-  })
+  const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body)
   const data = response.data?.data ?? response.data
   return {
     taskId: String(data?.task_id ?? data?.id ?? ''),
@@ -584,24 +389,6 @@ export async function getPlaygroundAssetParse(
   return res.data.data as PlaygroundDocumentParseState
 }
 
-/** Import the client-executed OCR transcription (or failure) for a parse. */
-export async function importPlaygroundAssetParse(
-  id: number,
-  body: { execution_token: string; text?: string; error?: string }
-): Promise<PlaygroundDocumentParseState> {
-  const res = await api.post(`${API_ENDPOINTS.ASSETS}/${id}/parse/import`, body)
-  if (!res.data?.success) {
-    throw new Error(res.data?.message || 'Import failed')
-  }
-  return res.data.data as PlaygroundDocumentParseState
-}
-
-/** Fetch one rendered OCR page image (same-origin, session auth). */
-export async function fetchPlaygroundParsePageBlob(url: string): Promise<Blob> {
-  const res = await api.get(url, { responseType: 'blob' })
-  return res.data as Blob
-}
-
 export async function importPlaygroundAsset(
   sourceUrl: string,
   kind: 'image' | 'video' | 'audio'
@@ -720,10 +507,11 @@ export async function getConversation(id: number): Promise<{
 }
 
 export async function deleteConversation(id: number): Promise<void> {
-  await api.delete(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, {
+  const res = await api.delete(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, {
     skipBusinessError: true,
     skipErrorHandler: true,
   })
+  if (!res.data?.success) throw new Error(res.data?.message || 'Delete failed')
 }
 
 export async function updateConversation(
@@ -887,7 +675,7 @@ export async function listUserMemories(): Promise<{
   items: PlaygroundUserMemory[]
   enabled: boolean
 }> {
-  const res = await api.get('/api/playground/memories')
+  const res = await api.get(API_ENDPOINTS.MEMORIES)
   if (!res.data?.success) return { items: [], enabled: false }
   return {
     items: (res.data.data?.items ?? []) as PlaygroundUserMemory[],
@@ -896,14 +684,14 @@ export async function listUserMemories(): Promise<{
 }
 
 export async function deleteUserMemory(id: number): Promise<void> {
-  const res = await api.delete(`/api/playground/memories/${id}`)
+  const res = await api.delete(`${API_ENDPOINTS.MEMORIES}/${id}`)
   if (!res.data?.success) {
     throw new Error(res.data?.message || 'Request error occurred')
   }
 }
 
 export async function clearUserMemories(): Promise<void> {
-  const res = await api.delete('/api/playground/memories')
+  const res = await api.delete(API_ENDPOINTS.MEMORIES)
   if (!res.data?.success) {
     throw new Error(res.data?.message || 'Request error occurred')
   }

@@ -26,6 +26,14 @@ func DetectPlaygroundDocumentFormats(text string) []string {
 	s := strings.ToLower(text)
 	seen := map[string]bool{}
 	ordered := []string{}
+	containsAny := func(values ...string) bool {
+		for _, value := range values {
+			if strings.Contains(s, value) {
+				return true
+			}
+		}
+		return false
+	}
 	add := func(format string) {
 		if !seen[format] {
 			seen[format] = true
@@ -33,16 +41,16 @@ func DetectPlaygroundDocumentFormats(text string) []string {
 		}
 	}
 
-	if containsAny(s, "ppt", "powerpoint", "幻灯片", "演示文稿", "slide", "deck", "presentation", "trình chiếu") {
+	if containsAny("ppt", "powerpoint", "幻灯片", "演示文稿", "slide", "deck", "presentation", "trình chiếu") {
 		add("pptx")
 	}
-	if containsAny(s, "excel", "xlsx", "表格", "工作表", "spreadsheet", "worksheet", "csv", "bảng tính") {
+	if containsAny("excel", "xlsx", "表格", "工作表", "spreadsheet", "worksheet", "csv", "bảng tính") {
 		add("xlsx")
 	}
-	if containsAny(s, "pdf") {
+	if containsAny("pdf") {
 		add("pdf")
 	}
-	if containsAny(s, "word", "docx", "文档", "报告", "简历", "合同", "说明书", "白皮书", "计划书",
+	if containsAny("word", "docx", "文档", "报告", "简历", "合同", "说明书", "白皮书", "计划书",
 		"document", "report", "resume", "contract", "proposal", "letter", "báo cáo", "tài liệu") {
 		add("docx")
 	}

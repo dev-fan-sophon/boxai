@@ -81,3 +81,6 @@ jobs:
           curl -fsS --retry 5 --retry-delay 2 --retry-all-errors \
             "${BASE%/}/api/status" | head -c 300
           echo
+          curl -fsS --retry 5 --retry-delay 2 --retry-all-errors \
+            "${BASE%/}/chat-api/readyz" | head -c 300
+          echo

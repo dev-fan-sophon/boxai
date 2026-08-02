@@ -57,11 +57,17 @@ export default defineConfig(({ envMode }) => {
     process.env.VITE_REACT_APP_SERVER_URL ||
     env.rawPublicVars.VITE_REACT_APP_SERVER_URL ||
     'https://you-box.com'
+  const chatServiceUrl =
+    process.env.VITE_CHAT_SERVICE_URL ||
+    env.rawPublicVars.VITE_CHAT_SERVICE_URL ||
+    (/localhost|127\.0\.0\.1/.test(serverUrl)
+      ? 'http://127.0.0.1:3100'
+      : serverUrl)
 
   const isProd = envMode === 'production'
   const isRemoteApi = !/localhost|127\.0\.0\.1/.test(serverUrl)
   const devProxy = Object.fromEntries(
-    (['/api', '/mj', '/pg', '/chat-api'] as const).map((key) => [
+    (['/api', '/mj', '/pg'] as const).map((key) => [
       key,
       {
         target: serverUrl,
@@ -84,8 +90,21 @@ export default defineConfig(({ envMode }) => {
       secure?: boolean
       cookieDomainRewrite?: string
       onProxyRes?: typeof stripSecureCookieFlag
+      pathRewrite?: Record<string, string>
     }
   >
+  const chatProxy: (typeof devProxy)[string] = {
+    target: chatServiceUrl,
+    changeOrigin: true,
+    secure: true,
+  }
+  if (chatServiceUrl !== serverUrl) {
+    chatProxy.pathRewrite = { '^/chat-api': '' }
+  } else if (isRemoteApi) {
+    chatProxy.cookieDomainRewrite = 'localhost'
+    chatProxy.onProxyRes = stripSecureCookieFlag
+  }
+  devProxy['/chat-api'] = chatProxy
 
   return {
     plugins: [pluginReact(), pluginTailwindcss({ optimize: false })],

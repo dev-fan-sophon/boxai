@@ -1,7 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { SlidersHorizontal } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -18,21 +24,10 @@ import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibilit
 import { useLgUp, useXlUp } from '@/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import {
-  selectActiveChatMessages,
   selectActiveSession,
   usePlaygroundStore,
 } from '@/stores/playground-store'
 
-import {
-  createManagedToolRun,
-  createPlaygroundRun,
-  generateImages,
-  executeManagedSearch,
-  importManagedToolRun,
-  listUserMemories,
-  releasePlaygroundDocumentSandbox,
-  submitVideo,
-} from './api'
 import { ModelCatalog } from './components/catalog/model-catalog'
 import { ModelSwitchNotice } from './components/chat/model-switch-notice'
 import { PlaygroundChat } from './components/chat/playground-chat'
@@ -47,30 +42,16 @@ import { WorkspaceHeader } from './components/shell/workspace-header'
 import { ArtifactPreviewPanel } from './components/workspace/artifact-preview-panel'
 import { DuoWorkspace } from './components/workspace/duo-workspace'
 import { GenerationWorkspace } from './components/workspace/generation-workspace'
+import { STORAGE_KEYS } from './constants'
 import {
   patchSessionById,
-  useChatHandler,
   usePlaygroundConversation,
   usePlaygroundOptions,
   useSessionCloudSync,
 } from './hooks'
 import { useAgentChat } from './hooks/use-agent-chat'
-import { useAutoChatTitle } from './hooks/use-auto-chat-title'
 import { useStudio } from './hooks/use-studio'
-import { isAgentChatEnabled } from './lib/agent-chat/flag'
 import { useArtifactPreviewStore } from './lib/artifact-preview-store'
-import {
-  buildDocumentConversationContext,
-  runDocumentBuild,
-  toDocumentArtifacts,
-} from './lib/document-build'
-import { persistGeneratedMediaAsset } from './lib/download-generated-media'
-import {
-  extractManagedSearchResult,
-  updateManagedAssistant,
-} from './lib/managed-tools'
-import { updateAssistantMessageWithError } from './lib/message/message-update-utils'
-import { setMessageActiveVersion } from './lib/message/message-utils'
 import { isChatSession } from './lib/session/session-utils'
 import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
 import { getModelModality } from './lib/studio/model-modality'
@@ -85,6 +66,11 @@ export function Playground() {
   const appliedDeepLink = useRef<string | undefined>(undefined)
   const user = useAuthStore((state) => state.auth.user)
   const isAuthenticated = Boolean(user)
+  const currentUserId = user?.id ?? null
+  const previousUserIdRef = useRef<number | null | undefined>(undefined)
+  const [scopedUserId, setScopedUserId] = useState<number | null | undefined>(
+    undefined
+  )
   const [signInDialogOpen, setSignInDialogOpen] = useState(false)
   const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false)
   // Settings panel: persisted open state on wide desktop, ephemeral overlay
@@ -103,6 +89,7 @@ export function Playground() {
   const selectStoreModel = usePlaygroundStore((state) => state.selectModel)
   const selectDuo = usePlaygroundStore((state) => state.selectDuo)
   const startNewSession = usePlaygroundStore((state) => state.startNewSession)
+  const resetAccountData = usePlaygroundStore((state) => state.resetAccountData)
   const setPrefill = usePlaygroundStore((state) => state.setPrefill)
   const settingsPanelOpen = usePlaygroundStore(
     (state) => state.ui.settingsPanelOpen
@@ -116,16 +103,48 @@ export function Playground() {
     (state) => state.togglePinnedModel
   )
   const config = usePlaygroundStore((state) => state.config)
-  const parameterEnabled = usePlaygroundStore((state) => state.parameterEnabled)
-  const messages = usePlaygroundStore(selectActiveChatMessages)
   const activeSession = usePlaygroundStore(selectActiveSession)
   const models = usePlaygroundStore((state) => state.models)
-  const updateMessages = usePlaygroundStore((state) => state.setMessages)
   const setModels = usePlaygroundStore((state) => state.setModels)
   const setGroups = usePlaygroundStore((state) => state.setGroups)
   const patchConfig = usePlaygroundStore((state) => state.updateConfig)
-  useSessionCloudSync(isAuthenticated)
-  useAutoChatTitle(isAuthenticated)
+  const accountScopeReady = scopedUserId === currentUserId
+  useLayoutEffect(() => {
+    let previousOwner: string | null = null
+    try {
+      previousOwner = window.localStorage.getItem(STORAGE_KEYS.ACCOUNT_OWNER)
+    } catch {
+      // Storage may be unavailable; the in-memory identity still scopes data.
+    }
+    const currentOwner = currentUserId === null ? null : String(currentUserId)
+    const identityChanged =
+      previousUserIdRef.current !== undefined &&
+      previousUserIdRef.current !== currentUserId
+    const persistedOwnerChanged =
+      currentOwner === null
+        ? previousOwner !== null
+        : previousOwner !== currentOwner
+    if (identityChanged || persistedOwnerChanged) {
+      resetAccountData()
+      useArtifactPreviewStore.getState().close()
+    }
+    if (currentOwner !== null) {
+      try {
+        window.localStorage.setItem(STORAGE_KEYS.ACCOUNT_OWNER, currentOwner)
+      } catch {
+        // Storage may be unavailable.
+      }
+    } else if (previousOwner !== null) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEYS.ACCOUNT_OWNER)
+      } catch {
+        // Storage may be unavailable.
+      }
+    }
+    previousUserIdRef.current = currentUserId
+    setScopedUserId(currentUserId)
+  }, [currentUserId, resetAccountData])
+  useSessionCloudSync(accountScopeReady ? user?.id : undefined)
   const updateConfig = useCallback(
     <K extends keyof PlaygroundConfig>(key: K, value: PlaygroundConfig[K]) => {
       patchConfig({ [key]: value })
@@ -168,86 +187,10 @@ export function Playground() {
     return false
   }, [user])
 
-  const memoriesQuery = useQuery({
-    queryKey: ['playground', 'memories'],
-    queryFn: listUserMemories,
-    enabled: isAuthenticated && chatTools.longMemory,
-    staleTime: 60_000,
-  })
-  const memoryContents = useMemo(
-    () => memoriesQuery.data?.items.map((memory) => memory.content) ?? [],
-    [memoriesQuery.data]
-  )
-  const activeChat = isChatSession(activeSession) ? activeSession : undefined
-  // Auto mode lets the model decide to search; forced tool modes bypass chat.
-  const webSearchToolEnabled = chatTools.mode === 'auto'
-  const payloadOptions = useMemo(
-    () => ({
-      systemPrompt: chatTools.systemPrompt,
-      carryHistory: chatTools.carryHistory,
-      visualOutput: chatTools.visualOutput,
-      modelName: config.model,
-      memories: chatTools.longMemory ? memoryContents : undefined,
-      summary: activeChat?.memorySummary,
-      summaryTailKey: activeChat?.memorySummaryTailKey,
-      webSearchTool: webSearchToolEnabled,
-    }),
-    [
-      chatTools.systemPrompt,
-      chatTools.carryHistory,
-      chatTools.visualOutput,
-      chatTools.longMemory,
-      config.model,
-      memoryContents,
-      activeChat?.memorySummary,
-      activeChat?.memorySummaryTailKey,
-      webSearchToolEnabled,
-    ]
-  )
-
-  const executeWebSearchTool = useCallback(
-    async (query: string) => {
-      const response = await createManagedToolRun({
-        client_request_id: crypto.randomUUID(),
-        model: config.model,
-        group: config.group,
-        // The model-generated query is the run prompt; direct mode skips the
-        // server-side intent classifier.
-        user_text: query,
-        tool_policy: {
-          mode: 'direct',
-          enabled: ['web_search'],
-          direct: { name: 'web_search', args: {} },
-        },
-      })
-      const run = response.run
-      if (run.status === 'unavailable' || run.status === 'failed') {
-        throw new Error(run.error || t('Tool is unavailable'))
-      }
-      const raw = await executeManagedSearch(
-        run.id,
-        response.execution.execution_token
-      )
-      const result = extractManagedSearchResult(raw)
-      return { runId: run.id, text: result.text }
-    },
-    [config.group, config.model, t]
-  )
-  const webSearchToolRunner = useMemo(
-    () =>
-      webSearchToolEnabled
-        ? { maxLoops: chatTools.maxToolLoops, execute: executeWebSearchTool }
-        : undefined,
-    [chatTools.maxToolLoops, executeWebSearchTool, webSearchToolEnabled]
-  )
-
-  const { sendChat, stopGeneration, isGenerating } = useChatHandler({
-    config,
-    parameterEnabled,
-    onMessageUpdate: updateMessages,
-    payloadOptions,
-    webSearchTool: webSearchToolRunner,
-  })
+  const activeChat =
+    isChatSession(activeSession) && activeSession.kind !== 'duo'
+      ? activeSession
+      : undefined
   const activeChatId = activeChat?.id
   const bindAgentConversation = useCallback(
     (conversationId: number) => {
@@ -255,13 +198,11 @@ export function Playground() {
       patchSessionById(activeChatId, {
         serverId: conversationId,
         isDraft: false,
+        updatedAt: Date.now(),
       })
     },
     [activeChatId]
   )
-  // Read once per mount: flipping the flag mid-session would leave an in-flight
-  // turn split across two transports.
-  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
   const {
     messages: agentMessages,
     sendAgentTurn,
@@ -272,7 +213,7 @@ export function Playground() {
     stopAgentTurn,
     isAgentStreaming,
   } = useAgentChat({
-    enabled: agentChatEnabled,
+    enabled: isAuthenticated && accountScopeReady,
     chatId: activeChatId || 'agent-draft',
     config,
     systemPrompt: chatTools.systemPrompt,
@@ -284,412 +225,10 @@ export function Playground() {
     conversationId: activeChat?.serverId,
     onConversationId: bindAgentConversation,
   })
-  const displayedMessages = agentChatEnabled ? agentMessages : messages
-  const [isRouting, setIsRouting] = useState(false)
-  const isRoutingRef = useRef(false)
-  // A warm container bills for memory while it waits, so leaving the conversation that owns one
-  // should stop paying for it instead of waiting out the sleep timer.
-  const documentSandboxRef = useRef<number | undefined>(undefined)
-  useEffect(() => {
-    const live = documentSandboxRef.current
-    if (!live || live === activeSession?.serverId) return
-    documentSandboxRef.current = undefined
-    void releasePlaygroundDocumentSandbox(live).catch(() => {})
-  }, [activeSession?.serverId])
-  useEffect(
-    () => () => {
-      const live = documentSandboxRef.current
-      if (live) void releasePlaygroundDocumentSandbox(live).catch(() => {})
-    },
-    []
-  )
   // A preview opened in another conversation must not linger over the new one.
   useEffect(() => {
     useArtifactPreviewStore.getState().close()
   }, [activeSession?.id])
-
-  const canSubmitManagedTurn = useCallback(
-    () => !isRoutingRef.current && requireAuthentication(),
-    [requireAuthentication]
-  )
-
-  const routeManagedTurn = useCallback(
-    async (turnMessages: import('./types').Message[], text: string) => {
-      if (isRoutingRef.current) return
-      isRoutingRef.current = true
-      setIsRouting(true)
-      const assistantKey = turnMessages.at(-1)?.key
-      let directName:
-        | 'generate_image'
-        | 'generate_video'
-        | 'web_search'
-        | 'generate_document'
-        | undefined
-      if (chatTools.mode === 'image') directName = 'generate_image'
-      if (chatTools.mode === 'video') directName = 'generate_video'
-      if (chatTools.mode === 'search') directName = 'web_search'
-      if (chatTools.mode === 'document') directName = 'generate_document'
-      const setAssistantTool = (
-        managedTool: import('./types').ManagedToolCard,
-        sources?: import('./types').MessageSource[],
-        content?: string
-      ) =>
-        updateMessages((previous) =>
-          assistantKey
-            ? updateManagedAssistant(
-                previous,
-                assistantKey,
-                managedTool,
-                sources,
-                content
-              )
-            : previous
-        )
-
-      // Runs one document build against an already-created managed run. Shared
-      // by the direct document turn and the chained build after a search.
-      const executeDocumentBuild = async (
-        docRun: { id: number; tool_model?: string },
-        executionToken: string,
-        setCard: (card: import('./types').ManagedToolCard) => void,
-        contextMessages: import('./types').Message[]
-      ) => {
-        const baseCard = {
-          runId: docRun.id,
-          action: 'generate_document' as const,
-          status: 'running' as const,
-          model: docRun.tool_model,
-          startedAt: Date.now(),
-        }
-        setCard({ ...baseCard, stage: 'Preparing the sandbox' })
-        // Only attachments that reached the server have an asset id; a text file read in the
-        // browser has none and is already in the prompt as text.
-        const attachmentIds = (turnMessages.at(-2)?.attachments ?? [])
-          .map((attachment) => attachment.assetId)
-          .filter((id): id is number => typeof id === 'number' && id > 0)
-        if (activeSession?.serverId) {
-          documentSandboxRef.current = activeSession.serverId
-        }
-        const outcome = await runDocumentBuild({
-          runId: docRun.id,
-          executionToken,
-          model: config.model,
-          group: config.group,
-          userText: text,
-          conversationContext:
-            buildDocumentConversationContext(contextMessages),
-          conversationId: activeSession?.serverId,
-          assetIds: attachmentIds,
-          onAttempt: (attempt) =>
-            setCard({ ...baseCard, documentAttempts: attempt }),
-          onStage: (stage, attempt) =>
-            setCard({
-              ...baseCard,
-              documentAttempts: attempt,
-              stage:
-                stage === 'generate'
-                  ? 'Writing the build script'
-                  : 'Running the build in the sandbox',
-            }),
-        })
-        const documents = toDocumentArtifacts(
-          outcome.result.assets,
-          outcome.result.unverified
-        )
-        setCard({
-          ...baseCard,
-          status: 'completed',
-          documents,
-          documentCode: outcome.code,
-          documentLogs: outcome.result.logs,
-          documentAttempts: outcome.attempts,
-        })
-      }
-
-      // "Search X, then make a PDF": classification picks exactly one action,
-      // so the document half of the request runs as a second managed run once
-      // the search text exists, with that text as build material.
-      const runChainedDocumentBuild = async (searchText: string) => {
-        const docKey = `doc_${crypto.randomUUID()}`
-        updateMessages((previous) => [
-          ...previous,
-          {
-            key: docKey,
-            from: 'assistant' as const,
-            versions: [{ id: `v_${docKey}`, content: '' }],
-            status: 'complete' as const,
-            createdAt: Date.now(),
-          },
-        ])
-        const setCard = (card: import('./types').ManagedToolCard) =>
-          updateMessages((previous) =>
-            updateManagedAssistant(previous, docKey, card)
-          )
-        let chained:
-          | Awaited<ReturnType<typeof createManagedToolRun>>
-          | undefined
-        try {
-          chained = await createManagedToolRun({
-            client_request_id: crypto.randomUUID(),
-            model: config.model,
-            group: config.group,
-            user_text: text,
-            tool_policy: {
-              mode: 'direct',
-              enabled: ['generate_document'],
-              direct: { name: 'generate_document', args: {} },
-            },
-          })
-          if (
-            chained.run.status === 'unavailable' ||
-            chained.run.status === 'failed'
-          ) {
-            throw new Error(chained.run.error || t('Tool is unavailable'))
-          }
-          await executeDocumentBuild(
-            chained.run,
-            chained.execution.execution_token,
-            setCard,
-            [
-              ...turnMessages.slice(0, -2),
-              {
-                key: `${docKey}_search`,
-                from: 'assistant' as const,
-                versions: [{ id: 'v1', content: searchText }],
-              },
-            ]
-          )
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : t('Tool failed')
-          toast.error(message)
-          setCard({
-            runId: chained?.run.id,
-            action: 'generate_document',
-            status: 'failed',
-            error: message,
-          })
-          if (chained && chained.run.status === 'ready') {
-            try {
-              await importManagedToolRun(chained.run.id, {
-                execution_token: chained.execution.execution_token,
-                status: 'failed',
-                error: message,
-              })
-            } catch {
-              // The card already shows the original failure.
-            }
-          }
-        }
-      }
-
-      let response: Awaited<ReturnType<typeof createManagedToolRun>> | undefined
-      let action = directName
-      try {
-        response = await createManagedToolRun({
-          client_request_id: crypto.randomUUID(),
-          model: config.model,
-          group: config.group,
-          user_text: text,
-          tool_policy: {
-            mode: directName ? 'direct' : 'auto',
-            enabled: [
-              'generate_image',
-              'generate_video',
-              'web_search',
-              'generate_document',
-            ],
-            direct: directName ? { name: directName, args: {} } : undefined,
-          },
-        })
-        const run = response.run
-        action = run.action === 'chat' ? undefined : run.action
-        if (run.status === 'unavailable' || run.status === 'failed') {
-          throw new Error(run.error || t('Tool is unavailable'))
-        }
-        if (run.action === 'chat') {
-          sendChat(turnMessages)
-          return
-        }
-        const baseCard = {
-          runId: run.id,
-          action: run.action,
-          status: 'running' as const,
-          model: run.tool_model,
-          startedAt: Date.now(),
-        }
-        if (run.action === 'web_search') {
-          setAssistantTool({
-            ...baseCard,
-            stage: 'Searching the web',
-            stageDetail: text,
-          })
-          const raw = await executeManagedSearch(
-            run.id,
-            response.execution.execution_token
-          )
-          const result = extractManagedSearchResult(raw)
-          setAssistantTool(
-            { ...baseCard, status: 'completed' },
-            result.sources,
-            result.text
-          )
-          if (response.followup_action === 'generate_document') {
-            await runChainedDocumentBuild(result.text)
-          }
-          return
-        }
-        if (run.action === 'generate_document') {
-          // Everything before this turn's user message and assistant
-          // placeholder is the material the document is built from.
-          await executeDocumentBuild(
-            run,
-            response.execution.execution_token,
-            setAssistantTool,
-            turnMessages.slice(0, -2)
-          )
-          return
-        }
-        if (run.action === 'generate_image') {
-          const toolModel = String(
-            response.arguments.model || run.tool_model || ''
-          )
-          if (!isPlaygroundImageModel(toolModel)) {
-            throw new Error(
-              t(
-                'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
-              )
-            )
-          }
-          setAssistantTool({ ...baseCard, stage: 'Generating images' })
-          const images = await generateImages({
-            model: toolModel,
-            group: config.group,
-            prompt: String(response.arguments.prompt),
-            settings: {
-              ...studio.settings,
-              imageCount:
-                Number(response.arguments.n) || studio.settings.imageCount,
-              imageSize: String(
-                response.arguments.size || studio.settings.imageSize
-              ),
-              imageQuality: String(
-                response.arguments.quality || studio.settings.imageQuality
-              ),
-            },
-            execution: {
-              runId: run.id,
-              executionToken: response.execution.execution_token,
-            },
-          })
-          setAssistantTool({ ...baseCard, stage: 'Saving results' })
-          const assets = await Promise.all(
-            images.map((image, index) =>
-              persistGeneratedMediaAsset(
-                image.url,
-                `chat-image-${index + 1}`,
-                'image'
-              )
-            )
-          )
-          await Promise.all(
-            assets.map((asset) =>
-              createPlaygroundRun({
-                modality: 'image',
-                model: run.tool_model || '',
-                prompt: text,
-                asset_id: asset.id,
-              })
-            )
-          )
-          const urls = assets.map((asset) => asset.url)
-          await importManagedToolRun(run.id, {
-            execution_token: response.execution.execution_token,
-            status: 'completed',
-            result: { images: urls },
-          })
-          setAssistantTool({ ...baseCard, status: 'completed', images: urls })
-          return
-        }
-        setAssistantTool({ ...baseCard, stage: 'Submitting the video task' })
-        const submission = await submitVideo({
-          model: String(response.arguments.model),
-          group: config.group,
-          prompt: String(response.arguments.prompt),
-          settings: {
-            ...studio.settings,
-            videoDuration:
-              Number(response.arguments.duration) ||
-              studio.settings.videoDuration,
-            videoSize: String(
-              response.arguments.size || studio.settings.videoSize
-            ),
-          },
-          execution: {
-            runId: run.id,
-            executionToken: response.execution.execution_token,
-          },
-        })
-        await createPlaygroundRun({
-          modality: 'video',
-          model: run.tool_model || '',
-          prompt: text,
-          task_id: submission.taskId,
-        })
-        await importManagedToolRun(run.id, {
-          execution_token: response.execution.execution_token,
-          status: 'submitted',
-          task_id: submission.taskId,
-        })
-        setAssistantTool({
-          ...baseCard,
-          status: 'submitted',
-          taskId: submission.taskId,
-          stage: 'Waiting for the video to render',
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : t('Tool failed')
-        toast.error(message)
-        if (response && response.run.status === 'ready') {
-          try {
-            await importManagedToolRun(response.run.id, {
-              execution_token: response.execution.execution_token,
-              status: 'failed',
-              error: message,
-            })
-          } catch {
-            // Preserve the original execution error for the user.
-          }
-        }
-        if (action) {
-          setAssistantTool({
-            runId: response?.run.id,
-            action,
-            status: 'failed',
-            error: message,
-          })
-        } else if (assistantKey) {
-          updateMessages((previous) =>
-            updateAssistantMessageWithError(previous, message)
-          )
-        }
-      } finally {
-        isRoutingRef.current = false
-        setIsRouting(false)
-      }
-    },
-    [
-      activeSession?.serverId,
-      chatTools.mode,
-      config.group,
-      config.model,
-      sendChat,
-      studio.settings,
-      t,
-      updateMessages,
-    ]
-  )
 
   const {
     editingMessageKey,
@@ -700,40 +239,23 @@ export function Playground() {
     applyEdit,
     handleDeleteMessage,
   } = usePlaygroundConversation({
-    messages: displayedMessages,
-    updateMessages,
-    sendChat,
-    routeTurn: routeManagedTurn,
-    agentActions: agentChatEnabled
-      ? {
-          send: sendAgentTurn,
-          regenerate: regenerateAgentMessage,
-          save: saveAgentMessage,
-          remove: removeAgentMessage,
-        }
-      : undefined,
-    canSubmit: canSubmitManagedTurn,
-    activeModel: config.model,
+    messages: agentMessages,
+    send: sendAgentTurn,
+    regenerate: regenerateAgentMessage,
+    save: saveAgentMessage,
+    remove: removeAgentMessage,
+    canSubmit: requireAuthentication,
   })
 
   const handleStopGeneration = useCallback(() => {
     void stopAgentTurn()
-    stopGeneration()
-  }, [stopAgentTurn, stopGeneration])
+  }, [stopAgentTurn])
 
   const handleSelectMessageVersion = useCallback(
     (message: Message, index: number) => {
-      if (agentChatEnabled) {
-        selectAgentMessageVersion(message, index)
-        return
-      }
-      updateMessages((prev) =>
-        prev.map((item) =>
-          item.key === message.key ? setMessageActiveVersion(item, index) : item
-        )
-      )
+      selectAgentMessageVersion(message, index)
     },
-    [agentChatEnabled, selectAgentMessageVersion, updateMessages]
+    [selectAgentMessageVersion]
   )
 
   const handleNewSession = useCallback(() => {
@@ -965,14 +487,14 @@ export function Playground() {
           <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
             <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
               <PlaygroundChat
-                messages={displayedMessages}
+                messages={agentMessages}
                 isLoadingMessages={false}
                 onRegenerateMessage={handleRegenerateMessage}
                 onEditMessage={handleEditMessage}
                 onDeleteMessage={handleDeleteMessage}
                 onSelectMessageVersion={handleSelectMessageVersion}
                 onSelectPrompt={handleSendMessage}
-                isGenerating={isGenerating || isAgentStreaming}
+                isGenerating={isAgentStreaming}
                 editingKey={editingMessageKey}
                 onCancelEdit={handleEditOpenChange}
                 onSaveEdit={(newContent, attachments) =>
@@ -986,9 +508,10 @@ export function Playground() {
             </div>
             <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
               <ChatComposer
+                key={`${scopedUserId ?? 'guest'}:${activeChatId ?? 'draft'}`}
                 allowAttachments
-                disabled={isGenerating || isRouting || isAgentStreaming}
-                isGenerating={isGenerating || isAgentStreaming}
+                disabled={isAgentStreaming}
+                isGenerating={isAgentStreaming}
                 isModelLoading={isLoadingModels}
                 onOpenModelCatalog={() => setCatalogDrawerOpen(true)}
                 onStop={handleStopGeneration}

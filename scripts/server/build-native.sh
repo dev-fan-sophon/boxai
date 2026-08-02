@@ -38,7 +38,7 @@ go mod download
 go build -ldflags "-s -w -X 'github.com/dev-fan-sophon/boxai/common.Version=${VERSION}'" -o new-api .
 
 mkdir -p "${APP_ROOT}/bin" "${APP_ROOT}/logs" "${APP_ROOT}/data"
-install -m 755 new-api "${APP_ROOT}/bin/new-api"
-echo "==> installed ${APP_ROOT}/bin/new-api"
-"${APP_ROOT}/bin/new-api" --help >/dev/null 2>&1 || true
+install -m 755 new-api "${APP_ROOT}/bin/new-api.next"
+echo "==> staged ${APP_ROOT}/bin/new-api.next"
+"${APP_ROOT}/bin/new-api.next" --help >/dev/null 2>&1 || true
 echo "BUILD_OK ${VERSION}"

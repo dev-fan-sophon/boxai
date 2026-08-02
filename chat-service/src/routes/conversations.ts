@@ -408,7 +408,7 @@ conversationsRoute.get('/:id', async (c) => {
   })
 })
 
-conversationsRoute.put('/:id', async (c) => {
+conversationsRoute.on(['PUT', 'PATCH'], '/:id', async (c) => {
   const userId = c.get('user').id
   const id = parseId(c.req.param('id'))
   if (id === null) return fail(c, 'invalid id')

@@ -157,54 +157,6 @@ function agentConversationUrl(conversationId: number): string {
   return `/chat-api/api/playground/conversations/${conversationId}`
 }
 
-const agentConversationsUrl = '/chat-api/api/playground/conversations'
-
-export async function listAgentConversations(params?: {
-  p?: number
-  page_size?: number
-}): Promise<{ items: ServerConversation[]; total: number }> {
-  const query = new URLSearchParams()
-  if (params?.p) query.set('p', String(params.p))
-  if (params?.page_size) query.set('page_size', String(params.page_size))
-  const suffix = query.size > 0 ? `?${query.toString()}` : ''
-  return apiRequest<{ items: ServerConversation[]; total: number }>(
-    `${agentConversationsUrl}${suffix}`
-  )
-}
-
-export async function listAgentConversationsSince(
-  since: number
-): Promise<{ items: ServerConversation[]; has_more: boolean }> {
-  return apiRequest<{ items: ServerConversation[]; has_more: boolean }>(
-    `${agentConversationsUrl}?since=${encodeURIComponent(since)}`
-  )
-}
-
-export async function updateAgentConversation(
-  conversationId: number,
-  input: {
-    title?: string
-    model?: string
-    group?: string
-    kind?: 'chat' | 'duo'
-    meta_json?: string | Record<string, unknown>
-    pinned?: boolean
-  }
-): Promise<ServerConversation> {
-  return apiRequest<ServerConversation>(agentConversationUrl(conversationId), {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  })
-}
-
-export async function deleteAgentConversation(
-  conversationId: number
-): Promise<void> {
-  await apiRequest<null>(agentConversationUrl(conversationId), {
-    method: 'DELETE',
-  })
-}
-
 export function agentChatRequestBody(input: AgentChatRequestBodyInput) {
   return {
     conversationId: input.conversationId,

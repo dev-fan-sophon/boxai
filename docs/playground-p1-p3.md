@@ -1,6 +1,6 @@
-# Playground P1–P3 Backend & Frontend
+# Playground service boundaries
 
-This document lists the APIs, environment variables, and **models/providers to configure** after deploying the P1–P3 playground workbench.
+This document lists the current APIs, environment variables, and **models/providers to configure** for the playground workbench. Normal chat is owned by `boxai-chat` and the AI SDK; the Go gateway continues to own billing relay, assets, and Studio generation.
 
 ## API list
 
@@ -8,12 +8,23 @@ This document lists the APIs, environment variables, and **models/providers to c
 
 | Method | Path | Notes |
 |--------|------|--------|
-| POST | `/pg/chat/completions` | Chat |
-| POST | `/pg/responses` | Managed Grok native web/X search; requires run ID and execution token headers |
+| POST | `/pg/chat/completions` | Internal-service billed model relay; also retained for Workbench storyboard compatibility |
 | POST | `/pg/images/generations` | Image gen; accepts `images` / `image` reference fields |
 | POST | `/pg/images/edits` | Image edits (same body as OpenAI image edits + playground `group`) |
 | POST | `/pg/audio/speech` | TTS |
 | POST | `/pg/video/generations` | Video task; `first_frame`, `last_frame`, `input_reference`, `images[]` |
+| POST | `/pg/internal/search` | Internal-service-only billed search capability used by `boxai-chat` |
+
+### AI SDK chat service (`UserSessionAuth` through `/chat-api`)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/chat-api/v1/chat` | Server-owned AI SDK chat stream and autonomous tool loop |
+| GET/POST | `/chat-api/api/playground/conversations` | Conversation list / create |
+| GET/PUT/PATCH/DELETE | `/chat-api/api/playground/conversations/:id` | Conversation metadata and deletion |
+| GET/POST/PUT/DELETE | `/chat-api/api/playground/conversations/:id/messages...` | Hydration, Duo sync, edit, regenerate, revision selection, and deletion |
+| GET/POST/DELETE | `/chat-api/api/playground/memories...` | Long-term memories |
+| GET/POST/PATCH/DELETE | `/chat-api/api/playground/personas...` | Role prompts |
 
 ### Data APIs (`UserAuth` unless noted)
 
@@ -27,11 +38,6 @@ This document lists the APIs, environment variables, and **models/providers to c
 | POST | `/api/playground/upload-sessions` | QR/cross-device session |
 | GET | `/api/playground/upload-sessions/:token` | Session status |
 | POST | `/api/playground/upload-sessions/:token/file` | **No user auth** — token binds owner |
-| GET/POST | `/api/playground/conversations` | Cloud chat list / create |
-| GET/PATCH/DELETE | `/api/playground/conversations/:id` | |
-| PUT | `/api/playground/conversations/:id/messages` | Replace message snapshot |
-| GET/POST | `/api/playground/personas` | Role prompts |
-| PATCH/DELETE | `/api/playground/personas/:id` | |
 | GET | `/api/playground/tasks` | Aggregate tasks + runs |
 | POST | `/api/playground/runs` | Record “My works” run |
 | GET/POST | `/api/playground/voices` | Voice clone records (pending_provider without upstream) |

@@ -120,8 +120,7 @@ export function PlaygroundMessageContent({
     message.status !== MESSAGE_STATUS.STREAMING
   const videoResult = useVideoTaskResult(
     message.managedTool?.taskId,
-    message.managedTool?.action === 'generate_video',
-    message.managedTool?.runId
+    message.managedTool?.action === 'generate_video'
   )
   const toolVideoUrl = message.managedTool?.videoUrl || videoResult.resultUrl
   let toolStatus: string | undefined = message.managedTool?.status

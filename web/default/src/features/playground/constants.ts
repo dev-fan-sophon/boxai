@@ -29,9 +29,10 @@ export const API_ENDPOINTS = {
   ESTIMATE: '/api/playground/estimate',
   ASSETS: '/api/playground/assets',
   UPLOAD_SESSIONS: '/api/playground/upload-sessions',
-  CONVERSATIONS: '/api/playground/conversations',
+  CONVERSATIONS: '/chat-api/api/playground/conversations',
   PROJECTS: '/api/playground/projects',
-  PERSONAS: '/api/playground/personas',
+  PERSONAS: '/chat-api/api/playground/personas',
+  MEMORIES: '/chat-api/api/playground/memories',
   PLAYGROUND_TASKS: '/api/playground/tasks',
   PLAYGROUND_RUNS: '/api/playground/runs',
   CHAT_MULTI: '/api/playground/chat/multi',
@@ -76,6 +77,7 @@ export const STORAGE_KEYS = {
   STUDIO: 'playground_studio',
   WORKBENCH: 'playground_workbench_prefs_v1',
   STORE: 'playground_store_v2',
+  ACCOUNT_OWNER: 'playground_account_owner_v1',
   /** Marker so the legacy global messages array is imported at most once. */
   LEGACY_MESSAGES_IMPORTED: 'playground_legacy_messages_imported_v1',
 } as const

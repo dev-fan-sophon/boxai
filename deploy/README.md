@@ -19,12 +19,11 @@ migrated playground product routes. It runs from the release checkout
 (`/opt/boxai/current/chat-service`) with dependencies installed by
 `scripts/server/build-native.sh`, and reads `/opt/boxai/chat.env`
 (gateway shares `INTERNAL_SERVICE_SECRET` in `/opt/boxai/.env`; see
-`docs/environment.md` § boxai-chat). The deploy script only enables the unit
-when `/opt/boxai/chat.env` exists, so hosts are opted in explicitly.
+`docs/environment.md` § boxai-chat). Production deploys fail closed when
+`/opt/boxai/chat.env` is absent or the service/database readiness check fails.
 Liveness: `curl -fsS http://127.0.0.1:3100/healthz`. Readiness (including the
 shared Postgres connection): `curl -fsS http://127.0.0.1:3100/readyz`.
-The transferred data layer currently requires the production gateway to use
-PostgreSQL; do not opt this unit in on SQLite or MySQL deployments.
+The transferred data layer requires the production gateway to use PostgreSQL.
 
 **There is no application Docker container in steady state.**  
 Root `Dockerfile` / `Dockerfile.dev` / empty `docker-compose.yml` are **deprecated** for BoxAI ops.

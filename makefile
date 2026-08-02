@@ -52,9 +52,9 @@ dev-web:
 
 # Local frontend + local host API
 dev-web-local:
-	@echo "Starting default web against local API http://127.0.0.1:3000"
+	@echo "Starting default web against local API :3000 and chat service :3100"
 	@cd ./web && bun install --filter ./default
-	@cd $(WEB_DIR) && VITE_REACT_APP_SERVER_URL=http://127.0.0.1:3000 bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_DEFAULT_PORT)
+	@cd $(WEB_DIR) && VITE_REACT_APP_SERVER_URL=http://127.0.0.1:3000 VITE_CHAT_SERVICE_URL=http://127.0.0.1:3100 bun run dev -- --host 0.0.0.0 --port $(DEV_WEB_DEFAULT_PORT)
 
 # Frontend only by default (production API). Full local stack: make dev-infra && make start-api & make dev-web-local
 dev: dev-web

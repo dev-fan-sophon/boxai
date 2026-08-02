@@ -1,7 +1,7 @@
 /**
  * Attachment classification and browser-side reading of plain-text files.
  * Binary documents (PDF/Word/Excel/PowerPoint) are parsed server-side; see
- * document-parse.ts.
+ * the server-owned AI SDK attachment pipeline.
  */
 
 export const MAX_DOCUMENT_TEXT_CHARS = 60_000

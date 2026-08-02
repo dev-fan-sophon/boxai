@@ -35,13 +35,6 @@ import {
   type StudioRunSummary,
   type StudioSession,
 } from '../lib'
-import { isAgentChatEnabled } from '../lib/agent-chat/flag'
-import {
-  deleteAgentConversation,
-  listAgentConversations,
-  listAgentConversationsSince,
-  updateAgentConversation,
-} from '../lib/agent-chat/transport'
 import type { Message } from '../types'
 
 const SYNC_DEBOUNCE_MS = 300
@@ -328,7 +321,8 @@ function mergeRemoteMessagesIntoSession(
  * - Studio projects keep the debounced metadata push
  * - Best-effort delete of cloud records when a local session is removed
  */
-export function useSessionCloudSync(isAuthenticated: boolean) {
+export function useSessionCloudSync(userId?: number) {
+  const isAuthenticated = userId !== undefined
   const sessions = usePlaygroundStore((state) => state.sessions)
   const activeChatId = usePlaygroundStore(
     (state) => state.activeSessionByModality.chat
@@ -343,14 +337,29 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
   const chatStatesRef = useRef<Map<string, ChatSyncState>>(new Map())
   const convCursorRef = useRef<number>(0)
 
-  const reconcileChatSession = useCallback(
+  useEffect(() => {
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    inflightRef.current = false
+    importedRef.current = false
+    knownIdsRef.current.clear()
+    serverBindingsRef.current.clear()
+    chatStatesRef.current.clear()
+    convCursorRef.current = 0
+  }, [userId])
+
+  const reconcileDuoSession = useCallback(
     async (sessionId: string, options?: { pull?: boolean }) => {
       if (!isAuthenticated) return
       const findSession = () => {
         const found = usePlaygroundStore
           .getState()
           .sessions.find((item) => item.id === sessionId)
-        return found && isChatSession(found) ? found : undefined
+        return found && isChatSession(found) && found.kind === 'duo'
+          ? found
+          : undefined
       }
       let session = findSession()
       if (!session) return
@@ -367,25 +376,19 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
       st.inflight = true
       try {
         let serverId = session.serverId
-        // With the agent transport on, the chat service creates the thread and
-        // persists both turns itself; this client must not race those writes.
-        const agentOwned = isAgentChatEnabled()
-        const kind = session.kind === 'duo' ? 'duo' : 'chat'
-        const meta =
-          kind === 'duo' && session.duoMeta
-            ? {
-                answerModels: session.duoMeta.answerModels,
-                summaryModel: session.duoMeta.summaryModel,
-              }
-            : undefined
+        const meta = session.duoMeta
+          ? {
+              answerModels: session.duoMeta.answerModels,
+              summaryModel: session.duoMeta.summaryModel,
+            }
+          : undefined
         if (!serverId) {
-          if (agentOwned) return
           if (finalizedChatMessages(session.messages).length === 0) return
           const created = await createConversation({
             title: session.title,
             model: session.model,
             group: session.group,
-            kind,
+            kind: 'duo',
             meta_json: meta,
             source: 'web',
           })
@@ -396,18 +399,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           st.lastMetaFingerprint = chatMetaFingerprint(session)
         }
 
-        // AI SDK hydrates the active thread from boxai-chat. The list import
-        // already supplied metadata, so initialize its fingerprint without a
-        // legacy per-thread fetch (which also queried stale sessions left by a
-        // different account in browser storage).
-        if (agentOwned && !st.reconciled) {
-          st.reconciled = true
-          st.lastMetaFingerprint = chatMetaFingerprint(session)
-        }
-
-        // Pull turns this legacy client has not seen yet (bootstrap or
-        // cross-device).
-        if (!agentOwned && (!st.reconciled || options?.pull)) {
+        if (!st.reconciled || options?.pull) {
           if (!st.reconciled) {
             st.maxServerMsgId = 0
             st.acked = new Map()
@@ -443,62 +435,56 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           }
         }
 
-        if (!agentOwned) {
-          // Local rewrite (edit / regenerate / delete) invalidates append-only
-          // sync; fall back to a full snapshot replace.
-          const finalized = finalizedChatMessages(session.messages)
-          const localByKey = new Map(
-            finalized.map((message) => [message.key, message])
-          )
-          let rewritten = false
-          for (const [key, ackedContent] of st.acked) {
-            const local = localByKey.get(key)
-            if (!local || getMessageContent(local) !== ackedContent) {
-              rewritten = true
-              break
-            }
+        // Local rewrite (edit / regenerate / delete) invalidates append-only
+        // sync; fall back to a full snapshot replace.
+        const finalized = finalizedChatMessages(session.messages)
+        const localByKey = new Map(
+          finalized.map((message) => [message.key, message])
+        )
+        let rewritten = false
+        for (const [key, ackedContent] of st.acked) {
+          const local = localByKey.get(key)
+          if (!local || getMessageContent(local) !== ackedContent) {
+            rewritten = true
+            break
           }
+        }
 
-          if (rewritten) {
-            await putConversationMessages(serverId, toServerMessages(finalized))
-            // The replace renumbers seqs and the server wipes the rolling
-            // summary; drop the local copy too, or payload-builder keeps
-            // substituting a summary of the pre-edit turns for real history.
-            patchSessionById(sessionId, {
-              memorySummary: undefined,
-              memorySummaryTailKey: undefined,
-            })
-            st.acked = new Map(
-              finalized.map((message) => [
-                message.key,
-                getMessageContent(message),
-              ])
+        if (rewritten) {
+          await putConversationMessages(serverId, toServerMessages(finalized))
+          // The replace renumbers seqs and the server wipes the rolling
+          // summary; drop the local copy too, or payload-builder keeps
+          // substituting a summary of the pre-edit turns for real history.
+          patchSessionById(sessionId, {
+            memorySummary: undefined,
+            memorySummaryTailKey: undefined,
+          })
+          st.acked = new Map(
+            finalized.map((message) => [
+              message.key,
+              getMessageContent(message),
+            ])
+          )
+          // Server ids were recreated by the replace; refetch on next pull.
+          st.reconciled = false
+          st.maxServerMsgId = 0
+        } else {
+          const pending = finalized.filter(
+            (message) => !st.acked.has(message.key)
+          )
+          for (let i = 0; i < pending.length; i += APPEND_BATCH_SIZE) {
+            const batch = pending.slice(i, i + APPEND_BATCH_SIZE)
+            const result = await appendConversationMessages(
+              serverId,
+              toServerMessages(batch),
+              { longMemory: false }
             )
-            // Server ids were recreated by the replace; refetch on next pull.
-            st.reconciled = false
-            st.maxServerMsgId = 0
-          } else {
-            const pending = finalized.filter(
-              (message) => !st.acked.has(message.key)
-            )
-            // Long-memory consent travels with every append so the server only
-            // extracts cross-conversation memories when the toggle is on.
-            const longMemory =
-              usePlaygroundStore.getState().chatTools.longMemory === true
-            for (let i = 0; i < pending.length; i += APPEND_BATCH_SIZE) {
-              const batch = pending.slice(i, i + APPEND_BATCH_SIZE)
-              const result = await appendConversationMessages(
-                serverId,
-                toServerMessages(batch),
-                { longMemory }
-              )
-              for (const message of batch) {
-                st.acked.set(message.key, getMessageContent(message))
-              }
-              for (const inserted of result.messages) {
-                if (inserted.id > st.maxServerMsgId) {
-                  st.maxServerMsgId = inserted.id
-                }
+            for (const message of batch) {
+              st.acked.set(message.key, getMessageContent(message))
+            }
+            for (const inserted of result.messages) {
+              if (inserted.id > st.maxServerMsgId) {
+                st.maxServerMsgId = inserted.id
               }
             }
           }
@@ -506,14 +492,11 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
 
         const metaFingerprint = chatMetaFingerprint(session)
         if (metaFingerprint !== st.lastMetaFingerprint) {
-          const update = agentOwned
-            ? updateAgentConversation
-            : updateConversation
-          await update(serverId, {
+          await updateConversation(serverId, {
             title: session.title,
             model: session.model,
             group: session.group,
-            kind,
+            kind: 'duo',
             meta_json: meta,
             pinned: session.pinned ?? false,
           })
@@ -526,7 +509,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
         st.inflight = false
         if (st.rerun) {
           st.rerun = false
-          void reconcileChatSession(sessionId, options)
+          void reconcileDuoSession(sessionId, options)
         }
       }
     },
@@ -571,21 +554,21 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
     [isAuthenticated]
   )
 
-  // Debounced push: chat turns append as soon as they finalize in the store;
-  // studio projects keep the metadata upsert.
+  // Debounced push is only for the browser-owned Duo and Studio modes.
+  // Normal chat is exclusively hydrated and mutated by useAgentChat.
   useEffect(() => {
     if (!isAuthenticated) return
     if (timerRef.current != null) window.clearTimeout(timerRef.current)
     timerRef.current = window.setTimeout(() => {
       const state = usePlaygroundStore.getState()
       for (const session of state.sessions) {
-        if (isChatSession(session)) {
+        if (isChatSession(session) && session.kind === 'duo') {
           if (session.messages.length === 0 && !session.serverId) continue
           const st = chatStatesRef.current.get(session.id)
           if (st && st.lastLocalFingerprint === chatLocalFingerprint(session)) {
             continue
           }
-          void reconcileChatSession(session.id)
+          void reconcileDuoSession(session.id)
         } else if (isStudioSession(session) && hasSessionContent(session)) {
           void syncStudioSession(session)
         }
@@ -595,13 +578,19 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
     return () => {
       if (timerRef.current != null) window.clearTimeout(timerRef.current)
     }
-  }, [isAuthenticated, sessions, reconcileChatSession, syncStudioSession])
+  }, [isAuthenticated, sessions, reconcileDuoSession, syncStudioSession])
 
-  // Opening a thread pulls turns other devices appended since we last looked.
+  // Opening a Duo thread pulls turns other devices appended since last seen.
+  // useAgentChat independently hydrates normal AI SDK threads.
   useEffect(() => {
     if (!isAuthenticated || !activeChatId) return
-    void reconcileChatSession(activeChatId, { pull: true })
-  }, [isAuthenticated, activeChatId, reconcileChatSession])
+    const active = usePlaygroundStore
+      .getState()
+      .sessions.find((session) => session.id === activeChatId)
+    if (active && isChatSession(active) && active.kind === 'duo') {
+      void reconcileDuoSession(activeChatId, { pull: true })
+    }
+  }, [isAuthenticated, activeChatId, reconcileDuoSession])
 
   // Thread-list cursor poll (focus + interval): metadata changes, new threads.
   useEffect(() => {
@@ -610,10 +599,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
     const pullConversationList = async () => {
       if (convCursorRef.current === 0) return // wait for the initial import
       try {
-        const listSince = isAgentChatEnabled()
-          ? listAgentConversationsSince
-          : listConversationsSince
-        const { items } = await listSince(convCursorRef.current)
+        const { items } = await listConversationsSince(convCursorRef.current)
         if (items.length === 0) return
         for (const item of items) {
           convCursorRef.current = Math.max(
@@ -627,7 +613,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           const local = state.sessions.find(
             (s) => isChatSession(s) && s.serverId === item.id
           )
-          if (local) {
+          if (local && isChatSession(local)) {
             const remoteUpdatedAt = (item.updated_at || 0) * 1000
             if (remoteUpdatedAt > local.updatedAt) {
               patchSessionById(local.id, {
@@ -637,10 +623,11 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
                 memorySummaryTailKey: item.summary_tail_key || undefined,
               })
               if (
+                local.kind === 'duo' &&
                 local.id ===
-                usePlaygroundStore.getState().activeSessionByModality.chat
+                  usePlaygroundStore.getState().activeSessionByModality.chat
               ) {
-                void reconcileChatSession(local.id, { pull: true })
+                void reconcileDuoSession(local.id, { pull: true })
               }
             }
             continue
@@ -669,7 +656,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
       window.removeEventListener('focus', onFocus)
       window.clearInterval(interval)
     }
-  }, [isAuthenticated, reconcileChatSession])
+  }, [isAuthenticated, reconcileDuoSession])
 
   // Track deletions → best-effort cloud delete.
   useEffect(() => {
@@ -696,11 +683,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
       void (async () => {
         try {
           if (binding.kind === 'chat') {
-            if (isAgentChatEnabled()) {
-              await deleteAgentConversation(binding.serverId)
-            } else {
-              await deleteConversation(binding.serverId)
-            }
+            await deleteConversation(binding.serverId)
           } else {
             await deleteProject(binding.serverId)
           }
@@ -716,6 +699,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
     if (!isAuthenticated || importedRef.current || inflightRef.current) return
     inflightRef.current = true
     void (async () => {
+      const importStartedAt = Date.now()
       try {
         const state = usePlaygroundStore.getState()
         const existingChatServerIds = new Set(
@@ -733,10 +717,7 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
         const existingClientKeys = new Set(state.sessions.map((s) => s.id))
         const additions: PlaygroundSession[] = []
 
-        const listChats = isAgentChatEnabled()
-          ? listAgentConversations
-          : listConversations
-        const { items: convItems, total: convTotal } = await listChats({
+        const { items: convItems, total: convTotal } = await listConversations({
           page_size: 50,
         })
         for (const item of convItems.slice(0, 40)) {
@@ -783,7 +764,10 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
             isChatSession(session) &&
             session.serverId
           ) {
-            return conversationIds.has(session.serverId)
+            return (
+              session.updatedAt >= importStartedAt ||
+              conversationIds.has(session.serverId)
+            )
           }
           if (
             completeProjectList &&
@@ -819,14 +803,14 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
         }
         usePlaygroundStore.setState({ sessions, activeSessionByModality })
         importedRef.current = true
-        convCursorRef.current = Math.floor(Date.now() / 1000)
+        convCursorRef.current = Math.floor(importStartedAt / 1000)
       } catch {
         // Ignore list failures; user can still work offline.
       } finally {
         inflightRef.current = false
       }
     })()
-  }, [isAuthenticated])
+  }, [isAuthenticated, userId])
 }
 
 /**

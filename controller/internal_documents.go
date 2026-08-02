@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/service/storage"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 )
 
@@ -286,4 +288,77 @@ func respondInternalFailedBuild(c *gin.Context, build *model.PlaygroundDocumentB
 		})
 	}
 	common.ApiSuccess(c, response)
+}
+
+// ReleasePlaygroundDocumentSandbox drops a conversation's warm container.
+// Idle containers bill for memory, so the internal chat service releases one
+// as soon as the owning conversation no longer needs it.
+func ReleasePlaygroundDocumentSandbox(c *gin.Context) {
+	userId := c.GetInt("id")
+	var body struct {
+		ConversationId int `json:"conversation_id"`
+	}
+	if err := common.DecodeJson(c.Request.Body, &body); err != nil || body.ConversationId <= 0 {
+		common.ApiErrorMsg(c, "invalid conversation")
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+	if err := service.DestroyPlaygroundDocumentSandbox(ctx, service.PlaygroundDocumentSandboxKey(userId, body.ConversationId)); err != nil {
+		// The container expires on its own, so a failure here costs money rather
+		// than correctness and is not worth failing the cleanup request over.
+		common.SysError("release document sandbox failed: " + err.Error())
+	}
+	common.ApiSuccess(c, gin.H{"released": true})
+}
+
+func persistDocumentArtifact(userId int, artifact service.DocumentArtifact) (*model.PlaygroundAsset, error) {
+	kind, mime := service.PlaygroundDocumentArtifactKind(artifact.Name)
+	if artifact.Mime != "" && artifact.Mime != "application/octet-stream" && mime == "application/octet-stream" {
+		mime = artifact.Mime
+	}
+	asset := &model.PlaygroundAsset{
+		UserId:     userId,
+		Kind:       kind,
+		Source:     model.PlaygroundAssetSourceLibrary,
+		Name:       path.Base(artifact.Name),
+		StorageKey: artifact.R2Key,
+		Backend:    storage.Default().Backend(),
+		Mime:       mime,
+		Size:       artifact.Bytes,
+	}
+	if err := model.CreatePlaygroundAsset(asset); err != nil {
+		return nil, err
+	}
+	asset.URL = playgroundAssetContentURL(asset.Id)
+	return asset, nil
+}
+
+func documentInputName(asset *model.PlaygroundAsset) string {
+	name := path.Base(strings.TrimSpace(asset.Name))
+	if name == "" || name == "." || name == "/" {
+		name = path.Base(asset.StorageKey)
+	}
+	safe := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '_', r == '-':
+			return r
+		default:
+			return '_'
+		}
+	}, name)
+	if safe == "" || strings.HasPrefix(safe, ".") {
+		safe = "input" + safe
+	}
+	return safe
+}
+
+func documentUnverifiedNames(artifacts []service.DocumentArtifact) []string {
+	names := []string{}
+	for _, artifact := range artifacts {
+		if kind, _ := service.PlaygroundDocumentArtifactKind(artifact.Name); kind == "document" && !artifact.Verified {
+			names = append(names, artifact.Name)
+		}
+	}
+	return names
 }

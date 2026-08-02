@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -23,8 +24,10 @@ import {
   usePlaygroundStore,
 } from '@/stores/playground-store'
 
+import { deleteConversation, updateConversation } from '../../api'
 import {
   hasSessionContent,
+  isChatSession,
   listSessionsForModality,
   type PlaygroundSession,
   type SessionModality,
@@ -82,6 +85,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
   const renameSession = usePlaygroundStore((state) => state.renameSession)
   const togglePinSession = usePlaygroundStore((state) => state.togglePinSession)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [query, setQuery] = useState('')
@@ -105,6 +109,11 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
     const next = renameValue.trim()
     if (next && next !== session.title) {
       renameSession(session.id, next)
+      if (isChatSession(session) && session.serverId) {
+        void updateConversation(session.serverId, { title: next }).catch(() =>
+          toast.error(t('Update failed'))
+        )
+      }
     }
     setRenamingId(null)
     setRenameValue('')
@@ -279,6 +288,11 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                       onClick={(event) => {
                         event.stopPropagation()
                         togglePinSession(session.id)
+                        if (isChatSession(session) && session.serverId) {
+                          void updateConversation(session.serverId, {
+                            pinned: !session.pinned,
+                          }).catch(() => toast.error(t('Update failed')))
+                        }
                       }}
                       className='text-muted-foreground hover:text-primary hover:bg-primary/10 focus-visible:ring-ring flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2'
                     >
@@ -310,8 +324,9 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
       <ConfirmDialog
         destructive
         open={deleteId != null}
+        isLoading={isDeleting}
         onOpenChange={(open) => {
-          if (!open) setDeleteId(null)
+          if (!open && !isDeleting) setDeleteId(null)
         }}
         title={t('Delete this session?')}
         desc={t(
@@ -319,8 +334,22 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
         )}
         confirmText={t('Delete')}
         handleConfirm={() => {
-          if (deleteId) deleteSession(deleteId)
-          setDeleteId(null)
+          if (!deleteId || isDeleting) return
+          const session = sessions.find((item) => item.id === deleteId)
+          setIsDeleting(true)
+          void (async () => {
+            try {
+              if (isChatSession(session) && session.serverId) {
+                await deleteConversation(session.serverId)
+              }
+              deleteSession(deleteId)
+              setDeleteId(null)
+            } catch {
+              toast.error(t('Delete failed'))
+            } finally {
+              setIsDeleting(false)
+            }
+          })()
         }}
       />
     </div>

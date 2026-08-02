@@ -65,7 +65,6 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter.Use(middleware.UserOrInternalServiceAuth())
 	{
 		playgroundRouter.POST("/chat/completions", middleware.Distribute(), controller.Playground)
-		playgroundRouter.POST("/responses", controller.PreparePlaygroundSearch(), middleware.Distribute(), controller.PlaygroundResponses)
 		playgroundRouter.POST("/images/generations", middleware.Distribute(), controller.PlaygroundImage)
 		playgroundRouter.POST("/images/edits", middleware.Distribute(), controller.PlaygroundImageEdit)
 		playgroundRouter.POST("/audio/speech", middleware.Distribute(), controller.PlaygroundAudio)

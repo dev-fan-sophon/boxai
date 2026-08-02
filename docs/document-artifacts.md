@@ -175,13 +175,13 @@ added later if the data justifies it.
 
 ```
 frontend
-   │ 1. POST /api/playground/chat/runs                     run, action=generate_document
-   │ 2. POST /api/playground/documents/runs/:id/prompt     authoring prompt + declared inputs
-   │ 3. POST /pg/chat/completions                          the user's model writes build.py
-   │ 4. POST /api/playground/documents/runs/:id/build      the script
+   │ POST /chat-api/v1/chat                  AI SDK stream with attachment parts
    ▼
-Go backend        rollout gate, concurrency slot, attempt cap, run state machine,
-   │              input ownership, previous-state injection, telemetry
+boxai-chat         server-owned conversation, AI SDK tool loop, retry orchestration
+   │ internal act-as calls: prepare prompt, billed model relay, build/import
+   ▼
+Go backend        ownership and billing context, concurrency slot, attempt cap,
+   │              previous-state injection, telemetry
    │  service secret + HMAC signature
    ▼
 CF Worker
@@ -195,14 +195,12 @@ R2, written directly under the asset-library prefix the backend chose
 Go records playground_assets rows ──► preview / download / iterate / share
 ```
 
-**Step 3 is a client-side call on purpose.** Every model invocation in this codebase goes through
-the relay endpoints, and the tool-run design says so explicitly: execution stays in relay so media
-is billed exactly once. There is no helper for the backend to call a model on a user's behalf, and
-adding one would mean reimplementing quota pre-consume and settlement outside the paths that
-enforce the billing invariants. So the browser makes an ordinary billed chat call with the system
-prompt the backend handed it, and posts back the script. The backend still owns everything that
-must not be client-controlled: which files the sandbox may read, what the previous version was,
-how many attempts are left, and the artifacts.
+Every model invocation still goes through the existing gateway relay and billing paths. The
+browser no longer authors or posts build scripts: the AI SDK `generate_document` tool in
+`boxai-chat` obtains the server-owned prompt, calls the model through an internal act-as billed
+relay, and posts the script to the internal build endpoint. The gateway owns everything that must
+not be client-controlled: which files the sandbox may read, what the previous version was, how
+many attempts are left, and the artifacts.
 
 Artifacts are written straight into `uploads/{user_id}/{job_id}/` by the worker rather than to a
 temporary prefix that the backend then copies. The backend picks the prefix and passes it with the
@@ -213,8 +211,8 @@ Reused components, so this feature adds no parallel infrastructure:
 
 | Need | Existing component |
 |------|--------------------|
-| Run lifecycle, cancel, execution token | `PlaygroundChatToolRun` + a new `generate_document` action |
-| Intent detection | `service.ClassifyPlaygroundTool` |
+| Run lifecycle and cancellation | `boxai-chat` durable `agent_runs` and conversation active-run lease |
+| Intent and tool selection | AI SDK tool calling with `generate_document`; direct mode forces the first tool step |
 | Artifact storage, mime sniffing, owner-scoped streaming | `service/playground_assets.go` (already recognizes docx/xlsx/pptx/pdf, `kind=document`) |
 | Feeding an artifact back to a model | `service/playground_document_parse.go` |
 | Versions and share links | the `playground_canvas_project` version/share tables |
@@ -304,12 +302,11 @@ collapsed panel.
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | `/api/playground/chat/runs` | Existing endpoint. Creates the run; `generate_document` falls back to `chat` for users outside the rollout. |
-| POST | `/api/playground/documents/runs/:id/prompt` | Returns the authoring system prompt. Records which assets the build may read and which previous version it is editing. |
-| POST | `/api/playground/documents/runs/:id/build` | Runs one script. Returns artifacts, or the retry prompt. |
-| POST | `/api/playground/documents/sandbox/release` | Drops a conversation's warm container when the user leaves. |
-| GET | `/api/playground/chat/runs/:id` | Existing endpoint; polls the run. |
-| POST | `/api/playground/chat/runs/:id/cancel` | Existing endpoint. |
+| POST | `/chat-api/v1/chat` | Public session-authenticated AI SDK stream; invokes the document tool when selected by the model or user mode. |
+| POST | `/api/internal/playground/documents/prompt` | Internal act-as endpoint. Returns the authoring prompt and records declared inputs. |
+| POST | `/api/internal/playground/documents/build` | Internal act-as endpoint. Runs one script and returns artifacts or a retry prompt. |
+| POST | `/api/internal/playground/documents/sandbox/release` | Internal act-as endpoint. Drops a conversation's warm container. |
+| GET | `/api/internal/playground/assets/:id/content` | Internal owner-scoped source-asset read. |
 
 Edge Worker (not publicly routable, service-secret only):
 
@@ -379,9 +376,9 @@ entitlements are confirmed active.
 | Phase | Contents | Estimate |
 |-------|----------|----------|
 | 1 | Edge foundation: Worker, image, conversation-scoped sandbox orchestration, egress lockdown, service auth, R2 output | ~1 week |
-| 2 | Go integration: `documents/runs`, run state machine, conversation lock, asset import, usage logging, guardrails | 4 days |
+| 2 | Gateway internal build API: ownership, conversation lock, asset import, usage logging, guardrails | 4 days |
 | 3 | Skill package, self-heal loop, previous-state injection, HTML → Browser Run PDF | ~1 week |
-| 4 | Frontend: intent → progress card → previews → download / save / edit | ~1 week |
+| 4 | AI SDK tool + frontend tool parts: progress, previews, download, save, and edit | ~1 week |
 | 5 | Version history and share links | 4 days |
 
 Phases 1-2 give an end-to-end docx. Phase 4 is the first shippable user experience.

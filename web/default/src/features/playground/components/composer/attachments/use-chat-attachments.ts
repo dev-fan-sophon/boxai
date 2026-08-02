@@ -2,19 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { usePlaygroundStore } from '@/stores/playground-store'
-
 import { deletePlaygroundAsset, uploadPlaygroundAsset } from '../../../api'
-import { isAgentChatEnabled } from '../../../lib/agent-chat/flag'
 import { rememberAttachmentAsset } from '../../../lib/attachments/attachment-assets'
 import {
   isServerParsedDocument,
   isTextDocumentFile,
 } from '../../../lib/attachments/document-extract'
-import {
-  DocumentParseError,
-  parseDocumentAsset,
-} from '../../../lib/attachments/document-parse'
 import type { ChatAttachment, ChatDocumentAttachment } from '../../../types'
 
 const MAX_CHAT_ATTACHMENTS = 4
@@ -69,14 +62,12 @@ async function buildImageAttachment(file: File): Promise<ChatAttachment> {
  * Chat attachments: images, documents (PDF/Word/Excel/PowerPoint), and
  * plain-text files, with file-dialog, paste, and drag-drop ingestion.
  *
- * Documents are uploaded and parsed server-side into plain text (with a
- * client-driven OCR pass for scanned PDFs), so their content reaches any
- * model as text. Sending is blocked while a document is still parsing.
+ * Documents are uploaded as private assets. The chat service resolves and
+ * parses them only after accepting the turn, so the browser never performs a
+ * second model call or persists temporary OCR text.
  */
 export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
   const { t } = useTranslation()
-  const group = usePlaygroundStore((state) => state.config.group)
-  const agentChatEnabled = useMemo(() => isAgentChatEnabled(), [])
   const [attachments, setAttachments] = useState<ChatAttachment[]>(() => [
     ...initialAttachments,
   ])
@@ -84,65 +75,17 @@ export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
   const isAddingRef = useRef(false)
   const operationRef = useRef(0)
   const createdAssetIdsRef = useRef(new Set<number>())
-  const groupRef = useRef(group)
-  groupRef.current = group
+  const mountedRef = useRef(true)
 
   useEffect(() => {
     const createdAssetIds = createdAssetIdsRef.current
     return () => {
+      mountedRef.current = false
       operationRef.current += 1
       deleteAttachmentAssets(createdAssetIds)
       createdAssetIds.clear()
     }
   }, [])
-
-  const updateDocument = (
-    id: string,
-    patch: Partial<ChatDocumentAttachment>
-  ) => {
-    setAttachments((prev) =>
-      prev.map((attachment) =>
-        attachment.id === id && attachment.kind === 'document'
-          ? { ...attachment, ...patch }
-          : attachment
-      )
-    )
-  }
-
-  const runParse = async (id: string, assetId: number) => {
-    updateDocument(id, {
-      status: 'processing',
-      error: undefined,
-      ocrDone: undefined,
-      ocrTotal: undefined,
-    })
-    try {
-      const text = await parseDocumentAsset(
-        assetId,
-        groupRef.current,
-        (progress) =>
-          updateDocument(id, {
-            status: 'ocr',
-            ocrDone: progress.done,
-            ocrTotal: progress.total,
-          })
-      )
-      if (text.trim() === '') {
-        updateDocument(id, {
-          status: 'failed',
-          error: t('No readable text found in this document.'),
-        })
-        return
-      }
-      updateDocument(id, { status: 'done', text })
-    } catch (error) {
-      const message =
-        error instanceof DocumentParseError
-          ? error.message
-          : t('Could not read this document.')
-      updateDocument(id, { status: 'failed', error: message })
-    }
-  }
 
   const addDocumentFile = async (
     file: File,
@@ -171,12 +114,11 @@ export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
       mimeType: file.type || 'application/octet-stream',
       text: '',
       assetId,
-      status: agentChatEnabled ? 'done' : 'processing',
+      status: 'done',
     }
     setAttachments((prev) =>
       prev.length < MAX_CHAT_ATTACHMENTS ? [...prev, attachment] : prev
     )
-    if (!agentChatEnabled) void runParse(attachment.id, assetId)
   }
 
   const addFiles = async (files: FileList | File[] | null) => {
@@ -276,18 +218,6 @@ export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const retryAt = (index: number) => {
-    const attachment = attachments[index]
-    if (
-      attachment?.kind === 'document' &&
-      attachment.assetId !== undefined &&
-      attachment.status === 'failed' &&
-      !agentChatEnabled
-    ) {
-      void runParse(attachment.id, attachment.assetId)
-    }
-  }
-
   const clear = () => {
     operationRef.current += 1
     isAddingRef.current = false
@@ -313,6 +243,16 @@ export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
     const assetIds = [...createdAssetIdsRef.current]
     createdAssetIdsRef.current.clear()
     return assetIds
+  }
+
+  const reclaim = (assetIds: number[]) => {
+    if (!mountedRef.current) {
+      deleteAttachmentAssets(assetIds)
+      return
+    }
+    for (const assetId of assetIds) {
+      createdAssetIdsRef.current.add(assetId)
+    }
   }
 
   const handlePaste: React.ClipboardEventHandler = (event) => {
@@ -350,11 +290,11 @@ export function useChatAttachments(initialAttachments: ChatAttachment[] = []) {
     attachments,
     addFiles,
     removeAt,
-    retryAt,
     clear,
     discardCreated,
     reset,
     commit,
+    reclaim,
     handlePaste,
     handleDrop,
     handleDragOver,

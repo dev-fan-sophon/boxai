@@ -454,14 +454,6 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			playgroundDataRoute.POST("/estimate", controller.PlaygroundEstimate)
 			playgroundDataRoute.POST("/chat/multi", controller.PlaygroundMultiChat)
-			playgroundDataRoute.POST("/chat/runs", controller.CreatePlaygroundChatToolRun)
-			playgroundDataRoute.GET("/chat/runs/:id", controller.GetPlaygroundChatToolRun)
-			playgroundDataRoute.POST("/chat/runs/:id/import", controller.ImportPlaygroundChatToolRun)
-			playgroundDataRoute.POST("/chat/runs/:id/cancel", controller.CancelPlaygroundChatToolRun)
-
-			playgroundDataRoute.POST("/documents/runs/:id/prompt", controller.PreparePlaygroundDocumentRun)
-			playgroundDataRoute.POST("/documents/runs/:id/build", controller.BuildPlaygroundDocument)
-			playgroundDataRoute.POST("/documents/sandbox/release", controller.ReleasePlaygroundDocumentSandbox)
 
 			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
 			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)
@@ -471,21 +463,10 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundDataRoute.DELETE("/assets/:id", controller.DeletePlaygroundAsset)
 			playgroundDataRoute.POST("/assets/:id/parse", controller.StartPlaygroundAssetParse)
 			playgroundDataRoute.GET("/assets/:id/parse", controller.GetPlaygroundAssetParse)
-			playgroundDataRoute.POST("/assets/:id/parse/import", controller.ImportPlaygroundAssetParse)
 			playgroundDataRoute.POST("/assets/backfill-r2", middleware.AdminAuth(), controller.BackfillPlaygroundAssetsToR2)
 
 			playgroundDataRoute.POST("/upload-sessions", controller.CreatePlaygroundUploadSession)
 			playgroundDataRoute.GET("/upload-sessions/:token", controller.GetPlaygroundUploadSession)
-
-			playgroundDataRoute.GET("/conversations", controller.ListPlaygroundConversations)
-			playgroundDataRoute.POST("/conversations", controller.CreatePlaygroundConversation)
-			playgroundDataRoute.GET("/conversations/:id", controller.GetPlaygroundConversation)
-			playgroundDataRoute.PATCH("/conversations/:id", controller.UpdatePlaygroundConversation)
-			playgroundDataRoute.PUT("/conversations/:id", controller.UpdatePlaygroundConversation)
-			playgroundDataRoute.DELETE("/conversations/:id", controller.DeletePlaygroundConversation)
-			playgroundDataRoute.PUT("/conversations/:id/messages", controller.PutPlaygroundConversationMessages)
-			playgroundDataRoute.POST("/conversations/:id/messages", controller.AppendPlaygroundConversationMessages)
-			playgroundDataRoute.GET("/conversations/:id/messages", controller.ListPlaygroundConversationMessages)
 
 			playgroundDataRoute.GET("/projects", controller.ListPlaygroundProjects)
 			playgroundDataRoute.POST("/projects", controller.CreatePlaygroundProject)
@@ -506,16 +487,6 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundDataRoute.POST("/canvas/projects/:id/share/rotate", controller.RotatePlaygroundCanvasShare)
 			playgroundDataRoute.GET("/canvas/projects/:id/share", controller.GetPlaygroundCanvasShareStatus)
 			playgroundDataRoute.DELETE("/canvas/projects/:id/share", controller.RevokePlaygroundCanvasShare)
-
-			playgroundDataRoute.GET("/memories", controller.ListPlaygroundUserMemories)
-			playgroundDataRoute.PATCH("/memories/:id", controller.UpdatePlaygroundUserMemory)
-			playgroundDataRoute.DELETE("/memories/:id", controller.DeletePlaygroundUserMemory)
-			playgroundDataRoute.DELETE("/memories", controller.ClearPlaygroundUserMemories)
-
-			playgroundDataRoute.GET("/personas", controller.ListPlaygroundPersonas)
-			playgroundDataRoute.POST("/personas", controller.CreatePlaygroundPersona)
-			playgroundDataRoute.PATCH("/personas/:id", controller.UpdatePlaygroundPersona)
-			playgroundDataRoute.DELETE("/personas/:id", controller.DeletePlaygroundPersona)
 
 			playgroundDataRoute.GET("/tasks", controller.ListPlaygroundTasks)
 			playgroundDataRoute.POST("/runs", controller.CreatePlaygroundRun)

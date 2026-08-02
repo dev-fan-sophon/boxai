@@ -4,11 +4,8 @@ import {
   agentChatRequestBody,
   agentUIMessageToPlayground,
   attachmentFileParts,
-  deleteAgentConversation,
-  listAgentConversations,
   loadAgentConversation,
   shouldPollAgentRun,
-  updateAgentConversation,
 } from './transport'
 
 const originalFetch = globalThis.fetch
@@ -92,49 +89,6 @@ describe('agent chat request policy', () => {
 })
 
 describe('agent chat history adapters', () => {
-  it('keeps conversation list, metadata, and deletion on boxai-chat', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: { items: [{ id: 3, title: 'Chat' }], total: 1 },
-          })
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ success: true, data: { id: 3, title: 'Renamed' } })
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ success: true, data: null }))
-      )
-
-    const listed = await listAgentConversations({ page_size: 50 })
-    expect(listed.total).toBe(1)
-    await updateAgentConversation(3, { title: 'Renamed' })
-    await deleteAgentConversation(3)
-
-    const fetchMock = vi.mocked(globalThis.fetch)
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      '/chat-api/api/playground/conversations?page_size=50',
-      expect.objectContaining({ credentials: 'include' })
-    )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      '/chat-api/api/playground/conversations/3',
-      expect.objectContaining({ method: 'PUT' })
-    )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      '/chat-api/api/playground/conversations/3',
-      expect.objectContaining({ method: 'DELETE' })
-    )
-  })
-
   it('hydrates attachments and immutable revisions from server history', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(

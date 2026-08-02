@@ -114,6 +114,21 @@ SSH=(ssh -i "$KEY_FILE" -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes \
 
 echo "==> deploy ref=${REF} host=${BOXAI_SSH_HOST} app_root=${APP_ROOT}"
 
+# Verify nginx already owns the public chat route. Readiness is checked after
+# the new service starts; accepting a temporary 5xx here preserves fix-forward
+# deploys when the currently installed chat service is unhealthy.
+if [[ "$BOOTSTRAP" -eq 0 ]]; then
+  : "${BOXAI_BASE_URL:?BOXAI_BASE_URL required}"
+  echo "==> preflight public chat route"
+  chat_route_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    --retry 3 --retry-delay 2 --retry-all-errors \
+    "${BOXAI_BASE_URL%/}/chat-api/readyz")"
+  if [[ "$chat_route_status" == "404" || "$chat_route_status" == "000" ]]; then
+    echo "public /chat-api route is unavailable (status ${chat_route_status})" >&2
+    exit 1
+  fi
+fi
+
 # 0) One-time rename: /opt/boxai2 + boxai2.service → /opt/boxai + boxai.service
 echo "==> ensure app root layout"
 "${SSH[@]}" bash -s -- "$APP_ROOT" "$LEGACY_APP_ROOT" "$SERVICE_NAME" "$LEGACY_SERVICE_NAME" <<'REMOTE'
@@ -251,6 +266,10 @@ APP_ROOT="$2"
 SERVICE_NAME="$3"
 export PATH="/usr/local/go/bin:${HOME}/.bun/bin:/usr/local/bin:${PATH}"
 export BOXAI_APP_ROOT="$APP_ROOT"
+if [[ ! -s "${APP_ROOT}/chat.env" ]]; then
+  echo "required ${APP_ROOT}/chat.env is missing or empty" >&2
+  exit 1
+fi
 # Ensure infra compose is present even without --bootstrap
 if [[ ! -f "${APP_ROOT}/docker-compose.infra.yml" ]]; then
   cp -f "${APP_ROOT}/releases/${REF}/deploy/docker-compose.infra.yml" "${APP_ROOT}/docker-compose.infra.yml"
@@ -320,34 +339,34 @@ for c in boxai boxai2; do
     docker rm -f "$c" 2>/dev/null || true
   fi
 done
+# Start and verify the new chat service before the gateway exposes the new
+# embedded frontend. The previous gateway process keeps serving the old
+# frontend until this readiness gate passes.
+cp -f "${APP_ROOT}/releases/${REF}/deploy/boxai-chat.service" /etc/systemd/system/boxai-chat.service
+systemctl daemon-reload
+systemctl enable boxai-chat.service
+systemctl restart boxai-chat.service
+chat_ready=0
+for _ in $(seq 1 20); do
+  if curl -fsS http://127.0.0.1:3100/readyz | grep -q '"ok"'; then
+    chat_ready=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$chat_ready" -ne 1 ]]; then
+  echo "CHAT_READY_FAIL" >&2
+  journalctl -u boxai-chat -n 50 --no-pager || true
+  exit 1
+fi
+echo "CHAT_READY_OK"
+# Publish the already-built gateway binary only after its required chat
+# service is healthy. Until this atomic rename, a crash or reboot still starts
+# the previous production gateway and embedded frontend.
+mv -f "${APP_ROOT}/bin/new-api.next" "${APP_ROOT}/bin/new-api"
 systemctl restart "${SERVICE_NAME}.service"
 sleep 2
 systemctl --no-pager --full status "${SERVICE_NAME}.service" | head -25
-# boxai-chat rides along once the host has been provisioned with its env
-# file; without /opt/boxai/chat.env the unit is skipped so a deploy before
-# the chat-service rollout stays green.
-if [[ -f "${APP_ROOT}/chat.env" ]]; then
-  cp -f "${APP_ROOT}/releases/${REF}/deploy/boxai-chat.service" /etc/systemd/system/boxai-chat.service
-  systemctl daemon-reload
-  systemctl enable boxai-chat.service
-  systemctl restart boxai-chat.service
-  chat_ready=0
-  for _ in $(seq 1 20); do
-    if curl -fsS http://127.0.0.1:3100/readyz | grep -q '"ok"'; then
-      chat_ready=1
-      break
-    fi
-    sleep 1
-  done
-  if [[ "$chat_ready" -ne 1 ]]; then
-    echo "CHAT_READY_FAIL" >&2
-    journalctl -u boxai-chat -n 50 --no-pager || true
-    exit 1
-  fi
-  echo "CHAT_READY_OK"
-else
-  echo "chat.env absent; skipping boxai-chat unit"
-fi
 # Prune old releases (keep current + one previous)
 python3 - <<PY
 import os, shutil
@@ -391,6 +410,8 @@ REMOTE
 echo "==> public health"
 if [[ -n "${BOXAI_BASE_URL:-}" ]]; then
   curl -fsS "${BOXAI_BASE_URL}/api/status" | head -c 200
+  echo
+  curl -fsS "${BOXAI_BASE_URL}/chat-api/readyz" | head -c 200
   echo
 fi
 echo "DEPLOY_OK ${REF}"

@@ -102,9 +102,19 @@ export function ChatComposer(props: ChatComposerProps) {
       ? attachments.attachments
       : undefined
     if (!submittableText && !submittedAttachments?.length) return
-    if (await props.onSubmit(submittableText ?? '', submittedAttachments)) {
-      setText('')
-      attachments.clear()
+    const transferredAssetIds = attachments.commit()
+    let accepted = false
+    try {
+      accepted = await props.onSubmit(
+        submittableText ?? '',
+        submittedAttachments
+      )
+      if (accepted) {
+        setText('')
+        attachments.clear()
+      }
+    } finally {
+      if (!accepted) attachments.reclaim(transferredAssetIds)
     }
   }
 
@@ -153,7 +163,6 @@ export function ChatComposer(props: ChatComposerProps) {
           <ChatAttachmentStrip
             attachments={attachments.attachments}
             onRemove={attachments.removeAt}
-            onRetry={attachments.retryAt}
           />
         ) : undefined
       }

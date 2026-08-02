@@ -1605,13 +1605,11 @@ POST %s/pg/audio/speech
 ### Playground data
 GET/POST %s/api/playground/assets
 POST %s/api/playground/estimate
-GET/POST %s/api/playground/conversations
-GET/POST %s/api/playground/personas
 GET %s/api/playground/inspiration/templates
 GET %s/api/playground/skill
 
 Configure models/channels in the admin console. See docs/playground-p1-p3.md.
-`, base, base, base, base, base, base, base, base, base, base, base, base, base, base)
+`, base, base, base, base, base, base, base, base, base, base, base, base)
 
 	format := c.Query("format")
 	if format == "json" {

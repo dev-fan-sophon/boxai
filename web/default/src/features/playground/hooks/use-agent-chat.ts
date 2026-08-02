@@ -69,13 +69,21 @@ export function useAgentChat(options: UseAgentChatOptions) {
   const longMemory = options.longMemory
   const onConversationId = options.onConversationId
   const conversationIdRef = useRef(options.conversationId)
+  const boundChatIdRef = useRef(options.chatId)
   const revisionRef = useRef(0)
   const runIdRef = useRef('')
   const chatRequestFailedRef = useRef(false)
   const chatAcceptanceRef = useRef<PendingChatAcceptance | null>(null)
   const [serverRunId, setServerRunId] = useState('')
   const loadGenerationRef = useRef(0)
-  conversationIdRef.current = options.conversationId
+  if (boundChatIdRef.current !== options.chatId) {
+    boundChatIdRef.current = options.chatId
+    conversationIdRef.current = options.conversationId
+  } else if (options.conversationId !== undefined) {
+    // Keep a response-header id long enough for the store binding callback to
+    // publish it. An undefined draft prop must not clobber an accepted run.
+    conversationIdRef.current = options.conversationId
+  }
 
   const system = useMemo(() => {
     const persona = clampSystemPrompt(options.systemPrompt).trim()

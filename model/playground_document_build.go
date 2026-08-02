@@ -16,8 +16,8 @@ import (
 type PlaygroundDocumentBuild struct {
 	Id     int `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserId int `json:"-" gorm:"not null;index"`
-	// RunId links back to the playground_chat_tool_runs row that the chat turn created.
-	// Zero for builds requested by the boxai-chat service, which tracks its own runs.
+	// RunId is retained for historical rows created before boxai-chat took over
+	// document orchestration. New builds use ExternalRunId.
 	RunId int `json:"run_id" gorm:"index"`
 	// ExternalRunId is the boxai-chat run identifier for builds requested through the
 	// internal API, so the self-heal attempt cap survives service restarts.
@@ -50,13 +50,6 @@ const (
 	PlaygroundDocumentBuildCompleted = "completed"
 	PlaygroundDocumentBuildFailed    = "failed"
 )
-
-func CreatePlaygroundDocumentBuild(build *PlaygroundDocumentBuild) error {
-	now := time.Now().Unix()
-	build.CreatedAt = now
-	build.UpdatedAt = now
-	return DB.Create(build).Error
-}
 
 func UpdatePlaygroundDocumentBuild(id int, updates map[string]any) error {
 	updates["updated_at"] = time.Now().Unix()
@@ -94,14 +87,6 @@ func CreateInternalPlaygroundDocumentBuildAttempt(build *PlaygroundDocumentBuild
 		return nil
 	})
 	return claimed, err
-}
-
-// CountPlaygroundDocumentBuildAttempts returns how many builds a run has already spent, so the
-// self-heal loop cannot be extended by replaying the endpoint.
-func CountPlaygroundDocumentBuildAttempts(runId, userId int) (int64, error) {
-	var n int64
-	err := DB.Model(&PlaygroundDocumentBuild{}).Where("run_id = ? AND user_id = ?", runId, userId).Count(&n).Error
-	return n, err
 }
 
 // LatestCompletedPlaygroundDocumentBuild finds the document a follow-up request should edit

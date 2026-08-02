@@ -61,16 +61,19 @@ export function PlaygroundMessageEditor({
     if (!canSave || isSaving) return
     const editedAttachments =
       message.from === 'user' ? attachments.attachments : undefined
+    const transferredAssetIds = attachments.commit()
+    let saved = false
     setIsSaving(true)
     try {
-      const saved = submit
-        ? await onSaveEditAndSubmit?.(editText, editedAttachments)
-        : await onSaveEdit?.(editText, editedAttachments)
-      if (saved === true) {
-        attachments.commit()
+      saved =
+        (submit
+          ? await onSaveEditAndSubmit?.(editText, editedAttachments)
+          : await onSaveEdit?.(editText, editedAttachments)) === true
+      if (saved) {
         onCancelEdit?.(false)
       }
     } finally {
+      if (!saved) attachments.reclaim(transferredAssetIds)
       setIsSaving(false)
     }
   }
@@ -184,7 +187,6 @@ export function PlaygroundMessageEditor({
             attachments={attachments.attachments}
             disabled={isSaving}
             onRemove={attachments.removeAt}
-            onRetry={attachments.retryAt}
           />
         </>
       )}

@@ -301,7 +301,8 @@ Agents must:
 ### boxai-chat (`/opt/boxai/chat.env`)
 
 Server-only env for the `boxai-chat.service` unit (Bun chat service on
-`127.0.0.1:3100`). The deploy script skips the unit when this file is absent.
+`127.0.0.1:3100`). This file is required: production deploys stop before
+cutover when it is absent or empty.
 
 | Variable | Purpose |
 |----------|---------|

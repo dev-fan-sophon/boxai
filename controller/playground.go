@@ -1,13 +1,10 @@
 package controller
 
 import (
-	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -15,68 +12,13 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/middleware"
 	"github.com/dev-fan-sophon/boxai/model"
-	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func Playground(c *gin.Context) {
 	playgroundRelay(c, types.RelayFormatOpenAI, false)
-}
-
-func PlaygroundResponses(c *gin.Context) {
-	if !playgroundClaimSearchExecution(c) {
-		return
-	}
-	runID := c.GetInt("playground_search_run_id")
-	userID := c.GetInt("id")
-	defer func() {
-		if c.Writer.Status() >= http.StatusBadRequest {
-			_ = model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "failed", "error_message": "managed search relay failed"})
-		}
-	}()
-	playgroundRelay(c, types.RelayFormatOpenAIResponses, false)
-	if c.Writer.Status() >= http.StatusBadRequest {
-		return
-	}
-	responseValue, ok := c.Get("playground_search_response")
-	response, responseOK := responseValue.(*dto.OpenAIResponsesResponse)
-	if !ok || !responseOK {
-		_ = model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "failed", "error_message": "malformed managed search response"})
-		playgroundExecutionError(c, http.StatusBadGateway, "malformed managed search response")
-		return
-	}
-	result, sources, err := managedSearchTerminalResult(response)
-	if err != nil {
-		_ = model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "failed", "error_message": err.Error()})
-		playgroundExecutionError(c, http.StatusBadGateway, err.Error())
-		return
-	}
-	resultJSON, resultErr := common.Marshal(result)
-	sourcesJSON, sourcesErr := common.Marshal(sources)
-	if resultErr != nil || sourcesErr != nil || len(resultJSON) > 64*1024 || len(sourcesJSON) > 64*1024 {
-		_ = model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "failed", "error_message": "managed search result is too large"})
-		playgroundExecutionError(c, http.StatusBadGateway, "managed search result is too large")
-		return
-	}
-	bodyValue, bodyOK := c.Get("playground_search_response_body")
-	body, bytesOK := bodyValue.([]byte)
-	if !bodyOK || !bytesOK {
-		_ = model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "failed", "error_message": "managed search response body is unavailable"})
-		playgroundExecutionError(c, http.StatusInternalServerError, "managed search response body is unavailable")
-		return
-	}
-	if err := model.UpdatePlaygroundChatToolRunCAS(runID, userID, "executing", map[string]any{"status": "completed", "result_json": string(resultJSON), "sources_json": string(sourcesJSON), "error_message": ""}); err != nil {
-		playgroundExecutionError(c, http.StatusInternalServerError, "failed to persist managed search result")
-		return
-	}
-	contentType := c.GetString("playground_search_response_content_type")
-	if contentType == "" {
-		contentType = "application/json"
-	}
-	c.Data(http.StatusOK, contentType, body)
 }
 
 func managedSearchTerminalResult(response *dto.OpenAIResponsesResponse) (map[string]any, []map[string]string, error) {
@@ -150,92 +92,11 @@ const (
 	playgroundSearchReservedToolCalls = 32
 )
 
-// PreparePlaygroundSearch validates the owner-scoped execution contract,
-// rebuilds the request from trusted run data, and pins its Grok channel before
-// the distributor runs. The ready->executing claim intentionally happens in
-// PlaygroundResponses, immediately before billing and relay.
-func PreparePlaygroundSearch() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		runID, err := strconv.Atoi(strings.TrimSpace(c.GetHeader("X-Playground-Run-Id")))
-		token := c.GetHeader("X-Playground-Execution-Token")
-		if err != nil || runID <= 0 || token == "" {
-			playgroundExecutionError(c, http.StatusBadRequest, "managed execution headers are required")
-			c.Abort()
-			return
-		}
-		run, err := model.GetPlaygroundChatToolRun(runID, c.GetInt("id"))
-		if err != nil || run.Action != service.PlaygroundToolSearch || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
-			playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
-			c.Abort()
-			return
-		}
-		if run.Status != "ready" {
-			playgroundExecutionError(c, http.StatusConflict, "managed tool run was already executed")
-			c.Abort()
-			return
-		}
-		userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
-		if !service.GroupInUserUsableGroups(userGroup, run.UsingGroup) {
-			playgroundExecutionError(c, http.StatusForbidden, "managed search group is no longer available")
-			c.Abort()
-			return
-		}
-		var args map[string]any
-		if common.UnmarshalJsonStr(run.ArgumentsJson, &args) != nil {
-			playgroundExecutionError(c, http.StatusBadRequest, "invalid managed search run")
-			c.Abort()
-			return
-		}
-		channelValue, _ := args["__channel_id"].(float64)
-		channelID := int(channelValue)
-		abilities, abilityErr := model.GetEnabledGrokPlaygroundSearchAbilities([]string{run.UsingGroup})
-		valid := abilityErr == nil
-		if valid {
-			valid = false
-			for _, ability := range abilities {
-				if ability.ChannelId == channelID && ability.Model == run.ToolModel {
-					valid = true
-					break
-				}
-			}
-		}
-		if !valid || channelID <= 0 {
-			playgroundExecutionError(c, http.StatusForbidden, "managed search channel is no longer available")
-			c.Abort()
-			return
-		}
-		canonical, marshalErr := common.Marshal(map[string]any{
-			"model": run.ToolModel, "input": run.Prompt,
-			"tools":               []map[string]string{{"type": dto.BuildInToolXAIWebSearch}, {"type": dto.BuildInToolXAIXSearch}},
-			"stream":              false,
-			"store":               false,
-			"parallel_tool_calls": false,
-			"max_turns":           playgroundSearchMaxTurns,
-		})
-		if marshalErr != nil || replaceRequestBody(c, canonical) != nil {
-			playgroundExecutionError(c, http.StatusInternalServerError, "failed to prepare managed search")
-			c.Abort()
-			return
-		}
-		common.SetContextKey(c, constant.ContextKeyUsingGroup, run.UsingGroup)
-		common.SetContextKey(c, constant.ContextKeyTokenSpecificChannelId, strconv.Itoa(channelID))
-		c.Set("playground_managed_search", true)
-		c.Set("playground_search_run_id", run.Id)
-		c.Next()
-	}
-}
-
 func PlaygroundImage(c *gin.Context) {
-	if !playgroundClaimMediaExecution(c, service.PlaygroundToolImage) {
-		return
-	}
 	playgroundRelay(c, types.RelayFormatOpenAIImage, false)
 }
 
 func PlaygroundImageEdit(c *gin.Context) {
-	if !playgroundClaimMediaExecution(c, service.PlaygroundToolImage) {
-		return
-	}
 	playgroundRelay(c, types.RelayFormatOpenAIImage, false)
 }
 
@@ -245,81 +106,7 @@ func PlaygroundAudio(c *gin.Context) {
 
 func PlaygroundVideo(c *gin.Context) {
 	_ = playgroundNormalizeVideoBody(c)
-	if !playgroundClaimMediaExecution(c, service.PlaygroundToolVideo) {
-		return
-	}
 	playgroundRelay(c, types.RelayFormatTask, true)
-}
-
-func playgroundClaimMediaExecution(c *gin.Context, action string) bool {
-	runIDHeader := strings.TrimSpace(c.GetHeader("X-Playground-Run-Id"))
-	token := c.GetHeader("X-Playground-Execution-Token")
-	if runIDHeader == "" && token == "" {
-		return true
-	}
-	runID, err := strconv.Atoi(runIDHeader)
-	if err != nil || runID <= 0 || token == "" {
-		playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
-		return false
-	}
-	run, err := model.GetPlaygroundChatToolRun(runID, c.GetInt("id"))
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		playgroundExecutionError(c, http.StatusNotFound, "managed tool run not found")
-		return false
-	}
-	if err != nil {
-		playgroundExecutionError(c, http.StatusInternalServerError, err.Error())
-		return false
-	}
-	if run.Action != action || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
-		playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
-		return false
-	}
-	var identity struct {
-		Model  string `json:"model"`
-		Group  string `json:"group"`
-		Prompt string `json:"prompt"`
-	}
-	if err := common.UnmarshalBodyReusable(c, &identity); err != nil || identity.Model != run.ToolModel || identity.Group != run.UsingGroup || identity.Prompt != run.Prompt {
-		playgroundExecutionError(c, http.StatusBadRequest, "managed execution identity mismatch")
-		return false
-	}
-	if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, "ready", map[string]any{"status": "executing"}); err != nil {
-		playgroundExecutionError(c, http.StatusConflict, "managed tool run was already executed")
-		return false
-	}
-	return true
-}
-
-func playgroundClaimSearchExecution(c *gin.Context) bool {
-	runID, err := strconv.Atoi(strings.TrimSpace(c.GetHeader("X-Playground-Run-Id")))
-	token := c.GetHeader("X-Playground-Execution-Token")
-	if err != nil || runID <= 0 || token == "" {
-		playgroundExecutionError(c, http.StatusBadRequest, "managed execution headers are required")
-		return false
-	}
-	run, err := model.GetPlaygroundChatToolRun(runID, c.GetInt("id"))
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		playgroundExecutionError(c, http.StatusNotFound, "managed tool run not found")
-		return false
-	}
-	if err != nil {
-		playgroundExecutionError(c, http.StatusInternalServerError, err.Error())
-		return false
-	}
-	if run.Action != service.PlaygroundToolSearch || subtle.ConstantTimeCompare([]byte(token), []byte(run.ExecutionToken)) != 1 {
-		playgroundExecutionError(c, http.StatusBadRequest, "invalid managed execution contract")
-		return false
-	}
-	if run.Id != c.GetInt("playground_search_run_id") {
-		playgroundExecutionError(c, http.StatusBadRequest, "managed search execution mismatch")
-		return false
-	}
-	if err := model.UpdatePlaygroundChatToolRunCAS(run.Id, run.UserId, "ready", map[string]any{"status": "executing"}); err != nil {
-		playgroundExecutionError(c, http.StatusConflict, "managed tool run was already executed")
-		return false
-	}
-	return true
 }
 
 func playgroundExecutionError(c *gin.Context, status int, message string) {
@@ -419,6 +206,3 @@ func replaceRequestBody(c *gin.Context, newBody []byte) error {
 	c.Request.ContentLength = int64(len(newBody))
 	return nil
 }
-
-// silence unused import if search path changes
-var _ = strings.TrimSpace

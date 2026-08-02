@@ -117,6 +117,8 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   /** Start a fresh chat session (does not delete the previous one). */
   clearMessages: () => void
   startNewSession: (modality?: SessionModality) => void
+  /** Discard account-owned sessions when the signed-in identity changes. */
+  resetAccountData: () => void
   openSession: (sessionId: string) => void
   deleteSession: (sessionId: string) => void
   renameSession: (sessionId: string, title: string) => void
@@ -498,13 +500,37 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
             },
           }
         }),
+      resetAccountData: () =>
+        set((state) => {
+          const draft = createEmptySession(
+            state.activeModality,
+            state.config.model,
+            state.config.group
+          )
+          return {
+            workspaceMode: 'model',
+            messages: [],
+            sessions: [draft],
+            activeSessionByModality: { [state.activeModality]: draft.id },
+            duo: {
+              answerModels: state.duo.answerModels,
+              summaryModel: state.duo.summaryModel,
+            },
+            prefill: null,
+            generation: { activeModality: null, pendingCount: 0 },
+            modelSwitchNotice: null,
+          }
+        }),
       openSession: (sessionId) =>
         set((state) => {
           const session = findSession(state.sessions, sessionId)
           if (!session) return {}
           return {
             activeModality: session.modality,
-            workspaceMode: 'model',
+            workspaceMode:
+              isChatSession(session) && session.kind === 'duo'
+                ? 'duo'
+                : 'model',
             activeSessionByModality: {
               ...state.activeSessionByModality,
               [session.modality]: session.id,
