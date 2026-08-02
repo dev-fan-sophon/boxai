@@ -1,4 +1,7 @@
 import {
+  Check,
+  CircleSlash2,
+  CircleX,
   Download,
   FileText,
   Globe,
@@ -15,6 +18,7 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
+import { Loader } from '@/components/ai-elements/loader'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -108,52 +112,82 @@ export function ManagedToolCardView(props: ManagedToolCardViewProps) {
       Boolean(props.tool.documents?.length) ||
       Boolean(toolVideoUrl))
   const isToolRunning = !isToolFailed && !isToolCancelled && !isToolDone
+  let StatusIcon = Check
+  if (isToolFailed) StatusIcon = CircleX
+  if (isToolCancelled) StatusIcon = CircleSlash2
 
   return (
-    <section className='border-border from-muted/40 to-muted/15 rounded-xl border bg-gradient-to-br p-3'>
-      <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
-        <span className='flex min-w-0 items-center gap-2'>
+    <section className='group/tool max-w-2xl py-0.5'>
+      <div
+        className={cn(
+          'flex min-h-9 items-center gap-2 rounded-lg px-1.5 py-1 text-sm transition-colors',
+          'hover:bg-muted/35',
+          isToolFailed && 'bg-destructive/5'
+        )}
+      >
+        <span className='flex min-w-0 flex-1 items-center gap-2'>
           <span
             className={cn(
-              'flex size-7 shrink-0 items-center justify-center rounded-lg',
+              'relative flex size-6 shrink-0 items-center justify-center rounded-md',
               toolMeta.tile
             )}
           >
-            <ToolIcon className='size-3.5' aria-hidden='true' />
+            <ToolIcon className='relative size-3.5' aria-hidden='true' />
           </span>
-          <span className='truncate font-medium'>{t(toolMeta.titleKey)}</span>
+          <span className='min-w-0 truncate font-medium'>
+            {t(toolMeta.titleKey)}
+          </span>
+          {isToolRunning && props.tool.stage && (
+            <span className='text-muted-foreground hidden min-w-0 truncate text-xs sm:inline'>
+              · {t(props.tool.stage)}
+              {props.tool.stageDetail ? ` · ${props.tool.stageDetail}` : ''}
+            </span>
+          )}
         </span>
         <span
+          aria-live='polite'
           className={cn(
-            'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs',
-            isToolFailed && 'bg-destructive/10 text-destructive',
-            isToolDone && 'bg-success/10 text-success',
-            isToolCancelled && 'bg-muted text-muted-foreground',
-            isToolRunning && 'bg-primary/10 text-primary'
+            'flex shrink-0 items-center gap-1.5 text-xs',
+            isToolFailed && 'text-destructive',
+            isToolDone && 'text-success',
+            isToolCancelled && 'text-muted-foreground',
+            isToolRunning && 'text-muted-foreground'
           )}
         >
-          {isToolRunning && (
-            <span
-              className='bg-primary size-1.5 animate-pulse rounded-full'
-              aria-hidden='true'
-            />
+          {isToolRunning ? (
+            <Loader className='text-primary' size={12} aria-hidden='true' />
+          ) : (
+            <StatusIcon className='size-3.5' aria-hidden='true' />
           )}
           {t(toolStatus)}
           {isToolRunning && <ToolElapsedTime startedAt={startedAt} />}
         </span>
       </div>
 
+      {isToolRunning && (
+        <div
+          className='bg-border/60 relative mr-1 ml-9 h-px overflow-hidden rounded-full'
+          aria-hidden='true'
+        >
+          <span
+            className={cn(
+              'from-primary/5 via-primary/70 to-primary/5 absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r',
+              !shouldReduce && 'generation-indeterminate'
+            )}
+          />
+        </div>
+      )}
       {isToolRunning && props.tool.stage && (
-        <p className='text-muted-foreground mt-2 truncate text-xs'>
+        <p className='text-muted-foreground mt-1 ml-9 truncate text-xs sm:hidden'>
           {t(props.tool.stage)}
           {props.tool.stageDetail ? ` · ${props.tool.stageDetail}` : ''}
         </p>
       )}
       {toolError && (
-        <p className='text-destructive mt-2 text-sm'>{toolError}</p>
+        <p className='text-destructive mt-1.5 ml-9 text-sm'>{toolError}</p>
       )}
       {isToolRunning && props.tool.action === 'generate_image' && (
-        <div className='mt-3'>
+        <div className='mt-2 ml-9'>
           <ImagePlaceholder
             delayMs={0}
             reduceMotion={Boolean(shouldReduce)}
@@ -164,28 +198,17 @@ export function ManagedToolCardView(props: ManagedToolCardViewProps) {
         </div>
       )}
       {isToolRunning && props.tool.action === 'generate_video' && (
-        <div className='mt-3'>
+        <div className='mt-2 ml-9'>
           <VideoPlaceholder reduceMotion={Boolean(shouldReduce)} />
         </div>
       )}
-      {isToolRunning && props.tool.action === 'web_search' && (
-        <div className='mt-3 space-y-1.5' aria-hidden='true'>
-          <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
-          <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
-          <div className='skeleton-shimmer h-3 w-2/3 rounded-full' />
-        </div>
-      )}
-      {isToolRunning && props.tool.action === 'generate_document' && (
-        <div className='mt-3 space-y-1.5' aria-hidden='true'>
-          <div className='skeleton-shimmer h-3 w-3/5 rounded-full' />
-          <div className='skeleton-shimmer h-3 w-4/5 rounded-full' />
-        </div>
-      )}
       {props.tool.documents && (
-        <ManagedDocumentArtifacts artifacts={props.tool.documents} />
+        <div className='ml-9'>
+          <ManagedDocumentArtifacts artifacts={props.tool.documents} />
+        </div>
       )}
       {props.tool.documentCode && props.isMessageFinal && (
-        <details className='mt-3'>
+        <details className='mt-2 ml-9'>
           <summary className='text-muted-foreground hover:text-foreground cursor-pointer text-xs'>
             {t('Show the script that produced this')}
           </summary>
@@ -202,7 +225,7 @@ export function ManagedToolCardView(props: ManagedToolCardViewProps) {
         </details>
       )}
       {props.tool.images && (
-        <div className='mt-3 flex flex-wrap gap-2'>
+        <div className='mt-2 ml-9 flex flex-wrap gap-2'>
           {props.tool.images.map((url, index) => (
             <ManagedToolImage
               key={url}
@@ -224,7 +247,7 @@ export function ManagedToolCardView(props: ManagedToolCardViewProps) {
         </div>
       )}
       {toolVideoUrl && (
-        <div className='generation-result-enter border-border/70 bg-muted/30 group relative mt-3 overflow-hidden rounded-xl border'>
+        <div className='generation-result-enter border-border/70 bg-muted/30 group relative mt-2 ml-9 overflow-hidden rounded-xl border'>
           <video src={toolVideoUrl} controls className='w-full' />
           <Button
             size='icon-sm'
@@ -266,7 +289,11 @@ function ToolElapsedTime(props: { startedAt: number }) {
     seconds >= 60
       ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
       : `${seconds}s`
-  return <span className='tabular-nums opacity-70'>{label}</span>
+  return (
+    <span className='tabular-nums opacity-70' aria-hidden='true'>
+      {label}
+    </span>
+  )
 }
 
 function ManagedToolImage(props: {
