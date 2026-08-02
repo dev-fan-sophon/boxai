@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { getUserGroups, getUserModels } from '../api'
 import {
+  applyModelMetadata,
   getGroupFallback,
   getModelFallback,
   getOptionLoadErrorMessage,
@@ -113,18 +114,26 @@ export function usePlaygroundOptions({
     if (!isAuthenticated) return
     if (!modelsData) return
 
-    setModels(modelsData)
-    const fallback = getModelFallback(modelsData, currentModel)
+    const availableModels = applyModelMetadata(modelsData, publicModels)
+    setModels(availableModels)
+    const fallback = getModelFallback(availableModels, currentModel)
 
     if (fallback) {
       updateConfig('model', fallback)
       return
     }
 
-    if (shouldClearModelForGroup(modelsData, currentModel)) {
+    if (shouldClearModelForGroup(availableModels, currentModel)) {
       updateConfig('model', '')
     }
-  }, [isAuthenticated, modelsData, currentModel, setModels, updateConfig])
+  }, [
+    isAuthenticated,
+    modelsData,
+    currentModel,
+    publicModels,
+    setModels,
+    updateConfig,
+  ])
 
   useEffect(() => {
     if (!isAuthenticated || !groupsData) return

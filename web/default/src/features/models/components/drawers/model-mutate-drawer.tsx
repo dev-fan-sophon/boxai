@@ -56,6 +56,7 @@ import type {
   ModelCapability,
   ModelIntegration,
   Modality,
+  ReasoningEffort,
 } from '@/features/pricing/types'
 
 import { createModel, updateModel, getModel, getVendors } from '../../api'
@@ -107,6 +108,22 @@ const CAPABILITY_LABELS: Record<ModelCapability, string> = {
   caching: 'Cache',
   embeddings: 'Embeddings',
 }
+const REASONING_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+] as const satisfies readonly ReasoningEffort[]
+const REASONING_EFFORT_LABELS: Record<ReasoningEffort, string> = {
+  none: 'None',
+  minimal: 'Minimal',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'Extra high',
+}
 const MAX_METADATA_TOKENS = 2_147_483_647
 
 function parseArray<T>(value?: string): T[] {
@@ -149,6 +166,7 @@ const extendedModelFormSchema = z.object({
   input_modalities: z.array(z.enum(MODALITIES)),
   output_modalities: z.array(z.enum(MODALITIES)),
   capabilities: z.array(z.enum(CAPABILITIES)),
+  reasoning_efforts: z.array(z.enum(REASONING_EFFORTS)),
   integrations: z.array(
     z.object({
       profile_id: z.string(),
@@ -227,6 +245,7 @@ export function ModelMutateDrawer({
       input_modalities: [],
       output_modalities: [],
       capabilities: [],
+      reasoning_efforts: [],
       integrations: [],
       name_rule: 0,
       status: true,
@@ -257,6 +276,7 @@ export function ModelMutateDrawer({
         input_modalities: parseArray<Modality>(model.input_modalities),
         output_modalities: parseArray<Modality>(model.output_modalities),
         capabilities: parseArray<ModelCapability>(model.capabilities),
+        reasoning_efforts: parseArray<ReasoningEffort>(model.reasoning_efforts),
         integrations: parseArray<ModelIntegration>(model.integrations).map(
           (item) => ({
             profile_id: item.profile_id,
@@ -287,6 +307,7 @@ export function ModelMutateDrawer({
         input_modalities: [],
         output_modalities: [],
         capabilities: [],
+        reasoning_efforts: [],
         integrations: [],
         name_rule: 0,
         status: true,
@@ -311,6 +332,9 @@ export function ModelMutateDrawer({
             [...values.output_modalities].sort()
           ),
           capabilities: JSON.stringify([...values.capabilities].sort()),
+          reasoning_efforts: JSON.stringify(
+            [...values.reasoning_efforts].sort()
+          ),
           integrations: JSON.stringify(
             values.integrations
               .map((item) => ({
@@ -687,6 +711,32 @@ export function ModelMutateDrawer({
                         placeholder={t('Select capabilities...')}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='reasoning_efforts'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Supported thinking depths')}</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={REASONING_EFFORTS.map((value) => ({
+                          value,
+                          label: t(REASONING_EFFORT_LABELS[value]),
+                        }))}
+                        selected={field.value}
+                        onChange={field.onChange}
+                        placeholder={t('Select thinking depths...')}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'The Playground only shows levels declared by this model.'
+                      )}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

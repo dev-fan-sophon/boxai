@@ -1,3 +1,7 @@
+import type { UIMessage } from 'ai'
+
+import type { ReasoningEffort, ReasoningLevel } from '../pricing/types'
+
 // Message types
 export type MessageRole = 'user' | 'assistant' | 'system'
 
@@ -118,6 +122,8 @@ export interface Message {
   key: string
   from: MessageRole
   versions: MessageVersion[]
+  /** Native AI SDK parts. Agent messages render this array in source order. */
+  parts?: UIMessage['parts']
   /**
    * Index of the displayed version. Regenerate appends a version instead of
    * overwriting; absent means the latest version.
@@ -257,6 +263,7 @@ export interface ChatCompletionResponse {
 export interface PlaygroundConfig {
   model: string
   group: string
+  reasoningByModel: Record<string, ReasoningLevel>
   temperature: number
   top_p: number
   max_tokens: number
@@ -279,6 +286,7 @@ export interface ParameterEnabled {
 export interface ModelOption {
   label: string
   value: string
+  reasoningEfforts?: ReasoningEffort[]
 }
 
 export interface GroupOption {

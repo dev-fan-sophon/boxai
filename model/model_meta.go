@@ -40,6 +40,7 @@ type Model struct {
 	InputModalities  string         `json:"input_modalities,omitempty" gorm:"type:text"`
 	OutputModalities string         `json:"output_modalities,omitempty" gorm:"type:text"`
 	Capabilities     string         `json:"capabilities,omitempty" gorm:"type:text"`
+	ReasoningEfforts string         `json:"reasoning_efforts,omitempty" gorm:"type:text"`
 	UsageNotes       string         `json:"usage_notes,omitempty" gorm:"type:text"`
 	Status           int            `json:"status" gorm:"default:1"`
 	SyncOfficial     int            `json:"sync_official" gorm:"default:1"`
@@ -88,7 +89,7 @@ func IsModelNameDuplicated(id int, name string) (bool, error) {
 
 func (mi *Model) Update() error {
 	mi.UpdatedTime = common.GetTimestamp()
-	fields := []string{"model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_output_tokens", "knowledge_cutoff", "release_date", "parameter_count", "input_modalities", "output_modalities", "capabilities", "usage_notes", "status", "sync_official", "name_rule", "updated_time"}
+	fields := []string{"model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_output_tokens", "knowledge_cutoff", "release_date", "parameter_count", "input_modalities", "output_modalities", "capabilities", "reasoning_efforts", "usage_notes", "status", "sync_official", "name_rule", "updated_time"}
 	if mi.OfficialDiscount != nil {
 		fields = append(fields, "official_discount")
 	}

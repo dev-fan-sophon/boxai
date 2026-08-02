@@ -12,6 +12,7 @@ describe('active agent run cancellation', () => {
     const controller = new AbortController()
     const unregister = registerActiveRun('run-1', 7, 11, controller, () => ({
       content: 'partial',
+      contentJson: '[{"type":"text","text":"partial"}]',
       clientKey: 'assistant',
       model: 'test-model',
       source: 'web',
@@ -29,13 +30,19 @@ describe('active agent run cancellation', () => {
     const controller = new AbortController()
     registerActiveRun('run-2', 7, 11, controller, () => ({
       content: 'partial answer',
+      contentJson:
+        '[{"type":"reasoning","text":"working","state":"streaming"},{"type":"text","text":"partial answer","state":"streaming"}]',
       clientKey: 'assistant-2',
       model: 'test-model',
       source: 'web',
     }))
 
     expect(snapshotActiveRun('run-2', 8, 11)).toBeNull()
-    expect(snapshotActiveRun('run-2', 7, 11)?.content).toBe('partial answer')
+    expect(snapshotActiveRun('run-2', 7, 11)).toMatchObject({
+      content: 'partial answer',
+      contentJson:
+        '[{"type":"reasoning","text":"working","state":"streaming"},{"type":"text","text":"partial answer","state":"streaming"}]',
+    })
     expect(releaseActiveRun('run-2', 8, 11)).toBe(false)
     expect(releaseActiveRun('run-2', 7, 11)).toBe(true)
     expect(snapshotActiveRun('run-2', 7, 11)).toBeNull()

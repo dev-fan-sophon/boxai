@@ -187,6 +187,38 @@ func normalizeModelMetadata(m *model.Model) error {
 		}
 		*value = string(normalized)
 	}
+	if strings.TrimSpace(m.ReasoningEfforts) == "" {
+		m.ReasoningEfforts = ""
+	} else {
+		var efforts []string
+		if err := common.Unmarshal([]byte(m.ReasoningEfforts), &efforts); err != nil {
+			return fmt.Errorf("invalid reasoning_efforts JSON: %w", err)
+		}
+		if efforts == nil {
+			return fmt.Errorf("invalid reasoning_efforts JSON: expected a string array")
+		}
+		valid := map[string]int{"none": 0, "minimal": 1, "low": 2, "medium": 3, "high": 4, "xhigh": 5}
+		seen := make(map[string]struct{}, len(efforts))
+		normalizedEfforts := make([]string, 0, len(efforts))
+		for _, effort := range efforts {
+			if _, ok := valid[effort]; !ok {
+				return fmt.Errorf("invalid reasoning_efforts value %q", effort)
+			}
+			if _, ok := seen[effort]; ok {
+				continue
+			}
+			seen[effort] = struct{}{}
+			normalizedEfforts = append(normalizedEfforts, effort)
+		}
+		sort.Slice(normalizedEfforts, func(i, j int) bool {
+			return valid[normalizedEfforts[i]] < valid[normalizedEfforts[j]]
+		})
+		normalized, err := common.Marshal(normalizedEfforts)
+		if err != nil {
+			return err
+		}
+		m.ReasoningEfforts = string(normalized)
+	}
 	if strings.TrimSpace(m.Endpoints) != "" {
 		var endpoints interface{}
 		if err := common.Unmarshal([]byte(m.Endpoints), &endpoints); err != nil {

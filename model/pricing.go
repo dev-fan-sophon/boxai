@@ -48,6 +48,7 @@ type Pricing struct {
 	InputModalities        []string                `json:"input_modalities,omitempty"`
 	OutputModalities       []string                `json:"output_modalities,omitempty"`
 	Capabilities           []string                `json:"capabilities,omitempty"`
+	ReasoningEfforts       []string                `json:"reasoning_efforts,omitempty"`
 	UsageNotes             string                  `json:"usage_notes,omitempty"`
 }
 
@@ -425,6 +426,7 @@ func updatePricing() {
 			_ = common.Unmarshal([]byte(meta.InputModalities), &pricing.InputModalities)
 			_ = common.Unmarshal([]byte(meta.OutputModalities), &pricing.OutputModalities)
 			_ = common.Unmarshal([]byte(meta.Capabilities), &pricing.Capabilities)
+			_ = common.Unmarshal([]byte(meta.ReasoningEfforts), &pricing.ReasoningEfforts)
 			if strings.TrimSpace(meta.Integrations) != "" {
 				var explicit []ModelIntegration
 				if common.Unmarshal([]byte(meta.Integrations), &explicit) == nil {

@@ -1,7 +1,14 @@
-import { consumeStream } from 'ai'
+import {
+  consumeStream,
+  createUIMessageStreamResponse,
+  isFileUIPart,
+  isReasoningUIPart,
+  isTextUIPart,
+  isToolUIPart,
+  readUIMessageStream,
+} from 'ai'
 import type { UIMessage } from 'ai'
 import { Hono } from 'hono'
-import { z } from 'zod'
 
 import { sessionAuth } from '../auth'
 import type { AuthEnv } from '../auth'
@@ -15,7 +22,6 @@ import {
   stopAgentRun,
 } from '../db/agent-history'
 import { conversations } from '../db/schema'
-import { encodeLegacyToolJson } from '../db/tool-json'
 import { registerActiveRun } from '../engine/active-runs'
 import { runAgent } from '../engine/run-agent'
 import { truncateRunes, truncateUtf8 } from '../http'
@@ -28,27 +34,7 @@ import {
   storedMessageParts,
 } from '../messages/content'
 import { buildTools } from '../tools'
-
-const chatRequestSchema = z.object({
-  conversationId: z.number().int().positive().optional(),
-  model: z.string().min(1).max(191),
-  group: z.string().max(50).optional(),
-  system: z.string().max(20_000).optional(),
-  carryHistory: z.boolean().optional(),
-  longMemory: z.boolean().optional(),
-  maxSteps: z.number().int().min(1).max(21).optional(),
-  expectedRevision: z.number().int().nonnegative().optional(),
-  toolMode: z
-    .enum(['auto', 'image', 'video', 'search', 'document'])
-    .optional(),
-  source: z.enum(['web', 'desktop']).optional(),
-  trigger: z
-    .enum(['submit-message', 'regenerate-message'])
-    .default('submit-message'),
-  messageId: z.string().min(1).max(64).optional(),
-  requestKey: z.string().uuid(),
-  message: z.unknown().optional(),
-})
+import { chatRequestSchema } from './chat-request'
 
 type UIMessagePart = { type: string; text?: string }
 
@@ -66,13 +52,27 @@ function errorMessage(error: unknown): string {
 
 function persistedAssistantParts(parts: UIMessage['parts']): string {
   try {
-    const json = JSON.stringify(parts, (key, value) =>
+    return JSON.stringify(parts, (key, value) =>
       key === 'providerMetadata' ? undefined : value
     )
-    return Buffer.byteLength(json, 'utf8') <= 60_000 ? json : ''
   } catch {
     return ''
   }
+}
+
+function hasRenderableAssistantParts(parts: UIMessage['parts']): boolean {
+  return parts.some((part) => {
+    if (isTextUIPart(part) || isReasoningUIPart(part)) {
+      return part.text.length > 0
+    }
+    return (
+      isToolUIPart(part) ||
+      isFileUIPart(part) ||
+      part.type === 'reasoning-file' ||
+      part.type === 'source-url' ||
+      part.type === 'source-document'
+    )
+  })
 }
 
 export const chatRoute = new Hono<AuthEnv>()
@@ -188,7 +188,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
   const generationController = new AbortController()
   const assistantClientKey =
     started.assistantMessage?.clientKey || crypto.randomUUID()
-  let streamedText = ''
+  let streamedMessage: UIMessage | undefined
   // The SSE consumer owns settlement after the browser disconnects. Only the
   // durable cancel endpoint aborts this controller; a reload must not discard
   // an otherwise valid response.
@@ -197,12 +197,20 @@ chatRoute.post('/', sessionAuth, async (c) => {
     user.id,
     conversationId,
     generationController,
-    () => ({
-      content: streamedText,
-      clientKey: assistantClientKey,
-      model,
-      source: source ?? 'web',
-    })
+    () => {
+      const parts = streamedMessage?.parts ?? []
+      return {
+        content: streamedMessage
+          ? truncateUtf8(messageText(streamedMessage), 60_000)
+          : '',
+        contentJson: hasRenderableAssistantParts(parts)
+          ? persistedAssistantParts(parts)
+          : '',
+        clientKey: streamedMessage?.id || assistantClientKey,
+        model,
+        source: source ?? 'web',
+      }
+    }
   )
   void cleanupAttachmentAssets(user.id, started.orphanedContentJson)
   let context
@@ -256,10 +264,8 @@ chatRoute.post('/', sessionAuth, async (c) => {
       tools: toolPolicy.tools,
       forceTool: toolPolicy.forceTool,
       maxSteps,
+      reasoning: parsed.data.reasoning,
       abortSignal: generationController.signal,
-      onTextDelta: (text) => {
-        streamedText = truncateUtf8(streamedText + text, 60_000)
-      },
       onError: (error) => {
         console.error(`agent generation failed (run ${started.runId}):`, error)
       },
@@ -270,18 +276,19 @@ chatRoute.post('/', sessionAuth, async (c) => {
     return c.json({ success: false, message: errorMessage(error) }, 400)
   }
 
-  const response = result.toUIMessageStreamResponse({
+  const uiMessageStream = result.toUIMessageStream<UIMessage>({
     originalMessages: [originalUserMessage],
     generateMessageId: () => assistantClientKey,
-    consumeSseStream: ({ stream }) => consumeStream({ stream }),
+    sendSources: true,
     onError: (error) =>
       truncateUtf8(errorMessage(error), 500) || 'generation failed',
     onEnd: async ({ responseMessage, isAborted }) => {
       try {
         const text = truncateUtf8(messageText(responseMessage), 60_000)
         const parts = responseMessage.parts ?? []
-        const toolJson = encodeLegacyToolJson(parts)
-        if (!text.trim() && !toolJson) {
+        const contentJson = persistedAssistantParts(parts)
+        const hasRenderableParts = hasRenderableAssistantParts(parts)
+        if (!text.trim() && !hasRenderableParts) {
           if (isAborted) {
             await stopAgentRun(started.runId, user.id, conversationId)
           } else {
@@ -295,9 +302,9 @@ chatRoute.post('/', sessionAuth, async (c) => {
         }
         const saved = await finishAgentRun(started.runId, user.id, {
           content: text,
-          contentJson: persistedAssistantParts(parts),
+          contentJson,
           model,
-          toolJson,
+          toolJson: '',
           clientKey: responseMessage.id,
           source: source ?? 'web',
           status: isAborted ? 'stopped' : 'complete',
@@ -322,6 +329,20 @@ chatRoute.post('/', sessionAuth, async (c) => {
         unregisterRun()
       }
     },
+  })
+  const [responseStream, snapshotStream] = uiMessageStream.tee()
+  void (async () => {
+    for await (const message of readUIMessageStream<UIMessage>({
+      stream: snapshotStream,
+    })) {
+      streamedMessage = message
+    }
+  })().catch((error: unknown) => {
+    console.error(`failed to snapshot agent run ${started.runId}:`, error)
+  })
+  const response = createUIMessageStreamResponse({
+    stream: responseStream,
+    consumeSseStream: ({ stream }) => consumeStream({ stream }),
   })
   response.headers.set('X-Conversation-Id', String(conversationId))
   response.headers.set(

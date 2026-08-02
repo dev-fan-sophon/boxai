@@ -854,7 +854,7 @@ conversationsRoute.post('/:id/runs/:runId/cancel', async (c) => {
   let stopped = false
   if (aborted) {
     const snapshot = snapshotActiveRun(runId, userId, id)
-    if (snapshot?.content.trim()) {
+    if (snapshot && (snapshot.content.trim() || snapshot.contentJson.trim())) {
       const saved = await finishAgentRun(runId, userId, {
         ...snapshot,
         status: 'stopped',

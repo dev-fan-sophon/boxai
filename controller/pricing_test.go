@@ -78,6 +78,23 @@ func TestNormalizeModelMetadataValidatesOfficialDiscount(t *testing.T) {
 	require.NoError(t, normalizeModelMetadata(&metadata))
 }
 
+func TestNormalizeModelMetadataCanonicalizesReasoningEfforts(t *testing.T) {
+	metadata := model.Model{ReasoningEfforts: `["xhigh","none","medium","none","minimal"]`}
+	require.NoError(t, normalizeModelMetadata(&metadata))
+	assert.Equal(t, `["none","minimal","medium","xhigh"]`, metadata.ReasoningEfforts)
+
+	metadata.ReasoningEfforts = "   "
+	require.NoError(t, normalizeModelMetadata(&metadata))
+	assert.Empty(t, metadata.ReasoningEfforts)
+}
+
+func TestNormalizeModelMetadataRejectsInvalidReasoningEfforts(t *testing.T) {
+	for _, efforts := range []string{`["ultra"]`, `["High"]`, `"high"`, `null`, `{`} {
+		metadata := model.Model{ReasoningEfforts: efforts}
+		assert.Error(t, normalizeModelMetadata(&metadata))
+	}
+}
+
 func TestPricingReferenceDifferencesOnlyIncludeChannelModels(t *testing.T) {
 	local := map[string]any{
 		"model_ratio": map[string]float64{

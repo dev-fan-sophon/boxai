@@ -1,6 +1,11 @@
+import type { LanguageModelCallOptions } from 'ai'
+
 // ----------------------------------------------------------------------------
 // Pricing Types
 // ----------------------------------------------------------------------------
+
+export type ReasoningLevel = NonNullable<LanguageModelCallOptions['reasoning']>
+export type ReasoningEffort = Exclude<ReasoningLevel, 'provider-default'>
 
 export type PricingVendor = {
   id: number
@@ -54,6 +59,8 @@ export type PricingModel = {
   input_modalities?: Modality[]
   output_modalities?: Modality[]
   capabilities?: ModelCapability[]
+  /** Native AI SDK reasoning levels explicitly supported by this model. */
+  reasoning_efforts?: ReasoningEffort[]
 }
 
 export type IntegrationProfile = {

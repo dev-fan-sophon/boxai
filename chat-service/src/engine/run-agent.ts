@@ -1,5 +1,10 @@
 import { stepCountIs, streamText } from 'ai'
-import type { ModelMessage, ToolChoice, ToolSet } from 'ai'
+import type {
+  LanguageModelCallOptions,
+  ModelMessage,
+  ToolChoice,
+  ToolSet,
+} from 'ai'
 
 import type { AgentToolName } from '../tools'
 import { userModel } from './provider'
@@ -20,8 +25,8 @@ export type AgentRunInput = {
   tools?: ToolSet
   forceTool?: AgentToolName
   maxSteps?: number
+  reasoning?: LanguageModelCallOptions['reasoning']
   abortSignal?: AbortSignal
-  onTextDelta?: (text: string) => void
   onError?: (error: unknown) => void
 }
 
@@ -38,12 +43,18 @@ export async function runAgent(input: AgentRunInput) {
     model: userModel(input.userId, input.modelId, input.group),
     system: input.system,
     messages: input.messages,
+    reasoning: input.reasoning,
     tools: input.tools,
     // The gateway speaks OpenAI Chat Completions. Avoid a model fanning one
     // research turn out into several separately billed searches; each search
     // tool invocation already performs a multi-turn web search upstream.
     providerOptions: {
-      boxaiGateway: { parallel_tool_calls: false },
+      boxaiGateway: {
+        parallel_tool_calls: false,
+        // The compatible provider intentionally treats standardized `none`
+        // as omission. Use its native option to preserve an explicit disable.
+        ...(input.reasoning === 'none' ? { reasoningEffort: 'none' } : {}),
+      },
     },
     // Tools can legitimately take minutes, but a lost upstream request must
     // eventually terminate the AI SDK stream and release the durable run.
@@ -59,9 +70,6 @@ export async function runAgent(input: AgentRunInput) {
         })
       : undefined,
     abortSignal: input.abortSignal,
-    onChunk: ({ chunk }) => {
-      if (chunk.type === 'text-delta') input.onTextDelta?.(chunk.text)
-    },
     onError: ({ error }) => input.onError?.(error),
     onToolExecutionEnd: (event) => {
       if (event.toolOutput.type !== 'tool-error') return

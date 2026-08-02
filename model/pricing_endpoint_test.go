@@ -277,7 +277,8 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	officialDiscount := 88.88
 	require.NoError(t, DB.Create(&Model{ModelName: "documented-model", Status: 1, NameRule: NameRuleExact,
 		DisplayName: "Documented Model", OfficialDiscount: &officialDiscount, ContextLength: 128000, MaxOutputTokens: 8192,
-		InputModalities: `["text","image"]`, OutputModalities: `["text"]`, Capabilities: `["tools"]`, UsageNotes: "Use for analysis.",
+		InputModalities: `["text","image"]`, OutputModalities: `["text"]`, Capabilities: `["tools"]`,
+		ReasoningEfforts: `["low","high"]`, UsageNotes: "Use for analysis.",
 	}).Error)
 
 	var pricing Pricing
@@ -292,6 +293,7 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	assert.Equal(t, 8192, pricing.MaxOutputTokens)
 	assert.Equal(t, []string{"text", "image"}, pricing.InputModalities)
 	assert.Equal(t, []string{"tools"}, pricing.Capabilities)
+	assert.Equal(t, []string{"low", "high"}, pricing.ReasoningEfforts)
 }
 
 func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing.T) {

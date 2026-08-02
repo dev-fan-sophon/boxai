@@ -498,15 +498,28 @@ integrationTest('agent history PostgreSQL transactions', () => {
     expect(
       await history.requestAgentRunStop(started.runId, 7, conversationId)
     ).toBe(true)
+    const partialParts = [
+      { type: 'reasoning', text: 'checking sources', state: 'done' },
+      {
+        type: 'tool-web_search',
+        toolCallId: 'search-1',
+        state: 'output-available',
+        input: { query: 'BoxAI' },
+        output: { sources: [] },
+      },
+      { type: 'reasoning', text: 'writing answer', state: 'streaming' },
+      { type: 'text', text: 'partial answer', state: 'streaming' },
+    ]
     const saved = await history.finishAgentRun(started.runId, 7, {
       content: 'partial answer',
-      contentJson: JSON.stringify([{ type: 'text', text: 'partial answer' }]),
+      contentJson: JSON.stringify(partialParts),
       clientKey: 'stop-race-assistant',
       model: 'test-model',
       status: 'complete',
     })
 
     expect(saved?.message.content).toBe('partial answer')
+    expect(JSON.parse(saved?.message.contentJson ?? '')).toEqual(partialParts)
     expect(saved?.message.status).toBe('stopped')
     expect(await history.stopAgentRun(started.runId, 7, conversationId)).toBe(
       false

@@ -64,6 +64,7 @@ describe('agent chat request policy', () => {
         longMemory: true,
         maxSteps: 4,
         toolMode: 'document',
+        reasoning: 'high',
         expectedRevision: 9,
         trigger: 'regenerate-message',
         messageId: 'assistant-1',
@@ -74,6 +75,7 @@ describe('agent chat request policy', () => {
       longMemory: true,
       maxSteps: 4,
       toolMode: 'document',
+      reasoning: 'high',
       expectedRevision: 9,
       trigger: 'regenerate-message',
     })
@@ -191,52 +193,134 @@ describe('agent chat history adapters', () => {
     expect(projected.status).toBe('stopped')
   })
 
-  it('deduplicates sources returned by repeated search tool calls', () => {
+  it('keeps the legacy tool payload when history has no native parts', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            conversation: { id: 3, revision: 2 },
+            messages: [
+              {
+                id: 12,
+                role: 'assistant',
+                content: 'Legacy answer',
+                content_json: '',
+                tool_json: JSON.stringify({
+                  reasoning: { content: 'Legacy reasoning' },
+                  managedTool: {
+                    action: 'web_search',
+                    status: 'completed',
+                  },
+                }),
+                client_key: 'assistant-legacy',
+                status: 'complete',
+              },
+            ],
+          },
+        })
+      )
+    )
+
+    const loaded = await loadAgentConversation(3)
+    const message = loaded.messages[0]
+    if (!message) throw new Error('expected the legacy message to load')
+    const projected = agentUIMessageToPlayground(message, false)
+
+    expect(projected.parts).toBeUndefined()
+    expect(projected.reasoning?.content).toBe('Legacy reasoning')
+    expect(projected.managedTool).toMatchObject({
+      action: 'web_search',
+      status: 'completed',
+    })
+  })
+
+  it('falls back to the text mirror when persisted parts have no visible content', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            conversation: { id: 3, revision: 1 },
+            messages: [
+              {
+                id: 13,
+                role: 'assistant',
+                content: 'Recovered answer',
+                content_json: JSON.stringify([{ type: 'step-start' }]),
+                client_key: 'assistant-fallback',
+                status: 'complete',
+              },
+            ],
+          },
+        })
+      )
+    )
+
+    const loaded = await loadAgentConversation(3)
+    const message = loaded.messages[0]
+    if (!message) throw new Error('expected the fallback message to load')
+    const projected = agentUIMessageToPlayground(message, false)
+
+    expect(projected.parts).toBeUndefined()
+    expect(projected.versions[0]?.content).toBe('Recovered answer')
+  })
+
+  it('preserves native reasoning, tool, and text parts in SDK order', () => {
+    const parts = [
+      {
+        type: 'reasoning' as const,
+        text: 'choose a source',
+        state: 'done' as const,
+      },
+      {
+        type: 'tool-web_search' as const,
+        toolCallId: 'search-1',
+        state: 'output-available' as const,
+        input: { query: 'Vietnam AI news' },
+        output: {
+          sources: [{ href: 'https://news.example/story', title: 'Story' }],
+        },
+      },
+      {
+        type: 'reasoning' as const,
+        text: 'review the result',
+        state: 'done' as const,
+      },
+      { type: 'text' as const, text: 'Final answer', state: 'done' as const },
+    ]
     const projected = agentUIMessageToPlayground(
       {
         id: 'assistant-search',
         role: 'assistant',
-        parts: [
-          {
-            type: 'tool-web_search',
-            toolCallId: 'search-1',
-            state: 'output-available',
-            input: { query: 'Vietnam AI news' },
-            output: {
-              sources: [{ href: 'https://news.example/story', title: 'Story' }],
-            },
-          },
-          {
-            type: 'tool-web_search',
-            toolCallId: 'search-2',
-            state: 'output-available',
-            input: { query: 'Vietnam AI policy' },
-            output: {
-              sources: [
-                { href: 'https://news.example/story', title: 'Story again' },
-              ],
-            },
-          },
-        ],
+        parts,
       },
       true
     )
-    expect(projected.sources).toEqual([
-      { href: 'https://news.example/story', title: 'Story', domain: undefined },
+    expect(projected.parts).toBe(parts)
+    expect(projected.parts?.map((part) => part.type)).toEqual([
+      'reasoning',
+      'tool-web_search',
+      'reasoning',
+      'text',
     ])
-    expect(projected.managedTools).toHaveLength(2)
-    expect(projected.managedTools?.map((tool) => tool.toolCallId)).toEqual([
-      'search-1',
-      'search-2',
-    ])
+    expect(projected.reasoning).toBeUndefined()
+    expect(projected.managedTools).toBeUndefined()
+    expect(projected.sources).toBeUndefined()
+    expect(projected.status).toBe('streaming')
   })
 
-  it('keeps preliminary document output running until the final SDK result', () => {
-    const progress = agentUIMessageToPlayground(
+  it('keeps each native part state instead of deriving message-level state', () => {
+    const projected = agentUIMessageToPlayground(
       {
         id: 'assistant-document-progress',
         role: 'assistant',
         parts: [
+          {
+            type: 'reasoning',
+            text: 'draft the report',
+            state: 'done',
+          },
           {
             type: 'tool-generate_document',
             toolCallId: 'document-1',
@@ -254,74 +338,15 @@ describe('agent chat history adapters', () => {
       },
       true
     )
-    expect(progress.managedTools).toEqual([
-      {
-        action: 'generate_document',
-        toolCallId: 'document-1',
-        status: 'running',
-        stage: 'Building the document',
-        stageDetail: '2/3',
-        documentAttempts: 2,
-      },
-    ])
-
-    const stopped = agentUIMessageToPlayground(
-      {
-        id: 'assistant-document-stopped',
-        role: 'assistant',
-        parts: [
-          {
-            type: 'tool-generate_document',
-            toolCallId: 'document-1',
-            state: 'output-available',
-            input: { request: 'Build a report' },
-            output: {
-              status: 'running',
-              stage: 'Building the document',
-            },
-            preliminary: true,
-          },
-        ],
-        metadata: { status: 'stopped' },
-      },
-      false
-    )
-    expect(stopped.managedTools?.[0]?.status).toBe('cancelled')
-
-    const completed = agentUIMessageToPlayground(
-      {
-        id: 'assistant-document-complete',
-        role: 'assistant',
-        parts: [
-          {
-            type: 'tool-generate_document',
-            toolCallId: 'document-1',
-            state: 'output-available',
-            input: { request: 'Build a report' },
-            output: {
-              status: 'completed',
-              attempts: 2,
-              documents: [
-                {
-                  asset_id: 7,
-                  name: 'report.pdf',
-                  url: '/api/playground/assets/7/content',
-                  mime: 'application/pdf',
-                  size: 1234,
-                },
-              ],
-            },
-          },
-        ],
-      },
-      false
-    )
-    expect(completed.managedTools?.[0]).toMatchObject({
-      action: 'generate_document',
-      toolCallId: 'document-1',
-      status: 'completed',
-      documentAttempts: 2,
-      documents: [{ assetId: 7, name: 'report.pdf', verified: true }],
+    expect(projected.parts?.[0]).toMatchObject({
+      type: 'reasoning',
+      state: 'done',
     })
+    expect(projected.parts?.[1]).toMatchObject({
+      type: 'tool-generate_document',
+      state: 'output-available',
+      preliminary: true,
+    })
+    expect(projected.isReasoningStreaming).toBeUndefined()
   })
 })

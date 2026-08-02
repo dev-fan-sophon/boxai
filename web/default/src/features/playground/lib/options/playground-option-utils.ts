@@ -1,5 +1,18 @@
 import type { GroupOption, ModelOption } from '../../types'
 
+export function applyModelMetadata(
+  availableModels: ModelOption[],
+  catalogModels: ModelOption[]
+): ModelOption[] {
+  const catalogByName = new Map(
+    catalogModels.map((model) => [model.value, model] as const)
+  )
+  return availableModels.map((model) => ({
+    ...catalogByName.get(model.value),
+    ...model,
+  }))
+}
+
 export function getModelFallback(
   models: ModelOption[],
   currentModel: string

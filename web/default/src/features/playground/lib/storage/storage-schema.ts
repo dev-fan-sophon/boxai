@@ -15,6 +15,20 @@ export const MAX_PERSISTED_ATTACHMENT_CHARS = 200_000
 export const playgroundConfigSchema = z.object({
   model: z.string().optional(),
   group: z.string().optional(),
+  reasoningByModel: z
+    .record(
+      z.string(),
+      z.enum([
+        'provider-default',
+        'none',
+        'minimal',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+      ])
+    )
+    .optional(),
   temperature: z.number().optional(),
   top_p: z.number().optional(),
   max_tokens: z.number().optional(),

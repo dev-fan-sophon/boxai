@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import type { ReasoningLevel } from '../../pricing/types'
 import { API_ENDPOINTS, ERROR_MESSAGES } from '../constants'
 import {
   activateAgentMessageRevision,
@@ -33,6 +34,7 @@ type UseAgentChatOptions = {
   longMemory?: boolean
   maxSteps?: number
   toolMode?: AgentChatToolMode
+  reasoning?: ReasoningLevel
   conversationId?: number
   onConversationId: (conversationId: number) => void
 }
@@ -146,6 +148,7 @@ export function useAgentChat(options: UseAgentChatOptions) {
               longMemory: longMemory === true,
               maxSteps: Math.min(21, Math.max(1, options.maxSteps ?? 8)),
               toolMode: options.toolMode ?? 'auto',
+              reasoning: options.reasoning,
               expectedRevision: messageId ? revisionRef.current : undefined,
               trigger,
               messageId,
@@ -162,6 +165,7 @@ export function useAgentChat(options: UseAgentChatOptions) {
       onConversationId,
       options.carryHistory,
       options.maxSteps,
+      options.reasoning,
       options.toolMode,
       system,
     ]
@@ -445,28 +449,13 @@ export function useAgentChat(options: UseAgentChatOptions) {
   }, [chatStop, refreshAgentConversation, t])
 
   const messages = useMemo(() => {
-    const projected = chatMessages.map((message, index) =>
+    return chatMessages.map((message, index) =>
       agentUIMessageToPlayground(
         message,
         isAgentStreaming && index === chatMessages.length - 1
       )
     )
-    if (
-      isAgentStreaming &&
-      projected.length > 0 &&
-      projected.at(-1)?.from === 'user'
-    ) {
-      projected.push({
-        key: 'agent-loading',
-        from: 'assistant',
-        versions: [{ id: '1', content: '' }],
-        status: 'loading',
-        model,
-        createdAt: Date.now(),
-      })
-    }
-    return projected
-  }, [chatMessages, isAgentStreaming, model])
+  }, [chatMessages, isAgentStreaming])
 
   return {
     messages,

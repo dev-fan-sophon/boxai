@@ -39,7 +39,7 @@ export function SettingsSections(props: {
           </Section>
           <AdvancedSection>
             <GroupSection />
-            <ChatParametersSection />
+            <ChatParametersSection showReasoning={!props.duoActive} />
           </AdvancedSection>
         </>
       ) : (

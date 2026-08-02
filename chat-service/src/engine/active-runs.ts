@@ -9,6 +9,7 @@ type ActiveRun = {
 
 export type ActiveRunSnapshot = {
   content: string
+  contentJson: string
   clientKey: string
   model: string
   source: string

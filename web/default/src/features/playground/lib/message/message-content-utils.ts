@@ -1,6 +1,29 @@
+import {
+  isFileUIPart,
+  isReasoningUIPart,
+  isTextUIPart,
+  isToolUIPart,
+  type UIMessage,
+} from 'ai'
+
 import { MESSAGE_ROLES, MESSAGE_STATUS } from '../../constants'
 import type { Message, MessageSource } from '../../types'
 import { parseThinkTags } from './message-reasoning-utils'
+
+export function hasRenderableMessageParts(parts: UIMessage['parts']): boolean {
+  return parts.some((part) => {
+    if (isTextUIPart(part) || isReasoningUIPart(part)) {
+      return part.text.length > 0
+    }
+    return (
+      isToolUIPart(part) ||
+      isFileUIPart(part) ||
+      part.type === 'reasoning-file' ||
+      part.type === 'source-url' ||
+      part.type === 'source-document'
+    )
+  })
+}
 
 export function displaySourceTitle(source: MessageSource): string {
   const title = source.title.trim()

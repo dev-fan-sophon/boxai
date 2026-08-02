@@ -40,6 +40,7 @@ export interface Model {
   input_modalities?: string
   output_modalities?: string
   capabilities?: string
+  reasoning_efforts?: string
   integrations?: string
   status: number
   sync_official: number
@@ -135,6 +136,7 @@ export type ModelMutationRequest = Partial<Model> & {
   input_modalities?: string
   output_modalities?: string
   capabilities?: string
+  reasoning_efforts?: string
   integrations?: string
 }
 

@@ -191,6 +191,21 @@ export function PlaygroundChat({
     ]
   }
 
+  if (isGenerating && visibleMessages.at(-1)?.from === 'user') {
+    chatContent.push(
+      <Message
+        className='group flex-row-reverse py-2.5'
+        from='assistant'
+        key='assistant-pending'
+      >
+        <div className='flex w-full items-center gap-2 py-2 text-sm'>
+          <Loader />
+          <span className='text-muted-foreground'>{t('Responding...')}</span>
+        </div>
+      </Message>
+    )
+  }
+
   if (isLoadingMessages) {
     chatContent = [
       <div

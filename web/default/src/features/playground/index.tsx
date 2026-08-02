@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
+import type { ReasoningLevel } from '@/features/pricing/types'
 import { useLgUp, useXlUp } from '@/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -178,6 +179,7 @@ export function Playground() {
       playgroundModels.map((model) => ({
         label: model.model_name,
         value: model.model_name,
+        reasoningEfforts: model.reasoning_efforts,
       })),
     [playgroundModels]
   )
@@ -203,6 +205,19 @@ export function Playground() {
       ? activeSession
       : undefined
   const activeChatId = activeChat?.id
+  const selectedCatalogModel = playgroundModels.find(
+    (model) => model.model_name === config.model
+  )
+  const configuredReasoning = config.reasoningByModel[config.model]
+  let reasoning: ReasoningLevel | undefined
+  if (selectedCatalogModel?.reasoning_efforts?.length) {
+    const isSupported =
+      configuredReasoning === 'provider-default' ||
+      selectedCatalogModel.reasoning_efforts.some(
+        (effort) => effort === configuredReasoning
+      )
+    reasoning = isSupported ? configuredReasoning : 'provider-default'
+  }
   const bindAgentConversation = useCallback(
     (conversationId: number) => {
       if (!activeChatId) return
@@ -233,6 +248,7 @@ export function Playground() {
     longMemory: chatTools.longMemory,
     maxSteps: Math.min(21, chatTools.maxToolLoops + 1),
     toolMode: chatTools.mode,
+    reasoning,
     conversationId: activeChat?.serverId,
     onConversationId: bindAgentConversation,
   })
@@ -322,10 +338,6 @@ export function Playground() {
     )
     selectStoreModel(search.model, undefined, { switchModality: modality })
   }, [models, playgroundModels, search.model, selectStoreModel])
-
-  const selectedCatalogModel = playgroundModels.find(
-    (model) => model.model_name === config.model
-  )
 
   const chatModels = useMemo(
     () =>
