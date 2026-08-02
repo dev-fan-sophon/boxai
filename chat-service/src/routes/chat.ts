@@ -13,6 +13,7 @@ import { Hono } from 'hono'
 import { sessionAuth } from '../auth'
 import type { AuthEnv } from '../auth'
 import { assembleContext } from '../context/assemble'
+import type { ContextAssemblyTiming } from '../context/assemble'
 import { db } from '../db'
 import {
   AgentConflictError,
@@ -78,6 +79,7 @@ function hasRenderableAssistantParts(parts: UIMessage['parts']): boolean {
 export const chatRoute = new Hono<AuthEnv>()
 
 chatRoute.post('/', sessionAuth, async (c) => {
+  const requestStartedAt = performance.now()
   const parsed = chatRequestSchema.safeParse(await c.req.json())
   if (!parsed.success) {
     return c.json({ success: false, message: 'invalid chat request' }, 400)
@@ -91,11 +93,13 @@ chatRoute.post('/', sessionAuth, async (c) => {
   const toolMode = parsed.data.toolMode ?? 'auto'
   const requestedGroup = group || user.group
 
+  let canonicalizeMs = 0
   let incoming: Awaited<ReturnType<typeof canonicalizeUserMessage>> | undefined
   if (trigger === 'submit-message') {
     if (!parsed.data.message) {
       return c.json({ success: false, message: 'message is required' }, 400)
     }
+    const canonicalizeStartedAt = performance.now()
     try {
       incoming = await canonicalizeUserMessage(
         user.id,
@@ -107,6 +111,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
       const status = error instanceof AttachmentError ? 400 : 400
       return c.json({ success: false, message: errorMessage(error) }, status)
     }
+    canonicalizeMs = performance.now() - canonicalizeStartedAt
   } else if (!messageId) {
     return c.json(
       { success: false, message: 'messageId is required for regeneration' },
@@ -114,6 +119,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
     )
   }
 
+  const durableStartedAt = performance.now()
   let conversationId = parsed.data.conversationId
   if (!conversationId) {
     if (!incoming || messageId || trigger !== 'submit-message') {
@@ -179,6 +185,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
     const status = error instanceof AgentConflictError ? 409 : 400
     return c.json({ success: false, message: errorMessage(error) }, status)
   }
+  const durableMs = performance.now() - durableStartedAt
 
   // Bind a newly created conversation even if attachment hydration or model
   // setup fails after the user turn has already been durably accepted.
@@ -213,6 +220,12 @@ chatRoute.post('/', sessionAuth, async (c) => {
     }
   )
   void cleanupAttachmentAssets(user.id, started.orphanedContentJson)
+  let contextTiming: ContextAssemblyTiming = {
+    memoryQueryMs: 0,
+    historyQueryMs: 0,
+    hydrationMs: 0,
+  }
+  const contextStartedAt = performance.now()
   let context
   try {
     context = await assembleContext(started.conversation, {
@@ -222,12 +235,17 @@ chatRoute.post('/', sessionAuth, async (c) => {
       signal: generationController.signal,
       excludeMessageId: started.assistantMessage?.id,
       focusMessageId: started.userMessage.id,
+      preparedFocus: incoming,
+      onTiming: (timing) => {
+        contextTiming = timing
+      },
     })
   } catch (error) {
     unregisterRun()
     await failAgentRun(started.runId, user.id, errorMessage(error))
     return c.json({ success: false, message: errorMessage(error) }, 400)
   }
+  const contextMs = performance.now() - contextStartedAt
 
   const userParts = storedMessageParts(
     started.userMessage.content ?? '',
@@ -244,6 +262,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
   }
 
   let result
+  const agentSetupStartedAt = performance.now()
   try {
     const toolPolicy = buildTools(
       {
@@ -275,6 +294,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
     await failAgentRun(started.runId, user.id, errorMessage(error))
     return c.json({ success: false, message: errorMessage(error) }, 400)
   }
+  const agentSetupMs = performance.now() - agentSetupStartedAt
 
   const uiMessageStream = result.toUIMessageStream<UIMessage>({
     originalMessages: [originalUserMessage],
@@ -350,5 +370,31 @@ chatRoute.post('/', sessionAuth, async (c) => {
     String(started.conversation.revision ?? 0)
   )
   response.headers.set('X-Agent-Run-Id', started.runId)
+  response.headers.set('Cache-Control', 'no-cache, no-transform')
+  response.headers.set('X-Accel-Buffering', 'no')
+  const setupTiming = {
+    auth: c.get('authDurationMs'),
+    canonicalize: canonicalizeMs,
+    durable: durableMs,
+    context: contextMs,
+    'memory-db': contextTiming.memoryQueryMs,
+    'history-db': contextTiming.historyQueryMs,
+    hydrate: contextTiming.hydrationMs,
+    agent: agentSetupMs,
+    setup: performance.now() - requestStartedAt + c.get('authDurationMs'),
+  }
+  response.headers.set(
+    'Server-Timing',
+    Object.entries(setupTiming)
+      .map(([name, duration]) => `${name};dur=${duration.toFixed(1)}`)
+      .join(', ')
+  )
+  console.info(
+    JSON.stringify({
+      event: 'chat_setup_timing',
+      run_id: started.runId,
+      ...setupTiming,
+    })
+  )
   return response
 })

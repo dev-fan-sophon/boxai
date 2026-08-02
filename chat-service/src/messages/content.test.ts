@@ -151,6 +151,12 @@ describe('agent message content', () => {
         },
       ],
     })
+    expect(canonical.attachmentContext).toEqual({
+      imageBytes: 3,
+      imageCount: 1,
+      documentRunes: 0,
+      assetIds: [9],
+    })
     expect(
       requests.every(
         (request) =>

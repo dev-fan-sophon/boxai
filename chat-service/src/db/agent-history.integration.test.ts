@@ -238,6 +238,194 @@ integrationTest('agent history PostgreSQL transactions', () => {
     await history.stopAgentRun(second.runId, 7, conversationId)
   })
 
+  test('bounds history in SQL while preserving summary and skipped-row window semantics', async () => {
+    if (!sql) return
+    const conversationId = await createConversation()
+    const now = Math.floor(Date.now() / 1000)
+    await sql`
+      INSERT INTO playground_messages
+        (conversation_id, user_id, role, content, client_key, status,
+         active_revision, seq, created_at, updated_at)
+      SELECT
+        ${conversationId}, 7, 'user', 'message ' || seq, 'window-' || seq,
+        'complete', 1, seq, ${now}, ${now}
+      FROM generate_series(0, 99) AS seq
+    `
+    await sql`
+      UPDATE playground_conversations
+      SET summary = 'messages zero through twenty', summary_seq = 20
+      WHERE id = ${conversationId}
+    `
+    const currentContentJson = JSON.stringify([
+      { type: 'text', text: 'current message' },
+    ])
+    const current = await history.startAgentRun({
+      conversationId,
+      userId: 7,
+      trigger: 'submit-message',
+      incoming: {
+        content: 'current message',
+        contentJson: currentContentJson,
+        clientKey: 'window-current',
+      },
+      requestKey: crypto.randomUUID(),
+      model: 'test-model',
+    })
+
+    const carried = await contextModule.assembleContext(current.conversation, {
+      longMemory: false,
+      carryHistory: true,
+      group: 'default',
+      focusMessageId: current.userMessage.id,
+      excludeMessageId: current.userMessage.id,
+    })
+    expect(carried).toHaveLength(60)
+    expect(carried[0]).toEqual({
+      role: 'system',
+      content:
+        'Summary of the earlier conversation:\nmessages zero through twenty',
+    })
+    expect(carried[1]).toEqual({ role: 'user', content: 'message 41' })
+    expect(carried.at(-1)).toEqual({ role: 'user', content: 'message 99' })
+
+    const isolated = await contextModule.assembleContext(current.conversation, {
+      longMemory: false,
+      carryHistory: false,
+      group: 'default',
+      focusMessageId: current.userMessage.id,
+    })
+    expect(isolated).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'current message' }],
+      },
+    ])
+    await history.stopAgentRun(current.runId, 7, conversationId)
+  })
+
+  test('reuses only the prepared content matching the durably stored focus turn', async () => {
+    if (!sql) return
+    const conversationId = await createConversation()
+    const contentJson = JSON.stringify([
+      {
+        type: 'file',
+        url: '/api/playground/assets/42/content',
+        mediaType: 'image/png',
+        filename: 'prepared.png',
+      },
+      { type: 'text', text: 'stored turn' },
+    ])
+    const started = await history.startAgentRun({
+      conversationId,
+      userId: 7,
+      trigger: 'submit-message',
+      incoming: {
+        content: 'stored turn',
+        contentJson,
+        clientKey: 'prepared-user',
+      },
+      requestKey: crypto.randomUUID(),
+      model: 'test-model',
+    })
+    const prepared = {
+      uiMessage: {
+        id: 'prepared-user',
+        role: 'user' as const,
+        parts: [
+          {
+            type: 'file' as const,
+            url: '/api/playground/assets/42/content',
+            mediaType: 'image/png',
+            filename: 'prepared.png',
+          },
+          { type: 'text' as const, text: 'stored turn' },
+        ],
+      },
+      content: 'stored turn',
+      contentJson,
+      assetIds: [42],
+      modelMessage: {
+        role: 'user' as const,
+        content: [
+          {
+            type: 'file' as const,
+            data: new Uint8Array([1, 2, 3]),
+            mediaType: 'image/png',
+            filename: 'prepared.png',
+          },
+          { type: 'text' as const, text: 'stored turn' },
+        ],
+      },
+      attachmentContext: {
+        imageBytes: 3,
+        imageCount: 1,
+        documentRunes: 0,
+        assetIds: [42],
+      },
+    }
+
+    const oldFetch = globalThis.fetch
+    const oldInternalSecret = process.env.INTERNAL_SERVICE_SECRET
+    process.env.INTERNAL_SERVICE_SECRET = 'integration-attachment-secret'
+    let attachmentFetches = 0
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        attachmentFetches += 1
+        const url = String(input)
+        if (url.endsWith('/api/internal/playground/assets/42')) {
+          return Response.json({
+            success: true,
+            data: {
+              id: 42,
+              kind: 'image',
+              name: 'prepared.png',
+              mime: 'image/png',
+              size: 3,
+              url: '/api/playground/assets/42/content',
+            },
+          })
+        }
+        if (url.endsWith('/api/internal/playground/assets/42/content')) {
+          return new Response(new Uint8Array([1, 2, 3]))
+        }
+        throw new Error(`unexpected request: ${url}`)
+      },
+      { preconnect: () => {} }
+    )
+    try {
+      const reused = await contextModule.assembleContext(started.conversation, {
+        longMemory: false,
+        carryHistory: false,
+        group: 'default',
+        focusMessageId: started.userMessage.id,
+        preparedFocus: prepared,
+      })
+      expect(reused).toEqual([prepared.modelMessage])
+      expect(attachmentFetches).toBe(0)
+
+      const guarded = await contextModule.assembleContext(started.conversation, {
+        longMemory: false,
+        carryHistory: false,
+        group: 'default',
+        focusMessageId: started.userMessage.id,
+        preparedFocus: {
+          ...prepared,
+          contentJson: JSON.stringify([{ type: 'text', text: 'different' }]),
+        },
+      })
+      expect(guarded).toEqual([prepared.modelMessage])
+      expect(attachmentFetches).toBe(2)
+    } finally {
+      globalThis.fetch = oldFetch
+      if (oldInternalSecret === undefined) {
+        delete process.env.INTERNAL_SERVICE_SECRET
+      } else {
+        process.env.INTERNAL_SERVICE_SECRET = oldInternalSecret
+      }
+      await history.stopAgentRun(started.runId, 7, conversationId)
+    }
+  })
+
   test('revises, invalidates memory, and fences stale runs', async () => {
     if (!sql) return
     const conversationId = await createConversation()

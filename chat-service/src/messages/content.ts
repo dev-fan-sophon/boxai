@@ -51,6 +51,12 @@ export type CanonicalUserMessage = {
   contentJson: string
   assetIds: number[]
   modelMessage: ModelMessage
+  attachmentContext: {
+    imageBytes: number
+    imageCount: number
+    documentRunes: number
+    assetIds: number[]
+  }
 }
 
 export class AttachmentError extends Error {}
@@ -427,7 +433,21 @@ export async function canonicalizeUserMessage(
     (part): part is PersistedPart =>
       part.type === 'text' || part.type === 'file'
   )
-  const resolved = await resolveParts(userId, incoming, group, signal)
+  // Resolve the submitted turn once, retaining enough accounting metadata for
+  // context assembly to reuse it without bypassing the conversation-wide
+  // attachment budget. A very large budget preserves the previous behavior:
+  // canonicalization validates full attachments, while context assembly owns
+  // the actual truncation decision after earlier turns consume their share.
+  const initialBudget = Number.MAX_SAFE_INTEGER
+  const preparedBudget: AttachmentContextBudget = {
+    imageBytes: initialBudget,
+    imageCount: initialBudget,
+    documentRunes: initialBudget,
+    cache: new Map(),
+  }
+  const resolved = await resolveParts(userId, incoming, group, signal, {
+    budget: preparedBudget,
+  })
   const content = textFromParts(resolved.canonicalParts)
   if (!content.trim() && resolved.assetIds.length === 0) {
     throw new Error('message text or attachment is required')
@@ -447,6 +467,12 @@ export async function canonicalizeUserMessage(
     contentJson,
     assetIds: resolved.assetIds,
     modelMessage: { role: 'user', content: resolved.modelContent },
+    attachmentContext: {
+      imageBytes: initialBudget - preparedBudget.imageBytes,
+      imageCount: initialBudget - preparedBudget.imageCount,
+      documentRunes: initialBudget - preparedBudget.documentRunes,
+      assetIds: [...preparedBudget.cache.keys()],
+    },
   }
 }
 

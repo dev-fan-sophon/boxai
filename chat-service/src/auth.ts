@@ -12,9 +12,12 @@ import type { GatewayUser } from './gateway/client'
 const SESSION_CACHE_TTL_MS = 30_000
 const sessionCache = new Map<string, { user: GatewayUser; expires: number }>()
 
-export type AuthEnv = { Variables: { user: GatewayUser } }
+export type AuthEnv = {
+  Variables: { user: GatewayUser; authDurationMs: number }
+}
 
 export const sessionAuth = createMiddleware<AuthEnv>(async (c, next) => {
+  const startedAt = performance.now()
   const cookie = c.req.header('cookie')
   if (!cookie) {
     return c.json({ success: false, message: 'not logged in' }, 401)
@@ -22,6 +25,7 @@ export const sessionAuth = createMiddleware<AuthEnv>(async (c, next) => {
   const cached = sessionCache.get(cookie)
   if (cached && cached.expires > Date.now()) {
     c.set('user', cached.user)
+    c.set('authDurationMs', performance.now() - startedAt)
     return next()
   }
   let user: GatewayUser
@@ -36,5 +40,6 @@ export const sessionAuth = createMiddleware<AuthEnv>(async (c, next) => {
   }
   sessionCache.set(cookie, { user, expires: Date.now() + SESSION_CACHE_TTL_MS })
   c.set('user', user)
+  c.set('authDurationMs', performance.now() - startedAt)
   return next()
 })
