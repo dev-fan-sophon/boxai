@@ -711,13 +711,19 @@ export async function getConversation(id: number): Promise<{
   conversation: ServerConversation
   messages: ServerMessage[]
 }> {
-  const res = await api.get(`${API_ENDPOINTS.CONVERSATIONS}/${id}`)
+  const res = await api.get(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   if (!res.data?.success) throw new Error(res.data?.message || 'Not found')
   return res.data.data
 }
 
 export async function deleteConversation(id: number): Promise<void> {
-  await api.delete(`${API_ENDPOINTS.CONVERSATIONS}/${id}`)
+  await api.delete(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
 }
 
 export async function updateConversation(
@@ -731,7 +737,10 @@ export async function updateConversation(
     pinned?: boolean
   }
 ): Promise<ServerConversation> {
-  const res = await api.patch(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, input)
+  const res = await api.patch(`${API_ENDPOINTS.CONVERSATIONS}/${id}`, input, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   if (!res.data?.success) throw new Error(res.data?.message || 'Update failed')
   return res.data.data as ServerConversation
 }
@@ -827,7 +836,10 @@ export async function getProject(id: number): Promise<{
   project: ServerProject
   runs: PlaygroundRun[]
 }> {
-  const res = await api.get(`${API_ENDPOINTS.PROJECTS}/${id}`)
+  const res = await api.get(`${API_ENDPOINTS.PROJECTS}/${id}`, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   if (!res.data?.success) throw new Error(res.data?.message || 'Not found')
   return res.data.data
 }
@@ -842,13 +854,19 @@ export async function updateProject(
     preview_urls?: string[]
   }
 ): Promise<ServerProject> {
-  const res = await api.patch(`${API_ENDPOINTS.PROJECTS}/${id}`, input)
+  const res = await api.patch(`${API_ENDPOINTS.PROJECTS}/${id}`, input, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   if (!res.data?.success) throw new Error(res.data?.message || 'Update failed')
   return res.data.data as ServerProject
 }
 
 export async function deleteProject(id: number): Promise<void> {
-  await api.delete(`${API_ENDPOINTS.PROJECTS}/${id}`)
+  await api.delete(`${API_ENDPOINTS.PROJECTS}/${id}`, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
 }
 
 // ---- Personas ----

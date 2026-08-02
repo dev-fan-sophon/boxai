@@ -8,7 +8,6 @@ import {
   createProject,
   deleteConversation,
   deleteProject,
-  getConversation,
   getProject,
   listConversationMessages,
   listConversations,
@@ -37,6 +36,12 @@ import {
   type StudioSession,
 } from '../lib'
 import { isAgentChatEnabled } from '../lib/agent-chat/flag'
+import {
+  deleteAgentConversation,
+  listAgentConversations,
+  listAgentConversationsSince,
+  updateAgentConversation,
+} from '../lib/agent-chat/transport'
 import type { Message } from '../types'
 
 const SYNC_DEBOUNCE_MS = 300
@@ -391,21 +396,11 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           st.lastMetaFingerprint = chatMetaFingerprint(session)
         }
 
-        // Agent history, including attachments and revisions, is hydrated by
-        // AI SDK from boxai-chat. Only reconcile metadata here; merging the
-        // legacy message DTO would discard those richer server contracts.
-        if (agentOwned && (!st.reconciled || options?.pull)) {
-          const remote = await getConversation(serverId)
-          const remoteTitle = remote.conversation.title?.trim()
-          if (
-            remoteTitle &&
-            remoteTitle !== session.title &&
-            (session.title === 'New chat' || session.title === 'Cloud chat')
-          ) {
-            patchSessionById(sessionId, { title: remoteTitle })
-            session = findSession()
-            if (!session) return
-          }
+        // AI SDK hydrates the active thread from boxai-chat. The list import
+        // already supplied metadata, so initialize its fingerprint without a
+        // legacy per-thread fetch (which also queried stale sessions left by a
+        // different account in browser storage).
+        if (agentOwned && !st.reconciled) {
           st.reconciled = true
           st.lastMetaFingerprint = chatMetaFingerprint(session)
         }
@@ -511,7 +506,10 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
 
         const metaFingerprint = chatMetaFingerprint(session)
         if (metaFingerprint !== st.lastMetaFingerprint) {
-          await updateConversation(serverId, {
+          const update = agentOwned
+            ? updateAgentConversation
+            : updateConversation
+          await update(serverId, {
             title: session.title,
             model: session.model,
             group: session.group,
@@ -612,7 +610,10 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
     const pullConversationList = async () => {
       if (convCursorRef.current === 0) return // wait for the initial import
       try {
-        const { items } = await listConversationsSince(convCursorRef.current)
+        const listSince = isAgentChatEnabled()
+          ? listAgentConversationsSince
+          : listConversationsSince
+        const { items } = await listSince(convCursorRef.current)
         if (items.length === 0) return
         for (const item of items) {
           convCursorRef.current = Math.max(
@@ -695,7 +696,11 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
       void (async () => {
         try {
           if (binding.kind === 'chat') {
-            await deleteConversation(binding.serverId)
+            if (isAgentChatEnabled()) {
+              await deleteAgentConversation(binding.serverId)
+            } else {
+              await deleteConversation(binding.serverId)
+            }
           } else {
             await deleteProject(binding.serverId)
           }
@@ -728,14 +733,23 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
         const existingClientKeys = new Set(state.sessions.map((s) => s.id))
         const additions: PlaygroundSession[] = []
 
-        const { items: convItems } = await listConversations({ page_size: 50 })
+        const listChats = isAgentChatEnabled()
+          ? listAgentConversations
+          : listConversations
+        const { items: convItems, total: convTotal } = await listChats({
+          page_size: 50,
+        })
         for (const item of convItems.slice(0, 40)) {
           if (existingChatServerIds.has(item.id)) continue
           // Messages hydrate lazily when the thread is opened (activation pull).
           additions.push(chatSessionFromServerConversation(item, []))
         }
 
-        const { items: projectItems } = await listProjects({ page_size: 50 })
+        const { items: projectItems, total: projectTotal } = await listProjects(
+          {
+            page_size: 50,
+          }
+        )
         for (const item of projectItems.slice(0, 40)) {
           if (existingProjectServerIds.has(item.id)) continue
           if (item.client_key && existingClientKeys.has(item.client_key)) {
@@ -758,12 +772,44 @@ export function useSessionCloudSync(isAuthenticated: boolean) {
           if (session) additions.push(session)
         }
 
-        if (additions.length > 0) {
-          const latest = usePlaygroundStore.getState()
-          usePlaygroundStore.setState({
-            sessions: [...additions, ...latest.sessions],
-          })
+        const latest = usePlaygroundStore.getState()
+        const conversationIds = new Set(convItems.map((item) => item.id))
+        const projectIds = new Set(projectItems.map((item) => item.id))
+        const completeConversationList = convItems.length >= convTotal
+        const completeProjectList = projectItems.length >= projectTotal
+        const retained = latest.sessions.filter((session) => {
+          if (
+            completeConversationList &&
+            isChatSession(session) &&
+            session.id === `cloud_${session.serverId}`
+          ) {
+            return Boolean(
+              session.serverId && conversationIds.has(session.serverId)
+            )
+          }
+          if (
+            completeProjectList &&
+            isStudioSession(session) &&
+            session.id === `cloud_proj_${session.serverId}`
+          ) {
+            return Boolean(session.serverId && projectIds.has(session.serverId))
+          }
+          return true
+        })
+        const sessions = [...additions, ...retained]
+        const activeSessionByModality = {
+          ...latest.activeSessionByModality,
         }
+        for (const modality of ['chat', 'image', 'video', 'audio'] as const) {
+          const activeId = activeSessionByModality[modality]
+          if (activeId && sessions.some((session) => session.id === activeId)) {
+            continue
+          }
+          activeSessionByModality[modality] =
+            sessions.find((session) => session.modality === modality)?.id ??
+            null
+        }
+        usePlaygroundStore.setState({ sessions, activeSessionByModality })
         importedRef.current = true
         convCursorRef.current = Math.floor(Date.now() / 1000)
       } catch {
