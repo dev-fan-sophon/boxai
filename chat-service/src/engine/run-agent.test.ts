@@ -44,4 +44,44 @@ describe('agent reasoning options', () => {
     await result.consumeStream()
     expect(requestBody).toMatchObject({ reasoning_effort: 'none' })
   })
+
+  test('moves context system messages into AI SDK instructions', async () => {
+    process.env.INTERNAL_SERVICE_SECRET = 'internal-test-secret'
+    let requestBody: unknown
+    globalThis.fetch = Object.assign(
+      async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        requestBody = JSON.parse(String(init?.body)) as unknown
+        return new Response(
+          [
+            'data: {"id":"response-1","object":"chat.completion.chunk","created":1,"model":"test-model","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":null}]}',
+            'data: {"id":"response-1","object":"chat.completion.chunk","created":1,"model":"test-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}',
+            'data: [DONE]',
+            '',
+          ].join('\n\n'),
+          { headers: { 'content-type': 'text/event-stream' } }
+        )
+      },
+      { preconnect: () => {} }
+    )
+
+    const result = await runAgent({
+      userId: 7,
+      modelId: 'test-model',
+      group: 'default',
+      system: 'platform instructions',
+      messages: [
+        { role: 'system', content: 'conversation summary' },
+        { role: 'user', content: 'hello' },
+      ],
+    })
+    await result.consumeStream()
+
+    expect(requestBody).toMatchObject({
+      messages: [
+        { role: 'system', content: 'platform instructions' },
+        { role: 'system', content: 'conversation summary' },
+        { role: 'user', content: 'hello' },
+      ],
+    })
+  })
 })

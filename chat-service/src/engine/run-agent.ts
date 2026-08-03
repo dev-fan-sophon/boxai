@@ -2,6 +2,7 @@ import { stepCountIs, streamText } from 'ai'
 import type {
   LanguageModelCallOptions,
   ModelMessage,
+  SystemModelMessage,
   ToolChoice,
   ToolSet,
 } from 'ai'
@@ -39,10 +40,23 @@ export function agentToolChoice(
 }
 
 export async function runAgent(input: AgentRunInput) {
+  const instructions: SystemModelMessage[] = []
+  if (input.system) {
+    instructions.push({ role: 'system', content: input.system })
+  }
+  const messages: ModelMessage[] = []
+  for (const message of input.messages) {
+    if (message.role === 'system') {
+      instructions.push(message)
+    } else {
+      messages.push(message)
+    }
+  }
+
   return streamText({
     model: userModel(input.userId, input.modelId, input.group),
-    system: input.system,
-    messages: input.messages,
+    instructions: instructions.length > 0 ? instructions : undefined,
+    messages,
     reasoning: input.reasoning,
     tools: input.tools,
     // The gateway speaks OpenAI Chat Completions. Avoid a model fanning one
