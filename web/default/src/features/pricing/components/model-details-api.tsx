@@ -66,8 +66,8 @@ export function ModelDetailsApi(props: {
         title={t('Integration details have not been verified')}
         action={
           <Link
-            to='/docs/$slug'
-            params={{ slug: 'getting-started' }}
+            to='/docs/$'
+            params={{ _splat: 'start/getting-started' }}
             className='text-primary inline-flex items-center gap-1 text-sm hover:underline'
           >
             {t('View getting started guide')}{' '}
@@ -163,8 +163,8 @@ export function ModelDetailsApi(props: {
           </TabsList>
         </Tabs>
         <Link
-          to='/docs/$slug'
-          params={{ slug: selected.profile.docs_slug }}
+          to='/docs/$'
+          params={{ _splat: `api/${selected.profile.docs_slug}` }}
           className='text-primary inline-flex items-center gap-1 text-sm hover:underline'
         >
           {t('Full integration guide')} <ExternalLink className='size-3.5' />

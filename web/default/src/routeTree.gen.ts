@@ -60,7 +60,7 @@ import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
 import { Route as ShareCanvasTokenRouteImport } from './routes/share/canvas/$token'
 import { Route as PublicInspirationProjectIdRouteImport } from './routes/_public/inspiration/$projectId'
-import { Route as PublicDocsSlugRouteImport } from './routes/_public/docs/$slug'
+import { Route as PublicDocsSplatRouteImport } from './routes/_public/docs/$'
 import { Route as AuthenticatedUsersSectionRouteImport } from './routes/_authenticated/users/$section'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedPricingCenterTabRouteImport } from './routes/_authenticated/pricing-center/$tab'
@@ -358,9 +358,9 @@ const PublicInspirationProjectIdRoute =
     path: '/$projectId',
     getParentRoute: () => PublicInspirationRouteRoute,
   } as any)
-const PublicDocsSlugRoute = PublicDocsSlugRouteImport.update({
-  id: '/docs/$slug',
-  path: '/docs/$slug',
+const PublicDocsSplatRoute = PublicDocsSplatRouteImport.update({
+  id: '/docs/$',
+  path: '/docs/$',
   getParentRoute: () => PublicRouteRoute,
 } as any)
 const AuthenticatedUsersSectionRoute =
@@ -564,7 +564,7 @@ export interface FileRoutesByFullPath {
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/users/$section': typeof AuthenticatedUsersSectionRoute
-  '/docs/$slug': typeof PublicDocsSlugRoute
+  '/docs/$': typeof PublicDocsSplatRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
@@ -641,7 +641,7 @@ export interface FileRoutesByTo {
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/users/$section': typeof AuthenticatedUsersSectionRoute
-  '/docs/$slug': typeof PublicDocsSlugRoute
+  '/docs/$': typeof PublicDocsSplatRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
@@ -724,7 +724,7 @@ export interface FileRoutesById {
   '/_authenticated/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/users/$section': typeof AuthenticatedUsersSectionRoute
-  '/_public/docs/$slug': typeof PublicDocsSlugRoute
+  '/_public/docs/$': typeof PublicDocsSplatRoute
   '/_public/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
@@ -805,7 +805,7 @@ export interface FileRouteTypes {
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/users/$section'
-    | '/docs/$slug'
+    | '/docs/$'
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/billing/'
@@ -882,7 +882,7 @@ export interface FileRouteTypes {
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/users/$section'
-    | '/docs/$slug'
+    | '/docs/$'
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/billing'
@@ -964,7 +964,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pricing-center/$tab'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/users/$section'
-    | '/_public/docs/$slug'
+    | '/_public/docs/$'
     | '/_public/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/_authenticated/billing/'
@@ -1385,11 +1385,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicInspirationProjectIdRouteImport
       parentRoute: typeof PublicInspirationRouteRoute
     }
-    '/_public/docs/$slug': {
-      id: '/_public/docs/$slug'
-      path: '/docs/$slug'
-      fullPath: '/docs/$slug'
-      preLoaderRoute: typeof PublicDocsSlugRouteImport
+    '/_public/docs/$': {
+      id: '/_public/docs/$'
+      path: '/docs/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof PublicDocsSplatRouteImport
       parentRoute: typeof PublicRouteRoute
     }
     '/_authenticated/users/$section': {
@@ -1768,7 +1768,7 @@ interface PublicRouteRouteChildren {
   PublicPrivacyPolicyRoute: typeof PublicPrivacyPolicyRoute
   PublicUserAgreementRoute: typeof PublicUserAgreementRoute
   PublicIndexRoute: typeof PublicIndexRoute
-  PublicDocsSlugRoute: typeof PublicDocsSlugRoute
+  PublicDocsSplatRoute: typeof PublicDocsSplatRoute
   PublicAboutIndexRoute: typeof PublicAboutIndexRoute
   PublicAgentsIndexRoute: typeof PublicAgentsIndexRoute
   PublicDocsIndexRoute: typeof PublicDocsIndexRoute
@@ -1783,7 +1783,7 @@ const PublicRouteRouteChildren: PublicRouteRouteChildren = {
   PublicPrivacyPolicyRoute: PublicPrivacyPolicyRoute,
   PublicUserAgreementRoute: PublicUserAgreementRoute,
   PublicIndexRoute: PublicIndexRoute,
-  PublicDocsSlugRoute: PublicDocsSlugRoute,
+  PublicDocsSplatRoute: PublicDocsSplatRoute,
   PublicAboutIndexRoute: PublicAboutIndexRoute,
   PublicAgentsIndexRoute: PublicAgentsIndexRoute,
   PublicDocsIndexRoute: PublicDocsIndexRoute,

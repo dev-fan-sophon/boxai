@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import {
   BarChartIcon,
   CodeSquareIcon,
@@ -48,6 +49,15 @@ export function PlaygroundEmptyState({
             {t(
               'Test a model with a starter prompt, or write your own request below.'
             )}
+          </p>
+          <p className='mt-1'>
+            <Link
+              to='/docs/$'
+              params={{ _splat: 'start/first-request' }}
+              className='text-primary text-sm hover:underline'
+            >
+              {t('First request guide')}
+            </Link>
           </p>
         </StaggerItem>
 

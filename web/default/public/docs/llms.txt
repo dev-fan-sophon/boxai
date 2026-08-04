@@ -1,0 +1,20 @@
+# BoxAI Documentation
+
+> Unified AI API gateway at https://you-box.com
+
+## Core pages
+
+- [What is BoxAI](https://you-box.com/docs/start/what-is-boxai): BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.
+- [Getting started](https://you-box.com/docs/start/getting-started): Create an API key, choose a model, and send your first gateway request on you-box.com.
+- [First request](https://you-box.com/docs/start/first-request): Send a successful chat completion from Playground or curl, then confirm usage.
+- [Create and manage API keys](https://you-box.com/docs/console/api-keys): Issue a key, set limits, copy the secret once, and use it only from trusted servers.
+- [Model Hub](https://you-box.com/docs/console/model-hub): Find exact model IDs, compare pricing and capabilities, then use those IDs in API calls.
+- [Billing and top-up](https://you-box.com/docs/console/billing-topup): Understand balance, top up with supported payment rails (including Vietnam-first options), and keep usage within quota.
+- [Usage logs](https://you-box.com/docs/console/usage-logs): Read request history, tokens, and status codes to debug billing and integration issues.
+- [API overview](https://you-box.com/docs/api/overview): One gateway base URL, multiple protocol profiles, and model IDs from Model Hub.
+- [API authentication](https://you-box.com/docs/api/auth): Authenticate gateway calls with Bearer keys or profile-specific headers and keep secrets server-side.
+- [Streaming](https://you-box.com/docs/api/streaming): Process incremental server-sent events and cancel interrupted requests safely.
+- [Errors, retries, and rate limits](https://you-box.com/docs/api/errors): Classify failures, retry transient requests safely, and respect gateway limits.
+- [BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.
+- [Playground overview](https://you-box.com/docs/playground/overview): Try models in the browser, validate prompts, and prepare for API integration.
+- [Models, groups, and quota](https://you-box.com/docs/concepts/models-groups-quota): How model IDs, access groups, and remaining quota work together on BoxAI.
