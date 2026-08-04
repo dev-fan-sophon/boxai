@@ -18,6 +18,7 @@ import {
   HowItWorks,
   SupportedApps,
   Surfaces,
+  ZaloCommunity,
 } from './components'
 import { useHomePageContent } from './hooks'
 
@@ -140,6 +141,7 @@ export function Home() {
       <Surfaces />
       <HowItWorks />
       <ClientApps />
+      <ZaloCommunity />
       <CTA isAuthenticated={isAuthenticated} />
       <Footer
         copyright={t(

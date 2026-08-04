@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify'
 import { Fragment, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ZALO_COMMUNITY_URL } from '@/components/zalo-community'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,26 @@ function FooterLinkItem(props: { link: FooterLink }) {
     >
       {label}
     </Link>
+  )
+}
+
+function ZaloCommunityFooterLink() {
+  const { t } = useTranslation()
+
+  return (
+    <>
+      <span aria-hidden='true' className='text-muted-foreground'>
+        ·
+      </span>
+      <a
+        href={ZALO_COMMUNITY_URL}
+        target='_blank'
+        rel='noopener noreferrer'
+        className='hover:text-foreground duration-control transition-colors'
+      >
+        {t('Zalo Community')}
+      </a>
+    </>
   )
 }
 
@@ -166,6 +187,7 @@ export function Footer(props: FooterProps) {
             />
             <div className='border-border/60 text-muted-foreground flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t pt-4 text-xs empty:hidden sm:w-auto sm:justify-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-5'>
               <LegalLinks />
+              <ZaloCommunityFooterLink />
             </div>
           </div>
         </div>
@@ -225,6 +247,7 @@ export function Footer(props: FooterProps) {
               {props.copyright ?? t('footer.defaultCopyright')}
             </span>
             <LegalLinks leadingSeparator />
+            <ZaloCommunityFooterLink />
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ZaloCommunityPopover } from '@/components/zalo-community'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
@@ -298,6 +299,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                   loading={notifications.loading}
                 />
               )}
+              <ZaloCommunityPopover />
 
               {showAuthButtons && (
                 <>
@@ -328,18 +330,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                             {t('Console')}
                           </Button>
                         ))}
-                      {isAuthenticated ? (
-                        <ProfileDropdown />
-                      ) : (
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          className='h-8 px-3.5 text-xs font-medium'
-                          render={<Link to='/sign-in' />}
-                        >
-                          {t('Sign in')}
-                        </Button>
-                      )}
+                      {isAuthenticated && <ProfileDropdown />}
                     </>
                   )}
                 </>
@@ -349,6 +340,7 @@ export function PublicHeader(props: PublicHeaderProps) {
             {/* Mobile: compact actions + hamburger */}
             <div className='ml-auto flex items-center gap-2 xl:hidden'>
               {showThemeSwitch && <ThemeSwitch />}
+              <ZaloCommunityPopover />
               {showAuthButtons && !loading && isAuthenticated && (
                 <ProfileDropdown />
               )}
@@ -478,15 +470,6 @@ export function PublicHeader(props: PublicHeaderProps) {
                       {t('Console')}
                     </button>
                   ))}
-                {!isAuthenticated && (
-                  <Link
-                    to='/sign-in'
-                    onClick={() => setMobileOpen(false)}
-                    className='border-border bg-background text-foreground inline-flex h-10 items-center justify-center rounded-lg border text-sm font-medium transition-opacity hover:opacity-90'
-                  >
-                    {t('Sign in')}
-                  </Link>
-                )}
               </div>
             )}
           </div>

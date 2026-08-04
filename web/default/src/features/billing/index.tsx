@@ -14,6 +14,7 @@ import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialo
 import { RedeemCodeDialog } from './components/dialogs/redeem-code-dialog'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { TransactionsSection } from './components/transactions-section'
+import { ZaloCommunityCard } from './components/zalo-community-card'
 import { DEFAULT_DISCOUNT_RATE } from './constants'
 import {
   useTopupInfo,
@@ -292,6 +293,8 @@ export function Billing(props: BillingProps) {
                 }
               />
             </section>
+
+            <ZaloCommunityCard />
 
             <section id={SECTION_IDS.subscription} className='scroll-mt-16'>
               <SubscriptionPlansCard
