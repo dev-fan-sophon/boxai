@@ -58,34 +58,29 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # `createUpdaterArtifacts` is on, so tauri exits non-zero when the signing key is
-      # missing — and it does so *after* Apple signing, which reads like a signing failure.
-      #
-      # Tauri accepts the minisign private key as either inline content or a file path.
-      # GitHub Actions mangles multiline secrets in env on some runners ("Missing comment
-      # in secret key"); writing the secret to a temp file and pointing at the path is the
-      # reliable path used by the local Desktop packaging scripts.
+      # Updater signing is optional for a first installable ship. When the minisign
+      # private key is not configured in CI, disable createUpdaterArtifacts so tauri
+      # still produces .dmg / .msi / .exe. Auto-update stays off until the key is set;
+      # the website download path only needs the installers.
       - name: Prepare updater signing key
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
-            echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is empty"
-            exit 1
-          fi
           KEY_FILE="$RUNNER_TEMP/tauri-updater.key"
-          # Secret may already be a path (local) or the minisign PEM body (CI).
-          if [ -f "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            cp "$TAURI_SIGNING_PRIVATE_KEY" "$KEY_FILE"
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            if [ -f "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+              cp "$TAURI_SIGNING_PRIVATE_KEY" "$KEY_FILE"
+            else
+              printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$KEY_FILE"
+            fi
+            chmod 600 "$KEY_FILE"
+            echo "TAURI_SIGNING_PRIVATE_KEY=$KEY_FILE" >> "$GITHUB_ENV"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "updater signing: enabled"
           else
-            printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$KEY_FILE"
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY empty — building installers without updater signatures"
+            python3 -c 'import json;from pathlib import Path;p=Path("src-tauri/tauri.conf.json");c=json.loads(p.read_text());c.setdefault("bundle",{})["createUpdaterArtifacts"]=False;p.write_text(json.dumps(c,indent=2)+"\n");print("createUpdaterArtifacts=false")'
           fi
-          chmod 600 "$KEY_FILE"
-          # Persist for subsequent steps without re-exporting the raw secret.
-          echo "TAURI_SIGNING_PRIVATE_KEY=$KEY_FILE" >> "$GITHUB_ENV"
-          # Empty password is valid for our unencrypted updater key; an unset
-          # secret must not become the literal string "null".
-          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
 
       - name: Build .dmg (macOS)
         if: runner.os == 'macOS'
@@ -105,8 +100,6 @@ jobs:
             export APPLE_API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
           fi
           unset APPLE_API_KEY_CONTENT
-          # Force empty password when the secret is absent (GitHub expands missing
-          # secrets to ""). Tauri treats a missing env differently from "".
           export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD-}"
           pnpm tauri build --target aarch64-apple-darwin
           pnpm tauri build --target x86_64-apple-darwin
@@ -116,7 +109,6 @@ jobs:
         shell: bash
         run: |
           export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD-}"
-          # Node wrapper is Desktop-only; Connect uses bash so empty password is expressible.
           pnpm tauri build
 
       - name: Stage artifacts (stable names)
@@ -147,6 +139,7 @@ jobs:
           merge-multiple: true
 
       - name: Publish to R2
+        working-directory: ${{ github.workspace }}
         env:
           BOXAI_RELEASE_PRODUCT: connect
           BOXAI_RELEASE_STAGE: ${{ github.workspace }}/connect/release/staged
@@ -154,14 +147,26 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_DESKTOP_ACCESS_KEY_ID: ${{ secrets.R2_DESKTOP_ACCESS_KEY_ID }}
           R2_DESKTOP_SECRET_ACCESS_KEY: ${{ secrets.R2_DESKTOP_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#connect-v}"
-          CONF_VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          CONF_VERSION=$(python3 -c "import json; print(json.load(open('connect/src-tauri/tauri.conf.json'))['version'])")
           if [ "$VERSION" != "$CONF_VERSION" ]; then
             echo "::error::tag $TAG != tauri.conf.json version $CONF_VERSION — bump the config before tagging"
             exit 1
           fi
-          bash ../desktop/packaging/publish_release.sh
+          STAGE="${BOXAI_RELEASE_STAGE}"
+          ls -la "$STAGE"
+          # Prefer S3-compatible keys when present; otherwise wrangler + API token.
+          if [ -n "${R2_DESKTOP_ACCESS_KEY_ID:-}" ] && [ -n "${R2_DESKTOP_SECRET_ACCESS_KEY:-}" ] && [ -n "${R2_ENDPOINT:-}" ]; then
+            bash desktop/packaging/publish_release.sh
+          elif [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            bash connect/packaging/publish_release_wrangler.sh
+          else
+            echo "::error::no R2 credentials (need R2_DESKTOP_* or CLOUDFLARE_API_TOKEN)"
+            exit 1
+          fi
