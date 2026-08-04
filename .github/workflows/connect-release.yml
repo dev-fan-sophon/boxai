@@ -48,12 +48,19 @@ jobs:
           cache-dependency-path: connect/pnpm-lock.yaml
 
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-        with:
-          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: connect/src-tauri
+
+      # macOS ships both arm64 and x64 Connect builds. Install both rustc targets
+      # explicitly — relying on the toolchain action's targets: input alone has
+      # left the runner with only aarch64 while the second tauri build asked for x64.
+      - name: Install Apple cross targets
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustup target list --installed
 
       - name: Install
         run: pnpm install --frozen-lockfile
