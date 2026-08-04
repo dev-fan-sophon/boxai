@@ -16,6 +16,8 @@ EnvironmentFile=-/opt/boxai/.env
 # Host-local data plane (published by docker-compose.infra.yml)
 Environment=GIN_MODE=release
 Environment=TZ=Asia/Shanghai
+# On-disk SPA (symlink flipped by deploy-web / full deploy). Embed is fallback.
+Environment=WEB_DIST_DIR=/opt/boxai/web
 ExecStart=/opt/boxai/bin/new-api --port 3000 --log-dir /opt/boxai/logs
 Restart=on-failure
 RestartSec=3

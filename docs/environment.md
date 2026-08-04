@@ -298,6 +298,18 @@ Agents must:
 - Use SSH only for named host/infra changes
 - Never dump the full production `.env` into chat or Amp secrets
 
+### On-disk SPA (`WEB_DIST_DIR`)
+
+Set on the **systemd unit** (`deploy/boxai.service`), not required in `.env`:
+
+| Variable | Default (unit) | Purpose |
+|----------|----------------|---------|
+| `WEB_DIST_DIR` | `/opt/boxai/web` | Prefer SPA from this path (usually a symlink to `web-releases/<id>`). If missing/unusable, fall back to the binary-embedded build. |
+
+- Full deploy (`make deploy` / `build-native.sh`) publishes `web-releases/<release>` and flips the symlink.
+- UI-only deploy (`make deploy-web`) uploads a new web release and flips the same symlink **without** restarting `boxai.service`.
+- Details: [`deploy/README.md`](../deploy/README.md).
+
 ### boxai-chat (`/opt/boxai/chat.env`)
 
 Server-only env for the `boxai-chat.service` unit (Bun chat service on

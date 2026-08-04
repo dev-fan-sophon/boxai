@@ -27,6 +27,29 @@ echo "==> building web default (v${VERSION})"
   DISABLE_ESLINT_PLUGIN=true VITE_REACT_APP_VERSION="$VERSION" bun run build
 )
 
+# Publish SPA to on-disk layout for WEB_DIST_DIR (/opt/boxai/web).
+# Atomic symlink flip — running gateway picks this up without restart when
+# WEB_DIST_DIR is set (see deploy/boxai.service). Embed remains the fallback.
+if [[ -f "${ROOT}/web/default/dist/index.html" ]]; then
+  RELEASE_ID="$(basename "$ROOT")"
+  WEB_RELEASES="${APP_ROOT}/web-releases"
+  WEB_LINK="${APP_ROOT}/web"
+  TARGET="${WEB_RELEASES}/${RELEASE_ID}"
+  echo "==> publish web dist → ${TARGET}"
+  rm -rf "$TARGET"
+  mkdir -p "$TARGET"
+  # Copy contents (not the dist directory node) so TARGET/index.html exists.
+  cp -a "${ROOT}/web/default/dist/." "$TARGET/"
+  test -f "${TARGET}/index.html"
+  tmp="${WEB_LINK}.next.$$"
+  rm -f "$tmp"
+  ln -s "$TARGET" "$tmp"
+  mv -Tf "$tmp" "$WEB_LINK"
+  echo "==> WEB_DIST ${WEB_LINK} → ${TARGET}"
+else
+  echo "WARN: web/default/dist/index.html missing; skip disk web publish" >&2
+fi
+
 echo "==> installing chat-service dependencies"
 (
   cd chat-service

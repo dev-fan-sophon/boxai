@@ -209,10 +209,12 @@ func main() {
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
 
-	// 设置路由
+	// 设置路由. WEB_DIST_DIR (e.g. /opt/boxai/web) prefers on-disk SPA so
+	// deploy-web can flip a symlink without restarting this process. Embed is fallback.
 	router.SetRouter(server, router.WebAssets{
 		BuildFS:   buildFS,
 		IndexPage: indexPage,
+		DistDir:   strings.TrimSpace(os.Getenv("WEB_DIST_DIR")),
 	})
 	var port = os.Getenv("PORT")
 	if port == "" {

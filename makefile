@@ -16,7 +16,7 @@ export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 
 .PHONY: all build-web start-api \
 	dev-infra dev-api dev-web dev-web-local dev \
-	reset-setup deploy deploy-bootstrap \
+	reset-setup deploy deploy-bootstrap deploy-web \
 	desktop-build desktop-stage desktop-publish desktop-screenshots \
 	connect-dev connect-check connect-build connect-stage connect-publish
 
@@ -65,6 +65,11 @@ deploy:
 
 deploy-bootstrap:
 	@bash ./scripts/deploy-prod.sh --bootstrap
+
+# Frontend-only production publish (disk SPA under /opt/boxai/web). Does not
+# rebuild Go or restart boxai.service. Requires WEB_DIST_DIR (set in unit).
+deploy-web:
+	@bash ./scripts/deploy-web.sh
 
 # Desktop release: build on this machine, stage under desktop/release/<version>/, then
 # publish to Cloudflare R2 (https://dl.you-box.com). Windows artifacts are built on the LAN

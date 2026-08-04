@@ -14,17 +14,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// WebAssets holds the embedded frontend assets.
+// WebAssets holds frontend assets. Prefer DistDir (disk / symlink) when set so
+// deploy-web can publish a new SPA without rebuilding or restarting the API.
+// BuildFS + IndexPage remain the compile-time embed fallback.
 type WebAssets struct {
 	BuildFS   embed.FS
 	IndexPage []byte
+	// DistDir is a host path to a built SPA (typically /opt/boxai/web, a
+	// symlink flipped atomically by deploy-web). Empty → embed only.
+	DistDir string
 }
 
 func SetWebRouter(router *gin.Engine, assets WebAssets) {
+	if dir := common.ResolveWebDistDir(assets.DistDir); dir != "" {
+		common.SysLog("serving frontend from disk (prefer): " + dir)
+	} else if strings.TrimSpace(assets.DistDir) != "" {
+		common.SysLog("WEB_DIST_DIR configured; will use disk when index.html appears: " + assets.DistDir)
+	}
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.GlobalWebRateLimit())
 	router.Use(middleware.Cache())
-	router.Use(static.Serve("/", common.EmbedFolder(assets.BuildFS, "web/default/dist")))
+	// PreferDiskFolder re-resolves DistDir on every Open/Exists so an atomic
+	// symlink flip (or the first deploy-web after enabling WEB_DIST_DIR) is
+	// visible without restarting the process.
+	router.Use(static.Serve("/", common.PreferDiskFolder(assets.DistDir, assets.BuildFS, "web/default/dist")))
 	router.NoRoute(webFallbackHandler(assets))
 }
 
@@ -38,7 +51,8 @@ func webFallbackHandler(assets WebAssets) gin.HandlerFunc {
 			return
 		}
 		c.Header("Cache-Control", "no-cache")
-		c.Data(http.StatusOK, "text/html; charset=utf-8", injectIndexSEO(c, requestPath, assets.IndexPage))
+		indexHTML := common.ReadWebIndexHTML(assets.DistDir, assets.IndexPage)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", injectIndexSEO(c, requestPath, indexHTML))
 	}
 }
 
