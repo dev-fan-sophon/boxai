@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="220" viewBox="0 0 960 220" role="img" aria-label="First request flow">
+  <rect width="960" height="220" fill="#f8fafc"/>
+  <rect x="40" y="70" width="180" height="80" rx="12" fill="#e2e8f0" stroke="#64748b"/>
+  <text x="130" y="118" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#0f172a">1. API key</text>
+  <path d="M230 110 H300" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="310" y="70" width="180" height="80" rx="12" fill="#e2e8f0" stroke="#64748b"/>
+  <text x="400" y="118" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#0f172a">2. Model ID</text>
+  <path d="M500 110 H570" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="580" y="70" width="180" height="80" rx="12" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="670" y="118" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#0f172a">3. Request</text>
+  <path d="M770 110 H840" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="850" y="70" width="70" height="80" rx="12" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="885" y="118" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#0f172a">200</text>
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#64748b"/>
+    </marker>
+  </defs>
+</svg>

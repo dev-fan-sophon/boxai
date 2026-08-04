@@ -37,6 +37,7 @@ describe('isPrivateSeoPath', () => {
     expect(isPrivateSeoPath('/')).toBe(false)
     expect(isPrivateSeoPath('/pricing')).toBe(false)
     expect(isPrivateSeoPath('/docs/getting-started')).toBe(false)
+    expect(isPrivateSeoPath('/docs/start/getting-started')).toBe(false)
   })
 })
 
@@ -53,5 +54,14 @@ describe('resolveRouteSeo', () => {
   it('builds model detail titles', () => {
     const seo = resolveRouteSeo('/pricing/gpt-4o', 'BoxAI')
     expect(seo.title).toContain('gpt-4o')
+  })
+
+  it('resolves nested product docs paths', () => {
+    const docsHome = resolveRouteSeo('/docs', 'BoxAI')
+    expect(docsHome.title).toBe('Documentation')
+
+    const nested = resolveRouteSeo('/docs/start/getting-started', 'BoxAI')
+    expect(nested.title).toMatch(/Getting Started/i)
+    expect(nested.noindex).toBeFalsy()
   })
 })

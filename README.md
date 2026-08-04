@@ -24,3 +24,5 @@ Product decisions (payments, login, SMS, copy, compliance) should default to Vie
 - Project conventions: [`AGENTS.md`](AGENTS.md)
 - Environment map: [`docs/environment.md`](docs/environment.md)
 - Frontend rules: [`web/default/AGENTS.md`](web/default/AGENTS.md)
+- **Public product docs system** (in-app `/docs`): [`docs/product-docs-system.md`](docs/product-docs-system.md)
+- Public site docs: [you-box.com/docs](https://you-box.com/docs)

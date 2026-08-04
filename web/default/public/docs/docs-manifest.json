@@ -1,0 +1,588 @@
+{
+  "generatedAt": "2026-08-04T19:40:46.162Z",
+  "version": 1,
+  "pages": [
+    {
+      "path": "start/what-is-boxai",
+      "href": "/docs/start/what-is-boxai",
+      "locale": "en",
+      "title": "What is BoxAI",
+      "summary": "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.",
+      "section": "start",
+      "order": 10,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "official-product-definition",
+          "text": "Official product definition",
+          "level": 2
+        },
+        {
+          "id": "target-markets",
+          "text": "Target markets",
+          "level": 2
+        },
+        {
+          "id": "what-you-can-do-with-boxai",
+          "text": "What you can do with BoxAI",
+          "level": 2
+        },
+        {
+          "id": "brand-and-website",
+          "text": "Brand and website",
+          "level": 2
+        },
+        {
+          "id": "next-steps",
+          "text": "Next steps",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "start/getting-started",
+      "href": "/docs/start/getting-started",
+      "locale": "en",
+      "title": "Getting started",
+      "summary": "Create an API key, choose a model, and send your first gateway request on you-box.com.",
+      "section": "start",
+      "order": 20,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "prerequisites",
+          "text": "Prerequisites",
+          "level": 2
+        },
+        {
+          "id": "three-steps-to-production",
+          "text": "Three steps to production",
+          "level": 2
+        },
+        {
+          "id": "make-your-first-request",
+          "text": "Make your first request",
+          "level": 2
+        },
+        {
+          "id": "keep-credentials-private",
+          "text": "Keep credentials private",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "start/first-request",
+      "href": "/docs/start/first-request",
+      "locale": "en",
+      "title": "First request",
+      "summary": "Send a successful chat completion from Playground or curl, then confirm usage.",
+      "section": "start",
+      "order": 30,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "goal",
+          "text": "Goal",
+          "level": 2
+        },
+        {
+          "id": "option-a-playground-fastest",
+          "text": "Option A — Playground (fastest)",
+          "level": 2
+        },
+        {
+          "id": "option-b-api-production-shape",
+          "text": "Option B — API (production shape)",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        },
+        {
+          "id": "common-failures",
+          "text": "Common failures",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "console/api-keys",
+      "href": "/docs/console/api-keys",
+      "locale": "en",
+      "title": "Create and manage API keys",
+      "summary": "Issue a key, set limits, copy the secret once, and use it only from trusted servers.",
+      "section": "console",
+      "order": 10,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "prerequisites",
+          "text": "Prerequisites",
+          "level": 2
+        },
+        {
+          "id": "create-a-key",
+          "text": "Create a key",
+          "level": 2
+        },
+        {
+          "id": "use-the-key",
+          "text": "Use the key",
+          "level": 2
+        },
+        {
+          "id": "rotate-or-revoke",
+          "text": "Rotate or revoke",
+          "level": 2
+        },
+        {
+          "id": "keep-credentials-private",
+          "text": "Keep credentials private",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "console/model-hub",
+      "href": "/docs/console/model-hub",
+      "locale": "en",
+      "title": "Model Hub",
+      "summary": "Find exact model IDs, compare pricing and capabilities, then use those IDs in API calls.",
+      "section": "console",
+      "order": 20,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "what-model-hub-is",
+          "text": "What Model Hub is",
+          "level": 2
+        },
+        {
+          "id": "pick-a-model",
+          "text": "Pick a model",
+          "level": 2
+        },
+        {
+          "id": "use-the-id-in-requests",
+          "text": "Use the ID in requests",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "console/billing-topup",
+      "href": "/docs/console/billing-topup",
+      "locale": "en",
+      "title": "Billing and top-up",
+      "summary": "Understand balance, top up with supported payment rails (including Vietnam-first options), and keep usage within quota.",
+      "section": "console",
+      "order": 30,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "prerequisites",
+          "text": "Prerequisites",
+          "level": 2
+        },
+        {
+          "id": "check-balance",
+          "text": "Check balance",
+          "level": 2
+        },
+        {
+          "id": "top-up",
+          "text": "Top up",
+          "level": 2
+        },
+        {
+          "id": "after-payment",
+          "text": "After payment",
+          "level": 2
+        },
+        {
+          "id": "common-issues",
+          "text": "Common issues",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "console/usage-logs",
+      "href": "/docs/console/usage-logs",
+      "locale": "en",
+      "title": "Usage logs",
+      "summary": "Read request history, tokens, and status codes to debug billing and integration issues.",
+      "section": "console",
+      "order": 40,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "open-usage-logs",
+          "text": "Open usage logs",
+          "level": 2
+        },
+        {
+          "id": "what-each-row-means",
+          "text": "What each row means",
+          "level": 2
+        },
+        {
+          "id": "debug-with-logs",
+          "text": "Debug with logs",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/overview",
+      "href": "/docs/api/overview",
+      "locale": "en",
+      "title": "API overview",
+      "summary": "One gateway base URL, multiple protocol profiles, and model IDs from Model Hub.",
+      "section": "api",
+      "order": 10,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "base-url",
+          "text": "Base URL",
+          "level": 2
+        },
+        {
+          "id": "protocol-profiles",
+          "text": "Protocol profiles",
+          "level": 2
+        },
+        {
+          "id": "model-ids",
+          "text": "Model IDs",
+          "level": 2
+        },
+        {
+          "id": "related-guides",
+          "text": "Related guides",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/auth",
+      "href": "/docs/api/auth",
+      "locale": "en",
+      "title": "API authentication",
+      "summary": "Authenticate gateway calls with Bearer keys or profile-specific headers and keep secrets server-side.",
+      "section": "api",
+      "order": 20,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "create-a-credential",
+          "text": "Create a credential",
+          "level": 2
+        },
+        {
+          "id": "common-header",
+          "text": "Common header",
+          "level": 2
+        },
+        {
+          "id": "profile-specific-auth",
+          "text": "Profile-specific auth",
+          "level": 2
+        },
+        {
+          "id": "security-rules",
+          "text": "Security rules",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/streaming",
+      "href": "/docs/api/streaming",
+      "locale": "en",
+      "title": "Streaming",
+      "summary": "Process incremental server-sent events and cancel interrupted requests safely.",
+      "section": "api",
+      "order": 30,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "server-sent-events",
+          "text": "Server-sent events",
+          "level": 2
+        },
+        {
+          "id": "cancellation-and-cleanup",
+          "text": "Cancellation and cleanup",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/errors",
+      "href": "/docs/api/errors",
+      "locale": "en",
+      "title": "Errors, retries, and rate limits",
+      "summary": "Classify failures, retry transient requests safely, and respect gateway limits.",
+      "section": "api",
+      "order": 40,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "http-status-categories",
+          "text": "HTTP status categories",
+          "level": 2
+        },
+        {
+          "id": "safe-retry-policy",
+          "text": "Safe retry policy",
+          "level": 2
+        },
+        {
+          "id": "rate-limits",
+          "text": "Rate limits",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop",
+      "href": "/docs/clients/desktop",
+      "locale": "en",
+      "title": "BoxAI Desktop",
+      "summary": "Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.",
+      "section": "clients",
+      "order": 10,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "download",
+          "text": "Download",
+          "level": 2
+        },
+        {
+          "id": "macos",
+          "text": "macOS",
+          "level": 2
+        },
+        {
+          "id": "windows",
+          "text": "Windows",
+          "level": 2
+        },
+        {
+          "id": "after-sign-in",
+          "text": "After sign-in",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "playground/overview",
+      "href": "/docs/playground/overview",
+      "locale": "en",
+      "title": "Playground overview",
+      "summary": "Try models in the browser, validate prompts, and prepare for API integration.",
+      "section": "playground",
+      "order": 10,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "what-playground-is-for",
+          "text": "What Playground is for",
+          "level": 2
+        },
+        {
+          "id": "first-chat",
+          "text": "First chat",
+          "level": 2
+        },
+        {
+          "id": "move-to-the-api",
+          "text": "Move to the API",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "concepts/models-groups-quota",
+      "href": "/docs/concepts/models-groups-quota",
+      "locale": "en",
+      "title": "Models, groups, and quota",
+      "summary": "How model IDs, access groups, and remaining quota work together on BoxAI.",
+      "section": "concepts",
+      "order": 10,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-08-04",
+      "headings": [
+        {
+          "id": "models",
+          "text": "Models",
+          "level": 2
+        },
+        {
+          "id": "groups",
+          "text": "Groups",
+          "level": 2
+        },
+        {
+          "id": "quota",
+          "text": "Quota",
+          "level": 2
+        },
+        {
+          "id": "practical-checklist",
+          "text": "Practical checklist",
+          "level": 2
+        },
+        {
+          "id": "next",
+          "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    }
+  ]
+}

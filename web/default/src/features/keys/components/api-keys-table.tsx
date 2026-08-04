@@ -103,6 +103,12 @@ function ApiKeysMobileList({
               )}
             </EmptyDescription>
           </EmptyHeader>
+          <a
+            href='/docs/console/api-keys'
+            className='text-primary mt-3 text-sm hover:underline'
+          >
+            {t('How to create an API key')}
+          </a>
         </Empty>
       </div>
     )
@@ -284,6 +290,14 @@ export function ApiKeysTable() {
       emptyDescription={t(
         'No API keys available. Create your first API key to get started.'
       )}
+      emptyAction={
+        <a
+          href='/docs/console/api-keys'
+          className='text-primary text-sm hover:underline'
+        >
+          {t('How to create an API key')}
+        </a>
+      }
       skeletonKeyPrefix='api-keys-skeleton'
       applyHeaderSize
       enableCardView

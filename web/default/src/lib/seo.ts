@@ -358,7 +358,17 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
       description:
         'User agreement for BoxAI (you-box.com), including acceptable use and account responsibilities.',
     },
+    '/docs': {
+      title: 'Documentation',
+      description:
+        'Guides for BoxAI on you-box.com — console, API, clients, and Playground.',
+    },
     '/docs/what-is-boxai': {
+      title: 'What is BoxAI',
+      description:
+        'What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.',
+    },
+    '/docs/start/what-is-boxai': {
       title: 'What is BoxAI',
       description:
         'What is BoxAI? BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.',
@@ -368,7 +378,52 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
       description:
         'Get started with BoxAI on you-box.com — create an API key, pick a model, and send your first OpenAI-compatible request.',
     },
+    '/docs/start/getting-started': {
+      title: 'Getting Started',
+      description:
+        'Get started with BoxAI on you-box.com — create an API key, pick a model, and send your first OpenAI-compatible request.',
+    },
+    '/docs/start/first-request': {
+      title: 'First request',
+      description:
+        'Send a successful chat completion from Playground or curl on BoxAI (you-box.com).',
+    },
+    '/docs/console/api-keys': {
+      title: 'Create and manage API keys',
+      description:
+        'Issue a BoxAI API key, set limits, and call the gateway from your server.',
+    },
+    '/docs/console/model-hub': {
+      title: 'Model Hub',
+      description:
+        'Find exact model IDs and pricing on the BoxAI Model Hub at you-box.com/pricing.',
+    },
+    '/docs/console/billing-topup': {
+      title: 'Billing and top-up',
+      description:
+        'Top up BoxAI balance with supported payment rails, including Vietnam-first options.',
+    },
+    '/docs/console/usage-logs': {
+      title: 'Usage logs',
+      description:
+        'Read BoxAI request history, tokens, and status codes for debugging and billing.',
+    },
+    '/docs/api/overview': {
+      title: 'API overview',
+      description:
+        'BoxAI gateway base URL, protocol profiles, and model IDs from Model Hub.',
+    },
+    '/docs/api/auth': {
+      title: 'API authentication',
+      description:
+        'Authenticate BoxAI gateway calls with Bearer keys or profile-specific headers.',
+    },
     '/docs/streaming': {
+      title: 'Streaming',
+      description:
+        'Stream BoxAI model responses with server-sent events and cancel interrupted generations safely.',
+    },
+    '/docs/api/streaming': {
       title: 'Streaming',
       description:
         'Stream BoxAI model responses with server-sent events and cancel interrupted generations safely.',
@@ -377,6 +432,26 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
       title: 'Errors, Retries, and Rate Limits',
       description:
         'Classify BoxAI gateway errors, retry transient failures safely, and respect rate limits on you-box.com.',
+    },
+    '/docs/api/errors': {
+      title: 'Errors, Retries, and Rate Limits',
+      description:
+        'Classify BoxAI gateway errors, retry transient failures safely, and respect rate limits on you-box.com.',
+    },
+    '/docs/clients/desktop': {
+      title: 'BoxAI Desktop',
+      description:
+        'Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.',
+    },
+    '/docs/playground/overview': {
+      title: 'Playground overview',
+      description:
+        'Try BoxAI models in the browser and prepare for API integration.',
+    },
+    '/docs/concepts/models-groups-quota': {
+      title: 'Models, groups, and quota',
+      description:
+        'How model IDs, access groups, and remaining quota work together on BoxAI.',
     },
     '/rankings': {
       title: 'Rankings',

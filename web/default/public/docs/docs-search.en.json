@@ -1,0 +1,131 @@
+{
+  "locale": "en",
+  "documents": [
+    {
+      "id": "api/auth",
+      "path": "/docs/api/auth",
+      "title": "API authentication",
+      "summary": "Authenticate gateway calls with Bearer keys or profile-specific headers and keep secrets server-side.",
+      "section": "api",
+      "headings": "Create a credential Common header Profile-specific auth Security rules Verify success Next",
+      "body": "Create a credential Follow , then store the secret as an environment variable on your server. Common header OpenAI compatible routes: Profile specific auth Some profiles use different schemes (for example plus version headers for Claude Messages). Check the protocol page for the exact headers before integrating. Security rules :::callout type=\"danger\" Do not ship API keys in browsers, mobile apps, or public clients. Use your backend as a trusted caller. Rotate immediately after any leak. ::: Verify success Unauthenticated calls should fail with 401 . A valid key on an allowed model returns 200 for a minimal payload. Next"
+    },
+    {
+      "id": "api/errors",
+      "path": "/docs/api/errors",
+      "title": "Errors, retries, and rate limits",
+      "summary": "Classify failures, retry transient requests safely, and respect gateway limits.",
+      "section": "api",
+      "headings": "HTTP status categories Safe retry policy Rate limits Next",
+      "body": "HTTP status categories | Status | Meaning | Action | | | | | | 400, 422 | Invalid input | Fix the request; do not retry unchanged | | 401, 403 | Auth or permission | Verify key and model access | | 429 | Rate limit | Honor when present; reduce concurrency | | 500, 502, 503, 504 | Transient server/gateway | Retry only if the operation is safe to repeat | Safe retry policy Retry only idempotent requests or operations protected by an idempotency mechanism. Never automatically retry authentication, permission, or validation failures. Use capped exponential backoff with random jitter, honor , and set a small attempt limit. Cancel retries when the caller deadline or expires. Rate limits When you receive 429 : 1. Back off according to or your client policy. 2. Lower parallel in flight requests. 3. Check for hot keys or loops. Next"
+    },
+    {
+      "id": "api/overview",
+      "path": "/docs/api/overview",
+      "title": "API overview",
+      "summary": "One gateway base URL, multiple protocol profiles, and model IDs from Model Hub.",
+      "section": "api",
+      "headings": "Base URL Protocol profiles Model IDs Related guides",
+      "body": "Base URL Production host: OpenAI compatible chat example path: Always call BoxAI , not an upstream provider URL, when you intend to use BoxAI keys and billing. Protocol profiles BoxAI exposes multiple integration profiles (OpenAI Chat, Responses, Claude Messages, Gemini, embeddings, images, audio, and more). Each profile documents: HTTP method and gateway path template Auth header scheme Streaming support Ready to copy samples (cURL, Python, TypeScript, JavaScript) Browse protocol pages in the API section of the sidebar. They are generated from the live integration catalog. Model IDs Use exact IDs from . Availability can depend on your group. Related guides"
+    },
+    {
+      "id": "api/streaming",
+      "path": "/docs/api/streaming",
+      "title": "Streaming",
+      "summary": "Process incremental server-sent events and cancel interrupted requests safely.",
+      "section": "api",
+      "headings": "Server-sent events Cancellation and cleanup Next",
+      "body": "Server sent events For OpenAI compatible HTTP endpoints, request streaming in the payload and read each SSE data frame as it arrives. A data frame containing ends the stream. Do not assume every protocol uses the same event shape. OpenAI compatible, Claude, and Gemini profiles expose protocol specific chunks and finish events. See the matching protocol page in the sidebar. Cancellation and cleanup Use to cancel fetch when the user leaves, stops generation, or a deadline expires. Stop parsing, release the reader, and treat a deliberate abort differently from a network failure. Next"
+    },
+    {
+      "id": "clients/desktop",
+      "path": "/docs/clients/desktop",
+      "title": "BoxAI Desktop",
+      "summary": "Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.",
+      "section": "clients",
+      "headings": "Download macOS Windows After sign-in Next",
+      "body": "Download Get the latest builds from the page on you box.com. Prefer the official site over third party mirrors. macOS :::steps 1. Open the downloaded . 2. Drag BoxAI Desktop into Applications. 3. Launch from Applications and sign in with your BoxAI account in the browser window that opens. ::: If the build is notarized, macOS opens it without a Gatekeeper block. If not, open once via Control click → Open. Windows :::steps 1. Run the downloaded installer. 2. Complete the setup wizard. 3. Launch BoxAI Desktop and sign in with your BoxAI account when prompted. ::: After sign in Confirm you are connected to you box.com . Use the same models your web account can access. Keep the desktop app updated from the Downloads page. Next if you also integrate programmatically"
+    },
+    {
+      "id": "concepts/models-groups-quota",
+      "path": "/docs/concepts/models-groups-quota",
+      "title": "Models, groups, and quota",
+      "summary": "How model IDs, access groups, and remaining quota work together on BoxAI.",
+      "section": "concepts",
+      "headings": "Models Groups Quota Practical checklist Next",
+      "body": "Models A model ID is the exact string you send in API requests. Discover IDs in . Different providers may look similar in branding but use different IDs on the gateway. Groups A group controls which models and rates your account can use. If a model appears in the public hub but your calls return permission errors, your group may not include that model. Quota Quota is your remaining usage budget. Calls fail or are rejected when quota is insufficient. Top up via and inspect consumption in . Practical checklist Copy model IDs from the hub, never from memory Confirm group access when debugging 403 Watch quota before load tests Next"
+    },
+    {
+      "id": "console/api-keys",
+      "path": "/docs/console/api-keys",
+      "title": "Create and manage API keys",
+      "summary": "Issue a key, set limits, copy the secret once, and use it only from trusted servers.",
+      "section": "console",
+      "headings": "Prerequisites Create a key Use the key Rotate or revoke Keep credentials private Verify success Next",
+      "body": "Prerequisites Signed in BoxAI account Permission to manage keys for your workspace Create a key :::steps 1. Open API Keys in the console ( ). 2. Choose Create and give the key a clear name (for example ). 3. Set optional limits if shown (quota, IP, model scope). 4. Confirm creation and copy the secret immediately — it is shown only once. ::: Store the secret in your server environment as (or your secret manager). Never commit it to git. Use the key Most OpenAI compatible routes expect: Some protocol profiles (for example Claude Messages) use instead. See the matching page under . Rotate or revoke Rotate when a key may have leaked, a teammate leaves, or a client is decommissioned. Revoke unused keys instead of leaving long lived secrets active. After rotate, update every server that still holds the old value before revoking. Keep credentials private :::callout type=\"warning\" Never put API keys in browser bundles, mobile apps, public repos, screenshots, or support tickets. If a key leaks, revoke it and create a new one. ::: Verify success You can list the key in /keys (secret hidden). A test call with the secret returns 200 (see ). Next"
+    },
+    {
+      "id": "console/billing-topup",
+      "path": "/docs/console/billing-topup",
+      "title": "Billing and top-up",
+      "summary": "Understand balance, top up with supported payment rails (including Vietnam-first options), and keep usage within quota.",
+      "section": "console",
+      "headings": "Prerequisites Check balance Top up After payment Common issues Next",
+      "body": "Prerequisites Signed in account Access to the billing / top up area in the console Check balance Open the billing or wallet section in the console and confirm your current balance and any active subscription. Usage is deducted according to model pricing in . Top up :::steps 1. Open top up / billing in the console. 2. Choose an amount and a payment method available in your region. 3. Complete payment. Vietnam first rails (for example Waffo and local methods when enabled) appear when configured for your account. 4. Wait for the balance to refresh; keep any transaction reference if review is required. ::: :::callout type=\"info\" Available payment methods depend on configuration and region. If a method is missing, try another listed option or contact support with your account email — never send API keys. ::: After payment Confirm the new balance in the console. Run a small if you were blocked by insufficient quota. Review for consumption. Common issues | Issue | What to do | | | | | Balance not updated | Wait briefly, refresh; keep the bank/Waffo reference for review queues | | Payment pending review | Upload the requested proof in the console flow if prompted | | Still 403 on calls | Confirm model access for your group, not only balance | Next"
+    },
+    {
+      "id": "console/model-hub",
+      "path": "/docs/console/model-hub",
+      "title": "Model Hub",
+      "summary": "Find exact model IDs, compare pricing and capabilities, then use those IDs in API calls.",
+      "section": "console",
+      "headings": "What Model Hub is Pick a model Use the ID in requests Verify success Next",
+      "body": "What Model Hub is is the public catalog of models available through BoxAI: prices, modalities, and integration hints. Always copy the exact model ID shown in the hub — do not invent short names. Pick a model :::steps 1. Open . 2. Filter by provider, modality, or price if needed. 3. Open a model detail page and copy the model ID. 4. Confirm the model is available to your group (some models are group gated). ::: Use the ID in requests Gateway protocol pages under show path and header differences; the model ID still comes from Model Hub. Verify success The model ID string in your request matches the hub exactly. A test completion returns 200 for that ID with your key. Next"
+    },
+    {
+      "id": "console/usage-logs",
+      "path": "/docs/console/usage-logs",
+      "title": "Usage logs",
+      "summary": "Read request history, tokens, and status codes to debug billing and integration issues.",
+      "section": "console",
+      "headings": "Open usage logs What each row means Debug with logs Next",
+      "body": "Open usage logs In the console, open Usage / Logs ( when signed in). Filter by time range, model, or status when available. What each row means Typical fields: | Field | Meaning | | | | | Time | When the gateway handled the request | | Model | Exact model ID billed | | Status | HTTP or gateway outcome | | Tokens / quota | Amount consumed for the call | | Key / client | Which credential or app was used (when shown) | Debug with logs :::steps 1. Reproduce a failing call once. 2. Find the matching row by time and model. 3. Map status to the guide in . 4. Fix the request or key, then confirm a successful row appears. ::: Next"
+    },
+    {
+      "id": "playground/overview",
+      "path": "/docs/playground/overview",
+      "title": "Playground overview",
+      "summary": "Try models in the browser, validate prompts, and prepare for API integration.",
+      "section": "playground",
+      "headings": "What Playground is for First chat Move to the API Next",
+      "body": "What Playground is for Playground lets you chat with models available to your account without writing client code first. Use it to: Validate that your account, quota, and model access work Draft prompts before wiring production clients Compare model behavior quickly Open while signed in. First chat Follow for a step by step success path. Move to the API When a prompt works in Playground: 1. Copy the exact model ID. 2. Create a server side key ( ). 3. Call the gateway using samples. Next"
+    },
+    {
+      "id": "start/first-request",
+      "path": "/docs/start/first-request",
+      "title": "First request",
+      "summary": "Send a successful chat completion from Playground or curl, then confirm usage.",
+      "section": "start",
+      "headings": "Goal Option A — Playground (fastest) Option B — API (production shape) Verify success Common failures Next",
+      "body": "Goal Complete one successful model call so you know billing, keys, and routing work end to end. Option A — Playground (fastest) :::steps 1. Sign in and open . 2. Pick a model that your group can access (same IDs as ). 3. Send a short message such as . 4. Confirm you see an assistant reply without an error banner. ::: Option B — API (production shape) 1. Create a key in and export it as . 2. Copy an exact model ID from Model Hub (do not invent aliases). 3. Run: Verify success | Check | Expected | | | | | HTTP status | | | Body | Includes model output ( for OpenAI compatible chat) | | Console | A new row in | Common failures | Symptom | Fix | | | | | / | Check the key, Authorization header, and model access for your group | | / | Fix JSON shape or model ID; do not retry unchanged | | | Slow down; see | | Empty model list | Confirm group permissions or top up quota | Next"
+    },
+    {
+      "id": "start/getting-started",
+      "path": "/docs/start/getting-started",
+      "title": "Getting started",
+      "summary": "Create an API key, choose a model, and send your first gateway request on you-box.com.",
+      "section": "start",
+      "headings": "Prerequisites Three steps to production Make your first request Keep credentials private Verify success Next",
+      "body": "Prerequisites A BoxAI account at Enough quota for a small test call (top up if needed — see ) Three steps to production :::steps 1. Create and securely store an . 2. Choose an exact model ID that is available to your group in . 3. Send requests to the BoxAI gateway and monitor status codes and . ::: Make your first request On BoxAI, use the production base URL . Create a key in the dashboard, then copy an exact model ID from Model Hub. Prefer a browser walkthrough? Follow in Playground, then switch to the API sample above for production. Keep credentials private :::callout type=\"warning\" Never expose API keys in browser code, public repositories, screenshots, or logs. Call the gateway from your trusted server and rotate any leaked key immediately. ::: Verify success The API returns HTTP 200 with a (or protocol equivalent) payload. Usage appears under within a short delay. Next"
+    },
+    {
+      "id": "start/what-is-boxai",
+      "path": "/docs/start/what-is-boxai",
+      "title": "What is BoxAI",
+      "summary": "BoxAI (you-box.com) is a unified AI API gateway for multi-provider models, billing, and developer access — Vietnam first, other overseas markets second.",
+      "section": "start",
+      "headings": "Official product definition Target markets What you can do with BoxAI Brand and website Next steps",
+      "body": "Official product definition BoxAI (https://you box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI compatible, Claude, Gemini, and other providers. The public website and API host is you box.com . When people search for BoxAI you box, they are looking for this product. Target markets Primary market: Vietnam . Secondary: other overseas markets. Product decisions (payments, login options such as Zalo, SMS, localization, and support) prioritize Vietnamese users while remaining usable for international customers. What you can do with BoxAI Call chat, responses, embeddings, images, and other gateway endpoints through a single integration. Browse model pricing and capabilities on the BoxAI Model Hub at . Issue and rotate API keys, monitor usage, and manage quotas from the console. Connect desktop and third party clients with the OpenAI compatible base URL . Brand and website Product name: BoxAI (one word). Official website: https://you box.com. Alternate spellings people use include boxai and Box AI — they all refer to this gateway when paired with you box.com. Next steps Read to create a key and send your first request. Open to compare models available on BoxAI. Keep API keys on your server; never embed them in public frontends."
+    }
+  ]
+}

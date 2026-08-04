@@ -1,7 +1,11 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+
+import { DocsPage } from '@/features/docs'
 
 export const Route = createFileRoute('/_public/docs/')({
-  beforeLoad: () => {
-    throw redirect({ to: '/docs/$slug', params: { slug: 'what-is-boxai' } })
-  },
+  component: DocsHomeRoute,
 })
+
+function DocsHomeRoute() {
+  return <DocsPage />
+}
