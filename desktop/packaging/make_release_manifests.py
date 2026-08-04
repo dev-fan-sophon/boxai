@@ -175,11 +175,13 @@ def main() -> int:
         }
 
     if not platforms:
+        # Installer-only ship is allowed (e.g. CI without TAURI_SIGNING_PRIVATE_KEY).
+        # latest.json still gets written with an empty platforms map so the website
+        # path can move version forward; clients simply see no auto-update channel.
         print(
-            "error: no signed updater artifacts staged — refusing to write an empty manifest",
+            "warning: no signed updater artifacts staged — latest.json will have empty platforms",
             file=sys.stderr,
         )
-        return 1
 
     downloads = []
     for spec in site_artifacts:
