@@ -30,12 +30,25 @@ const officialRatioCacheTTL = 6 * time.Hour
 type officialRatioSnapshot struct {
 	modelRatio map[string]float64
 	modelPrice map[string]float64
+	references map[string]OfficialModelPricingReference
 	fetchedAt  time.Time
 }
 
+type OfficialModelPricingReference struct {
+	ModelName       string   `json:"model_name"`
+	Provider        string   `json:"provider"`
+	InputPrice      float64  `json:"input_price"`
+	OutputPrice     *float64 `json:"output_price,omitempty"`
+	CacheReadPrice  *float64 `json:"cache_read_price,omitempty"`
+	ModelRatio      float64  `json:"model_ratio"`
+	CompletionRatio *float64 `json:"completion_ratio,omitempty"`
+	CacheRatio      *float64 `json:"cache_ratio,omitempty"`
+}
+
 var (
-	officialRatioMu    sync.RWMutex
-	officialRatioCache *officialRatioSnapshot
+	officialRatioMu          sync.RWMutex
+	officialRatioCache       *officialRatioSnapshot
+	officialRatioLastAttempt time.Time
 )
 
 // getOfficialRatioSnapshot returns a cached snapshot of models.dev pricing.
@@ -53,18 +66,15 @@ func getOfficialRatioSnapshot() *officialRatioSnapshot {
 	if officialRatioCache != nil && time.Since(officialRatioCache.fetchedAt) < officialRatioCacheTTL {
 		return officialRatioCache
 	}
+	if !officialRatioLastAttempt.IsZero() && time.Since(officialRatioLastAttempt) < 15*time.Minute {
+		return officialRatioCache
+	}
 
+	officialRatioLastAttempt = time.Now()
 	next, err := fetchOfficialRatioSnapshot(context.Background())
 	if err != nil {
 		common.SysLog("models.dev official price fetch failed: " + err.Error())
-		if officialRatioCache != nil {
-			// Keep serving stale data; bump timestamp lightly so we don't hammer the remote.
-			stale := *officialRatioCache
-			stale.fetchedAt = time.Now().Add(-officialRatioCacheTTL + 15*time.Minute)
-			officialRatioCache = &stale
-			return officialRatioCache
-		}
-		return nil
+		return officialRatioCache
 	}
 	officialRatioCache = next
 	return officialRatioCache
@@ -109,13 +119,19 @@ type modelsDevModel struct {
 }
 
 type modelsDevCost struct {
-	Input  *float64 `json:"input"`
-	Output *float64 `json:"output"`
+	Input           *float64      `json:"input"`
+	Output          *float64      `json:"output"`
+	CacheRead       *float64      `json:"cache_read"`
+	Tiers           []interface{} `json:"tiers"`
+	ContextOver200K interface{}   `json:"context_over_200k"`
 }
 
 type modelsDevCandidate struct {
-	provider string
-	input    float64 // USD per 1M tokens
+	provider  string
+	input     float64 // USD per 1M tokens
+	output    *float64
+	cacheRead *float64
+	tiered    bool
 }
 
 func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
@@ -166,7 +182,23 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 				continue
 			}
 
-			next := modelsDevCandidate{provider: provider, input: input}
+			var output *float64
+			if cost.Output != nil && *cost.Output >= 0 && !math.IsNaN(*cost.Output) && !math.IsInf(*cost.Output, 0) {
+				value := *cost.Output
+				output = &value
+			}
+			var cacheRead *float64
+			if cost.CacheRead != nil && *cost.CacheRead >= 0 && !math.IsNaN(*cost.CacheRead) && !math.IsInf(*cost.CacheRead, 0) {
+				value := *cost.CacheRead
+				cacheRead = &value
+			}
+			next := modelsDevCandidate{
+				provider:  provider,
+				input:     input,
+				output:    output,
+				cacheRead: cacheRead,
+				tiered:    len(cost.Tiers) > 0 || cost.ContextOver200K != nil,
+			}
 			current, exists := selected[modelName]
 			if !exists || shouldPreferModelsDevCandidate(current, next) {
 				selected[modelName] = next
@@ -179,6 +211,7 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 	}
 
 	modelRatio := make(map[string]float64, len(selected))
+	references := make(map[string]OfficialModelPricingReference, len(selected))
 	for modelName, candidate := range selected {
 		// model_ratio = input_usd_per_1M * USD / 1000
 		ratio := candidate.input * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
@@ -186,6 +219,26 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 			continue
 		}
 		modelRatio[modelName] = ratio
+		if !isFirstPartyModelsDevProvider(candidate.provider) || candidate.tiered {
+			continue
+		}
+		reference := OfficialModelPricingReference{
+			ModelName:      modelName,
+			Provider:       candidate.provider,
+			InputPrice:     candidate.input,
+			OutputPrice:    candidate.output,
+			CacheReadPrice: candidate.cacheRead,
+			ModelRatio:     ratio,
+		}
+		if candidate.output != nil {
+			completionRatio := *candidate.output / candidate.input
+			reference.CompletionRatio = &completionRatio
+		}
+		if candidate.cacheRead != nil {
+			cacheRatio := *candidate.cacheRead / candidate.input
+			reference.CacheRatio = &cacheRatio
+		}
+		references[modelName] = reference
 	}
 
 	if len(modelRatio) == 0 {
@@ -196,8 +249,31 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 		modelRatio: modelRatio,
 		// models.dev is token-cost oriented; fixed $/request baselines are not provided.
 		modelPrice: map[string]float64{},
+		references: references,
 		fetchedAt:  time.Now(),
 	}, nil
+}
+
+func GetOfficialModelPricingReference(modelName string) (*OfficialModelPricingReference, bool) {
+	snapshot := getOfficialRatioSnapshot()
+	if snapshot == nil || time.Since(snapshot.fetchedAt) > officialRatioCacheTTL {
+		return nil, false
+	}
+	return lookupOfficialModelPricingReference(snapshot, modelName)
+}
+
+func lookupOfficialModelPricingReference(snapshot *officialRatioSnapshot, modelName string) (*OfficialModelPricingReference, bool) {
+	reference, ok := snapshot.references[modelName]
+	if !ok && strings.Count(modelName, "/") == 1 {
+		provider, leaf, _ := strings.Cut(modelName, "/")
+		reference, ok = snapshot.references[leaf]
+		ok = ok && provider == reference.Provider
+	}
+	if !ok {
+		return nil, false
+	}
+	reference.ModelName = modelName
+	return &reference, true
 }
 
 // firstPartyModelsDevProviders are vendor list-price sources on models.dev.

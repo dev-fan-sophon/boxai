@@ -80,7 +80,8 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	body := []byte(`{
 		"deepseek": {
 			"models": {
-				"deepseek-v4-flash": { "cost": { "input": 0.14, "output": 0.28 } },
+				"deepseek-v4-flash": { "cost": { "input": 0.14, "output": 0.28, "cache_read": 0.014 } },
+				"deepseek-tiered": { "cost": { "input": 1, "output": 2, "tiers": [{"input": 2, "output": 4}] } },
 				"free-model": { "cost": { "input": 0, "output": 0 } }
 			}
 		},
@@ -91,7 +92,8 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 		},
 		"other": {
 			"models": {
-				"gpt-5.6-sol": { "cost": { "input": 4.0, "output": 24.0 } }
+				"gpt-5.6-sol": { "cost": { "input": 4.0, "output": 24.0 } },
+				"reseller-only": { "cost": { "input": 1.0, "output": 2.0 } }
 			}
 		}
 	}`)
@@ -107,6 +109,19 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	// deepseek: 0.14 * USD / 1000
 	wantFlash := 0.14 * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
 	assert.InDelta(t, wantFlash, snap.modelRatio["deepseek-v4-flash"], 1e-9)
+	flashReference := snap.references["deepseek-v4-flash"]
+	assert.Equal(t, "deepseek", flashReference.Provider)
+	assert.InDelta(t, 0.14, flashReference.InputPrice, 1e-9)
+	require.NotNil(t, flashReference.OutputPrice)
+	assert.InDelta(t, 0.28, *flashReference.OutputPrice, 1e-9)
+	require.NotNil(t, flashReference.CompletionRatio)
+	assert.InDelta(t, 2, *flashReference.CompletionRatio, 1e-9)
+	require.NotNil(t, flashReference.CacheReadPrice)
+	assert.InDelta(t, 0.014, *flashReference.CacheReadPrice, 1e-9)
+	require.NotNil(t, flashReference.CacheRatio)
+	assert.InDelta(t, 0.1, *flashReference.CacheRatio, 1e-9)
+	assert.NotContains(t, snap.references, "deepseek-tiered")
+	assert.NotContains(t, snap.references, "reseller-only")
 
 	// duplicate gpt-5.6-sol → prefer first-party openai ($5), not cheaper reseller ($4)
 	wantSol := 5.0 * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
@@ -114,6 +129,21 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 
 	// no fixed prices from models.dev
 	assert.Empty(t, snap.modelPrice)
+}
+
+func TestLookupOfficialModelPricingReferenceAllowsOnlyMatchingProviderAlias(t *testing.T) {
+	snapshot := &officialRatioSnapshot{references: map[string]OfficialModelPricingReference{
+		"gpt-test": {ModelName: "gpt-test", Provider: "openai", InputPrice: 5, ModelRatio: 2.5},
+	}}
+
+	reference, ok := lookupOfficialModelPricingReference(snapshot, "openai/gpt-test")
+	require.True(t, ok)
+	assert.Equal(t, "openai/gpt-test", reference.ModelName)
+
+	_, ok = lookupOfficialModelPricingReference(snapshot, "custom/gpt-test")
+	assert.False(t, ok)
+	_, ok = lookupOfficialModelPricingReference(snapshot, "custom.gpt-test")
+	assert.False(t, ok)
 }
 
 func TestParseModelsDevSnapshotRejectsEmpty(t *testing.T) {

@@ -1,14 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyOfficialPricePercent,
   editorToPricing,
   filterPricingModels,
   mergeReferenceResolution,
+  inferOfficialPricePercent,
   pricingRecordToEditor,
   resolveSelectedModelName,
   stripLockedCompletionRatio,
   type PricingModelRecord,
 } from './model-pricing-domain'
+
+const officialReference = {
+  model_name: 'gpt-test',
+  provider: 'openai',
+  input_price: 5,
+  output_price: 20,
+  cache_read_price: 1,
+  model_ratio: 2.5,
+  completion_ratio: 4,
+  cache_ratio: 0.2,
+}
 
 const sampleModels: PricingModelRecord[] = [
   {
@@ -133,6 +146,69 @@ describe('stripLockedCompletionRatio', () => {
         false
       )
     ).toEqual({ mode: 'per-token', model_ratio: 1, completion_ratio: 3 })
+  })
+})
+
+describe('official price discount', () => {
+  it('discounts the base price while preserving relative lane ratios', () => {
+    expect(
+      applyOfficialPricePercent(
+        {
+          mode: 'per-token',
+          model_ratio: 1,
+          completion_ratio: 2,
+          create_cache_ratio: 1.25,
+        },
+        officialReference,
+        80
+      )
+    ).toEqual({
+      mode: 'per-token',
+      model_ratio: 2,
+      completion_ratio: 4,
+      cache_ratio: 0.2,
+      create_cache_ratio: 1.25,
+    })
+  })
+
+  it('rejects incompatible modes and unsafe percentages', () => {
+    expect(
+      applyOfficialPricePercent(
+        { mode: 'per-request', model_price: 0.01 },
+        officialReference,
+        50
+      )
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent({ mode: 'unset' }, officialReference, 0)
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent({ mode: 'unset' }, officialReference, 0.99)
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent({ mode: 'unset' }, officialReference, 101)
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent({ mode: 'unset' }, officialReference, 1)
+    ).toMatchObject({ model_ratio: 0.025 })
+    expect(
+      applyOfficialPricePercent({ mode: 'unset' }, officialReference, 100)
+    ).toMatchObject({ model_ratio: 2.5 })
+  })
+
+  it('infers an existing discount from the saved model ratio', () => {
+    expect(
+      inferOfficialPricePercent(
+        { mode: 'per-token', model_ratio: 2 },
+        officialReference
+      )
+    ).toBe(80)
+    expect(
+      inferOfficialPricePercent(
+        { mode: 'per-request', model_price: 0.01 },
+        officialReference
+      )
+    ).toBe(100)
   })
 })
 

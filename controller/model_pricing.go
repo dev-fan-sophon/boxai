@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
@@ -36,6 +37,16 @@ func GetAdminModelPricing(c *gin.Context) {
 		"summary":  gin.H{"total": len(rows), "configured": configured, "unconfigured": len(rows) - configured},
 		"models":   rows,
 	}})
+}
+
+func GetAdminModelPricingReference(c *gin.Context) {
+	modelName := strings.TrimSpace(c.Query("model_name"))
+	if !model.IsConcretePricingModel(modelName) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "model_name must be a concrete service model"})
+		return
+	}
+	reference, _ := model.GetOfficialModelPricingReference(modelName)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"reference": reference}})
 }
 
 func PutAdminModelPricing(c *gin.Context) {

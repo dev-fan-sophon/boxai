@@ -303,6 +303,7 @@ func SetApiRouter(router *gin.Engine) {
 		pricingRoute.Use(middleware.RootAuth())
 		{
 			pricingRoute.GET("/models", controller.GetAdminModelPricing)
+			pricingRoute.GET("/models/reference", controller.GetAdminModelPricingReference)
 			pricingRoute.PUT("/models", controller.PutAdminModelPricing)
 			pricingRoute.POST("/models/bulk", controller.BulkAdminModelPricing)
 			pricingRoute.GET("/references/channels", controller.GetSyncableChannels)

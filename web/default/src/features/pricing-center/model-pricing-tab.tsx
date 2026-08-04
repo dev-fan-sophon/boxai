@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LockKeyhole, Scale, Search } from 'lucide-react'
+import { BadgePercent, LockKeyhole, Scale, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -36,18 +36,23 @@ import { cn } from '@/lib/utils'
 
 import {
   bulkPutPricingModels,
+  getOfficialPricingReference,
   getPricingModels,
   pricingCenterQueryKey,
   putPricingModel,
 } from './api'
 import {
+  applyOfficialPricePercent,
   editorToPricing,
   filterPricingModels,
+  inferOfficialPricePercent,
   mergeReferenceResolution,
   pricingRecordToEditor,
   recordsToLegacyMaps,
   resolveSelectedModelName,
   stripLockedCompletionRatio,
+  type ModelPricing,
+  type OfficialModelPricingReference,
   type PricingModelRecord,
   type PricingStatusFilter,
 } from './model-pricing-domain'
@@ -100,6 +105,14 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
     [models, selectedName]
   )
 
+  const referenceQuery = useQuery({
+    queryKey: [...pricingCenterQueryKey, 'official-reference', selectedName],
+    queryFn: () => getOfficialPricingReference(selectedName ?? ''),
+    enabled: Boolean(selectedName),
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: false,
+  })
+
   const editData = useMemo(
     () => (selectedModel ? pricingRecordToEditor(selectedModel) : null),
     [selectedModel]
@@ -144,7 +157,10 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
     }) => putPricingModel(query.data?.revision ?? 0, name, pricing),
     onSuccess: async () => {
       toast.success(t('Model pricing saved'))
-      await queryClient.invalidateQueries({ queryKey: pricingCenterQueryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pricingCenterQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ['pricing'] }),
+      ])
     },
     onError: refetchConflict,
   })
@@ -158,7 +174,10 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
     ) => bulkPutPricingModels(query.data?.revision ?? 0, payload),
     onSuccess: async () => {
       toast.success(t('Reference prices applied'))
-      await queryClient.invalidateQueries({ queryKey: pricingCenterQueryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pricingCenterQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ['pricing'] }),
+      ])
     },
     onError: refetchConflict,
   })
@@ -197,6 +216,38 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
         pricing: { mode: 'unset' },
       })
       setUnsetConfirmOpen(false)
+    } catch {
+      // Error toast is handled in mutation onError.
+    }
+  }
+
+  const handleApplyOfficialPercent = async (percent: number) => {
+    if (!selectedModel || !referenceQuery.data) return
+    let currentPricing = selectedModel.pricing
+    if (selectedModel.pricing.mode === 'per-token') {
+      const draft = await editorRef.current?.commitDraft()
+      if (!draft) return
+      currentPricing = editorToPricing(draft)
+    }
+    if (
+      currentPricing.mode !== 'per-token' &&
+      currentPricing.mode !== 'unset'
+    ) {
+      toast.error(t('Quick discount is only available for token pricing.'))
+      return
+    }
+    const pricing = applyOfficialPricePercent(
+      currentPricing,
+      referenceQuery.data,
+      percent
+    )
+    if (!pricing) return
+    preferredNameRef.current = selectedModel.model_name
+    try {
+      await save.mutateAsync({
+        name: selectedModel.model_name,
+        pricing: preparePricing(selectedModel.model_name, pricing),
+      })
     } catch {
       // Error toast is handled in mutation onError.
     }
@@ -389,6 +440,17 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
               </div>
             )}
 
+            <div className='px-4 pt-3'>
+              <QuickDiscountPanel
+                key={selectedModel.model_name}
+                pricing={selectedModel.pricing}
+                reference={referenceQuery.data ?? null}
+                isLoading={referenceQuery.isLoading}
+                isSaving={isBusy}
+                onApply={handleApplyOfficialPercent}
+              />
+            </div>
+
             <div className='min-h-0 flex-1 overflow-hidden'>
               <ModelPricingEditorPanel
                 key={selectedModel.model_name}
@@ -475,6 +537,122 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
           />
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function QuickDiscountPanel(props: {
+  pricing: ModelPricing
+  reference: OfficialModelPricingReference | null
+  isLoading: boolean
+  isSaving: boolean
+  onApply: (percent: number) => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const initialPercent = props.reference
+    ? inferOfficialPricePercent(props.pricing, props.reference)
+    : 100
+  const [percent, setPercent] = useState(String(initialPercent))
+
+  useEffect(() => {
+    if (!props.reference) return
+    setPercent(
+      String(inferOfficialPricePercent(props.pricing, props.reference))
+    )
+  }, [props.pricing, props.reference])
+
+  const numericPercent = Number(percent)
+  const valid =
+    percent.trim() !== '' &&
+    Number.isFinite(numericPercent) &&
+    numericPercent >= 1 &&
+    numericPercent <= 100
+  const multiplier = valid ? numericPercent / 100 : 0
+  const modeSupported =
+    props.pricing.mode === 'unset' || props.pricing.mode === 'per-token'
+  const formatPrice = (price: number) =>
+    `$${Number.parseFloat((price * multiplier).toFixed(12))}`
+
+  let referenceDescription = t('Official reference unavailable for this model.')
+  if (!modeSupported) {
+    referenceDescription = t(
+      'Quick discount is only available for token pricing.'
+    )
+  } else if (props.reference) {
+    referenceDescription = t('Official reference from {{provider}}', {
+      provider: props.reference.provider,
+    })
+  }
+
+  if (props.isLoading) return <Skeleton className='h-28 w-full' />
+
+  return (
+    <div className='bg-muted/20 rounded-lg border p-3'>
+      <div className='flex flex-wrap items-start justify-between gap-3'>
+        <div className='space-y-1'>
+          <div className='flex items-center gap-2 text-sm font-medium'>
+            <BadgePercent className='size-4' aria-hidden='true' />
+            {t('Quick discount')}
+          </div>
+          <p className='text-muted-foreground text-xs'>
+            {referenceDescription}
+          </p>
+        </div>
+
+        {props.reference && (
+          <div className='flex flex-wrap items-end gap-2'>
+            <label className='grid gap-1 text-xs font-medium'>
+              {t('Price as % of official')}
+              <div className='relative w-28'>
+                <Input
+                  inputMode='decimal'
+                  value={percent}
+                  aria-invalid={!valid}
+                  className='pe-7 tabular-nums'
+                  onChange={(event) => setPercent(event.target.value)}
+                />
+                <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs'>
+                  %
+                </span>
+              </div>
+            </label>
+            <Button
+              size='sm'
+              disabled={!modeSupported || !valid || props.isSaving}
+              onClick={() => void props.onApply(numericPercent)}
+            >
+              {t('Apply discount')}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {props.reference && valid && (
+        <div className='mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t pt-2 text-xs'>
+          <span>
+            <span className='text-muted-foreground'>{t('Input')}: </span>
+            <span className='font-medium tabular-nums'>
+              {formatPrice(props.reference.input_price)} / 1M
+            </span>
+          </span>
+          {props.reference.output_price !== undefined && (
+            <span>
+              <span className='text-muted-foreground'>{t('Output')}: </span>
+              <span className='font-medium tabular-nums'>
+                {formatPrice(props.reference.output_price)} / 1M
+              </span>
+            </span>
+          )}
+          {props.reference.cache_read_price !== undefined && (
+            <span>
+              <span className='text-muted-foreground'>{t('Cache read')}: </span>
+              <span className='font-medium tabular-nums'>
+                {formatPrice(props.reference.cache_read_price)} / 1M
+              </span>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

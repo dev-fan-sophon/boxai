@@ -1,6 +1,10 @@
 import { api } from '@/lib/api'
 
-import type { ModelPricing, PricingModelRecord } from './model-pricing-domain'
+import type {
+  ModelPricing,
+  OfficialModelPricingReference,
+  PricingModelRecord,
+} from './model-pricing-domain'
 
 export const pricingCenterQueryKey = ['admin', 'pricing', 'models'] as const
 export type PricingModelsData = {
@@ -12,6 +16,15 @@ export async function getPricingModels() {
   return (
     await api.get<{ data: PricingModelsData }>('/api/admin/pricing/models')
   ).data.data
+}
+export async function getOfficialPricingReference(modelName: string) {
+  return (
+    await api.get<{
+      data: { reference: OfficialModelPricingReference | null }
+    }>('/api/admin/pricing/models/reference', {
+      params: { model_name: modelName },
+    })
+  ).data.data.reference
 }
 export async function putPricingModel(
   revision: number,

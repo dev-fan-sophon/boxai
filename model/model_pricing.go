@@ -414,5 +414,6 @@ func ReplaceModelPricing(expectedRevision int64, updates []ModelPricingUpdate) (
 		}
 	}
 	_ = updateOptionMap(ModelPricingRevisionKey, strconv.FormatInt(next, 10))
+	InvalidatePricingCache()
 	return next, nil
 }

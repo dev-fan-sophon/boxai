@@ -25,6 +25,17 @@ export type PricingModelRecord = {
   pricing: ModelPricing
 }
 
+export type OfficialModelPricingReference = {
+  model_name: string
+  provider: string
+  input_price: number
+  output_price?: number
+  cache_read_price?: number
+  model_ratio: number
+  completion_ratio?: number
+  cache_ratio?: number
+}
+
 export type PricingStatusFilter = 'all' | 'configured' | 'unconfigured'
 
 const numericFields = [
@@ -119,6 +130,52 @@ export function stripLockedCompletionRatio(
   const next = { ...pricing }
   delete next.completion_ratio
   return next
+}
+
+export function applyOfficialPricePercent(
+  current: ModelPricing,
+  reference: OfficialModelPricingReference,
+  percent: number
+): ModelPricing | null {
+  if (
+    (current.mode !== 'per-token' && current.mode !== 'unset') ||
+    !Number.isFinite(percent) ||
+    percent < 1 ||
+    percent > 100
+  ) {
+    return null
+  }
+
+  const next: ModelPricing = {
+    ...current,
+    mode: 'per-token',
+    model_ratio: reference.model_ratio * (percent / 100),
+  }
+  delete next.model_price
+  delete next.billing_expr
+  if (reference.completion_ratio !== undefined) {
+    next.completion_ratio = reference.completion_ratio
+  }
+  if (reference.cache_ratio !== undefined) {
+    next.cache_ratio = reference.cache_ratio
+  }
+  return next
+}
+
+export function inferOfficialPricePercent(
+  current: ModelPricing,
+  reference: OfficialModelPricingReference
+): number {
+  if (
+    current.mode !== 'per-token' ||
+    current.model_ratio === undefined ||
+    reference.model_ratio <= 0
+  ) {
+    return 100
+  }
+  const percent = (current.model_ratio / reference.model_ratio) * 100
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) return 100
+  return percent
 }
 
 export function filterPricingModels(
