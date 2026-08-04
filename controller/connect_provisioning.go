@@ -3,9 +3,11 @@ package controller
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +54,11 @@ type connectAccount struct {
 type connectProvisioning struct {
 	ChatModels   []string        `json:"chat_models"`
 	DefaultModel string          `json:"default_model"`
+	ImageModels  []string        `json:"image_models"`
+	VideoModels  []string        `json:"video_models"`
+	DefaultImage string          `json:"default_image_model"`
+	DefaultVideo string          `json:"default_video_model"`
+	MCPEndpoint  string          `json:"mcp_endpoint"`
 	Account      *connectAccount `json:"account,omitempty"`
 }
 
@@ -77,10 +84,18 @@ func GetConnectProvisioning(c *gin.Context) {
 		}
 	}
 	sort.Strings(chatModels)
+	imageModels, videoModels := partitionMediaModels(modelNames)
 
 	data := connectProvisioning{
 		ChatModels:   chatModels,
 		DefaultModel: connectDefaultModel(chatModels),
+		ImageModels:  imageModels,
+		VideoModels:  videoModels,
+		DefaultImage: selectToolModel(imageModels, service.PlaygroundToolImage),
+		DefaultVideo: selectToolModel(videoModels, service.PlaygroundToolVideo),
+		// Absolute URL so Connect can seed clients without knowing the portal host
+		// shape. Path stays on the same origin as the sk- relay key.
+		MCPEndpoint: publicOrigin(c) + "/mcp",
 	}
 	// A missing user is not fatal: the catalog is still usable, and the app
 	// simply renders its account panel without a name.
@@ -110,4 +125,58 @@ func connectDefaultModel(chatModels []string) string {
 		}
 	}
 	return chatModels[0]
+}
+
+// partitionMediaModels splits an account's model list into image and video
+// catalogs for Connect MCP. A model may appear in both when it advertises both
+// endpoint types.
+func partitionMediaModels(modelNames []string) (imageModels, videoModels []string) {
+	imageModels = make([]string, 0)
+	videoModels = make([]string, 0)
+	for _, name := range modelNames {
+		endpoints := model.GetModelSupportEndpointTypes(name)
+		if hasEndpoint(endpoints, constant.EndpointTypeImageGeneration) {
+			imageModels = append(imageModels, name)
+		}
+		if hasEndpoint(endpoints, constant.EndpointTypeOpenAIVideo) {
+			videoModels = append(videoModels, name)
+		}
+	}
+	sort.Strings(imageModels)
+	sort.Strings(videoModels)
+	return imageModels, videoModels
+}
+
+func hasEndpoint(endpoints []constant.EndpointType, want constant.EndpointType) bool {
+	for _, endpoint := range endpoints {
+		if endpoint == want {
+			return true
+		}
+	}
+	return false
+}
+
+// publicOrigin is the externally-reachable origin of this request. Prefer the
+// reverse-proxy headers nginx/Cloudflare set; fall back to the request host.
+func publicOrigin(c *gin.Context) string {
+	scheme := strings.TrimSpace(c.GetHeader("X-Forwarded-Proto"))
+	if scheme == "" {
+		if c.Request.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	} else if i := strings.IndexByte(scheme, ','); i >= 0 {
+		scheme = strings.TrimSpace(scheme[:i])
+	}
+	host := strings.TrimSpace(c.GetHeader("X-Forwarded-Host"))
+	if host == "" {
+		host = c.Request.Host
+	} else if i := strings.IndexByte(host, ','); i >= 0 {
+		host = strings.TrimSpace(host[:i])
+	}
+	if host == "" {
+		return "https://you-box.com"
+	}
+	return scheme + "://" + host
 }

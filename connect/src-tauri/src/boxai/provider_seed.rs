@@ -83,9 +83,60 @@ fn codex_style_config(model: &str, base_url: &str) -> String {
     )
 }
 
+/// Build the multi-model catalog clients that accept a list can switch between.
+///
+/// `selected` is always included even if somehow missing from `chat_models`, so
+/// a just-picked model is never dropped from the live file between refreshes.
+fn chat_model_catalog(selected: &str, chat_models: &[String]) -> Vec<String> {
+    let mut out = Vec::with_capacity(chat_models.len() + 1);
+    if !selected.trim().is_empty() && !chat_models.iter().any(|m| m == selected) {
+        out.push(selected.to_string());
+    }
+    for model in chat_models {
+        if !model.trim().is_empty() && !out.iter().any(|m| m == model) {
+            out.push(model.clone());
+        }
+    }
+    if out.is_empty() && !selected.trim().is_empty() {
+        out.push(selected.to_string());
+    }
+    out
+}
+
+fn opencode_models_object(selected: &str, chat_models: &[String]) -> Value {
+    let mut map = serde_json::Map::new();
+    for model in chat_model_catalog(selected, chat_models) {
+        map.insert(model.clone(), json!({ "name": model }));
+    }
+    Value::Object(map)
+}
+
+fn listed_models(selected: &str, chat_models: &[String]) -> Value {
+    Value::Array(
+        chat_model_catalog(selected, chat_models)
+            .into_iter()
+            .map(|model| json!({ "id": model, "name": model }))
+            .collect(),
+    )
+}
+
+fn codex_model_catalog(selected: &str, chat_models: &[String]) -> Value {
+    json!({
+        "models": chat_model_catalog(selected, chat_models)
+            .into_iter()
+            .map(|model| json!({ "model": model }))
+            .collect::<Vec<_>>(),
+    })
+}
+
 /// The settings payload upstream writes into a client's live config when this
 /// provider is activated. Shapes mirror `src/config/*ProviderPresets.ts`.
-pub fn settings_config(app: &AppType, secret: &str, model: &str) -> Value {
+///
+/// `chat_models` is the full account catalog: clients that can hold more than
+/// one model (OpenCode / OpenClaw / Hermes / Codex catalog) get every entry so
+/// the agent can switch without another Connect round-trip. Clients that only
+/// take a single default (`model` / env) still get `selected` as that default.
+pub fn settings_config(app: &AppType, secret: &str, model: &str, chat_models: &[String]) -> Value {
     // Claude Code appends `/v1/messages` itself, so it gets the bare origin;
     // the OpenAI-compatible clients get the `/v1` form the gateway reported.
     let base = super::gateway_auth::relay_origin_url();
@@ -101,6 +152,9 @@ pub fn settings_config(app: &AppType, secret: &str, model: &str) -> Value {
         AppType::Codex | AppType::GrokBuild => json!({
             "auth": { "OPENAI_API_KEY": secret },
             "config": codex_style_config(model, &base),
+            // Upstream projects this into ~/.codex/cc-switch-model-catalog.json
+            // and points config.toml at it, so Codex can list every chat model.
+            "modelCatalog": codex_model_catalog(model, chat_models),
         }),
         AppType::Gemini => json!({
             "env": {
@@ -114,14 +168,14 @@ pub fn settings_config(app: &AppType, secret: &str, model: &str) -> Value {
             "npm": "@ai-sdk/openai-compatible",
             "name": PROVIDER_NAME,
             "options": { "baseURL": v1, "apiKey": secret },
-            "models": { model: { "name": model } },
+            "models": opencode_models_object(model, chat_models),
         }),
         // Deserialized into `OpenClawProviderConfig`, which is camelCase.
         AppType::OpenClaw => json!({
             "baseUrl": v1,
             "apiKey": secret,
             "api": "openai-completions",
-            "models": [{ "id": model, "name": model }],
+            "models": listed_models(model, chat_models),
         }),
         // Written into `custom_providers:`; upstream normalizes camelCase to
         // snake_case, but writing the YAML shape directly keeps the stored
@@ -132,7 +186,7 @@ pub fn settings_config(app: &AppType, secret: &str, model: &str) -> Value {
             "base_url": v1,
             "api_key": secret,
             "api_mode": "chat_completions",
-            "models": [{ "id": model, "name": model }],
+            "models": listed_models(model, chat_models),
         }),
         // Detection only; never seeded. See SUPPORTED_APPS.
         AppType::ClaudeDesktop => json!({}),
@@ -154,10 +208,11 @@ pub fn upsert_for(
     app: &AppType,
     secret: &str,
     model: &str,
+    chat_models: &[String],
 ) -> Result<bool, AppError> {
     let app_type = app.as_str();
     let id = provider_id(app);
-    let desired = settings_config(app, secret, model);
+    let desired = settings_config(app, secret, model, chat_models);
 
     let existing = db.get_provider_by_id(&id, app_type)?;
     if let Some(current) = &existing {
@@ -215,22 +270,42 @@ pub fn remove_all(db: &Database) {
 pub struct Provisioning {
     pub chat_models: Vec<String>,
     pub default_model: Option<String>,
+    pub image_models: Vec<String>,
+    pub video_models: Vec<String>,
+    pub default_image_model: Option<String>,
+    pub default_video_model: Option<String>,
+    /// Absolute URL of the BoxAI media MCP endpoint (Streamable HTTP).
+    pub mcp_endpoint: Option<String>,
     pub account: Option<super::gateway_auth::Account>,
+}
+
+fn string_list(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|model| model.as_str().map(str::to_owned))
+        .filter(|model| !model.trim().is_empty())
+        .collect()
+}
+
+fn optional_string(value: &Value) -> Option<String> {
+    value
+        .as_str()
+        .filter(|model| !model.is_empty())
+        .map(str::to_owned)
 }
 
 pub fn parse_provisioning(body: &Value) -> Provisioning {
     let data = &body["data"];
     Provisioning {
-        chat_models: data["chat_models"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|model| model.as_str().map(str::to_owned))
-            .collect(),
-        default_model: data["default_model"]
-            .as_str()
-            .filter(|model| !model.is_empty())
-            .map(str::to_owned),
+        chat_models: string_list(&data["chat_models"]),
+        default_model: optional_string(&data["default_model"]),
+        image_models: string_list(&data["image_models"]),
+        video_models: string_list(&data["video_models"]),
+        default_image_model: optional_string(&data["default_image_model"]),
+        default_video_model: optional_string(&data["default_video_model"]),
+        mcp_endpoint: optional_string(&data["mcp_endpoint"]),
         account: serde_json::from_value(data["account"].clone()).ok(),
     }
 }
@@ -267,42 +342,62 @@ async fn fetch_provisioning() -> Result<Provisioning, String> {
     Ok(parse_provisioning(&body))
 }
 
+/// Result of reconciling BoxAI providers after sign-in / startup.
+pub struct SyncOutcome {
+    pub providers_changed: usize,
+    /// MCP endpoint advertised by provisioning, when present.
+    pub mcp_endpoint: Option<String>,
+}
+
 /// Create the BoxAI provider for every supported client, using the model
 /// catalog BoxAI reports for this account.
 ///
 /// Does nothing while signed out, and removes any existing entries: an account
 /// that is not connected must not leave behind a provider that authorizes
 /// nothing.
-pub async fn sync_all(state: &crate::store::AppState) -> usize {
+pub async fn sync_all(state: &crate::store::AppState) -> SyncOutcome {
     let db = &state.db;
     if !super::gateway_auth::is_connected() {
         remove_all(db);
-        return 0;
+        return SyncOutcome {
+            providers_changed: 0,
+            mcp_endpoint: None,
+        };
     }
     let secret = match super::gateway_auth::api_key() {
         Ok(secret) => secret,
         Err(error) => {
             log::warn!("BoxAI provider seed skipped: {error}");
-            return 0;
+            return SyncOutcome {
+                providers_changed: 0,
+                mcp_endpoint: None,
+            };
         }
     };
     let provisioning = match fetch_provisioning().await {
         Ok(provisioning) => provisioning,
         Err(error) => {
             log::warn!("BoxAI provider seed skipped, provisioning unavailable: {error}");
-            return 0;
+            return SyncOutcome {
+                providers_changed: 0,
+                mcp_endpoint: None,
+            };
         }
     };
     // The same call that answers "which models" also answers "who is this",
     // so the account dialog can render an identity without its own request.
     super::gateway_auth::remember_account(provisioning.account.clone());
+    let mcp_endpoint = provisioning.mcp_endpoint.clone();
     let Some(fallback) = provisioning
         .default_model
         .clone()
         .or_else(|| provisioning.chat_models.first().cloned())
     else {
         log::warn!("BoxAI offers this account no chat models; provider not seeded");
-        return 0;
+        return SyncOutcome {
+            providers_changed: 0,
+            mcp_endpoint,
+        };
     };
 
     let mut changed = 0;
@@ -314,7 +409,7 @@ pub async fn sync_all(state: &crate::store::AppState) -> usize {
         if let Err(error) = set_selected_model(db, &app, &model) {
             log::warn!("✗ Failed to record the model for {}: {error}", app.as_str());
         }
-        let reconciled = match upsert_for(db, &app, &secret, &model) {
+        let reconciled = match upsert_for(db, &app, &secret, &model, &provisioning.chat_models) {
             Ok(true) => {
                 changed += 1;
                 log::info!("✓ Reconciled BoxAI provider for {}", app.as_str());
@@ -348,7 +443,10 @@ pub async fn sync_all(state: &crate::store::AppState) -> usize {
             }
         }
     }
-    changed
+    SyncOutcome {
+        providers_changed: changed,
+        mcp_endpoint,
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -403,13 +501,15 @@ pub async fn boxai_model_select(
     }
     // Validate against the Gateway rather than trusting the renderer: a model
     // this account cannot use would be written into a real client config file.
-    if !fetch_provisioning().await?.chat_models.contains(&model) {
+    let provisioning = fetch_provisioning().await?;
+    if !provisioning.chat_models.contains(&model) {
         return Err(format!("BoxAI does not offer {model} to this account"));
     }
     set_selected_model(&state.db, &app, &model).map_err(|e| e.to_string())?;
 
     let secret = super::gateway_auth::api_key()?;
-    upsert_for(&state.db, &app, &secret, &model).map_err(|e| e.to_string())?;
+    upsert_for(&state.db, &app, &secret, &model, &provisioning.chat_models)
+        .map_err(|e| e.to_string())?;
 
     let id = provider_id(&app);
     let is_active = crate::services::provider::ProviderService::current(&state, app.clone())
@@ -431,6 +531,11 @@ mod tests {
         json!({"success": true, "data": {
             "chat_models": ["deepseek-v4-pro", "gpt-5.6-sol", "kimi-k2.7-code"],
             "default_model": "gpt-5.6-sol",
+            "image_models": ["gpt-image-2", "grok-imagine-image"],
+            "video_models": ["seedance-2-0"],
+            "default_image_model": "gpt-image-2",
+            "default_video_model": "seedance-2-0",
+            "mcp_endpoint": "https://you-box.com/mcp",
             "account": {
                 "id": 7,
                 "username": "ada",
@@ -441,6 +546,14 @@ mod tests {
         }})
     }
 
+    fn sample_chat_models() -> Vec<String> {
+        vec![
+            "deepseek-v4-pro".into(),
+            "gpt-5.6-sol".into(),
+            "kimi-k2.7-code".into(),
+        ]
+    }
+
     #[test]
     fn the_model_catalog_comes_from_the_server() {
         let parsed = parse_provisioning(&provisioning_response());
@@ -449,6 +562,13 @@ mod tests {
             ["deepseek-v4-pro", "gpt-5.6-sol", "kimi-k2.7-code"]
         );
         assert_eq!(parsed.default_model.as_deref(), Some("gpt-5.6-sol"));
+        assert_eq!(parsed.image_models, ["gpt-image-2", "grok-imagine-image"]);
+        assert_eq!(parsed.video_models, ["seedance-2-0"]);
+        assert_eq!(parsed.default_image_model.as_deref(), Some("gpt-image-2"));
+        assert_eq!(
+            parsed.mcp_endpoint.as_deref(),
+            Some("https://you-box.com/mcp")
+        );
     }
 
     #[test]
@@ -480,8 +600,9 @@ mod tests {
 
     #[test]
     fn every_supported_client_points_at_the_gateway_with_the_user_key() {
+        let catalog = sample_chat_models();
         for app in SUPPORTED_APPS {
-            let rendered = settings_config(&app, "sk-user", "some-model").to_string();
+            let rendered = settings_config(&app, "sk-user", "some-model", &catalog).to_string();
             assert!(
                 rendered.contains("you-box.com"),
                 "{} must target BoxAI: {rendered}",
@@ -505,20 +626,21 @@ mod tests {
     /// OpenAI-compatible clients need exactly the `/v1` form.
     #[test]
     fn claude_gets_the_bare_origin_and_the_openai_clients_get_v1() {
-        let claude = settings_config(&AppType::Claude, "sk-user", "m");
+        let catalog = sample_chat_models();
+        let claude = settings_config(&AppType::Claude, "sk-user", "m", &catalog);
         assert_eq!(
             claude["env"]["ANTHROPIC_BASE_URL"].as_str(),
             Some("https://you-box.com")
         );
 
-        let opencode = settings_config(&AppType::OpenCode, "sk-user", "m");
+        let opencode = settings_config(&AppType::OpenCode, "sk-user", "m", &catalog);
         assert_eq!(
             opencode["options"]["baseURL"].as_str(),
             Some("https://you-box.com/v1")
         );
-        let openclaw = settings_config(&AppType::OpenClaw, "sk-user", "m");
+        let openclaw = settings_config(&AppType::OpenClaw, "sk-user", "m", &catalog);
         assert_eq!(openclaw["baseUrl"].as_str(), Some("https://you-box.com/v1"));
-        let hermes = settings_config(&AppType::Hermes, "sk-user", "m");
+        let hermes = settings_config(&AppType::Hermes, "sk-user", "m", &catalog);
         assert_eq!(hermes["base_url"].as_str(), Some("https://you-box.com/v1"));
     }
 
@@ -527,11 +649,14 @@ mod tests {
     /// contract, not a style choice.
     #[test]
     fn additive_clients_use_the_key_names_their_own_writers_expect() {
-        let openclaw = settings_config(&AppType::OpenClaw, "sk-user", "m");
+        let catalog = sample_chat_models();
+        let openclaw = settings_config(&AppType::OpenClaw, "sk-user", "m", &catalog);
         assert_eq!(openclaw["apiKey"].as_str(), Some("sk-user"));
+        // Selected model is first so a just-picked id is never dropped.
         assert_eq!(openclaw["models"][0]["id"].as_str(), Some("m"));
+        assert!(openclaw["models"].as_array().unwrap().len() >= catalog.len());
 
-        let hermes = settings_config(&AppType::Hermes, "sk-user", "m");
+        let hermes = settings_config(&AppType::Hermes, "sk-user", "m", &catalog);
         assert_eq!(hermes["api_key"].as_str(), Some("sk-user"));
         // Without api_mode Hermes cannot tell which wire format to speak.
         assert_eq!(hermes["api_mode"].as_str(), Some("chat_completions"));
@@ -539,11 +664,28 @@ mod tests {
     }
 
     #[test]
+    fn multi_model_clients_receive_the_full_chat_catalog() {
+        let catalog = sample_chat_models();
+        let opencode = settings_config(&AppType::OpenCode, "sk-user", "gpt-5.6-sol", &catalog);
+        let models = opencode["models"].as_object().expect("opencode models map");
+        for name in &catalog {
+            assert!(models.contains_key(name), "missing {name}");
+        }
+
+        let codex = settings_config(&AppType::Codex, "sk-user", "gpt-5.6-sol", &catalog);
+        let catalog_models = codex["modelCatalog"]["models"]
+            .as_array()
+            .expect("codex modelCatalog");
+        assert_eq!(catalog_models.len(), catalog.len());
+        assert_eq!(catalog_models[0]["model"].as_str(), Some("deepseek-v4-pro"));
+    }
+
+    #[test]
     fn claude_desktop_renders_nothing_to_project() {
         // It has no chat provider concept: upstream drives it through a profile
         // library and the local proxy instead.
         assert_eq!(
-            settings_config(&AppType::ClaudeDesktop, "sk-user", "m"),
+            settings_config(&AppType::ClaudeDesktop, "sk-user", "m", &[]),
             json!({})
         );
         assert!(!SUPPORTED_APPS.contains(&AppType::ClaudeDesktop));

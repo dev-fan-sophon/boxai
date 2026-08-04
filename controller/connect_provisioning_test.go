@@ -18,6 +18,11 @@ type connectProvisioningResponse struct {
 	Data    struct {
 		ChatModels   []string `json:"chat_models"`
 		DefaultModel string   `json:"default_model"`
+		ImageModels  []string `json:"image_models"`
+		VideoModels  []string `json:"video_models"`
+		DefaultImage string   `json:"default_image_model"`
+		DefaultVideo string   `json:"default_video_model"`
+		MCPEndpoint  string   `json:"mcp_endpoint"`
 		Account      *struct {
 			Id       int    `json:"id"`
 			Username string `json:"username"`
@@ -124,6 +129,12 @@ func TestConnectProvisioningReturnsChatModelsOnly(t *testing.T) {
 	payload := decodeConnectProvisioning(t, requestConnectProvisioning(t, 2001))
 
 	require.Equal(t, []string{"zz-connect-chat-model", "zz-connect-claude"}, payload.Data.ChatModels)
+	// Media catalogs are separate from chat so coding clients never pick them
+	// as a conversation default; Connect seeds them into the MCP tool surface.
+	require.NotContains(t, payload.Data.ChatModels, "zz-connect-flux-image")
+	require.NotContains(t, payload.Data.ChatModels, "zz-connect-video")
+	require.NotEmpty(t, payload.Data.MCPEndpoint)
+	require.Contains(t, payload.Data.MCPEndpoint, "/mcp")
 }
 
 // The catalog is per-account and the default is an operator decision, so a

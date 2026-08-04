@@ -15,6 +15,17 @@ func SetRelayRouter(router *gin.Engine) {
 	router.Use(middleware.DecompressRequestMiddleware())
 	router.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	router.Use(middleware.StatsMiddleware())
+
+	// BoxAI Connect media MCP (Streamable HTTP). Same sk- key as /v1; tools wrap
+	// image/video generation so coding agents never put media models in chat config.
+	mcpRouter := router.Group("/mcp")
+	mcpRouter.Use(middleware.RouteTag("mcp"))
+	mcpRouter.Use(middleware.TokenAuth())
+	{
+		mcpRouter.Any("", controller.HandleConnectMCP)
+		mcpRouter.Any("/", controller.HandleConnectMCP)
+	}
+
 	// https://platform.openai.com/docs/api-reference/introduction
 	modelsRouter := router.Group("/v1/models")
 	modelsRouter.Use(middleware.RouteTag("relay"))

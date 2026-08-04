@@ -494,13 +494,13 @@ pub(crate) async fn reconcile_account_surface(
 
 async fn refresh_seeds(app: &tauri::AppHandle, state: &crate::store::AppState) {
     let connected = is_connected();
-    let providers = super::provider_seed::sync_all(state).await;
-    match super::mcp_seed::sync(state) {
+    let outcome = super::provider_seed::sync_all(state).await;
+    match super::mcp_seed::sync_with_endpoint(state, outcome.mcp_endpoint.as_deref()) {
         Ok(()) => log::info!("✓ BoxAI MCP seeds reconciled (connected={connected})"),
         Err(error) => log::warn!("Could not refresh BoxAI MCP servers: {error}"),
     }
-    if providers > 0 {
-        log::info!("✓ Seeded {providers} BoxAI provider(s)");
+    if outcome.providers_changed > 0 {
+        log::info!("✓ Seeded {} BoxAI provider(s)", outcome.providers_changed);
     } else if connected {
         log::warn!("BoxAI providers were not seeded while signed in; check provisioning");
     }
