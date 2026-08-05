@@ -587,8 +587,9 @@ func InjectSEOIntoHTML(indexHTML []byte, page SEOPage, siteName, baseURL, imageU
 		robots = "noindex,nofollow"
 	}
 
-	// lang: keep existing if present; prefer zh-CN when site is commonly Chinese deployments
-	htmlStr = replaceOnce(htmlStr, `<html lang="en">`, `<html lang="zh-CN">`)
+	// Vietnam-first: prefer vi when the shell still has a generic English/zh-CN lang tag.
+	htmlStr = replaceOnce(htmlStr, `<html lang="en">`, `<html lang="vi">`)
+	htmlStr = replaceOnce(htmlStr, `<html lang="zh-CN">`, `<html lang="vi">`)
 
 	htmlStr = replaceMetaContent(htmlStr, "name", "title", title)
 	htmlStr = replaceMetaContent(htmlStr, "name", "description", desc)
@@ -604,7 +605,7 @@ func InjectSEOIntoHTML(indexHTML []byte, page SEOPage, siteName, baseURL, imageU
 	if imageURL != "" {
 		htmlStr = upsertMeta(htmlStr, "property", "og:image", imageURL)
 	}
-	htmlStr = upsertMeta(htmlStr, "property", "og:locale", "zh_CN")
+	htmlStr = upsertMeta(htmlStr, "property", "og:locale", "vi_VN")
 
 	htmlStr = upsertMeta(htmlStr, "name", "twitter:card", "summary_large_image")
 	htmlStr = upsertMeta(htmlStr, "name", "twitter:title", title)

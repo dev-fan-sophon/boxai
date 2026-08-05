@@ -17,7 +17,7 @@ export function getManifestPage(docPath: string): DocsManifestPage | undefined {
 }
 
 export function resolveDocsLocale(language: string | undefined): 'en' | 'vi' {
-  const base = (language || 'en').toLowerCase().split('-')[0]
+  const base = (language || 'vi').toLowerCase().split('-')[0]
   return base === 'vi' ? 'vi' : 'en'
 }
 
