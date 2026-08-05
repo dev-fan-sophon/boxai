@@ -2,13 +2,14 @@ import i18n from 'i18next'
 
 // `short` is the badge shown on the compact language trigger in the header.
 // Order is product priority: Vietnamese first, English second (Vietnam-first).
+// Chinese variants stay last — available, not promoted.
 export const INTERFACE_LANGUAGE_OPTIONS = [
   { code: 'vi', label: 'Tiếng Việt', short: 'VI' },
   { code: 'en', label: 'English', short: 'EN' },
-  { code: 'zhCN', label: '简体中文', short: '简' },
   { code: 'fr', label: 'Français', short: 'FR' },
   { code: 'ru', label: 'Русский', short: 'RU' },
   { code: 'ja', label: '日本語', short: 'JA' },
+  { code: 'zhCN', label: '简体中文', short: '简' },
   { code: 'zhTW', label: '繁體中文', short: '繁' },
 ] as const
 
