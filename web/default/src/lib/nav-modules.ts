@@ -23,7 +23,7 @@ export type HeaderNavModules = {
 }
 
 // Public strip defaults:
-// Home · Workspace · Agents · Inspiration · Model Hub · Rankings
+// Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings
 // (+ Dashboard CTA via console flag).
 // About is intentionally off by default — keep it in admin/footer paths only.
 const DEFAULT_HEADER_NAV_MODULES: HeaderNavModules = {

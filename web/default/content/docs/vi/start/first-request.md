@@ -14,7 +14,7 @@ checklist: [Mở Playground hoặc chuẩn bị curl, Chọn mô hình, Gửi He
 Hoàn thành một lần gọi mô hình thành công để biết billing, key và định tuyến hoạt động end-to-end.
 
 ## Cách A — Playground (nhanh nhất)
-![Playground successful chat](/docs/screenshots/playground/chat-success.en.webp "1. Open Playground → pick a model → send Hello")
+![Playground successful chat](/doc-assets/screenshots/playground/chat-success.en.webp "1. Open Playground → pick a model → send Hello")
 
 
 :::steps

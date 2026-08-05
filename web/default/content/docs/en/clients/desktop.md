@@ -9,9 +9,9 @@ status: published
 ---
 
 ## Download
-![Downloads page](/docs/screenshots/clients/downloads.en.webp "1. Get the latest build from Downloads")
+![Downloads page](/doc-assets/screenshots/clients/downloads.en.webp "1. Get the latest build from Downloads")
 
-![BoxAI Desktop session](/docs/screenshots/clients/desktop-session.en.webp "2. Sign in and start a desktop session")
+![BoxAI Desktop session](/doc-assets/screenshots/clients/desktop-session.en.webp "2. Sign in and start a desktop session")
 
 
 Get the latest builds from the [Downloads](/downloads) page on you-box.com. Prefer the official site over third-party mirrors.

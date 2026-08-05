@@ -13,11 +13,11 @@ checklist: [Open Playground or prepare curl, Select a model, Send Hello, Confirm
 
 Complete one successful model call so you know billing, keys, and routing work end to end.
 
-![First request flow](/docs/screenshots/start/first-request-flow.svg "Key → model ID → gateway request → HTTP 200")
+![First request flow](/doc-assets/screenshots/start/first-request-flow.svg "Key → model ID → gateway request → HTTP 200")
 
 
 ## Option A — Playground (fastest)
-![Playground successful chat](/docs/screenshots/playground/chat-success.en.webp "1. Open Playground → pick a model → send Hello")
+![Playground successful chat](/doc-assets/screenshots/playground/chat-success.en.webp "1. Open Playground → pick a model → send Hello")
 
 
 :::steps

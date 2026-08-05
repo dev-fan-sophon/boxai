@@ -19,7 +19,7 @@ Playground cho phép chat với các model tài khoản bạn được phép mà
 Mở [Playground](/playground) khi đã đăng nhập.
 
 ## Chat đầu tiên
-![Playground chat](/docs/screenshots/playground/chat-success.en.webp "Send a short message and confirm an assistant reply")
+![Playground chat](/doc-assets/screenshots/playground/chat-success.en.webp "Send a short message and confirm an assistant reply")
 
 
 Làm theo [Request đầu tiên](/docs/start/first-request) cho lộ trình thành công từng bước.

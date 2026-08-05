@@ -12,5 +12,6 @@ export const defaultTopNavLinks: TopNavLink[] = [
   { title: 'Agents', href: '/agents' },
   { title: 'Inspiration', href: '/inspiration' },
   { title: 'Model Hub', href: '/pricing' },
+  { title: 'Docs', href: '/docs/start/getting-started' },
   { title: 'Rankings', href: '/rankings' },
 ]

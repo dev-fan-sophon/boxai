@@ -9,7 +9,7 @@ status: published
 ---
 
 ## Mở nhật ký
-![Usage logs table](/docs/screenshots/console/usage-logs.en.webp "Filter by time, model, or status in Usage logs")
+![Usage logs table](/doc-assets/screenshots/console/usage-logs.en.webp "Filter by time, model, or status in Usage logs")
 
 
 Trong console, mở **Usage** / **Logs** ([/usage-logs](/usage-logs) khi đã đăng nhập). Lọc theo thời gian, model hoặc status nếu có.
