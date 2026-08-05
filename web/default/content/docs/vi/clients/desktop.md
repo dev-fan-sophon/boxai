@@ -9,9 +9,9 @@ status: published
 ---
 
 ## Tải về
-![Downloads page](/docs/screenshots/clients/downloads.en.webp "1. Get the latest build from Downloads")
+![Downloads page](/doc-assets/screenshots/clients/downloads.en.webp "1. Get the latest build from Downloads")
 
-![BoxAI Desktop session](/docs/screenshots/clients/desktop-session.en.webp "2. Sign in and start a desktop session")
+![BoxAI Desktop session](/doc-assets/screenshots/clients/desktop-session.en.webp "2. Sign in and start a desktop session")
 
 
 Lấy bản mới nhất từ trang [Downloads](/downloads) trên you-box.com. Ưu tiên site chính thức thay vì mirror bên thứ ba.

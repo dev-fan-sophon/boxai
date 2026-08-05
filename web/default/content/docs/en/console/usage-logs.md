@@ -9,7 +9,7 @@ status: published
 ---
 
 ## Open usage logs
-![Usage logs table](/docs/screenshots/console/usage-logs.en.webp "Filter by time, model, or status in Usage logs")
+![Usage logs table](/doc-assets/screenshots/console/usage-logs.en.webp "Filter by time, model, or status in Usage logs")
 
 
 In the console, open **Usage** / **Logs** ([/usage-logs](/usage-logs) when signed in). Filter by time range, model, or status when available.

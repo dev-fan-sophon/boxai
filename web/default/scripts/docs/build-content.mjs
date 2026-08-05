@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const webRoot = path.resolve(__dirname, '../..')
 const contentRoot = path.join(webRoot, 'content/docs')
 const generatedDir = path.join(webRoot, 'src/features/docs/generated')
-const publicDocsDir = path.join(webRoot, 'public/docs')
+const publicDocsDir = path.join(webRoot, 'public/doc-assets')
 
 const LOCALES = ['en', 'vi']
 

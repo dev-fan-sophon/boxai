@@ -24,7 +24,7 @@ type SearchIndexFile = {
 }
 
 async function loadSearchIndex(locale: 'en' | 'vi'): Promise<SearchDocument[]> {
-  const response = await fetch(`/docs/docs-search.${locale}.json`, {
+  const response = await fetch(`/doc-assets/docs-search.${locale}.json`, {
     credentials: 'same-origin',
   })
   if (!response.ok) {

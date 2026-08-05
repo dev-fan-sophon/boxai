@@ -9,7 +9,7 @@ status: published
 ---
 
 ## Base URL
-![Sign-in to BoxAI](/docs/screenshots/auth/sign-in.en.webp "Create an account or sign in before issuing API keys")
+![Sign-in to BoxAI](/doc-assets/screenshots/auth/sign-in.en.webp "Create an account or sign in before issuing API keys")
 
 
 Production host:

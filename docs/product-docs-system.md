@@ -225,7 +225,9 @@ Lightweight end-of-page control:
 
 ### 5.2 Build artifacts
 
-Emitted at frontend build into `web/default/public/docs/` (or `dist` copy):
+Emitted at frontend build into `web/default/public/doc-assets/` (or `dist` copy).
+Static assets intentionally use `/doc-assets/*` (not `/docs/*`) so the Gin static
+file server does not shadow SPA product-docs routes under `/docs`.
 
 | Artifact | Purpose |
 |----------|---------|
@@ -265,7 +267,7 @@ order: 20                 # sort within section
 audience: [user, developer]
 updated: 2026-08-04
 status: published         # draft | published
-og_image: /docs/screenshots/console/api-keys-create.en.webp
+og_image: /doc-assets/screenshots/console/api-keys-create.en.webp
 checklist:                # optional; console first-run
   - Create an API key
   - Copy the secret once
@@ -372,8 +374,8 @@ bun run docs:build
   → read content/docs/{en,vi}/**/*.md
   → gray-matter / lightweight frontmatter parse
   → emit src/features/docs/generated/*.json (or importable modules)
-  → emit public/docs/docs-manifest.json
-  → emit public/docs/docs-search.{en,vi}.json
+  → emit public/doc-assets/docs-manifest.json
+  → emit public/doc-assets/docs-search.{en,vi}.json
   → validate core-path vi coverage
 ```
 
@@ -408,7 +410,7 @@ Never put API keys in frontend code or screenshots.
 3. Copy the secret once
 :::
 
-![Create API key dialog](/docs/screenshots/console/api-keys-create.en.webp "1. Console → API Keys → Create")
+![Create API key dialog](/doc-assets/screenshots/console/api-keys-create.en.webp "1. Console → API Keys → Create")
 ```
 
 Implementation options (pick one in P0 impl):
@@ -494,7 +496,7 @@ Other locales (zh, ja, fr, ru): P2 opportunistic; do not block P0.
 ### 8.2 Storage
 
 ```
-web/default/public/docs/screenshots/
+web/default/public/doc-assets/screenshots/
   start/
   console/
   api/          # rare; prefer diagrams
@@ -508,7 +510,7 @@ normal git.
 ### 8.3 Automation (P1)
 
 ```
-web/default/scripts/docs/screenshots/
+web/default/scripts/doc-assets/screenshots/
   playwright.config.ts
   auth.setup.ts              # seed user via env, never commit secrets
   scenarios/

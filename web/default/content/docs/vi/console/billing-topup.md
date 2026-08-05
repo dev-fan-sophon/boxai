@@ -18,7 +18,7 @@ status: published
 Mở phần billing hoặc ví trong console để xem số dư hiện tại và gói đăng ký (nếu có). Usage trừ theo giá trên [Model Hub](/pricing).
 
 ## Nạp tiền
-![Billing and top-up](/docs/screenshots/console/billing-topup.en.webp "1. Open Billing → choose amount and payment method")
+![Billing and top-up](/doc-assets/screenshots/console/billing-topup.en.webp "1. Open Billing → choose amount and payment method")
 
 
 :::steps

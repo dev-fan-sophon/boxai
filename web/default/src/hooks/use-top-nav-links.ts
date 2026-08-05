@@ -24,7 +24,7 @@ export type TopNavLink = {
  *   about: false
  * }
  *
- * Default strip: Home · Workspace · Agents · Inspiration · Model Hub · Rankings.
+ * Default strip: Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings.
  * Console/Dashboard is a CTA in PublicHeader, not a strip text link.
  * Titles stay English i18n source keys; consumers translate them.
  */
@@ -43,7 +43,8 @@ export function useTopNavLinks(): TopNavLink[] {
 
   const links: TopNavLink[] = []
 
-  // Public navigation order: Home · Workspace · Agents · Inspiration · Model Hub · Rankings.
+  // Public navigation order:
+  // Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings.
   // Dashboard is rendered as a primary CTA button in PublicHeader, not here.
 
   if (modules?.home !== false) {
@@ -66,6 +67,10 @@ export function useTopNavLinks(): TopNavLink[] {
   if (pricing && typeof pricing === 'object' && pricing.enabled) {
     const requiresAuth = pricing.requireAuth && !isAuthed
     links.push({ title: 'Model Hub', href: '/pricing', requiresAuth })
+  }
+
+  if (modules?.docs !== false) {
+    links.push({ title: 'Docs', href: '/docs/start/getting-started' })
   }
 
   const rankings = modules?.rankings

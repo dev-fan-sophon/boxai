@@ -160,7 +160,7 @@ export function Footer(props: FooterProps) {
         links: [
           {
             text: t('footer.columns.docs.links.apiDocs'),
-            href: '/docs',
+            href: '/docs/start/getting-started',
           },
         ],
       },
