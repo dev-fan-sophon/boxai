@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BoxAI · Billing top-up (fixture)</title>
+    <link rel="stylesheet" href="./console-shell.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">BoxAI</div>
+        <nav class="nav">
+          <a href="#">Dashboard</a>
+          <a href="#">API Keys</a>
+          <a class="active" href="#">Billing</a>
+          <a href="#">Usage</a>
+        </nav>
+      </aside>
+      <main class="main">
+        <div class="top">
+          <div>
+            <h1>Billing & top-up</h1>
+            <p class="muted" style="margin: 6px 0 0">
+              Vietnam-first payment rails when enabled for your account
+            </p>
+          </div>
+        </div>
+        <div class="grid cols-3" style="margin-bottom: 16px">
+          <div class="stat">
+            <div class="label">Balance</div>
+            <div class="value">₫ 250,000</div>
+          </div>
+          <div class="stat">
+            <div class="label">This month</div>
+            <div class="value">₫ 48,200</div>
+          </div>
+          <div class="stat">
+            <div class="label">Status</div>
+            <div class="value" style="font-size: 16px; margin-top: 10px">
+              <span class="badge ok">Active</span>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="padding: 18px">
+          <h2 style="margin: 0 0 12px; font-size: 16px">Top up</h2>
+          <div class="field">
+            <label>Amount (VND)</label>
+            <input value="200000" readonly />
+          </div>
+          <div class="field">
+            <label>Payment method</label>
+            <div class="pay-methods">
+              <div class="pay-method selected">Waffo<br /><span class="muted">Recommended (VN)</span></div>
+              <div class="pay-method">Bank transfer</div>
+              <div class="pay-method">Card</div>
+            </div>
+          </div>
+          <div class="actions" style="justify-content: flex-start">
+            <button class="btn" type="button">Continue to payment</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

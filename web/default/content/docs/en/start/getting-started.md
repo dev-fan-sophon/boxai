@@ -10,6 +10,8 @@ checklist: [Create an account, Create an API key, Pick a model ID, Send a test r
 ---
 
 ## Prerequisites
+![Getting started guide](/docs/screenshots/start/getting-started.en.webp "BoxAI getting started guide on you-box.com")
+
 
 - A BoxAI account at [you-box.com](https://you-box.com)
 - Enough quota for a small test call (top up if needed — see [Billing and top-up](/docs/console/billing-topup))

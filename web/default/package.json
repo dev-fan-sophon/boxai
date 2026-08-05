@@ -7,6 +7,7 @@
     "dev": "node scripts/docs/build-content.mjs && rsbuild dev",
     "docs:build": "node scripts/docs/build-content.mjs",
     "docs:validate": "node scripts/docs/build-content.mjs",
+    "docs:screenshots": "node scripts/docs/screenshots/capture.mjs",
     "build": "node scripts/docs/build-content.mjs && rsbuild build",
     "build:check": "node scripts/docs/build-content.mjs && tsgo -b && rsbuild build",
     "typecheck": "node scripts/docs/build-content.mjs && tsgo -b",
@@ -91,7 +92,9 @@
     "knip": "^6.24.0",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "playwright": "^1.62.1",
     "shadcn": "^4.12.0",
+    "sharp": "^0.35.3",
     "vitest": "^4.1.10"
   },
   "overrides": {

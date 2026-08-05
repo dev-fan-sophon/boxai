@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BoxAI · Create API key (fixture)</title>
+    <link rel="stylesheet" href="./console-shell.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">BoxAI</div>
+        <nav class="nav">
+          <a href="#">Dashboard</a>
+          <a class="active" href="#">API Keys</a>
+          <a href="#">Model Hub</a>
+          <a href="#">Billing</a>
+          <a href="#">Usage</a>
+        </nav>
+      </aside>
+      <main class="main">
+        <div class="top">
+          <h1>API Keys</h1>
+          <button class="btn" type="button">Create API key</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Key</th>
+                <th>Status</th>
+                <th>Quota</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>demo-ci</td>
+                <td class="mono">sk-boxai-••••••••demo</td>
+                <td><span class="badge ok">Enabled</span></td>
+                <td>12%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <h2>Create API key</h2>
+        <p class="muted" style="margin: 0">
+          Name the key and optionally limit models or IPs.
+        </p>
+        <div class="field">
+          <label>Name</label>
+          <input value="prod-server" readonly />
+        </div>
+        <div class="field">
+          <label>Group</label>
+          <select disabled>
+            <option>default</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Models (empty = all allowed)</label>
+          <input value="" placeholder="Leave empty for all models" readonly />
+        </div>
+        <div class="actions">
+          <button class="btn outline" type="button">Cancel</button>
+          <button class="btn" type="button">Create</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

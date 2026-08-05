@@ -17,6 +17,8 @@ Complete one successful model call so you know billing, keys, and routing work e
 
 
 ## Option A — Playground (fastest)
+![Playground successful chat](/docs/screenshots/playground/chat-success.en.webp "1. Open Playground → pick a model → send Hello")
+
 
 :::steps
 1. Sign in and open [Playground](/playground).

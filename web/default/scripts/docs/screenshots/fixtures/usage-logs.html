@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BoxAI · Usage logs (fixture)</title>
+    <link rel="stylesheet" href="./console-shell.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">BoxAI</div>
+        <nav class="nav">
+          <a href="#">API Keys</a>
+          <a href="#">Billing</a>
+          <a class="active" href="#">Usage</a>
+          <a href="#">Playground</a>
+        </nav>
+      </aside>
+      <main class="main">
+        <div class="top">
+          <div>
+            <h1>Usage logs</h1>
+            <p class="muted" style="margin: 6px 0 0">Sample rows with fake data only</p>
+          </div>
+          <button class="btn outline" type="button">Last 24 hours</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Model</th>
+                <th>Status</th>
+                <th>Tokens</th>
+                <th>Key</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2026-08-05 10:12:03</td>
+                <td class="mono">gpt-demo-mini</td>
+                <td><span class="badge ok">200</span></td>
+                <td>1,240</td>
+                <td class="mono">prod-server</td>
+              </tr>
+              <tr>
+                <td>2026-08-05 10:11:41</td>
+                <td class="mono">claude-demo</td>
+                <td><span class="badge ok">200</span></td>
+                <td>980</td>
+                <td class="mono">prod-server</td>
+              </tr>
+              <tr>
+                <td>2026-08-05 10:10:02</td>
+                <td class="mono">gpt-demo-mini</td>
+                <td><span class="badge warn">429</span></td>
+                <td>—</td>
+                <td class="mono">ci-bot</td>
+              </tr>
+              <tr>
+                <td>2026-08-05 10:08:55</td>
+                <td class="mono">gemini-demo</td>
+                <td><span class="badge ok">200</span></td>
+                <td>2,104</td>
+                <td class="mono">prod-server</td>
+              </tr>
+              <tr>
+                <td>2026-08-05 10:05:17</td>
+                <td class="mono">gpt-demo-mini</td>
+                <td><span class="badge ok">200</span></td>
+                <td>640</td>
+                <td class="mono">playground</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

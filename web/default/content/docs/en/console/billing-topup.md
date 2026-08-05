@@ -18,6 +18,8 @@ status: published
 Open the billing or wallet section in the console and confirm your current balance and any active subscription. Usage is deducted according to model pricing in [Model Hub](/pricing).
 
 ## Top up
+![Billing and top-up](/docs/screenshots/console/billing-topup.en.webp "1. Open Billing → choose amount and payment method")
+
 
 :::steps
 1. Open top-up / billing in the console.

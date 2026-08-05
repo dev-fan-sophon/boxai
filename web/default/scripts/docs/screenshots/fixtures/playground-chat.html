@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BoxAI · Playground (fixture)</title>
+    <link rel="stylesheet" href="./console-shell.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">BoxAI</div>
+        <nav class="nav">
+          <a href="#">API Keys</a>
+          <a href="#">Model Hub</a>
+          <a class="active" href="#">Playground</a>
+          <a href="#">Usage</a>
+        </nav>
+      </aside>
+      <main class="main" style="padding-top: 16px">
+        <div class="top" style="margin-bottom: 12px">
+          <div>
+            <h1>Playground</h1>
+            <p class="muted" style="margin: 6px 0 0">
+              Model: <span class="mono">gpt-demo-mini</span>
+            </p>
+          </div>
+          <button class="btn outline" type="button">New chat</button>
+        </div>
+        <div class="chat">
+          <div class="messages">
+            <div class="bubble user">Hello</div>
+            <div class="bubble assistant">
+              Hello! I’m connected through the BoxAI gateway on you-box.com. How can I
+              help you today?
+            </div>
+          </div>
+          <div class="composer">
+            <input value="Ask anything…" readonly />
+            <button class="btn" type="button">Send</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

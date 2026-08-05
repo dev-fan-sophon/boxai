@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-08-05T01:36:07.596Z",
+  "baseUrl": "https://you-box.com",
+  "shots": [
+    {
+      "id": "auth-sign-in",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/auth/sign-in.en.webp"
+    },
+    {
+      "id": "console-model-hub",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/model-hub.en.webp"
+    },
+    {
+      "id": "console-model-hub-detail",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/model-hub-detail.en.webp"
+    },
+    {
+      "id": "console-api-keys-empty",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/api-keys-empty.en.webp"
+    },
+    {
+      "id": "console-api-keys-create",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/api-keys-create.en.webp"
+    },
+    {
+      "id": "console-api-keys-created",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/api-keys-created.en.webp"
+    },
+    {
+      "id": "console-billing-topup",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/billing-topup.en.webp"
+    },
+    {
+      "id": "console-usage-logs",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/console/usage-logs.en.webp"
+    },
+    {
+      "id": "playground-chat",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/playground/chat-success.en.webp"
+    },
+    {
+      "id": "start-docs-home",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/start/docs-home.en.webp"
+    },
+    {
+      "id": "start-getting-started",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/start/getting-started.en.webp"
+    },
+    {
+      "id": "clients-downloads",
+      "ok": true,
+      "out": "/home/user/workspace/repo/web/default/public/docs/screenshots/clients/downloads.en.webp"
+    }
+  ]
+}
