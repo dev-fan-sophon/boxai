@@ -19,8 +19,8 @@ describe('toIntlLocale', () => {
   it('normalizes interface languages', () => {
     expect(normalizeInterfaceLanguage('vi-VN')).toBe('vi')
     expect(normalizeInterfaceLanguage('vi_VN')).toBe('vi')
-    expect(normalizeInterfaceLanguage(null)).toBe('vi')
-    expect(normalizeInterfaceLanguage('xx-YY')).toBe('vi')
+    expect(normalizeInterfaceLanguage(null)).toBe('en')
+    expect(normalizeInterfaceLanguage('xx-YY')).toBe('en')
     expect(normalizeInterfaceLanguage('en')).toBe('en')
   })
 })

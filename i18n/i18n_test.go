@@ -23,12 +23,12 @@ func TestVietnameseLanguageSupport(t *testing.T) {
 	assert.Equal(t, "Không thể cập nhật hệ số hình ảnh: JSON không hợp lệ", Translate("vi", MsgOptionImageRatioFailed, map[string]any{"Error": "JSON không hợp lệ"}))
 }
 
-func TestUnknownLanguageFallsBackToDefaultVietnamese(t *testing.T) {
+func TestUnknownLanguageFallsBackToDefaultEnglish(t *testing.T) {
 	require.NoError(t, Init())
 
 	assert.Equal(t, DefaultLang, ParseAcceptLanguage("xx-YY"))
-	assert.Equal(t, LangVi, DefaultLang)
-	assert.Equal(t, "Tham số không hợp lệ", Translate("xx-YY", "common.invalid_params"))
+	assert.Equal(t, LangEn, DefaultLang)
+	assert.Equal(t, "Invalid parameters", Translate("xx-YY", "common.invalid_params"))
 }
 
 func TestBackendCatalogsMatchEnglish(t *testing.T) {
