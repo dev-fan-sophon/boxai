@@ -10,6 +10,8 @@ checklist: [Tạo tài khoản, Tạo API key, Chọn model ID, Gửi request th
 ---
 
 ## Điều kiện trước
+![Getting started guide](/docs/screenshots/start/getting-started.en.webp "BoxAI getting started guide on you-box.com")
+
 
 - Tài khoản BoxAI tại [you-box.com](https://you-box.com)
 - Đủ hạn mức cho một lần gọi thử (nạp thêm nếu cần — xem [Thanh toán và nạp tiền](/docs/console/billing-topup))

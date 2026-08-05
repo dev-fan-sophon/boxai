@@ -14,6 +14,12 @@ status: published
 - Có quyền quản lý key cho workspace
 
 ## Tạo key
+![API Keys empty state](/docs/screenshots/console/api-keys-empty.en.webp "1. Open Console → API Keys")
+
+![Create API key dialog](/docs/screenshots/console/api-keys-create.en.webp "2. Click Create and name the key")
+
+![API key secret shown once](/docs/screenshots/console/api-keys-created.en.webp "3. Copy the secret immediately — it is shown only once")
+
 
 :::steps
 1. Mở **API Keys** trong console ([/keys](/keys)).

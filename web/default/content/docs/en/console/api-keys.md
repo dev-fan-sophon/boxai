@@ -14,6 +14,12 @@ status: published
 - Permission to manage keys for your workspace
 
 ## Create a key
+![API Keys empty state](/docs/screenshots/console/api-keys-empty.en.webp "1. Open Console → API Keys")
+
+![Create API key dialog](/docs/screenshots/console/api-keys-create.en.webp "2. Click Create and name the key")
+
+![API key secret shown once](/docs/screenshots/console/api-keys-created.en.webp "3. Copy the secret immediately — it is shown only once")
+
 
 :::steps
 1. Open **API Keys** in the console ([/keys](/keys)).

@@ -13,6 +13,10 @@ status: published
 [Model Hub](/pricing) is the public catalog of models available through BoxAI: prices, modalities, and integration hints. Always copy the **exact model ID** shown in the hub — do not invent short names.
 
 ## Pick a model
+![Model Hub catalog](/docs/screenshots/console/model-hub.en.webp "1. Browse models on Model Hub")
+
+![Model detail with exact ID](/docs/screenshots/console/model-hub-detail.en.webp "2. Copy the exact model ID from the detail page")
+
 
 :::steps
 1. Open [Model Hub](/pricing).
