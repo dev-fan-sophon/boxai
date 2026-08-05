@@ -43,11 +43,11 @@ export const i18nReady = i18n
   .init({
     resources: { en: { translation: enOverrides } },
     partialBundledLanguages: true,
-    // Vietnam-first: default UI language is Vietnamese. English stays the
-    // translation fallback because locale keys are English source strings.
-    lng: 'vi',
+    // Default / missing-key fallback is English (keys are English source strings).
+    // First visit follows the browser language via LanguageDetector; after the
+    // user picks a language it is cached in localStorage and wins next time.
     fallbackLng: 'en',
-    supportedLngs: ['vi', 'en', 'zhCN', 'fr', 'ru', 'ja', 'zhTW'],
+    supportedLngs: ['en', 'vi', 'zhCN', 'fr', 'ru', 'ja', 'zhTW'],
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
     debug: import.meta.env.DEV,
@@ -55,9 +55,8 @@ export const i18nReady = i18n
       escapeValue: false, // not needed for react as it escapes by default
     },
     detection: {
-      // Only honor an explicit prior choice. New visitors get `lng: 'vi'`
-      // (Vietnam-first); do not auto-switch from the browser language.
-      order: ['localStorage'],
+      // 1) explicit prior choice  2) browser Accept-Language / navigator.language
+      order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
       // Browsers report `zh-CN`/`zh-TW`/`zh`; map them onto our `zhCN`/`zhTW`
       // codes (non-Chinese codes pass through for normal supportedLngs matching).

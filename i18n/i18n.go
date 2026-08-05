@@ -20,9 +20,9 @@ const (
 	LangZhTW = "zh-TW"
 	LangEn   = "en"
 	LangVi   = "vi"
-	// Vietnam-first product default. Unsupported tags and empty Accept-Language
-	// resolve here; English remains available as an explicit user/browser choice.
-	DefaultLang = LangVi
+	// Default when Accept-Language is empty/unsupported. Browser/user language
+	// still wins when present (see middleware + ParseAcceptLanguage).
+	DefaultLang = LangEn
 )
 
 //go:embed locales/*.yaml
@@ -130,7 +130,7 @@ func SetUserLangLoader(loader func(userId int) string) {
 // 1. User settings (ContextKeyUserSetting) - if already loaded (e.g., by TokenAuth)
 // 2. Lazy load user language from cache/DB using user ID
 // 3. Language set by middleware (ContextKeyLanguage) - from Accept-Language header
-// 4. Default language (Vietnamese)
+// 4. Default language (English)
 func GetLangFromContext(c *gin.Context) string {
 	if c == nil {
 		return DefaultLang
@@ -222,7 +222,7 @@ func normalizeLang(lang string) string {
 
 // SupportedLanguages returns a list of supported language codes
 func SupportedLanguages() []string {
-	return []string{LangVi, LangEn, LangZhCN, LangZhTW}
+	return []string{LangEn, LangVi, LangZhCN, LangZhTW}
 }
 
 // IsSupported checks if a language code is supported
