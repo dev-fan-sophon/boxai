@@ -86,7 +86,8 @@ func TestInjectSEOIntoHTML(t *testing.T) {
 	require.True(t, ok)
 	out := string(InjectSEOIntoHTML(index, page, "BoxAI", "https://you-box.com", "/logo.png", false))
 
-	assert.Contains(t, out, `lang="zh-CN"`)
+	assert.Contains(t, out, `lang="vi"`)
+	assert.Contains(t, out, `property="og:locale" content="vi_VN"`)
 	assert.Contains(t, out, "BoxAI · Unified AI API Gateway | you-box.com")
 	assert.Contains(t, out, "BoxAI")
 	assert.Contains(t, out, "you-box.com")

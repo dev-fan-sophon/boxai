@@ -1,13 +1,14 @@
 import i18n from 'i18next'
 
 // `short` is the badge shown on the compact language trigger in the header.
+// Order is product priority: Vietnamese first, English second (Vietnam-first).
 export const INTERFACE_LANGUAGE_OPTIONS = [
-  { code: 'zhCN', label: '简体中文', short: '简' },
+  { code: 'vi', label: 'Tiếng Việt', short: 'VI' },
   { code: 'en', label: 'English', short: 'EN' },
+  { code: 'zhCN', label: '简体中文', short: '简' },
   { code: 'fr', label: 'Français', short: 'FR' },
   { code: 'ru', label: 'Русский', short: 'RU' },
   { code: 'ja', label: '日本語', short: 'JA' },
-  { code: 'vi', label: 'Tiếng Việt', short: 'VI' },
   { code: 'zhTW', label: '繁體中文', short: '繁' },
 ] as const
 
@@ -15,7 +16,7 @@ export type InterfaceLanguageCode =
   (typeof INTERFACE_LANGUAGE_OPTIONS)[number]['code']
 
 export function normalizeInterfaceLanguage(value?: string | null): string {
-  if (!value) return 'en'
+  if (!value) return 'vi'
 
   let normalized = value.trim().replaceAll('_', '-').toLowerCase()
   if (
@@ -35,7 +36,7 @@ export function normalizeInterfaceLanguage(value?: string | null): string {
 
   return INTERFACE_LANGUAGE_OPTIONS.some((lang) => lang.code === normalized)
     ? normalized
-    : 'en'
+    : 'vi'
 }
 
 /**
