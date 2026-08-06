@@ -368,12 +368,10 @@ pub fn upsert_for(
 /// from the server rather than being decided by the desktop build.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AgentProvisioning {
-    #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
     pub models: Vec<String>,
-    #[serde(default)]
     pub recommended_model: String,
+    #[serde(default)]
     pub locked_model: Option<String>,
 }
 
@@ -420,11 +418,27 @@ pub fn parse_provisioning(body: &Value) -> Result<Provisioning, String> {
             .to_owned());
     }
     let data = &body["data"];
+    let (agents, agents_present) = match data.get("agents") {
+        Some(value) => {
+            let agents: HashMap<String, AgentProvisioning> = serde_json::from_value(value.clone())
+                .map_err(|error| format!("BoxAI returned invalid agent provisioning: {error}"))?;
+            for app in SUPPORTED_APPS {
+                if !agents.contains_key(app.as_str()) {
+                    return Err(format!(
+                        "BoxAI returned invalid agent provisioning: missing {} policy",
+                        app.as_str()
+                    ));
+                }
+            }
+            (agents, true)
+        }
+        None => (HashMap::new(), false),
+    };
     Ok(Provisioning {
         revision: data["revision"].as_str().unwrap_or_default().to_owned(),
         refresh_after_seconds: data["refresh_after_seconds"].as_u64().unwrap_or(60).max(1),
-        agents: serde_json::from_value(data["agents"].clone()).unwrap_or_default(),
-        agents_present: data.get("agents").is_some(),
+        agents,
+        agents_present,
         chat_models: string_list(&data["chat_models"]),
         default_model: optional_string(&data["default_model"]),
         image_models: string_list(&data["image_models"]),
@@ -676,11 +690,20 @@ fn agent_state(db: &Database, app: &AppType) -> Result<AgentState, String> {
         .locked_model
         .clone()
         .or_else(|| selected_model(db, app).filter(|m| models.contains(m)));
-    let locally_enabled = db
+    let enabled_marker = db
         .get_setting(&enabled_setting_key(app))
         .ok()
         .flatten()
         .is_some_and(|v| v == "true");
+    // v0.1.1 activated exclusive providers before these markers existed. The
+    // live current-provider state remains authoritative during that upgrade.
+    let legacy_active = !app.is_additive_mode()
+        && db
+            .get_current_provider(app.as_str())
+            .ok()
+            .flatten()
+            .is_some_and(|provider| provider == provider_id(app));
+    let locally_enabled = enabled_marker || legacy_active;
     let configured = selected.is_some();
     let enabled =
         policy.enabled && locally_enabled && configured && super::gateway_auth::is_connected();
@@ -774,6 +797,11 @@ pub async fn boxai_agent_enable(
             .is_some_and(|value| !value.is_empty());
         let current = crate::services::provider::ProviderService::current(&state, app.clone())
             .unwrap_or_default();
+        // v0.1.1 could leave an exclusive BoxAI provider active without the
+        // recovery markers introduced in v0.1.2. Its live config is not a
+        // recoverable pre-BoxAI snapshot.
+        let legacy_active =
+            !app.is_additive_mode() && current == id && !has_previous && !has_snapshot;
         if !app.is_additive_mode() && !has_previous && !current.is_empty() && current != id {
             state
                 .db
@@ -781,7 +809,8 @@ pub async fn boxai_agent_enable(
                 .map_err(|e| e.to_string())?;
         }
         let has_previous = has_previous || (!current.is_empty() && current != id);
-        let needs_snapshot = (!app.is_additive_mode() && !has_previous) || app == AppType::Hermes;
+        let needs_snapshot = ((!app.is_additive_mode() && !has_previous) || app == AppType::Hermes)
+            && !legacy_active;
         if needs_snapshot && !has_snapshot {
             let snapshot = if app == AppType::Hermes {
                 serde_json::to_value(crate::hermes_config::get_model_config()?)
@@ -868,7 +897,7 @@ pub(crate) fn withdraw_and_remove(
     state: &crate::store::AppState,
     app: &AppType,
 ) -> Result<(), String> {
-    let id = provider_id(&app);
+    let id = provider_id(app);
     if app.is_additive_mode() {
         if state
             .db
@@ -877,7 +906,7 @@ pub(crate) fn withdraw_and_remove(
             .is_some()
         {
             crate::services::provider::ProviderService::remove_from_live_config(
-                &state,
+                state,
                 app.clone(),
                 &id,
             )
@@ -904,7 +933,7 @@ pub(crate) fn withdraw_and_remove(
     } else {
         let previous = state
             .db
-            .get_setting(&previous_provider_setting_key(&app))
+            .get_setting(&previous_provider_setting_key(app))
             .map_err(|e| e.to_string())?
             .filter(|value| !value.is_empty());
         let mut restored = false;
@@ -915,7 +944,7 @@ pub(crate) fn withdraw_and_remove(
                 .map_err(|e| e.to_string())?
                 .is_some()
             {
-                crate::services::provider::ProviderService::switch(&state, app.clone(), &previous)
+                crate::services::provider::ProviderService::switch(state, app.clone(), &previous)
                     .map_err(|e| e.to_string())?;
                 restored = true;
             }
@@ -923,7 +952,7 @@ pub(crate) fn withdraw_and_remove(
         if !restored {
             if let Some(snapshot) = state
                 .db
-                .get_setting(&live_snapshot_setting_key(&app))
+                .get_setting(&live_snapshot_setting_key(app))
                 .map_err(|e| e.to_string())?
                 .filter(|value| !value.is_empty())
             {
@@ -934,7 +963,7 @@ pub(crate) fn withdraw_and_remove(
                     settings,
                     None,
                 );
-                crate::services::provider::write_live_snapshot(&app, &snapshot_provider)
+                crate::services::provider::write_live_snapshot(app, &snapshot_provider)
                     .map_err(|e| e.to_string())?;
                 restored = true;
             }
@@ -944,24 +973,40 @@ pub(crate) fn withdraw_and_remove(
                 .map_err(|e| e.to_string())?
                 == id
         {
-            return Err(format!(
-                "Cannot withdraw BoxAI for {} without a recovery snapshot",
-                app.as_str()
-            ));
+            // Legacy v0.1.1 installs did not retain recovery metadata. Never
+            // preserve their live key merely because the prior config cannot
+            // be reconstructed: replace it with the format's safe empty state.
+            let mut snapshot_provider = Provider::with_id(
+                "boxai-reset-empty".to_string(),
+                "Empty configuration".to_string(),
+                empty_live_settings(app),
+                None,
+            );
+            // Grok Build accepts an empty TOML snapshot only for its official
+            // state; third-party providers must contain a complete model table.
+            if *app == AppType::GrokBuild {
+                snapshot_provider.category = Some("official".to_string());
+            }
+            crate::services::provider::write_live_snapshot(app, &snapshot_provider)
+                .map_err(|e| e.to_string())?;
+            state
+                .db
+                .set_current_provider(app.as_str(), "")
+                .map_err(|e| e.to_string())?;
         }
     }
-    clear_setting(&state.db, &model_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &enabled_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &revision_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &synced_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &applied_model_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &applied_revision_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &applied_fingerprint_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &previous_provider_setting_key(&app)).map_err(|e| e.to_string())?;
-    clear_setting(&state.db, &live_snapshot_setting_key(&app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &model_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &enabled_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &revision_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &synced_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &applied_model_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &applied_revision_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &applied_fingerprint_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &previous_provider_setting_key(app)).map_err(|e| e.to_string())?;
+    clear_setting(&state.db, &live_snapshot_setting_key(app)).map_err(|e| e.to_string())?;
     state
         .db
-        .delete_provider(app.as_str(), &provider_id(&app))
+        .delete_provider(app.as_str(), &provider_id(app))
         .map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -1069,6 +1114,48 @@ mod tests {
         assert!(parsed.agents.is_empty());
         assert!(!parsed.agents_present);
         assert!(parsed.chat_models.is_empty());
+    }
+
+    #[test]
+    fn malformed_present_agents_are_rejected() {
+        for agents in [
+            json!(null),
+            json!([]),
+            json!("disabled"),
+            json!({}),
+            json!({"claude": null}),
+            json!({"claude": {"enabled": true, "models": [], "recommended_model": "model"}}),
+        ] {
+            let error = parse_provisioning(&json!({"data": {"agents": agents}})).unwrap_err();
+            assert!(error.starts_with("BoxAI returned invalid agent provisioning:"));
+        }
+    }
+
+    #[test]
+    fn present_agents_require_all_fields_with_exact_types() {
+        let valid_policy = json!({
+            "enabled": true,
+            "models": ["model-a"],
+            "recommended_model": "model-a"
+        });
+        let mut agents = serde_json::Map::new();
+        for app in SUPPORTED_APPS {
+            agents.insert(app.as_str().to_owned(), valid_policy.clone());
+        }
+        assert!(parse_provisioning(&json!({"data": {"agents": agents.clone()}})).is_ok());
+
+        for invalid in [
+            json!({"models": ["model-a"], "recommended_model": "model-a"}),
+            json!({"enabled": "yes", "models": ["model-a"], "recommended_model": "model-a"}),
+            json!({"enabled": true, "models": [1], "recommended_model": "model-a"}),
+            json!({"enabled": true, "models": ["model-a"]}),
+            json!({"enabled": true, "models": ["model-a"], "recommended_model": 1}),
+            json!({"enabled": true, "models": ["model-a"], "recommended_model": "model-a", "locked_model": false}),
+        ] {
+            let mut malformed = agents.clone();
+            malformed.insert("claude".to_owned(), invalid);
+            assert!(parse_provisioning(&json!({"data": {"agents": malformed}})).is_err());
+        }
     }
 
     #[test]

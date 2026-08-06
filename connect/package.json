@@ -1,6 +1,6 @@
 {
   "name": "boxai-connect",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packageManager": "pnpm@11.5.2",
   "description": "BoxAI connection layer for supported AI clients",
   "type": "module",

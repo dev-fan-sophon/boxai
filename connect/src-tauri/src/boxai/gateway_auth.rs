@@ -96,12 +96,12 @@ fn save_account(stored: &StoredAccount) -> Result<(), String> {
     Ok(())
 }
 
-fn clear_account() {
+fn clear_account() -> Result<(), String> {
     let path = account_path();
     match fs::remove_file(&path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => log::warn!("Could not remove the account record: {error}"),
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Could not remove the account record: {error}")),
     }
 }
 
@@ -442,6 +442,10 @@ pub async fn gateway_browser_login(
         }
     };
 
+    let _transition = super::policy_sync::lock_account_transition().await;
+    if is_connected() {
+        return Err("A BoxAI account is already connected".into());
+    }
     let response = http()
         .post(format!("{}/api/desktop/token", portal_host()))
         .json(&serde_json::json!({
@@ -471,7 +475,6 @@ pub async fn gateway_browser_login(
         refresh_token: success.refresh_token,
         account: None,
     };
-    let _transition = super::policy_sync::lock_account_transition().await;
     // A policy cache is account-scoped; never send another account's ETag or
     // reconcile its cached catalog after replacing credentials.
     super::policy_sync::clear_cache(&state.db)?;
@@ -540,14 +543,19 @@ pub async fn gateway_logout(
     let _transition = super::policy_sync::lock_account_transition().await;
     // Keep credentials and recovery metadata until local withdrawal succeeds,
     // so an I/O failure is retryable and no live key is orphaned.
-    super::provider_seed::withdraw_all(&state)?;
-    super::mcp_seed::withdraw(&state).map_err(|e| e.to_string())?;
+    let mut failures = Vec::new();
+    if let Err(error) = super::provider_seed::withdraw_all(&state) {
+        failures.push(format!("provider cleanup: {error}"));
+    }
+    if let Err(error) = super::mcp_seed::withdraw(&state) {
+        failures.push(format!("MCP cleanup: {error}"));
+    }
 
     // Revoke first. The relay key Connect wrote into real client config files
     // outlives this process, so a purely local sign-out would leave a live key
     // behind. Best-effort: a machine that is offline must still be able to sign
     // out locally.
-    if let Some(refresh_token) = load_account()
+    let revocation_succeeded = if let Some(refresh_token) = load_account()
         .map(|stored| stored.refresh_token)
         .filter(|token| !token.is_empty())
     {
@@ -558,21 +566,45 @@ pub async fn gateway_logout(
             .await
         {
             Ok(response) if response.status().is_success() => {
-                log::info!("✓ BoxAI session revoked")
+                log::info!("✓ BoxAI session revoked");
+                true
             }
-            Ok(response) => log::warn!(
-                "BoxAI did not revoke this session (HTTP {}); revoke it from the website",
-                response.status().as_u16()
-            ),
-            Err(error) => log::warn!("Could not reach BoxAI to revoke this session: {error}"),
+            Ok(response) => {
+                log::warn!(
+                    "BoxAI did not revoke this session (HTTP {}); revoke it from the website",
+                    response.status().as_u16()
+                );
+                false
+            }
+            Err(error) => {
+                log::warn!("Could not reach BoxAI to revoke this session: {error}");
+                false
+            }
         }
-    }
+    } else {
+        false
+    };
 
-    clear_account();
-    super::policy_sync::clear_cache(&state.db)?;
+    if !failures.is_empty() && !revocation_succeeded {
+        return Err(format!(
+            "BoxAI local cleanup failed and the session could not be revoked; credentials were retained for retry: {}",
+            failures.join("; ")
+        ));
+    }
+    clear_account()?;
+    if let Err(error) = super::policy_sync::clear_cache(&state.db) {
+        failures.push(format!("policy cache cleanup: {error}"));
+    }
     use tauri::Emitter;
     let _ = app.emit("boxai-account-surface-updated", ());
-    Ok(())
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "BoxAI signed out, but local cleanup is incomplete: {}",
+            failures.join("; ")
+        ))
+    }
 }
 
 #[cfg(test)]

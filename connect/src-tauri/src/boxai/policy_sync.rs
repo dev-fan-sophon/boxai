@@ -88,9 +88,18 @@ pub async fn synchronize(
 ) -> Result<u64, String> {
     let _guard = SYNC_LOCK.lock().await;
     if !super::gateway_auth::is_connected() {
-        provider_seed::withdraw_all(state)?;
-        super::mcp_seed::withdraw(state).map_err(|e| e.to_string())?;
-        return Ok(60);
+        let mut failures = Vec::new();
+        if let Err(error) = provider_seed::withdraw_all(state) {
+            failures.push(format!("provider cleanup: {error}"));
+        }
+        if let Err(error) = super::mcp_seed::withdraw(state) {
+            failures.push(format!("MCP cleanup: {error}"));
+        }
+        return if failures.is_empty() {
+            Ok(60)
+        } else {
+            Err(failures.join("; "))
+        };
     }
     let previous = current(&state.db).ok();
     let fetched = fetch(&state.db).await?;

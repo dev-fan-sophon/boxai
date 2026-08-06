@@ -384,6 +384,22 @@ export const handlers = [
   http.post(`${TAURI_ENDPOINT}/gateway_auth_status`, () =>
     success(connectedGatewayStatus()),
   ),
+  http.post(`${TAURI_ENDPOINT}/boxai_agent_get`, () =>
+    success({
+      app: "claude",
+      enabled: true,
+      policyEnabled: true,
+      configured: true,
+      pendingChanges: false,
+      status: "enabled",
+      selectedModel: "gpt-5.6-sol",
+      policyRevision: "test-revision",
+      lastSynced: "2026-08-06T00:00:00Z",
+      models: ["gpt-5.6-sol", "deepseek-v4-pro"],
+      recommendedModel: "gpt-5.6-sol",
+      lockedModel: null,
+    }),
+  ),
 ];
 
 /** The app shell only renders behind a connected account, so that is the default. */

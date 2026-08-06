@@ -182,31 +182,22 @@ describe("App integration with MSW", () => {
     toastErrorMock.mockReset();
   });
 
-  it("covers basic provider flows via real hooks", async () => {
+  it("renders the server-managed agent surface for managed apps", async () => {
     const { default: App } = await import("@/App");
     renderApp(App);
 
-    await waitFor(() =>
-      expect(screen.getByTestId("provider-list").textContent).toContain(
-        "claude-1",
-      ),
-    );
+    await screen.findByText("gpt-5.6-sol");
+    expect(screen.getByText(/BoxAI ·/)).toBeInTheDocument();
+    expect(screen.queryByTestId("provider-list")).toBeNull();
 
     fireEvent.click(screen.getByText("switch-codex"));
-    await waitFor(() =>
-      expect(screen.getByTestId("provider-list").textContent).toContain(
-        "codex-1",
-      ),
-    );
+    await screen.findByText(/BoxAI ·/);
 
     // Kit managed surface: no add / edit / duplicate / usage-script UI.
     expect(screen.queryByText("create")).toBeNull();
     expect(screen.queryByText("edit")).toBeNull();
     expect(screen.queryByText("duplicate")).toBeNull();
     expect(screen.queryByText("usage")).toBeNull();
-
-    fireEvent.click(screen.getByText("switch"));
-    fireEvent.click(screen.getByText("open-website"));
 
     emitTauriEvent("provider-switched", {
       appType: "codex",
@@ -220,11 +211,7 @@ describe("App integration with MSW", () => {
     const { default: App } = await import("@/App");
     renderApp(App);
 
-    await waitFor(() =>
-      expect(screen.getByTestId("provider-list").textContent).toContain(
-        "claude-1",
-      ),
-    );
+    await screen.findByText("gpt-5.6-sol");
 
     expect(() => {
       emitTauriEvent("webdav-sync-status-updated", null);
@@ -258,7 +245,7 @@ describe("App integration with MSW", () => {
     });
   });
 
-  it("hides custom openclaw providers from the managed surface", async () => {
+  it("hides custom openclaw providers from the managed agent surface", async () => {
     setProviders("openclaw", {
       deepseek: {
         id: "deepseek",
@@ -289,13 +276,8 @@ describe("App integration with MSW", () => {
 
     fireEvent.click(screen.getByText("switch-openclaw"));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("provider-list").textContent).toContain(
-        "boxai-openclaw",
-      ),
-    );
-    expect(screen.getByTestId("provider-list").textContent).not.toContain(
-      "DeepSeek",
-    );
+    await screen.findByText("gpt-5.6-sol");
+    expect(screen.queryByTestId("provider-list")).toBeNull();
+    expect(screen.queryByText("DeepSeek")).toBeNull();
   });
 });
