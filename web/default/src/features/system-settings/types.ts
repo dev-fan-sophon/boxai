@@ -343,6 +343,12 @@ export type BillingSettings = {
 }
 
 export type OperationsSettings = {
+  'connect.enabled': boolean
+  'connect.release_manifest_url': string
+  'connect.download_url': string
+  'connect.min_version': string
+  'connect.token_name': string
+  'connect.agent_policies': string
   DefaultCollapseSidebar: boolean
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean

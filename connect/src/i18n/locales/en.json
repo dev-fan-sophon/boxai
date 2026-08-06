@@ -3026,6 +3026,25 @@
       "gateDescription": "BoxAI Connect works only while signed in. You confirm the sign-in in your browser; the account is stored in the local config directory.",
       "browserOpened": "The authorization page is open in your browser. Connect continues once you approve it.",
       "modelsHint": "Each client can use a different BoxAI chat model."
+    },
+    "agent": {
+      "templateSafety": "Selecting models only changes the pending configuration. Enable or Apply writes it for future launches without stopping or deleting running sessions.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable",
+      "disable": "Disable",
+      "model": "Model",
+      "locked": "Your organization locked this agent to {{model}}.",
+      "recommended": "Recommended for first setup: {{model}}",
+      "searchModels": "Search all compatible models",
+      "noModels": "No compatible models found. This agent is unconfigured.",
+      "revision": "Policy revision",
+      "lastSynced": "Last synced",
+      "selectBeforeEnable": "Select a model before enabling.",
+      "resetTitle": "Reset BoxAI agent?",
+      "resetMessage": "This restores the configuration that was active before BoxAI was enabled and clears Connect-owned selections. It does not delete sessions, history, or sign-in data.",
+      "applyChanges": "Apply changes",
+      "pendingChanges": "Changes are ready for future launches. Apply when ready."
     }
   }
 }

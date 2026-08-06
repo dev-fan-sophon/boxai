@@ -7,6 +7,7 @@ import { PerformanceSection } from '../maintenance/performance-section'
 import { UpdateCheckerSection } from '../maintenance/update-checker-section'
 import type { OperationsSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { ConnectSettingsSection } from './connect-settings-section'
 import {
   OPERATIONS_DEFAULT_SECTION,
   OPERATIONS_SECTION_IDS,
@@ -15,6 +16,13 @@ import {
 import { OperationsSystemInfoSection } from './system-info-section'
 
 const OPERATIONS_SECTIONS = [
+  {
+    id: 'connect',
+    titleKey: 'Connect',
+    build: (settings: OperationsSettings) => (
+      <ConnectSettingsSection defaultValues={settings} />
+    ),
+  },
   {
     id: 'behavior',
     titleKey: 'System Behavior',

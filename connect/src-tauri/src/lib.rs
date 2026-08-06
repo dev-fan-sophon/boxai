@@ -1098,20 +1098,7 @@ pub fn run() {
             // 将同一个实例注入到全局状态，避免重复创建导致的不一致
             app.manage(app_state);
 
-            // BoxAI's own entries, reconciled against the connected
-            // account on every start: seeded with the account's current model
-            // catalog when signed in, withdrawn when signed out. Off the
-            // startup path because it calls BoxAI.
-            {
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    boxai::gateway_auth::reconcile_account_surface(
-                        &handle,
-                        &startup_state,
-                    )
-                    .await;
-                });
-            }
+            boxai::policy_sync::start_worker(app.handle().clone(), startup_state.clone());
 
             // 初始化 SkillService
             let skill_service = SkillService::new();
@@ -1661,6 +1648,10 @@ pub fn run() {
             boxai::gateway_auth::boxai_open_portal,
             boxai::provider_seed::boxai_model_profiles,
             boxai::provider_seed::boxai_model_select,
+            boxai::provider_seed::boxai_agent_get,
+            boxai::provider_seed::boxai_agent_enable,
+            boxai::provider_seed::boxai_agent_reset,
+            boxai::provider_seed::boxai_agent_refresh,
         ]);
 
     let app = builder

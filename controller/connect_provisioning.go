@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"sort"
 	"strings"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
@@ -52,14 +55,24 @@ type connectAccount struct {
 }
 
 type connectProvisioning struct {
-	ChatModels   []string        `json:"chat_models"`
-	DefaultModel string          `json:"default_model"`
-	ImageModels  []string        `json:"image_models"`
-	VideoModels  []string        `json:"video_models"`
-	DefaultImage string          `json:"default_image_model"`
-	DefaultVideo string          `json:"default_video_model"`
-	MCPEndpoint  string          `json:"mcp_endpoint"`
-	Account      *connectAccount `json:"account,omitempty"`
+	ChatModels          []string                            `json:"chat_models"`
+	DefaultModel        string                              `json:"default_model"`
+	ImageModels         []string                            `json:"image_models"`
+	VideoModels         []string                            `json:"video_models"`
+	DefaultImage        string                              `json:"default_image_model"`
+	DefaultVideo        string                              `json:"default_video_model"`
+	MCPEndpoint         string                              `json:"mcp_endpoint"`
+	Account             *connectAccount                     `json:"account,omitempty"`
+	Revision            string                              `json:"revision"`
+	RefreshAfterSeconds int                                 `json:"refresh_after_seconds"`
+	Agents              map[string]connectProvisioningAgent `json:"agents"`
+}
+
+type connectProvisioningAgent struct {
+	Enabled          bool     `json:"enabled"`
+	Models           []string `json:"models"`
+	RecommendedModel string   `json:"recommended_model"`
+	LockedModel      string   `json:"locked_model,omitempty"`
 }
 
 // GetConnectProvisioning serves the account-scoped configuration BoxAI Connect
@@ -85,17 +98,42 @@ func GetConnectProvisioning(c *gin.Context) {
 	}
 	sort.Strings(chatModels)
 	imageModels, videoModels := partitionMediaModels(modelNames)
+	connectSettings := system_setting.GetConnectSettings()
+	policies := system_setting.GetConnectAgentPolicies()
+	policyJSON, _ := common.Marshal(struct {
+		Enabled  bool                                         `json:"enabled"`
+		Policies map[string]system_setting.ConnectAgentPolicy `json:"policies"`
+	}{
+		Enabled:  connectSettings.Enabled,
+		Policies: policies,
+	})
+	policyHash := sha256.Sum256(policyJSON)
+	agents := make(map[string]connectProvisioningAgent, len(system_setting.ConnectAgentNames))
+	for _, name := range system_setting.ConnectAgentNames {
+		policy := policies[name]
+		agentEnabled := connectSettings.Enabled && policy.Enabled
+		agent := connectProvisioningAgent{Enabled: agentEnabled, Models: []string{}}
+		if agentEnabled {
+			agent.Models = append([]string(nil), chatModels...)
+			agent.RecommendedModel = availableModel(policy.RecommendedModel, chatModels)
+			agent.LockedModel = availableModel(policy.LockedModel, chatModels)
+		}
+		agents[name] = agent
+	}
 
 	data := connectProvisioning{
 		ChatModels:   chatModels,
-		DefaultModel: connectDefaultModel(chatModels),
+		DefaultModel: "",
 		ImageModels:  imageModels,
 		VideoModels:  videoModels,
 		DefaultImage: selectToolModel(imageModels, service.PlaygroundToolImage),
 		DefaultVideo: selectToolModel(videoModels, service.PlaygroundToolVideo),
 		// Absolute URL so Connect can seed clients without knowing the portal host
 		// shape. Path stays on the same origin as the sk- relay key.
-		MCPEndpoint: publicOrigin(c) + "/mcp",
+		MCPEndpoint:         publicOrigin(c) + "/mcp",
+		Revision:            hex.EncodeToString(policyHash[:]),
+		RefreshAfterSeconds: 60,
+		Agents:              agents,
 	}
 	// A missing user is not fatal: the catalog is still usable, and the app
 	// simply renders its account panel without a name.
@@ -108,23 +146,29 @@ func GetConnectProvisioning(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+	payload := gin.H{"success": true, "data": data}
+	// ETags are account-scoped because identity and quota share this response
+	// with the catalog. Reusing another account's 304 cache would show stale
+	// identity even when both accounts can call the same models.
+	etagJSON, _ := common.Marshal(data)
+	etagHash := sha256.Sum256(etagJSON)
+	etag := `"` + hex.EncodeToString(etagHash[:]) + `"`
+	c.Header("ETag", etag)
+	c.Header("Cache-Control", "no-cache")
+	if c.GetHeader("If-None-Match") == etag {
+		c.AbortWithStatus(http.StatusNotModified)
+		return
+	}
+	c.JSON(http.StatusOK, payload)
 }
 
-// connectDefaultModel resolves the operator-configured default against what the
-// account can actually reach, falling back to its first chat model so a
-// connected account is never left without a usable selection.
-func connectDefaultModel(chatModels []string) string {
-	if len(chatModels) == 0 {
-		return ""
-	}
-	configured := system_setting.GetConnectSettings().DefaultModel
+func availableModel(configured string, chatModels []string) string {
 	for _, name := range chatModels {
 		if name == configured {
 			return configured
 		}
 	}
-	return chatModels[0]
+	return ""
 }
 
 // partitionMediaModels splits an account's model list into image and video

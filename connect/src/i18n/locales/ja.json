@@ -3026,6 +3026,25 @@
       "gateDescription": "BoxAI Connect はサインインした状態でのみ利用できます。ブラウザーで承認し、アカウント状態はローカル設定ディレクトリに保存されます。",
       "browserOpened": "ブラウザーで認可ページを開きました。承認すると BoxAI Connect に戻ります。",
       "modelsHint": "クライアントごとに BoxAI の対話モデルを選べます。"
+    },
+    "agent": {
+      "templateSafety": "モデルの選択は保留中の設定だけを変更します。「有効化」または「変更を適用」で今後の起動用設定に書き込みます。実行中のセッションを停止または削除しません。",
+      "enabled": "有効",
+      "disabled": "無効",
+      "enable": "有効化",
+      "disable": "無効化",
+      "model": "モデル",
+      "locked": "組織によりこのエージェントは {{model}} に固定されています。",
+      "recommended": "初回設定の推奨: {{model}}",
+      "searchModels": "対応モデルをすべて検索",
+      "noModels": "対応モデルがありません。このエージェントは未設定です。",
+      "revision": "ポリシーリビジョン",
+      "lastSynced": "最終同期",
+      "selectBeforeEnable": "有効にする前にモデルを選択してください。",
+      "resetTitle": "BoxAI Agent をリセットしますか？",
+      "resetMessage": "BoxAI を有効化する前の設定を復元し、Connect が管理する選択を消去します。セッション、履歴、サインイン情報は削除しません。",
+      "applyChanges": "変更を適用",
+      "pendingChanges": "変更は今後の起動用に準備済みです。適切なタイミングで適用してください。"
     }
   }
 }

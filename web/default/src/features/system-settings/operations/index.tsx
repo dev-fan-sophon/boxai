@@ -9,6 +9,13 @@ import {
 } from './section-registry.tsx'
 
 const defaultOperationsSettings: OperationsSettings = {
+  'connect.enabled': false,
+  'connect.release_manifest_url':
+    'https://dl.you-box.com/connect/releases.json',
+  'connect.download_url': '',
+  'connect.min_version': '',
+  'connect.token_name': 'BoxAI Connect',
+  'connect.agent_policies': '{}',
   DefaultCollapseSidebar: false,
   DemoSiteEnabled: false,
   SelfUseModeEnabled: false,

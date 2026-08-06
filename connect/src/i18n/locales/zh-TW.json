@@ -2998,6 +2998,25 @@
       "gateDescription": "BoxAI Connect 需要登入後使用。登入在瀏覽器中確認，帳號狀態保存在本機設定目錄。",
       "browserOpened": "已在瀏覽器中開啟授權頁面，確認後會自動返回。",
       "modelsHint": "每個客戶端可以單獨選擇 BoxAI 提供的對話模型。"
+    },
+    "agent": {
+      "templateSafety": "選擇模型只會修改待套用設定。「啟用」或「套用」會將其寫入後續啟動所用的設定，不會停止或刪除執行中的工作階段。",
+      "enabled": "已啟用",
+      "disabled": "未啟用",
+      "enable": "啟用",
+      "disable": "停用",
+      "model": "模型",
+      "locked": "組織已將此 Agent 鎖定為 {{model}}。",
+      "recommended": "首次設定建議：{{model}}",
+      "searchModels": "搜尋全部相容模型",
+      "noModels": "找不到相容模型，此 Agent 尚未設定。",
+      "revision": "原則版本",
+      "lastSynced": "最後同步",
+      "selectBeforeEnable": "請先選擇模型再啟用。",
+      "resetTitle": "重設 BoxAI Agent？",
+      "resetMessage": "這會還原啟用 BoxAI 前使用的設定，並清除 Connect 管理的選擇；不會刪除工作階段、歷史記錄或登入資料。",
+      "applyChanges": "套用變更",
+      "pendingChanges": "變更已準備好供後續啟動使用，請在合適時套用。"
     }
   }
 }

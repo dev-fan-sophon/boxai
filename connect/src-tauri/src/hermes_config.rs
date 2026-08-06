@@ -911,6 +911,26 @@ pub fn set_model_config(model: &HermesModelConfig) -> Result<HermesWriteOutcome,
     write_yaml_section_to_config("model", &yaml_val)
 }
 
+/// Remove the top-level `model` section, restoring the state of a config that
+/// did not have model defaults before a temporary provider was activated.
+pub fn remove_model_config() -> Result<HermesWriteOutcome, AppError> {
+    let _guard = hermes_write_lock().lock()?;
+    let config_path = get_hermes_config_path();
+    if !config_path.exists() {
+        return Ok(HermesWriteOutcome::default());
+    }
+    let raw = fs::read_to_string(&config_path).map_err(|e| AppError::io(&config_path, e))?;
+    let new_raw = remove_all_sections(&raw, "model");
+    if new_raw == raw {
+        return Ok(HermesWriteOutcome::default());
+    }
+    let backup_path = Some(create_hermes_backup(&raw)?);
+    atomic_write(&config_path, new_raw.as_bytes())?;
+    Ok(HermesWriteOutcome {
+        backup_path: backup_path.map(|path| path.to_string_lossy().into_owned()),
+    })
+}
+
 /// Apply the top-level `model:` defaults when switching to a Hermes provider.
 ///
 /// `model.provider` is **always** updated to the new provider id — without

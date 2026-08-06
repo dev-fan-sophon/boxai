@@ -28,7 +28,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { Provider, VisibleApps } from "@/types";
+import type { VisibleApps } from "@/types";
 import type { EnvConflict } from "@/types/env";
 import { useProvidersQuery, useSettingsQuery } from "@/lib/query";
 import {
@@ -81,6 +81,7 @@ import { AgentsPanel } from "@/components/agents/AgentsPanel";
 import { UniversalProviderPanel } from "@/components/universal";
 import { McpIcon } from "@/components/BrandIcons";
 import { GatewayAccountDialog } from "@/components/boxai/GatewayAccountDialog";
+import { BoxAIAgentPanel } from "@/components/boxai/BoxAIAgentPanel";
 import { Button } from "@/components/ui/button";
 import { SessionManagerPage } from "@/components/sessions/SessionManagerPage";
 import WorkspaceFilesPanel from "@/components/workspace/WorkspaceFilesPanel";
@@ -291,7 +292,7 @@ function App() {
     sharedFeatureApp === "gemini" ||
     sharedFeatureApp === "hermes";
 
-  const { switchProvider, setAsDefaultModel } = useProviderActions(
+  const { switchProvider } = useProviderActions(
     activeApp,
     isProxyRunning,
     isProxyRunning && isCurrentAppTakeoverActive,
@@ -604,32 +605,6 @@ function App() {
     }
   };
 
-  const handleOpenTerminal = async (provider: Provider) => {
-    try {
-      const selectedDir = await settingsApi.pickDirectory();
-      if (!selectedDir) {
-        return;
-      }
-
-      await providersApi.openTerminal(provider.id, activeApp, {
-        cwd: selectedDir,
-      });
-      toast.success(
-        t("provider.terminalOpened", {
-          defaultValue: "终端已打开",
-        }),
-      );
-    } catch (error) {
-      console.error("[App] Failed to open terminal", error);
-      const errorMessage = extractErrorMessage(error);
-      toast.error(
-        t("provider.terminalOpenFailed", {
-          defaultValue: "打开终端失败",
-        }) + (errorMessage ? `: ${errorMessage}` : ""),
-      );
-    }
-  };
-
   const handleImportSuccess = async () => {
     try {
       await queryClient.invalidateQueries({
@@ -783,30 +758,26 @@ function App() {
                     transition={{ duration: 0.15 }}
                     className="space-y-4"
                   >
-                    <ProviderList
-                      providers={providers}
-                      currentProviderId={currentProviderId}
-                      appId={activeApp}
-                      isLoading={isLoading}
-                      isProxyRunning={isProxyRunning}
-                      isProxyTakeover={
-                        isProxyRunning && isCurrentAppTakeoverActive
-                      }
-                      activeProviderId={activeProviderId}
-                      onSwitch={switchProvider}
-                      allowImport={false}
-                      onOpenWebsite={handleOpenWebsite}
-                      onOpenTerminal={
-                        activeApp === "claude" ? handleOpenTerminal : undefined
-                      }
-                      onSetAsDefault={
-                        activeApp === "openclaw"
-                          ? setAsDefaultModel
-                          : activeApp === "hermes"
-                            ? switchProvider
-                            : undefined
-                      }
-                    />
+                    {activeApp === "claude-desktop" ? (
+                      <ProviderList
+                        providers={providers}
+                        currentProviderId={currentProviderId}
+                        appId={activeApp}
+                        isLoading={isLoading}
+                        isProxyRunning={isProxyRunning}
+                        isProxyTakeover={
+                          isProxyRunning && isCurrentAppTakeoverActive
+                        }
+                        activeProviderId={activeProviderId}
+                        onSwitch={switchProvider}
+                        allowImport={false}
+                        onOpenWebsite={handleOpenWebsite}
+                        onOpenTerminal={undefined}
+                        onSetAsDefault={undefined}
+                      />
+                    ) : (
+                      <BoxAIAgentPanel app={activeApp} />
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </div>

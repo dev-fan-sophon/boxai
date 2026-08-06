@@ -471,7 +471,12 @@ pub async fn gateway_browser_login(
         refresh_token: success.refresh_token,
         account: None,
     };
+    let _transition = super::policy_sync::lock_account_transition().await;
+    // A policy cache is account-scoped; never send another account's ETag or
+    // reconcile its cached catalog after replacing credentials.
+    super::policy_sync::clear_cache(&state.db)?;
     save_account(&stored)?;
+    drop(_transition);
     log::info!("✓ BoxAI account connected");
     refresh_seeds(&app, &state).await;
     Ok(GatewayStatus::connected(
@@ -485,24 +490,10 @@ pub async fn gateway_browser_login(
 /// installs or withdraws itself based on whether an account is connected. Doing
 /// it in one place is what keeps a signed-out install from keeping a provider
 /// or an MCP server that no longer resolves.
-pub(crate) async fn reconcile_account_surface(
-    app: &tauri::AppHandle,
-    state: &crate::store::AppState,
-) {
-    refresh_seeds(app, state).await;
-}
-
 async fn refresh_seeds(app: &tauri::AppHandle, state: &crate::store::AppState) {
     let connected = is_connected();
-    let outcome = super::provider_seed::sync_all(state).await;
-    match super::mcp_seed::sync_with_endpoint(state, outcome.mcp_endpoint.as_deref()) {
-        Ok(()) => log::info!("✓ BoxAI MCP seeds reconciled (connected={connected})"),
-        Err(error) => log::warn!("Could not refresh BoxAI MCP servers: {error}"),
-    }
-    if outcome.providers_changed > 0 {
-        log::info!("✓ Seeded {} BoxAI provider(s)", outcome.providers_changed);
-    } else if connected {
-        log::warn!("BoxAI providers were not seeded while signed in; check provisioning");
+    if let Err(error) = super::policy_sync::synchronize(app, state, true).await {
+        log::warn!("Could not refresh BoxAI account policy (connected={connected}): {error}");
     }
     // Startup seed is async relative to the first React Query fetch. Without
     // this, a signed-in cold start can paint empty provider/MCP panels and
@@ -546,6 +537,12 @@ pub async fn gateway_logout(
     app: tauri::AppHandle,
     state: tauri::State<'_, crate::store::AppState>,
 ) -> Result<(), String> {
+    let _transition = super::policy_sync::lock_account_transition().await;
+    // Keep credentials and recovery metadata until local withdrawal succeeds,
+    // so an I/O failure is retryable and no live key is orphaned.
+    super::provider_seed::withdraw_all(&state)?;
+    super::mcp_seed::withdraw(&state).map_err(|e| e.to_string())?;
+
     // Revoke first. The relay key Connect wrote into real client config files
     // outlives this process, so a purely local sign-out would leave a live key
     // behind. Best-effort: a machine that is offline must still be able to sign
@@ -572,10 +569,9 @@ pub async fn gateway_logout(
     }
 
     clear_account();
-    // Withdraw everything the account authorized. The seeds are removed rather
-    // than rewritten: a signed-out install must not leave a provider or MCP
-    // server behind with a revoked account key.
-    refresh_seeds(&app, &state).await;
+    super::policy_sync::clear_cache(&state.db)?;
+    use tauri::Emitter;
+    let _ = app.emit("boxai-account-surface-updated", ());
     Ok(())
 }
 

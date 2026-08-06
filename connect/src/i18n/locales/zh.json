@@ -3026,6 +3026,25 @@
       "gateDescription": "BoxAI Connect 需要登录后使用。登录在浏览器中确认，账号状态保存在本机配置目录。",
       "browserOpened": "已在浏览器中打开授权页面，确认后会自动返回。",
       "modelsHint": "每个客户端可以单独选择 BoxAI 提供的对话模型。"
+    },
+    "agent": {
+      "templateSafety": "选择模型只会修改待应用配置。“启用”或“应用”会将其写入后续启动所用的配置，不会停止或删除正在运行的会话。",
+      "enabled": "已启用",
+      "disabled": "未启用",
+      "enable": "启用",
+      "disable": "停用",
+      "model": "模型",
+      "locked": "组织已将此 Agent 锁定为 {{model}}。",
+      "recommended": "首次配置推荐：{{model}}",
+      "searchModels": "搜索全部兼容模型",
+      "noModels": "未找到兼容模型，此 Agent 尚未配置。",
+      "revision": "策略版本",
+      "lastSynced": "最后同步",
+      "selectBeforeEnable": "请先选择模型再启用。",
+      "resetTitle": "重置 BoxAI Agent？",
+      "resetMessage": "这将恢复启用 BoxAI 前使用的配置，并清除 Connect 管理的选择；不会删除会话、历史记录或登录数据。",
+      "applyChanges": "应用更改",
+      "pendingChanges": "更改已准备好供后续启动使用，请在合适时应用。"
     }
   }
 }

@@ -7,6 +7,7 @@
  */
 export const OPERATIONS_SECTION_IDS = [
   'behavior',
+  'connect',
   'alerts',
   'email',
   'worker',

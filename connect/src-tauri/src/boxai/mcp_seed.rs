@@ -14,7 +14,7 @@ use crate::error::AppError;
 use crate::services::mcp::McpService;
 use crate::store::AppState;
 
-use super::provider_seed::SUPPORTED_APPS;
+use super::provider_seed::{Provisioning, SUPPORTED_APPS};
 
 /// Ids Connect owns. Anything listed here is withdrawn on sign-out, so an id
 /// must never be removed from this list without also being removed from every
@@ -23,10 +23,17 @@ const ALL_SERVER_IDS: [&str; 1] = ["boxai-media"];
 
 const MEDIA_SERVER_ID: &str = "boxai-media";
 
-fn seeded_apps() -> McpApps {
+fn seeded_apps(provisioning: Option<&Provisioning>) -> McpApps {
     let mut apps = McpApps::default();
     for app in SUPPORTED_APPS {
-        apps.set_enabled_for(&app, true);
+        let enabled = provisioning.is_none_or(|policy| {
+            !policy.agents_present
+                || policy
+                    .agents
+                    .get(app.as_str())
+                    .is_some_and(|agent| agent.enabled)
+        });
+        apps.set_enabled_for(&app, enabled);
     }
     apps
 }
@@ -41,7 +48,7 @@ fn default_mcp_endpoint() -> String {
 ///
 /// `secret` is the account's relay key, carried as the Authorization header so
 /// the gateway authenticates the tool call the same way it authenticates /v1.
-fn definitions(secret: &str, endpoint: &str) -> [McpServer; 1] {
+fn definitions(secret: &str, endpoint: &str, apps: McpApps) -> [McpServer; 1] {
     [McpServer {
         id: MEDIA_SERVER_ID.to_string(),
         name: "BoxAI Media".to_string(),
@@ -57,7 +64,7 @@ fn definitions(secret: &str, endpoint: &str) -> [McpServer; 1] {
             "video".into(),
             "http".into(),
         ],
-        apps: seeded_apps(),
+        apps,
         server: json!({
             "type": "http",
             "url": endpoint,
@@ -68,16 +75,9 @@ fn definitions(secret: &str, endpoint: &str) -> [McpServer; 1] {
     }]
 }
 
-fn upsert_if_changed(state: &AppState, desired: McpServer) -> Result<(), AppError> {
-    let id = desired.id.clone();
-    let unchanged = state
-        .db
-        .get_all_mcp_servers()?
-        .get(&id)
-        .is_some_and(|existing| existing.server == desired.server && existing.apps == desired.apps);
-    if unchanged {
-        return Ok(());
-    }
+fn upsert_and_project(state: &AppState, desired: McpServer) -> Result<(), AppError> {
+    // Re-project even when the DB row is unchanged: a previous live-file write
+    // may have failed after the row was saved.
     McpService::upsert_server(state, desired)
 }
 
@@ -87,16 +87,23 @@ fn upsert_if_changed(state: &AppState, desired: McpServer) -> Result<(), AppErro
 /// `endpoint` comes from provisioning when available so a self-hosted gateway
 /// can advertise its own URL; falls back to the compiled portal host.
 pub fn sync(state: &AppState) -> Result<(), AppError> {
-    sync_with_endpoint(state, None)
+    sync_with_endpoint(state, None, None)
 }
 
-pub fn sync_with_endpoint(state: &AppState, endpoint: Option<&str>) -> Result<(), AppError> {
+pub(crate) fn withdraw(state: &AppState) -> Result<(), AppError> {
+    for id in ALL_SERVER_IDS {
+        McpService::delete_server(state, id)?;
+    }
+    Ok(())
+}
+
+pub fn sync_with_endpoint(
+    state: &AppState,
+    endpoint: Option<&str>,
+    provisioning: Option<&Provisioning>,
+) -> Result<(), AppError> {
     if !super::gateway_auth::is_connected() {
-        // Signed out: withdraw account-authorized entries.
-        for id in ALL_SERVER_IDS {
-            McpService::delete_server(state, id)?;
-        }
-        return Ok(());
+        return withdraw(state);
     }
     let secret = match super::gateway_auth::api_key() {
         Ok(secret) => secret,
@@ -111,9 +118,13 @@ pub fn sync_with_endpoint(state: &AppState, endpoint: Option<&str>) -> Result<()
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
         .unwrap_or_else(default_mcp_endpoint);
+    let apps = seeded_apps(provisioning);
+    if apps.enabled_apps().is_empty() {
+        return withdraw(state);
+    }
 
-    for desired in definitions(&secret, &url) {
-        upsert_if_changed(state, desired)?;
+    for desired in definitions(&secret, &url, apps) {
+        upsert_and_project(state, desired)?;
     }
     Ok(())
 }
@@ -125,17 +136,18 @@ mod tests {
     /// A signed-out install must withdraw exactly what a signed-in one seeds.
     #[test]
     fn every_seeded_server_is_also_withdrawn_on_sign_out() {
-        let seeded: Vec<String> = definitions("sk-user", "https://you-box.com/mcp")
-            .into_iter()
-            .map(|server| server.id)
-            .collect();
+        let seeded: Vec<String> =
+            definitions("sk-user", "https://you-box.com/mcp", seeded_apps(None))
+                .into_iter()
+                .map(|server| server.id)
+                .collect();
         let withdrawn: Vec<String> = ALL_SERVER_IDS.iter().map(|id| id.to_string()).collect();
         assert_eq!(seeded, withdrawn);
     }
 
     #[test]
     fn media_server_is_http_with_bearer_auth() {
-        let [server] = definitions("sk-user", "https://you-box.com/mcp");
+        let [server] = definitions("sk-user", "https://you-box.com/mcp", seeded_apps(None));
         assert_eq!(server.id, "boxai-media");
         assert_eq!(server.server["type"], "http");
         assert_eq!(server.server["url"], "https://you-box.com/mcp");

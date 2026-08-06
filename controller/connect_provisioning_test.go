@@ -3,11 +3,13 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting/config"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -16,14 +18,22 @@ import (
 type connectProvisioningResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		ChatModels   []string `json:"chat_models"`
-		DefaultModel string   `json:"default_model"`
-		ImageModels  []string `json:"image_models"`
-		VideoModels  []string `json:"video_models"`
-		DefaultImage string   `json:"default_image_model"`
-		DefaultVideo string   `json:"default_video_model"`
-		MCPEndpoint  string   `json:"mcp_endpoint"`
-		Account      *struct {
+		ChatModels          []string `json:"chat_models"`
+		DefaultModel        string   `json:"default_model"`
+		ImageModels         []string `json:"image_models"`
+		VideoModels         []string `json:"video_models"`
+		DefaultImage        string   `json:"default_image_model"`
+		DefaultVideo        string   `json:"default_video_model"`
+		MCPEndpoint         string   `json:"mcp_endpoint"`
+		Revision            string   `json:"revision"`
+		RefreshAfterSeconds int      `json:"refresh_after_seconds"`
+		Agents              map[string]struct {
+			Enabled          bool     `json:"enabled"`
+			Models           []string `json:"models"`
+			RecommendedModel string   `json:"recommended_model"`
+			LockedModel      string   `json:"locked_model"`
+		} `json:"agents"`
+		Account *struct {
 			Id       int    `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
@@ -42,14 +52,21 @@ func decodeConnectProvisioning(t *testing.T, recorder *httptest.ResponseRecorder
 	return payload
 }
 
-func withConnectDefaultModel(t *testing.T, name string) {
+func withConnectPolicies(t *testing.T, policies string) {
 	t.Helper()
 
 	settings := system_setting.GetConnectSettings()
-	original := settings.DefaultModel
-	settings.DefaultModel = name
+	original := settings.AgentPolicies
+	originalEnabled := settings.Enabled
+	require.NoError(t, config.GlobalConfig.UpdateRegistered("connect", map[string]string{
+		"enabled":        "true",
+		"agent_policies": policies,
+	}))
 	t.Cleanup(func() {
-		system_setting.GetConnectSettings().DefaultModel = original
+		require.NoError(t, config.GlobalConfig.UpdateRegistered("connect", map[string]string{
+			"enabled":        strconv.FormatBool(originalEnabled),
+			"agent_policies": original,
+		}))
 	})
 }
 
@@ -65,6 +82,59 @@ func requestConnectProvisioning(t *testing.T, userID int) *httptest.ResponseReco
 
 	GetConnectProvisioning(ctx)
 	return recorder
+}
+
+func TestConnectProvisioningRevisionAndETag(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	setupModelListControllerTestDB(t)
+	withConnectPolicies(t, `{"claude":{"enabled":true,"recommended_model":""}}`)
+
+	first := requestConnectProvisioning(t, 0)
+	firstPayload := decodeConnectProvisioning(t, first)
+	require.NotEmpty(t, firstPayload.Data.Revision)
+	require.Equal(t, 60, firstPayload.Data.RefreshAfterSeconds)
+	require.Equal(t, "no-cache", first.Header().Get("Cache-Control"))
+	etag := first.Header().Get("ETag")
+	require.NotEmpty(t, etag)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/connect/provisioning", nil)
+	ctx.Request.Header.Set("If-None-Match", etag)
+	GetConnectProvisioning(ctx)
+	require.Equal(t, http.StatusNotModified, recorder.Code, "first ETag %s, second ETag %s", etag, recorder.Header().Get("ETag"))
+
+	require.NoError(t, config.GlobalConfig.UpdateRegistered("connect", map[string]string{
+		"agent_policies": `{"claude":{"enabled":false,"recommended_model":""}}`,
+	}))
+	changed := decodeConnectProvisioning(t, requestConnectProvisioning(t, 0))
+	require.NotEqual(t, firstPayload.Data.Revision, changed.Data.Revision)
+	require.Equal(t, changed.Data.Revision, decodeConnectProvisioning(t, requestConnectProvisioning(t, 0)).Data.Revision)
+}
+
+func TestConnectProvisioningGlobalDisableDisablesEveryAgent(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	setupModelListControllerTestDB(t)
+	withConnectPolicies(t, `{"claude":{"enabled":true,"recommended_model":""},"codex":{"enabled":true,"recommended_model":""}}`)
+	require.NoError(t, config.GlobalConfig.UpdateRegistered("connect", map[string]string{"enabled": "false"}))
+
+	payload := decodeConnectProvisioning(t, requestConnectProvisioning(t, 0))
+	for name, agent := range payload.Data.Agents {
+		require.False(t, agent.Enabled, name)
+		require.Empty(t, agent.Models, name)
+	}
+}
+
+func TestConnectProvisioningMalformedAgentPolicyFailsClosed(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	setupModelListControllerTestDB(t)
+	withConnectPolicies(t, `{not-json`)
+
+	payload := decodeConnectProvisioning(t, requestConnectProvisioning(t, 0))
+	for name, agent := range payload.Data.Agents {
+		require.False(t, agent.Enabled, name)
+		require.Empty(t, agent.Models, name)
+	}
 }
 
 // withPricingCache makes the pricing cache authoritative for the fixture's
@@ -139,7 +209,7 @@ func TestConnectProvisioningReturnsChatModelsOnly(t *testing.T) {
 
 // The catalog is per-account and the default is an operator decision, so a
 // default this account cannot reach must degrade to something it can.
-func TestConnectProvisioningDefaultModelFallsBackToAReachableModel(t *testing.T) {
+func TestConnectProvisioningAppliesAgentPoliciesWithoutDefaultFallback(t *testing.T) {
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)
 
@@ -160,14 +230,15 @@ func TestConnectProvisioningDefaultModelFallsBackToAReachableModel(t *testing.T)
 	}).Error)
 	withPricingCache(t)
 
-	withConnectDefaultModel(t, "zz-connect-b-model")
+	withConnectPolicies(t, `{"claude":{"enabled":true,"recommended_model":"zz-connect-b-model","locked_model":"zz-connect-a-model"},"codex":{"enabled":true,"recommended_model":"missing"},"gemini":{"enabled":false}}`)
 	payload := decodeConnectProvisioning(t, requestConnectProvisioning(t, 2002))
-	require.Equal(t, "zz-connect-b-model", payload.Data.DefaultModel)
-
-	withConnectDefaultModel(t, "zz-connect-model-this-account-cannot-use")
-	payload = decodeConnectProvisioning(t, requestConnectProvisioning(t, 2002))
-	require.Equal(t, "zz-connect-a-model", payload.Data.DefaultModel,
-		"an unreachable operator default must degrade to a model the account can call")
+	require.Empty(t, payload.Data.DefaultModel)
+	require.Equal(t, payload.Data.ChatModels, payload.Data.Agents["claude"].Models)
+	require.Equal(t, "zz-connect-b-model", payload.Data.Agents["claude"].RecommendedModel)
+	require.Equal(t, "zz-connect-a-model", payload.Data.Agents["claude"].LockedModel)
+	require.Empty(t, payload.Data.Agents["codex"].RecommendedModel, "an unavailable recommendation must not fall back to the first model")
+	require.False(t, payload.Data.Agents["gemini"].Enabled)
+	require.Empty(t, payload.Data.Agents["gemini"].Models)
 }
 
 // An account with no chat models must not be handed a model name anyway: the
@@ -183,8 +254,6 @@ func TestConnectProvisioningWithoutChatModelsReturnsNoDefault(t *testing.T) {
 		Group:    "default",
 		Status:   common.UserStatusEnabled,
 	}).Error)
-	withConnectDefaultModel(t, "zz-connect-configured-model")
-
 	payload := decodeConnectProvisioning(t, requestConnectProvisioning(t, 2003))
 
 	require.Empty(t, payload.Data.ChatModels)

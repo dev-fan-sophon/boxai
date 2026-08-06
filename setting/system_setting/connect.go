@@ -1,8 +1,17 @@
 package system_setting
 
 import (
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/setting/config"
 )
+
+var ConnectAgentNames = []string{"claude", "codex", "gemini", "grokbuild", "opencode", "openclaw", "hermes"}
+
+type ConnectAgentPolicy struct {
+	Enabled          bool   `json:"enabled"`
+	RecommendedModel string `json:"recommended_model"`
+	LockedModel      string `json:"locked_model,omitempty"`
+}
 
 // ConnectSettings controls BoxAI Connect, the desktop app that points AI coding
 // clients (Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, OpenClaw,
@@ -23,11 +32,9 @@ type ConnectSettings struct {
 	// TokenName is the fallback label for a relay key Connect creates, used only
 	// when the app does not send its own device-specific name.
 	TokenName string `json:"token_name"`
-	// DefaultModel is the model a freshly signed-in install selects. It is
-	// resolved against what the account can actually reach, so naming a model
-	// this deployment does not serve degrades to the account's first chat model
-	// rather than producing a client that fails on its first request.
-	DefaultModel string `json:"default_model"`
+	// AgentPolicies is updated as one JSON option so readers never observe a
+	// partially-applied set of agent policies.
+	AgentPolicies string `json:"agent_policies"`
 }
 
 var defaultConnectSettings = ConnectSettings{
@@ -36,7 +43,7 @@ var defaultConnectSettings = ConnectSettings{
 	DownloadURL:        "",
 	MinVersion:         "",
 	TokenName:          "BoxAI Connect",
-	DefaultModel:       "",
+	AgentPolicies:      `{"claude":{"enabled":true,"recommended_model":""},"codex":{"enabled":true,"recommended_model":""},"gemini":{"enabled":true,"recommended_model":""},"grokbuild":{"enabled":true,"recommended_model":""},"opencode":{"enabled":true,"recommended_model":""},"openclaw":{"enabled":true,"recommended_model":""},"hermes":{"enabled":true,"recommended_model":""}}`,
 }
 
 func init() {
@@ -48,4 +55,28 @@ func GetConnectSettings() *ConnectSettings {
 		defaultConnectSettings.TokenName = "BoxAI Connect"
 	}
 	return &defaultConnectSettings
+}
+
+// GetConnectAgentPolicies returns a complete snapshot of the seven supported
+// agents. Missing entries use defaults; malformed JSON fails closed.
+func GetConnectAgentPolicies() map[string]ConnectAgentPolicy {
+	var settings ConnectSettings
+	if err := config.GlobalConfig.CopyRegistered("connect", &settings); err != nil {
+		settings = defaultConnectSettings
+	}
+	var configured map[string]ConnectAgentPolicy
+	if common.UnmarshalJsonStr(settings.AgentPolicies, &configured) != nil {
+		// A malformed policy must fail closed rather than silently enabling every
+		// remotely managed agent.
+		return make(map[string]ConnectAgentPolicy)
+	}
+	policies := make(map[string]ConnectAgentPolicy, len(ConnectAgentNames))
+	for _, name := range ConnectAgentNames {
+		if policy, ok := configured[name]; ok {
+			policies[name] = policy
+		} else {
+			policies[name] = ConnectAgentPolicy{Enabled: true}
+		}
+	}
+	return policies
 }

@@ -10,4 +10,5 @@
 
 pub mod gateway_auth;
 pub mod mcp_seed;
+pub mod policy_sync;
 pub mod provider_seed;

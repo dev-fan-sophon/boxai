@@ -45,7 +45,9 @@ fn openclaw_seed_survives_its_own_config_writer() {
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let id = provider_seed::provider_id(&AppType::OpenClaw);
-        let seeded = provider_seed::settings_config(&AppType::OpenClaw, "sk-user", "some-model");
+        let catalog = vec!["some-model".to_string(), "other-model".to_string()];
+        let seeded =
+            provider_seed::settings_config(&AppType::OpenClaw, "sk-user", "some-model", &catalog);
 
         // The live-config path deserializes settings_config into this struct. A casing
         // mistake here silently drops base_url or apiKey rather than failing loudly.
@@ -57,8 +59,9 @@ fn openclaw_seed_survives_its_own_config_writer() {
             Some("https://you-box.com/v1"),
             "OpenClaw talks to the OpenAI-compatible relay, so it needs the /v1 form"
         );
-        assert_eq!(typed.models.len(), 1);
+        assert_eq!(typed.models.len(), 2);
         assert_eq!(typed.models[0].id, "some-model");
+        assert_eq!(typed.models[1].id, "other-model");
 
         openclaw_config::set_typed_provider(&id, &typed).expect("write OpenClaw provider");
 
@@ -87,7 +90,9 @@ fn openclaw_seed_survives_its_own_config_writer() {
 fn hermes_seed_survives_its_own_config_writer() {
     with_temp_hermes_dir(|dir| {
         let id = provider_seed::provider_id(&AppType::Hermes);
-        let seeded = provider_seed::settings_config(&AppType::Hermes, "sk-user", "some-model");
+        let catalog = vec!["some-model".to_string(), "other-model".to_string()];
+        let seeded =
+            provider_seed::settings_config(&AppType::Hermes, "sk-user", "some-model", &catalog);
 
         hermes_config::set_provider(&id, seeded).expect("write Hermes provider");
 
@@ -123,7 +128,7 @@ fn hermes_seed_survives_its_own_config_writer() {
 fn claude_desktop_is_never_part_of_the_seeded_set() {
     assert!(!provider_seed::SUPPORTED_APPS.contains(&AppType::ClaudeDesktop));
     assert_eq!(
-        provider_seed::settings_config(&AppType::ClaudeDesktop, "sk-user", "m"),
+        provider_seed::settings_config(&AppType::ClaudeDesktop, "sk-user", "m", &[]),
         serde_json::json!({})
     );
 }
