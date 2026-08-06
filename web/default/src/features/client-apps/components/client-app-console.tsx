@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TitledCard } from '@/components/ui/titled-card'
-import { LobeIcon } from '@/lib/lobe-icon'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import {
   detectPlatform,
@@ -16,10 +15,12 @@ import {
   useAppRelease,
   type ClientAppId,
 } from '@/features/downloads/use-app-release'
+import { LobeIcon } from '@/lib/lobe-icon'
 
 import { CLIENT_APPS, CONNECT_CLIENTS } from '../constants'
 import { useClientAppSessions } from '../hooks/use-client-app-sessions'
 import { ClientAppSessionsCard } from './client-app-sessions-card'
+import { ConnectWalkthrough } from './connect-walkthrough'
 
 export function ClientAppConsole(props: { app: ClientAppId }) {
   const { t } = useTranslation()
@@ -59,7 +60,7 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
               alt=''
               aria-hidden='true'
               draggable={false}
-              className='size-10 shrink-0 rounded-[22%] object-contain shadow-xs ring-1 ring-border/40'
+              className='ring-border/40 size-10 shrink-0 rounded-[22%] object-contain shadow-xs ring-1'
             />
             <div className='min-w-0'>
               <div className='flex flex-wrap items-center gap-2'>
@@ -124,33 +125,47 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
       </TitledCard>
 
       {props.app === 'connect' ? (
-        <TitledCard
-          title={t('Clients it configures')}
-          description={t(
-            'Connect writes only the provider entry it owns and keeps a restorable backup of the rest.'
-          )}
-          icon={<Terminal aria-hidden='true' />}
-          disableHoverEffect
-        >
-          <ul className='grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
-            {CONNECT_CLIENTS.map((client) => (
-              <li
-                key={client.name}
-                className='bg-muted/40 flex items-start gap-2.5 rounded-lg border px-3 py-2'
-              >
-                <span className='mt-0.5 flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md'>
-                  <LobeIcon name={client.icon} size={18} />
-                </span>
-                <div className='min-w-0'>
-                  <p className='text-sm font-medium'>{client.name}</p>
-                  <p className='text-muted-foreground mt-0.5 font-mono text-xs break-all'>
-                    {client.config}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </TitledCard>
+        <>
+          <ConnectWalkthrough />
+
+          <TitledCard
+            title={t('Clients it configures')}
+            description={t(
+              'Connect writes only the provider entry it owns and keeps a restorable backup of the rest.'
+            )}
+            icon={<Terminal aria-hidden='true' />}
+            disableHoverEffect
+          >
+            <ul className='grid gap-2 sm:grid-cols-2'>
+              {CONNECT_CLIENTS.map((client) => (
+                <li
+                  key={client.name}
+                  className='bg-muted/40 flex items-start gap-2.5 rounded-lg border px-3 py-2.5'
+                >
+                  <span className='mt-0.5 flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md'>
+                    <LobeIcon name={client.icon} size={18} />
+                  </span>
+                  <div className='min-w-0 flex-1'>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <p className='text-sm font-medium'>{client.name}</p>
+                      <Badge variant='outline'>
+                        {client.mode === 'additive'
+                          ? t('Added alongside')
+                          : t('Switches over')}
+                      </Badge>
+                    </div>
+                    <p className='mt-1 text-xs text-pretty'>
+                      {t(client.chooseKey)}
+                    </p>
+                    <p className='text-muted-foreground mt-1 font-mono text-xs break-all'>
+                      {client.config}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </TitledCard>
+        </>
       ) : (
         <Button
           variant='outline'

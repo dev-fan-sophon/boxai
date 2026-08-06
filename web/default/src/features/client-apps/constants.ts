@@ -44,7 +44,7 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
     stepKeys: [
       'Download and install the app for your platform.',
       'Sign in from the app; approve the request in this browser session.',
-      'Pick the clients to configure — Connect writes each config file and keeps a backup.',
+      'Open a client and set up its models the way that client works, then press Apply.',
     ],
     highlightKeys: [
       'Writes the endpoint and key into each client for you',
@@ -92,11 +92,19 @@ export const UPCOMING_CLIENT_APPS = [
 ] as const
 
 /**
- * The clients BoxAI Connect writes a provider into, and the file it writes.
+ * The clients BoxAI Connect writes a provider into, the file it writes, and how
+ * that client expects to be configured.
  *
- * Must stay in step with `SUPPORTED_APPS` in
- * `connect/src-tauri/src/boxai/provider_seed.rs`. A client advertised here that
- * the app does not seed is a promise the download does not keep.
+ * Must stay in step with `SUPPORTED_APPS` and the per-client config shapes in
+ * `connect/src-tauri/src/boxai/agent_config.rs`. A client advertised here that
+ * the app does not seed is a promise the download does not keep, and a `choose`
+ * line that does not match its panel sends people looking for a control that
+ * client never had.
+ *
+ * `mode` is the difference users feel first: an exclusive client has one active
+ * provider, so BoxAI replaces it and Connect keeps the previous config to
+ * restore; an additive client keeps its own providers and gains BoxAI alongside
+ * them, so its own default only moves when you ask for it.
  *
  * `icon` is a `@lobehub/icons` key for `LobeIcon` (prefer `.Color` when available).
  * `href` is the product home / docs the marketing strip links to.
@@ -105,42 +113,56 @@ export const CONNECT_CLIENTS = [
   {
     name: 'Claude Code',
     config: '~/.claude/settings.json',
+    mode: 'exclusive',
+    chooseKey: 'One model, plus optional overrides per role',
     icon: 'ClaudeCode.Color',
     href: 'https://docs.anthropic.com/en/docs/claude-code',
   },
   {
     name: 'Codex CLI',
     config: '~/.codex/config.toml',
+    mode: 'exclusive',
+    chooseKey: 'A set of models, which one is default, and reasoning effort',
     icon: 'Codex.Color',
     href: 'https://developers.openai.com/codex',
   },
   {
     name: 'Gemini CLI',
-    config: '~/.gemini/settings.json',
+    config: '~/.gemini/.env',
+    mode: 'exclusive',
+    chooseKey: 'One model, from the names Gemini CLI accepts',
     icon: 'GeminiCLI.Color',
     href: 'https://github.com/google-gemini/gemini-cli',
   },
   {
     name: 'Grok Build',
     config: '~/.grok/config.toml',
+    mode: 'exclusive',
+    chooseKey: 'A set of models and which one is default',
     icon: 'Grok.Color',
     href: 'https://grok.x.ai',
   },
   {
     name: 'OpenCode',
-    config: '~/.config/opencode',
+    config: '~/.config/opencode/opencode.json',
+    mode: 'additive',
+    chooseKey: 'A set of models, picked per session inside OpenCode',
     icon: 'OpenCode.Color',
     href: 'https://opencode.ai',
   },
   {
     name: 'OpenClaw',
     config: '~/.openclaw/openclaw.json',
+    mode: 'additive',
+    chooseKey: 'A set of models, plus a primary and its fallbacks',
     icon: 'OpenClaw.Color',
     href: 'https://openclaw.ai',
   },
   {
     name: 'Hermes',
     config: '~/.hermes/config.yaml',
+    mode: 'additive',
+    chooseKey: 'A set of models and which one is default',
     icon: 'HermesAgent.Color',
     href: 'https://github.com/HermesAgent/hermes',
   },

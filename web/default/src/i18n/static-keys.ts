@@ -666,6 +666,26 @@ export const STATIC_I18N_KEYS = [
   'Runs the build and the tests before it hands the work back',
   'Same balance, keys, and usage history as the rest of BoxAI',
 
+  // Connect walkthrough steps (features/client-apps/components/connect-walkthrough.tsx)
+  'Choose models',
+  'Open a client and pick the models it should offer. Codex lists exactly these in its /model picker.',
+  'Per client',
+  'Every client is set up the way it actually works. Claude Code takes one model plus optional overrides for its Sonnet, Opus and Haiku roles.',
+  'Only what works',
+  'Only models the client can really use are offered. Gemini CLI ignores model names outside its own list, so the rest of your catalog is not shown.',
+  'Apply',
+  'Claude Code, Codex, Gemini and Grok Build switch over to BoxAI. OpenCode, OpenClaw and Hermes gain BoxAI next to their own providers, and keep their default until you move it.',
+  'Live and reversible',
+  'Once applied, the panel names the file it wrote and keeps the way back. Removing BoxAI restores what the client had before.',
+
+  // What each Connect client chooses (features/client-apps/constants.ts)
+  'One model, plus optional overrides per role',
+  'A set of models, which one is default, and reasoning effort',
+  'One model, from the names Gemini CLI accepts',
+  'A set of models and which one is default',
+  'A set of models, picked per session inside OpenCode',
+  'A set of models, plus a primary and its fallbacks',
+
   // Misc
   'Cancel',
   'Status',
@@ -717,5 +737,4 @@ export const STATIC_I18N_KEYS = [
   'How to create an API key',
   'First request guide',
   'Press Ctrl/⌘ K to focus search',
-
 ] as const

@@ -1,6 +1,6 @@
 /**
  * Product docs IA metadata (source of truth for section chrome).
- * Page bodies live in content/docs/{en,vi}/**/*.md and are compiled by
+ * Page bodies live in Markdown under content/docs/{en,vi} and are compiled by
  * scripts/docs/build-content.mjs — see docs/product-docs-system.md.
  */
 
