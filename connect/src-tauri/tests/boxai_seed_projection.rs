@@ -8,8 +8,22 @@
 
 mod support;
 
+use boxai_connect_lib::boxai::agent_config::{
+    AgentConfig, HermesConfig, ModelMeta, ModelMetaMap, OpenClawConfig,
+};
 use boxai_connect_lib::boxai::provider_seed;
 use boxai_connect_lib::{hermes_config, openclaw_config, update_settings, AppSettings, AppType};
+
+fn catalog_meta() -> ModelMetaMap {
+    ModelMetaMap::from([(
+        "some-model".to_string(),
+        ModelMeta {
+            display_name: Some("Some Model".into()),
+            context_length: Some(128_000),
+            ..ModelMeta::default()
+        },
+    )])
+}
 
 fn with_temp_hermes_dir<F: FnOnce(&std::path::Path)>(f: F) {
     let guard = support::test_mutex().lock().expect("test mutex poisoned");
@@ -45,9 +59,12 @@ fn openclaw_seed_survives_its_own_config_writer() {
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let id = provider_seed::provider_id(&AppType::OpenClaw);
-        let catalog = vec!["some-model".to_string(), "other-model".to_string()];
-        let seeded =
-            provider_seed::settings_config(&AppType::OpenClaw, "sk-user", "some-model", &catalog);
+        let seeded = AgentConfig::OpenClaw(OpenClawConfig {
+            models: vec!["some-model".to_string(), "other-model".to_string()],
+            primary: Some("some-model".to_string()),
+            fallbacks: vec!["other-model".to_string()],
+        })
+        .settings_config("sk-user", &catalog_meta());
 
         // The live-config path deserializes settings_config into this struct. A casing
         // mistake here silently drops base_url or apiKey rather than failing loudly.
@@ -90,9 +107,11 @@ fn openclaw_seed_survives_its_own_config_writer() {
 fn hermes_seed_survives_its_own_config_writer() {
     with_temp_hermes_dir(|dir| {
         let id = provider_seed::provider_id(&AppType::Hermes);
-        let catalog = vec!["some-model".to_string(), "other-model".to_string()];
-        let seeded =
-            provider_seed::settings_config(&AppType::Hermes, "sk-user", "some-model", &catalog);
+        let seeded = AgentConfig::Hermes(HermesConfig {
+            models: vec!["some-model".to_string(), "other-model".to_string()],
+            default_model: Some("some-model".to_string()),
+        })
+        .settings_config("sk-user", &catalog_meta());
 
         hermes_config::set_provider(&id, seeded).expect("write Hermes provider");
 
@@ -127,8 +146,4 @@ fn hermes_seed_survives_its_own_config_writer() {
 #[test]
 fn claude_desktop_is_never_part_of_the_seeded_set() {
     assert!(!provider_seed::SUPPORTED_APPS.contains(&AppType::ClaudeDesktop));
-    assert_eq!(
-        provider_seed::settings_config(&AppType::ClaudeDesktop, "sk-user", "m", &[]),
-        serde_json::json!({})
-    );
 }

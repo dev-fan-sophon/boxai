@@ -3025,26 +3025,133 @@
       "waiting": "確認を待っています…",
       "gateDescription": "BoxAI Connect はサインインした状態でのみ利用できます。ブラウザーで承認し、アカウント状態はローカル設定ディレクトリに保存されます。",
       "browserOpened": "ブラウザーで認可ページを開きました。承認すると BoxAI Connect に戻ります。",
-      "modelsHint": "クライアントごとに BoxAI の対話モデルを選べます。"
+      "modelsHint": "クライアントごとに BoxAI の対話モデルを選べます。",
+      "connected": "接続済み",
+      "quotaLabel": "残りクォータ",
+      "usernameLabel": "ユーザー名",
+      "notConnected": "現在アカウントは接続されていません。"
     },
     "agent": {
-      "templateSafety": "モデルの選択は保留中の設定だけを変更します。「有効化」または「変更を適用」で今後の起動用設定に書き込みます。実行中のセッションを停止または削除しません。",
-      "enabled": "有効",
-      "disabled": "無効",
-      "enable": "有効化",
-      "disable": "無効化",
-      "model": "モデル",
-      "locked": "組織によりこのエージェントは {{model}} に固定されています。",
-      "recommended": "初回設定の推奨: {{model}}",
-      "searchModels": "対応モデルをすべて検索",
-      "noModels": "対応モデルがありません。このエージェントは未設定です。",
+      "templateSafety": "ここでの編集はファイルには書き込まれません。上のアクションだけがクライアント設定に書き込み、実行中のセッションを停止・削除することはありません。",
+      "writesTo": "書き込み先: {{path}}",
       "revision": "ポリシーリビジョン",
       "lastSynced": "最終同期",
-      "selectBeforeEnable": "有効にする前にモデルを選択してください。",
-      "resetTitle": "BoxAI Agent をリセットしますか？",
-      "resetMessage": "BoxAI を有効化する前の設定を復元し、Connect が管理する選択を消去します。セッション、履歴、サインイン情報は削除しません。",
-      "applyChanges": "変更を適用",
-      "pendingChanges": "変更は今後の起動用に準備済みです。適切なタイミングで適用してください。"
+      "searchModels": "モデルを検索",
+      "noModels": "一致するモデルがありません。",
+      "selectedCount": "{{count}} 件のモデルを選択中",
+      "recommended": "推奨",
+      "contextWindow": "コンテキスト {{tokens}}",
+      "chooseModel": "モデルを選択",
+      "locked": "組織はこのクライアントに {{model}} の使用を求めています。",
+      "needsRepair": "保存済みのモデルの一部はこのアカウントで利用できなくなったため、下の選択から削除しました。確認して再度適用してください。",
+      "unapplied": "これらの変更はまだクライアントに書き込まれていません。",
+      "resetTitle": "BoxAI の設定を消去しますか？",
+      "resetMessage": "{{agent}} から BoxAI を削除し、以前の設定を復元して、選択したモデルを破棄します。セッション、履歴、BoxAI のサインインには影響しません。",
+      "status": {
+        "active": "使用中",
+        "inactive": "未適用",
+        "unconfigured": "設定が必要",
+        "policyDisabled": "利用不可",
+        "signedOut": "サインアウト中"
+      },
+      "statusHint": {
+        "active": "{{agent}} は下の設定で BoxAI を使用しています。",
+        "inactive": "下の設定は保存済みですが、{{agent}} にはまだ書き込まれていません。",
+        "unconfigured": "{{agent}} で使う内容を選んでから適用してください。",
+        "policyDisabled": "組織が {{agent}} の BoxAI を無効にしています。",
+        "signedOut": "{{agent}} を設定するには BoxAI にサインインしてください。"
+      },
+      "actions": {
+        "apply": "適用して BoxAI を使う",
+        "applyChanges": "変更を適用",
+        "inUse": "使用中",
+        "add": "{{agent}} に追加",
+        "update": "{{agent}} を更新",
+        "added": "追加済み",
+        "remove": "{{agent}} から削除",
+        "stop": "BoxAI の使用を停止",
+        "reset": "設定を消去",
+        "setDefault": "{{agent}} の既定にする",
+        "clearDefault": "以前の既定に戻す"
+      },
+      "warnings": {
+        "clientDefaultKept": "{{agent}} の既定モデルが Connect の外部で変更されていたため、その設定を残しました。",
+        "restoredEmptyConfig": "BoxAI 導入前の設定が記録されていないため、無効なキーを残さず空の設定を書き込みました。",
+        "geminiNoCompatibleModels": "BoxAI アカウントに Gemini CLI が認識できるモデルがありません。Gemini は自身のリストにないモデル名を無視するため、ここで適用できる設定はありません。"
+      },
+      "claude": {
+        "fallback": "既定モデル",
+        "fallbackHint": "個別にモデルを指定していないロールすべてで使われます。",
+        "chooseFallback": "先に既定モデルを選択してください。",
+        "roles": "ロール別モデル",
+        "rolesHint": "Claude Code はロール名でモデルを要求します。その種類の処理を別のモデルに任せたい場合以外は、既定モデルに従わせてください。",
+        "followFallback": "既定モデルに従う",
+        "role": {
+          "sonnet": "Sonnet のリクエスト",
+          "opus": "Opus のリクエスト",
+          "haiku": "Haiku のリクエスト",
+          "fable": "Fable のリクエスト",
+          "subagent": "サブエージェント"
+        }
+      },
+      "codex": {
+        "catalog": "/model ピッカーに表示するモデル",
+        "catalogHint": "Codex は再起動せずにこれらを切り替えられます。",
+        "chooseModels": "モデルを 1 つ以上選択してください。",
+        "default": "新規セッションの開始モデル",
+        "defaultHint": "config.toml のトップレベル model に書き込まれます。",
+        "chooseDefault": "Codex の開始モデルを選択してください。",
+        "effort": "推論の強度",
+        "effortHint": "上のすべてのモデルに適用されます。モデルが対応する段階のみ表示されます。",
+        "efforts": {
+          "minimal": "最小",
+          "low": "低",
+          "medium": "中",
+          "high": "高"
+        }
+      },
+      "gemini": {
+        "model": "モデル",
+        "modelHint": "Gemini CLI は自身が知っているモデル名しか受け付けないため、この一覧はアカウントのカタログより狭くなります。",
+        "chooseModel": "モデルを選択してください。"
+      },
+      "grokbuild": {
+        "profiles": "モデルプロファイル",
+        "profilesHint": "モデルごとにプロファイルを作成します。コンテキスト長は BoxAI から取得し、推測値は書き込みません。",
+        "chooseModels": "モデルを 1 つ以上選択してください。",
+        "default": "既定プロファイル",
+        "defaultHint": "Grok Build が起動時に使うプロファイルです。",
+        "chooseDefault": "起動時に使うプロファイルを選択してください。"
+      },
+      "opencode": {
+        "models": "登録するモデル",
+        "modelsHint": "OpenCode の BoxAI プロバイダー配下に表示されます。",
+        "chooseModels": "モデルを 1 つ以上選択してください。",
+        "defaultNotice": "OpenCode 自身の既定モデルはそのままです。Connect は変更しません。"
+      },
+      "openclaw": {
+        "models": "登録するモデル",
+        "modelsHint": "既存のプロバイダーと並べて OpenClaw のプロバイダー一覧に追加されます。",
+        "chooseModels": "モデルを 1 つ以上選択してください。",
+        "routing": "既定のルーティング",
+        "routingHint": "上の一覧とは独立しています。明示的に指定した場合のみ OpenClaw は BoxAI にルーティングします。",
+        "primary": "主モデル",
+        "fallbacks": "フォールバックモデル（順番どおり）",
+        "keepCurrentPrimary": "OpenClaw のルーティングを変更しない",
+        "ownsDefault": "OpenClaw は現在、既定で BoxAI にルーティングしています。",
+        "setDefaultHint": "下のボタンで OpenClaw の既定ルーティングをこれらのモデルに向けます。",
+        "applyBeforeDefault": "先にモデルを OpenClaw に追加してから、既定ルーティングを設定してください。"
+      },
+      "hermes": {
+        "models": "登録するモデル",
+        "modelsHint": "カスタムプロバイダーとして Hermes に追加されます。",
+        "chooseModels": "モデルを 1 つ以上選択してください。",
+        "default": "開始モデル",
+        "defaultHint": "このプロバイダーが有効なときに Hermes が使うモデルです。",
+        "chooseDefault": "開始モデルを選択してください。",
+        "ownsDefault": "Hermes は現在 BoxAI を使用しています。",
+        "currentHint": "切り替えるまで、Hermes は現在のプロバイダーを使い続けます。"
+      }
     }
   }
 }

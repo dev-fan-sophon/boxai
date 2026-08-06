@@ -89,7 +89,7 @@ pub async fn synchronize(
     let _guard = SYNC_LOCK.lock().await;
     if !super::gateway_auth::is_connected() {
         let mut failures = Vec::new();
-        if let Err(error) = provider_seed::withdraw_all(state) {
+        if let Err(error) = super::agent_commands::withdraw_all(state) {
             failures.push(format!("provider cleanup: {error}"));
         }
         if let Err(error) = super::mcp_seed::withdraw(state) {

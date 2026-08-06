@@ -2997,26 +2997,133 @@
       "waiting": "等待確認…",
       "gateDescription": "BoxAI Connect 需要登入後使用。登入在瀏覽器中確認，帳號狀態保存在本機設定目錄。",
       "browserOpened": "已在瀏覽器中開啟授權頁面，確認後會自動返回。",
-      "modelsHint": "每個客戶端可以單獨選擇 BoxAI 提供的對話模型。"
+      "modelsHint": "每個客戶端可以單獨選擇 BoxAI 提供的對話模型。",
+      "connected": "已連接",
+      "quotaLabel": "剩餘額度",
+      "usernameLabel": "使用者名稱",
+      "notConnected": "目前未連接帳號。"
     },
     "agent": {
-      "templateSafety": "選擇模型只會修改待套用設定。「啟用」或「套用」會將其寫入後續啟動所用的設定，不會停止或刪除執行中的工作階段。",
-      "enabled": "已啟用",
-      "disabled": "未啟用",
-      "enable": "啟用",
-      "disable": "停用",
-      "model": "模型",
-      "locked": "組織已將此 Agent 鎖定為 {{model}}。",
-      "recommended": "首次設定建議：{{model}}",
-      "searchModels": "搜尋全部相容模型",
-      "noModels": "找不到相容模型，此 Agent 尚未設定。",
+      "templateSafety": "在此編輯不會寫入任何檔案。只有上方的操作會寫入用戶端設定，且不會停止或刪除執行中的工作階段。",
+      "writesTo": "寫入 {{path}}",
       "revision": "原則版本",
       "lastSynced": "最後同步",
-      "selectBeforeEnable": "請先選擇模型再啟用。",
-      "resetTitle": "重設 BoxAI Agent？",
-      "resetMessage": "這會還原啟用 BoxAI 前使用的設定，並清除 Connect 管理的選擇；不會刪除工作階段、歷史記錄或登入資料。",
-      "applyChanges": "套用變更",
-      "pendingChanges": "變更已準備好供後續啟動使用，請在合適時套用。"
+      "searchModels": "搜尋模型",
+      "noModels": "沒有相符的模型。",
+      "selectedCount": "已選擇 {{count}} 個模型",
+      "recommended": "建議",
+      "contextWindow": "{{tokens}} 上下文",
+      "chooseModel": "選擇模型",
+      "locked": "組織要求此用戶端使用 {{model}}。",
+      "needsRepair": "部分已儲存的模型此帳號已無法使用，已從下方移除。請確認後重新套用。",
+      "unapplied": "這些變更尚未寫入用戶端。",
+      "resetTitle": "清除 BoxAI 設定？",
+      "resetMessage": "這會從 {{agent}} 移除 BoxAI，還原先前的設定，並清除你選擇的模型。工作階段、歷史記錄與 BoxAI 登入狀態不受影響。",
+      "status": {
+        "active": "使用中",
+        "inactive": "未套用",
+        "unconfigured": "待設定",
+        "policyDisabled": "無法使用",
+        "signedOut": "未登入"
+      },
+      "statusHint": {
+        "active": "{{agent}} 正依下方設定使用 BoxAI。",
+        "inactive": "下方設定已儲存，但尚未寫入 {{agent}}。",
+        "unconfigured": "先選擇 {{agent}} 要使用的內容，然後套用。",
+        "policyDisabled": "組織已為 {{agent}} 關閉 BoxAI。",
+        "signedOut": "登入 BoxAI 後才能設定 {{agent}}。"
+      },
+      "actions": {
+        "apply": "套用並使用 BoxAI",
+        "applyChanges": "套用變更",
+        "inUse": "使用中",
+        "add": "新增至 {{agent}}",
+        "update": "更新 {{agent}}",
+        "added": "已新增",
+        "remove": "從 {{agent}} 移除",
+        "stop": "停止使用 BoxAI",
+        "reset": "清除設定",
+        "setDefault": "設為 {{agent}} 預設",
+        "clearDefault": "還原先前預設"
+      },
+      "warnings": {
+        "clientDefaultKept": "{{agent}} 的預設模型已在 Connect 之外被修改，因此保留了你的設定。",
+        "restoredEmptyConfig": "未記錄啟用 BoxAI 前的設定，已寫入空設定，而非留下失效的金鑰。",
+        "geminiNoCompatibleModels": "你的 BoxAI 帳號沒有 Gemini CLI 能辨識的模型。Gemini 會忽略不在其自身清單中的模型名稱，因此此處沒有可套用的設定。"
+      },
+      "claude": {
+        "fallback": "預設模型",
+        "fallbackHint": "所有未單獨指定模型的角色都使用它。",
+        "chooseFallback": "請先選擇預設模型。",
+        "roles": "角色模型",
+        "rolesHint": "Claude Code 以角色名稱請求模型。除非要把該類工作交給其他模型，否則讓角色跟隨預設模型即可。",
+        "followFallback": "跟隨預設模型",
+        "role": {
+          "sonnet": "Sonnet 請求",
+          "opus": "Opus 請求",
+          "haiku": "Haiku 請求",
+          "fable": "Fable 請求",
+          "subagent": "子代理"
+        }
+      },
+      "codex": {
+        "catalog": "/model 選擇器中的模型",
+        "catalogHint": "Codex 可在這些模型之間切換，無需重新啟動。",
+        "chooseModels": "請至少選擇一個模型。",
+        "default": "新工作階段啟動模型",
+        "defaultHint": "寫入 config.toml 的頂層 model 欄位。",
+        "chooseDefault": "請選擇 Codex 啟動時使用的模型。",
+        "effort": "推理強度",
+        "effortHint": "對以上所有模型生效，僅提供這些模型支援的等級。",
+        "efforts": {
+          "minimal": "最低",
+          "low": "低",
+          "medium": "中",
+          "high": "高"
+        }
+      },
+      "gemini": {
+        "model": "模型",
+        "modelHint": "Gemini CLI 只接受它已知的模型名稱，因此此清單比你的帳號目錄更窄。",
+        "chooseModel": "請選擇模型。"
+      },
+      "grokbuild": {
+        "profiles": "模型設定檔",
+        "profilesHint": "每個模型產生一個設定檔。上下文長度來自 BoxAI，不會為設定檔填入臆測的數值。",
+        "chooseModels": "請至少選擇一個模型。",
+        "default": "預設設定檔",
+        "defaultHint": "Grok Build 啟動時使用的設定檔。",
+        "chooseDefault": "請選擇啟動使用的設定檔。"
+      },
+      "opencode": {
+        "models": "要註冊的模型",
+        "modelsHint": "它們會出現在 OpenCode 的 BoxAI 供應商底下。",
+        "chooseModels": "請至少選擇一個模型。",
+        "defaultNotice": "OpenCode 自身的預設模型仍歸你所有，Connect 不會修改。"
+      },
+      "openclaw": {
+        "models": "要註冊的模型",
+        "modelsHint": "會與你既有的供應商一起新增至 OpenClaw 的供應商清單。",
+        "chooseModels": "請至少選擇一個模型。",
+        "routing": "預設路由",
+        "routingHint": "與上方清單彼此獨立：只有你明確要求時，OpenClaw 才會路由到 BoxAI。",
+        "primary": "主要模型",
+        "fallbacks": "備援模型（依序）",
+        "keepCurrentPrimary": "保持 OpenClaw 現有路由",
+        "ownsDefault": "OpenClaw 目前預設路由到 BoxAI。",
+        "setDefaultHint": "使用下方按鈕把 OpenClaw 的預設路由指向這些模型。",
+        "applyBeforeDefault": "請先把模型新增至 OpenClaw，再設定預設路由。"
+      },
+      "hermes": {
+        "models": "要註冊的模型",
+        "modelsHint": "以自訂供應商的形式新增至 Hermes。",
+        "chooseModels": "請至少選擇一個模型。",
+        "default": "啟動模型",
+        "defaultHint": "此供應商生效時 Hermes 使用的模型。",
+        "chooseDefault": "請選擇啟動使用的模型。",
+        "ownsDefault": "Hermes 目前正在使用 BoxAI。",
+        "currentHint": "在你切換之前，Hermes 會繼續使用現有供應商。"
+      }
     }
   }
 }

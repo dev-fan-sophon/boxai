@@ -544,7 +544,7 @@ pub async fn gateway_logout(
     // Keep credentials and recovery metadata until local withdrawal succeeds,
     // so an I/O failure is retryable and no live key is orphaned.
     let mut failures = Vec::new();
-    if let Err(error) = super::provider_seed::withdraw_all(&state) {
+    if let Err(error) = super::agent_commands::withdraw_all(&state) {
         failures.push(format!("provider cleanup: {error}"));
     }
     if let Err(error) = super::mcp_seed::withdraw(&state) {

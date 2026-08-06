@@ -384,23 +384,77 @@ export const handlers = [
   http.post(`${TAURI_ENDPOINT}/gateway_auth_status`, () =>
     success(connectedGatewayStatus()),
   ),
-  http.post(`${TAURI_ENDPOINT}/boxai_agent_get`, () =>
-    success({
-      app: "claude",
-      enabled: true,
-      policyEnabled: true,
-      configured: true,
-      pendingChanges: false,
-      status: "enabled",
-      selectedModel: "gpt-5.6-sol",
-      policyRevision: "test-revision",
-      lastSynced: "2026-08-06T00:00:00Z",
-      models: ["gpt-5.6-sol", "deepseek-v4-pro"],
-      recommendedModel: "gpt-5.6-sol",
-      lockedModel: null,
-    }),
-  ),
+  http.post(`${TAURI_ENDPOINT}/boxai_agent_get`, async ({ request }) => {
+    const { app } = await withJson<{ app: string }>(request);
+    return success(managedAgentState(app));
+  }),
 ];
+
+/**
+ * Each client's configuration has its own shape, so the mock answers per app
+ * rather than pretending they all hold a single selected model.
+ */
+export const managedAgentState = (app: string) => {
+  const configs: Record<string, Record<string, unknown>> = {
+    claude: {
+      kind: "claude",
+      model: "gpt-5.6-sol",
+      sonnet: null,
+      opus: null,
+      haiku: null,
+      fable: null,
+      subagent: null,
+    },
+    codex: {
+      kind: "codex",
+      models: ["gpt-5.6-sol"],
+      defaultModel: "gpt-5.6-sol",
+      reasoningEffort: "high",
+    },
+    gemini: { kind: "gemini", model: "gpt-5.6-sol" },
+    grokbuild: {
+      kind: "grokBuild",
+      models: ["gpt-5.6-sol"],
+      defaultModel: "gpt-5.6-sol",
+    },
+    opencode: { kind: "openCode", models: ["gpt-5.6-sol"] },
+    openclaw: {
+      kind: "openClaw",
+      models: ["gpt-5.6-sol"],
+      primary: null,
+      fallbacks: [],
+    },
+    hermes: {
+      kind: "hermes",
+      models: ["gpt-5.6-sol"],
+      defaultModel: "gpt-5.6-sol",
+    },
+  };
+  const additive = ["opencode", "openclaw", "hermes"].includes(app);
+  return {
+    app,
+    additive,
+    policyEnabled: true,
+    signedIn: true,
+    active: true,
+    ownsClientDefault: !additive,
+    configured: true,
+    needsRepair: false,
+    status: "active",
+    config: configs[app] ?? configs.claude,
+    appliedConfig: configs[app] ?? configs.claude,
+    models: ["gpt-5.6-sol", "deepseek-v4-pro"],
+    modelMeta: {
+      "gpt-5.6-sol": { displayName: "GPT-5.6 Sol", contextLength: 400000 },
+    },
+    recommendedModel: "gpt-5.6-sol",
+    lockedModel: null,
+    policyRevision: "test-revision",
+    lastSynced: "2026-08-06T00:00:00Z",
+    liveConfigPath: `/home/maker/.${app}/config.json`,
+    warnings: [],
+  };
+};
 
 /** The app shell only renders behind a connected account, so that is the default. */
 export const connectedGatewayStatus = () => ({

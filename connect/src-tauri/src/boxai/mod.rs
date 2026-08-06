@@ -8,6 +8,8 @@
 //! files from here. Upstream owns those files; a second writer for the same
 //! paths is how configuration gets corrupted.
 
+pub mod agent_commands;
+pub mod agent_config;
 pub mod gateway_auth;
 pub mod mcp_seed;
 pub mod policy_sync;

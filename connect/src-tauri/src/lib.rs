@@ -1646,12 +1646,13 @@ pub fn run() {
             boxai::gateway_auth::gateway_browser_login,
             boxai::gateway_auth::gateway_logout,
             boxai::gateway_auth::boxai_open_portal,
-            boxai::provider_seed::boxai_model_profiles,
-            boxai::provider_seed::boxai_model_select,
-            boxai::provider_seed::boxai_agent_get,
-            boxai::provider_seed::boxai_agent_enable,
-            boxai::provider_seed::boxai_agent_reset,
-            boxai::provider_seed::boxai_agent_refresh,
+            boxai::agent_commands::boxai_agent_get,
+            boxai::agent_commands::boxai_agent_apply,
+            boxai::agent_commands::boxai_agent_set_default,
+            boxai::agent_commands::boxai_agent_clear_default,
+            boxai::agent_commands::boxai_agent_disable,
+            boxai::agent_commands::boxai_agent_reset,
+            boxai::agent_commands::boxai_agent_refresh,
         ]);
 
     let app = builder

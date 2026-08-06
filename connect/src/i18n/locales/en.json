@@ -3025,26 +3025,133 @@
       "waiting": "Waiting for confirmation…",
       "gateDescription": "BoxAI Connect works only while signed in. You confirm the sign-in in your browser; the account is stored in the local config directory.",
       "browserOpened": "The authorization page is open in your browser. Connect continues once you approve it.",
-      "modelsHint": "Each client can use a different BoxAI chat model."
+      "modelsHint": "Each client can use a different BoxAI chat model.",
+      "connected": "Connected",
+      "quotaLabel": "Remaining quota",
+      "usernameLabel": "Username",
+      "notConnected": "No account is connected."
     },
     "agent": {
-      "templateSafety": "Selecting models only changes the pending configuration. Enable or Apply writes it for future launches without stopping or deleting running sessions.",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "enable": "Enable",
-      "disable": "Disable",
-      "model": "Model",
-      "locked": "Your organization locked this agent to {{model}}.",
-      "recommended": "Recommended for first setup: {{model}}",
-      "searchModels": "Search all compatible models",
-      "noModels": "No compatible models found. This agent is unconfigured.",
+      "templateSafety": "Editing here changes nothing on disk. Only the actions above write to the client's configuration, and they never stop or delete running sessions.",
+      "writesTo": "Writes to {{path}}",
       "revision": "Policy revision",
       "lastSynced": "Last synced",
-      "selectBeforeEnable": "Select a model before enabling.",
-      "resetTitle": "Reset BoxAI agent?",
-      "resetMessage": "This restores the configuration that was active before BoxAI was enabled and clears Connect-owned selections. It does not delete sessions, history, or sign-in data.",
-      "applyChanges": "Apply changes",
-      "pendingChanges": "Changes are ready for future launches. Apply when ready."
+      "searchModels": "Search models",
+      "noModels": "No models match.",
+      "selectedCount": "{{count}} model(s) selected",
+      "recommended": "Recommended",
+      "contextWindow": "{{tokens}} context",
+      "chooseModel": "Choose a model",
+      "locked": "Your organization requires this client to use {{model}}.",
+      "needsRepair": "Some saved models are no longer available to this account and were removed below. Review the selection and apply again.",
+      "unapplied": "These changes have not been written to the client yet.",
+      "resetTitle": "Clear BoxAI configuration?",
+      "resetMessage": "This removes BoxAI from {{agent}}, restores the configuration that was in place before, and forgets the models you chose. Sessions, history, and your BoxAI sign-in are untouched.",
+      "status": {
+        "active": "In use",
+        "inactive": "Not applied",
+        "unconfigured": "Needs setup",
+        "policyDisabled": "Unavailable",
+        "signedOut": "Signed out"
+      },
+      "statusHint": {
+        "active": "{{agent}} is using BoxAI with the configuration below.",
+        "inactive": "The configuration below is saved but has not been written to {{agent}}.",
+        "unconfigured": "Choose what {{agent}} should use, then apply it.",
+        "policyDisabled": "Your organization turned BoxAI off for {{agent}}.",
+        "signedOut": "Sign in to BoxAI to configure {{agent}}."
+      },
+      "actions": {
+        "apply": "Apply and use BoxAI",
+        "applyChanges": "Apply changes",
+        "inUse": "In use",
+        "add": "Add to {{agent}}",
+        "update": "Update {{agent}}",
+        "added": "Added",
+        "remove": "Remove from {{agent}}",
+        "stop": "Stop using BoxAI",
+        "reset": "Clear configuration",
+        "setDefault": "Make it {{agent}}'s default",
+        "clearDefault": "Restore the previous default"
+      },
+      "warnings": {
+        "clientDefaultKept": "{{agent}}'s default model was changed outside Connect, so it was left as you set it.",
+        "restoredEmptyConfig": "No pre-BoxAI configuration was recorded, so an empty one was written instead of leaving a stale key behind.",
+        "geminiNoCompatibleModels": "Your BoxAI account has no model Gemini CLI recognises. Gemini ignores model names outside its own list, so nothing here can be applied."
+      },
+      "claude": {
+        "fallback": "Default model",
+        "fallbackHint": "Used for every request whose role has no model of its own.",
+        "chooseFallback": "Choose a default model first.",
+        "roles": "Role models",
+        "rolesHint": "Claude Code asks for a model by role name. Leave a role following the default unless you want that class of work sent somewhere else.",
+        "followFallback": "Follow the default model",
+        "role": {
+          "sonnet": "Sonnet requests",
+          "opus": "Opus requests",
+          "haiku": "Haiku requests",
+          "fable": "Fable requests",
+          "subagent": "Subagents"
+        }
+      },
+      "codex": {
+        "catalog": "Models in the /model picker",
+        "catalogHint": "Codex can switch between these without restarting.",
+        "chooseModels": "Choose at least one model.",
+        "default": "Model new sessions start on",
+        "defaultHint": "Written as the top-level model in config.toml.",
+        "chooseDefault": "Choose the model Codex should start on.",
+        "effort": "Reasoning effort",
+        "effortHint": "Applies to every model above. Only levels your models support are offered.",
+        "efforts": {
+          "minimal": "Minimal",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "gemini": {
+        "model": "Model",
+        "modelHint": "Gemini CLI only accepts model names it knows, so this list is narrower than your account catalog.",
+        "chooseModel": "Choose a model."
+      },
+      "grokbuild": {
+        "profiles": "Model profiles",
+        "profilesHint": "Each model becomes its own profile. Context windows come from BoxAI, so profiles are never given a made-up size.",
+        "chooseModels": "Choose at least one model.",
+        "default": "Default profile",
+        "defaultHint": "The profile Grok Build starts on.",
+        "chooseDefault": "Choose the profile to start on."
+      },
+      "opencode": {
+        "models": "Models to register",
+        "modelsHint": "These appear under the BoxAI provider in OpenCode.",
+        "chooseModels": "Choose at least one model.",
+        "defaultNotice": "OpenCode's own default model stays yours; Connect does not change it."
+      },
+      "openclaw": {
+        "models": "Models to register",
+        "modelsHint": "Added to OpenClaw's provider list alongside the providers you already have.",
+        "chooseModels": "Choose at least one model.",
+        "routing": "Default routing",
+        "routingHint": "Separate from the list above: OpenClaw only routes to BoxAI once you ask it to.",
+        "primary": "Primary model",
+        "fallbacks": "Fallback models, in order",
+        "keepCurrentPrimary": "Leave OpenClaw's routing alone",
+        "ownsDefault": "OpenClaw currently routes to BoxAI by default.",
+        "setDefaultHint": "Use the button below to point OpenClaw's default routing at these models.",
+        "applyBeforeDefault": "Add the models to OpenClaw first, then set the default routing."
+      },
+      "hermes": {
+        "models": "Models to register",
+        "modelsHint": "Added to Hermes as a custom provider.",
+        "chooseModels": "Choose at least one model.",
+        "default": "Model to start on",
+        "defaultHint": "The model Hermes uses when this provider is active.",
+        "chooseDefault": "Choose the model to start on.",
+        "ownsDefault": "Hermes is currently using BoxAI.",
+        "currentHint": "Hermes keeps using its current provider until you switch it over."
+      }
     }
   }
 }
