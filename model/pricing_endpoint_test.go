@@ -78,6 +78,15 @@ func pricingEndpointTypesFromPricing(pricings []Pricing) map[string][]constant.E
 	return byModel
 }
 
+func TestGetModelSupportEndpointTypesWarmsPricingCache(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 100, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointAbility(t, 100, "cold-cache-model")
+	InitChannelCache()
+
+	assert.Contains(t, GetModelSupportEndpointTypes("cold-cache-model"), constant.EndpointTypeOpenAI)
+}
+
 func TestPricingAdvancedCustomUsesConfiguredEndpointTypes(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 

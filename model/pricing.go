@@ -113,6 +113,9 @@ func GetModelSupportEndpointTypes(model string) []constant.EndpointType {
 	if model == "" {
 		return make([]constant.EndpointType, 0)
 	}
+	// Connect provisioning can be the first pricing consumer after startup;
+	// do not require a pricing-page request to populate endpoint support.
+	GetPricing()
 	modelSupportEndpointsLock.RLock()
 	defer modelSupportEndpointsLock.RUnlock()
 	if endpoints, ok := modelSupportEndpointTypes[model]; ok {
