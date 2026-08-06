@@ -12,14 +12,23 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/config"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type connectProvisioningResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		ChatModels          []string `json:"chat_models"`
-		DefaultModel        string   `json:"default_model"`
+		ChatModels   []string `json:"chat_models"`
+		DefaultModel string   `json:"default_model"`
+		ModelMeta    map[string]struct {
+			DisplayName      string   `json:"display_name"`
+			ContextLength    int      `json:"context_length"`
+			MaxOutputTokens  int      `json:"max_output_tokens"`
+			InputModalities  []string `json:"input_modalities"`
+			Capabilities     []string `json:"capabilities"`
+			ReasoningEfforts []string `json:"reasoning_efforts"`
+		} `json:"model_meta"`
 		ImageModels         []string `json:"image_models"`
 		VideoModels         []string `json:"video_models"`
 		DefaultImage        string   `json:"default_image_model"`
@@ -291,6 +300,61 @@ func TestConnectProvisioningHonoursTokenModelLimit(t *testing.T) {
 	payload := decodeConnectProvisioning(t, recorder)
 	require.Equal(t, []string{"zz-connect-allowed-model"}, payload.Data.ChatModels,
 		"a model the group serves but the token forbids must not appear")
+}
+
+// Connect writes model catalogs into client config files, and formats such as
+// Grok Build reject an entry without a context window. The metadata therefore
+// travels with the catalog — but strictly scoped to it, so a model the token
+// may not call stays undisclosed here too.
+func TestConnectProvisioningModelMetadataStaysScopedToTheAccountCatalog(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	db := setupModelListControllerTestDB(t)
+
+	require.NoError(t, db.Create(&model.Channel{
+		Id: 831, Type: constant.ChannelTypeOpenAI, Key: "k", Status: common.ChannelStatusEnabled,
+		Name: "openai", Group: "default", Models: "zz-connect-meta-model,zz-connect-secret-model,zz-connect-plain-model",
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "default", Model: "zz-connect-meta-model", ChannelId: 831, Enabled: true},
+		{Group: "default", Model: "zz-connect-secret-model", ChannelId: 831, Enabled: true},
+		{Group: "default", Model: "zz-connect-plain-model", ChannelId: 831, Enabled: true},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Model{
+		{
+			ModelName: "zz-connect-meta-model", Status: 1, NameRule: model.NameRuleExact,
+			DisplayName: "Connect Meta Model", ContextLength: 200000, MaxOutputTokens: 64000,
+			InputModalities: `["text","image"]`, Capabilities: `["tools"]`, ReasoningEfforts: `["low","high"]`,
+		},
+		{
+			ModelName: "zz-connect-secret-model", Status: 1, NameRule: model.NameRuleExact,
+			DisplayName: "Withheld Model", ContextLength: 128000,
+		},
+	}).Error)
+	withPricingCache(t)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/connect/provisioning", nil)
+	common.SetContextKey(ctx, constant.ContextKeyUserGroup, "default")
+	common.SetContextKey(ctx, constant.ContextKeyTokenModelLimitEnabled, true)
+	common.SetContextKey(ctx, constant.ContextKeyTokenModelLimit, map[string]bool{
+		"zz-connect-meta-model":  true,
+		"zz-connect-plain-model": true,
+	})
+	GetConnectProvisioning(ctx)
+
+	payload := decodeConnectProvisioning(t, recorder)
+	meta := payload.Data.ModelMeta["zz-connect-meta-model"]
+	assert.Equal(t, "Connect Meta Model", meta.DisplayName)
+	assert.Equal(t, 200000, meta.ContextLength)
+	assert.Equal(t, 64000, meta.MaxOutputTokens)
+	assert.Equal(t, []string{"text", "image"}, meta.InputModalities)
+	assert.Equal(t, []string{"tools"}, meta.Capabilities)
+	assert.Equal(t, []string{"low", "high"}, meta.ReasoningEfforts)
+	assert.NotContains(t, payload.Data.ModelMeta, "zz-connect-secret-model",
+		"a model the token forbids must not be described here either")
+	assert.NotContains(t, payload.Data.ModelMeta, "zz-connect-plain-model",
+		"a model with no documented metadata needs no entry")
 }
 
 // The desktop app labels its account panel from this response rather than

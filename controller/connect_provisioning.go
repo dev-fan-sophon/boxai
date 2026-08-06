@@ -57,6 +57,7 @@ type connectAccount struct {
 type connectProvisioning struct {
 	ChatModels          []string                            `json:"chat_models"`
 	DefaultModel        string                              `json:"default_model"`
+	ModelMeta           map[string]connectModelMeta         `json:"model_meta"`
 	ImageModels         []string                            `json:"image_models"`
 	VideoModels         []string                            `json:"video_models"`
 	DefaultImage        string                              `json:"default_image_model"`
@@ -66,6 +67,20 @@ type connectProvisioning struct {
 	Revision            string                              `json:"revision"`
 	RefreshAfterSeconds int                                 `json:"refresh_after_seconds"`
 	Agents              map[string]connectProvisioningAgent `json:"agents"`
+}
+
+// connectModelMeta describes a chat model well enough for Connect to fill in
+// the catalog entry each client format demands: Codex needs a label, Grok Build
+// refuses a profile without a context window, OpenCode and OpenClaw record
+// limits, and Codex only offers reasoning levels the model actually has.
+// Connect cannot derive any of this from a model id without guessing.
+type connectModelMeta struct {
+	DisplayName      string   `json:"display_name,omitempty"`
+	ContextLength    int      `json:"context_length,omitempty"`
+	MaxOutputTokens  int      `json:"max_output_tokens,omitempty"`
+	InputModalities  []string `json:"input_modalities,omitempty"`
+	Capabilities     []string `json:"capabilities,omitempty"`
+	ReasoningEfforts []string `json:"reasoning_efforts,omitempty"`
 }
 
 type connectProvisioningAgent struct {
@@ -97,6 +112,34 @@ func GetConnectProvisioning(c *gin.Context) {
 		}
 	}
 	sort.Strings(chatModels)
+
+	// Metadata is keyed by the same account-scoped catalog, never by the full
+	// pricing table, so a model this token may not call stays invisible here as
+	// well as in chat_models.
+	allowedChatModels := make(map[string]bool, len(chatModels))
+	for _, name := range chatModels {
+		allowedChatModels[name] = true
+	}
+	modelMeta := make(map[string]connectModelMeta, len(chatModels))
+	for _, pricing := range model.GetPricing() {
+		if !allowedChatModels[pricing.ModelName] {
+			continue
+		}
+		meta := connectModelMeta{
+			DisplayName:      pricing.DisplayName,
+			ContextLength:    pricing.ContextLength,
+			MaxOutputTokens:  pricing.MaxOutputTokens,
+			InputModalities:  pricing.InputModalities,
+			Capabilities:     pricing.Capabilities,
+			ReasoningEfforts: pricing.ReasoningEfforts,
+		}
+		if meta.DisplayName == "" && meta.ContextLength == 0 && meta.MaxOutputTokens == 0 &&
+			len(meta.InputModalities) == 0 && len(meta.Capabilities) == 0 && len(meta.ReasoningEfforts) == 0 {
+			continue
+		}
+		modelMeta[pricing.ModelName] = meta
+	}
+
 	imageModels, videoModels := partitionMediaModels(modelNames)
 	connectSettings := system_setting.GetConnectSettings()
 	policies := system_setting.GetConnectAgentPolicies()
@@ -124,6 +167,7 @@ func GetConnectProvisioning(c *gin.Context) {
 	data := connectProvisioning{
 		ChatModels:   chatModels,
 		DefaultModel: "",
+		ModelMeta:    modelMeta,
 		ImageModels:  imageModels,
 		VideoModels:  videoModels,
 		DefaultImage: selectToolModel(imageModels, service.PlaygroundToolImage),
