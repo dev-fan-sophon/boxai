@@ -1824,7 +1824,11 @@ fn main() {
             WindowAppearance::Dark | WindowAppearance::VibrantDark => "studio-dark",
         };
         gpui_kit::theme::activate_theme(theme, cx);
-        let bounds = Bounds::centered(None, size(px(1120.0), px(760.0)), cx);
+        #[cfg(windows)]
+        let initial_size = size(px(620.0), px(380.0));
+        #[cfg(not(windows))]
+        let initial_size = size(px(1120.0), px(760.0));
+        let bounds = Bounds::centered(None, initial_size, cx);
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
