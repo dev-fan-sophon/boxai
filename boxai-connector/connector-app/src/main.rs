@@ -10,10 +10,9 @@ use connector_app::{
 };
 use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
 use gpui::{
-    AnyElement, App, AssetSource, Bounds, Context, Entity, FontWeight, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled,
-    TitlebarOptions, Window, WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px,
-    size, svg,
+    AnyElement, App, AssetSource, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement,
+    Render, SharedString, Styled, TitlebarOptions, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, prelude::*, px, size, svg,
 };
 use gpui_kit::{
     assets::Icon,
@@ -642,12 +641,11 @@ impl GatewayKit {
             Page::Settings,
         ];
         div()
-            .id("compact-navigation")
             .w_full()
             .flex()
+            .flex_wrap()
             .gap(px(6.0))
             .p(px(8.0))
-            .overflow_x_scroll()
             .children(pages.into_iter().map(|page| {
                 let handle = cx.entity();
                 Button::new(format!("compact.{}", page.id()))
@@ -1694,56 +1692,57 @@ impl Render for GatewayKit {
                 .bg(theme.colors.canvas)
                 .text_color(theme.colors.text)
                 .child(
-                    Card::new().padded(true).child(
-                        div()
-                            .w_full()
-                            .max_w(px(440.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(theme.spacing.lg))
-                            .child(
-                                div()
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child("BoxAI Connector"),
-                            )
-                            .child(Callout::new(
-                                self.error.clone().unwrap_or_else(|| state_message.into()),
-                                if self.error.is_some() || action == AuthAction::Blocked {
-                                    Tone::Danger
-                                } else if action == AuthAction::RetryRevocation {
-                                    Tone::Warning
-                                } else {
-                                    Tone::Info
-                                },
-                            ))
-                            .child(
-                                SettingsRow::new(
-                                    "auth.language",
-                                    text(self.locale, Message::Language),
+                    div().w_full().max_w(px(440.0)).child(
+                        Card::new().padded(true).child(
+                            div()
+                                .w_full()
+                                .flex()
+                                .flex_col()
+                                .gap(px(theme.spacing.lg))
+                                .child(
+                                    div()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child("BoxAI Connector"),
                                 )
-                                .control(self.language_select.clone()),
-                            )
-                            .children(match action {
-                                AuthAction::Connect => Some(
-                                    Button::new("auth.connect")
-                                        .label(text(self.locale, Message::ConnectAccount))
-                                        .primary()
-                                        .disabled(self.busy)
-                                        .on_click(move |_, cx| {
-                                            handle.update(cx, |this, cx| this.connect(cx))
-                                        }),
-                                ),
-                                AuthAction::RetryRevocation => Some(
-                                    Button::new("auth.retry-revocation")
-                                        .label(text(self.locale, Message::RetryRevocation))
-                                        .primary()
-                                        .disabled(self.busy)
-                                        .on_click(move |_, cx| {
-                                            handle.update(cx, |this, cx| this.logout(cx))
-                                        }),
-                                ),
-                                AuthAction::Blocked => None,
-                            }),
+                                .child(Callout::new(
+                                    self.error.clone().unwrap_or_else(|| state_message.into()),
+                                    if self.error.is_some() || action == AuthAction::Blocked {
+                                        Tone::Danger
+                                    } else if action == AuthAction::RetryRevocation {
+                                        Tone::Warning
+                                    } else {
+                                        Tone::Info
+                                    },
+                                ))
+                                .child(
+                                    SettingsRow::new(
+                                        "auth.language",
+                                        text(self.locale, Message::Language),
+                                    )
+                                    .control(self.language_select.clone()),
+                                )
+                                .children(match action {
+                                    AuthAction::Connect => Some(
+                                        Button::new("auth.connect")
+                                            .label(text(self.locale, Message::ConnectAccount))
+                                            .primary()
+                                            .disabled(self.busy)
+                                            .on_click(move |_, cx| {
+                                                handle.update(cx, |this, cx| this.connect(cx))
+                                            }),
+                                    ),
+                                    AuthAction::RetryRevocation => Some(
+                                        Button::new("auth.retry-revocation")
+                                            .label(text(self.locale, Message::RetryRevocation))
+                                            .primary()
+                                            .disabled(self.busy)
+                                            .on_click(move |_, cx| {
+                                                handle.update(cx, |this, cx| this.logout(cx))
+                                            }),
+                                    ),
+                                    AuthAction::Blocked => None,
+                                }),
+                        ),
                     ),
                 );
         }
