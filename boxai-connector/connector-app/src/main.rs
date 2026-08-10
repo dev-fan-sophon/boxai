@@ -1102,6 +1102,7 @@ impl Render for GatewayKit {
                 div()
                     .id("gateway.content")
                     .flex_1()
+                    .min_w_0()
                     .h_full()
                     .overflow_y_scroll()
                     .child(
@@ -1192,6 +1193,7 @@ fn main() {
                 ..Default::default()
             },
             |window, cx| {
+                window.set_window_title("BoxAI Connector");
                 let backend = Backend::new().expect("initialize BoxAI Connector backend");
                 cx.new(|cx| GatewayKit::new(backend, window, cx))
             },

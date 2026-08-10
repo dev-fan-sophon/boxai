@@ -1175,6 +1175,7 @@ struct SkillZipEntry {
     relative: PathBuf,
     key: String,
     is_dir: bool,
+    #[cfg(unix)]
     mode: u32,
     size: u64,
 }
@@ -1352,6 +1353,7 @@ fn extract_skill_zip_with_limits(
             relative,
             key,
             is_dir,
+            #[cfg(unix)]
             mode,
             size: entry.size(),
         });
