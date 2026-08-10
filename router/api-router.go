@@ -117,6 +117,28 @@ func SetApiRouter(router *gin.Engine) {
 		// relay key its desktop authorization minted, never a portal session.
 		apiRouter.GET("/connect/provisioning", middleware.TokenAuthReadOnly(), controller.GetConnectProvisioning)
 
+		connectorRoute := apiRouter.Group("/v1/connector")
+		{
+			connectorRoute.GET("/manifest", controller.GetConnectorManifest)
+			connectorRoute.GET("/authorize", middleware.CriticalRateLimit(), controller.StartConnectorAuthorization)
+			connectorRoute.POST("/token", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ExchangeConnectorToken)
+			connectorRoute.GET("/provisioning", middleware.TokenAuth(), controller.GetConnectorProvisioning)
+			connectorRoute.POST("/revoke", middleware.TokenAuth(), controller.RevokeConnectorSession)
+		}
+
+		connectorAdminRoute := apiRouter.Group("/admin/connector")
+		connectorAdminRoute.Use(middleware.RootAuth())
+		{
+			connectorAdminRoute.GET("/mcp-servers", controller.AdminListConnectorMCPServers)
+			connectorAdminRoute.POST("/mcp-servers", controller.AdminCreateConnectorMCPServer)
+			connectorAdminRoute.PUT("/mcp-servers/:id", controller.AdminUpdateConnectorMCPServer)
+			connectorAdminRoute.DELETE("/mcp-servers/:id", controller.AdminDeleteConnectorMCPServer)
+			connectorAdminRoute.GET("/skill-releases", controller.AdminListConnectorSkillReleases)
+			connectorAdminRoute.POST("/skill-releases", controller.AdminCreateConnectorSkillRelease)
+			connectorAdminRoute.PUT("/skill-releases/:id/:version", controller.AdminUpdateConnectorSkillRelease)
+			connectorAdminRoute.DELETE("/skill-releases/:id/:version", controller.AdminDeleteConnectorSkillRelease)
+		}
+
 		userRoute := apiRouter.Group("/user")
 		{
 			userRoute.POST("/register", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), controller.Register)

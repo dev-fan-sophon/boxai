@@ -18,7 +18,8 @@ export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 	dev-infra dev-api dev-web dev-web-local dev \
 	reset-setup deploy deploy-bootstrap deploy-web \
 	desktop-build desktop-stage desktop-publish desktop-screenshots \
-	connect-dev connect-check connect-build connect-stage connect-publish
+	connect-dev connect-check connect-build connect-stage connect-publish \
+	connector-check connector-build connector-stage connector-publish
 
 all: build-web start-api
 
@@ -109,6 +110,18 @@ connect-stage:
 
 connect-publish:
 	@BOXAI_RELEASE_PRODUCT=connect bash $(DESKTOP_DIR)/packaging/publish_release.sh
+
+connector-check:
+	@cd boxai-connector && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+
+connector-build:
+	@cd boxai-connector && cargo build --release --features connector-app/gpui-app --bin boxai-connector
+
+connector-stage:
+	@cd boxai-connector && bash packaging/stage_release.sh
+
+connector-publish:
+	@cd boxai-connector && bash packaging/publish_release.sh
 
 reset-setup:
 	@echo "Resetting local setup wizard state..."

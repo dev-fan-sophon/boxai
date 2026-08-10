@@ -263,6 +263,9 @@ func migrateDB() error {
 		&Token{},
 		&DesktopAuthorization{},
 		&DesktopSession{},
+		&ConnectorCatalogState{},
+		&ConnectorMCPServer{},
+		&ConnectorSkillRelease{},
 		&User{},
 		&PasskeyCredential{},
 		&Option{},
@@ -322,6 +325,9 @@ func migrateDB() error {
 		&UserCampaign{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := DB.FirstOrCreate(&ConnectorCatalogState{ID: 1}, ConnectorCatalogState{ID: 1}).Error; err != nil {
 		return err
 	}
 	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {

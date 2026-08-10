@@ -1,14 +1,20 @@
 package controller
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting/config"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
@@ -48,6 +54,30 @@ type connectProvisioningResponse struct {
 			Email    string `json:"email"`
 			Quota    int    `json:"quota"`
 		} `json:"account"`
+	} `json:"data"`
+}
+
+type connectorManifestResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		SchemaVersion           int                     `json:"schema_version"`
+		Platform                connectorPlatform       `json:"platform"`
+		Authentication          connectorAuthentication `json:"authentication"`
+		Gateway                 connectorGateway        `json:"gateway"`
+		ProvisioningURL         string                  `json:"provisioning_url"`
+		ConnectionBearerOrigins []string                `json:"connection_bearer_origins"`
+		SupportedAgents         []string                `json:"supported_agents"`
+	} `json:"data"`
+}
+
+type connectorProvisioningResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		SchemaVersion int                  `json:"schema_version"`
+		Models        []connectorModel     `json:"models"`
+		DefaultModel  string               `json:"default_model"`
+		MCPServers    []connectorMCPServer `json:"mcp_servers"`
+		Skills        []connectorSkill     `json:"skills"`
 	} `json:"data"`
 }
 
@@ -91,6 +121,254 @@ func requestConnectProvisioning(t *testing.T, userID int) *httptest.ResponseReco
 
 	GetConnectProvisioning(ctx)
 	return recorder
+}
+
+func TestConnectorManifestMatchesNeutralPKCESchema(t *testing.T) {
+	originalServerAddress := system_setting.ServerAddress
+	system_setting.ServerAddress = ""
+	t.Cleanup(func() { system_setting.ServerAddress = originalServerAddress })
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "https://gateway.example/api/v1/connector/manifest", nil)
+
+	GetConnectorManifest(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var payload connectorManifestResponse
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.True(t, payload.Success)
+	assert.Equal(t, 2, payload.Data.SchemaVersion)
+	assert.Equal(t, "boxai", payload.Data.Platform.ID)
+	assert.Equal(t, "https://gateway.example", payload.Data.Gateway.BaseURL)
+	assert.Equal(t, []string{"anthropic", "openai_responses", "openai_chat", "gemini"}, payload.Data.Gateway.Protocols)
+	assert.Equal(t, "browser_pkce", payload.Data.Authentication.Type)
+	assert.Equal(t, "https://gateway.example/api/v1/connector/authorize", payload.Data.Authentication.AuthorizeURL)
+	assert.Equal(t, "https://gateway.example/api/v1/connector/token", payload.Data.Authentication.TokenURL)
+	assert.Equal(t, "https://gateway.example/api/v1/connector/provisioning", payload.Data.ProvisioningURL)
+	assert.Equal(t, []string{"https://gateway.example"}, payload.Data.ConnectionBearerOrigins)
+	assert.Equal(t, []string{"claude", "codex", "gemini", "grokbuild", "opencode"}, payload.Data.SupportedAgents)
+	assert.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
+	assert.NotContains(t, recorder.Body.String(), "sk-")
+}
+
+func TestConnectorAuthorizeAcceptsRFC8252CallbackAndDeviceNameAlias(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.DesktopAuthorization{}))
+	query := url.Values{
+		"redirect_uri":   {"http://127.0.0.1:43123/callback"},
+		"code_challenge": {"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+		"state":          {"0123456789012345678901"},
+		"device_name":    {"Native Connector"},
+	}
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/connector/authorize?"+query.Encode(), nil)
+
+	StartConnectorAuthorization(ctx)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	assert.Contains(t, recorder.Header().Get("Location"), "/desktop/authorize?request=")
+	var authorization model.DesktopAuthorization
+	require.NoError(t, db.First(&authorization).Error)
+	assert.Equal(t, "http://127.0.0.1:43123/callback", authorization.RedirectURI)
+	assert.Equal(t, "Native Connector", authorization.ClientName)
+}
+
+func TestConnectorAuthorizePrefersExistingClientName(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.DesktopAuthorization{}))
+	query := url.Values{
+		"redirect_uri":   {"http://127.0.0.1:43124/auth/callback"},
+		"code_challenge": {"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+		"state":          {"0123456789012345678901"},
+		"client_name":    {"Existing Name"},
+		"device_name":    {"Alias Name"},
+	}
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/connector/authorize?"+query.Encode(), nil)
+
+	StartConnectorAuthorization(ctx)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	var authorization model.DesktopAuthorization
+	require.NoError(t, db.First(&authorization).Error)
+	assert.Equal(t, "Existing Name", authorization.ClientName)
+}
+
+func TestConnectorTokenReturnsDurableRelayCredentialAsBearerAccessToken(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(
+		&model.Token{}, &model.Option{}, &model.DesktopAuthorization{}, &model.DesktopSession{},
+	))
+	user := model.User{Username: "connector-token-user", Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&user).Error)
+	verifier := "0123456789012345678901234567890123456789012"
+	digest := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(digest[:])
+	redirect := "http://127.0.0.1:43125/callback"
+	authorization, err := service.CreateDesktopAuthorization(
+		service.ConnectorClientID, redirect, challenge, "S256", "0123456789012345678901", "BoxAI Connector",
+	)
+	require.NoError(t, err)
+	code, _, err := service.DecideDesktopAuthorization(authorization.ID, user.Id, true)
+	require.NoError(t, err)
+	body, err := common.Marshal(map[string]string{
+		"code": code, "code_verifier": verifier, "redirect_uri": redirect,
+	})
+	require.NoError(t, err)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/connector/token", bytes.NewReader(body))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	ExchangeConnectorToken(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response struct {
+		AccessToken        string `json:"access_token"`
+		APIKey             string `json:"api_key"`
+		SessionAccessToken string `json:"session_access_token"`
+		TokenType          string `json:"token_type"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, "Bearer", response.TokenType)
+	assert.True(t, strings.HasPrefix(response.AccessToken, "sk-"))
+	assert.Equal(t, response.AccessToken, response.APIKey)
+	assert.NotEmpty(t, response.SessionAccessToken, "legacy JWT remains available under an explicit compatibility field")
+}
+
+func TestConnectorSelfRevokeUsesOnlyAuthenticatedContext(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Token{}, &model.DesktopSession{}))
+	token := model.Token{
+		UserId: 2301, Key: "connector-self-revoke", Name: "BoxAI Connector",
+		Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true,
+	}
+	require.NoError(t, db.Create(&token).Error)
+	session := model.DesktopSession{
+		ID: "connector-self-revoke-session", UserID: token.UserId, RelayTokenID: token.Id,
+		ClientName: "BoxAI Connector", RefreshHash: "connector-self-revoke-refresh",
+		CreatedAt: 1, ExpiresAt: 4102444800,
+	}
+	require.NoError(t, db.Create(&session).Error)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/connector/revoke", nil)
+	ctx.Set("id", token.UserId)
+	ctx.Set("token_id", token.Id)
+
+	RevokeConnectorSession(ctx)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.NoError(t, db.First(&session, "id = ?", session.ID).Error)
+	assert.NotZero(t, session.RevokedAt)
+	require.NoError(t, db.First(&token, token.Id).Error)
+	assert.Equal(t, common.TokenStatusDisabled, token.Status)
+}
+
+func TestConnectorProvisioningReturnsOnlyAvailableChatModelsAndAuthoritativeIntegrations(t *testing.T) {
+	originalServerAddress := system_setting.ServerAddress
+	t.Cleanup(func() { system_setting.ServerAddress = originalServerAddress })
+	withSelfUseModeEnabled(t)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	require.NoError(t, db.Create(&model.User{
+		Id: 2101, Username: "connector-user", Password: "password", Group: "default",
+		Status: common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Channel{
+		{Id: 901, Type: constant.ChannelTypeOpenAI, Key: "upstream-enabled-secret", Status: common.ChannelStatusEnabled, Name: "enabled", Group: "default", Models: "zz-connector-chat"},
+		{Id: 902, Type: constant.ChannelTypeOpenAI, Key: "upstream-disabled-secret", Status: common.ChannelStatusManuallyDisabled, Name: "disabled", Group: "default", Models: "zz-connector-disabled"},
+		{Id: 903, Type: constant.ChannelTypeOpenAI, Key: "upstream-image-secret", Status: common.ChannelStatusEnabled, Name: "image", Group: "default", Models: "zz-connector-flux-image"},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "default", Model: "zz-connector-chat", ChannelId: 901, Enabled: true},
+		{Group: "default", Model: "zz-connector-disabled", ChannelId: 902, Enabled: true},
+		{Group: "default", Model: "zz-connector-flux-image", ChannelId: 903, Enabled: true},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.ConnectorMCPServer{
+		{ID: "z-media", Name: "Z Media", URL: "https://gateway.example/z-mcp", Authorization: "connection_bearer", Description: "Z", Enabled: true},
+		{ID: "a-assets", Name: "A Assets", URL: "https://gateway.example/a-mcp", Authorization: "connection_bearer", Description: "A", Enabled: true},
+		{ID: "disabled", Name: "Disabled", URL: "https://gateway.example/disabled", Authorization: "connection_bearer", Enabled: false},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.ConnectorSkillRelease{
+		{ID: "z-skill", Version: "2.0.0", Name: "Z Skill", ArchiveURL: "https://gateway.example/z.zip", ArchiveSHA256: strings.Repeat("b", 64), ArchiveSizeBytes: 2048, ArchiveFormat: "zip", ArchiveAuthorization: "connection_bearer", Enabled: true},
+		{ID: "a-skill", Version: "1.0.0", Name: "A Skill", ArchiveURL: "https://cdn.example/a.zip", ArchiveSHA256: strings.Repeat("a", 64), ArchiveSizeBytes: 1024, ArchiveFormat: "zip", ArchiveAuthorization: "none", Enabled: true},
+		{ID: "disabled-skill", Version: "1.0.0", Name: "Disabled", ArchiveURL: "https://cdn.example/disabled.zip", ArchiveSHA256: strings.Repeat("c", 64), ArchiveSizeBytes: 1, ArchiveFormat: "zip", ArchiveAuthorization: "none", Enabled: false},
+	}).Error)
+	withPricingCache(t)
+	system_setting.ServerAddress = ""
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "https://gateway.example/api/v1/connector/provisioning", nil)
+	ctx.Set("id", 2101)
+	GetConnectorProvisioning(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var payload connectorProvisioningResponse
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.True(t, payload.Success)
+	assert.Equal(t, 2, payload.Data.SchemaVersion)
+	require.Len(t, payload.Data.Models, 1)
+	assert.Equal(t, "zz-connector-chat", payload.Data.Models[0].ID)
+	assert.True(t, payload.Data.Models[0].ChatCapable)
+	assert.Equal(t, "zz-connector-chat", payload.Data.DefaultModel)
+	require.Len(t, payload.Data.MCPServers, 2)
+	assert.Equal(t, "a-assets", payload.Data.MCPServers[0].ID)
+	assert.Equal(t, "z-media", payload.Data.MCPServers[1].ID)
+	assert.Equal(t, "connection_bearer", payload.Data.MCPServers[0].Authorization)
+	require.Len(t, payload.Data.Skills, 2)
+	assert.Equal(t, "a-skill", payload.Data.Skills[0].ID)
+	assert.Equal(t, "z-skill", payload.Data.Skills[1].ID)
+	assert.Equal(t, "https://cdn.example/a.zip", payload.Data.Skills[0].Archive.URL)
+	assert.Equal(t, strings.Repeat("a", 64), payload.Data.Skills[0].Archive.SHA256)
+	assert.Equal(t, int64(1024), payload.Data.Skills[0].Archive.SizeBytes)
+	assert.Equal(t, "zip", payload.Data.Skills[0].Archive.Format)
+	assert.Equal(t, "none", payload.Data.Skills[0].Archive.Authorization)
+	assert.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
+	assert.NotContains(t, recorder.Body.String(), "upstream-enabled-secret")
+	assert.NotContains(t, recorder.Body.String(), "upstream-disabled-secret")
+	assert.NotContains(t, recorder.Body.String(), "upstream-image-secret")
+}
+
+func TestConnectorProvisioningReturnsEmptyManagedCatalogsHonestly(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	user := model.User{
+		Id: 2102, Username: "empty-connector-catalog", Password: "password",
+		Group: "default", Status: common.UserStatusEnabled,
+	}
+	require.NoError(t, db.Create(&user).Error)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/connector/provisioning", nil)
+	ctx.Set("id", user.Id)
+
+	GetConnectorProvisioning(ctx)
+
+	var payload connectorProvisioningResponse
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.True(t, payload.Success)
+	assert.Empty(t, payload.Data.MCPServers)
+	assert.Empty(t, payload.Data.Skills)
+	assert.Contains(t, recorder.Body.String(), `"mcp_servers":[]`)
+	assert.Contains(t, recorder.Body.String(), `"skills":[]`)
+}
+
+func TestChatModelAllowsAncillarySearchButStillRejectsNonChatEndpoints(t *testing.T) {
+	assert.True(t, isChatModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeOpenAIAlphaSearch,
+	}))
+	assert.False(t, isChatModel([]constant.EndpointType{constant.EndpointTypeOpenAIAlphaSearch}))
+	assert.False(t, isChatModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeEmbeddings,
+	}))
 }
 
 func TestConnectProvisioningRevisionAndETag(t *testing.T) {

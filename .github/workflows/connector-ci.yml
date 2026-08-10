@@ -1,0 +1,40 @@
+name: Connector CI
+on:
+  push:
+    paths: ["boxai-connector/**", "desktop/packaging/**", "makefile", ".github/workflows/connector-*.yml"]
+  pull_request:
+    paths: ["boxai-connector/**", "desktop/packaging/**", "makefile", ".github/workflows/connector-*.yml"]
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: boxai-connector
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --workspace
+      - name: Identity isolation
+        run: '! grep -RniE "origingame|originkit" . --exclude=Cargo.lock --exclude-dir=target'
+  gpui:
+    strategy:
+      matrix:
+        os: [macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: boxai-connector
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - run: cargo check --locked --features connector-app/gpui-app --bin boxai-connector

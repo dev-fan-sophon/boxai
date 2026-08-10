@@ -3,7 +3,10 @@ package controller
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"net"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -29,19 +32,50 @@ var chatEndpointTypes = map[constant.EndpointType]bool{
 // isChatModel reports whether a model can back a coding client.
 //
 // Membership is decided by exclusion, because an embedding model is also tagged
-// `openai`: a model qualifies only when every endpoint it supports is a chat
-// format. Handing a client an embedding, image, audio, video or 3D model
-// produces a config that fails on its first request.
+// `openai`: a model needs a chat endpoint and may carry only chat formats plus
+// explicitly ancillary capabilities. Handing a client an embedding, image,
+// audio, video or 3D model produces a config that fails on its first request.
 func isChatModel(endpoints []constant.EndpointType) bool {
 	if len(endpoints) == 0 {
 		return false
 	}
+	hasChat := false
 	for _, endpoint := range endpoints {
-		if !chatEndpointTypes[endpoint] {
+		if chatEndpointTypes[endpoint] {
+			hasChat = true
+			continue
+		}
+		// Search is an ancillary capability advertised by otherwise-chat-capable
+		// Codex, NewAPI, and Sub2API channels. It neither proves nor disproves
+		// that the model can hold a conversation.
+		if endpoint != constant.EndpointTypeOpenAIAlphaSearch {
 			return false
 		}
 	}
-	return true
+	return hasChat
+}
+
+// accountChatModelNames intersects token/account visibility with enabled
+// channels. accountModelNames intentionally follows the general model-list API
+// and may include an enabled ability whose channel was later disabled; a
+// connector must not project such a model into a client's live config.
+func accountChatModelNames(c *gin.Context) ([]string, modelListGroups, error) {
+	modelNames, groups, err := accountModelNames(c)
+	if err != nil {
+		return nil, modelListGroups{}, err
+	}
+	owners, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups.ownerGroups)
+	if err != nil {
+		return nil, modelListGroups{}, err
+	}
+	chatModels := make([]string, 0, len(modelNames))
+	for _, name := range modelNames {
+		if _, available := owners[name]; available && isChatModel(model.GetModelSupportEndpointTypes(name)) {
+			chatModels = append(chatModels, name)
+		}
+	}
+	sort.Strings(chatModels)
+	return chatModels, groups, nil
 }
 
 // connectAccount is the identity BoxAI Connect shows in its account panel.
@@ -90,6 +124,233 @@ type connectProvisioningAgent struct {
 	LockedModel      string   `json:"locked_model,omitempty"`
 }
 
+type connectorPlatform struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type connectorGateway struct {
+	BaseURL   string   `json:"base_url"`
+	Protocols []string `json:"protocols"`
+}
+
+type connectorAuthentication struct {
+	Type         string `json:"type"`
+	AuthorizeURL string `json:"authorize_url"`
+	TokenURL     string `json:"token_url"`
+}
+
+type connectorManifest struct {
+	SchemaVersion           int                     `json:"schema_version"`
+	Platform                connectorPlatform       `json:"platform"`
+	Authentication          connectorAuthentication `json:"authentication"`
+	Gateway                 connectorGateway        `json:"gateway"`
+	ProvisioningURL         string                  `json:"provisioning_url"`
+	ConnectionBearerOrigins []string                `json:"connection_bearer_origins"`
+	SupportedAgents         []string                `json:"supported_agents"`
+}
+
+type connectorModel struct {
+	ID          string `json:"id"`
+	ChatCapable bool   `json:"chat_capable"`
+}
+
+type connectorMCPServer struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	URL           string `json:"url"`
+	Authorization string `json:"authorization"`
+	Description   string `json:"description"`
+}
+
+type connectorSkillArchive struct {
+	URL           string `json:"url"`
+	SHA256        string `json:"sha256"`
+	SizeBytes     int64  `json:"size_bytes"`
+	Format        string `json:"format"`
+	Authorization string `json:"authorization"`
+}
+
+type connectorSkill struct {
+	ID      string                `json:"id"`
+	Name    string                `json:"name"`
+	Version string                `json:"version"`
+	Archive connectorSkillArchive `json:"archive"`
+}
+
+type connectorProvisioning struct {
+	SchemaVersion int                  `json:"schema_version"`
+	Models        []connectorModel     `json:"models"`
+	DefaultModel  string               `json:"default_model"`
+	MCPServers    []connectorMCPServer `json:"mcp_servers"`
+	Skills        []connectorSkill     `json:"skills"`
+}
+
+// GetConnectorManifest is public discovery metadata for the shared neutral
+// connector schema. The two connector auth URLs adapt that schema onto BoxAI's
+// existing desktop authorization/session infrastructure.
+func GetConnectorManifest(c *gin.Context) {
+	origin := publicOrigin(c)
+	desktopNoStore(c)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": connectorManifest{
+		SchemaVersion: 2,
+		Platform:      connectorPlatform{ID: "boxai", Name: "BoxAI"},
+		Authentication: connectorAuthentication{
+			Type: "browser_pkce", AuthorizeURL: origin + "/api/v1/connector/authorize",
+			TokenURL: origin + "/api/v1/connector/token",
+		},
+		Gateway: connectorGateway{
+			BaseURL:   origin,
+			Protocols: []string{"anthropic", "openai_responses", "openai_chat", "gemini"},
+		},
+		ProvisioningURL:         origin + "/api/v1/connector/provisioning",
+		ConnectionBearerOrigins: []string{origin},
+		SupportedAgents:         []string{"claude", "codex", "gemini", "grokbuild", "opencode"},
+	}})
+}
+
+// StartConnectorAuthorization turns the shared browser_pkce query into BoxAI's
+// persisted one-time authorization request, then sends the browser to the
+// existing authenticated approval page.
+func StartConnectorAuthorization(c *gin.Context) {
+	clientName := c.Query("client_name")
+	if strings.TrimSpace(clientName) == "" {
+		clientName = c.Query("device_name")
+	}
+	authorization, err := service.CreateDesktopAuthorization(
+		service.ConnectorClientID,
+		c.Query("redirect_uri"),
+		c.Query("code_challenge"),
+		"S256",
+		c.Query("state"),
+		clientName,
+	)
+	if err != nil {
+		desktopOAuthError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	desktopNoStore(c)
+	c.Redirect(http.StatusFound, "/desktop/authorize?request="+url.QueryEscape(authorization.ID))
+}
+
+// ExchangeConnectorToken accepts the shared browser_pkce redemption shape and
+// hardcodes the neutral client identity. The durable sk- credential is returned
+// once by the existing transactional exchange and remains linked to the
+// revocable desktop session.
+func ExchangeConnectorToken(c *gin.Context) {
+	var request struct {
+		Code         string `json:"code"`
+		CodeVerifier string `json:"code_verifier"`
+		RedirectURI  string `json:"redirect_uri"`
+	}
+	if c.ShouldBindJSON(&request) != nil {
+		desktopOAuthError(c, http.StatusBadRequest, "invalid_request", "invalid JSON")
+		return
+	}
+	access, refresh, apiKey, expires, err := service.ExchangeDesktopCode(
+		request.Code, request.CodeVerifier, service.ConnectorClientID, request.RedirectURI,
+	)
+	if err != nil {
+		desktopOAuthError(c, http.StatusBadRequest, "invalid_grant", "code is invalid or expired")
+		return
+	}
+	desktopNoStore(c)
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": apiKey, "token_type": "Bearer", "api_key": apiKey,
+		"session_access_token": access, "refresh_token": refresh, "session_expires_in": expires,
+		"base_url": publicOrigin(c) + "/v1",
+	})
+}
+
+// RevokeConnectorSession disables the durable relay key authenticating this
+// request and revokes its linked desktop session. TokenAuth supplies both IDs;
+// no caller-controlled session or token identifier is accepted.
+func RevokeConnectorSession(c *gin.Context) {
+	if err := service.RevokeDesktopSessionByRelayToken(c.GetInt("id"), c.GetInt("token_id")); err != nil {
+		if errors.Is(err, service.ErrDesktopInvalidGrant) {
+			desktopOAuthError(c, http.StatusNotFound, "invalid_token", "connector session not found")
+			return
+		}
+		desktopOAuthError(c, http.StatusInternalServerError, "server_error", "connector session could not be revoked")
+		return
+	}
+	desktopNoStore(c)
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
+// GetConnectorProvisioning exposes only account-callable chat models and
+// server-owned integration descriptors. The bearer key authenticating this
+// request is intentionally referenced, never echoed; upstream channel secrets
+// are not read by this handler at all.
+func GetConnectorProvisioning(c *gin.Context) {
+	chatModels, _, err := accountChatModelNames(c)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account models failed"})
+		return
+	}
+
+	models := make([]connectorModel, 0, len(chatModels))
+	for _, name := range chatModels {
+		models = append(models, connectorModel{ID: name, ChatCapable: true})
+	}
+	mcpRows, err := model.ListConnectorMCPServers(true)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get connector MCP catalog failed"})
+		return
+	}
+	if len(mcpRows) > MaxConnectorCatalogEntries {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector MCP catalog exceeds supported limit"})
+		return
+	}
+	bearerOrigins := []string{publicOrigin(c)}
+	mcpServers := make([]connectorMCPServer, 0, len(mcpRows))
+	for _, row := range mcpRows {
+		if message := validateConnectorMCPServer(&row, bearerOrigins); message != "" {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector MCP catalog contains an invalid descriptor"})
+			return
+		}
+		mcpServers = append(mcpServers, connectorMCPServer{
+			ID: row.ID, Name: row.Name, URL: row.URL,
+			Authorization: row.Authorization, Description: row.Description,
+		})
+	}
+	skillRows, err := model.ListConnectorSkillReleases(true)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get connector Skill catalog failed"})
+		return
+	}
+	if len(skillRows) > MaxConnectorCatalogEntries {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector Skill catalog exceeds supported limit"})
+		return
+	}
+	skills := make([]connectorSkill, 0, len(skillRows))
+	for _, row := range skillRows {
+		if message := validateConnectorSkillRelease(&row, bearerOrigins); message != "" {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector Skill catalog contains an invalid descriptor"})
+			return
+		}
+		skills = append(skills, connectorSkill{
+			ID: row.ID, Name: row.Name, Version: row.Version,
+			Archive: connectorSkillArchive{
+				URL: row.ArchiveURL, SHA256: row.ArchiveSHA256, SizeBytes: row.ArchiveSizeBytes,
+				Format: row.ArchiveFormat, Authorization: row.ArchiveAuthorization,
+			},
+		})
+	}
+
+	data := connectorProvisioning{
+		SchemaVersion: 2,
+		Models:        models,
+		MCPServers:    mcpServers,
+		Skills:        skills,
+	}
+	if len(models) > 0 {
+		data.DefaultModel = models[0].ID
+	}
+	desktopNoStore(c)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
 // GetConnectProvisioning serves the account-scoped configuration BoxAI Connect
 // applies after sign-in: which chat models this account may use, which one to
 // select for a client that has no choice recorded yet, and who the account is.
@@ -99,19 +360,16 @@ type connectProvisioningAgent struct {
 // on its own without inventing a model name. Returning the identity here too
 // spares the app a second round trip just to label its account panel.
 func GetConnectProvisioning(c *gin.Context) {
+	chatModels, _, err := accountChatModelNames(c)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get user group failed"})
+		return
+	}
 	modelNames, _, err := accountModelNames(c)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get user group failed"})
 		return
 	}
-
-	chatModels := make([]string, 0, len(modelNames))
-	for _, name := range modelNames {
-		if isChatModel(model.GetModelSupportEndpointTypes(name)) {
-			chatModels = append(chatModels, name)
-		}
-	}
-	sort.Strings(chatModels)
 
 	// Metadata is keyed by the same account-scoped catalog, never by the full
 	// pricing table, so a model this token may not call stays invisible here as
@@ -244,27 +502,39 @@ func hasEndpoint(endpoints []constant.EndpointType, want constant.EndpointType) 
 	return false
 }
 
-// publicOrigin is the externally-reachable origin of this request. Prefer the
-// reverse-proxy headers nginx/Cloudflare set; fall back to the request host.
+// publicOrigin is the externally-reachable origin. Prefer configured authority;
+// only trust reverse-proxy headers when the immediate peer is trusted.
 func publicOrigin(c *gin.Context) string {
+	if configured := common.SiteBaseURL(system_setting.ServerAddress); configured != "" {
+		return configured
+	}
+
 	scheme := strings.TrimSpace(c.GetHeader("X-Forwarded-Proto"))
-	if scheme == "" {
+	host := strings.TrimSpace(c.GetHeader("X-Forwarded-Host"))
+	peer := net.ParseIP(c.RemoteIP())
+	if !common.IsTrustedProxy(peer) {
+		scheme = ""
+		host = ""
+	}
+	if i := strings.IndexByte(scheme, ','); i >= 0 {
+		scheme = strings.TrimSpace(scheme[:i])
+	}
+	if scheme != "http" && scheme != "https" {
 		if c.Request.TLS != nil {
 			scheme = "https"
 		} else {
 			scheme = "http"
 		}
-	} else if i := strings.IndexByte(scheme, ','); i >= 0 {
-		scheme = strings.TrimSpace(scheme[:i])
 	}
-	host := strings.TrimSpace(c.GetHeader("X-Forwarded-Host"))
-	if host == "" {
-		host = c.Request.Host
-	} else if i := strings.IndexByte(host, ','); i >= 0 {
+	if i := strings.IndexByte(host, ','); i >= 0 {
 		host = strings.TrimSpace(host[:i])
 	}
 	if host == "" {
+		host = c.Request.Host
+	}
+	origin, err := url.Parse(scheme + "://" + host)
+	if err != nil || origin.Host == "" || origin.User != nil || origin.Path != "" {
 		return "https://you-box.com"
 	}
-	return scheme + "://" + host
+	return origin.String()
 }

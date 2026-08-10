@@ -44,6 +44,7 @@ UPDATER_ARTIFACTS = {
         "BoxAI-Connect-macos-x64.app.tar.gz": "darwin-x86_64",
         "BoxAI-Connect-windows-setup.exe": "windows-x86_64",
     },
+    "connector": {},
 }
 
 # Stable asset name -> what the website shows. `signed` reflects whether the installer
@@ -112,6 +113,24 @@ SITE_ARTIFACTS = {
             "minimum_os": "10",
         },
     ],
+    "connector": [
+        {
+            "asset": "BoxAI-Connector-macos-arm64.app.tar.gz",
+            "platform": "macos",
+            "arch": "arm64",
+            "kind": "app.tar.gz",
+            "signed": False,
+            "minimum_os": "12.0",
+        },
+        {
+            "asset": "BoxAI-Connector-windows-x64.zip",
+            "platform": "windows",
+            "arch": "x86_64",
+            "kind": "zip",
+            "signed": False,
+            "minimum_os": "10",
+        },
+    ],
 }
 
 
@@ -174,7 +193,7 @@ def main() -> int:
             "url": f"{version_url}/{asset}",
         }
 
-    if not platforms:
+    if not platforms and args.product != "connector":
         # Installer-only ship is allowed (e.g. CI without TAURI_SIGNING_PRIVATE_KEY).
         # latest.json still gets written with an empty platforms map so the website
         # path can move version forward; clients simply see no auto-update channel.
@@ -210,18 +229,19 @@ def main() -> int:
         print("error: no installer artifacts staged", file=sys.stderr)
         return 1
 
-    (args.dist / "latest.json").write_text(
-        json.dumps(
-            {
-                "version": args.version,
-                "notes": args.notes,
-                "pub_date": published_at,
-                "platforms": platforms,
-            },
-            indent=2,
+    if args.product != "connector":
+        (args.dist / "latest.json").write_text(
+            json.dumps(
+                {
+                    "version": args.version,
+                    "notes": args.notes,
+                    "pub_date": published_at,
+                    "platforms": platforms,
+                },
+                indent=2,
+            )
+            + "\n"
         )
-        + "\n"
-    )
     (args.dist / "releases.json").write_text(
         json.dumps(
             {
@@ -234,10 +254,10 @@ def main() -> int:
         )
         + "\n"
     )
-    print(
-        f"wrote latest.json ({', '.join(sorted(platforms))}) "
-        f"and releases.json ({len(downloads)} downloads)"
+    updater_message = (
+        "no updater manifest" if args.product == "connector" else f"latest.json ({', '.join(sorted(platforms))})"
     )
+    print(f"wrote {updater_message} and releases.json ({len(downloads)} downloads)")
     return 0
 
 

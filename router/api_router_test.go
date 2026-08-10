@@ -24,6 +24,19 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 	}
 
 	for _, path := range []string{
+		"GET /api/v1/connector/manifest",
+		"GET /api/v1/connector/authorize",
+		"POST /api/v1/connector/token",
+		"GET /api/v1/connector/provisioning",
+		"POST /api/v1/connector/revoke",
+		"GET /api/admin/connector/mcp-servers",
+		"POST /api/admin/connector/mcp-servers",
+		"PUT /api/admin/connector/mcp-servers/:id",
+		"DELETE /api/admin/connector/mcp-servers/:id",
+		"GET /api/admin/connector/skill-releases",
+		"POST /api/admin/connector/skill-releases",
+		"PUT /api/admin/connector/skill-releases/:id/:version",
+		"DELETE /api/admin/connector/skill-releases/:id/:version",
 		"GET /api/admin/users/stats/overview",
 		"GET /api/admin/users/stats/funnel",
 		"GET /api/admin/users/stats/retention",

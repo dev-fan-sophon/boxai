@@ -25,6 +25,10 @@ const (
 	// connect/. It is a separate identity so a user can tell the two apart —
 	// and revoke them independently — in their session list.
 	ConnectClientID = "boxai-connect"
+	// ConnectorClientID is BoxAI Connector's own OAuth client identity. It is
+	// intentionally distinct from BoxAI Desktop, BoxAI Connect, and every other
+	// platform's connector binary/state namespace.
+	ConnectorClientID = "boxai-connector"
 )
 
 // IsDesktopClientID reports whether a client may use the desktop authorization
@@ -32,7 +36,7 @@ const (
 // one that created the authorization, so a code minted for one product can
 // never be redeemed by the other.
 func IsDesktopClientID(clientID string) bool {
-	return clientID == DesktopClientID || clientID == ConnectClientID
+	return clientID == DesktopClientID || clientID == ConnectClientID || clientID == ConnectorClientID
 }
 
 var ErrDesktopInvalidGrant = errors.New("invalid desktop grant")
@@ -64,8 +68,20 @@ func secretHash(s string) string {
 }
 
 func ValidateDesktopRedirect(raw string) error {
+	return validateLoopbackRedirect(raw, false)
+}
+
+func validateConnectorRedirect(raw string) error {
+	return validateLoopbackRedirect(raw, true)
+}
+
+func validateLoopbackRedirect(raw string, allowRFC8252Callback bool) error {
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Path != "/auth/callback" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+	if err != nil {
+		return errors.New("invalid redirect_uri")
+	}
+	validPath := u.Path == "/auth/callback" || (allowRFC8252Callback && u.Path == "/callback")
+	if u.Scheme != "http" || u.Hostname() != "127.0.0.1" || !validPath || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
 		return errors.New("invalid redirect_uri")
 	}
 	_, p, err := net.SplitHostPort(u.Host)
@@ -86,8 +102,12 @@ func CreateDesktopAuthorization(clientID, redirect, challenge, method, state, na
 	if _, err := base64.RawURLEncoding.DecodeString(challenge); err != nil {
 		return nil, errors.New("invalid code_challenge")
 	}
-	if err := ValidateDesktopRedirect(redirect); err != nil {
-		return nil, err
+	redirectErr := ValidateDesktopRedirect(redirect)
+	if clientID == ConnectorClientID {
+		redirectErr = validateConnectorRedirect(redirect)
+	}
+	if redirectErr != nil {
+		return nil, redirectErr
 	}
 	id, err := opaque(24)
 	if err != nil {
@@ -96,7 +116,11 @@ func CreateDesktopAuthorization(clientID, redirect, challenge, method, state, na
 	now := time.Now().Unix()
 	a := &model.DesktopAuthorization{ID: id, ClientID: clientID, RedirectURI: redirect, CodeChallenge: challenge, State: state, ClientName: strings.TrimSpace(name), Status: "pending", CreatedAt: now, ExpiresAt: now + 600}
 	if a.ClientName == "" {
-		a.ClientName = system_setting.GetDesktopSettings().TokenName
+		if clientID == ConnectorClientID {
+			a.ClientName = "BoxAI Connector"
+		} else {
+			a.ClientName = system_setting.GetDesktopSettings().TokenName
+		}
 	}
 	if len(a.ClientName) > 100 {
 		a.ClientName = a.ClientName[:100]
@@ -146,7 +170,11 @@ func DecideDesktopAuthorization(id string, userID int, approve bool) (string, *m
 }
 
 func ExchangeDesktopCode(code, verifier, clientID, redirect string) (access, refresh, apiKey string, expires int, err error) {
-	if !IsDesktopClientID(clientID) || ValidateDesktopRedirect(redirect) != nil || !validPKCEValue(verifier, 43, 128) {
+	redirectErr := ValidateDesktopRedirect(redirect)
+	if clientID == ConnectorClientID {
+		redirectErr = validateConnectorRedirect(redirect)
+	}
+	if !IsDesktopClientID(clientID) || redirectErr != nil || !validPKCEValue(verifier, 43, 128) {
 		return "", "", "", 0, ErrDesktopInvalidGrant
 	}
 	if _, err = loadDesktopSigningKey(); err != nil {
@@ -310,6 +338,30 @@ func RevokeDesktopSession(userID int, id string) error {
 		var e error
 		relayKey, e = revokeDesktopSessionInTx(tx, &s, time.Now().Unix())
 		return e
+	})
+	if err == nil {
+		err = model.InvalidateTokenCache(relayKey)
+	}
+	return err
+}
+
+// RevokeDesktopSessionByRelayToken lets a connector revoke itself using the
+// durable relay credential already authenticated by middleware. Both ownership
+// columns are matched, so an ordinary user token cannot name or revoke another
+// user's desktop session.
+func RevokeDesktopSessionByRelayToken(userID, relayTokenID int) error {
+	var relayKey string
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
+		var session model.DesktopSession
+		if err := tx.Where("user_id = ? AND relay_token_id = ? AND revoked_at = 0", userID, relayTokenID).First(&session).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrDesktopInvalidGrant
+			}
+			return err
+		}
+		var err error
+		relayKey, err = revokeDesktopSessionInTx(tx, &session, time.Now().Unix())
+		return err
 	})
 	if err == nil {
 		err = model.InvalidateTokenCache(relayKey)

@@ -149,12 +149,12 @@ func TestPartitionMediaModels(t *testing.T) {
 	assert.Empty(t, videos)
 }
 
-func TestPublicOriginPrefersForwardedHeaders(t *testing.T) {
+func TestPublicOriginIgnoresForwardedHeadersFromUntrustedPeer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rec)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3000/api/connect/provisioning", nil)
 	ctx.Request.Header.Set("X-Forwarded-Proto", "https")
 	ctx.Request.Header.Set("X-Forwarded-Host", "you-box.com")
-	assert.Equal(t, "https://you-box.com", publicOrigin(ctx))
+	assert.Equal(t, "http://localhost:3000", publicOrigin(ctx))
 }

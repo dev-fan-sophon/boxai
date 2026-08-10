@@ -43,6 +43,9 @@ func TestDesktopRedirectValidation(t *testing.T) {
 	for _, redirect := range invalid {
 		assert.Error(t, ValidateDesktopRedirect(redirect), redirect)
 	}
+	assert.Error(t, ValidateDesktopRedirect("http://127.0.0.1:1234/callback"), "legacy desktop clients keep their original callback path")
+	assert.NoError(t, validateConnectorRedirect("http://127.0.0.1:1234/callback"))
+	assert.NoError(t, validateConnectorRedirect("http://127.0.0.1:1234/auth/callback"))
 }
 
 func TestDesktopAuthorizationPKCEReplayRotationAndLinkage(t *testing.T) {
@@ -122,6 +125,37 @@ func TestDesktopAuthorizationIsScopedToTheClientThatRequestedIt(t *testing.T) {
 
 	_, err = CreateDesktopAuthorization("some-other-app", redirect, pkce(verifier), "S256", desktopTestState, "Impostor")
 	assert.Error(t, err, "an unknown client must not be able to open a desktop authorization")
+}
+
+func TestConnectorAuthorizationIssuesDurableRelayKeyLinkedToRevocableSession(t *testing.T) {
+	u := setupDesktopAuthorizationTest(t)
+	verifier := "0123456789012345678901234567890123456789012"
+	redirect := "http://127.0.0.1:9200/callback"
+
+	a, err := CreateDesktopAuthorization(ConnectorClientID, redirect, pkce(verifier), "S256", desktopTestState, "")
+	require.NoError(t, err)
+	assert.Equal(t, "BoxAI Connector", a.ClientName)
+	code, _, err := DecideDesktopAuthorization(a.ID, u.Id, true)
+	require.NoError(t, err)
+	_, refresh, apiKey, _, err := ExchangeDesktopCode(code, verifier, ConnectorClientID, redirect)
+	require.NoError(t, err)
+	require.NotEmpty(t, refresh)
+	require.Contains(t, apiKey, "sk-")
+
+	var session model.DesktopSession
+	require.NoError(t, model.DB.First(&session).Error)
+	var relay model.Token
+	require.NoError(t, model.DB.First(&relay, session.RelayTokenID).Error)
+	assert.Equal(t, int64(-1), relay.ExpiredTime)
+	assert.Equal(t, common.TokenStatusEnabled, relay.Status)
+	assert.Equal(t, "BoxAI Connector", relay.Name)
+
+	assert.ErrorIs(t, RevokeDesktopSessionByRelayToken(u.Id+1, session.RelayTokenID), ErrDesktopInvalidGrant)
+	require.NoError(t, RevokeDesktopSessionByRelayToken(u.Id, session.RelayTokenID))
+	require.NoError(t, model.DB.First(&session, "id = ?", session.ID).Error)
+	assert.NotZero(t, session.RevokedAt)
+	require.NoError(t, model.DB.First(&relay, session.RelayTokenID).Error)
+	assert.Equal(t, common.TokenStatusDisabled, relay.Status)
 }
 
 func TestDesktopAuthorizationAllowsMultiplePendingAndDeniedRequests(t *testing.T) {

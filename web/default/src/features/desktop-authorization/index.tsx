@@ -48,11 +48,14 @@ export function DesktopAuthorizationPage() {
   const expired = expiresAt ? expiresAt.getTime() <= Date.now() : false
   const pending = request?.status.toLowerCase() === 'pending'
 
-  // Two desktop products share this page. Naming the wrong one is how a user
+  // Three BoxAI desktop products share this page. Naming the wrong one is how a user
   // ends up approving something they did not start, so the copy follows the
   // client that actually opened the request.
-  const productName =
-    request?.client_id === 'boxai-connect' ? 'BoxAI Connect' : 'BoxAI Desktop'
+  let productName = 'BoxAI Desktop'
+  if (request?.client_id === 'boxai-connect') productName = 'BoxAI Connect'
+  else if (request?.client_id === 'boxai-connector') {
+    productName = 'BoxAI Connector'
+  }
 
   let stateMessage: string | null = null
   if (!requestId) stateMessage = t('The authorization request is missing')

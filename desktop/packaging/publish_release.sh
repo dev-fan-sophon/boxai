@@ -6,6 +6,7 @@
 # Shared by both desktop products. BOXAI_RELEASE_PRODUCT selects which one:
 #   desktop (default)  BoxAI Desktop, from desktop/surfaces/gui
 #   connect            BoxAI Connect, from connect/
+#   connector          BoxAI Connector, from boxai-connector/
 # Each publishes under its own key prefix, so one product can never overwrite the
 # other's manifests.
 #
@@ -30,10 +31,15 @@ PRODUCT="${BOXAI_RELEASE_PRODUCT:-desktop}"
 case "$PRODUCT" in
   desktop) SOURCE_DIR="$PLATFORM/surfaces/gui"; PRODUCT_NAME="BoxAI Desktop"; STAGE_ROOT="$PLATFORM/release" ;;
   connect) SOURCE_DIR="$REPO/connect";          PRODUCT_NAME="BoxAI Connect"; STAGE_ROOT="$REPO/connect/release" ;;
-  *) echo "ERROR: unknown BOXAI_RELEASE_PRODUCT '$PRODUCT' (expected desktop or connect)" >&2; exit 1 ;;
+  connector) SOURCE_DIR="$REPO/boxai-connector"; PRODUCT_NAME="BoxAI Connector"; STAGE_ROOT="$REPO/boxai-connector/release" ;;
+  *) echo "ERROR: unknown BOXAI_RELEASE_PRODUCT '$PRODUCT'" >&2; exit 1 ;;
 esac
 
-VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$SOURCE_DIR/src-tauri/tauri.conf.json")"
+if [ "$PRODUCT" = connector ]; then
+  VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$SOURCE_DIR/connector-release.json")"
+else
+  VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$SOURCE_DIR/src-tauri/tauri.conf.json")"
+fi
 STAGE="${BOXAI_RELEASE_STAGE:-$STAGE_ROOT/$VERSION}"
 BUCKET="${BOXAI_RELEASE_BUCKET:-boxai-desktop}"
 PREFIX="$PRODUCT"
@@ -69,7 +75,11 @@ aws s3 sync "$STAGE" "s3://$BUCKET/$PREFIX/$VERSION/" \
   --no-progress
 
 echo "==> [3/4] publishing manifests"
-for manifest in latest.json releases.json; do
+MANIFESTS=(releases.json)
+if [ "$PRODUCT" != connector ]; then
+  MANIFESTS=(latest.json releases.json)
+fi
+for manifest in "${MANIFESTS[@]}"; do
   aws s3 cp "$STAGE/$manifest" "s3://$BUCKET/$PREFIX/$manifest" \
     --endpoint-url "$R2_ENDPOINT" \
     --content-type "application/json" \
@@ -79,17 +89,23 @@ done
 
 echo "==> [4/4] purging the edge cache"
 if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ZONE_ID:-}" ]; then
+  PURGE_FILES="[\"$BASE_URL/releases.json\"]"
+  if [ "$PRODUCT" != connector ]; then
+    PURGE_FILES="[\"$BASE_URL/latest.json\",\"$BASE_URL/releases.json\"]"
+  fi
   curl -fsS -X POST \
     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
     -H "Content-Type: application/json" \
     "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
-    -d "{\"files\":[\"$BASE_URL/latest.json\",\"$BASE_URL/releases.json\"]}" >/dev/null
-  echo "    purged latest.json + releases.json"
+    -d "{\"files\":$PURGE_FILES}" >/dev/null
+  echo "    purged published manifests"
 else
   echo "    WARNING: CLOUDFLARE_API_TOKEN/ZONE_ID unset — manifests stay cached for up to 60s"
 fi
 
 echo ""
-echo "Published BoxAI Desktop $VERSION"
-echo "  updater  $BASE_URL/latest.json"
+echo "Published $PRODUCT_NAME $VERSION"
+if [ "$PRODUCT" != connector ]; then
+  echo "  updater  $BASE_URL/latest.json"
+fi
 echo "  website  $BASE_URL/releases.json"
