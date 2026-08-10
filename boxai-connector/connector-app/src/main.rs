@@ -594,7 +594,7 @@ impl GatewayKit {
                         SidebarItem::new("overview", text(self.locale, Message::Connection))
                             .icon(Icon::Global),
                         SidebarItem::new("model-plaza", text(self.locale, Message::ModelPlaza))
-                            .icon(Icon::Search),
+                            .icon(Icon::Magnifier),
                         SidebarItem::new(
                             "projection",
                             text(self.locale, Message::ConfigurationPreview),
