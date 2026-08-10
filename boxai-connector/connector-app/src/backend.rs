@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     net::{Ipv4Addr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     sync::Arc,
@@ -1084,13 +1084,7 @@ fn handle_callback(
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .map_err(|_| BackendError::Network)?;
-    let mut bytes = [0; 8192];
-    let count = stream.read(&mut bytes).map_err(|_| BackendError::Network)?;
-    let line = String::from_utf8_lossy(&bytes[..count])
-        .lines()
-        .next()
-        .unwrap_or_default()
-        .to_owned();
+    let line = read_callback_request_line(&mut *stream)?;
     let target = line
         .strip_prefix("GET ")
         .and_then(|v| v.split_once(' '))
@@ -1109,6 +1103,17 @@ fn handle_callback(
     );
     let _ = stream.write_all(response.as_bytes());
     result
+}
+fn read_callback_request_line(reader: impl Read) -> Result<String> {
+    let mut bytes = Vec::new();
+    BufReader::new(reader)
+        .take(8192)
+        .read_until(b'\n', &mut bytes)
+        .map_err(|_| BackendError::Network)?;
+    if !bytes.ends_with(b"\n") {
+        return Err(BackendError::Response);
+    }
+    Ok(String::from_utf8_lossy(&bytes).trim_end().to_owned())
 }
 fn verify_archive_response(skill: &connector_core::Skill, response: &HttpResponse) -> Result<()> {
     successful(response)?;
@@ -1503,6 +1508,17 @@ mod tests {
     use super::*;
     use std::{collections::VecDeque, sync::Mutex, thread};
 
+    struct FragmentedReader {
+        bytes: std::io::Cursor<Vec<u8>>,
+        chunk_size: usize,
+    }
+    impl Read for FragmentedReader {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            let length = buffer.len().min(self.chunk_size);
+            self.bytes.read(&mut buffer[..length])
+        }
+    }
+
     #[derive(Default)]
     struct MemoryCredentials(Mutex<BTreeMap<String, Bearer>>);
     impl CredentialStore for MemoryCredentials {
@@ -1825,6 +1841,26 @@ mod tests {
         ));
         assert_eq!(
             callback_values("/callback?code=x&state=right", "right").unwrap(),
+            Some("x".into())
+        );
+    }
+    #[test]
+    fn callback_request_line_accepts_fragmented_tcp_reads() {
+        let request = b"GET /callback?code=x&state=right HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+        let line = read_callback_request_line(FragmentedReader {
+            bytes: std::io::Cursor::new(request.to_vec()),
+            chunk_size: 3,
+        })
+        .unwrap();
+        assert_eq!(
+            callback_values(
+                line.strip_prefix("GET ")
+                    .and_then(|value| value.split_once(' '))
+                    .map(|value| value.0)
+                    .unwrap(),
+                "right",
+            )
+            .unwrap(),
             Some("x".into())
         );
     }
