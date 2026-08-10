@@ -315,6 +315,9 @@ pub struct Backend {
     pending_revocation: std::sync::Mutex<Option<(ConnectionManifest, Bearer)>>,
 }
 impl Backend {
+    pub fn locale_store(&self) -> crate::localization::LocaleStore {
+        crate::localization::LocaleStore::new(&self.state_dir)
+    }
     pub fn new() -> Result<Self> {
         Self::new_for_distribution(BOXAI_DISTRIBUTION)
     }
@@ -531,7 +534,8 @@ impl Backend {
             .append_pair("code_challenge_method", "S256")
             .append_pair("state", &state);
         self.browser.open(&authorize)?;
-        let code = await_callback(listener, &state, LOGIN_TIMEOUT)?;
+        let locale = self.locale_store().load_system();
+        let code = await_callback(listener, &state, LOGIN_TIMEOUT, locale)?;
         let lifecycle = self.lifecycle_lock()?;
         // Another process may have completed sign-in while this browser flow
         // was open. Re-check before redemption so no second key is minted.
@@ -1047,6 +1051,7 @@ fn await_callback(
     listener: TcpListener,
     expected_state: &str,
     timeout: Duration,
+    locale: crate::localization::Locale,
 ) -> Result<String> {
     listener
         .set_nonblocking(true)
@@ -1054,7 +1059,7 @@ fn await_callback(
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         match listener.accept() {
-            Ok((mut stream, _)) => match handle_callback(&mut stream, expected_state) {
+            Ok((mut stream, _)) => match handle_callback(&mut stream, expected_state, locale) {
                 Ok(Some(code)) => return Ok(code),
                 Ok(None) | Err(BackendError::StateMismatch) => {}
                 Err(error) => return Err(error),
@@ -1067,7 +1072,11 @@ fn await_callback(
     }
     Err(BackendError::Timeout)
 }
-fn handle_callback(stream: &mut TcpStream, expected_state: &str) -> Result<Option<String>> {
+fn handle_callback(
+    stream: &mut TcpStream,
+    expected_state: &str,
+    locale: crate::localization::Locale,
+) -> Result<Option<String>> {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .map_err(|_| BackendError::Network)?;
@@ -1086,9 +1095,9 @@ fn handle_callback(stream: &mut TcpStream, expected_state: &str) -> Result<Optio
     let result = callback_values(target, expected_state);
     let ok = matches!(result, Ok(Some(_)));
     let body = if ok {
-        "Signed in. You may close this tab."
+        crate::localization::text(locale, crate::localization::Message::CallbackSuccess)
     } else {
-        "Sign-in was not completed."
+        crate::localization::text(locale, crate::localization::Message::CallbackFailure)
     };
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -2627,7 +2636,12 @@ mod tests {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
         let started = Instant::now();
         assert!(matches!(
-            await_callback(listener, "expected", Duration::from_millis(1)),
+            await_callback(
+                listener,
+                "expected",
+                Duration::from_millis(1),
+                crate::localization::Locale::En,
+            ),
             Err(BackendError::Timeout)
         ));
         assert!(started.elapsed() < Duration::from_secs(1));

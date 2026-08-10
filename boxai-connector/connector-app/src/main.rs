@@ -1,6 +1,9 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use connector_app::{Backend, BackendError, LogoutStatus, Status};
+use connector_app::{
+    Backend, BackendError, LogoutStatus, Status,
+    localization::{Locale, LocaleStore, Message, text},
+};
 use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
 use gpui::{
     AnyElement, App, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement, Render,
@@ -54,27 +57,21 @@ impl Page {
         }
     }
 
-    fn title(self) -> &'static str {
+    fn title(self, locale: Locale) -> &'static str {
         match self {
-            Self::Overview => "Connection",
-            Self::Agents => "Agent clients",
-            Self::Services => "Gateway services",
-            Self::Settings => "Settings & diagnostics",
+            Self::Overview => text(locale, Message::Connection),
+            Self::Agents => text(locale, Message::AgentClients),
+            Self::Services => text(locale, Message::GatewayServices),
+            Self::Settings => text(locale, Message::SettingsDiagnostics),
         }
     }
 
-    fn subtitle(self) -> &'static str {
+    fn subtitle(self, locale: Locale) -> &'static str {
         match self {
-            Self::Overview => "Connect this device directly to your platform Gateway.",
-            Self::Agents => {
-                "Choose a default model for each installed Agent and preview every managed change."
-            }
-            Self::Services => {
-                "Models, remote MCP servers, and official Skills remain controlled by the Gateway."
-            }
-            Self::Settings => {
-                "Credentials stay in the operating-system vault. No local relay runs in the background."
-            }
+            Self::Overview => text(locale, Message::OverviewSubtitle),
+            Self::Agents => text(locale, Message::AgentsSubtitle),
+            Self::Services => text(locale, Message::ServicesSubtitle),
+            Self::Settings => text(locale, Message::SettingsSubtitle),
         }
     }
 }
@@ -129,9 +126,12 @@ struct GatewayKit {
     status: Option<Status>,
     installs: Vec<AgentInstall>,
     model_selects: BTreeMap<AgentId, Entity<Select>>,
+    language_select: Entity<Select>,
+    locale_store: LocaleStore,
+    locale: Locale,
     page: Page,
     busy: bool,
-    busy_message: Option<&'static str>,
+    busy_message: Option<Message>,
     error: Option<String>,
     notice: Option<(NoticeTone, String)>,
     preview: Vec<Change>,
@@ -140,12 +140,23 @@ struct GatewayKit {
 
 impl GatewayKit {
     fn new(backend: Backend, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let locale_store = backend.locale_store();
+        let locale = locale_store.load_system();
+        let language_select = cx.new(|cx| {
+            Select::new("settings.language.select", window, cx)
+                .name(text(locale, Message::LanguageSelectorName))
+                .options(
+                    [Locale::En, Locale::Vi]
+                        .map(|locale| SelectOption::new(locale.id(), locale.display_name())),
+                )
+                .selected(locale.id())
+        });
         let mut model_selects = BTreeMap::new();
         for agent in AGENTS {
             let select = cx.new(|cx| {
                 Select::new(format!("agent.{}.model", agent.as_str()), window, cx)
-                    .name(format!("{} default model", agent_name(agent)))
-                    .placeholder("Connect to load models")
+                    .name(locale.model_selector_name(agent_name(agent)))
+                    .placeholder(text(locale, Message::ConnectLoadModels))
             });
             cx.subscribe(&select, move |this, _select, event: &SelectEvent, cx| {
                 let SelectEvent::Selected(model) = event else {
@@ -160,7 +171,7 @@ impl GatewayKit {
                 let platform = status.manifest.platform.id.clone();
                 let provisioning = provisioning.clone();
                 let model = model.to_string();
-                this.run(cx, "Saving the Agent model choice…", move |backend| {
+                this.run(cx, Message::SavingModel, move |backend| {
                     backend.update_model_choice(&platform, agent, &model, &provisioning)?;
                     Ok(Completion::ModelUpdated { agent, model })
                 });
@@ -174,6 +185,9 @@ impl GatewayKit {
             status: None,
             installs: Vec::new(),
             model_selects,
+            language_select: language_select.clone(),
+            locale_store,
+            locale,
             page: Page::Overview,
             busy: false,
             busy_message: None,
@@ -182,6 +196,31 @@ impl GatewayKit {
             preview: Vec::new(),
             pending_confirmation: None,
         };
+        cx.subscribe(&language_select, |this, _, event: &SelectEvent, cx| {
+            let SelectEvent::Selected(id) = event else {
+                return;
+            };
+            let Some(locale) = Locale::from_id(id) else {
+                return;
+            };
+            if this.locale_store.save(locale).is_err() {
+                this.notice = Some((
+                    NoticeTone::Danger,
+                    text(this.locale, Message::PreferenceSaveFailed).into(),
+                ));
+                cx.notify();
+                return;
+            }
+            this.locale = locale;
+            this.notice = None;
+            this.pending_confirmation = None;
+            this.language_select.update(cx, |select, cx| {
+                select.set_selected(Some(locale.id().into()), cx);
+            });
+            this.sync_select_names(cx);
+            cx.notify();
+        })
+        .detach();
         view.load(cx);
         view
     }
@@ -189,7 +228,7 @@ impl GatewayKit {
     fn run(
         &mut self,
         cx: &mut Context<Self>,
-        message: &'static str,
+        message: Message,
         operation: impl FnOnce(Arc<Backend>) -> Result<Completion, BackendError> + Send + 'static,
     ) {
         if self.busy {
@@ -211,9 +250,11 @@ impl GatewayKit {
                 this.busy_message = None;
                 match result {
                     Ok(completion) => this.complete(completion, cx),
-                    Err(error) if this.status.is_none() => this.error = Some(error.to_string()),
+                    Err(error) if this.status.is_none() => {
+                        this.error = Some(this.locale.backend_error(&error))
+                    }
                     Err(error) => {
-                        this.notice = Some((NoticeTone::Danger, error.to_string()));
+                        this.notice = Some((NoticeTone::Danger, this.locale.backend_error(&error)));
                         this.sync_model_selects(cx);
                     }
                 }
@@ -233,9 +274,12 @@ impl GatewayKit {
                 self.notice = Some(match warning {
                     Some(error) => (
                         NoticeTone::Warning,
-                        format!("Connector requires attention: {error}"),
+                        self.locale.with_detail(Message::ConnectorAttention, &error),
                     ),
-                    None => (NoticeTone::Success, "Gateway account connected.".into()),
+                    None => (
+                        NoticeTone::Success,
+                        text(self.locale, Message::ConnectedNotice).into(),
+                    ),
                 });
             }
             Completion::Refreshed(status) => {
@@ -244,11 +288,12 @@ impl GatewayKit {
                 self.notice = Some(match warning {
                     Some(error) => (
                         NoticeTone::Warning,
-                        format!("Gateway provisioning is still unavailable: {error}"),
+                        self.locale
+                            .with_detail(Message::ProvisioningStillUnavailable, &error),
                     ),
                     None => (
                         NoticeTone::Success,
-                        "Gateway models and services refreshed.".into(),
+                        text(self.locale, Message::RefreshedNotice).into(),
                     ),
                 });
             }
@@ -260,31 +305,22 @@ impl GatewayKit {
                 self.preview.clear();
                 self.notice = Some((
                     NoticeTone::Info,
-                    format!(
-                        "{} will use the new model after changes are applied.",
-                        agent_name(agent)
-                    ),
+                    self.locale.model_updated(agent_name(agent)),
                 ));
             }
             Completion::Preview(changes) => {
                 let count = changes.len();
                 self.preview = changes;
-                self.notice = Some((
-                    NoticeTone::Info,
-                    format!("Previewed {count} managed change(s). Nothing was written."),
-                ));
+                self.notice = Some((NoticeTone::Info, self.locale.previewed(count)));
             }
             Completion::Applied { changes, verified } => {
                 self.preview.clear();
                 self.notice = Some(if verified {
-                    (
-                        NoticeTone::Success,
-                        format!("Applied and verified {changes} managed change(s)."),
-                    )
+                    (NoticeTone::Success, self.locale.applied(changes))
                 } else {
                     (
                         NoticeTone::Warning,
-                        "Changes were applied, but verification found a mismatch.".into(),
+                        text(self.locale, Message::VerificationMismatch).into(),
                     )
                 });
             }
@@ -292,7 +328,7 @@ impl GatewayKit {
                 self.preview.clear();
                 self.notice = Some((
                     NoticeTone::Success,
-                    "Managed Agent configuration and Skills were removed.".into(),
+                    text(self.locale, Message::ProjectionsRemovedNotice).into(),
                 ));
             }
             Completion::LoggedOut { status, current } => {
@@ -305,11 +341,11 @@ impl GatewayKit {
                 self.notice = Some(match status {
                     LogoutStatus::Revoked => (
                         NoticeTone::Success,
-                        "Signed out and revoked this Connector credential.".into(),
+                        text(self.locale, Message::RevokedNotice).into(),
                     ),
                     LogoutStatus::Unsupported => (
                         NoticeTone::Warning,
-                        "Signed out locally. This platform does not expose self-revocation.".into(),
+                        text(self.locale, Message::LocalSignOutNotice).into(),
                     ),
                 });
             }
@@ -350,6 +386,17 @@ impl GatewayKit {
         }
     }
 
+    fn sync_select_names(&self, cx: &mut Context<Self>) {
+        self.language_select.update(cx, |select, cx| {
+            select.set_name(text(self.locale, Message::LanguageSelectorName), cx);
+        });
+        for (agent, select) in &self.model_selects {
+            select.update(cx, |select, cx| {
+                select.set_name(self.locale.model_selector_name(agent_name(*agent)), cx);
+            });
+        }
+    }
+
     fn clear_connection(&mut self, cx: &mut Context<Self>) {
         if let Some(status) = self.status.as_mut() {
             status.connected = false;
@@ -364,16 +411,14 @@ impl GatewayKit {
     }
 
     fn load(&mut self, cx: &mut Context<Self>) {
-        self.run(cx, "Checking Gateway readiness…", |backend| {
+        self.run(cx, Message::CheckingGateway, |backend| {
             backend.load_status().map(Completion::Loaded)
         });
     }
 
     fn connect(&mut self, cx: &mut Context<Self>) {
-        self.run(
-            cx,
-            "Waiting for browser sign-in…",
-            |backend| match backend.connect() {
+        self.run(cx, Message::WaitingSignIn, |backend| {
+            match backend.connect() {
                 Ok(_) => backend.load_status().map(Completion::Connected),
                 Err(connect_error) => {
                     let status = backend.load_status()?;
@@ -383,12 +428,12 @@ impl GatewayKit {
                         Err(connect_error)
                     }
                 }
-            },
-        );
+            }
+        });
     }
 
     fn refresh(&mut self, cx: &mut Context<Self>) {
-        self.run(cx, "Refreshing online catalog…", |backend| {
+        self.run(cx, Message::RefreshingCatalog, |backend| {
             backend.refresh_provisioning()?;
             backend.load_status().map(Completion::Refreshed)
         });
@@ -399,7 +444,7 @@ impl GatewayKit {
             return;
         };
         let installs = self.installs.clone();
-        self.run(cx, "Building a read-only preview…", move |backend| {
+        self.run(cx, Message::BuildingPreview, move |backend| {
             let plan = backend.plan(&manifest, &provisioning, installs)?;
             Ok(Completion::Preview(plan.changes.clone()))
         });
@@ -410,17 +455,13 @@ impl GatewayKit {
             return;
         };
         let installs = self.installs.clone();
-        self.run(
-            cx,
-            "Applying and verifying Agent configuration…",
-            move |backend| {
-                let plan = backend.plan(&manifest, &provisioning, installs)?;
-                let changes = plan.changes.len();
-                backend.apply(&plan)?;
-                let verified = backend.verify(&plan)?.ok;
-                Ok(Completion::Applied { changes, verified })
-            },
-        );
+        self.run(cx, Message::ApplyingConfiguration, move |backend| {
+            let plan = backend.plan(&manifest, &provisioning, installs)?;
+            let changes = plan.changes.len();
+            backend.apply(&plan)?;
+            let verified = backend.verify(&plan)?.ok;
+            Ok(Completion::Applied { changes, verified })
+        });
     }
 
     fn disconnect_projections(&mut self, cx: &mut Context<Self>) {
@@ -432,7 +473,7 @@ impl GatewayKit {
             return;
         };
         self.pending_confirmation = None;
-        self.run(cx, "Removing managed projections…", move |backend| {
+        self.run(cx, Message::RemovingProjections, move |backend| {
             backend.disconnect(&platform)?;
             Ok(Completion::ProjectionsRemoved)
         });
@@ -440,18 +481,14 @@ impl GatewayKit {
 
     fn logout(&mut self, cx: &mut Context<Self>) {
         self.pending_confirmation = None;
-        self.run(
-            cx,
-            "Removing projections and revoking credential…",
-            |backend| {
-                let status = backend.logout()?;
-                // Local cleanup and remote revocation have already completed. A
-                // subsequent manifest outage must not turn successful sign-out
-                // into an error or leave the UI claiming it is still connected.
-                let current = backend.load_status().ok();
-                Ok(Completion::LoggedOut { status, current })
-            },
-        );
+        self.run(cx, Message::RevokingCredential, |backend| {
+            let status = backend.logout()?;
+            // Local cleanup and remote revocation have already completed. A
+            // subsequent manifest outage must not turn successful sign-out
+            // into an error or leave the UI claiming it is still connected.
+            let current = backend.load_status().ok();
+            Ok(Completion::LoggedOut { status, current })
+        });
     }
 
     fn confirm(&mut self, action: DestructiveAction, cx: &mut Context<Self>) {
@@ -467,11 +504,9 @@ impl GatewayKit {
             NoticeTone::Warning,
             match action {
                 DestructiveAction::RemoveProjections => {
-                    "Review the impact, then choose Confirm removal. Your BoxAI account remains connected."
+                    text(self.locale, Message::RemoveConfirmation)
                 }
-                DestructiveAction::SignOut => {
-                    "Review the impact, then choose Confirm sign out. Managed projections are removed before the credential is revoked."
-                }
+                DestructiveAction::SignOut => text(self.locale, Message::SignOutConfirmation),
             }
             .into(),
         ));
@@ -504,17 +539,25 @@ impl GatewayKit {
                             .child("BoxAI Connector"),
                     ),
             )
-            .section(SidebarSection::new("main").title("Connector").items([
-                SidebarItem::new("overview", "Connection").icon(Icon::Global),
-                SidebarItem::new("agents", "Agent clients").icon(Icon::Terminal),
-                SidebarItem::new("services", "Models & services").icon(Icon::Widget),
-                SidebarItem::new("settings", "Settings").icon(Icon::Settings),
-            ]))
+            .section(
+                SidebarSection::new("main")
+                    .title(text(self.locale, Message::Connector))
+                    .items([
+                        SidebarItem::new("overview", text(self.locale, Message::Connection))
+                            .icon(Icon::Global),
+                        SidebarItem::new("agents", text(self.locale, Message::AgentClients))
+                            .icon(Icon::Terminal),
+                        SidebarItem::new("services", text(self.locale, Message::ModelsServices))
+                            .icon(Icon::Widget),
+                        SidebarItem::new("settings", text(self.locale, Message::Settings))
+                            .icon(Icon::Settings),
+                    ]),
+            )
             .footer(StatusLine::new(
                 if connected {
-                    "Connected"
+                    text(self.locale, Message::Connected)
                 } else {
-                    "Not connected"
+                    text(self.locale, Message::NotConnected)
                 },
                 if connected {
                     Tone::Success
@@ -554,14 +597,14 @@ impl GatewayKit {
             .unwrap_or_else(|| platform.name.clone());
         let action = if connected {
             Button::new("overview.refresh")
-                .label("Refresh from Gateway")
+                .label(text(self.locale, Message::RefreshGateway))
                 .secondary()
                 .icon(Icon::Refresh)
                 .disabled(self.busy)
                 .on_click(move |_, cx| handle.update(cx, |this, cx| this.refresh(cx)))
         } else {
             Button::new("overview.connect")
-                .label("Connect account")
+                .label(text(self.locale, Message::ConnectAccount))
                 .primary()
                 .icon(Icon::Key)
                 .disabled(self.busy)
@@ -599,11 +642,7 @@ impl GatewayKit {
                                 .flex()
                                 .flex_col()
                                 .gap(px(4.0))
-                                .child(
-                                    div()
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child(account_name),
-                                )
+                                .child(div().font_weight(FontWeight::SEMIBOLD).child(account_name))
                                 .child(
                                     div()
                                         .text_size(px(theme.typography.caption.size))
@@ -611,47 +650,63 @@ impl GatewayKit {
                                         .child(status.manifest.gateway.base_url.to_string()),
                                 ),
                         )
-                        .child(Badge::new(if connected { "Connected" } else { "Disconnected" }).tone(
-                            if connected { Tone::Success } else { Tone::Neutral },
-                        ))
+                        .child(
+                            Badge::new(if connected {
+                                text(self.locale, Message::Connected)
+                            } else {
+                                text(self.locale, Message::Disconnected)
+                            })
+                            .tone(if connected {
+                                Tone::Success
+                            } else {
+                                Tone::Neutral
+                            }),
+                        )
                         .child(action),
                 ),
             )
             .child(
                 Callout::new(
-                    "External Agents call BoxAI and remote MCP servers directly. BoxAI Connector does not start a model proxy or keep a local service running.",
+                    text(self.locale, Message::DirectConnectionExplanation),
                     Tone::Info,
                 )
                 .id("overview.direct"),
             )
             .children(status.provisioning_error.as_ref().map(|error| {
                 Callout::new(
-                    format!("Connector attention required: {error}"),
+                    self.locale.with_detail(Message::ConnectorAttention, error),
                     Tone::Warning,
                 )
                 .id("overview.provisioning-error")
             }))
             .child(
-                SettingsSection::new("overview.boundary", "Connection boundary")
-                    .description("The platform owns the catalog; each Agent owns its own default model.")
-                    .row(
-                        SettingsRow::new("overview.protocols", "Protocols")
-                            .value(status.manifest.gateway.protocols.join(", ")),
-                    )
-                    .row(
-                        SettingsRow::new("overview.models", "Chat-capable models").value(
+                SettingsSection::new(
+                    "overview.boundary",
+                    text(self.locale, Message::ConnectionBoundary),
+                )
+                .description(text(self.locale, Message::BoundaryDescription))
+                .row(
+                    SettingsRow::new("overview.protocols", text(self.locale, Message::Protocols))
+                        .value(status.manifest.gateway.protocols.join(", ")),
+                )
+                .row(
+                    SettingsRow::new("overview.models", text(self.locale, Message::ChatModels))
+                        .value(
                             status
                                 .provisioning
                                 .as_ref()
                                 .map_or(0, |value| value.models.len())
                                 .to_string(),
                         ),
+                )
+                .row(
+                    SettingsRow::new(
+                        "overview.credentials",
+                        text(self.locale, Message::CredentialStorage),
                     )
-                    .row(
-                        SettingsRow::new("overview.credentials", "Credential storage")
-                            .value("Operating-system vault")
-                            .managed("BoxAI Connector"),
-                    ),
+                    .value(text(self.locale, Message::OsVault))
+                    .managed(text(self.locale, Message::ManagedByConnector)),
+                ),
             )
             .into_any_element()
     }
@@ -662,16 +717,19 @@ impl GatewayKit {
         };
         if !status.connected {
             let handle = cx.entity();
-            return EmptyState::new("agents.disconnected", "Connect a Gateway account first")
-                .kind(EmptyKind::Unstarted)
-                .detail("Model choices and managed configuration are account-scoped.")
-                .action(
-                    Button::new("agents.connect")
-                        .label("Connect account")
-                        .primary()
-                        .on_click(move |_, cx| handle.update(cx, |this, cx| this.connect(cx))),
-                )
-                .into_any_element();
+            return EmptyState::new(
+                "agents.disconnected",
+                text(self.locale, Message::ConnectFirst),
+            )
+            .kind(EmptyKind::Unstarted)
+            .detail(text(self.locale, Message::AccountScopedDetail))
+            .action(
+                Button::new("agents.connect")
+                    .label(text(self.locale, Message::ConnectAccount))
+                    .primary()
+                    .on_click(move |_, cx| handle.update(cx, |this, cx| this.connect(cx))),
+            )
+            .into_any_element();
         }
 
         let mut list = Card::new();
@@ -680,7 +738,7 @@ impl GatewayKit {
                 .selected_models
                 .get(&install.agent)
                 .cloned()
-                .unwrap_or_else(|| "No model available".into());
+                .unwrap_or_else(|| text(self.locale, Message::NoModel).into());
             list = list.child(
                 ListRow::new()
                     .id(format!("agent.{}", install.agent.as_str()))
@@ -703,9 +761,9 @@ impl GatewayKit {
                                     )
                                     .child(
                                         Badge::new(if install.detected {
-                                            "Detected"
+                                            text(self.locale, Message::Detected)
                                         } else {
-                                            "Not found"
+                                            text(self.locale, Message::NotFound)
                                         })
                                         .tone(
                                             if install.detected {
@@ -755,15 +813,11 @@ impl GatewayKit {
         let disabled_reason = if self.busy {
             self.busy_message
         } else if detected == 0 {
-            Some(
-                "Install or launch a supported Agent so Connector can detect its configuration root.",
-            )
+            Some(text(self.locale, Message::InstallAgentReason))
         } else if !has_models {
-            Some(
-                "No account-visible chat model is available. Refresh after an administrator enables one.",
-            )
+            Some(text(self.locale, Message::NoVisibleModelReason))
         } else if !has_preview {
-            Some("Preview the managed file changes before applying them.")
+            Some(text(self.locale, Message::PreviewFirstReason))
         } else {
             None
         };
@@ -779,7 +833,7 @@ impl GatewayKit {
                         .gap(px(theme.spacing.sm))
                         .child(
                             Button::new("agents.preview")
-                                .label("Preview changes")
+                                .label(text(self.locale, Message::PreviewChanges))
                                 .secondary()
                                 .icon(Icon::Document)
                                 .disabled(self.busy || detected == 0 || !has_models)
@@ -789,7 +843,7 @@ impl GatewayKit {
                         )
                         .child(
                             Button::new("agents.apply")
-                                .label("Apply to detected Agents")
+                                .label(text(self.locale, Message::ApplyAgents))
                                 .primary()
                                 .icon(Icon::Check)
                                 .disabled(self.busy || detected == 0 || !has_models || !has_preview)
@@ -801,7 +855,7 @@ impl GatewayKit {
                             div()
                                 .text_size(px(theme.typography.caption.size))
                                 .text_color(theme.colors.text_muted)
-                                .child(format!("{detected} of {} detected", self.installs.len())),
+                                .child(self.locale.detected_count(detected, self.installs.len())),
                         ),
                 )
                 .children(disabled_reason.map(|reason| {
@@ -811,18 +865,16 @@ impl GatewayKit {
         if let Some(error) = status.provisioning_error.as_ref() {
             page = page.child(
                 Callout::new(
-                    format!("Gateway provisioning is unavailable: {error}"),
+                    self.locale
+                        .with_detail(Message::ProvisioningUnavailable, error),
                     Tone::Warning,
                 )
                 .id("agents.provisioning-error"),
             );
         } else if !has_models {
             page = page.child(
-                Callout::new(
-                    "This account currently has no callable chat model. Configuration cannot be applied until the Gateway catalog contains one.",
-                    Tone::Warning,
-                )
-                .id("agents.empty-model-catalog"),
+                Callout::new(text(self.locale, Message::EmptyModelWarning), Tone::Warning)
+                    .id("agents.empty-model-catalog"),
             );
         }
         if !self.preview.is_empty() {
@@ -831,7 +883,7 @@ impl GatewayKit {
                 preview = preview.child(
                     ListRow::new()
                         .id(format!("preview.{index}"))
-                        .child(Badge::new(change_kind(change.kind.clone())).neutral())
+                        .child(Badge::new(change_kind(self.locale, change.kind.clone())).neutral())
                         .child(
                             div()
                                 .min_w_0()
@@ -841,7 +893,10 @@ impl GatewayKit {
                 );
             }
             page = page
-                .child(section_title(theme, "Configuration preview"))
+                .child(section_title(
+                    theme,
+                    text(self.locale, Message::ConfigurationPreview),
+                ))
                 .child(preview);
         }
         page.into_any_element()
@@ -853,14 +908,17 @@ impl GatewayKit {
         };
         let Some(provisioning) = status.provisioning.as_ref() else {
             return if let Some(error) = status.provisioning_error.as_ref() {
-                EmptyState::new("services.failed", "Gateway provisioning is unavailable")
-                    .kind(EmptyKind::Failed)
-                    .detail(error.clone())
-                    .into_any_element()
+                EmptyState::new(
+                    "services.failed",
+                    text(self.locale, Message::ProvisioningUnavailable),
+                )
+                .kind(EmptyKind::Failed)
+                .detail(error.clone())
+                .into_any_element()
             } else {
                 EmptyState::new(
                     "services.disconnected",
-                    "Services are available after sign-in",
+                    text(self.locale, Message::ServicesAfterSignIn),
                 )
                 .kind(EmptyKind::Unstarted)
                 .into_any_element()
@@ -872,7 +930,7 @@ impl GatewayKit {
                 ListRow::new()
                     .id(format!("model.{index}"))
                     .child(div().flex_1().child(model.id.clone()))
-                    .child(Badge::new("Chat").accent()),
+                    .child(Badge::new(text(self.locale, Message::Chat)).accent()),
             );
         }
         let mut mcps = Card::new();
@@ -895,7 +953,7 @@ impl GatewayKit {
                                     .child(server.url.to_string()),
                             ),
                     )
-                    .child(Badge::new("Remote bearer").info()),
+                    .child(Badge::new(text(self.locale, Message::RemoteBearer)).info()),
             );
         }
         let mut skills = Card::new();
@@ -904,7 +962,7 @@ impl GatewayKit {
                 ListRow::new()
                     .id(format!("skill.{index}"))
                     .child(div().flex_1().child(skill.name.clone()))
-                    .child(Badge::new("Synchronized").neutral()),
+                    .child(Badge::new(text(self.locale, Message::Synchronized)).neutral()),
             );
         }
 
@@ -914,22 +972,26 @@ impl GatewayKit {
             .gap(px(theme.spacing.md))
             .child(section_title(
                 theme,
-                &format!("Models · {}", provisioning.models.len()),
+                &self
+                    .locale
+                    .section_count(Message::Models, provisioning.models.len()),
             ))
             .child(if provisioning.models.is_empty() {
-                EmptyState::new("models.empty", "No callable chat models")
+                EmptyState::new("models.empty", text(self.locale, Message::NoChatModels))
                     .kind(EmptyKind::Empty)
-                    .detail("The Gateway returned an empty account-visible catalog.")
+                    .detail(text(self.locale, Message::EmptyCatalogDetail))
                     .into_any_element()
             } else {
                 models.into_any_element()
             })
             .child(section_title(
                 theme,
-                &format!("Remote MCP · {}", provisioning.mcp_servers.len()),
+                &self
+                    .locale
+                    .section_count(Message::RemoteMcp, provisioning.mcp_servers.len()),
             ))
             .child(if provisioning.mcp_servers.is_empty() {
-                EmptyState::new("mcp.empty", "No MCP services advertised")
+                EmptyState::new("mcp.empty", text(self.locale, Message::NoMcp))
                     .kind(EmptyKind::Empty)
                     .into_any_element()
             } else {
@@ -937,14 +999,14 @@ impl GatewayKit {
             })
             .child(section_title(
                 theme,
-                &format!("Official Skills · {}", provisioning.skills.len()),
+                &self
+                    .locale
+                    .section_count(Message::OfficialSkills, provisioning.skills.len()),
             ))
             .child(if provisioning.skills.is_empty() {
-                EmptyState::new("skills.empty", "No official Skills advertised")
+                EmptyState::new("skills.empty", text(self.locale, Message::NoSkills))
                     .kind(EmptyKind::Empty)
-                    .detail(
-                        "BoxAI Connector does not invent a Skill catalog the platform does not own.",
-                    )
+                    .detail(text(self.locale, Message::EmptySkillsDetail))
                     .into_any_element()
             } else {
                 skills.into_any_element()
@@ -975,111 +1037,137 @@ impl GatewayKit {
             .flex_col()
             .gap(px(theme.spacing.xl))
             .child(
-                SettingsSection::new("settings.runtime", "Runtime")
+                SettingsSection::new("settings.language", text(self.locale, Message::Language))
+                    .description(text(self.locale, Message::LanguageDescription))
                     .row(
-                        SettingsRow::new("settings.proxy", "Local model relay")
-                            .description("Agents connect to the platform Gateway directly.")
-                            .value("Not installed")
-                            .managed("Architecture"),
-                    )
-                    .row(
-                        SettingsRow::new("settings.callback", "Loopback callback")
-                            .description("Opened only during browser PKCE sign-in, then closed.")
-                            .value("Temporary")
-                            .managed("Authentication"),
-                    )
-                    .row(
-                        SettingsRow::new("settings.vault", "Gateway credential")
-                            .description("Never written into BoxAI Connector's JSON state.")
-                            .value("System vault")
-                            .managed("Operating system"),
+                        SettingsRow::new(
+                            "settings.language.row",
+                            text(self.locale, Message::Language),
+                        )
+                        .control(self.language_select.clone()),
                     ),
             )
             .child(
-                SettingsSection::new("settings.actions", "Maintenance")
-                    .description("Managed removal preserves unrelated providers, MCP servers, Skills, and config entries.")
+                SettingsSection::new("settings.runtime", text(self.locale, Message::Runtime))
                     .row(
-                        SettingsRow::new("settings.reload", "Reload status")
-                            .control(
-                                Button::new("settings.reload.action")
-                                    .label("Reload")
-                                    .secondary()
-                                    .disabled(self.busy)
-                                    .on_click(move |_, cx| {
-                                        reload_handle.update(cx, |this, cx| this.load(cx))
-                                    }),
-                            ),
+                        SettingsRow::new("settings.proxy", text(self.locale, Message::LocalRelay))
+                            .description(text(self.locale, Message::AgentsDirectDescription))
+                            .value(text(self.locale, Message::NotInstalled))
+                            .managed(text(self.locale, Message::Architecture)),
                     )
                     .row(
-                        SettingsRow::new("settings.remove", "Remove managed Agent configuration")
-                            .control(
-                                Button::new("settings.remove.action")
-                                    .label(if remove_confirmed {
-                                        "Confirm removal"
-                                    } else {
-                                        "Review removal"
-                                    })
-                                    .when(remove_confirmed, |button| button.danger())
-                                    .when(!remove_confirmed, |button| button.secondary())
-                                    .disabled(self.busy || !can_remove)
-                                    .on_click(move |_, cx| {
-                                        remove_handle.update(cx, |this, cx| {
-                                            this.confirm(DestructiveAction::RemoveProjections, cx)
-                                        })
-                                    }),
-                            ),
+                        SettingsRow::new(
+                            "settings.callback",
+                            text(self.locale, Message::LoopbackCallback),
+                        )
+                        .description(text(self.locale, Message::CallbackDescription))
+                        .value(text(self.locale, Message::Temporary))
+                        .managed(text(self.locale, Message::Authentication)),
                     )
                     .row(
-                        SettingsRow::new("settings.logout", "Sign out & revoke")
-                            .description("Removes managed projections before clearing the OS credential.")
-                            .control(
-                                Button::new("settings.logout.action")
-                                    .label(if logout_confirmed {
-                                        "Confirm sign out"
-                                    } else {
-                                        "Review sign out"
+                        SettingsRow::new(
+                            "settings.vault",
+                            text(self.locale, Message::GatewayCredential),
+                        )
+                        .description(text(self.locale, Message::VaultDescription))
+                        .value(text(self.locale, Message::SystemVault))
+                        .managed(text(self.locale, Message::OperatingSystem)),
+                    ),
+            )
+            .child(
+                SettingsSection::new("settings.actions", text(self.locale, Message::Maintenance))
+                    .description(text(self.locale, Message::MaintenanceDescription))
+                    .row(
+                        SettingsRow::new(
+                            "settings.reload",
+                            text(self.locale, Message::ReloadStatus),
+                        )
+                        .control(
+                            Button::new("settings.reload.action")
+                                .label(text(self.locale, Message::Reload))
+                                .secondary()
+                                .disabled(self.busy)
+                                .on_click(move |_, cx| {
+                                    reload_handle.update(cx, |this, cx| this.load(cx))
+                                }),
+                        ),
+                    )
+                    .row(
+                        SettingsRow::new(
+                            "settings.remove",
+                            text(self.locale, Message::RemoveConfiguration),
+                        )
+                        .control(
+                            Button::new("settings.remove.action")
+                                .label(if remove_confirmed {
+                                    text(self.locale, Message::ConfirmRemoval)
+                                } else {
+                                    text(self.locale, Message::ReviewRemoval)
+                                })
+                                .when(remove_confirmed, |button| button.danger())
+                                .when(!remove_confirmed, |button| button.secondary())
+                                .disabled(self.busy || !can_remove)
+                                .on_click(move |_, cx| {
+                                    remove_handle.update(cx, |this, cx| {
+                                        this.confirm(DestructiveAction::RemoveProjections, cx)
                                     })
-                                    .danger()
-                                    .disabled(self.busy || !can_logout)
-                                    .on_click(move |_, cx| {
-                                        logout_handle.update(cx, |this, cx| {
-                                            this.confirm(DestructiveAction::SignOut, cx)
-                                        })
-                                    }),
-                            ),
+                                }),
+                        ),
+                    )
+                    .row(
+                        SettingsRow::new(
+                            "settings.logout",
+                            text(self.locale, Message::SignOutRevoke),
+                        )
+                        .description(text(self.locale, Message::LogoutDescription))
+                        .control(
+                            Button::new("settings.logout.action")
+                                .label(if logout_confirmed {
+                                    text(self.locale, Message::ConfirmSignOut)
+                                } else {
+                                    text(self.locale, Message::ReviewSignOut)
+                                })
+                                .danger()
+                                .disabled(self.busy || !can_logout)
+                                .on_click(move |_, cx| {
+                                    logout_handle.update(cx, |this, cx| {
+                                        this.confirm(DestructiveAction::SignOut, cx)
+                                    })
+                                }),
+                        ),
                     ),
             )
             .children((!can_remove && !can_logout).then(|| {
-                Callout::new(
-                    "No managed projection or stored Connector credential is present.",
-                    Tone::Info,
-                )
-                .id("settings.actions-disabled-reason")
+                Callout::new(text(self.locale, Message::NoManagedState), Tone::Info)
+                    .id("settings.actions-disabled-reason")
             }))
             .into_any_element()
     }
 
     fn unavailable(&self, cx: &mut Context<Self>) -> AnyElement {
         let handle = cx.entity();
-        EmptyState::new("gateway.unavailable", "Gateway status is unavailable")
-            .kind(if self.error.is_some() {
-                EmptyKind::Failed
-            } else {
-                EmptyKind::Unavailable
-            })
-            .detail(
-                self.error
-                    .clone()
-                    .unwrap_or_else(|| "Loading the connector manifest…".into()),
-            )
-            .action(
-                Button::new("gateway.retry")
-                    .label("Retry")
-                    .secondary()
-                    .disabled(self.busy)
-                    .on_click(move |_, cx| handle.update(cx, |this, cx| this.load(cx))),
-            )
-            .into_any_element()
+        EmptyState::new(
+            "gateway.unavailable",
+            text(self.locale, Message::GatewayUnavailable),
+        )
+        .kind(if self.error.is_some() {
+            EmptyKind::Failed
+        } else {
+            EmptyKind::Unavailable
+        })
+        .detail(
+            self.error
+                .clone()
+                .unwrap_or_else(|| text(self.locale, Message::LoadingManifest).into()),
+        )
+        .action(
+            Button::new("gateway.retry")
+                .label(text(self.locale, Message::Retry))
+                .secondary()
+                .disabled(self.busy)
+                .on_click(move |_, cx| handle.update(cx, |this, cx| this.load(cx))),
+        )
+        .into_any_element()
     }
 }
 
@@ -1132,19 +1220,18 @@ impl Render for GatewayKit {
                                                 div()
                                                     .text_size(px(theme.typography.title.size))
                                                     .font_weight(FontWeight::SEMIBOLD)
-                                                    .child(self.page.title()),
+                                                    .child(self.page.title(self.locale)),
                                             )
                                             .child(
                                                 div()
                                                     .text_size(px(theme.typography.body.size))
                                                     .text_color(theme.colors.text_muted)
-                                                    .child(self.page.subtitle()),
+                                                    .child(self.page.subtitle(self.locale)),
                                             ),
                                     )
-                                    .children(
-                                        self.busy_message
-                                            .map(|message| Badge::new(message).accent()),
-                                    ),
+                                    .children(self.busy_message.map(|message| {
+                                        Badge::new(text(self.locale, message)).accent()
+                                    })),
                             )
                             .children(self.notice.as_ref().map(|(tone, message)| {
                                 Callout::new(message.clone(), tone.tone()).id("gateway.notice")
@@ -1165,12 +1252,12 @@ fn agent_name(agent: AgentId) -> &'static str {
     }
 }
 
-fn change_kind(kind: ChangeKind) -> &'static str {
+fn change_kind(locale: Locale, kind: ChangeKind) -> &'static str {
     match kind {
-        ChangeKind::Create => "Create",
-        ChangeKind::Update => "Update",
-        ChangeKind::Remove => "Remove",
-        ChangeKind::ProjectSkill => "Skill",
+        ChangeKind::Create => text(locale, Message::Create),
+        ChangeKind::Update => text(locale, Message::Update),
+        ChangeKind::Remove => text(locale, Message::Remove),
+        ChangeKind::ProjectSkill => text(locale, Message::Skill),
     }
 }
 
@@ -1187,10 +1274,13 @@ fn main() {
     let app = gpui_platform::application().with_assets(gpui_kit::assets::Assets);
     app.run(|cx: &mut App| {
         gpui_kit::install(cx);
-        // Connector always renders a dark surface. Tell GPUI before creating
-        // the native window so Windows DWM also uses dark caption and frame
-        // colors instead of surrounding the app with light system chrome.
-        cx.set_window_appearance(Some(WindowAppearance::Dark));
+        // Keep native chrome and content in lockstep with the operating system.
+        cx.set_window_appearance(None);
+        let theme = match cx.window_appearance() {
+            WindowAppearance::Light | WindowAppearance::VibrantLight => "studio-light",
+            WindowAppearance::Dark | WindowAppearance::VibrantDark => "studio-dark",
+        };
+        gpui_kit::theme::activate_theme(theme, cx);
         let bounds = Bounds::centered(None, size(px(1120.0), px(760.0)), cx);
         cx.open_window(
             WindowOptions {
@@ -1204,7 +1294,17 @@ fn main() {
             },
             |window, cx| {
                 let backend = Backend::new().expect("initialize BoxAI Connector backend");
-                cx.new(|cx| GatewayKit::new(backend, window, cx))
+                let view = cx.new(|cx| GatewayKit::new(backend, window, cx));
+                cx.observe_window_appearance(window, |_, window, cx| {
+                    let theme = match window.appearance() {
+                        WindowAppearance::Light | WindowAppearance::VibrantLight => "studio-light",
+                        WindowAppearance::Dark | WindowAppearance::VibrantDark => "studio-dark",
+                    };
+                    gpui_kit::theme::activate_theme(theme, cx);
+                    cx.notify();
+                })
+                .detach();
+                view
             },
         )
         .expect("open BoxAI Connector window");
