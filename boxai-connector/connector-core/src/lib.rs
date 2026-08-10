@@ -5,8 +5,9 @@ mod transaction;
 
 pub use discovery::{AgentInstall, Discovery};
 pub use model::{
-    AgentId, AuthType, ConnectionManifest, MAX_SKILL_ARCHIVE_SIZE, McpAuthorization, Platform,
-    Provisioning, Secret, Skill, SkillArchiveAuthorization,
+    Account, AgentId, AuthType, Billing, ConnectionManifest, MAX_SKILL_ARCHIVE_SIZE,
+    McpAuthorization, Model, ModelPlaza, ModelVendor, Platform, Provisioning, Secret, Skill,
+    SkillArchiveAuthorization, Subscription, Usage,
 };
 pub use transaction::{ApplyInput, Change, ChangeKind, Connector, Plan, Verification};
 

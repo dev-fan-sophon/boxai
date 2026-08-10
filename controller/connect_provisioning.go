@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -151,8 +153,52 @@ type connectorManifest struct {
 }
 
 type connectorModel struct {
-	ID          string `json:"id"`
-	ChatCapable bool   `json:"chat_capable"`
+	ID          string           `json:"id"`
+	ChatCapable bool             `json:"chat_capable"`
+	Description string           `json:"description,omitempty"`
+	Icon        string           `json:"icon,omitempty"`
+	Tags        []string         `json:"tags"`
+	Vendor      *connectorVendor `json:"vendor,omitempty"`
+}
+
+type connectorVendor struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Icon string `json:"icon,omitempty"`
+}
+
+type connectorAccount struct {
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Group       string `json:"group"`
+}
+
+type connectorUsage struct {
+	CreditsTotal     int64 `json:"credits_total"`
+	CreditsUsed      int64 `json:"credits_used"`
+	CreditsRemaining int64 `json:"credits_remaining"`
+	RequestCount     int64 `json:"request_count"`
+}
+
+type connectorSubscription struct {
+	Status         string `json:"status"`
+	CreditsTotal   int64  `json:"credits_total"`
+	CreditsUsed    int64  `json:"credits_used"`
+	StartTime      int64  `json:"start_time"`
+	EndTime        int64  `json:"end_time"`
+	NextResetTime  int64  `json:"next_reset_time"`
+	WalletFallback bool   `json:"wallet_fallback"`
+}
+
+type connectorBilling struct {
+	PortalURL     string                  `json:"portal_url"`
+	Subscriptions []connectorSubscription `json:"subscriptions"`
+}
+
+type connectorModelPlaza struct {
+	PortalURL string `json:"portal_url"`
 }
 
 type connectorMCPServer struct {
@@ -180,6 +226,10 @@ type connectorSkill struct {
 
 type connectorProvisioning struct {
 	SchemaVersion int                  `json:"schema_version"`
+	Account       connectorAccount     `json:"account"`
+	Usage         connectorUsage       `json:"usage"`
+	Billing       connectorBilling     `json:"billing"`
+	ModelPlaza    connectorModelPlaza  `json:"model_plaza"`
 	Models        []connectorModel     `json:"models"`
 	DefaultModel  string               `json:"default_model"`
 	MCPServers    []connectorMCPServer `json:"mcp_servers"`
@@ -278,20 +328,91 @@ func RevokeConnectorSession(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-// GetConnectorProvisioning exposes only account-callable chat models and
+// GetConnectorProvisioning exposes account-callable models and
 // server-owned integration descriptors. The bearer key authenticating this
 // request is intentionally referenced, never echoed; upstream channel secrets
 // are not read by this handler at all.
 func GetConnectorProvisioning(c *gin.Context) {
-	chatModels, _, err := accountChatModelNames(c)
+	userID := c.GetInt("id")
+	user, err := model.GetUserById(userID, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account failed"})
+		return
+	}
+	modelNames, groups, err := accountModelNames(c)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account models failed"})
 		return
 	}
+	owners, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups.ownerGroups)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account models failed"})
+		return
+	}
+	pricingByModel := make(map[string]model.Pricing, len(modelNames))
+	for _, pricing := range model.GetPricing() {
+		pricingByModel[pricing.ModelName] = pricing
+	}
+	vendors := make(map[int]model.PricingVendor)
+	for _, vendor := range model.GetVendors() {
+		vendors[vendor.ID] = vendor
+	}
+	models := make([]connectorModel, 0, len(modelNames))
+	for _, name := range modelNames {
+		if _, available := owners[name]; !available {
+			continue
+		}
+		entry := connectorModel{ID: name, ChatCapable: isChatModel(model.GetModelSupportEndpointTypes(name)), Tags: []string{}}
+		if pricing, ok := pricingByModel[name]; ok {
+			if validConnectorMetadata(pricing.Description, 2048) {
+				entry.Description = pricing.Description
+			}
+			if validConnectorMetadata(pricing.Icon, 1024) {
+				entry.Icon = pricing.Icon
+			}
+			seenTags := make(map[string]struct{})
+			for _, tag := range strings.Split(pricing.Tags, ",") {
+				tag = strings.TrimSpace(tag)
+				if validConnectorMetadata(tag, 128) {
+					seenTags[tag] = struct{}{}
+				}
+			}
+			for tag := range seenTags {
+				entry.Tags = append(entry.Tags, tag)
+			}
+			sort.Strings(entry.Tags)
+			if len(entry.Tags) > 64 {
+				entry.Tags = entry.Tags[:64]
+			}
+			if vendor, exists := vendors[pricing.VendorID]; exists {
+				if validConnectorMetadata(vendor.Name, 255) {
+					entry.Vendor = &connectorVendor{ID: strconv.Itoa(vendor.ID), Name: vendor.Name}
+					if validConnectorMetadata(vendor.Icon, 1024) {
+						entry.Vendor.Icon = vendor.Icon
+					}
+				}
+			}
+		}
+		models = append(models, entry)
+	}
+	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
 
-	models := make([]connectorModel, 0, len(chatModels))
-	for _, name := range chatModels {
-		models = append(models, connectorModel{ID: name, ChatCapable: true})
+	subscriptionRows, err := model.GetAllActiveUserSubscriptions(userID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account subscriptions failed"})
+		return
+	}
+	subscriptions := make([]connectorSubscription, 0, len(subscriptionRows))
+	for _, summary := range subscriptionRows {
+		if summary.Subscription == nil {
+			continue
+		}
+		sub := summary.Subscription
+		subscriptions = append(subscriptions, connectorSubscription{
+			Status: sub.Status, CreditsTotal: max(sub.AmountTotal, 0), CreditsUsed: max(sub.AmountUsed, 0),
+			StartTime: sub.StartTime, EndTime: sub.EndTime, NextResetTime: sub.NextResetTime,
+			WalletFallback: sub.AllowWalletOverflow,
+		})
 	}
 	mcpRows, err := model.ListConnectorMCPServers(true)
 	if err != nil {
@@ -338,17 +459,37 @@ func GetConnectorProvisioning(c *gin.Context) {
 		})
 	}
 
+	remaining := int64(max(user.Quota, 0))
+	used := int64(max(user.UsedQuota, 0))
+	total := remaining + used
+	if total < remaining {
+		total = math.MaxInt64
+	}
+	origin := publicOrigin(c)
 	data := connectorProvisioning{
 		SchemaVersion: 2,
+		Account:       connectorAccount{ID: user.Id, Username: user.Username, DisplayName: user.DisplayName, Email: user.Email, Group: user.Group},
+		Usage:         connectorUsage{CreditsTotal: total, CreditsUsed: used, CreditsRemaining: remaining, RequestCount: int64(user.RequestCount)},
+		Billing:       connectorBilling{PortalURL: origin + "/subscriptions", Subscriptions: subscriptions},
+		ModelPlaza:    connectorModelPlaza{PortalURL: origin + "/pricing"},
 		Models:        models,
 		MCPServers:    mcpServers,
 		Skills:        skills,
 	}
-	if len(models) > 0 {
-		data.DefaultModel = models[0].ID
+	for _, entry := range models {
+		if entry.ChatCapable {
+			data.DefaultModel = entry.ID
+			break
+		}
 	}
 	desktopNoStore(c)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
+func validConnectorMetadata(value string, maxBytes int) bool {
+	return value != "" && len(value) <= maxBytes && !strings.ContainsFunc(value, func(r rune) bool {
+		return r < ' ' || r == 0x7f
+	})
 }
 
 // GetConnectProvisioning serves the account-scoped configuration BoxAI Connect

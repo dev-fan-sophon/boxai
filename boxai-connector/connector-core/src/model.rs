@@ -157,6 +157,55 @@ pub struct Model {
     pub id: String,
     #[serde(default)]
     pub chat_capable: bool,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub vendor: Option<ModelVendor>,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelVendor {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub icon: Option<String>,
+}
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct Account {
+    pub id: i64,
+    pub username: String,
+    pub display_name: String,
+    pub email: String,
+    pub group: String,
+}
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+pub struct Usage {
+    pub credits_total: u64,
+    pub credits_used: u64,
+    pub credits_remaining: u64,
+    pub request_count: u64,
+}
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct Subscription {
+    pub status: String,
+    pub credits_total: u64,
+    pub credits_used: u64,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub next_reset_time: u64,
+    pub wallet_fallback: bool,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct Billing {
+    pub portal_url: Url,
+    pub subscriptions: Vec<Subscription>,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelPlaza {
+    pub portal_url: Url,
 }
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -196,6 +245,10 @@ pub struct Skill {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Provisioning {
     pub schema_version: u32,
+    pub account: Account,
+    pub usage: Usage,
+    pub billing: Billing,
+    pub model_plaza: ModelPlaza,
     pub models: Vec<Model>,
     pub default_model: String,
     pub mcp_servers: Vec<McpServer>,
@@ -214,6 +267,37 @@ impl Provisioning {
     }
     pub fn validate(&self) -> Result<()> {
         schema(self.schema_version)?;
+        if self.account.id < 0 {
+            return Err(Error::Validation("invalid account id".into()));
+        }
+        bounded_text(&self.account.username, "account username", 128, false)?;
+        bounded_text(
+            &self.account.display_name,
+            "account display name",
+            255,
+            true,
+        )?;
+        bounded_text(&self.account.email, "account email", 320, true)?;
+        bounded_text(&self.account.group, "account group", 128, false)?;
+        if self.usage.credits_used > self.usage.credits_total
+            || self.usage.credits_remaining != self.usage.credits_total - self.usage.credits_used
+        {
+            return Err(Error::Validation("inconsistent usage credits".into()));
+        }
+        secure(&self.billing.portal_url)?;
+        secure(&self.model_plaza.portal_url)?;
+        for subscription in &self.billing.subscriptions {
+            bounded_text(&subscription.status, "subscription status", 64, false)?;
+            if (subscription.credits_total != 0
+                && subscription.credits_used > subscription.credits_total)
+                || subscription.start_time > subscription.end_time
+                || (subscription.next_reset_time != 0
+                    && (subscription.next_reset_time < subscription.start_time
+                        || subscription.next_reset_time > subscription.end_time))
+            {
+                return Err(Error::Validation("invalid subscription".into()));
+            }
+        }
         if self.mcp_servers.len() > MAX_CATALOG_ENTRIES {
             return Err(Error::Validation(format!(
                 "MCP catalog exceeds {MAX_CATALOG_ENTRIES} entries"
@@ -225,25 +309,38 @@ impl Provisioning {
             )));
         }
         let mut ids = BTreeSet::new();
+        let mut chat_ids = BTreeSet::new();
         for m in &self.models {
             model_id(&m.id)?;
-            if !m.chat_capable {
-                return Err(Error::Validation(format!(
-                    "model {} is not chat-capable",
-                    m.id
-                )));
-            }
             if !ids.insert(&m.id) {
                 return Err(Error::Validation(format!("duplicate model id {}", m.id)));
             }
+            if m.chat_capable {
+                chat_ids.insert(&m.id);
+            }
+            optional_metadata(&m.description, "model description", 2048)?;
+            optional_metadata(&m.icon, "model icon", 1024)?;
+            if m.tags.len() > 64 {
+                return Err(Error::Validation("too many model tags".into()));
+            }
+            for tag in &m.tags {
+                bounded_text(tag, "model tag", 128, false)?;
+            }
+            if let Some(vendor) = &m.vendor {
+                bounded_text(&vendor.id, "vendor id", 128, false)?;
+                bounded_text(&vendor.name, "vendor name", 255, false)?;
+                optional_metadata(&vendor.icon, "vendor icon", 1024)?;
+            }
         }
-        if ids.is_empty() && !self.default_model.is_empty() {
+        if chat_ids.is_empty() && !self.default_model.is_empty() {
             return Err(Error::Validation(
-                "empty catalog requires empty default_model".into(),
+                "catalog without chat-capable models requires empty default_model".into(),
             ));
         }
-        if !ids.is_empty() && !ids.contains(&self.default_model) {
-            return Err(Error::Validation("default_model is outside catalog".into()));
+        if !chat_ids.is_empty() && !chat_ids.contains(&self.default_model) {
+            return Err(Error::Validation(
+                "default_model is not chat-capable".into(),
+            ));
         }
         let mut mcp_ids = BTreeSet::new();
         for m in &self.mcp_servers {
@@ -410,6 +507,22 @@ fn model_id(value: &str) -> Result<()> {
         Ok(())
     } else {
         Err(Error::Validation("invalid model id".into()))
+    }
+}
+fn bounded_text(value: &str, label: &str, max: usize, allow_empty: bool) -> Result<()> {
+    if (allow_empty || !value.trim().is_empty())
+        && value.len() <= max
+        && !value.chars().any(char::is_control)
+    {
+        Ok(())
+    } else {
+        Err(Error::Validation(format!("invalid {label}")))
+    }
+}
+fn optional_metadata(value: &Option<String>, label: &str, max: usize) -> Result<()> {
+    match value {
+        Some(value) => bounded_text(value, label, max, true),
+        None => Ok(()),
     }
 }
 fn secure(url: &Url) -> Result<()> {

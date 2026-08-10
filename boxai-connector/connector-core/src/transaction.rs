@@ -157,7 +157,12 @@ impl Connector {
     pub fn plan(&self, input: ApplyInput<'_>) -> Result<Plan> {
         input.manifest.validate()?;
         input.provisioning.validate_for(input.manifest)?;
-        if input.provisioning.models.is_empty() {
+        if !input
+            .provisioning
+            .models
+            .iter()
+            .any(|model| model.chat_capable)
+        {
             return Err(Error::Validation(
                 "cannot project Agent configuration: account has no chat-capable model".into(),
             ));
@@ -302,7 +307,12 @@ impl Connector {
                 .selected_models
                 .get(&install.agent)
                 .unwrap_or(&input.provisioning.default_model);
-            if !input.provisioning.models.iter().any(|m| &m.id == model) {
+            if !input
+                .provisioning
+                .models
+                .iter()
+                .any(|m| m.chat_capable && &m.id == model)
+            {
                 return Err(Error::Validation(format!(
                     "selected model {model} is outside catalog"
                 )));
@@ -621,6 +631,23 @@ impl Connector {
     pub fn has_receipt(&self, platform: &str) -> bool {
         self.receipt_path(platform).is_file()
     }
+    pub fn managed_agents(&self, platform: &str, bearer: &Secret) -> Result<BTreeSet<AgentId>> {
+        let Some(receipt) = self.load_receipt(platform, &receipt_key(bearer)?)? else {
+            return Ok(BTreeSet::new());
+        };
+        Ok(receipt
+            .leases
+            .iter()
+            .filter_map(|lease| match lease.agent.as_str() {
+                "claude" => Some(AgentId::Claude),
+                "codex" => Some(AgentId::Codex),
+                "gemini" => Some(AgentId::Gemini),
+                "grokbuild" => Some(AgentId::Grokbuild),
+                "opencode" => Some(AgentId::Opencode),
+                _ => None,
+            })
+            .collect())
+    }
     fn lock(&self, _platform: &str) -> Result<fs::File> {
         let locks = self.coordinator_dir.join("locks");
         fs::create_dir_all(&locks).map_err(|error| io(&locks, error))?;
@@ -837,6 +864,7 @@ fn project(
             let catalog: Map<String, Value> = p
                 .models
                 .iter()
+                .filter(|model| model.chat_capable)
                 .map(|x| (x.id.clone(), json!({"name":x.id})))
                 .collect();
             v["model"] = json!(format!("{provider}/{model}"));

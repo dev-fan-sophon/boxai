@@ -194,6 +194,39 @@ pub enum Message {
     ErrorLocalState,
     ErrorBrowser,
     ErrorPendingRevocation,
+    ModelPlaza,
+    SearchModels,
+    AllModels,
+    NonChatModels,
+    NoMatchingModels,
+    OpenModelPlaza,
+    AccountProfile,
+    Username,
+    Email,
+    AccountGroup,
+    UsageCredits,
+    Total,
+    Used,
+    Remaining,
+    Requests,
+    ActiveSubscriptions,
+    NoActiveSubscriptions,
+    Subscription,
+    WalletFallback,
+    SubscriptionOnly,
+    Unlimited,
+    Billing,
+    OpenBilling,
+    DiscoveryRoot,
+    DiscoveryState,
+    ProjectionStatus,
+    SelectedModel,
+    DefaultModel,
+    Details,
+    BackToAgentClients,
+    RetryRevocation,
+    ManagedProjectionBlocked,
+    ManagedProjectionBlockedDetail,
 }
 
 pub fn text(locale: Locale, message: Message) -> &'static str {
@@ -370,6 +403,41 @@ pub fn text(locale: Locale, message: Message) -> &'static str {
         (Locale::Vi, ErrorPendingRevocation) => {
             "Không thể lưu thông tin xác thực và vẫn đang chờ thu hồi từ xa."
         }
+        (Locale::Vi, ModelPlaza) => "Quảng trường mô hình",
+        (Locale::Vi, SearchModels) => "Tìm mô hình",
+        (Locale::Vi, AllModels) => "Tất cả",
+        (Locale::Vi, NonChatModels) => "Không phải chat",
+        (Locale::Vi, NoMatchingModels) => "Không tìm thấy mô hình phù hợp",
+        (Locale::Vi, OpenModelPlaza) => "Mở Quảng trường mô hình",
+        (Locale::Vi, AccountProfile) => "Hồ sơ tài khoản",
+        (Locale::Vi, Username) => "Tên người dùng",
+        (Locale::Vi, Email) => "Email",
+        (Locale::Vi, AccountGroup) => "Nhóm tài khoản",
+        (Locale::Vi, UsageCredits) => "Tín dụng sử dụng",
+        (Locale::Vi, Total) => "Tổng cộng",
+        (Locale::Vi, Used) => "Đã dùng",
+        (Locale::Vi, Remaining) => "Còn lại",
+        (Locale::Vi, Requests) => "Số yêu cầu",
+        (Locale::Vi, ActiveSubscriptions) => "Gói đăng ký đang hoạt động",
+        (Locale::Vi, NoActiveSubscriptions) => "Không có gói đăng ký đang hoạt động",
+        (Locale::Vi, Subscription) => "Gói đăng ký",
+        (Locale::Vi, WalletFallback) => "Có thể dùng số dư ví",
+        (Locale::Vi, SubscriptionOnly) => "Chỉ dùng hạn mức gói",
+        (Locale::Vi, Unlimited) => "Không giới hạn",
+        (Locale::Vi, Billing) => "Thanh toán",
+        (Locale::Vi, OpenBilling) => "Mở cổng thanh toán",
+        (Locale::Vi, DiscoveryRoot) => "Thư mục gốc phát hiện",
+        (Locale::Vi, DiscoveryState) => "Trạng thái phát hiện",
+        (Locale::Vi, ProjectionStatus) => "Trạng thái cấu hình được quản lý",
+        (Locale::Vi, SelectedModel) => "Mô hình đã chọn",
+        (Locale::Vi, DefaultModel) => "Mô hình mặc định",
+        (Locale::Vi, Details) => "Chi tiết",
+        (Locale::Vi, BackToAgentClients) => "Quay lại Ứng dụng Agent",
+        (Locale::Vi, RetryRevocation) => "Thử thu hồi lại & đăng xuất",
+        (Locale::Vi, ManagedProjectionBlocked) => "Không thể kết nối lại an toàn",
+        (Locale::Vi, ManagedProjectionBlockedDetail) => {
+            "Cấu hình Agent được quản lý vẫn còn nhưng thông tin xác thực trong kho hệ thống không khả dụng. Khôi phục thông tin xác thực để xóa cấu hình an toàn."
+        }
         (_, message) => english(message),
     }
 }
@@ -524,6 +592,41 @@ fn english(message: Message) -> &'static str {
         ErrorPendingRevocation => {
             "The credential could not be stored and remote revocation is still pending."
         }
+        ModelPlaza => "Model Plaza",
+        SearchModels => "Search models",
+        AllModels => "All",
+        NonChatModels => "Non-chat",
+        NoMatchingModels => "No matching models",
+        OpenModelPlaza => "Open Model Plaza",
+        AccountProfile => "Account profile",
+        Username => "Username",
+        Email => "Email",
+        AccountGroup => "Account group",
+        UsageCredits => "Usage credits",
+        Total => "Total",
+        Used => "Used",
+        Remaining => "Remaining",
+        Requests => "Requests",
+        ActiveSubscriptions => "Active subscriptions",
+        NoActiveSubscriptions => "No active subscriptions",
+        Subscription => "Subscription",
+        WalletFallback => "Wallet fallback enabled",
+        SubscriptionOnly => "Subscription credits only",
+        Unlimited => "Unlimited",
+        Billing => "Billing",
+        OpenBilling => "Open billing portal",
+        DiscoveryRoot => "Authoritative discovery root",
+        DiscoveryState => "Discovery state",
+        ProjectionStatus => "Managed projection status",
+        SelectedModel => "Selected chat model",
+        DefaultModel => "Default chat model",
+        Details => "Details",
+        BackToAgentClients => "Back to Agent clients",
+        RetryRevocation => "Retry revocation & sign out",
+        ManagedProjectionBlocked => "Safe reconnection is blocked",
+        ManagedProjectionBlockedDetail => {
+            "Managed Agent configuration remains, but its system-vault credential is unavailable. Restore the credential to remove the configuration safely."
+        }
     }
 }
 
@@ -555,6 +658,12 @@ impl Locale {
         match self {
             Self::En => format!("{detected} of {total} detected"),
             Self::Vi => format!("Đã phát hiện {detected}/{total}"),
+        }
+    }
+    pub fn subscription_period(self, start: u64, end: u64, next_reset: u64) -> String {
+        match self {
+            Self::En => format!("Period {start}–{end} · next reset {next_reset}"),
+            Self::Vi => format!("Kỳ {start}–{end} · đặt lại tiếp theo {next_reset}"),
         }
     }
     pub fn section_count(self, label: Message, count: usize) -> String {

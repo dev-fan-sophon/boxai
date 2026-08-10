@@ -3,15 +3,20 @@
 use connector_app::{
     Backend, BackendError, LogoutStatus, Status,
     localization::{Locale, LocaleStore, Message, text},
+    ui_state::{
+        AppFrame, AuthAction, ModelFilter, Page, app_frame, auth_action, plaza_models,
+        selector_models,
+    },
 };
 use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
 use gpui::{
-    AnyElement, App, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, TitlebarOptions, Window, WindowAppearance, WindowBounds, WindowOptions,
-    div, prelude::*, px, size,
+    AnyElement, App, AssetSource, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement,
+    Render, SharedString, Styled, TitlebarOptions, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, prelude::*, px, size, svg,
 };
 use gpui_kit::{
     assets::Icon,
+    controls::input::{TextInput, TextInputEvent},
     prelude::{
         Badge, Button, Callout, Card, Disableable, EmptyKind, EmptyState, ListRow, Select,
         SelectEvent, SelectOption, SettingsRow, SettingsSection, Sidebar, SidebarItem,
@@ -19,7 +24,41 @@ use gpui_kit::{
     },
     theme::{ActiveTheme, Theme},
 };
-use std::{collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
+
+struct ConnectorAssets;
+
+impl AssetSource for ConnectorAssets {
+    fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
+        let embedded = match path {
+            "agents/claude.svg" => Some(include_bytes!("../assets/agents/claude.svg").as_slice()),
+            "agents/openai.svg" => Some(include_bytes!("../assets/agents/openai.svg").as_slice()),
+            "agents/gemini.svg" => Some(include_bytes!("../assets/agents/gemini.svg").as_slice()),
+            "agents/grok.svg" => Some(include_bytes!("../assets/agents/grok.svg").as_slice()),
+            "agents/opencode-logo-light.svg" => {
+                Some(include_bytes!("../assets/agents/opencode-logo-light.svg").as_slice())
+            }
+            _ => None,
+        };
+        if let Some(bytes) = embedded {
+            Ok(Some(Cow::Borrowed(bytes)))
+        } else {
+            gpui_kit::assets::Assets.load(path)
+        }
+    }
+
+    fn list(&self, path: &str) -> gpui::Result<Vec<SharedString>> {
+        let mut assets = gpui_kit::assets::Assets.list(path)?;
+        assets.extend(
+            AGENTS
+                .map(connector_app::ui_state::agent_icon)
+                .into_iter()
+                .filter(|asset| asset.starts_with(path))
+                .map(SharedString::from),
+        );
+        Ok(assets)
+    }
+}
 
 const AGENTS: [AgentId; 5] = [
     AgentId::Claude,
@@ -29,38 +68,19 @@ const AGENTS: [AgentId; 5] = [
     AgentId::Opencode,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Page {
-    Overview,
-    Agents,
-    Services,
-    Settings,
+trait PagePresentation {
+    fn title(self, locale: Locale) -> &'static str;
+    fn subtitle(self, locale: Locale) -> &'static str;
 }
 
-impl Page {
-    fn id(self) -> &'static str {
-        match self {
-            Self::Overview => "overview",
-            Self::Agents => "agents",
-            Self::Services => "services",
-            Self::Settings => "settings",
-        }
-    }
-
-    fn from_id(id: &str) -> Option<Self> {
-        match id {
-            "overview" => Some(Self::Overview),
-            "agents" => Some(Self::Agents),
-            "services" => Some(Self::Services),
-            "settings" => Some(Self::Settings),
-            _ => None,
-        }
-    }
-
+impl PagePresentation for Page {
     fn title(self, locale: Locale) -> &'static str {
         match self {
             Self::Overview => text(locale, Message::Connection),
+            Self::ModelPlaza => text(locale, Message::ModelPlaza),
+            Self::Projection => text(locale, Message::ConfigurationPreview),
             Self::Agents => text(locale, Message::AgentClients),
+            Self::Agent(agent) => agent_name(agent),
             Self::Services => text(locale, Message::GatewayServices),
             Self::Settings => text(locale, Message::SettingsDiagnostics),
         }
@@ -69,7 +89,10 @@ impl Page {
     fn subtitle(self, locale: Locale) -> &'static str {
         match self {
             Self::Overview => text(locale, Message::OverviewSubtitle),
-            Self::Agents => text(locale, Message::AgentsSubtitle),
+            Self::ModelPlaza => text(locale, Message::ServicesSubtitle),
+            Self::Projection | Self::Agents | Self::Agent(_) => {
+                text(locale, Message::AgentsSubtitle)
+            }
             Self::Services => text(locale, Message::ServicesSubtitle),
             Self::Settings => text(locale, Message::SettingsSubtitle),
         }
@@ -127,6 +150,9 @@ struct GatewayKit {
     installs: Vec<AgentInstall>,
     model_selects: BTreeMap<AgentId, Entity<Select>>,
     language_select: Entity<Select>,
+    model_search: Entity<TextInput>,
+    model_query: String,
+    model_filter: ModelFilter,
     locale_store: LocaleStore,
     locale: Locale,
     page: Page,
@@ -150,6 +176,10 @@ impl GatewayKit {
                         .map(|locale| SelectOption::new(locale.id(), locale.display_name())),
                 )
                 .selected(locale.id())
+        });
+        let model_search = cx.new(|cx| {
+            TextInput::new("model-plaza.search", window, cx)
+                .placeholder(text(locale, Message::SearchModels))
         });
         let mut model_selects = BTreeMap::new();
         for agent in AGENTS {
@@ -186,6 +216,9 @@ impl GatewayKit {
             installs: Vec::new(),
             model_selects,
             language_select: language_select.clone(),
+            model_search: model_search.clone(),
+            model_query: String::new(),
+            model_filter: ModelFilter::All,
             locale_store,
             locale,
             page: Page::Overview,
@@ -196,6 +229,13 @@ impl GatewayKit {
             preview: Vec::new(),
             pending_confirmation: None,
         };
+        cx.subscribe(&model_search, |this, _, event: &TextInputEvent, cx| {
+            if let TextInputEvent::Change(value) = event {
+                this.model_query = value.to_string();
+                cx.notify();
+            }
+        })
+        .detach();
         cx.subscribe(&language_select, |this, _, event: &SelectEvent, cx| {
             let SelectEvent::Selected(id) = event else {
                 return;
@@ -375,9 +415,8 @@ impl GatewayKit {
             .provisioning
             .as_ref()
             .map(|provisioning| {
-                provisioning
-                    .models
-                    .iter()
+                selector_models(provisioning)
+                    .into_iter()
                     .map(|model| SelectOption::new(model.id.clone(), model.id.clone()))
                     .collect::<Vec<_>>()
             })
@@ -409,6 +448,7 @@ impl GatewayKit {
         if let Some(status) = self.status.as_mut() {
             status.connected = false;
             status.managed_projection = false;
+            status.managed_agents.clear();
             status.pending_revocation = false;
             status.account = None;
             status.provisioning = None;
@@ -553,6 +593,13 @@ impl GatewayKit {
                     .items([
                         SidebarItem::new("overview", text(self.locale, Message::Connection))
                             .icon(Icon::Global),
+                        SidebarItem::new("model-plaza", text(self.locale, Message::ModelPlaza))
+                            .icon(Icon::Search),
+                        SidebarItem::new(
+                            "projection",
+                            text(self.locale, Message::ConfigurationPreview),
+                        )
+                        .icon(Icon::Terminal),
                         SidebarItem::new("agents", text(self.locale, Message::AgentClients))
                             .icon(Icon::Terminal),
                         SidebarItem::new("services", text(self.locale, Message::ModelsServices))
@@ -703,7 +750,7 @@ impl GatewayKit {
                             status
                                 .provisioning
                                 .as_ref()
-                                .map_or(0, |value| value.models.len())
+                                .map_or(0, |value| selector_models(value).len())
                                 .to_string(),
                         ),
                 )
@@ -716,6 +763,376 @@ impl GatewayKit {
                     .managed(text(self.locale, Message::ManagedByConnector)),
                 ),
             )
+            .children(status.provisioning.as_ref().map(|provisioning| {
+                let account = &provisioning.account;
+                let usage = &provisioning.usage;
+                let billing_url = provisioning.billing.portal_url.clone();
+                let backend = Arc::clone(&self.backend);
+                let subscriptions = provisioning
+                    .billing
+                    .subscriptions
+                    .iter()
+                    .filter(|s| s.status == "active")
+                    .count();
+                let mut section = SettingsSection::new(
+                    "overview.account",
+                    text(self.locale, Message::AccountProfile),
+                )
+                .row(
+                    SettingsRow::new("account.username", text(self.locale, Message::Username))
+                        .value(account.username.clone()),
+                )
+                .row(
+                    SettingsRow::new("account.email", text(self.locale, Message::Email))
+                        .value(account.email.clone()),
+                )
+                .row(
+                    SettingsRow::new("account.group", text(self.locale, Message::AccountGroup))
+                        .value(account.group.clone()),
+                )
+                .row(
+                    SettingsRow::new("usage.total", text(self.locale, Message::Total))
+                        .value(usage.credits_total.to_string()),
+                )
+                .row(
+                    SettingsRow::new("usage.used", text(self.locale, Message::Used))
+                        .value(usage.credits_used.to_string()),
+                )
+                .row(
+                    SettingsRow::new("usage.remaining", text(self.locale, Message::Remaining))
+                        .value(usage.credits_remaining.to_string()),
+                )
+                .row(
+                    SettingsRow::new("usage.requests", text(self.locale, Message::Requests))
+                        .value(usage.request_count.to_string()),
+                )
+                .row(
+                    SettingsRow::new(
+                        "billing.subscriptions",
+                        text(self.locale, Message::ActiveSubscriptions),
+                    )
+                    .value(if subscriptions == 0 {
+                        text(self.locale, Message::NoActiveSubscriptions).into()
+                    } else {
+                        subscriptions.to_string()
+                    }),
+                );
+                for (index, subscription) in provisioning.billing.subscriptions.iter().enumerate() {
+                    let credits = if subscription.credits_total == 0 {
+                        text(self.locale, Message::Unlimited).into()
+                    } else {
+                        format!(
+                            "{} / {}",
+                            subscription.credits_used, subscription.credits_total
+                        )
+                    };
+                    section = section.row(
+                        SettingsRow::new(
+                            format!("billing.subscription.{index}"),
+                            format!(
+                                "{} · {}",
+                                text(self.locale, Message::Subscription),
+                                subscription.status
+                            ),
+                        )
+                        .description(self.locale.subscription_period(
+                            subscription.start_time,
+                            subscription.end_time,
+                            subscription.next_reset_time,
+                        ))
+                        .value(credits)
+                        .managed(if subscription.wallet_fallback {
+                            text(self.locale, Message::WalletFallback)
+                        } else {
+                            text(self.locale, Message::SubscriptionOnly)
+                        }),
+                    );
+                }
+                section = section.row(
+                    SettingsRow::new("billing.portal", text(self.locale, Message::Billing))
+                        .control(
+                            Button::new("billing.open")
+                                .label(text(self.locale, Message::OpenBilling))
+                                .secondary()
+                                .on_click(move |_, _| {
+                                    let _ = backend.open_portal(&billing_url);
+                                }),
+                        ),
+                );
+                section
+            }))
+            .into_any_element()
+    }
+
+    fn model_plaza(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let Some(provisioning) = self.status.as_ref().and_then(|s| s.provisioning.as_ref()) else {
+            return self.unavailable(cx);
+        };
+        let models = plaza_models(provisioning, &self.model_query, self.model_filter);
+        let handle = cx.entity();
+        let mut list = Card::new();
+        for (index, model) in models.iter().enumerate() {
+            let metadata = [
+                model.vendor.as_ref().map(|v| v.name.as_str()),
+                model.description.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .chain(model.tags.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" · ");
+            list = list.child(
+                ListRow::new()
+                    .id(format!("plaza.model.{index}"))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(model.id.clone())
+                            .child(div().text_color(theme.colors.text_muted).child(metadata)),
+                    )
+                    .child(
+                        Badge::new(if model.chat_capable {
+                            text(self.locale, Message::Chat)
+                        } else {
+                            text(self.locale, Message::NonChatModels)
+                        })
+                        .neutral(),
+                    ),
+            );
+        }
+        let portal = provisioning.model_plaza.portal_url.clone();
+        let backend = Arc::clone(&self.backend);
+        let filters = [
+            (ModelFilter::All, Message::AllModels),
+            (ModelFilter::ChatCapable, Message::ChatModels),
+            (ModelFilter::NonChat, Message::NonChatModels),
+        ];
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(theme.spacing.md))
+            .child(
+                div()
+                    .flex()
+                    .gap(px(theme.spacing.sm))
+                    .child(div().flex_1().child(self.model_search.clone()))
+                    .children(filters.map(|(filter, label)| {
+                        let handle = handle.clone();
+                        Button::new(format!("plaza.filter.{}", filter.id()))
+                            .label(text(self.locale, label))
+                            .when(self.model_filter == filter, |b| b.primary())
+                            .when(self.model_filter != filter, |b| b.secondary())
+                            .on_click(move |_, cx| {
+                                handle.update(cx, |this, cx| {
+                                    this.model_filter = filter;
+                                    cx.notify();
+                                })
+                            })
+                    })),
+            )
+            .child(if models.is_empty() {
+                EmptyState::new("plaza.empty", text(self.locale, Message::NoMatchingModels))
+                    .kind(EmptyKind::Empty)
+                    .into_any_element()
+            } else {
+                list.into_any_element()
+            })
+            .child(
+                Button::new("plaza.open")
+                    .label(text(self.locale, Message::OpenModelPlaza))
+                    .secondary()
+                    .on_click(move |_, _| {
+                        let _ = backend.open_portal(&portal);
+                    }),
+            )
+            .into_any_element()
+    }
+
+    fn agent_page(&self, agent: AgentId, cx: &mut Context<Self>) -> AnyElement {
+        let Some(status) = self.status.as_ref() else {
+            return self.unavailable(cx);
+        };
+        let Some(install) = self.installs.iter().find(|i| i.agent == agent) else {
+            return self.unavailable(cx);
+        };
+        let default_model = status
+            .provisioning
+            .as_ref()
+            .map(|p| p.default_model.as_str())
+            .unwrap_or(text(self.locale, Message::NoModel));
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(16.0))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(12.0))
+                    .child(
+                        Button::new("agent.back")
+                            .label(text(self.locale, Message::BackToAgentClients))
+                            .secondary()
+                            .on_click({
+                                let handle = cx.entity();
+                                move |_, cx| {
+                                    handle.update(cx, |this, cx| {
+                                        this.page = Page::Agents;
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                    )
+                    .child(
+                        svg()
+                            .path(connector_app::ui_state::agent_icon(agent))
+                            .size(px(44.0)),
+                    )
+                    .child(
+                        div()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(agent_name(agent)),
+                    ),
+            )
+            .child(
+                SettingsSection::new(format!("agent.{}.state", agent.as_str()), agent_name(agent))
+                    .row(
+                        SettingsRow::new("agent.root", text(self.locale, Message::DiscoveryRoot))
+                            .value(install.root.display().to_string()),
+                    )
+                    .row(
+                        SettingsRow::new(
+                            "agent.detected",
+                            text(self.locale, Message::DiscoveryState),
+                        )
+                        .value(text(
+                            self.locale,
+                            if install.detected {
+                                Message::Detected
+                            } else {
+                                Message::NotFound
+                            },
+                        )),
+                    )
+                    .row(
+                        SettingsRow::new(
+                            "agent.projection",
+                            text(self.locale, Message::ProjectionStatus),
+                        )
+                        .value(text(
+                            self.locale,
+                            if status.managed_agents.contains(&agent) {
+                                Message::ManagedByConnector
+                            } else {
+                                Message::NoManagedState
+                            },
+                        )),
+                    )
+                    .row(
+                        SettingsRow::new(
+                            "agent.selected",
+                            text(self.locale, Message::SelectedModel),
+                        )
+                        .control(self.model_selects[&agent].clone()),
+                    )
+                    .row(
+                        SettingsRow::new("agent.default", text(self.locale, Message::DefaultModel))
+                            .value(default_model.to_owned()),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn agent_index(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
+        let Some(status) = self.status.as_ref() else {
+            return self.unavailable(cx);
+        };
+        let mut list = Card::new();
+        for install in &self.installs {
+            let agent = install.agent;
+            let handle = cx.entity();
+            list = list.child(
+                ListRow::new()
+                    .id(format!("agents.index.{}", agent.as_str()))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .items_center()
+                            .gap(px(theme.spacing.md))
+                            .child(
+                                svg()
+                                    .path(connector_app::ui_state::agent_icon(agent))
+                                    .size(px(32.0)),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(3.0))
+                                    .child(
+                                        div()
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .child(agent_name(agent)),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(theme.typography.caption.size))
+                                            .text_color(theme.colors.text_muted)
+                                            .child(install.root.display().to_string()),
+                                    ),
+                            )
+                            .child(
+                                Badge::new(text(
+                                    self.locale,
+                                    if install.detected {
+                                        Message::Detected
+                                    } else {
+                                        Message::NotFound
+                                    },
+                                ))
+                                .tone(if install.detected {
+                                    Tone::Success
+                                } else {
+                                    Tone::Neutral
+                                }),
+                            ),
+                    )
+                    .child(
+                        Button::new(format!("agents.details.{}", agent.as_str()))
+                            .label(text(self.locale, Message::Details))
+                            .secondary()
+                            .on_click(move |_, cx| {
+                                handle.update(cx, |this, cx| {
+                                    this.page = Page::Agent(agent);
+                                    cx.notify();
+                                })
+                            }),
+                    ),
+            );
+        }
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(theme.spacing.lg))
+            .child(Callout::new(
+                self.locale.detected_count(
+                    self.installs
+                        .iter()
+                        .filter(|install| install.detected)
+                        .count(),
+                    self.installs.len(),
+                ),
+                if status.managed_projection {
+                    Tone::Success
+                } else {
+                    Tone::Info
+                },
+            ))
+            .child(list)
             .into_any_element()
     }
 
@@ -762,6 +1179,13 @@ impl GatewayKit {
                                     .flex()
                                     .items_center()
                                     .gap(px(theme.spacing.sm))
+                                    .child(
+                                        svg()
+                                            .path(connector_app::ui_state::agent_icon(
+                                                install.agent,
+                                            ))
+                                            .size(px(22.0)),
+                                    )
                                     .child(
                                         div()
                                             .font_weight(FontWeight::MEDIUM)
@@ -816,7 +1240,7 @@ impl GatewayKit {
         let has_models = status
             .provisioning
             .as_ref()
-            .is_some_and(|provisioning| !provisioning.models.is_empty());
+            .is_some_and(|provisioning| !selector_models(provisioning).is_empty());
         let has_preview = !self.preview.is_empty();
         let disabled_reason = if self.busy {
             self.busy_message.map(|message| text(self.locale, message))
@@ -938,7 +1362,15 @@ impl GatewayKit {
                 ListRow::new()
                     .id(format!("model.{index}"))
                     .child(div().flex_1().child(model.id.clone()))
-                    .child(Badge::new(text(self.locale, Message::Chat)).accent()),
+                    .child(
+                        Badge::new(if model.chat_capable {
+                            text(self.locale, Message::Chat)
+                        } else {
+                            text(self.locale, Message::NonChatModels)
+                        })
+                        .when(model.chat_capable, |badge| badge.accent())
+                        .when(!model.chat_capable, |badge| badge.neutral()),
+                    ),
             );
         }
         let mut mcps = Card::new();
@@ -1182,9 +1614,95 @@ impl GatewayKit {
 impl Render for GatewayKit {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
+        if app_frame(self.status.as_ref().is_some_and(|status| status.connected))
+            == AppFrame::AuthOnly
+        {
+            let handle = cx.entity();
+            let action = self.status.as_ref().map_or(AuthAction::Connect, |status| {
+                auth_action(
+                    status.connected,
+                    status.pending_revocation,
+                    status.managed_projection,
+                )
+            });
+            let state_message = match action {
+                AuthAction::RetryRevocation => text(self.locale, Message::ErrorPendingRevocation),
+                AuthAction::Blocked => text(self.locale, Message::ManagedProjectionBlockedDetail),
+                AuthAction::Connect => text(
+                    self.locale,
+                    if self.busy {
+                        self.busy_message.unwrap_or(Message::CheckingGateway)
+                    } else {
+                        Message::ConnectFirst
+                    },
+                ),
+            };
+            return div()
+                .size_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(theme.colors.canvas)
+                .text_color(theme.colors.text)
+                .child(
+                    Card::new().padded(true).child(
+                        div()
+                            .w(px(440.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(theme.spacing.lg))
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child("BoxAI Connector"),
+                            )
+                            .child(Callout::new(
+                                self.error.clone().unwrap_or_else(|| state_message.into()),
+                                if self.error.is_some() || action == AuthAction::Blocked {
+                                    Tone::Danger
+                                } else if action == AuthAction::RetryRevocation {
+                                    Tone::Warning
+                                } else {
+                                    Tone::Info
+                                },
+                            ))
+                            .child(
+                                SettingsRow::new(
+                                    "auth.language",
+                                    text(self.locale, Message::Language),
+                                )
+                                .control(self.language_select.clone()),
+                            )
+                            .children(match action {
+                                AuthAction::Connect => Some(
+                                    Button::new("auth.connect")
+                                        .label(text(self.locale, Message::ConnectAccount))
+                                        .primary()
+                                        .disabled(self.busy)
+                                        .on_click(move |_, cx| {
+                                            handle.update(cx, |this, cx| this.connect(cx))
+                                        }),
+                                ),
+                                AuthAction::RetryRevocation => Some(
+                                    Button::new("auth.retry-revocation")
+                                        .label(text(self.locale, Message::RetryRevocation))
+                                        .primary()
+                                        .disabled(self.busy)
+                                        .on_click(move |_, cx| {
+                                            handle.update(cx, |this, cx| this.logout(cx))
+                                        }),
+                                ),
+                                AuthAction::Blocked => None,
+                            }),
+                    ),
+                );
+        }
         let body = match self.page {
             Page::Overview => self.overview(&theme, cx),
-            Page::Agents => self.agents(&theme, cx),
+            Page::ModelPlaza => self.model_plaza(&theme, cx),
+            Page::Projection => self.agents(&theme, cx),
+            Page::Agents => self.agent_index(&theme, cx),
+            Page::Agent(agent) => self.agent_page(agent, cx),
             Page::Services => self.services(&theme, cx),
             Page::Settings => self.settings(&theme, cx),
         };
@@ -1279,7 +1797,7 @@ fn section_title(theme: &Theme, title: &str) -> impl IntoElement {
 }
 
 fn main() {
-    let app = gpui_platform::application().with_assets(gpui_kit::assets::Assets);
+    let app = gpui_platform::application().with_assets(ConnectorAssets);
     app.run(|cx: &mut App| {
         gpui_kit::install(cx);
         // Keep native chrome and content in lockstep with the operating system.

@@ -6,11 +6,87 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, io::Write, path::Path};
 use tempfile::tempdir;
 
+fn parse_provisioning(bytes: &[u8]) -> connector_core::Result<Provisioning> {
+    let mut value: Value = serde_json::from_slice(bytes)
+        .map_err(|error| connector_core::Error::Validation(error.to_string()))?;
+    let data = value["data"]
+        .as_object_mut()
+        .ok_or_else(|| connector_core::Error::Validation("missing fixture data".into()))?;
+    data.entry("account").or_insert_with(|| {
+        serde_json::json!({
+            "id": 0, "username": "test", "display_name": "", "email": "", "group": "default"
+        })
+    });
+    data.entry("usage").or_insert_with(|| {
+        serde_json::json!({
+            "credits_total": 0, "credits_used": 0, "credits_remaining": 0, "request_count": 0
+        })
+    });
+    data.entry("billing").or_insert_with(|| {
+        serde_json::json!({
+            "portal_url": "https://you-box.com/billing", "subscriptions": []
+        })
+    });
+    data.entry("model_plaza").or_insert_with(|| {
+        serde_json::json!({
+            "portal_url": "https://you-box.com/models"
+        })
+    });
+    Provisioning::parse(&serde_json::to_vec(&value).expect("fixture JSON serializes"))
+}
+
 fn contracts() -> (ConnectionManifest, Provisioning) {
     let manifest=ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"origin","name":"Origin"},"authentication":{"type":"browser_pkce","authorize_url":"https://id.example/auth","token_url":"https://id.example/token"},"gateway":{"base_url":"https://gw.example","protocols":["openai"]},"provisioning_url":"https://gw.example/provision","connection_bearer_origins":["https://gw.example"],"supported_agents":["claude","codex","gemini","grokbuild","opencode"]}}"#).unwrap();
-    let provisioning=Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true},{"id":"beta","chat_capable":true}],"default_model":"alpha","mcp_servers":[{"id":"docs","name":"Docs","url":"https://gw.example/mcp/docs","authorization":"connection_bearer","description":"docs"}],"skills":[{"id":"deploy","name":"Deploy","version":"1.0.0","archive":{"url":"https://gw.example/skills/deploy.zip","sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}]}}"#).unwrap();
+    let provisioning=parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true},{"id":"beta","chat_capable":true}],"default_model":"alpha","mcp_servers":[{"id":"docs","name":"Docs","url":"https://gw.example/mcp/docs","authorization":"connection_bearer","description":"docs"}],"skills":[{"id":"deploy","name":"Deploy","version":"1.0.0","archive":{"url":"https://gw.example/skills/deploy.zip","sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}]}}"#).unwrap();
     (manifest, provisioning)
 }
+
+#[test]
+fn additive_provisioning_fields_parse_and_non_chat_models_are_never_projected() {
+    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"user@example.test","group":"default"},"usage":{"credits_total":100,"credits_used":25,"credits_remaining":75,"request_count":4},"billing":{"portal_url":"https://you-box.com/billing","subscriptions":[{"status":"active","credits_total":0,"credits_used":25,"start_time":10,"end_time":20,"next_reset_time":15,"wallet_fallback":true}]},"model_plaza":{"portal_url":"https://you-box.com/models"},"models":[{"id":"chat","chat_capable":true,"description":"Chat","icon":"chat.svg","tags":["fast"],"vendor":{"id":"boxai","name":"BoxAI","icon":"boxai.svg"}},{"id":"embedding","chat_capable":false,"tags":[]}],"default_model":"chat","mcp_servers":[],"skills":[]}}"#).unwrap();
+    assert_eq!(provisioning.account.id, 7);
+    assert_eq!(provisioning.usage.credits_remaining, 75);
+    assert_eq!(provisioning.billing.subscriptions.len(), 1);
+    assert_eq!(
+        provisioning.model_plaza.portal_url.as_str(),
+        "https://you-box.com/models"
+    );
+
+    let (manifest, _) = contracts();
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("opencode");
+    fs::create_dir_all(&root).unwrap();
+    let plan = Connector::new(temp.path().join("state"))
+        .plan(ApplyInput {
+            manifest: &manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("secret").unwrap(),
+            selected_models: BTreeMap::new(),
+            installs: vec![AgentInstall {
+                agent: AgentId::Opencode,
+                root: root.clone(),
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap();
+    Connector::new(temp.path().join("state"))
+        .apply(&plan)
+        .unwrap();
+    let projected = fs::read_to_string(root.join("opencode.json")).unwrap();
+    assert!(projected.contains("chat"));
+    assert!(!projected.contains("embedding"));
+
+    let invalid = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"","group":"default"},"usage":{"credits_total":0,"credits_used":0,"credits_remaining":0,"request_count":0},"billing":{"portal_url":"https://you-box.com/billing","subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models"},"models":[{"id":"embedding","chat_capable":false,"tags":[]}],"default_model":"embedding","mcp_servers":[],"skills":[]}}"#);
+    assert!(invalid.is_err());
+}
+
+#[test]
+fn provisioning_rejects_missing_additive_fields() {
+    let missing = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"chat","chat_capable":true}],"default_model":"chat","mcp_servers":[],"skills":[]}}"#);
+    assert!(missing.is_err());
+}
+
 fn managed(platform: &str, kind: &str, id: &str) -> String {
     let mut hash = Sha256::new();
     for value in [platform, kind, id] {
@@ -108,6 +184,21 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
     assert!(!format!("{p:?}").contains("super-secret"));
     c.apply(&p).unwrap();
     assert!(c.verify(&p).unwrap().ok);
+    let managed = c
+        .managed_agents("origin", &Secret::new("super-secret").unwrap())
+        .unwrap();
+    assert_eq!(
+        managed,
+        [
+            AgentId::Claude,
+            AgentId::Codex,
+            AgentId::Gemini,
+            AgentId::Grokbuild,
+            AgentId::Opencode,
+        ]
+        .into_iter()
+        .collect()
+    );
     let claude: Value =
         serde_json::from_slice(&fs::read(t.path().join("claude/settings.json")).unwrap()).unwrap();
     assert_eq!(claude["theme"], "dark");
@@ -169,6 +260,7 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
     let bearer = Secret::new("super-secret").unwrap();
     c.disconnect("origin", &bearer).unwrap();
     c.disconnect("origin", &bearer).unwrap();
+    assert!(c.managed_agents("origin", &bearer).unwrap().is_empty());
     assert!(t.path().join("claude/skills/unmanaged/x").exists());
     assert!(!t.path().join("state/skills/origin/deploy").exists());
     assert!(!t.path().join("claude/skills").join(skill).exists());
@@ -192,7 +284,7 @@ fn rejects_schema_and_security_errors() {
     );
     assert!(Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"x","chat_capable":true}],"default_model":"missing","mcp_servers":[],"skills":[]}}"#).is_err());
     assert!(Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"x","chat_capable":true}],"default_model":"x","mcp_servers":[{"id":"m","name":"m","url":"http://localhost/m","authorization":"connection_bearer"}],"skills":[]}}"#).is_err());
-    assert!(Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"openai/gpt-5:latest","chat_capable":true}],"default_model":"openai/gpt-5:latest","mcp_servers":[],"skills":[]}}"#).is_ok());
+    assert!(parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"openai/gpt-5:latest","chat_capable":true}],"default_model":"openai/gpt-5:latest","mcp_servers":[],"skills":[]}}"#).is_ok());
     assert!(Provisioning::parse(b"{\"success\":true,\"data\":{\"schema_version\":2,\"models\":[{\"id\":\"bad\\nmodel\",\"chat_capable\":true}],\"default_model\":\"bad\\nmodel\",\"mcp_servers\":[],\"skills\":[]}}").is_err());
     let (manifest, mut provisioning) = contracts();
     provisioning.mcp_servers[0].url = "https://attacker.example/mcp".parse().unwrap();
@@ -278,7 +370,7 @@ fn provisioning_enforces_catalog_and_description_bounds() {
 
 #[test]
 fn empty_catalog_is_honest_but_cannot_be_projected_and_duplicates_fail() {
-    let empty = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[],"default_model":"","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let empty = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[],"default_model":"","mcp_servers":[],"skills":[]}}"#).unwrap();
     let (manifest, _) = contracts();
     let t = tempdir().unwrap();
     let error = Connector::new(t.path().join("state"))
@@ -333,7 +425,7 @@ fn discovery_honors_override_then_environment_without_creating_paths() {
 fn duplicate_projection_paths_and_unknown_managed_entries_are_rejected() {
     let t = tempdir().unwrap();
     let (manifest, _) = contracts();
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
     let shared = t.path().join("shared");
     fs::create_dir_all(&shared).unwrap();
     let connector = Connector::new(t.path().join("state"));
@@ -391,7 +483,7 @@ fn duplicate_projection_paths_and_unknown_managed_entries_are_rejected() {
 fn independently_branded_connectors_share_agent_ownership_leases() {
     let t = tempdir().unwrap();
     let (origin_manifest, _) = contracts();
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
     let codex = t.path().join("codex");
     fs::create_dir_all(&codex).unwrap();
     let install = AgentInstall {
@@ -483,7 +575,7 @@ fn independently_branded_connectors_share_agent_ownership_leases() {
 fn configuration_symlinks_are_rejected_without_replacing_them() {
     let t = tempdir().unwrap();
     let (manifest, _) = contracts();
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
     let codex = t.path().join("codex");
     fs::create_dir_all(&codex).unwrap();
     let target = t.path().join("dotfiles-codex.toml");
@@ -519,7 +611,7 @@ fn configuration_symlinks_are_rejected_without_replacing_them() {
 fn skill_replacement_requires_both_owner_marker_and_framed_tree_hash() {
     let t = tempdir().unwrap();
     let (manifest, _) = contracts();
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[{"id":"deploy","name":"Deploy","version":"1.0.0","archive":{"url":"https://gw.example/skills/deploy.zip","sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[{"id":"deploy","name":"Deploy","version":"1.0.0","archive":{"url":"https://gw.example/skills/deploy.zip","sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}]}}"#).unwrap();
     let source = t.path().join("source");
     let claude = t.path().join("claude");
     fs::create_dir_all(&source).unwrap();
@@ -590,7 +682,7 @@ fn reapply_removes_stale_mcp_and_skill_ownership() {
     let (connector, first) = setup(t.path());
     connector.apply(&first).unwrap();
     let (manifest, _) = contracts();
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
     let installs = [
         AgentId::Claude,
         AgentId::Codex,
@@ -803,7 +895,7 @@ fn claude_legacy_settings_and_opencode_jsonc_are_respected() {
             .contains("missing verified synchronized source")
     );
 
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).unwrap();
     let plan = connector
         .plan(ApplyInput {
             manifest: &manifest,

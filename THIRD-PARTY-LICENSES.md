@@ -70,7 +70,7 @@ The newly imported desktop manifests under `desktop/` and all transitive depende
 | web/default | production  | npm       | `@hookform/resolvers`                                 | `5.2.2`                              | MIT                                                |
 | web/default | production  | npm       | `@hugeicons/core-free-icons`                          | `4.1.1`                              | MIT                                                |
 | web/default | production  | npm       | `@hugeicons/react`                                    | `1.1.6`                              | MIT                                                |
-| web/default | production  | npm       | `@lobehub/icons`                                      | `4.12.0`                             | MIT                                                |
+| web/default, boxai-connector | production | npm/assets | `@lobehub/icons`                                   | `4.12.0`                             | MIT                                                |
 | web/default | production  | npm       | `@tailwindcss/postcss`                                | `4.2.2`                              | MIT                                                |
 | web/default | production  | npm       | `@tanstack/react-query`                               | `5.97.0`                             | MIT                                                |
 | web/default | production  | npm       | `@tanstack/react-router`                              | `1.168.23`                           | MIT                                                |

@@ -73,6 +73,10 @@ type connectorManifestResponse struct {
 type connectorProvisioningResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
+		Account       connectorAccount     `json:"account"`
+		Usage         connectorUsage       `json:"usage"`
+		Billing       connectorBilling     `json:"billing"`
+		ModelPlaza    connectorModelPlaza  `json:"model_plaza"`
 		SchemaVersion int                  `json:"schema_version"`
 		Models        []connectorModel     `json:"models"`
 		DefaultModel  string               `json:"default_model"`
@@ -268,14 +272,15 @@ func TestConnectorSelfRevokeUsesOnlyAuthenticatedContext(t *testing.T) {
 	assert.Equal(t, common.TokenStatusDisabled, token.Status)
 }
 
-func TestConnectorProvisioningReturnsOnlyAvailableChatModelsAndAuthoritativeIntegrations(t *testing.T) {
+func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t *testing.T) {
 	originalServerAddress := system_setting.ServerAddress
 	t.Cleanup(func() { system_setting.ServerAddress = originalServerAddress })
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}, &model.UserSubscription{}))
 	require.NoError(t, db.Create(&model.User{
-		Id: 2101, Username: "connector-user", Password: "password", Group: "default",
+		Id: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com",
+		Password: "password-secret", Group: "default", Quota: 70, UsedQuota: 30, RequestCount: 12,
 		Status: common.UserStatusEnabled,
 	}).Error)
 	require.NoError(t, db.Create(&[]model.Channel{
@@ -287,6 +292,17 @@ func TestConnectorProvisioningReturnsOnlyAvailableChatModelsAndAuthoritativeInte
 		{Group: "default", Model: "zz-connector-chat", ChannelId: 901, Enabled: true},
 		{Group: "default", Model: "zz-connector-disabled", ChannelId: 902, Enabled: true},
 		{Group: "default", Model: "zz-connector-flux-image", ChannelId: 903, Enabled: true},
+	}).Error)
+	vendor := model.Vendor{Name: "Authoritative Vendor", Icon: "vendor-icon", Status: 1}
+	require.NoError(t, db.Create(&vendor).Error)
+	require.NoError(t, db.Create(&model.Model{
+		ModelName: "zz-connector-chat", Description: "Authoritative description", Icon: "model-icon",
+		Tags: "zeta, alpha,alpha", VendorID: vendor.Id, Status: 1,
+	}).Error)
+	now := common.GetTimestamp()
+	require.NoError(t, db.Create(&[]model.UserSubscription{
+		{UserId: 2101, AmountTotal: 500, AmountUsed: 125, StartTime: now - 10, EndTime: now + 1000, NextResetTime: now + 500, Status: "active", AllowWalletOverflow: true},
+		{UserId: 2101, AmountTotal: 999, AmountUsed: 1, StartTime: now - 20, EndTime: now - 1, Status: "expired"},
 	}).Error)
 	require.NoError(t, db.Create(&[]model.ConnectorMCPServer{
 		{ID: "z-media", Name: "Z Media", URL: "https://gateway.example/z-mcp", Authorization: "connection_bearer", Description: "Z", Enabled: true},
@@ -312,10 +328,25 @@ func TestConnectorProvisioningReturnsOnlyAvailableChatModelsAndAuthoritativeInte
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
 	require.True(t, payload.Success)
 	assert.Equal(t, 2, payload.Data.SchemaVersion)
-	require.Len(t, payload.Data.Models, 1)
+	require.Len(t, payload.Data.Models, 2)
 	assert.Equal(t, "zz-connector-chat", payload.Data.Models[0].ID)
 	assert.True(t, payload.Data.Models[0].ChatCapable)
+	assert.Equal(t, "Authoritative description", payload.Data.Models[0].Description)
+	assert.Equal(t, "model-icon", payload.Data.Models[0].Icon)
+	assert.Equal(t, []string{"alpha", "zeta"}, payload.Data.Models[0].Tags)
+	require.NotNil(t, payload.Data.Models[0].Vendor)
+	assert.Equal(t, strconv.Itoa(vendor.Id), payload.Data.Models[0].Vendor.ID)
+	assert.Equal(t, "Authoritative Vendor", payload.Data.Models[0].Vendor.Name)
+	assert.Equal(t, "zz-connector-flux-image", payload.Data.Models[1].ID)
+	assert.False(t, payload.Data.Models[1].ChatCapable)
+	assert.Empty(t, payload.Data.Models[1].Tags)
 	assert.Equal(t, "zz-connector-chat", payload.Data.DefaultModel)
+	assert.Equal(t, connectorAccount{ID: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com", Group: "default"}, payload.Data.Account)
+	assert.Equal(t, connectorUsage{CreditsTotal: 100, CreditsUsed: 30, CreditsRemaining: 70, RequestCount: 12}, payload.Data.Usage)
+	assert.Equal(t, "https://gateway.example/subscriptions", payload.Data.Billing.PortalURL)
+	require.Len(t, payload.Data.Billing.Subscriptions, 1)
+	assert.Equal(t, connectorSubscription{Status: "active", CreditsTotal: 500, CreditsUsed: 125, StartTime: now - 10, EndTime: now + 1000, NextResetTime: now + 500, WalletFallback: true}, payload.Data.Billing.Subscriptions[0])
+	assert.Equal(t, "https://gateway.example/pricing", payload.Data.ModelPlaza.PortalURL)
 	require.Len(t, payload.Data.MCPServers, 2)
 	assert.Equal(t, "a-assets", payload.Data.MCPServers[0].ID)
 	assert.Equal(t, "z-media", payload.Data.MCPServers[1].ID)
@@ -332,12 +363,13 @@ func TestConnectorProvisioningReturnsOnlyAvailableChatModelsAndAuthoritativeInte
 	assert.NotContains(t, recorder.Body.String(), "upstream-enabled-secret")
 	assert.NotContains(t, recorder.Body.String(), "upstream-disabled-secret")
 	assert.NotContains(t, recorder.Body.String(), "upstream-image-secret")
+	assert.NotContains(t, recorder.Body.String(), "password-secret")
 }
 
 func TestConnectorProvisioningReturnsEmptyManagedCatalogsHonestly(t *testing.T) {
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}, &model.UserSubscription{}))
 	user := model.User{
 		Id: 2102, Username: "empty-connector-catalog", Password: "password",
 		Group: "default", Status: common.UserStatusEnabled,

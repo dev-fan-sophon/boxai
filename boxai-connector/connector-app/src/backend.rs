@@ -1,6 +1,6 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use connector_core::{
-    AgentId, AgentInstall, ApplyInput, ConnectionManifest, Connector, Discovery,
+    Account, AgentId, AgentInstall, ApplyInput, ConnectionManifest, Connector, Discovery,
     MAX_SKILL_ARCHIVE_SIZE, Plan, Provisioning, Secret, SkillArchiveAuthorization, Verification,
 };
 use directories::ProjectDirs;
@@ -262,17 +262,8 @@ impl Browser for SystemBrowser {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Account {
-    pub id: i64,
-    pub username: String,
-    pub display_name: String,
-    pub email: String,
-    pub quota: i64,
-}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct PlatformState {
-    account: Option<Account>,
     models: BTreeMap<String, String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -285,6 +276,7 @@ pub struct Status {
     pub manifest: ConnectionManifest,
     pub connected: bool,
     pub managed_projection: bool,
+    pub managed_agents: BTreeSet<AgentId>,
     pub pending_revocation: bool,
     pub account: Option<Account>,
     pub provisioning: Option<Provisioning>,
@@ -317,6 +309,14 @@ pub struct Backend {
 impl Backend {
     pub fn locale_store(&self) -> crate::localization::LocaleStore {
         crate::localization::LocaleStore::new(&self.state_dir)
+    }
+    pub fn open_portal(&self, url: &Url) -> Result<()> {
+        if url.scheme() != "https" {
+            return Err(
+                connector_core::Error::Validation("portal URL must use HTTPS".into()).into(),
+            );
+        }
+        self.browser.open(url)
     }
     pub fn new() -> Result<Self> {
         Self::new_for_distribution(BOXAI_DISTRIBUTION)
@@ -443,6 +443,12 @@ impl Backend {
         let manifest = self.fetch_manifest()?;
         let bearer = self.credentials.get(&manifest.platform.id)?;
         let managed_projection = self.connector().has_receipt(&manifest.platform.id);
+        let managed_agents = match bearer.as_ref() {
+            Some(value) => self
+                .connector()
+                .managed_agents(&manifest.platform.id, &value.core_secret()?)?,
+            None => BTreeSet::new(),
+        };
         let pending_revocation = self
             .pending_revocation
             .lock()
@@ -477,10 +483,7 @@ impl Backend {
             );
         }
         let state = self.load_state()?;
-        let account = state
-            .platforms
-            .get(&manifest.platform.id)
-            .and_then(|p| p.account.clone());
+        let account = provisioning.as_ref().map(|value| value.account.clone());
         let selected_models = provisioning
             .as_ref()
             .map(|p| self.reconciled_models(&manifest, p, &state))
@@ -489,6 +492,7 @@ impl Backend {
             manifest,
             connected: bearer.is_some(),
             managed_projection,
+            managed_agents,
             pending_revocation,
             account,
             provisioning,
@@ -577,17 +581,10 @@ impl Backend {
                 }
             }
         }
-        self.update_state(|persisted| {
-            persisted
-                .platforms
-                .entry(manifest.platform.id.clone())
-                .or_default()
-                .account = token.account.clone();
-        })?;
         drop(lifecycle);
         let provisioning = self.refresh_provisioning_with(&manifest, &bearer)?;
         Ok(LoginResult {
-            account: token.account,
+            account: Some(provisioning.account.clone()),
             provisioning,
         })
     }
@@ -644,7 +641,11 @@ impl Backend {
         model: &str,
         provisioning: &Provisioning,
     ) -> Result<()> {
-        if !provisioning.models.iter().any(|item| item.id == model) {
+        if !provisioning
+            .models
+            .iter()
+            .any(|item| item.chat_capable && item.id == model)
+        {
             return Err(connector_core::Error::Validation(
                 "selected model is outside catalog".into(),
             )
@@ -854,7 +855,12 @@ impl Backend {
         provisioning: &Provisioning,
         state: &PersistedState,
     ) -> BTreeMap<AgentId, String> {
-        let valid: BTreeSet<&str> = provisioning.models.iter().map(|m| m.id.as_str()).collect();
+        let valid: BTreeSet<&str> = provisioning
+            .models
+            .iter()
+            .filter(|model| model.chat_capable)
+            .map(|model| model.id.as_str())
+            .collect();
         manifest
             .supported_agents
             .iter()
@@ -988,8 +994,6 @@ struct TokenResponse {
     #[serde(default)]
     access_token: Option<String>,
     token_type: String,
-    #[serde(default)]
-    account: Option<Account>,
 }
 fn successful(response: &HttpResponse) -> Result<()> {
     if (200..300).contains(&response.status) {
@@ -1679,6 +1683,10 @@ mod tests {
             200,
             serde_json::json!({"success":true,"data":{
                 "schema_version":2,
+                "account":{"id":2,"username":"provisioned","display_name":"Provisioned User","email":"provisioned@example.test","group":"default"},
+                "usage":{"credits_total":10,"credits_used":3,"credits_remaining":7,"request_count":2},
+                "billing":{"portal_url":"https://gateway.example/billing","subscriptions":[]},
+                "model_plaza":{"portal_url":"https://gateway.example/models"},
                 "models":[{"id":"model-a","chat_capable":true}],
                 "default_model":"model-a",
                 "mcp_servers":[],
@@ -1698,7 +1706,14 @@ mod tests {
             .iter()
             .map(|id| serde_json::json!({"id":id,"name":id,"version":"1.0.0","archive":{"url":format!("https://you-box.com/skills/{id}.zip"),"sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}))
             .collect();
-        Provisioning::parse(&serde_json::to_vec(&serde_json::json!({"success":true,"data":{"schema_version":2,"models":models,"default_model":default,"mcp_servers":[],"skills":skills}})).unwrap()).unwrap()
+        Provisioning::parse(&serde_json::to_vec(&serde_json::json!({"success":true,"data":{
+            "schema_version":2,
+            "account":{"id":0,"username":"test","display_name":"","email":"","group":"default"},
+            "usage":{"credits_total":0,"credits_used":0,"credits_remaining":0,"request_count":0},
+            "billing":{"portal_url":"https://you-box.com/billing","subscriptions":[]},
+            "model_plaza":{"portal_url":"https://you-box.com/models"},
+            "models":models,"default_model":default,"mcp_servers":[],"skills":skills
+        }})).unwrap()).unwrap()
     }
     fn skill_zip(entries: &[(&str, &[u8], u32)]) -> Vec<u8> {
         use std::io::Cursor;
@@ -1771,6 +1786,31 @@ mod tests {
         )
     }
     #[test]
+    fn portal_opening_uses_browser_without_http_or_bearer_and_requires_https() {
+        let temp = tempfile::tempdir().unwrap();
+        let browser = Arc::new(CallbackBrowser::default());
+        let backend = Backend::with_dependencies(
+            temp.path().join("state"),
+            temp.path().join("home"),
+            Arc::new(NoHttp),
+            Arc::new(MemoryCredentials::default()),
+            browser.clone(),
+        );
+        let portal = Url::parse("https://you-box.com/billing/portal?session=opaque").unwrap();
+        // This browser fixture expects an OAuth URL, so opening proves the
+        // Browser boundary was reached even though its callback parsing fails.
+        assert!(matches!(
+            backend.open_portal(&portal),
+            Err(BackendError::Response)
+        ));
+        assert_eq!(browser.opened(), portal);
+        assert!(
+            backend
+                .open_portal(&Url::parse("http://you-box.com/billing").unwrap())
+                .is_err()
+        );
+    }
+    #[test]
     fn rfc_7636_vector() {
         assert_eq!(
             pkce_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
@@ -1814,6 +1854,38 @@ mod tests {
                 0o600
             );
         }
+    }
+    #[test]
+    fn non_chat_models_are_rejected_as_choices_and_reconciled_away() {
+        let temp = tempfile::tempdir().unwrap();
+        let backend = backend(temp.path());
+        let value = provisioning("chat", &["chat"], &[]);
+        let mut value = value;
+        value.models.push(connector_core::Model {
+            id: "embedding".into(),
+            chat_capable: false,
+            description: None,
+            icon: None,
+            tags: Vec::new(),
+            vendor: None,
+        });
+        assert!(
+            backend
+                .update_model_choice("origin", AgentId::Claude, "embedding", &value)
+                .is_err()
+        );
+        let mut state = PersistedState::default();
+        state
+            .platforms
+            .entry("origin".into())
+            .or_default()
+            .models
+            .insert("claude".into(), "embedding".into());
+        let selected = backend.reconciled_models(&manifest(), &value, &state);
+        assert_eq!(
+            selected.get(&AgentId::Claude).map(String::as_str),
+            Some("chat")
+        );
     }
     #[test]
     fn http_boundary_rejects_error_status_before_parsing() {
@@ -1881,6 +1953,13 @@ mod tests {
 
         let login = backend.connect().unwrap();
         assert_eq!(login.account.is_some(), expects_account);
+        assert_eq!(
+            login
+                .account
+                .as_ref()
+                .map(|account| account.username.as_str()),
+            Some("provisioned")
+        );
         assert_eq!(login.provisioning.default_model, "model-a");
         assert_eq!(
             credentials.get(platform).unwrap().unwrap().0,
