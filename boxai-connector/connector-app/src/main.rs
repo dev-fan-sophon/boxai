@@ -11,8 +11,9 @@ use connector_app::{
 use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
 use gpui::{
     AnyElement, App, AssetSource, Bounds, Context, Entity, FontWeight, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, Styled, TitlebarOptions, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, size, svg,
+    IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled,
+    TitlebarOptions, Window, WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px,
+    size, svg,
 };
 use gpui_kit::{
     assets::Icon,
