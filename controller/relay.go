@@ -212,6 +212,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			// Ensure consistent 413 for oversized bodies even when error occurs later (e.g., retry path)
@@ -328,7 +329,6 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	if channel == nil {
 		return nil, types.NewError(fmt.Errorf("分组 %s 下模型 %s 的可用渠道不存在（retry）", selectGroup, info.OriginModelName), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
-
 	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
 	if newAPIError != nil {
 		return nil, newAPIError
@@ -588,17 +588,15 @@ func RelayTask(c *gin.Context) {
 		logger.LogInfo(c, retryLogStr)
 	}
 
-	// ── 成功：结算 + 日志 + 插入任务 ──
+	// ── 成功：先持久化已被上游接受的任务，再结算和记录日志。任务行是
+	// 终态计费恢复的 durable anchor，不能晚于提交结算。
 	if taskErr == nil {
-		if settleErr := service.SettleBilling(c, relayInfo, result.Quota); settleErr != nil {
-			common.SysError("settle task billing error: " + settleErr.Error())
-		}
-		service.LogTaskConsumption(c, relayInfo)
-
 		task := model.InitTask(result.Platform, relayInfo)
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
 		task.PrivateData.BillingSource = relayInfo.BillingSource
+		task.PrivateData.BillingOperationKey = relayInfo.BillingOperationKey
 		task.PrivateData.SubscriptionId = relayInfo.SubscriptionId
+		task.PrivateData.SubscriptionUsageGeneration = relayInfo.SubscriptionUsageGeneration
 		task.PrivateData.TokenId = relayInfo.TokenId
 		task.PrivateData.NodeName = common.NodeName
 		task.PrivateData.BillingContext = &model.TaskBillingContext{
@@ -614,6 +612,12 @@ func RelayTask(c *gin.Context) {
 		task.Action = relayInfo.Action
 		if insertErr := task.Insert(); insertErr != nil {
 			common.SysError("insert task error: " + insertErr.Error())
+			taskErr = service.TaskErrorWrapperLocal(insertErr, "persist_accepted_task_failed", http.StatusInternalServerError)
+		} else {
+			if settleErr := service.SettleBilling(c, relayInfo, result.Quota); settleErr != nil {
+				common.SysError("settle task billing error: " + settleErr.Error())
+			}
+			service.LogTaskConsumption(c, relayInfo)
 		}
 	}
 

@@ -33,7 +33,8 @@ type WalletFunding struct {
 	consumed int // 实际预扣的用户额度
 	// overageSubscriptionId > 0 时，本次钱包消费属于订阅的"额外用量"，
 	// 同步累计到对应订阅周期的 overage 计数器（软限额，随周期重置）。
-	overageSubscriptionId int
+	overageSubscriptionId  int
+	overageUsageGeneration int64
 }
 
 func (w *WalletFunding) Source() string { return BillingSourceWallet }
@@ -98,12 +99,13 @@ func (w *WalletFunding) Refund() error {
 // ---------------------------------------------------------------------------
 
 type SubscriptionFunding struct {
-	requestId      string
-	userId         int
-	modelName      string
-	amount         int64 // 预扣的订阅额度（subConsume）
-	subscriptionId int
-	preConsumed    int64
+	requestId       string
+	userId          int
+	modelName       string
+	amount          int64 // 预扣的订阅额度（subConsume）
+	subscriptionId  int
+	usageGeneration int64
+	preConsumed     int64
 	// 以下字段在 PreConsume 成功后填充，供 RelayInfo 同步使用
 	AmountTotal     int64
 	AmountUsedAfter int64
@@ -120,6 +122,7 @@ func (s *SubscriptionFunding) PreConsume(_ int) error {
 		return err
 	}
 	s.subscriptionId = res.UserSubscriptionId
+	s.usageGeneration = res.UsageGeneration
 	s.preConsumed = res.PreConsumed
 	s.AmountTotal = res.AmountTotal
 	s.AmountUsedAfter = res.AmountUsedAfter
@@ -135,7 +138,7 @@ func (s *SubscriptionFunding) Settle(delta int) error {
 	if delta == 0 {
 		return nil
 	}
-	return model.PostConsumeUserSubscriptionDelta(s.subscriptionId, int64(delta))
+	return model.PostConsumeUserSubscriptionDelta(s.subscriptionId, s.usageGeneration, int64(delta))
 }
 
 func (s *SubscriptionFunding) Refund() error {

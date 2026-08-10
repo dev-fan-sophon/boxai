@@ -125,7 +125,8 @@ type RelayInfo struct {
 	// ForcePreConsume 为 true 时禁用 BillingSession 的信任额度旁路，
 	// 强制预扣全额。用于异步任务（视频/音乐生成等），因为请求返回后任务仍在运行，
 	// 必须在提交前锁定全额。
-	ForcePreConsume bool
+	ForcePreConsume     bool
+	BillingOperationKey string
 	// Billing 是计费会话，封装了预扣费/结算/退款的统一生命周期。
 	// 免费模型时为 nil。
 	Billing BillingSettler
@@ -134,6 +135,8 @@ type RelayInfo struct {
 	BillingSource string
 	// SubscriptionId is the user_subscriptions.id used when BillingSource == "subscription"
 	SubscriptionId int
+	// SubscriptionUsageGeneration identifies the quota period reserved by this request.
+	SubscriptionUsageGeneration int64
 	// SubscriptionPreConsumed is the amount pre-consumed on subscription item (quota units or 1)
 	SubscriptionPreConsumed int64
 	// SubscriptionPostDelta is the post-consume delta applied to amount_used (quota units; can be negative).
@@ -145,6 +148,9 @@ type RelayInfo struct {
 	// wallet-funded request is attributed to (subscription quota exhausted, wallet
 	// fallback within the user's overage limit). 0 for plain wallet billing.
 	OverageSubscriptionId int
+	// OverageSubscriptionUsageGeneration fences delayed settlement/refund from
+	// changing the counter after that subscription starts a new usage period.
+	OverageSubscriptionUsageGeneration int64
 	// RequestId is used for idempotent pre-consume/refund
 	RequestId string
 	// SubscriptionAmountTotal / SubscriptionAmountUsedAfterPreConsume are used to compute remaining in logs.
@@ -172,8 +178,8 @@ type RelayInfo struct {
 	// It is surfaced onto the consume/task log's admin_info for auditing.
 	QuotaClamp *common.QuotaClamp
 
-	// TieredBillingSnapshot is a frozen snapshot of tiered billing rules
-	// captured at pre-consume time. Non-nil only when billing mode is "tiered_expr".
+	// TieredBillingSnapshot captures tiered billing rules at pre-consume time;
+	// retries refresh its group-dependent fields before an upstream attempt.
 	TieredBillingSnapshot *billingexpr.BillingSnapshot
 	BillingRequestInput   *billingexpr.RequestInput
 

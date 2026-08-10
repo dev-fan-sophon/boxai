@@ -66,58 +66,6 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	model.UpdateChannelUsedQuota(info.ChannelId, info.PriceData.Quota)
 }
 
-// ---------------------------------------------------------------------------
-// 异步任务计费辅助函数
-// ---------------------------------------------------------------------------
-
-// resolveTokenKey 通过 TokenId 运行时获取令牌 Key（用于 Redis 缓存操作）。
-// 如果令牌已被删除或查询失败，返回空字符串。
-func resolveTokenKey(ctx context.Context, tokenId int, taskID string) string {
-	token, err := model.GetTokenById(tokenId)
-	if err != nil {
-		logger.LogWarn(ctx, fmt.Sprintf("获取令牌 key 失败 (tokenId=%d, task=%s): %s", tokenId, taskID, err.Error()))
-		return ""
-	}
-	return token.Key
-}
-
-// taskIsSubscription 判断任务是否通过订阅计费。
-func taskIsSubscription(task *model.Task) bool {
-	return task.PrivateData.BillingSource == BillingSourceSubscription && task.PrivateData.SubscriptionId > 0
-}
-
-// taskAdjustFunding 调整任务的资金来源（钱包或订阅），delta > 0 表示扣费，delta < 0 表示退还。
-func taskAdjustFunding(task *model.Task, delta int) error {
-	if taskIsSubscription(task) {
-		return model.PostConsumeUserSubscriptionDelta(task.PrivateData.SubscriptionId, int64(delta))
-	}
-	if delta > 0 {
-		return model.DecreaseUserQuota(task.UserId, delta, false)
-	}
-	return model.IncreaseUserQuota(task.UserId, -delta, false)
-}
-
-// taskAdjustTokenQuota 调整任务的令牌额度，delta > 0 表示扣费，delta < 0 表示退还。
-// 需要通过 resolveTokenKey 运行时获取 key（不从 PrivateData 中读取）。
-func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
-	if task.PrivateData.TokenId <= 0 || delta == 0 {
-		return
-	}
-	tokenKey := resolveTokenKey(ctx, task.PrivateData.TokenId, task.TaskID)
-	if tokenKey == "" {
-		return
-	}
-	var err error
-	if delta > 0 {
-		err = model.DecreaseTokenQuota(task.PrivateData.TokenId, tokenKey, delta)
-	} else {
-		err = model.IncreaseTokenQuota(task.PrivateData.TokenId, tokenKey, -delta)
-	}
-	if err != nil {
-		logger.LogWarn(ctx, fmt.Sprintf("调整令牌额度失败 (delta=%d, task=%s): %s", delta, task.TaskID, err.Error()))
-	}
-}
-
 // taskBillingOther 从 task 的 BillingContext 构建日志 Other 字段。
 func taskBillingOther(task *model.Task) map[string]interface{} {
 	other := make(map[string]interface{})
@@ -160,9 +108,118 @@ func taskModelName(task *model.Task) string {
 	return task.Properties.OriginModelName
 }
 
+func initialOperationKey(key string) string {
+	if strings.HasPrefix(key, "async:") && strings.HasSuffix(key, ":initial") {
+		return key
+	}
+	return "async:" + key + ":initial"
+}
+
+// taskInitialBillingOperation resolves the immutable committed charge. The
+// zero-delta branch is a one-time reader/backfill for terminal tasks created by
+// releases predating BillingOperation; new writes always persist the key.
+func taskInitialBillingOperation(task *model.Task) (*model.BillingOperation, error) {
+	if task.ID == 0 {
+		if err := model.DB.Create(task).Error; err != nil {
+			return nil, err
+		}
+	}
+	key := task.PrivateData.BillingOperationKey
+	if key == "" {
+		key = fmt.Sprintf("legacy:task:%d", task.ID)
+	}
+	operationKey := initialOperationKey(key)
+	if operation, err := model.GetCommittedBillingOperation(operationKey); err == nil {
+		return operation, nil
+	}
+	usageGeneration := task.PrivateData.SubscriptionUsageGeneration
+	if task.PrivateData.BillingSource == BillingSourceSubscription && usageGeneration == 0 {
+		usageGeneration = model.UnknownSubscriptionUsageGeneration
+	}
+	operation, _, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: operationKey, Kind: model.BillingOperationInitial,
+		UserID: task.UserId, TokenID: task.PrivateData.TokenId, SubscriptionID: task.PrivateData.SubscriptionId,
+		SubscriptionUsageGeneration: usageGeneration,
+		BillingSource:               task.PrivateData.BillingSource, Delta: 0, ChargedQuota: task.Quota,
+		ReferenceKey: operationKey,
+	})
+	return operation, err
+}
+
+func settleTaskBillingOperation(task *model.Task, actualQuota int) (bool, error) {
+	if task.Quota == 0 && task.PrivateData.BillingOperationKey == "" {
+		err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Update("billing_settled", true).Error
+		task.BillingSettled = err == nil
+		return false, err
+	}
+	initial, err := taskInitialBillingOperation(task)
+	if err != nil {
+		return false, err
+	}
+	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: fmt.Sprintf("%s:settle:%d", initial.IdempotencyKey, actualQuota), Kind: model.BillingOperationSettle,
+		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
+		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
+		BillingSource:               initial.BillingSource, ChargedQuota: actualQuota, ReferenceKey: initial.IdempotencyKey,
+		SetChargeToTarget: true,
+	})
+	if err != nil {
+		return false, err
+	}
+	if err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Updates(map[string]any{"quota": actualQuota, "billing_settled": true}).Error; err != nil {
+		return false, err
+	}
+	task.Quota = actualQuota
+	task.BillingSettled = true
+	return applied, nil
+}
+
+func RefundMidjourneyQuota(ctx context.Context, task *model.Midjourney) bool {
+	if task.Quota == 0 {
+		return true
+	}
+	key := task.BillingOperationKey
+	if key == "" {
+		key = fmt.Sprintf("legacy:midjourney:%d", task.Id)
+	}
+	initialKey := initialOperationKey(key)
+	initial, err := model.GetCommittedBillingOperation(initialKey)
+	if err != nil {
+		usageGeneration := task.SubscriptionUsageGeneration
+		if task.BillingSource == BillingSourceSubscription && usageGeneration == 0 {
+			usageGeneration = model.UnknownSubscriptionUsageGeneration
+		}
+		initial, _, err = model.ApplyBillingOperation(model.BillingOperationInput{
+			IdempotencyKey: initialKey, Kind: model.BillingOperationInitial, UserID: task.UserId,
+			TokenID: task.TokenId, SubscriptionID: task.SubscriptionId, BillingSource: task.BillingSource,
+			SubscriptionUsageGeneration: usageGeneration,
+			Delta:                       0, ChargedQuota: task.Quota, ReferenceKey: initialKey,
+		})
+	}
+	if err != nil {
+		return false
+	}
+	_, _, err = model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: initial.IdempotencyKey + ":refund", Kind: model.BillingOperationRefund,
+		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
+		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
+		BillingSource:               initial.BillingSource, ChargedQuota: 0, ReferenceKey: initial.IdempotencyKey,
+		SetChargeToTarget: true,
+	})
+	if err != nil {
+		return false
+	}
+	if err := model.DB.Model(&model.Midjourney{}).Where("id = ? AND quota != 0", task.Id).Updates(map[string]any{"quota": 0, "billing_settled": true}).Error; err != nil {
+		return false
+	}
+	task.Quota = 0
+	task.BillingSettled = true
+	ReconcileBillingOperationProjections(ctx)
+	return true
+}
+
 // RefundTaskQuota 统一的任务失败退款逻辑。
 // 当异步任务失败时，将预扣的 quota 退还给用户（支持钱包和订阅），并退还令牌额度。
-// 返回资金来源是否已成功退还；失败时保留 quota，供显式重试或人工对账。
 func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool {
 	quota := task.Quota
 	if quota == 0 {
@@ -172,17 +229,31 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 		logger.LogError(ctx, fmt.Sprintf("拒绝负数 task quota 退款 task %s: %d", task.TaskID, quota))
 		return false
 	}
-
-	// 1. 退还资金来源（钱包或订阅）
-	if err := taskAdjustFunding(task, -quota); err != nil {
-		logger.LogWarn(ctx, fmt.Sprintf("退还资金来源失败 task %s: %s", task.TaskID, err.Error()))
+	initial, err := taskInitialBillingOperation(task)
+	if err != nil {
+		logger.LogWarn(ctx, fmt.Sprintf("resolve task billing operation failed task %s: %s", task.TaskID, err.Error()))
 		return false
 	}
-
-	// 2. 退还令牌额度
-	taskAdjustTokenQuota(ctx, task, -quota)
-
-	// 3. 记录日志
+	operation, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: initial.IdempotencyKey + ":refund", Kind: model.BillingOperationRefund,
+		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
+		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
+		BillingSource:               initial.BillingSource, ChargedQuota: 0, ReferenceKey: initial.IdempotencyKey,
+		SetChargeToTarget: true,
+	})
+	if err != nil {
+		logger.LogWarn(ctx, fmt.Sprintf("durable task refund failed task %s: %s", task.TaskID, err.Error()))
+		return false
+	}
+	if err := model.DB.Model(&model.Task{}).Where("id = ? AND quota != 0", task.ID).Updates(map[string]any{"quota": 0, "billing_settled": true}).Error; err != nil {
+		return false
+	}
+	task.Quota = 0
+	task.BillingSettled = true
+	ReconcileBillingOperationProjections(ctx)
+	if !applied {
+		return true
+	}
 	other := taskBillingOther(task)
 	other["task_id"] = task.TaskID
 	other["reason"] = reason
@@ -192,18 +263,81 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 		Content:   "",
 		ChannelId: task.ChannelId,
 		ModelName: taskModelName(task),
-		Quota:     quota,
-		TokenId:   task.PrivateData.TokenId,
+		Quota:     -operation.Delta,
+		TokenId:   operation.TokenID,
 		Group:     task.Group,
 		Other:     other,
 	})
 
-	// 资金已实际退还后才清除任务上的计费金额。清除失败不能重试资金退款，
-	// 因此明确记录错误并仍返回成功，交由人工对账处理。
-	task.Quota = 0
-	if err := task.UpdateQuota(); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("退款成功但清除 task quota 失败 task %s: %s", task.TaskID, err.Error()))
+	return true
+}
+
+// ReconcileTaskRefunds recovers failures that happened after the terminal CAS
+// but before (or during) refund processing.
+func ReconcileTaskRefunds(ctx context.Context) {
+	ReconcileBillingOperationProjections(ctx)
+	for _, task := range model.GetPendingTerminalTaskRefunds(100) {
+		RefundTaskQuota(ctx, task, task.FailReason)
 	}
+	for _, task := range model.GetPendingTerminalTaskSettlements(100) {
+		if _, err := settleTaskBillingOperation(task, task.Quota); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("durable task settlement recovery failed task %s: %v", task.TaskID, err))
+		}
+	}
+}
+
+func ReconcileBillingOperationProjections(ctx context.Context) {
+	for _, operation := range model.PendingBillingOperationProjections(100) {
+		if err := model.InvalidateUserCache(operation.UserID); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("billing cache projection failed operation %d: %v", operation.ID, err))
+			continue
+		}
+		if operation.TokenID > 0 {
+			if err := model.InvalidateUserTokensCache(operation.UserID); err != nil {
+				continue
+			}
+		}
+		_ = model.CompleteBillingOperationProjection(operation.ID)
+	}
+}
+
+// ReconcileMidjourneyRefunds projects terminal Midjourney failures through the
+// same durable wallet/token semantics used by canonical async tasks.
+func ReconcileMidjourneyRefunds(ctx context.Context) {
+	for _, task := range model.PendingMidjourneyRefundTasks(100) {
+		if !RefundMidjourneyQuota(ctx, &task) {
+			logger.LogWarn(ctx, fmt.Sprintf("durable Midjourney refund failed task %s", task.MjId))
+		}
+	}
+	for _, task := range model.PendingMidjourneySettlementTasks(100) {
+		SettleMidjourneyQuota(ctx, &task)
+	}
+}
+
+func SettleMidjourneyQuota(ctx context.Context, task *model.Midjourney) bool {
+	if task.Quota == 0 || task.BillingOperationKey == "" {
+		err := model.DB.Model(&model.Midjourney{}).Where("id = ?", task.Id).Update("billing_settled", true).Error
+		return err == nil
+	}
+	initial, err := model.GetCommittedBillingOperation(initialOperationKey(task.BillingOperationKey))
+	if err != nil {
+		return false
+	}
+	_, _, err = model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: initial.IdempotencyKey + ":settle", Kind: model.BillingOperationSettle,
+		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
+		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
+		BillingSource:               initial.BillingSource, ChargedQuota: initial.ChargedQuota, ReferenceKey: initial.IdempotencyKey,
+		SetChargeToTarget: true,
+	})
+	if err != nil {
+		return false
+	}
+	if err := model.DB.Model(&model.Midjourney{}).Where("id = ?", task.Id).Update("billing_settled", true).Error; err != nil {
+		return false
+	}
+	task.BillingSettled = true
+	ReconcileBillingOperationProjections(ctx)
 	return true
 }
 
@@ -221,8 +355,15 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		return
 	}
 	quotaDelta := actualQuota - preConsumedQuota
+	if task.ID == 0 {
+		if err := model.DB.Create(task).Error; err != nil {
+			logger.LogError(ctx, fmt.Sprintf("差额结算任务持久化失败 task %s: %s", task.TaskID, err.Error()))
+			return
+		}
+	}
 
 	if quotaDelta == 0 {
+		_, _ = settleTaskBillingOperation(task, actualQuota)
 		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 预扣费准确（%s，%s）",
 			task.TaskID, logger.LogQuota(actualQuota), reason))
 		return
@@ -236,18 +377,13 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		reason,
 	))
 
-	// 调整资金来源
-	if err := taskAdjustFunding(task, quotaDelta); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("差额结算资金调整失败 task %s: %s", task.TaskID, err.Error()))
+	applied, err := settleTaskBillingOperation(task, actualQuota)
+	if err != nil {
+		logger.LogError(ctx, fmt.Sprintf("durable task settlement failed task %s: %s", task.TaskID, err.Error()))
 		return
 	}
-
-	// 调整令牌额度
-	taskAdjustTokenQuota(ctx, task, quotaDelta)
-
-	task.Quota = actualQuota
-	if err := task.UpdateQuota(); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("差额结算回写 quota 失败 task %s: %s", task.TaskID, err.Error()))
+	if !applied {
+		return
 	}
 
 	var logType int

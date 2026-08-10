@@ -1232,6 +1232,9 @@ func decreaseUserQuota(id int, quota int) (err error) {
 	return err
 }
 
+func IncreaseUserQuotaDurable(id int, quota int) error { return increaseUserQuota(id, quota) }
+func DecreaseUserQuotaDurable(id int, quota int) error { return decreaseUserQuota(id, quota) }
+
 func DeltaUpdateUserQuota(id int, delta int) (err error) {
 	if delta == 0 {
 		return nil

@@ -32,6 +32,7 @@ type midjourneyPollSummary struct {
 // is lost) and, when report is non-nil, reports progress as (processedChannels,
 // totalChannels) so the system task surfaces a percentage.
 func runMidjourneyTaskUpdateOnce(ctx context.Context, report func(processed, total int)) midjourneyPollSummary {
+	service.ReconcileMidjourneyRefunds(ctx)
 	summary := midjourneyPollSummary{}
 	if ctx == nil {
 		ctx = context.Background()
@@ -213,9 +214,8 @@ func runMidjourneyTaskUpdateOnce(ctx context.Context, report func(processed, tot
 			if err != nil {
 				logger.LogError(ctx, "UpdateMidjourneyTask task error: "+err.Error())
 			} else if won && shouldReturnQuota {
-				err = model.IncreaseUserQuota(task.UserId, task.Quota, false)
-				if err != nil {
-					logger.LogError(ctx, "fail to increase user quota: "+err.Error())
+				if !service.RefundMidjourneyQuota(ctx, task) {
+					logger.LogError(ctx, "fail to refund Midjourney billing")
 				}
 				model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 					UserId:    task.UserId,
@@ -229,6 +229,10 @@ func runMidjourneyTaskUpdateOnce(ctx context.Context, report func(processed, tot
 						"reason":  "构图失败",
 					},
 				})
+			} else if won && task.Status == "SUCCESS" {
+				if !service.SettleMidjourneyQuota(ctx, task) {
+					logger.LogError(ctx, "fail to settle Midjourney billing")
+				}
 			}
 		}
 	}

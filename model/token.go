@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
-	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
 )
 
@@ -438,6 +438,9 @@ func decreaseTokenQuota(id int, quota int) (err error) {
 	).Error
 	return err
 }
+
+func IncreaseTokenQuotaDurable(id int, quota int) error { return increaseTokenQuota(id, quota) }
+func DecreaseTokenQuotaDurable(id int, quota int) error { return decreaseTokenQuota(id, quota) }
 
 // CountUserTokens returns total number of tokens for the given user, used for pagination
 func CountUserTokens(userId int) (int64, error) {

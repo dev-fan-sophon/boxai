@@ -22,6 +22,7 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
+	service.RegisterSystemTaskHandler(billingReconcileHandler{})
 }
 
 // channelTestHandler runs the scheduled "test all channels" job. Enablement and
@@ -120,7 +121,9 @@ type midjourneyPollHandler struct{}
 func (midjourneyPollHandler) Type() string { return model.SystemTaskTypeMidjourneyPoll }
 
 func (midjourneyPollHandler) Enabled() bool {
-	return constant.UpdateTask && model.HasUnfinishedMidjourneyTasks()
+	return constant.UpdateTask && (model.HasUnfinishedMidjourneyTasks() ||
+		model.HasPendingMidjourneyRefunds() || model.HasPendingMidjourneySettlements() ||
+		model.HasPendingBillingOperationProjections())
 }
 
 func (midjourneyPollHandler) Interval() time.Duration { return 15 * time.Second }
@@ -140,7 +143,9 @@ type asyncTaskPollHandler struct{}
 func (asyncTaskPollHandler) Type() string { return model.SystemTaskTypeAsyncTaskPoll }
 
 func (asyncTaskPollHandler) Enabled() bool {
-	return constant.UpdateTask && (model.HasUnfinishedSyncTasks() || model.HasUnpersistedSuccessfulVideoRuns())
+	return constant.UpdateTask && (model.HasUnfinishedSyncTasks() || model.HasUnpersistedSuccessfulVideoRuns() ||
+		model.HasPendingTerminalTaskRefunds() || model.HasPendingTerminalTaskSettlements() ||
+		model.HasPendingBillingOperationProjections())
 }
 
 func (asyncTaskPollHandler) Interval() time.Duration { return 15 * time.Second }
@@ -148,8 +153,28 @@ func (asyncTaskPollHandler) Interval() time.Duration { return 15 * time.Second }
 func (asyncTaskPollHandler) NewPayload() any { return nil }
 
 func (asyncTaskPollHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	service.ReconcileTaskRefunds(ctx)
 	summary := service.RunTaskPollingOnce(ctx, service.NewSystemTaskProgressReporter(task, runnerID))
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+// billingReconcileHandler is deliberately independent of UPDATE_TASK. Turning
+// provider polling off must not strand already-committed billing projections
+// or terminal settlement/refund work.
+type billingReconcileHandler struct{}
+
+func (billingReconcileHandler) Type() string { return model.SystemTaskTypeBillingReconcile }
+func (billingReconcileHandler) Enabled() bool {
+	return model.HasPendingTerminalTaskRefunds() || model.HasPendingTerminalTaskSettlements() ||
+		model.HasPendingMidjourneyRefunds() || model.HasPendingMidjourneySettlements() ||
+		model.HasPendingBillingOperationProjections()
+}
+func (billingReconcileHandler) Interval() time.Duration { return 15 * time.Second }
+func (billingReconcileHandler) NewPayload() any         { return nil }
+func (billingReconcileHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	service.ReconcileTaskRefunds(ctx)
+	service.ReconcileMidjourneyRefunds(ctx)
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
 }
 
 func finishSystemTaskHandler(task *model.SystemTask, runnerID string, status model.SystemTaskStatus, result any, runErr error) {

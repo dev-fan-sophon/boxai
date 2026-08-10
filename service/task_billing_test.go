@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"math"
@@ -14,7 +13,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/types"
-	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +41,7 @@ func TestMain(m *testing.M) {
 
 	if err := db.AutoMigrate(
 		&model.Task{},
+		&model.BillingOperation{},
 		&model.User{},
 		&model.Token{},
 		&model.Log{},
@@ -66,6 +65,7 @@ func truncate(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
 		model.DB.Exec("DELETE FROM tasks")
+		model.DB.Exec("DELETE FROM billing_operations")
 		model.DB.Exec("DELETE FROM users")
 		model.DB.Exec("DELETE FROM tokens")
 		model.DB.Exec("DELETE FROM logs")
@@ -132,9 +132,10 @@ func makeTask(userId, channelId, quota, tokenId int, billingSource string, subsc
 			OriginModelName: "test-model",
 		},
 		PrivateData: model.TaskPrivateData{
-			BillingSource:  billingSource,
-			SubscriptionId: subscriptionId,
-			TokenId:        tokenId,
+			BillingSource:               billingSource,
+			SubscriptionId:              subscriptionId,
+			SubscriptionUsageGeneration: 1,
+			TokenId:                     tokenId,
 			BillingContext: &model.TaskBillingContext{
 				ModelPrice:      0.02,
 				GroupRatio:      1.0,
@@ -142,6 +143,83 @@ func makeTask(userId, channelId, quota, tokenId int, billingSource string, subsc
 			},
 		},
 	}
+}
+
+func TestTaskSettlementDoesNotMutateNewerSubscriptionGeneration(t *testing.T) {
+	truncate(t)
+	const userID, subscriptionID = 46, 46
+	seedUser(t, userID, 0)
+	seedSubscription(t, subscriptionID, userID, 5000, 100)
+	task := makeTask(userID, 0, 100, 0, BillingSourceSubscription, subscriptionID)
+	task.PrivateData.BillingOperationKey = "period-task-settlement"
+	initial, err := taskInitialBillingOperation(task)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, initial.SubscriptionUsageGeneration)
+	require.NoError(t, model.DB.Model(&model.UserSubscription{}).Where("id = ?", subscriptionID).
+		Updates(map[string]any{"amount_used": 60, "usage_generation": 2}).Error)
+
+	applied, err := settleTaskBillingOperation(task, 150)
+	require.NoError(t, err)
+	require.True(t, applied)
+	assert.EqualValues(t, 60, getSubscriptionUsed(t, subscriptionID))
+}
+
+func TestTaskRefundDoesNotMutateNewerSubscriptionGeneration(t *testing.T) {
+	truncate(t)
+	const userID, subscriptionID = 47, 47
+	seedUser(t, userID, 0)
+	seedSubscription(t, subscriptionID, userID, 5000, 100)
+	task := makeTask(userID, 0, 100, 0, BillingSourceSubscription, subscriptionID)
+	task.PrivateData.BillingOperationKey = "period-task-refund"
+	task.Status = model.TaskStatusFailure
+	_, err := taskInitialBillingOperation(task)
+	require.NoError(t, err)
+	require.NoError(t, model.DB.Model(&model.UserSubscription{}).Where("id = ?", subscriptionID).
+		Updates(map[string]any{"amount_used": 60, "usage_generation": 2}).Error)
+
+	require.True(t, RefundTaskQuota(context.Background(), task, "failed after reset"))
+	assert.EqualValues(t, 60, getSubscriptionUsed(t, subscriptionID))
+}
+
+func TestLegacyTaskWithoutGenerationFailsClosed(t *testing.T) {
+	truncate(t)
+	const userID, subscriptionID = 48, 48
+	seedUser(t, userID, 0)
+	seedSubscription(t, subscriptionID, userID, 5000, 60)
+	require.NoError(t, model.DB.Model(&model.UserSubscription{}).Where("id = ?", subscriptionID).
+		Update("usage_generation", 2).Error)
+
+	legacyJSON := `{"billing_source":"subscription","subscription_id":48}`
+	var privateData model.TaskPrivateData
+	require.NoError(t, privateData.Scan([]byte(legacyJSON)))
+	require.EqualValues(t, model.UnknownSubscriptionUsageGeneration, privateData.SubscriptionUsageGeneration)
+
+	task := makeTask(userID, 0, 100, 0, BillingSourceSubscription, subscriptionID)
+	task.PrivateData = privateData
+	task.Status = model.TaskStatusFailure
+	require.True(t, RefundTaskQuota(context.Background(), task, "legacy failure after reset"))
+	assert.EqualValues(t, 60, getSubscriptionUsed(t, subscriptionID))
+}
+
+func TestTaskRecoveryUsesPersistedBillingOperationKey(t *testing.T) {
+	truncate(t)
+	const userID, subscriptionID = 49, 49
+	seedUser(t, userID, 0)
+	seedSubscription(t, subscriptionID, userID, 5000, 100)
+	task := makeTask(userID, 0, 100, 0, BillingSourceSubscription, subscriptionID)
+	task.PrivateData.BillingOperationKey = "persisted-task-lineage"
+	original, _, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: "async:persisted-task-lineage:initial", Kind: model.BillingOperationInitial,
+		UserID: userID, SubscriptionID: subscriptionID, SubscriptionUsageGeneration: 1,
+		BillingSource: BillingSourceSubscription, ChargedQuota: 100,
+		ReferenceKey: "async:persisted-task-lineage:initial",
+	})
+	require.NoError(t, err)
+
+	recovered, err := taskInitialBillingOperation(task)
+	require.NoError(t, err)
+	assert.Equal(t, original.ID, recovered.ID)
+	assert.Equal(t, original.IdempotencyKey, recovered.IdempotencyKey)
 }
 
 func TestPriceDataOtherRatiosFilterAndSnapshot(t *testing.T) {
@@ -408,18 +486,24 @@ func TestRefundTaskQuota_NoToken(t *testing.T) {
 	assert.Zero(t, getTaskQuota(t, task.ID))
 }
 
-func TestRefundTaskQuota_FundingFailureKeepsQuota(t *testing.T) {
+func TestRefundTaskQuota_DeletedSubscriptionStillRefundsToken(t *testing.T) {
 	truncate(t)
 
-	const userID, quota = 5, 1200
+	const userID, tokenID, quota = 5, 5, 1200
 	seedUser(t, userID, 5000)
-	task := makeTask(userID, 0, quota, 0, BillingSourceSubscription, 9999)
+	seedToken(t, tokenID, userID, "sk-deleted-subscription", 3800)
+	require.NoError(t, model.DB.Model(&model.Token{}).Where("id = ?", tokenID).Update("used_quota", quota).Error)
+	task := makeTask(userID, 0, quota, tokenID, BillingSourceSubscription, 9999)
 	require.NoError(t, model.DB.Create(task).Error)
 
-	assert.False(t, RefundTaskQuota(context.Background(), task, "subscription missing"))
-	assert.Equal(t, quota, task.Quota)
-	assert.Equal(t, quota, getTaskQuota(t, task.ID))
-	assert.Equal(t, int64(0), countLogs(t))
+	require.True(t, RefundTaskQuota(context.Background(), task, "subscription deleted"))
+	assert.Zero(t, task.Quota)
+	assert.Zero(t, getTaskQuota(t, task.ID))
+	assert.Equal(t, 5000, getTokenRemainQuota(t, tokenID))
+	var token model.Token
+	require.NoError(t, model.DB.First(&token, tokenID).Error)
+	assert.Zero(t, token.UsedQuota)
+	assert.Equal(t, int64(1), countLogs(t))
 }
 
 func TestNegativeTaskQuotaCannotMutateFunding(t *testing.T) {
@@ -438,32 +522,18 @@ func TestNegativeTaskQuotaCannotMutateFunding(t *testing.T) {
 	assert.Equal(t, int64(0), countLogs(t))
 }
 
-func TestRefundTaskQuota_QuotaClearFailureDoesNotRefundTwice(t *testing.T) {
+func TestRefundTaskQuota_IdempotentDoesNotRefundTwice(t *testing.T) {
 	truncate(t)
 
 	const userID, quota = 6, 1300
 	seedUser(t, userID, 5000)
 	task := makeTask(userID, 0, quota, 0, BillingSourceWallet, 0)
-	// Keep ID zero so the final quota UPDATE is rejected by GORM after the
-	// wallet refund and refund log have already succeeded.
 
-	var logBuffer bytes.Buffer
-	common.LogWriterMu.Lock()
-	oldWriter := gin.DefaultErrorWriter
-	gin.DefaultErrorWriter = &logBuffer
-	common.LogWriterMu.Unlock()
-	t.Cleanup(func() {
-		common.LogWriterMu.Lock()
-		gin.DefaultErrorWriter = oldWriter
-		common.LogWriterMu.Unlock()
-	})
-
-	assert.True(t, RefundTaskQuota(context.Background(), task, "clear quota failure"))
+	assert.True(t, RefundTaskQuota(context.Background(), task, "first refund"))
 	assert.True(t, RefundTaskQuota(context.Background(), task, "must not refund again"))
 	assert.Equal(t, 5000+quota, getUserQuota(t, userID))
 	assert.Equal(t, int64(1), countLogs(t))
 	assert.Zero(t, task.Quota)
-	assert.Contains(t, logBuffer.String(), "清除 task quota 失败")
 }
 
 // ===========================================================================
@@ -882,7 +952,9 @@ func TestSettle_NonPerCallBilling_AppliesAdaptorAdjustment(t *testing.T) {
 
 	settleTaskBillingOnComplete(ctx, adaptor, task, taskResult)
 
-	// Non-per-call: adaptor adjustment applies (refund 2000)
+	// This legacy task's pre-charge predates the journal. Backfill records that
+	// charge with a zero delta, so settlement applies only the 2000 refund and
+	// must not replay the original charge.
 	assert.Equal(t, initQuota+(preConsumed-adaptorQuota), getUserQuota(t, userID))
 	assert.Equal(t, tokenRemain+(preConsumed-adaptorQuota), getTokenRemainQuota(t, tokenID))
 	assert.Equal(t, adaptorQuota, task.Quota)

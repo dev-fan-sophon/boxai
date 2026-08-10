@@ -1081,6 +1081,8 @@ impl GatewayKit {
                             )
                             .child(
                                 div()
+                                    .flex_1()
+                                    .min_w_0()
                                     .flex()
                                     .flex_col()
                                     .gap(px(3.0))
@@ -1097,19 +1099,23 @@ impl GatewayKit {
                                     ),
                             )
                             .child(
-                                Badge::new(text(
-                                    self.locale,
-                                    if install.detected {
-                                        Message::Detected
-                                    } else {
-                                        Message::NotFound
-                                    },
-                                ))
-                                .tone(if install.detected {
-                                    Tone::Success
-                                } else {
-                                    Tone::Neutral
-                                }),
+                                div().w(px(88.0)).flex().justify_end().child(
+                                    Badge::new(text(
+                                        self.locale,
+                                        if install.detected {
+                                            Message::Detected
+                                        } else {
+                                            Message::NotFound
+                                        },
+                                    ))
+                                    .tone(
+                                        if install.detected {
+                                            Tone::Success
+                                        } else {
+                                            Tone::Neutral
+                                        },
+                                    ),
+                                ),
                             ),
                     )
                     .child(

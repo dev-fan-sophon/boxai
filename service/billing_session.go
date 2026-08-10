@@ -46,6 +46,26 @@ func (s *BillingSession) Settle(actualQuota int) error {
 		return nil
 	}
 	delta := actualQuota - s.preConsumedQuota
+	if s.relayInfo.ForcePreConsume {
+		if delta != 0 {
+			operation, _, err := s.applyDurableOperation(s.operationInput(
+				model.BillingOperationSettle,
+				fmt.Sprintf("%s:settle:%d", s.operationKey(), actualQuota),
+				delta,
+				actualQuota,
+			))
+			if err != nil {
+				return err
+			}
+			s.applyOperation(operation)
+		}
+		s.preConsumedQuota = actualQuota
+		s.tokenConsumed = actualQuota
+		s.settled = true
+		s.syncRelayInfo()
+		projectBillingOperationCaches(s.relayInfo.UserId, s.relayInfo.TokenId)
+		return nil
+	}
 	if delta == 0 {
 		s.settled = true
 		return nil
@@ -88,6 +108,21 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	}
 	s.refunded = true
 	s.mu.Unlock()
+	if s.relayInfo.ForcePreConsume {
+		operation, _, err := s.applyDurableOperation(s.operationInput(
+			model.BillingOperationRefund,
+			s.operationKey()+":refund",
+			-s.preConsumedQuota,
+			0,
+		))
+		if err != nil {
+			common.SysLog("error applying atomic billing refund: " + err.Error())
+			return
+		}
+		s.applyOperation(operation)
+		projectBillingOperationCaches(s.relayInfo.UserId, s.relayInfo.TokenId)
+		return
+	}
 
 	logger.LogInfo(c, fmt.Sprintf("用户 %d 请求失败, 返还预扣费（token_quota=%s, funding=%s）",
 		s.relayInfo.UserId,
@@ -102,6 +137,7 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	tokenConsumed := s.tokenConsumed
 	extraReserved := s.extraReserved
 	subscriptionId := s.relayInfo.SubscriptionId
+	usageGeneration := s.relayInfo.SubscriptionUsageGeneration
 	funding := s.funding
 
 	gopool.Go(func() {
@@ -110,7 +146,7 @@ func (s *BillingSession) Refund(c *gin.Context) {
 			common.SysLog("error refunding billing source: " + err.Error())
 		}
 		if extraReserved > 0 && funding.Source() == BillingSourceSubscription && subscriptionId > 0 {
-			if err := model.PostConsumeUserSubscriptionDelta(subscriptionId, -int64(extraReserved)); err != nil {
+			if err := model.PostConsumeUserSubscriptionDelta(subscriptionId, usageGeneration, -int64(extraReserved)); err != nil {
 				common.SysLog("error refunding subscription extra reserved quota: " + err.Error())
 			}
 		}
@@ -154,12 +190,30 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.settled || s.refunded || s.trusted || targetQuota <= s.preConsumedQuota {
+	if s.settled || s.refunded || targetQuota <= s.preConsumedQuota {
 		return nil
 	}
 
 	delta := targetQuota - s.preConsumedQuota
 	if delta <= 0 {
+		return nil
+	}
+	if s.relayInfo.ForcePreConsume {
+		operation, _, err := s.applyDurableOperation(s.operationInput(
+			model.BillingOperationReserve,
+			fmt.Sprintf("%s:reserve:%d", s.operationKey(), targetQuota),
+			delta,
+			targetQuota,
+		))
+		if err != nil {
+			return err
+		}
+		s.applyOperation(operation)
+		s.preConsumedQuota = targetQuota
+		s.tokenConsumed = targetQuota
+		s.extraReserved += delta
+		s.syncRelayInfo()
+		projectBillingOperationCaches(s.relayInfo.UserId, s.relayInfo.TokenId)
 		return nil
 	}
 
@@ -174,6 +228,7 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 	s.preConsumedQuota += delta
 	s.tokenConsumed += delta
 	s.extraReserved += delta
+	s.trusted = false
 	s.syncRelayInfo()
 	return nil
 }
@@ -186,6 +241,23 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 // 任一步骤失败时原子回滚已完成的步骤。
 func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIError {
 	effectiveQuota := quota
+	if s.relayInfo.ForcePreConsume {
+		operation, _, err := s.applyDurableOperation(s.operationInput(
+			model.BillingOperationInitial,
+			s.operationKey()+":initial",
+			effectiveQuota,
+			effectiveQuota,
+		))
+		if err != nil {
+			return types.NewErrorWithStatusCode(err, types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}
+		s.applyOperation(operation)
+		s.preConsumedQuota = effectiveQuota
+		s.tokenConsumed = effectiveQuota
+		s.syncRelayInfo()
+		projectBillingOperationCaches(s.relayInfo.UserId, s.relayInfo.TokenId)
+		return nil
+	}
 
 	// ---- 信任额度旁路 ----
 	if s.shouldTrust(c) {
@@ -230,6 +302,63 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	return nil
 }
 
+func (s *BillingSession) operationKey() string {
+	if s.relayInfo.BillingOperationKey == "" {
+		s.relayInfo.BillingOperationKey = s.relayInfo.RequestId
+	}
+	return "async:" + s.relayInfo.BillingOperationKey
+}
+
+func (s *BillingSession) operationInput(kind, key string, delta, charged int) model.BillingOperationInput {
+	return model.BillingOperationInput{IdempotencyKey: key, Kind: kind, UserID: s.relayInfo.UserId,
+		TokenID: s.relayInfo.TokenId, SubscriptionID: s.relayInfo.SubscriptionId,
+		SubscriptionUsageGeneration: s.relayInfo.SubscriptionUsageGeneration,
+		OverageSubscriptionID:       s.relayInfo.OverageSubscriptionId,
+		OverageUsageGeneration:      s.relayInfo.OverageSubscriptionUsageGeneration,
+		BillingSource:               s.funding.Source(), Delta: delta, ChargedQuota: charged, ReferenceKey: s.operationKey() + ":initial",
+		SetChargeToTarget: kind != model.BillingOperationInitial}
+}
+
+func (s *BillingSession) applyDurableOperation(input model.BillingOperationInput) (*model.BillingOperation, bool, error) {
+	if err := model.FlushBillingQuotaBatches(s.relayInfo.UserId, s.relayInfo.TokenId); err != nil {
+		return nil, false, err
+	}
+	operation, applied, err := model.ApplyBillingOperation(input)
+	if err != nil || !applied {
+		return operation, applied, err
+	}
+	return operation, true, nil
+}
+
+func (s *BillingSession) applyOperation(operation *model.BillingOperation) {
+	if operation == nil {
+		return
+	}
+	if operation.SubscriptionID > 0 {
+		s.relayInfo.SubscriptionId = operation.SubscriptionID
+		s.relayInfo.SubscriptionUsageGeneration = operation.SubscriptionUsageGeneration
+		if funding, ok := s.funding.(*SubscriptionFunding); ok {
+			funding.subscriptionId = operation.SubscriptionID
+			funding.usageGeneration = operation.SubscriptionUsageGeneration
+			funding.preConsumed = int64(operation.ChargedQuota)
+		}
+	}
+}
+
+func projectBillingOperationCaches(userID, tokenID int) {
+	for _, operation := range model.PendingBillingOperationProjections(100) {
+		if operation.UserID != userID || operation.TokenID != tokenID {
+			continue
+		}
+		if model.InvalidateUserCache(operation.UserID) != nil {
+			continue
+		}
+		if operation.TokenID > 0 && model.InvalidateUserTokensCache(operation.UserID) != nil {
+			continue
+		}
+		_ = model.CompleteBillingOperationProjection(operation.ID)
+	}
+}
 func (s *BillingSession) reserveFunding(delta int) error {
 	switch funding := s.funding.(type) {
 	case *WalletFunding:
@@ -240,7 +369,7 @@ func (s *BillingSession) reserveFunding(delta int) error {
 		funding.trackOverage(delta)
 		return nil
 	case *SubscriptionFunding:
-		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, int64(delta)); err != nil {
+		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, funding.usageGeneration, int64(delta)); err != nil {
 			return types.NewErrorWithStatusCode(
 				fmt.Errorf("订阅额度不足或未配置订阅: %s", err.Error()),
 				types.ErrorCodeInsufficientUserQuota,
@@ -265,7 +394,7 @@ func (s *BillingSession) rollbackFundingReserve(delta int) {
 			funding.trackOverage(-delta)
 		}
 	case *SubscriptionFunding:
-		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, -int64(delta)); err != nil {
+		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, funding.usageGeneration, -int64(delta)); err != nil {
 			common.SysLog("error rolling back subscription funding reserve: " + err.Error())
 		}
 	}
@@ -325,6 +454,7 @@ func (s *BillingSession) syncRelayInfo() {
 
 	if sub, ok := s.funding.(*SubscriptionFunding); ok {
 		info.SubscriptionId = sub.subscriptionId
+		info.SubscriptionUsageGeneration = sub.usageGeneration
 		info.SubscriptionPreConsumed = sub.preConsumed + int64(s.extraReserved)
 		info.SubscriptionPostDelta = 0
 		info.SubscriptionAmountTotal = sub.AmountTotal
@@ -333,12 +463,15 @@ func (s *BillingSession) syncRelayInfo() {
 		info.SubscriptionPlanTitle = sub.PlanTitle
 	} else {
 		info.SubscriptionId = 0
+		info.SubscriptionUsageGeneration = 0
 		info.SubscriptionPreConsumed = 0
 	}
 	if wallet, ok := s.funding.(*WalletFunding); ok {
 		info.OverageSubscriptionId = wallet.overageSubscriptionId
+		info.OverageSubscriptionUsageGeneration = wallet.overageUsageGeneration
 	} else {
 		info.OverageSubscriptionId = 0
+		info.OverageSubscriptionUsageGeneration = 0
 	}
 }
 
@@ -355,7 +488,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 	}
 
 	// 钱包路径需要先检查用户额度。overageSubscriptionId > 0 时本次消费计入该订阅周期的额外用量。
-	tryWallet := func(overageSubscriptionId int) (*BillingSession, *types.NewAPIError) {
+	tryWallet := func(overageSubscriptionId int, overageUsageGeneration int64) (*BillingSession, *types.NewAPIError) {
 		userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
@@ -376,7 +509,8 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 
 		session := &BillingSession{
 			relayInfo: relayInfo,
-			funding:   &WalletFunding{userId: relayInfo.UserId, overageSubscriptionId: overageSubscriptionId},
+			funding: &WalletFunding{userId: relayInfo.UserId, overageSubscriptionId: overageSubscriptionId,
+				overageUsageGeneration: overageUsageGeneration},
 		}
 		if apiErr := session.preConsume(c, preConsumedQuota); apiErr != nil {
 			return nil, apiErr
@@ -411,7 +545,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		return nil, types.NewError(subCheckErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	if !hasSub {
-		return tryWallet(0)
+		return tryWallet(0, 0)
 	}
 
 	session, apiErr := trySubscription()
@@ -442,8 +576,10 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		return nil, types.NewError(primaryErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	overageSubscriptionId := 0
+	var overageUsageGeneration int64
 	if primarySub != nil {
 		overageSubscriptionId = primarySub.Id
+		overageUsageGeneration = primarySub.UsageGeneration
 		if limitUsd := relayInfo.UserSetting.OverageLimitUsd; limitUsd > 0 {
 			// 上限是软限额（并发请求可能轻微超出），只做阈值比较，不参与计费换算。
 			limitQuota := decimal.NewFromFloat(limitUsd).
@@ -457,5 +593,6 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 			}
 		}
 	}
-	return tryWallet(overageSubscriptionId)
+	session, apiErr = tryWallet(overageSubscriptionId, overageUsageGeneration)
+	return session, apiErr
 }

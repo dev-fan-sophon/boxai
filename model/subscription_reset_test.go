@@ -67,16 +67,49 @@ func TestProvisioningSnapshotAppliesDueResetAndRefundIsAtomic(t *testing.T) {
 	stored := getSubscriptionResetSub(t, sub.Id)
 	assert.Zero(t, stored.AmountUsed)
 	assert.Zero(t, stored.OverageUsed)
+	// The stored schedule is two periods behind; each elapsed automatic reset
+	// advances the generation so delayed work from either period fails closed.
+	assert.EqualValues(t, 3, stored.UsageGeneration)
 
 	stored.AmountUsed = 100
 	require.NoError(t, DB.Save(&stored).Error)
 	record := SubscriptionPreConsumeRecord{
 		RequestId: "provisioning-refund", UserId: user.Id, UserSubscriptionId: stored.Id,
-		PreConsumed: 100, Status: "consumed",
+		UsageGeneration: stored.UsageGeneration, PreConsumed: 100, Status: "consumed",
 	}
 	require.NoError(t, DB.Create(&record).Error)
 	require.NoError(t, RefundSubscriptionPreConsume(record.RequestId))
 	assert.Zero(t, getSubscriptionResetSub(t, stored.Id).AmountUsed)
+	require.NoError(t, DB.Where("request_id = ?", record.RequestId).First(&record).Error)
+	assert.Equal(t, "refunded", record.Status)
+}
+
+func TestRefundSubscriptionPreConsumeDoesNotMutateNewerGeneration(t *testing.T) {
+	truncateTables(t)
+	now := GetDBTimestamp()
+	user := User{Username: "stale-subscription-refund", Status: 1, Group: "default"}
+	require.NoError(t, DB.Create(&user).Error)
+	plan := SubscriptionPlan{
+		Title: "Daily stale refund", DurationUnit: SubscriptionDurationMonth, DurationValue: 1,
+		TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetDaily,
+	}
+	seedSubscriptionResetPlan(t, &plan)
+	sub := UserSubscription{
+		UserId: user.Id, PlanId: plan.Id, AmountTotal: 1000, AmountUsed: 100,
+		UsageGeneration: 1, StartTime: now - 3600, EndTime: now + 86400, Status: "active",
+	}
+	seedSubscriptionResetSub(t, &sub)
+	record := SubscriptionPreConsumeRecord{
+		RequestId: "stale-generation-refund", UserId: user.Id, UserSubscriptionId: sub.Id,
+		UsageGeneration: 1, PreConsumed: 100, Status: "consumed",
+	}
+	require.NoError(t, DB.Create(&record).Error)
+	require.NoError(t, DB.Model(&sub).Updates(map[string]any{"amount_used": 75, "usage_generation": 2}).Error)
+
+	require.NoError(t, RefundSubscriptionPreConsume(record.RequestId))
+	stored := getSubscriptionResetSub(t, sub.Id)
+	assert.EqualValues(t, 75, stored.AmountUsed)
+	assert.EqualValues(t, 2, stored.UsageGeneration)
 	require.NoError(t, DB.Where("request_id = ?", record.RequestId).First(&record).Error)
 	assert.Equal(t, "refunded", record.Status)
 }
@@ -191,6 +224,7 @@ func TestAdminResetUserSubscriptionsByPlanResetsAllActiveMatchesAndAdvancesTime(
 	for _, id := range []int{9201, 9202} {
 		sub := getSubscriptionResetSub(t, id)
 		assert.Zero(t, sub.AmountUsed)
+		assert.EqualValues(t, 2, sub.UsageGeneration)
 		assert.GreaterOrEqual(t, sub.LastResetTime, beforeReset)
 		assert.LessOrEqual(t, sub.LastResetTime, afterReset)
 		assert.Equal(t, calcNextResetTime(time.Unix(sub.LastResetTime, 0), plan, sub.EndTime), sub.NextResetTime)
@@ -226,6 +260,7 @@ func TestAdminResetUserSubscriptionsByPlanKeepsResetTimes(t *testing.T) {
 	assert.False(t, result.AdvanceResetTime)
 	sub := getSubscriptionResetSub(t, 9302)
 	assert.Zero(t, sub.AmountUsed)
+	assert.EqualValues(t, 2, sub.UsageGeneration)
 	assert.Equal(t, lastReset, sub.LastResetTime)
 	assert.Equal(t, nextReset, sub.NextResetTime)
 }
@@ -285,6 +320,7 @@ func TestAdminResetPlanSubscriptionsResetsAllActiveUsers(t *testing.T) {
 	for _, id := range []int{9502, 9503, 9504} {
 		sub := getSubscriptionResetSub(t, id)
 		assert.Zero(t, sub.AmountUsed)
+		assert.EqualValues(t, 2, sub.UsageGeneration)
 		assert.Zero(t, sub.LastResetTime)
 		assert.Zero(t, sub.NextResetTime)
 	}

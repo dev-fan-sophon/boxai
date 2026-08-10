@@ -299,6 +299,9 @@ type UserSubscription struct {
 
 	AmountTotal int64 `json:"amount_total" gorm:"type:bigint;not null;default:0"`
 	AmountUsed  int64 `json:"amount_used" gorm:"type:bigint;not null;default:0"`
+	// UsageGeneration identifies the quota period represented by AmountUsed.
+	// Delayed settlement from an older period must never mutate a newer bucket.
+	UsageGeneration int64 `json:"usage_generation" gorm:"type:bigint;not null;default:1"`
 
 	StartTime int64  `json:"start_time" gorm:"bigint"`
 	EndTime   int64  `json:"end_time" gorm:"bigint;index;index:idx_user_sub_active,priority:3"`
@@ -336,6 +339,9 @@ type UserSubscription struct {
 
 func (s *UserSubscription) BeforeCreate(tx *gorm.DB) error {
 	now := common.GetTimestamp()
+	if s.UsageGeneration <= 0 {
+		s.UsageGeneration = 1
+	}
 	s.CreatedAt = now
 	s.UpdatedAt = now
 	return nil
@@ -1142,6 +1148,7 @@ func resetUserSubscriptionTx(tx *gorm.DB, sub *UserSubscription, plan *Subscript
 	}
 	sub.AmountUsed = 0
 	sub.OverageUsed = 0
+	sub.UsageGeneration++
 	if advanceResetTime {
 		nextReset := calcNextResetTime(time.Unix(now, 0), plan, sub.EndTime)
 		sub.NextResetTime = nextReset
@@ -1258,6 +1265,7 @@ func AdminResetPlanSubscriptions(planId int, advanceResetTime bool) (*Subscripti
 
 type SubscriptionPreConsumeResult struct {
 	UserSubscriptionId int
+	UsageGeneration    int64
 	PreConsumed        int64
 	AmountTotal        int64
 	AmountUsedBefore   int64
@@ -1368,6 +1376,7 @@ type SubscriptionPreConsumeRecord struct {
 	RequestId          string `json:"request_id" gorm:"type:varchar(64);uniqueIndex"`
 	UserId             int    `json:"user_id" gorm:"index"`
 	UserSubscriptionId int    `json:"user_subscription_id" gorm:"index"`
+	UsageGeneration    int64  `json:"usage_generation" gorm:"type:bigint;not null;default:-1"`
 	PreConsumed        int64  `json:"pre_consumed" gorm:"type:bigint;not null;default:0"`
 	Status             string `json:"status" gorm:"type:varchar(32);index"` // consumed/refunded
 	CreatedAt          int64  `json:"created_at" gorm:"bigint"`
@@ -1376,6 +1385,9 @@ type SubscriptionPreConsumeRecord struct {
 
 func (r *SubscriptionPreConsumeRecord) BeforeCreate(tx *gorm.DB) error {
 	now := common.GetTimestamp()
+	if r.UsageGeneration == 0 {
+		r.UsageGeneration = UnknownSubscriptionUsageGeneration
+	}
 	r.CreatedAt = now
 	r.UpdatedAt = now
 	return nil
@@ -1402,13 +1414,13 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	}
 	base := time.Unix(baseUnix, 0)
 	next := calcNextResetTime(base, plan, sub.EndTime)
-	advanced := false
+	advanced := int64(0)
 	for next > 0 && next <= now {
-		advanced = true
+		advanced++
 		base = time.Unix(next, 0)
 		next = calcNextResetTime(base, plan, sub.EndTime)
 	}
-	if !advanced {
+	if advanced == 0 {
 		if sub.NextResetTime == 0 && next > 0 {
 			sub.NextResetTime = next
 			sub.LastResetTime = base.Unix()
@@ -1418,6 +1430,7 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	}
 	sub.AmountUsed = 0
 	sub.OverageUsed = 0
+	sub.UsageGeneration += advanced
 	sub.LastResetTime = base.Unix()
 	sub.NextResetTime = next
 	return tx.Save(sub).Error
@@ -1470,6 +1483,8 @@ func ReconcileActiveSubscriptionResetTimezone() error {
 				// re-evaluate it using the new timezone or it may be postponed.
 				if sub.NextResetTime > 0 && sub.NextResetTime <= now {
 					sub.AmountUsed = 0
+					sub.OverageUsed = 0
+					sub.UsageGeneration++
 					sub.LastResetTime = now
 				}
 				sub.NextResetTime = calcNextResetTime(time.Unix(now, 0).In(location), &plan, sub.EndTime)
@@ -1510,10 +1525,11 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 				return errors.New("subscription pre-consume already refunded")
 			}
 			var sub UserSubscription
-			if err := tx.Where("id = ?", existing.UserSubscriptionId).First(&sub).Error; err != nil {
-				return err
-			}
-			returnValue.UserSubscriptionId = sub.Id
+			// The idempotency record remains authoritative after subscription
+			// archival/deletion; delayed token bookkeeping must still be retryable.
+			_ = tx.Unscoped().Where("id = ?", existing.UserSubscriptionId).First(&sub).Error
+			returnValue.UserSubscriptionId = existing.UserSubscriptionId
+			returnValue.UsageGeneration = existing.UsageGeneration
 			returnValue.PreConsumed = existing.PreConsumed
 			returnValue.AmountTotal = sub.AmountTotal
 			returnValue.AmountUsedBefore = sub.AmountUsed
@@ -1551,6 +1567,7 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 				RequestId:          requestId,
 				UserId:             userId,
 				UserSubscriptionId: sub.Id,
+				UsageGeneration:    sub.UsageGeneration,
 				PreConsumed:        amount,
 				Status:             "consumed",
 			}
@@ -1560,7 +1577,8 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 					if dup.Status == "refunded" {
 						return errors.New("subscription pre-consume already refunded")
 					}
-					returnValue.UserSubscriptionId = sub.Id
+					returnValue.UserSubscriptionId = dup.UserSubscriptionId
+					returnValue.UsageGeneration = dup.UsageGeneration
 					returnValue.PreConsumed = dup.PreConsumed
 					returnValue.AmountTotal = sub.AmountTotal
 					returnValue.AmountUsedBefore = sub.AmountUsed
@@ -1574,6 +1592,7 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 				return err
 			}
 			returnValue.UserSubscriptionId = sub.Id
+			returnValue.UsageGeneration = sub.UsageGeneration
 			returnValue.PreConsumed = amount
 			returnValue.AmountTotal = sub.AmountTotal
 			returnValue.AmountUsedBefore = usedBefore
@@ -1606,7 +1625,7 @@ func RefundSubscriptionPreConsume(requestId string) error {
 			record.Status = "refunded"
 			return tx.Save(&record).Error
 		}
-		if err := postConsumeUserSubscriptionDeltaTx(tx, record.UserSubscriptionId, -record.PreConsumed); err != nil {
+		if err := postConsumeUserSubscriptionDeltaTx(tx, record.UserSubscriptionId, record.UsageGeneration, -record.PreConsumed); err != nil {
 			return err
 		}
 		record.Status = "refunded"
@@ -1805,22 +1824,30 @@ func SetSubscriptionOrderProviderSubscriptionId(tradeNo string, providerSubscrip
 }
 
 // Update subscription used amount by delta (positive consume more, negative refund).
-func PostConsumeUserSubscriptionDelta(userSubscriptionId int, delta int64) error {
+func PostConsumeUserSubscriptionDelta(userSubscriptionId int, usageGeneration int64, delta int64) error {
 	if userSubscriptionId <= 0 {
 		return errors.New("invalid userSubscriptionId")
+	}
+	if usageGeneration <= 0 {
+		return errors.New("invalid subscription usage generation")
 	}
 	if delta == 0 {
 		return nil
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
-		return postConsumeUserSubscriptionDeltaTx(tx, userSubscriptionId, delta)
+		return postConsumeUserSubscriptionDeltaTx(tx, userSubscriptionId, usageGeneration, delta)
 	})
 }
 
-func postConsumeUserSubscriptionDeltaTx(tx *gorm.DB, userSubscriptionId int, delta int64) error {
+func postConsumeUserSubscriptionDeltaTx(tx *gorm.DB, userSubscriptionId int, usageGeneration int64, delta int64) error {
 	var sub UserSubscription
-	if err := lockForUpdate(tx).Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+	if err := lockForUpdate(tx).Unscoped().Where("id = ?", userSubscriptionId).First(&sub).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	} else if err != nil {
 		return err
+	}
+	if sub.UsageGeneration != usageGeneration {
+		return nil
 	}
 	newUsed := sub.AmountUsed + delta
 	if newUsed < 0 {

@@ -49,6 +49,34 @@ func addNewRecord(type_ int, id int, value int) {
 	}
 }
 
+// FlushBillingQuotaBatches is the ordering barrier between normal relay
+// batching and durable async billing. It drains only the wallet/token rows
+// involved while holding their producer locks, so a durable mutation can never
+// overtake an older in-memory delta. Cache maintenance deliberately remains
+// outside this barrier and outside database transactions.
+func FlushBillingQuotaBatches(userID, tokenID int) error {
+	batchUpdateLocks[BatchUpdateTypeUserQuota].Lock()
+	defer batchUpdateLocks[BatchUpdateTypeUserQuota].Unlock()
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Lock()
+	defer batchUpdateLocks[BatchUpdateTypeTokenQuota].Unlock()
+
+	if delta := batchUpdateStores[BatchUpdateTypeUserQuota][userID]; delta != 0 {
+		if err := increaseUserQuota(userID, delta); err != nil {
+			return err
+		}
+		delete(batchUpdateStores[BatchUpdateTypeUserQuota], userID)
+	}
+	if tokenID > 0 {
+		if delta := batchUpdateStores[BatchUpdateTypeTokenQuota][tokenID]; delta != 0 {
+			if err := increaseTokenQuota(tokenID, delta); err != nil {
+				return err
+			}
+			delete(batchUpdateStores[BatchUpdateTypeTokenQuota], tokenID)
+		}
+	}
+	return nil
+}
+
 func batchUpdate() {
 	// check if there's any data to update
 	hasData := false
