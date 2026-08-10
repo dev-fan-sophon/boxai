@@ -4,7 +4,8 @@ use connector_app::{Backend, BackendError, LogoutStatus, Status};
 use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
 use gpui::{
     AnyElement, App, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, Window, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    SharedString, Styled, TitlebarOptions, Window, WindowAppearance, WindowBounds, WindowOptions,
+    div, prelude::*, px, size,
 };
 use gpui_kit::{
     assets::Icon,
@@ -1186,14 +1187,22 @@ fn main() {
     let app = gpui_platform::application().with_assets(gpui_kit::assets::Assets);
     app.run(|cx: &mut App| {
         gpui_kit::install(cx);
+        // Connector always renders a dark surface. Tell GPUI before creating
+        // the native window so Windows DWM also uses dark caption and frame
+        // colors instead of surrounding the app with light system chrome.
+        cx.set_window_appearance(Some(WindowAppearance::Dark));
         let bounds = Bounds::centered(None, size(px(1120.0), px(760.0)), cx);
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
+                titlebar: Some(TitlebarOptions {
+                    title: Some("BoxAI Connector".into()),
+                    appears_transparent: false,
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             |window, cx| {
-                window.set_window_title("BoxAI Connector");
                 let backend = Backend::new().expect("initialize BoxAI Connector backend");
                 cx.new(|cx| GatewayKit::new(backend, window, cx))
             },
