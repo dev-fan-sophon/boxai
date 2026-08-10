@@ -221,6 +221,14 @@ impl GatewayKit {
             cx.notify();
         })
         .detach();
+        cx.observe_window_appearance(window, |_, window, cx| {
+            let theme = match window.appearance() {
+                WindowAppearance::Light | WindowAppearance::VibrantLight => "studio-light",
+                WindowAppearance::Dark | WindowAppearance::VibrantDark => "studio-dark",
+            };
+            gpui_kit::theme::activate_theme(theme, cx);
+        })
+        .detach();
         view.load(cx);
         view
     }
@@ -811,7 +819,7 @@ impl GatewayKit {
             .is_some_and(|provisioning| !provisioning.models.is_empty());
         let has_preview = !self.preview.is_empty();
         let disabled_reason = if self.busy {
-            self.busy_message
+            self.busy_message.map(|message| text(self.locale, message))
         } else if detected == 0 {
             Some(text(self.locale, Message::InstallAgentReason))
         } else if !has_models {
@@ -1294,17 +1302,7 @@ fn main() {
             },
             |window, cx| {
                 let backend = Backend::new().expect("initialize BoxAI Connector backend");
-                let view = cx.new(|cx| GatewayKit::new(backend, window, cx));
-                cx.observe_window_appearance(window, |_, window, cx| {
-                    let theme = match window.appearance() {
-                        WindowAppearance::Light | WindowAppearance::VibrantLight => "studio-light",
-                        WindowAppearance::Dark | WindowAppearance::VibrantDark => "studio-dark",
-                    };
-                    gpui_kit::theme::activate_theme(theme, cx);
-                    cx.notify();
-                })
-                .detach();
-                view
+                cx.new(|cx| GatewayKit::new(backend, window, cx))
             },
         )
         .expect("open BoxAI Connector window");
