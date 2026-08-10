@@ -631,6 +631,36 @@ impl GatewayKit {
             })
     }
 
+    fn compact_navigation(&self, cx: &mut Context<Self>) -> AnyElement {
+        let pages = [
+            Page::Overview,
+            Page::ModelPlaza,
+            Page::Projection,
+            Page::Agents,
+            Page::Services,
+            Page::Settings,
+        ];
+        div()
+            .w_full()
+            .flex()
+            .gap(px(6.0))
+            .p(px(8.0))
+            .overflow_x_scroll()
+            .children(pages.into_iter().map(|page| {
+                let handle = cx.entity();
+                Button::new(format!("compact.{}", page.id()))
+                    .label(page.title(self.locale))
+                    .secondary()
+                    .on_click(move |_, cx| {
+                        handle.update(cx, |this, cx| {
+                            this.page = page;
+                            cx.notify();
+                        })
+                    })
+            }))
+            .into_any_element()
+    }
+
     fn overview(&self, theme: &Theme, cx: &mut Context<Self>) -> AnyElement {
         let Some(status) = self.status.as_ref() else {
             return self.unavailable(cx);
@@ -1629,7 +1659,7 @@ impl GatewayKit {
 }
 
 impl Render for GatewayKit {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         if app_frame(self.status.as_ref().is_some_and(|status| status.connected))
             == AppFrame::AuthOnly
@@ -1664,7 +1694,8 @@ impl Render for GatewayKit {
                 .child(
                     Card::new().padded(true).child(
                         div()
-                            .w(px(440.0))
+                            .w_full()
+                            .max_w(px(440.0))
                             .flex()
                             .flex_col()
                             .gap(px(theme.spacing.lg))
@@ -1723,63 +1754,80 @@ impl Render for GatewayKit {
             Page::Services => self.services(&theme, cx),
             Page::Settings => self.settings(&theme, cx),
         };
+        let compact = window.viewport_size().width < px(800.0);
         div()
             .size_full()
             .flex()
+            .flex_col()
             .bg(theme.colors.canvas)
             .font_family(theme.typography.sans.clone())
             .text_color(theme.colors.text)
-            .child(self.navigation(cx))
+            .children(compact.then(|| self.compact_navigation(cx)))
             .child(
                 div()
                     .id("gateway.content")
+                    .flex()
                     .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .overflow_y_scroll()
+                    .min_h_0()
+                    .children((!compact).then(|| self.navigation(cx)))
                     .child(
                         div()
-                            .w_full()
-                            .max_w(px(900.0))
-                            .mx_auto()
-                            .px(px(theme.spacing.xl))
-                            .pt(px(theme.spacing.xxl))
-                            .pb(px(64.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(theme.spacing.lg))
+                            .id("gateway.page")
+                            .flex_1()
+                            .min_w_0()
+                            .h_full()
+                            .overflow_y_scroll()
                             .child(
                                 div()
+                                    .w_full()
+                                    .max_w(px(900.0))
+                                    .mx_auto()
+                                    .px(px(theme.spacing.xl))
+                                    .pt(px(theme.spacing.xxl))
+                                    .pb(px(64.0))
                                     .flex()
-                                    .items_center()
-                                    .gap(px(theme.spacing.sm))
+                                    .flex_col()
+                                    .gap(px(theme.spacing.lg))
                                     .child(
                                         div()
-                                            .flex_1()
                                             .flex()
-                                            .flex_col()
-                                            .gap(px(4.0))
+                                            .items_center()
+                                            .gap(px(theme.spacing.sm))
                                             .child(
                                                 div()
-                                                    .text_size(px(theme.typography.title.size))
-                                                    .font_weight(FontWeight::SEMIBOLD)
-                                                    .child(self.page.title(self.locale)),
+                                                    .flex_1()
+                                                    .flex()
+                                                    .flex_col()
+                                                    .gap(px(4.0))
+                                                    .child(
+                                                        div()
+                                                            .text_size(px(theme
+                                                                .typography
+                                                                .title
+                                                                .size))
+                                                            .font_weight(FontWeight::SEMIBOLD)
+                                                            .child(self.page.title(self.locale)),
+                                                    )
+                                                    .child(
+                                                        div()
+                                                            .text_size(px(theme
+                                                                .typography
+                                                                .body
+                                                                .size))
+                                                            .text_color(theme.colors.text_muted)
+                                                            .child(self.page.subtitle(self.locale)),
+                                                    ),
                                             )
-                                            .child(
-                                                div()
-                                                    .text_size(px(theme.typography.body.size))
-                                                    .text_color(theme.colors.text_muted)
-                                                    .child(self.page.subtitle(self.locale)),
-                                            ),
+                                            .children(self.busy_message.map(|message| {
+                                                Badge::new(text(self.locale, message)).accent()
+                                            })),
                                     )
-                                    .children(self.busy_message.map(|message| {
-                                        Badge::new(text(self.locale, message)).accent()
-                                    })),
-                            )
-                            .children(self.notice.as_ref().map(|(tone, message)| {
-                                Callout::new(message.clone(), tone.tone()).id("gateway.notice")
-                            }))
-                            .child(body),
+                                    .children(self.notice.as_ref().map(|(tone, message)| {
+                                        Callout::new(message.clone(), tone.tone())
+                                            .id("gateway.notice")
+                                    }))
+                                    .child(body),
+                            ),
                     ),
             )
     }
