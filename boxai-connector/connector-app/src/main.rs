@@ -642,6 +642,7 @@ impl GatewayKit {
             Page::Settings,
         ];
         div()
+            .id("compact-navigation")
             .w_full()
             .flex()
             .gap(px(6.0))
