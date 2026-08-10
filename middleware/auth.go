@@ -546,6 +546,79 @@ func TokenAuth() func(c *gin.Context) {
 	}
 }
 
+// ConnectorAuth accepts only the durable relay credential minted for a
+// currently active Connector PKCE session. All checks deliberately hit the
+// database and all failures are indistinguishable to avoid a credential oracle.
+func ConnectorAuth() func(c *gin.Context) {
+	return connectorAuth(false)
+}
+
+// ConnectorRevokeAuth additionally accepts sessions minted before Connector
+// source identity was persisted. It is safe only for self-revoke: the joined
+// relay token is the credential presented by the caller and no PII is exposed.
+func ConnectorRevokeAuth() func(c *gin.Context) {
+	return connectorAuth(true)
+}
+
+func connectorAuth(allowLegacySource bool) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		header := c.GetHeader("Authorization")
+		if !strings.HasPrefix(header, "Bearer sk-") || strings.TrimSpace(header) != header {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		key := strings.TrimPrefix(header, "Bearer sk-")
+		if key == "" || strings.ContainsAny(key, " \t\r\n") {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		var token model.Token
+		var user model.User
+		now := model.GetDBTimestamp()
+		err := model.DB.Transaction(func(tx *gorm.DB) error {
+			query := tx.Table("tokens").Select("tokens.*").
+				Joins("JOIN desktop_sessions ON desktop_sessions.relay_token_id = tokens.id AND desktop_sessions.user_id = tokens.user_id").
+				Where("tokens.key = ? AND tokens.status = ? AND tokens.expired_time = ? AND tokens.unlimited_quota = ?", key, common.TokenStatusEnabled, -1, true).
+				Where("tokens.deleted_at IS NULL").
+				Where("desktop_sessions.revoked_at = 0 AND desktop_sessions.expires_at > ?", now)
+			if allowLegacySource {
+				query = query.Where("(desktop_sessions.client_id = ? OR desktop_sessions.client_id = '' OR desktop_sessions.client_id IS NULL)", service.ConnectorClientID)
+			} else {
+				query = query.Where("desktop_sessions.client_id = ?", service.ConnectorClientID)
+			}
+			if err := query.Take(&token).Error; err != nil {
+				return err
+			}
+			return tx.Where("id = ? AND status = ?", token.UserId, common.UserStatusEnabled).Take(&user).Error
+		})
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		usingGroup := user.Group
+		if token.Group != "" {
+			if _, ok := service.GetUserUsableGroups(user.Group)[token.Group]; !ok ||
+				(token.Group != "auto" && !ratio_setting.ContainsGroupRatio(token.Group)) {
+				c.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+			usingGroup = token.Group
+		}
+
+		c.Set("id", token.UserId)
+		c.Set("token_id", token.Id)
+		c.Set("token_model_limit_enabled", token.ModelLimitsEnabled)
+		if token.ModelLimitsEnabled {
+			c.Set("token_model_limit", token.GetModelLimitsMap())
+		}
+		common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
+		common.SetContextKey(c, constant.ContextKeyUserGroup, user.Group)
+		common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
+		c.Next()
+	}
+}
+
 func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) error {
 	if token == nil {
 		return fmt.Errorf("token is nil")

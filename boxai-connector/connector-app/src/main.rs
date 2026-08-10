@@ -760,7 +760,7 @@ impl GatewayKit {
                         text(self.locale, Message::CredentialStorage),
                     )
                     .value(text(self.locale, Message::OsVault))
-                    .managed(text(self.locale, Message::ManagedByConnector)),
+                    .managed("BoxAI Connector"),
                 ),
             )
             .children(status.provisioning.as_ref().map(|provisioning| {
@@ -791,20 +791,16 @@ impl GatewayKit {
                         .value(account.group.clone()),
                 )
                 .row(
-                    SettingsRow::new("usage.total", text(self.locale, Message::Total))
-                        .value(usage.credits_total.to_string()),
+                    SettingsRow::new("usage.wallet", text(self.locale, Message::Total))
+                        .value(usage.wallet_quota_remaining.to_string()),
                 )
                 .row(
-                    SettingsRow::new("usage.used", text(self.locale, Message::Used))
-                        .value(usage.credits_used.to_string()),
-                )
-                .row(
-                    SettingsRow::new("usage.remaining", text(self.locale, Message::Remaining))
-                        .value(usage.credits_remaining.to_string()),
+                    SettingsRow::new("usage.lifetime", text(self.locale, Message::Used))
+                        .value(usage.lifetime_quota_used.to_string()),
                 )
                 .row(
                     SettingsRow::new("usage.requests", text(self.locale, Message::Requests))
-                        .value(usage.request_count.to_string()),
+                        .value(usage.lifetime_request_count.to_string()),
                 )
                 .row(
                     SettingsRow::new(
@@ -816,16 +812,36 @@ impl GatewayKit {
                     } else {
                         subscriptions.to_string()
                     }),
+                )
+                .row(
+                    SettingsRow::new(
+                        "billing.wallet-fallback",
+                        text(self.locale, Message::WalletFallbackPolicy),
+                    )
+                    .value(if provisioning.billing.wallet_fallback_allowed {
+                        text(self.locale, Message::WalletFallback)
+                    } else {
+                        text(self.locale, Message::SubscriptionOnly)
+                    }),
                 );
                 for (index, subscription) in provisioning.billing.subscriptions.iter().enumerate() {
-                    let credits = if subscription.credits_total == 0 {
+                    let quota = if subscription.unlimited {
                         text(self.locale, Message::Unlimited).into()
                     } else {
                         format!(
                             "{} / {}",
-                            subscription.credits_used, subscription.credits_total
+                            subscription.quota_used_current_period, subscription.quota_total
                         )
                     };
+                    let value = format!(
+                        "{} · {}",
+                        quota,
+                        if subscription.wallet_fallback {
+                            text(self.locale, Message::WalletFallback)
+                        } else {
+                            text(self.locale, Message::SubscriptionOnly)
+                        }
+                    );
                     section = section.row(
                         SettingsRow::new(
                             format!("billing.subscription.{index}"),
@@ -836,16 +852,11 @@ impl GatewayKit {
                             ),
                         )
                         .description(self.locale.subscription_period(
-                            subscription.start_time,
+                            subscription.current_period_start,
                             subscription.end_time,
                             subscription.next_reset_time,
                         ))
-                        .value(credits)
-                        .managed(if subscription.wallet_fallback {
-                            text(self.locale, Message::WalletFallback)
-                        } else {
-                            text(self.locale, Message::SubscriptionOnly)
-                        }),
+                        .value(value),
                     );
                 }
                 section = section.row(

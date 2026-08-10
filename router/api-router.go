@@ -122,8 +122,8 @@ func SetApiRouter(router *gin.Engine) {
 			connectorRoute.GET("/manifest", controller.GetConnectorManifest)
 			connectorRoute.GET("/authorize", middleware.CriticalRateLimit(), controller.StartConnectorAuthorization)
 			connectorRoute.POST("/token", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ExchangeConnectorToken)
-			connectorRoute.GET("/provisioning", middleware.TokenAuth(), controller.GetConnectorProvisioning)
-			connectorRoute.POST("/revoke", middleware.TokenAuth(), controller.RevokeConnectorSession)
+			connectorRoute.GET("/provisioning", middleware.ConnectorAuth(), controller.GetConnectorProvisioning)
+			connectorRoute.POST("/revoke", middleware.ConnectorRevokeAuth(), controller.RevokeConnectorSession)
 		}
 
 		connectorAdminRoute := apiRouter.Group("/admin/connector")

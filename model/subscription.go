@@ -350,6 +350,62 @@ type SubscriptionSummary struct {
 	Subscription *UserSubscription `json:"subscription"`
 }
 
+type ProvisioningSubscriptionSnapshot struct {
+	ID                 int
+	PlanID             int
+	Status             string
+	Unlimited          bool
+	QuotaTotal         int64
+	QuotaUsed          int64
+	CurrentPeriodStart int64
+	EndTime            int64
+	NextResetTime      int64
+	WalletFallback     bool
+}
+
+// GetProvisioningAccountSnapshot returns wallet and active subscription
+// accounting from one transaction, applying any reset that is already due
+// while each subscription row is locked.
+func GetProvisioningAccountSnapshot(userID int) (*User, []ProvisioningSubscriptionSnapshot, error) {
+	var user User
+	snapshots := make([]ProvisioningSubscriptionSnapshot, 0)
+	now := GetDBTimestamp()
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockForUpdate(tx).Omit("password", "access_token").
+			Where("id = ? AND status = ?", userID, common.UserStatusEnabled).
+			First(&user).Error; err != nil {
+			return err
+		}
+		var subscriptions []UserSubscription
+		if err := lockForUpdate(tx).Where("user_id = ? AND status = ? AND end_time > ?", userID, "active", now).
+			Order("end_time asc, id asc").Find(&subscriptions).Error; err != nil {
+			return err
+		}
+		for i := range subscriptions {
+			sub := &subscriptions[i]
+			plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
+			if err != nil {
+				return err
+			}
+			if err := maybeResetUserSubscriptionWithPlanTx(tx, sub, plan, now); err != nil {
+				return err
+			}
+			periodStart := sub.LastResetTime
+			if periodStart <= 0 {
+				periodStart = sub.StartTime
+			}
+			snapshots = append(snapshots, ProvisioningSubscriptionSnapshot{
+				ID: sub.Id, PlanID: sub.PlanId, Status: sub.Status, Unlimited: sub.AmountTotal == 0,
+				QuotaTotal: max(sub.AmountTotal, 0), QuotaUsed: max(sub.AmountUsed, 0),
+				CurrentPeriodStart: periodStart, EndTime: sub.EndTime, NextResetTime: sub.NextResetTime,
+				WalletFallback: sub.AllowWalletOverflow,
+			})
+		}
+		return nil
+	})
+	return &user, snapshots, err
+}
+
 type SubscriptionResetResult struct {
 	PlanId           int    `json:"plan_id"`
 	MatchedCount     int    `json:"matched_count"`
@@ -985,17 +1041,24 @@ func AdminInvalidateUserSubscription(userSubscriptionId int) (string, error) {
 	if userSubscriptionId <= 0 {
 		return "", errors.New("invalid userSubscriptionId")
 	}
+	var owner UserSubscription
+	if err := DB.Select("user_id").Where("id = ?", userSubscriptionId).First(&owner).Error; err != nil {
+		return "", err
+	}
 	now := common.GetTimestamp()
 	cacheGroup := ""
 	downgradeGroup := ""
-	var userId int
+	userId := owner.UserId
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		var sub UserSubscription
-		if err := lockForUpdate(tx).
-			Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+		var user User
+		if err := lockForUpdate(tx).Select("id").Where("id = ?", userId).First(&user).Error; err != nil {
 			return err
 		}
-		userId = sub.UserId
+		var sub UserSubscription
+		if err := lockForUpdate(tx).
+			Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
+			return err
+		}
 		if err := tx.Model(&sub).Updates(map[string]interface{}{
 			"status":     "cancelled",
 			"end_time":   now,
@@ -1030,17 +1093,24 @@ func AdminDeleteUserSubscription(userSubscriptionId int) (string, error) {
 	if userSubscriptionId <= 0 {
 		return "", errors.New("invalid userSubscriptionId")
 	}
+	var owner UserSubscription
+	if err := DB.Select("user_id").Where("id = ?", userSubscriptionId).First(&owner).Error; err != nil {
+		return "", err
+	}
 	now := common.GetTimestamp()
 	cacheGroup := ""
 	downgradeGroup := ""
-	var userId int
+	userId := owner.UserId
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		var sub UserSubscription
-		if err := lockForUpdate(tx).
-			Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+		var user User
+		if err := lockForUpdate(tx).Select("id").Where("id = ?", userId).First(&user).Error; err != nil {
 			return err
 		}
-		userId = sub.UserId
+		var sub UserSubscription
+		if err := lockForUpdate(tx).
+			Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
+			return err
+		}
 		target, err := downgradeUserGroupForSubscriptionTx(tx, &sub, now)
 		if err != nil {
 			return err
@@ -1536,7 +1606,7 @@ func RefundSubscriptionPreConsume(requestId string) error {
 			record.Status = "refunded"
 			return tx.Save(&record).Error
 		}
-		if err := PostConsumeUserSubscriptionDelta(record.UserSubscriptionId, -record.PreConsumed); err != nil {
+		if err := postConsumeUserSubscriptionDeltaTx(tx, record.UserSubscriptionId, -record.PreConsumed); err != nil {
 			return err
 		}
 		record.Status = "refunded"
@@ -1743,20 +1813,22 @@ func PostConsumeUserSubscriptionDelta(userSubscriptionId int, delta int64) error
 		return nil
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
-		var sub UserSubscription
-		if err := lockForUpdate(tx).
-			Where("id = ?", userSubscriptionId).
-			First(&sub).Error; err != nil {
-			return err
-		}
-		newUsed := sub.AmountUsed + delta
-		if newUsed < 0 {
-			newUsed = 0
-		}
-		if sub.AmountTotal > 0 && newUsed > sub.AmountTotal {
-			return fmt.Errorf("subscription used exceeds total, used=%d total=%d", newUsed, sub.AmountTotal)
-		}
-		sub.AmountUsed = newUsed
-		return tx.Save(&sub).Error
+		return postConsumeUserSubscriptionDeltaTx(tx, userSubscriptionId, delta)
 	})
+}
+
+func postConsumeUserSubscriptionDeltaTx(tx *gorm.DB, userSubscriptionId int, delta int64) error {
+	var sub UserSubscription
+	if err := lockForUpdate(tx).Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+		return err
+	}
+	newUsed := sub.AmountUsed + delta
+	if newUsed < 0 {
+		newUsed = 0
+	}
+	if sub.AmountTotal > 0 && newUsed > sub.AmountTotal {
+		return fmt.Errorf("subscription used exceeds total, used=%d total=%d", newUsed, sub.AmountTotal)
+	}
+	sub.AmountUsed = newUsed
+	return tx.Save(&sub).Error
 }

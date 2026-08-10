@@ -183,17 +183,19 @@ pub struct Account {
 }
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
 pub struct Usage {
-    pub credits_total: u64,
-    pub credits_used: u64,
-    pub credits_remaining: u64,
-    pub request_count: u64,
+    pub wallet_quota_remaining: u64,
+    pub lifetime_quota_used: u64,
+    pub lifetime_request_count: u64,
 }
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Subscription {
+    pub id: u64,
+    pub plan_id: u64,
     pub status: String,
-    pub credits_total: u64,
-    pub credits_used: u64,
-    pub start_time: u64,
+    pub unlimited: bool,
+    pub quota_total: u64,
+    pub quota_used_current_period: u64,
+    pub current_period_start: u64,
     pub end_time: u64,
     pub next_reset_time: u64,
     pub wallet_fallback: bool,
@@ -201,11 +203,13 @@ pub struct Subscription {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Billing {
     pub portal_url: Url,
+    pub wallet_fallback_allowed: bool,
     pub subscriptions: Vec<Subscription>,
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelPlaza {
     pub portal_url: Url,
+    pub models: Vec<Model>,
 }
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -279,20 +283,18 @@ impl Provisioning {
         )?;
         bounded_text(&self.account.email, "account email", 320, true)?;
         bounded_text(&self.account.group, "account group", 128, false)?;
-        if self.usage.credits_used > self.usage.credits_total
-            || self.usage.credits_remaining != self.usage.credits_total - self.usage.credits_used
-        {
-            return Err(Error::Validation("inconsistent usage credits".into()));
-        }
         secure(&self.billing.portal_url)?;
         secure(&self.model_plaza.portal_url)?;
         for subscription in &self.billing.subscriptions {
             bounded_text(&subscription.status, "subscription status", 64, false)?;
-            if (subscription.credits_total != 0
-                && subscription.credits_used > subscription.credits_total)
-                || subscription.start_time > subscription.end_time
+            if subscription.id == 0
+                || subscription.plan_id == 0
+                || subscription.unlimited != (subscription.quota_total == 0)
+                || (!subscription.unlimited
+                    && subscription.quota_used_current_period > subscription.quota_total)
+                || subscription.current_period_start > subscription.end_time
                 || (subscription.next_reset_time != 0
-                    && (subscription.next_reset_time < subscription.start_time
+                    && (subscription.next_reset_time < subscription.current_period_start
                         || subscription.next_reset_time > subscription.end_time))
             {
                 return Err(Error::Validation("invalid subscription".into()));
@@ -309,37 +311,46 @@ impl Provisioning {
             )));
         }
         let mut ids = BTreeSet::new();
-        let mut chat_ids = BTreeSet::new();
         for m in &self.models {
             model_id(&m.id)?;
             if !ids.insert(&m.id) {
                 return Err(Error::Validation(format!("duplicate model id {}", m.id)));
             }
-            if m.chat_capable {
-                chat_ids.insert(&m.id);
+            if !m.chat_capable {
+                return Err(Error::Validation(
+                    "Agent model catalog contains a non-chat model".into(),
+                ));
             }
-            optional_metadata(&m.description, "model description", 2048)?;
-            optional_metadata(&m.icon, "model icon", 1024)?;
-            if m.tags.len() > 64 {
-                return Err(Error::Validation("too many model tags".into()));
-            }
-            for tag in &m.tags {
-                bounded_text(tag, "model tag", 128, false)?;
-            }
-            if let Some(vendor) = &m.vendor {
-                bounded_text(&vendor.id, "vendor id", 128, false)?;
-                bounded_text(&vendor.name, "vendor name", 255, false)?;
-                optional_metadata(&vendor.icon, "vendor icon", 1024)?;
-            }
+            validate_model_metadata(m)?;
         }
-        if chat_ids.is_empty() && !self.default_model.is_empty() {
+        let mut plaza_ids = BTreeSet::new();
+        let mut plaza_chat_ids = BTreeSet::new();
+        for m in &self.model_plaza.models {
+            model_id(&m.id)?;
+            if !plaza_ids.insert(&m.id) {
+                return Err(Error::Validation(format!(
+                    "duplicate Model Plaza id {}",
+                    m.id
+                )));
+            }
+            if m.chat_capable {
+                plaza_chat_ids.insert(&m.id);
+            }
+            validate_model_metadata(m)?;
+        }
+        if !ids.iter().all(|id| plaza_chat_ids.contains(id)) {
             return Err(Error::Validation(
-                "catalog without chat-capable models requires empty default_model".into(),
+                "Agent model catalog is inconsistent with Model Plaza".into(),
             ));
         }
-        if !chat_ids.is_empty() && !chat_ids.contains(&self.default_model) {
+        if ids.is_empty() && !self.default_model.is_empty() {
             return Err(Error::Validation(
-                "default_model is not chat-capable".into(),
+                "empty Agent model catalog requires empty default_model".into(),
+            ));
+        }
+        if !ids.is_empty() && !ids.contains(&self.default_model) {
+            return Err(Error::Validation(
+                "default_model is outside the Agent model catalog".into(),
             ));
         }
         let mut mcp_ids = BTreeSet::new();
@@ -413,6 +424,22 @@ impl Provisioning {
         }
         Ok(())
     }
+}
+fn validate_model_metadata(m: &Model) -> Result<()> {
+    optional_metadata(&m.description, "model description", 2048)?;
+    optional_metadata(&m.icon, "model icon", 1024)?;
+    if m.tags.len() > 64 {
+        return Err(Error::Validation("too many model tags".into()));
+    }
+    for tag in &m.tags {
+        bounded_text(tag, "model tag", 128, false)?;
+    }
+    if let Some(vendor) = &m.vendor {
+        bounded_text(&vendor.id, "vendor id", 128, false)?;
+        bounded_text(&vendor.name, "vendor name", 255, false)?;
+        optional_metadata(&vendor.icon, "vendor icon", 1024)?;
+    }
+    Ok(())
 }
 fn unique<'a>(values: impl Iterator<Item = &'a str>, label: &str) -> Result<()> {
     let mut seen = BTreeSet::new();

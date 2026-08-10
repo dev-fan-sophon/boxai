@@ -212,6 +212,7 @@ pub enum Message {
     ActiveSubscriptions,
     NoActiveSubscriptions,
     Subscription,
+    WalletFallbackPolicy,
     WalletFallback,
     SubscriptionOnly,
     Unlimited,
@@ -414,13 +415,14 @@ pub fn text(locale: Locale, message: Message) -> &'static str {
         (Locale::Vi, Email) => "Email",
         (Locale::Vi, AccountGroup) => "Nhóm tài khoản",
         (Locale::Vi, UsageCredits) => "Tín dụng sử dụng",
-        (Locale::Vi, Total) => "Tổng cộng",
-        (Locale::Vi, Used) => "Đã dùng",
+        (Locale::Vi, Total) => "Hạn mức ví còn lại",
+        (Locale::Vi, Used) => "Tổng hạn mức đã dùng từ trước đến nay",
         (Locale::Vi, Remaining) => "Còn lại",
-        (Locale::Vi, Requests) => "Số yêu cầu",
+        (Locale::Vi, Requests) => "Tổng số yêu cầu từ trước đến nay",
         (Locale::Vi, ActiveSubscriptions) => "Gói đăng ký đang hoạt động",
         (Locale::Vi, NoActiveSubscriptions) => "Không có gói đăng ký đang hoạt động",
         (Locale::Vi, Subscription) => "Gói đăng ký",
+        (Locale::Vi, WalletFallbackPolicy) => "Chính sách dùng số dư ví",
         (Locale::Vi, WalletFallback) => "Có thể dùng số dư ví",
         (Locale::Vi, SubscriptionOnly) => "Chỉ dùng hạn mức gói",
         (Locale::Vi, Unlimited) => "Không giới hạn",
@@ -603,13 +605,14 @@ fn english(message: Message) -> &'static str {
         Email => "Email",
         AccountGroup => "Account group",
         UsageCredits => "Usage credits",
-        Total => "Total",
-        Used => "Used",
+        Total => "Wallet quota remaining",
+        Used => "Lifetime quota used",
         Remaining => "Remaining",
-        Requests => "Requests",
+        Requests => "Lifetime requests",
         ActiveSubscriptions => "Active subscriptions",
         NoActiveSubscriptions => "No active subscriptions",
         Subscription => "Subscription",
+        WalletFallbackPolicy => "Wallet fallback policy",
         WalletFallback => "Wallet fallback enabled",
         SubscriptionOnly => "Subscription credits only",
         Unlimited => "Unlimited",
@@ -662,8 +665,18 @@ impl Locale {
     }
     pub fn subscription_period(self, start: u64, end: u64, next_reset: u64) -> String {
         match self {
-            Self::En => format!("Period {start}–{end} · next reset {next_reset}"),
-            Self::Vi => format!("Kỳ {start}–{end} · đặt lại tiếp theo {next_reset}"),
+            Self::En if next_reset == 0 => format!(
+                "Current quota period started {start} · subscription ends {end} · no scheduled reset"
+            ),
+            Self::En => format!(
+                "Current quota period started {start} · subscription ends {end} · next reset {next_reset}"
+            ),
+            Self::Vi if next_reset == 0 => format!(
+                "Kỳ hạn mức hiện tại bắt đầu {start} · gói kết thúc {end} · không có lịch đặt lại"
+            ),
+            Self::Vi => format!(
+                "Kỳ hạn mức hiện tại bắt đầu {start} · gói kết thúc {end} · đặt lại tiếp theo {next_reset}"
+            ),
         }
     }
     pub fn section_count(self, label: Message, count: usize) -> String {

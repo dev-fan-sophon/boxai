@@ -277,7 +277,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	t.Cleanup(func() { system_setting.ServerAddress = originalServerAddress })
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}, &model.UserSubscription{}))
+	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}, &model.SubscriptionPlan{}, &model.UserSubscription{}))
 	require.NoError(t, db.Create(&model.User{
 		Id: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com",
 		Password: "password-secret", Group: "default", Quota: 70, UsedQuota: 30, RequestCount: 12,
@@ -300,9 +300,12 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 		Tags: "zeta, alpha,alpha", VendorID: vendor.Id, Status: 1,
 	}).Error)
 	now := common.GetTimestamp()
+	plan := model.SubscriptionPlan{Title: "Connector plan", TotalAmount: 500, QuotaResetPeriod: model.SubscriptionResetNever}
+	require.NoError(t, db.Create(&plan).Error)
 	require.NoError(t, db.Create(&[]model.UserSubscription{
-		{UserId: 2101, AmountTotal: 500, AmountUsed: 125, StartTime: now - 10, EndTime: now + 1000, NextResetTime: now + 500, Status: "active", AllowWalletOverflow: true},
-		{UserId: 2101, AmountTotal: 999, AmountUsed: 1, StartTime: now - 20, EndTime: now - 1, Status: "expired"},
+		{UserId: 2101, PlanId: plan.Id, AmountTotal: 500, AmountUsed: 125, StartTime: now - 10, EndTime: now + 1000, NextResetTime: now + 500, Status: "active", AllowWalletOverflow: true},
+		{UserId: 2101, PlanId: plan.Id, AmountTotal: 200, AmountUsed: 25, StartTime: now - 20, EndTime: now + 2000, NextResetTime: now + 1000, Status: "active", AllowWalletOverflow: false},
+		{UserId: 2101, PlanId: plan.Id, AmountTotal: 999, AmountUsed: 1, StartTime: now - 20, EndTime: now - 1, Status: "expired"},
 	}).Error)
 	require.NoError(t, db.Create(&[]model.ConnectorMCPServer{
 		{ID: "z-media", Name: "Z Media", URL: "https://gateway.example/z-mcp", Authorization: "connection_bearer", Description: "Z", Enabled: true},
@@ -328,7 +331,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
 	require.True(t, payload.Success)
 	assert.Equal(t, 2, payload.Data.SchemaVersion)
-	require.Len(t, payload.Data.Models, 2)
+	require.Len(t, payload.Data.Models, 1)
 	assert.Equal(t, "zz-connector-chat", payload.Data.Models[0].ID)
 	assert.True(t, payload.Data.Models[0].ChatCapable)
 	assert.Equal(t, "Authoritative description", payload.Data.Models[0].Description)
@@ -337,15 +340,17 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.NotNil(t, payload.Data.Models[0].Vendor)
 	assert.Equal(t, strconv.Itoa(vendor.Id), payload.Data.Models[0].Vendor.ID)
 	assert.Equal(t, "Authoritative Vendor", payload.Data.Models[0].Vendor.Name)
-	assert.Equal(t, "zz-connector-flux-image", payload.Data.Models[1].ID)
-	assert.False(t, payload.Data.Models[1].ChatCapable)
-	assert.Empty(t, payload.Data.Models[1].Tags)
+	require.Len(t, payload.Data.ModelPlaza.Models, 2)
+	assert.Equal(t, "zz-connector-flux-image", payload.Data.ModelPlaza.Models[1].ID)
+	assert.False(t, payload.Data.ModelPlaza.Models[1].ChatCapable)
+	assert.Empty(t, payload.Data.ModelPlaza.Models[1].Tags)
 	assert.Equal(t, "zz-connector-chat", payload.Data.DefaultModel)
 	assert.Equal(t, connectorAccount{ID: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com", Group: "default"}, payload.Data.Account)
-	assert.Equal(t, connectorUsage{CreditsTotal: 100, CreditsUsed: 30, CreditsRemaining: 70, RequestCount: 12}, payload.Data.Usage)
+	assert.Equal(t, connectorUsage{WalletQuotaRemaining: 70, LifetimeQuotaUsed: 30, LifetimeRequestCount: 12}, payload.Data.Usage)
 	assert.Equal(t, "https://gateway.example/subscriptions", payload.Data.Billing.PortalURL)
-	require.Len(t, payload.Data.Billing.Subscriptions, 1)
-	assert.Equal(t, connectorSubscription{Status: "active", CreditsTotal: 500, CreditsUsed: 125, StartTime: now - 10, EndTime: now + 1000, NextResetTime: now + 500, WalletFallback: true}, payload.Data.Billing.Subscriptions[0])
+	assert.False(t, payload.Data.Billing.WalletFallbackAllowed)
+	require.Len(t, payload.Data.Billing.Subscriptions, 2)
+	assert.Equal(t, connectorSubscription{ID: payload.Data.Billing.Subscriptions[0].ID, PlanID: plan.Id, Status: "active", QuotaTotal: 500, QuotaUsed: 125, CurrentPeriodStart: now - 10, EndTime: now + 1000, NextResetTime: now + 500, WalletFallback: true}, payload.Data.Billing.Subscriptions[0])
 	assert.Equal(t, "https://gateway.example/pricing", payload.Data.ModelPlaza.PortalURL)
 	require.Len(t, payload.Data.MCPServers, 2)
 	assert.Equal(t, "a-assets", payload.Data.MCPServers[0].ID)
@@ -385,6 +390,10 @@ func TestConnectorProvisioningReturnsEmptyManagedCatalogsHonestly(t *testing.T) 
 	var payload connectorProvisioningResponse
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
 	require.True(t, payload.Success)
+	assert.Empty(t, payload.Data.Models)
+	assert.Empty(t, payload.Data.ModelPlaza.Models)
+	assert.Empty(t, payload.Data.DefaultModel)
+	assert.True(t, payload.Data.Billing.WalletFallbackAllowed)
 	assert.Empty(t, payload.Data.MCPServers)
 	assert.Empty(t, payload.Data.Skills)
 	assert.Contains(t, recorder.Body.String(), `"mcp_servers":[]`)

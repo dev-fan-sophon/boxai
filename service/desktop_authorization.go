@@ -213,7 +213,7 @@ func ExchangeDesktopCode(code, verifier, clientID, redirect string) (access, ref
 			return e
 		}
 		now := time.Now().Unix()
-		session = model.DesktopSession{ID: sid, UserID: a.UserID, RelayTokenID: token.Id, ClientName: a.ClientName, RefreshHash: secretHash(refresh), CreatedAt: now, LastRefreshedAt: now, ExpiresAt: now + int64(system_setting.GetDesktopSettings().RefreshTokenDays)*86400}
+		session = model.DesktopSession{ID: sid, UserID: a.UserID, RelayTokenID: token.Id, ClientID: a.ClientID, ClientName: a.ClientName, RefreshHash: secretHash(refresh), CreatedAt: now, LastRefreshedAt: now, ExpiresAt: now + int64(system_setting.GetDesktopSettings().RefreshTokenDays)*86400}
 		if e = tx.Create(&session).Error; e != nil {
 			return e
 		}

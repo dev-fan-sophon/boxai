@@ -144,6 +144,7 @@ func TestConnectorAuthorizationIssuesDurableRelayKeyLinkedToRevocableSession(t *
 
 	var session model.DesktopSession
 	require.NoError(t, model.DB.First(&session).Error)
+	assert.Equal(t, ConnectorClientID, session.ClientID)
 	var relay model.Token
 	require.NoError(t, model.DB.First(&relay, session.RelayTokenID).Error)
 	assert.Equal(t, int64(-1), relay.ExpiredTime)

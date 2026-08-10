@@ -40,6 +40,47 @@ func TestCalcNextResetTimeUsesBusinessTimezone(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 7, 22, 17, 0, 0, 0, time.UTC).Unix(), next)
 }
 
+func TestProvisioningSnapshotAppliesDueResetAndRefundIsAtomic(t *testing.T) {
+	truncateTables(t)
+	require.NoError(t, DB.AutoMigrate(&SubscriptionPreConsumeRecord{}))
+	now := GetDBTimestamp()
+	user := User{Username: "provisioning-snapshot", Status: 1, Group: "default"}
+	require.NoError(t, DB.Create(&user).Error)
+	plan := SubscriptionPlan{
+		Title: "Daily", DurationUnit: SubscriptionDurationMonth, DurationValue: 1,
+		TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetDaily,
+	}
+	seedSubscriptionResetPlan(t, &plan)
+	sub := UserSubscription{
+		UserId: user.Id, PlanId: plan.Id, AmountTotal: 1000, AmountUsed: 250, OverageUsed: 25,
+		StartTime: now - 2*86400, EndTime: now + 30*86400, Status: "active",
+		LastResetTime: now - 2*86400, NextResetTime: now - 86400, AllowWalletOverflow: true,
+	}
+	seedSubscriptionResetSub(t, &sub)
+
+	_, snapshots, err := GetProvisioningAccountSnapshot(user.Id)
+	require.NoError(t, err)
+	require.Len(t, snapshots, 1)
+	assert.Zero(t, snapshots[0].QuotaUsed)
+	assert.Greater(t, snapshots[0].CurrentPeriodStart, sub.LastResetTime)
+	assert.Greater(t, snapshots[0].NextResetTime, now)
+	stored := getSubscriptionResetSub(t, sub.Id)
+	assert.Zero(t, stored.AmountUsed)
+	assert.Zero(t, stored.OverageUsed)
+
+	stored.AmountUsed = 100
+	require.NoError(t, DB.Save(&stored).Error)
+	record := SubscriptionPreConsumeRecord{
+		RequestId: "provisioning-refund", UserId: user.Id, UserSubscriptionId: stored.Id,
+		PreConsumed: 100, Status: "consumed",
+	}
+	require.NoError(t, DB.Create(&record).Error)
+	require.NoError(t, RefundSubscriptionPreConsume(record.RequestId))
+	assert.Zero(t, getSubscriptionResetSub(t, stored.Id).AmountUsed)
+	require.NoError(t, DB.Where("request_id = ?", record.RequestId).First(&record).Error)
+	assert.Equal(t, "refunded", record.Status)
+}
+
 func TestReconcileActiveSubscriptionResetTimezone(t *testing.T) {
 	truncateTables(t)
 	setting := operation_setting.GetGeneralSetting()

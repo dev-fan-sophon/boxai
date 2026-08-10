@@ -20,6 +20,7 @@ type DesktopSession struct {
 	ID              string `gorm:"type:varchar(64);primaryKey" json:"id"`
 	UserID          int    `gorm:"index" json:"-"`
 	RelayTokenID    int    `gorm:"index" json:"relay_token_id"`
+	ClientID        string `gorm:"type:varchar(64);index" json:"-"`
 	ClientName      string `gorm:"type:varchar(100)" json:"client_name"`
 	RefreshHash     string `gorm:"type:varchar(64);uniqueIndex" json:"-"`
 	PreviousHash    string `gorm:"type:varchar(64);index" json:"-"`

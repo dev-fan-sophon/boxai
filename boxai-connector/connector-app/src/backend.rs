@@ -613,6 +613,9 @@ impl Backend {
         }
         let value = self.fetch_provisioning(manifest, bearer)?;
         self.update_state(|state| {
+            if value.models.is_empty() {
+                return;
+            }
             let reconciled = self.reconciled_models(manifest, &value, state);
             state
                 .platforms
@@ -855,6 +858,9 @@ impl Backend {
         provisioning: &Provisioning,
         state: &PersistedState,
     ) -> BTreeMap<AgentId, String> {
+        if provisioning.models.is_empty() {
+            return BTreeMap::new();
+        }
         let valid: BTreeSet<&str> = provisioning
             .models
             .iter()
@@ -1700,9 +1706,9 @@ mod tests {
             serde_json::json!({"success":true,"data":{
                 "schema_version":2,
                 "account":{"id":2,"username":"provisioned","display_name":"Provisioned User","email":"provisioned@example.test","group":"default"},
-                "usage":{"credits_total":10,"credits_used":3,"credits_remaining":7,"request_count":2},
-                "billing":{"portal_url":"https://gateway.example/billing","subscriptions":[]},
-                "model_plaza":{"portal_url":"https://gateway.example/models"},
+                "usage":{"wallet_quota_remaining":7,"lifetime_quota_used":3,"lifetime_request_count":2},
+                "billing":{"portal_url":"https://gateway.example/billing","wallet_fallback_allowed":true,"subscriptions":[]},
+                "model_plaza":{"portal_url":"https://gateway.example/models","models":[{"id":"model-a","chat_capable":true}]},
                 "models":[{"id":"model-a","chat_capable":true}],
                 "default_model":"model-a",
                 "mcp_servers":[],
@@ -1718,6 +1724,7 @@ mod tests {
             .iter()
             .map(|id| serde_json::json!({"id":id,"chat_capable":true}))
             .collect();
+        let plaza_models = models.clone();
         let skills: Vec<_> = skills
             .iter()
             .map(|id| serde_json::json!({"id":id,"name":id,"version":"1.0.0","archive":{"url":format!("https://you-box.com/skills/{id}.zip"),"sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}))
@@ -1725,9 +1732,9 @@ mod tests {
         Provisioning::parse(&serde_json::to_vec(&serde_json::json!({"success":true,"data":{
             "schema_version":2,
             "account":{"id":0,"username":"test","display_name":"","email":"","group":"default"},
-            "usage":{"credits_total":0,"credits_used":0,"credits_remaining":0,"request_count":0},
-            "billing":{"portal_url":"https://you-box.com/billing","subscriptions":[]},
-            "model_plaza":{"portal_url":"https://you-box.com/models"},
+            "usage":{"wallet_quota_remaining":0,"lifetime_quota_used":0,"lifetime_request_count":0},
+            "billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[]},
+            "model_plaza":{"portal_url":"https://you-box.com/models","models":plaza_models},
             "models":models,"default_model":default,"mcp_servers":[],"skills":skills
         }})).unwrap()).unwrap()
     }
@@ -1921,6 +1928,56 @@ mod tests {
         assert_eq!(
             selected.get(&AgentId::Claude).map(String::as_str),
             Some("chat")
+        );
+    }
+    #[test]
+    fn empty_chat_catalog_preserves_choices_without_selecting_empty_ids() {
+        let temp = tempfile::tempdir().unwrap();
+        let credentials = Arc::new(MemoryCredentials::default());
+        credentials
+            .set("origin", &Bearer("sk-test".into()))
+            .unwrap();
+        let http = Arc::new(ScriptedHttp::new([response(
+            200,
+            serde_json::json!({"success":true,"data":{
+                "schema_version":2,
+                "account":{"id":1,"username":"test","display_name":"","email":"","group":"default"},
+                "usage":{"wallet_quota_remaining":0,"lifetime_quota_used":0,"lifetime_request_count":0},
+                "billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[]},
+                "model_plaza":{"portal_url":"https://you-box.com/models","models":[{"id":"embedding","chat_capable":false}]},
+                "models":[],"default_model":"","mcp_servers":[],"skills":[]
+            }}),
+        )]));
+        let backend = Backend::with_dependencies(
+            temp.path().join("state"),
+            temp.path().join("home"),
+            http,
+            credentials,
+            Arc::new(NoBrowser),
+        );
+        backend
+            .update_state(|state| {
+                state
+                    .platforms
+                    .entry("origin".into())
+                    .or_default()
+                    .models
+                    .insert("claude".into(), "previous-chat".into());
+            })
+            .unwrap();
+
+        let value = backend
+            .refresh_provisioning_with(&manifest(), &Bearer("sk-test".into()))
+            .unwrap();
+
+        assert!(
+            backend
+                .reconciled_models(&manifest(), &value, &backend.load_state().unwrap())
+                .is_empty()
+        );
+        assert_eq!(
+            backend.load_state().unwrap().platforms["origin"].models["claude"],
+            "previous-chat"
         );
     }
     #[test]

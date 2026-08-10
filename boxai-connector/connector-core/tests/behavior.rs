@@ -19,17 +19,22 @@ fn parse_provisioning(bytes: &[u8]) -> connector_core::Result<Provisioning> {
     });
     data.entry("usage").or_insert_with(|| {
         serde_json::json!({
-            "credits_total": 0, "credits_used": 0, "credits_remaining": 0, "request_count": 0
+            "wallet_quota_remaining": 0, "lifetime_quota_used": 0, "lifetime_request_count": 0
         })
     });
     data.entry("billing").or_insert_with(|| {
         serde_json::json!({
-            "portal_url": "https://you-box.com/billing", "subscriptions": []
+            "portal_url": "https://you-box.com/billing", "wallet_fallback_allowed": true,
+            "subscriptions": []
         })
     });
+    let models = data
+        .get("models")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
     data.entry("model_plaza").or_insert_with(|| {
         serde_json::json!({
-            "portal_url": "https://you-box.com/models"
+            "portal_url": "https://you-box.com/models", "models": models
         })
     });
     Provisioning::parse(&serde_json::to_vec(&value).expect("fixture JSON serializes"))
@@ -43,10 +48,11 @@ fn contracts() -> (ConnectionManifest, Provisioning) {
 
 #[test]
 fn additive_provisioning_fields_parse_and_non_chat_models_are_never_projected() {
-    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"user@example.test","group":"default"},"usage":{"credits_total":100,"credits_used":25,"credits_remaining":75,"request_count":4},"billing":{"portal_url":"https://you-box.com/billing","subscriptions":[{"status":"active","credits_total":0,"credits_used":25,"start_time":10,"end_time":20,"next_reset_time":15,"wallet_fallback":true}]},"model_plaza":{"portal_url":"https://you-box.com/models"},"models":[{"id":"chat","chat_capable":true,"description":"Chat","icon":"chat.svg","tags":["fast"],"vendor":{"id":"boxai","name":"BoxAI","icon":"boxai.svg"}},{"id":"embedding","chat_capable":false,"tags":[]}],"default_model":"chat","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"user@example.test","group":"default"},"usage":{"wallet_quota_remaining":75,"lifetime_quota_used":25,"lifetime_request_count":4},"billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[{"id":3,"plan_id":2,"status":"active","unlimited":false,"quota_total":100,"quota_used_current_period":25,"current_period_start":10,"end_time":20,"next_reset_time":15,"wallet_fallback":true}]},"model_plaza":{"portal_url":"https://you-box.com/models","models":[{"id":"chat","chat_capable":true,"description":"Chat","icon":"chat.svg","tags":["fast"],"vendor":{"id":"boxai","name":"BoxAI","icon":"boxai.svg"}},{"id":"embedding","chat_capable":false,"tags":[]}]},"models":[{"id":"chat","chat_capable":true,"description":"Chat","icon":"chat.svg","tags":["fast"],"vendor":{"id":"boxai","name":"BoxAI","icon":"boxai.svg"}}],"default_model":"chat","mcp_servers":[],"skills":[]}}"#).unwrap();
     assert_eq!(provisioning.account.id, 7);
-    assert_eq!(provisioning.usage.credits_remaining, 75);
+    assert_eq!(provisioning.usage.wallet_quota_remaining, 75);
     assert_eq!(provisioning.billing.subscriptions.len(), 1);
+    assert_eq!(provisioning.model_plaza.models.len(), 2);
     assert_eq!(
         provisioning.model_plaza.portal_url.as_str(),
         "https://you-box.com/models"
@@ -77,7 +83,7 @@ fn additive_provisioning_fields_parse_and_non_chat_models_are_never_projected() 
     assert!(projected.contains("chat"));
     assert!(!projected.contains("embedding"));
 
-    let invalid = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"","group":"default"},"usage":{"credits_total":0,"credits_used":0,"credits_remaining":0,"request_count":0},"billing":{"portal_url":"https://you-box.com/billing","subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models"},"models":[{"id":"embedding","chat_capable":false,"tags":[]}],"default_model":"embedding","mcp_servers":[],"skills":[]}}"#);
+    let invalid = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":7,"username":"user","display_name":"User","email":"","group":"default"},"usage":{"wallet_quota_remaining":0,"lifetime_quota_used":0,"lifetime_request_count":0},"billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models","models":[{"id":"embedding","chat_capable":false,"tags":[]}]},"models":[{"id":"embedding","chat_capable":false,"tags":[]}],"default_model":"embedding","mcp_servers":[],"skills":[]}}"#);
     assert!(invalid.is_err());
 }
 
@@ -370,7 +376,8 @@ fn provisioning_enforces_catalog_and_description_bounds() {
 
 #[test]
 fn empty_catalog_is_honest_but_cannot_be_projected_and_duplicates_fail() {
-    let empty = parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[],"default_model":"","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let empty = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":1,"username":"test","display_name":"","email":"","group":"default"},"usage":{"wallet_quota_remaining":0,"lifetime_quota_used":0,"lifetime_request_count":0},"billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models","models":[{"id":"embedding","chat_capable":false}]},"models":[],"default_model":"","mcp_servers":[],"skills":[]}}"#).unwrap();
+    assert_eq!(empty.model_plaza.models.len(), 1);
     let (manifest, _) = contracts();
     let t = tempdir().unwrap();
     let error = Connector::new(t.path().join("state"))

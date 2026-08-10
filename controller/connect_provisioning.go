@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -176,29 +175,33 @@ type connectorAccount struct {
 }
 
 type connectorUsage struct {
-	CreditsTotal     int64 `json:"credits_total"`
-	CreditsUsed      int64 `json:"credits_used"`
-	CreditsRemaining int64 `json:"credits_remaining"`
-	RequestCount     int64 `json:"request_count"`
+	WalletQuotaRemaining int64 `json:"wallet_quota_remaining"`
+	LifetimeQuotaUsed    int64 `json:"lifetime_quota_used"`
+	LifetimeRequestCount int64 `json:"lifetime_request_count"`
 }
 
 type connectorSubscription struct {
-	Status         string `json:"status"`
-	CreditsTotal   int64  `json:"credits_total"`
-	CreditsUsed    int64  `json:"credits_used"`
-	StartTime      int64  `json:"start_time"`
-	EndTime        int64  `json:"end_time"`
-	NextResetTime  int64  `json:"next_reset_time"`
-	WalletFallback bool   `json:"wallet_fallback"`
+	ID                 int    `json:"id"`
+	PlanID             int    `json:"plan_id"`
+	Status             string `json:"status"`
+	Unlimited          bool   `json:"unlimited"`
+	QuotaTotal         int64  `json:"quota_total"`
+	QuotaUsed          int64  `json:"quota_used_current_period"`
+	CurrentPeriodStart int64  `json:"current_period_start"`
+	EndTime            int64  `json:"end_time"`
+	NextResetTime      int64  `json:"next_reset_time"`
+	WalletFallback     bool   `json:"wallet_fallback"`
 }
 
 type connectorBilling struct {
-	PortalURL     string                  `json:"portal_url"`
-	Subscriptions []connectorSubscription `json:"subscriptions"`
+	PortalURL             string                  `json:"portal_url"`
+	WalletFallbackAllowed bool                    `json:"wallet_fallback_allowed"`
+	Subscriptions         []connectorSubscription `json:"subscriptions"`
 }
 
 type connectorModelPlaza struct {
-	PortalURL string `json:"portal_url"`
+	PortalURL string           `json:"portal_url"`
+	Models    []connectorModel `json:"models"`
 }
 
 type connectorMCPServer struct {
@@ -334,7 +337,7 @@ func RevokeConnectorSession(c *gin.Context) {
 // are not read by this handler at all.
 func GetConnectorProvisioning(c *gin.Context) {
 	userID := c.GetInt("id")
-	user, err := model.GetUserById(userID, false)
+	user, subscriptionRows, err := model.GetProvisioningAccountSnapshot(userID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account failed"})
 		return
@@ -397,22 +400,15 @@ func GetConnectorProvisioning(c *gin.Context) {
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
 
-	subscriptionRows, err := model.GetAllActiveUserSubscriptions(userID)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get account subscriptions failed"})
-		return
-	}
 	subscriptions := make([]connectorSubscription, 0, len(subscriptionRows))
-	for _, summary := range subscriptionRows {
-		if summary.Subscription == nil {
-			continue
-		}
-		sub := summary.Subscription
+	walletFallbackAllowed := true
+	for _, sub := range subscriptionRows {
 		subscriptions = append(subscriptions, connectorSubscription{
-			Status: sub.Status, CreditsTotal: max(sub.AmountTotal, 0), CreditsUsed: max(sub.AmountUsed, 0),
-			StartTime: sub.StartTime, EndTime: sub.EndTime, NextResetTime: sub.NextResetTime,
-			WalletFallback: sub.AllowWalletOverflow,
+			ID: sub.ID, PlanID: sub.PlanID, Status: sub.Status, Unlimited: sub.Unlimited,
+			QuotaTotal: sub.QuotaTotal, QuotaUsed: sub.QuotaUsed, CurrentPeriodStart: sub.CurrentPeriodStart,
+			EndTime: sub.EndTime, NextResetTime: sub.NextResetTime, WalletFallback: sub.WalletFallback,
 		})
+		walletFallbackAllowed = walletFallbackAllowed && sub.WalletFallback
 	}
 	mcpRows, err := model.ListConnectorMCPServers(true)
 	if err != nil {
@@ -461,26 +457,25 @@ func GetConnectorProvisioning(c *gin.Context) {
 
 	remaining := int64(max(user.Quota, 0))
 	used := int64(max(user.UsedQuota, 0))
-	total := remaining + used
-	if total < remaining {
-		total = math.MaxInt64
-	}
 	origin := publicOrigin(c)
+	chatModels := make([]connectorModel, 0, len(models))
+	for _, entry := range models {
+		if entry.ChatCapable {
+			chatModels = append(chatModels, entry)
+		}
+	}
 	data := connectorProvisioning{
 		SchemaVersion: 2,
 		Account:       connectorAccount{ID: user.Id, Username: user.Username, DisplayName: user.DisplayName, Email: user.Email, Group: user.Group},
-		Usage:         connectorUsage{CreditsTotal: total, CreditsUsed: used, CreditsRemaining: remaining, RequestCount: int64(user.RequestCount)},
-		Billing:       connectorBilling{PortalURL: origin + "/subscriptions", Subscriptions: subscriptions},
-		ModelPlaza:    connectorModelPlaza{PortalURL: origin + "/pricing"},
-		Models:        models,
+		Usage:         connectorUsage{WalletQuotaRemaining: remaining, LifetimeQuotaUsed: used, LifetimeRequestCount: int64(user.RequestCount)},
+		Billing:       connectorBilling{PortalURL: origin + "/subscriptions", WalletFallbackAllowed: walletFallbackAllowed, Subscriptions: subscriptions},
+		ModelPlaza:    connectorModelPlaza{PortalURL: origin + "/pricing", Models: models},
+		Models:        chatModels,
 		MCPServers:    mcpServers,
 		Skills:        skills,
 	}
-	for _, entry := range models {
-		if entry.ChatCapable {
-			data.DefaultModel = entry.ID
-			break
-		}
+	if len(chatModels) > 0 {
+		data.DefaultModel = chatModels[0].ID
 	}
 	desktopNoStore(c)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})

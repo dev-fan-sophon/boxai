@@ -76,6 +76,7 @@ pub fn plaza_models<'a>(
 ) -> Vec<&'a Model> {
     let query = query.trim().to_lowercase();
     provisioning
+        .model_plaza
         .models
         .iter()
         .filter(|model| match filter {
@@ -182,7 +183,9 @@ pub fn agent_detail<'a>(
         root: &install.root,
         managed_projection,
         selected_model,
-        default_model: provisioning.map(|value| value.default_model.as_str()),
+        default_model: provisioning
+            .map(|value| value.default_model.as_str())
+            .filter(|value| !value.is_empty()),
     })
 }
 
@@ -192,7 +195,7 @@ mod tests {
     use std::{collections::BTreeSet, path::PathBuf};
 
     fn provisioning() -> Provisioning {
-        Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":0,"username":"test","display_name":"","email":"","group":"default"},"usage":{"credits_total":0,"credits_used":0,"credits_remaining":0,"request_count":0},"billing":{"portal_url":"https://you-box.com/billing","subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models"},"models":[{"id":"Claude-Chat","chat_capable":true,"description":"Fast assistant","tags":["Reasoning"],"vendor":{"id":"anthropic","name":"Anthropic"}},{"id":"embed-v1","chat_capable":false,"description":"Vectors","tags":["Embedding"],"vendor":{"id":"boxai","name":"BoxAI"}}],"default_model":"Claude-Chat","mcp_servers":[],"skills":[]}}"#).unwrap()
+        Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"account":{"id":0,"username":"test","display_name":"","email":"","group":"default"},"usage":{"wallet_quota_remaining":0,"lifetime_quota_used":0,"lifetime_request_count":0},"billing":{"portal_url":"https://you-box.com/billing","wallet_fallback_allowed":true,"subscriptions":[]},"model_plaza":{"portal_url":"https://you-box.com/models","models":[{"id":"Claude-Chat","chat_capable":true,"description":"Fast assistant","tags":["Reasoning"],"vendor":{"id":"anthropic","name":"Anthropic"}},{"id":"embed-v1","chat_capable":false,"description":"Vectors","tags":["Embedding"],"vendor":{"id":"boxai","name":"BoxAI"}}]},"models":[{"id":"Claude-Chat","chat_capable":true,"description":"Fast assistant","tags":["Reasoning"],"vendor":{"id":"anthropic","name":"Anthropic"}}],"default_model":"Claude-Chat","mcp_servers":[],"skills":[]}}"#).unwrap()
     }
 
     #[test]
