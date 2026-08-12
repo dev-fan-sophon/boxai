@@ -1,7 +1,0 @@
-export { AboutCta } from './cta'
-export { ExtraContent } from './extra-content'
-export { AboutHero } from './hero'
-export { OfficialLinks } from './official-links'
-export { ProductGlance } from './product-glance'
-export { Trust } from './trust'
-export { WhoFor } from './who-for'

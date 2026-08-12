@@ -196,13 +196,6 @@ export function HeaderNavigationSection({
         'Shows Docs in the public header. Uses the external docs URL from Site settings when set; otherwise falls back to in-app documentation.'
       ),
     },
-    {
-      key: 'about',
-      title: t('About'),
-      description: t(
-        'Built-in About page in the public header strip (off by default). The page always shows BoxAI brand content; optional About HTML in Site settings only adds an extra section.'
-      ),
-    },
   ]
 
   const accessModules: Array<{

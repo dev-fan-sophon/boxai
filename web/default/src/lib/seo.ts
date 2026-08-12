@@ -346,7 +346,7 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
     '/about': {
       title: 'About BoxAI',
       description:
-        'About BoxAI (you-box.com) — unified AI API gateway for multi-model access, billing, and admin. Primary market: Vietnam; secondary: other overseas markets.',
+        'About BoxAI (you-box.com) — unified AI API gateway, browser workspace, and desktop apps with one account, keys, and billing.',
     },
     '/privacy-policy': {
       title: 'Privacy Policy',
