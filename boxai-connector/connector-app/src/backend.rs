@@ -1,7 +1,8 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use connector_core::{
     Account, AgentId, AgentInstall, ApplyInput, ConnectionManifest, Connector, Discovery,
-    MAX_SKILL_ARCHIVE_SIZE, Plan, Provisioning, Secret, SkillArchiveAuthorization, Verification,
+    EffectiveAgentSelection, MAX_SKILL_ARCHIVE_SIZE, Plan, Protocol, Provisioning, Secret,
+    SkillArchiveAuthorization, Verification, WireProtocol,
 };
 use directories::ProjectDirs;
 use fs2::FileExt;
@@ -27,6 +28,7 @@ const MAX_UNCOMPRESSED_SKILL_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SKILLS: usize = 256;
 const MAX_CATALOG_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
 const OWNER_MARKER: &str = ".gateway-connector-owner";
+const STATE_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone)]
 pub struct Distribution {
@@ -262,13 +264,32 @@ impl Browser for SystemBrowser {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct PlatformState {
-    models: BTreeMap<String, String>,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct AgentChoice {
+    model: String,
+    protocol: Protocol,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct PlatformState {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    models: BTreeMap<String, String>,
+    #[serde(default)]
+    agents: BTreeMap<String, AgentChoice>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PersistedState {
+    #[serde(default)]
+    schema_version: u32,
+    #[serde(default)]
     platforms: BTreeMap<String, PlatformState>,
+}
+impl Default for PersistedState {
+    fn default() -> Self {
+        Self {
+            schema_version: STATE_SCHEMA_VERSION,
+            platforms: BTreeMap::new(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -282,6 +303,7 @@ pub struct Status {
     pub provisioning: Option<Provisioning>,
     pub provisioning_error: Option<String>,
     pub selected_models: BTreeMap<AgentId, String>,
+    pub selected_protocols: BTreeMap<AgentId, Protocol>,
     pub installs: Vec<AgentInstall>,
 }
 #[derive(Debug)]
@@ -484,10 +506,18 @@ impl Backend {
         }
         let state = self.load_state()?;
         let account = provisioning.as_ref().map(|value| value.account.clone());
-        let selected_models = provisioning
+        let selections = provisioning
             .as_ref()
-            .map(|p| self.reconciled_models(&manifest, p, &state))
+            .map(|p| self.reconciled_agents(&manifest, p, &state))
             .unwrap_or_default();
+        let selected_models = selections
+            .iter()
+            .map(|(agent, selection)| (*agent, selection.model.clone()))
+            .collect();
+        let selected_protocols = selections
+            .iter()
+            .map(|(agent, selection)| (*agent, selection.protocol))
+            .collect();
         Ok(Status {
             manifest,
             connected: bearer.is_some(),
@@ -498,6 +528,7 @@ impl Backend {
             provisioning,
             provisioning_error,
             selected_models,
+            selected_protocols,
             installs: self.discover_clients(),
         })
     }
@@ -616,12 +647,12 @@ impl Backend {
             if value.models.is_empty() {
                 return;
             }
-            let reconciled = self.reconciled_models(manifest, &value, state);
+            let reconciled = self.reconciled_agents(manifest, &value, state);
             state
                 .platforms
                 .entry(manifest.platform.id.clone())
                 .or_default()
-                .models = model_map_to_strings(&reconciled);
+                .agents = agent_map_to_strings(&reconciled);
         })?;
         self.synchronize_skills(manifest, &value, bearer)?;
         Ok(value)
@@ -655,12 +686,50 @@ impl Backend {
             .into());
         }
         self.update_state(|state| {
-            state
-                .platforms
-                .entry(platform.into())
-                .or_default()
-                .models
-                .insert(agent.as_str().into(), model.into());
+            let platform = state.platforms.entry(platform.into()).or_default();
+            platform.models.remove(agent.as_str());
+            platform
+                .agents
+                .entry(agent.as_str().into())
+                .and_modify(|selection| selection.model = model.into())
+                .or_insert_with(|| AgentChoice {
+                    model: model.into(),
+                    protocol: Protocol::Auto,
+                });
+        })
+    }
+    pub fn update_protocol_choice(
+        &self,
+        platform: &str,
+        agent: AgentId,
+        protocol: Protocol,
+        manifest: &ConnectionManifest,
+        provisioning: &Provisioning,
+    ) -> Result<()> {
+        if manifest.platform.id != platform || !manifest.supported_agents.contains(&agent) {
+            return Err(connector_core::Error::Validation(
+                "Agent is not supported by this platform".into(),
+            )
+            .into());
+        }
+        let advertised = manifest
+            .gateway
+            .protocols
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        agent.resolve_protocol(protocol, &advertised)?;
+        self.update_state(|state| {
+            let platform = state.platforms.entry(platform.into()).or_default();
+            platform.models.remove(agent.as_str());
+            platform
+                .agents
+                .entry(agent.as_str().into())
+                .and_modify(|selection| selection.protocol = protocol)
+                .or_insert_with(|| AgentChoice {
+                    model: provisioning.default_model.clone(),
+                    protocol,
+                });
         })
     }
     pub fn discover_clients(&self) -> Vec<AgentInstall> {
@@ -679,12 +748,41 @@ impl Backend {
             .ok_or(BackendError::Credential)?;
         let secret = bearer.core_secret()?;
         let state = self.load_state()?;
-        let models = self.reconciled_models(manifest, provisioning, &state);
+        let advertised = manifest
+            .gateway
+            .protocols
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let selections = self.reconciled_agents(manifest, provisioning, &state);
+        let agents = installs
+            .iter()
+            .filter(|install| {
+                install.detected && manifest.supported_agents.contains(&install.agent)
+            })
+            .map(|install| {
+                let selection = selections.get(&install.agent).ok_or_else(|| {
+                    connector_core::Error::Validation(format!(
+                        "missing selection for {}",
+                        install.agent.display_name()
+                    ))
+                })?;
+                Ok((
+                    install.agent,
+                    EffectiveAgentSelection {
+                        model: selection.model.clone(),
+                        protocol: install
+                            .agent
+                            .resolve_protocol(selection.protocol, &advertised)?,
+                    },
+                ))
+            })
+            .collect::<connector_core::Result<BTreeMap<_, _>>>()?;
         Ok(self.connector().plan(ApplyInput {
             manifest,
             provisioning,
             bearer: &secret,
-            selected_models: models,
+            agents,
             installs,
             synchronized_skills: self.skill_paths(&manifest.platform.id, provisioning)?,
         })?)
@@ -826,12 +924,37 @@ impl Backend {
         if !path.exists() {
             return Ok(PersistedState::default());
         }
-        serde_json::from_slice(&fs::read(&path).map_err(state_io(&path))?).map_err(|e| {
-            BackendError::State {
+        let mut state: PersistedState =
+            serde_json::from_slice(&fs::read(&path).map_err(state_io(&path))?).map_err(|e| {
+                BackendError::State {
+                    path: path.clone(),
+                    message: e.to_string(),
+                }
+            })?;
+        if state.schema_version > STATE_SCHEMA_VERSION {
+            return Err(BackendError::State {
                 path,
-                message: e.to_string(),
+                message: format!("unsupported state schema {}", state.schema_version),
+            });
+        }
+        if state.schema_version == 0 {
+            for platform in state.platforms.values_mut() {
+                for (agent_id, model) in std::mem::take(&mut platform.models) {
+                    let Some(agent) = AgentId::ALL
+                        .into_iter()
+                        .find(|agent| agent.as_str() == agent_id)
+                    else {
+                        continue;
+                    };
+                    platform.agents.entry(agent_id).or_insert(AgentChoice {
+                        model,
+                        protocol: legacy_protocol(agent),
+                    });
+                }
             }
-        })
+            state.schema_version = STATE_SCHEMA_VERSION;
+        }
+        Ok(state)
     }
     fn save_state(&self, state: &PersistedState) -> Result<()> {
         atomic_json(&self.state_path(), state)
@@ -852,12 +975,12 @@ impl Backend {
         self.save_state(&state)?;
         Ok(result)
     }
-    fn reconciled_models(
+    fn reconciled_agents(
         &self,
         manifest: &ConnectionManifest,
         provisioning: &Provisioning,
         state: &PersistedState,
-    ) -> BTreeMap<AgentId, String> {
+    ) -> BTreeMap<AgentId, AgentChoice> {
         if provisioning.models.is_empty() {
             return BTreeMap::new();
         }
@@ -867,18 +990,31 @@ impl Backend {
             .filter(|model| model.chat_capable)
             .map(|model| model.id.as_str())
             .collect();
+        let advertised = manifest
+            .gateway
+            .protocols
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
         manifest
             .supported_agents
             .iter()
             .copied()
             .map(|agent| {
-                let selected = state
+                let saved = state
                     .platforms
                     .get(&manifest.platform.id)
-                    .and_then(|p| p.models.get(agent.as_str()))
-                    .filter(|m| valid.contains(m.as_str()))
-                    .cloned()
-                    .unwrap_or_else(|| provisioning.default_model.clone());
+                    .and_then(|platform| platform.agents.get(agent.as_str()));
+                let selected = AgentChoice {
+                    model: saved
+                        .filter(|selection| valid.contains(selection.model.as_str()))
+                        .map(|selection| selection.model.clone())
+                        .unwrap_or_else(|| provisioning.default_model.clone()),
+                    protocol: saved
+                        .map(|selection| selection.protocol)
+                        .filter(|protocol| agent.resolve_protocol(*protocol, &advertised).is_ok())
+                        .unwrap_or(Protocol::Auto),
+                };
                 (agent, selected)
             })
             .collect()
@@ -1436,11 +1572,20 @@ fn extract_skill_zip_with_limits(
     }
     Ok(())
 }
-fn model_map_to_strings(models: &BTreeMap<AgentId, String>) -> BTreeMap<String, String> {
-    models
+fn agent_map_to_strings(agents: &BTreeMap<AgentId, AgentChoice>) -> BTreeMap<String, AgentChoice> {
+    agents
         .iter()
-        .map(|(a, m)| (a.as_str().into(), m.clone()))
+        .map(|(agent, selection)| (agent.as_str().into(), selection.clone()))
         .collect()
+}
+fn legacy_protocol(agent: AgentId) -> Protocol {
+    match agent {
+        AgentId::Claude => WireProtocol::Anthropic,
+        AgentId::Codex | AgentId::Grokbuild => WireProtocol::OpenaiResponses,
+        AgentId::Gemini => WireProtocol::Gemini,
+        AgentId::Opencode => WireProtocol::OpenaiChat,
+    }
+    .protocol()
 }
 fn state_io(path: &Path) -> impl FnOnce(std::io::Error) -> BackendError + '_ {
     move |e| BackendError::State {
@@ -1693,7 +1838,7 @@ mod tests {
                     "authorize_url":format!("https://gateway.example{prefix}/connector/authorize"),
                     "token_url":format!("https://gateway.example{prefix}/connector/token")
                 },
-                "gateway":{"base_url":"https://gateway.example","protocols":["openai_responses"]},
+                "gateway":{"base_url":"https://gateway.example","protocols":["anthropic","openai_responses","openai_chat","gemini"]},
                 "provisioning_url":format!("https://gateway.example{prefix}/connector/provisioning"),
                 "connection_bearer_origins":["https://gateway.example"],
                 "supported_agents":["claude","codex","gemini","grokbuild","opencode"]
@@ -1717,7 +1862,7 @@ mod tests {
         )
     }
     fn manifest() -> ConnectionManifest {
-        ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"origin","name":"BoxAI"},"authentication":{"type":"browser_pkce","authorize_url":"https://you-box.com/desktop/authorize","token_url":"https://you-box.com/api/token"},"gateway":{"base_url":"https://you-box.com","protocols":["openai_chat"]},"provisioning_url":"https://you-box.com/api/connector/provisioning","connection_bearer_origins":["https://you-box.com"],"supported_agents":["claude","codex"]}}"#).unwrap()
+        ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"origin","name":"BoxAI"},"authentication":{"type":"browser_pkce","authorize_url":"https://you-box.com/desktop/authorize","token_url":"https://you-box.com/api/token"},"gateway":{"base_url":"https://you-box.com","protocols":["anthropic","openai_responses","openai_chat","gemini"]},"provisioning_url":"https://you-box.com/api/connector/provisioning","connection_bearer_origins":["https://you-box.com"],"supported_agents":["claude","codex"]}}"#).unwrap()
     }
     fn provisioning(default: &str, models: &[&str], skills: &[&str]) -> Provisioning {
         let models: Vec<_> = models
@@ -1881,8 +2026,9 @@ mod tests {
             .unwrap();
         let persisted = backend.load_state().unwrap();
         let next = provisioning("model-a", &["model-a"], &[]);
-        let selected = backend.reconciled_models(&manifest(), &next, &persisted);
-        assert_eq!(selected.get(&AgentId::Claude).unwrap(), "model-a");
+        let selected = backend.reconciled_agents(&manifest(), &next, &persisted);
+        assert_eq!(selected[&AgentId::Claude].model, "model-a");
+        assert_eq!(selected[&AgentId::Claude].protocol, Protocol::Auto);
         let state_bytes = fs::read(backend.state_path()).unwrap();
         assert!(!String::from_utf8(state_bytes).unwrap().contains("Bearer"));
         #[cfg(unix)]
@@ -1922,13 +2068,16 @@ mod tests {
             .platforms
             .entry("origin".into())
             .or_default()
-            .models
-            .insert("claude".into(), "embedding".into());
-        let selected = backend.reconciled_models(&manifest(), &value, &state);
-        assert_eq!(
-            selected.get(&AgentId::Claude).map(String::as_str),
-            Some("chat")
-        );
+            .agents
+            .insert(
+                "claude".into(),
+                AgentChoice {
+                    model: "embedding".into(),
+                    protocol: Protocol::Anthropic,
+                },
+            );
+        let selected = backend.reconciled_agents(&manifest(), &value, &state);
+        assert_eq!(selected[&AgentId::Claude].model, "chat");
     }
     #[test]
     fn empty_chat_catalog_preserves_choices_without_selecting_empty_ids() {
@@ -1961,8 +2110,14 @@ mod tests {
                     .platforms
                     .entry("origin".into())
                     .or_default()
-                    .models
-                    .insert("claude".into(), "previous-chat".into());
+                    .agents
+                    .insert(
+                        "claude".into(),
+                        AgentChoice {
+                            model: "previous-chat".into(),
+                            protocol: Protocol::Anthropic,
+                        },
+                    );
             })
             .unwrap();
 
@@ -1972,12 +2127,86 @@ mod tests {
 
         assert!(
             backend
-                .reconciled_models(&manifest(), &value, &backend.load_state().unwrap())
+                .reconciled_agents(&manifest(), &value, &backend.load_state().unwrap())
                 .is_empty()
         );
         assert_eq!(
-            backend.load_state().unwrap().platforms["origin"].models["claude"],
+            backend.load_state().unwrap().platforms["origin"].agents["claude"].model,
             "previous-chat"
+        );
+    }
+    #[test]
+    fn legacy_model_state_migrates_to_each_agents_previous_effective_protocol() {
+        let temp = tempfile::tempdir().unwrap();
+        let backend = backend(temp.path());
+        fs::create_dir_all(temp.path()).unwrap();
+        fs::write(
+            backend.state_path(),
+            br#"{"platforms":{"origin":{"models":{"claude":"a","codex":"b","gemini":"c","grokbuild":"d","opencode":"e"}}}}"#,
+        )
+        .unwrap();
+
+        let migrated = backend.load_state().unwrap();
+        let agents = &migrated.platforms["origin"].agents;
+        assert_eq!(agents["claude"].protocol, Protocol::Anthropic);
+        assert_eq!(agents["codex"].protocol, Protocol::OpenaiResponses);
+        assert_eq!(agents["gemini"].protocol, Protocol::Gemini);
+        assert_eq!(agents["grokbuild"].protocol, Protocol::OpenaiResponses);
+        assert_eq!(agents["opencode"].protocol, Protocol::OpenaiChat);
+        backend.update_state(|_| {}).unwrap();
+        let saved = fs::read_to_string(backend.state_path()).unwrap();
+        assert!(saved.contains("\"schema_version\": 1"));
+        assert!(!saved.contains("\"models\""));
+    }
+    #[test]
+    fn invalid_protocol_choice_never_mutates_agent_state() {
+        let temp = tempfile::tempdir().unwrap();
+        let backend = backend(temp.path());
+        let manifest = manifest();
+        let provisioning = provisioning("chat", &["chat"], &[]);
+
+        assert!(
+            backend
+                .update_protocol_choice(
+                    "origin",
+                    AgentId::Claude,
+                    Protocol::OpenaiResponses,
+                    &manifest,
+                    &provisioning,
+                )
+                .is_err()
+        );
+        assert!(!backend.state_path().exists());
+
+        let mut restricted = manifest.clone();
+        restricted.supported_agents = vec![AgentId::Grokbuild];
+        restricted.gateway.protocols = vec![WireProtocol::OpenaiResponses];
+        restricted.validate().unwrap();
+        assert!(
+            backend
+                .update_protocol_choice(
+                    "origin",
+                    AgentId::Grokbuild,
+                    Protocol::OpenaiChat,
+                    &restricted,
+                    &provisioning,
+                )
+                .is_err()
+        );
+        assert!(!backend.state_path().exists());
+
+        backend
+            .update_protocol_choice(
+                "origin",
+                AgentId::Claude,
+                Protocol::Anthropic,
+                &manifest,
+                &provisioning,
+            )
+            .unwrap();
+        assert_eq!(
+            backend.load_state().unwrap().platforms["origin"].agents["claude"].protocol,
+            Protocol::Anthropic
         );
     }
     #[test]

@@ -140,6 +140,7 @@ pub enum Message {
     NoMcp,
     NoSkills,
     SavingModel,
+    SavingProtocol,
     CheckingGateway,
     WaitingSignIn,
     RefreshingCatalog,
@@ -152,6 +153,7 @@ pub enum Message {
     ServicesSubtitle,
     SettingsSubtitle,
     ModelSelectorName,
+    ProtocolSelectorName,
     ConnectLoadModels,
     PreferenceSaveFailed,
     ConnectedNotice,
@@ -222,6 +224,7 @@ pub enum Message {
     DiscoveryState,
     ProjectionStatus,
     SelectedModel,
+    SelectedProtocol,
     DefaultModel,
     Details,
     BackToAgentClients,
@@ -298,6 +301,7 @@ pub fn text(locale: Locale, message: Message) -> &'static str {
         (Locale::Vi, NoMcp) => "Không có dịch vụ MCP được công bố",
         (Locale::Vi, NoSkills) => "Không có Skill chính thức được công bố",
         (Locale::Vi, SavingModel) => "Đang lưu lựa chọn mô hình Agent…",
+        (Locale::Vi, SavingProtocol) => "Đang lưu giao thức của Agent…",
         (Locale::Vi, CheckingGateway) => "Đang kiểm tra Gateway…",
         (Locale::Vi, WaitingSignIn) => "Đang chờ đăng nhập trên trình duyệt…",
         (Locale::Vi, RefreshingCatalog) => "Đang làm mới danh mục trực tuyến…",
@@ -318,6 +322,7 @@ pub fn text(locale: Locale, message: Message) -> &'static str {
             "Thông tin xác thực nằm trong kho bảo mật hệ điều hành. Không có relay cục bộ nào chạy nền."
         }
         (Locale::Vi, ModelSelectorName) => "Mô hình mặc định của Agent",
+        (Locale::Vi, ProtocolSelectorName) => "Giao thức kết nối của Agent",
         (Locale::Vi, ConnectLoadModels) => "Kết nối để tải mô hình",
         (Locale::Vi, PreferenceSaveFailed) => {
             "Không thể lưu tùy chọn ngôn ngữ. Hãy kiểm tra quyền truy cập thư mục dữ liệu ứng dụng rồi thử lại."
@@ -432,6 +437,7 @@ pub fn text(locale: Locale, message: Message) -> &'static str {
         (Locale::Vi, DiscoveryState) => "Trạng thái phát hiện",
         (Locale::Vi, ProjectionStatus) => "Trạng thái cấu hình được quản lý",
         (Locale::Vi, SelectedModel) => "Mô hình đã chọn",
+        (Locale::Vi, SelectedProtocol) => "Giao thức đã chọn",
         (Locale::Vi, DefaultModel) => "Mô hình mặc định",
         (Locale::Vi, Details) => "Chi tiết",
         (Locale::Vi, BackToAgentClients) => "Quay lại Ứng dụng Agent",
@@ -512,6 +518,7 @@ fn english(message: Message) -> &'static str {
         NoMcp => "No MCP services advertised",
         NoSkills => "No official Skills advertised",
         SavingModel => "Saving the Agent model choice…",
+        SavingProtocol => "Saving the Agent protocol choice…",
         CheckingGateway => "Checking Gateway readiness…",
         WaitingSignIn => "Waiting for browser sign-in…",
         RefreshingCatalog => "Refreshing online catalog…",
@@ -530,6 +537,7 @@ fn english(message: Message) -> &'static str {
             "Credentials stay in the operating-system vault. No local relay runs in the background."
         }
         ModelSelectorName => "Agent default model",
+        ProtocolSelectorName => "Agent wire protocol",
         ConnectLoadModels => "Connect to load models",
         PreferenceSaveFailed => {
             "The language preference could not be saved. Check access to the application data folder and try again."
@@ -622,6 +630,7 @@ fn english(message: Message) -> &'static str {
         DiscoveryState => "Discovery state",
         ProjectionStatus => "Managed projection status",
         SelectedModel => "Selected chat model",
+        SelectedProtocol => "Selected wire protocol",
         DefaultModel => "Default chat model",
         Details => "Details",
         BackToAgentClients => "Back to Agent clients",
@@ -641,6 +650,12 @@ impl Locale {
         match self {
             Self::En => format!("{agent} will use the new model after changes are applied."),
             Self::Vi => format!("{agent} sẽ dùng mô hình mới sau khi áp dụng thay đổi."),
+        }
+    }
+    pub fn protocol_updated(self, agent: &str) -> String {
+        match self {
+            Self::En => format!("{agent} will use the new protocol after changes are applied."),
+            Self::Vi => format!("{agent} sẽ dùng giao thức mới sau khi áp dụng thay đổi."),
         }
     }
     pub fn previewed(self, count: usize) -> String {
@@ -686,6 +701,12 @@ impl Locale {
         match self {
             Self::En => format!("{agent} — Agent default model"),
             Self::Vi => format!("{agent} — Mô hình mặc định của Agent"),
+        }
+    }
+    pub fn protocol_selector_name(self, agent: &str) -> String {
+        match self {
+            Self::En => format!("{agent} — Agent wire protocol"),
+            Self::Vi => format!("{agent} — Giao thức kết nối của Agent"),
         }
     }
 }

@@ -6,10 +6,12 @@ mod transaction;
 pub use discovery::{AgentInstall, Discovery};
 pub use model::{
     Account, AgentId, AuthType, Billing, ConnectionManifest, MAX_SKILL_ARCHIVE_SIZE,
-    McpAuthorization, Model, ModelPlaza, ModelVendor, Platform, Provisioning, Secret, Skill,
-    SkillArchiveAuthorization, Subscription, Usage,
+    McpAuthorization, Model, ModelPlaza, ModelVendor, Platform, Protocol, Provisioning, Secret,
+    Skill, SkillArchiveAuthorization, Subscription, Usage, WireProtocol,
 };
-pub use transaction::{ApplyInput, Change, ChangeKind, Connector, Plan, Verification};
+pub use transaction::{
+    ApplyInput, Change, ChangeKind, Connector, EffectiveAgentSelection, Plan, Verification,
+};
 
 use thiserror::Error;
 

@@ -1,6 +1,6 @@
 use crate::{Error, Result};
-use serde::Deserialize;
-use std::{collections::BTreeSet, fmt};
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeSet, fmt, str::FromStr};
 use url::Url;
 
 pub const SCHEMA_VERSION: u32 = 2;
@@ -28,7 +28,7 @@ impl fmt::Debug for Secret {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AgentId {
     Claude,
@@ -38,7 +38,15 @@ pub enum AgentId {
     Opencode,
 }
 impl AgentId {
-    pub fn as_str(self) -> &'static str {
+    pub const ALL: [Self; 5] = [
+        Self::Claude,
+        Self::Codex,
+        Self::Gemini,
+        Self::Grokbuild,
+        Self::Opencode,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
@@ -46,6 +54,183 @@ impl AgentId {
             Self::Grokbuild => "grokbuild",
             Self::Opencode => "opencode",
         }
+    }
+
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::Claude => "Claude Code",
+            Self::Codex => "Codex CLI",
+            Self::Gemini => "Gemini CLI",
+            Self::Grokbuild => "Grok Build",
+            Self::Opencode => "OpenCode",
+        }
+    }
+
+    pub const fn supported_protocols(self) -> &'static [Protocol] {
+        match self {
+            Self::Claude => &[Protocol::Auto, Protocol::Anthropic],
+            Self::Codex => &[Protocol::Auto, Protocol::OpenaiResponses],
+            Self::Gemini => &[Protocol::Auto, Protocol::Gemini],
+            Self::Grokbuild => &[
+                Protocol::Auto,
+                Protocol::OpenaiChat,
+                Protocol::OpenaiResponses,
+                Protocol::Anthropic,
+            ],
+            Self::Opencode => &Protocol::ALL,
+        }
+    }
+
+    pub const fn supported_wire_protocols(self) -> &'static [WireProtocol] {
+        match self {
+            Self::Claude => &[WireProtocol::Anthropic],
+            Self::Codex => &[WireProtocol::OpenaiResponses],
+            Self::Gemini => &[WireProtocol::Gemini],
+            Self::Grokbuild => &[
+                WireProtocol::OpenaiChat,
+                WireProtocol::OpenaiResponses,
+                WireProtocol::Anthropic,
+            ],
+            Self::Opencode => &WireProtocol::ALL,
+        }
+    }
+
+    pub fn resolve_protocol(
+        self,
+        selection: Protocol,
+        advertised: &BTreeSet<WireProtocol>,
+    ) -> Result<WireProtocol> {
+        if selection == Protocol::Auto {
+            return self
+                .supported_wire_protocols()
+                .iter()
+                .copied()
+                .find(|protocol| advertised.contains(protocol))
+                .ok_or_else(|| {
+                    Error::Validation(format!(
+                        "gateway advertises no protocol supported by {}",
+                        self.display_name()
+                    ))
+                });
+        }
+        let protocol = selection
+            .wire_protocol()
+            .expect("a non-Auto protocol has a concrete representation");
+        if !self.supported_wire_protocols().contains(&protocol) {
+            return Err(Error::Validation(format!(
+                "{} does not support the {} protocol",
+                self.display_name(),
+                protocol
+            )));
+        }
+        if !advertised.contains(&protocol) {
+            return Err(Error::Validation(format!(
+                "gateway does not advertise {} selected for {}",
+                protocol,
+                self.display_name()
+            )));
+        }
+        Ok(protocol)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Protocol {
+    #[default]
+    Auto,
+    OpenaiChat,
+    OpenaiResponses,
+    Anthropic,
+    Gemini,
+}
+impl Protocol {
+    pub const ALL: [Self; 5] = [
+        Self::Auto,
+        Self::OpenaiChat,
+        Self::OpenaiResponses,
+        Self::Anthropic,
+        Self::Gemini,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::OpenaiChat => "openai_chat",
+            Self::OpenaiResponses => "openai_responses",
+            Self::Anthropic => "anthropic",
+            Self::Gemini => "gemini",
+        }
+    }
+
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::Auto => "Auto",
+            Self::OpenaiChat => "OpenAI Chat Completions",
+            Self::OpenaiResponses => "OpenAI Responses",
+            Self::Anthropic => "Anthropic Messages",
+            Self::Gemini => "Gemini",
+        }
+    }
+
+    pub const fn wire_protocol(self) -> Option<WireProtocol> {
+        match self {
+            Self::Auto => None,
+            Self::OpenaiChat => Some(WireProtocol::OpenaiChat),
+            Self::OpenaiResponses => Some(WireProtocol::OpenaiResponses),
+            Self::Anthropic => Some(WireProtocol::Anthropic),
+            Self::Gemini => Some(WireProtocol::Gemini),
+        }
+    }
+}
+impl FromStr for Protocol {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|protocol| protocol.as_str() == value)
+            .ok_or_else(|| Error::Validation(format!("unknown protocol {value}")))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WireProtocol {
+    OpenaiChat,
+    OpenaiResponses,
+    Anthropic,
+    Gemini,
+}
+impl WireProtocol {
+    pub const ALL: [Self; 4] = [
+        Self::OpenaiChat,
+        Self::OpenaiResponses,
+        Self::Anthropic,
+        Self::Gemini,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OpenaiChat => "openai_chat",
+            Self::OpenaiResponses => "openai_responses",
+            Self::Anthropic => "anthropic",
+            Self::Gemini => "gemini",
+        }
+    }
+
+    pub const fn protocol(self) -> Protocol {
+        match self {
+            Self::OpenaiChat => Protocol::OpenaiChat,
+            Self::OpenaiResponses => Protocol::OpenaiResponses,
+            Self::Anthropic => Protocol::Anthropic,
+            Self::Gemini => Protocol::Gemini,
+        }
+    }
+}
+impl fmt::Display for WireProtocol {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -69,7 +254,7 @@ pub struct Authentication {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Gateway {
     pub base_url: Url,
-    pub protocols: Vec<String>,
+    pub protocols: Vec<WireProtocol>,
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct ConnectionManifest {
@@ -148,6 +333,25 @@ impl ConnectionManifest {
             self.supported_agents.iter().map(|a| a.as_str()),
             "supported agent",
         )?;
+        if self.gateway.protocols.is_empty() {
+            return Err(Error::Validation("gateway protocols is empty".into()));
+        }
+        unique(
+            self.gateway
+                .protocols
+                .iter()
+                .map(|protocol| protocol.as_str()),
+            "gateway protocol",
+        )?;
+        let protocols = self
+            .gateway
+            .protocols
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for agent in &self.supported_agents {
+            agent.resolve_protocol(Protocol::Auto, &protocols)?;
+        }
         Ok(())
     }
 }

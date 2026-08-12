@@ -8,7 +8,9 @@ use connector_app::{
         selector_models,
     },
 };
-use connector_core::{AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Provisioning};
+use connector_core::{
+    AgentId, AgentInstall, Change, ChangeKind, ConnectionManifest, Protocol, Provisioning,
+};
 use gpui::{
     AnyElement, App, AssetSource, Bounds, Context, Entity, FontWeight, IntoElement, ParentElement,
     Render, SharedString, Styled, TitlebarOptions, Window, WindowAppearance, WindowBounds,
@@ -132,6 +134,10 @@ enum Completion {
         agent: AgentId,
         model: String,
     },
+    ProtocolUpdated {
+        agent: AgentId,
+        protocol: Protocol,
+    },
     Preview(Vec<Change>),
     Applied {
         changes: usize,
@@ -149,6 +155,7 @@ struct GatewayKit {
     status: Option<Status>,
     installs: Vec<AgentInstall>,
     model_selects: BTreeMap<AgentId, Entity<Select>>,
+    protocol_selects: BTreeMap<AgentId, Entity<Select>>,
     language_select: Entity<Select>,
     model_search: Entity<TextInput>,
     model_query: String,
@@ -182,6 +189,7 @@ impl GatewayKit {
                 .placeholder(text(locale, Message::SearchModels))
         });
         let mut model_selects = BTreeMap::new();
+        let mut protocol_selects = BTreeMap::new();
         for agent in AGENTS {
             let select = cx.new(|cx| {
                 Select::new(format!("agent.{}.model", agent.as_str()), window, cx)
@@ -208,6 +216,41 @@ impl GatewayKit {
             })
             .detach();
             model_selects.insert(agent, select);
+
+            let select = cx.new(|cx| {
+                Select::new(format!("agent.{}.protocol", agent.as_str()), window, cx)
+                    .name(locale.protocol_selector_name(agent_name(agent)))
+                    .placeholder(text(locale, Message::ProtocolSelectorName))
+            });
+            cx.subscribe(&select, move |this, _select, event: &SelectEvent, cx| {
+                let SelectEvent::Selected(id) = event else {
+                    return;
+                };
+                let Ok(protocol) = id.parse::<Protocol>() else {
+                    return;
+                };
+                let Some(status) = this.status.as_ref() else {
+                    return;
+                };
+                let Some(provisioning) = status.provisioning.as_ref() else {
+                    return;
+                };
+                let platform = status.manifest.platform.id.clone();
+                let manifest = status.manifest.clone();
+                let provisioning = provisioning.clone();
+                this.run(cx, Message::SavingProtocol, move |backend| {
+                    backend.update_protocol_choice(
+                        &platform,
+                        agent,
+                        protocol,
+                        &manifest,
+                        &provisioning,
+                    )?;
+                    Ok(Completion::ProtocolUpdated { agent, protocol })
+                });
+            })
+            .detach();
+            protocol_selects.insert(agent, select);
         }
 
         let mut view = Self {
@@ -215,6 +258,7 @@ impl GatewayKit {
             status: None,
             installs: Vec::new(),
             model_selects,
+            protocol_selects,
             language_select: language_select.clone(),
             model_search: model_search.clone(),
             model_query: String::new(),
@@ -356,6 +400,17 @@ impl GatewayKit {
                     self.locale.model_updated(agent_name(agent)),
                 ));
             }
+            Completion::ProtocolUpdated { agent, protocol } => {
+                if let Some(status) = self.status.as_mut() {
+                    status.selected_protocols.insert(agent, protocol);
+                }
+                self.sync_model_selects(cx);
+                self.preview.clear();
+                self.notice = Some((
+                    NoticeTone::Info,
+                    self.locale.protocol_updated(agent_name(agent)),
+                ));
+            }
             Completion::Preview(changes) => {
                 let count = changes.len();
                 self.preview = changes;
@@ -431,6 +486,28 @@ impl GatewayKit {
                 select.set_disabled(disabled, cx);
             });
         }
+        for (agent, select) in &self.protocol_selects {
+            let selected = status
+                .selected_protocols
+                .get(agent)
+                .map(|protocol| SharedString::from(protocol.as_str()));
+            let options = agent
+                .supported_protocols()
+                .iter()
+                .copied()
+                .filter(|protocol| {
+                    protocol
+                        .wire_protocol()
+                        .is_none_or(|wire| status.manifest.gateway.protocols.contains(&wire))
+                })
+                .map(|protocol| SelectOption::new(protocol.as_str(), protocol.display_name()))
+                .collect::<Vec<_>>();
+            select.update(cx, |select, cx| {
+                select.set_options(options, cx);
+                select.set_selected(selected, cx);
+                select.set_disabled(!status.connected, cx);
+            });
+        }
     }
 
     fn sync_select_names(&self, cx: &mut Context<Self>) {
@@ -440,6 +517,11 @@ impl GatewayKit {
         for (agent, select) in &self.model_selects {
             select.update(cx, |select, cx| {
                 select.set_name(self.locale.model_selector_name(agent_name(*agent)), cx);
+            });
+        }
+        for (agent, select) in &self.protocol_selects {
+            select.update(cx, |select, cx| {
+                select.set_name(self.locale.protocol_selector_name(agent_name(*agent)), cx);
             });
         }
     }
@@ -454,6 +536,7 @@ impl GatewayKit {
             status.provisioning = None;
             status.provisioning_error = None;
             status.selected_models.clear();
+            status.selected_protocols.clear();
         }
         self.sync_model_selects(cx);
     }
@@ -772,7 +855,16 @@ impl GatewayKit {
                 .description(text(self.locale, Message::BoundaryDescription))
                 .row(
                     SettingsRow::new("overview.protocols", text(self.locale, Message::Protocols))
-                        .value(status.manifest.gateway.protocols.join(", ")),
+                        .value(
+                            status
+                                .manifest
+                                .gateway
+                                .protocols
+                                .iter()
+                                .map(|protocol| protocol.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                        ),
                 )
                 .row(
                     SettingsRow::new("overview.models", text(self.locale, Message::ChatModels))
@@ -1080,6 +1172,13 @@ impl GatewayKit {
                         .control(self.model_selects[&agent].clone()),
                     )
                     .row(
+                        SettingsRow::new(
+                            "agent.protocol",
+                            text(self.locale, Message::SelectedProtocol),
+                        )
+                        .control(self.protocol_selects[&agent].clone()),
+                    )
+                    .row(
                         SettingsRow::new("agent.default", text(self.locale, Message::DefaultModel))
                             .value(default_model.to_owned()),
                     ),
@@ -1272,7 +1371,8 @@ impl GatewayKit {
                                     .text_color(theme.colors.text_faint)
                                     .child(selected),
                             )
-                            .child(self.model_selects[&install.agent].clone()),
+                            .child(self.model_selects[&install.agent].clone())
+                            .child(self.protocol_selects[&install.agent].clone()),
                     ),
             );
         }

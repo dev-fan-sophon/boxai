@@ -41,7 +41,7 @@ fn parse_provisioning(bytes: &[u8]) -> connector_core::Result<Provisioning> {
 }
 
 fn contracts() -> (ConnectionManifest, Provisioning) {
-    let manifest=ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"origin","name":"Origin"},"authentication":{"type":"browser_pkce","authorize_url":"https://id.example/auth","token_url":"https://id.example/token"},"gateway":{"base_url":"https://gw.example","protocols":["openai"]},"provisioning_url":"https://gw.example/provision","connection_bearer_origins":["https://gw.example"],"supported_agents":["claude","codex","gemini","grokbuild","opencode"]}}"#).unwrap();
+    let manifest=ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"origin","name":"Origin"},"authentication":{"type":"browser_pkce","authorize_url":"https://id.example/auth","token_url":"https://id.example/token"},"gateway":{"base_url":"https://gw.example","protocols":["anthropic","openai_responses","openai_chat","gemini"]},"provisioning_url":"https://gw.example/provision","connection_bearer_origins":["https://gw.example"],"supported_agents":["claude","codex","gemini","grokbuild","opencode"]}}"#).unwrap();
     let provisioning=parse_provisioning(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true},{"id":"beta","chat_capable":true}],"default_model":"alpha","mcp_servers":[{"id":"docs","name":"Docs","url":"https://gw.example/mcp/docs","authorization":"connection_bearer","description":"docs"}],"skills":[{"id":"deploy","name":"Deploy","version":"1.0.0","archive":{"url":"https://gw.example/skills/deploy.zip","sha256":"0000000000000000000000000000000000000000000000000000000000000000","size_bytes":1,"format":"zip","authorization":"none"}}]}}"#).unwrap();
     (manifest, provisioning)
 }
@@ -67,7 +67,7 @@ fn additive_provisioning_fields_parse_and_non_chat_models_are_never_projected() 
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![AgentInstall {
                 agent: AgentId::Opencode,
                 root: root.clone(),
@@ -169,7 +169,13 @@ fn setup(root: &Path) -> (Connector, connector_core::Plan) {
             manifest: &m,
             provisioning: &p,
             bearer: &Secret::new("super-secret").unwrap(),
-            selected_models: BTreeMap::from([(AgentId::Codex, "beta".into())]),
+            agents: BTreeMap::from([(
+                AgentId::Codex,
+                connector_core::EffectiveAgentSelection {
+                    model: "beta".into(),
+                    protocol: connector_core::WireProtocol::OpenaiResponses,
+                },
+            )]),
             installs,
             synchronized_skills: skills,
         })
@@ -230,6 +236,7 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
     assert!(
         env.contains("# keep")
             && env.contains("OTHER=yes")
+            && env.contains("GEMINI_API_KEY_AUTH_MECHANISM=\"bearer\"")
             && env.contains("GEMINI_MODEL=\"alpha\"")
     );
     let gem: Value =
@@ -242,7 +249,8 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
         grok.contains("# grok-comment")
             && grok.contains(&format!("default = \"{provider}\""))
             && grok.contains(&format!("[model.{provider}]"))
-            && grok.contains("api_backend = \"responses\"")
+            && grok.contains("api_backend = \"chat_completions\"")
+            && grok.contains("auth_scheme = \"bearer\"")
             && grok.contains("headers")
     );
     let oc: Value =
@@ -278,6 +286,167 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
 }
 
 #[test]
+fn grok_and_opencode_project_every_supported_protocol() {
+    let (manifest, mut provisioning) = contracts();
+    provisioning.mcp_servers.clear();
+    provisioning.skills.clear();
+    let temp = tempdir().unwrap();
+    let cases = [
+        (
+            connector_core::WireProtocol::OpenaiChat,
+            "chat_completions",
+            "@ai-sdk/openai-compatible",
+            "apiKey",
+        ),
+        (
+            connector_core::WireProtocol::OpenaiResponses,
+            "responses",
+            "@ai-sdk/openai",
+            "apiKey",
+        ),
+        (
+            connector_core::WireProtocol::Anthropic,
+            "messages",
+            "@ai-sdk/anthropic",
+            "authToken",
+        ),
+    ];
+    for (protocol, grok_backend, npm, credential_key) in cases {
+        let grok = temp.path().join(format!("grok-{}", protocol.as_str()));
+        fs::create_dir_all(&grok).unwrap();
+        let connector = Connector::new(
+            temp.path()
+                .join(format!("state-grok-{}", protocol.as_str())),
+        );
+        let plan = connector
+            .plan(ApplyInput {
+                manifest: &manifest,
+                provisioning: &provisioning,
+                bearer: &Secret::new("secret").unwrap(),
+                agents: BTreeMap::from([(
+                    AgentId::Grokbuild,
+                    connector_core::EffectiveAgentSelection {
+                        model: "alpha".into(),
+                        protocol,
+                    },
+                )]),
+                installs: vec![AgentInstall {
+                    agent: AgentId::Grokbuild,
+                    root: grok.clone(),
+                    detected: true,
+                }],
+                synchronized_skills: BTreeMap::new(),
+            })
+            .unwrap();
+        connector.apply(&plan).unwrap();
+        let config = fs::read_to_string(grok.join("config.toml")).unwrap();
+        assert!(
+            config.contains(&format!("api_backend = \"{grok_backend}\""))
+                && config.contains("auth_scheme = \"bearer\"")
+        );
+
+        let opencode = temp.path().join(format!("opencode-{}", protocol.as_str()));
+        fs::create_dir_all(&opencode).unwrap();
+        let connector = Connector::new(
+            temp.path()
+                .join(format!("state-opencode-{}", protocol.as_str())),
+        );
+        let plan = connector
+            .plan(ApplyInput {
+                manifest: &manifest,
+                provisioning: &provisioning,
+                bearer: &Secret::new("secret").unwrap(),
+                agents: BTreeMap::from([(
+                    AgentId::Opencode,
+                    connector_core::EffectiveAgentSelection {
+                        model: "alpha".into(),
+                        protocol,
+                    },
+                )]),
+                installs: vec![AgentInstall {
+                    agent: AgentId::Opencode,
+                    root: opencode.clone(),
+                    detected: true,
+                }],
+                synchronized_skills: BTreeMap::new(),
+            })
+            .unwrap();
+        connector.apply(&plan).unwrap();
+        let config: Value =
+            serde_json::from_slice(&fs::read(opencode.join("opencode.json")).unwrap()).unwrap();
+        let provider = managed("origin", "provider", "default");
+        assert_eq!(config["provider"][&provider]["npm"], npm);
+        assert!(config["provider"][&provider]["options"][credential_key].is_string());
+    }
+
+    let opencode = temp.path().join("opencode-gemini");
+    fs::create_dir_all(&opencode).unwrap();
+    let connector = Connector::new(temp.path().join("state-opencode-gemini"));
+    let plan = connector
+        .plan(ApplyInput {
+            manifest: &manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("secret").unwrap(),
+            agents: BTreeMap::from([(
+                AgentId::Opencode,
+                connector_core::EffectiveAgentSelection {
+                    model: "alpha".into(),
+                    protocol: connector_core::WireProtocol::Gemini,
+                },
+            )]),
+            installs: vec![AgentInstall {
+                agent: AgentId::Opencode,
+                root: opencode.clone(),
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap();
+    connector.apply(&plan).unwrap();
+    let config: Value =
+        serde_json::from_slice(&fs::read(opencode.join("opencode.json")).unwrap()).unwrap();
+    let provider = managed("origin", "provider", "default");
+    assert_eq!(config["provider"][&provider]["npm"], "@ai-sdk/google");
+    assert!(
+        config["provider"][&provider]["options"]["baseURL"]
+            .as_str()
+            .is_some_and(|base| base.ends_with("/v1beta"))
+    );
+}
+
+#[test]
+fn incompatible_agent_protocol_is_rejected() {
+    let (manifest, mut provisioning) = contracts();
+    provisioning.mcp_servers.clear();
+    provisioning.skills.clear();
+    let temp = tempdir().unwrap();
+    let claude = temp.path().join("claude");
+    fs::create_dir_all(&claude).unwrap();
+    let error = Connector::new(temp.path().join("state"))
+        .plan(ApplyInput {
+            manifest: &manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("secret").unwrap(),
+            agents: BTreeMap::from([(
+                AgentId::Claude,
+                connector_core::EffectiveAgentSelection {
+                    model: "alpha".into(),
+                    protocol: connector_core::WireProtocol::OpenaiResponses,
+                },
+            )]),
+            installs: vec![AgentInstall {
+                agent: AgentId::Claude,
+                root: claude,
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("does not support"), "{error}");
+}
+
+#[test]
 fn rejects_schema_and_security_errors() {
     let bad = |s: &str| ConnectionManifest::parse(s.as_bytes());
     let base = r#"{"success":true,"data":{"schema_version":VERSION,"platform":{"id":"x","name":"X"},"authentication":{"type":"browser_pkce","authorize_url":"https://x/a","token_url":"https://x/t"},"gateway":{"base_url":"URL","protocols":[]},"provisioning_url":"https://x/p","connection_bearer_origins":["https://x"],"supported_agents":["codex"]}}"#;
@@ -302,7 +471,7 @@ fn rejects_schema_and_security_errors() {
                 manifest: &manifest,
                 provisioning: &provisioning,
                 bearer: &Secret::new("secret").unwrap(),
-                selected_models: BTreeMap::new(),
+                agents: BTreeMap::new(),
                 installs: vec![],
                 synchronized_skills: BTreeMap::new(),
             })
@@ -385,7 +554,7 @@ fn empty_catalog_is_honest_but_cannot_be_projected_and_duplicates_fail() {
             manifest: &manifest,
             provisioning: &empty,
             bearer: &Secret::new("x").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![],
             synchronized_skills: BTreeMap::new(),
         })
@@ -441,7 +610,7 @@ fn duplicate_projection_paths_and_unknown_managed_entries_are_rejected() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![
                 AgentInstall {
                     agent: AgentId::Codex,
@@ -473,7 +642,7 @@ fn duplicate_projection_paths_and_unknown_managed_entries_are_rejected() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![AgentInstall {
                 agent: AgentId::Opencode,
                 root: opencode,
@@ -507,7 +676,7 @@ fn independently_branded_connectors_share_agent_ownership_leases() {
             manifest: &origin_manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("origin-secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![install.clone()],
             synchronized_skills: BTreeMap::new(),
         })
@@ -523,7 +692,7 @@ fn independently_branded_connectors_share_agent_ownership_leases() {
             manifest: &box_manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("box-secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![AgentInstall {
                 root: alias_parent.join("../codex"),
                 ..install.clone()
@@ -546,7 +715,7 @@ fn independently_branded_connectors_share_agent_ownership_leases() {
                 manifest: &box_manifest,
                 provisioning: &provisioning,
                 bearer: &Secret::new("box-secret").unwrap(),
-                selected_models: BTreeMap::new(),
+                agents: BTreeMap::new(),
                 installs: vec![AgentInstall {
                     root: symlink,
                     ..install.clone()
@@ -569,12 +738,63 @@ fn independently_branded_connectors_share_agent_ownership_leases() {
             manifest: &box_manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("box-secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![install],
             synchronized_skills: BTreeMap::new(),
         })
         .unwrap();
     box_connector.apply(&box_plan).unwrap();
+}
+
+#[test]
+fn claude_parent_configuration_is_part_of_the_shared_ownership_lease() {
+    let temp = tempdir().unwrap();
+    let (origin_manifest, mut provisioning) = contracts();
+    provisioning.mcp_servers.clear();
+    provisioning.skills.clear();
+    let home = temp.path().join("home");
+    let claude = home.join(".claude");
+    fs::create_dir_all(&claude).unwrap();
+    let coordinator = temp.path().join("shared-coordinator");
+    let origin = Connector::with_coordinator(temp.path().join("origin-state"), &coordinator);
+    let plan = origin
+        .plan(ApplyInput {
+            manifest: &origin_manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("origin-secret").unwrap(),
+            agents: BTreeMap::new(),
+            installs: vec![AgentInstall {
+                agent: AgentId::Claude,
+                root: claude,
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap();
+    origin.apply(&plan).unwrap();
+
+    let mut box_manifest = origin_manifest.clone();
+    box_manifest.platform.id = "boxai".into();
+    box_manifest.platform.name = "BoxAI".into();
+    let error = Connector::with_coordinator(temp.path().join("box-state"), &coordinator)
+        .plan(ApplyInput {
+            manifest: &box_manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("box-secret").unwrap(),
+            agents: BTreeMap::new(),
+            installs: vec![AgentInstall {
+                agent: AgentId::Claude,
+                root: home,
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("already managed by platform origin"),
+        "{error}"
+    );
 }
 
 #[cfg(unix)]
@@ -594,7 +814,7 @@ fn configuration_symlinks_are_rejected_without_replacing_them() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![AgentInstall {
                 agent: AgentId::Codex,
                 root: codex.clone(),
@@ -630,7 +850,7 @@ fn skill_replacement_requires_both_owner_marker_and_framed_tree_hash() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![AgentInstall {
                 agent: AgentId::Claude,
                 root: claude.clone(),
@@ -709,7 +929,7 @@ fn reapply_removes_stale_mcp_and_skill_ownership() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("super-secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs,
             synchronized_skills: BTreeMap::new(),
         })
@@ -881,7 +1101,7 @@ fn claude_legacy_settings_and_opencode_jsonc_are_respected() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![
                 AgentInstall {
                     agent: AgentId::Claude,
@@ -908,7 +1128,7 @@ fn claude_legacy_settings_and_opencode_jsonc_are_respected() {
             manifest: &manifest,
             provisioning: &provisioning,
             bearer: &Secret::new("secret").unwrap(),
-            selected_models: BTreeMap::new(),
+            agents: BTreeMap::new(),
             installs: vec![
                 AgentInstall {
                     agent: AgentId::Claude,
