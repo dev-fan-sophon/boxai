@@ -24,7 +24,7 @@ export type SidebarSectionConfig = {
 export type SidebarModulesAdminConfig = Record<string, SidebarSectionConfig>
 
 // Mirrors frontend defaults in lib/nav-modules.ts.
-// About is off by default; admins can re-enable for a dedicated about page.
+// About is off by default; admins can re-enable the built-in brand About page in the header.
 export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
   home: true,
   console: true,

@@ -1,129 +1,74 @@
 import { useQuery } from '@tanstack/react-query'
-import { Construction } from 'lucide-react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
-import { RichContent } from '@/components/rich-content'
-import { Skeleton } from '@/components/ui/skeleton'
-import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
+import { Footer } from '@/components/layout/components/footer'
+import { ZaloCommunity } from '@/features/home/components'
+import { useSeo } from '@/hooks/use-page-seo'
+import { buildDefaultJsonLd, DEFAULT_SEO_DESCRIPTION } from '@/lib/seo'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { getAboutContent } from './api'
+import {
+  AboutCta,
+  AboutHero,
+  ExtraContent,
+  OfficialLinks,
+  ProductGlance,
+  Trust,
+  WhoFor,
+} from './components'
 
-function EmptyAboutState() {
-  const { t } = useTranslation()
-  const currentYear = new Date().getFullYear()
-
-  return (
-    <div className='flex min-h-[60vh] items-center justify-center p-8'>
-      <div className='max-w-2xl space-y-6 text-center'>
-        <div className='flex justify-center'>
-          <Construction className='text-muted-foreground h-24 w-24' />
-        </div>
-        <div className='space-y-2'>
-          <h2 className='text-2xl font-bold'>{t('No About Content Set')}</h2>
-          <p className='text-muted-foreground'>
-            {t(
-              'The administrator has not configured any about content yet. You can set it in the settings page, supporting HTML or URL.'
-            )}
-          </p>
-        </div>
-        <div className='space-y-4 text-sm'>
-          <p>
-            {t('BoxAI Project Repository:')}{' '}
-            <a
-              href='https://github.com/dev-fan-sophon/boxai'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              https://github.com/dev-fan-sophon/boxai
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            <a
-              href='https://you-box.com'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              BoxAI
-            </a>{' '}
-            © {currentYear}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
+const ABOUT_SEO_DESCRIPTION =
+  'About BoxAI (you-box.com) — unified AI API gateway for multi-model access, billing, and admin. Primary market: Vietnam; secondary: other overseas markets.'
 
 export function About() {
   const { t } = useTranslation()
-  const { data, isLoading } = useQuery({
+  const systemName = useSystemConfigStore((s) => s.config.systemName)
+  const logo = useSystemConfigStore((s) => s.config.logo)
+
+  const aboutQuery = useQuery({
     queryKey: ['about-content'],
     queryFn: getAboutContent,
+    staleTime: 10 * 60 * 1000,
   })
+  const extraContent = aboutQuery.data?.data?.trim() ?? ''
 
-  const rawContent = data?.data?.trim() ?? ''
-  const hasContent = rawContent.length > 0
-  const isUrl = hasContent && isHttpUrl(rawContent)
-  const contentIsHtml = hasContent && isLikelyHtml(rawContent)
-
-  if (isLoading) {
-    return (
-      <PublicLayout>
-        <div className='mx-auto flex max-w-4xl flex-col gap-4 py-12'>
-          <Skeleton className='h-8 w-[45%]' />
-          <Skeleton className='h-4 w-full' />
-          <Skeleton className='h-4 w-[90%]' />
-          <Skeleton className='h-4 w-[80%]' />
-        </div>
-      </PublicLayout>
-    )
-  }
-
-  if (!hasContent) {
-    return (
-      <PublicLayout>
-        <EmptyAboutState />
-      </PublicLayout>
-    )
-  }
-
-  if (isUrl) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <iframe
-          src={rawContent}
-          className='h-[calc(100vh-3.5rem)] w-full border-0'
-          title={t('About')}
-          sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts'
-        />
-      </PublicLayout>
-    )
-  }
-
-  if (contentIsHtml) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <RichContent
-          mode='html'
-          htmlVariant='isolated'
-          content={rawContent}
-          className='prose-neutral dark:prose-invert max-w-none'
-        />
-      </PublicLayout>
-    )
-  }
+  useSeo(
+    useMemo(() => {
+      const siteName = systemName?.trim() || 'BoxAI'
+      const description = t(ABOUT_SEO_DESCRIPTION)
+      return {
+        title: t('About BoxAI'),
+        description,
+        path: '/about',
+        siteName,
+        image: logo || '/logo.png',
+        jsonLd: buildDefaultJsonLd({
+          siteName,
+          description: description || DEFAULT_SEO_DESCRIPTION,
+          logo: logo || '/logo.png',
+        }),
+      }
+    }, [systemName, logo, t])
+  )
 
   return (
-    <PublicLayout>
-      <div className='mx-auto max-w-6xl px-4 py-8'>
-        <RichContent
-          mode='markdown'
-          content={rawContent}
-          className='prose-neutral dark:prose-invert max-w-none'
-        />
-      </div>
+    <PublicLayout showMainContainer={false}>
+      <AboutHero />
+      <ProductGlance />
+      <WhoFor />
+      <Trust />
+      <OfficialLinks />
+      <ZaloCommunity />
+      {extraContent ? <ExtraContent content={extraContent} /> : null}
+      <AboutCta />
+      <Footer
+        copyright={t(
+          'All rights reserved. BoxAI official site: you-box.com. International API service — please comply with applicable local regulations.'
+        )}
+      />
     </PublicLayout>
   )
 }

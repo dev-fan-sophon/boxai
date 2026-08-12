@@ -432,7 +432,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     <FormControl>
                       <Textarea
                         placeholder={t(
-                          'Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe'
+                          'Optional HTML, Markdown, or URL shown below the built-in About page'
                         )}
                         rows={4}
                         {...field}
@@ -440,7 +440,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'Supports HTML markup or iframe embedding. Enter HTML code directly, or provide a complete URL to automatically embed it as an iframe.'
+                        'The /about page always shows the built-in BoxAI brand content. Leave empty for the default page only. Optional HTML, Markdown, or a full URL adds an extra section underneath (URL becomes an external link, not a full-page iframe).'
                       )}
                     </FormDescription>
                     <FormMessage />

@@ -24,7 +24,7 @@ export type TopNavLink = {
  *   about: false
  * }
  *
- * Default strip: Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings.
+ * Default strip: Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings · About (opt-in).
  * Console/Dashboard is a CTA in PublicHeader, not a strip text link.
  * Titles stay English i18n source keys; consumers translate them.
  */
@@ -44,7 +44,7 @@ export function useTopNavLinks(): TopNavLink[] {
   const links: TopNavLink[] = []
 
   // Public navigation order:
-  // Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings.
+  // Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings · About.
   // Dashboard is rendered as a primary CTA button in PublicHeader, not here.
 
   if (modules?.home !== false) {
@@ -77,6 +77,12 @@ export function useTopNavLinks(): TopNavLink[] {
   if (rankings && typeof rankings === 'object' && rankings.enabled) {
     const requiresAuth = rankings.requireAuth && !isAuthed
     links.push({ title: 'Rankings', href: '/rankings', requiresAuth })
+  }
+
+  // About is off by default in nav-modules; production may enable it.
+  // Built-in brand page at /about (not CMS-only).
+  if (modules?.about === true) {
+    links.push({ title: 'About', href: '/about' })
   }
 
   return links

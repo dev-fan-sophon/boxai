@@ -146,7 +146,7 @@ export function Footer(props: FooterProps) {
         title: t('footer.columns.about.title'),
         links: [
           {
-            text: t('footer.columns.about.links.aboutProject'),
+            text: t('About'),
             href: '/about',
           },
           {
