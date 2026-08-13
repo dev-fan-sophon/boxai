@@ -323,6 +323,59 @@ func TestListModelsIncludesTieredBillingModel(t *testing.T) {
 	require.Empty(t, missingExprPricing.BillingExpr)
 }
 
+func TestListModelsExposesModelsDevCatalogFields(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id: 1101, Username: "catalog-user", Password: "password",
+		Group: "default", Status: common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&model.Ability{
+		Group: "default", Model: "gpt-5.4", ChannelId: 1, Enabled: true,
+	}).Error)
+	temperature := false
+	require.NoError(t, db.Create(&model.Model{
+		ModelName: "gpt-5.4", Status: 1, NameRule: model.NameRuleExact,
+		DisplayName: "GPT-5.4", Description: "Agent-ready GPT", Tags: "family:gpt",
+		ContextLength: 1050000, MaxInputTokens: 922000, MaxOutputTokens: 128000,
+		KnowledgeCutoff: "2025-08-31", ReleaseDate: "2026-03-05", LastUpdated: "2026-03-05",
+		InputModalities: `["text","image","pdf"]`, OutputModalities: `["text"]`,
+		Capabilities: `["tools","reasoning","vision"]`, SupportedReasoning: true,
+		ReasoningEfforts: `["none","low","medium","high","xhigh"]`,
+		ReasoningOptions: `[{"type":"effort","values":["none","low","medium","high","xhigh"]}]`,
+		Temperature:      &temperature,
+		Attachment:       true,
+	}).Error)
+	model.InvalidatePricingCache()
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	ctx.Set("id", 1101)
+
+	ListModels(ctx, constant.ChannelTypeOpenAI)
+
+	payload := decodeListModelsPayload(t, recorder)
+	require.Len(t, payload.Data, 1)
+	item := payload.Data[0]
+	assert.Equal(t, "gpt-5.4", item.Id)
+	assert.Equal(t, "GPT-5.4", item.DisplayName)
+	assert.Equal(t, "Agent-ready GPT", item.Description)
+	assert.Equal(t, "gpt", item.Family)
+	assert.True(t, item.SupportedReasoning)
+	assert.Equal(t, []string{"none", "low", "medium", "high", "xhigh"}, item.ReasoningEfforts)
+	require.Len(t, item.ReasoningOptions, 1)
+	assert.Equal(t, "effort", item.ReasoningOptions[0].Type)
+	assert.Equal(t, 1050000, item.ContextLength)
+	assert.Equal(t, 922000, item.MaxInputTokens)
+	assert.Equal(t, 128000, item.MaxOutputTokens)
+	assert.Equal(t, []string{"text", "image", "pdf"}, item.InputModalities)
+	assert.Contains(t, item.Capabilities, "reasoning")
+	require.NotNil(t, item.Temperature)
+	assert.False(t, *item.Temperature)
+	assert.True(t, item.Attachment)
+}
+
 func TestListModelsUsesAdvancedCustomEndpointTypesFromPricingCache(t *testing.T) {
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)

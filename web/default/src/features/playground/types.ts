@@ -2,6 +2,8 @@ import type { UIMessage } from 'ai'
 
 import type { ReasoningEffort, ReasoningLevel } from '../pricing/types'
 
+export type PlaygroundReasoningLevel = ReasoningLevel | ReasoningEffort
+
 // Message types
 export type MessageRole = 'user' | 'assistant' | 'system'
 
@@ -263,7 +265,7 @@ export interface ChatCompletionResponse {
 export interface PlaygroundConfig {
   model: string
   group: string
-  reasoningByModel: Record<string, ReasoningLevel>
+  reasoningByModel: Record<string, PlaygroundReasoningLevel>
   temperature: number
   top_p: number
   max_tokens: number

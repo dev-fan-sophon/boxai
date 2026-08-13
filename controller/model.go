@@ -151,10 +151,15 @@ func getPreferredModelOwners(modelNames []string, groups []string) map[string]st
 	return owners
 }
 
-func buildOpenAIModel(modelName string, ownerByModel map[string]string) dto.OpenAIModels {
+func buildOpenAIModel(modelName string, ownerByModel map[string]string, pricingByName map[string]model.Pricing) dto.OpenAIModels {
 	var oaiModel dto.OpenAIModels
 	if staticModel, ok := openAIModelsMap[modelName]; ok {
-		oaiModel = staticModel
+		oaiModel = dto.OpenAIModels{
+			Id:      staticModel.Id,
+			Object:  staticModel.Object,
+			Created: staticModel.Created,
+			OwnedBy: staticModel.OwnedBy,
+		}
 	} else {
 		oaiModel = dto.OpenAIModels{
 			Id:      modelName,
@@ -167,7 +172,70 @@ func buildOpenAIModel(modelName string, ownerByModel map[string]string) dto.Open
 		oaiModel.OwnedBy = owner
 	}
 	oaiModel.SupportedEndpointTypes = model.GetModelSupportEndpointTypes(modelName)
+	if pricing, ok := pricingByName[modelName]; ok {
+		applyPricingCatalogToOpenAIModel(&oaiModel, pricing)
+	}
 	return oaiModel
+}
+
+func applyPricingCatalogToOpenAIModel(oaiModel *dto.OpenAIModels, pricing model.Pricing) {
+	oaiModel.DisplayName = pricing.DisplayName
+	oaiModel.Description = pricing.Description
+	oaiModel.SupportedReasoning = pricing.SupportedReasoning
+	oaiModel.ReasoningEfforts = append([]string(nil), pricing.ReasoningEfforts...)
+	oaiModel.ReasoningOptions = copyReasoningOptions(pricing.ReasoningOptions)
+	oaiModel.ContextLength = pricing.ContextLength
+	oaiModel.MaxInputTokens = pricing.MaxInputTokens
+	oaiModel.MaxOutputTokens = pricing.MaxOutputTokens
+	oaiModel.KnowledgeCutoff = pricing.KnowledgeCutoff
+	oaiModel.ReleaseDate = pricing.ReleaseDate
+	oaiModel.LastUpdated = pricing.LastUpdated
+	oaiModel.InputModalities = append([]string(nil), pricing.InputModalities...)
+	oaiModel.OutputModalities = append([]string(nil), pricing.OutputModalities...)
+	oaiModel.Capabilities = append([]string(nil), pricing.Capabilities...)
+	oaiModel.Temperature = pricing.Temperature
+	oaiModel.Attachment = pricing.Attachment
+	oaiModel.OpenWeights = pricing.OpenWeights
+	oaiModel.Interleaved = pricing.Interleaved
+	for _, capability := range pricing.Capabilities {
+		if strings.HasPrefix(capability, "family:") {
+			oaiModel.Family = strings.TrimPrefix(capability, "family:")
+			break
+		}
+	}
+	if oaiModel.Family == "" {
+		for _, tag := range strings.Split(pricing.Tags, ",") {
+			tag = strings.TrimSpace(tag)
+			if strings.HasPrefix(tag, "family:") {
+				oaiModel.Family = strings.TrimPrefix(tag, "family:")
+				break
+			}
+		}
+	}
+}
+
+func copyReasoningOptions(options []model.ReasoningOption) []dto.ReasoningOption {
+	if len(options) == 0 {
+		return nil
+	}
+	copied := make([]dto.ReasoningOption, len(options))
+	for i, option := range options {
+		copied[i] = dto.ReasoningOption{
+			Type:   option.Type,
+			Values: append([]string(nil), option.Values...),
+			Min:    option.Min,
+			Max:    option.Max,
+		}
+	}
+	return copied
+}
+
+func catalogPricingByName(pricings []model.Pricing) map[string]model.Pricing {
+	byName := make(map[string]model.Pricing, len(pricings))
+	for _, pricing := range pricings {
+		byName[pricing.ModelName] = pricing
+	}
+	return byName
 }
 
 type modelListGroups struct {
@@ -273,9 +341,10 @@ func ListModels(c *gin.Context, modelType int) {
 	if len(ownerGroups) > 0 {
 		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups)
 	}
+	pricingByName := catalogPricingByName(model.GetPricing())
 	userOpenAiModels := make([]dto.OpenAIModels, 0, len(userModelNames))
 	for _, modelName := range userModelNames {
-		userOpenAiModels = append(userOpenAiModels, buildOpenAIModel(modelName, ownerByModel))
+		userOpenAiModels = append(userOpenAiModels, buildOpenAIModel(modelName, ownerByModel, pricingByName))
 	}
 
 	switch modelType {
@@ -345,32 +414,69 @@ func EnabledListModels(c *gin.Context) {
 
 func RetrieveModel(c *gin.Context, modelType int) {
 	modelId := c.Param("model")
-	if aiModel, ok := openAIModelsMap[modelId]; ok {
-		switch modelType {
-		case constant.ChannelTypeAnthropic:
-			c.JSON(200, dto.AnthropicModel{
-				ID:          aiModel.Id,
-				CreatedAt:   time.Unix(int64(aiModel.Created), 0).UTC().Format(time.RFC3339),
-				DisplayName: aiModel.Id,
-				Type:        "model",
-			})
-		case constant.ChannelTypeGemini:
-			c.JSON(200, dto.GeminiModel{
-				Name:        aiModel.Id,
-				DisplayName: aiModel.Id,
-			})
-		default:
-			c.JSON(200, aiModel)
-		}
-	} else {
-		openAIError := types.OpenAIError{
-			Message: fmt.Sprintf("The model '%s' does not exist", modelId),
-			Type:    "invalid_request_error",
-			Param:   "model",
-			Code:    "model_not_found",
-		}
-		c.JSON(200, gin.H{
-			"error": openAIError,
+	userModelNames, groups, err := accountModelNames(c)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"error": types.OpenAIError{
+				Message: "get user group failed",
+				Type:    "invalid_request_error",
+				Param:   "model",
+				Code:    "model_not_found",
+			},
 		})
+		return
 	}
+	allowed := false
+	for _, name := range userModelNames {
+		if name == modelId {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		c.JSON(200, gin.H{
+			"error": types.OpenAIError{
+				Message: fmt.Sprintf("The model '%s' does not exist", modelId),
+				Type:    "invalid_request_error",
+				Param:   "model",
+				Code:    "model_not_found",
+			},
+		})
+		return
+	}
+
+	ownerByModel := map[string]string{}
+	if len(groups.ownerGroups) > 0 {
+		ownerByModel = getPreferredModelOwners([]string{modelId}, groups.ownerGroups)
+	}
+	aiModel := buildOpenAIModel(modelId, ownerByModel, catalogPricingByName(model.GetPricing()))
+	switch modelType {
+	case constant.ChannelTypeAnthropic:
+		c.JSON(200, dto.AnthropicModel{
+			ID:          aiModel.Id,
+			CreatedAt:   time.Unix(int64(aiModel.Created), 0).UTC().Format(time.RFC3339),
+			DisplayName: firstNonEmpty(aiModel.DisplayName, aiModel.Id),
+			Type:        "model",
+		})
+	case constant.ChannelTypeGemini:
+		c.JSON(200, dto.GeminiModel{
+			Name:             aiModel.Id,
+			DisplayName:      firstNonEmpty(aiModel.DisplayName, aiModel.Id),
+			Description:      aiModel.Description,
+			InputTokenLimit:  aiModel.ContextLength,
+			OutputTokenLimit: aiModel.MaxOutputTokens,
+			Thinking:         aiModel.SupportedReasoning,
+		})
+	default:
+		c.JSON(200, aiModel)
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }

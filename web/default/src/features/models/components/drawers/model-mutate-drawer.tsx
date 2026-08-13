@@ -115,6 +115,7 @@ const REASONING_EFFORTS = [
   'medium',
   'high',
   'xhigh',
+  'max',
 ] as const satisfies readonly ReasoningEffort[]
 const REASONING_EFFORT_LABELS: Record<ReasoningEffort, string> = {
   none: 'None',
@@ -123,6 +124,7 @@ const REASONING_EFFORT_LABELS: Record<ReasoningEffort, string> = {
   medium: 'Medium',
   high: 'High',
   xhigh: 'Extra high',
+  max: 'Max',
 }
 const MAX_METADATA_TOKENS = 2_147_483_647
 

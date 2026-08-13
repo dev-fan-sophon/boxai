@@ -197,7 +197,7 @@ func normalizeModelMetadata(m *model.Model) error {
 		if efforts == nil {
 			return fmt.Errorf("invalid reasoning_efforts JSON: expected a string array")
 		}
-		valid := map[string]int{"none": 0, "minimal": 1, "low": 2, "medium": 3, "high": 4, "xhigh": 5}
+		valid := map[string]int{"none": 0, "minimal": 1, "low": 2, "medium": 3, "high": 4, "xhigh": 5, "max": 6}
 		seen := make(map[string]struct{}, len(efforts))
 		normalizedEfforts := make([]string, 0, len(efforts))
 		for _, effort := range efforts {

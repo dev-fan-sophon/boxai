@@ -41,15 +41,32 @@ type Pricing struct {
 	DisplayName            string                  `json:"display_name,omitempty"`
 	OfficialDiscount       float64                 `json:"official_discount,omitempty"`
 	ContextLength          int                     `json:"context_length,omitempty"`
+	MaxInputTokens         int                     `json:"max_input_tokens,omitempty"`
 	MaxOutputTokens        int                     `json:"max_output_tokens,omitempty"`
 	KnowledgeCutoff        string                  `json:"knowledge_cutoff,omitempty"`
 	ReleaseDate            string                  `json:"release_date,omitempty"`
+	LastUpdated            string                  `json:"last_updated,omitempty"`
 	ParameterCount         string                  `json:"parameter_count,omitempty"`
 	InputModalities        []string                `json:"input_modalities,omitempty"`
 	OutputModalities       []string                `json:"output_modalities,omitempty"`
 	Capabilities           []string                `json:"capabilities,omitempty"`
+	SupportedReasoning     bool                    `json:"supported_reasoning"`
 	ReasoningEfforts       []string                `json:"reasoning_efforts,omitempty"`
+	ReasoningOptions       []ReasoningOption       `json:"reasoning_options,omitempty"`
+	Temperature            *bool                   `json:"temperature,omitempty"`
+	Attachment             bool                    `json:"attachment,omitempty"`
+	OpenWeights            bool                    `json:"open_weights,omitempty"`
+	Interleaved            any                     `json:"interleaved,omitempty"`
 	UsageNotes             string                  `json:"usage_notes,omitempty"`
+}
+
+// ReasoningOption is the models.dev reasoning control copied onto pricing and
+// the public /v1/models catalog.
+type ReasoningOption struct {
+	Type   string   `json:"type"`
+	Values []string `json:"values,omitempty"`
+	Min    *int     `json:"min,omitempty"`
+	Max    *int     `json:"max,omitempty"`
 }
 
 type PricingVendor struct {
@@ -421,15 +438,28 @@ func updatePricing() {
 				pricing.OfficialDiscount = *meta.OfficialDiscount
 			}
 			pricing.ContextLength = meta.ContextLength
+			pricing.MaxInputTokens = meta.MaxInputTokens
 			pricing.MaxOutputTokens = meta.MaxOutputTokens
 			pricing.KnowledgeCutoff = meta.KnowledgeCutoff
 			pricing.ReleaseDate = meta.ReleaseDate
+			pricing.LastUpdated = meta.LastUpdated
 			pricing.ParameterCount = meta.ParameterCount
 			pricing.UsageNotes = meta.UsageNotes
+			pricing.SupportedReasoning = meta.SupportedReasoning
+			pricing.Temperature = meta.Temperature
+			pricing.Attachment = meta.Attachment
+			pricing.OpenWeights = meta.OpenWeights
 			_ = common.Unmarshal([]byte(meta.InputModalities), &pricing.InputModalities)
 			_ = common.Unmarshal([]byte(meta.OutputModalities), &pricing.OutputModalities)
 			_ = common.Unmarshal([]byte(meta.Capabilities), &pricing.Capabilities)
 			_ = common.Unmarshal([]byte(meta.ReasoningEfforts), &pricing.ReasoningEfforts)
+			_ = common.Unmarshal([]byte(meta.ReasoningOptions), &pricing.ReasoningOptions)
+			if strings.TrimSpace(meta.Interleaved) != "" {
+				var interleaved any
+				if common.Unmarshal([]byte(meta.Interleaved), &interleaved) == nil {
+					pricing.Interleaved = interleaved
+				}
+			}
 			if strings.TrimSpace(meta.Integrations) != "" {
 				var explicit []ModelIntegration
 				if common.Unmarshal([]byte(meta.Integrations), &explicit) == nil {

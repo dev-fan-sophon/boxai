@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import type { ReasoningLevel } from '../../pricing/types'
+import type { PlaygroundReasoningLevel } from '../types'
 import { API_ENDPOINTS, ERROR_MESSAGES } from '../constants'
 import {
   activateAgentMessageRevision,
@@ -34,7 +34,7 @@ type UseAgentChatOptions = {
   longMemory?: boolean
   maxSteps?: number
   toolMode?: AgentChatToolMode
-  reasoning?: ReasoningLevel
+  reasoning?: PlaygroundReasoningLevel
   conversationId?: number
   onConversationId: (conversationId: number) => void
 }

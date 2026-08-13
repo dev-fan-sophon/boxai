@@ -95,6 +95,12 @@ func TestNormalizeModelMetadataRejectsInvalidReasoningEfforts(t *testing.T) {
 	}
 }
 
+func TestNormalizeModelMetadataAcceptsMaxReasoningEffort(t *testing.T) {
+	metadata := model.Model{ReasoningEfforts: `["max","high","low"]`}
+	require.NoError(t, normalizeModelMetadata(&metadata))
+	assert.Equal(t, `["low","high","max"]`, metadata.ReasoningEfforts)
+}
+
 func TestPricingReferenceDifferencesOnlyIncludeChannelModels(t *testing.T) {
 	local := map[string]any{
 		"model_ratio": map[string]float64{

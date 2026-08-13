@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "The setup wizard will use this database during initialization.",
     "The site is not available at the moment.": "The site is not available at the moment.",
     "The slug is appended to the URL:": "The slug is appended to the URL:",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.",
     "The token group that will have a custom ratio": "The token group that will have a custom ratio",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "The token has no group, so it is billed as the user group vip, using the base ratio of vip.",

@@ -20,6 +20,7 @@ import (
 func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(channelTestHandler{})
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
+	service.RegisterSystemTaskHandler(modelsDevSyncHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
 	service.RegisterSystemTaskHandler(billingReconcileHandler{})
@@ -110,6 +111,37 @@ func (modelUpdateHandler) Run(ctx context.Context, task *model.SystemTask, runne
 	}
 	summary := runChannelUpstreamModelUpdateTaskOnce(ctx, payload.Manual, !payload.Manual, service.NewSystemTaskProgressReporter(task, runnerID))
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+const modelsDevSyncTaskDefaultIntervalHours = 6
+
+// modelsDevSyncHandler periodically refreshes official model catalog facts
+// from models.dev /api.json onto local metadata and the public /v1/models list.
+type modelsDevSyncHandler struct{}
+
+func (modelsDevSyncHandler) Type() string { return model.SystemTaskTypeModelsDevSync }
+
+func (modelsDevSyncHandler) Enabled() bool {
+	return common.GetEnvOrDefaultBool("MODELS_DEV_SYNC_TASK_ENABLED", true)
+}
+
+func (modelsDevSyncHandler) Interval() time.Duration {
+	hours := common.GetEnvOrDefault("MODELS_DEV_SYNC_TASK_INTERVAL_HOURS", modelsDevSyncTaskDefaultIntervalHours)
+	if hours < 1 {
+		hours = modelsDevSyncTaskDefaultIntervalHours
+	}
+	return time.Duration(hours) * time.Hour
+}
+
+func (modelsDevSyncHandler) NewPayload() any { return nil }
+
+func (modelsDevSyncHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	result, err := syncModelsDevCatalog(ctx)
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, nil, err)
+		return
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, result, nil)
 }
 
 // midjourneyPollHandler runs one Midjourney polling pass per scheduled run.

@@ -285,9 +285,10 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	insertPricingEndpointAbility(t, 220, "documented-model")
 	officialDiscount := 88.88
 	require.NoError(t, DB.Create(&Model{ModelName: "documented-model", Status: 1, NameRule: NameRuleExact,
-		DisplayName: "Documented Model", OfficialDiscount: &officialDiscount, ContextLength: 128000, MaxOutputTokens: 8192,
+		DisplayName: "Documented Model", OfficialDiscount: &officialDiscount, ContextLength: 128000, MaxInputTokens: 272000, MaxOutputTokens: 8192,
 		InputModalities: `["text","image"]`, OutputModalities: `["text"]`, Capabilities: `["tools"]`,
-		ReasoningEfforts: `["low","high"]`, UsageNotes: "Use for analysis.",
+		SupportedReasoning: true, ReasoningEfforts: `["low","high"]`,
+		ReasoningOptions: `[{"type":"effort","values":["low","high"]}]`, UsageNotes: "Use for analysis.",
 	}).Error)
 
 	var pricing Pricing
@@ -303,6 +304,10 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	assert.Equal(t, []string{"text", "image"}, pricing.InputModalities)
 	assert.Equal(t, []string{"tools"}, pricing.Capabilities)
 	assert.Equal(t, []string{"low", "high"}, pricing.ReasoningEfforts)
+	assert.True(t, pricing.SupportedReasoning)
+	assert.Equal(t, 272000, pricing.MaxInputTokens)
+	require.Len(t, pricing.ReasoningOptions, 1)
+	assert.Equal(t, "effort", pricing.ReasoningOptions[0].Type)
 }
 
 func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing.T) {

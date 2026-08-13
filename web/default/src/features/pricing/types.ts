@@ -5,7 +5,16 @@ import type { LanguageModelCallOptions } from 'ai'
 // ----------------------------------------------------------------------------
 
 export type ReasoningLevel = NonNullable<LanguageModelCallOptions['reasoning']>
-export type ReasoningEffort = Exclude<ReasoningLevel, 'provider-default'>
+export type ReasoningEffort =
+  | Exclude<ReasoningLevel, 'provider-default'>
+  | 'max'
+
+export type ReasoningOption = {
+  type: string
+  values?: string[]
+  min?: number
+  max?: number
+}
 
 export type PricingVendor = {
   id: number
@@ -52,15 +61,23 @@ export type PricingModel = {
    * Keep them data-driven; do not synthesize display values on the client.
    */
   context_length?: number
+  max_input_tokens?: number
   max_output_tokens?: number
   knowledge_cutoff?: string
   release_date?: string
+  last_updated?: string
   parameter_count?: string
   input_modalities?: Modality[]
   output_modalities?: Modality[]
   capabilities?: ModelCapability[]
+  supported_reasoning?: boolean
   /** Native AI SDK reasoning levels explicitly supported by this model. */
   reasoning_efforts?: ReasoningEffort[]
+  reasoning_options?: ReasoningOption[]
+  temperature?: boolean
+  attachment?: boolean
+  open_weights?: boolean
+  interleaved?: unknown
 }
 
 export type IntegrationProfile = {

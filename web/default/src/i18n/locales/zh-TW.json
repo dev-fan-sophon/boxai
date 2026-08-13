@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "設定精靈將在初始化過程中使用此資料庫。",
     "The site is not available at the moment.": "該站點目前不可用。",
     "The slug is appended to the URL:": "別名將附加到 URL:",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "同步將從選定的源獲取缺失的模型和供應商。僅在您批准衝突時才會更新現有記錄。",
     "The token group that will have a custom ratio": "將具有自訂比例的Token 分組",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "Token未設定分組，因此按用戶分組 vip 收費，使用 vip 的基礎倍率。",

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
-import type { ReasoningLevel } from '@/features/pricing/types'
+import type { PlaygroundReasoningLevel } from './types'
 import { useLgUp, useXlUp } from '@/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -209,7 +209,7 @@ export function Playground() {
     (model) => model.model_name === config.model
   )
   const configuredReasoning = config.reasoningByModel[config.model]
-  let reasoning: ReasoningLevel | undefined
+  let reasoning: PlaygroundReasoningLevel | undefined
   if (selectedCatalogModel?.reasoning_efforts?.length) {
     const isSupported =
       configuredReasoning === 'provider-default' ||

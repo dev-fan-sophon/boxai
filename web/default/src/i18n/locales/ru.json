@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "Мастер настройки будет использовать эту базу данных при инициализации.",
     "The site is not available at the moment.": "Сайт в данный момент недоступен.",
     "The slug is appended to the URL:": "Слаг добавляется к URL:",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "Синхронизация загружает официальные данные моделей с models.dev и записывает их во все локальные модели с включённой официальной синхронизацией. Ручная перезапись по полям больше не используется.",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "Синхронизация получит отсутствующие модели и поставщиков из выбранного источника. Существующие записи обновляются только после подтверждения конфликтов.",
     "The token group that will have a custom ratio": "Группа токенов, которая будет иметь пользовательское соотношение",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "У токена нет группы, поэтому вызов тарифицируется по группе пользователя vip с базовым коэффициентом vip.",

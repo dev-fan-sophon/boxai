@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "L'assistant de configuration utilisera cette base de données lors de l'initialisation.",
     "The site is not available at the moment.": "Le site n'est pas disponible pour le moment.",
     "The slug is appended to the URL:": "Le slug est ajouté à l'URL :",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "La synchro récupère les données officielles de models.dev et les écrit sur chaque modèle local encore autorisé à se synchroniser. L’écrasement manuel champ par champ n’est plus utilisé.",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "La synchronisation récupérera les modèles et fournisseurs manquants à partir de la source sélectionnée. Les enregistrements existants ne sont mis à jour que lorsque vous approuvez les conflits.",
     "The token group that will have a custom ratio": "Le groupe de jetons qui aura un ratio personnalisé",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "Le jeton n’a pas de groupe, il est donc facturé sous le groupe d’utilisateurs vip, avec le taux de base de vip.",

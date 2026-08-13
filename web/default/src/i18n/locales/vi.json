@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "Trình hướng dẫn thiết lập sẽ sử dụng cơ sở dữ liệu này trong quá trình khởi tạo.",
     "The site is not available at the moment.": "Trang web hiện không khả dụng.",
     "The slug is appended to the URL:": "Slug được gắn vào URL:",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "Đồng bộ lấy thông số mô hình chính thức từ models.dev và ghi vào mọi mô hình nội bộ vẫn cho phép đồng bộ chính thức. Không còn ghi đè từng trường thủ công.",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "Đồng bộ hóa sẽ tìm nạp các mẫu và nhà cung cấp còn thiếu từ nguồn đã chọn. Các bản ghi hiện có chỉ được cập nhật khi bạn chấp thuận các xung đột.",
     "The token group that will have a custom ratio": "The token group will have a custom ratio.",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "Token không có nhóm, nên được tính phí theo nhóm người dùng vip, dùng hệ số cơ bản của vip.",

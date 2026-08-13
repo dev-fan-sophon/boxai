@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math/rand"
@@ -14,25 +15,42 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/pkg/modelsdev"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
-const modelsDevURL = "https://models.dev/models.json"
-
 func getUpstreamURL() string {
-	return common.GetEnvOrDefaultString("SYNC_UPSTREAM_MODELS_URL", modelsDevURL)
+	return common.GetEnvOrDefaultString("SYNC_UPSTREAM_MODELS_URL", modelsdev.APIURL)
 }
 
 type upstreamModel struct {
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
-	ModelName   string `json:"model_name"`
-	NameRule    int    `json:"name_rule"`
-	Status      int    `json:"status"`
-	Tags        string `json:"tags"`
-	VendorName  string `json:"vendor_name"`
+	Description        string
+	Icon               string
+	ModelName          string
+	NameRule           int
+	Status             int
+	Tags               string
+	VendorName         string
+	VendorNamespace    string
+	DisplayName        string
+	Family             string
+	KnowledgeCutoff    string
+	ReleaseDate        string
+	LastUpdated        string
+	ContextLength      int
+	MaxInputTokens     int
+	MaxOutputTokens    int
+	InputModalities    string
+	OutputModalities   string
+	Capabilities       string
+	SupportedReasoning bool
+	ReasoningEfforts   string
+	ReasoningOptions   string
+	Temperature        *bool
+	Attachment         bool
+	OpenWeights        bool
+	Interleaved        string
 }
 
 type upstreamVendor struct {
@@ -40,64 +58,6 @@ type upstreamVendor struct {
 	Icon        string `json:"icon"`
 	Name        string `json:"name"`
 	Status      int    `json:"status"`
-}
-
-type modelsDevCatalogEntry struct {
-	Name             string `json:"name"`
-	Description      string `json:"description"`
-	Family           string `json:"family"`
-	Attachment       bool   `json:"attachment"`
-	Reasoning        bool   `json:"reasoning"`
-	ToolCall         bool   `json:"tool_call"`
-	StructuredOutput bool   `json:"structured_output"`
-	OpenWeights      bool   `json:"open_weights"`
-	Modalities       struct {
-		Input  []string `json:"input"`
-		Output []string `json:"output"`
-	} `json:"modalities"`
-}
-
-var vendorDisplayNames = map[string]string{
-	"deepreinforce":    "DeepReinforce",
-	"deepseek":         "DeepSeek",
-	"minimax":          "MiniMax",
-	"moonshotai":       "Moonshot AI",
-	"nvidia":           "NVIDIA",
-	"openai":           "OpenAI",
-	"poolside":         "Poolside",
-	"sakana":           "Sakana AI",
-	"sarvam":           "Sarvam AI",
-	"stepfun":          "StepFun",
-	"thinkingmachines": "Thinking Machines",
-	"xai":              "xAI",
-	"zhipuai":          "Zhipu AI",
-}
-
-var vendorIconKeys = map[string]string{
-	"alibaba":          "Alibaba",
-	"anthropic":        "Anthropic",
-	"cohere":           "Cohere",
-	"deepreinforce":    "ModelProvider",
-	"deepseek":         "DeepSeek",
-	"google":           "Google",
-	"meituan":          "LongCat",
-	"meta":             "Meta",
-	"microsoft":        "Microsoft",
-	"minimax":          "Minimax",
-	"mistral":          "Mistral",
-	"moonshotai":       "Moonshot",
-	"nvidia":           "Nvidia",
-	"openai":           "OpenAI",
-	"perplexity":       "Perplexity",
-	"poolside":         "ModelProvider",
-	"sakana":           "ModelProvider",
-	"sarvam":           "ModelProvider",
-	"stepfun":          "Stepfun",
-	"tencent":          "Tencent",
-	"thinkingmachines": "ModelProvider",
-	"xai":              "XAI",
-	"xiaomi":           "XiaomiMiMo",
-	"zhipuai":          "Zhipu",
 }
 
 var (
@@ -239,74 +199,18 @@ func fetchJSON[T any](ctx context.Context, url string, out *T) error {
 	return lastErr
 }
 
-func parseModelsDevCatalog(catalog map[string]modelsDevCatalogEntry) ([]upstreamModel, []upstreamVendor) {
-	canonicalIDs := make([]string, 0, len(catalog))
-	modelNameCounts := make(map[string]int, len(catalog))
-	for canonicalID := range catalog {
-		canonicalIDs = append(canonicalIDs, canonicalID)
-		parts := strings.SplitN(canonicalID, "/", 2)
-		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
-			modelNameCounts[parts[1]]++
-		}
-	}
-	sort.Strings(canonicalIDs)
-
-	models := make([]upstreamModel, 0, len(catalog))
+func parseModelsDevCatalog(entries []modelsdev.CatalogEntry) ([]upstreamModel, []upstreamVendor) {
+	models := make([]upstreamModel, 0, len(entries))
 	vendorsByName := make(map[string]upstreamVendor)
-	for _, canonicalID := range canonicalIDs {
-		parts := strings.SplitN(canonicalID, "/", 2)
-		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" || modelNameCounts[parts[1]] != 1 {
-			continue
-		}
-
-		namespace := strings.ToLower(strings.TrimSpace(parts[0]))
-		vendorName := vendorDisplayNames[namespace]
-		if vendorName == "" {
-			vendorName = strings.ToUpper(namespace[:1]) + namespace[1:]
-		}
+	for _, entry := range entries {
 		vendor := upstreamVendor{
-			Name:        vendorName,
-			Description: vendorName + " model provider",
-			Icon:        vendorIconKeys[namespace],
+			Name:        entry.VendorName,
+			Description: entry.VendorName + " model provider",
+			Icon:        modelsdev.VendorIconKey(entry.VendorNamespace),
 			Status:      1,
 		}
-		vendorsByName[vendorName] = vendor
-
-		item := catalog[canonicalID]
-		tags := make([]string, 0, 8)
-		if item.Family != "" {
-			tags = append(tags, "family:"+item.Family)
-		}
-		if item.Reasoning {
-			tags = append(tags, "reasoning")
-		}
-		if item.ToolCall {
-			tags = append(tags, "tool-call")
-		}
-		if item.StructuredOutput {
-			tags = append(tags, "structured-output")
-		}
-		if item.Attachment {
-			tags = append(tags, "attachment")
-		}
-		if item.OpenWeights {
-			tags = append(tags, "open-weights")
-		}
-		for _, modality := range item.Modalities.Input {
-			tags = append(tags, "input:"+modality)
-		}
-		for _, modality := range item.Modalities.Output {
-			tags = append(tags, "output:"+modality)
-		}
-
-		models = append(models, upstreamModel{
-			Description: item.Description,
-			ModelName:   parts[1],
-			NameRule:    model.NameRuleExact,
-			Status:      1,
-			Tags:        strings.Join(tags, ","),
-			VendorName:  vendorName,
-		})
+		vendorsByName[entry.VendorName] = vendor
+		models = append(models, catalogEntryToUpstreamModel(entry))
 	}
 
 	vendorNames := make([]string, 0, len(vendorsByName))
@@ -321,12 +225,80 @@ func parseModelsDevCatalog(catalog map[string]modelsDevCatalogEntry) ([]upstream
 	return models, vendors
 }
 
+func catalogEntryToUpstreamModel(entry modelsdev.CatalogEntry) upstreamModel {
+	tags := make([]string, 0, 8)
+	if entry.Family != "" {
+		tags = append(tags, "family:"+entry.Family)
+	}
+	if entry.SupportedReasoning {
+		tags = append(tags, "reasoning")
+	}
+	if containsString(entry.Capabilities, "tools") || containsString(entry.Capabilities, "function_calling") {
+		tags = append(tags, "tool-call")
+	}
+	if containsString(entry.Capabilities, "structured_output") {
+		tags = append(tags, "structured-output")
+	}
+	if entry.Attachment {
+		tags = append(tags, "attachment")
+	}
+	if entry.OpenWeights {
+		tags = append(tags, "open-weights")
+	}
+	for _, modality := range entry.InputModalities {
+		tags = append(tags, "input:"+modality)
+	}
+	for _, modality := range entry.OutputModalities {
+		tags = append(tags, "output:"+modality)
+	}
+	return upstreamModel{
+		Description:        entry.Description,
+		ModelName:          entry.ModelName,
+		NameRule:           model.NameRuleExact,
+		Status:             1,
+		Tags:               strings.Join(tags, ","),
+		VendorName:         entry.VendorName,
+		VendorNamespace:    entry.VendorNamespace,
+		DisplayName:        entry.DisplayName,
+		Family:             entry.Family,
+		KnowledgeCutoff:    entry.KnowledgeCutoff,
+		ReleaseDate:        entry.ReleaseDate,
+		LastUpdated:        entry.LastUpdated,
+		ContextLength:      entry.ContextLength,
+		MaxInputTokens:     entry.MaxInputTokens,
+		MaxOutputTokens:    entry.MaxOutputTokens,
+		InputModalities:    modelsdev.MarshalJSONList(entry.InputModalities),
+		OutputModalities:   modelsdev.MarshalJSONList(entry.OutputModalities),
+		Capabilities:       modelsdev.MarshalJSONList(entry.Capabilities),
+		SupportedReasoning: entry.SupportedReasoning,
+		ReasoningEfforts:   modelsdev.MarshalJSONList(entry.ReasoningEfforts),
+		ReasoningOptions:   modelsdev.MarshalJSONValue(entry.ReasoningOptions),
+		Temperature:        entry.Temperature,
+		Attachment:         entry.Attachment,
+		OpenWeights:        entry.OpenWeights,
+		Interleaved:        strings.TrimSpace(string(entry.Interleaved)),
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func fetchUpstreamMetadata(ctx context.Context) ([]upstreamModel, []upstreamVendor, error) {
-	var catalog map[string]modelsDevCatalogEntry
-	if err := fetchJSON(ctx, getUpstreamURL(), &catalog); err != nil {
+	var raw json.RawMessage
+	if err := fetchJSON(ctx, getUpstreamURL(), &raw); err != nil {
 		return nil, nil, err
 	}
-	models, vendors := parseModelsDevCatalog(catalog)
+	entries, err := modelsdev.ParseAPICatalog(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	models, vendors := parseModelsDevCatalog(entries)
 	if len(models) == 0 {
 		return nil, nil, errors.New("models.dev returned no valid models")
 	}
@@ -365,51 +337,58 @@ func ensureVendorID(vendorName string, vendorByName map[string]upstreamVendor, v
 	return 0
 }
 
-// SyncUpstreamModels 同步上游模型与供应商：
-// - 默认仅创建「未配置模型」
-// - 可通过 overwrite 选择性覆盖更新本地已有模型的字段（前提：sync_official <> 0）
+type modelsDevSyncResult struct {
+	CreatedModels  int      `json:"created_models"`
+	CreatedVendors int      `json:"created_vendors"`
+	UpdatedModels  int      `json:"updated_models"`
+	SkippedModels  []string `json:"skipped_models"`
+	CreatedList    []string `json:"created_list"`
+	UpdatedList    []string `json:"updated_list"`
+	SourceURL      string   `json:"source_url"`
+}
+
+// SyncUpstreamModels pulls models.dev and writes the full official catalog
+// onto every locally enabled model that still opts into official sync.
 func SyncUpstreamModels(c *gin.Context) {
 	var req syncRequest
-	// 允许空体
 	_ = c.ShouldBindJSON(&req)
-	// 1) 获取未配置模型列表
-	missing, err := model.GetMissingModels()
-	if err != nil {
-		common.SysError("failed to get missing models: " + err.Error())
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取模型列表失败，请稍后重试"})
-		return
-	}
 
-	// 若既无缺失模型需要创建，也未指定覆盖更新字段，则无需请求上游数据，直接返回
-	if len(missing) == 0 && len(req.Overwrite) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data": gin.H{
-				"created_models":  0,
-				"created_vendors": 0,
-				"updated_models":  0,
-				"skipped_models":  []string{},
-				"created_list":    []string{},
-				"updated_list":    []string{},
-				"source": gin.H{
-					"locale":     req.Locale,
-					"models_url": getUpstreamURL(),
-				},
-			},
-		})
-		return
-	}
-
-	// 2) 拉取上游 vendors 与 models
 	timeoutSec := common.GetEnvOrDefault("SYNC_HTTP_TIMEOUT_SECONDS", 15)
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 
+	result, err := syncModelsDevCatalog(ctx)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + err.Error(), "locale": req.Locale, "source_urls": gin.H{"models_url": getUpstreamURL()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"created_models":  result.CreatedModels,
+			"created_vendors": result.CreatedVendors,
+			"updated_models":  result.UpdatedModels,
+			"skipped_models":  result.SkippedModels,
+			"created_list":    result.CreatedList,
+			"updated_list":    result.UpdatedList,
+			"source": gin.H{
+				"locale":     req.Locale,
+				"models_url": result.SourceURL,
+			},
+		},
+	})
+}
+
+func syncModelsDevCatalog(ctx context.Context) (*modelsDevSyncResult, error) {
+	missing, err := model.GetMissingModels()
+	if err != nil {
+		return nil, err
+	}
+
 	modelsURL := getUpstreamURL()
 	upstreamModels, upstreamVendors, fetchErr := fetchUpstreamMetadata(ctx)
 	if fetchErr != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取上游模型失败: " + fetchErr.Error(), "locale": req.Locale, "source_urls": gin.H{"models_url": modelsURL}})
-		return
+		return nil, fetchErr
 	}
 
 	// 建立映射
@@ -457,15 +436,7 @@ func SyncUpstreamModels(c *gin.Context) {
 		vendorID := ensureVendorID(up.VendorName, vendorByName, vendorIDCache, &createdVendors)
 
 		// 创建模型
-		mi := &model.Model{
-			ModelName:   name,
-			Description: up.Description,
-			Icon:        up.Icon,
-			Tags:        up.Tags,
-			VendorID:    vendorID,
-			Status:      chooseStatus(up.Status, 1),
-			NameRule:    up.NameRule,
-		}
+		mi := newModelFromUpstream(name, vendorID, up)
 		if err := mi.Insert(); err == nil {
 			createdModels++
 			createdList = append(createdList, name)
@@ -474,92 +445,115 @@ func SyncUpstreamModels(c *gin.Context) {
 		}
 	}
 
-	// 4) 处理可选覆盖（更新本地已有模型的差异字段）
-	if len(req.Overwrite) > 0 {
-		// vendorIDCache 已用于创建阶段，可复用
-		for _, ow := range req.Overwrite {
-			up, ok := modelByName[ow.ModelName]
+	// 4) Refresh official models.dev fields on every local model that still
+	// opts into official sync. Manual per-field overwrite is no longer the
+	// source of truth — models.dev wins for catalog facts.
+	var locals []model.Model
+	if err := model.DB.Where("sync_official <> 0").Find(&locals).Error; err == nil {
+		for i := range locals {
+			local := &locals[i]
+			up, ok := modelByName[local.ModelName]
 			if !ok {
 				continue
 			}
-			var local model.Model
-			if err := model.DB.Where("model_name = ?", ow.ModelName).First(&local).Error; err != nil {
+			vendorID := ensureVendorID(up.VendorName, vendorByName, vendorIDCache, &createdVendors)
+			if !applyOfficialCatalogFields(local, vendorID, up) {
 				continue
 			}
-
-			// 跳过被禁用官方同步的模型
-			if local.SyncOfficial == 0 {
+			if err := local.Update(); err != nil {
 				continue
 			}
-
-			// 映射 vendor
-			newVendorID := ensureVendorID(up.VendorName, vendorByName, vendorIDCache, &createdVendors)
-
-			// 应用字段覆盖（事务）
-			_ = model.DB.Transaction(func(tx *gorm.DB) error {
-				needUpdate := false
-				if containsField(ow.Fields, "description") {
-					local.Description = up.Description
-					needUpdate = true
-				}
-				if containsField(ow.Fields, "icon") {
-					local.Icon = up.Icon
-					needUpdate = true
-				}
-				if containsField(ow.Fields, "tags") {
-					local.Tags = up.Tags
-					needUpdate = true
-				}
-				if containsField(ow.Fields, "vendor") {
-					local.VendorID = newVendorID
-					needUpdate = true
-				}
-				if containsField(ow.Fields, "name_rule") {
-					local.NameRule = up.NameRule
-					needUpdate = true
-				}
-				if containsField(ow.Fields, "status") {
-					local.Status = chooseStatus(up.Status, local.Status)
-					needUpdate = true
-				}
-				if !needUpdate {
-					return nil
-				}
-				if err := tx.Save(&local).Error; err != nil {
-					return err
-				}
-				updatedModels++
-				updatedList = append(updatedList, ow.ModelName)
-				return nil
-			})
+			updatedModels++
+			updatedList = append(updatedList, local.ModelName)
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"created_models":  createdModels,
-			"created_vendors": createdVendors,
-			"updated_models":  updatedModels,
-			"skipped_models":  skipped,
-			"created_list":    createdList,
-			"updated_list":    updatedList,
-			"source": gin.H{
-				"locale":     req.Locale,
-				"models_url": modelsURL,
-			},
-		},
-	})
+	if createdModels > 0 || updatedModels > 0 {
+		model.RefreshPricing()
+	}
+
+	return &modelsDevSyncResult{
+		CreatedModels:  createdModels,
+		CreatedVendors: createdVendors,
+		UpdatedModels:  updatedModels,
+		SkippedModels:  skipped,
+		CreatedList:    createdList,
+		UpdatedList:    updatedList,
+		SourceURL:      modelsURL,
+	}, nil
 }
 
-func containsField(fields []string, key string) bool {
-	key = strings.ToLower(strings.TrimSpace(key))
-	for _, f := range fields {
-		if strings.ToLower(strings.TrimSpace(f)) == key {
-			return true
+func newModelFromUpstream(name string, vendorID int, up upstreamModel) *model.Model {
+	mi := &model.Model{
+		ModelName: name,
+		VendorID:  vendorID,
+		Status:    chooseStatus(up.Status, 1),
+		NameRule:  up.NameRule,
+	}
+	applyOfficialCatalogFields(mi, vendorID, up)
+	return mi
+}
+
+func applyOfficialCatalogFields(local *model.Model, vendorID int, up upstreamModel) bool {
+	changed := false
+	setString := func(dst *string, src string) {
+		if *dst != src {
+			*dst = src
+			changed = true
 		}
 	}
-	return false
+	setInt := func(dst *int, src int) {
+		if *dst != src {
+			*dst = src
+			changed = true
+		}
+	}
+	setBool := func(dst *bool, src bool) {
+		if *dst != src {
+			*dst = src
+			changed = true
+		}
+	}
+	setString(&local.Description, up.Description)
+	if up.Icon != "" {
+		setString(&local.Icon, up.Icon)
+	}
+	setString(&local.Tags, up.Tags)
+	setString(&local.DisplayName, up.DisplayName)
+	setString(&local.KnowledgeCutoff, up.KnowledgeCutoff)
+	setString(&local.ReleaseDate, up.ReleaseDate)
+	setString(&local.LastUpdated, up.LastUpdated)
+	setInt(&local.ContextLength, up.ContextLength)
+	setInt(&local.MaxInputTokens, up.MaxInputTokens)
+	setInt(&local.MaxOutputTokens, up.MaxOutputTokens)
+	setString(&local.InputModalities, up.InputModalities)
+	setString(&local.OutputModalities, up.OutputModalities)
+	setString(&local.Capabilities, up.Capabilities)
+	setBool(&local.SupportedReasoning, up.SupportedReasoning)
+	setString(&local.ReasoningEfforts, up.ReasoningEfforts)
+	setString(&local.ReasoningOptions, up.ReasoningOptions)
+	setBool(&local.Attachment, up.Attachment)
+	setBool(&local.OpenWeights, up.OpenWeights)
+	setString(&local.Interleaved, up.Interleaved)
+	if vendorID != 0 && local.VendorID != vendorID {
+		local.VendorID = vendorID
+		changed = true
+	}
+	if up.NameRule != 0 && local.NameRule != up.NameRule {
+		local.NameRule = up.NameRule
+		changed = true
+	}
+	if up.Temperature == nil {
+		if local.Temperature != nil {
+			local.Temperature = nil
+			changed = true
+		}
+	} else if local.Temperature == nil || *local.Temperature != *up.Temperature {
+		value := *up.Temperature
+		local.Temperature = &value
+		changed = true
+	}
+	return changed
 }
 
 func coalesce(a, b string) string {

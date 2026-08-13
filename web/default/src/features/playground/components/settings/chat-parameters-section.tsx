@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import type { ReasoningLevel } from '../../../pricing/types'
+import type { PlaygroundReasoningLevel } from '../../types'
 import {
   getParameterControlValueText,
   normalizeParameterNumberValue,
@@ -143,7 +143,7 @@ export function ChatParametersSection(props: {
   )
 }
 
-const REASONING_LABELS: Record<ReasoningLevel, string> = {
+const REASONING_LABELS: Record<PlaygroundReasoningLevel, string> = {
   'provider-default': 'Default',
   none: 'None',
   minimal: 'Minimal',
@@ -151,6 +151,7 @@ const REASONING_LABELS: Record<ReasoningLevel, string> = {
   medium: 'Medium',
   high: 'High',
   xhigh: 'Extra high',
+  max: 'Max',
 }
 
 function ReasoningDepthControl(props: { disabled?: boolean }) {
@@ -163,7 +164,10 @@ function ReasoningDepthControl(props: { disabled?: boolean }) {
 
   if (supportedEfforts.length === 0) return null
 
-  const levels: ReasoningLevel[] = ['provider-default', ...supportedEfforts]
+  const levels: PlaygroundReasoningLevel[] = [
+    'provider-default',
+    ...supportedEfforts,
+  ]
   const configured = config.reasoningByModel[config.model]
   const selected = levels.some((level) => level === configured)
     ? configured

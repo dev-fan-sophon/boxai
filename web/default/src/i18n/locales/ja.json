@@ -6063,6 +6063,7 @@
     "The setup wizard will use this database during initialization.": "セットアップウィザードは初期化時にこのデータベースを使用します。",
     "The site is not available at the moment.": "現在、このサイトは利用できません。",
     "The slug is appended to the URL:": "スラッグがURLに追加されます:",
+    "The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.": "同期は models.dev から公式モデル情報を取得し、公式同期が有効なすべてのローカルモデルへ書き込みます。項目ごとの手動上書きは使いません。",
     "The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.": "同期により、選択されたソースから不足しているモデルとベンダーが取得されます。既存のレコードは、競合を承認した場合にのみ更新されます。",
     "The token group that will have a custom ratio": "カスタム比率を持つトークングループ",
     "The token has no group, so it is billed as the user group vip, using the base ratio of vip.": "トークンにグループがないため、ユーザーグループ vip として課金され、vip の基本倍率が使われます。",

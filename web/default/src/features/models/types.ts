@@ -32,15 +32,23 @@ export interface Model {
   display_name?: string
   official_discount?: number
   context_length?: number
+  max_input_tokens?: number
   max_output_tokens?: number
   knowledge_cutoff?: string
   release_date?: string
+  last_updated?: string
   parameter_count?: string
   usage_notes?: string
   input_modalities?: string
   output_modalities?: string
   capabilities?: string
+  supported_reasoning?: boolean
   reasoning_efforts?: string
+  reasoning_options?: string
+  temperature?: boolean
+  attachment?: boolean
+  open_weights?: boolean
+  interleaved?: string
   integrations?: string
   status: number
   sync_official: number

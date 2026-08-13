@@ -26,6 +26,7 @@ export const playgroundConfigSchema = z.object({
         'medium',
         'high',
         'xhigh',
+        'max',
       ])
     )
     .optional(),

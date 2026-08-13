@@ -1,6 +1,6 @@
 import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
-import type { ReasoningLevel } from '../../../pricing/types'
+import type { PlaygroundReasoningLevel } from '../../types'
 import type { ServerConversation } from '../../api'
 import type { ChatAttachment, Message, MessageVersion } from '../../types'
 import { hasRenderableMessageParts } from '../message/message-content-utils'
@@ -43,7 +43,7 @@ export type AgentChatRequestBodyInput = {
   longMemory: boolean
   maxSteps: number
   toolMode: AgentChatToolMode
-  reasoning?: ReasoningLevel
+  reasoning?: PlaygroundReasoningLevel
   expectedRevision?: number
   trigger: 'submit-message' | 'regenerate-message'
   messageId?: string

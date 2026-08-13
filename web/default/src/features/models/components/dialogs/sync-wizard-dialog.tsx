@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
-import { syncUpstream, previewUpstreamDiff } from '../../api'
+import { syncUpstream } from '../../api'
 import { getSyncSourceOptions } from '../../constants'
 import { modelsQueryKeys, vendorsQueryKeys } from '../../lib'
 import type { SyncSource } from '../../types'
@@ -29,12 +29,7 @@ export function SyncWizardDialog({
 }: SyncWizardDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const {
-    setOpen,
-    setUpstreamConflicts,
-    setSyncWizardOptions,
-    syncWizardOptions,
-  } = useModels()
+  const { setSyncWizardOptions, syncWizardOptions } = useModels()
   const isMobile = useIsMobile()
   const [source, setSource] = useState<SyncSource>('official')
   const [isSyncing, setIsSyncing] = useState(false)
@@ -60,24 +55,6 @@ export function SyncWizardDialog({
     try {
       const locale = 'en'
       setSyncWizardOptions({ locale, source })
-      const previewRes = await previewUpstreamDiff({ locale, source })
-
-      if (!previewRes.success) {
-        throw new Error(previewRes.message || 'Failed to preview upstream diff')
-      }
-
-      const conflicts = previewRes.data?.conflicts || []
-
-      if (conflicts.length > 0) {
-        toast.warning(
-          `Found ${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''}. Please resolve them first.`
-        )
-        setUpstreamConflicts(conflicts)
-        setOpen('upstream-conflict')
-        return
-      }
-
-      // No conflicts, proceed with sync
       const response = await syncUpstream({ locale, source })
 
       if (response.success) {
@@ -189,7 +166,7 @@ export function SyncWizardDialog({
       <div className='bg-muted/50 rounded-lg border p-4'>
         <p className='text-muted-foreground text-sm'>
           {t(
-            'The sync will fetch missing models and vendors from the selected source. Existing records are updated only when you approve conflicts.'
+            'The sync pulls official model facts from models.dev and writes them onto every local model that still allows official sync. Manual field-by-field overwrite is no longer used.'
           )}
         </p>
       </div>

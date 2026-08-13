@@ -22,31 +22,39 @@ type BoundChannel struct {
 }
 
 type Model struct {
-	Id               int            `json:"id"`
-	ModelName        string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
-	Description      string         `json:"description,omitempty" gorm:"type:text"`
-	Icon             string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
-	Tags             string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
-	VendorID         int            `json:"vendor_id,omitempty" gorm:"index"`
-	Endpoints        string         `json:"endpoints,omitempty" gorm:"type:text"`
-	Integrations     string         `json:"integrations,omitempty" gorm:"type:text"`
-	DisplayName      string         `json:"display_name,omitempty" gorm:"type:varchar(255)"`
-	OfficialDiscount *float64       `json:"official_discount,omitempty"`
-	ContextLength    int            `json:"context_length,omitempty"`
-	MaxOutputTokens  int            `json:"max_output_tokens,omitempty"`
-	KnowledgeCutoff  string         `json:"knowledge_cutoff,omitempty" gorm:"type:varchar(64)"`
-	ReleaseDate      string         `json:"release_date,omitempty" gorm:"type:varchar(64)"`
-	ParameterCount   string         `json:"parameter_count,omitempty" gorm:"type:varchar(64)"`
-	InputModalities  string         `json:"input_modalities,omitempty" gorm:"type:text"`
-	OutputModalities string         `json:"output_modalities,omitempty" gorm:"type:text"`
-	Capabilities     string         `json:"capabilities,omitempty" gorm:"type:text"`
-	ReasoningEfforts string         `json:"reasoning_efforts,omitempty" gorm:"type:text"`
-	UsageNotes       string         `json:"usage_notes,omitempty" gorm:"type:text"`
-	Status           int            `json:"status" gorm:"default:1"`
-	SyncOfficial     int            `json:"sync_official" gorm:"default:1"`
-	CreatedTime      int64          `json:"created_time" gorm:"bigint"`
-	UpdatedTime      int64          `json:"updated_time" gorm:"bigint"`
-	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
+	Id                 int            `json:"id"`
+	ModelName          string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
+	Description        string         `json:"description,omitempty" gorm:"type:text"`
+	Icon               string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
+	Tags               string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
+	VendorID           int            `json:"vendor_id,omitempty" gorm:"index"`
+	Endpoints          string         `json:"endpoints,omitempty" gorm:"type:text"`
+	Integrations       string         `json:"integrations,omitempty" gorm:"type:text"`
+	DisplayName        string         `json:"display_name,omitempty" gorm:"type:varchar(255)"`
+	OfficialDiscount   *float64       `json:"official_discount,omitempty"`
+	ContextLength      int            `json:"context_length,omitempty"`
+	MaxInputTokens     int            `json:"max_input_tokens,omitempty"`
+	MaxOutputTokens    int            `json:"max_output_tokens,omitempty"`
+	KnowledgeCutoff    string         `json:"knowledge_cutoff,omitempty" gorm:"type:varchar(64)"`
+	ReleaseDate        string         `json:"release_date,omitempty" gorm:"type:varchar(64)"`
+	LastUpdated        string         `json:"last_updated,omitempty" gorm:"type:varchar(64)"`
+	ParameterCount     string         `json:"parameter_count,omitempty" gorm:"type:varchar(64)"`
+	InputModalities    string         `json:"input_modalities,omitempty" gorm:"type:text"`
+	OutputModalities   string         `json:"output_modalities,omitempty" gorm:"type:text"`
+	Capabilities       string         `json:"capabilities,omitempty" gorm:"type:text"`
+	SupportedReasoning bool           `json:"supported_reasoning"`
+	ReasoningEfforts   string         `json:"reasoning_efforts,omitempty" gorm:"type:text"`
+	ReasoningOptions   string         `json:"reasoning_options,omitempty" gorm:"type:text"`
+	Temperature        *bool          `json:"temperature,omitempty"`
+	Attachment         bool           `json:"attachment"`
+	OpenWeights        bool           `json:"open_weights"`
+	Interleaved        string         `json:"interleaved,omitempty" gorm:"type:text"`
+	UsageNotes         string         `json:"usage_notes,omitempty" gorm:"type:text"`
+	Status             int            `json:"status" gorm:"default:1"`
+	SyncOfficial       int            `json:"sync_official" gorm:"default:1"`
+	CreatedTime        int64          `json:"created_time" gorm:"bigint"`
+	UpdatedTime        int64          `json:"updated_time" gorm:"bigint"`
+	DeletedAt          gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
 
 	BoundChannels []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
 	EnableGroups  []string       `json:"enable_groups,omitempty" gorm:"-"`
@@ -89,7 +97,7 @@ func IsModelNameDuplicated(id int, name string) (bool, error) {
 
 func (mi *Model) Update() error {
 	mi.UpdatedTime = common.GetTimestamp()
-	fields := []string{"model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_output_tokens", "knowledge_cutoff", "release_date", "parameter_count", "input_modalities", "output_modalities", "capabilities", "reasoning_efforts", "usage_notes", "status", "sync_official", "name_rule", "updated_time"}
+	fields := []string{"model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_input_tokens", "max_output_tokens", "knowledge_cutoff", "release_date", "last_updated", "parameter_count", "input_modalities", "output_modalities", "capabilities", "supported_reasoning", "reasoning_efforts", "reasoning_options", "temperature", "attachment", "open_weights", "interleaved", "usage_notes", "status", "sync_official", "name_rule", "updated_time"}
 	if mi.OfficialDiscount != nil {
 		fields = append(fields, "official_discount")
 	}
