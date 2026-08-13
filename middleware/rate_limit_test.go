@@ -3,10 +3,13 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -126,4 +129,68 @@ func TestGlobalWebRateLimitSkipsStaticAssets(t *testing.T) {
 	req.RemoteAddr = "198.51.100.10:443"
 	router.ServeHTTP(stillOK, req)
 	assert.Equal(t, http.StatusOK, stillOK.Code)
+}
+
+func TestUserCriticalRateLimitUsesUserIdentityAcrossIPs(t *testing.T) {
+	tests := []struct {
+		name  string
+		redis bool
+	}{
+		{name: "memory"},
+		{name: "redis", redis: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			previousRedisEnabled := common.RedisEnabled
+			previousRDB := common.RDB
+			previousEnabled := common.CriticalRateLimitEnable
+			previousNum := common.CriticalRateLimitNum
+			previousDuration := common.CriticalRateLimitDuration
+			t.Cleanup(func() {
+				if test.redis {
+					_ = common.RDB.Close()
+				}
+				common.RedisEnabled = previousRedisEnabled
+				common.RDB = previousRDB
+				common.CriticalRateLimitEnable = previousEnabled
+				common.CriticalRateLimitNum = previousNum
+				common.CriticalRateLimitDuration = previousDuration
+			})
+
+			common.RedisEnabled = test.redis
+			common.CriticalRateLimitEnable = true
+			common.CriticalRateLimitNum = 1
+			common.CriticalRateLimitDuration = 60
+			if test.redis {
+				server := miniredis.RunT(t)
+				common.RDB = redis.NewClient(&redis.Options{Addr: server.Addr()})
+			}
+
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				userID, _ := strconv.Atoi(c.GetHeader("X-Test-User"))
+				c.Set("id", userID)
+			})
+			router.POST("/critical", UserCriticalRateLimit(t.Name()), func(c *gin.Context) {
+				c.Status(http.StatusNoContent)
+			})
+
+			request := func(userID int, remoteAddr string) *httptest.ResponseRecorder {
+				recorder := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodPost, "/critical", nil)
+				req.Header.Set("X-Test-User", strconv.Itoa(userID))
+				req.RemoteAddr = remoteAddr
+				router.ServeHTTP(recorder, req)
+				return recorder
+			}
+
+			assert.Equal(t, http.StatusNoContent, request(41, "192.0.2.1:1000").Code)
+			blocked := request(41, "198.51.100.2:2000")
+			assert.Equal(t, http.StatusTooManyRequests, blocked.Code)
+			assert.Equal(t, "60", blocked.Header().Get("Retry-After"))
+			assert.Equal(t, http.StatusNoContent, request(42, "198.51.100.2:2000").Code)
+			assert.Equal(t, http.StatusUnauthorized, request(0, "203.0.113.3:3000").Code)
+		})
+	}
 }

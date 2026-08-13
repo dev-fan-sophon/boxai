@@ -147,6 +147,14 @@ func CriticalRateLimit() func(c *gin.Context) {
 	})
 }
 
+// UserCriticalRateLimit applies the critical-operation budget per authenticated
+// user, so rotating source IPs cannot bypass limits on sensitive state changes.
+func UserCriticalRateLimit(scope string) func(c *gin.Context) {
+	return userRateLimitFactory("UC:"+scope, func() (bool, int, int64) {
+		return common.CriticalRateLimitEnable, common.CriticalRateLimitNum, common.CriticalRateLimitDuration
+	})
+}
+
 func DownloadRateLimit() func(c *gin.Context) {
 	return rateLimitFactory("DW", func() (bool, int, int64) {
 		return common.DownloadRateLimitEnable, common.DownloadRateLimitNum, common.DownloadRateLimitDuration
