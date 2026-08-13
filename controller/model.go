@@ -363,6 +363,11 @@ func RetrieveModel(c *gin.Context, modelType int) {
 				DisplayName: aiModel.Id,
 				Type:        "model",
 			})
+		case constant.ChannelTypeGemini:
+			c.JSON(200, dto.GeminiModel{
+				Name:        aiModel.Id,
+				DisplayName: aiModel.Id,
+			})
 		default:
 			c.JSON(200, aiModel)
 		}
