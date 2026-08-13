@@ -1,6 +1,9 @@
 package newapi
 
 import (
+	"bytes"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -143,4 +146,42 @@ func TestAdaptorPreservesNativeProtocolRequests(t *testing.T) {
 	convertedGemini, err := adaptor.ConvertGeminiRequest(nil, nil, geminiRequest)
 	require.NoError(t, err)
 	assert.Same(t, geminiRequest, convertedGemini)
+}
+
+func TestAdaptorPreservesMultipartImageEdits(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("model", "gpt-image-1"))
+	require.NoError(t, writer.WriteField("prompt", "edit this image"))
+	filePart, err := writer.CreateFormFile("image", "input.png")
+	require.NoError(t, err)
+	_, err = filePart.Write([]byte("fake image"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", &body)
+	c.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	require.NoError(t, c.Request.ParseMultipartForm(32<<20))
+
+	converted, err := (&Adaptor{}).ConvertImageRequest(c, &relaycommon.RelayInfo{
+		RelayMode: relayconstant.RelayModeImagesEdits,
+	}, dto.ImageRequest{Model: "gpt-image-1", Prompt: "edit this image"})
+	require.NoError(t, err)
+	convertedBody, ok := converted.(*bytes.Buffer)
+	require.True(t, ok)
+
+	replayed := httptest.NewRequest(http.MethodPost, "/v1/images/edits", bytes.NewReader(convertedBody.Bytes()))
+	replayed.Header.Set("Content-Type", c.Request.Header.Get("Content-Type"))
+	require.NoError(t, replayed.ParseMultipartForm(32<<20))
+	assert.Equal(t, "gpt-image-1", replayed.PostForm.Get("model"))
+	assert.Equal(t, "edit this image", replayed.PostForm.Get("prompt"))
+	require.Len(t, replayed.MultipartForm.File["image"], 1)
+
+	file, err := replayed.MultipartForm.File["image"][0].Open()
+	require.NoError(t, err)
+	defer file.Close()
+	fileBytes, err := io.ReadAll(file)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("fake image"), fileBytes)
 }
