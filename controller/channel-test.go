@@ -26,7 +26,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/relay/helper"
 	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
-	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/samber/lo"
@@ -56,9 +55,6 @@ func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointTyp
 		strings.HasPrefix(normalizedModel, "grok-imagine-image") ||
 		normalizedModel == "grok-imagine-edit" {
 		return string(constant.EndpointTypeImageGeneration)
-	}
-	if strings.HasSuffix(modelName, ratio_setting.CompactModelSuffix) {
-		return string(constant.EndpointTypeOpenAIResponseCompact)
 	}
 	if channel != nil && channel.Type == constant.ChannelTypeCodex {
 		return string(constant.EndpointTypeOpenAIResponse)
@@ -164,10 +160,6 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			requestPath = "/v1/responses"
 		}
 
-		// responses compaction models (must use /v1/responses/compact)
-		if strings.HasSuffix(testModel, ratio_setting.CompactModelSuffix) {
-			requestPath = "/v1/responses/compact"
-		}
 	}
 	if constant.EndpointType(endpointType) == constant.EndpointTypeGemini {
 		requestPath = strings.Replace(requestPath, "{model}", testModel, 1)
@@ -176,10 +168,6 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			requestPath = strings.Replace(requestPath, ":generateContent", ":streamGenerateContent", 1)
 		}
 	}
-	if strings.HasPrefix(requestPath, "/v1/responses/compact") {
-		testModel = ratio_setting.WithCompactModelSuffix(testModel)
-	}
-
 	c.Request = httptest.NewRequestWithContext(ctx, http.MethodPost, requestPath, nil)
 
 	cache, err := model.GetUserCache(testUserID)
@@ -299,7 +287,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 
 	apiType, _ := common.ChannelType2APIType(channel.Type)
 	if info.RelayMode == relayconstant.RelayModeResponsesCompact &&
-		!common.IsResponsesCompactAPIType(apiType) {
+		!common.SupportsResponsesCompact(channel.Type, apiType) {
 		return testResult{
 			context:     c,
 			localErr:    fmt.Errorf("responses compaction test does not support api type %d", apiType),
@@ -822,14 +810,6 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		return &dto.EmbeddingRequest{
 			Model: model,
 			Input: []any{"hello world"},
-		}
-	}
-
-	// Responses compaction models (must use /v1/responses/compact)
-	if strings.HasSuffix(model, ratio_setting.CompactModelSuffix) {
-		return &dto.OpenAIResponsesCompactionRequest{
-			Model: model,
-			Input: testResponsesInput,
 		}
 	}
 

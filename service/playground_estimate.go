@@ -139,18 +139,12 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 }
 
 // configuredModelRatio returns the ratio only if the model is present in the
-// configured map (or compact wildcard). It never returns the self-use 37.5 default.
+// configured map. It never returns the self-use 37.5 default.
 func configuredModelRatio(name string) (float64, bool) {
 	name = ratio_setting.FormatMatchingModelName(name)
 	copyMap := ratio_setting.GetModelRatioCopy()
 	if r, ok := copyMap[name]; ok {
 		return r, true
-	}
-	// compact suffix wildcard (same as GetModelRatio, but without self-use fallback)
-	if strings.HasSuffix(name, ratio_setting.CompactModelSuffix) {
-		if r, ok := copyMap[ratio_setting.CompactWildcardModelKey]; ok {
-			return r, true
-		}
 	}
 	return 0, false
 }

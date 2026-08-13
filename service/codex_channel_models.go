@@ -9,7 +9,6 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
-	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
 
 func FetchCodexChannelModels(channel *model.Channel) ([]string, error) {
@@ -79,13 +78,5 @@ func fetchCodexChannelModels(
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("upstream status: %d", statusCode)
 	}
-	modelVariants := make([]string, 0, len(models)*2)
-	modelVariants = append(modelVariants, models...)
-	for _, modelName := range models {
-		if modelName == "codex-auto-review" {
-			continue
-		}
-		modelVariants = append(modelVariants, ratio_setting.WithCompactModelSuffix(modelName))
-	}
-	return modelVariants, nil
+	return models, nil
 }

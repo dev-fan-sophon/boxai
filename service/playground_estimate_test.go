@@ -68,3 +68,15 @@ func TestEstimatePlaygroundCost_ConfiguredRatio(t *testing.T) {
 	assert.Equal(t, 1.5, *result.ModelRatio)
 	assert.Contains(t, result.Message, "") // may be empty when prompt_tokens provided
 }
+
+func TestEstimatePlaygroundCost_IgnoresLegacyCompactWildcard(t *testing.T) {
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"*-openai-compact":0.04}`))
+
+	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
+		Model: "gpt-test-openai-compact",
+	})
+
+	assert.Equal(t, "unknown", result.Kind)
+	assert.Nil(t, result.ModelPrice)
+	assert.Nil(t, result.Amount)
+}

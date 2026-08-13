@@ -115,7 +115,7 @@ func TestMultiprotocolChannelRegistration(t *testing.T) {
 		apiType, ok := common.ChannelType2APIType(channelType)
 		require.True(t, ok)
 		assert.Equal(t, want, common.GetEndpointTypesByChannelType(channelType, "gpt-test"))
-		assert.True(t, common.IsResponsesCompactAPIType(apiType))
+		assert.True(t, common.SupportsResponsesCompact(channelType, apiType))
 	}
 	assert.Equal(t, constant.APITypeSub2API, mustAPIType(t, constant.ChannelTypeSub2API))
 	assert.Equal(t, constant.APITypeNewAPI, mustAPIType(t, constant.ChannelTypeNewAPI))
