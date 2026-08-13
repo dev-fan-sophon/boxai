@@ -201,3 +201,7 @@ func (p *ZaloProvider) SetProviderUserID(user *model.User, providerUserID string
 func (p *ZaloProvider) GetProviderPrefix() string {
 	return "zalo_"
 }
+
+func (p *ZaloProvider) ProviderUserIDColumn() string {
+	return "zalo_id"
+}

@@ -153,6 +153,45 @@ func TestInsertKeepsBlankPasswordForPasswordlessUser(t *testing.T) {
 	assert.Empty(t, stored.Password)
 }
 
+func TestUpdateUserBindColumnPreservesConcurrentRestrictions(t *testing.T) {
+	setupUserUpdateTestState(t)
+
+	user := User{
+		Username: "oauth-bind-user",
+		Password: "unused-password-hash",
+		Role:     common.RoleCommonUser,
+		Status:   common.UserStatusEnabled,
+		Group:    "default",
+		AffCode:  "oauth-bind-aff",
+	}
+	require.NoError(t, DB.Create(&user).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", user.Id).Updates(map[string]interface{}{
+		"role":   common.RoleAdminUser,
+		"status": common.UserStatusDisabled,
+		"group":  "restricted",
+	}).Error)
+
+	require.NoError(t, UpdateUserBindColumn(user.Id, "zalo_id", "zalo-user-123"))
+
+	var stored User
+	require.NoError(t, DB.First(&stored, user.Id).Error)
+	assert.Equal(t, "zalo-user-123", stored.ZaloId)
+	assert.Equal(t, common.RoleAdminUser, stored.Role)
+	assert.Equal(t, common.UserStatusDisabled, stored.Status)
+	assert.Equal(t, "restricted", stored.Group)
+}
+
+func TestUpdateUserBindColumnRejectsNonBindingColumns(t *testing.T) {
+	setupUserUpdateTestState(t)
+
+	user := User{Username: "oauth-bind-whitelist", Password: "unused-password-hash", AffCode: "oauth-bind-white"}
+	require.NoError(t, DB.Create(&user).Error)
+	for _, column := range []string{"role", "status", "group", "quota", "password", "github_id; DROP TABLE users"} {
+		assert.Error(t, UpdateUserBindColumn(user.Id, column, "value"), "column %q must be rejected", column)
+	}
+	assert.Error(t, UpdateUserBindColumn(0, "github_id", "value"))
+}
+
 func TestValidateAndFillRejectsPasswordlessUser(t *testing.T) {
 	setupUserUpdateTestState(t)
 

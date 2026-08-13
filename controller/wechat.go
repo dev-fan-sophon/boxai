@@ -160,17 +160,12 @@ func WeChatBind(c *gin.Context) {
 	}
 	session := sessions.Default(c)
 	id := session.Get("id")
-	user := model.User{
-		Id: id.(int),
-	}
-	err = user.FillUserById()
-	if err != nil {
-		common.ApiError(c, err)
+	userId, ok := id.(int)
+	if !ok || userId <= 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
 		return
 	}
-	user.WeChatId = wechatId
-	err = user.Update(false)
-	if err != nil {
+	if err := model.UpdateUserBindColumn(userId, "wechat_id", wechatId); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -178,5 +173,4 @@ func WeChatBind(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
-	return
 }

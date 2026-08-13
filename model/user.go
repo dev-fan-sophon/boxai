@@ -179,6 +179,30 @@ func UpdateUserSetting(userId int, setting dto.UserSetting) error {
 	return updateUserSettingCache(userId, settingValue)
 }
 
+var userBindColumns = map[string]bool{
+	"github_id":   true,
+	"discord_id":  true,
+	"google_id":   true,
+	"facebook_id": true,
+	"zalo_id":     true,
+	"oidc_id":     true,
+	"linux_do_id": true,
+	"wechat_id":   true,
+}
+
+// UpdateUserBindColumn updates only one whitelisted third-party identity
+// column. Writing a previously loaded User snapshot here could restore a role,
+// status, or group that an administrator changed while OAuth was in flight.
+func UpdateUserBindColumn(userId int, column string, value string) error {
+	if userId <= 0 {
+		return errors.New("id 为空！")
+	}
+	if !userBindColumns[column] {
+		return fmt.Errorf("invalid user bind column: %s", column)
+	}
+	return DB.Model(&User{}).Where("id = ?", userId).Update(column, value).Error
+}
+
 // 根据用户角色生成默认的边栏配置
 func generateDefaultSidebarConfigForRole(userRole int) string {
 	defaultConfig := map[string]interface{}{}

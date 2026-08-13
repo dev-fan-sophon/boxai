@@ -195,3 +195,7 @@ func (p *GoogleProvider) SetProviderUserID(user *model.User, providerUserID stri
 func (p *GoogleProvider) GetProviderPrefix() string {
 	return "google_"
 }
+
+func (p *GoogleProvider) ProviderUserIDColumn() string {
+	return "google_id"
+}

@@ -185,3 +185,7 @@ func (p *FacebookProvider) SetProviderUserID(user *model.User, providerUserID st
 func (p *FacebookProvider) GetProviderPrefix() string {
 	return "facebook_"
 }
+
+func (p *FacebookProvider) ProviderUserIDColumn() string {
+	return "facebook_id"
+}
