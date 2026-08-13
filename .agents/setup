@@ -35,7 +35,7 @@ setup_tmp=$(mktemp -d)
 trap 'rm -rf "$setup_tmp"' EXIT
 
 if ! command -v go >/dev/null; then
-  go_version=1.25.1
+  go_version=1.25.12
   case "$(uname -m)" in
     x86_64) go_arch=amd64 ;;
     aarch64|arm64) go_arch=arm64 ;;

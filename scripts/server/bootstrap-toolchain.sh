@@ -2,7 +2,7 @@
 # Install Go + Bun on the production host (idempotent).
 set -euo pipefail
 
-GO_VERSION="${GO_VERSION:-1.25.1}"
+GO_VERSION="${GO_VERSION:-1.25.12}"
 ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64|amd64) GO_ARCH=amd64; BUN_ARCH=x64 ;;
