@@ -249,6 +249,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		common.SysError("topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
+	if cacheErr := invalidateUserCache(topUp.UserId); cacheErr != nil {
+		common.SysLog("failed to invalidate user cache after Stripe topup: " + cacheErr.Error())
+	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 
@@ -494,6 +497,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	if !completed {
 		return nil
 	}
+	if cacheErr := invalidateUserCache(userId); cacheErr != nil {
+		common.SysLog("failed to invalidate user cache after manual topup: " + cacheErr.Error())
+	}
 
 	// 事务外记录日志，避免阻塞
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
@@ -568,6 +574,9 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 		common.SysError("creem topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
+	if cacheErr := invalidateUserCache(topUp.UserId); cacheErr != nil {
+		common.SysLog("failed to invalidate user cache after Creem topup: " + cacheErr.Error())
+	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
 
@@ -631,6 +640,9 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 	}
 
 	if quotaToAdd > 0 {
+		if cacheErr := invalidateUserCache(topUp.UserId); cacheErr != nil {
+			common.SysLog("failed to invalidate user cache after Waffo topup: " + cacheErr.Error())
+		}
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
 	}
 
@@ -692,6 +704,9 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	}
 
 	if quotaToAdd > 0 {
+		if cacheErr := invalidateUserCache(topUp.UserId); cacheErr != nil {
+			common.SysLog("failed to invalidate user cache after Waffo Pancake topup: " + cacheErr.Error())
+		}
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
 	}
 

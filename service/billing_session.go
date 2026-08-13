@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -286,6 +287,16 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 			}
 			s.tokenConsumed = 0
 		}
+		if errors.Is(err, ErrInsufficientWalletQuota) {
+			userQuota, quotaErr := model.GetUserQuota(s.relayInfo.UserId, false)
+			if quotaErr != nil {
+				userQuota = 0
+			}
+			return types.NewErrorWithStatusCode(
+				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
+				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}
 		// TODO: model 层应定义哨兵错误（如 ErrNoActiveSubscription），用 errors.Is 替代字符串匹配
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "no active subscription") || strings.Contains(errMsg, "subscription quota insufficient") {
@@ -425,19 +436,17 @@ func (s *BillingSession) shouldTrust(c *gin.Context) bool {
 		return false
 	}
 
-	// 检查令牌是否充足
-	tokenTrusted := s.relayInfo.TokenUnlimited
-	if !tokenTrusted {
-		tokenQuota := c.GetInt("token_quota")
-		tokenTrusted = tokenQuota > trustQuota
-	}
-	if !tokenTrusted {
+	// Redis metadata can outlive a failed cache invalidation. A stale cached
+	// unlimited flag or balance must never enable the no-reservation fast path.
+	token, err := model.GetTokenByKey(s.relayInfo.TokenKey, true)
+	if err != nil || (!token.UnlimitedQuota && token.RemainQuota <= trustQuota) {
 		return false
 	}
 
 	switch s.funding.Source() {
 	case BillingSourceWallet:
-		return s.relayInfo.UserQuota > trustQuota
+		userQuota, err := model.GetUserQuota(s.relayInfo.UserId, true)
+		return err == nil && userQuota > trustQuota
 	case BillingSourceSubscription:
 		// 订阅不能启用信任旁路。原因：
 		// 1. PreConsumeUserSubscription 要求 amount>0 来创建预扣记录并锁定订阅

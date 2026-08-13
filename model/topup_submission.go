@@ -355,9 +355,8 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 		return tx.Save(&result).Error
 	})
 	if err == nil && creditedQuota > 0 {
-		if cacheErr := cacheIncrUserQuota(result.UserId, int64(creditedQuota)); cacheErr != nil {
-			common.SysLog("failed to increase user quota cache after Bank QR approval: " + cacheErr.Error())
-			_ = InvalidateUserCache(result.UserId)
+		if cacheErr := InvalidateUserCache(result.UserId); cacheErr != nil {
+			common.SysLog("failed to invalidate user quota cache after Bank QR approval: " + cacheErr.Error())
 		}
 	}
 	if err == nil && upgradeGroup != "" {

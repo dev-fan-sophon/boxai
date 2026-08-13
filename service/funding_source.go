@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,6 +28,8 @@ type FundingSource interface {
 // ---------------------------------------------------------------------------
 // WalletFunding — 钱包资金来源实现
 // ---------------------------------------------------------------------------
+
+var ErrInsufficientWalletQuota = errors.New("wallet quota insufficient")
 
 type WalletFunding struct {
 	userId   int
@@ -55,8 +58,12 @@ func (w *WalletFunding) PreConsume(amount int) error {
 	if amount <= 0 {
 		return nil
 	}
-	if err := model.DecreaseUserQuota(w.userId, amount, false); err != nil {
+	reserved, err := model.TryReserveUserQuota(w.userId, amount)
+	if err != nil {
 		return err
+	}
+	if !reserved {
+		return ErrInsufficientWalletQuota
 	}
 	w.consumed = amount
 	w.trackOverage(amount)

@@ -1,7 +1,9 @@
 package model
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -9,8 +11,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/bytedance/gopkg/util/gopool"
 )
 
 // UserBase struct remains the same as it represents the cached data structure
@@ -49,12 +49,32 @@ func getUserCacheKey(userId int) string {
 	return fmt.Sprintf("user:%d", userId)
 }
 
+func getUserCacheFenceKey(userId int) string {
+	return fmt.Sprintf("user:fence:%d", userId)
+}
+
+func userCacheTTLSeconds() int {
+	ttl := common.RedisKeyCacheSeconds()
+	if ttl <= 0 {
+		return 60
+	}
+	return ttl
+}
+
+// The fence outlives an in-flight DB-read-to-cache-publish window. It prevents
+// a stale snapshot from repopulating the hash immediately after invalidation.
+const userCacheFenceSeconds = 10
+
 // invalidateUserCache clears user cache
 func invalidateUserCache(userId int) error {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || common.RDB == nil {
 		return nil
 	}
-	return common.RedisDelKey(getUserCacheKey(userId))
+	ctx := context.Background()
+	if err := common.RDB.Set(ctx, getUserCacheFenceKey(userId), 1, time.Duration(userCacheFenceSeconds)*time.Second).Err(); err != nil {
+		return err
+	}
+	return common.RDB.Del(ctx, getUserCacheKey(userId)).Err()
 }
 
 // InvalidateUserCache is the exported version of invalidateUserCache.
@@ -64,15 +84,33 @@ func InvalidateUserCache(userId int) error {
 }
 
 func populateUserCache(user User) error {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || common.RDB == nil {
 		return nil
 	}
-
-	return common.RedisHSetObj(
-		getUserCacheKey(user.Id),
-		user.ToBaseUser(),
-		time.Duration(common.RedisKeyCacheSeconds())*time.Second,
-	)
+	base := user.ToBaseUser()
+	const script = `
+if redis.call('EXISTS', KEYS[2]) == 1 then
+  return 0
+end
+if redis.call('EXISTS', KEYS[1]) == 1 then
+	if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[1]) then
+		redis.call('DEL', KEYS[1])
+	else
+		redis.call('HSET', KEYS[1],
+		  'Group', ARGV[2], 'Email', ARGV[3], 'Quota', ARGV[4], 'Status', ARGV[5],
+		  'Username', ARGV[6], 'Setting', ARGV[7])
+		redis.call('EXPIRE', KEYS[1], ARGV[8])
+		return 2
+	end
+end
+redis.call('HSET', KEYS[1],
+  'Id', ARGV[1], 'Group', ARGV[2], 'Email', ARGV[3], 'Quota', ARGV[4],
+  'Status', ARGV[5], 'Username', ARGV[6], 'Setting', ARGV[7])
+redis.call('EXPIRE', KEYS[1], ARGV[8])
+return 1`
+	return common.RDB.Eval(context.Background(), script, []string{
+		getUserCacheKey(user.Id), getUserCacheFenceKey(user.Id),
+	}, base.Id, base.Group, base.Email, base.Quota, base.Status, base.Username, base.Setting, userCacheTTLSeconds()).Err()
 }
 
 // updateUserCache refreshes non-quota user cache fields.
@@ -98,49 +136,28 @@ func updateUserCache(user User) error {
 }
 
 // GetUserCache gets complete user cache from hash
-func GetUserCache(userId int) (userCache *UserBase, err error) {
-	var user *User
-	var fromDB bool
-	defer func() {
-		// Update Redis cache asynchronously on successful DB read
-		if shouldUpdateRedis(fromDB, err) && user != nil {
-			gopool.Go(func() {
-				if err := populateUserCache(*user); err != nil {
-					common.SysLog("failed to update user status cache: " + err.Error())
-				}
-			})
-		}
-	}()
-
+func GetUserCache(userId int) (*UserBase, error) {
 	// Try getting from Redis first
-	userCache, err = cacheGetUserBase(userId)
+	userCache, err := cacheGetUserBase(userId)
 	if err == nil {
 		return userCache, nil
 	}
 
 	// If Redis fails, get from DB
-	fromDB = true
-	user, err = GetUserById(userId, false)
+	user, err := GetUserById(userId, false)
 	if err != nil {
 		return nil, err // Return nil and error if DB lookup fails
 	}
-
-	// Create cache object from user data
-	userCache = &UserBase{
-		Id:       user.Id,
-		Group:    user.Group,
-		Quota:    user.Quota,
-		Status:   user.Status,
-		Username: user.Username,
-		Setting:  user.Setting,
-		Email:    user.Email,
+	if common.RedisEnabled && common.RDB != nil {
+		if cacheErr := populateUserCache(*user); cacheErr != nil {
+			common.SysLog("failed to initialize user cache: " + cacheErr.Error())
+		}
 	}
-
-	return userCache, nil
+	return user.ToBaseUser(), nil
 }
 
 func cacheGetUserBase(userId int) (*UserBase, error) {
-	if !common.RedisEnabled {
+	if !common.RedisEnabled || common.RDB == nil {
 		return nil, fmt.Errorf("redis is not enabled")
 	}
 	var userCache UserBase
@@ -149,19 +166,10 @@ func cacheGetUserBase(userId int) (*UserBase, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &userCache, nil
-}
-
-// Add atomic quota operations using hash fields
-func cacheIncrUserQuota(userId int, delta int64) error {
-	if !common.RedisEnabled {
-		return nil
+	if userCache.Id != userId {
+		return nil, fmt.Errorf("user cache is incomplete")
 	}
-	return common.RedisHIncrBy(getUserCacheKey(userId), "Quota", delta)
-}
-
-func cacheDecrUserQuota(userId int, delta int64) error {
-	return cacheIncrUserQuota(userId, -delta)
+	return &userCache, nil
 }
 
 // Helper functions to get individual fields if needed
@@ -207,28 +215,15 @@ func getUserSettingCache(userId int) (dto.UserSetting, error) {
 
 // New functions for individual field updates
 func updateUserStatusCache(userId int, status bool) error {
-	if !common.RedisEnabled {
-		return nil
-	}
 	statusInt := common.UserStatusEnabled
 	if !status {
 		statusInt = common.UserStatusDisabled
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Status", fmt.Sprintf("%d", statusInt))
-}
-
-func updateUserQuotaCache(userId int, quota int) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Quota", fmt.Sprintf("%d", quota))
+	return updateUserCacheField(userId, "Status", strconv.Itoa(statusInt))
 }
 
 func updateUserGroupCache(userId int, group string) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Group", group)
+	return updateUserCacheField(userId, "Group", group)
 }
 
 func UpdateUserGroupCache(userId int, group string) error {
@@ -236,24 +231,28 @@ func UpdateUserGroupCache(userId int, group string) error {
 }
 
 func updateUserEmailCache(userId int, email string) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Email", email)
+	return updateUserCacheField(userId, "Email", email)
 }
 
 func updateUserNameCache(userId int, username string) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Username", username)
+	return updateUserCacheField(userId, "Username", username)
 }
 
 func updateUserSettingCache(userId int, setting string) error {
-	if !common.RedisEnabled {
+	return updateUserCacheField(userId, "Setting", setting)
+}
+
+func updateUserCacheField(userId int, field string, value string) error {
+	if !common.RedisEnabled || common.RDB == nil {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Setting", setting)
+	const script = `
+if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[1]) then
+  return 0
+end
+redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
+return 1`
+	return common.RDB.Eval(context.Background(), script, []string{getUserCacheKey(userId)}, userId, field, value).Err()
 }
 
 // GetUserLanguage returns the user's language preference from cache
