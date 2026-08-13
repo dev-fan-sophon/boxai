@@ -231,6 +231,48 @@ func TestNormalizeChannelTestEndpointPreservesExplicitEndpoint(t *testing.T) {
 	)
 }
 
+func TestBuildTestRequestUsesNativeProtocolDTOs(t *testing.T) {
+	t.Run("Anthropic", func(t *testing.T) {
+		request := buildTestRequest("claude-sonnet-4-5", string(constant.EndpointTypeAnthropic), &model.Channel{}, true)
+		claudeRequest, ok := request.(*dto.ClaudeRequest)
+		require.True(t, ok)
+		assert.Equal(t, "claude-sonnet-4-5", claudeRequest.Model)
+		require.NotNil(t, claudeRequest.Stream)
+		assert.True(t, *claudeRequest.Stream)
+		require.NotNil(t, claudeRequest.MaxTokens)
+		assert.Equal(t, uint(16), *claudeRequest.MaxTokens)
+		require.Len(t, claudeRequest.Messages, 1)
+		assert.Equal(t, "hi", claudeRequest.Messages[0].GetStringContent())
+	})
+
+	t.Run("Gemini", func(t *testing.T) {
+		request := buildTestRequest("gemini-2.5-flash", string(constant.EndpointTypeGemini), &model.Channel{}, true)
+		geminiRequest, ok := request.(*dto.GeminiChatRequest)
+		require.True(t, ok)
+		require.Len(t, geminiRequest.Contents, 1)
+		assert.Equal(t, "user", geminiRequest.Contents[0].Role)
+		require.Len(t, geminiRequest.Contents[0].Parts, 1)
+		assert.Equal(t, "hi", geminiRequest.Contents[0].Parts[0].Text)
+		require.NotNil(t, geminiRequest.GenerationConfig.MaxOutputTokens)
+		assert.Equal(t, uint(3000), *geminiRequest.GenerationConfig.MaxOutputTokens)
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:streamGenerateContent", nil)
+		assert.True(t, geminiRequest.IsStream(ctx))
+	})
+
+	t.Run("OpenAI", func(t *testing.T) {
+		request := buildTestRequest("gpt-5", string(constant.EndpointTypeOpenAI), &model.Channel{}, true)
+		openAIRequest, ok := request.(*dto.GeneralOpenAIRequest)
+		require.True(t, ok)
+		assert.Equal(t, "gpt-5", openAIRequest.Model)
+		require.NotNil(t, openAIRequest.Stream)
+		assert.True(t, *openAIRequest.Stream)
+		require.NotNil(t, openAIRequest.StreamOptions)
+		assert.True(t, openAIRequest.StreamOptions.IncludeUsage)
+	})
+}
+
 func TestNormalizeChannelTestEndpointDetectsGrokVideoModels(t *testing.T) {
 	for _, modelName := range []string{
 		"grok-imagine-video",
