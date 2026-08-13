@@ -362,6 +362,9 @@ func projectBillingOperationCaches(userID, tokenID int) {
 func (s *BillingSession) reserveFunding(delta int) error {
 	switch funding := s.funding.(type) {
 	case *WalletFunding:
+		// Keep the same arrears semantics as settlement: reserve the full
+		// retry delta even if it makes the wallet balance negative. This keeps
+		// the recorded reservation reconciled with the actual balance change.
 		if err := model.DecreaseUserQuota(funding.userId, delta, false); err != nil {
 			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 		}
