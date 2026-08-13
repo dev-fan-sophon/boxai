@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -124,6 +125,104 @@ func TestUpdateUserAccessTokenRejectsSoftDeletedUser(t *testing.T) {
 	var got User
 	require.NoError(t, DB.Unscoped().First(&got, user.Id).Error)
 	assert.Equal(t, "old-token", got.GetAccessToken())
+}
+
+func TestTransferAffQuotaToQuotaRejectsConcurrentOverspend(t *testing.T) {
+	resetQuotaReserveTestState(t)
+	originalQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 1
+	t.Cleanup(func() { common.QuotaPerUnit = originalQuotaPerUnit })
+
+	user := User{
+		Username: "affiliate-transfer-race",
+		Password: "password",
+		Status:   common.UserStatusEnabled,
+		AffCode:  "affiliate-transfer-race",
+		AffQuota: 100,
+	}
+	require.NoError(t, DB.Create(&user).Error)
+
+	const attempts = 2
+	start := make(chan struct{})
+	errs := make(chan error, attempts)
+	var wait sync.WaitGroup
+	for range attempts {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			<-start
+			errs <- (&User{Id: user.Id}).TransferAffQuotaToQuota(60)
+		}()
+	}
+	close(start)
+	wait.Wait()
+	close(errs)
+
+	succeeded := 0
+	for err := range errs {
+		if err == nil {
+			succeeded++
+		}
+	}
+	assert.Equal(t, 1, succeeded)
+
+	var got User
+	require.NoError(t, DB.First(&got, user.Id).Error)
+	assert.Equal(t, 60, got.Quota)
+	assert.Equal(t, 40, got.AffQuota)
+}
+
+func TestTransferAffQuotaToQuotaRejectsQuotaOverflow(t *testing.T) {
+	resetQuotaReserveTestState(t)
+	originalQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 1
+	t.Cleanup(func() { common.QuotaPerUnit = originalQuotaPerUnit })
+
+	user := User{
+		Username: "affiliate-transfer-overflow",
+		Password: "password",
+		Status:   common.UserStatusEnabled,
+		AffCode:  "affiliate-transfer-overflow",
+		Quota:    common.MaxQuota - 50,
+		AffQuota: 100,
+	}
+	require.NoError(t, DB.Create(&user).Error)
+
+	require.Error(t, user.TransferAffQuotaToQuota(100))
+
+	var got User
+	require.NoError(t, DB.First(&got, user.Id).Error)
+	assert.Equal(t, common.MaxQuota-50, got.Quota)
+	assert.Equal(t, 100, got.AffQuota)
+}
+
+func TestTransferAffQuotaToQuotaInvalidatesCachedQuota(t *testing.T) {
+	resetQuotaReserveTestState(t)
+	useQuotaReserveRedis(t)
+	originalQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 1
+	t.Cleanup(func() { common.QuotaPerUnit = originalQuotaPerUnit })
+
+	user := User{
+		Username: "affiliate-transfer-cache",
+		Password: "password",
+		Status:   common.UserStatusEnabled,
+		Group:    "default",
+		AffCode:  "affiliate-transfer-cache",
+		Quota:    25,
+		AffQuota: 100,
+	}
+	require.NoError(t, DB.Create(&user).Error)
+	require.NoError(t, populateUserCache(user))
+
+	require.NoError(t, user.TransferAffQuotaToQuota(60))
+
+	cached, err := GetUserCache(user.Id)
+	require.NoError(t, err)
+	assert.Equal(t, 85, cached.Quota)
+	var got User
+	require.NoError(t, DB.First(&got, user.Id).Error)
+	assert.Equal(t, 40, got.AffQuota)
 }
 
 func TestUpdateUserSettingOnlyUpdatesSetting(t *testing.T) {

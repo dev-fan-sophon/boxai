@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -550,40 +551,41 @@ func inviteUser(inviterId int) error {
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
-	// 检查quota是否小于最小额度
-	if float64(quota) < common.QuotaPerUnit {
-		return fmt.Errorf("转移额度最小为%s！", logger.LogQuota(common.QuotaFromFloat(common.QuotaPerUnit)))
+	quotaPerUnit := common.QuotaPerUnit
+	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
+		return errors.New("邀请额度转移配置无效！")
+	}
+	if quota <= 0 || quota > common.MaxQuota {
+		return errors.New("无效的邀请额度！")
+	}
+	if float64(quota) < quotaPerUnit {
+		return fmt.Errorf("转移额度最小为%s！", logger.LogQuota(common.QuotaFromFloat(quotaPerUnit)))
 	}
 
-	// 开始数据库事务
-	tx := DB.Begin()
-	if tx.Error != nil {
-		return tx.Error
+	result := DB.Model(&User{}).
+		Where("id = ? AND aff_quota >= ? AND quota <= ?", user.Id, quota, common.MaxQuota-quota).
+		Updates(map[string]interface{}{
+			"aff_quota": gorm.Expr("aff_quota - ?", quota),
+			"quota":     gorm.Expr("quota + ?", quota),
+		})
+	if result.Error != nil {
+		return result.Error
 	}
-	defer tx.Rollback() // 确保在函数退出时事务能回滚
-
-	// 加锁查询用户以确保数据一致性
-	err := lockForUpdate(tx).First(user, user.Id).Error
-	if err != nil {
-		return err
-	}
-
-	// 再次检查用户的AffQuota是否足够
-	if user.AffQuota < quota {
-		return errors.New("邀请额度不足！")
-	}
-
-	// 更新用户额度
-	user.AffQuota -= quota
-	user.Quota += quota
-
-	// 保存用户状态
-	if err := tx.Save(user).Error; err != nil {
-		return err
+	if result.RowsAffected == 0 {
+		var current User
+		if err := DB.Select("id", "quota", "aff_quota").First(&current, user.Id).Error; err != nil {
+			return err
+		}
+		if current.AffQuota < quota {
+			return errors.New("邀请额度不足！")
+		}
+		return errors.New("转移后用户额度超出可存储范围！")
 	}
 
-	// 提交事务
-	return tx.Commit().Error
+	if err := invalidateUserCache(user.Id); err != nil {
+		common.SysError(fmt.Sprintf("failed to invalidate user cache after affiliate quota transfer for user %d: %v", user.Id, err))
+	}
+	return nil
 }
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
