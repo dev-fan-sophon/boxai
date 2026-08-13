@@ -4,12 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
-	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
-	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/middleware"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/types"
@@ -21,76 +18,7 @@ func Playground(c *gin.Context) {
 	playgroundRelay(c, types.RelayFormatOpenAI, false)
 }
 
-func managedSearchTerminalResult(response *dto.OpenAIResponsesResponse) (map[string]any, []map[string]string, error) {
-	if response == nil || response.IncompleteDetails != nil {
-		return nil, nil, errors.New("managed search did not complete")
-	}
-	var status string
-	if common.Unmarshal(response.Status, &status) != nil || status != "completed" {
-		return nil, nil, errors.New("managed search did not complete")
-	}
-	if responseError := response.GetOpenAIError(); responseError != nil && responseError.Type != "" {
-		return nil, nil, errors.New("managed search did not complete")
-	}
-	var texts []string
-	var candidates []map[string]any
-	for _, output := range response.Output {
-		for _, content := range output.Content {
-			if content.Type == "output_text" && content.Text != "" {
-				texts = append(texts, content.Text)
-			}
-			for _, annotation := range content.Annotations {
-				if candidate, ok := annotation.(map[string]any); ok {
-					candidates = append(candidates, candidate)
-				}
-			}
-		}
-	}
-	for _, citation := range response.Citations {
-		switch value := citation.(type) {
-		case string:
-			candidates = append(candidates, map[string]any{"url": value})
-		case map[string]any:
-			candidates = append(candidates, value)
-		}
-	}
-	text := strings.TrimSpace(strings.Join(texts, "\n"))
-	if text == "" || len([]byte(text)) > 64*1024 {
-		return nil, nil, errors.New("managed search returned no bounded answer text")
-	}
-	seen := map[string]bool{}
-	sources := make([]map[string]string, 0)
-	for _, candidate := range candidates {
-		raw, _ := candidate["url"].(string)
-		parsed, err := url.Parse(raw)
-		if err != nil || parsed.Hostname() == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			continue
-		}
-		parsed.Fragment = ""
-		href := parsed.String()
-		if seen[href] {
-			continue
-		}
-		seen[href] = true
-		title, _ := candidate["title"].(string)
-		title = strings.TrimSpace(title)
-		// xAI sometimes emits the citation marker ("1", "[2]", and so on)
-		// as the annotation title. Showing that marker as the link label makes
-		// the source list look corrupt; the hostname is the truthful fallback
-		// when the upstream did not provide a real page title.
-		citationTitle := strings.Trim(title, "[]() ")
-		if title == "" || (citationTitle != "" && strings.Trim(citationTitle, "0123456789") == "") {
-			title = parsed.Hostname()
-		}
-		sources = append(sources, map[string]string{"href": href, "title": title, "domain": parsed.Hostname()})
-	}
-	return map[string]any{"text": text, "sources": sources}, sources, nil
-}
-
-const (
-	playgroundSearchMaxTurns          = 2
-	playgroundSearchReservedToolCalls = 32
-)
+const playgroundSearchReservedToolCalls = 32
 
 func PlaygroundImage(c *gin.Context) {
 	playgroundRelay(c, types.RelayFormatOpenAIImage, false)

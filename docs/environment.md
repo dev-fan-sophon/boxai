@@ -319,6 +319,7 @@ cutover when it is absent or empty.
 | Variable | Purpose |
 |----------|---------|
 | `INTERNAL_SERVICE_SECRET` | Shared secret with the gateway (same value must be set in `/opt/boxai/.env`); authenticates every internal gateway call |
+| `TAVILY_API_KEY` | Tavily key for the chat service's low-latency web search tool |
 | `DATABASE_URL` | `postgres://…@127.0.0.1:5432/…` — same database as `SQL_DSN`, URL form |
 | `GATEWAY_BASE_URL` | Default `http://127.0.0.1:3000` |
 | `CHAT_SERVICE_PORT` / `CHAT_SERVICE_HOST` | Default `3100` / `127.0.0.1` |

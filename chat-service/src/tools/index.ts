@@ -47,7 +47,7 @@ export function buildTools(
   mode: AgentToolMode = 'auto'
 ): { tools: ToolSet; forceTool?: AgentToolName } {
   const tools: ToolSet = {
-    web_search: webSearchTool(context),
+    web_search: webSearchTool(),
     generate_image: generateImageTool(context),
     generate_video: generateVideoTool(context),
     generate_document: generateDocumentTool(context),

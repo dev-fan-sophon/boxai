@@ -171,33 +171,9 @@ export async function releaseDocumentSandbox(
   })
 }
 
-export type SearchSource = { href: string; title: string; domain: string }
-
-export type SearchResult = {
-  text: string
-  sources: SearchSource[]
-  model: string
-}
-
-/** Direct billed web search through the gateway's pinned Grok channel. */
-export async function webSearch(
-  userId: number,
-  body: { query: string; group?: string },
-  signal?: AbortSignal
-): Promise<SearchResult> {
-  return gatewayFetch<SearchResult>('/pg/internal/search', {
-    method: 'POST',
-    actAsUserId: userId,
-    body: JSON.stringify(body),
-    signal,
-  })
-}
-
 export type ToolModels = {
   image_model: string
   video_model: string
-  search_model: string
-  search_group: string
   document: boolean
 }
 

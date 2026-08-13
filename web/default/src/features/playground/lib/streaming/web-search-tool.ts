@@ -7,7 +7,6 @@ import type {
 
 export const WEB_SEARCH_TOOL_NAME = 'web_search'
 
-/** Mirrors service.MaxPlaygroundSearchQueryRunes on the backend. */
 export const MAX_WEB_SEARCH_QUERY_CHARS = 1500
 
 /**

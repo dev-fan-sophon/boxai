@@ -31,9 +31,13 @@ export const config = {
   get databaseUrl() {
     return required('DATABASE_URL')
   },
+  get tavilyApiKey() {
+    return required('TAVILY_API_KEY')
+  },
 }
 
 export function assertConfig(): void {
   void config.internalSecret
   void config.databaseUrl
+  void config.tavilyApiKey
 }

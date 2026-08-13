@@ -270,6 +270,10 @@ if [[ ! -s "${APP_ROOT}/chat.env" ]]; then
   echo "required ${APP_ROOT}/chat.env is missing or empty" >&2
   exit 1
 fi
+if ! grep -q '^TAVILY_API_KEY=.' "${APP_ROOT}/chat.env"; then
+  echo "required TAVILY_API_KEY is missing from ${APP_ROOT}/chat.env" >&2
+  exit 1
+fi
 # Ensure infra compose is present even without --bootstrap
 if [[ ! -f "${APP_ROOT}/docker-compose.infra.yml" ]]; then
   cp -f "${APP_ROOT}/releases/${REF}/deploy/docker-compose.infra.yml" "${APP_ROOT}/docker-compose.infra.yml"

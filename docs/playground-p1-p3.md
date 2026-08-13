@@ -13,7 +13,6 @@ This document lists the current APIs, environment variables, and **models/provid
 | POST | `/pg/images/edits` | Image edits (same body as OpenAI image edits + playground `group`) |
 | POST | `/pg/audio/speech` | TTS |
 | POST | `/pg/video/generations` | Video task; `first_frame`, `last_frame`, `input_reference`, `images[]` |
-| POST | `/pg/internal/search` | Internal-service-only billed search capability used by `boxai-chat` |
 
 ### AI SDK chat service (`UserSessionAuth` through `/chat-api`)
 
