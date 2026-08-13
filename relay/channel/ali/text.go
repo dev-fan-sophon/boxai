@@ -18,11 +18,15 @@ func requestOpenAI2Ali(request dto.GeneralOpenAIRequest, upstreamModelName strin
 		request.ThinkingBudget = nil
 	}
 
-	topP := lo.FromPtrOr(request.TopP, 0)
-	if topP >= 1 {
-		request.TopP = lo.ToPtr(0.999)
-	} else if topP <= 0 {
-		request.TopP = lo.ToPtr(0.001)
+	// DashScope rejects the 0 and 1 boundaries. Clamp explicit values to two
+	// decimal places because some models reject a third decimal place, but keep
+	// an omitted top_p omitted so the model can use its own default.
+	if request.TopP != nil {
+		if *request.TopP >= 1 {
+			request.TopP = lo.ToPtr(0.99)
+		} else if *request.TopP <= 0 {
+			request.TopP = lo.ToPtr(0.01)
+		}
 	}
 	return &request
 }
