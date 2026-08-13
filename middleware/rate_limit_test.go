@@ -1,10 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/dev-fan-sophon/boxai/common"
@@ -13,6 +17,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func useRateLimitMiniRedis(t *testing.T) *miniredis.Miniredis {
+	t.Helper()
+	previousRedisEnabled := common.RedisEnabled
+	previousRDB := common.RDB
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	require.NoError(t, client.Ping(context.Background()).Err())
+	common.RedisEnabled = true
+	common.RDB = client
+	t.Cleanup(func() {
+		_ = client.Close()
+		common.RedisEnabled = previousRedisEnabled
+		common.RDB = previousRDB
+	})
+	return server
+}
 
 func TestMemoryRateLimiterReturnsRetryAfter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -38,6 +59,108 @@ func TestMemoryRateLimiterReturnsRetryAfter(t *testing.T) {
 	router.ServeHTTP(limited, request)
 	assert.Equal(t, http.StatusTooManyRequests, limited.Code)
 	assert.Equal(t, "37", limited.Header().Get("Retry-After"))
+}
+
+func TestRedisRateLimiterUsesAtomicVersionedCounter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := useRateLimitMiniRedis(t)
+	legacyKey := "rateLimit:TEST192.0.2.10"
+	_, err := server.Push(legacyKey, "legacy-list-entry")
+	require.NoError(t, err)
+
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	router.GET("/limited", rateLimitFactory("TEST", func() (bool, int, int64) {
+		return true, 2, 37
+	}), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	request := func() *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/limited", nil)
+		req.RemoteAddr = "192.0.2.10:12345"
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+	assert.Equal(t, http.StatusNoContent, request().Code)
+	assert.Equal(t, http.StatusNoContent, request().Code)
+	limited := request()
+	assert.Equal(t, http.StatusTooManyRequests, limited.Code)
+	assert.Equal(t, "37", limited.Header().Get("Retry-After"))
+
+	key := redisIPRateLimitKey("TEST", "192.0.2.10")
+	count, err := server.Get(key)
+	require.NoError(t, err)
+	assert.Equal(t, "3", count)
+	assert.Equal(t, 37*time.Second, server.TTL(key))
+	assert.True(t, server.Exists(legacyKey))
+}
+
+func TestRedisFixedWindowIsAtomicUnderConcurrency(t *testing.T) {
+	server := useRateLimitMiniRedis(t)
+	const (
+		requestCount = 20
+		maximumCount = 7
+		duration     = int64(41)
+	)
+	key := redisIPRateLimitKey("CONCURRENT", "192.0.2.40")
+
+	var allowedCount atomic.Int64
+	errorsFound := make(chan error, requestCount)
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(requestCount)
+	for range requestCount {
+		go func() {
+			defer waitGroup.Done()
+			allowed, _, _, err := redisFixedWindowTake(context.Background(), key, maximumCount, duration)
+			if err != nil {
+				errorsFound <- err
+				return
+			}
+			if allowed {
+				allowedCount.Add(1)
+			}
+		}()
+	}
+	waitGroup.Wait()
+	close(errorsFound)
+	for err := range errorsFound {
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, int64(maximumCount), allowedCount.Load())
+	count, err := server.Get(key)
+	require.NoError(t, err)
+	assert.Equal(t, "20", count)
+	assert.Equal(t, time.Duration(duration)*time.Second, server.TTL(key))
+}
+
+func TestRedisEmailVerificationRateLimiterUsesSharedCounter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := useRateLimitMiniRedis(t)
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	router.GET("/verify", EmailVerificationRateLimit(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	request := func() *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/verify", nil)
+		req.RemoteAddr = "192.0.2.30:12345"
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+	assert.Equal(t, http.StatusNoContent, request().Code)
+	assert.Equal(t, http.StatusNoContent, request().Code)
+	limited := request()
+	assert.Equal(t, http.StatusTooManyRequests, limited.Code)
+	assert.JSONEq(t, `{"success":false,"message":"发送过于频繁，请等待 30 秒后再试"}`, limited.Body.String())
+
+	key := redisIPRateLimitKey(EmailVerificationRateLimitMark, "192.0.2.30")
+	assert.True(t, server.Exists(key))
+	assert.Equal(t, time.Duration(EmailVerificationDuration)*time.Second, server.TTL(key))
 }
 
 func TestSkipGlobalWebRateLimit(t *testing.T) {

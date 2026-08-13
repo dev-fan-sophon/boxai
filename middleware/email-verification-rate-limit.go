@@ -1,10 +1,8 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 
@@ -18,38 +16,27 @@ const (
 )
 
 func redisEmailVerificationRateLimiter(c *gin.Context) {
-	ctx := context.Background()
-	rdb := common.RDB
-	key := "emailVerification:" + EmailVerificationRateLimitMark + ":" + common.RealClientIP(c)
-
-	count, err := rdb.Incr(ctx, key).Result()
+	allowed, _, ttlSeconds, err := redisFixedWindowTake(
+		c.Request.Context(),
+		redisIPRateLimitKey(EmailVerificationRateLimitMark, common.RealClientIP(c)),
+		EmailVerificationMaxRequests,
+		EmailVerificationDuration,
+	)
 	if err != nil {
-		// fallback
 		memoryEmailVerificationRateLimiter(c)
 		return
 	}
-
-	// 第一次设置键时设置过期时间
-	if count == 1 {
-		_ = rdb.Expire(ctx, key, time.Duration(EmailVerificationDuration)*time.Second).Err()
-	}
-
-	// 检查是否超出限制
-	if count <= int64(EmailVerificationMaxRequests) {
+	if allowed {
 		c.Next()
 		return
 	}
-
-	// 获取剩余等待时间
-	ttl, err := rdb.TTL(ctx, key).Result()
-	waitSeconds := int64(EmailVerificationDuration)
-	if err == nil && ttl > 0 {
-		waitSeconds = int64(ttl.Seconds())
+	if ttlSeconds <= 0 {
+		ttlSeconds = EmailVerificationDuration
 	}
 
 	c.JSON(http.StatusTooManyRequests, gin.H{
 		"success": false,
-		"message": fmt.Sprintf("发送过于频繁，请等待 %d 秒后再试", waitSeconds),
+		"message": fmt.Sprintf("发送过于频繁，请等待 %d 秒后再试", ttlSeconds),
 	})
 	c.Abort()
 }

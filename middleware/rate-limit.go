@@ -2,18 +2,40 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/gin-gonic/gin"
 )
 
-var timeFormat = "2006-01-02T15:04:05.000Z"
+const (
+	redisRateLimitNamespace = "rateLimit:v2"
+	timeFormat              = "2006-01-02T15:04:05.000Z"
+)
+
+// Redis rate limiting uses an atomic fixed window. The versioned namespace
+// avoids colliding with legacy keys that stored Redis lists instead of counters.
+const redisFixedWindowScript = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+local ttl = redis.call('TTL', KEYS[1])
+if ttl < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[2])
+  ttl = redis.call('TTL', KEYS[1])
+end
+if count > tonumber(ARGV[1]) then
+  return {0, count, ttl}
+end
+return {1, count, ttl}
+`
 
 var inMemoryRateLimiter common.InMemoryRateLimiter
 
@@ -21,49 +43,79 @@ var inMemoryRateLimiter common.InMemoryRateLimiter
 // request so administrators can retune limits without restarting the process.
 type rateLimitConfig func() (enabled bool, maxRequestNum int, duration int64)
 
-func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
-	ctx := context.Background()
-	rdb := common.RDB
-	key := "rateLimit:" + mark + common.RealClientIP(c)
-	listLength, err := rdb.LLen(ctx, key).Result()
+func redisIPRateLimitKey(mark string, clientIP string) string {
+	return fmt.Sprintf("%s:ip:%s:%s", redisRateLimitNamespace, mark, clientIP)
+}
+
+func redisUserRateLimitKey(mark string, userID int) string {
+	return fmt.Sprintf("%s:user:%s:%d", redisRateLimitNamespace, mark, userID)
+}
+
+func redisReplyInteger(value interface{}) (int64, error) {
+	switch typed := value.(type) {
+	case int64:
+		return typed, nil
+	case string:
+		return strconv.ParseInt(typed, 10, 64)
+	case []byte:
+		return strconv.ParseInt(string(typed), 10, 64)
+	default:
+		return 0, fmt.Errorf("unexpected Redis integer reply type %T", value)
+	}
+}
+
+func redisFixedWindowTake(ctx context.Context, key string, maxRequestNum int, duration int64) (bool, int64, int64, error) {
+	if common.RDB == nil {
+		return false, 0, 0, errors.New("Redis client is not initialized")
+	}
+	if key == "" {
+		return false, 0, 0, errors.New("rate limit key is empty")
+	}
+	if maxRequestNum <= 0 {
+		return false, 0, 0, errors.New("rate limit maximum must be positive")
+	}
+	if duration <= 0 {
+		return false, 0, 0, errors.New("rate limit duration must be positive")
+	}
+
+	values, err := common.RDB.Eval(ctx, redisFixedWindowScript, []string{key}, maxRequestNum, duration).Slice()
 	if err != nil {
-		fmt.Println(err.Error())
+		return false, 0, 0, err
+	}
+	if len(values) != 3 {
+		return false, 0, 0, fmt.Errorf("unexpected Redis rate limit reply length %d", len(values))
+	}
+
+	allowedValue, err := redisReplyInteger(values[0])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	count, err := redisReplyInteger(values[1])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	ttlSeconds, err := redisReplyInteger(values[2])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	return allowedValue == 1, count, ttlSeconds, nil
+}
+
+func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
+	allowed, _, ttlSeconds, err := redisFixedWindowTake(
+		c.Request.Context(),
+		redisIPRateLimitKey(mark, common.RealClientIP(c)),
+		maxRequestNum,
+		duration,
+	)
+	if err != nil {
+		logger.LogError(c.Request.Context(), fmt.Sprintf("rate limit check failed (mark=%s): %v", mark, err))
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
 	}
-	if listLength < int64(maxRequestNum) {
-		rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-		rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-	} else {
-		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
-		oldTime, err := time.Parse(timeFormat, oldTimeStr)
-		if err != nil {
-			fmt.Println(err)
-			c.Status(http.StatusInternalServerError)
-			c.Abort()
-			return
-		}
-		nowTimeStr := time.Now().Format(timeFormat)
-		nowTime, err := time.Parse(timeFormat, nowTimeStr)
-		if err != nil {
-			fmt.Println(err)
-			c.Status(http.StatusInternalServerError)
-			c.Abort()
-			return
-		}
-		// time.Since will return negative number!
-		// See: https://stackoverflow.com/questions/50970900/why-is-time-since-returning-negative-durations-on-windows
-		elapsed := int64(nowTime.Sub(oldTime).Seconds())
-		if elapsed < duration {
-			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-			writeRateLimited(c, duration-elapsed)
-			return
-		} else {
-			rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-			rdb.LTrim(ctx, key, 0, int64(maxRequestNum-1))
-			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-		}
+	if !allowed {
+		writeRateLimited(c, ttlSeconds)
 	}
 }
 
@@ -186,7 +238,7 @@ func userRateLimitFactory(mark string, config rateLimitConfig) func(c *gin.Conte
 			return
 		}
 		if common.RedisEnabled {
-			userRedisRateLimiter(c, maxRequestNum, duration, fmt.Sprintf("rateLimit:%s:user:%d", mark, userId))
+			userRedisRateLimiter(c, maxRequestNum, duration, redisUserRateLimitKey(mark, userId))
 			return
 		}
 		key := fmt.Sprintf("%s:user:%d", mark, userId)
@@ -200,45 +252,15 @@ func userRateLimitFactory(mark string, config rateLimitConfig) func(c *gin.Conte
 // userRedisRateLimiter is like redisRateLimiter but accepts a pre-built key
 // (to support user-ID-based keys).
 func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key string) {
-	ctx := context.Background()
-	rdb := common.RDB
-	listLength, err := rdb.LLen(ctx, key).Result()
+	allowed, _, ttlSeconds, err := redisFixedWindowTake(c.Request.Context(), key, maxRequestNum, duration)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.LogError(c.Request.Context(), fmt.Sprintf("rate limit check failed (key=%s): %v", key, err))
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
 	}
-	if listLength < int64(maxRequestNum) {
-		rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-		rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-	} else {
-		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
-		oldTime, err := time.Parse(timeFormat, oldTimeStr)
-		if err != nil {
-			fmt.Println(err)
-			c.Status(http.StatusInternalServerError)
-			c.Abort()
-			return
-		}
-		nowTimeStr := time.Now().Format(timeFormat)
-		nowTime, err := time.Parse(timeFormat, nowTimeStr)
-		if err != nil {
-			fmt.Println(err)
-			c.Status(http.StatusInternalServerError)
-			c.Abort()
-			return
-		}
-		elapsed := int64(nowTime.Sub(oldTime).Seconds())
-		if elapsed < duration {
-			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-			writeRateLimited(c, duration-elapsed)
-			return
-		} else {
-			rdb.LPush(ctx, key, time.Now().Format(timeFormat))
-			rdb.LTrim(ctx, key, 0, int64(maxRequestNum-1))
-			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-		}
+	if !allowed {
+		writeRateLimited(c, ttlSeconds)
 	}
 }
 
