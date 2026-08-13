@@ -3,6 +3,7 @@ package service
 import (
 	"strings"
 
+	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/setting"
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
@@ -51,6 +52,22 @@ func GetUserAutoGroup(userGroup string) []string {
 		}
 	}
 	return autoGroups
+}
+
+// GetGroupsEnabledModels returns enabled models in group order without duplicates.
+func GetGroupsEnabledModels(groups []string) []string {
+	seen := make(map[string]struct{})
+	models := make([]string, 0)
+	for _, group := range groups {
+		for _, modelName := range model.GetGroupEnabledModels(group) {
+			if _, ok := seen[modelName]; ok {
+				continue
+			}
+			seen[modelName] = struct{}{}
+			models = append(models, modelName)
+		}
+	}
+	return models
 }
 
 // GetUserGroupRatio 获取用户使用某个分组的倍率

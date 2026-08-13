@@ -12,8 +12,10 @@ import (
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting"
 	"github.com/dev-fan-sophon/boxai/setting/config"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
+	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -213,6 +215,56 @@ func TestGetUserModelsFiltersByRequestedGroup(t *testing.T) {
 	GetUserModels(vipContext)
 
 	require.Empty(t, decodeUserModelsResponse(t, vipRecorder))
+}
+
+func TestGetUserModelsExpandsAutoGroupsInConfiguredOrder(t *testing.T) {
+	originalAutoGroups := setting.AutoGroups2JsonString()
+	originalUsableGroups := setting.UserUsableGroups2JSONString()
+	originalSpecialGroups := ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup.ReadAll()
+	t.Cleanup(func() {
+		require.NoError(t, setting.UpdateAutoGroupsByJsonString(originalAutoGroups))
+		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(originalUsableGroups))
+		specialGroups := ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup
+		specialGroups.Clear()
+		specialGroups.AddAll(originalSpecialGroups)
+	})
+
+	require.NoError(t, setting.UpdateAutoGroupsByJsonString(`["vip","default","unavailable"]`))
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"auto":"Automatic","default":"Default","unavailable":"Unavailable"}`))
+	specialGroups := ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup
+	specialGroups.Clear()
+	specialGroups.Set("default", map[string]string{
+		"+:vip":         "VIP",
+		"-:unavailable": "",
+	})
+
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&model.User{
+		Id:       1003,
+		Username: "playground-auto-model-user",
+		Password: "password",
+		Group:    "default",
+		Status:   common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "vip", Model: "zz-vip-model", ChannelId: 1, Enabled: true},
+		{Group: "vip", Model: "zz-shared-model", ChannelId: 1, Enabled: true},
+		{Group: "default", Model: "zz-default-model", ChannelId: 1, Enabled: true},
+		{Group: "default", Model: "zz-shared-model", ChannelId: 2, Enabled: true},
+		{Group: "unavailable", Model: "zz-unavailable-model", ChannelId: 1, Enabled: true},
+	}).Error)
+
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodGet, "/api/user/models?group=auto", nil)
+	context.Set("id", 1003)
+
+	GetUserModels(context)
+
+	models := decodeUserModelsResponse(t, recorder)
+	require.Len(t, models, 3)
+	assert.ElementsMatch(t, []string{"zz-vip-model", "zz-shared-model"}, models[:2])
+	assert.Equal(t, "zz-default-model", models[2])
 }
 
 func TestListModelsIncludesTieredBillingModel(t *testing.T) {
