@@ -84,9 +84,12 @@ var builtinTextConverters = []TextConverterSpec{
 			Convert: convertGeminiRequestToOpenAI,
 		},
 		Resp: TextResponseSide{
-			Convert:       convertGeminiChatResponseToOAIChat,
-			ConvertStream: convertGeminiChatStreamResponseToOAIChat,
-			Aliases:       []string{ResponseConverterGeminiChatToOAIChat},
+			Convert:            convertGeminiChatResponseToOAIChat,
+			ConvertStream:      convertGeminiChatStreamResponseToOAIChat,
+			NewStreamState:     newGeminiChatToOAIChatStreamState,
+			ConvertStreamChunk: convertGeminiChatStreamResponseChunkToOAIChat,
+			FinalizeStream:     finalizeGeminiChatStreamResponseToOAIChat,
+			Aliases:            []string{ResponseConverterGeminiChatToOAIChat},
 		},
 	},
 	{

@@ -15,6 +15,7 @@ type ChatToResponsesStreamEvent = oaichat.ChatToResponsesStreamEvent
 type ChatToResponsesStreamState = oaichat.ChatToResponsesStreamState
 type ResponsesToChatStreamState = oairesponses.ResponsesToChatStreamState
 type ResponsesBufferedAccumulator = oairesponses.ResponsesBufferedAccumulator
+type GeminiToChatStreamState = geminichat.GeminiToChatStreamState
 
 func NormalizeCacheCreationSplit(totalTokens int, tokens5m int, tokens1h int) (int, int) {
 	return oaichat.NormalizeCacheCreationSplit(totalTokens, tokens5m, tokens1h)
@@ -78,6 +79,10 @@ func ResponseGeminiChat2OpenAI(id string, created int64, response *dto.GeminiCha
 
 func StreamResponseGeminiChat2OpenAI(geminiResponse *dto.GeminiChatResponse) (*dto.ChatCompletionsStreamResponse, bool) {
 	return geminichat.StreamResponseGeminiChat2OpenAI(geminiResponse)
+}
+
+func NewGeminiToChatStreamState(id string, model string, created int64) *GeminiToChatStreamState {
+	return geminichat.NewGeminiToChatStreamState(id, model, created)
 }
 
 func ChatCompletionsResponseToResponsesResponse(resp *dto.OpenAITextResponse, id string) (*dto.OpenAIResponsesResponse, *dto.Usage, error) {

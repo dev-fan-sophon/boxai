@@ -474,9 +474,6 @@ func executeStatelessStreamResponseSpec(c *gin.Context, info *relaycommon.RelayI
 	var usage *dto.Usage
 	resultSteps := make([]ResponseStep, 0, len(steps))
 	for _, step := range steps {
-		if step.ConvertStreamChunk != nil || step.NewStreamState != nil || step.FinalizeStream != nil {
-			return nil, fmt.Errorf("response converter %q requires response stream state", step.ID)
-		}
 		if step.ConvertStream == nil {
 			return nil, fmt.Errorf("response converter %q has no stream implementation", step.ID)
 		}
@@ -953,6 +950,37 @@ func convertGeminiChatResponseToOAIChat(_ *gin.Context, info *relaycommon.RelayI
 		openAIResponse.Usage = *usage
 	}
 	return openAIResponse, usage, nil
+}
+
+func newGeminiChatToOAIChatStreamState(options ResponseStreamOptions) any {
+	return NewGeminiToChatStreamState(options.ID, options.Model, options.Created)
+}
+
+func convertGeminiChatStreamResponseChunkToOAIChat(_ *gin.Context, info *relaycommon.RelayInfo, response any, state any) ([]any, *dto.Usage, error) {
+	geminiResponse, err := asGeminiChatResponse(response)
+	if err != nil {
+		return nil, nil, err
+	}
+	streamState, ok := state.(*GeminiToChatStreamState)
+	if !ok || streamState == nil {
+		return nil, nil, errors.New("Gemini chat to OAI chat stream state is required")
+	}
+	usage := UsageFromGeminiMetadata(geminiResponse.GetUsageMetadata(), fallbackPromptTokens(info))
+	model := ""
+	if info != nil && info.ChannelMeta != nil {
+		model = info.UpstreamModelName
+	}
+	responses := streamState.ConvertChunk(geminiResponse, model, usage)
+	return streamValuesFromAny(responses), usage, nil
+}
+
+func finalizeGeminiChatStreamResponseToOAIChat(_ *gin.Context, _ *relaycommon.RelayInfo, state any) ([]any, *dto.Usage, error) {
+	streamState, ok := state.(*GeminiToChatStreamState)
+	if !ok || streamState == nil {
+		return nil, nil, errors.New("Gemini chat to OAI chat stream state is required")
+	}
+	responses := streamState.Finalize()
+	return streamValuesFromAny(responses), streamState.Usage(), nil
 }
 
 func convertGeminiChatStreamResponseToOAIChat(_ *gin.Context, info *relaycommon.RelayInfo, response any) (any, *dto.Usage, error) {
