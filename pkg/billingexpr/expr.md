@@ -108,15 +108,39 @@ tier("base", p * 2 + c * 8 + img * 2.5)
 tier("base", p * 0.43 + c * 3.06 + img * 0.78 + ai * 3.81 + ao * 15.11)
 ```
 
-### Request Rules (appended after `|||`)
+### Request Rules
 
-Request-conditional multipliers are appended to the expression after a `|||` separator:
+The pricing editor stores request-conditional multipliers as ordinary factors in the final expression:
 
 ```
-tier("base", p * 5 + c * 25)|||when(header("anthropic-beta") has "fast-mode") * 6
+(tier("base", p * 5 + c * 25)) * (has(header("anthropic-beta"), "fast-mode") ? 6 : 1)
 ```
 
-These are parsed and applied separately by the request rule system.
+These factors are stored as ordinary multiplication in the final expression (for example, `(tier(...)) * (condition ? 6 : 1)`) and run in the same billing program.
+
+### Request Rule Tracing
+
+At compile time, the engine instruments ternary factors with this exact shape:
+
+```
+<request-probe condition> ? <numeric literal> : 1
+```
+
+The condition must reference at least one request probe (`param`, `header`, `hour`, `minute`, `weekday`, `month`, or `day`). Both branches must be numeric literals and the fallback must equal `1`. Other conditionals, including `(condition ? 2 : 1.5)`, are evaluated normally but are not traced. Integer-only factors use an integer-preserving trace callback, so instrumentation does not change expressions that require an integer operand (for example, `%`). The internal trace callback names are reserved and cannot be used in stored expressions.
+
+The compiled cache stores the canonical condition and multiplier for every instrumented node. Each run starts with the full detected rule list marked as unmatched; callbacks mark rules that actually evaluate true. Rules skipped by normal expression short-circuiting remain unmatched. This keeps the expression's numeric result unchanged and avoids reparsing it on each request.
+
+Settlement copies the actual run's traces into the consume log as:
+
+```json
+{
+  "request_rules": [
+    { "cond": "param(\"service_tier\") == \"fast\"", "multiplier": 2, "matched": true }
+  ]
+}
+```
+
+The usage-log UI can treat `request_rules` as the authoritative rule list and render directly from it. Pricing pages without log context continue to parse the stored expression for display.
 
 ---
 
@@ -182,7 +206,7 @@ After the upstream response returns with actual token usage:
 
 **Files**: `service/log_info_generate.go`, `web/src/helpers/render.jsx`
 
-Backend: `InjectTieredBillingInfo()` adds `billing_mode`, `expr_b64` (base64 expression), and `matched_tier` to the log's `other` JSON.
+Backend: `InjectTieredBillingInfo()` adds `billing_mode`, `expr_b64` (base64 expression), `matched_tier`, and the structured `request_rules` trace list to the log's `other` JSON.
 
 Frontend: Detects `billing_mode === "tiered_expr"`, decodes `expr_b64`, parses tiers via shared `parseTiersFromExpr()`, and renders pricing breakdown.
 

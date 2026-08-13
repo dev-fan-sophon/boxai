@@ -336,11 +336,16 @@ func TestBuildTestLogOtherInjectsTieredInfo(t *testing.T) {
 
 	info := &relaycommon.RelayInfo{
 		TieredBillingSnapshot: &billingexpr.BillingSnapshot{
-			BillingMode: "tiered_expr",
-			ExprString:  `tier("base", p * 2)`,
+			BillingMode:   "tiered_expr",
+			ExprString:    `(tier("base", p * 2)) * (param("service_tier") == "fast" ? 2 : 1) * (has(header("x-priority"), "enabled") ? 3 : 1)`,
+			GroupRatio:    1,
+			EstimatedTier: "base",
+			QuotaPerUnit:  1_000_000,
 		},
-		ChannelMeta: &relaycommon.ChannelMeta{},
+		BillingRequestInput: &billingexpr.RequestInput{Body: []byte(`{"service_tier":"fast"}`)},
+		ChannelMeta:         &relaycommon.ChannelMeta{},
 	}
+	info.TieredBillingSnapshot.ExprHash = billingexpr.ExprHashString(info.TieredBillingSnapshot.ExprString)
 	priceData := types.PriceData{
 		GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 1},
 	}
@@ -350,12 +355,20 @@ func TestBuildTestLogOtherInjectsTieredInfo(t *testing.T) {
 		},
 	}
 
-	other := buildTestLogOther(ctx, info, priceData, usage, &billingexpr.TieredResult{
-		MatchedTier: "base",
-	})
+	result, err := billingexpr.ComputeTieredQuotaWithRequest(
+		info.TieredBillingSnapshot,
+		billingexpr.TokenParams{P: 10},
+		*info.BillingRequestInput,
+	)
+	require.NoError(t, err)
+	other := buildTestLogOther(ctx, info, priceData, usage, &result)
 
 	require.Equal(t, "tiered_expr", other["billing_mode"])
 	require.Equal(t, "base", other["matched_tier"])
+	require.Equal(t, []billingexpr.RequestRuleTrace{
+		{Cond: `param("service_tier") == "fast"`, Multiplier: 2, Matched: true},
+		{Cond: `has(header("x-priority"), "enabled")`, Multiplier: 3, Matched: false},
+	}, other["request_rules"])
 	require.NotEmpty(t, other["expr_b64"])
 }
 
