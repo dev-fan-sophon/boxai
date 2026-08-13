@@ -614,9 +614,26 @@ func connectorAuth(allowLegacySource bool) func(c *gin.Context) {
 			c.Set("token_model_limit", token.GetModelLimitsMap())
 		}
 		common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
+		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+		setupTokenAutoGroupsContext(c, &token)
 		common.SetContextKey(c, constant.ContextKeyUserGroup, user.Group)
 		common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
 		c.Next()
+	}
+}
+
+func setupTokenAutoGroupsContext(c *gin.Context, token *model.Token) {
+	if token.AutoGroups == "" {
+		return
+	}
+	autoGroups, err := token.GetAutoGroups()
+	if err != nil {
+		common.SysError(fmt.Sprintf("failed to parse auto groups for token %d: %v", token.Id, err))
+		common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, []string{})
+		return
+	}
+	if len(autoGroups) > 0 {
+		common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, autoGroups)
 	}
 }
 
@@ -640,6 +657,7 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	}
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+	setupTokenAutoGroupsContext(c, token)
 	if len(parts) > 1 {
 		if model.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])

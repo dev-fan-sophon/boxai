@@ -61,8 +61,8 @@ if redis.call('EXISTS', KEYS[1]) == 1 then
 		  'CreatedTime', ARGV[5], 'AccessedTime', ARGV[6], 'ExpiredTime', ARGV[7],
 		  'UnlimitedQuota', ARGV[8], 'ModelLimitsEnabled', ARGV[9], 'ModelLimits', ARGV[10],
 		  'AllowIps', ARGV[11], 'Group', ARGV[12], 'CrossGroupRetry', ARGV[13],
-		  'RemainQuota', ARGV[14], 'UsedQuota', ARGV[15])
-		redis.call('EXPIRE', KEYS[1], ARGV[16])
+		  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16])
+		redis.call('EXPIRE', KEYS[1], ARGV[17])
 		return 2
 	end
 end
@@ -71,8 +71,8 @@ redis.call('HSET', KEYS[1],
   'CreatedTime', ARGV[5], 'AccessedTime', ARGV[6], 'ExpiredTime', ARGV[7],
   'UnlimitedQuota', ARGV[8], 'ModelLimitsEnabled', ARGV[9], 'ModelLimits', ARGV[10],
   'AllowIps', ARGV[11], 'Group', ARGV[12], 'CrossGroupRetry', ARGV[13],
-  'RemainQuota', ARGV[14], 'UsedQuota', ARGV[15])
-redis.call('EXPIRE', KEYS[1], ARGV[16])
+  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16])
+redis.call('EXPIRE', KEYS[1], ARGV[17])
 return 1`
 	return common.RDB.Eval(context.Background(), script, []string{
 		getTokenCacheKey(token.Key), getTokenCacheFenceKey(token.Key),
@@ -81,7 +81,7 @@ return 1`
 		token.CreatedTime, token.AccessedTime, token.ExpiredTime,
 		strconv.FormatBool(token.UnlimitedQuota), strconv.FormatBool(token.ModelLimitsEnabled),
 		token.ModelLimits, allowIps, token.Group, strconv.FormatBool(token.CrossGroupRetry),
-		token.RemainQuota, token.UsedQuota,
+		token.AutoGroups, token.RemainQuota, token.UsedQuota,
 		tokenCacheTTLSeconds(),
 	).Int()
 }
