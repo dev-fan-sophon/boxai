@@ -4,16 +4,20 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
+	"strings"
 
-	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/andybalholm/brotli"
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/gin-gonic/gin"
+	"github.com/klauspost/compress/zstd"
 )
 
 type readCloser struct {
 	io.Reader
 	closeFn func() error
 }
+
+const minZstdDecoderMemory = 8 << 20
 
 func (rc *readCloser) Close() error {
 	if rc.closeFn != nil {
@@ -38,8 +42,9 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 		wrapMaxBytes := func(body io.ReadCloser) io.ReadCloser {
 			return http.MaxBytesReader(c.Writer, body, maxBytes)
 		}
+		decompressed := false
 
-		switch c.GetHeader("Content-Encoding") {
+		switch strings.ToLower(strings.TrimSpace(c.GetHeader("Content-Encoding"))) {
 		case "gzip":
 			gzipReader, err := gzip.NewReader(origBody)
 			if err != nil {
@@ -55,7 +60,7 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 					return origBody.Close()
 				},
 			})
-			c.Request.Header.Del("Content-Encoding")
+			decompressed = true
 		case "br":
 			reader := brotli.NewReader(origBody)
 			c.Request.Body = wrapMaxBytes(&readCloser{
@@ -64,10 +69,41 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 					return origBody.Close()
 				},
 			})
-			c.Request.Header.Del("Content-Encoding")
+			decompressed = true
+		case "zstd":
+			decoderMaxMemory := uint64(maxBytes)
+			if decoderMaxMemory < minZstdDecoderMemory {
+				// The standard zstd encoder commonly emits an 8 MiB window even
+				// for small payloads. Keep that compatible minimum while still
+				// bounding hostile frame windows.
+				decoderMaxMemory = minZstdDecoderMemory
+			}
+			reader, err := zstd.NewReader(
+				origBody,
+				zstd.WithDecoderConcurrency(1),
+				zstd.WithDecoderLowmem(true),
+				zstd.WithDecoderMaxMemory(decoderMaxMemory),
+			)
+			if err != nil {
+				_ = origBody.Close()
+				c.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+			c.Request.Body = wrapMaxBytes(&readCloser{
+				Reader: reader,
+				closeFn: func() error {
+					reader.Close()
+					return origBody.Close()
+				},
+			})
+			decompressed = true
 		default:
 			// Even for uncompressed bodies, enforce a max size to avoid huge request allocations.
 			c.Request.Body = wrapMaxBytes(origBody)
+		}
+
+		if decompressed {
+			c.Request.Header.Del("Content-Encoding")
 		}
 
 		// Continue processing the request
