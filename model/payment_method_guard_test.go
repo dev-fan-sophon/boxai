@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -194,6 +195,107 @@ func useEpayQuotaUnit(t *testing.T, quotaPerUnit float64) {
 	previous := common.QuotaPerUnit
 	common.QuotaPerUnit = quotaPerUnit
 	t.Cleanup(func() { common.QuotaPerUnit = previous })
+}
+
+func topUpRechargeCases() []struct {
+	name          string
+	provider      string
+	expectedQuota int
+	recharge      func(string) error
+} {
+	return []struct {
+		name          string
+		provider      string
+		expectedQuota int
+		recharge      func(string) error
+	}{
+		{name: "Stripe", provider: PaymentProviderStripe, expectedQuota: 100, recharge: func(tradeNo string) error {
+			return Recharge(tradeNo, "cus_test", "127.0.0.1")
+		}},
+		{name: "Creem", provider: PaymentProviderCreem, expectedQuota: 2, recharge: func(tradeNo string) error {
+			return RechargeCreem(tradeNo, "buyer@example.com", "Buyer", "127.0.0.1")
+		}},
+		{name: "Waffo", provider: PaymentProviderWaffo, expectedQuota: 20, recharge: func(tradeNo string) error {
+			return RechargeWaffo(tradeNo, "127.0.0.1")
+		}},
+		{name: "Waffo Pancake", provider: PaymentProviderWaffoPancake, expectedQuota: 20, recharge: RechargeWaffoPancake},
+	}
+}
+
+func TestTopUpRechargeCallbacksCreditExactlyOnce(t *testing.T) {
+	for i, test := range topUpRechargeCases() {
+		t.Run(test.name, func(t *testing.T) {
+			truncateTables(t)
+			useEpayQuotaUnit(t, 10)
+			userID := 600 + i
+			tradeNo := "recharge-once-" + test.provider
+			insertUserForPaymentGuardTest(t, userID, 0)
+			insertTopUpForPaymentGuardTest(t, tradeNo, userID, test.provider)
+
+			require.NoError(t, test.recharge(tradeNo))
+			assert.Equal(t, test.expectedQuota, getUserQuotaForPaymentGuardTest(t, userID))
+			assert.Equal(t, common.TopUpStatusSuccess, getTopUpStatusForPaymentGuardTest(t, tradeNo))
+
+			require.NoError(t, test.recharge(tradeNo))
+			assert.Equal(t, test.expectedQuota, getUserQuotaForPaymentGuardTest(t, userID))
+		})
+	}
+}
+
+func TestTopUpRechargeCallbacksRollBackWithoutUser(t *testing.T) {
+	for _, test := range topUpRechargeCases() {
+		t.Run(test.name, func(t *testing.T) {
+			truncateTables(t)
+			useEpayQuotaUnit(t, 10)
+			tradeNo := "recharge-missing-user-" + test.provider
+			insertTopUpForPaymentGuardTest(t, tradeNo, 9999, test.provider)
+
+			require.Error(t, test.recharge(tradeNo))
+			topUp := GetTopUpByTradeNo(tradeNo)
+			require.NotNil(t, topUp)
+			assert.Equal(t, common.TopUpStatusPending, topUp.Status)
+			assert.Zero(t, topUp.CompleteTime)
+		})
+	}
+}
+
+func TestTopUpRechargeCallbacksRejectQuotaOverflow(t *testing.T) {
+	for i, test := range topUpRechargeCases() {
+		t.Run(test.name, func(t *testing.T) {
+			truncateTables(t)
+			useEpayQuotaUnit(t, 10)
+			userID := 620 + i
+			tradeNo := "recharge-overflow-" + test.provider
+			insertUserForPaymentGuardTest(t, userID, common.MaxQuota-1)
+			insertTopUpForPaymentGuardTest(t, tradeNo, userID, test.provider)
+
+			require.Error(t, test.recharge(tradeNo))
+			assert.Equal(t, common.MaxQuota-1, getUserQuotaForPaymentGuardTest(t, userID))
+			assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, tradeNo))
+		})
+	}
+}
+
+func TestTopUpRechargeCallbacksRejectUnrepresentableCredit(t *testing.T) {
+	for _, test := range topUpRechargeCases() {
+		t.Run(test.name, func(t *testing.T) {
+			truncateTables(t)
+			useEpayQuotaUnit(t, 2)
+			const userID = 640
+			tradeNo := "recharge-conversion-overflow-" + test.provider
+			insertUserForPaymentGuardTest(t, userID, 0)
+			insertTopUpForPaymentGuardTest(t, tradeNo, userID, test.provider)
+			updates := map[string]interface{}{"amount": int64(math.MaxInt64)}
+			if test.provider == PaymentProviderStripe {
+				updates["money"] = math.MaxFloat64
+			}
+			require.NoError(t, DB.Model(&TopUp{}).Where("trade_no = ?", tradeNo).Updates(updates).Error)
+
+			require.Error(t, test.recharge(tradeNo))
+			assert.Zero(t, getUserQuotaForPaymentGuardTest(t, userID))
+			assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, tradeNo))
+		})
+	}
 }
 
 func TestRechargeEpayCreditsQuotaExactlyOnce(t *testing.T) {
