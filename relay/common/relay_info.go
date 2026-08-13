@@ -241,6 +241,12 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	}
 
 	info.ChannelMeta = channelMeta
+	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelMeta.ChannelSetting.PassThroughBodyEnabled {
+		info.SetReasoningEffort("")
+	} else {
+		effort, _ := reasoningEffortFromRequest(info.Request)
+		info.SetReasoningEffort(effort)
+	}
 
 	// reset some fields based on channel meta
 	// 重置某些字段，例如模型名称等
@@ -442,6 +448,58 @@ func GenRelayInfoOpenAI(c *gin.Context, request dto.Request) *RelayInfo {
 	return info
 }
 
+func reasoningEffortFromRequest(request any) (string, bool) {
+	switch req := request.(type) {
+	case *dto.GeneralOpenAIRequest:
+		if req == nil {
+			return "", false
+		}
+		if req.ReasoningEffort != "" {
+			return strings.TrimSpace(req.ReasoningEffort), true
+		}
+		if len(req.Reasoning) == 0 {
+			return "", false
+		}
+		value := gjson.GetBytes(req.Reasoning, "effort")
+		if !value.Exists() {
+			return "", false
+		}
+		if value.Type != gjson.String {
+			return "", true
+		}
+		return strings.TrimSpace(value.String()), true
+	case dto.GeneralOpenAIRequest:
+		return reasoningEffortFromRequest(&req)
+	case *dto.OpenAIResponsesRequest:
+		if req == nil || req.Reasoning == nil || req.Reasoning.Effort == "" {
+			return "", false
+		}
+		return strings.TrimSpace(req.Reasoning.Effort), true
+	case dto.OpenAIResponsesRequest:
+		return reasoningEffortFromRequest(&req)
+	case *dto.ClaudeRequest:
+		if req == nil {
+			return "", false
+		}
+		effort := req.GetEfforts()
+		if effort == "" {
+			return "", false
+		}
+		return strings.TrimSpace(effort), true
+	case dto.ClaudeRequest:
+		return reasoningEffortFromRequest(&req)
+	case *dto.GeminiChatRequest:
+		if req == nil || req.GenerationConfig.ThinkingConfig == nil || req.GenerationConfig.ThinkingConfig.ThinkingLevel == "" {
+			return "", false
+		}
+		return strings.TrimSpace(req.GenerationConfig.ThinkingConfig.ThinkingLevel), true
+	case dto.GeminiChatRequest:
+		return reasoningEffortFromRequest(&req)
+	default:
+		return "", false
+	}
+}
+
 func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 
 	//channelType := common.GetContextKeyInt(c, constant.ContextKeyChannelType)
@@ -472,8 +530,10 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 	if reqId == "" {
 		reqId = common.NewRequestId()
 	}
+	reasoningEffort, _ := reasoningEffortFromRequest(request)
 	info := &RelayInfo{
-		Request: request,
+		Request:         request,
+		ReasoningEffort: reasoningEffort,
 
 		RequestId:  reqId,
 		UserId:     common.GetContextKeyInt(c, constant.ContextKeyUserId),
@@ -649,6 +709,13 @@ func (info *RelayInfo) GetFinalRequestRelayFormat() types.RelayFormat {
 		return info.RequestConversionChain[n-1]
 	}
 	return info.RelayFormat
+}
+
+func (info *RelayInfo) SetReasoningEffort(effort string) {
+	if info == nil {
+		return
+	}
+	info.ReasoningEffort = strings.TrimSpace(effort)
 }
 
 func GenRelayInfoResponsesCompaction(c *gin.Context, request *dto.OpenAIResponsesCompactionRequest) *RelayInfo {

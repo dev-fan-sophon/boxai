@@ -32,6 +32,9 @@ func AppendRequestConversionFromRequest(info *RelayInfo, req any) {
 	if info == nil {
 		return
 	}
+	if effort, ok := reasoningEffortFromRequest(req); ok {
+		info.SetReasoningEffort(effort)
+	}
 	format, ok := GuessRelayFormatFromRequest(req)
 	if !ok {
 		return

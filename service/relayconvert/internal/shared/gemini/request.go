@@ -144,7 +144,7 @@ func ApplyThinkingConfig(geminiRequest *dto.GeminiChatRequest, info *relaycommon
 			IncludeThoughts: true,
 			ThinkingLevel:   level,
 		}
-		info.ReasoningEffort = level
+		info.SetReasoningEffort(level)
 	}
 }
 
