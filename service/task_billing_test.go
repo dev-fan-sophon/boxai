@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -350,6 +351,13 @@ func getSubscriptionUsed(t *testing.T, id int) int64 {
 	return sub.AmountUsed
 }
 
+func getSubscriptionOverage(t *testing.T, id int) int64 {
+	t.Helper()
+	var sub model.UserSubscription
+	require.NoError(t, model.DB.Select("overage_used").Where("id = ?", id).First(&sub).Error)
+	return sub.OverageUsed
+}
+
 func getTaskQuota(t *testing.T, id int64) int {
 	t.Helper()
 	var task model.Task
@@ -534,6 +542,123 @@ func TestRefundTaskQuota_IdempotentDoesNotRefundTwice(t *testing.T) {
 	assert.Equal(t, 5000+quota, getUserQuota(t, userID))
 	assert.Equal(t, int64(1), countLogs(t))
 	assert.Zero(t, task.Quota)
+}
+
+func TestReconcileTaskRefundsConcurrentAttemptsRefundOnce(t *testing.T) {
+	truncate(t)
+
+	const userID, initialQuota, taskQuota = 8, 5000, 1300
+	seedUser(t, userID, initialQuota)
+	operationKey := "async:concurrent-refund-recovery:initial"
+	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: operationKey,
+		Kind:           model.BillingOperationInitial,
+		UserID:         userID,
+		BillingSource:  BillingSourceWallet,
+		Delta:          taskQuota,
+		ChargedQuota:   taskQuota,
+		ReferenceKey:   operationKey,
+	})
+	require.NoError(t, err)
+	require.True(t, applied)
+
+	task := makeTask(userID, 0, taskQuota, 0, BillingSourceWallet, 0)
+	task.TaskID = "concurrent_refund_recovery"
+	task.Status = model.TaskStatusFailure
+	task.Progress = "100%"
+	task.FailReason = "upstream failed"
+	task.PrivateData.BillingOperationKey = "concurrent-refund-recovery"
+	require.NoError(t, model.DB.Create(task).Error)
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			ReconcileTaskRefunds(context.Background())
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	assert.Equal(t, initialQuota, getUserQuota(t, userID))
+	assert.Zero(t, getTaskQuota(t, task.ID))
+	assert.Equal(t, int64(1), countLogs(t))
+	var refundCount int64
+	require.NoError(t, model.DB.Model(&model.BillingOperation{}).
+		Where("idempotency_key = ? AND state = ?", operationKey+":refund", "committed").
+		Count(&refundCount).Error)
+	assert.Equal(t, int64(1), refundCount)
+}
+
+func TestRefundTaskQuotaReversesSubscriptionWalletOverage(t *testing.T) {
+	truncate(t)
+
+	const userID, subscriptionID, initialQuota, taskQuota = 9, 9, 5000, 1200
+	seedUser(t, userID, initialQuota)
+	seedSubscription(t, subscriptionID, userID, 1000, 1000)
+	operationKey := "async:wallet-overage-refund:initial"
+	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey:         operationKey,
+		Kind:                   model.BillingOperationInitial,
+		UserID:                 userID,
+		OverageSubscriptionID:  subscriptionID,
+		OverageUsageGeneration: 1,
+		BillingSource:          BillingSourceWallet,
+		Delta:                  taskQuota,
+		ChargedQuota:           taskQuota,
+		ReferenceKey:           operationKey,
+	})
+	require.NoError(t, err)
+	require.True(t, applied)
+	assert.Equal(t, initialQuota-taskQuota, getUserQuota(t, userID))
+	assert.EqualValues(t, taskQuota, getSubscriptionOverage(t, subscriptionID))
+
+	task := makeTask(userID, 0, taskQuota, 0, BillingSourceWallet, 0)
+	task.Status = model.TaskStatusFailure
+	task.PrivateData.BillingOperationKey = "wallet-overage-refund"
+	require.NoError(t, model.DB.Create(task).Error)
+
+	require.True(t, RefundTaskQuota(context.Background(), task, "provider failed"))
+	assert.Equal(t, initialQuota, getUserQuota(t, userID))
+	assert.Zero(t, getSubscriptionOverage(t, subscriptionID))
+	assert.Zero(t, getTaskQuota(t, task.ID))
+}
+
+func TestRefundTaskQuotaDoesNotMutateNewerOverageGeneration(t *testing.T) {
+	truncate(t)
+
+	const userID, subscriptionID, initialQuota, taskQuota = 10, 10, 5000, 1200
+	seedUser(t, userID, initialQuota)
+	seedSubscription(t, subscriptionID, userID, 1000, 1000)
+	operationKey := "async:stale-wallet-overage-refund:initial"
+	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey:         operationKey,
+		Kind:                   model.BillingOperationInitial,
+		UserID:                 userID,
+		OverageSubscriptionID:  subscriptionID,
+		OverageUsageGeneration: 1,
+		BillingSource:          BillingSourceWallet,
+		Delta:                  taskQuota,
+		ChargedQuota:           taskQuota,
+		ReferenceKey:           operationKey,
+	})
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.NoError(t, model.DB.Model(&model.UserSubscription{}).Where("id = ?", subscriptionID).
+		Updates(map[string]any{"overage_used": 400, "usage_generation": 2}).Error)
+
+	task := makeTask(userID, 0, taskQuota, 0, BillingSourceWallet, 0)
+	task.Status = model.TaskStatusFailure
+	task.PrivateData.BillingOperationKey = "stale-wallet-overage-refund"
+	require.NoError(t, model.DB.Create(task).Error)
+
+	require.True(t, RefundTaskQuota(context.Background(), task, "provider failed after period reset"))
+	assert.Equal(t, initialQuota, getUserQuota(t, userID))
+	assert.EqualValues(t, 400, getSubscriptionOverage(t, subscriptionID))
+	assert.Zero(t, getTaskQuota(t, task.ID))
 }
 
 // ===========================================================================
