@@ -618,3 +618,60 @@ export function formatLocalCurrencyAmount(
 
   return formatCurrencyValue(amount, merged, meta)
 }
+
+const USD_DISPLAY_META: Extract<DisplayMeta, { kind: 'currency' }> = {
+  kind: 'currency',
+  symbol: '$',
+  currencyCode: 'USD',
+  exchangeRate: 1,
+}
+
+/**
+ * Format a system USD amount as USD, ignoring the site display currency.
+ *
+ * Use this when the UI must show the canonical USD unit next to a local
+ * amount (for example recharge presets that already render in VND).
+ */
+export function formatUSDAmount(
+  amountUSD: number | null | undefined,
+  options?: CurrencyFormatOptions
+): string {
+  if (amountUSD == null || Number.isNaN(amountUSD)) return '-'
+  return formatCurrencyValue(amountUSD, mergeOptions(options), USD_DISPLAY_META)
+}
+
+/** True when the site display currency is a real currency other than USD. */
+export function isNonUsdCurrencyDisplay(): boolean {
+  const { config, meta } = getCurrencyDisplay()
+  return meta.kind !== 'tokens' && config.quotaDisplayType !== 'USD'
+}
+
+/**
+ * Convert a system USD amount into the configured local display currency.
+ * Returns null when the site is already in USD or tokens-only mode.
+ */
+export function convertUsdToLocalAmount(
+  amountUSD: number | null | undefined
+): number | null {
+  if (amountUSD == null || Number.isNaN(amountUSD)) return null
+  const { config, meta } = getCurrencyDisplay()
+  if (meta.kind === 'tokens' || config.quotaDisplayType === 'USD') return null
+  if (meta.kind !== 'currency' && meta.kind !== 'custom') return null
+  if (!(meta.exchangeRate > 0)) return null
+  return amountUSD * meta.exchangeRate
+}
+
+/**
+ * Convert a local-display-currency amount back to system USD.
+ * Returns null when the site is already in USD or tokens-only mode.
+ */
+export function convertLocalAmountToUsd(
+  localAmount: number | null | undefined
+): number | null {
+  if (localAmount == null || Number.isNaN(localAmount)) return null
+  const { config, meta } = getCurrencyDisplay()
+  if (meta.kind === 'tokens' || config.quotaDisplayType === 'USD') return null
+  if (meta.kind !== 'currency' && meta.kind !== 'custom') return null
+  if (!(meta.exchangeRate > 0)) return null
+  return localAmount / meta.exchangeRate
+}

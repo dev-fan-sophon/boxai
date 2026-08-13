@@ -1,18 +1,28 @@
 import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '@/components/ui/input-group'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toIntlLocale } from '@/i18n/languages'
 import {
+  convertLocalAmountToUsd,
+  convertUsdToLocalAmount,
   formatCurrencyFromUSD,
+  formatUSDAmount,
+  getCurrencyLabel,
   isCurrencyDisplayEnabled,
+  isNonUsdCurrencyDisplay,
 } from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -65,23 +75,77 @@ function StepHeader(props: { step: string; title: string }) {
   )
 }
 
+type CustomAmountUnit = 'local' | 'usd'
+
+const USD_AMOUNT_FORMAT = {
+  digitsLarge: 2,
+  digitsSmall: 2,
+  abbreviate: false,
+} as const
+
+const LOCAL_AMOUNT_FORMAT = {
+  abbreviate: false,
+} as const
+
+function formatPresetCredit(amountUsd: number): string {
+  if (!isCurrencyDisplayEnabled()) {
+    return formatNumber(amountUsd)
+  }
+  return formatCurrencyFromUSD(amountUsd, LOCAL_AMOUNT_FORMAT)
+}
+
+function formatCustomDraft(amountUsd: number, unit: CustomAmountUnit): string {
+  if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
+    return Number.isFinite(amountUsd) && amountUsd > 0 ? String(amountUsd) : ''
+  }
+  const localAmount = convertUsdToLocalAmount(amountUsd)
+  if (localAmount == null || localAmount <= 0) return ''
+  return String(Math.round(localAmount))
+}
+
+function parseCustomDraft(value: string, unit: CustomAmountUnit): number {
+  if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
+    return Number.parseFloat(value) || 0
+  }
+  const localAmount = Number.parseFloat(value) || 0
+  const usd = convertLocalAmountToUsd(localAmount)
+  if (usd == null) return 0
+  // Backend top-up amounts are integer USD credits.
+  return Math.round(usd)
+}
+
 /**
  * Top-up wizard: amount → payment method → confirm. The final confirmation
  * happens in the layered PaymentConfirmDialog owned by the billing page.
  */
 export function AddCreditsDialog(props: AddCreditsDialogProps) {
   const { t, i18n } = useTranslation()
-  const [localAmount, setLocalAmount] = useState(props.topupAmount.toString())
+  const showUsdUnit = isNonUsdCurrencyDisplay()
+  const currencyLabel = getCurrencyLabel()
+  const [customUnit, setCustomUnit] = useState<CustomAmountUnit>('local')
+  const [localAmount, setLocalAmount] = useState(() =>
+    formatCustomDraft(props.topupAmount, showUsdUnit ? 'local' : 'usd')
+  )
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const customAmountFocusedRef = useRef(false)
 
   useEffect(() => {
-    setLocalAmount(props.topupAmount.toString())
-  }, [props.topupAmount])
+    if (customAmountFocusedRef.current) return
+    setLocalAmount(
+      formatCustomDraft(props.topupAmount, showUsdUnit ? customUnit : 'usd')
+    )
+  }, [customUnit, props.topupAmount, showUsdUnit])
 
   const handleAmountChange = (value: string) => {
     setLocalAmount(value)
-    const parsed = Number.parseInt(value) || 0
+    const parsed = parseCustomDraft(value, showUsdUnit ? customUnit : 'usd')
     if (parsed >= 0) props.onTopupAmountChange(parsed)
+  }
+
+  const handleCustomUnitChange = (unit: CustomAmountUnit) => {
+    if (unit === customUnit) return
+    setCustomUnit(unit)
+    setLocalAmount(formatCustomDraft(props.topupAmount, unit))
   }
 
   const enableCreem = !!props.topupInfo?.enable_creem_topup
@@ -184,50 +248,145 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     props.topupInfo?.discount?.[preset.value] ||
                     1.0
                   const selected = props.selectedPreset === preset.value
-                  const creditLabel = isCurrencyDisplayEnabled()
-                    ? formatCurrencyFromUSD(preset.value, { abbreviate: false })
-                    : formatNumber(preset.value)
+                  const creditLabel = formatPresetCredit(preset.value)
+                  const usdLabel = formatUSDAmount(
+                    preset.value,
+                    USD_AMOUNT_FORMAT
+                  )
                   return (
                     <Button
                       key={preset.value}
                       variant='outline'
                       className={cn(
-                        'flex min-h-11 items-center justify-between gap-1 rounded-lg px-3 whitespace-normal',
+                        'flex min-h-14 flex-col items-stretch justify-center gap-0.5 rounded-lg px-3 py-2 whitespace-normal',
                         selected
                           ? 'border-foreground bg-foreground/5'
                           : 'border-muted'
                       )}
                       onClick={() => props.onSelectPreset(preset)}
                     >
-                      <span className='text-sm font-semibold tabular-nums'>
-                        {creditLabel}
-                      </span>
-                      {discount < 1.0 && (
-                        <span className='text-xs font-medium text-green-600'>
-                          {getDiscountLabel(discount)}
+                      <span className='flex items-center justify-between gap-1'>
+                        <span className='text-sm font-semibold tabular-nums'>
+                          {creditLabel}
                         </span>
-                      )}
+                        {discount < 1.0 && (
+                          <span className='text-xs font-medium text-green-600'>
+                            {getDiscountLabel(discount)}
+                          </span>
+                        )}
+                      </span>
+                      {showUsdUnit ? (
+                        <span className='text-muted-foreground text-left text-[11px] font-medium tabular-nums'>
+                          {usdLabel}
+                        </span>
+                      ) : null}
                     </Button>
                   )
                 })}
               </div>
             )}
             <div className='space-y-2'>
-              <Label
-                htmlFor='topup-amount'
-                className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-              >
-                {t('Custom amount')}
-              </Label>
-              <Input
-                id='topup-amount'
-                type='number'
-                value={localAmount}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                min={effectiveMin}
-                placeholder={t('Minimum {{amount}}', { amount: effectiveMin })}
-                className='h-10 text-base'
-              />
+              <div className='flex items-center justify-between gap-2'>
+                <Label
+                  htmlFor='topup-amount'
+                  className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
+                >
+                  {t('Custom amount')}
+                </Label>
+                {showUsdUnit ? (
+                  <div
+                    className='bg-muted/50 flex gap-1 rounded-lg p-1'
+                    role='tablist'
+                    aria-label={t('Amount unit')}
+                  >
+                    {(
+                      [
+                        { unit: 'local' as const, label: currencyLabel },
+                        { unit: 'usd' as const, label: 'USD' },
+                      ] as const
+                    ).map((option) => {
+                      const active = customUnit === option.unit
+                      return (
+                        <button
+                          key={option.unit}
+                          type='button'
+                          role='tab'
+                          aria-selected={active}
+                          className={cn(
+                            'rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors',
+                            active
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                          onClick={() => handleCustomUnitChange(option.unit)}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+              <InputGroup className='h-10'>
+                <InputGroupInput
+                  id='topup-amount'
+                  type='number'
+                  inputMode='decimal'
+                  value={localAmount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  onFocus={() => {
+                    customAmountFocusedRef.current = true
+                  }}
+                  onBlur={() => {
+                    customAmountFocusedRef.current = false
+                    setLocalAmount(
+                      formatCustomDraft(
+                        props.topupAmount,
+                        showUsdUnit ? customUnit : 'usd'
+                      )
+                    )
+                  }}
+                  min={
+                    showUsdUnit && customUnit === 'local'
+                      ? (convertUsdToLocalAmount(effectiveMin) ?? effectiveMin)
+                      : effectiveMin
+                  }
+                  placeholder={t('Minimum {{amount}}', {
+                    amount:
+                      showUsdUnit && customUnit === 'local'
+                        ? formatCurrencyFromUSD(
+                            effectiveMin,
+                            LOCAL_AMOUNT_FORMAT
+                          )
+                        : formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT),
+                  })}
+                  className='h-10 text-base'
+                />
+                <InputGroupAddon align='inline-end'>
+                  <InputGroupText>
+                    {showUsdUnit && customUnit === 'local'
+                      ? currencyLabel
+                      : 'USD'}
+                  </InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
+              {showUsdUnit && props.topupAmount > 0 ? (
+                <p className='text-muted-foreground text-xs tabular-nums'>
+                  {customUnit === 'local'
+                    ? t('≈ {{amount}}', {
+                        amount: formatUSDAmount(
+                          props.topupAmount,
+                          USD_AMOUNT_FORMAT
+                        ),
+                      })
+                    : t('≈ {{amount}}', {
+                        amount: formatCurrencyFromUSD(
+                          props.topupAmount,
+                          LOCAL_AMOUNT_FORMAT
+                        ),
+                      })}
+                </p>
+              ) : null}
             </div>
           </section>
 
@@ -262,7 +421,12 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                       {method.min_topup ? (
                         <span className='text-muted-foreground text-[11px]'>
                           {t('Minimum top-up {{amount}}', {
-                            amount: method.min_topup,
+                            amount: showUsdUnit
+                              ? `${formatCurrencyFromUSD(method.min_topup, LOCAL_AMOUNT_FORMAT)} (${formatUSDAmount(method.min_topup, USD_AMOUNT_FORMAT)})`
+                              : formatUSDAmount(
+                                  method.min_topup,
+                                  USD_AMOUNT_FORMAT
+                                ),
                           })}
                         </span>
                       ) : null}
@@ -319,8 +483,12 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 <span className='text-muted-foreground'>
                   {t('Top-up quota')}
                 </span>
-                <span className='font-semibold tabular-nums'>
-                  {props.topupAmount || '—'}
+                <span className='text-right font-semibold tabular-nums'>
+                  {props.topupAmount
+                    ? showUsdUnit
+                      ? `${formatCurrencyFromUSD(props.topupAmount, LOCAL_AMOUNT_FORMAT)} · ${formatUSDAmount(props.topupAmount, USD_AMOUNT_FORMAT)}`
+                      : formatUSDAmount(props.topupAmount, USD_AMOUNT_FORMAT)
+                    : '—'}
                 </span>
               </div>
               <div className='flex justify-between gap-3'>
@@ -337,7 +505,11 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 <span className='text-muted-foreground'>
                   {t('Minimum top-up')}
                 </span>
-                <span className='tabular-nums'>{effectiveMin}</span>
+                <span className='text-right tabular-nums'>
+                  {showUsdUnit
+                    ? `${formatCurrencyFromUSD(effectiveMin, LOCAL_AMOUNT_FORMAT)} · ${formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT)}`
+                    : formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT)}
+                </span>
               </div>
             </div>
 

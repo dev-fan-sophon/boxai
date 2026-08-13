@@ -13,7 +13,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toIntlLocale } from '@/i18n/languages'
-import { formatCurrencyFromUSD } from '@/lib/currency'
+import {
+  formatCurrencyFromUSD,
+  formatUSDAmount,
+  isNonUsdCurrencyDisplay,
+} from '@/lib/currency'
 
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
 import { formatCurrency, getPaymentIcon, isBankQRPayment } from '../../lib'
@@ -73,12 +77,31 @@ export function PaymentConfirmDialog({
             <span className='text-muted-foreground text-sm'>
               {t('Topup Amount')}
             </span>
-            <span className='text-lg font-semibold'>
-              {formatCurrencyFromUSD(topupAmount, {
-                digitsLarge: 2,
-                digitsSmall: 2,
-                abbreviate: false,
-              })}
+            <span className='text-right text-lg font-semibold'>
+              {isNonUsdCurrencyDisplay() ? (
+                <span className='flex flex-col items-end leading-tight'>
+                  <span>
+                    {formatCurrencyFromUSD(topupAmount, {
+                      digitsLarge: 2,
+                      digitsSmall: 2,
+                      abbreviate: false,
+                    })}
+                  </span>
+                  <span className='text-muted-foreground text-xs font-medium tabular-nums'>
+                    {formatUSDAmount(topupAmount, {
+                      digitsLarge: 2,
+                      digitsSmall: 2,
+                      abbreviate: false,
+                    })}
+                  </span>
+                </span>
+              ) : (
+                formatCurrencyFromUSD(topupAmount, {
+                  digitsLarge: 2,
+                  digitsSmall: 2,
+                  abbreviate: false,
+                })
+              )}
             </span>
           </div>
 
