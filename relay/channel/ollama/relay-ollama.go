@@ -1,7 +1,6 @@
 package ollama
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,24 +18,69 @@ import (
 	"github.com/samber/lo"
 )
 
+func toOllamaResponseFormat(responseFormat *dto.ResponseFormat) (any, error) {
+	if responseFormat == nil {
+		return nil, nil
+	}
+	switch responseFormat.Type {
+	case "json", "json_object":
+		return "json", nil
+	case "json_schema":
+		if len(responseFormat.JsonSchema) == 0 {
+			return nil, nil
+		}
+		var jsonSchema dto.FormatJsonSchema
+		if err := common.Unmarshal(responseFormat.JsonSchema, &jsonSchema); err != nil {
+			return nil, fmt.Errorf("invalid ollama response format: %w", err)
+		}
+		return jsonSchema.Schema, nil
+	default:
+		return nil, nil
+	}
+}
+
 func openAIChatToOllamaChat(c *gin.Context, r *dto.GeneralOpenAIRequest) (*OllamaChatRequest, error) {
+	think := r.Think
+	if len(think) == 0 {
+		effort := r.ReasoningEffort
+		if len(r.Reasoning) > 0 {
+			var reasoning dto.Reasoning
+			if err := common.Unmarshal(r.Reasoning, &reasoning); err != nil {
+				return nil, fmt.Errorf("invalid ollama reasoning: %w", err)
+			}
+			if reasoning.Effort != "" {
+				effort = reasoning.Effort
+			}
+		}
+		if effort != "" {
+			var thinkValue any
+			switch effort {
+			case "none":
+				thinkValue = false
+			case "low", "medium", "high", "max":
+				thinkValue = effort
+			default:
+				return nil, fmt.Errorf("unsupported ollama reasoning effort %q", effort)
+			}
+			var err error
+			think, err = common.Marshal(thinkValue)
+			if err != nil {
+				return nil, fmt.Errorf("marshal ollama think: %w", err)
+			}
+		}
+	}
+
 	chatReq := &OllamaChatRequest{
 		Model:   r.Model,
 		Stream:  lo.FromPtrOr(r.Stream, false),
 		Options: map[string]any{},
-		Think:   r.Think,
+		Think:   think,
 	}
-	if r.ResponseFormat != nil {
-		if r.ResponseFormat.Type == "json" {
-			chatReq.Format = "json"
-		} else if r.ResponseFormat.Type == "json_schema" {
-			if len(r.ResponseFormat.JsonSchema) > 0 {
-				var schema any
-				_ = json.Unmarshal(r.ResponseFormat.JsonSchema, &schema)
-				chatReq.Format = schema
-			}
-		}
+	format, err := toOllamaResponseFormat(r.ResponseFormat)
+	if err != nil {
+		return nil, err
 	}
+	chatReq.Format = format
 
 	// options mapping
 	if r.Temperature != nil {
@@ -89,6 +133,7 @@ func openAIChatToOllamaChat(c *gin.Context, r *dto.GeneralOpenAIRequest) (*Ollam
 	}
 
 	chatReq.Messages = make([]OllamaChatMessage, 0, len(r.Messages))
+	toolNamesByCallID := make(map[string]string)
 	for _, m := range r.Messages {
 		var textBuilder strings.Builder
 		var images []string
@@ -117,25 +162,51 @@ func openAIChatToOllamaChat(c *gin.Context, r *dto.GeneralOpenAIRequest) (*Ollam
 		if len(images) > 0 {
 			cm.Images = images
 		}
-		if m.Role == "tool" && m.Name != nil {
-			cm.ToolName = *m.Name
+		if m.Role == "assistant" {
+			reasoning := m.ReasoningContent
+			if reasoning == nil {
+				reasoning = m.Reasoning
+			}
+			if reasoning != nil {
+				thinking, err := common.Marshal(*reasoning)
+				if err != nil {
+					return nil, fmt.Errorf("marshal ollama thinking: %w", err)
+				}
+				cm.Thinking = thinking
+			}
 		}
-		if m.ToolCalls != nil && len(m.ToolCalls) > 0 {
-			parsed := m.ParseToolCalls()
+		if m.Role == "tool" {
+			cm.ToolCallID = m.ToolCallId
+			if m.Name != nil && *m.Name != "" {
+				cm.ToolName = *m.Name
+			} else {
+				cm.ToolName = toolNamesByCallID[m.ToolCallId]
+			}
+		}
+		if len(m.ToolCalls) > 0 {
+			var parsed []dto.ToolCallRequest
+			if err := common.Unmarshal(m.ToolCalls, &parsed); err != nil {
+				return nil, fmt.Errorf("invalid ollama tool calls: %w", err)
+			}
 			if len(parsed) > 0 {
 				calls := make([]OllamaToolCall, 0, len(parsed))
 				for _, tc := range parsed {
-					var args interface{}
+					var args any
 					if tc.Function.Arguments != "" {
-						_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
+						if err := common.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
+							return nil, fmt.Errorf("invalid arguments for ollama tool %q: %w", tc.Function.Name, err)
+						}
 					}
 					if args == nil {
 						args = map[string]any{}
 					}
-					oc := OllamaToolCall{}
+					oc := OllamaToolCall{ID: tc.ID}
 					oc.Function.Name = tc.Function.Name
 					oc.Function.Arguments = args
 					calls = append(calls, oc)
+					if tc.ID != "" {
+						toolNamesByCallID[tc.ID] = tc.Function.Name
+					}
 				}
 				cm.ToolCalls = calls
 			}
@@ -175,15 +246,11 @@ func openAIToGenerate(c *gin.Context, r *dto.GeneralOpenAIRequest) (*OllamaGener
 			gen.Suffix = s
 		}
 	}
-	if r.ResponseFormat != nil {
-		if r.ResponseFormat.Type == "json" {
-			gen.Format = "json"
-		} else if r.ResponseFormat.Type == "json_schema" {
-			var schema any
-			_ = json.Unmarshal(r.ResponseFormat.JsonSchema, &schema)
-			gen.Format = schema
-		}
+	format, err := toOllamaResponseFormat(r.ResponseFormat)
+	if err != nil {
+		return nil, err
 	}
+	gen.Format = format
 	if r.Temperature != nil {
 		gen.Options["temperature"] = r.Temperature
 	}
@@ -510,7 +577,7 @@ func FetchOllamaVersion(baseURL, apiKey string) (string, error) {
 		Version string `json:"version"`
 	}
 
-	if err := json.Unmarshal(body, &versionResp); err != nil {
+	if err := common.Unmarshal(body, &versionResp); err != nil {
 		return "", fmt.Errorf("解析响应失败: %v", err)
 	}
 
