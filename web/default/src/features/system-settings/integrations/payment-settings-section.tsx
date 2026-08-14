@@ -1285,7 +1285,7 @@ export function PaymentSettingsSection({
                     name='bank_qr_setting.min_topup'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('Minimum top-up (USD)')}</FormLabel>
+                        <FormLabel>{t('Minimum top-up (VND)')}</FormLabel>
                         <FormControl>
                           <Input
                             type='number'
@@ -1295,7 +1295,7 @@ export function PaymentSettingsSection({
                           />
                         </FormControl>
                         <FormDescription>
-                          {t('Minimum USD-equivalent credit per bank transfer')}
+                          {t('Minimum VND amount per bank transfer')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

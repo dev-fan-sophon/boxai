@@ -26,21 +26,26 @@ func TestBankQRAmount(t *testing.T) {
 		require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1}`))
 	})
 
-	setting.MinTopUp = 1
+	setting.MinTopUp = 50000
 	operation_setting.SetBankQRSetting(setting)
 	operation_setting.USDExchangeRate = 26000
 	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{}
 	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1.2}`))
-	assert.Equal(t, int64(26000), bankQRMinVND())
+	assert.Equal(t, int64(50000), bankQRMinVND())
 
 	quote, err := quoteBankQRTopUp(50000)
 	require.NoError(t, err)
 	assert.Equal(t, int64(50000), quote.FaceAmountMinor)
 	assert.Equal(t, int64(192), quote.CreditCents)
+	_, err = quoteBankQRTopUp(49999)
+	assert.ErrorIs(t, err, errBankQRTopUpAmountRange)
 
+	setting.MinTopUp = 1
+	operation_setting.SetBankQRSetting(setting)
+	assert.Equal(t, int64(10000), bankQRMinVND())
 	_, err = quoteBankQRTopUp(0)
 	assert.Error(t, err)
-	_, err = quoteBankQRTopUp(25000)
+	_, err = quoteBankQRTopUp(9999)
 	assert.ErrorIs(t, err, errBankQRTopUpAmountRange)
 	_, err = quoteBankQRTopUp(maxBankQRAmountVND)
 	assert.Error(t, err)

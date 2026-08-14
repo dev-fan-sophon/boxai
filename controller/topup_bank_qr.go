@@ -31,21 +31,11 @@ const (
 )
 
 func bankQRMinVND() int64 {
-	setting := operation_setting.GetBankQRSetting()
-	rate := operation_setting.USDExchangeRate
-	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+	configuredMin := operation_setting.GetBankQRSetting().MinTopUp
+	if configuredMin < model.MinTopUpFaceVND {
 		return model.MinTopUpFaceVND
 	}
-	configuredMin := decimal.NewFromInt(setting.MinTopUp).
-		Mul(decimal.NewFromFloat(rate)).
-		Ceil()
-	if configuredMin.LessThan(decimal.NewFromInt(model.MinTopUpFaceVND)) {
-		return model.MinTopUpFaceVND
-	}
-	if configuredMin.GreaterThan(decimal.NewFromInt(math.MaxInt64)) {
-		return math.MaxInt64
-	}
-	return configuredMin.IntPart()
+	return configuredMin
 }
 
 func mapBankQRQuoteError(err error) error {
