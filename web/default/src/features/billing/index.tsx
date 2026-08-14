@@ -26,8 +26,6 @@ import {
   useBankQRPayment,
   useSubscriptionCenter,
 } from './hooks'
-import { getCurrencyDisplay } from '@/lib/currency'
-
 import {
   getDefaultPaymentType,
   getMinTopupAmount,
@@ -148,25 +146,15 @@ export function Billing(props: BillingProps) {
     return selectedPaymentMethod?.type || getDefaultPaymentType(topupInfo)
   }, [selectedPaymentMethod, topupInfo])
 
-  const requestAmountForPayment = useCallback(
-    (displayAmount: number, paymentType: string) => {
-      if (isBankQRPayment(paymentType)) {
-        return Math.round(displayAmount)
-      }
-      const { meta } = getCurrencyDisplay()
-      if (meta.kind === 'currency' && meta.currencyCode === 'VND') {
-        return Math.round((displayAmount / meta.exchangeRate) * 100) / 100
-      }
-      return displayAmount
-    },
-    []
-  )
+  const requestAmountForPayment = useCallback((displayAmount: number) => {
+    return Math.round(displayAmount)
+  }, [])
 
   const handleSelectPreset = (preset: PresetAmount) => {
     setTopupAmount(preset.value)
     setSelectedPreset(preset.value)
     calculatePaymentAmount(
-      requestAmountForPayment(preset.value, getCurrentPaymentType()),
+      requestAmountForPayment(preset.value),
       getCurrentPaymentType()
     )
   }
@@ -175,17 +163,14 @@ export function Billing(props: BillingProps) {
     setTopupAmount(amount)
     setSelectedPreset(null)
     calculatePaymentAmount(
-      requestAmountForPayment(amount, getCurrentPaymentType()),
+      requestAmountForPayment(amount),
       getCurrentPaymentType()
     )
   }
 
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
     setSelectedPaymentMethod(method)
-    await calculatePaymentAmount(
-      requestAmountForPayment(topupAmount, method.type),
-      method.type
-    )
+    await calculatePaymentAmount(requestAmountForPayment(topupAmount), method.type)
   }
 
   // Opens the layered confirm dialog with the real calculated amount.
@@ -198,7 +183,7 @@ export function Billing(props: BillingProps) {
         return
       }
       const calculatedAmount = await calculatePaymentAmount(
-        requestAmountForPayment(topupAmount, selectedPaymentMethod.type),
+        requestAmountForPayment(topupAmount),
         selectedPaymentMethod.type
       )
       if (calculatedAmount === null) return
@@ -213,7 +198,7 @@ export function Billing(props: BillingProps) {
 
     if (isBankQRPayment(selectedPaymentMethod.type)) {
       const bankPayment = await processBankQRPayment(
-        requestAmountForPayment(topupAmount, selectedPaymentMethod.type)
+        requestAmountForPayment(topupAmount)
       )
       if (bankPayment) {
         setConfirmDialogOpen(false)
@@ -225,10 +210,7 @@ export function Billing(props: BillingProps) {
     }
 
     const isPancake = isWaffoPancakePayment(selectedPaymentMethod.type)
-    const requestAmount = requestAmountForPayment(
-      topupAmount,
-      selectedPaymentMethod.type
-    )
+    const requestAmount = requestAmountForPayment(topupAmount)
     const success = isPancake
       ? await processWaffoPancakePayment(requestAmount)
       : await processPayment(requestAmount, selectedPaymentMethod.type)

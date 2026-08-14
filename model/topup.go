@@ -18,17 +18,22 @@ const (
 )
 
 type TopUp struct {
-	Id              int     `json:"id"`
-	UserId          int     `json:"user_id" gorm:"index"`
-	Amount          int64   `json:"amount"`
-	AmountUnit      string  `json:"amount_unit" gorm:"type:varchar(16)"`
-	Money           float64 `json:"money"`
-	TradeNo         string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
-	PaymentMethod   string  `json:"payment_method" gorm:"type:varchar(50)"`
-	PaymentProvider string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
-	CreateTime      int64   `json:"create_time"`
-	CompleteTime    int64   `json:"complete_time"`
-	Status          string  `json:"status"`
+	Id               int     `json:"id"`
+	UserId           int     `json:"user_id" gorm:"index"`
+	Amount           int64   `json:"amount"`
+	AmountUnit       string  `json:"amount_unit" gorm:"type:varchar(16)"`
+	Money            float64 `json:"money"`
+	FaceAmountMinor  int64   `json:"face_amount_minor"`
+	FaceCurrency     string  `json:"face_currency" gorm:"type:varchar(8)"`
+	CreditFXRate     string  `json:"credit_fx_rate" gorm:"type:varchar(32)"`
+	CreditFXSource   string  `json:"credit_fx_source" gorm:"type:varchar(128)"`
+	CreditFXQuotedAt int64   `json:"credit_fx_quoted_at"`
+	TradeNo          string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
+	PaymentMethod    string  `json:"payment_method" gorm:"type:varchar(50)"`
+	PaymentProvider  string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
+	CreateTime       int64   `json:"create_time"`
+	CompleteTime     int64   `json:"complete_time"`
+	Status           string  `json:"status"`
 }
 
 const (

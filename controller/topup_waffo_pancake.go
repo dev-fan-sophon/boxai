@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,39 +29,13 @@ func RequestWaffoPancakeAmount(c *gin.Context) {
 		return
 	}
 
-	cents, err := parseTopUpUSDCents(req.Amount)
-	if err != nil || cents < int64(setting.WaffoPancakeMinTopUp)*100 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", setting.WaffoPancakeMinTopUp)})
-		return
-	}
-
-	id := c.GetInt("id")
-	group, err := model.GetUserGroup(id, true)
+	quote, err := quoteTopUpVND(req.Amount)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "获取用户分组失败"})
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
 
-	payMoney := getWaffoPancakePayMoney(cents, group)
-	if payMoney <= 0.01 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": fmt.Sprintf("%.2f", payMoney)})
-}
-
-func getWaffoPancakePayMoney(cents int64, group string) float64 {
-	topupGroupRatio := common.GetTopupGroupRatio(group)
-	if topupGroupRatio == 0 {
-		topupGroupRatio = 1
-	}
-
-	return topUpUSD(cents).
-		Mul(decimal.NewFromFloat(setting.WaffoPancakeUnitPrice)).
-		Mul(decimal.NewFromFloat(topupGroupRatio)).
-		Mul(decimal.NewFromFloat(topUpDiscount(cents))).
-		InexactFloat64()
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatInt(quote.FaceAmountMinor, 10)})
 }
 
 func formatWaffoPancakeAmount(payMoney float64) string {
@@ -322,9 +297,9 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "参数错误"})
 		return
 	}
-	cents, err := parseTopUpUSDCents(req.Amount)
-	if err != nil || cents < int64(setting.WaffoPancakeMinTopUp)*100 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", setting.WaffoPancakeMinTopUp)})
+	quote, err := quoteTopUpVND(req.Amount)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
 
@@ -335,32 +310,18 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		return
 	}
 
-	group, err := model.GetUserGroup(id, true)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "获取用户分组失败"})
-		return
-	}
-
-	payMoney := getWaffoPancakePayMoney(cents, group)
-	if payMoney < 0.01 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
-		return
-	}
-
 	tradeNo := fmt.Sprintf("WAFFO_PANCAKE-%d-%d-%s", id, time.Now().UnixMilli(), randstr.String(6))
 	topUp := &model.TopUp{
 		UserId:          id,
-		Amount:          cents,
-		AmountUnit:      model.TopUpAmountUnitUSDCent,
-		Money:           payMoney,
 		TradeNo:         tradeNo,
 		PaymentMethod:   model.PaymentMethodWaffoPancake,
 		PaymentProvider: model.PaymentProviderWaffoPancake,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 	}
+	quote.Apply(topUp)
 	if err := topUp.Insert(); err != nil {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("Waffo Pancake 创建充值订单失败 user_id=%d trade_no=%s amount_cents=%d error=%q", id, tradeNo, cents, err.Error()))
+		logger.LogError(c.Request.Context(), fmt.Sprintf("Waffo Pancake 创建充值订单失败 user_id=%d trade_no=%s face_vnd=%d error=%q", id, tradeNo, quote.FaceAmountMinor, err.Error()))
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "创建订单失败"})
 		return
 	}
@@ -370,7 +331,7 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		ProductID:     setting.WaffoPancakeProductID,
 		BuyerIdentity: getWaffoPancakeBuyerIdentity(user),
 		PriceSnapshot: &service.WaffoPancakePriceSnapshot{
-			Amount:      formatWaffoPancakeAmount(payMoney),
+			Amount:      formatWaffoPancakeAmount(float64(quote.FaceAmountMinor)),
 			TaxCategory: "saas",
 		},
 		BuyerEmail:              getWaffoPancakeBuyerEmail(user),
@@ -384,7 +345,7 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "拉起支付失败"})
 		return
 	}
-	logger.LogInfo(c.Request.Context(), fmt.Sprintf("Waffo Pancake 充值订单创建成功 user_id=%d trade_no=%s session_id=%s amount_cents=%d money=%.2f", id, tradeNo, session.SessionID, cents, payMoney))
+	logger.LogInfo(c.Request.Context(), fmt.Sprintf("Waffo Pancake 充值订单创建成功 user_id=%d trade_no=%s session_id=%s face_vnd=%d credit_cents=%d", id, tradeNo, session.SessionID, quote.FaceAmountMinor, quote.CreditCents))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",

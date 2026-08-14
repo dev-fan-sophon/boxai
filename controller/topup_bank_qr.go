@@ -3,7 +3,6 @@ package controller
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -31,68 +30,29 @@ const (
 	maxPendingBankQROrders       = 10
 )
 
-type bankQRQuote struct {
-	AmountVND int64
-	Cents     int64
+func bankQRMinVND() int64 {
+	return model.MinTopUpFaceVND
 }
 
-func bankQRRate() (decimal.Decimal, error) {
-	rate := operation_setting.USDExchangeRate
-	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
-		return decimal.Zero, errBankQRRateInvalid
+func mapBankQRQuoteError(err error) error {
+	switch {
+	case errors.Is(err, model.ErrTopUpQuoteInvalidRate):
+		return errBankQRRateInvalid
+	case errors.Is(err, model.ErrTopUpQuoteNotCreditable):
+		return errBankQRTopUpNotCreditable
+	case errors.Is(err, model.ErrTopUpQuoteOutOfRange), errors.Is(err, model.ErrTopUpQuoteInvalidAmount):
+		return errBankQRTopUpAmountRange
+	default:
+		return err
 	}
-	return decimal.NewFromFloat(rate), nil
 }
 
-func bankQRMinVND(setting operation_setting.BankQRSetting) int64 {
-	rate, err := bankQRRate()
+func quoteBankQRTopUp(amountVND int64) (model.TopUpQuote, error) {
+	quote, err := model.QuoteVNDTopUp(amountVND)
 	if err != nil {
-		return setting.MinTopUp
+		return model.TopUpQuote{}, mapBankQRQuoteError(err)
 	}
-	minVND := decimal.NewFromInt(setting.MinTopUp).Mul(rate).Round(0).IntPart()
-	if minVND < 1 {
-		return 1
-	}
-	return minVND
-}
-
-func parseBankQRVND(amount decimal.Decimal) (int64, error) {
-	if !amount.IsPositive() || !amount.Equal(amount.Truncate(0)) {
-		return 0, errBankQRTopUpAmountRange
-	}
-	if amount.GreaterThan(decimal.NewFromInt(math.MaxInt64)) {
-		return 0, errBankQRAmountLimit
-	}
-	return amount.IntPart(), nil
-}
-
-func quoteBankQRTopUp(amountVND int64, group string, setting operation_setting.BankQRSetting) (bankQRQuote, error) {
-	rate, err := bankQRRate()
-	if err != nil {
-		return bankQRQuote{}, err
-	}
-	ratio := common.GetTopupGroupRatio(group)
-	if ratio <= 0 || math.IsNaN(ratio) || math.IsInf(ratio, 0) {
-		return bankQRQuote{}, errBankQRRateInvalid
-	}
-
-	minVND := bankQRMinVND(setting)
-	if amountVND < minVND || amountVND >= maxBankQRAmountVND {
-		return bankQRQuote{}, errBankQRTopUpAmountRange
-	}
-
-	usd := decimal.NewFromInt(amountVND).Div(rate).Div(decimal.NewFromFloat(ratio))
-	cents, err := model.USDToCents(usd.Round(2))
-	if err != nil || cents < 1 || cents > maxBankQRTopUpUSD*100 {
-		return bankQRQuote{}, errBankQRTopUpAmountRange
-	}
-	if _, creditErr := model.TopUpQuota(&model.TopUp{
-		Amount:     cents,
-		AmountUnit: model.TopUpAmountUnitUSDCent,
-	}); creditErr != nil {
-		return bankQRQuote{}, fmt.Errorf("%w: %v", errBankQRTopUpNotCreditable, creditErr)
-	}
-	return bankQRQuote{AmountVND: amountVND, Cents: cents}, nil
+	return quote, nil
 }
 
 func bankQRAmountError(c *gin.Context, err error, minVND int64) string {
@@ -121,25 +81,20 @@ func RequestBankQRAmount(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
-	amountVND, err := parseBankQRVND(req.Amount)
+	amountVND, err := model.ParseWholeVND(req.Amount)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
-	group, err := model.GetUserGroup(c.GetInt("id"), true)
+	quote, err := quoteBankQRTopUp(amountVND)
 	if err != nil {
-		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
-		return
-	}
-	quote, err := quoteBankQRTopUp(amountVND, group, bankSetting)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND(bankSetting))})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND())})
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"amount":     quote.AmountVND,
-		"currency":   "VND",
-		"credit_usd": topUpUSD(quote.Cents).InexactFloat64(),
+		"amount":     quote.FaceAmountMinor,
+		"currency":   quote.FaceCurrency,
+		"credit_usd": model.USDCents(quote.CreditCents).InexactFloat64(),
 	})
 }
 
@@ -154,20 +109,15 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
-	amountVND, err := parseBankQRVND(req.Amount)
+	amountVND, err := model.ParseWholeVND(req.Amount)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
 	userID := c.GetInt("id")
-	group, err := model.GetUserGroup(userID, true)
+	quote, err := quoteBankQRTopUp(amountVND)
 	if err != nil {
-		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
-		return
-	}
-	quote, err := quoteBankQRTopUp(amountVND, group, bankSetting)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND(bankSetting))})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND())})
 		return
 	}
 
@@ -189,24 +139,24 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentTransferRefFailed))
 		return
 	}
-	payload, err := vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, amountVND, tradeNo)
+	payload, err := vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, quote.FaceAmountMinor, tradeNo)
 	if err != nil {
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 
 	order := &model.TopUp{
-		UserId: userID, Amount: quote.Cents, AmountUnit: model.TopUpAmountUnitUSDCent,
-		Money: float64(quote.AmountVND), TradeNo: tradeNo,
+		UserId: userID, TradeNo: tradeNo,
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
+	quote.Apply(order)
 	if err := model.CreatePendingBankQRTopUp(order, maxPendingBankQROrders); err != nil {
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": quote.AmountVND, "currency": "VND",
+		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": quote.FaceAmountMinor, "currency": quote.FaceCurrency,
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
 		"account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName),
 	})

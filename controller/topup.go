@@ -144,22 +144,20 @@ type AmountRequest struct {
 	Amount decimal.Decimal `json:"amount"`
 }
 
-func parseTopUpUSDCents(amount decimal.Decimal) (int64, error) {
-	return model.USDToCents(amount)
+func parseTopUpFaceVND(amount decimal.Decimal) (int64, error) {
+	return model.ParseWholeVND(amount)
+}
+
+func quoteTopUpVND(amount decimal.Decimal) (model.TopUpQuote, error) {
+	faceVND, err := parseTopUpFaceVND(amount)
+	if err != nil {
+		return model.TopUpQuote{}, err
+	}
+	return model.QuoteVNDTopUp(faceVND)
 }
 
 func topUpUSD(cents int64) decimal.Decimal {
 	return model.USDCents(cents)
-}
-
-func topUpDiscount(cents int64) float64 {
-	if cents%100 != 0 {
-		return 1
-	}
-	if ds, ok := operation_setting.GetPaymentSetting().AmountDiscount[int(cents/100)]; ok && ds > 0 {
-		return ds
-	}
-	return 1
 }
 
 func GetEpayClient() *epay.Client {
@@ -176,22 +174,8 @@ func GetEpayClient() *epay.Client {
 	return withUrl
 }
 
-func getPayMoney(cents int64, group string) float64 {
-	topupGroupRatio := common.GetTopupGroupRatio(group)
-	if topupGroupRatio == 0 {
-		topupGroupRatio = 1
-	}
-
-	payMoney := topUpUSD(cents).
-		Mul(decimal.NewFromFloat(operation_setting.Price)).
-		Mul(decimal.NewFromFloat(topupGroupRatio)).
-		Mul(decimal.NewFromFloat(topUpDiscount(cents)))
-
-	return payMoney.InexactFloat64()
-}
-
-func getMinTopupCents() int64 {
-	return int64(operation_setting.MinTopUp) * 100
+func getMinTopupVND() int64 {
+	return model.MinTopUpFaceVND
 }
 
 func RequestEpay(c *gin.Context) {
@@ -201,23 +185,14 @@ func RequestEpay(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "参数错误"})
 		return
 	}
-	cents, err := parseTopUpUSDCents(req.Amount)
-	if err != nil || cents < getMinTopupCents() {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", operation_setting.MinTopUp)})
+	quote, err := quoteTopUpVND(req.Amount)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
 
 	id := c.GetInt("id")
-	group, err := model.GetUserGroup(id, true)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "获取用户分组失败"})
-		return
-	}
-	payMoney := getPayMoney(cents, group)
-	if payMoney < 0.01 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
-		return
-	}
+	payMoney := float64(quote.FaceAmountMinor)
 
 	if !operation_setting.ContainsPayMethod(req.PaymentMethod) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "支付方式不存在"})
@@ -237,35 +212,33 @@ func RequestEpay(c *gin.Context) {
 	uri, params, err := client.Purchase(&epay.PurchaseArgs{
 		Type:           req.PaymentMethod,
 		ServiceTradeNo: tradeNo,
-		Name:           fmt.Sprintf("TUC%s", topUpUSD(cents).StringFixed(2)),
-		Money:          strconv.FormatFloat(payMoney, 'f', 2, 64),
+		Name:           fmt.Sprintf("TUC%d", quote.FaceAmountMinor),
+		Money:          strconv.FormatFloat(payMoney, 'f', 0, 64),
 		Device:         epay.PC,
 		NotifyUrl:      notifyUrl,
 		ReturnUrl:      returnUrl,
 	})
 	if err != nil {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 拉起支付失败 user_id=%d trade_no=%s payment_method=%s amount_cents=%d error=%q", id, tradeNo, req.PaymentMethod, cents, err.Error()))
+		logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 拉起支付失败 user_id=%d trade_no=%s payment_method=%s face_vnd=%d error=%q", id, tradeNo, req.PaymentMethod, quote.FaceAmountMinor, err.Error()))
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "拉起支付失败"})
 		return
 	}
 	topUp := &model.TopUp{
 		UserId:          id,
-		Amount:          cents,
-		AmountUnit:      model.TopUpAmountUnitUSDCent,
-		Money:           payMoney,
 		TradeNo:         tradeNo,
 		PaymentMethod:   req.PaymentMethod,
 		PaymentProvider: model.PaymentProviderEpay,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 	}
+	quote.Apply(topUp)
 	err = topUp.Insert()
 	if err != nil {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 创建充值订单失败 user_id=%d trade_no=%s payment_method=%s amount_cents=%d error=%q", id, tradeNo, req.PaymentMethod, cents, err.Error()))
+		logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 创建充值订单失败 user_id=%d trade_no=%s payment_method=%s face_vnd=%d error=%q", id, tradeNo, req.PaymentMethod, quote.FaceAmountMinor, err.Error()))
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "创建订单失败"})
 		return
 	}
-	logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值订单创建成功 user_id=%d trade_no=%s payment_method=%s amount_cents=%d money=%.2f uri=%q params=%q", id, tradeNo, req.PaymentMethod, cents, payMoney, uri, common.GetJsonString(params)))
+	logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值订单创建成功 user_id=%d trade_no=%s payment_method=%s face_vnd=%d credit_cents=%d money=%.0f uri=%q params=%q", id, tradeNo, req.PaymentMethod, quote.FaceAmountMinor, quote.CreditCents, payMoney, uri, common.GetJsonString(params)))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": uri})
 }
 
@@ -411,23 +384,12 @@ func RequestAmount(c *gin.Context) {
 		return
 	}
 
-	cents, parseErr := parseTopUpUSDCents(req.Amount)
-	if parseErr != nil || cents < getMinTopupCents() {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", operation_setting.MinTopUp)})
+	quote, parseErr := quoteTopUpVND(req.Amount)
+	if parseErr != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
-	id := c.GetInt("id")
-	group, err := model.GetUserGroup(id, true)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "获取用户分组失败"})
-		return
-	}
-	payMoney := getPayMoney(cents, group)
-	if payMoney <= 0.01 {
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatFloat(payMoney, 'f', 2, 64)})
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatInt(quote.FaceAmountMinor, 10)})
 }
 
 func GetUserTopUps(c *gin.Context) {
