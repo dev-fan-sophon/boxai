@@ -129,7 +129,7 @@ payment.compliance_required: "Các tính năng thanh toán, đổi quà, đăng 
 payment.bank_qr_topup_disabled: "Nạp tiền qua Bank QR chưa được bật"
 payment.bank_qr_disabled: "Thanh toán qua Bank QR chưa được bật"
 payment.invalid_amount: "Số tiền không hợp lệ"
-payment.topup_amount_range: "Số tiền nạp phải từ {{.Min}} đến {{.Max}} USD"
+payment.topup_amount_range: "Số tiền nạp phải từ {{.Min}} đến {{.Max}} VND"
 payment.topup_not_creditable: "Số tiền nạp này không thể quy đổi thành hạn mức"
 payment.bank_qr_rate_invalid: "Tỷ giá, hệ số nhóm người dùng hoặc mức giảm giá Bank QR không hợp lệ"
 payment.bank_qr_amount_limit: "Số tiền chuyển qua Bank QR phải dưới 500.000.000 VND"

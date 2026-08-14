@@ -31,7 +31,21 @@ const (
 )
 
 func bankQRMinVND() int64 {
-	return model.MinTopUpFaceVND
+	setting := operation_setting.GetBankQRSetting()
+	rate := operation_setting.USDExchangeRate
+	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		return model.MinTopUpFaceVND
+	}
+	configuredMin := decimal.NewFromInt(setting.MinTopUp).
+		Mul(decimal.NewFromFloat(rate)).
+		Ceil()
+	if configuredMin.LessThan(decimal.NewFromInt(model.MinTopUpFaceVND)) {
+		return model.MinTopUpFaceVND
+	}
+	if configuredMin.GreaterThan(decimal.NewFromInt(math.MaxInt64)) {
+		return math.MaxInt64
+	}
+	return configuredMin.IntPart()
 }
 
 func mapBankQRQuoteError(err error) error {
@@ -48,6 +62,9 @@ func mapBankQRQuoteError(err error) error {
 }
 
 func quoteBankQRTopUp(amountVND int64) (model.TopUpQuote, error) {
+	if amountVND < bankQRMinVND() {
+		return model.TopUpQuote{}, errBankQRTopUpAmountRange
+	}
 	quote, err := model.QuoteVNDTopUp(amountVND)
 	if err != nil {
 		return model.TopUpQuote{}, mapBankQRQuoteError(err)

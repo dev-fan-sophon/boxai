@@ -31,6 +31,7 @@ func TestBankQRAmount(t *testing.T) {
 	operation_setting.USDExchangeRate = 26000
 	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{}
 	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1.2}`))
+	assert.Equal(t, int64(26000), bankQRMinVND())
 
 	quote, err := quoteBankQRTopUp(50000)
 	require.NoError(t, err)
@@ -39,12 +40,23 @@ func TestBankQRAmount(t *testing.T) {
 
 	_, err = quoteBankQRTopUp(0)
 	assert.Error(t, err)
+	_, err = quoteBankQRTopUp(25000)
+	assert.ErrorIs(t, err, errBankQRTopUpAmountRange)
 	_, err = quoteBankQRTopUp(maxBankQRAmountVND)
 	assert.Error(t, err)
 
 	operation_setting.USDExchangeRate = 50_000_000
 	_, err = quoteBankQRTopUp(50000)
 	assert.Error(t, err)
+}
+
+func TestBankQRAmountRangeMessageUsesVND(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Set(string(constant.ContextKeyLanguage), i18n.LangZhCN)
+
+	message := bankQRAmountError(c, errBankQRTopUpAmountRange, 26000)
+	assert.Equal(t, "充值金额必须在 26000 至 499999999 越南盾之间", message)
 }
 
 func TestBankQRPendOrderLimitErrorUsesVietnameseCatalog(t *testing.T) {

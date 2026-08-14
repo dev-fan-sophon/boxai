@@ -36,7 +36,7 @@ func GetTopUpInfo(c *gin.Context) {
 	if enableBankQR {
 		payMethods = append(payMethods, map[string]string{
 			"name": "Bank QR", "type": model.PaymentMethodBankQR,
-			"min_topup": strconv.FormatInt(operation_setting.GetBankQRSetting().MinTopUp, 10),
+			"min_topup": strconv.FormatInt(bankQRMinVND(), 10),
 		})
 	}
 
@@ -108,7 +108,7 @@ func GetTopUpInfo(c *gin.Context) {
 	data := gin.H{
 		"enable_online_topup":              isEpayTopUpEnabled(),
 		"enable_bank_qr_topup":             enableBankQR,
-		"bank_qr_min_topup":                operation_setting.GetBankQRSetting().MinTopUp,
+		"bank_qr_min_topup":                bankQRMinVND(),
 		"enable_stripe_topup":              isStripeTopUpEnabled(),
 		"enable_creem_topup":               isCreemTopUpEnabled(),
 		"enable_waffo_topup":               enableWaffo,

@@ -145,7 +145,7 @@ payment.compliance_required: "支付、兌換碼、訂閱方案和邀請返利�
 payment.bank_qr_topup_disabled: "Bank QR 儲值未啟用"
 payment.bank_qr_disabled: "Bank QR 付款未啟用"
 payment.invalid_amount: "金額無效"
-payment.topup_amount_range: "儲值金額必須介於 {{.Min}} 至 {{.Max}} 美元"
+payment.topup_amount_range: "儲值金額必須介於 {{.Min}} 至 {{.Max}} 越南盾"
 payment.topup_not_creditable: "此儲值金額無法轉換為額度"
 payment.bank_qr_rate_invalid: "Bank QR 匯率、使用者群組倍率或折扣無效"
 payment.bank_qr_amount_limit: "Bank QR 轉帳金額必須低於 500,000,000 越南盾"

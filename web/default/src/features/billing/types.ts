@@ -157,7 +157,7 @@ export interface TopupInfo {
   enable_stripe_topup: boolean
   /** Whether manually confirmed VietQR bank transfer is enabled */
   enable_bank_qr_topup?: boolean
-  /** Minimum USD-equivalent topup amount for bank QR */
+  /** Minimum VND face amount for bank QR, converted from the configured USD minimum */
   bank_qr_min_topup?: number
   /** Available payment methods */
   pay_methods: PaymentMethod[]

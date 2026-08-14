@@ -144,7 +144,7 @@ payment.compliance_required: "Payment, redemption, subscription, and invitation 
 payment.bank_qr_topup_disabled: "Bank QR top-up is not enabled"
 payment.bank_qr_disabled: "Bank QR payment is not enabled"
 payment.invalid_amount: "Invalid amount"
-payment.topup_amount_range: "Top-up amount must be between {{.Min}} and {{.Max}} USD"
+payment.topup_amount_range: "Top-up amount must be between {{.Min}} and {{.Max}} VND"
 payment.topup_not_creditable: "This top-up amount cannot be credited"
 payment.bank_qr_rate_invalid: "The Bank QR exchange rate, group ratio, or discount is invalid"
 payment.bank_qr_amount_limit: "Bank QR transfer amount must be below 500,000,000 VND"
