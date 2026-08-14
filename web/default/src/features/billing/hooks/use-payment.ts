@@ -39,7 +39,8 @@ export function usePayment() {
         const isBankQR = isBankQRPayment(paymentType)
         const isPancake = isWaffoPancakePayment(paymentType)
         if (isBankQR) {
-          const response = await calculateBankQRAmount({ amount: topupAmount })
+          const vndAmount = Math.round(topupAmount)
+          const response = await calculateBankQRAmount({ amount: vndAmount })
           if (calculationId !== calculationIdRef.current) return null
           if (isApiSuccess(response) && response.data) {
             setAmount(response.data.amount)

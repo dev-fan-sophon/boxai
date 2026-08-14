@@ -16,10 +16,11 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toIntlLocale } from '@/i18n/languages'
 import {
-  convertLocalAmountToUsd,
   convertUsdToLocalAmount,
   formatCurrencyFromUSD,
+  formatLocalCurrencyAmount,
   formatUSDAmount,
+  getCurrencyDisplay,
   getCurrencyLabel,
   isCurrencyDisplayEnabled,
   isNonUsdCurrencyDisplay,
@@ -87,35 +88,49 @@ const LOCAL_AMOUNT_FORMAT = {
   abbreviate: false,
 } as const
 
-function formatPresetCredit(amountUsd: number): string {
+function formatPresetCredit(amount: number): string {
   if (!isCurrencyDisplayEnabled()) {
-    return formatNumber(amountUsd)
+    return formatNumber(amount)
   }
-  return formatCurrencyFromUSD(amountUsd, LOCAL_AMOUNT_FORMAT)
+  const { meta } = getCurrencyDisplay()
+  if (meta.kind === 'currency' && meta.currencyCode === 'VND') {
+    return formatLocalCurrencyAmount(amount, LOCAL_AMOUNT_FORMAT)
+  }
+  return formatCurrencyFromUSD(amount, LOCAL_AMOUNT_FORMAT)
+}
+
+function formatPresetUsd(amount: number): string {
+  const { meta } = getCurrencyDisplay()
+  if (meta.kind === 'currency' && meta.currencyCode === 'VND') {
+    return formatUSDAmount(amount / meta.exchangeRate, USD_AMOUNT_FORMAT)
+  }
+  return formatUSDAmount(amount, USD_AMOUNT_FORMAT)
 }
 
 function roundUsdCents(amountUsd: number): number {
   return Math.round(amountUsd * 100) / 100
 }
 
-function formatCustomDraft(amountUsd: number, unit: CustomAmountUnit): string {
-  if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
-    if (!(Number.isFinite(amountUsd) && amountUsd > 0)) return ''
-    return String(roundUsdCents(amountUsd))
+function formatCustomDraft(amount: number, unit: CustomAmountUnit): string {
+  if (!(Number.isFinite(amount) && amount > 0)) return ''
+  if (unit === 'usd') {
+    const { meta } = getCurrencyDisplay()
+    if (meta.kind === 'currency' && meta.currencyCode === 'VND') {
+      return String(roundUsdCents(amount / meta.exchangeRate))
+    }
+    return String(roundUsdCents(amount))
   }
-  const localAmount = convertUsdToLocalAmount(amountUsd)
-  if (localAmount == null || localAmount <= 0) return ''
-  return String(Math.round(localAmount))
+  return String(Math.round(amount))
 }
 
 function parseCustomDraft(value: string, unit: CustomAmountUnit): number {
-  if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
-    return roundUsdCents(Number.parseFloat(value) || 0)
+  if (unit === 'usd') {
+    const usd = Number.parseFloat(value) || 0
+    const local = convertUsdToLocalAmount(usd)
+    if (local == null) return roundUsdCents(usd)
+    return Math.round(local)
   }
-  const localAmount = Number.parseFloat(value) || 0
-  const usd = convertLocalAmountToUsd(localAmount)
-  if (usd == null) return 0
-  return roundUsdCents(usd)
+  return Math.round(Number.parseFloat(value) || 0)
 }
 
 /**
@@ -253,10 +268,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     1.0
                   const selected = props.selectedPreset === preset.value
                   const creditLabel = formatPresetCredit(preset.value)
-                  const usdLabel = formatUSDAmount(
-                    preset.value,
-                    USD_AMOUNT_FORMAT
-                  )
+                  const usdLabel = formatPresetUsd(preset.value)
                   return (
                     <Button
                       key={preset.value}
@@ -378,16 +390,10 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 <p className='text-muted-foreground text-xs tabular-nums'>
                   {customUnit === 'local'
                     ? t('≈ {{amount}}', {
-                        amount: formatUSDAmount(
-                          props.topupAmount,
-                          USD_AMOUNT_FORMAT
-                        ),
+                        amount: formatPresetUsd(props.topupAmount),
                       })
                     : t('≈ {{amount}}', {
-                        amount: formatCurrencyFromUSD(
-                          props.topupAmount,
-                          LOCAL_AMOUNT_FORMAT
-                        ),
+                        amount: formatPresetCredit(props.topupAmount),
                       })}
                 </p>
               ) : null}
@@ -426,11 +432,8 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                         <span className='text-muted-foreground text-[11px]'>
                           {t('Minimum top-up {{amount}}', {
                             amount: showUsdUnit
-                              ? `${formatCurrencyFromUSD(method.min_topup, LOCAL_AMOUNT_FORMAT)} (${formatUSDAmount(method.min_topup, USD_AMOUNT_FORMAT)})`
-                              : formatUSDAmount(
-                                  method.min_topup,
-                                  USD_AMOUNT_FORMAT
-                                ),
+                              ? `${formatPresetCredit(method.min_topup)} (${formatPresetUsd(method.min_topup)})`
+                              : formatPresetUsd(method.min_topup),
                           })}
                         </span>
                       ) : null}
@@ -490,8 +493,8 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 <span className='text-right font-semibold tabular-nums'>
                   {props.topupAmount
                     ? showUsdUnit
-                      ? `${formatCurrencyFromUSD(props.topupAmount, LOCAL_AMOUNT_FORMAT)} · ${formatUSDAmount(props.topupAmount, USD_AMOUNT_FORMAT)}`
-                      : formatUSDAmount(props.topupAmount, USD_AMOUNT_FORMAT)
+                      ? `${formatPresetCredit(props.topupAmount)} · ${formatPresetUsd(props.topupAmount)}`
+                      : formatPresetUsd(props.topupAmount)
                     : '—'}
                 </span>
               </div>
@@ -511,8 +514,8 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 </span>
                 <span className='text-right tabular-nums'>
                   {showUsdUnit
-                    ? `${formatCurrencyFromUSD(effectiveMin, LOCAL_AMOUNT_FORMAT)} · ${formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT)}`
-                    : formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT)}
+                    ? `${formatPresetCredit(effectiveMin)} · ${formatPresetUsd(effectiveMin)}`
+                    : formatPresetUsd(effectiveMin)}
                 </span>
               </div>
             </div>

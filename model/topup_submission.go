@@ -312,7 +312,7 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			if order.UserId != result.UserId || order.Status != common.TopUpStatusPending || order.PaymentProvider != PaymentProviderBankQR || order.PaymentMethod != PaymentMethodBankQR {
 				return ErrTopUpStatusInvalid
 			}
-			quota, err := BankQRQuota(order.Amount)
+			quota, err := TopUpQuota(&order)
 			if err != nil {
 				return err
 			}

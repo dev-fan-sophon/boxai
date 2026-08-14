@@ -12,7 +12,7 @@ export function useBankQRPayment() {
     try {
       setProcessing(true)
       const response = await requestBankQRPayment({
-        amount: Math.round(amount * 100) / 100,
+        amount: Math.round(amount),
       })
       if (!isApiSuccess(response) || !response.data) {
         toast.error(response.message || i18next.t('Payment request failed'))

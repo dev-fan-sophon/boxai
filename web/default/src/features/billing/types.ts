@@ -55,6 +55,7 @@ export interface BankQRPaymentData {
 export type BankQRAmountResponse = ApiResponse<{
   amount: number
   currency: 'VND'
+  credit_usd?: number
 }>
 export type BankQRPaymentResponse = ApiResponse<BankQRPaymentData>
 export type TopUpSubmissionStatus = 'submitted' | 'approved' | 'rejected'

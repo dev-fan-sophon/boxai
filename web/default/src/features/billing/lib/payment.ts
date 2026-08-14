@@ -160,3 +160,12 @@ export function mergePresetAmounts(
     discount: discounts[amount] || 1.0,
   }))
 }
+
+/** Convert a USD credit preset into the whole-dong amount the user pays. */
+export function usdCreditToVndAmount(
+  amountUsd: number,
+  exchangeRate: number
+): number {
+  if (!(amountUsd > 0) || !(exchangeRate > 0)) return 0
+  return Math.round(amountUsd * exchangeRate)
+}

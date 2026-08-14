@@ -14,8 +14,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { toIntlLocale } from '@/i18n/languages'
 import {
-  formatCurrencyFromUSD,
+  formatLocalCurrencyAmount,
   formatUSDAmount,
+  getCurrencyDisplay,
   isNonUsdCurrencyDisplay,
 } from '@/lib/currency'
 
@@ -48,6 +49,9 @@ export function PaymentConfirmDialog({
 }: PaymentConfirmDialogProps) {
   const { t, i18n } = useTranslation()
   const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false
+  const { meta } = getCurrencyDisplay()
+  const creditedUsd =
+    meta.kind === 'currency' ? topupAmount / meta.exchangeRate : topupAmount
   const formatPaymentAmount = (amount: number) =>
     isBankQR
       ? new Intl.NumberFormat(toIntlLocale(i18n.language), {
@@ -81,14 +85,14 @@ export function PaymentConfirmDialog({
               {isNonUsdCurrencyDisplay() ? (
                 <span className='flex flex-col items-end leading-tight'>
                   <span>
-                    {formatCurrencyFromUSD(topupAmount, {
-                      digitsLarge: 2,
-                      digitsSmall: 2,
+                    {formatLocalCurrencyAmount(topupAmount, {
+                      digitsLarge: 0,
+                      digitsSmall: 0,
                       abbreviate: false,
                     })}
                   </span>
                   <span className='text-muted-foreground text-xs font-medium tabular-nums'>
-                    {formatUSDAmount(topupAmount, {
+                    {formatUSDAmount(creditedUsd, {
                       digitsLarge: 2,
                       digitsSmall: 2,
                       abbreviate: false,
@@ -96,7 +100,7 @@ export function PaymentConfirmDialog({
                   </span>
                 </span>
               ) : (
-                formatCurrencyFromUSD(topupAmount, {
+                formatUSDAmount(topupAmount, {
                   digitsLarge: 2,
                   digitsSmall: 2,
                   abbreviate: false,

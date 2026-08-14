@@ -31,33 +31,74 @@ const (
 	maxPendingBankQROrders       = 10
 )
 
-func bankQRAmount(cents int64, group string, setting operation_setting.BankQRSetting) (int64, error) {
-	minCents := int64(setting.MinTopUp) * 100
-	if cents < minCents || cents > maxBankQRTopUpUSD*100 {
+type bankQRQuote struct {
+	AmountVND int64
+	Cents     int64
+}
+
+func bankQRRate() (decimal.Decimal, error) {
+	rate := operation_setting.USDExchangeRate
+	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		return decimal.Zero, errBankQRRateInvalid
+	}
+	return decimal.NewFromFloat(rate), nil
+}
+
+func bankQRMinVND(setting operation_setting.BankQRSetting) int64 {
+	rate, err := bankQRRate()
+	if err != nil {
+		return setting.MinTopUp
+	}
+	minVND := decimal.NewFromInt(setting.MinTopUp).Mul(rate).Round(0).IntPart()
+	if minVND < 1 {
+		return 1
+	}
+	return minVND
+}
+
+func parseBankQRVND(amount decimal.Decimal) (int64, error) {
+	if !amount.IsPositive() || !amount.Equal(amount.Truncate(0)) {
 		return 0, errBankQRTopUpAmountRange
 	}
-	if _, err := model.BankQRQuota(cents); err != nil {
-		return 0, fmt.Errorf("%w: %v", errBankQRTopUpNotCreditable, err)
-	}
-	rate := operation_setting.USDExchangeRate
-	ratio := common.GetTopupGroupRatio(group)
-	discount := topUpDiscount(cents)
-	if rate <= 0 || ratio <= 0 || discount <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) ||
-		math.IsNaN(ratio) || math.IsInf(ratio, 0) || math.IsNaN(discount) || math.IsInf(discount, 0) {
-		return 0, errBankQRRateInvalid
-	}
-	amount := topUpUSD(cents).Mul(decimal.NewFromFloat(rate)).
-		Mul(decimal.NewFromFloat(ratio)).Mul(decimal.NewFromFloat(discount)).Round(0)
-	if !amount.IsPositive() || amount.GreaterThanOrEqual(decimal.NewFromInt(maxBankQRAmountVND)) {
+	if amount.GreaterThan(decimal.NewFromInt(math.MaxInt64)) {
 		return 0, errBankQRAmountLimit
 	}
 	return amount.IntPart(), nil
 }
 
-func bankQRAmountError(c *gin.Context, err error, minTopUp int64) string {
+func quoteBankQRTopUp(amountVND int64, group string, setting operation_setting.BankQRSetting) (bankQRQuote, error) {
+	rate, err := bankQRRate()
+	if err != nil {
+		return bankQRQuote{}, err
+	}
+	ratio := common.GetTopupGroupRatio(group)
+	if ratio <= 0 || math.IsNaN(ratio) || math.IsInf(ratio, 0) {
+		return bankQRQuote{}, errBankQRRateInvalid
+	}
+
+	minVND := bankQRMinVND(setting)
+	if amountVND < minVND || amountVND >= maxBankQRAmountVND {
+		return bankQRQuote{}, errBankQRTopUpAmountRange
+	}
+
+	usd := decimal.NewFromInt(amountVND).Div(rate).Div(decimal.NewFromFloat(ratio))
+	cents, err := model.USDToCents(usd.Round(2))
+	if err != nil || cents < 1 || cents > maxBankQRTopUpUSD*100 {
+		return bankQRQuote{}, errBankQRTopUpAmountRange
+	}
+	if _, creditErr := model.TopUpQuota(&model.TopUp{
+		Amount:     cents,
+		AmountUnit: model.TopUpAmountUnitUSDCent,
+	}); creditErr != nil {
+		return bankQRQuote{}, fmt.Errorf("%w: %v", errBankQRTopUpNotCreditable, creditErr)
+	}
+	return bankQRQuote{AmountVND: amountVND, Cents: cents}, nil
+}
+
+func bankQRAmountError(c *gin.Context, err error, minVND int64) string {
 	switch {
 	case errors.Is(err, errBankQRTopUpAmountRange):
-		return i18n.T(c, i18n.MsgPaymentTopUpAmountRange, map[string]any{"Min": minTopUp, "Max": maxBankQRTopUpUSD})
+		return i18n.T(c, i18n.MsgPaymentTopUpAmountRange, map[string]any{"Min": minVND, "Max": maxBankQRAmountVND - 1})
 	case errors.Is(err, errBankQRTopUpNotCreditable):
 		return i18n.T(c, i18n.MsgPaymentTopUpNotCreditable)
 	case errors.Is(err, errBankQRRateInvalid):
@@ -80,7 +121,7 @@ func RequestBankQRAmount(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
-	cents, err := parseTopUpUSDCents(req.Amount)
+	amountVND, err := parseBankQRVND(req.Amount)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
@@ -90,12 +131,16 @@ func RequestBankQRAmount(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
-	amountVND, err := bankQRAmount(cents, group, bankSetting)
+	quote, err := quoteBankQRTopUp(amountVND, group, bankSetting)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND(bankSetting))})
 		return
 	}
-	common.ApiSuccess(c, gin.H{"amount": amountVND, "currency": "VND"})
+	common.ApiSuccess(c, gin.H{
+		"amount":     quote.AmountVND,
+		"currency":   "VND",
+		"credit_usd": topUpUSD(quote.Cents).InexactFloat64(),
+	})
 }
 
 func RequestBankQRPay(c *gin.Context) {
@@ -109,7 +154,7 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
-	cents, err := parseTopUpUSDCents(req.Amount)
+	amountVND, err := parseBankQRVND(req.Amount)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
@@ -120,9 +165,9 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
-	amountVND, err := bankQRAmount(cents, group, bankSetting)
+	quote, err := quoteBankQRTopUp(amountVND, group, bankSetting)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND(bankSetting))})
 		return
 	}
 
@@ -151,8 +196,8 @@ func RequestBankQRPay(c *gin.Context) {
 	}
 
 	order := &model.TopUp{
-		UserId: userID, Amount: cents, AmountUnit: model.TopUpAmountUnitUSDCent,
-		Money: float64(amountVND), TradeNo: tradeNo,
+		UserId: userID, Amount: quote.Cents, AmountUnit: model.TopUpAmountUnitUSDCent,
+		Money: float64(quote.AmountVND), TradeNo: tradeNo,
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
@@ -161,7 +206,7 @@ func RequestBankQRPay(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": amountVND, "currency": "VND",
+		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": quote.AmountVND, "currency": "VND",
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
 		"account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName),
 	})
