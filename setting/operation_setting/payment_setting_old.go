@@ -16,6 +16,9 @@ var EpayKey = ""
 var Price = 7.3
 var MinTopUp = 1
 var USDExchangeRate = 26000.0
+var USDExchangeRateSource = ""
+var USDExchangeRateQuotedAt int64
+var USDExchangeRateFetchedAt int64
 
 var PayMethods = []map[string]string{
 	{

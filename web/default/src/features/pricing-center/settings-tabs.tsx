@@ -61,6 +61,9 @@ export function PricingSettingsTab(props: {
         defaultValues={{
           QuotaPerUnit: settings.QuotaPerUnit,
           USDExchangeRate: settings.USDExchangeRate,
+          USDExchangeRateSource: settings.USDExchangeRateSource,
+          USDExchangeRateQuotedAt: settings.USDExchangeRateQuotedAt,
+          USDExchangeRateFetchedAt: settings.USDExchangeRateFetchedAt,
           DisplayInCurrencyEnabled: settings.DisplayInCurrencyEnabled,
           DisplayTokenStatEnabled: settings.DisplayTokenStatEnabled,
           ExposeRatioEnabled: settings.ExposeRatioEnabled,

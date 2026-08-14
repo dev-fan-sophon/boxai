@@ -45,46 +45,40 @@ func TestGetWaffoPancakePayMoney(t *testing.T) {
 
 	setting.WaffoPancakeUnitPrice = 2.5
 	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{
-		10:                           0.8,
-		int(common.QuotaPerUnit * 3): 0.5,
-		20:                           0,
+		10: 0.8,
+		20: 0,
 	}
 	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1,"vip":1.2}`))
 
 	testCases := []struct {
-		name             string
-		amount           int64
-		group            string
-		quotaDisplayType string
-		expected         float64
+		name     string
+		cents    int64
+		group    string
+		expected float64
 	}{
 		{
-			name:             "currency display applies unit price group ratio and discount",
-			amount:           10,
-			group:            "vip",
-			quotaDisplayType: operation_setting.QuotaDisplayTypeUSD,
-			expected:         24,
+			name:     "applies unit price group ratio and whole-dollar discount",
+			cents:    1000,
+			group:    "vip",
+			expected: 24,
 		},
 		{
-			name:             "tokens display converts quota to display units before pricing",
-			amount:           int64(common.QuotaPerUnit * 3),
-			group:            "vip",
-			quotaDisplayType: operation_setting.QuotaDisplayTypeTokens,
-			expected:         4.5,
+			name:     "fractional dollars skip the legacy dollar discount map",
+			cents:    190,
+			group:    "default",
+			expected: 4.75,
 		},
 		{
-			name:             "non-positive discount falls back to no discount",
-			amount:           20,
-			group:            "default",
-			quotaDisplayType: operation_setting.QuotaDisplayTypeUSD,
-			expected:         50,
+			name:     "non-positive discount falls back to no discount",
+			cents:    2000,
+			group:    "default",
+			expected: 50,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			operation_setting.GetGeneralSetting().QuotaDisplayType = tc.quotaDisplayType
-			actual := getWaffoPancakePayMoney(tc.amount, tc.group)
+			actual := getWaffoPancakePayMoney(tc.cents, tc.group)
 			require.InDelta(t, tc.expected, actual, 0.000001)
 		})
 	}

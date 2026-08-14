@@ -94,9 +94,14 @@ function formatPresetCredit(amountUsd: number): string {
   return formatCurrencyFromUSD(amountUsd, LOCAL_AMOUNT_FORMAT)
 }
 
+function roundUsdCents(amountUsd: number): number {
+  return Math.round(amountUsd * 100) / 100
+}
+
 function formatCustomDraft(amountUsd: number, unit: CustomAmountUnit): string {
   if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
-    return Number.isFinite(amountUsd) && amountUsd > 0 ? String(amountUsd) : ''
+    if (!(Number.isFinite(amountUsd) && amountUsd > 0)) return ''
+    return String(roundUsdCents(amountUsd))
   }
   const localAmount = convertUsdToLocalAmount(amountUsd)
   if (localAmount == null || localAmount <= 0) return ''
@@ -105,13 +110,12 @@ function formatCustomDraft(amountUsd: number, unit: CustomAmountUnit): string {
 
 function parseCustomDraft(value: string, unit: CustomAmountUnit): number {
   if (unit === 'usd' || !isNonUsdCurrencyDisplay()) {
-    return Number.parseFloat(value) || 0
+    return roundUsdCents(Number.parseFloat(value) || 0)
   }
   const localAmount = Number.parseFloat(value) || 0
   const usd = convertLocalAmountToUsd(localAmount)
   if (usd == null) return 0
-  // Backend top-up amounts are integer USD credits.
-  return Math.round(usd)
+  return roundUsdCents(usd)
 }
 
 /**

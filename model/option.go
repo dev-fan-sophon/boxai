@@ -84,6 +84,9 @@ func InitOptionMap() {
 	common.OptionMap["EpayKey"] = ""
 	common.OptionMap["Price"] = strconv.FormatFloat(operation_setting.Price, 'f', -1, 64)
 	common.OptionMap["USDExchangeRate"] = strconv.FormatFloat(operation_setting.USDExchangeRate, 'f', -1, 64)
+	common.OptionMap["USDExchangeRateSource"] = operation_setting.USDExchangeRateSource
+	common.OptionMap["USDExchangeRateQuotedAt"] = strconv.FormatInt(operation_setting.USDExchangeRateQuotedAt, 10)
+	common.OptionMap["USDExchangeRateFetchedAt"] = strconv.FormatInt(operation_setting.USDExchangeRateFetchedAt, 10)
 	common.OptionMap["MinTopUp"] = strconv.Itoa(operation_setting.MinTopUp)
 	common.OptionMap["StripeMinTopUp"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["StripeApiSecret"] = setting.StripeApiSecret
@@ -497,6 +500,12 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.Price, _ = strconv.ParseFloat(value, 64)
 	case "USDExchangeRate":
 		operation_setting.USDExchangeRate, _ = strconv.ParseFloat(value, 64)
+	case "USDExchangeRateSource":
+		operation_setting.USDExchangeRateSource = value
+	case "USDExchangeRateQuotedAt":
+		operation_setting.USDExchangeRateQuotedAt, _ = strconv.ParseInt(value, 10, 64)
+	case "USDExchangeRateFetchedAt":
+		operation_setting.USDExchangeRateFetchedAt, _ = strconv.ParseInt(value, 10, 64)
 	case "MinTopUp":
 		operation_setting.MinTopUp, _ = strconv.Atoi(value)
 	case "StripeApiSecret":

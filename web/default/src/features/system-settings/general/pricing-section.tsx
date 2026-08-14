@@ -1,6 +1,9 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { RefreshCw } from 'lucide-react'
 import type { Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import * as z from 'zod'
 
 import {
@@ -12,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -34,6 +38,7 @@ import {
 } from '../components/settings-form-layout'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
+import { syncExchangeRate } from '../api'
 import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
@@ -45,6 +50,9 @@ const createPricingSchema = (t: (key: string) => string) =>
       USDExchangeRate: z.coerce
         .number()
         .min(0.0001, t('Exchange rate must be greater than 0')),
+      USDExchangeRateSource: z.string().optional(),
+      USDExchangeRateQuotedAt: z.coerce.number().optional(),
+      USDExchangeRateFetchedAt: z.coerce.number().optional(),
       DisplayInCurrencyEnabled: z.boolean(),
       DisplayTokenStatEnabled: z.boolean(),
       ExposeRatioEnabled: z.boolean(),
@@ -88,9 +96,40 @@ type PricingSectionProps = {
   defaultValues: PricingFormValues
 }
 
+function formatUnixTime(value: number | undefined): string {
+  if (!value) return ''
+  return new Date(value * 1000).toLocaleString()
+}
+
 export function PricingSection({ defaultValues }: PricingSectionProps) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const updateOption = useUpdateOption()
+  const syncRate = useMutation({
+    mutationFn: syncExchangeRate,
+    onSuccess: async (result) => {
+      if (!result.success || !result.data) {
+        toast.error(result.message || t('Failed to sync exchange rate'))
+        return
+      }
+      toast.success(
+        result.data.unchanged
+          ? t('Exchange rate unchanged ({{rate}})', {
+              rate: result.data.rate,
+            })
+          : t('Synced Vietcombank sell rate: {{rate}}', {
+              rate: result.data.rate,
+            })
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['system-options'] }),
+        queryClient.invalidateQueries({ queryKey: ['status'] }),
+      ])
+    },
+    onError: () => {
+      toast.error(t('Failed to sync exchange rate'))
+    },
+  })
 
   const pricingSchema = createPricingSchema(t)
 
@@ -234,18 +273,68 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{exchangeRateLabel}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        step='0.01'
-                        {...safeNumberFieldProps(field)}
-                      />
-                    </FormControl>
+                    <div className='flex flex-col gap-2 sm:flex-row'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          step='0.01'
+                          readOnly={displayType === 'VND'}
+                          disabled={displayType === 'VND'}
+                          {...safeNumberFieldProps(field)}
+                        />
+                      </FormControl>
+                      {displayType === 'VND' ? (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          disabled={syncRate.isPending}
+                          onClick={() => syncRate.mutate()}
+                        >
+                          <RefreshCw
+                            className={
+                              syncRate.isPending
+                                ? 'mr-2 h-4 w-4 animate-spin'
+                                : 'mr-2 h-4 w-4'
+                            }
+                          />
+                          {t('Sync from Vietcombank')}
+                        </Button>
+                      ) : null}
+                    </div>
                     <FormDescription>
-                      {t(
-                        'Units of the display currency per 1 USD. Also converts bank QR transfer amounts.'
-                      )}
+                      {displayType === 'VND'
+                        ? t(
+                            'Live Vietcombank USD sell rate. Used for VND display and bank QR amounts. Updates hourly.'
+                          )
+                        : t(
+                            'Units of the display currency per 1 USD. Also converts bank QR transfer amounts.'
+                          )}
                     </FormDescription>
+                    {displayType === 'VND' &&
+                    (defaultValues.USDExchangeRateSource ||
+                      defaultValues.USDExchangeRateFetchedAt) ? (
+                      <p className='text-muted-foreground text-xs'>
+                        {[
+                          defaultValues.USDExchangeRateSource,
+                          defaultValues.USDExchangeRateQuotedAt
+                            ? t('Quoted {{time}}', {
+                                time: formatUnixTime(
+                                  defaultValues.USDExchangeRateQuotedAt
+                                ),
+                              })
+                            : '',
+                          defaultValues.USDExchangeRateFetchedAt
+                            ? t('Fetched {{time}}', {
+                                time: formatUnixTime(
+                                  defaultValues.USDExchangeRateFetchedAt
+                                ),
+                              })
+                            : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}

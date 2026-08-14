@@ -12,6 +12,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/i18n"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting"
 	"github.com/dev-fan-sophon/boxai/setting/console_setting"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
@@ -165,6 +166,31 @@ func GetOptions(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    options,
+	})
+}
+
+func SyncExchangeRate(c *gin.Context) {
+	quote, err := service.SyncUSDExchangeRate(c.Request.Context())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	data := gin.H{
+		"rate":       quote.Rate,
+		"source":     quote.Source,
+		"fetched_at": quote.FetchedAt.Unix(),
+		"unchanged":  quote.Unchanged,
+		"buy":        quote.Buy,
+		"transfer":   quote.Transfer,
+		"sell":       quote.Sell,
+	}
+	if !quote.QuotedAt.IsZero() {
+		data["quoted_at"] = quote.QuotedAt.Unix()
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    data,
 	})
 }
 

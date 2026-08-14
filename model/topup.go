@@ -12,10 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	TopUpAmountUnitUSDCent = "usd_cent"
+	TopUpAmountUnitQuota   = "quota"
+)
+
 type TopUp struct {
 	Id              int     `json:"id"`
 	UserId          int     `json:"user_id" gorm:"index"`
 	Amount          int64   `json:"amount"`
+	AmountUnit      string  `json:"amount_unit" gorm:"type:varchar(16)"`
 	Money           float64 `json:"money"`
 	TradeNo         string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
 	PaymentMethod   string  `json:"payment_method" gorm:"type:varchar(50)"`
@@ -52,18 +58,67 @@ var (
 )
 
 func BankQRQuota(amount int64) (int, error) {
+	return TopUpQuota(&TopUp{Amount: amount})
+}
+
+func USDCents(cents int64) decimal.Decimal {
+	return decimal.NewFromInt(cents).Shift(-2)
+}
+
+func USDToCents(amount decimal.Decimal) (int64, error) {
+	if !amount.IsPositive() {
+		return 0, errors.New("invalid top-up amount")
+	}
+	cents := amount.Shift(2)
+	if !cents.Equal(cents.Truncate(0)) {
+		return 0, errors.New("top-up amount must have at most two decimal places")
+	}
+	if cents.GreaterThan(decimal.NewFromInt(math.MaxInt64)) {
+		return 0, errors.New("top-up amount is too large")
+	}
+	return cents.IntPart(), nil
+}
+
+func TopUpQuota(topUp *TopUp) (int, error) {
+	if topUp == nil {
+		return 0, errors.New("invalid top-up")
+	}
 	quotaPerUnit := common.QuotaPerUnit
-	if amount <= 0 || quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
-		return 0, errors.New("invalid bank QR credit amount or quota unit")
+	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
+		return 0, errors.New("invalid quota unit")
 	}
-	quota, clamp := common.QuotaFromDecimalChecked(
-		decimal.NewFromInt(amount).Mul(decimal.NewFromFloat(quotaPerUnit)),
-	)
-	if clamp != nil {
-		return 0, clamp
+
+	var quotaDecimal decimal.Decimal
+	switch topUp.AmountUnit {
+	case TopUpAmountUnitUSDCent:
+		if topUp.Amount <= 0 {
+			return 0, errors.New("invalid top-up amount")
+		}
+		quotaDecimal = USDCents(topUp.Amount).Mul(decimal.NewFromFloat(quotaPerUnit))
+	case TopUpAmountUnitQuota:
+		quotaDecimal = decimal.NewFromInt(topUp.Amount)
+	case "":
+		switch topUp.PaymentProvider {
+		case PaymentProviderCreem:
+			quotaDecimal = decimal.NewFromInt(topUp.Amount)
+		case PaymentProviderStripe:
+			quotaDecimal = decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(quotaPerUnit))
+		default:
+			if topUp.Amount <= 0 {
+				return 0, errors.New("invalid top-up amount")
+			}
+			quotaDecimal = decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(quotaPerUnit))
+		}
+	default:
+		return 0, errors.New("unknown top-up amount unit")
 	}
-	if quota <= 0 {
-		return 0, errors.New("invalid bank QR credit quota")
+
+	quota, err := common.QuotaFromDecimalStrict(quotaDecimal)
+	if err != nil || quota <= 0 {
+		if err != nil {
+			return 0, err
+		}
+		return 0, errors.New("invalid top-up quota")
 	}
 	return quota, nil
 }
@@ -173,9 +228,7 @@ func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) (
 		}
 
 		var quotaErr error
-		quotaToAdd, quotaErr = common.QuotaFromDecimalStrict(
-			decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-		)
+		quotaToAdd, quotaErr = TopUpQuota(topUp)
 		if quotaErr != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
@@ -244,9 +297,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 			return errors.New("充值订单状态错误")
 		}
 
-		quota, err = common.QuotaFromDecimalStrict(
-			decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-		)
+		quota, err = TopUpQuota(topUp)
 		if err != nil || quota <= 0 {
 			return errors.New("无效的充值额度")
 		}
@@ -480,21 +531,8 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 			return ErrBankQRProofReviewRequired
 		}
 
-		// 计算应充值额度：
-		// - Stripe 订单：Money 代表经分组倍率换算后的美元数量，直接 * QuotaPerUnit
-		// - 其他订单（如易支付）：Amount 为美元数量，* QuotaPerUnit
 		var quotaErr error
-		if topUp.PaymentProvider == PaymentProviderStripe {
-			quotaToAdd, quotaErr = common.QuotaFromDecimalStrict(
-				decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-			)
-		} else if topUp.PaymentProvider == PaymentProviderBankQR {
-			quotaToAdd, quotaErr = BankQRQuota(topUp.Amount)
-		} else {
-			quotaToAdd, quotaErr = common.QuotaFromDecimalStrict(
-				decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-			)
-		}
+		quotaToAdd, quotaErr = TopUpQuota(topUp)
 		if quotaErr != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
@@ -567,7 +605,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			return errors.New("充值订单状态错误")
 		}
 
-		quota, err = common.QuotaFromDecimalStrict(decimal.NewFromInt(topUp.Amount))
+		quota, err = TopUpQuota(topUp)
 		if err != nil || quota <= 0 {
 			return errors.New("无效的充值额度")
 		}
@@ -646,9 +684,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return errors.New("充值订单状态错误")
 		}
 
-		quotaToAdd, err = common.QuotaFromDecimalStrict(
-			decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-		)
+		quotaToAdd, err = TopUpQuota(topUp)
 		if err != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
@@ -716,9 +752,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return errors.New("充值订单状态错误")
 		}
 
-		quotaToAdd, err = common.QuotaFromDecimalStrict(
-			decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
-		)
+		quotaToAdd, err = TopUpQuota(topUp)
 		if err != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}

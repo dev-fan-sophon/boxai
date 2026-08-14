@@ -31,24 +31,22 @@ const (
 	maxPendingBankQROrders       = 10
 )
 
-func bankQRAmount(amountUSD int64, group string, setting operation_setting.BankQRSetting) (int64, error) {
-	if amountUSD < setting.MinTopUp || amountUSD > maxBankQRTopUpUSD {
+func bankQRAmount(cents int64, group string, setting operation_setting.BankQRSetting) (int64, error) {
+	minCents := int64(setting.MinTopUp) * 100
+	if cents < minCents || cents > maxBankQRTopUpUSD*100 {
 		return 0, errBankQRTopUpAmountRange
 	}
-	if _, err := model.BankQRQuota(amountUSD); err != nil {
+	if _, err := model.BankQRQuota(cents); err != nil {
 		return 0, fmt.Errorf("%w: %v", errBankQRTopUpNotCreditable, err)
 	}
 	rate := operation_setting.USDExchangeRate
 	ratio := common.GetTopupGroupRatio(group)
-	discount := 1.0
-	if configured, ok := operation_setting.GetPaymentSetting().AmountDiscount[int(amountUSD)]; ok {
-		discount = configured
-	}
+	discount := topUpDiscount(cents)
 	if rate <= 0 || ratio <= 0 || discount <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) ||
 		math.IsNaN(ratio) || math.IsInf(ratio, 0) || math.IsNaN(discount) || math.IsInf(discount, 0) {
 		return 0, errBankQRRateInvalid
 	}
-	amount := decimal.NewFromInt(amountUSD).Mul(decimal.NewFromFloat(rate)).
+	amount := topUpUSD(cents).Mul(decimal.NewFromFloat(rate)).
 		Mul(decimal.NewFromFloat(ratio)).Mul(decimal.NewFromFloat(discount)).Round(0)
 	if !amount.IsPositive() || amount.GreaterThanOrEqual(decimal.NewFromInt(maxBankQRAmountVND)) {
 		return 0, errBankQRAmountLimit
@@ -82,12 +80,17 @@ func RequestBankQRAmount(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
+	cents, err := parseTopUpUSDCents(req.Amount)
+	if err != nil {
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
+		return
+	}
 	group, err := model.GetUserGroup(c.GetInt("id"), true)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
-	amountVND, err := bankQRAmount(req.Amount, group, bankSetting)
+	amountVND, err := bankQRAmount(cents, group, bankSetting)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
 		return
@@ -106,13 +109,18 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
 	}
+	cents, err := parseTopUpUSDCents(req.Amount)
+	if err != nil {
+		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
+		return
+	}
 	userID := c.GetInt("id")
 	group, err := model.GetUserGroup(userID, true)
 	if err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOperationFailed))
 		return
 	}
-	amountVND, err := bankQRAmount(req.Amount, group, bankSetting)
+	amountVND, err := bankQRAmount(cents, group, bankSetting)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankSetting.MinTopUp)})
 		return
@@ -143,7 +151,8 @@ func RequestBankQRPay(c *gin.Context) {
 	}
 
 	order := &model.TopUp{
-		UserId: userID, Amount: req.Amount, Money: float64(amountVND), TradeNo: tradeNo,
+		UserId: userID, Amount: cents, AmountUnit: model.TopUpAmountUnitUSDCent,
+		Money: float64(amountVND), TradeNo: tradeNo,
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}

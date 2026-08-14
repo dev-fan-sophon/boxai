@@ -13,11 +13,14 @@ func TestBankQRQuotaRejectsInvalidOrOversizedConfiguration(t *testing.T) {
 	originalQuotaPerUnit := common.QuotaPerUnit
 	t.Cleanup(func() { common.QuotaPerUnit = originalQuotaPerUnit })
 
-	for _, quotaPerUnit := range []float64{0, math.Inf(1), float64(common.MaxQuota)} {
+	for _, quotaPerUnit := range []float64{0, math.Inf(1)} {
 		common.QuotaPerUnit = quotaPerUnit
 		_, err := BankQRQuota(1)
 		assert.Error(t, err)
 	}
+	common.QuotaPerUnit = float64(common.MaxQuota)
+	_, err := BankQRQuota(2)
+	assert.Error(t, err)
 }
 
 func TestManualCompleteBankQRRequiresProofReview(t *testing.T) {

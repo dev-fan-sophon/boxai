@@ -88,7 +88,7 @@ func GetStatus(c *gin.Context) {
 		"telegram_bot_name":           common.TelegramBotName,
 		"system_name":                 common.SystemName,
 		"logo":                        common.Logo,
-		"favicon_url": brandingSetting.FaviconURL,
+		"favicon_url":                 brandingSetting.FaviconURL,
 		// Light-scheme brand fill (admin seed). Empty means CSS default.
 		"primary_color": brandingSetting.PrimaryColor,
 		// Dark-scheme brand fill. Empty when no brand color configured.
@@ -96,14 +96,14 @@ func GetStatus(c *gin.Context) {
 		"primary_color_dark": effectiveBrandPrimaryDark(brandingSetting),
 		// True when admin set an explicit dark override (not auto-derived).
 		"primary_color_dark_custom": strings.TrimSpace(brandingSetting.PrimaryColorDark) != "",
-		"footer_html":                 common.Footer,
-		"wechat_qrcode":               common.WeChatAccountQRCodeImageURL,
-		"wechat_login":                common.WeChatAuthEnabled,
-		"server_address":              system_setting.ServerAddress,
-		"turnstile_check":             common.TurnstileCheckEnabled,
-		"turnstile_site_key":          common.TurnstileSiteKey,
-		"docs_link":                   operation_setting.GetGeneralSetting().DocsLink,
-		"quota_per_unit":              common.QuotaPerUnit,
+		"footer_html":               common.Footer,
+		"wechat_qrcode":             common.WeChatAccountQRCodeImageURL,
+		"wechat_login":              common.WeChatAuthEnabled,
+		"server_address":            system_setting.ServerAddress,
+		"turnstile_check":           common.TurnstileCheckEnabled,
+		"turnstile_site_key":        common.TurnstileSiteKey,
+		"docs_link":                 operation_setting.GetGeneralSetting().DocsLink,
+		"quota_per_unit":            common.QuotaPerUnit,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
@@ -133,9 +133,12 @@ func GetStatus(c *gin.Context) {
 		"connect_download_url":          connectSetting.DownloadURL,
 		"connect_min_version":           connectSetting.MinVersion,
 
-		"usd_exchange_rate": operation_setting.USDExchangeRate,
-		"price":             operation_setting.Price,
-		"stripe_unit_price": setting.StripeUnitPrice,
+		"usd_exchange_rate":            operation_setting.USDExchangeRate,
+		"usd_exchange_rate_source":     operation_setting.USDExchangeRateSource,
+		"usd_exchange_rate_quoted_at":  operation_setting.USDExchangeRateQuotedAt,
+		"usd_exchange_rate_fetched_at": operation_setting.USDExchangeRateFetchedAt,
+		"price":                        operation_setting.Price,
+		"stripe_unit_price":            setting.StripeUnitPrice,
 
 		// 面板启用开关
 		"api_info_enabled":      cs.ApiInfoEnabled,

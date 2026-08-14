@@ -24,6 +24,28 @@ export async function updateSystemOption(request: UpdateOptionRequest) {
   return res.data
 }
 
+export type ExchangeRateSyncResponse = {
+  success: boolean
+  message: string
+  data?: {
+    rate: number
+    source: string
+    quoted_at?: number
+    fetched_at: number
+    unchanged: boolean
+    buy: number
+    transfer: number
+    sell: number
+  }
+}
+
+export async function syncExchangeRate() {
+  const res = await api.post<ExchangeRateSyncResponse>(
+    '/api/option/exchange-rate/sync'
+  )
+  return res.data
+}
+
 export async function updateBankQRSettings(request: BankQRSettings) {
   const res = await api.put<UpdateOptionResponse>(
     '/api/option/bank-qr',

@@ -24,6 +24,7 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
 	service.RegisterSystemTaskHandler(billingReconcileHandler{})
+	service.RegisterSystemTaskHandler(exchangeRateSyncHandler{})
 }
 
 // channelTestHandler runs the scheduled "test all channels" job. Enablement and
@@ -207,6 +208,38 @@ func (billingReconcileHandler) Run(ctx context.Context, task *model.SystemTask, 
 	service.ReconcileTaskRefunds(ctx)
 	service.ReconcileMidjourneyRefunds(ctx)
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
+}
+
+type exchangeRateSyncHandler struct{}
+
+func (exchangeRateSyncHandler) Type() string { return model.SystemTaskTypeExchangeRateSync }
+
+func (exchangeRateSyncHandler) Enabled() bool {
+	return operation_setting.GetQuotaDisplayType() == operation_setting.QuotaDisplayTypeVND
+}
+
+func (exchangeRateSyncHandler) Interval() time.Duration {
+	return service.ExchangeRateSyncInterval()
+}
+
+func (exchangeRateSyncHandler) NewPayload() any { return nil }
+
+func (exchangeRateSyncHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	quote, err := service.SyncUSDExchangeRate(ctx)
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, nil, err)
+		return
+	}
+	result := map[string]any{
+		"rate":       quote.Rate,
+		"source":     quote.Source,
+		"fetched_at": quote.FetchedAt.Unix(),
+		"unchanged":  quote.Unchanged,
+	}
+	if !quote.QuotedAt.IsZero() {
+		result["quoted_at"] = quote.QuotedAt.Unix()
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, result, nil)
 }
 
 func finishSystemTaskHandler(task *model.SystemTask, runnerID string, status model.SystemTaskStatus, result any, runErr error) {

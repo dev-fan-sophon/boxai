@@ -1134,7 +1134,7 @@ export function PaymentSettingsSection({
                         </FormControl>
                         <FormDescription>
                           {t(
-                            'Amount Epay charges for each 1 USD of credit, in the Epay gateway currency (usually CNY). Only used by Epay.'
+                            'Epay-only. Amount charged in the Epay gateway currency (usually CNY) for 1 USD of credit. Not the VND display rate.'
                           )}
                         </FormDescription>
                         <FormMessage />

@@ -56,7 +56,7 @@ export function useWaffoPancakePayment() {
 
       try {
         const response = await requestWaffoPancakePayment({
-          amount: Math.floor(topupAmount),
+          amount: Math.round(topupAmount * 100) / 100,
         })
 
         if (isApiSuccess(response)) {
