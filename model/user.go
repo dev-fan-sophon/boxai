@@ -104,6 +104,8 @@ type User struct {
 	AffCount         int                        `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
 	AffQuota         int                        `json:"aff_quota" gorm:"type:int;default:0;column:aff_quota"`           // 邀请剩余额度
 	AffHistoryQuota  int                        `json:"aff_history_quota" gorm:"type:int;default:0;column:aff_history"` // 邀请历史额度
+	RewardQuota      int                        `json:"reward_quota" gorm:"type:int;default:0;column:reward_quota"`     // Rewards 待兑换额度
+	RewardHistory    int                        `json:"reward_history" gorm:"type:int;default:0;column:reward_history"` // Rewards 累计获得额度
 	InviterId        int                        `json:"inviter_id" gorm:"type:int;column:inviter_id;index"`
 	DeletedAt        gorm.DeletedAt             `gorm:"index"`
 	LinuxDOId        string                     `json:"linux_do_id" gorm:"column:linux_do_id;index"`
@@ -246,6 +248,7 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 		"enabled":  true,
 		"topup":    true,
 		"personal": true,
+		"rewards":  true,
 	}
 
 	// 管理员区域 - 根据角色决定
@@ -256,6 +259,7 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"channel":    true,
 			"models":     true,
 			"redemption": true,
+			"rewards":    true,
 			"user":       true,
 			"setting":    false, // 管理员不能访问系统设置
 		}
@@ -266,6 +270,7 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 			"channel":    true,
 			"models":     true,
 			"redemption": true,
+			"rewards":    true,
 			"user":       true,
 			"setting":    true,
 		}
@@ -781,6 +786,8 @@ func (user *User) UpdateWithTx(tx *gorm.DB, updatePassword bool) error {
 		"aff_count",
 		"aff_quota",
 		"aff_history",
+		"reward_quota",
+		"reward_history",
 	).Updates(newUser).Error; err != nil {
 		return err
 	}

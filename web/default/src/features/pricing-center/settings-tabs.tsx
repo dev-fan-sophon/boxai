@@ -16,7 +16,7 @@ import type { PricingCenterTab } from './tabs'
 export function PricingSettingsTab(props: {
   tab: Exclude<
     PricingCenterTab,
-    'models' | 'subscriptions' | 'redemption' | 'topup-reviews'
+    'models' | 'subscriptions' | 'redemption' | 'rewards' | 'topup-reviews'
   >
 }) {
   const { t } = useTranslation()

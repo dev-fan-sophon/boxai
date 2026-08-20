@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { z } from 'zod'
@@ -56,6 +57,7 @@ export function SignUpForm({
     validateTurnstile,
   } = useTurnstile()
   const { redirectToLogin, handleLoginSuccess } = useAuthRedirect()
+  const search = useSearch({ strict: false }) as { redirect?: string }
   const {
     isSending: isSendingCode,
     secondsLeft,
@@ -150,7 +152,7 @@ export function SignUpForm({
 
       if (res?.success) {
         toast.success(t('Account created! Please sign in'))
-        redirectToLogin()
+        redirectToLogin(search.redirect)
       } else {
         toast.error(res?.message || t('Failed to create account'))
       }

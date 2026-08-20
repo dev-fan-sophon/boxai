@@ -38,12 +38,14 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     enabled: true,
     topup: true,
     personal: true,
+    rewards: true,
   },
   admin: {
     enabled: true,
     channel: true,
     models: true,
     redemption: true,
+    rewards: true,
     user: true,
     setting: true,
     topup_review: true,
@@ -90,6 +92,7 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/usage-logs/drawing': { section: 'console', module: 'midjourney' },
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/billing': { section: 'personal', module: 'topup' },
+  '/rewards': { section: 'personal', module: 'rewards' },
   '/profile': { section: 'personal', module: 'personal' },
   // Site analytics share the dashboard module toggle with the personal detail view.
   '/admin/analytics': { section: 'console', module: 'detail' },
@@ -104,6 +107,7 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   // Commerce tabs live under Pricing Center; keep the same module keys so the
   // System Settings sidebar-modules switches still apply.
   '/pricing-center/redemption': { section: 'admin', module: 'redemption' },
+  '/pricing-center/rewards': { section: 'admin', module: 'rewards' },
   '/pricing-center/topup-reviews': {
     section: 'admin',
     module: 'topup_review',

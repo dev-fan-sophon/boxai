@@ -39,6 +39,7 @@ import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as authUserResetRouteImport } from './routes/(auth)/user/reset'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
+import { Route as AuthenticatedRewardsIndexRouteImport } from './routes/_authenticated/rewards/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
@@ -62,6 +63,7 @@ import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_aut
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUsersSectionRouteImport } from './routes/_authenticated/users/$section'
 import { Route as PublicAboutIndexRouteImport } from './routes/_public/about/index'
+import { Route as PublicRSlugRouteImport } from './routes/_public/r/$slug'
 import { Route as PublicAgentsIndexRouteImport } from './routes/_public/agents/index'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
 import { Route as PublicDocsSplatRouteImport } from './routes/_public/docs/$'
@@ -241,6 +243,12 @@ const AuthenticatedBillingIndexRoute =
     path: '/billing/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRewardsIndexRoute =
+  AuthenticatedRewardsIndexRouteImport.update({
+    id: '/rewards/',
+    path: '/rewards/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChannelsIndexRoute =
   AuthenticatedChannelsIndexRouteImport.update({
     id: '/channels/',
@@ -373,6 +381,11 @@ const AuthenticatedUsersSectionRoute =
 const PublicAboutIndexRoute = PublicAboutIndexRouteImport.update({
   id: '/about/',
   path: '/about/',
+  getParentRoute: () => PublicRouteRoute,
+} as any)
+const PublicRSlugRoute = PublicRSlugRouteImport.update({
+  id: '/r/$slug',
+  path: '/r/$slug',
   getParentRoute: () => PublicRouteRoute,
 } as any)
 const PublicAgentsIndexRoute = PublicAgentsIndexRouteImport.update({
@@ -575,6 +588,7 @@ export interface FileRoutesByFullPath {
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
+  '/rewards/': typeof AuthenticatedRewardsIndexRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/group-status/': typeof AuthenticatedGroupStatusIndexRoute
@@ -590,6 +604,7 @@ export interface FileRoutesByFullPath {
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/about/': typeof PublicAboutIndexRoute
+  '/r/$slug': typeof PublicRSlugRoute
   '/agents/': typeof PublicAgentsIndexRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/inspiration/': typeof PublicInspirationIndexRoute
@@ -653,6 +668,7 @@ export interface FileRoutesByTo {
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
+  '/rewards': typeof AuthenticatedRewardsIndexRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/group-status': typeof AuthenticatedGroupStatusIndexRoute
@@ -668,6 +684,7 @@ export interface FileRoutesByTo {
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/about': typeof PublicAboutIndexRoute
+  '/r/$slug': typeof PublicRSlugRoute
   '/agents': typeof PublicAgentsIndexRoute
   '/docs': typeof PublicDocsIndexRoute
   '/inspiration': typeof PublicInspirationIndexRoute
@@ -737,6 +754,7 @@ export interface FileRoutesById {
   '/_public/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/share/canvas/$token': typeof ShareCanvasTokenRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
+  '/_authenticated/rewards/': typeof AuthenticatedRewardsIndexRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/group-status/': typeof AuthenticatedGroupStatusIndexRoute
@@ -752,6 +770,7 @@ export interface FileRoutesById {
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_public/about/': typeof PublicAboutIndexRoute
+  '/_public/r/$slug': typeof PublicRSlugRoute
   '/_public/agents/': typeof PublicAgentsIndexRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/inspiration/': typeof PublicInspirationIndexRoute
@@ -819,6 +838,7 @@ export interface FileRouteTypes {
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/billing/'
+    | '/rewards/'
     | '/channels/'
     | '/dashboard/'
     | '/group-status/'
@@ -897,6 +917,7 @@ export interface FileRouteTypes {
     | '/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/billing'
+    | '/rewards'
     | '/channels'
     | '/dashboard'
     | '/group-status'
@@ -980,6 +1001,7 @@ export interface FileRouteTypes {
     | '/_public/inspiration/$projectId'
     | '/share/canvas/$token'
     | '/_authenticated/billing/'
+    | '/_authenticated/rewards/'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/group-status/'
@@ -1250,6 +1272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rewards/': {
+      id: '/_authenticated/rewards/'
+      path: '/rewards'
+      fullPath: '/rewards/'
+      preLoaderRoute: typeof AuthenticatedRewardsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/channels/': {
       id: '/_authenticated/channels/'
       path: '/channels'
@@ -1409,6 +1438,14 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about/'
       preLoaderRoute: typeof PublicAboutIndexRouteImport
+      parentRoute: typeof PublicRouteRoute
+    }
+
+    '/_public/r/$slug': {
+      id: '/_public/r/$slug'
+      path: '/r/$slug'
+      fullPath: '/r/$slug'
+      preLoaderRoute: typeof PublicRSlugRouteImport
       parentRoute: typeof PublicRouteRoute
     }
     '/_public/agents/': {
@@ -1707,6 +1744,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedUsersSectionRoute: typeof AuthenticatedUsersSectionRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
+  AuthenticatedRewardsIndexRoute: typeof AuthenticatedRewardsIndexRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedGroupStatusIndexRoute: typeof AuthenticatedGroupStatusIndexRoute
@@ -1741,6 +1779,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedUsersSectionRoute: AuthenticatedUsersSectionRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
+  AuthenticatedRewardsIndexRoute: AuthenticatedRewardsIndexRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedGroupStatusIndexRoute: AuthenticatedGroupStatusIndexRoute,
@@ -1790,6 +1829,7 @@ interface PublicRouteRouteChildren {
   PublicIndexRoute: typeof PublicIndexRoute
   PublicDocsSplatRoute: typeof PublicDocsSplatRoute
   PublicAboutIndexRoute: typeof PublicAboutIndexRoute
+  PublicRSlugRoute: typeof PublicRSlugRoute
   PublicAgentsIndexRoute: typeof PublicAgentsIndexRoute
   PublicDocsIndexRoute: typeof PublicDocsIndexRoute
   PublicPlaygroundIndexRoute: typeof PublicPlaygroundIndexRoute
@@ -1806,6 +1846,7 @@ const PublicRouteRouteChildren: PublicRouteRouteChildren = {
   PublicIndexRoute: PublicIndexRoute,
   PublicDocsSplatRoute: PublicDocsSplatRoute,
   PublicAboutIndexRoute: PublicAboutIndexRoute,
+  PublicRSlugRoute: PublicRSlugRoute,
   PublicAgentsIndexRoute: PublicAgentsIndexRoute,
   PublicDocsIndexRoute: PublicDocsIndexRoute,
   PublicPlaygroundIndexRoute: PublicPlaygroundIndexRoute,

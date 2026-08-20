@@ -97,4 +97,9 @@ export const defaultBillingSettings: BillingSettings = {
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
+  'reward_setting.enabled': false,
+  'reward_setting.require_verified': false,
+  'reward_setting.expire_pending_days': 0,
+  'reward_setting.min_redeem_quota': 0,
+  'reward_setting.default_per_user_limit': 1,
 }

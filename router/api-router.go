@@ -60,6 +60,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/user-agreement", controller.GetUserAgreement)
 		apiRouter.GET("/privacy-policy", controller.GetPrivacyPolicy)
 		apiRouter.GET("/about", controller.GetAbout)
+		apiRouter.GET("/reward/public/:slug", middleware.CriticalRateLimit(), controller.GetPublicRewardCampaign)
 		//apiRouter.GET("/midjourney", controller.GetMidjourney)
 		apiRouter.GET("/home_page_content", controller.GetHomePageContent)
 		apiRouter.GET("/home/stats", middleware.HeaderNavModuleAuth("pricing"), middleware.HeaderNavModuleAuth("rankings"), controller.GetHomeStats)
@@ -202,6 +203,10 @@ func SetApiRouter(router *gin.Engine) {
 				// Check-in routes
 				selfRoute.GET("/checkin", controller.GetCheckinStatus)
 				selfRoute.POST("/checkin", middleware.TurnstileCheck(), controller.DoCheckin)
+
+				selfRoute.GET("/rewards", controller.GetSelfRewards)
+				selfRoute.POST("/rewards/claim", middleware.UserCriticalRateLimit("reward-claim"), controller.ClaimSelfReward)
+				selfRoute.POST("/rewards/redeem", middleware.UserCriticalRateLimit("reward-redeem"), controller.RedeemSelfReward)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)
@@ -372,6 +377,18 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.PUT("/", controller.UpdateRedemption)
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
+		}
+
+		rewardAdminRoute := apiRouter.Group("/reward")
+		rewardAdminRoute.Use(middleware.AdminAuth())
+		{
+			rewardAdminRoute.GET("/campaign/", controller.GetRewardCampaigns)
+			rewardAdminRoute.GET("/campaign/:id", controller.GetRewardCampaign)
+			rewardAdminRoute.POST("/campaign/", controller.AddRewardCampaign)
+			rewardAdminRoute.PUT("/campaign/:id", controller.UpdateRewardCampaign)
+			rewardAdminRoute.GET("/claim/", controller.GetRewardClaims)
+			rewardAdminRoute.GET("/ledger/", controller.GetRewardLedgers)
+			rewardAdminRoute.POST("/adjust", controller.AdjustRewardQuota)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)

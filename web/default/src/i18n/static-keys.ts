@@ -111,6 +111,7 @@ export const STATIC_I18N_KEYS = [
   'Group ratios, top-up group ratios and tool prices.',
   'Display currency, exchange rate and business timezone.',
   'Epay, Stripe, Creem, Waffo and Bank QR configuration.',
+  'Rewards',
 
   // Roles
   'Super Admin',

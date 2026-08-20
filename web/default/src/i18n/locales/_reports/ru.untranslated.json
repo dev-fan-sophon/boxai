@@ -46,6 +46,7 @@
   "Supported clients": "Supported clients",
   "The endpoint, key, and model land in each client’s real config file, in the shape that client expects.": "The endpoint, key, and model land in each client’s real config file, in the shape that client expects.",
   "The model list is whatever your account may actually call. Change plans and the choices follow, with no app update.": "The model list is whatever your account may actually call. Change plans and the choices follow, with no app update.",
+  "welcome-2026": "welcome-2026",
   "What happens to the configuration I already have?": "What happens to the configuration I already have?",
   "Whatever was in the file before is kept. Switch away or sign out and your original configuration comes back.": "Whatever was in the file before is kept. Switch away or sign out and your original configuration comes back.",
   "Whatever your BoxAI account may call. The list comes from the server on every sign-in, and a model you can no longer reach is replaced rather than left in a config that would fail.": "Whatever your BoxAI account may call. The list comes from the server on every sign-in, and a model you can no longer reach is replaced rather than left in a config that would fail.",

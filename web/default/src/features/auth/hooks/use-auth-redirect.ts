@@ -85,8 +85,12 @@ export function useAuthRedirect() {
   /**
    * Redirect to login page
    */
-  const redirectToLogin = () => {
-    navigate({ to: '/sign-in', replace: true })
+  const redirectToLogin = (redirectTo?: string) => {
+    navigate({
+      to: '/sign-in',
+      search: redirectTo ? { redirect: redirectTo } : undefined,
+      replace: true,
+    })
   }
 
   /**

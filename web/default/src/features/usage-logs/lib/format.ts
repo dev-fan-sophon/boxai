@@ -347,6 +347,11 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   'redemption.update': 'Updated a redemption code',
   'redemption.delete': 'Deleted a redemption code',
   'redemption.delete_invalid': 'Deleted invalid redemption codes',
+  'reward.campaign_create':
+    'Created reward campaign {{name}} ({{slug}}, {{quota}})',
+  'reward.campaign_update':
+    'Updated reward campaign {{name}} (ID: {{id}}, {{slug}}, {{quota}})',
+  'reward.adjust': 'Adjusted reward balance for user {{user_id}} by {{delta}}',
   // Prefill groups
   'prefill_group.create': 'Created a prefill group',
   'prefill_group.update': 'Updated a prefill group',

@@ -505,6 +505,8 @@ func GetSelf(c *gin.Context) {
 		"aff_count":         user.AffCount,
 		"aff_quota":         user.AffQuota,
 		"aff_history_quota": user.AffHistoryQuota,
+		"reward_quota":      user.RewardQuota,
+		"reward_history":    user.RewardHistory,
 		"inviter_id":        user.InviterId,
 		"linux_do_id":       user.LinuxDOId,
 		"setting":           user.Setting,

@@ -62,6 +62,17 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 		"GET /api/admin/segments/campaigns",
 		"POST /api/admin/segments/campaigns",
 		"POST /api/acquisition/track",
+		"GET /api/reward/public/:slug",
+		"GET /api/user/rewards",
+		"POST /api/user/rewards/claim",
+		"POST /api/user/rewards/redeem",
+		"GET /api/reward/campaign/",
+		"GET /api/reward/campaign/:id",
+		"POST /api/reward/campaign/",
+		"PUT /api/reward/campaign/:id",
+		"GET /api/reward/claim/",
+		"GET /api/reward/ledger/",
+		"POST /api/reward/adjust",
 	} {
 		assert.True(t, registered[path], "missing route %s", path)
 	}

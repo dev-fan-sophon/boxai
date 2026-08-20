@@ -250,6 +250,28 @@ const (
 	MsgCheckinQuotaFailed  = "checkin.quota_failed"
 )
 
+// Reward related messages
+const (
+	MsgRewardDisabled             = "reward.disabled"
+	MsgRewardCampaignNotFound     = "reward.campaign_not_found"
+	MsgRewardCampaignDisabled     = "reward.campaign_disabled"
+	MsgRewardCampaignNotStarted   = "reward.campaign_not_started"
+	MsgRewardCampaignEnded        = "reward.campaign_ended"
+	MsgRewardSoldOut              = "reward.sold_out"
+	MsgRewardAlreadyClaimed       = "reward.already_claimed"
+	MsgRewardNewUsersOnly         = "reward.new_users_only"
+	MsgRewardVerificationRequired = "reward.verification_required"
+	MsgRewardInvalidQuota         = "reward.invalid_quota"
+	MsgRewardInsufficient         = "reward.insufficient"
+	MsgRewardBelowMinimum         = "reward.below_minimum"
+	MsgRewardQuotaOverflow        = "reward.quota_overflow"
+	MsgRewardInvalidSlug          = "reward.invalid_slug"
+	MsgRewardSlugTaken            = "reward.slug_taken"
+	MsgRewardInvalidName          = "reward.invalid_name"
+	MsgRewardClaimSuccess         = "reward.claim_success"
+	MsgRewardRedeemSuccess        = "reward.redeem_success"
+)
+
 // Passkey related messages
 const (
 	MsgPasskeyCreateFailed  = "passkey.create_failed"
@@ -291,27 +313,27 @@ const (
 
 // Administrator option validation messages
 const (
-	MsgOptionInvalidParams               = "option.invalid_params"
-	MsgOptionGitHubOAuthConfigRequired   = "option.github_oauth_config_required"
-	MsgOptionDiscordOAuthConfigRequired  = "option.discord_oauth_config_required"
-	MsgOptionGoogleOAuthConfigRequired   = "option.google_oauth_config_required"
-	MsgOptionFacebookOAuthConfigRequired = "option.facebook_oauth_config_required"
-	MsgOptionZaloOAuthConfigRequired     = "option.zalo_oauth_config_required"
-	MsgOptionOIDCConfigRequired          = "option.oidc_config_required"
-	MsgOptionLinuxDOOAuthConfigRequired  = "option.linuxdo_oauth_config_required"
-	MsgOptionEmailDomainRequired         = "option.email_domain_required"
-	MsgOptionWeChatConfigRequired        = "option.wechat_config_required"
-	MsgOptionTurnstileConfigRequired     = "option.turnstile_config_required"
-	MsgOptionTelegramConfigRequired      = "option.telegram_config_required"
-	MsgOptionInvalidFaviconURL           = "option.invalid_favicon_url"
+	MsgOptionInvalidParams                = "option.invalid_params"
+	MsgOptionGitHubOAuthConfigRequired    = "option.github_oauth_config_required"
+	MsgOptionDiscordOAuthConfigRequired   = "option.discord_oauth_config_required"
+	MsgOptionGoogleOAuthConfigRequired    = "option.google_oauth_config_required"
+	MsgOptionFacebookOAuthConfigRequired  = "option.facebook_oauth_config_required"
+	MsgOptionZaloOAuthConfigRequired      = "option.zalo_oauth_config_required"
+	MsgOptionOIDCConfigRequired           = "option.oidc_config_required"
+	MsgOptionLinuxDOOAuthConfigRequired   = "option.linuxdo_oauth_config_required"
+	MsgOptionEmailDomainRequired          = "option.email_domain_required"
+	MsgOptionWeChatConfigRequired         = "option.wechat_config_required"
+	MsgOptionTurnstileConfigRequired      = "option.turnstile_config_required"
+	MsgOptionTelegramConfigRequired       = "option.telegram_config_required"
+	MsgOptionInvalidFaviconURL            = "option.invalid_favicon_url"
 	MsgOptionInvalidBrandPrimaryColor     = "option.invalid_brand_primary_color"
 	MsgOptionInvalidBrandPrimaryColorDark = "option.invalid_brand_primary_color_dark"
 	MsgOptionInvalidBusinessTimezone      = "option.invalid_business_timezone"
-	MsgOptionImageRatioFailed            = "option.image_ratio_failed"
-	MsgOptionAudioRatioFailed            = "option.audio_ratio_failed"
-	MsgOptionAudioCompletionRatioFailed  = "option.audio_completion_ratio_failed"
-	MsgOptionCreateCacheRatioFailed      = "option.create_cache_ratio_failed"
-	MsgOptionBankQRDedicatedEndpoint     = "option.bank_qr_dedicated_endpoint"
+	MsgOptionImageRatioFailed             = "option.image_ratio_failed"
+	MsgOptionAudioRatioFailed             = "option.audio_ratio_failed"
+	MsgOptionAudioCompletionRatioFailed   = "option.audio_completion_ratio_failed"
+	MsgOptionCreateCacheRatioFailed       = "option.create_cache_ratio_failed"
+	MsgOptionBankQRDedicatedEndpoint      = "option.bank_qr_dedicated_endpoint"
 )
 
 // Deployment related messages (io.net)

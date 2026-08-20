@@ -14,6 +14,7 @@ export const PRICING_CENTER_TABS = [
   'currency',
   'payments',
   'redemption',
+  'rewards',
   'topup-reviews',
 ] as const
 
@@ -22,6 +23,7 @@ export type PricingCenterTab = (typeof PRICING_CENTER_TABS)[number]
 /** Tabs any admin may open (commerce operations). */
 export const PRICING_CENTER_ADMIN_TABS = [
   'redemption',
+  'rewards',
   'topup-reviews',
 ] as const satisfies readonly PricingCenterTab[]
 
@@ -59,5 +61,6 @@ export const PRICING_CENTER_TAB_TITLE_KEYS: Record<PricingCenterTab, string> = {
   currency: 'Currency & Display',
   payments: 'Payment Gateway',
   redemption: 'Redemption Codes',
+  rewards: 'Rewards',
   'topup-reviews': 'Top-up Reviews',
 }

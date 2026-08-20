@@ -53,6 +53,12 @@ const TopUpReviewsTab = lazy(() =>
   }))
 )
 
+const RewardsTab = lazy(() =>
+  import('./rewards-tab').then((module) => ({
+    default: module.RewardsTab,
+  }))
+)
+
 export function PricingCenter(props: {
   tab: PricingCenterTab
   initialModelFilter?: string
@@ -66,6 +72,7 @@ export function PricingCenter(props: {
   const topupReviewsVisible = useIsSidebarModuleVisible(
     '/pricing-center/topup-reviews'
   )
+  const rewardsVisible = useIsSidebarModuleVisible('/pricing-center/rewards')
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
   const [titleStatusContainer, setTitleStatusContainer] =
@@ -76,10 +83,11 @@ export function PricingCenter(props: {
       PRICING_CENTER_TABS.filter((tab) => {
         if (!canAccessPricingCenterTab(tab, role)) return false
         if (tab === 'redemption') return redemptionVisible
+        if (tab === 'rewards') return rewardsVisible
         if (tab === 'topup-reviews') return topupReviewsVisible
         return true
       }),
-    [role, redemptionVisible, topupReviewsVisible]
+    [role, redemptionVisible, rewardsVisible, topupReviewsVisible]
   )
 
   // Module toggles can hide the active tab after load; bounce to the first
@@ -113,6 +121,8 @@ export function PricingCenter(props: {
     tabContent = <RedemptionsTab embedded />
   } else if (props.tab === 'topup-reviews') {
     tabContent = <TopUpReviewsTab embedded />
+  } else if (props.tab === 'rewards') {
+    tabContent = <RewardsTab />
   } else {
     tabContent = <PricingSettingsTab tab={props.tab} />
   }
@@ -121,6 +131,7 @@ export function PricingCenter(props: {
     props.tab === 'models' ||
     props.tab === 'subscriptions' ||
     props.tab === 'redemption' ||
+    props.tab === 'rewards' ||
     props.tab === 'topup-reviews'
 
   return (

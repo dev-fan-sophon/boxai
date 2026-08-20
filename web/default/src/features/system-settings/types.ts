@@ -343,6 +343,11 @@ export type BillingSettings = {
   'checkin_setting.enabled': boolean
   'checkin_setting.min_quota': number
   'checkin_setting.max_quota': number
+  'reward_setting.enabled': boolean
+  'reward_setting.require_verified': boolean
+  'reward_setting.expire_pending_days': number
+  'reward_setting.min_redeem_quota': number
+  'reward_setting.default_per_user_limit': number
 }
 
 export type OperationsSettings = {

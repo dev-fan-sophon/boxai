@@ -108,6 +108,10 @@ export function SidebarModulesSection({
         title: t('Profile'),
         description: t('Personal settings and profile management.'),
       },
+      rewards: {
+        title: t('Rewards'),
+        description: t('Claim campaign rewards and redeem them into your wallet.'),
+      },
     },
     admin: {
       channel: {
@@ -122,6 +126,12 @@ export function SidebarModulesSection({
         title: t('Redeem codes'),
         description: t(
           'Pricing Center tab for invite and credit code management.'
+        ),
+      },
+      rewards: {
+        title: t('Rewards'),
+        description: t(
+          'Pricing Center tab for reward campaigns and claim links.'
         ),
       },
       topup_review: {

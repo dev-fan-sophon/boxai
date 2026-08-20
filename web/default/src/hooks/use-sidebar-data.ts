@@ -60,6 +60,11 @@ export function useSidebarData(): SidebarData {
             url: '/billing',
             icon: Wallet,
           },
+          {
+            title: t('Rewards'),
+            url: '/rewards',
+            icon: BadgeDollarSign,
+          },
         ],
       },
       {
@@ -156,6 +161,7 @@ export function useSidebarData(): SidebarData {
             configUrls: [
               '/pricing-center',
               '/pricing-center/redemption',
+              '/pricing-center/rewards',
               '/pricing-center/topup-reviews',
             ],
             icon: BadgeDollarSign,
