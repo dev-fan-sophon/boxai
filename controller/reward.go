@@ -9,7 +9,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/i18n"
 	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/dev-fan-sophon/boxai/model"
-	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
