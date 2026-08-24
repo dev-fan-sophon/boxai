@@ -42,6 +42,7 @@ import { Route as PublicPricingIndexRouteImport } from './routes/_public/pricing
 import { Route as PublicPlaygroundIndexRouteImport } from './routes/_public/playground/index'
 import { Route as PublicInspirationIndexRouteImport } from './routes/_public/inspiration/index'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
+import { Route as PublicConnectIndexRouteImport } from './routes/_public/connect/index'
 import { Route as PublicAgentsIndexRouteImport } from './routes/_public/agents/index'
 import { Route as PublicAboutIndexRouteImport } from './routes/_public/about/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
@@ -255,6 +256,11 @@ const PublicInspirationIndexRoute = PublicInspirationIndexRouteImport.update({
 const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
   id: '/docs/',
   path: '/docs/',
+  getParentRoute: () => PublicRouteRoute,
+} as any)
+const PublicConnectIndexRoute = PublicConnectIndexRouteImport.update({
+  id: '/connect/',
+  path: '/connect/',
   getParentRoute: () => PublicRouteRoute,
 } as any)
 const PublicAgentsIndexRoute = PublicAgentsIndexRouteImport.update({
@@ -606,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/about/': typeof PublicAboutIndexRoute
   '/agents/': typeof PublicAgentsIndexRoute
+  '/connect/': typeof PublicConnectIndexRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/inspiration/': typeof PublicInspirationIndexRoute
   '/playground/': typeof PublicPlaygroundIndexRoute
@@ -686,6 +693,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersIndexRoute
   '/about': typeof PublicAboutIndexRoute
   '/agents': typeof PublicAgentsIndexRoute
+  '/connect': typeof PublicConnectIndexRoute
   '/docs': typeof PublicDocsIndexRoute
   '/inspiration': typeof PublicInspirationIndexRoute
   '/playground': typeof PublicPlaygroundIndexRoute
@@ -772,6 +780,7 @@ export interface FileRoutesById {
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_public/about/': typeof PublicAboutIndexRoute
   '/_public/agents/': typeof PublicAgentsIndexRoute
+  '/_public/connect/': typeof PublicConnectIndexRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/inspiration/': typeof PublicInspirationIndexRoute
   '/_public/playground/': typeof PublicPlaygroundIndexRoute
@@ -856,6 +865,7 @@ export interface FileRouteTypes {
     | '/users/'
     | '/about/'
     | '/agents/'
+    | '/connect/'
     | '/docs/'
     | '/inspiration/'
     | '/playground/'
@@ -936,6 +946,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/about'
     | '/agents'
+    | '/connect'
     | '/docs'
     | '/inspiration'
     | '/playground'
@@ -1021,6 +1032,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users/'
     | '/_public/about/'
     | '/_public/agents/'
+    | '/_public/connect/'
     | '/_public/docs/'
     | '/_public/inspiration/'
     | '/_public/playground/'
@@ -1294,6 +1306,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs/'
       preLoaderRoute: typeof PublicDocsIndexRouteImport
+      parentRoute: typeof PublicRouteRoute
+    }
+    '/_public/connect/': {
+      id: '/_public/connect/'
+      path: '/connect'
+      fullPath: '/connect/'
+      preLoaderRoute: typeof PublicConnectIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
     '/_public/agents/': {
@@ -1833,6 +1852,7 @@ interface PublicRouteRouteChildren {
   PublicRSlugRoute: typeof PublicRSlugRoute
   PublicAboutIndexRoute: typeof PublicAboutIndexRoute
   PublicAgentsIndexRoute: typeof PublicAgentsIndexRoute
+  PublicConnectIndexRoute: typeof PublicConnectIndexRoute
   PublicDocsIndexRoute: typeof PublicDocsIndexRoute
   PublicPlaygroundIndexRoute: typeof PublicPlaygroundIndexRoute
   PublicPricingIndexRoute: typeof PublicPricingIndexRoute
@@ -1850,6 +1870,7 @@ const PublicRouteRouteChildren: PublicRouteRouteChildren = {
   PublicRSlugRoute: PublicRSlugRoute,
   PublicAboutIndexRoute: PublicAboutIndexRoute,
   PublicAgentsIndexRoute: PublicAgentsIndexRoute,
+  PublicConnectIndexRoute: PublicConnectIndexRoute,
   PublicDocsIndexRoute: PublicDocsIndexRoute,
   PublicPlaygroundIndexRoute: PublicPlaygroundIndexRoute,
   PublicPricingIndexRoute: PublicPricingIndexRoute,

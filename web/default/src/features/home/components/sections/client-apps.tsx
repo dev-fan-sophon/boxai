@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Check, Code2, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -113,15 +114,22 @@ function ClientAppShowcase(props: { app: ClientAppId; delay: number }) {
         />
       }
       action={
-        <DownloadActions
-          compact
-          downloads={downloads}
-          primary={primary}
-          loading={loading}
-          failed={failed}
-          fallbackUrl={fallbackUrl}
-          productName={appName}
-        />
+        <>
+          <DownloadActions
+            compact
+            downloads={downloads}
+            primary={primary}
+            loading={loading}
+            failed={failed}
+            fallbackUrl={fallbackUrl}
+            productName={appName}
+          />
+          {props.app === 'connect' && (
+            <Button variant='outline' size='lg' render={<Link to='/connect' />}>
+              {t('Learn More')}
+            </Button>
+          )}
+        </>
       }
     />
   )
