@@ -89,6 +89,79 @@ func TestConnectorCatalogAdminCRUD(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+func TestConnectorCatalogSyncAtomicallyReplacesEnabledCatalog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.ConnectorCatalogState{}, &model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	require.NoError(t, db.Create(&model.ConnectorCatalogState{ID: 1}).Error)
+	require.NoError(t, db.Create(&model.ConnectorMCPServer{
+		ID: "old-media", Name: "Old Media", URL: "http://localhost:3000/mcp",
+		Authorization: "connection_bearer", Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&model.ConnectorSkillRelease{
+		ID: "using-old-skill", Version: "0.9.0", Name: "Old Skill",
+		ArchiveURL: "https://cdn.example/old.zip", ArchiveSHA256: strings.Repeat("b", 64),
+		ArchiveSizeBytes: 10, ArchiveFormat: "zip", ArchiveAuthorization: "none", Enabled: true,
+	}).Error)
+
+	payload := connectorCatalogSync{
+		MCPServers: []connectorMCPServer{{
+			ID: "boxai-media", Name: "BoxAI Media", URL: "http://localhost:3000/mcp",
+			Authorization: "connection_bearer", Description: "Image and video generation",
+		}},
+		Skills: []connectorSkill{{
+			ID: "generating-boxai-images", Name: "Generating BoxAI Images", Version: "1.0.0",
+			Archive: connectorSkillArchive{
+				URL:    "https://dl.you-box.com/connect/catalog/generating-boxai-images.zip",
+				SHA256: strings.Repeat("a", 64), SizeBytes: 1024, Format: "zip", Authorization: "none",
+			},
+		}},
+	}
+	ctx, recorder := connectorCatalogRequest(t, http.MethodPut, "/api/admin/connector/catalog", payload)
+	AdminSyncConnectorCatalog(ctx)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	servers, err := model.ListConnectorMCPServers(true)
+	require.NoError(t, err)
+	require.Len(t, servers, 1)
+	assert.Equal(t, "boxai-media", servers[0].ID)
+	releases, err := model.ListConnectorSkillReleases(true)
+	require.NoError(t, err)
+	require.Len(t, releases, 1)
+	assert.Equal(t, "generating-boxai-images", releases[0].ID)
+	var historical model.ConnectorSkillRelease
+	require.NoError(t, db.First(&historical, "id = ? AND version = ?", "using-old-skill", "0.9.0").Error)
+	assert.False(t, historical.Enabled)
+}
+
+func TestConnectorCatalogSyncRejectsDuplicateWithoutChangingCatalog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.ConnectorCatalogState{}, &model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}))
+	require.NoError(t, db.Create(&model.ConnectorCatalogState{ID: 1}).Error)
+	existing := model.ConnectorMCPServer{
+		ID: "boxai-media", Name: "BoxAI Media", URL: "http://localhost:3000/mcp",
+		Authorization: "connection_bearer", Enabled: true,
+	}
+	require.NoError(t, db.Create(&existing).Error)
+
+	duplicate := connectorMCPServer{
+		ID: "duplicate", Name: "Duplicate", URL: "http://localhost:3000/mcp",
+		Authorization: "connection_bearer",
+	}
+	ctx, recorder := connectorCatalogRequest(t, http.MethodPut, "/api/admin/connector/catalog", connectorCatalogSync{
+		MCPServers: []connectorMCPServer{duplicate, duplicate}, Skills: []connectorSkill{},
+	})
+	AdminSyncConnectorCatalog(ctx)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	assert.Contains(t, recorder.Body.String(), "duplicate MCP server id")
+
+	servers, err := model.ListConnectorMCPServers(true)
+	require.NoError(t, err)
+	require.Len(t, servers, 1)
+	assert.Equal(t, existing.ID, servers[0].ID)
+}
+
 func TestConnectorCatalogValidationRejectsUnsafeRemoteDescriptors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	valid := model.ConnectorSkillRelease{

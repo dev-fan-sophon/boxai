@@ -25,10 +25,6 @@ const (
 	// connect/. It is a separate identity so a user can tell the two apart —
 	// and revoke them independently — in their session list.
 	ConnectClientID = "boxai-connect"
-	// ConnectorClientID is BoxAI Connector's own OAuth client identity. It is
-	// intentionally distinct from BoxAI Desktop, BoxAI Connect, and every other
-	// platform's connector binary/state namespace.
-	ConnectorClientID = "boxai-connector"
 )
 
 // IsDesktopClientID reports whether a client may use the desktop authorization
@@ -36,7 +32,7 @@ const (
 // one that created the authorization, so a code minted for one product can
 // never be redeemed by the other.
 func IsDesktopClientID(clientID string) bool {
-	return clientID == DesktopClientID || clientID == ConnectClientID || clientID == ConnectorClientID
+	return clientID == DesktopClientID || clientID == ConnectClientID
 }
 
 var ErrDesktopInvalidGrant = errors.New("invalid desktop grant")
@@ -103,7 +99,7 @@ func CreateDesktopAuthorization(clientID, redirect, challenge, method, state, na
 		return nil, errors.New("invalid code_challenge")
 	}
 	redirectErr := ValidateDesktopRedirect(redirect)
-	if clientID == ConnectorClientID {
+	if clientID == ConnectClientID {
 		redirectErr = validateConnectorRedirect(redirect)
 	}
 	if redirectErr != nil {
@@ -116,8 +112,8 @@ func CreateDesktopAuthorization(clientID, redirect, challenge, method, state, na
 	now := time.Now().Unix()
 	a := &model.DesktopAuthorization{ID: id, ClientID: clientID, RedirectURI: redirect, CodeChallenge: challenge, State: state, ClientName: strings.TrimSpace(name), Status: "pending", CreatedAt: now, ExpiresAt: now + 600}
 	if a.ClientName == "" {
-		if clientID == ConnectorClientID {
-			a.ClientName = "BoxAI Connector"
+		if clientID == ConnectClientID {
+			a.ClientName = "BoxAI Connect"
 		} else {
 			a.ClientName = system_setting.GetDesktopSettings().TokenName
 		}
@@ -171,7 +167,7 @@ func DecideDesktopAuthorization(id string, userID int, approve bool) (string, *m
 
 func ExchangeDesktopCode(code, verifier, clientID, redirect string) (access, refresh, apiKey string, expires int, err error) {
 	redirectErr := ValidateDesktopRedirect(redirect)
-	if clientID == ConnectorClientID {
+	if clientID == ConnectClientID {
 		redirectErr = validateConnectorRedirect(redirect)
 	}
 	if !IsDesktopClientID(clientID) || redirectErr != nil || !validPKCEValue(verifier, 43, 128) {

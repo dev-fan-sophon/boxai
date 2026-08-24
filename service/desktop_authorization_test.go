@@ -132,24 +132,24 @@ func TestConnectorAuthorizationIssuesDurableRelayKeyLinkedToRevocableSession(t *
 	verifier := "0123456789012345678901234567890123456789012"
 	redirect := "http://127.0.0.1:9200/callback"
 
-	a, err := CreateDesktopAuthorization(ConnectorClientID, redirect, pkce(verifier), "S256", desktopTestState, "")
+	a, err := CreateDesktopAuthorization(ConnectClientID, redirect, pkce(verifier), "S256", desktopTestState, "")
 	require.NoError(t, err)
-	assert.Equal(t, "BoxAI Connector", a.ClientName)
+	assert.Equal(t, "BoxAI Connect", a.ClientName)
 	code, _, err := DecideDesktopAuthorization(a.ID, u.Id, true)
 	require.NoError(t, err)
-	_, refresh, apiKey, _, err := ExchangeDesktopCode(code, verifier, ConnectorClientID, redirect)
+	_, refresh, apiKey, _, err := ExchangeDesktopCode(code, verifier, ConnectClientID, redirect)
 	require.NoError(t, err)
 	require.NotEmpty(t, refresh)
 	require.Contains(t, apiKey, "sk-")
 
 	var session model.DesktopSession
 	require.NoError(t, model.DB.First(&session).Error)
-	assert.Equal(t, ConnectorClientID, session.ClientID)
+	assert.Equal(t, ConnectClientID, session.ClientID)
 	var relay model.Token
 	require.NoError(t, model.DB.First(&relay, session.RelayTokenID).Error)
 	assert.Equal(t, int64(-1), relay.ExpiredTime)
 	assert.Equal(t, common.TokenStatusEnabled, relay.Status)
-	assert.Equal(t, "BoxAI Connector", relay.Name)
+	assert.Equal(t, "BoxAI Connect", relay.Name)
 
 	assert.ErrorIs(t, RevokeDesktopSessionByRelayToken(u.Id+1, session.RelayTokenID), ErrDesktopInvalidGrant)
 	require.NoError(t, RevokeDesktopSessionByRelayToken(u.Id, session.RelayTokenID))

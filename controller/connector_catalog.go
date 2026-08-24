@@ -179,6 +179,111 @@ func validateConnectorSkillRelease(release *model.ConnectorSkillRelease, bearerO
 	return ""
 }
 
+type connectorCatalogSync struct {
+	MCPServers []connectorMCPServer `json:"mcp_servers"`
+	Skills     []connectorSkill     `json:"skills"`
+}
+
+// AdminSyncConnectorCatalog validates a complete publishable catalog before
+// atomically replacing the currently enabled descriptors. Disabled Skill
+// releases remain as history, while MCP servers are source-of-truth records.
+func AdminSyncConnectorCatalog(c *gin.Context) {
+	var input connectorCatalogSync
+	if err := c.ShouldBindJSON(&input); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if input.MCPServers == nil {
+		input.MCPServers = []connectorMCPServer{}
+	}
+	if input.Skills == nil {
+		input.Skills = []connectorSkill{}
+	}
+	if len(input.MCPServers) > MaxConnectorCatalogEntries || len(input.Skills) > MaxConnectorCatalogEntries {
+		common.ApiErrorMsg(c, "connector catalog must not exceed 256 entries per kind")
+		return
+	}
+
+	bearerOrigins := []string{publicOrigin(c)}
+	now := common.GetTimestamp()
+	servers := make([]model.ConnectorMCPServer, 0, len(input.MCPServers))
+	serverIDs := make(map[string]struct{}, len(input.MCPServers))
+	for _, item := range input.MCPServers {
+		server := model.ConnectorMCPServer{
+			ID: item.ID, Name: item.Name, URL: item.URL, Authorization: item.Authorization,
+			Description: item.Description, Enabled: true, CreatedAt: now, UpdatedAt: now,
+		}
+		if message := validateConnectorMCPServer(&server, bearerOrigins); message != "" {
+			common.ApiErrorMsg(c, "invalid MCP server "+server.ID+": "+message)
+			return
+		}
+		if _, duplicate := serverIDs[server.ID]; duplicate {
+			common.ApiErrorMsg(c, "duplicate MCP server id: "+server.ID)
+			return
+		}
+		serverIDs[server.ID] = struct{}{}
+		servers = append(servers, server)
+	}
+
+	releases := make([]model.ConnectorSkillRelease, 0, len(input.Skills))
+	skillIDs := make(map[string]struct{}, len(input.Skills))
+	for _, item := range input.Skills {
+		release := model.ConnectorSkillRelease{
+			ID: item.ID, Name: item.Name, Version: item.Version, ArchiveURL: item.Archive.URL,
+			ArchiveSHA256: item.Archive.SHA256, ArchiveSizeBytes: item.Archive.SizeBytes,
+			ArchiveFormat: item.Archive.Format, ArchiveAuthorization: item.Archive.Authorization,
+			Enabled: true, CreatedAt: now, UpdatedAt: now,
+		}
+		if message := validateConnectorSkillRelease(&release, bearerOrigins); message != "" {
+			common.ApiErrorMsg(c, "invalid Skill "+release.ID+": "+message)
+			return
+		}
+		if _, duplicate := skillIDs[release.ID]; duplicate {
+			common.ApiErrorMsg(c, "duplicate Skill id: "+release.ID)
+			return
+		}
+		skillIDs[release.ID] = struct{}{}
+		releases = append(releases, release)
+	}
+
+	if err := model.WithConnectorCatalogMutation(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&model.ConnectorMCPServer{}).Error; err != nil {
+			return err
+		}
+		if len(servers) != 0 {
+			if err := tx.Create(&servers).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&model.ConnectorSkillRelease{}).Where("enabled = ?", true).Update("enabled", false).Error; err != nil {
+			return err
+		}
+		for i := range releases {
+			var historical model.ConnectorSkillRelease
+			err := tx.First(&historical, "id = ? AND version = ?", releases[i].ID, releases[i].Version).Error
+			if err == nil {
+				releases[i].CreatedAt = historical.CreatedAt
+				if err := tx.Save(&releases[i]).Error; err != nil {
+					return err
+				}
+				continue
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if err := tx.Create(&releases[i]).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		connectorCatalogMutationError(c, err)
+		return
+	}
+
+	common.ApiSuccess(c, input)
+}
+
 func AdminListConnectorMCPServers(c *gin.Context) {
 	servers, err := model.ListConnectorMCPServers(false)
 	if err != nil {

@@ -152,12 +152,15 @@ type connectorManifest struct {
 }
 
 type connectorModel struct {
-	ID          string           `json:"id"`
-	ChatCapable bool             `json:"chat_capable"`
-	Description string           `json:"description,omitempty"`
-	Icon        string           `json:"icon,omitempty"`
-	Tags        []string         `json:"tags"`
-	Vendor      *connectorVendor `json:"vendor,omitempty"`
+	ID                 string           `json:"id"`
+	ChatCapable        bool             `json:"chat_capable"`
+	ResponsesNative    bool             `json:"responses_native"`
+	Endpoints          []string         `json:"endpoints"`
+	SupportedReasoning []string         `json:"supported_reasoning"`
+	Description        string           `json:"description,omitempty"`
+	Icon               string           `json:"icon,omitempty"`
+	Tags               []string         `json:"tags"`
+	Vendor             *connectorVendor `json:"vendor,omitempty"`
 }
 
 type connectorVendor struct {
@@ -271,7 +274,7 @@ func StartConnectorAuthorization(c *gin.Context) {
 		clientName = c.Query("device_name")
 	}
 	authorization, err := service.CreateDesktopAuthorization(
-		service.ConnectorClientID,
+		service.ConnectClientID,
 		c.Query("redirect_uri"),
 		c.Query("code_challenge"),
 		"S256",
@@ -301,7 +304,7 @@ func ExchangeConnectorToken(c *gin.Context) {
 		return
 	}
 	access, refresh, apiKey, expires, err := service.ExchangeDesktopCode(
-		request.Code, request.CodeVerifier, service.ConnectorClientID, request.RedirectURI,
+		request.Code, request.CodeVerifier, service.ConnectClientID, request.RedirectURI,
 	)
 	if err != nil {
 		desktopOAuthError(c, http.StatusBadRequest, "invalid_grant", "code is invalid or expired")
@@ -365,8 +368,20 @@ func GetConnectorProvisioning(c *gin.Context) {
 		if _, available := owners[name]; !available {
 			continue
 		}
-		entry := connectorModel{ID: name, ChatCapable: isChatModel(model.GetModelSupportEndpointTypes(name)), Tags: []string{}}
+		endpointTypes := model.GetModelSupportEndpointTypes(name)
+		endpoints := make([]string, 0, len(endpointTypes))
+		for _, endpoint := range endpointTypes {
+			endpoints = append(endpoints, string(endpoint))
+		}
+		entry := connectorModel{
+			ID: name, ChatCapable: isChatModel(endpointTypes), Tags: []string{}, Endpoints: endpoints,
+			SupportedReasoning: []string{},
+		}
+		entry.ResponsesNative = responsesNativeModel(endpointTypes, owners[name])
 		if pricing, ok := pricingByModel[name]; ok {
+			if pricing.SupportedReasoning {
+				entry.SupportedReasoning = append(entry.SupportedReasoning, pricing.ReasoningEfforts...)
+			}
 			if validConnectorMetadata(pricing.Description, 2048) {
 				entry.Description = pricing.Description
 			}
@@ -479,6 +494,24 @@ func GetConnectorProvisioning(c *gin.Context) {
 	}
 	desktopNoStore(c)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
+func responsesNativeModel(endpoints []constant.EndpointType, ownerChannelType int) bool {
+	if ownerChannelType == constant.ChannelTypeCodex {
+		return true
+	}
+	hasResponses := false
+	for _, endpoint := range endpoints {
+		switch endpoint {
+		case constant.EndpointTypeOpenAIResponse, constant.EndpointTypeOpenAIResponseCompact:
+			hasResponses = true
+		case constant.EndpointTypeOpenAIAlphaSearch:
+			// Search is ancillary to the Responses protocol.
+		default:
+			return false
+		}
+	}
+	return hasResponses
 }
 
 func validConnectorMetadata(value string, maxBytes int) bool {

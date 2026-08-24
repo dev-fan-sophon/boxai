@@ -130,6 +130,7 @@ func SetApiRouter(router *gin.Engine) {
 		connectorAdminRoute := apiRouter.Group("/admin/connector")
 		connectorAdminRoute.Use(middleware.RootAuth())
 		{
+			connectorAdminRoute.PUT("/catalog", controller.AdminSyncConnectorCatalog)
 			connectorAdminRoute.GET("/mcp-servers", controller.AdminListConnectorMCPServers)
 			connectorAdminRoute.POST("/mcp-servers", controller.AdminCreateConnectorMCPServer)
 			connectorAdminRoute.PUT("/mcp-servers/:id", controller.AdminUpdateConnectorMCPServer)

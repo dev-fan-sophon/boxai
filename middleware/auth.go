@@ -584,9 +584,9 @@ func connectorAuth(allowLegacySource bool) func(c *gin.Context) {
 				Where("tokens.deleted_at IS NULL").
 				Where("desktop_sessions.revoked_at = 0 AND desktop_sessions.expires_at > ?", now)
 			if allowLegacySource {
-				query = query.Where("(desktop_sessions.client_id = ? OR desktop_sessions.client_id = '' OR desktop_sessions.client_id IS NULL)", service.ConnectorClientID)
+				query = query.Where("(desktop_sessions.client_id = ? OR desktop_sessions.client_id = '' OR desktop_sessions.client_id IS NULL)", service.ConnectClientID)
 			} else {
-				query = query.Where("desktop_sessions.client_id = ?", service.ConnectorClientID)
+				query = query.Where("desktop_sessions.client_id = ?", service.ConnectClientID)
 			}
 			if err := query.Take(&token).Error; err != nil {
 				return err

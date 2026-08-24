@@ -212,7 +212,7 @@ func TestConnectorTokenReturnsDurableRelayCredentialAsBearerAccessToken(t *testi
 	challenge := base64.RawURLEncoding.EncodeToString(digest[:])
 	redirect := "http://127.0.0.1:43125/callback"
 	authorization, err := service.CreateDesktopAuthorization(
-		service.ConnectorClientID, redirect, challenge, "S256", "0123456789012345678901", "BoxAI Connector",
+		service.ConnectClientID, redirect, challenge, "S256", "0123456789012345678901", "BoxAI Connect",
 	)
 	require.NoError(t, err)
 	code, _, err := service.DecideDesktopAuthorization(authorization.ID, user.Id, true)
@@ -334,6 +334,9 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.Len(t, payload.Data.Models, 1)
 	assert.Equal(t, "zz-connector-chat", payload.Data.Models[0].ID)
 	assert.True(t, payload.Data.Models[0].ChatCapable)
+	assert.False(t, payload.Data.Models[0].ResponsesNative)
+	assert.Equal(t, []string{"openai"}, payload.Data.Models[0].Endpoints)
+	assert.Empty(t, payload.Data.Models[0].SupportedReasoning)
 	assert.Equal(t, "Authoritative description", payload.Data.Models[0].Description)
 	assert.Equal(t, "model-icon", payload.Data.Models[0].Icon)
 	assert.Equal(t, []string{"alpha", "zeta"}, payload.Data.Models[0].Tags)
@@ -343,6 +346,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.Len(t, payload.Data.ModelPlaza.Models, 2)
 	assert.Equal(t, "zz-connector-flux-image", payload.Data.ModelPlaza.Models[1].ID)
 	assert.False(t, payload.Data.ModelPlaza.Models[1].ChatCapable)
+	assert.Equal(t, []string{"image-generation", "openai"}, payload.Data.ModelPlaza.Models[1].Endpoints)
 	assert.Empty(t, payload.Data.ModelPlaza.Models[1].Tags)
 	assert.Equal(t, "zz-connector-chat", payload.Data.DefaultModel)
 	assert.Equal(t, connectorAccount{ID: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com", Group: "default"}, payload.Data.Account)
@@ -410,6 +414,26 @@ func TestChatModelAllowsAncillarySearchButStillRejectsNonChatEndpoints(t *testin
 		constant.EndpointTypeOpenAI,
 		constant.EndpointTypeEmbeddings,
 	}))
+}
+
+func TestResponsesNativeModelRejectsConvertedDualProtocolChannels(t *testing.T) {
+	assert.True(t, responsesNativeModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeOpenAIResponseCompact,
+		constant.EndpointTypeOpenAIAlphaSearch,
+	}, constant.ChannelTypeCodex))
+	assert.True(t, responsesNativeModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAIResponse,
+	}, constant.ChannelTypeOpenAI))
+	assert.False(t, responsesNativeModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, constant.ChannelTypeXai))
+	assert.False(t, responsesNativeModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeAnthropic,
+	}, constant.ChannelTypeSub2API))
 }
 
 func TestConnectProvisioningRevisionAndETag(t *testing.T) {

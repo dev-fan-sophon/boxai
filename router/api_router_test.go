@@ -41,6 +41,7 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 		"PUT /api/admin/connector/mcp-servers/:id",
 		"DELETE /api/admin/connector/mcp-servers/:id",
 		"GET /api/admin/connector/skill-releases",
+		"PUT /api/admin/connector/catalog",
 		"POST /api/admin/connector/skill-releases",
 		"PUT /api/admin/connector/skill-releases/:id/:version",
 		"DELETE /api/admin/connector/skill-releases/:id/:version",
@@ -108,16 +109,16 @@ func TestConnectorProvisioningRouteRejectsNonConnectorCredentialsIdentically(t *
 		{name: "malformed", header: "bearer sk-nope"},
 		{name: "ordinary sk", header: "Bearer sk-ordinary", token: validToken("ordinary")},
 		{name: "desktop source", header: "Bearer sk-desktop", token: validToken("desktop"), session: &model.DesktopSession{ClientID: service.DesktopClientID, ExpiresAt: now + 60}},
-		{name: "connect source", header: "Bearer sk-connect", token: validToken("connect"), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}},
+		{name: "obsolete connector source", header: "Bearer sk-connect", token: validToken("connect"), session: &model.DesktopSession{ClientID: "boxai-connector", ExpiresAt: now + 60}},
 		{name: "legacy blank source", header: "Bearer sk-legacy", token: validToken("legacy"), session: &model.DesktopSession{ExpiresAt: now + 60}},
-		{name: "owner mismatch", header: "Bearer sk-mismatch", token: validToken("mismatch"), session: &model.DesktopSession{ClientID: service.ConnectorClientID, UserID: user.Id + 1, ExpiresAt: now + 60}},
-		{name: "revoked", header: "Bearer sk-revoked", token: validToken("revoked"), session: &model.DesktopSession{ClientID: service.ConnectorClientID, RevokedAt: now, ExpiresAt: now + 60}},
-		{name: "session expired", header: "Bearer sk-expired-session", token: validToken("expired-session"), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now - 1}},
-		{name: "token expired", header: "Bearer sk-expired-token", token: func() model.Token { v := validToken("expired-token"); v.ExpiredTime = now - 1; return v }(), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now + 60}},
-		{name: "disabled token", header: "Bearer sk-disabled-token", token: func() model.Token { v := validToken("disabled-token"); v.Status = common.TokenStatusDisabled; return v }(), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now + 60}},
-		{name: "disabled user", header: "Bearer sk-disabled-user", token: validToken("disabled-user"), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now + 60}, disableUser: true},
-		{name: "non durable", header: "Bearer sk-nondurable", token: func() model.Token { v := validToken("nondurable"); v.UnlimitedQuota = false; return v }(), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now + 60}},
-		{name: "soft deleted", header: "Bearer sk-deleted", token: validToken("deleted"), session: &model.DesktopSession{ClientID: service.ConnectorClientID, ExpiresAt: now + 60}, softDelete: true},
+		{name: "owner mismatch", header: "Bearer sk-mismatch", token: validToken("mismatch"), session: &model.DesktopSession{ClientID: service.ConnectClientID, UserID: user.Id + 1, ExpiresAt: now + 60}},
+		{name: "revoked", header: "Bearer sk-revoked", token: validToken("revoked"), session: &model.DesktopSession{ClientID: service.ConnectClientID, RevokedAt: now, ExpiresAt: now + 60}},
+		{name: "session expired", header: "Bearer sk-expired-session", token: validToken("expired-session"), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now - 1}},
+		{name: "token expired", header: "Bearer sk-expired-token", token: func() model.Token { v := validToken("expired-token"); v.ExpiredTime = now - 1; return v }(), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}},
+		{name: "disabled token", header: "Bearer sk-disabled-token", token: func() model.Token { v := validToken("disabled-token"); v.Status = common.TokenStatusDisabled; return v }(), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}},
+		{name: "disabled user", header: "Bearer sk-disabled-user", token: validToken("disabled-user"), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}, disableUser: true},
+		{name: "non durable", header: "Bearer sk-nondurable", token: func() model.Token { v := validToken("nondurable"); v.UnlimitedQuota = false; return v }(), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}},
+		{name: "soft deleted", header: "Bearer sk-deleted", token: validToken("deleted"), session: &model.DesktopSession{ClientID: service.ConnectClientID, ExpiresAt: now + 60}, softDelete: true},
 	}
 
 	gin.SetMode(gin.TestMode)
@@ -175,7 +176,7 @@ func TestConnectorProvisioningRouteRejectsNonConnectorCredentialsIdentically(t *
 	valid := validToken("valid-connector")
 	require.NoError(t, db.Create(&valid).Error)
 	require.NoError(t, db.Create(&model.DesktopSession{
-		ID: "session-valid", UserID: user.Id, RelayTokenID: valid.Id, ClientID: service.ConnectorClientID,
+		ID: "session-valid", UserID: user.Id, RelayTokenID: valid.Id, ClientID: service.ConnectClientID,
 		RefreshHash: "refresh-valid", ExpiresAt: now + 60,
 	}).Error)
 	recorder = httptest.NewRecorder()
