@@ -30,11 +30,10 @@ case "$PRODUCT" in
   connect)
     REMOTE_STAGE="C:/Users/${USER}/src/boxai-connect-${VERSION}/connect/release/${VERSION}"
     LOCAL_STAGE="$ROOT/connect/release/${VERSION}"
+    ARTIFACT="BoxAI-Connect-${VERSION}-windows-x64-setup.exe"
     NEED=(
-      BoxAI-Connect-windows-setup.exe
-      BoxAI-Connect-windows-setup.exe.sig
-      BoxAI-Connect-windows.msi
-      BoxAI-Connect-windows.msi.sig
+      "$ARTIFACT"
+      "$ARTIFACT.assertion.json"
     )
     ;;
   *)

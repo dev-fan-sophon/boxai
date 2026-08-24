@@ -1,75 +1,71 @@
 # BoxAI Connect
 
-BoxAI Connect is a desktop app that points AI coding clients at BoxAI. It signs in through
-the browser, stores the account under `~/.boxai-connect/`, and writes the endpoint, key and
-model into each supported client's real configuration file — backing up what was there and
-restoring it on sign-out.
+BoxAI Connect is the native GPUI client for configuring Claude Code, Codex,
+Gemini CLI, Grok Build, and OpenCode with BoxAI. It includes model discovery,
+per-Agent configuration, MCP server and Skill management, reversible apply and
+disconnect operations, account usage, and signed self-updates.
 
-Supported clients: Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, OpenClaw and
-Hermes. Claude Desktop is detection-only; it has no chat-provider concept to point anywhere.
-
-Licensing and lineage are recorded in [UPSTREAM.md](UPSTREAM.md), [LICENSE](LICENSE), and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). This subtree is a vendored MIT fork of
-CC Switch and is **not** covered by the repository's AGPL terms.
-
-## Development
-
-Requires Node (see `.node-version`), pnpm, Rust 1.85+, and the platform Tauri prerequisites.
+The source is based on OriginGame's latest GPUI bkit design. Exact upstream
+revisions and licensing are recorded in [`UPSTREAM.md`](UPSTREAM.md). Neutral
+projection lock and lease identities intentionally remain vendor-neutral so
+another compatible Connector cannot concurrently own the same Agent install.
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm dev                      # or: make connect-dev, from the repository root
+cargo run --locked -p gateway-connector-app --bin boxai-connect
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
 ```
 
-Checks — the same set `connect-ci.yml` runs:
+`cargo run` is a bare Mach-O, so macOS has no bundle `icns`. The host paints
+the Dock tile from `connector-app/packaging/icon.png` — the same master the
+staged `.app` turns into `BoxAIConnect.icns`.
+
+Native staging:
 
 ```sh
-pnpm typecheck && pnpm format:check && pnpm test && pnpm build:renderer
-cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test
+# Native Apple Silicon macOS only. This builds, packages, and writes the
+# assertion beside the versioned DMG in release/<version>/.
+bash packaging/macos/stage-release.sh
 ```
 
-or `make connect-check` from the repository root.
+Windows x64 staging must run on a native Windows host:
 
-Debug and `test-hooks` builds read `BOXAI_CONNECT_HOST` to point at a local gateway, e.g.
-`BOXAI_CONNECT_HOST=http://127.0.0.1:3000 pnpm dev`. Release builds ignore it and stay
-pinned to `https://you-box.com` — that pinning is a security invariant, not a default.
+```powershell
+# This builds, packages, and writes the assertion beside the versioned setup.
+./packaging/windows/stage-release.ps1
+```
 
-## Release
-
-Releases ship from `.github/workflows/connect-release.yml` on a `connect-v*` tag. The tag
-must match `src-tauri/tauri.conf.json`, and the version lives in three files that have to
-move together:
-
-- `package.json`
-- `src-tauri/tauri.conf.json`
-- `src-tauri/Cargo.toml` (and the `boxai-connect` entry in `Cargo.lock`)
-
-CI builds macOS arm64 + x64 and Windows x64, signs and notarizes the Mac bundles, signs the
-Tauri updater payloads, then publishes to Cloudflare R2 under the `connect/` prefix —
-served at `https://dl.you-box.com/connect/`. Both `latest.json` (updater) and
-`releases.json` (the `/connect` download page) are composed by
-`desktop/packaging/make_release_manifests.py --product connect`, so shipping a build
-updates the website without a backend deploy.
-
-Local/emergency path, from the repository root:
+Both native artifacts and both assertion reports must be combined in
+`release/<version>/`. The publisher verifies the reports and Ed25519 key,
+signs the exact installer bytes, uploads immutable artifacts, and advances both
+complete feeds:
 
 ```sh
-make connect-build     # pnpm tauri build on this machine
-make connect-stage     # collect bundles into connect/release/<version>/ under stable names
-make connect-publish   # BOXAI_RELEASE_PRODUCT=connect → desktop/packaging/publish_release.sh
+bash packaging/publish_release.sh
 ```
 
-Local builds read signing secrets from `.env.example`'s variables; CI reads the same values
-from repository secrets. Known trap: with `createUpdaterArtifacts` enabled, `tauri build`
-exits non-zero when the updater signing key is missing — and it does so *after* Apple
-signing, which reads like a signing failure but is not.
+- `https://dl.you-box.com/connect/releases.json` drives the website downloads.
+- `https://dl.you-box.com/connect/native-latest.json` drives signed in-app updates.
+- `https://you-box.com/connect` remains the public download page.
 
-Windows installers are not Authenticode-signed yet, so SmartScreen warns on first run. The
-download page says so. Linux is not packaged.
+The current DMG and NSIS setup are unsigned and the macOS app is not notarized.
+The in-app updater independently requires a valid Ed25519 signature. Do not
+describe the OS packages as signed until platform signing is introduced.
 
-## Icons
+## BoxAI Media and official Skills
 
-`src-tauri/icons/icon.svg` is the source. Regenerate the app icon set with
-`pnpm tauri icon src-tauri/icons/icon.svg`. The macOS menu bar icon is a separate template
-image; regenerate it from `src-tauri/icons/tray/macos/statusbar_template.svg` with the
-command recorded in that file.
+[`catalog.json`](catalog.json) defines the BoxAI Media MCP server and the three
+official Skills under [`skills/`](skills/). Build reproducible archives and
+verify their committed hashes with:
+
+```sh
+python3 packaging/build_catalog.py
+```
+
+After the matching BoxAI backend is deployed, publish the immutable archives
+and atomically activate the complete production catalog with:
+
+```sh
+bash packaging/publish_catalog.sh
+```

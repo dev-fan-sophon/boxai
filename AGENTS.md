@@ -51,25 +51,20 @@ web/             — Frontend container
  web/default/   — Default frontend (React 19, Rsbuild, Base UI, Tailwind)
   web/default/src/i18n/ — Frontend internationalization (i18next, zh/en/fr/ru/ja/vi)
 desktop/       — BoxAI Desktop (Python coworker + Tauri GUI, npm)
-connect/       — BoxAI Connect (Tauri desktop client-configurator, pnpm)
+connect/       — BoxAI Connect (native Rust + GPUI client, Cargo)
 ```
 
-**Three package managers, on purpose.** `web/` uses bun, `desktop/surfaces/gui/`
-uses npm, and `connect/` uses pnpm. Each is pinned by its own lockfile and, for
-`connect/`, by `packageManager` in `connect/package.json`. Do not "unify" them:
-`connect/` is a vendored fork (see below) and switching its package manager
-would break its lockfile and its diffability against upstream.
+**Package managers remain intentional.** `web/` uses bun,
+`desktop/surfaces/gui/` uses npm, and `connect/` is a Cargo workspace. Do not
+reintroduce the removed Tauri/React/pnpm Connect implementation.
 
-**`connect/` is a vendored MIT fork.** BoxAI Connect derives from
-[CC Switch](https://github.com/farion1231/cc-switch) and stays under the MIT
-License it inherited — it is a separate program that contains no new-api code.
-BoxAI-authored files there live in `connect/src-tauri/src/boxai/` and
-`connect/src/components/boxai/`. Lineage and licensing: `connect/UPSTREAM.md`,
-`connect/LICENSE`, `connect/THIRD_PARTY_NOTICES.md`. Upstream `cc-switch`
-identifiers inside the fork are deliberately left alone — some are markers
-written into *other applications'* config files, and renaming them orphans real
-user state. Do not reintroduce per-file copyright/license header blocks in
-source files (including under `connect/`).
+**`connect/` vendors OriginGame's GPUI bkit workspace under Apache-2.0.** Exact
+private/public upstream and gpui-box revisions are pinned in
+`connect/UPSTREAM.md` and `connect/Cargo.lock`. Preserve its neutral projection
+lock and lease identities so compatible connectors cannot concurrently own an
+Agent configuration. BoxAI product identity, Vietnamese localization, Media
+MCP, official Skills, release metadata, and distribution tooling are maintained
+here. Do not add per-file copyright/license header blocks under `connect/`.
 
 ## Internationalization (i18n)
 

@@ -24,7 +24,7 @@ EXPORTS = LOGO / "exports"
 PUB = ROOT / "web/default/public"
 DESKTOP_ICONS = ROOT / "desktop/surfaces/gui/src-tauri/icons"
 DESKTOP_ASSET = ROOT / "desktop/surfaces/gui/assets/icon.png"
-CONNECT_ICONS = ROOT / "connect/src-tauri/icons"
+CONNECT_PACKAGING = ROOT / "connect/connector-app/packaging"
 
 BRAND_PRIMARY = "#E05A3A"  # UI (accessible) — web
 MARK_MID = "#F08050"
@@ -54,7 +54,7 @@ PRODUCTS = {
         "plate": "#0B0B0C",
         "ui": "#D4785C",
         "mark_mid": "#E48F73",
-        "icons_dir": "connect/src-tauri/icons",
+        "icons_dir": "connect/connector-app/packaging",
         "tray": False,
     },
 }
@@ -380,9 +380,6 @@ def main() -> None:
             print(f"  {p.relative_to(ROOT)}")
         mono = re.sub(r'fill="#[^"]+"', 'fill="currentColor"', svg)
         (EXPORTS / "mark-mono.svg").write_text(mono)
-        (CONNECT_ICONS / "icon.svg").write_text(
-            svg.replace("BoxAI</title>", "BoxAI Connect</title>")
-        )
 
     print("== product siblings (desktop / connect) ==")
     work = master.resize((1024, 1024), Image.Resampling.LANCZOS)
@@ -402,29 +399,34 @@ def main() -> None:
 
         save_png(mark, EXPORTS / f"mark-{key}.png")
         save_png(frame(512), EXPORTS / f"app-icon-{key}-512.png")
-        save_png(frame(1024), icons / "icon.png")
+        if key == "connect":
+            save_png(frame(1024), EXPORTS / "app-icon-connect-1024.png")
+            save_png(frame(1024), CONNECT_PACKAGING / "icon.png")
+        else:
+            save_png(frame(1024), icons / "icon.png")
         if cfg.get("asset_icon"):
             save_png(frame(512), ROOT / cfg["asset_icon"])
-        for s, name in [
-            (32, "32x32.png"),
-            (64, "64x64.png"),
-            (128, "128x128.png"),
-            (256, "128x128@2x.png"),
-        ]:
-            save_png(frame(s), icons / name)
-        for name, size in [
-            ("Square30x30Logo.png", 30),
-            ("Square44x44Logo.png", 44),
-            ("Square71x71Logo.png", 71),
-            ("Square89x89Logo.png", 89),
-            ("Square107x107Logo.png", 107),
-            ("Square142x142Logo.png", 142),
-            ("Square150x150Logo.png", 150),
-            ("Square284x284Logo.png", 284),
-            ("Square310x310Logo.png", 310),
-            ("StoreLogo.png", 50),
-        ]:
-            save_png(app_icon(mark, size, bg=plate, pad_ratio=0.16), icons / name)
+        if key != "connect":
+            for s, name in [
+                (32, "32x32.png"),
+                (64, "64x64.png"),
+                (128, "128x128.png"),
+                (256, "128x128@2x.png"),
+            ]:
+                save_png(frame(s), icons / name)
+            for name, size in [
+                ("Square30x30Logo.png", 30),
+                ("Square44x44Logo.png", 44),
+                ("Square71x71Logo.png", 71),
+                ("Square89x89Logo.png", 89),
+                ("Square107x107Logo.png", 107),
+                ("Square142x142Logo.png", 142),
+                ("Square150x150Logo.png", 150),
+                ("Square284x284Logo.png", 284),
+                ("Square310x310Logo.png", 310),
+                ("StoreLogo.png", 50),
+            ]:
+                save_png(app_icon(mark, size, bg=plate, pad_ratio=0.16), icons / name)
 
         # ICO / ICNS from solid plates
         ico_frames = [frame(s) for s in (16, 32, 48, 64, 128, 256)]
@@ -450,22 +452,23 @@ def main() -> None:
             )
             blobs.append(data)
             offset += len(data)
-        with open(icons / "icon.ico", "wb") as f:
+        ico_path = CONNECT_PACKAGING / "windows/icon.ico" if key == "connect" else icons / "icon.ico"
+        ico_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(ico_path, "wb") as f:
             f.write(struct.pack("<HHH", 0, 1, len(ico_frames)))
             for e in entries:
                 f.write(e)
             for b in blobs:
                 f.write(b)
-        print(f"  { (icons / 'icon.ico').relative_to(ROOT) }")
-        make_icns(icons / "icon.icns", lambda s, m=mark, p=plate: app_icon(m, s, bg=p))
+        print(f"  {ico_path.relative_to(ROOT)}")
+        if key != "connect":
+            make_icns(icons / "icon.icns", lambda s, m=mark, p=plate: app_icon(m, s, bg=p))
 
         if svg:
             tinted = svg.replace(MARK_MID, cfg["mark_mid"]).replace(
                 "BoxAI</title>", f"BoxAI {key.title()}</title>"
             )
             (EXPORTS / f"mark-{key}.svg").write_text(tinted)
-            if key == "connect":
-                (icons / "icon.svg").write_text(tinted)
 
         if cfg.get("tray"):
             tray = app_icon(mark, 44, bg=plate, pad_ratio=0.12)

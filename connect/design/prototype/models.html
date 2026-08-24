@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect models</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <section class="filter" data-box="gpui_kit::controls::FilterBar">
+      <input class="search" data-box="gpui_kit::controls::SearchField" placeholder="Filter by model ID, provider, or tag" />
+      <div class="chips">
+        <button class="toggle is-on" data-box="gpui_kit::controls::Toggle">Text</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">Image</button>
+        <button class="toggle is-on" data-box="gpui_kit::controls::Toggle">Video</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">Audio</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">Embeddings</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">3D</button>
+      </div>
+      <div class="chips">
+        <button class="toggle is-on" data-box="gpui_kit::controls::Toggle">OpenAI</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">Anthropic</button>
+        <button class="toggle is-on" data-box="gpui_kit::controls::Toggle">Google</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">xAI</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">DeepSeek</button>
+        <button class="toggle" data-box="gpui_kit::controls::Toggle">Qwen</button>
+      </div>
+      <div class="conditions">
+        <span class="caption">12 models</span>
+        <button class="btn ghost">Clear</button>
+      </div>
+    </section>
+
+    <div class="card-grid" data-box="gpui_kit::layout::Responsive">
+      <article class="card" data-box="gpui_kit::display::Card">
+        <div class="card-body">
+          <div class="list-row">
+            <span class="avatar">O</span>
+            <div class="grow">
+              <div class="model-name">gpt-5</div>
+              <div class="caption">OpenAI</div>
+            </div>
+          </div>
+          <p class="body">Frontier text model for coding and long-context work.</p>
+          <div class="chips">
+            <span class="tag" data-box="gpui_kit::display::Tag">text</span>
+            <span class="tag" data-box="gpui_kit::display::Tag">tools</span>
+            <span class="tag" data-box="gpui_kit::display::Tag">vision</span>
+          </div>
+        </div>
+      </article>
+      <article class="card" data-box="gpui_kit::display::Card">
+        <div class="card-body">
+          <div class="list-row">
+            <span class="avatar">G</span>
+            <div class="grow">
+              <div class="model-name">gemini-2.5-pro</div>
+              <div class="caption">Google</div>
+            </div>
+          </div>
+          <p class="body">Multimodal model with video understanding.</p>
+          <div class="chips">
+            <span class="tag" data-box="gpui_kit::display::Tag">text</span>
+            <span class="tag" data-box="gpui_kit::display::Tag">video</span>
+          </div>
+        </div>
+      </article>
+      <article class="card" data-box="gpui_kit::display::Card">
+        <div class="card-body">
+          <div class="list-row">
+            <span class="avatar">O</span>
+            <div class="grow">
+              <div class="model-name">sora-2</div>
+              <div class="caption">OpenAI</div>
+            </div>
+          </div>
+          <p class="body">Video generation from text prompts.</p>
+          <div class="chips">
+            <span class="tag" data-box="gpui_kit::display::Tag">video</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>

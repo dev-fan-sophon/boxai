@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect sign-in</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="signed-out">
+    <div class="signed-out-inner">
+      <div class="title">BoxAI Connect</div>
+      <article class="card" data-box="gpui_kit::display::Card" style="width:100%">
+        <div class="card-header"><div class="subtitle">Connect a Gateway</div></div>
+        <div class="card-body">
+          <div class="field" data-box="gpui_kit::controls::SettingsRow">
+            <span class="caption">Gateway base URL</span>
+            <input class="input" value="https://you-box.com" />
+          </div>
+          <div class="field" data-box="gpui_kit::controls::SettingsRow">
+            <span class="caption">API key</span>
+            <input class="input" type="password" placeholder="API key, or leave blank for advertised browser login" />
+          </div>
+          <button class="btn primary lg">Connect</button>
+        </div>
+      </article>
+    </div>
+  </div>
+</body>
+</html>

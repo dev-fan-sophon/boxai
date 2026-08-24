@@ -65,12 +65,13 @@ The newly imported desktop manifests under `desktop/` and all transitive depende
 | backend     | production  | Go        | `gorm.io/driver/postgres`                             | `v1.5.2`                             | MIT                                                |
 | backend     | production  | Go        | `gorm.io/gorm`                                        | `v1.25.2`                            | MIT                                                |
 | backend     | production  | Go        | `github.com/expr-lang/expr`                           | `v1.17.8`                            | MIT                                                |
+| connect     | production  | assets    | `@lobehub/icons-static-svg`                           | `1.94.0`                             | MIT                                                |
 | web/default | production  | npm       | `@base-ui/react`                                      | `1.4.1`                              | MIT                                                |
 | web/default | production  | npm       | `@fontsource-variable/public-sans`                    | `5.2.7`                              | OFL-1.1                                            |
 | web/default | production  | npm       | `@hookform/resolvers`                                 | `5.2.2`                              | MIT                                                |
 | web/default | production  | npm       | `@hugeicons/core-free-icons`                          | `4.1.1`                              | MIT                                                |
 | web/default | production  | npm       | `@hugeicons/react`                                    | `1.1.6`                              | MIT                                                |
-| web/default, boxai-connector | production | npm/assets | `@lobehub/icons`                                   | `4.12.0`                             | MIT                                                |
+| web/default | production  | npm/assets | `@lobehub/icons`                                      | `4.12.0`                             | MIT                                                |
 | web/default | production  | npm       | `@tailwindcss/postcss`                                | `4.2.2`                              | MIT                                                |
 | web/default | production  | npm       | `@tanstack/react-query`                               | `5.97.0`                             | MIT                                                |
 | web/default | production  | npm       | `@tanstack/react-router`                              | `1.168.23`                           | MIT                                                |

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect account</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <article class="card" data-box="gpui_kit::display::Card">
+      <div class="card-header"><div class="subtitle">Identity and connection</div></div>
+      <div class="card-body">
+        <dl class="dl" data-box="gpui_kit::display::DescriptionList">
+          <dt>Gateway</dt><dd>https://you-box.com</dd>
+          <dt>Username</dt><dd>fan</dd>
+          <dt>Display name</dt><dd>Fan</dd>
+          <dt>Email</dt><dd>member@example.com</dd>
+        </dl>
+        <div class="toolbar">
+          <button class="btn ghost">Refresh</button>
+          <button class="btn danger">Sign out</button>
+        </div>
+      </div>
+    </article>
+    <div class="stage" data-box="gpui_kit::layout::Responsive">
+      <article class="card elevated" data-box="gpui_kit::display::Card">
+        <div class="card-body">
+          <div class="hero">
+            <span class="caption">Wallet remaining</span>
+            <div class="metric" data-box="gpui_kit::display::AnimatedNumber">86,400</div>
+            <div class="gauge" data-box="gpui_kit::agent::ContextGauge">
+              <div class="gauge-head">
+                <span class="label" style="color:var(--color-text-muted)">Used quota</span>
+                <span class="label">33,600 of 120,000</span>
+              </div>
+              <div class="gauge-track"><i style="width:28%"></i></div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="card elevated" data-box="gpui_kit::agent::CostMeter">
+        <div class="card-body">
+          <div class="strip">
+            <div class="strip-row"><span class="caption">Used quota</span><span class="label">33,600</span></div>
+            <div class="strip-row"><span class="caption">Request count</span><span class="label">1,248</span></div>
+          </div>
+        </div>
+      </article>
+    </div>
+    <article class="card outlined" data-box="gpui_kit::display::Card">
+      <div class="card-header">
+        <div>
+          <div class="subtitle">Pro</div>
+          <div class="caption">active</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <dl class="dl" data-box="gpui_kit::display::DescriptionList">
+          <dt>Period start</dt><dd>2026-08-01 00:00 UTC</dd>
+          <dt>Period end</dt><dd>2026-09-01 00:00 UTC</dd>
+        </dl>
+      </div>
+    </article>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect settings</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <article class="card" data-box="gpui_kit::controls::SettingsSection">
+      <div class="card-header"><div class="subtitle">About</div></div>
+      <div class="card-body">
+        <div class="settings-row" data-box="gpui_kit::controls::SettingsRow">
+          <span class="label">Version</span>
+          <span class="badge">0.2.0</span>
+        </div>
+        <div class="settings-row" data-box="gpui_kit::controls::SettingsRow">
+          <span class="label">Updates</span>
+          <span class="status" data-box="gpui_kit::display::StatusLine"><span class="dot ok"></span>Up to date</span>
+        </div>
+      </div>
+    </article>
+    <article class="card" data-box="gpui_kit::controls::SettingsSection">
+      <div class="card-header"><div class="subtitle">Settings</div></div>
+      <div class="card-body">
+        <div class="settings-row"><span class="label">Language</span><span class="badge">中文</span></div>
+        <div class="settings-row"><span class="label">Theme</span><span class="badge">Studio Dark</span></div>
+        <div class="settings-row"><span class="label">Density</span><span class="badge">Comfortable</span></div>
+      </div>
+    </article>
+    <article class="card" data-box="gpui_kit::controls::SettingsSection">
+      <div class="card-header"><div class="subtitle">Connection</div></div>
+      <div class="card-body">
+        <div class="settings-row">
+          <span class="label">Managed Agent configuration</span>
+          <button class="btn danger">Disconnect</button>
+        </div>
+      </div>
+    </article>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>

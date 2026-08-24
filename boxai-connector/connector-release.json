@@ -1,8 +1,0 @@
-{
-  "product": "BoxAI Connector",
-  "version": "0.1.0",
-  "bundle_id": "com.you-box.connector",
-  "binary": "boxai-connector",
-  "download_manifest": "https://dl.you-box.com/connector/releases.json",
-  "cdn_prefix": "https://dl.you-box.com/connector/"
-}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect MCP</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <div class="callout" data-box="gpui_kit::display::StatusLine">
+      <span class="status"><span class="dot info"></span>Enable each server on the Agent page, then apply that Agent.</span>
+    </div>
+    <article class="card" data-box="gpui_kit::agent::ServerList">
+      <div class="card-body">
+        <div class="list-row">
+          <div class="grow">
+            <div class="label">Docs</div>
+            <div class="caption">Available from platform</div>
+          </div>
+          <span class="badge success">Connected</span>
+        </div>
+        <dl class="dl">
+          <dt>Endpoint</dt><dd>https://you-box.com/mcp</dd>
+          <dt>Authorization</dt><dd>Connection bearer</dd>
+        </dl>
+        <div class="list-row">
+          <div class="grow">
+            <div class="label">Generate</div>
+            <div class="caption">Image, speech, and mesh tools</div>
+          </div>
+          <span class="badge success">Connected</span>
+        </div>
+      </div>
+    </article>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>

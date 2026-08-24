@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect overview</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <div class="stage" data-box="gpui_kit::layout::Responsive">
+      <article class="card elevated" data-box="gpui_kit::display::Card">
+        <div class="card-body">
+          <div class="hero">
+            <span class="caption">Wallet remaining</span>
+            <div class="metric" data-box="gpui_kit::display::AnimatedNumber">86,400</div>
+            <div class="gauge" data-box="gpui_kit::agent::ContextGauge">
+              <div class="gauge-head">
+                <span class="label" style="color:var(--color-text-muted)">Used quota</span>
+                <span class="label">33,600 of 120,000</span>
+              </div>
+              <div class="gauge-track"><i style="width:28%"></i></div>
+            </div>
+            <svg class="spark" viewBox="0 0 240 36" data-box="gpui_kit::display::Sparkline" aria-label="Usage">
+              <polyline fill="none" stroke="#7c86ff" stroke-width="1.5" points="0,28 24,26 48,24 72,20 96,22 120,16 144,18 168,12 192,14 216,10 240,11" />
+            </svg>
+          </div>
+        </div>
+      </article>
+      <article class="card elevated" data-box="gpui_kit::agent::CostMeter">
+        <div class="card-body">
+          <div class="strip">
+            <div class="strip-row"><span class="caption">Used quota</span><span class="label">33,600</span></div>
+            <div class="strip-row"><span class="caption">Request count</span><span class="label">1,248</span></div>
+            <div class="strip-row"><span class="caption">Requests per minute</span><span class="label">12</span></div>
+            <div class="strip-row"><span class="caption">Tokens per minute</span><span class="label">48,200</span></div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="wide-stage" data-box="gpui_kit::layout::Responsive">
+      <article class="card elevated" data-box="gpui_kit::display::Card">
+        <div class="card-header">
+          <div class="subtitle">Usage</div>
+          <div class="toolbar">
+            <div class="segments" data-box="gpui_kit::controls::SegmentedControl">
+              <button class="segment">7 days</button>
+              <button class="segment is-on">30 days</button>
+            </div>
+            <div class="segments" data-box="gpui_kit::controls::SegmentedControl">
+              <button class="segment is-on">Quota</button>
+              <button class="segment">Tokens</button>
+              <button class="segment">Requests</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <svg class="chart" viewBox="0 0 420 200" data-box="gpui_kit::display::LineChart" aria-label="Usage by day">
+            <polyline fill="rgba(124,134,255,0.14)" stroke="#7c86ff" stroke-width="1.5"
+              points="0,150 42,138 84,128 126,104 168,116 210,90 252,96 294,74 336,82 378,66 420,70 420,200 0,200" />
+          </svg>
+        </div>
+      </article>
+      <article class="card ghost" data-box="gpui_kit::display::Card">
+        <div class="card-header" style="padding-left:0"><div class="subtitle">Usage by model</div></div>
+        <div class="card-body" style="padding-left:0;padding-right:0">
+          <div class="rank">
+            <div data-box="gpui_kit::display::ProgressBar">
+              <div class="rank-row"><span class="label">gpt-5</span><span class="caption">42,100</span></div>
+              <div class="track"><i style="width:92%"></i></div>
+            </div>
+            <div data-box="gpui_kit::display::ProgressBar">
+              <div class="rank-row"><span class="label">claude-4</span><span class="caption">28,400</span></div>
+              <div class="track"><i style="width:62%"></i></div>
+            </div>
+            <div data-box="gpui_kit::display::ProgressBar">
+              <div class="rank-row"><span class="label">gemini-2.5</span><span class="caption">19,200</span></div>
+              <div class="track"><i style="width:42%"></i></div>
+            </div>
+            <div data-box="gpui_kit::display::ProgressBar">
+              <div class="rank-row"><span class="label">grok</span><span class="caption">8,600</span></div>
+              <div class="track"><i style="width:19%"></i></div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="wide-stage" data-box="gpui_kit::layout::Responsive">
+      <article class="card" data-box="gpui_kit::data::Table">
+        <div class="card-header"><div class="subtitle">Recent requests</div></div>
+        <div class="card-body">
+          <table class="table">
+            <thead>
+              <tr><th>Time</th><th>Model</th><th class="num">Quota</th><th class="num">Tokens</th><th class="num">Duration</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>16:40 UTC</td><td>gpt-5</td><td class="num">42</td><td class="num">1,280</td><td class="num">3s</td></tr>
+              <tr><td>16:38 UTC</td><td>claude-4</td><td class="num">28</td><td class="num">860</td><td class="num">2s</td></tr>
+              <tr><td>16:21 UTC</td><td>gemini-2.5</td><td class="num">19</td><td class="num">640</td><td class="num">4s</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+      <article class="card ghost" data-box="gpui_kit::display::StatusLine">
+        <div class="card-header" style="padding-left:0"><div class="subtitle">Agent status</div></div>
+        <div class="card-body" style="padding-left:0;padding-right:0">
+          <div class="strip-row"><span class="label">Claude</span><span class="status"><span class="dot ok"></span>Managed</span></div>
+          <div class="strip-row"><span class="label">Codex</span><span class="status"><span class="dot warn"></span>Unapplied</span></div>
+          <div class="strip-row"><span class="label">Gemini</span><span class="status"><span class="dot"></span>Not detected</span></div>
+          <div class="strip-row"><span class="label">Grok</span><span class="status"><span class="dot ok"></span>Detected</span></div>
+        </div>
+      </article>
+    </div>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>

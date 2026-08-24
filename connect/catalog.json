@@ -1,0 +1,49 @@
+{
+  "mcp_servers": [
+    {
+      "id": "boxai-media",
+      "name": "BoxAI Media",
+      "url": "https://you-box.com/mcp",
+      "authorization": "connection_bearer",
+      "description": "Generate images and asynchronous videos with BoxAI models, then poll video tasks until completion."
+    }
+  ],
+  "skills": [
+    {
+      "id": "generating-boxai-images",
+      "name": "Generating BoxAI Images",
+      "version": "1.0.0",
+      "archive": {
+        "url": "https://dl.you-box.com/connect/catalog/skills/generating-boxai-images/1.0.0.zip",
+        "sha256": "507e628d58b5dd1edfebd5b71393db9a9f070ccae1b2e783252379ebc9d1d7ef",
+        "size_bytes": 2216,
+        "format": "zip",
+        "authorization": "none"
+      }
+    },
+    {
+      "id": "generating-boxai-videos",
+      "name": "Generating BoxAI Videos",
+      "version": "1.0.0",
+      "archive": {
+        "url": "https://dl.you-box.com/connect/catalog/skills/generating-boxai-videos/1.0.0.zip",
+        "sha256": "01f78609c5762d52c1cc8b907072cc1a6c8c497245f2d37fa2e33cee582531e5",
+        "size_bytes": 2335,
+        "format": "zip",
+        "authorization": "none"
+      }
+    },
+    {
+      "id": "using-boxai-gateway",
+      "name": "Using the BoxAI Gateway",
+      "version": "1.0.0",
+      "archive": {
+        "url": "https://dl.you-box.com/connect/catalog/skills/using-boxai-gateway/1.0.0.zip",
+        "sha256": "484544201c1abcbc95d214fad99f9ef91b76593fc5cd68779698fe039755a9e8",
+        "size_bytes": 2533,
+        "format": "zip",
+        "authorization": "none"
+      }
+    }
+  ]
+}

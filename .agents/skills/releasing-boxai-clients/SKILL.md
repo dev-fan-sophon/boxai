@@ -1,236 +1,192 @@
 ---
 name: releasing-boxai-clients
-description: Build, stage, and publish BoxAI Desktop and BoxAI Connect for macOS and Windows (including the Studio Windows SSH host), then push artifacts to Cloudflare R2 at dl.you-box.com.
+description: Builds, natively asserts, stages, and publishes BoxAI Desktop and BoxAI Connect for macOS and Windows. Use for client releases, installer rebuilds, R2 publication, or Studio Windows release work.
 ---
 
-# Releasing BoxAI clients (Desktop + Connect)
+# Releasing BoxAI Clients
 
-Use this skill whenever the user asks to **ship / release / publish / rebuild** BoxAI Desktop or BoxAI Connect installers, refresh client icons across platforms, or run the **full multi-machine release**.
+Release BoxAI Desktop and the native Rust/GPUI BoxAI Connect to the
+`boxai-desktop` Cloudflare R2 bucket served at `https://dl.you-box.com`.
 
 ## Products
 
-| Product | Path | Version file | CDN prefix | Make targets |
-|---------|------|--------------|------------|--------------|
-| **BoxAI Desktop** | `desktop/` | `desktop/surfaces/gui/src-tauri/tauri.conf.json` | `https://dl.you-box.com/desktop/` | `desktop-build` `desktop-stage` `desktop-publish` |
-| **BoxAI Connect** | `connect/` | `connect/src-tauri/tauri.conf.json` | `https://dl.you-box.com/connect/` | `connect-build` `connect-stage` `connect-publish` |
+| Product | Version source | Stage | Public feeds |
+| --- | --- | --- | --- |
+| Desktop | `desktop/surfaces/gui/src-tauri/tauri.conf.json` | `desktop/release/<version>/` | `desktop/latest.json`, `desktop/releases.json` |
+| Connect | `connect/release-metadata.json` | `connect/release/<version>/` | `connect/native-latest.json`, `connect/releases.json` |
 
-Both share:
+Desktop remains Tauri and uses the minisign key at
+`~/.config/boxai/desktop-updater.key`. Connect is not Tauri: it uses Cargo,
+native GPUI packaging, and the Ed25519 PEM key at
+`~/.config/boxai/connect-update-signing.pem`.
 
-- Updater minisign key: `~/.config/boxai/desktop-updater.key` (+ `.pub` baked into each `tauri.conf.json`)
-- Publish script: `desktop/packaging/publish_release.sh` (`BOXAI_RELEASE_PRODUCT=connect` for Connect)
-- R2 bucket `boxai-desktop`, credentials in **`.env.cloudflare`**: `R2_DESKTOP_*`, `R2_ENDPOINT`, plus `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID` for cache purge
+Connect's metadata public key must match the private PEM before anything can
+publish. Never print either private key.
 
-## Architecture (who builds what)
+## Build ownership
 
-```
-┌─────────────────────┐     stage      ┌──────────────────────────┐
-│ Mac (arm64)         │ ─────────────► │ desktop/release/<ver>/   │
-│ make desktop-build  │                │ connect/release/<ver>/   │
-│ make connect-build  │                └────────────▲─────────────┘
-└─────────────────────┘                             │ pull scp
-                                                    │
-┌─────────────────────┐   win_remote_build.ps1      │
-│ Windows Studio host │ ────────────────────────────┘
-│ SSH: win-cf / win-lan
-│ packaging/build_windows.ps1  (Desktop)
-│ pnpm tauri build             (Connect)
-└─────────────────────┘
-         │
-         ▼  make desktop-publish / connect-publish
-   Cloudflare R2 → https://dl.you-box.com/{desktop,connect}/
+```text
+macOS arm64 host ──native build/assert──┐
+                                       ├── release/<version> ──publisher── R2
+Studio Windows x64 ─native build/assert┘
 ```
 
-### Windows SSH hosts (`~/.ssh/config`)
+Do not cross-build or fabricate native assertion reports. Connect publication
+requires both exact artifacts and their assertion JSON:
 
-| Alias | When | Host |
-|-------|------|------|
-| **`win-lan`** | On office LAN | `192.168.31.135` user `win` |
-| **`win-cf`** | Remote / default | `studio-win.origingame.dev` via `cloudflared access ssh` user `win` |
+- `BoxAI-Connect-<version>-macos-arm64.dmg`
+- `BoxAI-Connect-<version>-macos-arm64.dmg.assertion.json`
+- `BoxAI-Connect-<version>-windows-x64-setup.exe`
+- `BoxAI-Connect-<version>-windows-x64-setup.exe.assertion.json`
 
-Prefer `win-lan` when reachable; otherwise `BOXAI_WIN_SSH_HOST=win-cf` (default in scripts).
+The OS packages are currently unsigned and the macOS app is not notarized.
+The in-app update feed is still signed over the exact installer bytes with the
+Connect Ed25519 key. Do not claim Authenticode, Developer ID, or notarization.
 
-Host layout (Windows user `win`):
+## Full release
 
-| Path | Role |
-|------|------|
-| `C:\Users\win\.config\boxai\desktop-updater.key` | Updater private key (must match pubkey in tauri.conf) |
-| `C:\Users\win\src\boxai-desktop-<ver>\` | Clean clone for Desktop build |
-| `C:\Users\win\src\boxai-connect-<ver>\` | Clean clone for Connect build |
-| `C:\Users\win\build_*_remote.log` | Build logs |
-| `C:\Users\win\build_*_remote.done` | `exit=0` when finished |
-
-## One-shot full release
-
-From repo root on Mac (after the release commit is **pushed** so Windows can `git clone`):
+Run from a Mac after the release commit is pushed to `origin/main`, because the
+Windows driver clones the pushed ref:
 
 ```bash
-# Optional: LAN host
-# export BOXAI_WIN_SSH_HOST=win-lan
-
 bash scripts/client-release/full-release.sh
 ```
 
-Flags:
+Optional environment:
 
-| Env | Effect |
-|-----|--------|
-| `SKIP_MAC=1` | Only Windows + publish (macOS already staged) |
-| `SKIP_WIN=1` | Only macOS + publish (Windows already staged) |
-| `BOXAI_RELEASE_REF=main` | Git ref Windows clones (default `main`) |
-| `BOXAI_WIN_SSH_HOST` | `win-cf` or `win-lan` |
+- `BOXAI_RELEASE_REF=main`
+- `BOXAI_WIN_SSH_HOST=win-cf` (default) or `win-lan`
+- `SKIP_MAC=1` when valid macOS stages already exist
+- `SKIP_WIN=1` when valid Windows stages already exist
 
-## Step-by-step (manual)
+The script stages both products, publishes both product feeds, then publishes
+the BoxAI Media MCP and official Skill catalog.
 
-### 0. Preflight
+## Connect manual flow
+
+### 1. Validate
 
 ```bash
-# Versions
-python3 -c "import json;print('desktop',json.load(open('desktop/surfaces/gui/src-tauri/tauri.conf.json'))['version'])"
-python3 -c "import json;print('connect',json.load(open('connect/src-tauri/tauri.conf.json'))['version'])"
-
-# Signing key (pubkey must match tauri.conf plugins.updater.pubkey)
-test -f ~/.config/boxai/desktop-updater.key
-
-# Publish env
-set -a; source .env.cloudflare; set +a
-test -n "$R2_DESKTOP_ACCESS_KEY_ID" && test -n "$R2_ENDPOINT"
-
-# Windows SSH
-ssh -o BatchMode=yes -o ConnectTimeout=15 win-cf "echo ok"
-# or: ssh win-lan "echo ok"
-
-# Push release commit first (Windows clones from GitHub)
-git push origin HEAD
+make connect-check
+python3 connect/packaging/build_catalog.py
 ```
 
-### 1. macOS builds
+### 2. Build/assert macOS arm64
+
+On a native arm64 Mac:
+
+```bash
+make connect-stage
+```
+
+`connect/packaging/macos/stage-release.sh` builds the release binary, creates
+the DMG, inspects its bundle, architecture, icon, volume, and metadata, then
+stages the artifact and assertion report.
+
+### 3. Build/assert Windows x64
+
+The helper uploads `connect/packaging/win_remote_build.ps1`, clones the pushed
+ref on the Studio Windows host, installs Rust 1.97, builds NSIS, reads the PE
+resources and installer payload back, and stages the exact setup + report.
+
+```bash
+bash scripts/client-release/run-windows-build.sh connect main
+bash scripts/client-release/wait-windows-build.sh connect
+VERSION=$(python3 -c 'import json; print(json.load(open("connect/release-metadata.json"))["version"])')
+bash scripts/client-release/pull-windows-artifacts.sh connect "$VERSION"
+```
+
+Tail failures with:
+
+```bash
+ssh win-cf 'cmd /c type C:\Users\win\build_connect_remote.log'
+```
+
+### 4. Publish Connect
+
+Preflight without revealing secrets:
+
+```bash
+test -f ~/.config/boxai/connect-update-signing.pem
+test -f .env.cloudflare
+find "connect/release/$VERSION" -maxdepth 1 -type f -print
+```
+
+Then:
+
+```bash
+make connect-publish
+```
+
+`connect/packaging/publish_release.sh` fails closed unless both native targets
+and matching assertions exist. It verifies the key, signs both exact artifact
+bytes, uploads immutable versioned objects first, publishes both feeds, purges
+their cache, and verifies live schemas, sizes, and SHA-256 hashes.
+
+### 5. Publish Media MCP and Skills
+
+After the backend containing `/api/admin/connector/catalog` is deployed:
+
+```bash
+make connect-catalog-publish
+```
+
+This deterministically rebuilds three official Skill ZIPs, uploads immutable
+archives, verifies their live bytes, then atomically activates the complete
+catalog through the root-only management API.
+
+## Desktop manual flow
+
+Desktop release behavior is unchanged:
 
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY="$HOME/.config/boxai/desktop-updater.key"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+make desktop-build
+make desktop-stage
 
-make desktop-build    # packaging/build_dmg.sh → arm64 DMG + updater tar.gz
-make desktop-stage    # → desktop/release/<ver>/
-
-make connect-build    # pnpm tauri build (needs signing key env)
-make connect-stage    # → connect/release/<ver>/
-```
-
-**Connect signing tip:** if `pnpm tauri build` fails with “public key found but no private key”, export `TAURI_SIGNING_PRIVATE_KEY` to the **path** of `desktop-updater.key` (not `updater.key` — wrong pubkey).
-
-### 2. Windows builds (Studio host)
-
-```bash
-# Desktop
 bash scripts/client-release/run-windows-build.sh desktop main
 bash scripts/client-release/wait-windows-build.sh desktop
-bash scripts/client-release/pull-windows-artifacts.sh desktop 0.1.7   # use real version
+DESKTOP_VERSION=$(python3 -c 'import json; print(json.load(open("desktop/surfaces/gui/src-tauri/tauri.conf.json"))["version"])')
+bash scripts/client-release/pull-windows-artifacts.sh desktop "$DESKTOP_VERSION"
 
-# Connect
-bash scripts/client-release/run-windows-build.sh connect main
-bash scripts/client-release/wait-windows-build.sh connect
-bash scripts/client-release/pull-windows-artifacts.sh connect 0.1.0
-```
-
-Drivers (uploaded automatically):
-
-- `desktop/packaging/win_remote_build.ps1`
-- `connect/packaging/win_remote_build.ps1`
-
-They clone `main` (or `-Ref`), build, run `stage_release.sh` under Git Bash, write `exit=0` to the done marker.
-
-Tail logs while waiting:
-
-```bash
-ssh win-cf "cmd /c type C:\\Users\\win\\build_desktop_remote.log"
-ssh win-cf "cmd /c type C:\\Users\\win\\build_connect_remote.log"
-```
-
-### 3. Stage completeness checklist
-
-Before publish, each product stage dir should contain:
-
-**Desktop** `desktop/release/<ver>/`:
-
-- `BoxAI-Desktop-macos-arm64.dmg` + `.app.tar.gz` + `.sig`
-- `BoxAI-Desktop-windows-setup.exe` + `.sig`
-- `BoxAI-Desktop-windows.msi` + `.sig`
-
-**Connect** `connect/release/<ver>/`:
-
-- `BoxAI-Connect-macos-arm64.dmg` + `.app.tar.gz` + `.sig`
-- optionally `BoxAI-Connect-macos-x64.*` if cross-built
-- `BoxAI-Connect-windows-setup.exe` + `.sig`
-- `BoxAI-Connect-windows.msi` + `.sig`
-
-`publish_release.sh` only ships platforms it can hash; missing Windows silently drops that platform from the manifest — always verify after publish.
-
-### 4. Publish to R2
-
-```bash
-set -a; source .env.cloudflare; set +a
 make desktop-publish
-make connect-publish
 ```
 
-Verify:
+## Windows hosts
+
+- `win-lan`: office LAN Studio host
+- `win-cf`: remote Studio host through Cloudflare Access
+
+Prefer `win-lan` when reachable. Never disable SSH host-key checking.
+
+## CI release
+
+- `desktop-v*` tags run `.github/workflows/desktop-release.yml`.
+- `connect-v*` tags run `.github/workflows/connect-release.yml`.
+
+The Connect workflow requires `BOXAI_CONNECT_UPDATE_SIGNING_KEY` and R2
+production secrets. It does not silently downgrade to an unsigned update feed.
+
+## Verification
 
 ```bash
-curl -fsS https://dl.you-box.com/desktop/releases.json | head -c 400; echo
-curl -fsS https://dl.you-box.com/connect/releases.json | head -c 400; echo
+curl -fsS https://dl.you-box.com/connect/releases.json | jq '.version, .downloads'
+curl -fsS https://dl.you-box.com/connect/native-latest.json | jq '.version, (.platforms | keys)'
+curl -fsS https://dl.you-box.com/desktop/releases.json | jq '.version'
 ```
 
-Website download buttons read those manifests (`web/default` → `useAppRelease`).
-
-## Version bumps
-
-1. Edit `version` in the product’s `tauri.conf.json`
-2. Commit + push
-3. Optional tags for CI: `desktop-v0.1.8`, `connect-v0.1.1` (see `.github/workflows/*-release.yml`)
-4. Run full release (local path above **or** tag-triggered GitHub Actions)
-
-Do **not** re-use an old Windows binary under a new version number.
-
-## Brand icons
-
-App icons live under:
-
-- Desktop: `desktop/surfaces/gui/src-tauri/icons/`
-- Connect: `connect/src-tauri/icons/`
-- Web marketing: `web/default/public/brand/{desktop,connect}-icon.png`
-
-Regenerate from the mark kit:
-
-```bash
-python3 logo/scripts/build-brand-kit.py
-```
-
-Then rebuild **all** platforms so Dock / Explorer / installers match the site.
+Verify every advertised artifact returns HTTP 200 and matches its manifest
+size/hash. For Connect, verify both `darwin-arm64` and `win32-x64` are present;
+the publisher must never advance a partial feed.
 
 ## Common failures
 
-| Symptom | Fix |
-|---------|-----|
-| `no private key` / updater sign fail (Mac Connect) | `export TAURI_SIGNING_PRIVATE_KEY=$HOME/.config/boxai/desktop-updater.key` |
-| `incorrect updater private key password` | Use **file path** for key env; empty `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; Desktop uses `win_tauri_build.mjs` on Windows |
-| Windows `No route to host` (win-lan) | Use `win-cf` + cloudflared login |
-| Stage has only macOS | Windows build not pulled — re-run `pull-windows-artifacts.sh` |
-| Publish missing Windows in JSON | Stage dir missing `.exe` / `.msi` — check remote `STAGED` lines in log |
-| Deploy web incomplete `common/` | Rare race on `git archive \| ssh tar`; re-run `make deploy` once |
-| SmartScreen on Windows | Expected until Authenticode; users use “More info → Run anyway” |
-
-## CI alternative
-
-- Tag `desktop-v*`: `.github/workflows/desktop-release.yml` (matrix mac + windows, then R2 publish job)
-- Tag `connect-v*`: `.github/workflows/connect-release.yml`
-
-Local + Studio Windows is the emergency / icon-hotfix path when you need control without waiting for Actions.
-
-## Agent checklist (do in order)
-
-1. Confirm commit with icons/version is **pushed**
-2. Preflight keys + SSH + `.env.cloudflare`
-3. Prefer `bash scripts/client-release/full-release.sh` over ad-hoc commands
-4. If only Windows missing: `SKIP_MAC=1` after mac stage is good
-5. After publish, `curl` both `releases.json` and confirm Windows URLs return 200
-6. Report residual (e.g. macOS x64 Connect not rebuilt on arm64-only Mac)
+| Symptom | Action |
+| --- | --- |
+| Connect key mismatch | Use `connect-update-signing.pem`; do not use the Desktop minisign key |
+| Missing native assertion | Rebuild on that target OS; never hand-write a report |
+| Windows build cannot find NSIS/7-Zip | Install NSIS and 7-Zip on the Studio host |
+| `win-lan` unreachable | Set `BOXAI_WIN_SSH_HOST=win-cf` |
+| R2 feed points at missing bytes | Stop; upload immutable artifacts before feeds and republish |
+| macOS or SmartScreen warning | Expected until OS signing/notarization is introduced; report it truthfully |

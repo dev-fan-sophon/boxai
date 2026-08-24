@@ -105,6 +105,28 @@ fi
 
 node --version
 
+if command -v apt-get >/dev/null; then
+  echo 'Installing native BoxAI Connect build dependencies...'
+  "${sudo_cmd[@]}" apt-get update -qq
+  "${sudo_cmd[@]}" apt-get install -y --no-install-recommends \
+    libxkbcommon-dev libxkbcommon-x11-dev pkg-config
+fi
+
+if [[ ! -x "$HOME/.cargo/bin/rustup" ]]; then
+  echo 'Installing rustup...'
+  curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+    https://sh.rustup.rs -o "$setup_tmp/rustup-init.sh"
+  sh "$setup_tmp/rustup-init.sh" -y --profile minimal --default-toolchain 1.97.0
+fi
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup toolchain install 1.97.0 --profile minimal
+rustup component add rustfmt clippy --toolchain 1.97.0
+for rust_command in cargo rustc rustfmt clippy-driver rustup; do
+  "${sudo_cmd[@]}" ln -sf "$HOME/.cargo/bin/$rust_command" "/usr/local/bin/$rust_command"
+done
+hash -r
+cargo --version
+
 echo 'Downloading Go modules...'
 go mod download
 

@@ -19,7 +19,7 @@ export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 	reset-setup deploy deploy-bootstrap deploy-web \
 	desktop-build desktop-stage desktop-publish desktop-screenshots \
 	connect-dev connect-check connect-build connect-stage connect-publish \
-	connector-check connector-build connector-stage connector-publish
+	connect-catalog-build connect-catalog-publish
 
 all: build-web start-api
 
@@ -89,39 +89,34 @@ desktop-publish:
 desktop-screenshots:
 	@cd $(DESKTOP_GUI_DIR) && npm run screenshots
 
-# BoxAI Connect (connect/): the desktop app that points AI coding clients at this
-# deployment. It is a pnpm + Rust project, deliberately outside the bun workspace.
-#
-# Releases normally ship from .github/workflows/connect-release.yml on a connect-v* tag.
-# These targets are the local/emergency path; they reuse desktop/packaging's publish
-# pipeline through BOXAI_RELEASE_PRODUCT so both products share one verified script.
+# BoxAI Connect is the native Rust/GPUI client. Native staging builds and
+# asserts the macOS arm64 DMG or Windows x64 setup program on that target OS.
 connect-dev:
-	@cd $(CONNECT_DIR) && pnpm install --frozen-lockfile && pnpm dev
+	@cd $(CONNECT_DIR) && cargo run --locked -p gateway-connector-app --bin boxai-connect
 
 connect-check:
-	@cd $(CONNECT_DIR) && pnpm install --frozen-lockfile && pnpm typecheck && pnpm format:check && pnpm test
-	@cd $(CONNECT_DIR)/src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test
+	@cd $(CONNECT_DIR) && cargo fmt --all -- --check
+	@cd $(CONNECT_DIR) && cargo clippy --locked --all-targets -- -D warnings
+	@cd $(CONNECT_DIR) && cargo test --locked
+	@cd $(CONNECT_DIR) && python3 packaging/build_catalog.py
 
 connect-build:
-	@cd $(CONNECT_DIR) && pnpm install --frozen-lockfile && pnpm tauri build
+	@cd $(CONNECT_DIR) && cargo build --locked --release --bin boxai-connect
 
 connect-stage:
-	@cd $(CONNECT_DIR) && bash packaging/stage_release.sh
+	@case "$$(uname -s)" in \
+		Darwin) cd $(CONNECT_DIR) && bash packaging/macos/stage-release.sh ;; \
+		*) echo "connect-stage supports native macOS here; use packaging/windows/stage-release.ps1 on Windows" >&2; exit 1 ;; \
+	esac
 
 connect-publish:
-	@BOXAI_RELEASE_PRODUCT=connect bash $(DESKTOP_DIR)/packaging/publish_release.sh
+	@cd $(CONNECT_DIR) && bash packaging/publish_release.sh
 
-connector-check:
-	@cd boxai-connector && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+connect-catalog-build:
+	@cd $(CONNECT_DIR) && python3 packaging/build_catalog.py
 
-connector-build:
-	@cd boxai-connector && cargo build --release --features connector-app/gpui-app --bin boxai-connector
-
-connector-stage:
-	@cd boxai-connector && bash packaging/stage_release.sh
-
-connector-publish:
-	@cd boxai-connector && bash packaging/publish_release.sh
+connect-catalog-publish:
+	@cd $(CONNECT_DIR) && bash packaging/publish_catalog.sh
 
 reset-setup:
 	@echo "Resetting local setup wizard state..."

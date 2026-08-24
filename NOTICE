@@ -19,11 +19,10 @@ frontend bundles, and desktop installers distributed to users.
 ==== Separately Licensed Subtrees ====
 
 connect/
-BoxAI Connect, a desktop client for configuring AI coding clients. It is an
-independent program derived from CC Switch (Copyright (c) 2024-2025 Jason
-Young) and is distributed under the MIT License, not under the rest of this
-repository's terms. Its license text, lineage, and third-party notices live in
-connect/LICENSE, connect/UPSTREAM.md, and connect/THIRD_PARTY_NOTICES.md.
+BoxAI Connect, the native GPUI client for configuring AI coding agents. Its
+vendored OriginGame bkit and GatewayConnector lineage is distributed under the
+Apache License 2.0. Exact source revisions and licensing live in
+connect/LICENSE and connect/UPSTREAM.md.
 
 ==== Apache-2.0 Notices ====
 

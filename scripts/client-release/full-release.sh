@@ -29,7 +29,7 @@ SKIP_MAC="${SKIP_MAC:-0}"
 SKIP_WIN="${SKIP_WIN:-0}"
 
 DESKTOP_VER="$(python3 -c "import json;print(json.load(open('desktop/surfaces/gui/src-tauri/tauri.conf.json'))['version'])")"
-CONNECT_VER="$(python3 -c "import json;print(json.load(open('connect/src-tauri/tauri.conf.json'))['version'])")"
+CONNECT_VER="$(python3 -c "import json;print(json.load(open('connect/release-metadata.json'))['version'])")"
 
 echo "=========================================="
 echo " BoxAI client release"
@@ -50,7 +50,6 @@ if [[ "$SKIP_MAC" != "1" ]]; then
 
   echo ""
   echo "==> [mac] Connect build"
-  make connect-build
   make connect-stage
 else
   echo "==> skip macOS builds"
@@ -83,10 +82,14 @@ echo "==> publish Connect $CONNECT_VER"
 make connect-publish
 
 echo ""
+echo "==> publish BoxAI Connect MCP/Skill catalog"
+make connect-catalog-publish
+
+echo ""
 echo "=========================================="
 echo " Published"
 echo "   https://dl.you-box.com/desktop/latest.json"
 echo "   https://dl.you-box.com/desktop/releases.json"
-echo "   https://dl.you-box.com/connect/latest.json"
+echo "   https://dl.you-box.com/connect/native-latest.json"
 echo "   https://dl.you-box.com/connect/releases.json"
 echo "=========================================="

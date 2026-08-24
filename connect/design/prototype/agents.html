@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>BoxAI Connect agents</title>
+  <link rel="stylesheet" href="./kit.css" />
+</head>
+<body>
+  <div class="page-column">
+    <article class="card" data-box="gpui_kit::display::Card">
+      <div class="card-header">
+        <div class="toolbar">
+          <span class="avatar">C</span>
+          <div>
+            <div class="title">Claude</div>
+            <div class="caption">~/.claude</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <span class="status" data-box="gpui_kit::display::StatusLine"><span class="dot ok"></span>Detected</span>
+          <span class="status" data-box="gpui_kit::display::StatusLine"><span class="dot ok"></span>Managed</span>
+          <button class="btn primary">Apply</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="settings-row" data-box="gpui_kit::controls::SettingsRow">
+          <span class="label">Model</span>
+          <span class="badge">gpt-5</span>
+        </div>
+        <div class="settings-row" data-box="gpui_kit::controls::SettingsRow">
+          <span class="label">Protocol</span>
+          <span class="badge">Anthropic</span>
+        </div>
+      </div>
+    </article>
+    <article class="card" data-box="gpui_kit::display::Card">
+      <div class="card-header"><div class="subtitle">MCP</div></div>
+      <div class="card-body">
+        <div class="list-row" data-box="gpui_kit::data::List"><span class="grow label">Docs</span><span class="badge accent">On</span></div>
+        <div class="list-row" data-box="gpui_kit::data::List"><span class="grow label">Generate</span><span class="badge">Off</span></div>
+        <div class="list-row" data-box="gpui_kit::data::List"><span class="grow label">Assets</span><span class="badge accent">On</span></div>
+      </div>
+    </article>
+    <article class="card" data-box="gpui_kit::display::Card">
+      <div class="card-header"><div class="subtitle">Skills</div></div>
+      <div class="card-body">
+        <div class="list-row" data-box="gpui_kit::data::List"><span class="grow label">generating-boxai-images</span><span class="badge accent">On</span></div>
+        <div class="list-row" data-box="gpui_kit::data::List"><span class="grow label">using-boxai-gateway</span><span class="badge accent">On</span></div>
+      </div>
+    </article>
+  </div>
+  <script src="./chrome.js"></script>
+</body>
+</html>
