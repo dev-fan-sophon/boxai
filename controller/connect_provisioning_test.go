@@ -150,7 +150,7 @@ func TestConnectorManifestMatchesNeutralPKCESchema(t *testing.T) {
 	assert.Equal(t, "https://gateway.example/api/v1/connector/token", payload.Data.Authentication.TokenURL)
 	assert.Equal(t, "https://gateway.example/api/v1/connector/provisioning", payload.Data.ProvisioningURL)
 	assert.Equal(t, []string{"https://gateway.example"}, payload.Data.ConnectionBearerOrigins)
-	assert.Equal(t, []string{"claude", "codex", "gemini", "grokbuild", "opencode"}, payload.Data.SupportedAgents)
+	assert.Equal(t, []string{"claude", "codex", "gemini", "grokbuild", "opencode", "workbuddy"}, payload.Data.SupportedAgents)
 	assert.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
 	assert.NotContains(t, recorder.Body.String(), "sk-")
 }
@@ -591,6 +591,8 @@ func TestConnectProvisioningAppliesAgentPoliciesWithoutDefaultFallback(t *testin
 	require.Empty(t, payload.Data.Agents["codex"].RecommendedModel, "an unavailable recommendation must not fall back to the first model")
 	require.False(t, payload.Data.Agents["gemini"].Enabled)
 	require.Empty(t, payload.Data.Agents["gemini"].Models)
+	require.True(t, payload.Data.Agents["workbuddy"].Enabled)
+	require.Equal(t, payload.Data.ChatModels, payload.Data.Agents["workbuddy"].Models)
 }
 
 // An account with no chat models must not be handed a model name anyway: the

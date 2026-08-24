@@ -1,9 +1,9 @@
 # BoxAI Connect
 
 BoxAI Connect is the native GPUI client for configuring Claude Code, Codex,
-Gemini CLI, Grok Build, and OpenCode with BoxAI. It includes model discovery,
-per-Agent configuration, MCP server and Skill management, reversible apply and
-disconnect operations, account usage, and signed self-updates.
+Gemini CLI, Grok Build, OpenCode, and WorkBuddy with BoxAI. It includes model
+discovery, per-Agent configuration, MCP server and Skill management, reversible
+apply and disconnect operations, account usage, and signed self-updates.
 
 The source is based on OriginGame's latest GPUI bkit design. Exact upstream
 revisions and licensing are recorded in [`UPSTREAM.md`](UPSTREAM.md). Neutral

@@ -25,6 +25,7 @@ const AGENTS = [
   'gemini',
   'grokbuild',
   'opencode',
+  'workbuddy',
   'openclaw',
   'hermes',
 ] as const

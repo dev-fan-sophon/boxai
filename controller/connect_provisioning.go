@@ -261,7 +261,7 @@ func GetConnectorManifest(c *gin.Context) {
 		},
 		ProvisioningURL:         origin + "/api/v1/connector/provisioning",
 		ConnectionBearerOrigins: []string{origin},
-		SupportedAgents:         []string{"claude", "codex", "gemini", "grokbuild", "opencode"},
+		SupportedAgents:         []string{"claude", "codex", "gemini", "grokbuild", "opencode", "workbuddy"},
 	}})
 }
 

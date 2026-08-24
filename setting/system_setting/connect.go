@@ -5,7 +5,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/config"
 )
 
-var ConnectAgentNames = []string{"claude", "codex", "gemini", "grokbuild", "opencode", "openclaw", "hermes"}
+var ConnectAgentNames = []string{"claude", "codex", "gemini", "grokbuild", "opencode", "workbuddy", "openclaw", "hermes"}
 
 type ConnectAgentPolicy struct {
 	Enabled          bool   `json:"enabled"`
@@ -14,8 +14,8 @@ type ConnectAgentPolicy struct {
 }
 
 // ConnectSettings controls BoxAI Connect, the desktop app that points AI coding
-// clients (Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, OpenClaw,
-// Hermes) at this deployment.
+// clients (Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, WorkBuddy,
+// OpenClaw, Hermes) at this deployment.
 //
 // Token issuance policy — access token lifetime, refresh lifetime, broker
 // audience — is deliberately not duplicated here. Both desktop products share
@@ -43,7 +43,7 @@ var defaultConnectSettings = ConnectSettings{
 	DownloadURL:        "",
 	MinVersion:         "",
 	TokenName:          "BoxAI Connect",
-	AgentPolicies:      `{"claude":{"enabled":true,"recommended_model":""},"codex":{"enabled":true,"recommended_model":""},"gemini":{"enabled":true,"recommended_model":""},"grokbuild":{"enabled":true,"recommended_model":""},"opencode":{"enabled":true,"recommended_model":""},"openclaw":{"enabled":true,"recommended_model":""},"hermes":{"enabled":true,"recommended_model":""}}`,
+	AgentPolicies:      `{"claude":{"enabled":true,"recommended_model":""},"codex":{"enabled":true,"recommended_model":""},"gemini":{"enabled":true,"recommended_model":""},"grokbuild":{"enabled":true,"recommended_model":""},"opencode":{"enabled":true,"recommended_model":""},"workbuddy":{"enabled":true,"recommended_model":""},"openclaw":{"enabled":true,"recommended_model":""},"hermes":{"enabled":true,"recommended_model":""}}`,
 }
 
 func init() {
@@ -57,7 +57,7 @@ func GetConnectSettings() *ConnectSettings {
 	return &defaultConnectSettings
 }
 
-// GetConnectAgentPolicies returns a complete snapshot of the seven supported
+// GetConnectAgentPolicies returns a complete snapshot of the eight supported
 // agents. Missing entries use defaults; malformed JSON fails closed.
 func GetConnectAgentPolicies() map[string]ConnectAgentPolicy {
 	var settings ConnectSettings

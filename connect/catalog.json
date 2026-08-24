@@ -36,11 +36,11 @@
     {
       "id": "using-boxai-gateway",
       "name": "Using the BoxAI Gateway",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "archive": {
-        "url": "https://dl.you-box.com/connect/catalog/skills/using-boxai-gateway/1.0.0.zip",
-        "sha256": "484544201c1abcbc95d214fad99f9ef91b76593fc5cd68779698fe039755a9e8",
-        "size_bytes": 2533,
+        "url": "https://dl.you-box.com/connect/catalog/skills/using-boxai-gateway/1.0.1.zip",
+        "sha256": "b49170ddc1f029cbaad87a62977e12879efd9b8787ba62fb7f9044264f4be1cb",
+        "size_bytes": 2544,
         "format": "zip",
         "authorization": "none"
       }

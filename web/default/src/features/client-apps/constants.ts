@@ -95,7 +95,7 @@ export const UPCOMING_CLIENT_APPS = [
  * that client expects to be configured.
  *
  * A client advertised here must be supported by the current native Connect
- * release. Keep this list intentionally limited to the five supported agents.
+ * release. Keep this list intentionally limited to the six supported agents.
  *
  * `icon` is a `@lobehub/icons` key for `LobeIcon` (prefer `.Color` when available).
  * `href` is the product home / docs the marketing strip links to.
@@ -135,5 +135,12 @@ export const CONNECT_CLIENTS = [
     chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'OpenCode.Color',
     href: 'https://opencode.ai',
+  },
+  {
+    name: 'WorkBuddy',
+    config: '~/.workbuddy/models.json',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
+    icon: 'CodeBuddy.Color',
+    href: 'https://www.workbuddy.ai',
   },
 ] as const

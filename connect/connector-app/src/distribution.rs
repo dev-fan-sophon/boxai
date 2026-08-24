@@ -22,6 +22,7 @@ pub static BOXAI_DISTRIBUTION: Distribution = Distribution {
         AgentId::Gemini,
         AgentId::Grokbuild,
         AgentId::Opencode,
+        AgentId::Workbuddy,
     ],
     asset_identity: Some(AssetIdentity {
         icon_key: "boxai-connect-shell-icon",
@@ -76,6 +77,7 @@ mod tests {
                 AgentId::Gemini,
                 AgentId::Grokbuild,
                 AgentId::Opencode,
+                AgentId::Workbuddy,
             ]
         );
     }

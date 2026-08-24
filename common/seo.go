@@ -236,7 +236,7 @@ func PublicSEOPages() []SEOPage {
 		{
 			Path:        "/connect",
 			Title:       "BoxAI Connect",
-			Description: "Download BoxAI Connect for macOS or Windows to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode to BoxAI with MCP and official Skills.",
+			Description: "Download BoxAI Connect for macOS or Windows to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, and WorkBuddy to BoxAI with MCP and official Skills.",
 			Priority:    "0.7",
 			Changefreq:  "weekly",
 			Heading:     "BoxAI Connect",

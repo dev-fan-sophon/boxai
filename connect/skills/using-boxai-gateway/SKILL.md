@@ -12,7 +12,7 @@ the user to paste, print, or commit the connection bearer token.
 ## Workflow
 
 1. Confirm BoxAI Connect shows **Connected** and that the target agent is one
-   of Claude Code, Codex, Gemini CLI, Grok Build, or OpenCode.
+   of Claude Code, Codex, Gemini CLI, Grok Build, OpenCode, or WorkBuddy.
 2. Select a chat-capable model from Model Plaza. Prefer the provisioned default
    unless the task requires a capability exposed by another available model.
 3. Use the agent's **Apply** action. Do not hand-edit its configuration unless
