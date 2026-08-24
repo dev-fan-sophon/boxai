@@ -77,8 +77,7 @@ while IFS= read -r archive; do
       --file "$archive" \
       --content-type "application/zip" \
       --cache-control "public, max-age=31536000, immutable" \
-      --remote \
-      --force
+      --remote
   fi
 done < <(find "$stage/skills" -type f -name '*.zip' -print | sort)
 

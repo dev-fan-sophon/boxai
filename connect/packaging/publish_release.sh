@@ -73,8 +73,7 @@ for artifact in "$stage"/*.dmg "$stage"/*-setup.exe; do
       --file "$artifact" \
       --content-type "application/octet-stream" \
       --cache-control "public, max-age=31536000, immutable" \
-      --remote \
-      --force
+      --remote
   fi
 done
 
@@ -91,8 +90,7 @@ for feed in releases.json native-latest.json; do
       --file "$stage/$feed" \
       --content-type "application/json" \
       --cache-control "public, max-age=60" \
-      --remote \
-      --force
+      --remote
   fi
 done
 
