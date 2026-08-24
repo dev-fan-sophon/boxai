@@ -19,31 +19,42 @@ if [[ -f "$env_file" ]]; then
   source "$env_file"
   set +a
 fi
-for variable in R2_DESKTOP_ACCESS_KEY_ID R2_DESKTOP_SECRET_ACCESS_KEY R2_ENDPOINT; do
-  [[ -n ${!variable:-} ]] || {
-    echo "ERROR: $variable is required to publish BoxAI Connect" >&2
-    exit 1
-  }
-done
 [[ -f "$key" ]] || {
   echo "ERROR: BoxAI Connect Ed25519 update signing key is required at $key" >&2
   exit 1
 }
-for command_name in aws curl jq openssl python3; do
+for command_name in curl jq openssl python3; do
   command -v "$command_name" >/dev/null || {
     echo "ERROR: required command not found: $command_name" >&2
     exit 1
   }
 done
 
+upload_method=""
+if [[ -n ${R2_DESKTOP_ACCESS_KEY_ID:-} && -n ${R2_DESKTOP_SECRET_ACCESS_KEY:-} && -n ${R2_ENDPOINT:-} ]]; then
+  command -v aws >/dev/null || {
+    echo "ERROR: aws is required when publishing BoxAI Connect with R2 S3 credentials" >&2
+    exit 1
+  }
+  upload_method="s3"
+  export AWS_ACCESS_KEY_ID="$R2_DESKTOP_ACCESS_KEY_ID"
+  export AWS_SECRET_ACCESS_KEY="$R2_DESKTOP_SECRET_ACCESS_KEY"
+  export AWS_DEFAULT_REGION=auto
+elif [[ -n ${CLOUDFLARE_ACCOUNT_ID:-} && -n ${CLOUDFLARE_API_TOKEN:-} ]]; then
+  command -v npx >/dev/null || {
+    echo "ERROR: npx is required when publishing BoxAI Connect with the Cloudflare API" >&2
+    exit 1
+  }
+  upload_method="wrangler"
+else
+  echo "ERROR: R2 S3 credentials or CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN are required" >&2
+  exit 1
+fi
+
 python3 "$root/packaging/make_release.py" \
   --stage "$stage" \
   --key "$key" \
   --notes "${BOXAI_RELEASE_NOTES:-BoxAI Connect $version}"
-
-export AWS_ACCESS_KEY_ID="$R2_DESKTOP_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="$R2_DESKTOP_SECRET_ACCESS_KEY"
-export AWS_DEFAULT_REGION=auto
 
 echo "==> uploading immutable BoxAI Connect $version artifacts"
 for artifact in "$stage"/*.dmg "$stage"/*-setup.exe; do
@@ -51,20 +62,38 @@ for artifact in "$stage"/*.dmg "$stage"/*-setup.exe; do
     echo "ERROR: complete macOS and Windows artifacts are required" >&2
     exit 1
   }
-  aws s3 cp "$artifact" "s3://$bucket/$prefix/$version/$(basename "$artifact")" \
-    --endpoint-url "$R2_ENDPOINT" \
-    --content-type "application/octet-stream" \
-    --cache-control "public, max-age=31536000, immutable" \
-    --no-progress
+  if [[ "$upload_method" == "s3" ]]; then
+    aws s3 cp "$artifact" "s3://$bucket/$prefix/$version/$(basename "$artifact")" \
+      --endpoint-url "$R2_ENDPOINT" \
+      --content-type "application/octet-stream" \
+      --cache-control "public, max-age=31536000, immutable" \
+      --no-progress
+  else
+    npx --yes wrangler@4.76.0 r2 object put "$bucket/$prefix/$version/$(basename "$artifact")" \
+      --file "$artifact" \
+      --content-type "application/octet-stream" \
+      --cache-control "public, max-age=31536000, immutable" \
+      --remote \
+      --force
+  fi
 done
 
 echo "==> publishing BoxAI Connect feeds"
 for feed in releases.json native-latest.json; do
-  aws s3 cp "$stage/$feed" "s3://$bucket/$prefix/$feed" \
-    --endpoint-url "$R2_ENDPOINT" \
-    --content-type "application/json" \
-    --cache-control "public, max-age=60" \
-    --no-progress
+  if [[ "$upload_method" == "s3" ]]; then
+    aws s3 cp "$stage/$feed" "s3://$bucket/$prefix/$feed" \
+      --endpoint-url "$R2_ENDPOINT" \
+      --content-type "application/json" \
+      --cache-control "public, max-age=60" \
+      --no-progress
+  else
+    npx --yes wrangler@4.76.0 r2 object put "$bucket/$prefix/$feed" \
+      --file "$stage/$feed" \
+      --content-type "application/json" \
+      --cache-control "public, max-age=60" \
+      --remote \
+      --force
+  fi
 done
 
 if [[ -n ${CLOUDFLARE_API_TOKEN:-} && -n ${CLOUDFLARE_ZONE_ID:-} ]]; then
