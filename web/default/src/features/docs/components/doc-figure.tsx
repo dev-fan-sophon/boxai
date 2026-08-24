@@ -15,7 +15,7 @@ export function DocFigure(props: {
 }) {
   return (
     <figure className={cn('doc-figure my-6', props.className)}>
-      <div className='relative overflow-hidden rounded-xl border bg-muted/20'>
+      <div className='bg-muted/20 relative overflow-hidden rounded-xl border'>
         <img
           src={props.src}
           alt={props.alt}

@@ -123,11 +123,7 @@ function LegalLinks(props: { leadingSeparator?: boolean }) {
 
 export function Footer(props: FooterProps) {
   const { t } = useTranslation()
-  const {
-    systemName,
-    logo: systemLogo,
-    footerHtml,
-  } = useSystemConfig()
+  const { systemName, logo: systemLogo, footerHtml } = useSystemConfig()
 
   const safeFooterHtml = useMemo(
     () => (footerHtml ? DOMPurify.sanitize(footerHtml) : ''),

@@ -80,7 +80,9 @@ function AppCard(props: {
           {props.note && (
             <p className='text-muted-foreground mb-3 text-xs'>{props.note}</p>
           )}
-          <div className='flex flex-wrap items-center gap-2'>{props.action}</div>
+          <div className='flex flex-wrap items-center gap-2'>
+            {props.action}
+          </div>
         </div>
       </article>
     </AnimateInView>

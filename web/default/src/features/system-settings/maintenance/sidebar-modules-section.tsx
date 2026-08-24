@@ -110,7 +110,9 @@ export function SidebarModulesSection({
       },
       rewards: {
         title: t('Rewards'),
-        description: t('Claim campaign rewards and redeem them into your wallet.'),
+        description: t(
+          'Claim campaign rewards and redeem them into your wallet.'
+        ),
       },
     },
     admin: {
@@ -136,9 +138,7 @@ export function SidebarModulesSection({
       },
       topup_review: {
         title: t('Top-up Reviews'),
-        description: t(
-          'Pricing Center tab for Bank QR payment proof reviews.'
-        ),
+        description: t('Pricing Center tab for Bank QR payment proof reviews.'),
       },
       user: {
         title: t('Users'),

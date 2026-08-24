@@ -19,8 +19,8 @@ Playground lets you chat with models available to your account without writing c
 Open [Playground](/playground) while signed in.
 
 ## First chat
-![Playground chat](/doc-assets/screenshots/playground/chat-success.en.webp "Send a short message and confirm an assistant reply")
 
+![Playground chat](/doc-assets/screenshots/playground/chat-success.en.webp 'Send a short message and confirm an assistant reply')
 
 Follow [First request](/docs/start/first-request) for a step-by-step success path.
 

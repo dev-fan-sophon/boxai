@@ -1,4 +1,11 @@
-import { Search, Copy, Check, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
+import {
+  Search,
+  Copy,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,7 +44,6 @@ import {
   formatTimestamp,
 } from '../lib/billing'
 import type { TopupRecord } from '../types'
-
 import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
 
 const SKELETON_KEYS = ['one', 'two', 'three', 'four', 'five']
@@ -121,7 +127,9 @@ function TransactionRow(props: TransactionRowProps) {
           </div>
         </div>
         <div className='space-y-1'>
-          <Label className='text-muted-foreground text-xs'>{t('Payment')}</Label>
+          <Label className='text-muted-foreground text-xs'>
+            {t('Payment')}
+          </Label>
           <div className='text-sm font-semibold'>
             {formatNumber(record.money)}
           </div>

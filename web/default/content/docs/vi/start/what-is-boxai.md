@@ -9,8 +9,8 @@ status: published
 ---
 
 ## Định nghĩa sản phẩm chính thức
-![What is BoxAI documentation](/doc-assets/screenshots/start/docs-home.en.webp "BoxAI product documentation")
 
+![What is BoxAI documentation](/doc-assets/screenshots/start/docs-home.en.webp 'BoxAI product documentation')
 
 BoxAI (https://you-box.com) là cổng API AI thống nhất chính thức. Nhóm của bạn dùng một base URL, một bộ API key và một tài khoản thanh toán để gọi OpenAI-compatible, Claude, Gemini và các nhà cung cấp khác.
 

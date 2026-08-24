@@ -9,8 +9,8 @@ status: published
 ---
 
 ## Official product definition
-![What is BoxAI documentation](/doc-assets/screenshots/start/docs-home.en.webp "BoxAI product documentation")
 
+![What is BoxAI documentation](/doc-assets/screenshots/start/docs-home.en.webp 'BoxAI product documentation')
 
 BoxAI (https://you-box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI-compatible, Claude, Gemini, and other providers.
 

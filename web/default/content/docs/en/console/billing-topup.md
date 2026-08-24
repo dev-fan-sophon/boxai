@@ -18,15 +18,16 @@ status: published
 Open the billing or wallet section in the console and confirm your current balance and any active subscription. Usage is deducted according to model pricing in [Model Hub](/pricing).
 
 ## Top up
-![Billing and top-up](/doc-assets/screenshots/console/billing-topup.en.webp "1. Open Billing → choose amount and payment method")
 
+![Billing and top-up](/doc-assets/screenshots/console/billing-topup.en.webp '1. Open Billing → choose amount and payment method')
 
 :::steps
+
 1. Open top-up / billing in the console.
 2. Choose an amount and a payment method available in your region.
 3. Complete payment. Vietnam-first rails (for example Waffo and local methods when enabled) appear when configured for your account.
 4. Wait for the balance to refresh; keep any transaction reference if review is required.
-:::
+   :::
 
 :::callout type="info"
 Available payment methods depend on configuration and region. If a method is missing, try another listed option or contact support with your account email — never send API keys.
@@ -40,11 +41,11 @@ Available payment methods depend on configuration and region. If a method is mis
 
 ## Common issues
 
-| Issue | What to do |
-|-------|------------|
-| Balance not updated | Wait briefly, refresh; keep the bank/Waffo reference for review queues |
-| Payment pending review | Upload the requested proof in the console flow if prompted |
-| Still 403 on calls | Confirm model access for your group, not only balance |
+| Issue                  | What to do                                                             |
+| ---------------------- | ---------------------------------------------------------------------- |
+| Balance not updated    | Wait briefly, refresh; keep the bank/Waffo reference for review queues |
+| Payment pending review | Upload the requested proof in the console flow if prompted             |
+| Still 403 on calls     | Confirm model access for your group, not only balance                  |
 
 ## Next
 

@@ -12,7 +12,6 @@ import { useAffiliate, useTopupInfo } from '@/features/billing/hooks'
 import { formatQuota } from '@/lib/format'
 
 import type { UserProfile } from '../types'
-
 import { TransferDialog } from './dialogs/transfer-dialog'
 
 interface ReferralRewardsCardProps {
@@ -23,8 +22,12 @@ interface ReferralRewardsCardProps {
 
 export function ReferralRewardsCard(props: ReferralRewardsCardProps) {
   const { t } = useTranslation()
-  const { affiliateLink, loading: affiliateLoading, transferQuota, transferring } =
-    useAffiliate()
+  const {
+    affiliateLink,
+    loading: affiliateLoading,
+    transferQuota,
+    transferring,
+  } = useAffiliate()
   const { topupInfo } = useTopupInfo()
   const [transferOpen, setTransferOpen] = useState(false)
 

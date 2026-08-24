@@ -170,7 +170,10 @@ export function Billing(props: BillingProps) {
 
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
     setSelectedPaymentMethod(method)
-    await calculatePaymentAmount(requestAmountForPayment(topupAmount), method.type)
+    await calculatePaymentAmount(
+      requestAmountForPayment(topupAmount),
+      method.type
+    )
   }
 
   // Opens the layered confirm dialog with the real calculated amount.

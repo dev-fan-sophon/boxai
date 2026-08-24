@@ -9,7 +9,10 @@ export function campaignPublicStatus(
   const now = Math.floor(Date.now() / 1000)
   if (campaign.starts_at > 0 && now < campaign.starts_at) return 'scheduled'
   if (campaign.ends_at > 0 && now >= campaign.ends_at) return 'ended'
-  if (campaign.max_claims > 0 && campaign.claimed_count >= campaign.max_claims) {
+  if (
+    campaign.max_claims > 0 &&
+    campaign.claimed_count >= campaign.max_claims
+  ) {
     return 'sold_out'
   }
   return 'active'

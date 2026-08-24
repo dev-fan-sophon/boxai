@@ -120,9 +120,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         .or(z.literal(''))
         .refine((value) => !value || isAccessibleBrandPrimaryForLight(value), {
           error: () =>
-            t(
-              'Choose a brand color with accessible contrast in light mode'
-            ),
+            t('Choose a brand color with accessible contrast in light mode'),
         }),
       primary_color_dark: z
         .string()
@@ -132,7 +130,9 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         .or(z.literal(''))
         .refine((value) => !value || isAccessibleBrandPrimaryForDark(value), {
           error: () =>
-            t('Choose a dark brand color with accessible contrast in dark mode'),
+            t(
+              'Choose a dark brand color with accessible contrast in dark mode'
+            ),
         }),
     }),
     Footer: z.string().optional(),
@@ -350,10 +350,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                           value={field.value || effectiveDarkPreview}
                           onChange={field.onChange}
                         />
-                        <Input
-                          placeholder={autoDarkPreview}
-                          {...field}
-                        />
+                        <Input placeholder={autoDarkPreview} {...field} />
                       </div>
                     </FormControl>
                     <FormDescription>

@@ -10,8 +10,8 @@ checklist: [Tạo tài khoản, Tạo API key, Chọn model ID, Gửi request th
 ---
 
 ## Điều kiện trước
-![Getting started guide](/doc-assets/screenshots/start/getting-started.en.webp "BoxAI getting started guide on you-box.com")
 
+![Getting started guide](/doc-assets/screenshots/start/getting-started.en.webp 'BoxAI getting started guide on you-box.com')
 
 - Tài khoản BoxAI tại [you-box.com](https://you-box.com)
 - Đủ hạn mức cho một lần gọi thử (nạp thêm nếu cần — xem [Thanh toán và nạp tiền](/docs/console/billing-topup))
@@ -19,10 +19,11 @@ checklist: [Tạo tài khoản, Tạo API key, Chọn model ID, Gửi request th
 ## Ba bước lên production
 
 :::steps
+
 1. Tạo và lưu an toàn một [API key](/docs/console/api-keys).
 2. Chọn đúng model ID mà nhóm của bạn được phép dùng trên [Model Hub](/docs/console/model-hub).
 3. Gửi request tới gateway BoxAI và theo dõi mã trạng thái cùng [usage](/docs/console/usage-logs).
-:::
+   :::
 
 ## Gửi request đầu tiên
 

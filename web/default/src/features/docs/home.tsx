@@ -37,7 +37,9 @@ const RAILS = [
 export function DocsHomePage() {
   const { t } = useTranslation()
   const pages = listManifestPages()
-  const startPages = pages.filter((page) => page.section === 'start').slice(0, 4)
+  const startPages = pages
+    .filter((page) => page.section === 'start')
+    .slice(0, 4)
 
   useSeo(
     useMemo(
@@ -53,7 +55,9 @@ export function DocsHomePage() {
 
   return (
     <DocsShell activePath=''>
-      <h1 className='text-3xl font-bold tracking-tight'>{t('Documentation')}</h1>
+      <h1 className='text-3xl font-bold tracking-tight'>
+        {t('Documentation')}
+      </h1>
       <p className='text-muted-foreground mt-3 text-lg'>
         {t(
           'Task-oriented guides for BoxAI (you-box.com). Vietnam first, other markets second.'

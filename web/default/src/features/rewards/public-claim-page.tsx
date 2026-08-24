@@ -1,14 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Gift } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { Gift } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { TitledCard } from '@/components/ui/titled-card'
-import { useAuthStore } from '@/stores/auth-store'
-import { formatQuota } from '@/lib/format'
 import { getSelf } from '@/lib/api'
+import { formatQuota } from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { claimSelfReward, getPublicRewardCampaign } from './api'
 
@@ -58,7 +58,9 @@ export function PublicRewardClaimPage(props: { slug: string }) {
     return (
       <>
         <div>
-          <p className='text-3xl font-semibold'>{formatQuota(campaign.quota)}</p>
+          <p className='text-3xl font-semibold'>
+            {formatQuota(campaign.quota)}
+          </p>
           <p className='text-muted-foreground mt-1 text-xs'>
             {t('Status')}: {t(publicStatusLabel(campaign.status))}
           </p>
@@ -100,13 +102,14 @@ export function PublicRewardClaimPage(props: { slug: string }) {
     <div className='mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-16'>
       <TitledCard
         title={campaign?.name || t('Reward')}
-        description={campaign?.description || t('Claim this reward into your pending Rewards balance.')}
+        description={
+          campaign?.description ||
+          t('Claim this reward into your pending Rewards balance.')
+        }
         icon={<Gift />}
         iconTone='warning'
       >
-        <div className='space-y-4'>
-          {renderCampaignBody()}
-        </div>
+        <div className='space-y-4'>{renderCampaignBody()}</div>
       </TitledCard>
     </div>
   )

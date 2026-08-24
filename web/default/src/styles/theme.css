@@ -261,10 +261,7 @@
   --sidebar: #050d20;
   --sidebar-foreground: #eaf1ff;
   --sidebar-primary: var(--brand-primary-dark, #ff9072);
-  --sidebar-primary-foreground: var(
-    --brand-primary-dark-foreground,
-    #0b1633
-  );
+  --sidebar-primary-foreground: var(--brand-primary-dark-foreground, #0b1633);
   --sidebar-accent: #172b52;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 8%);

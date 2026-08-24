@@ -9,30 +9,32 @@ status: published
 ---
 
 ## Download
-![Downloads page](/doc-assets/screenshots/clients/downloads.en.webp "1. Get the latest build from Downloads")
 
-![BoxAI Desktop session](/doc-assets/screenshots/clients/desktop-session.en.webp "2. Sign in and start a desktop session")
+![Downloads page](/doc-assets/screenshots/clients/downloads.en.webp '1. Get the latest build from Downloads')
 
+![BoxAI Desktop session](/doc-assets/screenshots/clients/desktop-session.en.webp '2. Sign in and start a desktop session')
 
 Get the latest builds from the [Downloads](/downloads) page on you-box.com. Prefer the official site over third-party mirrors.
 
 ## macOS
 
 :::steps
+
 1. Open the downloaded `.dmg`.
 2. Drag BoxAI Desktop into Applications.
 3. Launch from Applications and sign in with your BoxAI account in the browser window that opens.
-:::
+   :::
 
 If the build is notarized, macOS opens it without a Gatekeeper block. If not, open once via Control-click → Open.
 
 ## Windows
 
 :::steps
+
 1. Run the downloaded installer.
 2. Complete the setup wizard.
 3. Launch BoxAI Desktop and sign in with your BoxAI account when prompted.
-:::
+   :::
 
 ## After sign-in
 

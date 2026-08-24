@@ -7,6 +7,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { JSON_SCHEMA, load as parseYaml } from 'js-yaml'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const webRoot = path.resolve(__dirname, '../..')
 const contentRoot = path.join(webRoot, 'content/docs')
@@ -44,7 +46,10 @@ function ensureDir(dir) {
 function walkMarkdown(dir) {
   if (!fs.existsSync(dir)) return []
   const out = []
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  const entries = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name))
+  for (const entry of entries) {
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       out.push(...walkMarkdown(full))
@@ -57,26 +62,7 @@ function walkMarkdown(dir) {
   return out
 }
 
-function parseScalar(raw) {
-  const value = raw.trim()
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1)
-  }
-  if (value === 'true') return true
-  if (value === 'false') return false
-  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value)
-  if (value.startsWith('[') && value.endsWith(']')) {
-    const inner = value.slice(1, -1).trim()
-    if (!inner) return []
-    return inner.split(',').map((part) => parseScalar(part))
-  }
-  return value
-}
-
-function parseFrontmatter(source) {
+function parseFrontmatter(source, sourceName) {
   if (!source.startsWith('---\n') && source !== '---') {
     return { data: {}, body: source }
   }
@@ -86,15 +72,15 @@ function parseFrontmatter(source) {
   }
   const fm = source.slice(4, end)
   const body = source.slice(end + 5)
-  const data = {}
-  for (const line of fm.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const colon = trimmed.indexOf(':')
-    if (colon === -1) continue
-    const key = trimmed.slice(0, colon).trim()
-    const value = trimmed.slice(colon + 1)
-    data[key] = parseScalar(value)
+  let data
+  try {
+    data = parseYaml(fm, { schema: JSON_SCHEMA })
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    fail(`${sourceName} invalid frontmatter: ${detail}`)
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    fail(`${sourceName} frontmatter must be a mapping`)
   }
   return { data, body }
 }
@@ -103,11 +89,11 @@ function slugifyHeading(text) {
   return text
     .toLowerCase()
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '')
+    .replaceAll(/[\u0300-\u036f]/g, '')
+    .replaceAll(/[^a-z0-9\s-]/g, '')
     .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
+    .replaceAll(/\s+/g, '-')
+    .replaceAll(/-+/g, '-')
 }
 
 function extractHeadings(markdown) {
@@ -137,8 +123,8 @@ function preprocessBody(markdown) {
   let body = markdown.replaceAll('\r\n', '\n')
 
   // :::callout type="warning" ... :::
-  body = body.replace(
-    /:::callout(?:\s+type="([a-z]+)")?\s*\n([\s\S]*?)\n:::/g,
+  body = body.replaceAll(
+    /:::callout(?:\s+type="([a-z]+)")?\s*\n([\s\S]*?)\n[ \t]*:::[ \t]*(?=\n|$)/g,
     (_full, type, content) => {
       const kind = type || 'info'
       const html = content
@@ -151,16 +137,17 @@ function preprocessBody(markdown) {
   )
 
   // :::steps ... :::  → keep inner markdown list, wrap for styling
-  body = body.replace(
-    /:::steps\s*\n([\s\S]*?)\n:::/g,
+  body = body.replaceAll(
+    /:::steps\s*\n([\s\S]*?)\n[ \t]*:::[ \t]*(?=\n|$)/g,
     (_full, content) =>
       `\n\n<div class="doc-steps" data-doc-steps="true">\n\n${content.trim()}\n\n</div>\n\n`
   )
 
   // Images with title → figure + caption (title attribute)
-  body = body.replace(
-    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
-    (_full, alt, src, title) => {
+  body = body.replaceAll(
+    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+(?:"([^"]*)"|'([^']*)'))?\)/g,
+    (_full, alt, src, doubleTitle, singleTitle) => {
+      const title = doubleTitle || singleTitle
       const caption = title || alt
       const captionHtml = caption
         ? `<figcaption>${escapeHtml(caption)}</figcaption>`
@@ -169,18 +156,18 @@ function preprocessBody(markdown) {
     }
   )
 
-  return body.trim() + '\n'
+  return `${body.trim()}\n`
 }
 
 function plainText(markdown) {
   return markdown
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`[^`]+`/g, ' ')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
-    .replace(/\[[^\]]*\]\([^)]+\)/g, ' ')
-    .replace(/<\/?[^>]+>/g, ' ')
-    .replace(/[#>*_\-]+/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/```[\s\S]*?```/g, ' ')
+    .replaceAll(/`[^`]+`/g, ' ')
+    .replaceAll(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+    .replaceAll(/\[[^\]]*\]\([^)]+\)/g, ' ')
+    .replaceAll(/<\/?[^>]+>/g, ' ')
+    .replaceAll(/[#>*_-]+/g, ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim()
 }
 
@@ -201,7 +188,10 @@ function loadPages() {
     for (const filePath of walkMarkdown(localeRoot)) {
       const docPath = relPathToDocPath(localeRoot, filePath)
       const raw = fs.readFileSync(filePath, 'utf8')
-      const { data, body: rawBody } = parseFrontmatter(raw)
+      const { data, body: rawBody } = parseFrontmatter(
+        raw,
+        `${locale}/${docPath}.md`
+      )
       const required = ['title', 'summary', 'section', 'order']
       for (const key of required) {
         if (data[key] === undefined || data[key] === '') {
@@ -256,7 +246,7 @@ function sectionRank(section) {
   return index === -1 ? 999 : index
 }
 
-function buildManifest(byLocale) {
+function buildManifest(byLocale, pagesPayload) {
   const enPages = byLocale.en || {}
   const pages = Object.values(enPages)
     .filter((page) => page.status === 'published')
@@ -284,8 +274,29 @@ function buildManifest(byLocale) {
         noindex: page.noindex || undefined,
       }
     })
+  let generatedAt = new Date().toISOString()
+  const previousManifestPath = path.join(generatedDir, 'manifest.json')
+  const previousPagesPath = path.join(generatedDir, 'pages.json')
+  if (fs.existsSync(previousManifestPath) && fs.existsSync(previousPagesPath)) {
+    try {
+      const previous = JSON.parse(fs.readFileSync(previousManifestPath, 'utf8'))
+      const previousPages = JSON.parse(
+        fs.readFileSync(previousPagesPath, 'utf8')
+      )
+      if (
+        typeof previous.generatedAt === 'string' &&
+        previous.version === 1 &&
+        JSON.stringify(previous.pages) === JSON.stringify(pages) &&
+        JSON.stringify(previousPages) === JSON.stringify(pagesPayload)
+      ) {
+        generatedAt = previous.generatedAt
+      }
+    } catch {
+      // Invalid generated output is replaced below.
+    }
+  }
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     version: 1,
     pages,
   }
@@ -377,7 +388,7 @@ function main() {
     }
   }
 
-  const manifest = buildManifest(byLocale)
+  const manifest = buildManifest(byLocale, pagesPayload)
 
   ensureDir(generatedDir)
   ensureDir(publicDocsDir)
@@ -402,7 +413,8 @@ function main() {
     '## Core pages',
     '',
     ...manifest.pages.map(
-      (page) => `- [${page.title}](https://you-box.com${page.href}): ${page.summary}`
+      (page) =>
+        `- [${page.title}](https://you-box.com${page.href}): ${page.summary}`
     ),
     '',
   ]

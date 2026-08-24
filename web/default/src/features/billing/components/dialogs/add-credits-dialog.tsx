@@ -210,6 +210,14 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     termsAccepted &&
     !props.paymentLoading
 
+  let formattedTopupQuota = '—'
+  if (props.topupAmount) {
+    formattedTopupQuota = formatPresetUsd(props.topupAmount)
+    if (showUsdUnit) {
+      formattedTopupQuota = `${formatPresetCredit(props.topupAmount)} · ${formatPresetUsd(props.topupAmount)}`
+    }
+  }
+
   return (
     <Dialog
       open={props.open}
@@ -464,9 +472,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     <Button
                       key={methodKey}
                       variant='outline'
-                      onClick={() =>
-                        props.onWaffoMethodSelect?.(method, index)
-                      }
+                      onClick={() => props.onWaffoMethodSelect?.(method, index)}
                       disabled={belowMin || !!props.paymentLoading}
                       className='min-h-12 justify-start gap-2'
                     >
@@ -491,11 +497,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                   {t('Top-up quota')}
                 </span>
                 <span className='text-right font-semibold tabular-nums'>
-                  {props.topupAmount
-                    ? showUsdUnit
-                      ? `${formatPresetCredit(props.topupAmount)} · ${formatPresetUsd(props.topupAmount)}`
-                      : formatPresetUsd(props.topupAmount)
-                    : '—'}
+                  {formattedTopupQuota}
                 </span>
               </div>
               <div className='flex justify-between gap-3'>

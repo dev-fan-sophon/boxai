@@ -72,10 +72,7 @@ export function MovedToPricingCenterSection() {
                 variant='outline'
                 size='sm'
                 render={
-                  <Link
-                    to='/pricing-center/$tab'
-                    params={{ tab: entry.tab }}
-                  />
+                  <Link to='/pricing-center/$tab' params={{ tab: entry.tab }} />
                 }
               >
                 {t('Open in Pricing Center')}

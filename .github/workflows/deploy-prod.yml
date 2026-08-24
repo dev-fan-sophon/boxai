@@ -38,6 +38,24 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.ref || github.sha }}
 
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Verify frontend quality
+        working-directory: web/default
+        run: |
+          set -euo pipefail
+          bun run format:check
+          bun run lint
+          bun run typecheck
+          bun x vitest run scripts/docs/build-content.test.ts
+          git diff --exit-code -- public/doc-assets src/features/docs/generated
+
       - name: Resolve deploy ref
         id: meta
         run: |

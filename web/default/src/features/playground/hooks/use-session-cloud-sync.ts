@@ -796,8 +796,7 @@ export function useSessionCloudSync(userId?: number) {
         })
         for (const item of convItems.slice(0, 40)) {
           const existing = state.sessions.find(
-            (session) =>
-              isChatSession(session) && session.serverId === item.id
+            (session) => isChatSession(session) && session.serverId === item.id
           )
           if (existing && isChatSession(existing)) {
             const remote = chatSessionFromServerConversation(

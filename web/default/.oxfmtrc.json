@@ -21,6 +21,8 @@
     "coverage",
     ".tanstack",
     ".eslintrc.cjs",
+    "public/doc-assets/**",
+    "src/features/docs/generated/**",
     "**/routeTree.gen.ts",
     "src/routeTree.gen.ts"
   ]

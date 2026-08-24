@@ -10,12 +10,12 @@ status: published
 
 ## Nhóm mã HTTP
 
-| Status | Ý nghĩa | Hành động |
-|--------|---------|-----------|
-| 400, 422 | Input không hợp lệ | Sửa request; không retry nguyên trạng |
-| 401, 403 | Auth hoặc quyền | Kiểm tra key và quyền model |
-| 429 | Rate limit | Tôn trọng `Retry-After` nếu có; giảm concurrency |
-| 500, 502, 503, 504 | Lỗi tạm thời | Chỉ retry nếu thao tác an toàn khi lặp lại |
+| Status             | Ý nghĩa            | Hành động                                        |
+| ------------------ | ------------------ | ------------------------------------------------ |
+| 400, 422           | Input không hợp lệ | Sửa request; không retry nguyên trạng            |
+| 401, 403           | Auth hoặc quyền    | Kiểm tra key và quyền model                      |
+| 429                | Rate limit         | Tôn trọng `Retry-After` nếu có; giảm concurrency |
+| 500, 502, 503, 504 | Lỗi tạm thời       | Chỉ retry nếu thao tác an toàn khi lặp lại       |
 
 ## Chính sách retry an toàn
 

@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/sheet'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
-import type { PlaygroundReasoningLevel } from './types'
 import { useLgUp, useXlUp } from '@/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -60,6 +59,7 @@ import type {
   ChatAttachment,
   Message,
   PlaygroundConfig,
+  PlaygroundReasoningLevel,
   StudioModality,
 } from './types'
 

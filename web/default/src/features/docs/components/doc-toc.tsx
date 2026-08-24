@@ -13,9 +13,7 @@ export function DocToc(props: { headings: DocsHeading[] }) {
     if (props.headings.length === 0) return
     const elements = props.headings
       .map((heading) =>
-        document.querySelector<HTMLElement>(
-          `#${CSS.escape(heading.id)}`
-        )
+        document.querySelector<HTMLElement>(`#${CSS.escape(heading.id)}`)
       )
       .filter((node): node is HTMLElement => Boolean(node))
     if (elements.length === 0) return

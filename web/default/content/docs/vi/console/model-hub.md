@@ -13,17 +13,18 @@ status: published
 [Model Hub](/pricing) là danh mục công khai các mô hình qua BoxAI: giá, modality và gợi ý tích hợp. Luôn sao chép **đúng model ID** trên hub — không tự đặt tên tắt.
 
 ## Chọn mô hình
-![Model Hub catalog](/doc-assets/screenshots/console/model-hub.en.webp "1. Browse models on Model Hub")
 
-![Model detail with exact ID](/doc-assets/screenshots/console/model-hub-detail.en.webp "2. Copy the exact model ID from the detail page")
+![Model Hub catalog](/doc-assets/screenshots/console/model-hub.en.webp '1. Browse models on Model Hub')
 
+![Model detail with exact ID](/doc-assets/screenshots/console/model-hub-detail.en.webp '2. Copy the exact model ID from the detail page')
 
 :::steps
+
 1. Mở [Model Hub](/pricing).
 2. Lọc theo nhà cung cấp, modality hoặc giá nếu cần.
 3. Mở trang chi tiết và sao chép model ID.
 4. Xác nhận mô hình khả dụng với **nhóm của bạn** (một số model bị giới hạn theo group).
-:::
+   :::
 
 ## Dùng ID trong request
 

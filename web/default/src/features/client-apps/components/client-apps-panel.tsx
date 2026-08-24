@@ -28,7 +28,7 @@ function ClientAppCard(props: { app: ClientAppId; connected: number }) {
           alt=''
           aria-hidden='true'
           draggable={false}
-          className='size-8 shrink-0 rounded-[22%] object-contain shadow-xs ring-1 ring-border/40'
+          className='ring-border/40 size-8 shrink-0 rounded-[22%] object-contain shadow-xs ring-1'
         />
         <div className='min-w-0 flex-1'>
           <div className='flex flex-wrap items-center gap-2'>

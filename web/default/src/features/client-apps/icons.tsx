@@ -1,6 +1,5 @@
-import { cn } from '@/lib/utils'
-
 import type { ClientAppId } from '@/features/downloads/use-app-release'
+import { cn } from '@/lib/utils'
 
 import { CLIENT_APP_LOGO } from './logos'
 
@@ -24,7 +23,10 @@ export function ClientAppLogo(props: ClientAppLogoProps) {
       alt={props.decorative ? '' : logo.alt}
       aria-hidden={props.decorative ? true : undefined}
       draggable={false}
-      className={cn('size-[1.1em] shrink-0 rounded-[22%] object-contain', props.className)}
+      className={cn(
+        'size-[1.1em] shrink-0 rounded-[22%] object-contain',
+        props.className
+      )}
     />
   )
 }

@@ -13,17 +13,18 @@ status: published
 [Model Hub](/pricing) is the public catalog of models available through BoxAI: prices, modalities, and integration hints. Always copy the **exact model ID** shown in the hub — do not invent short names.
 
 ## Pick a model
-![Model Hub catalog](/doc-assets/screenshots/console/model-hub.en.webp "1. Browse models on Model Hub")
 
-![Model detail with exact ID](/doc-assets/screenshots/console/model-hub-detail.en.webp "2. Copy the exact model ID from the detail page")
+![Model Hub catalog](/doc-assets/screenshots/console/model-hub.en.webp '1. Browse models on Model Hub')
 
+![Model detail with exact ID](/doc-assets/screenshots/console/model-hub-detail.en.webp '2. Copy the exact model ID from the detail page')
 
 :::steps
+
 1. Open [Model Hub](/pricing).
 2. Filter by provider, modality, or price if needed.
 3. Open a model detail page and copy the model ID.
 4. Confirm the model is available to **your group** (some models are group-gated).
-:::
+   :::
 
 ## Use the ID in requests
 

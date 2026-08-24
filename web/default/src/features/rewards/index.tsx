@@ -8,9 +8,13 @@ import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TitledCard } from '@/components/ui/titled-card'
-import { formatQuota, parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
-import { getCurrencyLabel } from '@/lib/currency'
 import { getSelf } from '@/lib/api'
+import { getCurrencyLabel } from '@/lib/currency'
+import {
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
 
 import { claimSelfReward, getSelfRewards, redeemSelfReward } from './api'
 
@@ -78,7 +82,9 @@ export function RewardsPage() {
           <div className='grid gap-4 md:grid-cols-2'>
             <TitledCard
               title={t('Pending rewards')}
-              description={t('Claimed quota waiting to be moved into your wallet')}
+              description={t(
+                'Claimed quota waiting to be moved into your wallet'
+              )}
               icon={<Gift />}
               iconTone='warning'
             >
@@ -106,7 +112,9 @@ export function RewardsPage() {
                       onChange={(event) => setRedeemAmount(event.target.value)}
                       placeholder={
                         summary
-                          ? String(quotaUnitsToDollars(summary.min_redeem_quota))
+                          ? String(
+                              quotaUnitsToDollars(summary.min_redeem_quota)
+                            )
                           : ''
                       }
                     />
@@ -180,7 +188,10 @@ export function RewardsPage() {
                   ))}
                   {ledger.length === 0 && (
                     <tr>
-                      <td className='text-muted-foreground px-3 py-6' colSpan={4}>
+                      <td
+                        className='text-muted-foreground px-3 py-6'
+                        colSpan={4}
+                      >
                         {t('No reward history yet')}
                       </td>
                     </tr>

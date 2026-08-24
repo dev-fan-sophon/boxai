@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import type { PlaygroundReasoningLevel } from '../types'
 import { API_ENDPOINTS, ERROR_MESSAGES } from '../constants'
 import {
   activateAgentMessageRevision,
@@ -22,7 +21,12 @@ import {
 import { buildPlatformSystemPrompt } from '../lib/prompt/system-prompt'
 import { VISUAL_OUTPUT_SYSTEM_PROMPT } from '../lib/streaming/payload-builder'
 import { clampSystemPrompt } from '../lib/workbench/workbench-prefs'
-import type { ChatAttachment, Message, PlaygroundConfig } from '../types'
+import type {
+  ChatAttachment,
+  Message,
+  PlaygroundConfig,
+  PlaygroundReasoningLevel,
+} from '../types'
 
 type UseAgentChatOptions = {
   enabled: boolean

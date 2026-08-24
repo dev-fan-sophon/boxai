@@ -6,12 +6,13 @@ order: 20
 audience: [user, developer]
 updated: 2026-08-04
 status: published
-checklist: [Create an account, Create an API key, Pick a model ID, Send a test request]
+checklist:
+  [Create an account, Create an API key, Pick a model ID, Send a test request]
 ---
 
 ## Prerequisites
-![Getting started guide](/doc-assets/screenshots/start/getting-started.en.webp "BoxAI getting started guide on you-box.com")
 
+![Getting started guide](/doc-assets/screenshots/start/getting-started.en.webp 'BoxAI getting started guide on you-box.com')
 
 - A BoxAI account at [you-box.com](https://you-box.com)
 - Enough quota for a small test call (top up if needed — see [Billing and top-up](/docs/console/billing-topup))
@@ -19,10 +20,11 @@ checklist: [Create an account, Create an API key, Pick a model ID, Send a test r
 ## Three steps to production
 
 :::steps
+
 1. Create and securely store an [API key](/docs/console/api-keys).
 2. Choose an exact model ID that is available to your group in [Model Hub](/docs/console/model-hub).
 3. Send requests to the BoxAI gateway and monitor status codes and [usage](/docs/console/usage-logs).
-:::
+   :::
 
 ## Make your first request
 

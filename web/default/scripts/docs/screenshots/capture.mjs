@@ -36,8 +36,7 @@ const BASE_URL = (
 const WIDTHS = [480, 960, 1536]
 const VIEWPORT = { width: 1440, height: 900 }
 const LOCALE = 'en'
-const MODEL_DETAIL_ID =
-  process.env.DOCS_SHOTS_MODEL_ID || 'gemini-3.6-flash'
+const MODEL_DETAIL_ID = process.env.DOCS_SHOTS_MODEL_ID || 'gemini-3.6-flash'
 
 const ADMIN_TOKEN = (process.env.BOXAI_ADMIN_TOKEN || '').trim()
 const ADMIN_USER_ID = (process.env.BOXAI_ADMIN_USER_ID || '').trim()
@@ -133,7 +132,10 @@ const SHOTS = [
         .first()
       if ((await keyTrigger.count()) === 0) {
         // Fallback: any mono truncated key cell
-        const fallback = page.locator('button').filter({ hasText: /sk-/ }).first()
+        const fallback = page
+          .locator('button')
+          .filter({ hasText: /sk-/ })
+          .first()
         await fallback.waitFor({ state: 'visible', timeout: 20000 })
         await fallback.click()
       } else {
@@ -317,7 +319,9 @@ async function captureShot(browser, shot, auth) {
     if (needsAuth) {
       const url = page.url()
       if (url.includes('/sign-in')) {
-        throw new Error(`auth redirect to sign-in for ${shot.path} (url=${url})`)
+        throw new Error(
+          `auth redirect to sign-in for ${shot.path} (url=${url})`
+        )
       }
     }
 

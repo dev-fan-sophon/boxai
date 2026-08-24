@@ -132,7 +132,9 @@ export function WorkspacePreview() {
           <div
             key={tile.id}
             className='border-border/50 bg-background/60 relative flex h-12 items-center justify-center overflow-hidden rounded-lg border'
-            style={{ '--loop-delay': `${index * 420}ms` } as React.CSSProperties}
+            style={
+              { '--loop-delay': `${index * 420}ms` } as React.CSSProperties
+            }
           >
             <tile.icon className={cn('size-4', tile.tone)} strokeWidth={1.5} />
             <span className='surface-sweep via-foreground/10 absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent to-transparent' />

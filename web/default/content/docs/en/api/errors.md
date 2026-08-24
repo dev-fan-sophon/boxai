@@ -10,12 +10,12 @@ status: published
 
 ## HTTP status categories
 
-| Status | Meaning | Action |
-|--------|---------|--------|
-| 400, 422 | Invalid input | Fix the request; do not retry unchanged |
-| 401, 403 | Auth or permission | Verify key and model access |
-| 429 | Rate limit | Honor `Retry-After` when present; reduce concurrency |
-| 500, 502, 503, 504 | Transient server/gateway | Retry only if the operation is safe to repeat |
+| Status             | Meaning                  | Action                                               |
+| ------------------ | ------------------------ | ---------------------------------------------------- |
+| 400, 422           | Invalid input            | Fix the request; do not retry unchanged              |
+| 401, 403           | Auth or permission       | Verify key and model access                          |
+| 429                | Rate limit               | Honor `Retry-After` when present; reduce concurrency |
+| 500, 502, 503, 504 | Transient server/gateway | Retry only if the operation is safe to repeat        |
 
 ## Safe retry policy
 

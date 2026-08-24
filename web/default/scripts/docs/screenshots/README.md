@@ -57,5 +57,5 @@ public/doc-assets/screenshots/
 Reference paths from Markdown:
 
 ```markdown
-![API Keys list](/doc-assets/screenshots/console/api-keys-empty.en.webp "1. Open Console → API Keys")
+![API Keys list](/doc-assets/screenshots/console/api-keys-empty.en.webp '1. Open Console → API Keys')
 ```

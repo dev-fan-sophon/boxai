@@ -8,13 +8,13 @@ import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import type { PlaygroundReasoningLevel } from '../../types'
 import {
   getParameterControlValueText,
   normalizeParameterNumberValue,
   PLAYGROUND_PARAMETER_CONTROLS,
   type PlaygroundParameterKey,
 } from '../../lib/parameters/playground-parameters'
+import type { PlaygroundReasoningLevel } from '../../types'
 
 /**
  * Chat sampling parameters (temperature, top_p, …) with per-parameter

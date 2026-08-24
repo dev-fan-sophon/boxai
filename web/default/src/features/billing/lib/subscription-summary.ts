@@ -63,7 +63,8 @@ export function summarizeActiveSubscriptions(
     total,
     used,
     remaining,
-    usedPercent: total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0,
+    usedPercent:
+      total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0,
     endTime,
     nextResetTime: primary.subscription?.next_reset_time || 0,
     remainingDays: Math.max(0, Math.ceil((endTime - now) / 86400)),

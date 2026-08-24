@@ -96,9 +96,7 @@ export function About() {
       ),
     },
     {
-      icon: (
-        <Layers3 className='size-4' strokeWidth={1.5} aria-hidden='true' />
-      ),
+      icon: <Layers3 className='size-4' strokeWidth={1.5} aria-hidden='true' />,
       title: t('Model Hub'),
       description: t(
         'Browse models, capabilities, and pricing in one catalog.'
@@ -118,9 +116,7 @@ export function About() {
         <WalletCards className='size-4' strokeWidth={1.5} aria-hidden='true' />
       ),
       title: t('One wallet'),
-      description: t(
-        'A single balance powers the API, workspace, and apps.'
-      ),
+      description: t('A single balance powers the API, workspace, and apps.'),
     },
   ]
 
@@ -161,9 +157,7 @@ export function About() {
           <div className='mt-8 flex flex-wrap items-center gap-3'>
             <Button
               variant='cta'
-              render={
-                <Link to={isAuthenticated ? '/dashboard' : '/sign-up'} />
-              }
+              render={<Link to={isAuthenticated ? '/dashboard' : '/sign-up'} />}
             >
               {t('Get Started')}
             </Button>

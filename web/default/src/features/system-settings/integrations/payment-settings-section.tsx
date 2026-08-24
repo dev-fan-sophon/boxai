@@ -1123,7 +1123,9 @@ export function PaymentSettingsSection({
                     name='Price'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('Epay price per 1 USD credit')}</FormLabel>
+                        <FormLabel>
+                          {t('Epay price per 1 USD credit')}
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type='number'
@@ -1157,9 +1159,7 @@ export function PaymentSettingsSection({
                           />
                         </FormControl>
                         <FormDescription>
-                          {t(
-                            'Smallest USD credit users can buy through Epay'
-                          )}
+                          {t('Smallest USD credit users can buy through Epay')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

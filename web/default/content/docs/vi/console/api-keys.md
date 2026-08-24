@@ -14,19 +14,20 @@ status: published
 - Có quyền quản lý key cho workspace
 
 ## Tạo key
-![API Keys empty state](/doc-assets/screenshots/console/api-keys-empty.en.webp "1. Open Console → API Keys")
 
-![Create API key dialog](/doc-assets/screenshots/console/api-keys-create.en.webp "2. Click Create and name the key")
+![API Keys empty state](/doc-assets/screenshots/console/api-keys-empty.en.webp '1. Open Console → API Keys')
 
-![API key secret shown once](/doc-assets/screenshots/console/api-keys-created.en.webp "3. Copy the secret immediately — it is shown only once")
+![Create API key dialog](/doc-assets/screenshots/console/api-keys-create.en.webp '2. Click Create and name the key')
 
+![API key secret shown once](/doc-assets/screenshots/console/api-keys-created.en.webp '3. Copy the secret immediately — it is shown only once')
 
 :::steps
+
 1. Mở **API Keys** trong console ([/keys](/keys)).
 2. Chọn **Create** và đặt tên rõ ràng (ví dụ `prod-server`).
 3. Đặt giới hạn tùy chọn nếu có (quota, IP, phạm vi model).
 4. Xác nhận tạo và **sao chép secret ngay** — secret chỉ hiện một lần.
-:::
+   :::
 
 Lưu secret trong biến môi trường máy chủ `BOXAI_API_KEY` (hoặc secret manager). Không commit vào git.
 

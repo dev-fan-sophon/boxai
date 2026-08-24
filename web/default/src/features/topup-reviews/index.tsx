@@ -124,207 +124,203 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
 
   const panel = (
     <>
-          <div className='space-y-4'>
-            <form
-              className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
-              onSubmit={(event) => {
-                event.preventDefault()
-                setPage(1)
-                setSearch(keyword.trim())
-              }}
-            >
-              <div className='relative min-w-0 flex-1'>
-                <Search
-                  className='text-muted-foreground absolute top-2 left-2.5 size-4'
-                  aria-hidden='true'
-                />
-                <Input
-                  value={keyword}
-                  onChange={(event) => setKeyword(event.target.value)}
-                  placeholder={t('Search user or order number')}
-                  className='pl-9'
-                  aria-label={t('Search user or order number')}
-                />
-              </div>
-              <Select
-                items={[
-                  { value: 'submitted', label: t('Submitted') },
-                  { value: 'approved', label: t('Approved') },
-                  { value: 'rejected', label: t('Rejected') },
-                  { value: '', label: t('All statuses') },
-                ]}
-                value={status}
-                onValueChange={(value) => {
-                  setStatus(value || '')
-                  setPage(1)
-                }}
-              >
-                <SelectTrigger className='w-full sm:w-44'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value='submitted'>{t('Submitted')}</SelectItem>
-                  <SelectItem value='approved'>{t('Approved')}</SelectItem>
-                  <SelectItem value='rejected'>{t('Rejected')}</SelectItem>
-                  <SelectItem value=''>{t('All statuses')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button type='submit' className='w-full sm:w-auto'>
-                {t('Search')}
-              </Button>
-            </form>
-            {loading && (
-              <div className='grid gap-3 md:grid-cols-2'>
-                {SKELETON_KEYS.map((key) => (
-                  <Skeleton key={key} className='h-64' />
-                ))}
-              </div>
-            )}
-            {!loading && items.length === 0 && (
-              <p className='text-muted-foreground py-16 text-center'>
-                {t('No review submissions found')}
-              </p>
-            )}
-            {!loading && items.length > 0 && (
-              <div className='grid gap-3 md:grid-cols-2'>
-                {items.map((item) => (
-                  <Card key={item.id}>
-                    <CardContent className='space-y-3 p-4'>
-                      <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
-                        <div className='min-w-0'>
-                          <p className='font-medium'>{item.username}</p>
-                          <code className='text-muted-foreground text-xs break-all'>
-                            {item.trade_no}
-                          </code>
-                        </div>
-                        <StatusBadge
-                          label={t(getStatusLabel(item.status))}
-                          variant={getStatusVariant(item.status)}
-                          copyable={false}
-                        />
-                      </div>
-                      <dl className='grid grid-cols-1 gap-2 text-sm sm:grid-cols-2'>
-                        <div>
-                          <dt className='text-muted-foreground'>
-                            {t('Target')}
-                          </dt>
-                          <dd>
-                            {item.order_type === 'subscription'
-                              ? item.plan_title || `#${item.plan_id}`
-                              : t('Wallet balance')}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className='text-muted-foreground'>
-                            {t('Amount')}
-                          </dt>
-                          <dd>
-                            {new Intl.NumberFormat(getCurrentIntlLocale(), {
-                              style: 'currency',
-                              currency: item.currency || 'VND',
-                            }).format(item.money)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className='text-muted-foreground'>
-                            {t('Bank transaction number')}
-                          </dt>
-                          <dd className='break-all'>
-                            {item.bank_transaction_no || '—'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className='text-muted-foreground'>
-                            {t('Submitted at')}
-                          </dt>
-                          <dd>
-                            {formatDateTimeObject(
-                              new Date(item.submitted_at * 1000)
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
-                      {item.note ? (
-                        <p className='bg-muted rounded-md p-2 text-sm'>
-                          <span className='font-medium'>{t('Note')}: </span>
-                          {item.note}
-                        </p>
-                      ) : null}
-                      {item.proof_url ? (
-                        <a
-                          href={item.proof_url}
-                          target='_blank'
-                          rel='noreferrer'
-                          className='block'
-                        >
-                          <img
-                            src={item.proof_url}
-                            alt={t('Payment proof')}
-                            className='max-h-52 w-full rounded-md border object-contain'
-                            loading='lazy'
-                          />
-                        </a>
-                      ) : null}
-                      {item.status === 'submitted' && (
-                        <div className='flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end'>
-                          <Button
-                            variant='destructive'
-                            size='sm'
-                            className='w-full sm:w-auto'
-                            onClick={() => setRejectItem(item)}
-                            disabled={acting}
-                          >
-                            {t('Reject')}
-                          </Button>
-                          <Button
-                            size='sm'
-                            className='w-full sm:w-auto'
-                            onClick={() => void approve(item)}
-                            disabled={acting}
-                          >
-                            {t('Approve')}
-                          </Button>
-                        </div>
-                      )}
-                      {item.status !== 'submitted' && item.review_note ? (
-                        <p className='text-muted-foreground text-sm'>
-                          {t('Review note')}: {item.review_note}
-                        </p>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+      <div className='space-y-4'>
+        <form
+          className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
+          onSubmit={(event) => {
+            event.preventDefault()
+            setPage(1)
+            setSearch(keyword.trim())
+          }}
+        >
+          <div className='relative min-w-0 flex-1'>
+            <Search
+              className='text-muted-foreground absolute top-2 left-2.5 size-4'
+              aria-hidden='true'
+            />
+            <Input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder={t('Search user or order number')}
+              className='pl-9'
+              aria-label={t('Search user or order number')}
+            />
           </div>
-          <PageFooterPortal>
-            <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-              <p className='text-muted-foreground text-sm'>
-                {t('Total')}: {total}
-              </p>
-              <div className='flex items-center justify-end gap-2'>
-                <Button
-                  variant='outline'
-                  size='icon'
-                  onClick={() => setPage((value) => value - 1)}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft aria-hidden='true' />
-                </Button>
-                <span className='text-sm tabular-nums'>
-                  {page} / {totalPages}
-                </span>
-                <Button
-                  variant='outline'
-                  size='icon'
-                  onClick={() => setPage((value) => value + 1)}
-                  disabled={page >= totalPages}
-                >
-                  <ChevronRight aria-hidden='true' />
-                </Button>
-              </div>
-            </div>
-          </PageFooterPortal>
+          <Select
+            items={[
+              { value: 'submitted', label: t('Submitted') },
+              { value: 'approved', label: t('Approved') },
+              { value: 'rejected', label: t('Rejected') },
+              { value: '', label: t('All statuses') },
+            ]}
+            value={status}
+            onValueChange={(value) => {
+              setStatus(value || '')
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className='w-full sm:w-44'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false}>
+              <SelectItem value='submitted'>{t('Submitted')}</SelectItem>
+              <SelectItem value='approved'>{t('Approved')}</SelectItem>
+              <SelectItem value='rejected'>{t('Rejected')}</SelectItem>
+              <SelectItem value=''>{t('All statuses')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button type='submit' className='w-full sm:w-auto'>
+            {t('Search')}
+          </Button>
+        </form>
+        {loading && (
+          <div className='grid gap-3 md:grid-cols-2'>
+            {SKELETON_KEYS.map((key) => (
+              <Skeleton key={key} className='h-64' />
+            ))}
+          </div>
+        )}
+        {!loading && items.length === 0 && (
+          <p className='text-muted-foreground py-16 text-center'>
+            {t('No review submissions found')}
+          </p>
+        )}
+        {!loading && items.length > 0 && (
+          <div className='grid gap-3 md:grid-cols-2'>
+            {items.map((item) => (
+              <Card key={item.id}>
+                <CardContent className='space-y-3 p-4'>
+                  <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
+                    <div className='min-w-0'>
+                      <p className='font-medium'>{item.username}</p>
+                      <code className='text-muted-foreground text-xs break-all'>
+                        {item.trade_no}
+                      </code>
+                    </div>
+                    <StatusBadge
+                      label={t(getStatusLabel(item.status))}
+                      variant={getStatusVariant(item.status)}
+                      copyable={false}
+                    />
+                  </div>
+                  <dl className='grid grid-cols-1 gap-2 text-sm sm:grid-cols-2'>
+                    <div>
+                      <dt className='text-muted-foreground'>{t('Target')}</dt>
+                      <dd>
+                        {item.order_type === 'subscription'
+                          ? item.plan_title || `#${item.plan_id}`
+                          : t('Wallet balance')}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className='text-muted-foreground'>{t('Amount')}</dt>
+                      <dd>
+                        {new Intl.NumberFormat(getCurrentIntlLocale(), {
+                          style: 'currency',
+                          currency: item.currency || 'VND',
+                        }).format(item.money)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className='text-muted-foreground'>
+                        {t('Bank transaction number')}
+                      </dt>
+                      <dd className='break-all'>
+                        {item.bank_transaction_no || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className='text-muted-foreground'>
+                        {t('Submitted at')}
+                      </dt>
+                      <dd>
+                        {formatDateTimeObject(
+                          new Date(item.submitted_at * 1000)
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                  {item.note ? (
+                    <p className='bg-muted rounded-md p-2 text-sm'>
+                      <span className='font-medium'>{t('Note')}: </span>
+                      {item.note}
+                    </p>
+                  ) : null}
+                  {item.proof_url ? (
+                    <a
+                      href={item.proof_url}
+                      target='_blank'
+                      rel='noreferrer'
+                      className='block'
+                    >
+                      <img
+                        src={item.proof_url}
+                        alt={t('Payment proof')}
+                        className='max-h-52 w-full rounded-md border object-contain'
+                        loading='lazy'
+                      />
+                    </a>
+                  ) : null}
+                  {item.status === 'submitted' && (
+                    <div className='flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end'>
+                      <Button
+                        variant='destructive'
+                        size='sm'
+                        className='w-full sm:w-auto'
+                        onClick={() => setRejectItem(item)}
+                        disabled={acting}
+                      >
+                        {t('Reject')}
+                      </Button>
+                      <Button
+                        size='sm'
+                        className='w-full sm:w-auto'
+                        onClick={() => void approve(item)}
+                        disabled={acting}
+                      >
+                        {t('Approve')}
+                      </Button>
+                    </div>
+                  )}
+                  {item.status !== 'submitted' && item.review_note ? (
+                    <p className='text-muted-foreground text-sm'>
+                      {t('Review note')}: {item.review_note}
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+      <PageFooterPortal>
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+          <p className='text-muted-foreground text-sm'>
+            {t('Total')}: {total}
+          </p>
+          <div className='flex items-center justify-end gap-2'>
+            <Button
+              variant='outline'
+              size='icon'
+              onClick={() => setPage((value) => value - 1)}
+              disabled={page <= 1}
+            >
+              <ChevronLeft aria-hidden='true' />
+            </Button>
+            <span className='text-sm tabular-nums'>
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant='outline'
+              size='icon'
+              onClick={() => setPage((value) => value + 1)}
+              disabled={page >= totalPages}
+            >
+              <ChevronRight aria-hidden='true' />
+            </Button>
+          </div>
+        </div>
+      </PageFooterPortal>
     </>
   )
 

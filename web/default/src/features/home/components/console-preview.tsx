@@ -216,7 +216,9 @@ function ModelsPane(props: {
       <p className='text-muted-foreground mt-4 text-xs'>
         {props.models.length > 0
           ? t('Ranked by usage over the last 30 days.')
-          : t('Capabilities, context length, and price sit next to each model.')}
+          : t(
+              'Capabilities, context length, and price sit next to each model.'
+            )}
       </p>
     </div>
   )

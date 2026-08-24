@@ -172,9 +172,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
       return (a.subscription?.id || 0) - (b.subscription?.id || 0)
     })[0]
   }, [activeSubscriptions])
-  const overageUsed = Number(
-    primaryActiveSub?.subscription?.overage_used || 0
-  )
+  const overageUsed = Number(primaryActiveSub?.subscription?.overage_used || 0)
 
   const planPurchaseCountMap = useMemo(() => {
     const map = new Map<number, number>()

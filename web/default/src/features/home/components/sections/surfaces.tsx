@@ -337,7 +337,9 @@ export function Surfaces() {
                       {item.icon}
                     </span>
                     <p className='text-sm font-semibold'>{item.title}</p>
-                    {item.aside && <span className='ml-auto'>{item.aside}</span>}
+                    {item.aside && (
+                      <span className='ml-auto'>{item.aside}</span>
+                    )}
                   </div>
                   <p className='text-muted-foreground mt-3 flex-1 text-sm leading-relaxed text-pretty'>
                     {item.description}

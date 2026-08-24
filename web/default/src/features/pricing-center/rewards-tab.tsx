@@ -33,7 +33,8 @@ export function RewardsTab() {
         defaultValues={{
           enabled: settings['reward_setting.enabled'] ?? false,
           requireVerified: settings['reward_setting.require_verified'] ?? false,
-          expirePendingDays: settings['reward_setting.expire_pending_days'] ?? 0,
+          expirePendingDays:
+            settings['reward_setting.expire_pending_days'] ?? 0,
           minRedeemQuota: settings['reward_setting.min_redeem_quota'] ?? 0,
           defaultPerUserLimit:
             settings['reward_setting.default_per_user_limit'] ?? 1,

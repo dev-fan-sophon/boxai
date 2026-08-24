@@ -24,9 +24,7 @@ export function DocsPage(props: { docPath?: string }) {
   const normalized = raw ? normalizeDocsPath(raw) : ''
   const legacyTarget = normalized ? resolveDocsLegacyPath(normalized) : null
   const guide =
-    normalized && !legacyTarget
-      ? loadDocsPage(normalized, i18n.language)
-      : null
+    normalized && !legacyTarget ? loadDocsPage(normalized, i18n.language) : null
 
   const needsProfiles = Boolean(normalized && !legacyTarget && !guide)
   const profilesQuery = useQuery({

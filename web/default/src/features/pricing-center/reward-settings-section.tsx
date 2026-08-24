@@ -24,7 +24,11 @@ import { SettingsPageFormActions } from '@/features/system-settings/components/s
 import { SettingsSection } from '@/features/system-settings/components/settings-section'
 import { useUpdateOption } from '@/features/system-settings/hooks/use-update-option'
 import { getCurrencyLabel } from '@/lib/currency'
-import { formatQuota, parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
+import {
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
 
 const schema = z.object({
   enabled: z.boolean(),
@@ -63,10 +67,14 @@ export function RewardSettingsSection(props: {
   })
 
   const { isDirty, isSubmitting } = form.formState
-  const minQuota = parseQuotaFromDollars(Number(form.watch('minRedeemAmount')) || 0)
+  const minQuota = parseQuotaFromDollars(
+    Number(form.watch('minRedeemAmount')) || 0
+  )
 
   async function onSubmit(values: Values) {
-    const nextMinQuota = parseQuotaFromDollars(Number(values.minRedeemAmount) || 0)
+    const nextMinQuota = parseQuotaFromDollars(
+      Number(values.minRedeemAmount) || 0
+    )
     const updates: Array<{ key: string; value: string | number | boolean }> = []
 
     if (values.enabled !== props.defaultValues.enabled) {
@@ -90,7 +98,9 @@ export function RewardSettingsSection(props: {
         value: nextMinQuota,
       })
     }
-    if (values.defaultPerUserLimit !== props.defaultValues.defaultPerUserLimit) {
+    if (
+      values.defaultPerUserLimit !== props.defaultValues.defaultPerUserLimit
+    ) {
       updates.push({
         key: 'reward_setting.default_per_user_limit',
         value: values.defaultPerUserLimit,
@@ -183,9 +193,12 @@ export function RewardSettingsSection(props: {
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Stored as {{quota}}. Leave 0 to use 1 USD equivalent.', {
-                      quota: formatQuota(minQuota),
-                    })}
+                    {t(
+                      'Stored as {{quota}}. Leave 0 to use 1 USD equivalent.',
+                      {
+                        quota: formatQuota(minQuota),
+                      }
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

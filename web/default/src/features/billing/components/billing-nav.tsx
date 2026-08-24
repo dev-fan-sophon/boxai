@@ -26,7 +26,9 @@ export function BillingNav(props: BillingNavProps) {
       (entries) => {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
+          )[0]
         if (visible) setActiveId(visible.target.id)
       },
       { rootMargin: '-20% 0px -65% 0px', threshold: 0 }

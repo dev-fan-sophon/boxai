@@ -102,148 +102,142 @@ export function InspirationAdmin(props: { embedded?: boolean } = {}) {
   )
 
   const panel = (
-          <div className='flex flex-col gap-6'>
-            <p className='text-muted-foreground text-sm'>
-              {t('Manage official recipes, releases, and categories.')}
-            </p>
-            <Tabs defaultValue='templates'>
-              <TabsList>
-                <TabsTrigger value='templates'>{t('Templates')}</TabsTrigger>
-                <TabsTrigger value='categories'>{t('Categories')}</TabsTrigger>
-              </TabsList>
-              <TabsContent value='templates' className='mt-4 space-y-4'>
-                <TemplateCreate
-                  categories={(categories.data ?? []).filter(
-                    (item) => item.status === 'active'
-                  )}
-                  pending={action.isPending}
-                  onCreate={(value) =>
-                    action.mutate(() => createTemplate(value))
-                  }
-                />
-                <div className='grid gap-2 sm:grid-cols-3'>
-                  <Input
-                    aria-label={t('Search templates')}
-                    placeholder={t('Search templates')}
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
-                  <NativeSelect
-                    className='w-full'
-                    value={category}
-                    onChange={(event) => setCategory(event.target.value)}
-                  >
-                    <NativeSelectOption value='all'>
-                      {t('All categories')}
-                    </NativeSelectOption>
-                    {categories.data?.map((item) => (
-                      <NativeSelectOption key={item.id} value={item.slug}>
-                        {item.name}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                  <NativeSelect
-                    className='w-full'
-                    value={modality}
-                    onChange={(event) => setModality(event.target.value)}
-                  >
-                    <NativeSelectOption value='all'>
-                      {t('All modalities')}
-                    </NativeSelectOption>
-                    {['image', 'video', 'chat'].map((item) => (
-                      <NativeSelectOption key={item} value={item}>
-                        {item}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </div>
-                {templates.isError && (
-                  <p className='text-destructive text-sm'>
-                    {t('Failed to load templates')}
-                  </p>
-                )}
-                <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1fr)]'>
-                  <div className='grid content-start gap-2'>
-                    {visibleTemplates.map((item) => (
-                      <button
-                        type='button'
-                        className='hover:bg-muted flex w-full items-center justify-between rounded-lg border p-3 text-left'
-                        key={item.id}
-                        onClick={() => setSelectedId(item.id)}
-                      >
-                        <span>
-                          <strong className='block'>{item.title}</strong>
-                          <span className='text-muted-foreground text-xs'>
-                            {item.slug} · {item.category_slug}
-                          </span>
-                        </span>
-                        <span className='flex gap-1'>
-                          <Badge variant='outline'>{item.modality}</Badge>
-                          {item.featured && <Badge>{t('Featured')}</Badge>}
-                        </span>
-                      </button>
-                    ))}
-                    {!templates.isLoading && visibleTemplates.length === 0 && (
-                      <p className='text-muted-foreground py-8 text-center'>
-                        {t('No templates found')}
-                      </p>
-                    )}
-                  </div>
-                  {detail.data && (
-                    <TemplateDetail
-                      key={detail.data.template.id}
-                      data={detail.data}
-                      categories={(categories.data ?? []).filter(
-                        (item) => item.status === 'active'
-                      )}
-                      pending={action.isPending}
-                      onEditDraft={() => setEditingDraft(true)}
-                      onAction={(next) => action.mutate(next)}
-                      onConfirm={setConfirm}
-                    />
-                  )}
-                </div>
-              </TabsContent>
-              <TabsContent value='categories' className='mt-4'>
-                <CategoryManager
-                  categories={categories.data ?? []}
-                  pending={action.isPending}
-                  onSave={(item) =>
-                    action.mutate(() =>
-                      item.id
-                        ? updateCategory(item.id, item)
-                        : createCategory(item)
-                    )
-                  }
-                  onArchive={(item) =>
-                    setConfirm({
-                      title:
-                        item.status === 'archived'
-                          ? t('Restore category?')
-                          : t('Archive category?'),
-                      description:
-                        item.status === 'archived'
-                          ? t(
-                              'The category will be available for templates again.'
-                            )
-                          : t(
-                              'Archived categories disappear from the public template center.'
-                            ),
-                      run: () =>
-                        action.mutate(() =>
-                          item.status === 'archived'
-                            ? updateCategory(item.id, {
-                                ...item,
-                                status: 'active',
-                              })
-                            : archiveCategory(item.id)
-                        ),
-                    })
-                  }
-                />
-              </TabsContent>
-            </Tabs>
+    <div className='flex flex-col gap-6'>
+      <p className='text-muted-foreground text-sm'>
+        {t('Manage official recipes, releases, and categories.')}
+      </p>
+      <Tabs defaultValue='templates'>
+        <TabsList>
+          <TabsTrigger value='templates'>{t('Templates')}</TabsTrigger>
+          <TabsTrigger value='categories'>{t('Categories')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value='templates' className='mt-4 space-y-4'>
+          <TemplateCreate
+            categories={(categories.data ?? []).filter(
+              (item) => item.status === 'active'
+            )}
+            pending={action.isPending}
+            onCreate={(value) => action.mutate(() => createTemplate(value))}
+          />
+          <div className='grid gap-2 sm:grid-cols-3'>
+            <Input
+              aria-label={t('Search templates')}
+              placeholder={t('Search templates')}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <NativeSelect
+              className='w-full'
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <NativeSelectOption value='all'>
+                {t('All categories')}
+              </NativeSelectOption>
+              {categories.data?.map((item) => (
+                <NativeSelectOption key={item.id} value={item.slug}>
+                  {item.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <NativeSelect
+              className='w-full'
+              value={modality}
+              onChange={(event) => setModality(event.target.value)}
+            >
+              <NativeSelectOption value='all'>
+                {t('All modalities')}
+              </NativeSelectOption>
+              {['image', 'video', 'chat'].map((item) => (
+                <NativeSelectOption key={item} value={item}>
+                  {item}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
           </div>
+          {templates.isError && (
+            <p className='text-destructive text-sm'>
+              {t('Failed to load templates')}
+            </p>
+          )}
+          <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1fr)]'>
+            <div className='grid content-start gap-2'>
+              {visibleTemplates.map((item) => (
+                <button
+                  type='button'
+                  className='hover:bg-muted flex w-full items-center justify-between rounded-lg border p-3 text-left'
+                  key={item.id}
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <span>
+                    <strong className='block'>{item.title}</strong>
+                    <span className='text-muted-foreground text-xs'>
+                      {item.slug} · {item.category_slug}
+                    </span>
+                  </span>
+                  <span className='flex gap-1'>
+                    <Badge variant='outline'>{item.modality}</Badge>
+                    {item.featured && <Badge>{t('Featured')}</Badge>}
+                  </span>
+                </button>
+              ))}
+              {!templates.isLoading && visibleTemplates.length === 0 && (
+                <p className='text-muted-foreground py-8 text-center'>
+                  {t('No templates found')}
+                </p>
+              )}
+            </div>
+            {detail.data && (
+              <TemplateDetail
+                key={detail.data.template.id}
+                data={detail.data}
+                categories={(categories.data ?? []).filter(
+                  (item) => item.status === 'active'
+                )}
+                pending={action.isPending}
+                onEditDraft={() => setEditingDraft(true)}
+                onAction={(next) => action.mutate(next)}
+                onConfirm={setConfirm}
+              />
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value='categories' className='mt-4'>
+          <CategoryManager
+            categories={categories.data ?? []}
+            pending={action.isPending}
+            onSave={(item) =>
+              action.mutate(() =>
+                item.id ? updateCategory(item.id, item) : createCategory(item)
+              )
+            }
+            onArchive={(item) =>
+              setConfirm({
+                title:
+                  item.status === 'archived'
+                    ? t('Restore category?')
+                    : t('Archive category?'),
+                description:
+                  item.status === 'archived'
+                    ? t('The category will be available for templates again.')
+                    : t(
+                        'Archived categories disappear from the public template center.'
+                      ),
+                run: () =>
+                  action.mutate(() =>
+                    item.status === 'archived'
+                      ? updateCategory(item.id, {
+                          ...item,
+                          status: 'active',
+                        })
+                      : archiveCategory(item.id)
+                  ),
+              })
+            }
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 
   return (

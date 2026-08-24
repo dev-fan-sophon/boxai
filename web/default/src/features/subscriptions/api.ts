@@ -217,7 +217,9 @@ export async function getPublicPlans(): Promise<ApiResponse<PlanRecord[]>> {
 export async function updateOverageSettings(data: {
   enabled: boolean
   limit_usd: number
-}): Promise<ApiResponse<{ overage_enabled: boolean; overage_limit_usd: number }>> {
+}): Promise<
+  ApiResponse<{ overage_enabled: boolean; overage_limit_usd: number }>
+> {
   const res = await api.put('/api/subscription/self/overage', data)
   return res.data
 }

@@ -164,7 +164,11 @@ export function BalanceHero(props: BalanceHeroProps) {
               {t('Add credits')}
             </Button>
             {props.redemptionEnabled && (
-              <Button variant='outline' className='gap-2' onClick={props.onRedeem}>
+              <Button
+                variant='outline'
+                className='gap-2'
+                onClick={props.onRedeem}
+              >
                 <Gift className='size-4' />
                 {t('Redeem code')}
               </Button>

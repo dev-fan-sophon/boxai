@@ -82,7 +82,8 @@ export function RewardCampaignsPanel() {
   const [editing, setEditing] = useState<RewardCampaign | null>(null)
   const currencyLabel = getCurrencyLabel()
   const quotaPerUnit =
-    useSystemConfigStore((state) => state.config.currency.quotaPerUnit) || 500000
+    useSystemConfigStore((state) => state.config.currency.quotaPerUnit) ||
+    500000
 
   const { data, isLoading } = useQuery({
     queryKey: ['reward-campaigns'],
@@ -97,7 +98,9 @@ export function RewardCampaignsPanel() {
   })
 
   const form = useForm<CampaignFormValues>({
-    resolver: zodResolver(campaignSchema) as unknown as Resolver<CampaignFormValues>,
+    resolver: zodResolver(
+      campaignSchema
+    ) as unknown as Resolver<CampaignFormValues>,
     defaultValues: {
       slug: '',
       name: '',
@@ -217,7 +220,9 @@ export function RewardCampaignsPanel() {
     mutationFn: async (values: CampaignFormValues) => {
       const quota = quotaFromDisplayAmount(values.amount_display)
       if (quota <= 0) {
-        throw new Error(t('Reward amount is too small for the current currency'))
+        throw new Error(
+          t('Reward amount is too small for the current currency')
+        )
       }
       const payload = {
         slug: values.slug,
@@ -242,9 +247,7 @@ export function RewardCampaignsPanel() {
         return
       }
       toast.success(
-        editing
-          ? t('Reward campaign updated')
-          : t('Reward campaign created')
+        editing ? t('Reward campaign updated') : t('Reward campaign created')
       )
       setOpen(false)
       await queryClient.invalidateQueries({ queryKey: ['reward-campaigns'] })
@@ -257,9 +260,12 @@ export function RewardCampaignsPanel() {
         <div>
           <h3 className='text-sm font-semibold'>{t('Reward campaigns')}</h3>
           <p className='text-muted-foreground text-xs'>
-            {t('Each campaign has a public claim link. Amounts are entered in {{currency}}.', {
-              currency: currencyLabel,
-            })}
+            {t(
+              'Each campaign has a public claim link. Amounts are entered in {{currency}}.',
+              {
+                currency: currencyLabel,
+              }
+            )}
           </p>
         </div>
         <Button size='sm' onClick={openCreate}>
@@ -285,7 +291,9 @@ export function RewardCampaignsPanel() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className={sideDrawerContentClassName('sm:max-w-[560px]')}>
+        <SheetContent
+          className={sideDrawerContentClassName('sm:max-w-[560px]')}
+        >
           <SheetHeader className={sideDrawerHeaderClassName()}>
             <SheetTitle>
               {editing ? t('Edit reward campaign') : t('New reward campaign')}
@@ -386,7 +394,9 @@ export function RewardCampaignsPanel() {
                       <FormControl>
                         <Input type='number' min={0} {...field} />
                       </FormControl>
-                      <FormDescription>{t('0 means unlimited')}</FormDescription>
+                      <FormDescription>
+                        {t('0 means unlimited')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -445,7 +455,9 @@ export function RewardCampaignsPanel() {
                     <div>
                       <FormLabel>{t('New users only')}</FormLabel>
                       <FormDescription>
-                        {t('Only accounts created after this campaign can claim it.')}
+                        {t(
+                          'Only accounts created after this campaign can claim it.'
+                        )}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -493,7 +505,11 @@ export function RewardCampaignsPanel() {
                 )}
               />
               <div className='flex justify-end gap-2 pt-2'>
-                <Button type='button' variant='outline' onClick={() => setOpen(false)}>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setOpen(false)}
+                >
                   {t('Cancel')}
                 </Button>
                 <Button type='submit' disabled={mutation.isPending}>

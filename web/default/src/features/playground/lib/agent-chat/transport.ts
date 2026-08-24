@@ -1,8 +1,12 @@
 import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
-import type { PlaygroundReasoningLevel } from '../../types'
 import type { ServerConversation } from '../../api'
-import type { ChatAttachment, Message, MessageVersion } from '../../types'
+import type {
+  ChatAttachment,
+  Message,
+  MessageVersion,
+  PlaygroundReasoningLevel,
+} from '../../types'
 import { hasRenderableMessageParts } from '../message/message-content-utils'
 
 type AgentRevision = {
