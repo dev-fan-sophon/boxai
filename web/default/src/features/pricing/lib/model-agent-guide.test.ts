@@ -1,0 +1,149 @@
+import { describe, expect, it } from 'vitest'
+
+import type { IntegrationProfile, PricingModel } from '../types'
+import {
+  buildModelAgentGuide,
+  getVerifiedModelIntegrations,
+  resolveGatewayBaseUrl,
+} from './model-agent-guide'
+
+const profiles: IntegrationProfile[] = [
+  {
+    id: 'openai-chat',
+    protocol: 'OpenAI-compatible',
+    operation: 'chat',
+    name_key: 'OpenAI Chat Completions',
+    method: 'POST',
+    gateway_path_template: '/v1/chat/completions',
+    auth_scheme: 'bearer',
+    content_type: 'application/json',
+    docs_slug: 'openai-chat',
+    sample_kind: 'openai_chat',
+    streaming: true,
+  },
+  {
+    id: 'claude-messages',
+    protocol: 'Claude-compatible',
+    operation: 'messages',
+    name_key: 'Claude Messages',
+    method: 'POST',
+    gateway_path_template: '/v1/messages',
+    auth_scheme: 'x-api-key',
+    content_type: 'application/json',
+    docs_slug: 'claude-messages',
+    sample_kind: 'anthropic_messages',
+    streaming: true,
+  },
+  {
+    id: 'unverified',
+    protocol: 'Unverified',
+    operation: 'chat',
+    name_key: 'Unverified profile',
+    method: 'POST',
+    gateway_path_template: '/unverified',
+    auth_scheme: 'bearer',
+    content_type: 'application/json',
+    docs_slug: 'unverified',
+    sample_kind: 'openai_chat',
+    streaming: false,
+  },
+]
+
+const model: PricingModel = {
+  id: 1,
+  model_name: 'example/model-v1',
+  display_name: 'Example Model',
+  vendor_name: 'Example AI',
+  description: 'A model for integration tests.',
+  quota_type: 0,
+  model_ratio: 1,
+  completion_ratio: 1,
+  enable_groups: ['default', 'pro'],
+  context_length: 128_000,
+  max_output_tokens: 8_192,
+  input_modalities: ['text', 'image'],
+  output_modalities: ['text'],
+  capabilities: ['streaming', 'vision'],
+  integrations: [
+    {
+      profile_id: 'openai-chat',
+      groups: ['default', 'pro'],
+      verified: true,
+      source: 'explicit',
+    },
+    {
+      profile_id: 'claude-messages',
+      groups: ['pro'],
+      verified: true,
+      source: 'explicit',
+    },
+    {
+      profile_id: 'unverified',
+      groups: [],
+      verified: false,
+      source: 'inferred',
+    },
+  ],
+}
+
+describe('model Agent guide', () => {
+  it('copies a self-contained guide with exact verified gateway usage', () => {
+    const guide = buildModelAgentGuide({
+      model,
+      integrationProfiles: profiles,
+      gatewayBaseUrl: 'https://you-box.com/',
+      siteUrl: 'https://you-box.com/',
+    })
+
+    expect(guide).not.toBeNull()
+    expect(guide).toContain('Exact model ID: `example/model-v1`')
+    expect(guide).toContain('`POST https://you-box.com/v1/chat/completions`')
+    expect(guide).toContain('Authorization: Bearer $BOXAI_API_KEY')
+    expect(guide).toContain('x-api-key: $BOXAI_API_KEY')
+    expect(guide).toContain('anthropic-version: 2023-06-01')
+    expect(guide).toContain('https://you-box.com/pricing/example%2Fmodel-v1')
+    expect(guide).not.toContain('/unverified')
+    expect(guide).not.toContain('api.openai.com')
+  })
+
+  it('returns no guide when the model has no verified explicit profile', () => {
+    expect(
+      buildModelAgentGuide({
+        model: {
+          ...model,
+          integrations: [
+            {
+              profile_id: 'unverified',
+              groups: [],
+              verified: false,
+              source: 'inferred',
+            },
+          ],
+        },
+        integrationProfiles: profiles,
+        gatewayBaseUrl: 'https://you-box.com',
+      })
+    ).toBeNull()
+  })
+
+  it('joins only verified explicit profiles that exist in the catalog', () => {
+    expect(getVerifiedModelIntegrations(model, profiles)).toHaveLength(2)
+  })
+})
+
+describe('resolveGatewayBaseUrl', () => {
+  it('supports nested status payloads and removes trailing slashes', () => {
+    expect(
+      resolveGatewayBaseUrl(
+        { data: { serverAddress: 'https://gateway.example///' } },
+        'https://fallback.example'
+      )
+    ).toBe('https://gateway.example')
+  })
+
+  it('falls back to the browser origin supplied by the caller', () => {
+    expect(resolveGatewayBaseUrl(null, 'https://you-box.com/')).toBe(
+      'https://you-box.com'
+    )
+  })
+})

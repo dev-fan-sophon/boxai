@@ -18,6 +18,10 @@ import {
 } from '@/features/integrations/sample-builder'
 import { useStatus } from '@/hooks/use-status'
 
+import {
+  getVerifiedModelIntegrations,
+  resolveGatewayBaseUrl,
+} from '../lib/model-agent-guide'
 import type { IntegrationProfile, PricingModel } from '../types'
 
 const LANGUAGES: Array<{
@@ -38,19 +42,8 @@ export function ModelDetailsApi(props: {
   const { t } = useTranslation()
   const { status } = useStatus()
   const integrations = useMemo(
-    () =>
-      (props.model.integrations ?? [])
-        .filter(
-          (integration) =>
-            integration.verified && integration.source === 'explicit'
-        )
-        .flatMap((integration) => {
-          const profile = props.integrationProfiles.find(
-            (candidate) => candidate.id === integration.profile_id
-          )
-          return profile ? [{ integration, profile }] : []
-        }),
-    [props.integrationProfiles, props.model.integrations]
+    () => getVerifiedModelIntegrations(props.model, props.integrationProfiles),
+    [props.integrationProfiles, props.model]
   )
   const [profileId, setProfileId] = useState(integrations[0]?.profile.id ?? '')
   const [language, setLanguage] = useState<SampleLanguage>('curl')
@@ -78,11 +71,10 @@ export function ModelDetailsApi(props: {
     )
   }
 
-  const statusRecord = status as Record<string, unknown> | null
-  const baseUrl =
-    (typeof statusRecord?.server_address === 'string' &&
-      statusRecord.server_address.replace(/\/$/, '')) ||
-    (typeof window !== 'undefined' ? window.location.origin : '')
+  const baseUrl = resolveGatewayBaseUrl(
+    status,
+    typeof window !== 'undefined' ? window.location.origin : ''
+  )
   const languageMeta =
     LANGUAGES.find((item) => item.value === language) ?? LANGUAGES[0]
   const sample = buildIntegrationSample(

@@ -38,6 +38,7 @@ import {
   getSuccessRateTextClass,
 } from '@/features/performance-metrics/lib/format'
 import { useSeo } from '@/hooks/use-page-seo'
+import { useStatus } from '@/hooks/use-status'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +50,11 @@ import {
   getDynamicPricingTiers,
   isDynamicPricingModel,
 } from '../lib/dynamic-price'
+import { parseTags } from '../lib/filters'
+import {
+  buildModelAgentGuide,
+  resolveGatewayBaseUrl,
+} from '../lib/model-agent-guide'
 import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
 import { formatFixedPrice, formatGroupPrice } from '../lib/price'
 import type {
@@ -431,6 +437,8 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
   const { t } = useTranslation()
   const model = props.model
   const groups = normalizeCatalogItems(model.enable_groups)
+  const endpoints = normalizeCatalogItems(model.supported_endpoint_types)
+  const tags = parseTags(model.tags)
   const cells: React.ReactNode[] = []
 
   if (model.vendor_name) {
@@ -451,6 +459,22 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
     cells.push(
       <CatalogInfoCell key='groups' label={t('Groups')}>
         <CatalogPillList items={groups} />
+      </CatalogInfoCell>
+    )
+  }
+
+  if (endpoints.length > 0) {
+    cells.push(
+      <CatalogInfoCell key='endpoints' label={t('Endpoints')}>
+        <CatalogPillList items={endpoints} />
+      </CatalogInfoCell>
+    )
+  }
+
+  if (tags.length > 0) {
+    cells.push(
+      <CatalogInfoCell key='tags' label={t('Tags')}>
+        <CatalogPillList items={tags} />
       </CatalogInfoCell>
     )
   }
@@ -498,30 +522,72 @@ function ModelBackendDetailsSection(props: { model: PricingModel }) {
 // Model header (always visible above the detail sections)
 // ----------------------------------------------------------------------------
 
-function ModelHeader(props: { model: PricingModel }) {
+function ModelHeader(props: {
+  model: PricingModel
+  integrationProfiles: IntegrationProfile[]
+}) {
   const { t } = useTranslation()
+  const { status } = useStatus()
   const model = props.model
   const modelIconKey = model.icon || model.vendor_icon
   const modelIcon = modelIconKey ? (
     <LobeIcon name={modelIconKey} size={20} />
   ) : null
   const description = model.description || model.vendor_description || null
+  const displayName = model.display_name?.trim()
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const gatewayBaseUrl = resolveGatewayBaseUrl(status, siteUrl)
+  const agentGuide = useMemo(
+    () =>
+      buildModelAgentGuide({
+        model,
+        integrationProfiles: props.integrationProfiles,
+        gatewayBaseUrl,
+        siteUrl,
+      }),
+    [gatewayBaseUrl, model, props.integrationProfiles, siteUrl]
+  )
 
   return (
     <header className='pb-4'>
-      <div className='flex items-center gap-2.5'>
-        {modelIcon}
-        <h1 className='text-xl font-bold tracking-tight sm:text-2xl'>
-          {model.display_name || model.model_name}
-        </h1>
-        <CopyButton
-          value={model.model_name || ''}
-          className='size-6'
-          iconClassName='size-3'
-          tooltip={t('Copy model name')}
-          successTooltip={t('Copied!')}
-          aria-label={t('Copy model name')}
-        />
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='min-w-0'>
+          <div className='flex min-w-0 items-center gap-2.5'>
+            {modelIcon}
+            <h1 className='min-w-0 truncate font-mono text-xl font-bold tracking-tight sm:text-2xl'>
+              {model.model_name}
+            </h1>
+            <CopyButton
+              value={model.model_name || ''}
+              className='size-6'
+              iconClassName='size-3'
+              tooltip={t('Copy model name')}
+              successTooltip={t('Copied!')}
+              aria-label={t('Copy model name')}
+            />
+          </div>
+          {displayName && displayName !== model.model_name && (
+            <p className='text-muted-foreground mt-1 text-sm font-medium'>
+              {displayName}
+            </p>
+          )}
+        </div>
+        {agentGuide && (
+          <CopyButton
+            value={agentGuide}
+            variant='outline'
+            size='sm'
+            className='border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary w-full justify-center sm:w-auto'
+            iconClassName='size-3.5'
+            tooltip={t(
+              'Copy a self-contained guide with the exact model ID, verified endpoints, authentication, and examples.'
+            )}
+            successTooltip={t('Agent guide copied!')}
+            aria-label={t('Copy Agent guide')}
+          >
+            {t('Copy Agent guide')}
+          </CopyButton>
+        )}
       </div>
       <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
         {model.vendor_name && (
@@ -957,7 +1023,13 @@ function GroupPricingSection(props: {
   }
 
   const renderGroupPrice = (group: string, type: PriceType) =>
-    formatGroupPrice(props.model, group, type, props.tokenUnit, props.groupRatio)
+    formatGroupPrice(
+      props.model,
+      group,
+      type,
+      props.tokenUnit,
+      props.groupRatio
+    )
   const renderFixedGroupPrice = (group: string) =>
     formatFixedPrice(props.model, group, props.groupRatio)
 
@@ -1072,7 +1144,10 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
 
   return (
     <div className='@container/details space-y-4'>
-      <ModelHeader model={props.model} />
+      <ModelHeader
+        model={props.model}
+        integrationProfiles={props.integrationProfiles}
+      />
 
       <Tabs
         value={props.activeTab ?? drawerTab}
