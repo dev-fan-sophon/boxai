@@ -203,6 +203,7 @@ func TestIntegrationProfileRegistryContract(t *testing.T) {
 	seen := make(map[string]struct{})
 	profiles := GetIntegrationProfiles()
 	require.GreaterOrEqual(t, len(profiles), 12)
+	var videoProfile *IntegrationProfile
 	for _, profile := range profiles {
 		assert.NotEmpty(t, profile.ID)
 		assert.NotEmpty(t, profile.GatewayPathTemplate)
@@ -212,7 +213,13 @@ func TestIntegrationProfileRegistryContract(t *testing.T) {
 		_, duplicate := seen[profile.ID]
 		assert.False(t, duplicate, profile.ID)
 		seen[profile.ID] = struct{}{}
+		if profile.ID == "openai.video.create" {
+			profileCopy := profile
+			videoProfile = &profileCopy
+		}
 	}
+	require.NotNil(t, videoProfile)
+	assert.Equal(t, "application/json", videoProfile.ContentType)
 }
 
 func TestNormalizeModelIntegrationsRejectsUnknownAndCanonicalizesAssignments(t *testing.T) {

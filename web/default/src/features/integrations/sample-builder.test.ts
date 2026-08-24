@@ -138,15 +138,46 @@ describe('buildIntegrationSample', () => {
     }
   })
 
-  it('uses the video input_reference field without patch-marker artifacts', () => {
-    const sample = buildIntegrationSample(
-      profile('openai_video', '/v1/videos', 'bearer', 'multipart/form-data'),
-      'video-model',
+  it('builds text-to-video JSON samples without inventing an image input', () => {
+    for (const language of [
       'curl',
-      gateway
-    )
-    expect(sample).toContain('input_reference=@reference.png')
-    expect(sample).not.toContain('\n+  -F')
+      'python',
+      'typescript',
+      'javascript',
+    ] as const) {
+      const sample = buildIntegrationSample(
+        profile('openai_video', '/v1/videos', 'bearer', 'multipart/form-data'),
+        'seedance-2-0',
+        language,
+        gateway
+      )
+      expect(sample).toContain('application/json')
+      expect(sample).toContain('seedance-2-0')
+      expect(sample).toContain('duration')
+      expect(sample).not.toContain('input_reference')
+      expect(sample).not.toContain('FormData')
+    }
+  })
+
+  it('includes the required URL image and duration for Grok video 1.5', () => {
+    for (const language of [
+      'curl',
+      'python',
+      'typescript',
+      'javascript',
+    ] as const) {
+      const sample = buildIntegrationSample(
+        profile('openai_video', '/v1/videos', 'bearer', 'multipart/form-data'),
+        'grok-imagine-video-1.5',
+        language,
+        gateway
+      )
+      expect(sample).toContain('grok-imagine-video-1.5')
+      expect(sample).toContain('input_reference')
+      expect(sample).toContain(`${gateway}/logo.png`)
+      expect(sample).toContain('duration')
+      expect(sample).not.toContain('@reference.png')
+    }
   })
 
   it('handles speech output as binary in Python and JavaScript', () => {

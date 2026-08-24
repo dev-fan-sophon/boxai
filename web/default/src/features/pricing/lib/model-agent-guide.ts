@@ -130,6 +130,43 @@ export function buildModelAgentGuide(props: {
       'curl',
       gatewayBaseUrl
     )
+    const operationGuidance: string[] = []
+    const followUpExamples: string[] = []
+
+    if (profile.sample_kind === 'openai_images') {
+      operationGuidance.push(
+        '- Result: read the generated image from `data[0].url` or `data[0].b64_json`, according to the response.'
+      )
+    }
+    if (profile.sample_kind === 'openai_video') {
+      operationGuidance.push(
+        '- Workflow: asynchronous. The create response returns a public task ID in `id` (and the legacy alias `task_id`).',
+        `- Poll status: \`GET ${gatewayBaseUrl}/v1/videos/<VIDEO_ID>\` with the same bearer token until \`status\` is \`completed\` or \`failed\`.`,
+        `- Download: after completion, call \`GET ${gatewayBaseUrl}/v1/videos/<VIDEO_ID>/content\` with the same bearer token.`
+      )
+      if (props.model.model_name === 'grok-imagine-video-1.5') {
+        operationGuidance.push(
+          '- Input requirement: this model is image-to-video and requires `input_reference` as an accessible image URL or data URL. It also requires `duration` from 1 to 15 seconds.'
+        )
+      } else {
+        operationGuidance.push(
+          '- Input mode: the verified example is text-to-video and does not invent a reference image.'
+        )
+      }
+      followUpExamples.push(
+        '',
+        'After replacing `<VIDEO_ID>` with the `id` returned by the create call:',
+        '',
+        '```bash',
+        `curl ${JSON.stringify(`${gatewayBaseUrl}/v1/videos/<VIDEO_ID>`)} \\`,
+        '  -H "Authorization: Bearer $BOXAI_API_KEY"',
+        '',
+        `curl ${JSON.stringify(`${gatewayBaseUrl}/v1/videos/<VIDEO_ID>/content`)} \\`,
+        '  -H "Authorization: Bearer $BOXAI_API_KEY" \\',
+        '  --output output.mp4',
+        '```'
+      )
+    }
 
     return [
       `### ${profile.name_key}`,
@@ -139,13 +176,15 @@ export function buildModelAgentGuide(props: {
       `- Authentication: ${auth}`,
       `- Streaming: ${profile.streaming ? 'supported' : 'not supported'}`,
       `- Group scope: ${groupScope}`,
-      guideUrl ? `- Full guide: ${guideUrl}` : '',
+      guideUrl ? `- Full guide: ${guideUrl}` : null,
+      ...operationGuidance,
       '',
       '```bash',
       sample,
       '```',
+      ...followUpExamples,
     ]
-      .filter(Boolean)
+      .filter((line): line is string => line !== null)
       .join('\n')
   })
 
@@ -161,6 +200,7 @@ export function buildModelAgentGuide(props: {
     '3. Read the API key from the `BOXAI_API_KEY` environment variable or the project secret manager. Never hard-code, log, commit, or expose the key in browser code.',
     '4. Prefer the existing SDK or HTTP client already used by the project. Match its configuration to a verified profile below.',
     '5. If `BOXAI_API_KEY` is missing, ask the user to create or export one. Do not ask them to paste the secret into source code or chat.',
+    '6. Treat capabilities and modalities as model facts, not proof that an API route exists. Use only the explicitly verified operations and endpoints below.',
     '',
     '## Model facts',
     '',

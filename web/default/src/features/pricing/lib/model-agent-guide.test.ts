@@ -47,6 +47,19 @@ const profiles: IntegrationProfile[] = [
     sample_kind: 'openai_chat',
     streaming: false,
   },
+  {
+    id: 'openai-video',
+    protocol: 'OpenAI-compatible',
+    operation: 'video_create',
+    name_key: 'OpenAI Video',
+    method: 'POST',
+    gateway_path_template: '/v1/videos',
+    auth_scheme: 'bearer',
+    content_type: 'application/json',
+    docs_slug: 'openai-video-create',
+    sample_kind: 'openai_video',
+    streaming: false,
+  },
 ]
 
 const model: PricingModel = {
@@ -128,6 +141,37 @@ describe('model Agent guide', () => {
 
   it('joins only verified explicit profiles that exist in the catalog', () => {
     expect(getVerifiedModelIntegrations(model, profiles)).toHaveLength(2)
+  })
+
+  it('documents the complete asynchronous workflow for image-required video', () => {
+    const guide = buildModelAgentGuide({
+      model: {
+        ...model,
+        model_name: 'grok-imagine-video-1.5',
+        input_modalities: ['text', 'image'],
+        output_modalities: ['video'],
+        integrations: [
+          {
+            profile_id: 'openai-video',
+            groups: ['default'],
+            verified: true,
+            source: 'explicit',
+          },
+        ],
+      },
+      integrationProfiles: profiles,
+      gatewayBaseUrl: 'https://you-box.com',
+      siteUrl: 'https://you-box.com',
+    })
+
+    expect(guide).toContain('"duration": 8')
+    expect(guide).toContain('"input_reference": "https://you-box.com/logo.png"')
+    expect(guide).toContain('GET https://you-box.com/v1/videos/<VIDEO_ID>')
+    expect(guide).toContain(
+      'GET https://you-box.com/v1/videos/<VIDEO_ID>/content'
+    )
+    expect(guide).toContain('--output output.mp4')
+    expect(guide).toContain('requires `duration` from 1 to 15 seconds')
   })
 })
 

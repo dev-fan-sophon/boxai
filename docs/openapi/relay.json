@@ -327,12 +327,12 @@
     },
     "/v1/images/generations": {
       "post": {
-        "summary": "生成图像(qwen-image)",
+        "summary": "生成图像",
         "deprecated": false,
-        "description": " 百炼qwen-image系列图片生成",
+        "description": "OpenAI 兼容的图像生成接口。使用模型广场展示的准确模型 ID。",
         "operationId": "createImage",
         "tags": [
-          "图片生成/Qwen千问"
+          "图像生成/OpenAI 兼容格式"
         ],
         "parameters": [],
         "requestBody": {
@@ -342,81 +342,43 @@
                 "type": "object",
                 "properties": {
                   "model": {
+                    "description": "模型广场中的准确模型 ID",
+                    "example": "grok-imagine-image-2.0",
                     "type": "string"
                   },
-                  "input": {
-                    "type": "object",
-                    "properties": {
-                      "messages": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "role": {
-                              "type": "string"
-                            },
-                            "content": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "text": {
-                                    "type": "string"
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "required": [
-                      "messages"
-                    ]
+                  "prompt": {
+                    "description": "图像生成提示词",
+                    "example": "A calm mountain lake at sunrise",
+                    "type": "string"
                   },
-                  "parameters": {
-                    "type": "object",
-                    "properties": {
-                      "negative_prompt": {
-                        "type": "string"
-                      },
-                      "prompt_extend": {
-                        "type": "boolean"
-                      },
-                      "watermark": {
-                        "type": "boolean"
-                      },
-                      "size": {
-                        "type": "string"
-                      }
-                    }
+                  "n": {
+                    "description": "生成数量；省略时为 1。模型可能有更严格的限制。",
+                    "minimum": 1,
+                    "maximum": 128,
+                    "type": "integer"
+                  },
+                  "size": {
+                    "description": "可选输出尺寸；支持值取决于模型",
+                    "example": "1024x1024",
+                    "type": "string"
+                  },
+                  "quality": {
+                    "description": "可选质量档位；支持值取决于模型",
+                    "type": "string"
+                  },
+                  "response_format": {
+                    "description": "可选响应格式，例如 url 或 b64_json",
+                    "type": "string"
                   }
                 },
                 "required": [
                   "model",
-                  "input"
+                  "prompt"
                 ]
               },
               "example": {
-                "model": "qwen-image-plus",
-                "input": {
-                  "messages": [
-                    {
-                      "role": "user",
-                      "content": [
-                        {
-                          "text": "一副典雅庄重的对联悬挂于厅堂之中，房间是个安静古典的中式布置，桌子上放着一些青花瓷，对联上左书“义本生知人机同道善思新”，右书“通云赋智乾坤启数高志远”， 横批“智启通义”，字体飘逸，在中间挂着一幅中国风的画作，内容是岳阳楼。"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "parameters": {
-                  "negative_prompt": "",
-                  "prompt_extend": true,
-                  "watermark": false,
-                  "size": "1328*1328"
-                }
+                "model": "grok-imagine-image-2.0",
+                "prompt": "A calm mountain lake at sunrise"
               }
             }
           }
@@ -545,44 +507,72 @@
     },
     "/v1/videos": {
       "post": {
-        "summary": "创建视频 ",
+        "summary": "创建视频",
         "deprecated": false,
-        "description": "OpenAI 兼容的视频生成接口。\n\n参考文档: https://platform.openai.com/docs/api-reference/videos/create\n",
+        "description": "BoxAI 的异步视频生成接口。请求使用 JSON；创建后通过返回的 id 查询状态并下载结果。grok-imagine-video-1.5 是图生视频模型，必须提供 input_reference 图片 URL 或 data URL，duration 必须为 1 到 15 秒。Seedance 系列可直接使用文本提示词。",
         "operationId": "createVideo",
         "tags": [
-          "视频生成/Sora兼容格式"
+          "视频生成/OpenAI 兼容格式"
         ],
         "parameters": [],
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "model": {
-                    "description": "模型名称",
-                    "example": "sora-2",
+                    "description": "模型广场中的准确模型 ID",
+                    "example": "seedance-2-0",
                     "type": "string"
                   },
                   "prompt": {
                     "description": "提示词",
-                    "example": "cute cat dance",
+                    "example": "A paper plane flying over a calm mountain lake",
                     "type": "string"
                   },
-                  "seconds": {
-                    "description": "生成秒数",
-                    "example": "8",
+                  "duration": {
+                    "description": "视频时长（秒）；具体范围取决于模型",
+                    "example": 8,
+                    "minimum": 1,
+                    "maximum": 3600,
+                    "type": "integer"
+                  },
+                  "size": {
+                    "description": "可选输出尺寸；支持值取决于模型",
+                    "example": "1280x720",
                     "type": "string"
                   },
                   "input_reference": {
-                    "format": "binary",
                     "type": "string",
-                    "description": "参考图片文件",
-                    "example": ""
+                    "description": "可访问的参考图片 URL 或 data URL；grok-imagine-video-1.5 必填",
+                    "example": "https://you-box.com/logo.png"
+                  }
+                },
+                "required": [
+                  "model",
+                  "prompt"
+                ]
+              },
+              "examples": {
+                "text_to_video": {
+                  "summary": "Seedance 文生视频",
+                  "value": {
+                    "model": "seedance-2-0",
+                    "prompt": "A paper plane flying over a calm mountain lake",
+                    "duration": 8
+                  }
+                },
+                "image_to_video": {
+                  "summary": "Grok Imagine Video 1.5 图生视频",
+                  "value": {
+                    "model": "grok-imagine-video-1.5",
+                    "prompt": "Animate the logo with a gentle camera orbit",
+                    "duration": 8,
+                    "input_reference": "https://you-box.com/logo.png"
                   }
                 }
-              },
-              "examples": {}
+              }
             }
           }
         },
@@ -650,18 +640,16 @@
                     "model",
                     "status",
                     "progress",
-                    "created_at",
-                    "seconds"
+                    "created_at"
                   ]
                 },
                 "example": {
-                  "id": "sora-2-123456",
+                  "id": "task_abc123",
                   "object": "video",
-                  "model": "sora-2",
+                  "model": "seedance-2-0",
                   "status": "queued",
                   "progress": 0,
-                  "created_at": 1764347090922,
-                  "seconds": "8"
+                  "created_at": 1764347090
                 }
               }
             },
@@ -743,18 +731,16 @@
                     "model",
                     "status",
                     "progress",
-                    "created_at",
-                    "seconds"
+                    "created_at"
                   ]
                 },
                 "example": {
-                  "id": "sora-2-123456",
+                  "id": "task_abc123",
                   "object": "video",
-                  "model": "sora-2",
+                  "model": "seedance-2-0",
                   "status": "queued",
                   "progress": 0,
-                  "created_at": 1764347090922,
-                  "seconds": "8"
+                  "created_at": 1764347090
                 }
               }
             },

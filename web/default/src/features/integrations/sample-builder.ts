@@ -12,7 +12,11 @@ export function integrationPath(
   )
 }
 
-function requestPayload(kind: string, model: string): Record<string, unknown> {
+function requestPayload(
+  kind: string,
+  model: string,
+  baseUrl: string
+): Record<string, unknown> {
   switch (kind) {
     case 'gemini_generate_content':
       return { contents: [{ parts: [{ text: 'Hello' }] }] }
@@ -35,6 +39,19 @@ function requestPayload(kind: string, model: string): Record<string, unknown> {
       return { model, input: 'Hello' }
     case 'openai_images':
       return { model, prompt: 'A calm mountain lake' }
+    case 'openai_video': {
+      const request: Record<string, unknown> = {
+        model,
+        prompt: 'A paper plane flying over a calm mountain lake',
+        duration: 8,
+      }
+      if (model === 'grok-imagine-video-1.5') {
+        request.prompt =
+          'Animate the reference image with a gentle camera orbit and subtle motion'
+        request.input_reference = `${baseUrl || 'https://you-box.com'}/logo.png`
+      }
+      return request
+    }
     case 'openai_audio_speech':
       return { model, voice: 'alloy', input: 'Hello' }
     default:
@@ -146,20 +163,25 @@ export function buildIntegrationSample(
   baseUrl = ''
 ): string {
   const url = `${baseUrl.replace(/\/$/, '')}${integrationPath(profile, model)}`
-  if (
-    profile.sample_kind === 'openai_audio_transcriptions' ||
-    profile.sample_kind === 'openai_video'
-  ) {
+  if (profile.sample_kind === 'openai_audio_transcriptions') {
     return multipartSample(profile, model, language, url)
   }
   if (profile.sample_kind === 'openai_realtime') {
     return realtimeSample(language, url)
   }
 
-  const payload = requestPayload(profile.sample_kind, model)
+  const payload = requestPayload(
+    profile.sample_kind,
+    model,
+    baseUrl.replace(/\/$/, '')
+  )
+  const contentType =
+    profile.sample_kind === 'openai_video'
+      ? 'application/json'
+      : profile.content_type
   const headers = {
     ...authHeaders(profile),
-    'Content-Type': profile.content_type,
+    'Content-Type': contentType,
   }
   if (language === 'curl') {
     const headerFlags = Object.entries(headers)
@@ -176,8 +198,8 @@ ${headerFlags}
   if (language === 'python') {
     const pythonHeaders =
       profile.auth_scheme === 'x-api-key'
-        ? `{'x-api-key': os.environ['BOXAI_API_KEY'], 'anthropic-version': '2023-06-01', 'Content-Type': ${JSON.stringify(profile.content_type)}}`
-        : `{'Authorization': f"Bearer {os.environ['BOXAI_API_KEY']}", 'Content-Type': ${JSON.stringify(profile.content_type)}}`
+        ? `{'x-api-key': os.environ['BOXAI_API_KEY'], 'anthropic-version': '2023-06-01', 'Content-Type': ${JSON.stringify(contentType)}}`
+        : `{'Authorization': f"Bearer {os.environ['BOXAI_API_KEY']}", 'Content-Type': ${JSON.stringify(contentType)}}`
     const pythonResult =
       profile.sample_kind === 'openai_audio_speech'
         ? `from pathlib import Path
