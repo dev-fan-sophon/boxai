@@ -109,7 +109,7 @@ if command -v apt-get >/dev/null; then
   echo 'Installing native BoxAI Connect build dependencies...'
   "${sudo_cmd[@]}" apt-get update -qq
   "${sudo_cmd[@]}" apt-get install -y --no-install-recommends \
-    libxkbcommon-dev libxkbcommon-x11-dev pkg-config
+    libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev pkg-config
 fi
 
 if [[ ! -x "$HOME/.cargo/bin/rustup" ]]; then
