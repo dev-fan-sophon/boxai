@@ -34,22 +34,21 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
   connect: {
     id: 'connect',
     nameKey: 'BoxAI Connect',
-    taglineKey:
-      'Point your AI coding clients at BoxAI, without editing a config file',
+    taglineKey: 'A native app for connecting your AI coding agents to BoxAI',
     descriptionKey:
-      'Sign in once in your browser. BoxAI Connect writes the endpoint and key into Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode and more — backing up what was there and restoring it whenever you want.',
+      'Built in Rust with GPUI, BoxAI Connect brings browser sign-in, model discovery, MCP, official Skills, and account usage into one Vietnamese-first native app.',
     icon: BoxAIConnectIcon,
     logoSrc: CLIENT_APP_LOGO.connect.src,
     section: 'connect',
     stepKeys: [
       'Download and install the app for your platform.',
       'Sign in from the app; approve the request in this browser session.',
-      'Open a client and set up its models the way that client works, then press Apply.',
+      'Choose an agent and model, then apply the configuration in one click.',
     ],
     highlightKeys: [
-      'Writes the endpoint and key into each client for you',
-      'Backs up every config it touches, restorable in one click',
-      'Switch the whole toolchain to another provider in seconds',
+      'Discover compatible models in Model Plaza',
+      'Add MCP servers and official Skills from one place',
+      'Apply or disconnect with a reversible one-click change',
     ],
   },
   desktop: {
@@ -95,16 +94,8 @@ export const UPCOMING_CLIENT_APPS = [
  * The clients BoxAI Connect writes a provider into, the file it writes, and how
  * that client expects to be configured.
  *
- * Must stay in step with `SUPPORTED_APPS` and the per-client config shapes in
- * `connect/src-tauri/src/boxai/agent_config.rs`. A client advertised here that
- * the app does not seed is a promise the download does not keep, and a `choose`
- * line that does not match its panel sends people looking for a control that
- * client never had.
- *
- * `mode` is the difference users feel first: an exclusive client has one active
- * provider, so BoxAI replaces it and Connect keeps the previous config to
- * restore; an additive client keeps its own providers and gains BoxAI alongside
- * them, so its own default only moves when you ask for it.
+ * A client advertised here must be supported by the current native Connect
+ * release. Keep this list intentionally limited to the five supported agents.
  *
  * `icon` is a `@lobehub/icons` key for `LobeIcon` (prefer `.Color` when available).
  * `href` is the product home / docs the marketing strip links to.
@@ -113,57 +104,36 @@ export const CONNECT_CLIENTS = [
   {
     name: 'Claude Code',
     config: '~/.claude/settings.json',
-    mode: 'exclusive',
-    chooseKey: 'One model, plus optional overrides per role',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'ClaudeCode.Color',
     href: 'https://docs.anthropic.com/en/docs/claude-code',
   },
   {
     name: 'Codex CLI',
     config: '~/.codex/config.toml',
-    mode: 'exclusive',
-    chooseKey: 'A set of models, which one is default, and reasoning effort',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'Codex.Color',
     href: 'https://developers.openai.com/codex',
   },
   {
     name: 'Gemini CLI',
     config: '~/.gemini/.env',
-    mode: 'exclusive',
-    chooseKey: 'One model, from the names Gemini CLI accepts',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'GeminiCLI.Color',
     href: 'https://github.com/google-gemini/gemini-cli',
   },
   {
     name: 'Grok Build',
     config: '~/.grok/config.toml',
-    mode: 'exclusive',
-    chooseKey: 'A set of models and which one is default',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'Grok.Color',
     href: 'https://grok.x.ai',
   },
   {
     name: 'OpenCode',
     config: '~/.config/opencode/opencode.json',
-    mode: 'additive',
-    chooseKey: 'A set of models, picked per session inside OpenCode',
+    chooseKey: 'Discover a compatible model, then apply it in one click',
     icon: 'OpenCode.Color',
     href: 'https://opencode.ai',
-  },
-  {
-    name: 'OpenClaw',
-    config: '~/.openclaw/openclaw.json',
-    mode: 'additive',
-    chooseKey: 'A set of models, plus a primary and its fallbacks',
-    icon: 'OpenClaw.Color',
-    href: 'https://openclaw.ai',
-  },
-  {
-    name: 'Hermes',
-    config: '~/.hermes/config.yaml',
-    mode: 'additive',
-    chooseKey: 'A set of models and which one is default',
-    icon: 'HermesAgent.Color',
-    href: 'https://github.com/HermesAgent/hermes',
   },
 ] as const

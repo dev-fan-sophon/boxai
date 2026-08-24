@@ -53,9 +53,6 @@ export function DesktopAuthorizationPage() {
   // client that actually opened the request.
   let productName = 'BoxAI Desktop'
   if (request?.client_id === 'boxai-connect') productName = 'BoxAI Connect'
-  else if (request?.client_id === 'boxai-connector') {
-    productName = 'BoxAI Connector'
-  }
 
   let stateMessage: string | null = null
   if (!requestId) stateMessage = t('The authorization request is missing')

@@ -1,105 +1,81 @@
-import { Route } from 'lucide-react'
-import { useState } from 'react'
+import {
+  Blocks,
+  RefreshCw,
+  Route,
+  Search,
+  ShieldCheck,
+  UserRound,
+  Zap,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TitledCard } from '@/components/ui/titled-card'
 
-/**
- * Captured from the real signed-in app with
- * `bash connect/packaging/capture_screenshots.sh <id>`; regenerate after a
- * panel changes so the walkthrough never shows controls the download lacks.
- */
-const STEPS = [
+const FEATURES = [
   {
-    id: 'codex',
-    tab: 'Choose models',
-    caption:
-      'Open a client and pick the models it should offer. Codex lists exactly these in its /model picker.',
+    title: 'Model Plaza',
+    description: 'Discover models that work with each supported coding agent.',
+    icon: Search,
   },
   {
-    id: 'claude',
-    tab: 'Per client',
-    caption:
-      'Every client is set up the way it actually works. Claude Code takes one model plus optional overrides for its Sonnet, Opus and Haiku roles.',
+    title: 'MCP and official Skills',
+    description:
+      'Install MCP servers and BoxAI official Skills from one place.',
+    icon: Blocks,
   },
   {
-    id: 'gemini',
-    tab: 'Only what works',
-    caption:
-      'Only models the client can really use are offered. Gemini CLI ignores model names outside its own list, so the rest of your catalog is not shown.',
+    title: 'Reversible by design',
+    description:
+      'Apply BoxAI in one click, then disconnect to restore your previous configuration.',
+    icon: RefreshCw,
   },
   {
-    id: 'additive',
-    tab: 'Apply',
-    caption:
-      'Claude Code, Codex, Gemini and Grok Build switch over to BoxAI. OpenCode, OpenClaw and Hermes gain BoxAI next to their own providers, and keep their default until you move it.',
+    title: 'Browser sign-in',
+    description:
+      'Sign in with your BoxAI account without copying API keys into the app.',
+    icon: ShieldCheck,
   },
   {
-    id: 'applied',
-    tab: 'Live and reversible',
-    caption:
-      'Once applied, the panel names the file it wrote and keeps the way back. Removing BoxAI restores what the client had before.',
+    title: 'Account and usage',
+    description: 'See your BoxAI account and usage without leaving Connect.',
+    icon: UserRound,
+  },
+  {
+    title: 'Signed in-app updates',
+    description: 'Receive verified Connect updates directly inside the app.',
+    icon: Zap,
   },
 ] as const
 
-type StepId = (typeof STEPS)[number]['id']
-
 export function ConnectWalkthrough() {
   const { t } = useTranslation()
-  const [active, setActive] = useState<StepId>(STEPS[0].id)
 
   return (
     <TitledCard
-      title={t('Configuring a client')}
+      title={t('Everything your agents need')}
       description={t(
-        'Sign in once, then set up each client on its own terms. Nothing is written to disk until you apply.'
+        'A fast native Rust and GPUI experience, designed Vietnamese-first for the BoxAI workflow.'
       )}
       icon={<Route aria-hidden='true' />}
       disableHoverEffect
     >
-      <Tabs
-        value={active}
-        onValueChange={(value) => setActive(value as StepId)}
-      >
-        <TabsList className='flex-wrap'>
-          {STEPS.map((step, index) => (
-            <TabsTrigger key={step.id} value={step.id}>
-              <span className='text-muted-foreground mr-1.5 font-mono text-xs'>
-                {index + 1}
-              </span>
-              {t(step.tab)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {STEPS.map((step) => (
-          <TabsContent key={step.id} value={step.id} className='mt-4'>
-            <figure className='space-y-2.5'>
-              <div className='border-border bg-muted overflow-hidden rounded-xl border'>
-                <img
-                  src={`/connect-screenshots/${step.id}-1536.webp`}
-                  srcSet={[
-                    `/connect-screenshots/${step.id}-480.webp 480w`,
-                    `/connect-screenshots/${step.id}-960.webp 960w`,
-                    `/connect-screenshots/${step.id}-1536.webp 1536w`,
-                  ].join(', ')}
-                  sizes='(min-width: 1024px) 880px, 100vw'
-                  width={1536}
-                  height={986}
-                  loading='lazy'
-                  decoding='async'
-                  alt={t(step.caption)}
-                  className='block w-full'
-                />
-              </div>
-              <figcaption className='text-muted-foreground text-sm text-pretty'>
-                {t(step.caption)}
-              </figcaption>
-            </figure>
-          </TabsContent>
-        ))}
-      </Tabs>
+      <ul className='grid gap-3 sm:grid-cols-2'>
+        {FEATURES.map((feature) => {
+          const Icon = feature.icon
+          return (
+            <li
+              key={feature.title}
+              className='bg-muted/40 rounded-lg border p-3'
+            >
+              <Icon className='text-primary size-5' aria-hidden='true' />
+              <p className='mt-2 text-sm font-medium'>{t(feature.title)}</p>
+              <p className='text-muted-foreground mt-1 text-xs text-pretty'>
+                {t(feature.description)}
+              </p>
+            </li>
+          )
+        })}
+      </ul>
     </TitledCard>
   )
 }

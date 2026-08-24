@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, ListChecks, Terminal } from 'lucide-react'
+import { ArrowRight, ListChecks, Terminal, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
@@ -96,6 +96,17 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
             <span key={fact}>{fact}</span>
           ))}
         </p>
+        {props.app === 'connect' && (
+          <p className='text-muted-foreground flex items-start gap-2 text-xs text-pretty'>
+            <TriangleAlert
+              className='mt-0.5 size-3.5 shrink-0'
+              aria-hidden='true'
+            />
+            {t(
+              'The current macOS and Windows installers are not OS-signed or notarized. Your system may show a security warning during installation.'
+            )}
+          </p>
+        )}
       </section>
 
       <ClientAppSessionsCard
@@ -148,11 +159,7 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
                   <div className='min-w-0 flex-1'>
                     <div className='flex flex-wrap items-center gap-2'>
                       <p className='text-sm font-medium'>{client.name}</p>
-                      <Badge variant='outline'>
-                        {client.mode === 'additive'
-                          ? t('Added alongside')
-                          : t('Switches over')}
-                      </Badge>
+                      <Badge variant='outline'>{t('One-click apply')}</Badge>
                     </div>
                     <p className='mt-1 text-xs text-pretty'>
                       {t(client.chooseKey)}

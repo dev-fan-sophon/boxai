@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useStatus } from '@/hooks/use-status'
 
 import { fetchDesktopRelease } from './release'
+import type { DesktopRelease } from './types'
 
 export type ClientAppId = 'connect' | 'desktop'
 
@@ -10,6 +11,21 @@ export type ClientAppId = 'connect' | 'desktop'
 const DEFAULT_MANIFEST_URL: Record<ClientAppId, string> = {
   connect: 'https://dl.you-box.com/connect/releases.json',
   desktop: 'https://dl.you-box.com/desktop/releases.json',
+}
+
+export function connectReleaseDownloads(
+  release: DesktopRelease
+): DesktopRelease {
+  const expectedFilenames = new Set([
+    `BoxAI-Connect-${release.version}-macos-arm64.dmg`,
+    `BoxAI-Connect-${release.version}-windows-x64-setup.exe`,
+  ])
+  return {
+    ...release,
+    downloads: release.downloads.filter((download) =>
+      expectedFilenames.has(download.filename)
+    ),
+  }
 }
 
 /**
@@ -31,7 +47,10 @@ export function useAppRelease(app: ClientAppId) {
 
   const query = useQuery({
     queryKey: ['app-release', app, manifestUrl],
-    queryFn: () => fetchDesktopRelease(manifestUrl),
+    queryFn: async () => {
+      const release = await fetchDesktopRelease(manifestUrl)
+      return app === 'connect' ? connectReleaseDownloads(release) : release
+    },
     staleTime: 5 * 60 * 1000,
     retry: 1,
   })
