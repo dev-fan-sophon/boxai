@@ -457,6 +457,11 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
       title: 'Rankings',
       description: 'BoxAI public model and usage rankings on you-box.com.',
     },
+    '/connect': {
+      title: 'BoxAI Connect',
+      description:
+        'Download BoxAI Connect for macOS or Windows to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode to BoxAI with MCP and official Skills.',
+    },
   }
 
   const hit = catalog[normalized]

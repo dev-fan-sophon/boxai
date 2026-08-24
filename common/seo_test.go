@@ -31,6 +31,10 @@ func TestLookupSEOPage(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "/docs/custom-slug", page.Path)
 
+	page, ok = LookupSEOPage("/connect")
+	require.True(t, ok)
+	assert.Equal(t, "BoxAI Connect", page.Title)
+
 	_, ok = LookupSEOPage("/console/log")
 	assert.False(t, ok)
 }
@@ -61,6 +65,7 @@ func TestBuildSitemapXML(t *testing.T) {
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/getting-started</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/what-is-boxai</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/rankings</loc>")
+	assert.Contains(t, xml, "<loc>https://you-box.com/connect</loc>")
 	assert.NotContains(t, xml, "<loc>https://you-box.com/console")
 }
 

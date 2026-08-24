@@ -234,6 +234,15 @@ func PublicSEOPages() []SEOPage {
 			Body:        "View public model and usage rankings for the BoxAI unified AI API gateway at you-box.com.",
 		},
 		{
+			Path:        "/connect",
+			Title:       "BoxAI Connect",
+			Description: "Download BoxAI Connect for macOS or Windows to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode to BoxAI with MCP and official Skills.",
+			Priority:    "0.7",
+			Changefreq:  "weekly",
+			Heading:     "BoxAI Connect",
+			Body:        "Download the native BoxAI Connect app from you-box.com to sign in, discover models, install BoxAI MCP servers and official Skills, and configure supported AI coding agents with reversible changes.",
+		},
+		{
 			Path:        "/about",
 			Title:       "About BoxAI",
 			Description: "About BoxAI (you-box.com) — unified AI API gateway for multi-model access, billing, and admin. Primary market: Vietnam; secondary: other overseas markets.",

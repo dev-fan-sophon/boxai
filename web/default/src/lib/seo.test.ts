@@ -38,6 +38,7 @@ describe('isPrivateSeoPath', () => {
     expect(isPrivateSeoPath('/pricing')).toBe(false)
     expect(isPrivateSeoPath('/docs/getting-started')).toBe(false)
     expect(isPrivateSeoPath('/docs/start/getting-started')).toBe(false)
+    expect(isPrivateSeoPath('/connect')).toBe(false)
   })
 })
 
@@ -46,6 +47,10 @@ describe('resolveRouteSeo', () => {
     const pricing = resolveRouteSeo('/pricing/', 'BoxAI')
     expect(pricing.title).toBe('Model Pricing')
     expect(pricing.noindex).toBeFalsy()
+
+    const connect = resolveRouteSeo('/connect', 'BoxAI')
+    expect(connect.title).toBe('BoxAI Connect')
+    expect(connect.noindex).toBe(false)
 
     const consoleSeo = resolveRouteSeo('/console/log', 'BoxAI')
     expect(consoleSeo.noindex).toBe(true)
