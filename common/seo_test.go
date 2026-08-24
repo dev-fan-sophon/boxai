@@ -47,6 +47,7 @@ func TestIsPrivateSEOPath(t *testing.T) {
 	assert.False(t, IsPrivateSEOPath("/"))
 	assert.False(t, IsPrivateSEOPath("/pricing"))
 	assert.False(t, IsPrivateSEOPath("/docs/getting-started"))
+	assert.False(t, IsPrivateSEOPath("/connect"))
 }
 
 func TestBuildRobotsTxt(t *testing.T) {
@@ -55,6 +56,7 @@ func TestBuildRobotsTxt(t *testing.T) {
 	assert.Contains(t, body, "Disallow: /console")
 	assert.Contains(t, body, "Sitemap: https://you-box.com/sitemap.xml")
 	assert.NotContains(t, body, "Disallow: /\n")
+	assert.NotContains(t, body, "Disallow: /connect")
 }
 
 func TestBuildSitemapXML(t *testing.T) {
