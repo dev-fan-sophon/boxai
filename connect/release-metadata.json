@@ -4,7 +4,7 @@
   "file_description": "BoxAI native AI agent connector",
   "company_name": "BoxAI",
   "legal_copyright": "Copyright 2026 BoxAI",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "bundle_id": "com.you-box.connect",
   "binary_name": "boxai-connect",
   "original_filename": "boxai-connect.exe",
