@@ -268,9 +268,9 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
     let mcp = "docs";
     let skill = "deploy";
     // One SSOT staging operation plus one target per Agent (not one SSOT copy
-    // per Agent), in addition to the twelve configuration projections: the
-    // GPT(Codex) and Buddy model catalogs, and the Codex account file.
-    assert_eq!(p.changes.len(), 19);
+    // per Agent), in addition to the eleven configuration projections and the
+    // GPT(Codex) and Buddy model catalogs.
+    assert_eq!(p.changes.len(), 18);
     assert!(!format!("{p:?}").contains("super-secret"));
     c.apply(&p).unwrap();
     assert!(c.verify(&p).unwrap().ok);
@@ -299,10 +299,7 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
             && codex.contains("http_headers"),
         "{codex}"
     );
-    let codex_auth: Value =
-        serde_json::from_slice(&fs::read(t.path().join("codex/auth.json")).unwrap()).unwrap();
-    assert_eq!(codex_auth["OPENAI_API_KEY"], "super-secret");
-    assert_eq!(codex_auth["auth_mode"], "apikey");
+    assert!(!t.path().join("codex/auth.json").exists());
     let env = fs::read_to_string(t.path().join("gemini/.env")).unwrap();
     assert!(
         env.contains("# keep")
@@ -398,10 +395,6 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
     assert!(!t.path().join("state/skills/platform-a/deploy").exists());
     assert!(!t.path().join("claude/skills").join(skill).exists());
     assert!(!t.path().join("state/receipts/platform-a.json").exists());
-    assert!(
-        !t.path().join("codex/auth.json").exists(),
-        "an account file Kit created is removed again, not left holding a revoked key",
-    );
     let reverted: Value =
         serde_json::from_slice(&fs::read(t.path().join("workbuddy/models.json")).unwrap()).unwrap();
     assert_eq!(reverted.as_array().unwrap().len(), 1);
@@ -785,11 +778,9 @@ fn applying_agents_preserves_login_state_without_collision() {
         r#"{"env":{"ANTHROPIC_API_KEY":"stale-api-key","ANTHROPIC_AUTH_TOKEN":"stale-token","KEEP":"yes"}}"#,
     )
     .unwrap();
-    fs::write(
-        codex.join("auth.json"),
-        r#"{"auth_mode":"chatgpt","OPENAI_API_KEY":"","tokens":{"access_token":"chatgpt-access"}}"#,
-    )
-    .unwrap();
+    let original_codex_auth =
+        br#"{"auth_mode":"chatgpt","OPENAI_API_KEY":"","tokens":{"access_token":"chatgpt-access"}}"#;
+    fs::write(codex.join("auth.json"), original_codex_auth).unwrap();
     fs::write(
         codex.join("config.toml"),
         format!(
@@ -889,11 +880,10 @@ fn applying_agents_preserves_login_state_without_collision() {
     assert_eq!(claude_settings["env"]["ANTHROPIC_MODEL"], "alpha");
     assert!(claude_settings["env"].get("ANTHROPIC_API_KEY").is_none());
 
-    let codex_auth: Value =
-        serde_json::from_slice(&fs::read(codex.join("auth.json")).unwrap()).unwrap();
-    assert_eq!(codex_auth["auth_mode"], "apikey");
-    assert_eq!(codex_auth["OPENAI_API_KEY"], "secret");
-    assert_eq!(codex_auth["tokens"]["access_token"], "chatgpt-access");
+    assert_eq!(
+        fs::read(codex.join("auth.json")).unwrap(),
+        original_codex_auth
+    );
     let codex_config = fs::read_to_string(codex.join("config.toml")).unwrap();
     assert!(
         codex_config.contains("https://gw.example/v1"),
@@ -2799,7 +2789,7 @@ fn applying_codex_overwrites_an_older_same_name_skill_directory() {
 }
 
 #[test]
-fn applying_codex_signs_the_account_in_and_disconnecting_puts_the_old_one_back() {
+fn applying_codex_never_changes_the_account_file() {
     let t = tempdir().unwrap();
     let (manifest, provisioning) = contracts();
     let codex = t.path().join("codex");
@@ -2830,16 +2820,7 @@ fn applying_codex_signs_the_account_in_and_disconnecting_puts_the_old_one_back()
         })
         .unwrap();
     connector.apply(&plan).unwrap();
-
-    // Codex answers "who is signed in?" from this file, not from the provider
-    // block, so applying a Gateway profile has to leave an account in it.
-    let applied: serde_json::Value =
-        serde_json::from_slice(&fs::read(codex.join("auth.json")).unwrap()).unwrap();
-    assert_eq!(applied["OPENAI_API_KEY"], "secret");
-    assert_eq!(applied["auth_mode"], "apikey");
-    // The ChatGPT tokens are somebody else's credential. Kit has no business
-    // dropping them on its way past.
-    assert_eq!(applied["tokens"]["access_token"], "chatgpt-access");
+    assert_eq!(fs::read(codex.join("auth.json")).unwrap(), original_auth);
 
     connector
         .disconnect("platform-a", &Secret::new("secret").unwrap())
@@ -2847,7 +2828,7 @@ fn applying_codex_signs_the_account_in_and_disconnecting_puts_the_old_one_back()
     assert_eq!(
         fs::read(codex.join("auth.json")).unwrap(),
         original_auth,
-        "disconnecting restores the account file byte for byte",
+        "the Codex account belongs to Codex, not Connect",
     );
 }
 

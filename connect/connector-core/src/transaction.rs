@@ -22,12 +22,6 @@ use toml_edit::{DocumentMut, Item, Table, value};
 
 const SKILL_OWNER_FILE: &str = ".gateway-connector-owner";
 const CODEX_MODEL_CATALOG_FILE: &str = "connector-model-catalog.json";
-/// Codex's account file, next to `config.toml` under `CODEX_HOME`.
-const CODEX_AUTH_FILE: &str = "auth.json";
-/// The `auth_mode` Codex reads for a key-authenticated account. The other
-/// values it accepts (`chatgpt`, `headers`, `agentIdentity`, …) describe
-/// accounts nobody here holds.
-const CODEX_API_KEY_AUTH_MODE: &str = "apikey";
 const BUDDY_MODEL_CATALOG_FILE: &str = "models.json";
 const GROK_DEFAULT_CONTEXT_WINDOW: i64 = 500_000;
 const MAX_JOURNAL_BYTES: u64 = 16 * 1024 * 1024;
@@ -2855,6 +2849,10 @@ fn project(
                 t["name"] = value(&m.platform.name);
                 t["base_url"] = value(v1_base.as_str());
                 t["wire_api"] = value("responses");
+                // The provider carries its own Gateway credential. Codex CLI
+                // and Desktop share CODEX_HOME/auth.json, so treating this
+                // provider as the user's global OpenAI account can break the
+                // Desktop login and startup state.
                 t["requires_openai_auth"] = value(false);
                 t["experimental_bearer_token"] = value(b.expose());
                 let mut headers = Table::new();
@@ -2918,26 +2916,6 @@ fn project(
                     codex_catalog_document(&catalog, &p.models, toml_context_window(&d)),
                     vec!["Codex model catalog".into()],
                 ));
-                // Codex keeps the account in `auth.json`, and everything that
-                // reads the account rather than the provider block — `codex
-                // login status`, the account line in the TUI, anything that
-                // asks who is signed in — answers "not logged in" while the
-                // file says nothing about the Gateway. Applying a Gateway
-                // profile is the act of signing in, so it writes there too.
-                // The ChatGPT tokens are left in place, untouched, so the
-                // revert this transaction records can put them back exactly.
-                let auth_path = i.root.join(CODEX_AUTH_FILE);
-                let mut auth = read_json_projection(&auth_path, false, projection_bases)?;
-                let account = auth.as_object_mut().ok_or_else(|| {
-                    Error::Validation("Codex auth.json must hold a JSON object".into())
-                })?;
-                account.insert("OPENAI_API_KEY".into(), json!(b.expose()));
-                account.insert("auth_mode".into(), json!(CODEX_API_KEY_AUTH_MODE));
-                out.push(file(
-                    auth_path,
-                    auth,
-                    vec!["OPENAI_API_KEY".into(), "auth_mode".into()],
-                )?);
             } else {
                 ensure_table(&mut d, "models");
                 d["models"]["default"] = value(provider);
@@ -3023,9 +3001,14 @@ fn gateway_api_base(gateway: &url::Url, version: Option<&str>) -> String {
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)]
 mod tests {
-    use super::{durable_publish_bundle, edit_json, gateway_api_base};
+    use super::{
+        ApplyInput, Connector, EffectiveAgentSelection, FileReceipt, ProjectionCoordinator,
+        ProjectionLease, Receipt, durable_publish_bundle, edit_json, gateway_api_base, receipt_key,
+        seal_receipt,
+    };
+    use crate::{AgentId, AgentInstall, ConnectionManifest, Provisioning, Secret, WireProtocol};
     use serde_json::json;
-    use std::fs;
+    use std::{collections::BTreeMap, fs};
 
     #[test]
     fn normalizes_protocol_api_bases_without_duplicate_versions() {
@@ -3117,6 +3100,89 @@ mod tests {
         assert_eq!(
             json5::from_str::<serde_json::Value>(&edited).expect("edited JSON must parse"),
             target
+        );
+    }
+
+    #[test]
+    fn reapply_restores_auth_from_legacy_codex_receipt() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let root = fs::canonicalize(temporary.path()).expect("canonical temporary directory");
+        let state = root.join("state");
+        let coordinator = state.join("projection-coordinator");
+        let codex = root.join("codex");
+        fs::create_dir_all(state.join("receipts")).expect("receipt directory");
+        fs::create_dir_all(&coordinator).expect("coordinator directory");
+        fs::create_dir_all(&codex).expect("Codex directory");
+
+        let auth = codex.join("auth.json");
+        let original = br#"{"auth_mode":"chatgpt","tokens":{"access_token":"original"}}"#;
+        let legacy_applied = br#"{"auth_mode":"apikey","OPENAI_API_KEY":"secret","tokens":{"access_token":"original"}}"#;
+        fs::write(&auth, legacy_applied).expect("legacy projected account");
+
+        let lease = ProjectionLease {
+            platform_id: "platform-a".into(),
+            agent: AgentId::Codex.as_str().into(),
+            root: codex.clone(),
+        };
+        let receipt = Receipt {
+            platform_id: "platform-a".into(),
+            files: vec![FileReceipt {
+                path: auth.clone(),
+                original: Some(original.to_vec()),
+                applied: legacy_applied.to_vec(),
+            }],
+            skills: Vec::new(),
+            leases: vec![lease.clone()],
+        };
+        let bearer = Secret::new("secret").expect("bearer");
+        let key = receipt_key(&bearer).expect("receipt key");
+        fs::write(
+            state.join("receipts/platform-a.json"),
+            seal_receipt(&receipt, &key).expect("sealed receipt"),
+        )
+        .expect("legacy receipt");
+        fs::write(
+            coordinator.join("ownership.json"),
+            serde_json::to_vec_pretty(&ProjectionCoordinator {
+                leases: vec![lease],
+            })
+            .expect("ownership JSON"),
+        )
+        .expect("ownership state");
+
+        let manifest = ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"platform-a","name":"Platform A"},"authentication":{"type":"browser_pkce","authorize_url":"https://id.example/auth","token_url":"https://id.example/token"},"gateway":{"base_url":"https://gw.example","protocols":["openai_responses"]},"provisioning_url":"https://gw.example/provision","connection_bearer_origins":["https://gw.example"],"supported_agents":["codex"]}}"#).expect("manifest");
+        let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true,"responses_native":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).expect("provisioning");
+        let connector = Connector::new(&state);
+        let plan = connector
+            .plan(ApplyInput {
+                manifest: &manifest,
+                provisioning: &provisioning,
+                bearer: &bearer,
+                agents: BTreeMap::from([(
+                    AgentId::Codex,
+                    EffectiveAgentSelection::new("alpha", WireProtocol::OpenaiResponses),
+                )]),
+                installs: vec![AgentInstall {
+                    agent: AgentId::Codex,
+                    root: codex,
+                    detected: true,
+                }],
+                synchronized_skills: BTreeMap::new(),
+            })
+            .expect("replacement plan");
+        connector.apply(&plan).expect("replacement apply");
+
+        assert_eq!(fs::read(auth).expect("restored account"), original);
+        let receipt = connector
+            .load_receipt("platform-a", &key)
+            .expect("current receipt")
+            .expect("managed projection");
+        assert!(
+            receipt
+                .files
+                .iter()
+                .all(|file| file.path.file_name().and_then(|name| name.to_str())
+                    != Some("auth.json"))
         );
     }
 
