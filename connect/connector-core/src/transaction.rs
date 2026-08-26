@@ -22,6 +22,9 @@ use toml_edit::{DocumentMut, Item, Table, value};
 
 const SKILL_OWNER_FILE: &str = ".gateway-connector-owner";
 const CODEX_MODEL_CATALOG_FILE: &str = "connector-model-catalog.json";
+// Connect 1.0.2 briefly projected this shared Codex account file. Keep its
+// exact legacy name so startup can transactionally release that ownership.
+const LEGACY_CODEX_AUTH_FILE: &str = "auth.json";
 const BUDDY_MODEL_CATALOG_FILE: &str = "models.json";
 const GROK_DEFAULT_CONTEXT_WINDOW: i64 = 500_000;
 const MAX_JOURNAL_BYTES: u64 = 16 * 1024 * 1024;
@@ -956,7 +959,65 @@ impl Connector {
     /// Recovers or finishes the single global projection transaction.
     pub fn recover(&self, platform: &str, bearer: &Secret) -> Result<()> {
         let _lock = self.lock(platform)?;
-        self.recover_locked(platform, &receipt_key(bearer)?)
+        let key = receipt_key(bearer)?;
+        self.recover_locked(platform, &key)?;
+        self.restore_legacy_codex_auth(platform, &key)
+    }
+
+    fn restore_legacy_codex_auth(&self, platform: &str, key: &[u8; 32]) -> Result<()> {
+        let Some(mut receipt) = self.load_receipt(platform, key)? else {
+            return Ok(());
+        };
+        validate_receipt_paths(&self.state_dir, &receipt)?;
+        let legacy_paths = receipt
+            .leases
+            .iter()
+            .filter(|lease| lease.agent == AgentId::Codex.as_str())
+            .map(|lease| lease.root.join(LEGACY_CODEX_AUTH_FILE))
+            .collect::<BTreeSet<_>>();
+        let (legacy, retained): (Vec<_>, Vec<_>) = receipt
+            .files
+            .into_iter()
+            .partition(|file| legacy_paths.contains(&file.path));
+        if legacy.is_empty() {
+            return Ok(());
+        }
+        receipt.files = retained;
+
+        let receipt_path = self.receipt_path(platform);
+        RootGuard::capture(&self.state_dir, &receipt_path)?;
+        let mut ops = Vec::new();
+        for file in legacy {
+            let root = receipt_root(&self.state_dir, &receipt, &file.path)?;
+            match reconciled_legacy_codex_auth(&file)? {
+                Some(bytes) if fs::read(&file.path).ok().as_deref() != Some(bytes.as_slice()) => {
+                    if let Ok(current) = fs::read(&file.path)
+                        && current != file.applied
+                        && let (_, Some(backup)) = backup_op(root, &file.path, &current)?
+                    {
+                        ops.push(backup);
+                    }
+                    ops.push(Op::file(root, file.path, bytes)?);
+                }
+                Some(_) => {}
+                None if exists(&file.path) => {
+                    let current = fs::read(&file.path).map_err(|error| io(&file.path, error))?;
+                    if current != file.applied
+                        && let (_, Some(backup)) = backup_op(root, &file.path, &current)?
+                    {
+                        ops.push(backup);
+                    }
+                    ops.push(Op::remove(root, file.path)?);
+                }
+                None => {}
+            }
+        }
+        ops.push(Op::file(
+            &self.state_dir,
+            receipt_path,
+            seal_receipt(&receipt, key)?,
+        )?);
+        execute_ops(&self.coordinator_dir, platform, key, ops)
     }
 
     fn recover_locked(&self, platform: &str, key: &[u8; 32]) -> Result<()> {
@@ -3002,13 +3063,12 @@ fn gateway_api_base(gateway: &url::Url, version: Option<&str>) -> String {
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::{
-        ApplyInput, Connector, EffectiveAgentSelection, FileReceipt, ProjectionCoordinator,
-        ProjectionLease, Receipt, durable_publish_bundle, edit_json, gateway_api_base, receipt_key,
-        seal_receipt,
+        Connector, FileReceipt, ProjectionCoordinator, ProjectionLease, Receipt,
+        durable_publish_bundle, edit_json, gateway_api_base, receipt_key, seal_receipt,
     };
-    use crate::{AgentId, AgentInstall, ConnectionManifest, Provisioning, Secret, WireProtocol};
+    use crate::{AgentId, Secret};
     use serde_json::json;
-    use std::{collections::BTreeMap, fs};
+    use std::fs;
 
     #[test]
     fn normalizes_protocol_api_bases_without_duplicate_versions() {
@@ -3104,7 +3164,7 @@ mod tests {
     }
 
     #[test]
-    fn reapply_restores_auth_from_legacy_codex_receipt() {
+    fn recovery_restores_auth_from_legacy_codex_receipt() {
         let temporary = tempfile::tempdir().expect("temporary directory");
         let root = fs::canonicalize(temporary.path()).expect("canonical temporary directory");
         let state = root.join("state");
@@ -3117,7 +3177,8 @@ mod tests {
         let auth = codex.join("auth.json");
         let original = br#"{"auth_mode":"chatgpt","tokens":{"access_token":"original"}}"#;
         let legacy_applied = br#"{"auth_mode":"apikey","OPENAI_API_KEY":"secret","tokens":{"access_token":"original"}}"#;
-        fs::write(&auth, legacy_applied).expect("legacy projected account");
+        let refreshed = br#"{"auth_mode":"apikey","OPENAI_API_KEY":"secret","tokens":{"access_token":"refreshed"}}"#;
+        fs::write(&auth, refreshed).expect("legacy projected account with refreshed tokens");
 
         let lease = ProjectionLease {
             platform_id: "platform-a".into(),
@@ -3150,29 +3211,24 @@ mod tests {
         )
         .expect("ownership state");
 
-        let manifest = ConnectionManifest::parse(br#"{"success":true,"data":{"schema_version":2,"platform":{"id":"platform-a","name":"Platform A"},"authentication":{"type":"browser_pkce","authorize_url":"https://id.example/auth","token_url":"https://id.example/token"},"gateway":{"base_url":"https://gw.example","protocols":["openai_responses"]},"provisioning_url":"https://gw.example/provision","connection_bearer_origins":["https://gw.example"],"supported_agents":["codex"]}}"#).expect("manifest");
-        let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"alpha","chat_capable":true,"responses_native":true}],"default_model":"alpha","mcp_servers":[],"skills":[]}}"#).expect("provisioning");
         let connector = Connector::new(&state);
-        let plan = connector
-            .plan(ApplyInput {
-                manifest: &manifest,
-                provisioning: &provisioning,
-                bearer: &bearer,
-                agents: BTreeMap::from([(
-                    AgentId::Codex,
-                    EffectiveAgentSelection::new("alpha", WireProtocol::OpenaiResponses),
-                )]),
-                installs: vec![AgentInstall {
-                    agent: AgentId::Codex,
-                    root: codex,
-                    detected: true,
-                }],
-                synchronized_skills: BTreeMap::new(),
-            })
-            .expect("replacement plan");
-        connector.apply(&plan).expect("replacement apply");
+        connector
+            .recover("platform-a", &bearer)
+            .expect("startup recovery");
+        connector
+            .recover("platform-a", &bearer)
+            .expect("idempotent startup recovery");
 
-        assert_eq!(fs::read(auth).expect("restored account"), original);
+        let restored: serde_json::Value =
+            serde_json::from_slice(&fs::read(auth).expect("restored account"))
+                .expect("restored account JSON");
+        assert_eq!(
+            restored,
+            json!({
+                "auth_mode": "chatgpt",
+                "tokens": {"access_token": "refreshed"}
+            })
+        );
         let receipt = connector
             .load_receipt("platform-a", &key)
             .expect("current receipt")
@@ -3379,6 +3435,83 @@ fn reconciled_file(file: &FileReceipt) -> Result<Option<Vec<u8>>> {
     // Other text formats are replaced directly. Their exact pre-overwrite
     // bytes are kept in a user-visible sibling backup.
     Ok(file.original.clone())
+}
+
+fn reconciled_legacy_codex_auth(file: &FileReceipt) -> Result<Option<Vec<u8>>> {
+    let current = match fs::read(&file.path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(io(&file.path, error)),
+    };
+    if current == file.applied {
+        return Ok(file.original.clone());
+    }
+
+    let current_text = std::str::from_utf8(&current).map_err(|error| Error::Config {
+        path: file.path.clone(),
+        message: error.to_string(),
+    })?;
+    JsonSyntax::parse(current_text).map_err(|message| Error::Config {
+        path: file.path.clone(),
+        message,
+    })?;
+    let mut restored: Value = json5::from_str(current_text).map_err(|error| Error::Config {
+        path: file.path.clone(),
+        message: error.to_string(),
+    })?;
+    let applied: Value = json5::from_str(
+        std::str::from_utf8(&file.applied)
+            .map_err(|error| Error::Transaction(error.to_string()))?,
+    )
+    .map_err(|error| Error::Transaction(error.to_string()))?;
+    let original = file
+        .original
+        .as_deref()
+        .map(|bytes| {
+            json5::from_str::<Value>(
+                std::str::from_utf8(bytes)
+                    .map_err(|error| Error::Transaction(error.to_string()))?,
+            )
+            .map_err(|error| Error::Transaction(error.to_string()))
+        })
+        .transpose()?;
+    let applied = applied.as_object().ok_or_else(|| {
+        Error::Transaction("legacy Codex auth receipt is not a JSON object".into())
+    })?;
+    let original = match original.as_ref() {
+        Some(value) => Some(value.as_object().ok_or_else(|| {
+            Error::Transaction("legacy Codex auth original is not a JSON object".into())
+        })?),
+        None => None,
+    };
+    let restored = restored.as_object_mut().ok_or_else(|| Error::Config {
+        path: file.path.clone(),
+        message: "Codex auth.json must hold a JSON object".into(),
+    })?;
+    for key in ["OPENAI_API_KEY", "auth_mode"] {
+        let Some(applied_value) = applied.get(key) else {
+            return Err(Error::Transaction(format!(
+                "legacy Codex auth receipt is missing {key}"
+            )));
+        };
+        // Release only values that still match Connect's 1.0.2 projection.
+        // Codex or the user owns any newer value written after that apply.
+        if restored.get(key) != Some(applied_value) {
+            continue;
+        }
+        match original.and_then(|value| value.get(key)) {
+            Some(original_value) => {
+                restored.insert(key.into(), original_value.clone());
+            }
+            None => {
+                restored.remove(key);
+            }
+        }
+    }
+    if file.original.is_none() && restored.is_empty() {
+        return Ok(None);
+    }
+    edit_json(current_text, &Value::Object(restored.clone())).map(|text| Some(text.into_bytes()))
 }
 
 fn reconcile_json(current: &mut Value, original: Option<&Value>, applied: &Value) {

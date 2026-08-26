@@ -292,6 +292,7 @@ fn projects_all_clients_preserves_and_disconnects_owned_entries() {
         codex.contains("# keep-comment")
             && codex.contains("wire_api = \"responses\"")
             && codex.contains("requires_openai_auth = false")
+            && codex.contains("experimental_bearer_token = \"super-secret\"")
             && codex.contains("x-openai-actor-authorization")
             && codex.contains("image_generation = true")
             && !codex.contains("imagegenext")
