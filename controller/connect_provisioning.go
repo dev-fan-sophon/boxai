@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -164,7 +163,7 @@ type connectorModel struct {
 }
 
 type connectorVendor struct {
-	ID   string `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Icon string `json:"icon,omitempty"`
 }
@@ -404,7 +403,7 @@ func GetConnectorProvisioning(c *gin.Context) {
 			}
 			if vendor, exists := vendors[pricing.VendorID]; exists {
 				if validConnectorMetadata(vendor.Name, 255) {
-					entry.Vendor = &connectorVendor{ID: strconv.Itoa(vendor.ID), Name: vendor.Name}
+					entry.Vendor = &connectorVendor{ID: vendor.ID, Name: vendor.Name}
 					if validConnectorMetadata(vendor.Icon, 1024) {
 						entry.Vendor.Icon = vendor.Icon
 					}

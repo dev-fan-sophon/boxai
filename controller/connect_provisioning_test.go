@@ -341,7 +341,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	assert.Equal(t, "model-icon", payload.Data.Models[0].Icon)
 	assert.Equal(t, []string{"alpha", "zeta"}, payload.Data.Models[0].Tags)
 	require.NotNil(t, payload.Data.Models[0].Vendor)
-	assert.Equal(t, strconv.Itoa(vendor.Id), payload.Data.Models[0].Vendor.ID)
+	assert.Equal(t, vendor.Id, payload.Data.Models[0].Vendor.ID)
 	assert.Equal(t, "Authoritative Vendor", payload.Data.Models[0].Vendor.Name)
 	require.Len(t, payload.Data.ModelPlaza.Models, 2)
 	assert.Equal(t, "zz-connector-flux-image", payload.Data.ModelPlaza.Models[1].ID)
