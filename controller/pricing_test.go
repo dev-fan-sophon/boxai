@@ -11,9 +11,12 @@ import (
 
 func TestFilterPricingByUsableGroupsRestrictsPublicIntegrations(t *testing.T) {
 	pricing := []model.Pricing{{
-		ModelName:              "model",
-		EnableGroup:            []string{"default", "vip"},
-		SupportedEndpointTypes: []constant.EndpointType{constant.EndpointTypeOpenAI},
+		ModelName:   "model",
+		EnableGroup: []string{"default", "vip"},
+		SupportedEndpointTypes: []constant.EndpointType{
+			constant.EndpointTypeOpenAI,
+			constant.EndpointTypeOpenAIResponse,
+		},
 		Integrations: []model.ModelIntegration{
 			{ProfileID: "explicit", Groups: []string{"default", "vip", "disabled"}, Verified: true, Source: "explicit"},
 			{ProfileID: "inferred", Groups: []string{"default"}, Source: "inferred"},
@@ -27,9 +30,15 @@ func TestFilterPricingByUsableGroupsRestrictsPublicIntegrations(t *testing.T) {
 	require.Len(t, got[0].Integrations, 1)
 	assert.Equal(t, "explicit", got[0].Integrations[0].ProfileID)
 	assert.Equal(t, []string{"default"}, got[0].Integrations[0].Groups)
-	assert.Empty(t, got[0].SupportedEndpointTypes)
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, got[0].SupportedEndpointTypes)
 	assert.Equal(t, []string{"default", "vip", "disabled"}, pricing[0].Integrations[0].Groups)
-	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, pricing[0].SupportedEndpointTypes)
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, pricing[0].SupportedEndpointTypes)
 }
 
 func TestFilterPricingByUsableGroupsExpandsExplicitAllGroupForCaller(t *testing.T) {

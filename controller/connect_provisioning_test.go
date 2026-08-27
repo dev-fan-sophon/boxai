@@ -335,7 +335,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	assert.Equal(t, "zz-connector-chat", payload.Data.Models[0].ID)
 	assert.True(t, payload.Data.Models[0].ChatCapable)
 	assert.False(t, payload.Data.Models[0].ResponsesNative)
-	assert.Equal(t, []string{"openai"}, payload.Data.Models[0].Endpoints)
+	assert.Equal(t, []string{"openai", "openai-response"}, payload.Data.Models[0].Endpoints)
 	assert.Empty(t, payload.Data.Models[0].SupportedReasoning)
 	assert.Equal(t, "Authoritative description", payload.Data.Models[0].Description)
 	assert.Equal(t, "model-icon", payload.Data.Models[0].Icon)
@@ -346,7 +346,7 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.Len(t, payload.Data.ModelPlaza.Models, 2)
 	assert.Equal(t, "zz-connector-flux-image", payload.Data.ModelPlaza.Models[1].ID)
 	assert.False(t, payload.Data.ModelPlaza.Models[1].ChatCapable)
-	assert.Equal(t, []string{"image-generation", "openai"}, payload.Data.ModelPlaza.Models[1].Endpoints)
+	assert.Equal(t, []string{"image-generation"}, payload.Data.ModelPlaza.Models[1].Endpoints)
 	assert.Empty(t, payload.Data.ModelPlaza.Models[1].Tags)
 	assert.Equal(t, "zz-connector-chat", payload.Data.DefaultModel)
 	assert.Equal(t, connectorAccount{ID: 2101, Username: "connector-user", DisplayName: "Connector User", Email: "connector@example.com", Group: "default"}, payload.Data.Account)
@@ -557,8 +557,7 @@ func TestConnectProvisioningReturnsChatModelsOnly(t *testing.T) {
 	}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "zz-connect-chat-model", ChannelId: 801, Enabled: true},
-		// Image generation contributes `image-generation` alongside `openai`,
-		// which is the case a "supports openai?" check would wrongly admit.
+		// Image generation must remain media-only even on an OpenAI channel.
 		{Group: "default", Model: "zz-connect-flux-image", ChannelId: 801, Enabled: true},
 		{Group: "default", Model: "zz-connect-claude", ChannelId: 802, Enabled: true},
 		{Group: "default", Model: "zz-connect-video", ChannelId: 803, Enabled: true},

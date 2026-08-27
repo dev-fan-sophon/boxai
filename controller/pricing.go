@@ -58,7 +58,6 @@ func filterPricingByUsableGroups(pricing []model.Pricing, usableGroup map[string
 			}
 		}
 		item.Integrations = publicIntegrations
-		item.SupportedEndpointTypes = nil
 		if common.StringsContains(item.EnableGroup, "all") {
 			filtered = append(filtered, item)
 			continue

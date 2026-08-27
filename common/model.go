@@ -18,6 +18,34 @@ var (
 		"flux-",
 		"flux.1-",
 	}
+	AudioModels = []string{
+		"whisper-1",
+		"tts-1",
+		"tts-1-1106",
+		"tts-1-hd",
+		"tts-1-hd-1106",
+		"gpt-4o-mini-tts",
+		"gpt-4o-mini-tts-2025-03-20",
+		"gpt-4o-mini-tts-2025-12-15",
+		"eleven_v3",
+		"eleven_flash_v2",
+		"eleven_flash_v2_5",
+		"eleven_turbo_v2",
+		"eleven_turbo_v2_5",
+		"eleven_multilingual_v1",
+		"eleven_multilingual_v2",
+		"scribe_v1",
+		"scribe_v2",
+		"eleven_english_sts_v2",
+		"eleven_multilingual_sts_v2",
+		"eleven_text_to_sound_v2",
+		"music_v2",
+		"elevenlabs-speech-to-speech",
+		"elevenlabs-audio-isolation",
+		"elevenlabs-forced-alignment",
+		"elevenlabs-sound-generation",
+		"elevenlabs-text-to-dialogue",
+	}
 	OpenAITextModels = []string{
 		"gpt-",
 		"o1",
@@ -43,6 +71,16 @@ func IsImageGenerationModel(modelName string) bool {
 			return true
 		}
 		if strings.HasPrefix(m, "prefix:") && strings.HasPrefix(modelName, strings.TrimPrefix(m, "prefix:")) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsAudioModel(modelName string) bool {
+	modelName = strings.ToLower(modelName)
+	for _, m := range AudioModels {
+		if modelName == m || strings.HasPrefix(modelName, m+"-") {
 			return true
 		}
 	}

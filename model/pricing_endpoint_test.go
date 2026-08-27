@@ -179,10 +179,13 @@ func TestPricingAdvancedCustomMissingConfigFallsBackToChannelType(t *testing.T) 
 
 	byModel := pricingEndpointTypesByModel(t)
 
-	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, byModel["gpt-4o"])
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, byModel["gpt-4o"])
 }
 
-func TestPricingNativeChannelEndpointTypesUnchanged(t *testing.T) {
+func TestPricingNativeChatChannelsPublishResponsesCapability(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 
 	insertPricingEndpointChannel(t, 201, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
@@ -194,9 +197,20 @@ func TestPricingNativeChannelEndpointTypesUnchanged(t *testing.T) {
 
 	byModel := pricingEndpointTypesByModel(t)
 
-	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, byModel["gpt-4o"])
-	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeGemini, constant.EndpointTypeOpenAI}, byModel["gemini-2.5-flash"])
-	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeAnthropic, constant.EndpointTypeOpenAI}, byModel["claude-3-5-sonnet"])
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, byModel["gpt-4o"])
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeGemini,
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, byModel["gemini-2.5-flash"])
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeAnthropic,
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, byModel["claude-3-5-sonnet"])
 }
 
 func TestPricingElevenLabsPublishesFineGrainedAudioCapabilities(t *testing.T) {
@@ -409,10 +423,6 @@ func TestInitChannelCacheInvalidatesStartupPricingBuiltBeforeChannelCache(t *tes
 
 	insertPricingEndpointChannel(t, 302, constant.ChannelTypeAdvancedCustom, pricingEndpointAdvancedCustomConfig(
 		dto.AdvancedCustomRoute{
-			IncomingPath: "/v1/chat/completions",
-			UpstreamPath: "/v1/chat/completions",
-		},
-		dto.AdvancedCustomRoute{
 			IncomingPath: "/v1/responses",
 			UpstreamPath: "/v1beta/models/{model}:generateContent",
 			Converter:    "openai_responses_to_gemini_generate_content",
@@ -422,15 +432,15 @@ func TestInitChannelCacheInvalidatesStartupPricingBuiltBeforeChannelCache(t *tes
 	insertPricingEndpointAbility(t, 302, "gemini-3.5-flash")
 
 	staleByModel := pricingEndpointTypesFromPricing(GetPricing())
-	require.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, staleByModel["gemini-3.5-flash"])
+	require.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+	}, staleByModel["gemini-3.5-flash"])
 
 	InitChannelCache()
 
 	rebuiltByModel := pricingEndpointTypesFromPricing(GetPricing())
-	assert.Equal(t, []constant.EndpointType{
-		constant.EndpointTypeOpenAI,
-		constant.EndpointTypeOpenAIResponse,
-	}, rebuiltByModel["gemini-3.5-flash"])
+	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAIResponse}, rebuiltByModel["gemini-3.5-flash"])
 }
 
 func TestCacheUpdateChannelSyncsAdvancedCustomConfig(t *testing.T) {

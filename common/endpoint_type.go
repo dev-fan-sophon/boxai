@@ -27,7 +27,7 @@ func elevenLabsEndpointTypes(modelName string) []constant.EndpointType {
 	}
 }
 
-// GetEndpointTypesByChannelType 获取渠道最优先端点类型（所有的渠道都支持 OpenAI 端点）
+// GetEndpointTypesByChannelType returns the relay surfaces a model can use.
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
 	var endpointTypes []constant.EndpointType
 	if channelType == constant.ChannelTypeElevenLabs {
@@ -51,6 +51,18 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 			}
 		}
 	}
+	if strings.HasPrefix(modelName, "grok-imagine-video") {
+		return []constant.EndpointType{constant.EndpointTypeOpenAIVideo}
+	}
+	if strings.HasPrefix(modelName, "grok-imagine-image") || IsImageGenerationModel(modelName) {
+		return []constant.EndpointType{constant.EndpointTypeImageGeneration}
+	}
+	if channelType == constant.ChannelTypeGemini && strings.Contains(strings.ToLower(modelName), "embedding") {
+		return []constant.EndpointType{constant.EndpointTypeEmbeddings, constant.EndpointTypeGeminiEmbedding}
+	}
+	if IsAudioModel(modelName) {
+		return []constant.EndpointType{constant.EndpointTypeAudio}
+	}
 	switch channelType {
 	case constant.ChannelTypeJina:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeJinaRerank}
@@ -65,13 +77,13 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 	case constant.ChannelTypeAws:
 		fallthrough
 	case constant.ChannelTypeAnthropic:
-		endpointTypes = []constant.EndpointType{constant.EndpointTypeAnthropic, constant.EndpointTypeOpenAI}
+		endpointTypes = withChatResponsesSupport([]constant.EndpointType{constant.EndpointTypeAnthropic, constant.EndpointTypeOpenAI})
 	case constant.ChannelTypeVertexAi:
 		fallthrough
 	case constant.ChannelTypeGemini:
-		endpointTypes = []constant.EndpointType{constant.EndpointTypeGemini, constant.EndpointTypeOpenAI}
+		endpointTypes = withChatResponsesSupport([]constant.EndpointType{constant.EndpointTypeGemini, constant.EndpointTypeOpenAI})
 	case constant.ChannelTypeOpenRouter: // OpenRouter 只支持 OpenAI 端点
-		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAI}
+		endpointTypes = withChatResponsesSupport([]constant.EndpointType{constant.EndpointTypeOpenAI})
 	case constant.ChannelTypeXai:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAI, constant.EndpointTypeOpenAIResponse}
 	case constant.ChannelTypeSora:
@@ -95,12 +107,17 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 		if IsOpenAIResponseOnlyModel(modelName) {
 			endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAIResponse}
 		} else {
-			endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAI}
+			endpointTypes = withChatResponsesSupport([]constant.EndpointType{constant.EndpointTypeOpenAI})
 		}
 	}
-	if IsImageGenerationModel(modelName) {
-		// add to first
-		endpointTypes = append([]constant.EndpointType{constant.EndpointTypeImageGeneration}, endpointTypes...)
-	}
 	return endpointTypes
+}
+
+func withChatResponsesSupport(endpoints []constant.EndpointType) []constant.EndpointType {
+	for _, endpoint := range endpoints {
+		if endpoint == constant.EndpointTypeOpenAIResponse || endpoint == constant.EndpointTypeOpenAIResponseCompact {
+			return endpoints
+		}
+	}
+	return append(endpoints, constant.EndpointTypeOpenAIResponse)
 }
