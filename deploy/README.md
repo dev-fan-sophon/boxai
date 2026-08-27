@@ -154,6 +154,69 @@ curl -fsS http://127.0.0.1:3000/api/status
 cd /opt/boxai && docker compose -f docker-compose.infra.yml ps
 ```
 
+### Dedicated Codex Proxy cutover record (2026-08-27)
+
+The production Codex route was validated and cut over on release
+`5f0ce85a6cdc6b6e962498c81c203b0596a4202b`:
+
+| Channel | Type | State | Priority / weight | Purpose |
+|---------|------|-------|-------------------|---------|
+| `22` — `codex-proxy-dedicated` | `61` (`Codex Proxy`) | enabled | `100 / 0` | Active production owner |
+| `20` — `codex-proxy-bwg` | `1` (legacy OpenAI-compatible) | disabled | `0 / 0` | Reversible rollback only; do not delete |
+
+Channel `22` publishes these priced models:
+
+| Models | Public capability | Model / completion ratio |
+|--------|-------------------|--------------------------|
+| `gpt-5.6-sol` | Chat, Responses, Anthropic Messages, Gemini native | `0.31 / 8.048387096774` |
+| `gpt-5.6-terra` | Chat, Responses, Anthropic Messages, Gemini native | `0.155 / 8.064516129032` |
+| `gpt-5.6-luna` | Chat, Responses, Anthropic Messages, Gemini native; Responses web search verified | `0.01 / 10` |
+| `gpt-5.5` | Chat, Responses, Anthropic Messages, Gemini native | `0.75 / 6` |
+| `gpt-5.4` | Chat, Responses, Anthropic Messages, Gemini native | `0.9 / 6` |
+| `gpt-5.4-mini` | Chat, Responses, Anthropic Messages, Gemini native | `0.375 / 6` |
+| `gpt-5.3-codex-spark` | Chat, Responses, Anthropic Messages, Gemini native | `0.875 / 8` |
+| `gpt-image-2` | Image generation and multipart image edit only | `1 / 3.745` |
+
+The cutover deliberately does **not** publish `codex-auto-review` (opaque
+selector without a price), `gpt-5.6-sol-wm` or `gpt-reserve` (no BoxAI pricing
+and support contract), or embeddings (none discovered upstream). The retired
+`/responses/compact` route is not projected into aliases. Audio, video, and
+Realtime are not Codex Proxy capabilities.
+
+Cutover evidence:
+
+- Direct-channel and public-key checks passed for Chat JSON/SSE, Responses
+  JSON/SSE (including string input with omitted `stream`), Anthropic JSON/SSE,
+  Gemini JSON/SSE, Luna web search, and all seven text models through both Chat
+  and SDK-shaped Responses.
+- Image generation and multipart edit returned raster images and upstream tool
+  usage. Usage logs `8334` and `8335` record channel `22`, non-zero quota, and
+  the `openai_image` → `OpenAI Responses` conversion for generation and edit.
+- After disabling channel `20`, final public Chat and Responses checks produced
+  logs `8339` and `8340` on channel `22` with upstream usage and non-zero quota.
+  The last channel `20` log is `8307` at `2026-08-27T13:16:49Z`, before cutover.
+- `/v1/models` reports the four text endpoint types on each text model and only
+  image generation on `gpt-image-2`. Live BoxAI Connect provisioning reports
+  the seven chat models plus `gpt-image-2` as image-only; the Connector v2
+  projection is covered by its provisioning contract tests.
+- The post-disable ability rebuild completed with `15` successes and `0`
+  failures.
+
+Rollback only when a critical request fails after cutover. Re-enable the known
+working legacy channel first, then disable the dedicated channel so there is no
+gap in availability:
+
+```bash
+.agents/skills/managing-boxai-platform/scripts/boxai-api \
+  POST /api/channel/20/status '{"status":1}'
+.agents/skills/managing-boxai-platform/scripts/boxai-api \
+  POST /api/channel/22/status '{"status":2}'
+```
+
+Read both channels back and run public Chat and non-streaming Responses smoke
+tests after rollback. Do not delete either channel or copy channel credentials
+into this repository.
+
 ## Local development
 
 ```bash
