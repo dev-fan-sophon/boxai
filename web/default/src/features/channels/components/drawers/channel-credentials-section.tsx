@@ -78,6 +78,7 @@ export function ChannelCredentialsSection(
   const form = useFormContext<ChannelFormValues>()
   const currentType = props.currentType
   const isGatewayChannel = currentType === 59 || currentType === 60
+  const isCodexProxy = currentType === 61
 
   return (
     <ChannelApiAccessSection>
@@ -126,6 +127,32 @@ export function ChannelCredentialsSection(
             <p className='text-muted-foreground text-xs'>
               {t(
                 'Available protocols and models depend on the upstream deployment. You can fetch its model list after saving the channel.'
+              )}
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isCodexProxy && (
+        <Alert>
+          <AlertDescription className='space-y-3'>
+            <p>
+              {t(
+                'Connects to a dedicated Codex Proxy upstream. Gateway authentication, model governance, billing, and logs remain enabled.'
+              )}
+            </p>
+            <div className='flex flex-wrap gap-2'>
+              {['OpenAI Chat', 'Responses', 'Claude', 'Gemini', 'Images'].map(
+                (protocol) => (
+                  <Badge key={protocol} variant='secondary'>
+                    {t(protocol)}
+                  </Badge>
+                )
+              )}
+            </div>
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Only upstream-discovered, priced models should be published. Compact, audio, video, and realtime are not supported.'
               )}
             </p>
           </AlertDescription>
@@ -674,7 +701,7 @@ export function ChannelCredentialsSection(
             />
           )}
 
-          {isGatewayChannel && (
+          {(isGatewayChannel || isCodexProxy) && (
             <FormField
               control={form.control}
               name='base_url'
@@ -698,8 +725,31 @@ export function ChannelCredentialsSection(
             />
           )}
 
+          {isCodexProxy && (
+            <FormField
+              control={form.control}
+              name='image_generation_via_responses_model'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('Responses host model for image generation/editing')}
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder='gpt-5.6-sol' {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Upstream text model used for the Responses image_generation tool. Required when publishing gpt-image-2.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           {/* General base_url for other types */}
-          {![3, 8, 22, 36, 45, 59, 60].includes(currentType) && (
+          {![3, 8, 22, 36, 45, 59, 60, 61].includes(currentType) && (
             <FormField
               control={form.control}
               name='base_url'

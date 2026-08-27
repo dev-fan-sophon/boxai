@@ -66,6 +66,7 @@ export interface ChannelSettings {
   thinking_to_content?: boolean
   proxy?: string
   pass_through_body_enabled?: boolean
+  image_generation_via_responses_model?: string
   system_prompt?: string
   system_prompt_override?: boolean
 }

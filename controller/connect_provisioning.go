@@ -496,7 +496,7 @@ func GetConnectorProvisioning(c *gin.Context) {
 }
 
 func responsesNativeModel(endpoints []constant.EndpointType, ownerChannelType int) bool {
-	if ownerChannelType == constant.ChannelTypeCodex {
+	if ownerChannelType == constant.ChannelTypeCodex || ownerChannelType == constant.ChannelTypeCodexProxy {
 		return true
 	}
 	hasResponses := false

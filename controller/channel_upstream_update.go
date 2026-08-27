@@ -18,6 +18,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/relay/channel/advancedcustom"
+	"github.com/dev-fan-sophon/boxai/relay/channel/codexproxy"
 	"github.com/dev-fan-sophon/boxai/relay/channel/gemini"
 	"github.com/dev-fan-sophon/boxai/relay/channel/ollama"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
@@ -423,7 +424,11 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 		}
 		return item.ID
 	})
-	return normalizeModelNames(ids), nil
+	ids = normalizeModelNames(ids)
+	if channel.Type == constant.ChannelTypeCodexProxy {
+		ids = codexproxy.ExpandModelList(ids)
+	}
+	return ids, nil
 }
 
 func fetchAdvancedCustomUpstreamModelIDs(channel *model.Channel, baseURL string) ([]string, error) {

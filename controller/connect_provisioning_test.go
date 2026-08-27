@@ -423,6 +423,12 @@ func TestResponsesNativeModelRejectsConvertedDualProtocolChannels(t *testing.T) 
 		constant.EndpointTypeOpenAIAlphaSearch,
 	}, constant.ChannelTypeCodex))
 	assert.True(t, responsesNativeModel([]constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeAnthropic,
+		constant.EndpointTypeGemini,
+	}, constant.ChannelTypeCodexProxy))
+	assert.True(t, responsesNativeModel([]constant.EndpointType{
 		constant.EndpointTypeOpenAIResponse,
 	}, constant.ChannelTypeOpenAI))
 	assert.False(t, responsesNativeModel([]constant.EndpointType{

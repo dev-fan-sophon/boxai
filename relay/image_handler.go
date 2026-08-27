@@ -12,6 +12,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/relay/helper"
 	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting/model_setting"
@@ -46,7 +47,10 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 
 	var requestBody io.Reader
 
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
+	imageViaResponses := (info.RelayMode == relayconstant.RelayModeImagesGenerations ||
+		info.RelayMode == relayconstant.RelayModeImagesEdits) &&
+		strings.TrimSpace(info.ChannelSetting.ImageGenerationViaResponsesModel) != ""
+	if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !imageViaResponses {
 		storage, err := common.GetBodyStorage(c)
 		if err != nil {
 			return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())

@@ -260,6 +260,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		}
 	}
 
+	info.IsStream = isStream
 	info.IsChannelTest = true
 	info.InitChannelMeta(c)
 

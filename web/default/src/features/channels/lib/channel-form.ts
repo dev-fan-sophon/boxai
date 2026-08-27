@@ -172,6 +172,7 @@ export const channelFormSchema = z
     thinking_to_content: z.boolean().optional(),
     proxy: z.string().optional(),
     pass_through_body_enabled: z.boolean().optional(),
+    image_generation_via_responses_model: z.string().optional(),
     system_prompt: z.string().optional(),
     system_prompt_override: z.boolean().optional(),
     // Type-specific settings (stored in settings JSON)
@@ -194,7 +195,10 @@ export const channelFormSchema = z
     upstream_model_update_ignored_models: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    if ([3, 8, 36, 45, 59, 60].includes(data.type) && !data.base_url?.trim()) {
+    if (
+      [3, 8, 36, 45, 59, 60, 61].includes(data.type) &&
+      !data.base_url?.trim()
+    ) {
       addRequiredIssue(
         ctx,
         'base_url',
@@ -202,7 +206,7 @@ export const channelFormSchema = z
       )
     }
 
-    if ([59, 60].includes(data.type) && data.base_url?.trim()) {
+    if ([59, 60, 61].includes(data.type) && data.base_url?.trim()) {
       try {
         const baseUrl = new URL(data.base_url.trim())
         if (
@@ -227,6 +231,21 @@ export const channelFormSchema = z
       } catch {
         addRequiredIssue(ctx, 'base_url', 'Enter a valid absolute Base URL')
       }
+    }
+
+    if (
+      data.type === 61 &&
+      data.models
+        .split(',')
+        .map((model) => model.trim())
+        .includes('gpt-image-2') &&
+      !data.image_generation_via_responses_model?.trim()
+    ) {
+      addRequiredIssue(
+        ctx,
+        'image_generation_via_responses_model',
+        'Responses host model is required when publishing gpt-image-2'
+      )
     }
 
     if (data.type === CHANNEL_TYPE_ADVANCED_CUSTOM) {
@@ -349,6 +368,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   thinking_to_content: false,
   proxy: '',
   pass_through_body_enabled: false,
+  image_generation_via_responses_model: '',
   system_prompt: '',
   system_prompt_override: false,
   // Type-specific settings
@@ -387,6 +407,7 @@ export function transformChannelToFormDefaults(
     thinking_to_content: false,
     proxy: '',
     pass_through_body_enabled: false,
+    image_generation_via_responses_model: '',
     system_prompt: '',
     system_prompt_override: false,
   }
@@ -399,6 +420,8 @@ export function transformChannelToFormDefaults(
         thinking_to_content: parsed.thinking_to_content || false,
         proxy: parsed.proxy || '',
         pass_through_body_enabled: parsed.pass_through_body_enabled || false,
+        image_generation_via_responses_model:
+          parsed.image_generation_via_responses_model || '',
         system_prompt: parsed.system_prompt || '',
         system_prompt_override: parsed.system_prompt_override || false,
       }
@@ -516,6 +539,10 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     thinking_to_content: formData.thinking_to_content || false,
     proxy: formData.proxy || '',
     pass_through_body_enabled: formData.pass_through_body_enabled || false,
+    image_generation_via_responses_model:
+      formData.type === 61
+        ? formData.image_generation_via_responses_model?.trim() || ''
+        : '',
     system_prompt: formData.system_prompt || '',
     system_prompt_override: formData.system_prompt_override || false,
   }

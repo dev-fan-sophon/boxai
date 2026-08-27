@@ -153,6 +153,7 @@ const SENSITIVE_FORM_FIELDS = [
   'thinking_to_content',
   'proxy',
   'pass_through_body_enabled',
+  'image_generation_via_responses_model',
   'system_prompt',
   'system_prompt_override',
   'allow_service_tier',
@@ -516,6 +517,7 @@ export function ChannelMutateDrawer({
   const credentialsHaveErrors = Boolean(
     formErrors.key ||
     formErrors.base_url ||
+    formErrors.image_generation_via_responses_model ||
     formErrors.other ||
     formErrors.multi_key_mode ||
     formErrors.multi_key_type ||
@@ -529,7 +531,9 @@ export function ChannelMutateDrawer({
   )
   const advancedHaveErrors =
     hasAdvancedSettingsErrors(formErrors) || Boolean(formErrors.advanced_custom)
-  const providerRequiresBaseUrl = [3, 8, 36, 45].includes(currentType)
+  const providerRequiresBaseUrl = [3, 8, 36, 45, 59, 60, 61].includes(
+    currentType
+  )
   const providerRequiresOther = [3, 18, 21, 39, 41, 49].includes(currentType)
   const identityComplete = Boolean(currentName?.trim() && currentType > 0)
   const credentialsComplete = Boolean(

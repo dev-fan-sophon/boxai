@@ -126,3 +126,15 @@ func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexProxyImageModelRequiresResponsesHost(t *testing.T) {
+	channel := &Channel{Type: constant.ChannelTypeCodexProxy, Models: "gpt-5.6-luna,gpt-image-2"}
+	require.ErrorContains(t, channel.ValidateSettings(), "image_generation_via_responses_model")
+
+	channel.SetSetting(dto.ChannelSettings{ImageGenerationViaResponsesModel: "gpt-5.6-sol"})
+	require.NoError(t, channel.ValidateSettings())
+
+	nonCodex := &Channel{Type: constant.ChannelTypeOpenAI, Models: "gpt-image-2"}
+	nonCodex.SetSetting(dto.ChannelSettings{ImageGenerationViaResponsesModel: "gpt-5.6-sol"})
+	require.ErrorContains(t, nonCodex.ValidateSettings(), "only supported by Codex Proxy")
+}

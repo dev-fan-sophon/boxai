@@ -186,6 +186,32 @@ func TestFetchOrdinaryOpenAIModelsKeepsExistingEmptyDataBehavior(t *testing.T) {
 	require.Empty(t, models)
 }
 
+func TestFetchCodexProxyModelsFiltersUnsupportedOpaqueAndMediaSelectors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[
+			{"id":"gpt-5.6-luna"},
+			{"id":"gpt-image-2"},
+			{"id":"text-embedding-3-small"},
+			{"id":"codex-auto-review"},
+			{"id":"gpt-audio-preview"},
+			{"id":"gpt-video"},
+			{"id":"gpt-4o-realtime-preview"},
+			{"id":"gpt-5.6-luna"}
+		]}`))
+	}))
+	defer server.Close()
+
+	baseURL := server.URL
+	channel := &model.Channel{
+		Type:    constant.ChannelTypeCodexProxy,
+		Key:     "codex-proxy-key",
+		BaseURL: &baseURL,
+	}
+	models, err := fetchChannelUpstreamModelIDs(channel)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-5.6-luna", "gpt-image-2", "text-embedding-3-small"}, models)
+}
+
 func TestFetchModelsAdvancedCustomCreatePreview(t *testing.T) {
 	receivedAuthorization := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

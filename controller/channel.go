@@ -480,7 +480,7 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 	if err := channel.ValidateSettings(); err != nil {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
 	}
-	if (channel.Type == constant.ChannelTypeNewAPI || channel.Type == constant.ChannelTypeSub2API) &&
+	if (channel.Type == constant.ChannelTypeNewAPI || channel.Type == constant.ChannelTypeSub2API || channel.Type == constant.ChannelTypeCodexProxy) &&
 		strings.TrimSpace(channel.GetBaseURL()) == "" {
 		return fmt.Errorf("%s channel base URL cannot be empty", constant.GetChannelTypeName(channel.Type))
 	}

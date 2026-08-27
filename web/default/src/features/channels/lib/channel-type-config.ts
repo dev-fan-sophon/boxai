@@ -146,6 +146,16 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       models: 'Models discovered from the New API upstream',
     },
   },
+  61: {
+    id: 61,
+    name: CHANNEL_TYPES[61],
+    icon: 'openai',
+    hints: {
+      baseUrl: 'Required Codex Proxy upstream URL without /v1',
+      key: 'API key issued by the Codex Proxy upstream',
+      models: 'Supported and priced models discovered from the upstream',
+    },
+  },
 }
 
 /**

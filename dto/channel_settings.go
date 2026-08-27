@@ -15,8 +15,12 @@ type ChannelSettings struct {
 	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
 	Proxy                  string `json:"proxy"`
 	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt           string `json:"system_prompt,omitempty"`
-	SystemPromptOverride   bool   `json:"system_prompt_override,omitempty"`
+	// ImageGenerationViaResponsesModel adapts OpenAI Images generations and
+	// edits to a Responses image_generation tool call using this upstream host
+	// model. Empty keeps the provider's native Images API routes.
+	ImageGenerationViaResponsesModel string `json:"image_generation_via_responses_model,omitempty"`
+	SystemPrompt                     string `json:"system_prompt,omitempty"`
+	SystemPromptOverride             bool   `json:"system_prompt_override,omitempty"`
 	// HTTPProtocol controls outbound HTTP version negotiation for this channel.
 	// Accepted values: "", "auto" (default), "http1".
 	HTTPProtocol string `json:"http_protocol,omitempty"`

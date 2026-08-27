@@ -990,6 +990,13 @@ func (channel *Channel) ValidateSettings() error {
 			return fmt.Errorf("advanced custom channels require a %s route when upstream model update checks are enabled", dto.AdvancedCustomModelListPath)
 		}
 	}
+	if channel.Type != constant.ChannelTypeCodexProxy && strings.TrimSpace(channelParams.ImageGenerationViaResponsesModel) != "" {
+		return fmt.Errorf("image_generation_via_responses_model is only supported by Codex Proxy channels")
+	}
+	if channel.Type == constant.ChannelTypeCodexProxy && lo.Contains(channel.GetModels(), "gpt-image-2") &&
+		strings.TrimSpace(channelParams.ImageGenerationViaResponsesModel) == "" {
+		return fmt.Errorf("Codex Proxy channels publishing gpt-image-2 require image_generation_via_responses_model")
+	}
 	return nil
 }
 

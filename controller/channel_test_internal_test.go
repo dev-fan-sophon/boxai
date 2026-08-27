@@ -35,6 +35,9 @@ func TestValidateMultiprotocolChannelsRequireBaseURL(t *testing.T) {
 		{name: "Sub2API missing", channelType: constant.ChannelTypeSub2API, wantErr: true},
 		{name: "Sub2API blank", channelType: constant.ChannelTypeSub2API, baseURL: common.GetPointer("  "), wantErr: true},
 		{name: "Sub2API configured", channelType: constant.ChannelTypeSub2API, baseURL: common.GetPointer("https://sub2api.example")},
+		{name: "Codex Proxy missing", channelType: constant.ChannelTypeCodexProxy, wantErr: true},
+		{name: "Codex Proxy blank", channelType: constant.ChannelTypeCodexProxy, baseURL: common.GetPointer("  "), wantErr: true},
+		{name: "Codex Proxy configured", channelType: constant.ChannelTypeCodexProxy, baseURL: common.GetPointer("https://codex-proxy.example")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/relay/channel/claude"
 	"github.com/dev-fan-sophon/boxai/relay/channel/cloudflare"
 	"github.com/dev-fan-sophon/boxai/relay/channel/codex"
+	"github.com/dev-fan-sophon/boxai/relay/channel/codexproxy"
 	"github.com/dev-fan-sophon/boxai/relay/channel/cohere"
 	"github.com/dev-fan-sophon/boxai/relay/channel/coze"
 	"github.com/dev-fan-sophon/boxai/relay/channel/deepseek"
@@ -124,6 +125,8 @@ func GetAdaptor(apiType int) channel.Adaptor {
 		return &replicate.Adaptor{}
 	case constant.APITypeCodex:
 		return &codex.Adaptor{}
+	case constant.APITypeCodexProxy:
+		return &codexproxy.Adaptor{}
 	case constant.APITypeAdvancedCustom:
 		return &advancedcustom.Adaptor{}
 	case constant.APITypeSub2API:

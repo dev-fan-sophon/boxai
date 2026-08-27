@@ -1,7 +1,9 @@
 package openai
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +23,130 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// OpenaiResponsesImageHandler converts a synchronous Responses
+// image_generation tool result back to the OpenAI Images response contract.
+func OpenaiResponsesImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
+	defer service.CloseResponseBodyGracefully(resp)
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
+	}
+	var responsesResponse dto.OpenAIResponsesResponse
+	if err := common.Unmarshal(responseBody, &responsesResponse); err != nil {
+		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+	if oaiError := responsesResponse.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
+		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
+	}
+	return writeResponsesImage(c, info, resp.Header, &responsesResponse)
+}
+
+// OpenaiResponsesStreamImageHandler consumes upstream Responses SSE and
+// combines the image output item with usage from response.completed.
+func OpenaiResponsesStreamImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
+	defer service.CloseResponseBodyGracefully(resp)
+
+	scanner := helper.NewStreamScanner(resp.Body)
+	var completed *dto.OpenAIResponsesResponse
+	var imageCall *dto.ResponsesOutput
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		data := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if len(data) == 0 || bytes.Equal(data, []byte("[DONE]")) {
+			continue
+		}
+		eventType := gjson.GetBytes(data, "type").String()
+		if eventType != dto.ResponsesOutputTypeItemDone && eventType != "response.completed" {
+			continue
+		}
+		var event dto.ResponsesStreamResponse
+		if err := common.Unmarshal(data, &event); err != nil {
+			return nil, types.NewOpenAIError(fmt.Errorf("decode Responses SSE %s event: %w", eventType, err), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+		}
+		if event.Type == dto.ResponsesOutputTypeItemDone && event.Item != nil &&
+			event.Item.Type == dto.ResponsesOutputTypeImageGenerationCall && event.Item.Result != "" {
+			item := *event.Item
+			imageCall = &item
+		}
+		if event.Type == "response.completed" && event.Response != nil {
+			completed = event.Response
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusBadGateway)
+	}
+	if completed == nil {
+		return nil, types.NewOpenAIError(errors.New("Responses upstream stream ended without response.completed"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+	if imageCall != nil {
+		completed.Output = []dto.ResponsesOutput{*imageCall}
+	}
+	return writeResponsesImage(c, info, resp.Header, completed)
+}
+
+func writeResponsesImage(c *gin.Context, info *relaycommon.RelayInfo, header http.Header, responsesResponse *dto.OpenAIResponsesResponse) (*dto.Usage, *types.NewAPIError) {
+	var imageCall *dto.ResponsesOutput
+	for i := range responsesResponse.Output {
+		if responsesResponse.Output[i].Type == dto.ResponsesOutputTypeImageGenerationCall &&
+			responsesResponse.Output[i].Result != "" {
+			imageCall = &responsesResponse.Output[i]
+			break
+		}
+	}
+	if imageCall == nil {
+		return nil, types.NewOpenAIError(errors.New("Responses upstream returned no image_generation_call result"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+	imageConfig, imageFormat, cleanResult, err := service.DecodeBase64ImageData(imageCall.Result)
+	if err != nil || imageConfig.Width <= 0 || imageConfig.Height <= 0 {
+		return nil, types.NewOpenAIError(errors.New("Responses upstream returned invalid raster image data"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+	switch imageFormat {
+	case "jpeg", "png", "webp":
+	default:
+		return nil, types.NewOpenAIError(errors.New("Responses upstream returned an unsupported image format"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+	if responsesResponse.ToolUsage == nil || responsesResponse.ToolUsage.ImageGeneration == nil ||
+		responsesResponse.ToolUsage.ImageGeneration.OutputTokens <= 0 {
+		return nil, types.NewOpenAIError(errors.New("Responses upstream returned no image generation usage"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+
+	usage := *responsesResponse.ToolUsage.ImageGeneration
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.InputTokens + usage.OutputTokens
+	}
+	created := int64(responsesResponse.CreatedAt)
+	if created == 0 {
+		created = time.Now().Unix()
+	}
+	imageResponse := dto.ImageResponse{
+		Created: created,
+		Data: []dto.ImageData{{
+			B64Json:       cleanResult,
+			RevisedPrompt: imageCall.RevisedPrompt,
+		}},
+		Usage: &usage,
+	}
+	convertedBody, err := common.Marshal(imageResponse)
+	if err != nil {
+		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+	}
+
+	convertedResponse := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     header.Clone(),
+		Body:       io.NopCloser(bytes.NewReader(convertedBody)),
+	}
+	convertedResponse.Header.Set("Content-Type", "application/json")
+	if info.IsStream {
+		return OpenaiImageStreamHandler(c, info, convertedResponse)
+	}
+	return OpenaiImageHandler(c, info, convertedResponse)
+}
 
 func updateOpenAIImageCount(info *relaycommon.RelayInfo, count int64) {
 	if info == nil || !info.PriceData.UsePrice || count <= 0 || count > int64(dto.MaxImageN) {

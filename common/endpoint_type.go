@@ -1,10 +1,32 @@
 package common
 
-import "github.com/dev-fan-sophon/boxai/constant"
+import (
+	"strings"
+
+	"github.com/dev-fan-sophon/boxai/constant"
+)
 
 // GetEndpointTypesByChannelType 获取渠道最优先端点类型（所有的渠道都支持 OpenAI 端点）
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
 	var endpointTypes []constant.EndpointType
+	if channelType == constant.ChannelTypeCodexProxy {
+		normalized := strings.ToLower(strings.TrimSpace(modelName))
+		switch {
+		case strings.Contains(normalized, "audio"), strings.Contains(normalized, "video"), strings.Contains(normalized, "realtime"):
+			return nil
+		case IsImageGenerationModel(normalized):
+			return []constant.EndpointType{constant.EndpointTypeImageGeneration}
+		case strings.Contains(normalized, "embed"):
+			return []constant.EndpointType{constant.EndpointTypeEmbeddings}
+		default:
+			return []constant.EndpointType{
+				constant.EndpointTypeOpenAI,
+				constant.EndpointTypeOpenAIResponse,
+				constant.EndpointTypeAnthropic,
+				constant.EndpointTypeGemini,
+			}
+		}
+	}
 	switch channelType {
 	case constant.ChannelTypeJina:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeJinaRerank}
