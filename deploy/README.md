@@ -270,6 +270,48 @@ Do not delete the channel or its pricing. A code rollback can repoint
 `30` before rolling back because that release predates the embedding-only
 catalog correction.
 
+### Shared gateway catalog reconciliation (2026-08-27)
+
+The post-cutover shared catalog contains `53` public BoxAI models. The catalog
+coordinator's bilateral `gateway-catalog verify --json` returned `[]`: Origin
+exposes the same shared set and additionally keeps `10` Origin-only Meshy
+models. Meshy is not a BoxAI channel or rollback target.
+
+Current channel ownership is:
+
+| Channel | State | Priority / weight | Catalog role |
+|---------|-------|-------------------|--------------|
+| `1` — `wisech` | enabled | `0 / 0` | `deepseek-v4-flash`, `deepseek-v4-pro`, `glm-5.2`, `kimi-k2.6`, `kimi-k2.7-code` |
+| `16` — `kimi-modal-doufunao80` | enabled | `10 / 0` | Healthy `kimi-k3` route |
+| `17` — `kimi-modal-zhangfan0220` | **deleted** | n/a | Removed after repeated upstream `429 usage limit reached` |
+| `18` — `kimi-modal-xiaomao2026` | enabled | `10 / 0` | Healthy `kimi-k3` route |
+| `24` — `gemini-embedding` | **deleted** | n/a | Removed Gemini embedding route; not a rollback channel |
+| `26` — `fireworks` | enabled | `0 / 100` | Shared text fallback for `glm-5.2`, `glm-5.2-fast`, `kimi-k3`, `kimi-k3-fast`, `kimi-k2.7-code`, `MiniMax-M3`, `deepseek-v4-pro`, `deepseek-v4-flash`, `gpt-oss-120b`, `qwen3.8-max`, and `inkling` |
+| `29` — `4router-backup` | enabled | `-10 / 0` | Low-priority backup for the eight shared Claude models |
+| `30` — `elevenlabs` | enabled | `0 / 0` | Seven audio models documented in the preceding section |
+| `31` — `opencode2api` | enabled | `10 / 100` | Shared text route for `glm-5.3`, `glm-5.3-flash`, `glm-5.2`, `kimi-k3`, `kimi-k2.7-code`, `MiniMax-M3`, and `qwen3.8-max` |
+
+Wisech no longer advertises `wan2.7-image` or `wan2.7-image-pro`. BoxAI,
+Origin, and direct Wisech JSON/SSE checks returned HTTP 200 with usage but no
+content, image, or stream delta, so these empty-success models must not be
+restored merely because the transport succeeds. The final exact-model
+reconciliation also removed `deepseek-v4-flash-0731`; all three are absent from
+public `/api/pricing`.
+
+The deletion records are management logs `8509` (`gemini-embedding`, channel
+`24`) and `8682` (`kimi-modal-zhangfan0220`, channel `17`). Kimi error logs
+`8652` and `8673` contain the repeated upstream 429 response. By contrast,
+channels `16` and `18` remain enabled and their validation logs `8654` and
+`8655` are successful, non-zero-quota `kimi-k3` consumes.
+
+Rollback is route-specific: keep channels `16` and `18` as the Kimi fallback,
+keep channel `29` below the primary Claude route, and disable an unhealthy
+extant channel without deleting it. Channels `17` and `24` cannot be re-enabled
+because they were deleted; recreating either requires a newly validated
+credential and a new catalog review. Do not restore the withdrawn Wisech models
+without validating non-empty response payloads in both JSON and streaming
+modes.
+
 ## Local development
 
 ```bash
