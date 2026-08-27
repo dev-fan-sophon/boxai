@@ -283,17 +283,6 @@ func updatePricing() {
 	// 初始化默认供应商映射
 	initDefaultVendorMapping(metaMap, vendorMap, enableAbilities)
 
-	// 构建对前端友好的供应商列表
-	vendorsList = make([]PricingVendor, 0, len(vendorMap))
-	for _, v := range vendorMap {
-		vendorsList = append(vendorsList, PricingVendor{
-			ID:          v.Id,
-			Name:        v.Name,
-			Description: v.Description,
-			Icon:        v.Icon,
-		})
-	}
-
 	modelGroupsMap := make(map[string]*types.Set[string])
 	groupIntegrationSets := make(map[string]map[string]map[string]struct{})
 
@@ -532,6 +521,36 @@ func updatePricing() {
 		}
 		pricingMap = append(pricingMap, pricing)
 	}
+
+	// Public facets only include canonical vendors used by the final public
+	// catalog. Stale and duplicate admin vendor rows must not leak into pricing.
+	usedVendorIDs := make(map[int]struct{})
+	for _, pricing := range pricingMap {
+		if pricing.VendorID != 0 {
+			usedVendorIDs[pricing.VendorID] = struct{}{}
+		}
+	}
+	vendorsList = make([]PricingVendor, 0, len(usedVendorIDs))
+	for vendorID := range usedVendorIDs {
+		vendor := vendorMap[vendorID]
+		if vendor == nil {
+			continue
+		}
+		description := vendor.Description
+		if description == "" {
+			description = defaultVendorDescriptions[vendor.Name]
+		}
+		icon := vendor.Icon
+		if icon == "" {
+			icon = getDefaultVendorIcon(vendor.Name)
+		}
+		vendorsList = append(vendorsList, PricingVendor{
+			ID: vendor.Id, Name: vendor.Name, Description: description, Icon: icon,
+		})
+	}
+	sort.Slice(vendorsList, func(i, j int) bool {
+		return vendorsList[i].Name < vendorsList[j].Name
+	})
 
 	// 防止大更新后数据不通用
 	if len(pricingMap) > 0 {

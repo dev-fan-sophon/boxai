@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -241,6 +242,87 @@ func TestPricingElevenLabsPublishesFineGrainedAudioCapabilities(t *testing.T) {
 		assert.Equal(t, "ElevenLabs.Avatar", pricingByModel[modelName].Icon)
 		assert.NotEmpty(t, pricingByModel[modelName].Description)
 	}
+}
+
+func TestPricingCanonicalCatalogMetadataAndVendorFacets(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 263, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+
+	publicModels := []string{
+		"MiniMax-M3", "claude-fable-5", "claude-haiku-4-5-20251001", "claude-opus-4-6",
+		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5", "claude-sonnet-4-6", "claude-sonnet-5",
+		"deepseek-v4-flash", "deepseek-v4-pro", "dreamina-seedance-2-5", "eleven_multilingual_sts_v2",
+		"eleven_text_to_sound_v2", "eleven_v3", "elevenlabs-audio-isolation", "elevenlabs-forced-alignment",
+		"gemini-3-pro-image", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-3.1-pro-preview",
+		"gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.7-flash-high", "glm-5.2", "glm-5.2-fast",
+		"glm-5.3", "glm-5.3-flash", "gpt-5.3-codex-spark", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5",
+		"gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-image-2", "gpt-oss-120b", "grok-4.5",
+		"grok-4.6", "grok-imagine-image-2.0", "grok-imagine-video-1.5", "inkling", "kimi-k2.6",
+		"kimi-k2.7-code", "kimi-k3", "kimi-k3-fast", "music_v2", "qwen3.8-max", "scribe_v2",
+		"seedance-2-0", "seedance-2-0-fast", "text-embedding-3-large", "text-embedding-3-small",
+	}
+	for _, modelName := range publicModels {
+		insertPricingEndpointAbility(t, 263, modelName)
+	}
+	for _, vendorName := range []string{"智谱", "Zhipu AI Coding Plan", "Moonshot", "unused vendor"} {
+		require.NoError(t, DB.Create(&Vendor{Name: vendorName, Status: 1}).Error)
+	}
+
+	pricing := GetPricing()
+	require.Len(t, pricing, len(publicModels))
+	vendorNames := make(map[int]string)
+	for _, vendor := range GetVendors() {
+		vendorNames[vendor.ID] = vendor.Name
+	}
+	for _, item := range pricing {
+		assert.NotEmpty(t, item.Description, item.ModelName)
+		assert.NotEmpty(t, item.Tags, item.ModelName)
+		assert.NotEmpty(t, item.Icon, item.ModelName)
+		assert.NotEmpty(t, item.InputModalities, item.ModelName)
+		assert.NotEmpty(t, item.OutputModalities, item.ModelName)
+		assert.NotEmpty(t, item.Capabilities, item.ModelName)
+		assert.NotEmpty(t, vendorNames[item.VendorID], item.ModelName)
+	}
+
+	modelVendors := make(map[string]string, len(pricing))
+	for _, item := range pricing {
+		modelVendors[item.ModelName] = vendorNames[item.VendorID]
+	}
+	assert.Equal(t, "Thinking Machines Lab", modelVendors["inkling"])
+	assert.Equal(t, "Zhipu AI", modelVendors["glm-5.2"])
+	assert.Equal(t, "Zhipu AI", modelVendors["glm-5.3-flash"])
+	assert.Equal(t, "Moonshot AI", modelVendors["kimi-k2.6"])
+	assert.Equal(t, "Moonshot AI", modelVendors["kimi-k3-fast"])
+	assert.Equal(t, "OpenAI", modelVendors["text-embedding-3-large"])
+
+	gotVendors := make([]string, 0, len(vendorNames))
+	for _, name := range vendorNames {
+		gotVendors = append(gotVendors, name)
+	}
+	sort.Strings(gotVendors)
+	assert.NotContains(t, gotVendors, "智谱")
+	assert.NotContains(t, gotVendors, "Zhipu AI Coding Plan")
+	assert.NotContains(t, gotVendors, "Moonshot")
+	assert.NotContains(t, gotVendors, "unused vendor")
+}
+
+func TestDefaultVendorInferenceDoesNotMatchInsideModelNames(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 264, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointAbility(t, 264, "inkling-next")
+	insertPricingEndpointAbility(t, 264, "kling-video-next")
+
+	pricing := GetPricing()
+	vendorNames := make(map[int]string)
+	for _, vendor := range GetVendors() {
+		vendorNames[vendor.ID] = vendor.Name
+	}
+	modelVendors := make(map[string]string)
+	for _, item := range pricing {
+		modelVendors[item.ModelName] = vendorNames[item.VendorID]
+	}
+	assert.NotEqual(t, "快手", modelVendors["inkling-next"])
+	assert.Equal(t, "快手", modelVendors["kling-video-next"])
 }
 
 func TestIntegrationProfileRegistryContract(t *testing.T) {
