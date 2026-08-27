@@ -1,6 +1,7 @@
 package model
 
 import (
+	_ "embed"
 	"fmt"
 	"sort"
 	"testing"
@@ -11,6 +12,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type canonicalSharedModelMetadata struct {
+	ModelName   string `json:"model_name"`
+	VendorName  string `json:"vendor_name"`
+	Description string `json:"description"`
+	Tags        string `json:"tags"`
+	Icon        string `json:"icon"`
+}
+
+//go:embed testdata/origin-shared-catalog.json
+var canonicalSharedModelMetadataFixture []byte
 
 func resetPricingEndpointTestTables(t *testing.T) {
 	t.Helper()
@@ -304,6 +316,58 @@ func TestPricingCanonicalCatalogMetadataAndVendorFacets(t *testing.T) {
 	assert.NotContains(t, gotVendors, "Zhipu AI Coding Plan")
 	assert.NotContains(t, gotVendors, "Moonshot")
 	assert.NotContains(t, gotVendors, "unused vendor")
+}
+
+func TestPricingMatchesCanonicalSharedModelMetadataFixture(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 265, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+
+	var fixture []canonicalSharedModelMetadata
+	require.NoError(t, common.Unmarshal(canonicalSharedModelMetadataFixture, &fixture))
+	require.Len(t, fixture, 53)
+
+	staleVendor := &Vendor{Name: "stale vendor", Description: "old", Icon: "old", Status: 1}
+	require.NoError(t, DB.Create(staleVendor).Error)
+	for _, expected := range fixture {
+		insertPricingEndpointAbility(t, 265, expected.ModelName)
+		require.NoError(t, DB.Create(&Model{
+			ModelName:   expected.ModelName,
+			Description: "stale description",
+			Tags:        "stale tags",
+			Icon:        "stale icon",
+			VendorID:    staleVendor.Id,
+			Status:      1,
+			NameRule:    NameRuleExact,
+		}).Error)
+	}
+
+	pricing := GetPricing()
+	require.Len(t, pricing, len(fixture))
+	vendorNames := make(map[int]string)
+	for _, vendor := range GetVendors() {
+		vendorNames[vendor.ID] = vendor.Name
+	}
+	pricingByModel := make(map[string]Pricing, len(pricing))
+	for _, item := range pricing {
+		pricingByModel[item.ModelName] = item
+	}
+
+	for _, expected := range fixture {
+		actual, ok := pricingByModel[expected.ModelName]
+		require.True(t, ok, expected.ModelName)
+		assert.Equal(t, expected.VendorName, vendorNames[actual.VendorID], expected.ModelName)
+		assert.Equal(t, expected.Description, actual.Description, expected.ModelName)
+		assert.Equal(t, expected.Tags, actual.Tags, expected.ModelName)
+		assert.Equal(t, expected.Icon, actual.Icon, expected.ModelName)
+	}
+	assert.Equal(t, "Thinking Machines Lab", vendorNames[pricingByModel["inkling"].VendorID])
+	assert.Equal(t, "ThinkingMachines", pricingByModel["inkling"].Icon)
+
+	publicVendorNames := make([]string, 0, len(vendorNames))
+	for _, vendor := range GetVendors() {
+		publicVendorNames = append(publicVendorNames, vendor.Name)
+	}
+	assert.NotContains(t, publicVendorNames, staleVendor.Name)
 }
 
 func TestDefaultVendorInferenceDoesNotMatchInsideModelNames(t *testing.T) {

@@ -52,63 +52,63 @@ var defaultVendorDescriptions = map[string]string{
 }
 
 var defaultModelCatalogMetadataByName = map[string]defaultModelCatalogMetadata{
-	"MiniMax-M3": textCatalogMetadata("MiniMax", "MiniMax agent model for coding, reasoning, and tool-driven workflows.", "family:minimax,chat,reasoning,tools,input:text,output:text", "Minimax.Color", false),
+	"MiniMax-M3": textCatalogMetadata("MiniMax", "Open-weight MiniMax multimodal model for long-context coding, perception, and agent planning.", "reasoning,tools,multimodal,coding,long-context,open-weights", "Minimax.Color", false),
 
-	"claude-fable-5":            textCatalogMetadata("Anthropic", "Claude model for creative writing, analysis, and controlled agent workflows.", "family:claude,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-haiku-4-5-20251001": textCatalogMetadata("Anthropic", "Fast Claude Haiku model for responsive assistants, extraction, and lightweight agent tasks.", "family:claude-haiku,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-opus-4-6":           textCatalogMetadata("Anthropic", "Claude Opus model for demanding coding, analysis, and long-running agent tasks.", "family:claude-opus,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-opus-4-7":           textCatalogMetadata("Anthropic", "Claude Opus model for complex professional work, coding, and agent orchestration.", "family:claude-opus,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-opus-4-8":           textCatalogMetadata("Anthropic", "Claude Opus model for advanced reasoning, repository work, and autonomous agents.", "family:claude-opus,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-opus-5":             textCatalogMetadata("Anthropic", "Claude Opus flagship for coding, agents, and professional knowledge work.", "family:claude-opus,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-sonnet-4-6":         textCatalogMetadata("Anthropic", "Balanced Claude Sonnet model for coding, analysis, and everyday agent workflows.", "family:claude-sonnet,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"claude-sonnet-5":           textCatalogMetadata("Anthropic", "Claude Sonnet model for coding, planning, browsing, and general agent work.", "family:claude-sonnet,chat,reasoning,tools,vision,input:text,input:image,output:text", "Claude.Color", true),
-	"deepseek-v4-flash":         textCatalogMetadata("DeepSeek", "Fast DeepSeek V4 model for economical reasoning, coding, and long-context work.", "family:deepseek,chat,reasoning,tools,open-weights,input:text,output:text", "DeepSeek.Color", false),
-	"deepseek-v4-pro":           textCatalogMetadata("DeepSeek", "DeepSeek V4 flagship for coding, complex reasoning, and long agent runs.", "family:deepseek,chat,reasoning,tools,open-weights,input:text,output:text", "DeepSeek.Color", false),
-	"gemini-3.1-pro-preview":    textCatalogMetadata("Google", "Reasoning-first Gemini Pro preview for agentic coding and complex problem solving.", "family:gemini-pro,chat,reasoning,tools,vision,input:text,input:image,output:text", "Gemini.Color", true),
-	"gemini-3.6-flash":          textCatalogMetadata("Google", "Fast Gemini model for responsive reasoning, generation, and tool use.", "family:gemini-flash,chat,reasoning,tools,vision,input:text,input:image,output:text", "Gemini.Color", true),
-	"gemini-3.7-flash":          textCatalogMetadata("Google", "Gemini Flash model for high-throughput chat, coding, and multimodal work.", "family:gemini-flash,chat,reasoning,tools,vision,input:text,input:image,output:text", "Gemini.Color", true),
-	"gemini-3.7-flash-high":     textCatalogMetadata("Google", "Gemini Flash high-reasoning model for difficult analysis and coding tasks.", "family:gemini-flash,chat,reasoning,tools,vision,input:text,input:image,output:text", "Gemini.Color", true),
-	"glm-5.2":                   textCatalogMetadata("Zhipu AI", "GLM flagship model for long-horizon coding agents and extended-context reasoning.", "family:glm,chat,reasoning,tools,open-weights,input:text,output:text", "Zhipu.Color", false),
-	"glm-5.2-fast":              textCatalogMetadata("Zhipu AI", "Fast GLM 5.2 variant for responsive coding, reasoning, and agent loops.", "family:glm,chat,reasoning,tools,input:text,output:text", "Zhipu.Color", false),
-	"glm-5.3":                   textCatalogMetadata("Zhipu AI", "GLM 5.3 model for coding, reasoning, and tool-enabled agent workflows.", "family:glm,chat,reasoning,tools,input:text,output:text", "Zhipu.Color", false),
-	"glm-5.3-flash":             textCatalogMetadata("Zhipu AI", "Low-latency GLM 5.3 model for chat, coding, and high-volume agent tasks.", "family:glm,chat,reasoning,tools,input:text,output:text", "Zhipu.Color", false),
-	"gpt-5.3-codex-spark":       textCatalogMetadata("OpenAI", "Coding-optimized GPT model for repository edits, reviews, and agentic software work.", "family:gpt-codex,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.4":                   textCatalogMetadata("OpenAI", "Agent-ready GPT model for coding, reasoning, and computer-use workflows.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.4-mini":              textCatalogMetadata("OpenAI", "Efficient GPT model for fast chat, reasoning, coding, and tool use.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.5":                   textCatalogMetadata("OpenAI", "GPT model for advanced reasoning, coding, tools, and multimodal chat.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.6-luna":              textCatalogMetadata("OpenAI", "Cost-efficient GPT model for fast, high-volume agent workloads.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.6-sol":               textCatalogMetadata("OpenAI", "Frontier GPT model for complex professional work, coding, and agentic workflows.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-5.6-terra":             textCatalogMetadata("OpenAI", "Balanced GPT model for capable, cost-efficient everyday agent work.", "family:gpt,chat,reasoning,tools,vision,input:text,input:image,output:text", "OpenAI", true),
-	"gpt-oss-120b":              textCatalogMetadata("OpenAI", "Open-weight GPT model for reasoning, coding, and self-hostable tool workflows.", "family:gpt-oss,chat,reasoning,tools,open-weights,input:text,output:text", "OpenAI", false),
-	"grok-4.5":                  textCatalogMetadata("xAI", "Grok model for chat, coding, agentic tools, and visual reasoning.", "family:grok,chat,reasoning,tools,vision,input:text,input:image,output:text", "XAI", true),
-	"grok-4.6":                  textCatalogMetadata("xAI", "Grok flagship for coding, long-running agents, and visual work.", "family:grok,chat,reasoning,tools,vision,input:text,input:image,output:text", "XAI", true),
-	"inkling":                   textCatalogMetadata("Thinking Machines Lab", "Thinking Machines Lab model for efficient reasoning, coding, and general assistant workloads.", "family:inkling,chat,reasoning,tools,input:text,output:text", "Fireworks.Color", false),
-	"kimi-k2.6":                 textCatalogMetadata("Moonshot AI", "Multimodal Kimi workhorse for agent loops, coding tasks, and visual context.", "family:kimi,chat,reasoning,tools,vision,input:text,input:image,output:text", "Moonshot", true),
-	"kimi-k2.7-code":            textCatalogMetadata("Moonshot AI", "Coding-focused Kimi model for long-horizon repository and software agent work.", "family:kimi,chat,reasoning,tools,vision,input:text,input:image,output:text", "Moonshot", true),
-	"kimi-k3":                   textCatalogMetadata("Moonshot AI", "Multimodal Kimi model for long-context reasoning and agent workflows.", "family:kimi,chat,reasoning,tools,vision,input:text,input:image,output:text", "Moonshot", true),
-	"kimi-k3-fast":              textCatalogMetadata("Moonshot AI", "Fast Kimi model for responsive coding, chat, and tool-enabled agents.", "family:kimi,chat,reasoning,tools,vision,input:text,input:image,output:text", "Moonshot", true),
-	"qwen3.8-max":               textCatalogMetadata("Alibaba", "Qwen flagship model for multilingual reasoning, coding, and tool use.", "family:qwen,chat,reasoning,tools,input:text,output:text", "Qwen.Color", false),
+	"claude-fable-5":            textCatalogMetadata("Anthropic", "Claude model tuned for creative writing, nuanced analysis, and controlled agent workflows with image and document input.", "reasoning,tools,creative-writing,vision,documents,agents", "Claude.Color", true),
+	"claude-haiku-4-5-20251001": textCatalogMetadata("Anthropic", "Fast Claude model for responsive assistance, classification, extraction, and lightweight tool-using agents.", "fast,tools,classification,extraction,vision,agents", "Claude.Color", true),
+	"claude-opus-4-6":           textCatalogMetadata("Anthropic", "High-capability Claude Opus model for difficult coding, planning, analysis, and long-running agent tasks.", "reasoning,tools,coding,planning,vision,agents", "Claude.Color", true),
+	"claude-opus-4-7":           textCatalogMetadata("Anthropic", "Claude Opus model for advanced software engineering, complex research, and high-stakes reasoning workflows.", "reasoning,tools,coding,research,vision,agents", "Claude.Color", true),
+	"claude-opus-4-8":           textCatalogMetadata("Anthropic", "Top Claude Opus tier for the hardest reasoning, coding, multimodal analysis, and long-horizon agent work.", "reasoning,tools,coding,vision,long-horizon,agents", "Claude.Color", true),
+	"claude-opus-5":             textCatalogMetadata("Anthropic", "Frontier Claude Opus model for expert coding, complex agents, professional analysis, and multimodal work.", "reasoning,tools,coding,vision,documents,agents", "Claude.Color", true),
+	"claude-sonnet-4-6":         textCatalogMetadata("Anthropic", "Claude Sonnet workhorse for production coding agents, careful analysis, tool use, and balanced cost and latency.", "reasoning,tools,coding,vision,balanced,agents", "Claude.Color", true),
+	"claude-sonnet-5":           textCatalogMetadata("Anthropic", "General-purpose Claude Sonnet model for coding, planning, browsing, document analysis, and everyday agent work.", "reasoning,tools,coding,vision,documents,agents", "Claude.Color", true),
+	"deepseek-v4-flash":         textCatalogMetadata("DeepSeek", "Fast DeepSeek V4 model for economical reasoning, coding, tool use, and long-context agent workloads.", "reasoning,tools,coding,long-context,open-weights,fast", "DeepSeek.Color", false),
+	"deepseek-v4-pro":           textCatalogMetadata("DeepSeek", "DeepSeek V4 Pro open-weight model with million-token context for complex coding and long-running agents.", "reasoning,tools,coding,1m-context,open-weights,agents", "DeepSeek.Color", false),
+	"gemini-3.1-pro-preview":    textCatalogMetadata("Google", "Reasoning-first Gemini preview for agentic coding, complex problem solving, tools, and multimodal input.", "reasoning,tools,coding,multimodal,vision,agents", "Gemini.Color", true),
+	"gemini-3.6-flash":          textCatalogMetadata("Google", "Fast Gemini model balancing multimodal reasoning, tool use, coding ability, latency, and cost.", "reasoning,tools,coding,multimodal,fast,balanced", "Gemini.Color", true),
+	"gemini-3.7-flash":          textCatalogMetadata("Google", "High-efficiency Gemini model for agentic workflows, coding, tool use, and multimodal reasoning.", "reasoning,tools,coding,multimodal,fast,agents", "Gemini.Color", true),
+	"gemini-3.7-flash-high":     textCatalogMetadata("Google", "Gemini 3.7 Flash variant with a higher reasoning budget for difficult coding and agent tasks.", "reasoning,tools,coding,multimodal,high-effort,agents", "Gemini.Color", true),
+	"glm-5.2":                   textCatalogMetadata("Zhipu AI", "Open-weight GLM flagship for long-horizon coding agents, tool use, and million-token context workloads.", "reasoning,tools,coding,1m-context,open-weights,agents", "Zhipu.Color", false),
+	"glm-5.2-fast":              textCatalogMetadata("Zhipu AI", "Low-latency GLM variant for efficient reasoning, coding, tool calls, and interactive agent workflows.", "reasoning,tools,coding,fast,long-context,agents", "Zhipu.Color", false),
+	"glm-5.3":                   textCatalogMetadata("Zhipu AI", "Flagship GLM model for long-horizon coding, complex project delivery, tool use, and autonomous agents.", "reasoning,tools,coding,long-context,flagship,agents", "Zhipu.Color", false),
+	"glm-5.3-flash":             textCatalogMetadata("Zhipu AI", "Efficient multimodal GLM model for coding, visual understanding, tool use, and long-running agents.", "reasoning,tools,coding,multimodal,fast,agents", "Zhipu.Color", false),
+	"gpt-5.3-codex-spark":       textCatalogMetadata("OpenAI", "Coding-optimized GPT model for repository edits, reviews, command execution, and agentic software work.", "reasoning,tools,coding,vision,documents,agents", "OpenAI", true),
+	"gpt-5.4":                   textCatalogMetadata("OpenAI", "Agent-ready GPT model for coding, computer-use workflows, research, tools, and multimodal knowledge work.", "reasoning,tools,coding,vision,computer-use,agents", "OpenAI", true),
+	"gpt-5.4-mini":              textCatalogMetadata("OpenAI", "Efficient GPT model for coding subagents, quick reasoning, tool use, vision, and high-volume workloads.", "reasoning,tools,coding,vision,fast,cost-efficient", "OpenAI", true),
+	"gpt-5.5":                   textCatalogMetadata("OpenAI", "Frontier GPT model for coding, computer use, research, tools, multimodal input, and professional knowledge work.", "reasoning,tools,coding,vision,computer-use,agents", "OpenAI", true),
+	"gpt-5.6-luna":              textCatalogMetadata("OpenAI", "Cost-efficient GPT-5.6 route for fast search, tool use, coding, and high-volume agent workloads.", "reasoning,tools,coding,search,fast,cost-efficient", "OpenAI", true),
+	"gpt-5.6-sol":               textCatalogMetadata("OpenAI", "Highest-capability GPT-5.6 route for complex professional work, coding, research, and agentic workflows.", "reasoning,tools,coding,research,vision,agents", "OpenAI", true),
+	"gpt-5.6-terra":             textCatalogMetadata("OpenAI", "Balanced GPT-5.6 route for capable everyday coding, analysis, tool use, and multimodal agent work.", "reasoning,tools,coding,vision,balanced,agents", "OpenAI", true),
+	"gpt-oss-120b":              textCatalogMetadata("OpenAI", "Open-weight 120B-class GPT model for self-hosted reasoning, instruction following, coding, and tool use.", "reasoning,tools,coding,open-weights,self-hosted,text", "OpenAI", false),
+	"grok-4.5":                  textCatalogMetadata("xAI", "Grok model for chat, coding, visual analysis, tool-using agents, and grounded knowledge work.", "reasoning,tools,coding,vision,long-context,agents", "XAI.Color", true),
+	"grok-4.6":                  textCatalogMetadata("xAI", "Frontier Grok model for long-running agents, coding, multimodal projects, and configurable reasoning.", "reasoning,tools,coding,vision,long-context,agents", "XAI.Color", true),
+	"inkling":                   textCatalogMetadata("Thinking Machines Lab", "Open-weight 975B MoE multimodal reasoning model from Thinking Machines Lab with 41B active parameters, about one million tokens of context, text, image, and audio input, tool calling, and controllable thinking effort.", "reasoning,tools,multimodal,1m-context,open-weights,moe", "ThinkingMachines", false),
+	"kimi-k2.6":                 textCatalogMetadata("Moonshot AI", "Open-weight multimodal Kimi workhorse for agent loops, coding, tool use, and visual or video context.", "reasoning,tools,coding,multimodal,open-weights,agents", "Kimi.Color", true),
+	"kimi-k2.7-code":            textCatalogMetadata("Moonshot AI", "Coding-focused Kimi model for long-horizon repository work, tool use, visual context, and efficient reasoning.", "reasoning,tools,coding,multimodal,open-weights,agents", "Kimi.Color", true),
+	"kimi-k3":                   textCatalogMetadata("Moonshot AI", "Open-weight multimodal Kimi model with million-token context and configurable thinking for long-horizon agents.", "reasoning,tools,multimodal,1m-context,open-weights,agents", "Kimi.Color", true),
+	"kimi-k3-fast":              textCatalogMetadata("Moonshot AI", "Low-latency Kimi K3 variant for fast tool calling, coding, vision, structured output, and interactive agents.", "tools,coding,vision,structured-output,fast,agents", "Kimi.Color", true),
+	"qwen3.8-max":               textCatalogMetadata("Alibaba", "Qwen flagship mixture-of-experts model for coding, professional work, multimodal understanding, and long-horizon agents.", "reasoning,tools,coding,multimodal,moe,agents", "Qwen.Color", false),
 
-	"dreamina-seedance-2-5":       mediaCatalogMetadata("ByteDance", "Dreamina Seedance 2.5 model for prompt-driven video generation.", "family:seedance,video-generation,input:text,output:video", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
-	"seedance-2-0":                mediaCatalogMetadata("ByteDance", "Seedance 2.0 model for prompt-driven video generation.", "family:seedance,video-generation,input:text,output:video", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
-	"seedance-2-0-fast":           mediaCatalogMetadata("ByteDance", "Fast Seedance 2.0 model for prompt-driven video generation.", "family:seedance,video-generation,input:text,output:video", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
-	"gemini-3-pro-image":          mediaCatalogMetadata("Google", "Gemini Pro image model for high-quality generation and visual editing.", "family:gemini-image,image-generation,image-editing,input:text,input:image,output:image", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
-	"gemini-3.1-flash-image":      mediaCatalogMetadata("Google", "Fast Gemini image model for prompt-driven generation and editing.", "family:gemini-image,image-generation,image-editing,input:text,input:image,output:image", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
-	"gemini-3.1-flash-lite-image": mediaCatalogMetadata("Google", "Efficient Gemini image model for rapid generation and editing workflows.", "family:gemini-image,image-generation,image-editing,input:text,input:image,output:image", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
-	"gpt-image-2":                 mediaCatalogMetadata("OpenAI", "OpenAI image model for prompt-driven generation, editing, and visual design.", "family:gpt-image,image-generation,image-editing,input:text,input:image,output:image", "OpenAI", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
-	"grok-imagine-image-2.0":      mediaCatalogMetadata("xAI", "Grok Imagine model for image generation and editing.", "family:grok-imagine,image-generation,image-editing,input:text,input:image,output:image", "XAI", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
-	"grok-imagine-video-1.5":      mediaCatalogMetadata("xAI", "Grok Imagine image-to-video model with native audio and high-resolution output.", "family:grok-imagine,image-to-video,native-audio,input:text,input:image,output:video", "XAI", []string{"text", "image"}, []string{"video"}, []string{"video_generation", "image_to_video", "native_audio"}),
+	"dreamina-seedance-2-5":       mediaCatalogMetadata("ByteDance", "Dreamina Seedance 2.5 video generation model for text-to-video and image-to-video workflows.", "video,generation,text-to-video,image-to-video", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
+	"seedance-2-0":                mediaCatalogMetadata("ByteDance", "Seedance 2.0 video generation model for text-to-video and image-to-video workflows.", "video,generation,text-to-video,image-to-video", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
+	"seedance-2-0-fast":           mediaCatalogMetadata("ByteDance", "Fast Seedance 2.0 video generation model for lower-latency text-to-video and image-to-video workflows.", "video,generation,text-to-video,image-to-video,fast", "Doubao.Color", []string{"text"}, []string{"video"}, []string{"video_generation"}),
+	"gemini-3-pro-image":          mediaCatalogMetadata("Google", "High-fidelity Gemini image model for generation, design-heavy edits, visual composition, and text rendering.", "image,generation,editing,vision,design,text-rendering", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
+	"gemini-3.1-flash-image":      mediaCatalogMetadata("Google", "Fast Gemini image model for prompt-driven generation, editing, visual ideation, and design workflows.", "image,generation,editing,vision,fast,design", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
+	"gemini-3.1-flash-lite-image": mediaCatalogMetadata("Google", "Cost-efficient Gemini image model for high-volume 1K generation, editing, and visual content workflows.", "image,generation,editing,vision,fast,cost-efficient", "Gemini.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
+	"gpt-image-2":                 mediaCatalogMetadata("OpenAI", "Image generation model for creating and editing high-quality images from text and visual prompts.", "image,generation,vision", "OpenAI", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
+	"grok-imagine-image-2.0":      mediaCatalogMetadata("xAI", "Grok Imagine Image 2.0 for high-quality image generation and editing at 1K or 2K resolution.", "image,generation,editing,text-to-image,image-to-image", "XAI.Color", []string{"text", "image"}, []string{"image"}, []string{"image_generation", "image_editing"}),
+	"grok-imagine-video-1.5":      mediaCatalogMetadata("xAI", "Grok Imagine Video 1.5 for text-to-video and image-to-video generation up to 1080p.", "video,generation,text-to-video,image-to-video", "XAI.Color", []string{"text", "image"}, []string{"video"}, []string{"video_generation", "image_to_video", "native_audio"}),
 
-	"text-embedding-3-large": mediaCatalogMetadata("OpenAI", "High-capacity OpenAI text embedding model for semantic search, clustering, and retrieval.", "family:text-embedding,embeddings,input:text,output:embedding", "OpenAI", []string{"text"}, []string{"embedding"}, []string{"embeddings"}),
-	"text-embedding-3-small": mediaCatalogMetadata("OpenAI", "Efficient OpenAI text embedding model for semantic search, clustering, and retrieval.", "family:text-embedding,embeddings,input:text,output:embedding", "OpenAI", []string{"text"}, []string{"embedding"}, []string{"embeddings"}),
+	"text-embedding-3-large": mediaCatalogMetadata("OpenAI", "High-accuracy text embedding model for semantic search, retrieval, clustering, recommendations, and ranking.", "embeddings,retrieval,semantic-search,ranking,clustering,text", "OpenAI", []string{"text"}, []string{"embedding"}, []string{"embeddings"}),
+	"text-embedding-3-small": mediaCatalogMetadata("OpenAI", "Cost-efficient text embedding model for semantic search, retrieval, clustering, recommendations, and ranking.", "embeddings,retrieval,semantic-search,ranking,clustering,text", "OpenAI", []string{"text"}, []string{"embedding"}, []string{"embeddings"}),
 
-	"eleven_v3":                   mediaCatalogMetadata("ElevenLabs", "Expressive text-to-speech model for high-quality voice generation.", "family:elevenlabs,tts,voice,input:text,output:audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"speech_synthesis"}),
-	"scribe_v2":                   mediaCatalogMetadata("ElevenLabs", "Speech-to-text model for transcription, subtitles, and spoken-language understanding.", "family:elevenlabs,stt,transcription,input:audio,output:text", "ElevenLabs.Avatar", []string{"audio"}, []string{"text"}, []string{"transcription"}),
-	"eleven_multilingual_sts_v2":  mediaCatalogMetadata("ElevenLabs", "Speech-to-speech model that transforms voices while preserving expressive delivery.", "family:elevenlabs,speech-to-speech,voice,input:audio,output:audio", "ElevenLabs.Avatar", []string{"audio"}, []string{"audio"}, []string{"speech_to_speech"}),
-	"eleven_text_to_sound_v2":     mediaCatalogMetadata("ElevenLabs", "Text-to-sound-effects model for short SFX, game audio, and ambience.", "family:elevenlabs,sfx,sound-generation,input:text,output:audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"sound_generation"}),
-	"music_v2":                    mediaCatalogMetadata("ElevenLabs", "Music generation model for prompt-driven tracks and longer compositions.", "family:elevenlabs,music,generation,input:text,output:audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"music_generation"}),
-	"elevenlabs-audio-isolation":  mediaCatalogMetadata("ElevenLabs", "Audio isolation capability for separating speech from noisy source audio.", "family:elevenlabs,isolation,cleanup,input:audio,output:audio", "ElevenLabs.Avatar", []string{"audio"}, []string{"audio"}, []string{"audio_isolation"}),
-	"elevenlabs-forced-alignment": mediaCatalogMetadata("ElevenLabs", "Forced alignment capability that aligns transcript text to audio timestamps.", "family:elevenlabs,alignment,timestamps,input:text,input:audio,output:text", "ElevenLabs.Avatar", []string{"text", "audio"}, []string{"text"}, []string{"forced_alignment", "timestamps"}),
+	"eleven_v3":                   mediaCatalogMetadata("ElevenLabs", "ElevenLabs' latest expressive text-to-speech model for high-quality voice generation.", "tts,voice,audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"speech_synthesis"}),
+	"scribe_v2":                   mediaCatalogMetadata("ElevenLabs", "Speech-to-text model for transcription, subtitles, and spoken-language understanding.", "stt,transcription,audio", "ElevenLabs.Avatar", []string{"audio"}, []string{"text"}, []string{"transcription"}),
+	"eleven_multilingual_sts_v2":  mediaCatalogMetadata("ElevenLabs", "Speech-to-speech model for transforming spoken audio while preserving expressive delivery.", "speech-to-speech,voice,audio", "ElevenLabs.Avatar", []string{"audio"}, []string{"audio"}, []string{"speech_to_speech"}),
+	"eleven_text_to_sound_v2":     mediaCatalogMetadata("ElevenLabs", "Text-to-sound-effects model for short SFX, notification sounds, game audio, and ambience.", "sfx,sound-effects,audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"sound_generation"}),
+	"music_v2":                    mediaCatalogMetadata("ElevenLabs", "Music generation model for prompt-driven instrumental tracks, stings, and longer compositions.", "music,generation,audio", "ElevenLabs.Avatar", []string{"text"}, []string{"audio"}, []string{"music_generation"}),
+	"elevenlabs-audio-isolation":  mediaCatalogMetadata("ElevenLabs", "Audio isolation capability for separating or enhancing speech from noisy source audio.", "isolation,cleanup,audio", "ElevenLabs.Avatar", []string{"audio"}, []string{"audio"}, []string{"audio_isolation"}),
+	"elevenlabs-forced-alignment": mediaCatalogMetadata("ElevenLabs", "Forced alignment capability that aligns transcript text to audio and returns word and character timestamps.", "alignment,timestamps,audio", "ElevenLabs.Avatar", []string{"text", "audio"}, []string{"text"}, []string{"forced_alignment", "timestamps"}),
 }
 
 type defaultVendorRule struct {
@@ -145,7 +145,7 @@ var defaultVendorIcons = map[string]string{
 	"OpenAI": "OpenAI", "ElevenLabs": "ElevenLabs.Avatar", "Anthropic": "Claude.Color",
 	"Google": "Gemini.Color", "Moonshot AI": "Moonshot", "Zhipu AI": "Zhipu.Color",
 	"Alibaba": "Qwen.Color", "DeepSeek": "DeepSeek.Color", "MiniMax": "Minimax.Color",
-	"Thinking Machines Lab": "Fireworks.Color", "xAI": "XAI", "ByteDance": "Doubao.Color",
+	"Thinking Machines Lab": "ThinkingMachines", "xAI": "XAI", "ByteDance": "Doubao.Color",
 	"百度": "Wenxin.Color", "讯飞": "Spark.Color", "腾讯": "Hunyuan.Color", "Cohere": "Cohere.Color",
 	"Cloudflare": "Cloudflare.Color", "360": "Ai360.Color", "零一万物": "Yi.Color",
 	"Jina": "Jina", "Mistral": "Mistral.Color", "Meta": "Ollama", "快手": "Kling.Color",
@@ -162,15 +162,12 @@ func initDefaultVendorMapping(metaMap map[string]*Model, vendorMap map[int]*Vend
 				meta = &copy
 				meta.ModelName = modelName
 			}
-			if strings.TrimSpace(meta.Description) == "" {
-				meta.Description = metadata.Description
-			}
-			if strings.TrimSpace(meta.Tags) == "" {
-				meta.Tags = metadata.Tags
-			}
-			if strings.TrimSpace(meta.Icon) == "" {
-				meta.Icon = metadata.Icon
-			}
+			// These public fields are owned by the shared catalog. Keep endpoint
+			// and capability metadata below fill-only so provider-specific local
+			// behavior is not overwritten by catalog reconciliation.
+			meta.Description = metadata.Description
+			meta.Tags = metadata.Tags
+			meta.Icon = metadata.Icon
 			meta.VendorID = getOrCreateVendor(metadata.Vendor, vendorMap)
 			if catalogMetadataFieldMissing(meta.InputModalities) {
 				meta.InputModalities = marshalCatalogStrings(metadata.InputModalities)
@@ -220,6 +217,12 @@ func marshalCatalogStrings(values []string) string {
 func getOrCreateVendor(vendorName string, vendorMap map[int]*Vendor) int {
 	for id, vendor := range vendorMap {
 		if vendor.Name == vendorName {
+			if description := defaultVendorDescriptions[vendorName]; description != "" {
+				vendor.Description = description
+			}
+			if icon := getDefaultVendorIcon(vendorName); icon != "" {
+				vendor.Icon = icon
+			}
 			return id
 		}
 	}

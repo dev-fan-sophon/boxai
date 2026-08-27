@@ -360,8 +360,8 @@ func TestListModelsExposesModelsDevCatalogFields(t *testing.T) {
 	item := payload.Data[0]
 	assert.Equal(t, "gpt-5.4", item.Id)
 	assert.Equal(t, "GPT-5.4", item.DisplayName)
-	assert.Equal(t, "Agent-ready GPT", item.Description)
-	assert.Equal(t, "gpt", item.Family)
+	assert.Equal(t, "Agent-ready GPT model for coding, computer-use workflows, research, tools, and multimodal knowledge work.", item.Description)
+	assert.Empty(t, item.Family, "the shared catalog intentionally owns tags without a synthetic family tag")
 	assert.True(t, item.SupportedReasoning)
 	assert.Equal(t, []string{"none", "low", "medium", "high", "xhigh"}, item.ReasoningEfforts)
 	require.Len(t, item.ReasoningOptions, 1)
