@@ -217,6 +217,59 @@ Read both channels back and run public Chat and non-streaming Responses smoke
 tests after rollback. Do not delete either channel or copy channel credentials
 into this repository.
 
+### ElevenLabs type-62 cutover record (2026-08-27)
+
+ElevenLabs support was implemented in `757aa6a74`, projected into the web and
+Connector catalogs in `7a7c06d3a`, and given authoritative endpoint metadata in
+`00907b893` and `102741d1c`. Production runs release `102741d1cc8c`.
+
+Channel `30` (`elevenlabs`, type `62`) is enabled in `default` with priority and
+weight `0 / 0`, base URL `https://api.elevenlabs.io`, and tag
+`catalog:shared:elevenlabs`. Its credential remains production-only. The public
+catalog contains exactly these models and capabilities:
+
+| Model | Model ratio | Endpoint type |
+|-------|------------:|---------------|
+| `eleven_v3` | `50` | `audio-tts` |
+| `scribe_v2` | `1.833333` | `audio-stt` |
+| `eleven_multilingual_sts_v2` | `37.5` | `audio-speech-to-speech` |
+| `eleven_text_to_sound_v2` | `25` | `audio-sfx` |
+| `music_v2` | `50` | `audio-music` |
+| `elevenlabs-audio-isolation` | `40` | `audio-isolation` |
+| `elevenlabs-forced-alignment` | `1.833333` | `audio-alignment` |
+
+Pricing was written through the supported Pricing Center API, never through
+SQL: read `GET /api/admin/pricing/models`, then send the returned optimistic
+`revision` to `POST /api/admin/pricing/models/bulk` with
+`{"revision":<revision>,"models":[{"model_name":"...","pricing":{"mode":"per-token","model_ratio":<ratio>}}]}`.
+The accepted write advanced production pricing revision from `69` to `70`; a
+read-back and public `/api/pricing` both match the table above.
+
+Direct-channel validation temporarily moved only channel `30` to the isolated
+`elevenlabs-canary` group. All twelve checks returned HTTP 200: native model and
+voice discovery, OpenAI speech and transcription, native TTS timestamps and raw
+streaming, native STT, speech-to-speech streaming, sound effects, music
+streaming, audio isolation streaming, and forced alignment. Usage logs
+`8570`–`8579` all identify channel `30` and contain non-zero quota. They cover
+character billing and response-header correction, audio-duration units, and
+music-duration units; the corrected speech-to-speech ratio produced quota
+`10013` for `267` audio units. Public `/api/pricing` and `/v1/models` expose one
+fine-grained audio endpoint per model and never classify these models as Chat.
+Connector provisioning excludes all seven from chat-capable projections.
+
+To stop ElevenLabs traffic without affecting another provider, disable only
+channel `30`, read it back, and confirm the seven models leave public routing:
+
+```bash
+.agents/skills/managing-boxai-platform/scripts/boxai-api \
+  POST /api/channel/30/status '{"status":2}'
+```
+
+Do not delete the channel or its pricing. A code rollback can repoint
+`/opt/boxai/current` to the retained release `00907b893e1d`; disable channel
+`30` before rolling back because that release predates the embedding-only
+catalog correction.
+
 ## Local development
 
 ```bash
