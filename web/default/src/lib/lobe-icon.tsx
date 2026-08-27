@@ -1,3 +1,4 @@
+import { BrainCircuit } from 'lucide-react'
 /**
  * LobeHub Icon Loader
  *
@@ -167,6 +168,18 @@ export function LobeIcon(props: LobeIconProps) {
   const module = useIconModule(segments[0] ?? '')
 
   if (!trimmedName) return <IconPlaceholder size={size} letter='?' />
+
+  // Thinking Machines Lab does not have a vendor logo in the icon registry.
+  // Keep this model neutral instead of borrowing a neighboring provider's mark.
+  if (segments[0] === 'ThinkingMachines') {
+    return (
+      <BrainCircuit
+        aria-hidden='true'
+        className='text-muted-foreground'
+        size={size}
+      />
+    )
+  }
 
   // Still downloading: keep the footprint stable without flashing a letter.
   if (module === undefined) return <IconPlaceholder size={size} />
