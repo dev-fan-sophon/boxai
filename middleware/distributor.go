@@ -15,6 +15,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/i18n"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/relay/channel/elevenlabs"
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
@@ -253,7 +254,19 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 	var modelRequest ModelRequest
 	shouldSelectChannel := true
 	var err error
-	if strings.Contains(c.Request.URL.Path, "/mj/") {
+	if elevenlabs.IsNativeProxyPath(c.Request.URL.Path) {
+		upstreamPath := elevenlabs.UpstreamPathFromProxyPath(c.Request.URL.Path)
+		endpoint, ok := elevenlabs.MatchNativeEndpoint(c.Request.Method, upstreamPath)
+		if !ok {
+			return nil, false, fmt.Errorf("unsupported ElevenLabs endpoint: %s %s", c.Request.Method, upstreamPath)
+		}
+		modelName, modelErr := elevenlabs.NativeModelForRequest(c, endpoint)
+		if modelErr != nil {
+			return nil, false, modelErr
+		}
+		modelRequest.Model = modelName
+		c.Set("relay_mode", relayconstant.RelayModeUnknown)
+	} else if strings.Contains(c.Request.URL.Path, "/mj/") {
 		relayMode := relayconstant.Path2RelayModeMidjourney(c.Request.URL.Path)
 		if relayMode == relayconstant.RelayModeMidjourneyTaskFetch ||
 			relayMode == relayconstant.RelayModeMidjourneyTaskFetchByCondition ||

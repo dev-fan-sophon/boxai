@@ -6,9 +6,33 @@ import (
 	"github.com/dev-fan-sophon/boxai/constant"
 )
 
+func elevenLabsEndpointTypes(modelName string) []constant.EndpointType {
+	switch modelName {
+	case "eleven_v3":
+		return []constant.EndpointType{constant.EndpointTypeAudioTTS}
+	case "scribe_v2":
+		return []constant.EndpointType{constant.EndpointTypeAudioSTT}
+	case "eleven_multilingual_sts_v2":
+		return []constant.EndpointType{constant.EndpointTypeAudioSpeechToSpeech}
+	case "eleven_text_to_sound_v2":
+		return []constant.EndpointType{constant.EndpointTypeAudioSFX}
+	case "music_v2":
+		return []constant.EndpointType{constant.EndpointTypeAudioMusic}
+	case "elevenlabs-audio-isolation":
+		return []constant.EndpointType{constant.EndpointTypeAudioIsolation}
+	case "elevenlabs-forced-alignment":
+		return []constant.EndpointType{constant.EndpointTypeAudioAlignment}
+	default:
+		return nil
+	}
+}
+
 // GetEndpointTypesByChannelType 获取渠道最优先端点类型（所有的渠道都支持 OpenAI 端点）
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
 	var endpointTypes []constant.EndpointType
+	if channelType == constant.ChannelTypeElevenLabs {
+		return elevenLabsEndpointTypes(modelName)
+	}
 	if channelType == constant.ChannelTypeCodexProxy {
 		normalized := strings.ToLower(strings.TrimSpace(modelName))
 		switch {

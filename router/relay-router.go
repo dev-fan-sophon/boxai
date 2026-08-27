@@ -155,6 +155,16 @@ func SetRelayRouter(router *gin.Engine) {
 			controller.Relay(c, types.RelayFormatOpenAIAudio)
 		})
 
+		// Short aliases are limited to ElevenLabs paths that cannot collide with
+		// OpenAI-compatible APIs. The complete native surface is /elevenlabs/v1/....
+		httpRouter.POST("/sound-generation", controller.RelayElevenLabs)
+		httpRouter.POST("/music", controller.RelayElevenLabs)
+		httpRouter.POST("/music/stream", controller.RelayElevenLabs)
+		httpRouter.POST("/audio-isolation", controller.RelayElevenLabs)
+		httpRouter.POST("/audio-isolation/stream", controller.RelayElevenLabs)
+		httpRouter.POST("/forced-alignment", controller.RelayElevenLabs)
+		httpRouter.POST("/speech-to-speech/*path", controller.RelayElevenLabs)
+
 		// rerank related routes
 		httpRouter.POST("/rerank", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatRerank)
@@ -186,6 +196,16 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/fine-tunes/:id/cancel", controller.RelayNotImplemented)
 		httpRouter.GET("/fine-tunes/:id/events", controller.RelayNotImplemented)
 		httpRouter.DELETE("/models/:model", controller.RelayNotImplemented)
+	}
+
+	relayElevenLabsRouter := router.Group("/elevenlabs")
+	relayElevenLabsRouter.Use(middleware.RouteTag("relay"))
+	relayElevenLabsRouter.Use(middleware.SystemPerformanceCheck())
+	relayElevenLabsRouter.Use(middleware.TokenAuth())
+	relayElevenLabsRouter.Use(middleware.ModelRequestRateLimit())
+	relayElevenLabsRouter.Use(middleware.Distribute())
+	{
+		relayElevenLabsRouter.Any("/*path", controller.RelayElevenLabs)
 	}
 
 	relayMjRouter := router.Group("/mj")

@@ -18,6 +18,27 @@ import (
 
 const relayModelsTestKey = "relaymodelstestkey"
 
+func TestElevenLabsRoutesAreRegisteredWithoutClaimingOpenAIAudio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetRelayRouter(engine)
+	routes := make(map[string]struct{})
+	for _, route := range engine.Routes() {
+		routes[route.Method+" "+route.Path] = struct{}{}
+	}
+	for _, route := range []string{
+		"POST /v1/audio/speech",
+		"POST /v1/audio/transcriptions",
+		"POST /v1/sound-generation",
+		"POST /v1/music/stream",
+		"POST /v1/speech-to-speech/*path",
+		"GET /elevenlabs/*path",
+		"POST /elevenlabs/*path",
+	} {
+		assert.Contains(t, routes, route)
+	}
+}
+
 func TestModelRoutesSupportOpenAIAndGeminiAuthentication(t *testing.T) {
 	setupRelayRouterTestDB(t)
 

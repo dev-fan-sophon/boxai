@@ -199,6 +199,36 @@ func TestPricingNativeChannelEndpointTypesUnchanged(t *testing.T) {
 	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeAnthropic, constant.EndpointTypeOpenAI}, byModel["claude-3-5-sonnet"])
 }
 
+func TestPricingElevenLabsPublishesFineGrainedAudioCapabilities(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	insertPricingEndpointChannel(t, 262, constant.ChannelTypeElevenLabs, dto.ChannelOtherSettings{})
+	want := map[string]constant.EndpointType{
+		"eleven_v3":                   constant.EndpointTypeAudioTTS,
+		"scribe_v2":                   constant.EndpointTypeAudioSTT,
+		"eleven_multilingual_sts_v2":  constant.EndpointTypeAudioSpeechToSpeech,
+		"eleven_text_to_sound_v2":     constant.EndpointTypeAudioSFX,
+		"music_v2":                    constant.EndpointTypeAudioMusic,
+		"elevenlabs-audio-isolation":  constant.EndpointTypeAudioIsolation,
+		"elevenlabs-forced-alignment": constant.EndpointTypeAudioAlignment,
+	}
+	for modelName := range want {
+		insertPricingEndpointAbility(t, 262, modelName)
+	}
+	byModel := pricingEndpointTypesByModel(t)
+	for modelName, endpoint := range want {
+		assert.Equal(t, []constant.EndpointType{endpoint}, byModel[modelName])
+		assert.NotContains(t, byModel[modelName], constant.EndpointTypeOpenAI)
+	}
+	pricingByModel := make(map[string]Pricing)
+	for _, pricing := range GetPricing() {
+		pricingByModel[pricing.ModelName] = pricing
+	}
+	for modelName := range want {
+		assert.Equal(t, "ElevenLabs.Avatar", pricingByModel[modelName].Icon)
+		assert.NotEmpty(t, pricingByModel[modelName].Description)
+	}
+}
+
 func TestIntegrationProfileRegistryContract(t *testing.T) {
 	seen := make(map[string]struct{})
 	profiles := GetIntegrationProfiles()

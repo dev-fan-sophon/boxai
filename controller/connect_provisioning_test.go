@@ -416,6 +416,20 @@ func TestChatModelAllowsAncillarySearchButStillRejectsNonChatEndpoints(t *testin
 	}))
 }
 
+func TestElevenLabsCapabilitiesAreNeverProjectedAsChat(t *testing.T) {
+	for _, endpoint := range []constant.EndpointType{
+		constant.EndpointTypeAudioTTS,
+		constant.EndpointTypeAudioSTT,
+		constant.EndpointTypeAudioSpeechToSpeech,
+		constant.EndpointTypeAudioSFX,
+		constant.EndpointTypeAudioMusic,
+		constant.EndpointTypeAudioIsolation,
+		constant.EndpointTypeAudioAlignment,
+	} {
+		assert.False(t, isChatModel([]constant.EndpointType{endpoint}), endpoint)
+	}
+}
+
 func TestResponsesNativeModelRejectsConvertedDualProtocolChannels(t *testing.T) {
 	assert.True(t, responsesNativeModel([]constant.EndpointType{
 		constant.EndpointTypeOpenAIResponse,

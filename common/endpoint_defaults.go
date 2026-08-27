@@ -26,6 +26,14 @@ var defaultEndpointInfoMap = map[constant.EndpointType]EndpointInfo{
 	constant.EndpointTypeJinaRerank:            {Path: "/v1/rerank", Method: "POST"},
 	constant.EndpointTypeImageGeneration:       {Path: "/v1/images/generations", Method: "POST"},
 	constant.EndpointTypeEmbeddings:            {Path: "/v1/embeddings", Method: "POST"},
+	constant.EndpointTypeAudio:                 {Path: "/v1/audio/speech", Method: "POST"},
+	constant.EndpointTypeAudioTTS:              {Path: "/v1/audio/speech", Method: "POST"},
+	constant.EndpointTypeAudioSTT:              {Path: "/v1/audio/transcriptions", Method: "POST"},
+	constant.EndpointTypeAudioSpeechToSpeech:   {Path: "/elevenlabs/v1/speech-to-speech/{voice_id}", Method: "POST"},
+	constant.EndpointTypeAudioSFX:              {Path: "/elevenlabs/v1/sound-generation", Method: "POST"},
+	constant.EndpointTypeAudioMusic:            {Path: "/elevenlabs/v1/music/stream", Method: "POST"},
+	constant.EndpointTypeAudioIsolation:        {Path: "/elevenlabs/v1/audio-isolation", Method: "POST"},
+	constant.EndpointTypeAudioAlignment:        {Path: "/elevenlabs/v1/forced-alignment", Method: "POST"},
 }
 
 // GetDefaultEndpointInfo 返回指定端点类型的默认信息以及是否存在

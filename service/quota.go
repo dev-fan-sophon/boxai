@@ -86,6 +86,36 @@ func calculateAudioQuota(info QuotaInfo) (int, *common.QuotaClamp) {
 	return common.QuotaFromDecimalChecked(quota)
 }
 
+// CalculateAudioQuotaForUsage returns the exact audio-path quota for pre-consume.
+// It shares the same calculation and saturation marker as PostAudioConsumeQuota,
+// so native audio providers cannot reserve one amount and settle another merely
+// because they do not use an OpenAI response envelope.
+func CalculateAudioQuotaForUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (int, error) {
+	if relayInfo == nil || usage == nil {
+		return 0, errors.New("audio billing requires relay info and usage")
+	}
+	quota, clamp := calculateAudioQuota(QuotaInfo{
+		InputDetails: TokenDetails{
+			TextTokens:  usage.PromptTokensDetails.TextTokens,
+			AudioTokens: usage.PromptTokensDetails.AudioTokens,
+		},
+		OutputDetails: TokenDetails{
+			TextTokens:  usage.CompletionTokenDetails.TextTokens,
+			AudioTokens: usage.CompletionTokenDetails.AudioTokens,
+		},
+		ModelName:  relayInfo.OriginModelName,
+		UsePrice:   relayInfo.PriceData.UsePrice,
+		ModelPrice: relayInfo.PriceData.ModelPrice,
+		ModelRatio: relayInfo.PriceData.ModelRatio,
+		GroupRatio: relayInfo.PriceData.GroupRatioInfo.GroupRatio,
+	})
+	noteQuotaClamp(relayInfo, clamp)
+	if clamp != nil {
+		return 0, clamp
+	}
+	return quota, nil
+}
+
 func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.RealtimeUsage) error {
 	if relayInfo.UsePrice {
 		return nil

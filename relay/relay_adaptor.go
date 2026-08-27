@@ -18,6 +18,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/relay/channel/coze"
 	"github.com/dev-fan-sophon/boxai/relay/channel/deepseek"
 	"github.com/dev-fan-sophon/boxai/relay/channel/dify"
+	"github.com/dev-fan-sophon/boxai/relay/channel/elevenlabs"
 	"github.com/dev-fan-sophon/boxai/relay/channel/gemini"
 	"github.com/dev-fan-sophon/boxai/relay/channel/jimeng"
 	"github.com/dev-fan-sophon/boxai/relay/channel/jina"
@@ -133,6 +134,8 @@ func GetAdaptor(apiType int) channel.Adaptor {
 		return &sub2api.Adaptor{}
 	case constant.APITypeNewAPI:
 		return &newapi.Adaptor{}
+	case constant.APITypeElevenLabs:
+		return &elevenlabs.Adaptor{}
 	}
 	return nil
 }
