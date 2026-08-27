@@ -60,6 +60,9 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 	if channelType == constant.ChannelTypeGemini && strings.Contains(strings.ToLower(modelName), "embedding") {
 		return []constant.EndpointType{constant.EndpointTypeEmbeddings, constant.EndpointTypeGeminiEmbedding}
 	}
+	if strings.Contains(strings.ToLower(modelName), "embedding") {
+		return []constant.EndpointType{constant.EndpointTypeEmbeddings}
+	}
 	if IsAudioModel(modelName) {
 		return []constant.EndpointType{constant.EndpointTypeAudio}
 	}

@@ -76,6 +76,12 @@ func TestSharedPricingEndpointCapabilitiesMatchRelaySurfaces(t *testing.T) {
 			want:        []constant.EndpointType{constant.EndpointTypeEmbeddings, constant.EndpointTypeGeminiEmbedding},
 		},
 		{
+			name:        "OpenAI embedding only exposes the embeddings endpoint",
+			channelType: constant.ChannelTypeOpenAI,
+			model:       "text-embedding-3-large",
+			want:        []constant.EndpointType{constant.EndpointTypeEmbeddings},
+		},
+		{
 			name:        "generic audio is not classified as chat",
 			channelType: constant.ChannelTypeOpenAI,
 			model:       "gpt-4o-mini-tts",
