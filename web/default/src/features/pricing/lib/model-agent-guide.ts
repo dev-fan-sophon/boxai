@@ -14,20 +14,66 @@ export type VerifiedModelIntegration = {
   profile: IntegrationProfile
 }
 
+export type ModelEndpointIntegration = {
+  endpointType: string
+  integration: ModelIntegration
+  profile?: IntegrationProfile
+}
+
+export function getModelEndpointIntegrations(
+  model: PricingModel,
+  integrationProfiles: IntegrationProfile[]
+): ModelEndpointIntegration[] {
+  const profilesByEndpoint = new Map(
+    integrationProfiles.map((profile) => [profile.endpoint_type, profile])
+  )
+  const assignmentsByProfile = new Map(
+    (model.integrations ?? []).map((integration) => [
+      integration.profile_id,
+      integration,
+    ])
+  )
+  const endpointTypes = [...new Set(model.supported_endpoint_types ?? [])]
+
+  if (endpointTypes.length === 0) {
+    return (model.integrations ?? [])
+      .filter(
+        (integration) =>
+          integration.verified && integration.source === 'explicit'
+      )
+      .flatMap((integration) => {
+        const profile = integrationProfiles.find(
+          (candidate) => candidate.id === integration.profile_id
+        )
+        return profile
+          ? [{ endpointType: profile.endpoint_type, integration, profile }]
+          : []
+      })
+  }
+
+  return endpointTypes.map((endpointType) => {
+    const profile = profilesByEndpoint.get(endpointType)
+    const integration =
+      (profile && assignmentsByProfile.get(profile.id)) ||
+      ({
+        profile_id: profile?.id ?? '',
+        groups: model.enable_groups ?? [],
+        verified: false,
+        source: 'inferred',
+      } satisfies ModelIntegration)
+    return { endpointType, integration, profile }
+  })
+}
+
 export function getVerifiedModelIntegrations(
   model: PricingModel,
   integrationProfiles: IntegrationProfile[]
 ): VerifiedModelIntegration[] {
-  return (model.integrations ?? [])
-    .filter(
-      (integration) => integration.verified && integration.source === 'explicit'
-    )
-    .flatMap((integration) => {
-      const profile = integrationProfiles.find(
-        (candidate) => candidate.id === integration.profile_id
-      )
+  return getModelEndpointIntegrations(model, integrationProfiles).flatMap(
+    ({ integration, profile }) => {
       return profile ? [{ integration, profile }] : []
-    })
+    }
+  )
 }
 
 export function resolveGatewayBaseUrl(
@@ -191,22 +237,22 @@ export function buildModelAgentGuide(props: {
   return [
     `# Use ${displayName || props.model.model_name} through BoxAI`,
     '',
-    'This is a self-contained integration guide for an AI coding Agent. Integrate the model into the current project using one of the verified profiles below.',
+    'This is a self-contained integration guide for an AI coding Agent. Integrate the model into the current project using one of the supported endpoint profiles below.',
     '',
     '## Required rules',
     '',
     `1. Send requests only to the BoxAI gateway at \`${gatewayBaseUrl}\`; do not replace it with an upstream provider host.`,
     `2. Use the exact model ID \`${props.model.model_name}\`; do not guess an alias or substitute another model.`,
     '3. Read the API key from the `BOXAI_API_KEY` environment variable or the project secret manager. Never hard-code, log, commit, or expose the key in browser code.',
-    '4. Prefer the existing SDK or HTTP client already used by the project. Match its configuration to a verified profile below.',
+    '4. Prefer the existing SDK or HTTP client already used by the project. Match its configuration to a supported profile below.',
     '5. If `BOXAI_API_KEY` is missing, ask the user to create or export one. Do not ask them to paste the secret into source code or chat.',
-    '6. Treat capabilities and modalities as model facts, not proof that an API route exists. Use only the explicitly verified operations and endpoints below.',
+    '6. Use only the endpoint operations listed below; do not substitute Chat Completions for another capability.',
     '',
     '## Model facts',
     '',
     ...modelFacts,
     '',
-    '## Verified integration profiles',
+    '## Supported integration profiles',
     '',
     ...integrationSections,
     '',

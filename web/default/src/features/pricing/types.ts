@@ -82,6 +82,7 @@ export type PricingModel = {
 
 export type IntegrationProfile = {
   id: string
+  endpoint_type: string
   protocol: string
   operation: string
   name_key: string
@@ -106,7 +107,14 @@ export type ModelIntegration = {
  * use: imported model metadata spells document input as `pdf`, while models
  * edited in the admin UI historically stored `file`.
  */
-export type Modality = 'text' | 'image' | 'audio' | 'video' | 'file' | 'pdf'
+export type Modality =
+  | 'text'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'file'
+  | 'pdf'
+  | 'embedding'
 
 /** Functional capabilities a model exposes. */
 export type ModelCapability =
@@ -122,6 +130,19 @@ export type ModelCapability =
   | 'code_interpreter'
   | 'caching'
   | 'embeddings'
+  | 'image_generation'
+  | 'image_editing'
+  | 'video_generation'
+  | 'image_to_video'
+  | 'native_audio'
+  | 'speech_synthesis'
+  | 'transcription'
+  | 'speech_to_speech'
+  | 'sound_generation'
+  | 'music_generation'
+  | 'audio_isolation'
+  | 'forced_alignment'
+  | 'timestamps'
 
 export type PricingData = {
   success: boolean

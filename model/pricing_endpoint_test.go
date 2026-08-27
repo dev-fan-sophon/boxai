@@ -348,6 +348,38 @@ func TestIntegrationProfileRegistryContract(t *testing.T) {
 	assert.Equal(t, "application/json", videoProfile.ContentType)
 }
 
+func TestEveryPublicEndpointCapabilityHasAnIntegrationProfile(t *testing.T) {
+	profiles := make(map[string]IntegrationProfile)
+	for _, profile := range GetIntegrationProfiles() {
+		profiles[profile.ID] = profile
+	}
+	want := []constant.EndpointType{
+		constant.EndpointTypeOpenAI,
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeAnthropic,
+		constant.EndpointTypeGemini,
+		constant.EndpointTypeGeminiEmbedding,
+		constant.EndpointTypeEmbeddings,
+		constant.EndpointTypeImageGeneration,
+		constant.EndpointTypeOpenAIVideo,
+		constant.EndpointTypeAudioTTS,
+		constant.EndpointTypeAudioSTT,
+		constant.EndpointTypeAudioSpeechToSpeech,
+		constant.EndpointTypeAudioSFX,
+		constant.EndpointTypeAudioMusic,
+		constant.EndpointTypeAudioIsolation,
+		constant.EndpointTypeAudioAlignment,
+	}
+	for _, endpointType := range want {
+		profileID := endpointProfileIDs[endpointType]
+		assert.NotEmpty(t, profileID, endpointType)
+		profile, ok := profiles[profileID]
+		if assert.True(t, ok, endpointType) {
+			assert.Equal(t, string(endpointType), profile.EndpointType)
+		}
+	}
+}
+
 func TestNormalizeModelIntegrationsRejectsUnknownAndCanonicalizesAssignments(t *testing.T) {
 	_, err := NormalizeModelIntegrations(`[{"profile_id":"unknown.operation","groups":["default"]}]`)
 	assert.ErrorContains(t, err, "unknown integration profile_id")

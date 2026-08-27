@@ -6,10 +6,9 @@ export function integrationPath(
   profile: IntegrationProfile,
   model: string
 ): string {
-  return profile.gateway_path_template.replace(
-    '{model}',
-    encodeURIComponent(model)
-  )
+  return profile.gateway_path_template
+    .replaceAll('{model}', encodeURIComponent(model))
+    .replaceAll('{voice_id}', 'VOICE_ID')
 }
 
 function requestPayload(
@@ -18,8 +17,12 @@ function requestPayload(
   baseUrl: string
 ): Record<string, unknown> {
   switch (kind) {
+    case 'openai_chat':
+      return { model, messages: [{ role: 'user', content: 'Hello' }] }
     case 'gemini_generate_content':
       return { contents: [{ parts: [{ text: 'Hello' }] }] }
+    case 'gemini_embeddings':
+      return { content: { parts: [{ text: 'Hello' }] } }
     case 'jina_rerank':
       return {
         model,
@@ -37,6 +40,8 @@ function requestPayload(
     case 'openai_responses':
     case 'openai_responses_compact':
       return { model, input: 'Hello' }
+    case 'openai_alpha_search':
+      return { model, input: 'Find the most relevant answer to this query.' }
     case 'openai_images':
       return { model, prompt: 'A calm mountain lake' }
     case 'openai_video': {
@@ -54,8 +59,22 @@ function requestPayload(
     }
     case 'openai_audio_speech':
       return { model, voice: 'alloy', input: 'Hello' }
+    case 'elevenlabs_audio_tts':
+      return { model, voice: 'VOICE_ID', input: 'Hello from BoxAI' }
+    case 'elevenlabs_audio_sfx':
+      return {
+        model_id: model,
+        text: 'A cinematic transition with a soft impact',
+        duration_seconds: 5,
+      }
+    case 'elevenlabs_audio_music':
+      return {
+        model_id: model,
+        prompt: 'A warm ambient instrumental with a gentle pulse',
+        music_length_ms: 30_000,
+      }
     default:
-      return { model, messages: [{ role: 'user', content: 'Hello' }] }
+      throw new Error(`Unsupported integration sample kind: ${kind}`)
   }
 }
 
@@ -75,22 +94,41 @@ function multipartSample(
   language: SampleLanguage,
   url: string
 ): string {
-  const isTranscription = profile.sample_kind === 'openai_audio_transcriptions'
-  const filename = isTranscription ? 'audio.mp3' : 'reference.png'
-  const fileField = isTranscription ? 'file' : 'input_reference'
-  const extraField = isTranscription
-    ? ''
-    : "\n  'prompt': 'A paper plane in flight',"
+  const kind = profile.sample_kind
+  const filename = 'audio.mp3'
+  let fileField = 'file'
+  const fields: Record<string, string> = {}
+  switch (kind) {
+    case 'openai_audio_transcriptions':
+    case 'elevenlabs_audio_stt':
+      fields.model = model
+      break
+    case 'elevenlabs_audio_sts':
+    case 'elevenlabs_audio_isolation':
+      fileField = 'audio'
+      fields.model_id = model
+      break
+    case 'elevenlabs_audio_alignment':
+      fields.model_id = model
+      fields.text = 'Hello from BoxAI'
+      break
+    default:
+      throw new Error(`Unsupported multipart sample kind: ${kind}`)
+  }
   if (language === 'curl') {
-    const prompt = isTranscription
-      ? ''
-      : " \\\n  -F 'prompt=A paper plane in flight'"
+    const fieldFlags = Object.entries(fields)
+      .map(([name, value]) => ` \\\n  -F ${JSON.stringify(`${name}=${value}`)}`)
+      .join('')
     return `curl -X ${profile.method} ${JSON.stringify(url)} \\
   -H "Authorization: Bearer $BOXAI_API_KEY" \\
-  -F ${JSON.stringify(`${fileField}=@${filename}`)} \\
-  -F ${JSON.stringify(`model=${model}`)}${prompt}`
+  -F ${JSON.stringify(`${fileField}=@${filename}`)}${fieldFlags}`
   }
   if (language === 'python') {
+    const pythonFields = Object.entries(fields)
+      .map(
+        ([name, value]) => `${JSON.stringify(name)}: ${JSON.stringify(value)}`
+      )
+      .join(', ')
     return `import os
 import requests
 
@@ -99,25 +137,45 @@ with open(${JSON.stringify(filename)}, 'rb') as media:
         ${JSON.stringify(url)},
         headers={'Authorization': f"Bearer {os.environ['BOXAI_API_KEY']}"},
         files={${JSON.stringify(fileField)}: media},
-        data={'model': ${JSON.stringify(model)},${extraField}
-        },
+        data={${pythonFields}},
     )
 response.raise_for_status()
-${profile.sample_kind === 'openai_audio_speech' ? 'audio = response.content' : 'print(response.json())'}`
+${isBinarySample(kind) ? "open('output.mp3', 'wb').write(response.content)" : 'print(response.json())'}`
   }
+  const formFields = Object.entries(fields)
+    .map(
+      ([name, value]) =>
+        `form.append(${JSON.stringify(name)}, ${JSON.stringify(value)})`
+    )
+    .join('\n')
+  const responseHandling = isBinarySample(kind)
+    ? `const { writeFile } = await import('node:fs/promises')
+await writeFile('output.mp3', Buffer.from(await response.arrayBuffer()))`
+    : 'console.log(await response.json())'
   return `import { openAsBlob } from 'node:fs'
 
 const file = await openAsBlob(${JSON.stringify(filename)})
 const form = new FormData()
 form.append(${JSON.stringify(fileField)}, file, ${JSON.stringify(filename)})
-form.append('model', ${JSON.stringify(model)})${isTranscription ? '' : "\nform.append('prompt', 'A paper plane in flight')"}
+${formFields}
 
 const response = await fetch(${JSON.stringify(url)}, {
   method: ${JSON.stringify(profile.method)},
   headers: { Authorization: 'Bearer ' + process.env.BOXAI_API_KEY },
   body: form, // Do not set Content-Type; the runtime adds the multipart boundary.
 })
-console.log(await response.json())`
+${responseHandling}`
+}
+
+function isBinarySample(kind: string): boolean {
+  return [
+    'openai_audio_speech',
+    'elevenlabs_audio_tts',
+    'elevenlabs_audio_sts',
+    'elevenlabs_audio_sfx',
+    'elevenlabs_audio_music',
+    'elevenlabs_audio_isolation',
+  ].includes(kind)
 }
 
 function realtimeSample(language: SampleLanguage, url: string): string {
@@ -163,7 +221,15 @@ export function buildIntegrationSample(
   baseUrl = ''
 ): string {
   const url = `${baseUrl.replace(/\/$/, '')}${integrationPath(profile, model)}`
-  if (profile.sample_kind === 'openai_audio_transcriptions') {
+  if (
+    [
+      'openai_audio_transcriptions',
+      'elevenlabs_audio_stt',
+      'elevenlabs_audio_sts',
+      'elevenlabs_audio_isolation',
+      'elevenlabs_audio_alignment',
+    ].includes(profile.sample_kind)
+  ) {
     return multipartSample(profile, model, language, url)
   }
   if (profile.sample_kind === 'openai_realtime') {
@@ -187,10 +253,9 @@ export function buildIntegrationSample(
     const headerFlags = Object.entries(headers)
       .map(([name, value]) => `  -H ${JSON.stringify(`${name}: ${value}`)} \\`)
       .join('\n')
-    const output =
-      profile.sample_kind === 'openai_audio_speech'
-        ? ' \\\n  --output speech.mp3'
-        : ''
+    const output = isBinarySample(profile.sample_kind)
+      ? ' \\\n  --output speech.mp3'
+      : ''
     return `curl -X ${profile.method} ${JSON.stringify(url)} \\
 ${headerFlags}
   -d '${JSON.stringify(payload, null, 2)}'${output}`
@@ -200,11 +265,10 @@ ${headerFlags}
       profile.auth_scheme === 'x-api-key'
         ? `{'x-api-key': os.environ['BOXAI_API_KEY'], 'anthropic-version': '2023-06-01', 'Content-Type': ${JSON.stringify(contentType)}}`
         : `{'Authorization': f"Bearer {os.environ['BOXAI_API_KEY']}", 'Content-Type': ${JSON.stringify(contentType)}}`
-    const pythonResult =
-      profile.sample_kind === 'openai_audio_speech'
-        ? `from pathlib import Path
+    const pythonResult = isBinarySample(profile.sample_kind)
+      ? `from pathlib import Path
 Path('speech.mp3').write_bytes(response.content)`
-        : 'print(response.json())'
+      : 'print(response.json())'
     return `import os
 import requests
 
@@ -225,11 +289,10 @@ ${pythonResult}`
     }
     return `    ${JSON.stringify(name)}: ${expression},`
   })
-  const responseHandling =
-    profile.sample_kind === 'openai_audio_speech'
-      ? `const { writeFile } = await import('node:fs/promises')
+  const responseHandling = isBinarySample(profile.sample_kind)
+    ? `const { writeFile } = await import('node:fs/promises')
 await writeFile('speech.mp3', Buffer.from(await response.arrayBuffer()))`
-      : 'console.log(await response.json())'
+    : 'console.log(await response.json())'
   return `const response = await fetch(${JSON.stringify(url)}, {
   method: ${JSON.stringify(profile.method)},
   headers: {

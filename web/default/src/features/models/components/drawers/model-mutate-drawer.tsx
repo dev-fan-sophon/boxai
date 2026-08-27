@@ -71,6 +71,7 @@ const MODALITIES: Modality[] = [
   'video',
   'pdf',
   'file',
+  'embedding',
 ]
 const MODALITY_LABELS: Record<Modality, string> = {
   text: 'Text',
@@ -79,6 +80,7 @@ const MODALITY_LABELS: Record<Modality, string> = {
   video: 'Video',
   pdf: 'PDF',
   file: 'File',
+  embedding: 'Embedding',
 }
 const CAPABILITIES: ModelCapability[] = [
   'function_calling',
@@ -93,6 +95,19 @@ const CAPABILITIES: ModelCapability[] = [
   'code_interpreter',
   'caching',
   'embeddings',
+  'image_generation',
+  'image_editing',
+  'video_generation',
+  'image_to_video',
+  'native_audio',
+  'speech_synthesis',
+  'transcription',
+  'speech_to_speech',
+  'sound_generation',
+  'music_generation',
+  'audio_isolation',
+  'forced_alignment',
+  'timestamps',
 ]
 const CAPABILITY_LABELS: Record<ModelCapability, string> = {
   function_calling: 'Function calling',
@@ -107,6 +122,19 @@ const CAPABILITY_LABELS: Record<ModelCapability, string> = {
   code_interpreter: 'Code interpreter',
   caching: 'Cache',
   embeddings: 'Embeddings',
+  image_generation: 'Image generation',
+  image_editing: 'Image editing',
+  video_generation: 'Video generation',
+  image_to_video: 'Image to video',
+  native_audio: 'Native audio',
+  speech_synthesis: 'Speech synthesis',
+  transcription: 'Transcription',
+  speech_to_speech: 'Speech to speech',
+  sound_generation: 'Sound generation',
+  music_generation: 'Music generation',
+  audio_isolation: 'Audio isolation',
+  forced_alignment: 'Forced alignment',
+  timestamps: 'Timestamps',
 }
 const REASONING_EFFORTS = [
   'none',

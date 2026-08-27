@@ -95,6 +95,19 @@ const CAPABILITY_LABEL_KEYS: Record<ModelCapability, string> = {
   code_interpreter: 'Code interpreter',
   caching: 'Prompt caching',
   embeddings: 'Embeddings',
+  image_generation: 'Image generation',
+  image_editing: 'Image editing',
+  video_generation: 'Video generation',
+  image_to_video: 'Image to video',
+  native_audio: 'Native audio',
+  speech_synthesis: 'Speech synthesis',
+  transcription: 'Transcription',
+  speech_to_speech: 'Speech to speech',
+  sound_generation: 'Sound generation',
+  music_generation: 'Music generation',
+  audio_isolation: 'Audio isolation',
+  forced_alignment: 'Forced alignment',
+  timestamps: 'Timestamps',
 }
 
 const MODALITY_LABEL_KEYS: Record<string, string> = {
@@ -103,6 +116,7 @@ const MODALITY_LABEL_KEYS: Record<string, string> = {
   audio: 'Audio',
   video: 'Video',
   file: 'File',
+  embedding: 'Embedding',
 }
 
 const TOKEN_FORMAT = new Intl.NumberFormat(undefined, {
@@ -1204,6 +1218,7 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
         <TabsContent value='integration' className='outline-none'>
           <ModelDetailsApi
             model={props.model}
+            endpointMap={props.endpointMap}
             integrationProfiles={props.integrationProfiles}
           />
         </TabsContent>

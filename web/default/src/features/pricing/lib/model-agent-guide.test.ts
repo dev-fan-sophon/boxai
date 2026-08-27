@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { IntegrationProfile, PricingModel } from '../types'
 import {
   buildModelAgentGuide,
+  getModelEndpointIntegrations,
   getVerifiedModelIntegrations,
   resolveGatewayBaseUrl,
 } from './model-agent-guide'
@@ -10,6 +11,7 @@ import {
 const profiles: IntegrationProfile[] = [
   {
     id: 'openai-chat',
+    endpoint_type: 'openai',
     protocol: 'OpenAI-compatible',
     operation: 'chat',
     name_key: 'OpenAI Chat Completions',
@@ -23,6 +25,7 @@ const profiles: IntegrationProfile[] = [
   },
   {
     id: 'claude-messages',
+    endpoint_type: 'anthropic',
     protocol: 'Claude-compatible',
     operation: 'messages',
     name_key: 'Claude Messages',
@@ -36,6 +39,7 @@ const profiles: IntegrationProfile[] = [
   },
   {
     id: 'unverified',
+    endpoint_type: 'unverified',
     protocol: 'Unverified',
     operation: 'chat',
     name_key: 'Unverified profile',
@@ -49,6 +53,7 @@ const profiles: IntegrationProfile[] = [
   },
   {
     id: 'openai-video',
+    endpoint_type: 'openai-video',
     protocol: 'OpenAI-compatible',
     operation: 'video_create',
     name_key: 'OpenAI Video',
@@ -141,6 +146,43 @@ describe('model Agent guide', () => {
 
   it('joins only verified explicit profiles that exist in the catalog', () => {
     expect(getVerifiedModelIntegrations(model, profiles)).toHaveLength(2)
+  })
+
+  it('derives integration guides from supported endpoint capabilities', () => {
+    expect(
+      getVerifiedModelIntegrations(
+        {
+          ...model,
+          supported_endpoint_types: ['openai', 'anthropic'],
+          integrations: [],
+        },
+        profiles.slice(0, 2)
+      )
+    ).toHaveLength(2)
+  })
+
+  it('marks an unknown supported endpoint unavailable without a Chat fallback', () => {
+    const integrations = getModelEndpointIntegrations(
+      {
+        ...model,
+        supported_endpoint_types: ['future-protocol'],
+        integrations: [],
+      },
+      profiles
+    )
+    expect(integrations).toHaveLength(1)
+    expect(integrations[0].endpointType).toBe('future-protocol')
+    expect(integrations[0].profile).toBeUndefined()
+    expect(
+      getVerifiedModelIntegrations(
+        {
+          ...model,
+          supported_endpoint_types: ['future-protocol'],
+          integrations: [],
+        },
+        profiles
+      )
+    ).toEqual([])
   })
 
   it('documents the complete asynchronous workflow for image-required video', () => {

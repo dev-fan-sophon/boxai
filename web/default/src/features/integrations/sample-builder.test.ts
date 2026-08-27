@@ -12,6 +12,7 @@ function profile(
 ): IntegrationProfile {
   return {
     id: sampleKind,
+    endpoint_type: sampleKind,
     protocol: 'test',
     operation: sampleKind,
     name_key: sampleKind,
@@ -196,6 +197,77 @@ describe('buildIntegrationSample', () => {
     expect(javascript).toContain('response.arrayBuffer()')
     expect(javascript).toContain("writeFile('speech.mp3'")
     expect(javascript).not.toContain('response.json()')
+  })
+
+  it('builds operation-specific ElevenLabs JSON and multipart samples', () => {
+    const cases = [
+      ['elevenlabs_audio_tts', '/v1/audio/speech', '"input"', '"messages"'],
+      [
+        'elevenlabs_audio_sfx',
+        '/elevenlabs/v1/sound-generation',
+        '"text"',
+        '"messages"',
+      ],
+      [
+        'elevenlabs_audio_music',
+        '/elevenlabs/v1/music/stream',
+        '"music_length_ms"',
+        '"messages"',
+      ],
+    ] as const
+    for (const [kind, path, expected, rejected] of cases) {
+      const sample = buildIntegrationSample(
+        profile(kind, path),
+        'eleven-model',
+        'curl',
+        gateway
+      )
+      expect(sample).toContain(expected)
+      expect(sample).not.toContain(rejected)
+    }
+
+    const multipartCases = [
+      [
+        'elevenlabs_audio_sts',
+        '/elevenlabs/v1/speech-to-speech/{voice_id}',
+        '"audio"',
+        'audio.mp3',
+      ],
+      [
+        'elevenlabs_audio_isolation',
+        '/elevenlabs/v1/audio-isolation',
+        '"audio"',
+        'audio.mp3',
+      ],
+      [
+        'elevenlabs_audio_alignment',
+        '/elevenlabs/v1/forced-alignment',
+        '"file"',
+        'audio.mp3',
+      ],
+    ] as const
+    for (const [kind, path, field, filename] of multipartCases) {
+      const sample = buildIntegrationSample(
+        profile(kind, path, 'bearer', 'multipart/form-data'),
+        'eleven-model',
+        'javascript',
+        gateway
+      )
+      expect(sample).toContain(`form.append(${field}`)
+      expect(sample).toContain(filename)
+      expect(sample).not.toContain('"messages"')
+    }
+  })
+
+  it('rejects unknown sample kinds instead of silently generating Chat', () => {
+    expect(() =>
+      buildIntegrationSample(
+        profile('unknown_endpoint', '/v1/unknown'),
+        'model',
+        'curl',
+        gateway
+      )
+    ).toThrow('Unsupported integration sample kind')
   })
 
   it('uses a WebSocket URL and handshake guidance for realtime', () => {
