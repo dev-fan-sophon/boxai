@@ -63,6 +63,7 @@ import {
   ADD_MODE_OPTIONS,
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_OPTIONS,
+  ELEVENLABS_DEFAULT_MODELS,
   ERROR_MESSAGES,
   MODEL_FETCHABLE_TYPES,
 } from '../../constants'
@@ -840,6 +841,15 @@ export function ChannelMutateDrawer({
       const currentBaseUrlValue = form.getValues('base_url')
       if (!currentBaseUrlValue || currentBaseUrlValue === '') {
         form.setValue('base_url', 'https://ark.cn-beijing.volces.com')
+      }
+    }
+
+    if (currentType === 62) {
+      if (!form.getValues('base_url')) {
+        form.setValue('base_url', 'https://api.elevenlabs.io')
+      }
+      if (!form.getValues('models')) {
+        form.setValue('models', ELEVENLABS_DEFAULT_MODELS.join(','))
       }
     }
 

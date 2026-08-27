@@ -1,4 +1,4 @@
-import { CHANNEL_TYPES } from '../constants'
+import { CHANNEL_TYPES, ELEVENLABS_DEFAULT_MODELS } from '../constants'
 
 // ============================================================================
 // Channel Type Configuration
@@ -154,6 +154,22 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       baseUrl: 'Required Codex Proxy upstream URL without /v1',
       key: 'API key issued by the Codex Proxy upstream',
       models: 'Supported and priced models discovered from the upstream',
+    },
+  },
+  62: {
+    id: 62,
+    name: CHANNEL_TYPES[62],
+    icon: 'ElevenLabs',
+    defaultBaseUrl: 'https://api.elevenlabs.io',
+    supportedModels: [...ELEVENLABS_DEFAULT_MODELS],
+    hints: {
+      baseUrl: 'Default: https://api.elevenlabs.io',
+      key: 'ElevenLabs xi-api-key',
+      models:
+        'eleven_v3,scribe_v2,eleven_multilingual_sts_v2,eleven_text_to_sound_v2,music_v2,elevenlabs-audio-isolation,elevenlabs-forced-alignment',
+    },
+    validation: {
+      keyMinLength: 20,
     },
   },
 }

@@ -79,6 +79,7 @@ export function ChannelCredentialsSection(
   const currentType = props.currentType
   const isGatewayChannel = currentType === 59 || currentType === 60
   const isCodexProxy = currentType === 61
+  const isElevenLabs = currentType === 62
 
   return (
     <ChannelApiAccessSection>
@@ -153,6 +154,38 @@ export function ChannelCredentialsSection(
             <p className='text-muted-foreground text-xs'>
               {t(
                 'Only upstream-discovered, priced models should be published. Compact, audio, video, and realtime are not supported.'
+              )}
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isElevenLabs && (
+        <Alert>
+          <AlertDescription className='space-y-3'>
+            <p>
+              {t(
+                'Uses the official ElevenLabs API for speech, sound effects, music, isolation, and forced alignment. Authentication, billing, and logs remain enforced by BoxAI.'
+              )}
+            </p>
+            <div className='flex flex-wrap gap-2'>
+              {[
+                'TTS',
+                'STT',
+                'Speech-to-speech',
+                'SFX',
+                'Music',
+                'Audio isolation',
+                'Forced alignment',
+              ].map((capability) => (
+                <Badge key={capability} variant='secondary'>
+                  {t(capability)}
+                </Badge>
+              ))}
+            </div>
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'OpenAI-compatible speech and transcription routes are supported. Native routes use the /elevenlabs prefix and an explicit allowlist.'
               )}
             </p>
           </AlertDescription>
@@ -934,6 +967,10 @@ export function ChannelCredentialsSection(
                 } else if (currentType === 60) {
                   keyDescription = t(
                     'Use an API key created in the upstream New API deployment.'
+                  )
+                } else if (isElevenLabs) {
+                  keyDescription = t(
+                    'Use a dedicated ElevenLabs xi-api-key. BoxAI never exposes this provider credential to clients.'
                   )
                 }
                 return (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MODEL_FETCHABLE_TYPES } from '../constants'
+import { ELEVENLABS_DEFAULT_MODELS, MODEL_FETCHABLE_TYPES } from '../constants'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   channelFormSchema,
@@ -63,6 +63,19 @@ describe('Codex Proxy channel form', () => {
       id: 61,
       name: 'Codex Proxy',
       icon: 'openai',
+    })
+  })
+})
+
+describe('ElevenLabs channel form', () => {
+  it('exposes the official provider metadata and exactly seven audio models', () => {
+    expect(MODEL_FETCHABLE_TYPES.has(62)).toBe(true)
+    expect(getChannelTypeConfig(62)).toMatchObject({
+      id: 62,
+      name: 'ElevenLabs',
+      icon: 'ElevenLabs',
+      defaultBaseUrl: 'https://api.elevenlabs.io',
+      supportedModels: ELEVENLABS_DEFAULT_MODELS,
     })
   })
 })

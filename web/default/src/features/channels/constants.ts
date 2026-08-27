@@ -62,12 +62,13 @@ export const CHANNEL_TYPES = {
   59: 'Sub2API',
   60: 'New API',
   61: 'Codex Proxy',
+  62: 'ElevenLabs',
 } as const
 
 const CHANNEL_TYPE_DISPLAY_ORDER: number[] = [
-  1, 61, 14, 33, 24, 43, 3, 41, 48, 58, 59, 60, 42, 34, 20, 4, 40, 27, 25, 17,
-  26, 15, 46, 23, 18, 45, 31, 35, 49, 19, 47, 37, 38, 39, 11, 8, 57, 22, 21, 44,
-  2, 5, 36, 50, 51, 52, 53, 54, 55, 56,
+  1, 61, 62, 14, 33, 24, 43, 3, 41, 48, 58, 59, 60, 42, 34, 20, 4, 40, 27, 25,
+  17, 26, 15, 46, 23, 18, 45, 31, 35, 49, 19, 47, 37, 38, 39, 11, 8, 57, 22, 21,
+  44, 2, 5, 36, 50, 51, 52, 53, 54, 55, 56,
 ]
 
 export const CHANNEL_TYPE_OPTIONS: { value: number; label: string }[] = (() => {
@@ -266,6 +267,16 @@ export const DEFAULT_CHANNEL_VALUES = {
   remark: '',
 } as const
 
+export const ELEVENLABS_DEFAULT_MODELS = [
+  'eleven_v3',
+  'scribe_v2',
+  'eleven_multilingual_sts_v2',
+  'eleven_text_to_sound_v2',
+  'music_v2',
+  'elevenlabs-audio-isolation',
+  'elevenlabs-forced-alignment',
+] as const
+
 // ============================================================================
 // Table Configuration
 // ============================================================================
@@ -363,7 +374,7 @@ export const FIELD_DESCRIPTIONS = {
 
 export const MODEL_FETCHABLE_TYPES = new Set([
   1, 4, 14, 17, 20, 23, 24, 25, 26, 27, 31, 34, 35, 40, 42, 43, 47, 48, 57, 58,
-  59, 60, 61,
+  59, 60, 61, 62,
 ])
 
 export const TYPE_TO_KEY_PROMPT: Record<number, string> = {
@@ -378,10 +389,12 @@ export const TYPE_TO_KEY_PROMPT: Record<number, string> = {
   59: 'Enter API key for this channel',
   60: 'Enter API key for this channel',
   61: 'Enter API key for this channel',
+  62: 'Format: xi-api-key from ElevenLabs',
 }
 
 export const CHANNEL_TYPE_WARNINGS: Record<number, string> = {
   3: 'For channels added after May 10, 2025, no need to remove "." from model names during deployment',
   8: 'If connecting to upstream One API or New API relay projects, use OpenAI type instead unless you know what you are doing',
   37: 'Dify channels only support chatflow and agent, and agent does not support images',
+  62: 'ElevenLabs native API is exposed under /elevenlabs/v1 and /elevenlabs/v2 through an explicit endpoint allowlist.',
 }
