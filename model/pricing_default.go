@@ -162,13 +162,25 @@ func initDefaultVendorMapping(metaMap map[string]*Model, vendorMap map[int]*Vend
 				meta = &copy
 				meta.ModelName = modelName
 			}
-			meta.Description = metadata.Description
-			meta.Tags = metadata.Tags
-			meta.Icon = metadata.Icon
+			if strings.TrimSpace(meta.Description) == "" {
+				meta.Description = metadata.Description
+			}
+			if strings.TrimSpace(meta.Tags) == "" {
+				meta.Tags = metadata.Tags
+			}
+			if strings.TrimSpace(meta.Icon) == "" {
+				meta.Icon = metadata.Icon
+			}
 			meta.VendorID = getOrCreateVendor(metadata.Vendor, vendorMap)
-			meta.InputModalities = marshalCatalogStrings(metadata.InputModalities)
-			meta.OutputModalities = marshalCatalogStrings(metadata.OutputModalities)
-			meta.Capabilities = marshalCatalogStrings(metadata.Capabilities)
+			if catalogMetadataFieldMissing(meta.InputModalities) {
+				meta.InputModalities = marshalCatalogStrings(metadata.InputModalities)
+			}
+			if catalogMetadataFieldMissing(meta.OutputModalities) {
+				meta.OutputModalities = marshalCatalogStrings(metadata.OutputModalities)
+			}
+			if catalogMetadataFieldMissing(meta.Capabilities) {
+				meta.Capabilities = marshalCatalogStrings(metadata.Capabilities)
+			}
 			metaMap[modelName] = meta
 			continue
 		}
@@ -185,6 +197,15 @@ func initDefaultVendorMapping(metaMap map[string]*Model, vendorMap map[int]*Vend
 			}
 		}
 		metaMap[modelName] = &Model{ModelName: modelName, VendorID: vendorID, Status: 1, NameRule: NameRuleExact}
+	}
+}
+
+func catalogMetadataFieldMissing(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "", "[]", "null":
+		return true
+	default:
+		return false
 	}
 }
 
