@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
-import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -11,7 +9,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { getUserGroups } from '@/lib/api'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
 
 import { API_KEY_STATUSES } from '../constants'
@@ -40,25 +37,10 @@ export function ApiKeyDetailsSheet(props: {
 }) {
   const { t } = useTranslation()
   const apiKey = props.apiKey
-  const { data: groupRatios = {} } = useQuery({
-    queryKey: ['user-groups'],
-    queryFn: getUserGroups,
-    staleTime: 60_000,
-    select: (res) => {
-      if (!res.success || !res.data) return {} as Record<string, number>
-      const ratios: Record<string, number> = {}
-      for (const [group, info] of Object.entries(res.data)) {
-        if (typeof info.ratio === 'number') ratios[group] = info.ratio
-      }
-      return ratios
-    },
-  })
 
   if (!apiKey) return null
 
   const statusConfig = API_KEY_STATUSES[apiKey.status]
-  const group = apiKey.group
-  const ratio = group && group !== 'auto' ? groupRatios[group] : undefined
   const total = apiKey.used_quota + apiKey.remain_quota
 
   return (
@@ -110,14 +92,6 @@ export function ApiKeyDetailsSheet(props: {
                     {t('Used:')} {formatQuota(apiKey.used_quota)}
                   </div>
                 </div>
-              )}
-            </DetailRow>
-
-            <DetailRow label={t('Channel group')}>
-              {group === 'auto' ? (
-                <GroupBadge group='auto' />
-              ) : (
-                <GroupBadge group={group} ratio={ratio} />
               )}
             </DetailRow>
 

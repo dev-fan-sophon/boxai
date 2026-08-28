@@ -12,37 +12,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTokenAutoGroupsContext() *gin.Context {
+func newInheritedTokenRoutingContext() *gin.Context {
 	gin.SetMode(gin.TestMode)
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	return ctx
 }
 
-func TestSetupContextForTokenPreservesCustomAutoGroupsOrder(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `["vip","default"]`}
+func TestTokenRoutingAlwaysInheritsCurrentUserGroup(t *testing.T) {
+	ctx := newInheritedTokenRoutingContext()
+	token := &model.Token{
+		Id:              1,
+		UserId:          2,
+		Group:           "legacy-pinned-group",
+		CrossGroupRetry: true,
+		AutoGroups:      `["vip","default"]`,
+	}
 
 	require.NoError(t, SetupContextForToken(ctx, token))
-	value, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	require.True(t, ok)
-	assert.Equal(t, []string{"vip", "default"}, value)
-}
+	setupInheritedTokenRouting(ctx, "payg")
+	assert.Equal(t, "", common.GetContextKeyString(ctx, constant.ContextKeyTokenGroup))
+	assert.False(t, common.GetContextKeyBool(ctx, constant.ContextKeyTokenCrossGroupRetry))
+	assert.Equal(t, "payg", common.GetContextKeyString(ctx, constant.ContextKeyUserGroup))
+	assert.Equal(t, "payg", common.GetContextKeyString(ctx, constant.ContextKeyUsingGroup))
+	_, hasAutoGroups := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
+	assert.False(t, hasAutoGroups)
 
-func TestSetupContextForTokenTreatsStoredEmptyArrayAsInheritance(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `[]`}
-
-	require.NoError(t, SetupContextForToken(ctx, token))
-	_, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	assert.False(t, ok)
-}
-
-func TestSetupContextForTokenMalformedAutoGroupsFailsClosed(t *testing.T) {
-	ctx := newTokenAutoGroupsContext()
-	token := &model.Token{Id: 1, UserId: 2, AutoGroups: `not-json`}
-
-	require.NoError(t, SetupContextForToken(ctx, token))
-	value, ok := common.GetContextKey(ctx, constant.ContextKeyTokenAutoGroups)
-	require.True(t, ok)
-	assert.Equal(t, []string{}, value)
+	setupInheritedTokenRouting(ctx, "subscription-pro")
+	assert.Equal(t, "subscription-pro", common.GetContextKeyString(ctx, constant.ContextKeyUserGroup))
+	assert.Equal(t, "subscription-pro", common.GetContextKeyString(ctx, constant.ContextKeyUsingGroup))
 }

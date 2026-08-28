@@ -16,6 +16,8 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -509,6 +511,10 @@ func TestGetTokenMasksKeyInResponse(t *testing.T) {
 func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	token := seedToken(t, db, 1, "editable-token", "yzab1234cdef5678")
+	token.Group = "legacy-group"
+	token.CrossGroupRetry = true
+	require.NoError(t, token.SetAutoGroups([]string{"vip", "default"}))
+	require.NoError(t, db.Save(token).Error)
 
 	body := map[string]any{
 		"id":                   token.Id,
@@ -518,8 +524,9 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 		"unlimited_quota":      true,
 		"model_limits_enabled": false,
 		"model_limits":         "",
-		"group":                "default",
-		"cross_group_retry":    false,
+		"group":                "attacker-selected-group",
+		"cross_group_retry":    true,
+		"auto_groups":          []string{"attacker-selected-group"},
 	}
 
 	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
@@ -540,6 +547,39 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), token.Key) {
 		t.Fatalf("update response leaked raw token key: %s", recorder.Body.String())
 	}
+
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	assert.Empty(t, updated.Group)
+	assert.False(t, updated.CrossGroupRetry)
+	assert.Empty(t, updated.AutoGroups)
+}
+
+func TestAddTokenIgnoresClientRoutingOverrides(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "inherited-routing-token",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "attacker-selected-group",
+		"cross_group_retry":    true,
+		"auto_groups":          []string{"attacker-selected-group"},
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+
+	var created model.Token
+	require.NoError(t, db.Where("user_id = ? AND name = ?", 1, "inherited-routing-token").First(&created).Error)
+	assert.Empty(t, created.Group)
+	assert.False(t, created.CrossGroupRetry)
+	assert.Empty(t, created.AutoGroups)
 }
 
 func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {

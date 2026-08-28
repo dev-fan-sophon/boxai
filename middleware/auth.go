@@ -15,7 +15,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/service/authz"
-	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-contrib/sessions"
@@ -521,28 +520,12 @@ func TokenAuth() func(c *gin.Context) {
 		userCache.WriteContext(c)
 
 		userGroup := userCache.Group
-		tokenGroup := token.Group
-		if tokenGroup != "" {
-			// check common.UserUsableGroups[userGroup]
-			if _, ok := service.GetUserUsableGroups(userGroup)[tokenGroup]; !ok {
-				abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("无权访问 %s 分组", tokenGroup))
-				return
-			}
-			// check group in common.GroupRatio
-			if !ratio_setting.ContainsGroupRatio(tokenGroup) {
-				if tokenGroup != "auto" {
-					abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("分组 %s 已被弃用", tokenGroup))
-					return
-				}
-			}
-			userGroup = tokenGroup
-		}
-		common.SetContextKey(c, constant.ContextKeyUsingGroup, userGroup)
 
 		err = SetupContextForToken(c, token, parts...)
 		if err != nil {
 			return
 		}
+		setupInheritedTokenRouting(c, userGroup)
 		c.Next()
 	}
 }
@@ -597,44 +580,22 @@ func connectorAuth(allowLegacySource bool) func(c *gin.Context) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
-		usingGroup := user.Group
-		if token.Group != "" {
-			if _, ok := service.GetUserUsableGroups(user.Group)[token.Group]; !ok ||
-				(token.Group != "auto" && !ratio_setting.ContainsGroupRatio(token.Group)) {
-				c.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-			usingGroup = token.Group
-		}
-
 		c.Set("id", token.UserId)
 		c.Set("token_id", token.Id)
 		c.Set("token_model_limit_enabled", token.ModelLimitsEnabled)
 		if token.ModelLimitsEnabled {
 			c.Set("token_model_limit", token.GetModelLimitsMap())
 		}
-		common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
-		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
-		setupTokenAutoGroupsContext(c, &token)
-		common.SetContextKey(c, constant.ContextKeyUserGroup, user.Group)
-		common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
+		setupInheritedTokenRouting(c, user.Group)
 		c.Next()
 	}
 }
 
-func setupTokenAutoGroupsContext(c *gin.Context, token *model.Token) {
-	if token.AutoGroups == "" {
-		return
-	}
-	autoGroups, err := token.GetAutoGroups()
-	if err != nil {
-		common.SysError(fmt.Sprintf("failed to parse auto groups for token %d: %v", token.Id, err))
-		common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, []string{})
-		return
-	}
-	if len(autoGroups) > 0 {
-		common.SetContextKey(c, constant.ContextKeyTokenAutoGroups, autoGroups)
-	}
+func setupInheritedTokenRouting(c *gin.Context, userGroup string) {
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, "")
+	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, false)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, userGroup)
+	common.SetContextKey(c, constant.ContextKeyUsingGroup, userGroup)
 }
 
 func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) error {
@@ -655,9 +616,6 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	} else {
 		c.Set("token_model_limit_enabled", false)
 	}
-	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
-	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
-	setupTokenAutoGroupsContext(c, token)
 	if len(parts) > 1 {
 		if model.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])
