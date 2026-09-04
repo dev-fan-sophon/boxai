@@ -170,17 +170,33 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           {t('Special billing expression')}
         </span>
       )
-    } else if (dynamicSummary.primaryEntries[0]) {
-      const entry = dynamicSummary.primaryEntries[0]
+    } else if (dynamicSummary.entries.length > 0) {
+      const priceItems = dynamicSummary.entries.map(
+        (entry): ModelPriceRowItem => {
+          let tone: ModelPriceRowItem['tone'] = 'default'
+          if (entry.key === 'p') tone = 'input'
+          else if (entry.key === 'c') tone = 'output'
+          else if (entry.key.startsWith('c')) tone = 'cache'
+          return {
+            key: entry.key,
+            label: t(entry.shortLabel),
+            formatted: entry.formatted,
+            tone,
+            emphasized: entry.key === 'p' || entry.key === 'c',
+          }
+        }
+      )
       priceLine = (
-        <div className='font-price flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5'>
-          <span className='text-foreground text-sm font-semibold tabular-nums sm:text-[15px]'>
-            {entry.formatted}
-          </span>
-          <span className='text-muted-foreground text-xs'>
-            {t(entry.shortLabel)}
-          </span>
-        </div>
+        <>
+          <div className='text-muted-foreground mb-2 text-xs'>
+            {t('Dynamic Pricing')}
+          </div>
+          <ModelPriceRows
+            items={priceItems}
+            unitSuffix={tokenUnit === 'K' ? '/1K' : '/1M'}
+            minRows={3}
+          />
+        </>
       )
     } else {
       priceLine = (
