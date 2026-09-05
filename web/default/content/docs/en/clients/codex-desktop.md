@@ -16,7 +16,7 @@ This is a dated compatibility guide, not a promise that this version remains the
 
 ## Before you start
 
-- Create a **BoxAI inference API key** in [API keys](/console/token), with enough balance and permission for your chosen model. Do not use a BoxAI administrator token, ChatGPT session token, or another provider's key.
+- Create a **BoxAI inference API key** in [API keys](/keys), with enough balance and permission for your chosen model. Do not use a BoxAI administrator token, ChatGPT session token, or another provider's key.
 - Confirm the exact model ID in [Model Hub](/pricing). The example uses `gpt-6-astra`; replace it if your key cannot access it.
 - This guide configures **local desktop tasks**, billed to BoxAI. It does not make ChatGPT cloud tasks or remote-control features available with a BoxAI key.
 - Fully quit the desktop app before editing. Back up existing `config.toml` and `auth.json` privately. These settings may also affect the CLI and IDE extension sharing the same Codex home. Do not replace unrelated MCP, project, or safety settings.

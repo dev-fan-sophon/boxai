@@ -16,7 +16,7 @@ Kiểm tra ngày **05/09/2026** qua [nguồn cập nhật macOS chính thức](h
 
 ## Chuẩn bị
 
-- Tạo **khóa API gọi mô hình của BoxAI** tại [Khóa API](/console/token), có đủ số dư và quyền dùng mô hình. Không dùng token quản trị BoxAI, token phiên ChatGPT hoặc khóa của nhà cung cấp khác.
+- Tạo **khóa API gọi mô hình của BoxAI** tại [Khóa API](/keys), có đủ số dư và quyền dùng mô hình. Không dùng token quản trị BoxAI, token phiên ChatGPT hoặc khóa của nhà cung cấp khác.
 - Kiểm tra ID chính xác tại [Model Hub](/pricing). Ví dụ dùng `gpt-6-astra`; đổi ID nếu khóa của bạn không được phép dùng mô hình này.
 - Hướng dẫn áp dụng cho **tác vụ desktop chạy cục bộ**, tính phí qua BoxAI. Khóa BoxAI không mở quyền dùng tác vụ đám mây ChatGPT hoặc tính năng điều khiển từ xa.
 - Thoát hẳn ứng dụng trước khi chỉnh sửa. Sao lưu riêng tư `config.toml` và `auth.json` nếu đã có. CLI và tiện ích IDE dùng chung thư mục Codex cũng có thể bị ảnh hưởng. Giữ nguyên các thiết lập MCP, dự án và an toàn không liên quan.
