@@ -16,5 +16,6 @@
 - [Streaming](https://you-box.com/docs/api/streaming): Process incremental server-sent events and cancel interrupted requests safely.
 - [Errors, retries, and rate limits](https://you-box.com/docs/api/errors): Classify failures, retry transient requests safely, and respect gateway limits.
 - [BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.
+- [Codex desktop with a custom BoxAI API](https://you-box.com/docs/clients/codex-desktop): Configure the current Codex desktop client with config.toml and auth.json, use BoxAI Responses models, and verify which provider is billed.
 - [Playground overview](https://you-box.com/docs/playground/overview): Try models in the browser, validate prompts, and prepare for API integration.
 - [Models, groups, and quota](https://you-box.com/docs/concepts/models-groups-quota): How model IDs, access groups, and remaining quota work together on BoxAI.

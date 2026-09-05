@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-24T14:51:53.161Z",
+  "generatedAt": "2026-09-05T06:14:23.179Z",
   "version": 1,
   "pages": [
     {
@@ -500,6 +500,68 @@
         {
           "id": "next",
           "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/codex-desktop",
+      "href": "/docs/clients/codex-desktop",
+      "locale": "en",
+      "title": "Codex desktop with a custom BoxAI API",
+      "summary": "Configure the current Codex desktop client with config.toml and auth.json, use BoxAI Responses models, and verify which provider is billed.",
+      "section": "clients",
+      "order": 30,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-09-05",
+      "headings": [
+        {
+          "id": "version-checked",
+          "text": "Version checked",
+          "level": 2
+        },
+        {
+          "id": "before-you-start",
+          "text": "Before you start",
+          "level": 2
+        },
+        {
+          "id": "1-open-the-user-configuration-directory",
+          "text": "1. Open the user configuration directory",
+          "level": 2
+        },
+        {
+          "id": "2-configure-configtoml",
+          "text": "2. Configure config.toml",
+          "level": 2
+        },
+        {
+          "id": "3-configure-authjson",
+          "text": "3. Configure auth.json",
+          "level": 2
+        },
+        {
+          "id": "4-restart-and-verify-a-new-local-task",
+          "text": "4. Restart and verify a new local task",
+          "level": 2
+        },
+        {
+          "id": "alternative-use-an-environment-key",
+          "text": "Alternative: use an environment key",
+          "level": 2
+        },
+        {
+          "id": "common-problems-and-outdated-advice",
+          "text": "Common problems and outdated advice",
+          "level": 2
+        },
+        {
+          "id": "sources-and-next-steps",
+          "text": "Sources and next steps",
           "level": 2
         }
       ],
