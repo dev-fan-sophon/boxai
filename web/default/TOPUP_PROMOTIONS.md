@@ -1,8 +1,11 @@
 # Top-up promotions frontend
 
-Management is under **Pricing Center → Payment Gateway**: promotion settings,
-coupon management, and payment-review email alerts each have an explicit save
-button. Gateway configuration retains its existing save action. Date inputs use
+Promotion and coupon management have an independent **Pricing Center → Top-up
+promotion** tab (`/pricing-center/topup-promotions`), restricted to root admins.
+Payment Gateway retains gateway configuration and payment-review email alerts.
+Each configuration has its own save action. Top-up Reviews uses a scrollable
+table with expandable proof/discount details and a fixed pagination footer.
+Date inputs use
 the administrator's browser timezone and serialize Unix seconds; blank means 0.
 Limits, budgets and discount caps of 0 mean unlimited.
 

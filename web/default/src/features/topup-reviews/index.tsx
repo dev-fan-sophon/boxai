@@ -7,7 +7,6 @@ import { Dialog } from '@/components/dialog'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -18,6 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import {
   approveTopUpReview,
@@ -129,9 +136,9 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
 
   const panel = (
     <>
-      <div className='space-y-4'>
+      <div className='flex h-full min-h-0 flex-col gap-4'>
         <form
-          className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
+          className='flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
           onSubmit={(event) => {
             event.preventDefault()
             setPage(1)
@@ -179,9 +186,9 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
           </Button>
         </form>
         {loading && (
-          <div className='grid gap-3 md:grid-cols-2'>
+          <div className='min-h-0 space-y-3 overflow-auto'>
             {SKELETON_KEYS.map((key) => (
-              <Skeleton key={key} className='h-64' />
+              <Skeleton key={key} className='h-16' />
             ))}
           </div>
         )}
@@ -191,116 +198,157 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
           </p>
         )}
         {!loading && items.length > 0 && (
-          <div className='grid gap-3 md:grid-cols-2'>
-            {items.map((item) => (
-              <Card key={item.id}>
-                <CardContent className='space-y-3 p-4'>
-                  <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
-                    <div className='min-w-0'>
-                      <p className='font-medium'>{item.username}</p>
-                      <code className='text-muted-foreground text-xs break-all'>
-                        {item.trade_no}
-                      </code>
-                    </div>
-                    <StatusBadge
-                      label={t(getStatusLabel(item.status))}
-                      variant={getStatusVariant(item.status)}
-                      copyable={false}
-                    />
-                  </div>
-                  <dl className='grid grid-cols-1 gap-2 text-sm sm:grid-cols-2'>
-                    <div>
-                      <dt className='text-muted-foreground'>{t('Target')}</dt>
-                      <dd>
-                        {item.order_type === 'subscription'
-                          ? item.plan_title || `#${item.plan_id}`
-                          : t('Wallet balance')}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className='text-muted-foreground'>{t('Amount')}</dt>
-                      <dd>
-                        {new Intl.NumberFormat(getCurrentIntlLocale(), {
-                          style: 'currency',
-                          currency: item.currency || 'VND',
-                        }).format(item.money)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className='text-muted-foreground'>
-                        {t('Bank transaction number')}
-                      </dt>
-                      <dd className='break-all'>
-                        {item.bank_transaction_no || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className='text-muted-foreground'>
-                        {t('Submitted at')}
-                      </dt>
-                      <dd>
-                        {formatDateTimeObject(
-                          new Date(item.submitted_at * 1000)
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-                  {item.order_type === 'balance' && (
-                    <DiscountSummary
-                      snapshot={item}
-                      paid={item.paid_amount || item.money}
-                    />
-                  )}
-                  {item.note ? (
-                    <p className='bg-muted rounded-md p-2 text-sm'>
-                      <span className='font-medium'>{t('Note')}: </span>
-                      {item.note}
-                    </p>
-                  ) : null}
-                  {item.proof_url ? (
-                    <a
-                      href={item.proof_url}
-                      target='_blank'
-                      rel='noreferrer'
-                      className='block'
-                    >
-                      <img
-                        src={item.proof_url}
-                        alt={t('Payment proof')}
-                        className='max-h-52 w-full rounded-md border object-contain'
-                        loading='lazy'
+          <div
+            className='min-h-0 flex-1 overflow-auto rounded-md border'
+            data-testid='topup-review-scroll'
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('User')}</TableHead>
+                  <TableHead>{t('Amount')}</TableHead>
+                  <TableHead>{t('Submitted at')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Details')}</TableHead>
+                  <TableHead>{t('Actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div className='min-w-40'>
+                        <p className='font-medium'>{item.username}</p>
+                        <code className='text-muted-foreground text-xs break-all'>
+                          {item.trade_no}
+                        </code>
+                      </div>
+                    </TableCell>
+                    <TableCell className='whitespace-nowrap'>
+                      {new Intl.NumberFormat(getCurrentIntlLocale(), {
+                        style: 'currency',
+                        currency: item.currency || 'VND',
+                      }).format(item.paid_amount || item.money)}
+                    </TableCell>
+                    <TableCell className='whitespace-nowrap'>
+                      {formatDateTimeObject(new Date(item.submitted_at * 1000))}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        label={t(getStatusLabel(item.status))}
+                        variant={getStatusVariant(item.status)}
+                        copyable={false}
                       />
-                    </a>
-                  ) : null}
-                  {item.status === 'submitted' && (
-                    <div className='flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end'>
-                      <Button
-                        variant='destructive'
-                        size='sm'
-                        className='w-full sm:w-auto'
-                        onClick={() => setRejectItem(item)}
-                        disabled={acting}
-                      >
-                        {t('Reject')}
-                      </Button>
-                      <Button
-                        size='sm'
-                        className='w-full sm:w-auto'
-                        onClick={() => void approve(item)}
-                        disabled={acting}
-                      >
-                        {t('Approve')}
-                      </Button>
-                    </div>
-                  )}
-                  {item.status !== 'submitted' && item.review_note ? (
-                    <p className='text-muted-foreground text-sm'>
-                      {t('Review note')}: {item.review_note}
-                    </p>
-                  ) : null}
-                </CardContent>
-              </Card>
-            ))}
+                    </TableCell>
+                    <TableCell>
+                      <details className='min-w-32 open:min-w-72'>
+                        <summary className='cursor-pointer font-medium'>
+                          {t('Details')}
+                        </summary>
+                        <div className='space-y-3 py-3'>
+                          <dl className='grid grid-cols-1 gap-2 text-sm sm:grid-cols-2'>
+                            <div>
+                              <dt className='text-muted-foreground'>
+                                {t('Target')}
+                              </dt>
+                              <dd>
+                                {item.order_type === 'subscription'
+                                  ? item.plan_title || `#${item.plan_id}`
+                                  : t('Wallet balance')}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className='text-muted-foreground'>
+                                {t('Amount')}
+                              </dt>
+                              <dd>
+                                {new Intl.NumberFormat(getCurrentIntlLocale(), {
+                                  style: 'currency',
+                                  currency: item.currency || 'VND',
+                                }).format(item.money)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className='text-muted-foreground'>
+                                {t('Bank transaction number')}
+                              </dt>
+                              <dd className='break-all'>
+                                {item.bank_transaction_no || '—'}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className='text-muted-foreground'>
+                                {t('Submitted at')}
+                              </dt>
+                              <dd>
+                                {formatDateTimeObject(
+                                  new Date(item.submitted_at * 1000)
+                                )}
+                              </dd>
+                            </div>
+                          </dl>
+                          {item.order_type === 'balance' && (
+                            <DiscountSummary
+                              snapshot={item}
+                              paid={item.paid_amount || item.money}
+                            />
+                          )}
+                          {item.note ? (
+                            <p className='bg-muted rounded-md p-2 text-sm'>
+                              <span className='font-medium'>{t('Note')}: </span>
+                              {item.note}
+                            </p>
+                          ) : null}
+                          {item.proof_url ? (
+                            <a
+                              href={item.proof_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='block'
+                            >
+                              <img
+                                src={item.proof_url}
+                                alt={t('Payment proof')}
+                                className='max-h-52 w-full rounded-md border object-contain'
+                                loading='lazy'
+                              />
+                            </a>
+                          ) : null}
+                          {item.status !== 'submitted' && item.review_note ? (
+                            <p className='text-muted-foreground text-sm'>
+                              {t('Review note')}: {item.review_note}
+                            </p>
+                          ) : null}
+                        </div>
+                      </details>
+                    </TableCell>
+                    <TableCell>
+                      {item.status === 'submitted' && (
+                        <div className='flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end'>
+                          <Button
+                            variant='destructive'
+                            size='sm'
+                            className='w-full sm:w-auto'
+                            onClick={() => setRejectItem(item)}
+                            disabled={acting}
+                          >
+                            {t('Reject')}
+                          </Button>
+                          <Button
+                            size='sm'
+                            className='w-full sm:w-auto'
+                            onClick={() => void approve(item)}
+                            disabled={acting}
+                          >
+                            {t('Approve')}
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -340,7 +388,7 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
       {props.embedded ? (
         panel
       ) : (
-        <SectionPageLayout>
+        <SectionPageLayout fixedContent>
           <SectionPageLayout.Title>
             {t('Top-up Reviews')}
           </SectionPageLayout.Title>

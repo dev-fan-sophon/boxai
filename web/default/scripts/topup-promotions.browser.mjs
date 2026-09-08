@@ -196,7 +196,16 @@ await context.route('**/api/**', async (route) => {
   } else if (path.endsWith('/submissions')) {
     data = request.method() === 'GET' ? [] : { id: 9, status: 'submitted' }
   } else if (path === '/api/user/topup/reviews') {
-    data = { items: [review], total: 1, page: 1, page_size: 12 }
+    data = {
+      items: Array.from({ length: 12 }, (_, index) => ({
+        ...review,
+        id: review.id + index,
+        trade_no: index ? `DEMO-REVIEW-${index}` : review.trade_no,
+      })),
+      total: 12,
+      page: 1,
+      page_size: 12,
+    }
   } else if (path === '/api/user/topup' || path === '/api/user/topup/self') {
     data = { items: [record], total: 1 }
   } else if (path === '/api/subscription/plans') data = []
@@ -217,7 +226,7 @@ page.on('console', (message) => {
   if (message.type() === 'error') console.error(message.text())
 })
 try {
-  await page.goto(`${base}/pricing-center/payments`)
+  await page.goto(`${base}/pricing-center/topup-promotions`)
   await page
     .getByRole('button', { name: 'Save promotion', exact: true })
     .waitFor()
@@ -243,6 +252,16 @@ try {
   await dialog.waitFor({ state: 'hidden' })
   assert.equal(coupon.code, 'SAVE10')
   assert.equal(coupon.stackable, true)
+  assert.equal(await page.getByLabel('Enable email alerts').count(), 0)
+  await page.screenshot({ path: `${artifacts}/topup-promotion-admin.png` })
+  await page.goto(`${base}/pricing-center/payments`)
+  await page.getByLabel('Enable email alerts').waitFor()
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Save promotion', exact: true })
+      .count(),
+    0
+  )
   await page.getByLabel('Enable email alerts').check()
   await page.getByRole('button', { name: 'Save email alerts' }).click()
   await page
@@ -271,10 +290,6 @@ try {
     ),
     { enabled: true, recipients: ['review@example.com'] }
   )
-  await page
-    .getByRole('button', { name: 'Save promotion', exact: true })
-    .scrollIntoViewIfNeeded()
-  await page.screenshot({ path: `${artifacts}/topup-promotion-admin.png` })
   await page.goto(`${base}/billing`)
   await page.getByRole('button', { name: 'Add credits', exact: true }).click()
   await page.getByRole('button', { name: /Bank QR/ }).click()
@@ -348,8 +363,47 @@ try {
   )
   await page.goto(`${base}/pricing-center/topup-reviews`)
   await page.getByText('DEMO-REVIEW', { exact: true }).waitFor()
+  await page.setViewportSize({ width: 1280, height: 720 })
+  assert.equal(await page.locator('tbody tr').count(), 12)
+  const reviewScroll = page.getByTestId('topup-review-scroll')
+  assert.equal(
+    await reviewScroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+      return element.scrollTop > 0
+    }),
+    true,
+    'review list must scroll vertically'
+  )
+  await page
+    .getByText('DEMO-REVIEW-11', { exact: true })
+    .scrollIntoViewIfNeeded()
+  await reviewScroll.evaluate((element) => {
+    element.scrollTop = 0
+  })
+  await page.screenshot({ path: `${artifacts}/topup-review-list.png` })
+  await page.locator('summary').first().click()
+  assert.match(await page.locator('tbody tr').first().innerText(), /30,000/)
   await page.screenshot({ path: `${artifacts}/topup-review-snapshot.png` })
   assert.match(await page.locator('body').innerText(), /63,000/)
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.equal(
+    await reviewScroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+      return element.scrollTop > 0
+    }),
+    true,
+    'mobile review list must scroll vertically'
+  )
+  const horizontal = reviewScroll.locator('[data-slot="table-container"]')
+  assert.equal(
+    await horizontal.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth
+      return element.scrollLeft > 0
+    }),
+    true,
+    'mobile review actions must be reachable horizontally'
+  )
+  await page.setViewportSize({ width: 1440, height: 1100 })
   user.role = 1
   user.username = 'demo-user'
   await page.goto(`${base}/billing`)

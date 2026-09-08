@@ -1,8 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { CouponSettings } from '@/features/billing/promotions/coupon-settings'
-import { PromotionSettings } from '@/features/billing/promotions/promotion-settings'
 import { ReviewNotificationSettings } from '@/features/billing/promotions/review-notification-settings'
 import { defaultBillingSettings } from '@/features/system-settings/billing/settings-defaults'
 import { PricingSection } from '@/features/system-settings/general/pricing-section'
@@ -19,7 +17,12 @@ import type { PricingCenterTab } from './tabs'
 export function PricingSettingsTab(props: {
   tab: Exclude<
     PricingCenterTab,
-    'models' | 'subscriptions' | 'redemption' | 'rewards' | 'topup-reviews'
+    | 'models'
+    | 'subscriptions'
+    | 'redemption'
+    | 'rewards'
+    | 'topup-reviews'
+    | 'topup-promotions'
   >
 }) {
   const { t } = useTranslation()
@@ -89,8 +92,6 @@ export function PricingSettingsTab(props: {
 
   return (
     <div className='space-y-6'>
-      <PromotionSettings />
-      <CouponSettings />
       <ReviewNotificationSettings
         value={
           data?.data?.find(

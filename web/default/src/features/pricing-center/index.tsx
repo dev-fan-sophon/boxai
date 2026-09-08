@@ -53,6 +53,8 @@ const TopUpReviewsTab = lazy(() =>
   }))
 )
 
+const TopUpPromotionsTab = lazy(() => import('./topup-promotions-tab'))
+
 const RewardsTab = lazy(() =>
   import('./rewards-tab').then((module) => ({
     default: module.RewardsTab,
@@ -121,6 +123,8 @@ export function PricingCenter(props: {
     tabContent = <RedemptionsTab embedded />
   } else if (props.tab === 'topup-reviews') {
     tabContent = <TopUpReviewsTab embedded />
+  } else if (props.tab === 'topup-promotions') {
+    tabContent = <TopUpPromotionsTab />
   } else if (props.tab === 'rewards') {
     tabContent = <RewardsTab />
   } else {
