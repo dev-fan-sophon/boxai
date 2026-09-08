@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -62,4 +64,34 @@ func TestTopUpReviewHTTPPreservesDiscountAndCreditSnapshots(t *testing.T) {
 			assert.NotContains(t, data, "coupon_id")
 		})
 	}
+}
+
+func TestTopUpProofExpiredOrderReturnsActionableError(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.TopUpPromotion{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+	require.NoError(t, db.Create(&model.User{Id: 1, Username: "payer", AffCode: "payer-aff"}).Error)
+	require.NoError(t, db.Create(&model.TopUp{
+		UserId: 1, TradeNo: "EXPIRED", Status: common.TopUpStatusPending,
+		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
+		TopUpDiscountSnapshot: model.TopUpDiscountSnapshot{ExpiresAt: common.GetTimestamp() - 1},
+	}).Error)
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	require.NoError(t, form.WriteField("bank_transaction_no", "BANK-EXPIRED"))
+	require.NoError(t, form.Close())
+	router := gin.New()
+	router.POST("/topup/:trade_no/submissions", func(c *gin.Context) { c.Set("id", 1); c.Next() }, SubmitTopUpProof)
+	req := httptest.NewRequest(http.MethodPost, "/topup/EXPIRED/submissions", &body)
+	req.Header.Set("Content-Type", form.FormDataContentType())
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	var response map[string]any
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+	assert.Equal(t, false, response["success"])
+	assert.Equal(t, "topup_order_expired", response["code"])
 }

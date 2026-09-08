@@ -104,6 +104,10 @@ func SubmitTopUpProof(c *gin.Context) {
 		if deleteErr := service.DeleteTopUpProof(c.Request.Context(), backend, key); deleteErr != nil {
 			logger.LogError(c.Request.Context(), fmt.Sprintf("failed to delete orphaned top-up proof key=%q: %v", key, deleteErr))
 		}
+		if errors.Is(err, model.ErrBankQROrderExpired) {
+			topUpDiscountError(c, err)
+			return
+		}
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
