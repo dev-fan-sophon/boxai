@@ -143,3 +143,45 @@ one of `topup_discount_invalid`, `topup_coupon_unavailable`,
 `topup_discount_non_positive`, `topup_order_expired`, `topup_submission_active`,
 `topup_order_unavailable`, `topup_discount_failed`. Existing amount/proof APIs
 retain their established validation-error envelope where applicable.
+
+## Administrator operation and email reminders
+
+Customers choose a face amount, apply an optional coupon, create the QR order,
+then click **I have paid** and provide a screenshot or bank transaction reference.
+Administrators review claims in **Pricing Center → Top-up Reviews**. A payment
+claim never credits the wallet by itself. Verify the actual bank receipt against
+the expected amount/reference before approval; a screenshot or email alone is
+not evidence that the bank received funds. Rejection reasons remain visible to
+the customer.
+
+Configure the existing SMTP settings first, then enable top-up review emails
+and specify up to ten unique recipient addresses in payment settings. The
+root-only `/api/option/` API saves the complete setting as one JSON string:
+
+```json
+{
+  "key": "TopUpReviewNotificationSettings",
+  "value": "{\"enabled\":true,\"recipients\":[\"admin@example.com\"]}"
+}
+```
+
+The payment claim and one delivery record per recipient commit in the same
+transaction. SMTP runs asynchronously in the existing master-node system task
+runner (`topup_review_email`). Failed deliveries retry with exponential backoff,
+capped at one hour; restarting the process does not lose the queue. SMTP has a
+deadline, and expired delivery claims can be recovered. Successful recipients
+are not resent merely because another recipient failed. Already reviewed claims
+and removed recipients are skipped; disabling notifications pauses delivery.
+
+SMTP delivery is **at least once**: a crash after mail-server acceptance but
+before saving delivery state can cause a duplicate reminder, never duplicate
+wallet credit. Delivery failures appear in system task history and server logs.
+Emails contain an authenticated review-page link, not public proof attachments.
+
+Back up the production database/configuration before additive migrations and
+deploy API and frontend together. Verify health before enabling the campaign
+and intended recipients. Do not create a publicly usable coupon automatically.
+Verify campaign examples (100K → 70K, 300K → 210K, 500K → 400K), invalid/exhausted
+coupons, stacking, cancellation/expiry, submitted-claim retention and repeated
+approval. Use a local database for test payment/credit mutations rather than
+fabricating credited production payments.

@@ -184,6 +184,7 @@ func ListTopUpReviews(c *gin.Context) {
 	for i := range items {
 		d := submissionDTO(&items[i].TopUpSubmission, true)
 		d["username"], d["amount"], d["money"], d["currency"], d["plan_id"], d["plan_title"] = items[i].Username, items[i].Amount, items[i].Money, items[i].Currency, items[i].PlanId, items[i].PlanTitle
+		attachTopUpDiscountSnapshot(d, items[i].TopUpDiscountSnapshot)
 		result = append(result, d)
 	}
 	common.ApiSuccess(c, gin.H{"items": result, "total": total, "page": page, "page_size": size})
@@ -200,7 +201,28 @@ func GetTopUpReview(c *gin.Context) {
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
-	common.ApiSuccess(c, submissionDTO(item, true))
+	data := submissionDTO(item, true)
+	if item.OrderType == model.TopUpSubmissionOrderBalance {
+		var order model.TopUp
+		if err := model.DB.Where("trade_no = ?", item.TradeNo).First(&order).Error; err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		attachTopUpDiscountSnapshot(data, order.TopUpDiscountSnapshot)
+		data["amount"], data["money"], data["currency"] = order.Amount, order.Money, "VND"
+	}
+	common.ApiSuccess(c, data)
+}
+
+func attachTopUpDiscountSnapshot(data gin.H, snapshot model.TopUpDiscountSnapshot) {
+	data["paid_amount"] = snapshot.PaidAmount
+	data["face_amount"] = snapshot.FaceAmount
+	data["activity_discount"] = snapshot.ActivityDiscount
+	data["coupon_discount"] = snapshot.CouponDiscount
+	data["coupon_code"] = snapshot.CouponCode
+	data["credit_usd"] = snapshot.CreditUSD
+	data["expires_at"] = snapshot.ExpiresAt
+	data["submission_status"] = snapshot.SubmissionStatus
 }
 func ApproveTopUpReview(c *gin.Context) { reviewTopUp(c, true, "") }
 func RejectTopUpReview(c *gin.Context) {
