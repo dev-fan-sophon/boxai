@@ -7,7 +7,8 @@ The credited USD amount derives from the original face amount, not the payment.
 ## API
 
 All successful endpoints use `{ "success": true, "message": "", "data": ... }`.
-Management endpoints require administrator authentication; `/api/user/...`
+Promotion/coupon management requires root authentication, matching payment
+settings; payment review remains available to administrators. `/api/user/...`
 requires the authenticated account. The promotion/coupon tables are independent
 of generic option settings: changing options cannot bypass these validators.
 

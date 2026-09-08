@@ -3,12 +3,15 @@ package router
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -76,6 +79,41 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 		"POST /api/reward/adjust",
 	} {
 		assert.True(t, registered[path], "missing route %s", path)
+	}
+}
+
+func TestTopUpDiscountConfigurationRequiresRoot(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUpPromotion{}, &model.TopUpCoupon{}))
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+	credential := "local-topup-admin-test-credential"
+	user := model.User{Id: 1, Username: "reviewer", AffCode: "reviewer", Role: common.RoleAdminUser, Status: common.UserStatusEnabled, AccessToken: &credential}
+	require.NoError(t, db.Create(&user).Error)
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("local-test-session-key"))))
+	SetApiRouter(engine)
+	for _, request := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/topup/promotion", ""},
+		{http.MethodPut, "/api/topup/promotion", `{"enabled":true,"percent_off":30,"min_amount":100000,"max_discount":100000}`},
+		{http.MethodGet, "/api/topup/coupons", ""},
+		{http.MethodPost, "/api/topup/coupons", `{"code":"FORBIDDEN","enabled":true,"discount_type":"fixed","discount_value":1000}`},
+		{http.MethodPut, "/api/topup/coupons/1", `{"code":"FORBIDDEN","enabled":true,"discount_type":"fixed","discount_value":1000}`},
+	} {
+		t.Run(request.method+request.path, func(t *testing.T) {
+			req := httptest.NewRequest(request.method, request.path, strings.NewReader(request.body))
+			req.Header.Set("Authorization", "Bearer "+credential)
+			req.Header.Set("New-Api-User", "1")
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+			require.Equal(t, http.StatusOK, w.Code)
+			var response map[string]any
+			require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+			assert.Equal(t, false, response["success"], "review-only administrators cannot change payment discounts")
+		})
 	}
 }
 

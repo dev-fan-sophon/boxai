@@ -142,7 +142,9 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		topUpAdminRoute := apiRouter.Group("/topup")
-		topUpAdminRoute.Use(middleware.AdminAuth())
+		// Discount configuration changes payment rates, matching the root-only
+		// payment settings UI and /option endpoints. Review remains admin-level.
+		topUpAdminRoute.Use(middleware.RootAuth())
 		{
 			topUpAdminRoute.GET("/promotion", controller.GetTopUpPromotion)
 			topUpAdminRoute.PUT("/promotion", controller.UpdateTopUpPromotion)
