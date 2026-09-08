@@ -141,6 +141,16 @@ func SetApiRouter(router *gin.Engine) {
 			connectorAdminRoute.DELETE("/skill-releases/:id/:version", controller.AdminDeleteConnectorSkillRelease)
 		}
 
+		topUpAdminRoute := apiRouter.Group("/topup")
+		topUpAdminRoute.Use(middleware.AdminAuth())
+		{
+			topUpAdminRoute.GET("/promotion", controller.GetTopUpPromotion)
+			topUpAdminRoute.PUT("/promotion", controller.UpdateTopUpPromotion)
+			topUpAdminRoute.GET("/coupons", controller.ListTopUpCoupons)
+			topUpAdminRoute.POST("/coupons", controller.SaveTopUpCoupon)
+			topUpAdminRoute.PUT("/coupons/:id", controller.SaveTopUpCoupon)
+		}
+
 		userRoute := apiRouter.Group("/user")
 		{
 			userRoute.POST("/register", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), controller.Register)
@@ -176,6 +186,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/aff", controller.GetAffCode)
 				selfRoute.GET("/topup/info", controller.GetTopUpInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
+				selfRoute.GET("/topup/promotion", controller.GetTopUpPromotion)
+				selfRoute.POST("/topup/:trade_no/cancel", middleware.CriticalRateLimit(), controller.CancelBankQRTopUp)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), controller.RequestEpay)
 				selfRoute.POST("/amount", controller.RequestAmount)

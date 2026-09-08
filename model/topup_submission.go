@@ -61,6 +61,9 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 		return ErrTopUpSubmissionInputInvalid
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockTopUpDiscounts(tx); err != nil {
+			return err
+		}
 		var user User
 		if err := lockForUpdate(tx).Select("id").First(&user, submission.UserId).Error; err != nil {
 			return err
@@ -107,7 +110,15 @@ func CreateTopUpSubmission(submission *TopUpSubmission) error {
 		submission.OrderType = orderType
 		submission.Status = TopUpSubmissionSubmitted
 		submission.SubmittedAt = common.GetTimestamp()
-		return tx.Create(submission).Error
+		if err := tx.Create(submission).Error; err != nil {
+			return err
+		}
+		if orderType == TopUpSubmissionOrderBalance {
+			if err := tx.Model(&TopUp{}).Where("trade_no = ?", submission.TradeNo).Update("submission_status", submission.Status).Error; err != nil {
+				return err
+			}
+		}
+		return enqueueTopUpReviewNotification(tx, submission)
 	})
 	if err != nil && submission.ActiveBankTransactionKey != nil {
 		var duplicate int64
@@ -174,6 +185,9 @@ func validateBankQROrderTx(tx *gorm.DB, tradeNo string, userId int) (string, err
 		if topup.PaymentProvider != PaymentProviderBankQR || topup.PaymentMethod != PaymentMethodBankQR || topup.Status != common.TopUpStatusPending {
 			return "", ErrBankQROrderNotPending
 		}
+		if topup.ExpiresAt > 0 && topup.ExpiresAt <= common.GetTimestamp() {
+			return "", ErrBankQROrderExpired
+		}
 		return TopUpSubmissionOrderBalance, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
@@ -228,13 +242,14 @@ func GetTopUpSubmission(id int) (*TopUpSubmission, error) {
 
 type TopUpReview struct {
 	TopUpSubmission
-	Username        string  `json:"username"`
-	Amount          int64   `json:"amount"`
-	Money           float64 `json:"money"`
-	Currency        string  `json:"currency"`
-	PlanId          int     `json:"plan_id"`
-	PlanTitle       string  `json:"plan_title"`
-	ProviderPayload string  `json:"-"`
+	TopUpDiscountSnapshot `gorm:"embedded"`
+	Username              string  `json:"username"`
+	Amount                int64   `json:"amount"`
+	Money                 float64 `json:"money"`
+	Currency              string  `json:"currency"`
+	PlanId                int     `json:"plan_id"`
+	PlanTitle             string  `json:"plan_title"`
+	ProviderPayload       string  `json:"-"`
 }
 
 func ListTopUpReviews(status, keyword string, limit, offset int) ([]TopUpReview, int64, error) {
@@ -253,7 +268,7 @@ func ListTopUpReviews(status, keyword string, limit, offset int) ([]TopUpReview,
 		return nil, 0, err
 	}
 	var items []TopUpReview
-	err := q.Select("s.*, u.username, COALESCE(t.amount, 0) amount, COALESCE(t.money, o.money, 0) money, CASE WHEN s.order_type = 'subscription' THEN COALESCE(p.currency, 'USD') ELSE 'VND' END currency, COALESCE(o.plan_id, 0) plan_id, COALESCE(p.title, '') plan_title, COALESCE(o.provider_payload, '') provider_payload").Order("s.id desc").Limit(limit).Offset(offset).Scan(&items).Error
+	err := q.Select("s.*, u.username, t.paid_amount, t.face_amount, t.activity_discount, t.coupon_discount, t.coupon_code, t.credit_usd, t.expires_at, t.submission_status, COALESCE(t.amount, 0) amount, COALESCE(t.money, o.money, 0) money, CASE WHEN s.order_type = 'subscription' THEN COALESCE(p.currency, 'USD') ELSE 'VND' END currency, COALESCE(o.plan_id, 0) plan_id, COALESCE(p.title, '') plan_title, COALESCE(o.provider_payload, '') provider_payload").Order("s.id desc").Limit(limit).Offset(offset).Scan(&items).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -278,6 +293,9 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 	var creditedQuota int
 	var upgradeGroup string
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockTopUpDiscounts(tx); err != nil {
+			return err
+		}
 		var identity TopUpSubmission
 		if err := tx.Select("id", "user_id").First(&identity, id).Error; err != nil {
 			return ErrTopUpSubmissionNotFound
@@ -302,6 +320,11 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 		if !approve {
 			result.Status, result.ReviewedAt, result.ReviewedBy, result.ReviewNote = TopUpSubmissionRejected, now, reviewer, reason
 			result.ActiveBankTransactionKey = nil
+			if result.OrderType == TopUpSubmissionOrderBalance {
+				if err := tx.Model(&TopUp{}).Where("trade_no = ?", result.TradeNo).Update("submission_status", result.Status).Error; err != nil {
+					return err
+				}
+			}
 			return tx.Save(&result).Error
 		}
 		if result.OrderType == TopUpSubmissionOrderBalance {
@@ -324,6 +347,7 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			}
 			creditedQuota = quota
 			order.Status, order.CompleteTime = common.TopUpStatusSuccess, now
+			order.SubmissionStatus = TopUpSubmissionApproved
 			if err := tx.Save(&order).Error; err != nil {
 				return err
 			}

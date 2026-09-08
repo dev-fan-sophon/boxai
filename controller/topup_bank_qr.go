@@ -83,7 +83,7 @@ func RequestBankQRAmount(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
 	}
-	var req AmountRequest
+	var req bankQRDiscountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
@@ -98,8 +98,15 @@ func RequestBankQRAmount(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND())})
 		return
 	}
+	discount, err := model.QuoteTopUpDiscount(c.GetInt("id"), amountVND, req.CouponCode)
+	if err != nil {
+		topUpDiscountError(c, err)
+		return
+	}
 	common.ApiSuccess(c, gin.H{
-		"amount":     quote.FaceAmountMinor,
+		"amount":      discount.PaidAmount,
+		"face_amount": discount.FaceAmount, "activity_discount": discount.ActivityDiscount,
+		"coupon_discount": discount.CouponDiscount, "coupon_code": discount.CouponCode, "expires_at": discount.ExpiresAt,
 		"currency":   quote.FaceCurrency,
 		"credit_usd": model.USDCents(quote.CreditCents).InexactFloat64(),
 	})
@@ -111,7 +118,7 @@ func RequestBankQRPay(c *gin.Context) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
 	}
-	var req AmountRequest
+	var req bankQRDiscountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentInvalidAmount))
 		return
@@ -158,12 +165,22 @@ func RequestBankQRPay(c *gin.Context) {
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
 	quote.Apply(order)
-	if err := model.CreatePendingBankQRTopUp(order, maxPendingBankQROrders); err != nil {
+	if err := model.CreateDiscountedBankQRTopUp(order, req.CouponCode, maxPendingBankQROrders); err != nil {
+		topUpDiscountError(c, err)
+		return
+	}
+	// Bank/account/reference were validated above. Render the exact reserved
+	// payment amount, never the face value or an earlier non-binding quote.
+	payload, err = vietqr.Payload(bankSetting.BankBIN, bankSetting.AccountNumber, order.PaidAmount, tradeNo)
+	if err != nil {
+		_ = model.CancelBankQRTopUp(userID, tradeNo)
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": quote.FaceAmountMinor, "currency": quote.FaceCurrency,
+		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": order.PaidAmount, "currency": quote.FaceCurrency,
+		"face_amount": order.FaceAmount, "activity_discount": order.ActivityDiscount, "coupon_discount": order.CouponDiscount,
+		"coupon_code": order.CouponCode, "credit_usd": order.CreditUSD, "expires_at": order.ExpiresAt,
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
 		"account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName),
 	})
