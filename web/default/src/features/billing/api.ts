@@ -1,5 +1,6 @@
 import { api } from '@/lib/api'
 
+import { topUpRequestOptions, topUpErrorMessage } from './promotions/errors'
 import type {
   RedemptionRequest,
   PaymentRequest,
@@ -83,10 +84,15 @@ export async function calculateStripeAmount(
 export async function calculateBankQRAmount(
   request: AmountRequest
 ): Promise<BankQRAmountResponse> {
-  const res = await api.post('/api/user/bank-qr/amount', request, {
-    skipBusinessError: true,
-  } as Record<string, unknown>)
-  return res.data
+  const res = await api.post(
+    '/api/user/bank-qr/amount',
+    request,
+    topUpRequestOptions
+  )
+  return {
+    ...res.data,
+    message: res.data.success ? res.data.message : topUpErrorMessage(res.data),
+  }
 }
 
 /**
@@ -119,18 +125,30 @@ export async function requestStripePayment(
 export async function requestBankQRPayment(
   request: AmountRequest
 ): Promise<BankQRPaymentResponse> {
-  const res = await api.post('/api/user/bank-qr/pay', request, {
-    skipBusinessError: true,
-  } as Record<string, unknown>)
-  return res.data
+  const res = await api.post(
+    '/api/user/bank-qr/pay',
+    request,
+    topUpRequestOptions
+  )
+  return {
+    ...res.data,
+    message: res.data.success ? res.data.message : topUpErrorMessage(res.data),
+  }
 }
 
 export async function submitTopUpProof(
   tradeNo: string,
   formData: FormData
 ): Promise<ApiResponse<TopUpSubmission>> {
-  const res = await api.post(`/api/user/topup/${tradeNo}/submissions`, formData)
-  return res.data
+  const res = await api.post(
+    `/api/user/topup/${tradeNo}/submissions`,
+    formData,
+    topUpRequestOptions
+  )
+  return {
+    ...res.data,
+    message: res.data.success ? res.data.message : topUpErrorMessage(res.data),
+  }
 }
 
 export async function getTopUpSubmissions(

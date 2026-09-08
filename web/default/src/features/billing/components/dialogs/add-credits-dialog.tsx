@@ -6,6 +6,7 @@ import { Dialog } from '@/components/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import {
   InputGroup,
   InputGroupAddon,
@@ -36,6 +37,7 @@ import {
   isBankQRPayment,
 } from '../../lib'
 import type {
+  BankQRQuote,
   CreemProduct,
   PaymentMethod,
   PresetAmount,
@@ -43,6 +45,7 @@ import type {
   WaffoPayMethod,
 } from '../../types'
 import { CreemProductsSection } from '../creem-products-section'
+import { DiscountSummary } from '../discount-summary'
 
 interface AddCreditsDialogProps {
   open: boolean
@@ -54,6 +57,9 @@ interface AddCreditsDialogProps {
   topupAmount: number
   onTopupAmountChange: (amount: number) => void
   paymentAmount: number
+  quote: BankQRQuote | null
+  couponCode: string
+  onCouponCodeChange: (code: string) => void
   calculating: boolean
   selectedPaymentMethod?: PaymentMethod
   onPaymentMethodSelect: (method: PaymentMethod) => void
@@ -146,6 +152,8 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     formatCustomDraft(props.topupAmount, showUsdUnit ? 'local' : 'usd')
   )
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [couponDraft, setCouponDraft] = useState(props.couponCode)
+  const isBankQR = props.selectedPaymentMethod?.type === 'bank_qr'
   const customAmountFocusedRef = useRef(false)
 
   useEffect(() => {
@@ -208,6 +216,9 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     Boolean(props.selectedPaymentMethod) &&
     props.topupAmount >= effectiveMin &&
     termsAccepted &&
+    !props.calculating &&
+    props.paymentAmount > 0 &&
+    (!isBankQR || (couponDraft === props.couponCode && !!props.quote)) &&
     !props.paymentLoading
 
   let formattedTopupQuota = '—'
@@ -235,7 +246,10 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                 <Skeleton className='h-5 w-20' />
               ) : (
                 <span className='text-base font-semibold tabular-nums'>
-                  {formatAmountDue(props.paymentAmount)}
+                  {isBankQR &&
+                  (couponDraft !== props.couponCode || !props.quote)
+                    ? '—'
+                    : formatAmountDue(props.paymentAmount)}
                 </span>
               )}
             </div>
@@ -253,6 +267,41 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
         ) : null
       }
     >
+      {isBankQR && (
+        <section className='space-y-3'>
+          <Label htmlFor='topup-coupon'>{t('Coupon code')}</Label>
+          <div className='flex gap-2'>
+            <Input
+              id='topup-coupon'
+              value={couponDraft}
+              maxLength={64}
+              onChange={(event) =>
+                setCouponDraft(event.target.value.toUpperCase().trim())
+              }
+            />
+            <Button
+              variant='outline'
+              disabled={props.calculating || !/^[A-Z0-9_-]*$/.test(couponDraft)}
+              onClick={() => props.onCouponCodeChange(couponDraft)}
+            >
+              {t('Apply')}
+            </Button>
+          </div>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'The best discount applies unless your coupon allows stacking. Discounts apply to bank QR balance top-ups only.'
+            )}
+          </p>
+          {couponDraft === props.couponCode && props.quote && (
+            <DiscountSummary snapshot={props.quote} paid={props.quote.amount} />
+          )}
+          {couponDraft !== props.couponCode && (
+            <p className='text-muted-foreground text-sm'>
+              {t('Apply your code to refresh the quote.')}
+            </p>
+          )}
+        </section>
+      )}
       {!hasConfigurableTopup && !hasCreemProducts ? (
         <Alert>
           <AlertDescription>

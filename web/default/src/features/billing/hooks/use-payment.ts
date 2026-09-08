@@ -17,6 +17,7 @@ import {
   isWaffoPancakePayment,
   submitPaymentForm,
 } from '../lib'
+import type { BankQRQuote } from '../types'
 
 // ============================================================================
 // Payment Hook
@@ -24,14 +25,17 @@ import {
 
 export function usePayment() {
   const [amount, setAmount] = useState<number>(0)
+  const [quote, setQuote] = useState<BankQRQuote | null>(null)
   const [calculating, setCalculating] = useState(false)
   const [processing, setProcessing] = useState(false)
   const calculationIdRef = useRef(0)
 
   // Calculate payment amount
   const calculatePaymentAmount = useCallback(
-    async (topupAmount: number, paymentType: string) => {
+    async (topupAmount: number, paymentType: string, couponCode = '') => {
       const calculationId = ++calculationIdRef.current
+      setQuote(null)
+      setAmount(0)
       try {
         setCalculating(true)
 
@@ -40,9 +44,13 @@ export function usePayment() {
         const isPancake = isWaffoPancakePayment(paymentType)
         if (isBankQR) {
           const vndAmount = Math.round(topupAmount)
-          const response = await calculateBankQRAmount({ amount: vndAmount })
+          const response = await calculateBankQRAmount({
+            amount: vndAmount,
+            coupon_code: couponCode,
+          })
           if (calculationId !== calculationIdRef.current) return null
           if (isApiSuccess(response) && response.data) {
+            setQuote(response.data)
             setAmount(response.data.amount)
             return response.data.amount
           }
@@ -135,6 +143,7 @@ export function usePayment() {
 
   return {
     amount,
+    quote,
     calculating,
     processing,
     calculatePaymentAmount,

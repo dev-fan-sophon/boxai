@@ -8,24 +8,28 @@ import type { BankQRPaymentData } from '../types'
 export function useBankQRPayment() {
   const [processing, setProcessing] = useState(false)
 
-  const processBankQRPayment = useCallback(async (amount: number) => {
-    try {
-      setProcessing(true)
-      const response = await requestBankQRPayment({
-        amount: Math.round(amount),
-      })
-      if (!isApiSuccess(response) || !response.data) {
-        toast.error(response.message || i18next.t('Payment request failed'))
+  const processBankQRPayment = useCallback(
+    async (amount: number, couponCode = '') => {
+      try {
+        setProcessing(true)
+        const response = await requestBankQRPayment({
+          amount: Math.round(amount),
+          coupon_code: couponCode,
+        })
+        if (!isApiSuccess(response) || !response.data) {
+          toast.error(response.message || i18next.t('Payment request failed'))
+          return null
+        }
+        return response.data as BankQRPaymentData
+      } catch {
+        toast.error(i18next.t('Payment request failed'))
         return null
+      } finally {
+        setProcessing(false)
       }
-      return response.data as BankQRPaymentData
-    } catch {
-      toast.error(i18next.t('Payment request failed'))
-      return null
-    } finally {
-      setProcessing(false)
-    }
-  }, [])
+    },
+    []
+  )
 
   return { processing, processBankQRPayment }
 }

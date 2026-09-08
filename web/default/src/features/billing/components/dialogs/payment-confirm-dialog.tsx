@@ -22,9 +22,11 @@ import {
 
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
 import { formatCurrency, getPaymentIcon, isBankQRPayment } from '../../lib'
-import type { PaymentMethod } from '../../types'
+import type { PaymentMethod, BankQRQuote } from '../../types'
+import { DiscountSummary } from '../discount-summary'
 
 interface PaymentConfirmDialogProps {
+  quote?: BankQRQuote | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
@@ -37,6 +39,7 @@ interface PaymentConfirmDialogProps {
 }
 
 export function PaymentConfirmDialog({
+  quote,
   open,
   onOpenChange,
   onConfirm,
@@ -77,69 +80,76 @@ export function PaymentConfirmDialog({
         </AlertDialogHeader>
 
         <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Topup Amount')}
-            </span>
-            <span className='text-right text-lg font-semibold'>
-              {isNonUsdCurrencyDisplay() ? (
-                <span className='flex flex-col items-end leading-tight'>
-                  <span>
-                    {formatLocalCurrencyAmount(topupAmount, {
-                      digitsLarge: 0,
-                      digitsSmall: 0,
-                      abbreviate: false,
-                    })}
-                  </span>
-                  <span className='text-muted-foreground text-xs font-medium tabular-nums'>
-                    {formatUSDAmount(creditedUsd, {
+          {isBankQR && quote ? (
+            <DiscountSummary snapshot={quote} paid={quote.amount} />
+          ) : (
+            <>
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('Topup Amount')}
+                </span>
+                <span className='text-right text-lg font-semibold'>
+                  {isNonUsdCurrencyDisplay() ? (
+                    <span className='flex flex-col items-end leading-tight'>
+                      <span>
+                        {formatLocalCurrencyAmount(topupAmount, {
+                          digitsLarge: 0,
+                          digitsSmall: 0,
+                          abbreviate: false,
+                        })}
+                      </span>
+                      <span className='text-muted-foreground text-xs font-medium tabular-nums'>
+                        {formatUSDAmount(creditedUsd, {
+                          digitsLarge: 2,
+                          digitsSmall: 2,
+                          abbreviate: false,
+                        })}
+                      </span>
+                    </span>
+                  ) : (
+                    formatUSDAmount(topupAmount, {
                       digitsLarge: 2,
                       digitsSmall: 2,
                       abbreviate: false,
-                    })}
-                  </span>
+                    })
+                  )}
                 </span>
-              ) : (
-                formatUSDAmount(topupAmount, {
-                  digitsLarge: 2,
-                  digitsSmall: 2,
-                  abbreviate: false,
-                })
-              )}
-            </span>
-          </div>
+              </div>
 
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('You Pay')}
-            </span>
-            {calculating ? (
-              <Skeleton className='h-6 w-24' />
-            ) : (
-              <div className='flex items-baseline gap-2'>
-                <span className='text-2xl font-semibold'>
-                  {formatPaymentAmount(paymentAmount)}
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('You Pay')}
                 </span>
-                {hasDiscount && (
-                  <span className='text-muted-foreground text-sm line-through'>
-                    {formatPaymentAmount(originalAmount)}
-                  </span>
+                {calculating ? (
+                  <Skeleton className='h-6 w-24' />
+                ) : (
+                  <div className='flex items-baseline gap-2'>
+                    <span className='text-2xl font-semibold'>
+                      {formatPaymentAmount(paymentAmount)}
+                    </span>
+                    {hasDiscount && (
+                      <span className='text-muted-foreground text-sm line-through'>
+                        {formatPaymentAmount(originalAmount)}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {hasDiscount && !calculating && (
-            <div className='bg-muted/50 rounded-lg p-3'>
-              <div className='flex items-center justify-between text-sm'>
-                <span className='text-muted-foreground'>{t('You save')}</span>
-                <span className='font-semibold text-green-600'>
-                  {formatPaymentAmount(discountAmount)}
-                </span>
-              </div>
-            </div>
+              {hasDiscount && !calculating && (
+                <div className='bg-muted/50 rounded-lg p-3'>
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>
+                      {t('You save')}
+                    </span>
+                    <span className='font-semibold text-green-600'>
+                      {formatPaymentAmount(discountAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-
           <div className='border-t pt-4'>
             <div className='flex items-center justify-between'>
               <span className='text-muted-foreground text-sm'>
@@ -164,7 +174,10 @@ export function PaymentConfirmDialog({
           <AlertDialogCancel disabled={processing}>
             {t('Cancel')}
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={processing}>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={processing || calculating || (isBankQR && !quote)}
+          >
             {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {t('Confirm Payment')}
           </AlertDialogAction>

@@ -126,6 +126,10 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   // Fetch data when dependencies change
   useEffect(() => {
     fetchBillingHistory()
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchBillingHistory()
+    }, 30000)
+    return () => clearInterval(timer)
   }, [fetchBillingHistory])
 
   return {

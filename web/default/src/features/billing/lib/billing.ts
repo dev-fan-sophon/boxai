@@ -16,6 +16,7 @@ interface StatusConfig {
  * Status badge configuration
  */
 export const STATUS_CONFIG: Record<TopupStatus, StatusConfig> = {
+  cancelled: { variant: 'neutral', label: 'Cancelled' },
   success: {
     variant: 'success',
     label: 'Success',

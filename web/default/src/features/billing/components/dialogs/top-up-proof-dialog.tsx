@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 import { getTopUpSubmissions, submitTopUpProof } from '../../api'
+import { OrderExpiry } from '../../promotions/order-expiry'
+import { useOrderExpired } from '../../promotions/use-order-expired'
 import type { TopUpSubmission } from '../../types'
 
 const MAX_PROOF_SIZE = 10 * 1024 * 1024
@@ -19,10 +21,12 @@ interface TopUpProofDialogProps {
   onOpenChange: (open: boolean) => void
   tradeNo: string | null
   onSubmitted?: () => void
+  expiresAt?: number
 }
 
 export function TopUpProofDialog(props: TopUpProofDialogProps) {
   const { t } = useTranslation()
+  const expired = useOrderExpired(props.expiresAt)
   const [transactionNo, setTransactionNo] = useState('')
   const [note, setNote] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -67,8 +71,13 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
       setError(t('Enter a transaction number or upload a proof image'))
       return
     }
-    if (!props.tradeNo) return
-    if (latestSubmission?.status === 'submitted') return
+    if (!props.tradeNo || expired) return
+    if (
+      latestSubmission?.status === 'submitted' ||
+      latestSubmission?.status === 'approved'
+    ) {
+      return
+    }
 
     const formData = new FormData()
     formData.append('bank_transaction_no', transactionNo.trim())
@@ -104,6 +113,7 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
       contentClassName='sm:max-w-md'
     >
       <form className='space-y-4' onSubmit={handleSubmit}>
+        <OrderExpiry expiresAt={props.expiresAt} />
         {latestSubmission ? (
           <div className='bg-muted rounded-md p-3 text-sm'>
             <p className='font-medium'>
@@ -169,7 +179,12 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
           </Button>
           <Button
             type='submit'
-            disabled={submitting || latestSubmission?.status === 'submitted'}
+            disabled={
+              expired ||
+              submitting ||
+              latestSubmission?.status === 'submitted' ||
+              latestSubmission?.status === 'approved'
+            }
           >
             {submitting ? t('Submitting...') : t('Submit payment proof')}
           </Button>

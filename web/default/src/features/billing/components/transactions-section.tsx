@@ -43,8 +43,12 @@ import {
   getPaymentMethodName,
   formatTimestamp,
 } from '../lib/billing'
+import { CancelTopUpButton } from '../promotions/cancel-topup-button'
+import { OrderExpiry } from '../promotions/order-expiry'
+import { useOrderExpired } from '../promotions/use-order-expired'
 import type { TopupRecord } from '../types'
 import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
+import { DiscountSummary } from './discount-summary'
 
 const SKELETON_KEYS = ['one', 'two', 'three', 'four', 'five']
 
@@ -56,11 +60,13 @@ interface TransactionRowProps {
   onCopy: (value: string) => void
   onComplete: (tradeNo: string) => void
   onSubmitProof: (tradeNo: string) => void
+  onRefresh: () => void
 }
 
 function TransactionRow(props: TransactionRowProps) {
   const { t } = useTranslation()
   const record = props.record
+  const expired = useOrderExpired(record.expires_at)
   const statusConfig = getStatusConfig(record.status)
   const isBankQR =
     record.payment_method === 'bank_qr' || record.payment_provider === 'bank_qr'
@@ -100,7 +106,7 @@ function TransactionRow(props: TransactionRowProps) {
           </div>
         </div>
         <StatusBadge
-          label={statusConfig.label}
+          label={t(statusConfig.label)}
           variant={statusConfig.variant}
           showDot
           copyable={false}
@@ -136,6 +142,23 @@ function TransactionRow(props: TransactionRowProps) {
         </div>
       </div>
 
+      {isBankQR && (
+        <div className='mt-3 space-y-2'>
+          <DiscountSummary
+            snapshot={record}
+            paid={record.paid_amount || record.money}
+          />
+          {record.status === 'pending' &&
+            record.submission_status !== 'submitted' && (
+              <OrderExpiry expiresAt={record.expires_at} />
+            )}
+          {record.submission_status === 'submitted' && (
+            <p className='text-sm'>
+              {t('Payment proof submitted. Please wait for review.')}
+            </p>
+          )}
+        </div>
+      )}
       {props.isAdmin && record.status === 'pending' && !isBankQR && (
         <div className='mt-4 flex justify-end'>
           <Button
@@ -148,17 +171,26 @@ function TransactionRow(props: TransactionRowProps) {
           </Button>
         </div>
       )}
-      {!props.isAdmin && record.status === 'pending' && isBankQR && (
-        <div className='mt-4 flex justify-end'>
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => props.onSubmitProof(record.trade_no)}
-          >
-            {t('Submit payment proof')}
-          </Button>
-        </div>
-      )}
+      {!props.isAdmin &&
+        record.status === 'pending' &&
+        isBankQR &&
+        record.submission_status !== 'submitted' &&
+        record.submission_status !== 'approved' && (
+          <div className='mt-4 flex flex-wrap justify-end gap-2'>
+            <CancelTopUpButton
+              tradeNo={record.trade_no}
+              onCancelled={props.onRefresh}
+            />
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={expired}
+              onClick={() => props.onSubmitProof(record.trade_no)}
+            >
+              {t('Submit payment proof')}
+            </Button>
+          </div>
+        )}
     </div>
   )
 }
@@ -181,6 +213,7 @@ export function TransactionsSection() {
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    refresh,
   } = useBillingHistory()
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
@@ -236,6 +269,7 @@ export function TransactionsSection() {
             onCopy={copyToClipboard}
             onComplete={setConfirmTradeNo}
             onSubmitProof={setProofTradeNo}
+            onRefresh={refresh}
           />
         ))}
       </div>
@@ -360,6 +394,10 @@ export function TransactionsSection() {
         open={proofTradeNo !== null}
         onOpenChange={(open) => !open && setProofTradeNo(null)}
         tradeNo={proofTradeNo}
+        expiresAt={
+          records.find((record) => record.trade_no === proofTradeNo)?.expires_at
+        }
+        onSubmitted={refresh}
       />
     </>
   )

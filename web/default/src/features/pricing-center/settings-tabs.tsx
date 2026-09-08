@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { CouponSettings } from '@/features/billing/promotions/coupon-settings'
+import { PromotionSettings } from '@/features/billing/promotions/promotion-settings'
+import { ReviewNotificationSettings } from '@/features/billing/promotions/review-notification-settings'
 import { defaultBillingSettings } from '@/features/system-settings/billing/settings-defaults'
 import { PricingSection } from '@/features/system-settings/general/pricing-section'
 import {
@@ -85,62 +88,73 @@ export function PricingSettingsTab(props: {
   }
 
   return (
-    <PaymentSettingsSection
-      defaultValues={{
-        PayAddress: settings.PayAddress,
-        EpayId: settings.EpayId,
-        EpayKey: settings.EpayKey,
-        Price: settings.Price,
-        MinTopUp: settings.MinTopUp,
-        CustomCallbackAddress: settings.CustomCallbackAddress,
-        PayMethods: settings.PayMethods,
-        AmountOptions: settings['payment_setting.amount_options'],
-        AmountDiscount: settings['payment_setting.amount_discount'],
-        StripeApiSecret: settings.StripeApiSecret,
-        StripeWebhookSecret: settings.StripeWebhookSecret,
-        StripePriceId: settings.StripePriceId,
-        StripeUnitPrice: settings.StripeUnitPrice,
-        StripeMinTopUp: settings.StripeMinTopUp,
-        StripePromotionCodesEnabled: settings.StripePromotionCodesEnabled,
-        CreemApiKey: settings.CreemApiKey,
-        CreemWebhookSecret: settings.CreemWebhookSecret,
-        CreemTestMode: settings.CreemTestMode,
-        CreemProducts: settings.CreemProducts,
-        bank_qr_setting: {
-          enabled: settings['bank_qr_setting.enabled'] ?? false,
-          bank_name: settings['bank_qr_setting.bank_name'] ?? '',
-          bank_bin: settings['bank_qr_setting.bank_bin'] ?? '',
-          account_number: settings['bank_qr_setting.account_number'] ?? '',
-          account_name: settings['bank_qr_setting.account_name'] ?? '',
-          min_topup: settings['bank_qr_setting.min_topup'] ?? 1,
-          transfer_prefix:
-            settings['bank_qr_setting.transfer_prefix'] ?? 'BOXAI',
-        },
-      }}
-      waffoDefaultValues={{
-        WaffoEnabled: settings.WaffoEnabled ?? false,
-        WaffoApiKey: settings.WaffoApiKey ?? '',
-        WaffoPrivateKey: settings.WaffoPrivateKey ?? '',
-        WaffoPublicCert: settings.WaffoPublicCert ?? '',
-        WaffoSandboxPublicCert: settings.WaffoSandboxPublicCert ?? '',
-        WaffoSandboxApiKey: settings.WaffoSandboxApiKey ?? '',
-        WaffoSandboxPrivateKey: settings.WaffoSandboxPrivateKey ?? '',
-        WaffoSandbox: settings.WaffoSandbox ?? false,
-        WaffoMerchantId: settings.WaffoMerchantId ?? '',
-        WaffoCurrency: settings.WaffoCurrency ?? 'USD',
-        WaffoUnitPrice: settings.WaffoUnitPrice ?? 1,
-        WaffoMinTopUp: settings.WaffoMinTopUp ?? 1,
-        WaffoNotifyUrl: settings.WaffoNotifyUrl ?? '',
-        WaffoReturnUrl: settings.WaffoReturnUrl ?? '',
-        WaffoPayMethods: settings.WaffoPayMethods ?? '[]',
-      }}
-      waffoPancakeDefaultValues={{
-        WaffoPancakeMerchantID: settings.WaffoPancakeMerchantID ?? '',
-        WaffoPancakePrivateKey: settings.WaffoPancakePrivateKey ?? '',
-        WaffoPancakeReturnURL: settings.WaffoPancakeReturnURL ?? '',
-      }}
-      waffoPancakeProvisionedStoreID={settings.WaffoPancakeStoreID ?? ''}
-      waffoPancakeProvisionedProductID={settings.WaffoPancakeProductID ?? ''}
-    />
+    <div className='space-y-6'>
+      <PromotionSettings />
+      <CouponSettings />
+      <ReviewNotificationSettings
+        value={
+          data?.data?.find(
+            (option) => option.key === 'TopUpReviewNotificationSettings'
+          )?.value
+        }
+      />
+      <PaymentSettingsSection
+        defaultValues={{
+          PayAddress: settings.PayAddress,
+          EpayId: settings.EpayId,
+          EpayKey: settings.EpayKey,
+          Price: settings.Price,
+          MinTopUp: settings.MinTopUp,
+          CustomCallbackAddress: settings.CustomCallbackAddress,
+          PayMethods: settings.PayMethods,
+          AmountOptions: settings['payment_setting.amount_options'],
+          AmountDiscount: settings['payment_setting.amount_discount'],
+          StripeApiSecret: settings.StripeApiSecret,
+          StripeWebhookSecret: settings.StripeWebhookSecret,
+          StripePriceId: settings.StripePriceId,
+          StripeUnitPrice: settings.StripeUnitPrice,
+          StripeMinTopUp: settings.StripeMinTopUp,
+          StripePromotionCodesEnabled: settings.StripePromotionCodesEnabled,
+          CreemApiKey: settings.CreemApiKey,
+          CreemWebhookSecret: settings.CreemWebhookSecret,
+          CreemTestMode: settings.CreemTestMode,
+          CreemProducts: settings.CreemProducts,
+          bank_qr_setting: {
+            enabled: settings['bank_qr_setting.enabled'] ?? false,
+            bank_name: settings['bank_qr_setting.bank_name'] ?? '',
+            bank_bin: settings['bank_qr_setting.bank_bin'] ?? '',
+            account_number: settings['bank_qr_setting.account_number'] ?? '',
+            account_name: settings['bank_qr_setting.account_name'] ?? '',
+            min_topup: settings['bank_qr_setting.min_topup'] ?? 1,
+            transfer_prefix:
+              settings['bank_qr_setting.transfer_prefix'] ?? 'BOXAI',
+          },
+        }}
+        waffoDefaultValues={{
+          WaffoEnabled: settings.WaffoEnabled ?? false,
+          WaffoApiKey: settings.WaffoApiKey ?? '',
+          WaffoPrivateKey: settings.WaffoPrivateKey ?? '',
+          WaffoPublicCert: settings.WaffoPublicCert ?? '',
+          WaffoSandboxPublicCert: settings.WaffoSandboxPublicCert ?? '',
+          WaffoSandboxApiKey: settings.WaffoSandboxApiKey ?? '',
+          WaffoSandboxPrivateKey: settings.WaffoSandboxPrivateKey ?? '',
+          WaffoSandbox: settings.WaffoSandbox ?? false,
+          WaffoMerchantId: settings.WaffoMerchantId ?? '',
+          WaffoCurrency: settings.WaffoCurrency ?? 'USD',
+          WaffoUnitPrice: settings.WaffoUnitPrice ?? 1,
+          WaffoMinTopUp: settings.WaffoMinTopUp ?? 1,
+          WaffoNotifyUrl: settings.WaffoNotifyUrl ?? '',
+          WaffoReturnUrl: settings.WaffoReturnUrl ?? '',
+          WaffoPayMethods: settings.WaffoPayMethods ?? '[]',
+        }}
+        waffoPancakeDefaultValues={{
+          WaffoPancakeMerchantID: settings.WaffoPancakeMerchantID ?? '',
+          WaffoPancakePrivateKey: settings.WaffoPancakePrivateKey ?? '',
+          WaffoPancakeReturnURL: settings.WaffoPancakeReturnURL ?? '',
+        }}
+        waffoPancakeProvisionedStoreID={settings.WaffoPancakeStoreID ?? ''}
+        waffoPancakeProvisionedProductID={settings.WaffoPancakeProductID ?? ''}
+      />
+    </div>
   )
 }

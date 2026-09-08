@@ -24,6 +24,7 @@ import {
   getTopUpReviews,
   rejectTopUpReview,
 } from '@/features/billing/api'
+import { DiscountSummary } from '@/features/billing/components/discount-summary'
 import type {
   TopUpReview,
   TopUpSubmissionStatus,
@@ -83,6 +84,10 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
 
   useEffect(() => {
     void load()
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void load()
+    }, 30000)
+    return () => clearInterval(timer)
   }, [load])
 
   const approve = async (item: TopUpReview) => {
@@ -240,6 +245,12 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
                       </dd>
                     </div>
                   </dl>
+                  {item.order_type === 'balance' && (
+                    <DiscountSummary
+                      snapshot={item}
+                      paid={item.paid_amount || item.money}
+                    />
+                  )}
                   {item.note ? (
                     <p className='bg-muted rounded-md p-2 text-sm'>
                       <span className='font-medium'>{t('Note')}: </span>

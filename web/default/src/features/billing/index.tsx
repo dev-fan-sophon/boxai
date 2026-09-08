@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -33,6 +33,7 @@ import {
   isWaffoPancakePayment,
   summarizeActiveSubscriptions,
 } from './lib'
+import { PromotionBanner } from './promotions/promotion-banner'
 import type {
   BankQRPaymentData,
   UserWalletData,
@@ -57,6 +58,7 @@ export function Billing(props: BillingProps) {
   const [user, setUser] = useState<UserWalletData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [topupAmount, setTopupAmount] = useState(0)
+  const [couponCode, setCouponCode] = useState('')
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>()
@@ -79,6 +81,7 @@ export function Billing(props: BillingProps) {
 
   const {
     amount: paymentAmount,
+    quote,
     calculating,
     processing,
     calculatePaymentAmount,
@@ -134,8 +137,10 @@ export function Billing(props: BillingProps) {
   }, [props.initialShowHistory])
 
   // Initialize topup amount when topup info is loaded
+  const amountInitialized = useRef(false)
   useEffect(() => {
-    if (topupInfo && topupAmount === 0) {
+    if (topupInfo && !amountInitialized.current) {
+      amountInitialized.current = true
       const minTopup = getMinTopupAmount(topupInfo)
       setTopupAmount(minTopup)
       calculatePaymentAmount(minTopup, getDefaultPaymentType(topupInfo))
@@ -155,7 +160,8 @@ export function Billing(props: BillingProps) {
     setSelectedPreset(preset.value)
     calculatePaymentAmount(
       requestAmountForPayment(preset.value),
-      getCurrentPaymentType()
+      getCurrentPaymentType(),
+      couponCode
     )
   }
 
@@ -164,7 +170,8 @@ export function Billing(props: BillingProps) {
     setSelectedPreset(null)
     calculatePaymentAmount(
       requestAmountForPayment(amount),
-      getCurrentPaymentType()
+      getCurrentPaymentType(),
+      couponCode
     )
   }
 
@@ -172,7 +179,8 @@ export function Billing(props: BillingProps) {
     setSelectedPaymentMethod(method)
     await calculatePaymentAmount(
       requestAmountForPayment(topupAmount),
-      method.type
+      method.type,
+      couponCode
     )
   }
 
@@ -187,7 +195,8 @@ export function Billing(props: BillingProps) {
       }
       const calculatedAmount = await calculatePaymentAmount(
         requestAmountForPayment(topupAmount),
-        selectedPaymentMethod.type
+        selectedPaymentMethod.type,
+        couponCode
       )
       if (calculatedAmount === null) return
       setConfirmDialogOpen(true)
@@ -201,7 +210,8 @@ export function Billing(props: BillingProps) {
 
     if (isBankQRPayment(selectedPaymentMethod.type)) {
       const bankPayment = await processBankQRPayment(
-        requestAmountForPayment(topupAmount)
+        requestAmountForPayment(topupAmount),
+        couponCode
       )
       if (bankPayment) {
         setConfirmDialogOpen(false)
@@ -294,6 +304,7 @@ export function Billing(props: BillingProps) {
         <SectionPageLayout.Content>
           <div className='mx-auto flex w-full max-w-6xl flex-col gap-5'>
             <BillingNav items={navItems} />
+            <PromotionBanner position='billing' />
 
             <section id={SECTION_IDS.overview} className='scroll-mt-16'>
               <BalanceHero
@@ -343,6 +354,16 @@ export function Billing(props: BillingProps) {
         topupAmount={topupAmount}
         onTopupAmountChange={handleTopupAmountChange}
         paymentAmount={paymentAmount}
+        quote={quote}
+        couponCode={couponCode}
+        onCouponCodeChange={(code) => {
+          setCouponCode(code)
+          void calculatePaymentAmount(
+            requestAmountForPayment(topupAmount),
+            getCurrentPaymentType(),
+            code
+          )
+        }}
         calculating={calculating}
         selectedPaymentMethod={selectedPaymentMethod}
         onPaymentMethodSelect={handlePaymentMethodSelect}
@@ -366,6 +387,7 @@ export function Billing(props: BillingProps) {
       />
 
       <PaymentConfirmDialog
+        quote={quote}
         open={confirmDialogOpen}
         onOpenChange={setConfirmDialogOpen}
         onConfirm={handlePaymentConfirm}

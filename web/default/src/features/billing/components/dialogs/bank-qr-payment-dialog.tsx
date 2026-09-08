@@ -8,7 +8,11 @@ import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { toIntlLocale } from '@/i18n/languages'
 
+import { CancelTopUpButton } from '../../promotions/cancel-topup-button'
+import { OrderExpiry } from '../../promotions/order-expiry'
+import { useOrderExpired } from '../../promotions/use-order-expired'
 import type { BankQRPaymentData } from '../../types'
+import { DiscountSummary } from '../discount-summary'
 import { TopUpProofDialog } from './top-up-proof-dialog'
 
 interface BankQRPaymentDialogProps {
@@ -21,6 +25,7 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
   const { t, i18n } = useTranslation()
   const qrContainerRef = useRef<HTMLDivElement>(null)
   const [proofOpen, setProofOpen] = useState(false)
+  const expired = useOrderExpired(props.payment?.expires_at)
 
   if (!props.payment) {
     return null
@@ -60,22 +65,29 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
         contentClassName='sm:max-w-xl'
         footer={
           <>
+            <CancelTopUpButton
+              tradeNo={payment.trade_no}
+              onCancelled={() => props.onOpenChange(false)}
+            />
             <Button variant='outline' onClick={() => props.onOpenChange(false)}>
               {t('Submit later')}
             </Button>
             <Button
+              disabled={expired}
               onClick={() => {
                 props.onOpenChange(false)
                 setProofOpen(true)
               }}
             >
-              {t('Submit payment proof')}
+              {t('I have paid')}
             </Button>
           </>
         }
       >
         <div className='space-y-4'>
-          <div className='border-warning/40 bg-warning/10 text-warning-foreground flex gap-3 rounded-lg border p-3 text-sm'>
+          <DiscountSummary snapshot={payment} paid={payment.amount} />
+          <OrderExpiry expiresAt={payment.expires_at} />
+          <div className='border-warning/40 bg-warning/10 text-foreground flex gap-3 rounded-lg border p-3 text-sm'>
             <AlertTriangle
               className='mt-0.5 size-4 shrink-0'
               aria-hidden='true'
@@ -96,12 +108,14 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
                 ref={qrContainerRef}
                 className='rounded-xl border bg-white p-3 shadow-sm'
               >
-                <QRCodeSVG
-                  value={props.payment.payload}
-                  size={192}
-                  level='M'
-                  includeMargin
-                />
+                {!expired && (
+                  <QRCodeSVG
+                    value={props.payment.payload}
+                    size={192}
+                    level='M'
+                    includeMargin
+                  />
+                )}
               </div>
               <p className='text-muted-foreground text-center text-xs'>
                 {t('Scan with your banking app')}
@@ -161,6 +175,7 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
         open={proofOpen}
         onOpenChange={setProofOpen}
         tradeNo={payment.trade_no}
+        expiresAt={payment.expires_at}
       />
     </>
   )

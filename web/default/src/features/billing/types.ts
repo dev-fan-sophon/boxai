@@ -41,7 +41,22 @@ export type WaffoPancakePaymentResponse = ApiResponse<
     }
   | string
 >
-export interface BankQRPaymentData {
+export interface TopUpDiscountSnapshot {
+  face_amount?: number
+  activity_discount?: number
+  coupon_discount?: number
+  coupon_code?: string
+  credit_usd?: number
+  expires_at?: number
+  paid_amount?: number
+}
+
+export interface BankQRQuote extends TopUpDiscountSnapshot {
+  amount: number
+  currency: 'VND'
+}
+
+export interface BankQRPaymentData extends BankQRQuote {
   trade_no: string
   transfer_content: string
   amount: number
@@ -52,11 +67,7 @@ export interface BankQRPaymentData {
   account_number: string
   account_name: string
 }
-export type BankQRAmountResponse = ApiResponse<{
-  amount: number
-  currency: 'VND'
-  credit_usd?: number
-}>
+export type BankQRAmountResponse = ApiResponse<BankQRQuote>
 export type BankQRPaymentResponse = ApiResponse<BankQRPaymentData>
 export type TopUpSubmissionStatus = 'submitted' | 'approved' | 'rejected'
 export interface TopUpSubmission {
@@ -76,7 +87,7 @@ export interface TopUpSubmission {
   review_note: string
   proof_url?: string
 }
-export interface TopUpReview extends TopUpSubmission {
+export interface TopUpReview extends TopUpSubmission, TopUpDiscountSnapshot {
   username: string
   amount: number
   money: number
@@ -245,6 +256,7 @@ export interface WaffoPancakePaymentRequest {
 export interface AmountRequest {
   /** Topup amount to calculate */
   amount: number
+  coupon_code?: string
 }
 
 /**
@@ -282,12 +294,13 @@ export interface UserWalletData {
 /**
  * Topup record status
  */
-export type TopupStatus = 'success' | 'pending' | 'expired'
+export type TopupStatus = 'success' | 'pending' | 'expired' | 'cancelled'
 
 /**
  * Topup billing record
  */
-export interface TopupRecord {
+export interface TopupRecord extends TopUpDiscountSnapshot {
+  submission_status?: TopUpSubmissionStatus | ''
   /** Record ID */
   id: number
   /** User ID */
