@@ -1,15 +1,60 @@
 package ollama
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestOllamaResponsesUsesNativeOpenAICompatibleEndpoint(t *testing.T) {
+	adaptor := &Adaptor{}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{ChannelBaseUrl: "https://ollama.com"},
+		RelayMode:   relayconstant.RelayModeResponses,
+	}
+
+	url, err := adaptor.GetRequestURL(info)
+	require.NoError(t, err)
+	assert.Equal(t, "https://ollama.com/v1/responses", url)
+
+	converted, err := adaptor.ConvertOpenAIResponsesRequest(nil, info, dto.OpenAIResponsesRequest{
+		Model: "deepseek-v4-flash:0731",
+		Input: []byte(`"hello"`),
+	})
+	require.NoError(t, err)
+	assert.IsType(t, dto.OpenAIResponsesRequest{}, converted)
+}
+
+func TestOllamaResponsesHandlerPreservesCachedUsage(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_1","object":"response","model":"deepseek-v4-flash:0731","output":[],"usage":{"input_tokens":10,"input_tokens_details":{"cached_tokens":7},"output_tokens":2,"total_tokens":12}}`)),
+	}
+
+	usage, apiErr := (&Adaptor{}).DoResponse(c, resp, &relaycommon.RelayInfo{
+		RelayMode: relayconstant.RelayModeResponses,
+	})
+	require.Nil(t, apiErr)
+	responseUsage, ok := usage.(*dto.Usage)
+	require.True(t, ok)
+	assert.Equal(t, 10, responseUsage.PromptTokens)
+	assert.Equal(t, 7, responseUsage.PromptTokensDetails.CachedTokens)
+	assert.Equal(t, 2, responseUsage.CompletionTokens)
+}
 
 func TestOpenAIChatToOllamaChatPlainTextDefaultsToNonStream(t *testing.T) {
 	c, _ := gin.CreateTestContext(nil)

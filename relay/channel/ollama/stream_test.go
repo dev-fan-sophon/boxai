@@ -110,7 +110,7 @@ func TestOllamaChatHandlerNonStreamReasoningAndAnswer(t *testing.T) {
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
 		Body: io.NopCloser(strings.NewReader(
-			`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","message":{"role":"assistant","thinking":"carefully considered","content":"final answer"},"done":true,"done_reason":"stop","prompt_eval_count":4,"eval_count":6}`,
+			`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","message":{"role":"assistant","thinking":"carefully considered","content":"final answer"},"done":true,"done_reason":"stop","prompt_eval_count":4,"prompt_eval_cached_count":3,"eval_count":6}`,
 		)),
 	}
 
@@ -119,7 +119,10 @@ func TestOllamaChatHandlerNonStreamReasoningAndAnswer(t *testing.T) {
 	}, resp)
 	require.Nil(t, apiErr)
 	require.NotNil(t, usage)
-	assert.Equal(t, dto.Usage{PromptTokens: 4, CompletionTokens: 6, TotalTokens: 10}, *usage)
+	assert.Equal(t, 4, usage.PromptTokens)
+	assert.Equal(t, 3, usage.PromptTokensDetails.CachedTokens)
+	assert.Equal(t, 6, usage.CompletionTokens)
+	assert.Equal(t, 10, usage.TotalTokens)
 
 	var out dto.OpenAITextResponse
 	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &out))
@@ -136,7 +139,7 @@ func TestOllamaStreamHandlerPreservesReasoningToolCallsFinishAndUsage(t *testing
 		`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","message":{"role":"assistant","thinking":"plan "},"done":false}`,
 		`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","message":{"role":"assistant","thinking":"carefully","content":"answer"},"done":false}`,
 		`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","message":{"role":"assistant","tool_calls":[{"id":"call_weather","function":{"name":"get_weather","arguments":{"city":"Hanoi"}}},{"function":{"name":"get_time","arguments":{"zone":"UTC"}}}]},"done":false}`,
-		`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","done":true,"done_reason":"stop","prompt_eval_count":3,"eval_count":4}`,
+		`{"model":"qwen3","created_at":"2026-05-27T12:00:00Z","done":true,"done_reason":"stop","prompt_eval_count":3,"prompt_eval_cached_count":2,"eval_count":4}`,
 	}, "\n")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -151,7 +154,10 @@ func TestOllamaStreamHandlerPreservesReasoningToolCallsFinishAndUsage(t *testing
 	}, resp)
 	require.Nil(t, apiErr)
 	require.NotNil(t, usage)
-	assert.Equal(t, dto.Usage{PromptTokens: 3, CompletionTokens: 4, TotalTokens: 7}, *usage)
+	assert.Equal(t, 3, usage.PromptTokens)
+	assert.Equal(t, 2, usage.PromptTokensDetails.CachedTokens)
+	assert.Equal(t, 4, usage.CompletionTokens)
+	assert.Equal(t, 7, usage.TotalTokens)
 
 	var reasoning strings.Builder
 	var content strings.Builder
@@ -190,6 +196,7 @@ func TestOllamaStreamHandlerPreservesReasoningToolCallsFinishAndUsage(t *testing
 	assert.Equal(t, constant.FinishReasonToolCalls, finishReason)
 	require.NotNil(t, finalUsage)
 	assert.Equal(t, *usage, *finalUsage)
+	assert.Equal(t, 2, usage.PromptTokensDetails.CachedTokens)
 	require.Len(t, toolCalls, 2)
 	assert.Equal(t, "call_weather", toolCalls[0].ID)
 	assert.Equal(t, 0, *toolCalls[0].Index)
