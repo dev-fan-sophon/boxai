@@ -90,6 +90,9 @@ const (
 type NewAPIError struct {
 	Err            error
 	RelayError     any
+	publicMessage  string
+	publicCode     ErrorCode
+	diagnostic     map[string]any
 	skipRetry      bool
 	recordErrorLog *bool
 	errorType      ErrorType
@@ -131,6 +134,43 @@ func (e *NewAPIError) Error() string {
 	return e.Err.Error()
 }
 
+// SetPublicFault keeps provider diagnostics internal while exposing a stable
+// BoxAI service error to API clients and user-visible logs.
+func (e *NewAPIError) SetPublicFault(code ErrorCode, message string, statusCode int) {
+	if e == nil {
+		return
+	}
+	e.publicCode = code
+	e.publicMessage = message
+	if statusCode != 0 {
+		e.StatusCode = statusCode
+	}
+}
+
+func (e *NewAPIError) PublicMessage() string {
+	if e != nil && e.publicMessage != "" {
+		return e.publicMessage
+	}
+	return e.MaskSensitiveError()
+}
+
+func (e *NewAPIError) PublicCode() ErrorCode {
+	if e != nil && e.publicCode != "" {
+		return e.publicCode
+	}
+	return e.GetErrorCode()
+}
+
+func (e *NewAPIError) SetDiagnostic(details map[string]any) {
+	if e != nil {
+		e.diagnostic = details
+	}
+}
+
+func (e *NewAPIError) Diagnostic() map[string]any {
+	return e.diagnostic
+}
+
 func (e *NewAPIError) ErrorWithStatusCode() string {
 	if e == nil {
 		return ""
@@ -162,6 +202,9 @@ func (e *NewAPIError) MaskSensitiveError() string {
 func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
 	if e == nil {
 		return ""
+	}
+	if e.publicMessage != "" {
+		return fmt.Sprintf("status_code=%d, %s", e.StatusCode, e.publicMessage)
 	}
 	msg := e.MaskSensitiveError()
 	if e.StatusCode == 0 {
@@ -201,7 +244,11 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 			Code:    e.errorCode,
 		}
 	}
-	if e.errorCode != ErrorCodeCountTokenFailed {
+	if e.publicMessage != "" {
+		result.Message = e.publicMessage
+		result.Type = "boxai_error"
+		result.Code = e.publicCode
+	} else if e.errorCode != ErrorCodeCountTokenFailed {
 		result.Message = common.MaskSensitiveInfo(result.Message)
 	}
 	if result.Message == "" {
@@ -230,7 +277,10 @@ func (e *NewAPIError) ToClaudeError() ClaudeError {
 			Type:    string(e.errorType),
 		}
 	}
-	if e.errorCode != ErrorCodeCountTokenFailed {
+	if e.publicMessage != "" {
+		result.Message = e.publicMessage
+		result.Type = string(e.publicCode)
+	} else if e.errorCode != ErrorCodeCountTokenFailed {
 		result.Message = common.MaskSensitiveInfo(result.Message)
 	}
 	if result.Message == "" {

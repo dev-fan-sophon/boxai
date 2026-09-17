@@ -247,7 +247,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
+		service.NormalizeRelayServiceFault(newAPIError)
 
+		c.Set("relay_retry_attempt", true)
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
@@ -261,6 +263,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		logger.LogInfo(c, retryLogStr)
 	}
 	if newAPIError != nil {
+		c.Set("relay_retry_attempt", false)
+		processChannelError(c, *types.NewChannelError(c.GetInt("channel_id"), c.GetInt("channel_type"), c.GetString("channel_name"), common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey), common.GetContextKeyString(c, constant.ContextKeyChannelKey), c.GetBool("auto_ban")), newAPIError)
 		gopool.Go(func() {
 			perfmetrics.RecordRelaySample(relayInfo, false, 0)
 		})
@@ -385,7 +389,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		})
 	}
 
-	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
+	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) && !c.GetBool("relay_retry_attempt") {
 		// 保存错误日志到mysql中
 		userId := c.GetInt("id")
 		tokenName := c.GetString("token_name")
@@ -398,12 +402,17 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 			other["request_path"] = c.Request.URL.Path
 		}
 		other["error_type"] = err.GetErrorType()
-		other["error_code"] = err.GetErrorCode()
+		other["error_code"] = err.PublicCode()
+		other["error_class"] = err.PublicCode()
 		other["status_code"] = err.StatusCode
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
 		adminInfo := make(map[string]interface{})
+		if diagnostic := err.Diagnostic(); diagnostic != nil {
+			diagnostic["attempted_channel_ids"] = c.GetStringSlice("use_channel")
+			adminInfo["diagnostic_error"] = diagnostic
+		}
 		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
 		isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
 		if isMultiKey {

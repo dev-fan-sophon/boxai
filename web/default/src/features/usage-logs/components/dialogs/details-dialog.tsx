@@ -450,6 +450,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const isViolation = isViolationFeeLog(other)
   const isRefund = props.log.type === 6
   const isConsume = props.log.type === 2
+  const isError = props.log.type === 5
   const isTopup = props.log.type === 1
   const isManage = props.log.type === 3
   const isSubscription = other?.billing_source === 'subscription'
@@ -463,6 +464,8 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const showAdminIp =
     !!props.log.ip && (showTiming || (props.isAdmin && isTopup))
   const adminInfo = other?.admin_info
+  const diagnosticError =
+    isError && props.isAdmin ? adminInfo?.diagnostic_error : undefined
   const topupAuditFields =
     isTopup && props.isAdmin && adminInfo
       ? ([
@@ -788,6 +791,53 @@ export function DetailsDialog(props: DetailsDialogProps) {
           >
             <p className='text-xs wrap-break-word'>{other.reject_reason}</p>
           </DetailSection>
+        )}
+
+        {isError && props.log.error_class && (
+          <DetailRow
+            label={t('Error Class')}
+            value={props.log.error_class}
+            mono
+          />
+        )}
+
+        {/* Platform diagnostics are deliberately admin-only and collapsed. */}
+        {diagnosticError && (
+          <details className='min-w-0 overflow-hidden rounded-md border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'>
+            <summary className='cursor-pointer px-2.5 py-2 text-xs font-semibold text-red-600 select-none dark:text-red-400'>
+              {t('Diagnostic Details')}
+            </summary>
+            <div className='space-y-1 border-t border-red-200 px-2.5 py-2 dark:border-red-900'>
+              {diagnosticError.original_status != null && (
+                <DetailRow
+                  label={t('Original Status')}
+                  value={String(diagnosticError.original_status)}
+                  mono
+                />
+              )}
+              {diagnosticError.code && (
+                <DetailRow
+                  label={t('Error Code')}
+                  value={diagnosticError.code}
+                  mono
+                />
+              )}
+              {diagnosticError.message && (
+                <DetailRow
+                  label={t('Error Message')}
+                  value={diagnosticError.message}
+                />
+              )}
+              {diagnosticError.attempted_channels &&
+                diagnosticError.attempted_channels.length > 0 && (
+                  <DetailRow
+                    label={t('Attempted Channels')}
+                    value={diagnosticError.attempted_channels.join(' → ')}
+                    mono
+                  />
+                )}
+            </div>
+          </details>
         )}
 
         {/* Violation fee info */}
@@ -1192,10 +1242,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </DetailSection>
         )}
 
-        {/* Content */}
+        {/* Public content */}
         {details && (
           <div className='space-y-1.5'>
-            <Label className='text-xs font-semibold'>{t('Content')}</Label>
+            <Label className='text-xs font-semibold'>
+              {isError ? t('Public Error') : t('Content')}
+            </Label>
             <div className='bg-muted/30 relative min-w-0 overflow-hidden rounded-md border p-2.5'>
               <Button
                 variant='ghost'

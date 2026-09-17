@@ -88,6 +88,13 @@ export const USAGE_BILLING_PATH = {
 export type UsageBillingPath =
   (typeof USAGE_BILLING_PATH)[keyof typeof USAGE_BILLING_PATH]
 
+export interface DiagnosticError {
+  original_status?: number
+  code?: string
+  message?: string
+  attempted_channels?: Array<number | string>
+}
+
 export interface LogOtherData {
   admin_info?: {
     is_multi_key?: boolean
@@ -117,6 +124,7 @@ export interface LogOtherData {
       original: number
       clamped: number
     }
+    diagnostic_error?: DiagnosticError
   }
   // Language-independent operation descriptor (audit/login logs).
   // Frontend renders localized content from action + params via i18n templates.

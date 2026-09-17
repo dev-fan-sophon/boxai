@@ -49,6 +49,9 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	if err == nil {
 		return false
 	}
+	if diagnostic := err.Diagnostic(); diagnostic != nil && diagnostic["error_code"] == types.ErrorCode("401008") {
+		return true
+	}
 	if types.IsChannelError(err) {
 		return true
 	}

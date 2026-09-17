@@ -159,6 +159,31 @@ func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) 
 	}
 }
 
+// NormalizeRelayServiceFault replaces non-local relay failures with stable
+// BoxAI-facing errors. Original details stay attached for administrator-only
+// diagnostics and must never be returned to a user.
+func NormalizeRelayServiceFault(err *types.NewAPIError) {
+	if err == nil || err.GetErrorType() != types.ErrorTypeOpenAIError && err.GetErrorType() != types.ErrorTypeClaudeError {
+		return
+	}
+	diagnostic := map[string]any{
+		"status_code": err.StatusCode,
+		"error_code":  err.GetErrorCode(),
+		"message":     common.MaskSensitiveInfo(err.Error()),
+	}
+	err.SetDiagnostic(diagnostic)
+
+	if err.GetErrorCode() == "401008" || err.StatusCode == http.StatusPaymentRequired {
+		err.SetPublicFault("model_temporarily_unavailable", "The selected model is temporarily unavailable. Please try again later.", http.StatusServiceUnavailable)
+		return
+	}
+	if err.StatusCode == http.StatusTooManyRequests {
+		err.SetPublicFault("model_temporarily_busy", "This model is temporarily busy. Please retry shortly.", http.StatusTooManyRequests)
+		return
+	}
+	err.SetPublicFault("service_unavailable", "BoxAI could not complete this request. Please try again later.", http.StatusBadGateway)
+}
+
 func parseStatusCodeMappingValue(value any) (int, bool) {
 	switch v := value.(type) {
 	case string:
