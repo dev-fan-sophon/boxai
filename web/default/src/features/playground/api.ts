@@ -1,3 +1,5 @@
+import { t } from 'i18next'
+
 import { api, getCommonHeaders } from '@/lib/api'
 
 import { API_ENDPOINTS } from './constants'
@@ -9,6 +11,7 @@ import type {
 } from './inspiration/types'
 import { parseRequestErrorDetails } from './lib/streaming/request-error-utils'
 import { buildImageGenerationRequestBody } from './lib/studio/image-request-schema'
+import { getVideoReferenceLimit } from './lib/studio/model-modality'
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -190,11 +193,20 @@ export type VideoSubmitInput = {
   firstFrame?: string | null
   lastFrame?: string | null
   inputReference?: string | null
+  referenceImages?: string[]
 }
 
 export async function submitVideo(
   input: VideoSubmitInput
 ): Promise<VideoSubmission> {
+  const references = input.referenceImages ?? []
+  if (references.length > getVideoReferenceLimit(input.model)) {
+    throw new Error(
+      t('You can attach up to {{count}} images.', {
+        count: getVideoReferenceLimit(input.model),
+      })
+    )
+  }
   const body: Record<string, unknown> = {
     model: input.model,
     group: input.group,
@@ -203,7 +215,9 @@ export async function submitVideo(
     size: input.settings.videoSize,
   }
   const first = await resolveMediaForUpstream(
-    input.firstFrame || input.inputReference
+    input.firstFrame ||
+      input.inputReference ||
+      (getVideoReferenceLimit(input.model) === 1 ? references[0] : null)
   )
   const last = await resolveMediaForUpstream(input.lastFrame)
   if (first) {
@@ -218,6 +232,14 @@ export async function submitVideo(
     if (!images.includes(last)) {
       body.images = [...images, last]
     }
+  }
+  if (references.length > 0 && getVideoReferenceLimit(input.model) > 1) {
+    if (first || last) {
+      throw new Error(
+        t('Reference images cannot be combined with first/last frames.')
+      )
+    }
+    body.images = await Promise.all(references.map(resolveMediaForUpstream))
   }
   const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body)
   const data = response.data?.data ?? response.data

@@ -10,6 +10,7 @@ import { fetchPlaygroundAssetBlob } from '../../api'
 import type { UseStudioResult } from '../../hooks/use-studio'
 import { isStudioSession } from '../../lib'
 import { isPlaygroundImageModel } from '../../lib/studio/image-request-schema'
+import { getVideoReferenceLimit } from '../../lib/studio/model-modality'
 import { groupRunsIntoBatches } from '../../lib/studio/studio-feed'
 import type { StudioModality } from '../../types'
 import type { MediaReference } from '../composer/attachments/media-reference-slot'
@@ -48,6 +49,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const [referenceModality, setReferenceModality] = useState(props.modality)
 
   const model = usePlaygroundStore((state) => state.config.model)
+  const maxFiles =
+    props.modality === 'image' ? 4 : getVideoReferenceLimit(model)
   const group = usePlaygroundStore((state) => state.config.group)
   const setPrefill = usePlaygroundStore((state) => state.setPrefill)
   const activeModality = usePlaygroundStore((state) => state.activeModality)
@@ -89,6 +92,12 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const submit = (prompt: string) => {
     if (!prompt || !model) return
     if (!props.canSubmit()) return
+    if (references.length > maxFiles) {
+      toast.error(
+        t('You can attach up to {{count}} images.', { count: maxFiles })
+      )
+      return
+    }
     if (props.modality === 'image' && !isPlaygroundImageModel(model)) {
       toast.error(
         t(
@@ -108,9 +117,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     const referenceUrls =
       props.modality === 'audio'
         ? []
-        : references
-            .map((reference) => reference.dataUrl)
-            .slice(0, props.modality === 'image' ? 4 : 1)
+        : references.map((reference) => reference.dataUrl)
     studio.startGeneration({
       modality: props.modality,
       sessionId,
@@ -125,7 +132,6 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     url: string
     assetId?: number
   }) => {
-    const maxFiles = props.modality === 'image' ? 4 : 1
     try {
       const blob = image.assetId
         ? await fetchPlaygroundAssetBlob(image.assetId)

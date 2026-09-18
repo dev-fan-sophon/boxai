@@ -5113,6 +5113,7 @@
     "Redo": "重做",
     "Reduces repeated wording": "减少重复措辞",
     "Reference image": "参考图",
+    "Reference images cannot be combined with first/last frames.": "参考图不能与首帧或尾帧同时使用。",
     "Reference prices applied": "参考价格已应用",
     "Reference prices can only be applied from Pricing Center": "参考价格只能从定价中心应用",
     "Reference saved locally": "参考图已保存在本地",

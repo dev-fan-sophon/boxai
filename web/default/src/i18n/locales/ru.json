@@ -5113,6 +5113,7 @@
     "Redo": "Повторить",
     "Reduces repeated wording": "Уменьшает повторение формулировок",
     "Reference image": "Изображение-референс",
+    "Reference images cannot be combined with first/last frames.": "Референсные изображения нельзя совмещать с первым или последним кадром.",
     "Reference prices applied": "Справочные цены применены",
     "Reference prices can only be applied from Pricing Center": "Справочные цены можно применить только из центра ценообразования",
     "Reference saved locally": "Референс сохранён локально",

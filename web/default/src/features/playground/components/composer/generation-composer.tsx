@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { PricingModel } from '@/features/pricing/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { getVideoReferenceLimit } from '../../lib/studio/model-modality'
 import type { StudioModality } from '../../types'
 import {
   MediaReferenceSlot,
@@ -36,8 +37,12 @@ export function GenerationComposer(props: GenerationComposerProps) {
   const settings = usePlaygroundStore((state) => state.studioSettings)
 
   const showMediaSlot = props.modality === 'image' || props.modality === 'video'
+  const maxFiles =
+    props.modality === 'image' ? 4 : getVideoReferenceLimit(model)
   const mediaLabel =
-    props.modality === 'video' ? t('First frame') : t('Reference image')
+    props.modality === 'video' && maxFiles === 1
+      ? t('First frame')
+      : t('Reference image')
   const groupRatio = groups.find((item) => item.value === group)?.ratio
 
   const submit = () => {
@@ -77,7 +82,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 onChange={props.onReferencesChange}
                 attachable
                 kind='image'
-                maxFiles={props.modality === 'image' ? 4 : 1}
+                maxFiles={maxFiles}
               />
             )}
             <GenerationParamChips modality={props.modality} />

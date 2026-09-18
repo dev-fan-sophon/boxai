@@ -5113,6 +5113,7 @@
     "Redo": "やり直す",
     "Reduces repeated wording": "同じ表現の繰り返しを抑えます",
     "Reference image": "参照画像",
+    "Reference images cannot be combined with first/last frames.": "参照画像は開始フレームや終了フレームと併用できません。",
     "Reference prices applied": "参考価格を適用しました",
     "Reference prices can only be applied from Pricing Center": "参考価格は料金センターからのみ適用できます",
     "Reference saved locally": "参照をローカルに保存しました",

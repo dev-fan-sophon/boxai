@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -121,6 +122,20 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
 }
 
+// Validate the effective content after model mapping and metadata overrides,
+// before quota is reserved or a request is sent upstream.
+func (a *TaskAdaptor) ValidateMappedRequest(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err == nil {
+		req.Model = info.UpstreamModelName
+		_, err = a.convertToRequestPayload(&req)
+	}
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	return nil
+}
+
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(_ *relaycommon.RelayInfo) (string, error) {
 	return fmt.Sprintf("%s/api/v3/contents/generations/tasks", a.baseURL), nil
@@ -189,6 +204,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		return nil, err
 	}
 
+	if info.IsModelMapped {
+		req.Model = info.UpstreamModelName
+	}
 	body, err := a.convertToRequestPayload(&req)
 	if err != nil {
 		return nil, errors.Wrap(err, "convert request payload failed")
@@ -279,12 +297,24 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		Model:   req.Model,
 		Content: []ContentItem{},
 	}
+	modelName := strings.ToLower(req.Model)
+	seedance20 := strings.Contains(modelName, "seedance-2-0") || strings.Contains(modelName, "seedance-2.0")
 
 	// Add images if present
 	if req.HasImage() {
 		for _, imgURL := range req.Images {
+			role := ""
+			switch {
+			case req.FirstFrame != "" && imgURL == strings.TrimSpace(req.FirstFrame):
+				role = "first_frame"
+			case req.LastFrame != "" && imgURL == strings.TrimSpace(req.LastFrame):
+				role = "last_frame"
+			case seedance20:
+				role = "reference_image"
+			}
 			r.Content = append(r.Content, ContentItem{
 				Type: "image_url",
+				Role: role,
 				ImageURL: &MediaURL{
 					URL: imgURL,
 				},
@@ -295,6 +325,25 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	metadata := req.Metadata
 	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
+	}
+
+	referenceCount, frameCount := 0, 0
+	for _, item := range r.Content {
+		if item.Type != "image_url" {
+			continue
+		}
+		switch item.Role {
+		case "reference_image":
+			referenceCount++
+		case "first_frame", "last_frame", "":
+			frameCount++
+		}
+	}
+	if seedance20 && referenceCount > 9 {
+		return nil, errors.New("Seedance supports at most 9 reference images")
+	}
+	if seedance20 && referenceCount > 0 && frameCount > 0 {
+		return nil, errors.New("reference images cannot be combined with first/last frames")
 	}
 
 	resolution, ratio := videoOutputDimensions(req.Size)

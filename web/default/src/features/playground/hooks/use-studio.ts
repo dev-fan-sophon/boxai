@@ -170,8 +170,7 @@ export function useStudio() {
         group: generation.group,
         prompt: generation.prompt,
         settings: snapshot,
-        firstFrame: generation.references[0] ?? null,
-        inputReference: generation.references[0] ?? null,
+        referenceImages: generation.references,
       })
       if (!submission.taskId) {
         throw new Error('The provider did not return a task id.')
