@@ -219,138 +219,144 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         ) : null}
       </div>
 
-      <div
-        className='flex shrink-0 items-center gap-1.5 overflow-x-auto'
-        data-canvas-no-zoom
-        data-canvas-wheel-scroll
-      >
-        {references.map((reference, index) => {
-          const unused = index >= activeReferenceLimit
-          return (
-            <div
-              key={reference.connectionId}
-              className={cn(
-                'group/ref relative size-11 shrink-0 overflow-hidden rounded-lg ring-1 ring-inset',
-                unused ? 'ring-border/40 opacity-45' : 'ring-border/70'
-              )}
-              title={
-                unused
-                  ? t('Not sent: {{title}} exceeds what this model accepts', {
-                      title: reference.title,
-                    })
-                  : reference.title
-              }
-            >
-              <img
-                src={reference.url}
-                alt={reference.title}
-                draggable={false}
-                className='size-full object-cover'
-              />
-              <span className='bg-background/85 text-foreground/90 pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 text-[9px] font-semibold backdrop-blur-sm'>
-                {referenceRole(index)}
-              </span>
-              {props.readOnly ? null : (
-                <button
-                  type='button'
-                  aria-label={t('Remove reference')}
-                  title={t('Remove reference')}
-                  className='bg-background/90 text-foreground absolute top-0.5 right-0.5 hidden size-4 items-center justify-center rounded-full shadow-sm group-hover/ref:flex'
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={() => removeConnection(reference.connectionId)}
-                >
-                  <X className='size-2.5' />
-                </button>
-              )}
-            </div>
-          )
-        })}
-        {props.readOnly ? null : (
-          <button
-            type='button'
-            title={t('Add reference images')}
-            aria-label={t('Add reference images')}
-            className={cn(
-              'flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed text-[9px] transition-colors',
-              missingRequiredImage
-                ? 'border-amber-500/60 text-amber-600 hover:bg-amber-500/10'
-                : 'border-border/70 text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-            )}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImagePlus className='size-4' />
-            {t('Add')}
-          </button>
-        )}
-        <input
-          ref={fileInputRef}
-          type='file'
-          accept='image/*'
-          multiple={capabilities.maxReferenceImages > 1 || usesLastFrame}
-          className='hidden'
-          onChange={(event) => {
-            const files = [...(event.target.files ?? [])]
-            event.target.value = ''
-            if (!files.length) return
-            void mediaImport.attachReferenceImages(props.node.id, files)
-          }}
-        />
-        <span
-          className='ml-1 min-w-0 flex-1 truncate text-[10px]'
-          style={{ color: theme.node.muted }}
+      <div className='flex shrink-0 flex-col gap-1'>
+        <div
+          className='flex items-center gap-1.5 overflow-x-auto'
+          data-canvas-no-zoom
+          data-canvas-wheel-scroll
         >
-          {referenceSummary()}
-        </span>
-        {capabilities.maxReferenceImages > 1 ? (
-          <div
-            className='bg-foreground/5 flex shrink-0 rounded-full p-0.5 text-[10px] font-medium'
-            role='radiogroup'
-            aria-label={t('Reference mode')}
-          >
-            {(['frames', 'references'] as VideoReferenceMode[]).map((mode) => (
-              <button
-                key={mode}
-                type='button'
-                role='radio'
-                aria-checked={options.referenceMode === mode}
+          {references.map((reference, index) => {
+            const unused = index >= activeReferenceLimit
+            return (
+              <div
+                key={reference.connectionId}
                 className={cn(
-                  'rounded-full px-2 py-0.5 transition-colors',
-                  options.referenceMode === mode
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                  'group/ref relative size-11 shrink-0 overflow-hidden rounded-lg ring-1 ring-inset',
+                  unused ? 'ring-border/40 opacity-45' : 'ring-border/70'
                 )}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() =>
-                  props.onMetadataChange({ videoReferenceMode: mode })
+                title={
+                  unused
+                    ? t('Not sent: {{title}} exceeds what this model accepts', {
+                        title: reference.title,
+                      })
+                    : reference.title
                 }
               >
-                {mode === 'frames' ? t('Frames') : t('References')}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {options.referenceMode === 'frames' &&
-        capabilities.supportsLastFrame &&
-        references.length > 1 ? (
-          <label
-            className='flex shrink-0 items-center gap-1 text-[10px]'
+                <img
+                  src={reference.url}
+                  alt={reference.title}
+                  draggable={false}
+                  className='size-full object-cover'
+                />
+                <span className='bg-background/85 text-foreground/90 pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 text-[9px] font-semibold backdrop-blur-sm'>
+                  {referenceRole(index)}
+                </span>
+                {props.readOnly ? null : (
+                  <button
+                    type='button'
+                    aria-label={t('Remove reference')}
+                    title={t('Remove reference')}
+                    className='bg-background/90 text-foreground absolute top-0.5 right-0.5 hidden size-4 items-center justify-center rounded-full shadow-sm group-hover/ref:flex'
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => removeConnection(reference.connectionId)}
+                  >
+                    <X className='size-2.5' />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+          {props.readOnly ? null : (
+            <button
+              type='button'
+              title={t('Add reference images')}
+              aria-label={t('Add reference images')}
+              className={cn(
+                'flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed text-[9px] transition-colors',
+                missingRequiredImage
+                  ? 'border-amber-500/60 text-amber-600 hover:bg-amber-500/10'
+                  : 'border-border/70 text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+              )}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImagePlus className='size-4' />
+              {t('Add')}
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type='file'
+            accept='image/*'
+            multiple={capabilities.maxReferenceImages > 1 || usesLastFrame}
+            className='hidden'
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])]
+              event.target.value = ''
+              if (!files.length) return
+              void mediaImport.attachReferenceImages(props.node.id, files)
+            }}
+          />
+        </div>
+        <div className='flex items-center gap-2'>
+          <span
+            className='min-w-0 flex-1 truncate text-[10px]'
             style={{ color: theme.node.muted }}
-            onPointerDown={(event) => event.stopPropagation()}
           >
-            <input
-              type='checkbox'
-              className='size-3'
-              checked={!metadata.disableLastFrame}
-              onChange={(event) =>
-                props.onMetadataChange({
-                  disableLastFrame: !event.target.checked,
-                })
-              }
-            />
-            {t('Last frame')}
-          </label>
-        ) : null}
+            {referenceSummary()}
+          </span>
+          {capabilities.maxReferenceImages > 1 ? (
+            <div
+              className='bg-foreground/5 flex shrink-0 rounded-full p-0.5 text-[10px] font-medium'
+              role='radiogroup'
+              aria-label={t('Reference mode')}
+            >
+              {(['frames', 'references'] as VideoReferenceMode[]).map(
+                (mode) => (
+                  <button
+                    key={mode}
+                    type='button'
+                    role='radio'
+                    aria-checked={options.referenceMode === mode}
+                    className={cn(
+                      'rounded-full px-2 py-0.5 transition-colors',
+                      options.referenceMode === mode
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() =>
+                      props.onMetadataChange({ videoReferenceMode: mode })
+                    }
+                  >
+                    {mode === 'frames' ? t('Frames') : t('References')}
+                  </button>
+                )
+              )}
+            </div>
+          ) : null}
+          {options.referenceMode === 'frames' &&
+          capabilities.supportsLastFrame &&
+          references.length > 1 ? (
+            <label
+              className='flex shrink-0 items-center gap-1 text-[10px]'
+              style={{ color: theme.node.muted }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <input
+                type='checkbox'
+                className='size-3'
+                checked={!metadata.disableLastFrame}
+                onChange={(event) =>
+                  props.onMetadataChange({
+                    disableLastFrame: !event.target.checked,
+                  })
+                }
+              />
+              {t('Last frame')}
+            </label>
+          ) : null}
+        </div>
       </div>
 
       <NodePromptBar
