@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { MAX_VIDEO_BATCH_JOBS } from '@/features/playground/lib/studio/video-capabilities'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { MISSING_MODEL_ERROR } from '../components/nodes/node-shared'
@@ -15,6 +16,10 @@ import {
   resumeCanvasVideoGeneration,
   type CanvasGenerationSettings,
 } from '../engine/canvas-generation-runner'
+import {
+  createVideoBatchSiblings,
+  planVideoBatch,
+} from '../engine/canvas-video-batch'
 import { shouldRecoverCanvasVideoTask } from '../engine/canvas-video-recovery'
 import { fitNodeSize } from '../engine/canvas-viewport'
 import { useCanvasStore } from '../store/canvas-store'
@@ -65,6 +70,10 @@ export function resolveGenerationSettings(
     'quality',
     'count',
     'seconds',
+    'aspectRatio',
+    'resolution',
+    'generateAudio',
+    'videoReferenceMode',
     'audioVoice',
     'audioFormat',
     'audioSpeed',
@@ -296,7 +305,7 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
     [runningIds]
   )
 
-  const generateNode = useCallback(
+  const generateSingleNode = useCallback(
     async (nodeId: string) => {
       if (options.enabled === false) return
       const store = useCanvasStore.getState()
@@ -464,6 +473,57 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
       }
     },
     [options.enabled, syncRunningIds]
+  )
+
+  const generateNode = useCallback(
+    async (nodeId: string) => {
+      if (options.enabled === false) return
+      const store = useCanvasStore.getState()
+      const node = store.nodes.find((item) => item.id === nodeId)
+      if (!node) return
+      if (node.type !== CanvasNodeType.Video) {
+        await generateSingleNode(nodeId)
+        return
+      }
+      if (node.metadata?.status === 'loading') return
+
+      const plan = planVideoBatch(node)
+      if (plan.truncated > 0) {
+        toast.warning(
+          t(
+            'Batch limited to {{max}} videos; {{count}} prompts were skipped.',
+            {
+              max: MAX_VIDEO_BATCH_JOBS,
+              count: plan.truncated,
+            }
+          )
+        )
+      }
+      if (plan.prompts.length === 1) {
+        if (node.metadata?.videoBatchMode) {
+          store.updateNodeMetadata(nodeId, { prompt: plan.prompts[0] })
+        }
+        await generateSingleNode(nodeId)
+        return
+      }
+
+      const batch = createVideoBatchSiblings(
+        node,
+        plan.prompts,
+        store.connections
+      )
+      store.updateNodeMetadata(nodeId, {
+        prompt: plan.prompts[0],
+        isBatchRoot: true,
+        batchChildIds: batch.nodes.map((child) => child.id),
+      })
+      store.insertNodes(batch.nodes, batch.connections)
+      await Promise.all([
+        generateSingleNode(nodeId),
+        ...batch.nodes.map((child) => generateSingleNode(child.id)),
+      ])
+    },
+    [generateSingleNode, options.enabled, t]
   )
 
   return { generateNode, cancelNode, isNodeRunning }

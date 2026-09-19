@@ -1,4 +1,4 @@
-import { Image as ImageIcon, Layers, Music, Video } from 'lucide-react'
+import { Image as ImageIcon, Layers, Music } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -9,15 +9,11 @@ import {
   IMAGE_COUNTS,
   IMAGE_QUALITIES,
   IMAGE_SIZES,
-  VIDEO_DURATIONS,
-  VIDEO_SIZES,
   AUDIO_FORMATS,
   SPEEDS,
   VOICES,
-  videoSizeLabel,
 } from '@/features/playground/lib/studio/generation-options'
 
-import { useCanvasTheme } from '../../engine/canvas-theme'
 import { useWorkbenchModels } from '../../hooks/use-workbench-models'
 import { useCanvasStore } from '../../store/canvas-store'
 import {
@@ -196,137 +192,6 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         )}
       >
         <Checkbox disabled checked={false} /> {t('Transparent background')}
-      </label>
-    </div>
-  )
-}
-
-export function VideoNodeBody(props: CanvasNodeBodyProps) {
-  const { t } = useTranslation()
-  const theme = useCanvasTheme()
-  const models = useWorkbenchModels()
-  const metadata = props.node.metadata ?? {}
-  const experienceMode = useCanvasStore((state) => state.experienceMode)
-  const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight)
-  const naturalAspect =
-    hasNatural && metadata.naturalHeight
-      ? `${metadata.naturalWidth} / ${metadata.naturalHeight}`
-      : undefined
-
-  return (
-    <div className='flex h-full min-h-0 flex-col gap-2'>
-      <div
-        className='bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset'
-        style={naturalAspect ? { aspectRatio: naturalAspect } : undefined}
-      >
-        {metadata.content ? (
-          <video
-            src={metadata.content}
-            controls
-            className='max-h-full max-w-full rounded-xl object-contain'
-            onPointerDown={(event) => event.stopPropagation()}
-          />
-        ) : (
-          <NodeEmptyMedia
-            icon={<Video className='size-4' />}
-            label={t('Describe the video to generate')}
-          />
-        )}
-        <NodeStatusOverlay
-          status={metadata.status}
-          taskStatus={metadata.taskStatus}
-          progress={metadata.taskProgress}
-          errorDetails={metadata.errorDetails}
-        />
-        {metadata.content && hasNatural ? (
-          <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm'>
-            {metadata.naturalWidth}×{metadata.naturalHeight}
-          </span>
-        ) : null}
-      </div>
-
-      <NodePromptBar
-        value={metadata.prompt ?? ''}
-        placeholder={t('Describe the video to generate')}
-        isGenerating={props.isGenerating}
-        disabled={!metadata.model}
-        onChange={(prompt) => props.onMetadataChange({ prompt })}
-        onGenerate={props.onGenerate}
-        onCancel={props.onCancel}
-        modality='video'
-        nodeId={props.node.id}
-      >
-        <NodeModelSelect
-          value={metadata.model}
-          options={models.byModality('video')}
-          onChange={(model) => props.onMetadataChange({ model })}
-        />
-      </NodePromptBar>
-
-      <NodeSettingsChips
-        items={[
-          videoSizeLabel(metadata.size ?? VIDEO_SIZES[0]),
-          `${metadata.seconds ?? VIDEO_DURATIONS[0]}s`,
-        ]}
-      />
-      <div
-        className={
-          experienceMode === 'professional'
-            ? 'flex shrink-0 flex-wrap items-center gap-2'
-            : 'hidden'
-        }
-        data-canvas-no-zoom
-      >
-        <NativeSelect
-          size='sm'
-          className='min-w-0 flex-1'
-          value={metadata.size ?? VIDEO_SIZES[0]}
-          onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) =>
-            props.onMetadataChange({ size: event.target.value })
-          }
-        >
-          {VIDEO_SIZES.map((option) => (
-            <option key={option} value={option}>
-              {videoSizeLabel(option)}
-            </option>
-          ))}
-        </NativeSelect>
-        <NativeSelect
-          size='sm'
-          className='w-24'
-          value={metadata.seconds ?? String(VIDEO_DURATIONS[0])}
-          onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) =>
-            props.onMetadataChange({ seconds: event.target.value })
-          }
-        >
-          {VIDEO_DURATIONS.map((option) => (
-            <option key={option} value={option}>
-              {t('{{count}}s', { count: option })}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
-
-      <label
-        className={
-          experienceMode === 'professional'
-            ? 'flex shrink-0 items-start gap-2 text-[11px]'
-            : 'hidden'
-        }
-        data-canvas-no-zoom
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <Checkbox
-          checked={!metadata.disableLastFrame}
-          onCheckedChange={(checked) =>
-            props.onMetadataChange({ disableLastFrame: !checked })
-          }
-        />
-        <span style={{ color: theme.node.muted }}>
-          {t('Use the second connected image as the tail frame')}
-        </span>
       </label>
     </div>
   )

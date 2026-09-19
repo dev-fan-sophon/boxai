@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { uploadPlaygroundAsset } from '@/features/playground/api'
 
+import { NODE_DEFAULT_SIZE } from '../constants'
 import {
   mediaKindForFile,
   mediaKindForNode,
@@ -14,6 +15,8 @@ import { useCanvasStore } from '../store/canvas-store'
 import { CanvasNodeType, type Position } from '../types'
 
 const IMPORT_GAP = 32
+/** Vertical slot reserved per reference image stacked beside a video node. */
+const REFERENCE_ROW = 200
 
 function nodeTypeForFile(file: File): CanvasNodeType | null {
   if (file.type.startsWith('image/')) return CanvasNodeType.Image
@@ -40,6 +43,8 @@ export function useCanvasMediaImport(): {
   importFiles: (files: File[], position: Position) => Promise<void>
   importText: (text: string, position: Position) => void
   replaceNodeMedia: (nodeId: string, file: File) => Promise<boolean>
+  /** Uploads images, places them beside `targetNodeId` and wires them in. */
+  attachReferenceImages: (targetNodeId: string, files: File[]) => Promise<void>
 } {
   const { t } = useTranslation()
 
@@ -133,6 +138,63 @@ export function useCanvasMediaImport(): {
     [t]
   )
 
+  const attachReferenceImages = useCallback(
+    async (targetNodeId: string, files: File[]) => {
+      const images = files.filter((file) => file.type.startsWith('image/'))
+      if (!images.length) {
+        toast.error(t('Choose image files to use as references'))
+        return
+      }
+      const target = useCanvasStore
+        .getState()
+        .nodes.find((item) => item.id === targetNodeId)
+      if (!target) return
+      const existingInputs = useCanvasStore
+        .getState()
+        .connections.filter(
+          (connection) => connection.toNodeId === targetNodeId
+        ).length
+      const columnWidth = NODE_DEFAULT_SIZE[CanvasNodeType.Image].width
+      const columnX = target.position.x - IMPORT_GAP - columnWidth
+      let offsetY =
+        target.position.y + existingInputs * (REFERENCE_ROW + IMPORT_GAP)
+      for (const file of images) {
+        try {
+          const asset = await uploadPlaygroundAsset(file, 'image')
+          const size = (await measureImage(asset.url)) ?? {
+            width: columnWidth,
+            height: REFERENCE_ROW,
+          }
+          const store = useCanvasStore.getState()
+          const node = store.addNode(
+            CanvasNodeType.Image,
+            {
+              x: columnX + columnWidth - size.width / 2,
+              y: offsetY + size.height / 2,
+            },
+            {
+              content: asset.url,
+              assetId: asset.id,
+              mimeType: file.type,
+              status: 'success',
+            }
+          )
+          store.updateNode(node.id, {
+            title: file.name,
+            width: size.width,
+            height: size.height,
+          })
+          store.connectNodes(node.id, targetNodeId)
+          offsetY += size.height + IMPORT_GAP
+        } catch {
+          toast.error(t('Failed to upload the file'))
+        }
+      }
+      useCanvasStore.getState().setSelectedNodes([targetNodeId])
+    },
+    [t]
+  )
+
   const importText = useCallback((text: string, position: Position) => {
     const trimmed = text.trim()
     if (!trimmed) return
@@ -142,5 +204,5 @@ export function useCanvasMediaImport(): {
     })
   }, [])
 
-  return { importFiles, importText, replaceNodeMedia }
+  return { importFiles, importText, replaceNodeMedia, attachReferenceImages }
 }

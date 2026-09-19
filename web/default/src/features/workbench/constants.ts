@@ -16,7 +16,7 @@ export const NODE_DEFAULT_SIZE = {
     height: 320,
     title: 'Generation preset',
   },
-  [CanvasNodeType.Video]: { width: 420, height: 430, title: 'Video' },
+  [CanvasNodeType.Video]: { width: 460, height: 600, title: 'Video' },
   [CanvasNodeType.Audio]: { width: 360, height: 300, title: 'Audio' },
   [CanvasNodeType.Frame]: { width: 760, height: 520, title: 'Frame' },
 } satisfies Record<
@@ -33,7 +33,7 @@ export const NODE_MIN_SIZE = {
   [CanvasNodeType.Text]: { width: 200, height: 120 },
   [CanvasNodeType.Script]: { width: 520, height: 240 },
   [CanvasNodeType.Config]: { width: 260, height: 220 },
-  [CanvasNodeType.Video]: { width: 320, height: 340 },
+  [CanvasNodeType.Video]: { width: 360, height: 460 },
   [CanvasNodeType.Audio]: { width: 300, height: 250 },
   [CanvasNodeType.Frame]: { width: 240, height: 44 },
 } satisfies Record<CanvasNodeType, { width: number; height: number }>

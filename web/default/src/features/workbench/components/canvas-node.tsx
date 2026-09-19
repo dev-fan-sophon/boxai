@@ -37,14 +37,11 @@ import {
   FrameNodeBody,
   TextNodeBody,
 } from './nodes/basic-nodes'
-import {
-  AudioNodeBody,
-  ImageNodeBody,
-  VideoNodeBody,
-} from './nodes/media-nodes'
+import { AudioNodeBody, ImageNodeBody } from './nodes/media-nodes'
 import { nodeAccent } from './nodes/node-accent'
 import type { CanvasNodeBodyProps } from './nodes/node-shared'
 import { StoryboardNodeBody } from './nodes/storyboard-node'
+import { VideoNodeBody } from './nodes/video-node'
 
 type MediaAction =
   | 'preview'

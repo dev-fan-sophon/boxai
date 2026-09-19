@@ -73,7 +73,10 @@ type CanvasStoreState = {
     position: Position,
     metadata?: CanvasNodeMetadata
   ) => CanvasNodeData
-  insertNodes: (nodes: CanvasNodeData[]) => void
+  insertNodes: (
+    nodes: CanvasNodeData[],
+    connections?: CanvasConnection[]
+  ) => void
   updateNode: (id: string, patch: Partial<CanvasNodeData>) => void
   /** Resize during pointer gestures skips history/revision churn; commit on up. */
   resizeNode: (id: string, patch: Partial<CanvasNodeData>) => void
@@ -233,11 +236,14 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     return node
   },
 
-  insertNodes: (nodes) => {
+  insertNodes: (nodes, connections = []) => {
     if (!nodes.length) return
     set((state) =>
       withHistory(state, {
         nodes: [...state.nodes, ...nodes],
+        connections: connections.length
+          ? [...state.connections, ...connections]
+          : state.connections,
         selectedNodeIds: nodes.map((node) => node.id),
         selectedConnectionId: null,
       })

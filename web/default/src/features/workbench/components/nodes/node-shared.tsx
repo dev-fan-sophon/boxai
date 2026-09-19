@@ -42,6 +42,10 @@ export function NodePromptBar(props: {
   children?: React.ReactNode
   modality: CanvasGenerationMode
   nodeId: string
+  /** Textarea height; batch prompt boxes ask for more lines. */
+  rows?: number
+  /** Short label shown on the generate button, e.g. a batch size. */
+  generateBadge?: string
 }) {
   const { t } = useTranslation()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -105,7 +109,7 @@ export function NodePromptBar(props: {
         ref={textareaRef}
         value={props.value}
         placeholder={props.placeholder}
-        rows={2}
+        rows={props.rows ?? 2}
         className='min-h-[46px] resize-none border-none bg-transparent px-2 py-1 text-xs leading-relaxed shadow-none focus-visible:ring-0'
         onChange={(event) => {
           props.onChange(event.target.value)
@@ -180,10 +184,18 @@ export function NodePromptBar(props: {
             aria-label={t('Generate')}
             data-guide='node-generate'
             disabled={props.disabled}
-            className='transition-ui ml-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-sm hover:brightness-110 active:scale-95 disabled:from-slate-400 disabled:to-slate-400 disabled:opacity-50 disabled:active:scale-100'
+            className={cn(
+              'transition-ui ml-auto flex h-8 shrink-0 items-center justify-center gap-1 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-sm hover:brightness-110 active:scale-95 disabled:from-slate-400 disabled:to-slate-400 disabled:opacity-50 disabled:active:scale-100',
+              props.generateBadge ? 'px-3' : 'w-8'
+            )}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={props.onGenerate}
           >
+            {props.generateBadge ? (
+              <span className='text-[11px] font-semibold'>
+                {props.generateBadge}
+              </span>
+            ) : null}
             <ArrowUp className='size-4' />
           </button>
         )}

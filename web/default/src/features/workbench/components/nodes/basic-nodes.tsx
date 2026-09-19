@@ -10,11 +10,12 @@ import {
   IMAGE_QUALITIES,
   IMAGE_SIZES,
   SPEEDS,
-  VIDEO_DURATIONS,
-  VIDEO_SIZES,
   VOICES,
-  videoSizeLabel,
 } from '@/features/playground/lib/studio/generation-options'
+import {
+  getVideoModelCapabilities,
+  resolveVideoOptions,
+} from '@/features/playground/lib/studio/video-capabilities'
 
 import { useCanvasTheme } from '../../engine/canvas-theme'
 import { useWorkbenchModels } from '../../hooks/use-workbench-models'
@@ -46,6 +47,14 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
   const models = useWorkbenchModels()
   const metadata = props.node.metadata ?? {}
   const mode = metadata.generationMode ?? 'image'
+  const videoCapabilities = getVideoModelCapabilities(metadata.model)
+  const videoOptions = resolveVideoOptions(videoCapabilities, {
+    aspectRatio: metadata.aspectRatio,
+    resolution: metadata.resolution,
+    seconds: metadata.seconds,
+    size: metadata.size,
+    generateAudio: metadata.generateAudio,
+  })
 
   return (
     <div
@@ -118,26 +127,52 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
 
       {mode === 'video' ? (
         <>
-          <Row label={t('Size')}>
+          <Row label={t('Aspect ratio')}>
             <SelectOptions
-              value={metadata.size ?? VIDEO_SIZES[0]}
-              options={VIDEO_SIZES.map((size) => ({
-                value: size,
-                label: videoSizeLabel(size),
+              value={videoOptions.aspectRatio}
+              options={videoCapabilities.aspectRatios.map((ratio) => ({
+                value: ratio,
+                label: ratio === 'adaptive' ? t('Auto (match image)') : ratio,
               }))}
-              onChange={(size) => props.onMetadataChange({ size })}
+              onChange={(aspectRatio) =>
+                props.onMetadataChange({ aspectRatio })
+              }
+            />
+          </Row>
+          <Row label={t('Resolution')}>
+            <SelectOptions
+              value={videoOptions.resolution}
+              options={videoCapabilities.resolutions.map((resolution) => ({
+                value: resolution,
+                label: resolution,
+              }))}
+              onChange={(resolution) => props.onMetadataChange({ resolution })}
             />
           </Row>
           <Row label={t('Duration (seconds)')}>
             <SelectOptions
-              value={metadata.seconds ?? String(VIDEO_DURATIONS[0])}
-              options={VIDEO_DURATIONS.map((duration) => ({
+              value={String(videoOptions.duration)}
+              options={videoCapabilities.durations.map((duration) => ({
                 value: String(duration),
                 label: String(duration),
               }))}
               onChange={(seconds) => props.onMetadataChange({ seconds })}
             />
           </Row>
+          {videoCapabilities.supportsAudioToggle ? (
+            <Row label={t('Audio')}>
+              <SelectOptions
+                value={videoOptions.generateAudio ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: t('On') },
+                  { value: 'off', label: t('Off') },
+                ]}
+                onChange={(value) =>
+                  props.onMetadataChange({ generateAudio: value === 'on' })
+                }
+              />
+            </Row>
+          ) : null}
         </>
       ) : null}
 
