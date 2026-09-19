@@ -98,6 +98,43 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	return relaycommon.ValidateMultipartDirect(c, info)
 }
 
+// ValidateMappedRequest rejects Seedance requests that the passthrough
+// gateway would refuse (too many reference images, frames mixed with
+// references) before quota is reserved. The upstream model name is only known
+// after channel model mapping, hence the separate hook.
+func (a *TaskAdaptor) ValidateMappedRequest(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	if info.Action == constant.TaskActionRemix || !isSeedanceModel(info.UpstreamModelName) {
+		return nil
+	}
+	if !strings.HasPrefix(c.GetHeader("Content-Type"), "application/json") {
+		return nil
+	}
+	body, err := a.passthroughJSONBody(c)
+	if err != nil {
+		return nil
+	}
+	if err := normalizeSeedancePassthroughBody(body, info.UpstreamModelName); err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	return nil
+}
+
+func (a *TaskAdaptor) passthroughJSONBody(c *gin.Context) (map[string]interface{}, error) {
+	storage, err := common.GetBodyStorage(c)
+	if err != nil {
+		return nil, err
+	}
+	cachedBody, err := storage.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var body map[string]interface{}
+	if err := common.Unmarshal(cachedBody, &body); err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
 // EstimateBilling 根据用户请求的 seconds 和 size 计算 OtherRatios。
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
 	// remix 路径的 OtherRatios 已在 ResolveOriginTask 中设置
@@ -129,6 +166,15 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	}
 	if size == "1792x1024" || size == "1024x1792" {
 		ratios["size"] = 1.666667
+	}
+	if isSeedanceModel(info.UpstreamModelName) {
+		resolution, _ := req.Metadata["resolution"].(string)
+		if strings.TrimSpace(resolution) == "" {
+			resolution, _ = seedanceOutputFromSize(req.Size)
+		}
+		if ratio := seedanceResolutionRatio(resolution); ratio != 1 {
+			ratios["resolution"] = ratio
+		}
 	}
 	return ratios
 }
@@ -162,6 +208,11 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		var bodyMap map[string]interface{}
 		if err := common.Unmarshal(cachedBody, &bodyMap); err == nil {
 			bodyMap["model"] = info.UpstreamModelName
+			if info.Action != constant.TaskActionRemix && isSeedanceModel(info.UpstreamModelName) {
+				if err := normalizeSeedancePassthroughBody(bodyMap, info.UpstreamModelName); err != nil {
+					return nil, errors.Wrap(err, "normalize_seedance_request_failed")
+				}
+			}
 			if newBody, err := common.Marshal(bodyMap); err == nil {
 				return bytes.NewReader(newBody), nil
 			}

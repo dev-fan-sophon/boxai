@@ -217,7 +217,10 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	}
 	normalizeTaskFrameReferences(&req)
 
-	if req.InputReference != "" {
+	// Keep every merged image: multi-reference models (Seedance 2.x) need the
+	// full list, while single-image adaptors read Images[0], which
+	// normalizeTaskFrameReferences already orders as the first frame.
+	if len(req.Images) == 0 && req.InputReference != "" {
 		req.Images = []string{req.InputReference}
 	} else if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
 		// 兼容单图上传
