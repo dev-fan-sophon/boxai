@@ -3,9 +3,12 @@ import {
   Clock,
   Gauge,
   Layers,
+  ListOrdered,
   Mic,
   Monitor,
   Proportions,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,18 +20,22 @@ import {
   IMAGE_QUALITIES,
   IMAGE_SIZES,
   SPEEDS,
-  VIDEO_DURATIONS,
-  VIDEO_SIZES,
   VOICES,
   imageQualityLabelKey,
-  videoSizeLabel,
 } from '../../lib/studio/generation-options'
 import {
   normalizeImageGenerationSettings,
   type GptImageSize,
 } from '../../lib/studio/image-request-schema'
+import {
+  VIDEO_COUNTS,
+  applyResolvedVideoSettings,
+  getVideoModelCapabilities,
+  resolveVideoOptions,
+  type VideoAspectRatio,
+} from '../../lib/studio/video-capabilities'
 import type { StudioModality, StudioSettings } from '../../types'
-import { AspectGlyph, ParamChip } from './param-chip'
+import { AspectGlyph, ParamChip, TogglePill } from './param-chip'
 
 function imageSizeChipLabel(
   size: GptImageSize,
@@ -47,6 +54,7 @@ function imageSizeChipLabel(
  */
 export function GenerationParamChips(props: {
   modality: Exclude<StudioModality, 'chat'>
+  hasImage?: boolean
 }) {
   const { t } = useTranslation()
   const settings = usePlaygroundStore((state) => state.studioSettings)
@@ -105,32 +113,7 @@ export function GenerationParamChips(props: {
   }
 
   if (props.modality === 'video') {
-    return (
-      <>
-        <ParamChip
-          icon={<Clock />}
-          ariaLabel={t('Duration (seconds)')}
-          valueLabel={`${settings.videoDuration}s`}
-          value={String(settings.videoDuration)}
-          onChange={(value) => update('videoDuration', Number(value))}
-          options={VIDEO_DURATIONS.map((duration) => ({
-            value: String(duration),
-            label: `${duration}s`,
-          }))}
-        />
-        <ParamChip
-          icon={<Monitor />}
-          ariaLabel={t('Video size')}
-          valueLabel={videoSizeLabel(settings.videoSize)}
-          value={settings.videoSize}
-          onChange={(value) => update('videoSize', value)}
-          options={VIDEO_SIZES.map((size) => ({
-            value: size,
-            label: videoSizeLabel(size),
-          }))}
-        />
-      </>
-    )
+    return <VideoParamChips hasImage={props.hasImage === true} />
   }
 
   return (
@@ -164,6 +147,115 @@ export function GenerationParamChips(props: {
           value: format,
           label: format,
         }))}
+      />
+    </>
+  )
+}
+
+function VideoParamChips(props: { hasImage: boolean }) {
+  const { t } = useTranslation()
+  const model = usePlaygroundStore((state) => state.config.model)
+  const settings = usePlaygroundStore((state) => state.studioSettings)
+  const setStudioSettings = usePlaygroundStore(
+    (state) => state.setStudioSettings
+  )
+  const capabilities = getVideoModelCapabilities(model)
+  const options = resolveVideoOptions(
+    capabilities,
+    {
+      aspectRatio: settings.videoAspectRatio,
+      resolution: settings.videoResolution,
+      seconds: settings.videoDuration,
+      size: settings.videoSize,
+      generateAudio: settings.videoGenerateAudio,
+      referenceMode: settings.videoReferenceMode,
+      count: settings.videoCount,
+    },
+    { hasImage: props.hasImage }
+  )
+
+  const persist = (patch: Partial<StudioSettings>) =>
+    setStudioSettings((prev) =>
+      applyResolvedVideoSettings(prev, capabilities, patch, {
+        hasImage: props.hasImage,
+      })
+    )
+
+  const ratioLabel = (ratio: VideoAspectRatio) =>
+    ratio === 'adaptive' ? t('Auto') : ratio
+
+  return (
+    <>
+      <ParamChip
+        icon={<Proportions />}
+        ariaLabel={t('Aspect ratio')}
+        valueLabel={ratioLabel(options.aspectRatio)}
+        value={options.aspectRatio}
+        onChange={(aspectRatio) => persist({ videoAspectRatio: aspectRatio })}
+        options={capabilities.aspectRatios.map((ratio) => ({
+          value: ratio,
+          label:
+            ratio === 'adaptive' ? t('Auto (match image)') : ratioLabel(ratio),
+          glyph: <AspectGlyph size={ratio} />,
+        }))}
+      />
+      <ParamChip
+        icon={<Monitor />}
+        ariaLabel={t('Resolution')}
+        valueLabel={options.resolution}
+        value={options.resolution}
+        onChange={(resolution) => persist({ videoResolution: resolution })}
+        options={capabilities.resolutions.map((resolution) => {
+          const needsImage =
+            capabilities.imageOnlyResolutions.includes(resolution) &&
+            !props.hasImage
+          return {
+            value: resolution,
+            label: resolution,
+            disabled: needsImage,
+            hint: needsImage ? t('Needs a reference image') : undefined,
+          }
+        })}
+      />
+      <ParamChip
+        icon={<Clock />}
+        ariaLabel={t('Duration (seconds)')}
+        valueLabel={`${options.duration}s`}
+        value={String(options.duration)}
+        onChange={(seconds) => persist({ videoDuration: Number(seconds) })}
+        options={capabilities.durations.map((duration) => ({
+          value: String(duration),
+          label: t('{{count}}s', { count: duration }),
+        }))}
+      />
+      {capabilities.supportsAudioToggle ? (
+        <TogglePill
+          icon={options.generateAudio ? <Volume2 /> : <VolumeX />}
+          label={options.generateAudio ? t('Audio') : t('Muted')}
+          title={t('Generate audio with the video')}
+          active={options.generateAudio}
+          onToggle={() =>
+            persist({ videoGenerateAudio: !options.generateAudio })
+          }
+        />
+      ) : null}
+      <ParamChip
+        icon={<Layers />}
+        ariaLabel={t('Videos per prompt')}
+        valueLabel={`×${options.count}`}
+        value={String(options.count)}
+        onChange={(count) => persist({ videoCount: Number(count) })}
+        options={VIDEO_COUNTS.map((count) => ({
+          value: String(count),
+          label: t('{{count}} videos', { count }),
+        }))}
+      />
+      <TogglePill
+        icon={<ListOrdered />}
+        label={t('Batch')}
+        title={t('Enter several prompts and generate them at once')}
+        active={settings.videoBatchMode}
+        onToggle={() => persist({ videoBatchMode: !settings.videoBatchMode })}
       />
     </>
   )

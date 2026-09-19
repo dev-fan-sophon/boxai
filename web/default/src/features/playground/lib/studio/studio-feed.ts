@@ -67,7 +67,7 @@ export type StudioGenerationInput = {
   prompt: string
   model: string
   group: string
-  /** Data URLs: image references (up to 4) or video first frame (1). */
+  /** Data URLs for image/video references. Video roles are assigned at submit. */
   references: string[]
 }
 

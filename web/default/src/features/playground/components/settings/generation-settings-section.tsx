@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Switch } from '@/components/ui/switch'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
@@ -10,18 +11,22 @@ import {
   IMAGE_QUALITIES,
   IMAGE_SIZES,
   SPEEDS,
-  VIDEO_DURATIONS,
-  VIDEO_SIZES,
   VOICES,
   imageQualityLabelKey,
   imageSizeLabel,
-  videoSizeLabel,
 } from '../../lib/studio/generation-options'
 import {
   isPlaygroundImageModel,
   normalizeImageGenerationSettings,
   PLAYGROUND_IMAGE_MODEL,
 } from '../../lib/studio/image-request-schema'
+import {
+  VIDEO_COUNTS,
+  applyResolvedVideoSettings,
+  getVideoModelCapabilities,
+  resolveVideoOptions,
+  type VideoAspectRatio,
+} from '../../lib/studio/video-capabilities'
 import type { StudioModality, StudioSettings } from '../../types'
 
 /**
@@ -114,8 +119,66 @@ export function GenerationSettingsSection(props: {
   }
 
   if (props.modality === 'video') {
+    const capabilities = getVideoModelCapabilities(model)
+    const options = resolveVideoOptions(
+      capabilities,
+      {
+        aspectRatio: settings.videoAspectRatio,
+        resolution: settings.videoResolution,
+        seconds: settings.videoDuration,
+        size: settings.videoSize,
+        generateAudio: settings.videoGenerateAudio,
+        referenceMode: settings.videoReferenceMode,
+        count: settings.videoCount,
+      },
+      { hasImage: true }
+    )
+    const persistVideo = (patch: Partial<StudioSettings>) => {
+      setStudioSettings((prev) =>
+        applyResolvedVideoSettings(prev, capabilities, patch)
+      )
+    }
+    const ratioLabel = (ratio: VideoAspectRatio) =>
+      ratio === 'adaptive' ? t('Auto') : ratio
+
     return (
       <div className='space-y-3'>
+        <SettingRow label={t('Aspect ratio')} htmlFor='gen-video-ratio'>
+          <NativeSelect
+            id='gen-video-ratio'
+            size='sm'
+            className='w-full'
+            value={options.aspectRatio}
+            onChange={(event) =>
+              persistVideo({ videoAspectRatio: event.target.value })
+            }
+          >
+            {capabilities.aspectRatios.map((ratio) => (
+              <NativeSelectOption key={ratio} value={ratio}>
+                {ratio === 'adaptive'
+                  ? t('Auto (match image)')
+                  : ratioLabel(ratio)}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </SettingRow>
+        <SettingRow label={t('Resolution')} htmlFor='gen-video-resolution'>
+          <NativeSelect
+            id='gen-video-resolution'
+            size='sm'
+            className='w-full'
+            value={options.resolution}
+            onChange={(event) =>
+              persistVideo({ videoResolution: event.target.value })
+            }
+          >
+            {capabilities.resolutions.map((resolution) => (
+              <NativeSelectOption key={resolution} value={resolution}>
+                {resolution}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </SettingRow>
         <SettingRow
           label={t('Duration (seconds)')}
           htmlFor='gen-video-duration'
@@ -124,32 +187,80 @@ export function GenerationSettingsSection(props: {
             id='gen-video-duration'
             size='sm'
             className='w-full'
-            value={String(settings.videoDuration)}
+            value={String(options.duration)}
             onChange={(event) =>
-              update('videoDuration', Number(event.target.value))
+              persistVideo({ videoDuration: Number(event.target.value) })
             }
           >
-            {VIDEO_DURATIONS.map((duration) => (
+            {capabilities.durations.map((duration) => (
               <NativeSelectOption key={duration} value={String(duration)}>
                 {duration}s
               </NativeSelectOption>
             ))}
           </NativeSelect>
         </SettingRow>
-        <SettingRow label={t('Size')} htmlFor='gen-video-size'>
+        {capabilities.supportsAudioToggle ? (
+          <SettingRow label={t('Audio')} htmlFor='gen-video-audio'>
+            <Switch
+              id='gen-video-audio'
+              size='sm'
+              checked={options.generateAudio}
+              onCheckedChange={(checked) =>
+                persistVideo({ videoGenerateAudio: checked })
+              }
+            />
+          </SettingRow>
+        ) : null}
+        {capabilities.maxReferenceImages > 1 ? (
+          <SettingRow label={t('Reference mode')} htmlFor='gen-video-ref-mode'>
+            <NativeSelect
+              id='gen-video-ref-mode'
+              size='sm'
+              className='w-full'
+              value={options.referenceMode}
+              onChange={(event) =>
+                persistVideo({
+                  videoReferenceMode: event.target.value as
+                    | 'frames'
+                    | 'references',
+                })
+              }
+            >
+              <NativeSelectOption value='frames'>
+                {t('Frames')}
+              </NativeSelectOption>
+              <NativeSelectOption value='references'>
+                {t('References')}
+              </NativeSelectOption>
+            </NativeSelect>
+          </SettingRow>
+        ) : null}
+        <SettingRow label={t('Videos per prompt')} htmlFor='gen-video-count'>
           <NativeSelect
-            id='gen-video-size'
+            id='gen-video-count'
             size='sm'
             className='w-full'
-            value={settings.videoSize}
-            onChange={(event) => update('videoSize', event.target.value)}
+            value={String(options.count)}
+            onChange={(event) =>
+              persistVideo({ videoCount: Number(event.target.value) })
+            }
           >
-            {VIDEO_SIZES.map((size) => (
-              <NativeSelectOption key={size} value={size}>
-                {videoSizeLabel(size)}
+            {VIDEO_COUNTS.map((count) => (
+              <NativeSelectOption key={count} value={String(count)}>
+                {count}
               </NativeSelectOption>
             ))}
           </NativeSelect>
+        </SettingRow>
+        <SettingRow label={t('Batch')} htmlFor='gen-video-batch'>
+          <Switch
+            id='gen-video-batch'
+            size='sm'
+            checked={settings.videoBatchMode}
+            onCheckedChange={(checked) =>
+              persistVideo({ videoBatchMode: checked })
+            }
+          />
         </SettingRow>
       </div>
     )

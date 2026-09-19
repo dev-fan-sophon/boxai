@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_STUDIO_SETTINGS } from '../storage/store-migration'
 import {
+  applyResolvedVideoSettings,
+  assignVideoReferences,
   getVideoModelCapabilities,
+  planVideoJobs,
   resolveVideoOptions,
   splitBatchPrompts,
   videoOptionsFromSize,
@@ -111,5 +115,85 @@ describe('splitBatchPrompts', () => {
       'a sunrise',
       'b\tsunset',
     ])
+  })
+})
+
+describe('planVideoJobs', () => {
+  it('repeats each line by count and caps the total at ten', () => {
+    const plan = planVideoJobs({
+      text: 'a\nb\nc\nd\ne\nf',
+      batchMode: true,
+      count: 2,
+    })
+    expect(plan.prompts).toHaveLength(10)
+    expect(plan.truncated).toBe(2)
+    expect(plan.prompts[0]).toBe('a')
+    expect(plan.prompts[9]).toBe('e')
+  })
+
+  it('uses the trimmed single prompt when batch mode is off', () => {
+    expect(
+      planVideoJobs({ text: '  one  ', batchMode: false, count: 3 })
+    ).toEqual({ prompts: ['one', 'one', 'one'], truncated: 0 })
+  })
+})
+
+describe('assignVideoReferences', () => {
+  it('sends first and last frame in frames mode, and only the first when the tail is disabled', () => {
+    const images = ['data:a', 'data:b', 'data:c']
+    expect(
+      assignVideoReferences({
+        model: 'seedance-2-0',
+        references: images,
+        referenceMode: 'frames',
+      })
+    ).toEqual({ firstFrame: 'data:a', lastFrame: 'data:b' })
+    expect(
+      assignVideoReferences({
+        model: 'seedance-2-0',
+        references: images,
+        referenceMode: 'frames',
+        disableLastFrame: true,
+      })
+    ).toEqual({ firstFrame: 'data:a', lastFrame: undefined })
+  })
+
+  it('caps reference-mode images and never uses last-frame on xAI', () => {
+    const many = Array.from({ length: 12 }, (_, i) => `data:${i}`)
+    expect(
+      assignVideoReferences({
+        model: 'seedance-2-0',
+        references: many,
+        referenceMode: 'references',
+      }).referenceImages
+    ).toEqual(many.slice(0, 9))
+    expect(
+      assignVideoReferences({
+        model: 'grok-imagine-video-1.5',
+        references: many,
+        referenceMode: 'references',
+      })
+    ).toEqual({ firstFrame: 'data:0', lastFrame: undefined })
+  })
+})
+
+describe('applyResolvedVideoSettings', () => {
+  it('clamps stale 1080p onto the fast profile and writes the derived size', () => {
+    const next = applyResolvedVideoSettings(
+      {
+        ...DEFAULT_STUDIO_SETTINGS,
+        videoAspectRatio: '9:16',
+        videoResolution: '1080p',
+        videoDuration: 30,
+      },
+      getVideoModelCapabilities('seedance-2-0-fast'),
+      {}
+    )
+    expect(next).toMatchObject({
+      videoAspectRatio: '9:16',
+      videoResolution: '720p',
+      videoDuration: 15,
+      videoSize: '720x1280',
+    })
   })
 })

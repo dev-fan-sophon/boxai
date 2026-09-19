@@ -18,6 +18,7 @@ import {
   type PendingStudioRun,
   type StudioGenerationInput,
 } from '../lib/studio/studio-feed'
+import { buildPlaygroundVideoSubmitInput } from '../lib/studio/video-submit'
 import type { StudioSettings } from '../types'
 import {
   ensureActiveStudioProjectId,
@@ -165,13 +166,15 @@ export function useStudio() {
 
   const executeVideoRun = useCallback(
     async (generation: StudioGenerationInput, snapshot: StudioSettings) => {
-      const submission = await submitVideo({
-        model: generation.model,
-        group: generation.group,
-        prompt: generation.prompt,
-        settings: snapshot,
-        referenceImages: generation.references,
-      })
+      const submission = await submitVideo(
+        buildPlaygroundVideoSubmitInput({
+          model: generation.model,
+          group: generation.group,
+          prompt: generation.prompt,
+          settings: snapshot,
+          references: generation.references,
+        })
+      )
       if (!submission.taskId) {
         throw new Error('The provider did not return a task id.')
       }

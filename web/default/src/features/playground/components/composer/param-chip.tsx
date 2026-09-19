@@ -113,6 +113,37 @@ export function ParamChip(props: {
 }
 
 /**
+ * Small pill that flips a boolean setting. Sits next to the parameter chips
+ * so every option is one tap away without opening a settings panel.
+ */
+export function TogglePill(props: {
+  icon: ReactNode
+  label: string
+  active: boolean
+  title?: string
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type='button'
+      aria-pressed={props.active}
+      title={props.title ?? props.label}
+      className={cn(
+        'inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2',
+        props.active
+          ? 'border-primary/50 bg-primary/10 text-foreground'
+          : 'border-border/80 bg-background/70 text-foreground/70 hover:text-foreground'
+      )}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={props.onToggle}
+    >
+      <span className='[&>svg]:size-3.5'>{props.icon}</span>
+      {props.label}
+    </button>
+  )
+}
+
+/**
  * Tiny outline whose proportions follow a `WxH` size or `W:H` ratio string.
  * Falls back to a generic icon for `auto` / `adaptive`.
  */

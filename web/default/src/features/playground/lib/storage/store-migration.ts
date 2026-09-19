@@ -27,6 +27,14 @@ import {
 } from '../state/playground-state-utils'
 import { normalizeImageGenerationSettings } from '../studio/image-request-schema'
 import {
+  VIDEO_COUNTS,
+  videoOptionsFromSize,
+  videoSizeForOptions,
+  type VideoAspectRatio,
+  type VideoReferenceMode,
+  type VideoResolution,
+} from '../studio/video-capabilities'
+import {
   MAX_PINNED_MODELS,
   loadWorkbenchPrefs,
   normalizeChatTools,
@@ -226,6 +234,13 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   imageQuality: 'auto',
   videoDuration: 5,
   videoSize: '1280x720',
+  videoAspectRatio: '16:9',
+  videoResolution: '720p',
+  videoGenerateAudio: true,
+  videoReferenceMode: 'frames',
+  videoCount: 1,
+  videoBatchMode: false,
+  videoDisableLastFrame: false,
   voice: 'alloy',
   speed: 1,
   audioFormat: 'mp3',
@@ -263,6 +278,20 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     imageSize: merged.imageSize,
     imageQuality: merged.imageQuality,
   })
+  const legacySize =
+    typeof raw.videoSize === 'string' ? raw.videoSize : undefined
+  const fromSize = videoOptionsFromSize(legacySize)
+  const videoAspectRatio = (
+    typeof raw.videoAspectRatio === 'string'
+      ? raw.videoAspectRatio
+      : (fromSize?.aspectRatio ?? DEFAULT_STUDIO_SETTINGS.videoAspectRatio)
+  ) as VideoAspectRatio
+  const videoResolution = (
+    typeof raw.videoResolution === 'string'
+      ? raw.videoResolution
+      : (fromSize?.resolution ?? DEFAULT_STUDIO_SETTINGS.videoResolution)
+  ) as VideoResolution
+  const derivedSize = videoSizeForOptions(videoAspectRatio, videoResolution)
   return {
     imageCount: image.imageCount,
     imageSize: image.imageSize,
@@ -273,10 +302,26 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
       60,
       DEFAULT_STUDIO_SETTINGS.videoDuration
     ),
-    videoSize:
-      typeof merged.videoSize === 'string'
-        ? merged.videoSize
-        : DEFAULT_STUDIO_SETTINGS.videoSize,
+    videoSize: derivedSize ?? legacySize ?? DEFAULT_STUDIO_SETTINGS.videoSize,
+    videoAspectRatio,
+    videoResolution,
+    videoGenerateAudio:
+      typeof merged.videoGenerateAudio === 'boolean'
+        ? merged.videoGenerateAudio
+        : DEFAULT_STUDIO_SETTINGS.videoGenerateAudio,
+    videoReferenceMode:
+      merged.videoReferenceMode === 'references' ||
+      merged.videoReferenceMode === 'frames'
+        ? (merged.videoReferenceMode as VideoReferenceMode)
+        : DEFAULT_STUDIO_SETTINGS.videoReferenceMode,
+    videoCount: clampNumber(
+      merged.videoCount,
+      1,
+      VIDEO_COUNTS.at(-1) ?? 4,
+      DEFAULT_STUDIO_SETTINGS.videoCount
+    ),
+    videoBatchMode: merged.videoBatchMode === true,
+    videoDisableLastFrame: merged.videoDisableLastFrame === true,
     voice:
       typeof merged.voice === 'string'
         ? merged.voice

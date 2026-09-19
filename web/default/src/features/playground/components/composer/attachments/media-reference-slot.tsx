@@ -31,6 +31,8 @@ type MediaReferenceSlotProps = {
   attachable?: boolean
   kind?: 'image' | 'video' | 'audio'
   maxFiles?: number
+  /** Optional role badge (First / Last / 1, 2, …) drawn on each thumbnail. */
+  roleForIndex?: (index: number) => string
 }
 
 export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
@@ -209,6 +211,11 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             alt={reference.name}
             className='border-border size-8 rounded-md border object-cover'
           />
+          {props.roleForIndex ? (
+            <span className='bg-background/85 text-foreground/90 pointer-events-none absolute bottom-0 left-0 rounded px-0.5 text-[8px] font-semibold'>
+              {props.roleForIndex(index)}
+            </span>
+          ) : null}
           <button
             type='button'
             className='bg-background/90 text-foreground focus-visible:ring-ring absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full shadow-sm outline-none focus-visible:ring-2'

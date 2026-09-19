@@ -10,8 +10,14 @@ import { fetchPlaygroundAssetBlob } from '../../api'
 import type { UseStudioResult } from '../../hooks/use-studio'
 import { isStudioSession } from '../../lib'
 import { isPlaygroundImageModel } from '../../lib/studio/image-request-schema'
-import { getVideoReferenceLimit } from '../../lib/studio/model-modality'
 import { groupRunsIntoBatches } from '../../lib/studio/studio-feed'
+import {
+  MAX_VIDEO_BATCH_JOBS,
+  getActiveVideoReferenceLimit,
+  getVideoModelCapabilities,
+  planVideoJobs,
+  resolveVideoOptions,
+} from '../../lib/studio/video-capabilities'
 import type { StudioModality } from '../../types'
 import type { MediaReference } from '../composer/attachments/media-reference-slot'
 import { GenerationComposer } from '../composer/generation-composer'
@@ -49,8 +55,29 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const [referenceModality, setReferenceModality] = useState(props.modality)
 
   const model = usePlaygroundStore((state) => state.config.model)
-  const maxFiles =
-    props.modality === 'image' ? 4 : getVideoReferenceLimit(model)
+  const studioSettings = usePlaygroundStore((state) => state.studioSettings)
+  const videoCapabilities = getVideoModelCapabilities(model)
+  const videoOptions = resolveVideoOptions(
+    videoCapabilities,
+    {
+      aspectRatio: studioSettings.videoAspectRatio,
+      resolution: studioSettings.videoResolution,
+      seconds: studioSettings.videoDuration,
+      size: studioSettings.videoSize,
+      generateAudio: studioSettings.videoGenerateAudio,
+      referenceMode: studioSettings.videoReferenceMode,
+      count: studioSettings.videoCount,
+    },
+    { hasImage: references.length > 0 }
+  )
+  let maxFiles = 4
+  if (props.modality === 'video') {
+    maxFiles = getActiveVideoReferenceLimit({
+      model,
+      referenceMode: videoOptions.referenceMode,
+      disableLastFrame: studioSettings.videoDisableLastFrame,
+    })
+  }
   const group = usePlaygroundStore((state) => state.config.group)
   const setPrefill = usePlaygroundStore((state) => state.setPrefill)
   const activeModality = usePlaygroundStore((state) => state.activeModality)
@@ -106,6 +133,14 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       )
       return
     }
+    if (
+      props.modality === 'video' &&
+      videoCapabilities.requiresImage &&
+      references.length === 0
+    ) {
+      toast.error(t('This model needs a reference image'))
+      return
+    }
     let sessionId = studioSession?.id
     if (!sessionId) {
       usePlaygroundStore.getState().startNewSession(props.modality)
@@ -118,6 +153,36 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       props.modality === 'audio'
         ? []
         : references.map((reference) => reference.dataUrl)
+    if (props.modality === 'video') {
+      const plan = planVideoJobs({
+        text: prompt,
+        batchMode: studioSettings.videoBatchMode,
+        count: videoOptions.count,
+      })
+      if (plan.prompts.length === 0) return
+      if (plan.truncated > 0) {
+        toast.warning(
+          t(
+            'Batch limited to {{max}} videos; {{count}} prompts were skipped.',
+            {
+              max: MAX_VIDEO_BATCH_JOBS,
+              count: plan.truncated,
+            }
+          )
+        )
+      }
+      for (const jobPrompt of plan.prompts) {
+        studio.startGeneration({
+          modality: 'video',
+          sessionId,
+          prompt: jobPrompt,
+          model,
+          group,
+          references: referenceUrls,
+        })
+      }
+      return
+    }
     studio.startGeneration({
       modality: props.modality,
       sessionId,

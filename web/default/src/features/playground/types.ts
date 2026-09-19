@@ -305,7 +305,15 @@ export type StudioSettings = {
   imageSize: string
   imageQuality: string
   videoDuration: number
+  /** Derived `WxH` kept for legacy readers and price estimates. */
   videoSize: string
+  videoAspectRatio: string
+  videoResolution: string
+  videoGenerateAudio: boolean
+  videoReferenceMode: 'frames' | 'references'
+  videoCount: number
+  videoBatchMode: boolean
+  videoDisableLastFrame: boolean
   voice: string
   speed: number
   audioFormat: string

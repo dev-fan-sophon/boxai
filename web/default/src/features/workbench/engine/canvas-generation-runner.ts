@@ -8,6 +8,7 @@ import {
 import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
 import { DEFAULT_STUDIO_SETTINGS } from '@/features/playground/lib/storage/store-migration'
 import {
+  assignVideoReferences,
   getVideoModelCapabilities,
   resolveVideoOptions,
 } from '@/features/playground/lib/studio/video-capabilities'
@@ -79,7 +80,13 @@ export function buildCanvasVideoSubmitInput(input: {
     },
     { hasImage: input.referenceImages.length > 0 }
   )
-  const base: VideoSubmitInput = {
+  const assigned = assignVideoReferences({
+    model: input.settings.model,
+    references: input.referenceImages,
+    referenceMode: options.referenceMode,
+    disableLastFrame: input.disableLastFrame,
+  })
+  return {
     model: input.settings.model,
     group: input.settings.group,
     prompt: input.prompt,
@@ -90,22 +97,8 @@ export function buildCanvasVideoSubmitInput(input: {
     generateAudio: capabilities.supportsAudioToggle
       ? options.generateAudio
       : undefined,
+    ...assigned,
   }
-  if (options.referenceMode === 'references') {
-    return {
-      ...base,
-      referenceImages: input.referenceImages.slice(
-        0,
-        capabilities.maxReferenceImages
-      ),
-    }
-  }
-  const [firstFrame, secondFrame] = input.referenceImages
-  const lastFrame =
-    capabilities.supportsLastFrame && !input.disableLastFrame
-      ? secondFrame
-      : undefined
-  return { ...base, firstFrame, lastFrame }
 }
 
 function buildAudioStudioSettings(

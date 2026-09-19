@@ -1,9 +1,6 @@
 import { nanoid } from 'nanoid'
 
-import {
-  MAX_VIDEO_BATCH_JOBS,
-  splitBatchPrompts,
-} from '@/features/playground/lib/studio/video-capabilities'
+import { planVideoJobs } from '@/features/playground/lib/studio/video-capabilities'
 
 import type { CanvasConnection, CanvasNodeData } from '../types'
 import { createCanvasNode } from './canvas-domain'
@@ -25,18 +22,15 @@ export type VideoBatchPlan = {
  */
 export function planVideoBatch(node: CanvasNodeData): VideoBatchPlan {
   const metadata = node.metadata ?? {}
-  const basePrompts = metadata.videoBatchMode
-    ? splitBatchPrompts(metadata.videoBatchPrompts ?? '')
-    : [metadata.prompt ?? '']
-  const count = Math.max(1, Math.round(metadata.count ?? 1) || 1)
-  const expanded = basePrompts.flatMap((prompt) =>
-    Array.from({ length: count }, () => prompt)
-  )
-  if (!expanded.length) return { prompts: [''], truncated: 0 }
-  return {
-    prompts: expanded.slice(0, MAX_VIDEO_BATCH_JOBS),
-    truncated: Math.max(0, expanded.length - MAX_VIDEO_BATCH_JOBS),
-  }
+  const plan = planVideoJobs({
+    text: metadata.videoBatchMode
+      ? (metadata.videoBatchPrompts ?? '')
+      : (metadata.prompt ?? ''),
+    batchMode: Boolean(metadata.videoBatchMode),
+    count: metadata.count ?? 1,
+  })
+  if (!plan.prompts.length) return { prompts: [''], truncated: 0 }
+  return plan
 }
 
 /**

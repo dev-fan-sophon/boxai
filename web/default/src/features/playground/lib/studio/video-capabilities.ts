@@ -9,6 +9,8 @@
  * fall back to the conservative OpenAI-video profile.
  */
 
+import type { StudioSettings } from '../../types'
+
 export type VideoAspectRatio =
   | '16:9'
   | '9:16'
@@ -129,6 +131,20 @@ export function getVideoModelCapabilities(
 
 export function getVideoReferenceLimit(model: string): number {
   return getVideoModelCapabilities(model).maxReferenceImages
+}
+
+/** How many attached images this model will actually send for the current mode. */
+export function getActiveVideoReferenceLimit(input: {
+  model: string | undefined
+  referenceMode: VideoReferenceMode
+  disableLastFrame?: boolean
+}): number {
+  const capabilities = getVideoModelCapabilities(input.model)
+  if (input.referenceMode === 'references') {
+    return capabilities.maxReferenceImages
+  }
+  if (capabilities.supportsLastFrame && !input.disableLastFrame) return 2
+  return 1
 }
 
 /**
@@ -275,4 +291,102 @@ export function splitBatchPrompts(text: string): string[] {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
+}
+
+export type VideoJobPlan = {
+  /** Prompts in generation order. */
+  prompts: string[]
+  /** Jobs dropped because the batch exceeded `MAX_VIDEO_BATCH_JOBS`. */
+  truncated: number
+}
+
+/**
+ * Expands the composer/node prompt into the list of video jobs to run.
+ * Batch mode treats every non-empty line as a prompt; `count` repeats each
+ * prompt. The total is capped at `MAX_VIDEO_BATCH_JOBS`.
+ */
+export function assignVideoReferences(input: {
+  model: string
+  references: string[]
+  referenceMode: VideoReferenceMode
+  disableLastFrame?: boolean
+}): {
+  firstFrame?: string
+  lastFrame?: string
+  referenceImages?: string[]
+} {
+  const capabilities = getVideoModelCapabilities(input.model)
+  if (
+    input.referenceMode === 'references' &&
+    capabilities.maxReferenceImages > 1
+  ) {
+    return {
+      referenceImages: input.references.slice(
+        0,
+        capabilities.maxReferenceImages
+      ),
+    }
+  }
+  const [firstFrame, secondFrame] = input.references
+  const lastFrame =
+    capabilities.supportsLastFrame && !input.disableLastFrame
+      ? secondFrame
+      : undefined
+  return { firstFrame, lastFrame }
+}
+
+export function applyResolvedVideoSettings(
+  settings: StudioSettings,
+  capabilities: VideoModelCapabilities,
+  patch: Partial<StudioSettings>,
+  context: { hasImage: boolean } = { hasImage: true }
+): StudioSettings {
+  const next = { ...settings, ...patch }
+  const resolved = resolveVideoOptions(
+    capabilities,
+    {
+      aspectRatio: next.videoAspectRatio,
+      resolution: next.videoResolution,
+      seconds: next.videoDuration,
+      size: next.videoSize,
+      generateAudio: next.videoGenerateAudio,
+      referenceMode: next.videoReferenceMode,
+      count: next.videoCount,
+    },
+    context
+  )
+  return {
+    ...next,
+    videoAspectRatio: resolved.aspectRatio,
+    videoResolution: resolved.resolution,
+    videoDuration: resolved.duration,
+    videoSize:
+      videoSizeForOptions(resolved.aspectRatio, resolved.resolution) ??
+      next.videoSize,
+    videoGenerateAudio: resolved.generateAudio,
+    videoReferenceMode: resolved.referenceMode,
+    videoCount: resolved.count,
+  }
+}
+
+export function planVideoJobs(input: {
+  text: string
+  batchMode: boolean
+  count: number
+}): VideoJobPlan {
+  const basePrompts = input.batchMode
+    ? splitBatchPrompts(input.text)
+    : [input.text.trim()].filter(Boolean)
+  const count = Math.min(
+    VIDEO_COUNTS.at(-1) ?? 1,
+    Math.max(1, Math.round(input.count) || 1)
+  )
+  const expanded = basePrompts.flatMap((prompt) =>
+    Array.from({ length: count }, () => prompt)
+  )
+  if (!expanded.length) return { prompts: [], truncated: 0 }
+  return {
+    prompts: expanded.slice(0, MAX_VIDEO_BATCH_JOBS),
+    truncated: Math.max(0, expanded.length - MAX_VIDEO_BATCH_JOBS),
+  }
 }
