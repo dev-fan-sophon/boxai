@@ -37,11 +37,74 @@ describe('video references', () => {
         group: 'default',
         prompt: 'animate',
         duration: 5,
+        seconds: '5',
         size: '1280x720',
         images: referenceImages,
       })
     }
   )
+
+  it('emits Volcengine metadata and a matching size for capability-driven seedance runs', async () => {
+    await submitVideo({
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'animate',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      aspectRatio: '9:16',
+      resolution: '1080p',
+      duration: 8,
+      generateAudio: false,
+    })
+    expect(api.post).toHaveBeenCalledWith('/pg/video/generations', {
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'animate',
+      duration: 8,
+      seconds: '8',
+      size: '1080x1920',
+      metadata: { resolution: '1080p', ratio: '9:16', generate_audio: false },
+    })
+  })
+
+  it('omits size for adaptive ratio and never sends metadata to non-Volcengine models', async () => {
+    await submitVideo({
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'animate',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      aspectRatio: 'adaptive',
+      resolution: '720p',
+      duration: 5,
+    })
+    expect(api.post).toHaveBeenLastCalledWith(
+      '/pg/video/generations',
+      expect.not.objectContaining({ size: expect.anything() })
+    )
+
+    vi.mocked(api.post).mockClear()
+    await submitVideo({
+      model: 'grok-imagine-video-1.5',
+      group: 'default',
+      prompt: 'animate',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      duration: 10,
+      firstFrame: 'data:image/png;base64,YQ==',
+    })
+    expect(api.post).toHaveBeenLastCalledWith('/pg/video/generations', {
+      model: 'grok-imagine-video-1.5',
+      group: 'default',
+      prompt: 'animate',
+      duration: 10,
+      seconds: '10',
+      size: '1920x1080',
+      first_frame: 'data:image/png;base64,YQ==',
+      input_reference: 'data:image/png;base64,YQ==',
+      image: 'data:image/png;base64,YQ==',
+      images: ['data:image/png;base64,YQ=='],
+    })
+  })
 
   it('keeps first-frame semantics for other video models', async () => {
     await submitVideo({

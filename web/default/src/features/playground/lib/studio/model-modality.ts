@@ -3,9 +3,7 @@ import type { PricingModel } from '@/features/pricing/types'
 import type { StudioModality } from '../../types'
 import { isPlaygroundImageModel } from './image-request-schema'
 
-export function getVideoReferenceLimit(model: string): number {
-  return /(?:^|[/-])seedance-2[.-]0(?:-|$)/i.test(model) ? 9 : 1
-}
+export { getVideoReferenceLimit } from './video-capabilities'
 
 type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
   Partial<

@@ -1,7 +1,5 @@
 import {
   AudioLines,
-  Check,
-  ChevronDown,
   Clock,
   Gauge,
   Layers,
@@ -9,15 +7,8 @@ import {
   Monitor,
   Proportions,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
@@ -37,101 +28,7 @@ import {
   type GptImageSize,
 } from '../../lib/studio/image-request-schema'
 import type { StudioModality, StudioSettings } from '../../types'
-
-type ChipOption = {
-  value: string
-  label: string
-  glyph?: ReactNode
-}
-
-/**
- * One tap-to-open parameter chip (Midjourney-style imagine bar control).
- * The current value is always visible; options open in a compact popover.
- */
-function ParamChip(props: {
-  icon: ReactNode
-  ariaLabel: string
-  valueLabel: string
-  options: ChipOption[]
-  value: string
-  onChange: (value: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        aria-label={props.ariaLabel}
-        className={cn(
-          'border-border/80 bg-background/70 text-foreground/85 inline-flex h-8 shrink-0 touch-manipulation items-center gap-1 rounded-full border px-2.5 text-xs font-medium',
-          'hover:border-border hover:text-foreground focus-visible:ring-ring transition-colors outline-none focus-visible:ring-2',
-          open && 'border-primary/50 text-foreground'
-        )}
-      >
-        <span className='text-muted-foreground [&>svg]:size-3.5'>
-          {props.icon}
-        </span>
-        <span className='max-w-28 truncate'>{props.valueLabel}</span>
-        <ChevronDown
-          className={cn(
-            'text-muted-foreground size-3 transition-transform',
-            open && 'rotate-180'
-          )}
-          aria-hidden='true'
-        />
-      </PopoverTrigger>
-      <PopoverContent align='start' side='top' className='w-56 p-1.5'>
-        <div className='flex flex-col gap-0.5' role='listbox'>
-          {props.options.map((option) => {
-            const selected = option.value === props.value
-            return (
-              <button
-                key={option.value}
-                type='button'
-                role='option'
-                aria-selected={selected}
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-md px-2 text-left text-sm',
-                  'hover:bg-muted/70 focus-visible:ring-ring transition-colors outline-none focus-visible:ring-2',
-                  selected && 'bg-muted text-foreground font-medium'
-                )}
-                onClick={() => {
-                  props.onChange(option.value)
-                  setOpen(false)
-                }}
-              >
-                {option.glyph && (
-                  <span className='text-muted-foreground flex w-6 shrink-0 items-center justify-center'>
-                    {option.glyph}
-                  </span>
-                )}
-                <span className='min-w-0 flex-1 truncate'>{option.label}</span>
-                {selected && <Check className='text-primary size-4 shrink-0' />}
-              </button>
-            )
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-function AspectGlyph(props: { size: string }) {
-  const match = /^(\d+)\s*x\s*(\d+)$/i.exec(props.size)
-  if (!match) {
-    return <Proportions className='size-4' aria-hidden='true' />
-  }
-  const w = Number(match[1])
-  const h = Number(match[2])
-  const scale = 14 / Math.max(w, h)
-  return (
-    <span
-      className='border-foreground/60 rounded-[3px] border-[1.5px]'
-      style={{ width: Math.round(w * scale), height: Math.round(h * scale) }}
-      aria-hidden='true'
-    />
-  )
-}
+import { AspectGlyph, ParamChip } from './param-chip'
 
 function imageSizeChipLabel(
   size: GptImageSize,

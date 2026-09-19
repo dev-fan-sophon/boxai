@@ -11,7 +11,12 @@ import type {
 } from './inspiration/types'
 import { parseRequestErrorDetails } from './lib/streaming/request-error-utils'
 import { buildImageGenerationRequestBody } from './lib/studio/image-request-schema'
-import { getVideoReferenceLimit } from './lib/studio/model-modality'
+import {
+  getVideoModelCapabilities,
+  videoSizeForOptions,
+  type VideoAspectRatio,
+  type VideoResolution,
+} from './lib/studio/video-capabilities'
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -194,30 +199,63 @@ export type VideoSubmitInput = {
   lastFrame?: string | null
   inputReference?: string | null
   referenceImages?: string[]
+  /**
+   * Explicit output options. When present they override `settings.videoSize`
+   * / `settings.videoDuration` and are also sent as Volcengine metadata for
+   * models that consume it (Seedance family).
+   */
+  aspectRatio?: VideoAspectRatio
+  resolution?: VideoResolution
+  duration?: number
+  generateAudio?: boolean
 }
 
-export async function submitVideo(
+/**
+ * Builds the uniform OpenAI-style video request understood by every BoxAI
+ * video channel: `size`/`duration` for native adaptors, string `seconds` plus
+ * `metadata.{resolution,ratio,generate_audio}` for the Seedance passthrough,
+ * and `first_frame`/`last_frame` (frames) or `images` (references), which the
+ * backend maps to provider roles.
+ */
+export async function buildVideoRequestBody(
   input: VideoSubmitInput
-): Promise<VideoSubmission> {
+): Promise<Record<string, unknown>> {
+  const capabilities = getVideoModelCapabilities(input.model)
   const references = input.referenceImages ?? []
-  if (references.length > getVideoReferenceLimit(input.model)) {
+  if (references.length > capabilities.maxReferenceImages) {
     throw new Error(
       t('You can attach up to {{count}} images.', {
-        count: getVideoReferenceLimit(input.model),
+        count: capabilities.maxReferenceImages,
       })
     )
   }
+  const duration = input.duration ?? input.settings.videoDuration
+  const size =
+    input.aspectRatio && input.resolution
+      ? videoSizeForOptions(input.aspectRatio, input.resolution)
+      : input.settings.videoSize
   const body: Record<string, unknown> = {
     model: input.model,
     group: input.group,
     prompt: input.prompt,
-    duration: input.settings.videoDuration,
-    size: input.settings.videoSize,
+    duration,
+    seconds: String(duration),
   }
+  if (size) body.size = size
+  if (capabilities.usesVolcengineMetadata) {
+    const metadata: Record<string, unknown> = {}
+    if (input.resolution) metadata.resolution = input.resolution
+    if (input.aspectRatio) metadata.ratio = input.aspectRatio
+    if (input.generateAudio !== undefined) {
+      metadata.generate_audio = input.generateAudio
+    }
+    if (Object.keys(metadata).length) body.metadata = metadata
+  }
+
   const first = await resolveMediaForUpstream(
     input.firstFrame ||
       input.inputReference ||
-      (getVideoReferenceLimit(input.model) === 1 ? references[0] : null)
+      (capabilities.maxReferenceImages === 1 ? references[0] : null)
   )
   const last = await resolveMediaForUpstream(input.lastFrame)
   if (first) {
@@ -233,7 +271,7 @@ export async function submitVideo(
       body.images = [...images, last]
     }
   }
-  if (references.length > 0 && getVideoReferenceLimit(input.model) > 1) {
+  if (references.length > 0 && capabilities.maxReferenceImages > 1) {
     if (first || last) {
       throw new Error(
         t('Reference images cannot be combined with first/last frames.')
@@ -241,6 +279,13 @@ export async function submitVideo(
     }
     body.images = await Promise.all(references.map(resolveMediaForUpstream))
   }
+  return body
+}
+
+export async function submitVideo(
+  input: VideoSubmitInput
+): Promise<VideoSubmission> {
+  const body = await buildVideoRequestBody(input)
   const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body)
   const data = response.data?.data ?? response.data
   return {

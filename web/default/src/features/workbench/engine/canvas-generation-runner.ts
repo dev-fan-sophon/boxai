@@ -3,9 +3,14 @@ import {
   generateSpeech,
   submitVideo,
   uploadPlaygroundAsset,
+  type VideoSubmitInput,
 } from '@/features/playground/api'
 import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
 import { DEFAULT_STUDIO_SETTINGS } from '@/features/playground/lib/storage/store-migration'
+import {
+  getVideoModelCapabilities,
+  resolveVideoOptions,
+} from '@/features/playground/lib/studio/video-capabilities'
 import type { StudioSettings } from '@/features/playground/types'
 import { getUserTaskLogs } from '@/features/usage-logs/api'
 import type { TaskLog } from '@/features/usage-logs/types'
@@ -17,6 +22,10 @@ export type CanvasGenerationSettings = {
   quality?: string
   count?: number
   seconds?: string
+  aspectRatio?: string
+  resolution?: string
+  generateAudio?: boolean
+  videoReferenceMode?: 'frames' | 'references'
   audioVoice?: string
   audioFormat?: string
   audioSpeed?: string
@@ -46,17 +55,57 @@ function buildImageStudioSettings(
   }
 }
 
-function buildVideoStudioSettings(
+/**
+ * Resolves node settings against the model's capability profile and splits
+ * connected images into first/last frames or reference images. Exported so
+ * the request contract can be asserted without a network.
+ */
+export function buildCanvasVideoSubmitInput(input: {
+  prompt: string
+  referenceImages: string[]
+  disableLastFrame?: boolean
   settings: CanvasGenerationSettings
-): StudioSettings {
-  const parsedDuration = Number(settings.seconds)
-  return {
-    ...DEFAULT_STUDIO_SETTINGS,
-    videoDuration: Number.isFinite(parsedDuration)
-      ? parsedDuration
-      : DEFAULT_STUDIO_SETTINGS.videoDuration,
-    videoSize: settings.size || DEFAULT_STUDIO_SETTINGS.videoSize,
+}): VideoSubmitInput {
+  const capabilities = getVideoModelCapabilities(input.settings.model)
+  const options = resolveVideoOptions(
+    capabilities,
+    {
+      aspectRatio: input.settings.aspectRatio,
+      resolution: input.settings.resolution,
+      seconds: input.settings.seconds,
+      size: input.settings.size,
+      generateAudio: input.settings.generateAudio,
+      referenceMode: input.settings.videoReferenceMode,
+    },
+    { hasImage: input.referenceImages.length > 0 }
+  )
+  const base: VideoSubmitInput = {
+    model: input.settings.model,
+    group: input.settings.group,
+    prompt: input.prompt,
+    settings: DEFAULT_STUDIO_SETTINGS,
+    aspectRatio: options.aspectRatio,
+    resolution: options.resolution,
+    duration: options.duration,
+    generateAudio: capabilities.supportsAudioToggle
+      ? options.generateAudio
+      : undefined,
   }
+  if (options.referenceMode === 'references') {
+    return {
+      ...base,
+      referenceImages: input.referenceImages.slice(
+        0,
+        capabilities.maxReferenceImages
+      ),
+    }
+  }
+  const [firstFrame, secondFrame] = input.referenceImages
+  const lastFrame =
+    capabilities.supportsLastFrame && !input.disableLastFrame
+      ? secondFrame
+      : undefined
+  return { ...base, firstFrame, lastFrame }
 }
 
 function buildAudioStudioSettings(
@@ -305,15 +354,14 @@ export async function runCanvasVideoGeneration(input: {
   naturalHeight?: number
 }> {
   throwIfAborted(input.signal)
-  const [firstFrame, secondFrame] = input.referenceImages
-  const submission = await submitVideo({
-    model: input.settings.model,
-    group: input.settings.group,
-    prompt: input.prompt,
-    settings: buildVideoStudioSettings(input.settings),
-    firstFrame,
-    lastFrame: input.disableLastFrame ? undefined : secondFrame,
-  })
+  const submission = await submitVideo(
+    buildCanvasVideoSubmitInput({
+      prompt: input.prompt,
+      referenceImages: input.referenceImages,
+      disableLastFrame: input.disableLastFrame,
+      settings: input.settings,
+    })
+  )
   throwIfAborted(input.signal)
 
   const taskId = submission.taskId

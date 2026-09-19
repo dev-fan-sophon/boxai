@@ -82,6 +82,18 @@ export type CanvasNodeMetadata = {
   audioFormat?: string
   audioSpeed?: string
   disableLastFrame?: boolean
+  /** Video output aspect ratio, e.g. `16:9`, `9:16`, `adaptive`. */
+  aspectRatio?: string
+  /** Video output resolution tier, e.g. `720p`. */
+  resolution?: string
+  /** Seedance-style native audio generation toggle. */
+  generateAudio?: boolean
+  /** How connected images feed the video model: first/last frames or references. */
+  videoReferenceMode?: 'frames' | 'references'
+  /** When set, the prompt box holds one prompt per line and generates a batch. */
+  videoBatchMode?: boolean
+  /** Multi-line prompt text used while `videoBatchMode` is on. */
+  videoBatchPrompts?: string
   videoModel?: string
   naturalWidth?: number
   naturalHeight?: number
