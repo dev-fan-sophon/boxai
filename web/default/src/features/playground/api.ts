@@ -286,11 +286,18 @@ export async function submitVideo(
   input: VideoSubmitInput
 ): Promise<VideoSubmission> {
   const body = await buildVideoRequestBody(input)
-  const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body)
-  const data = response.data?.data ?? response.data
-  return {
-    taskId: String(data?.task_id ?? data?.id ?? ''),
-    status: data?.status,
+  try {
+    const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body, {
+      skipErrorHandler: true,
+    } as Record<string, unknown>)
+    const data = response.data?.data ?? response.data
+    return {
+      taskId: String(data?.task_id ?? data?.id ?? ''),
+      status: data?.status,
+    }
+  } catch (error) {
+    const details = parseRequestErrorDetails(error)
+    throw new Error(details.errorMessage)
   }
 }
 

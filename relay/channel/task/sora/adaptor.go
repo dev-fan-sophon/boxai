@@ -147,6 +147,22 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 		return nil
 	}
 
+	if isSeedanceModel(info.UpstreamModelName) {
+		metadataResolution := ""
+		if req.Metadata != nil {
+			metadataResolution, _ = req.Metadata["resolution"].(string)
+		}
+		seconds := relaycommon.ResolveSeedanceDurationSeconds(req.Seconds, req.Duration)
+		resolution := relaycommon.ResolveSeedanceResolution(metadataResolution, req.Size)
+		ratios := map[string]float64{
+			"seconds": float64(seconds),
+		}
+		if ratio := relaycommon.SeedanceResolutionRatio(resolution); ratio != 1 {
+			ratios["resolution"] = ratio
+		}
+		return ratios
+	}
+
 	seconds, _ := strconv.Atoi(req.Seconds)
 	if seconds == 0 {
 		seconds = req.Duration
@@ -166,15 +182,6 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	}
 	if size == "1792x1024" || size == "1024x1792" {
 		ratios["size"] = 1.666667
-	}
-	if isSeedanceModel(info.UpstreamModelName) {
-		resolution, _ := req.Metadata["resolution"].(string)
-		if strings.TrimSpace(resolution) == "" {
-			resolution, _ = seedanceOutputFromSize(req.Size)
-		}
-		if ratio := seedanceResolutionRatio(resolution); ratio != 1 {
-			ratios["resolution"] = ratio
-		}
 	}
 	return ratios
 }

@@ -2,10 +2,11 @@ package sora
 
 import (
 	"fmt"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
+
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 )
 
 // Seedance models reached through an OpenAI-video passthrough channel are
@@ -16,36 +17,11 @@ import (
 // The helpers below rewrite the passthrough body so BoxAI clients can keep
 // using one uniform OpenAI-style request for every video channel.
 
-var seedanceModelPattern = regexp.MustCompile(`(?i)seedance`)
 var seedance2Pattern = regexp.MustCompile(`(?i)seedance-2[.-]`)
 var seedance25Pattern = regexp.MustCompile(`(?i)seedance-2[.-]5`)
 
-// seedanceAspectRatios lists Volcengine's supported output ratios (width/height).
-var seedanceAspectRatios = []struct {
-	label string
-	value float64
-}{
-	{"16:9", 16.0 / 9.0},
-	{"4:3", 4.0 / 3.0},
-	{"1:1", 1},
-	{"3:4", 3.0 / 4.0},
-	{"9:16", 9.0 / 16.0},
-	{"21:9", 21.0 / 9.0},
-}
-
-// seedanceResolutionRatios scales the per-second base price (calibrated on
-// 720p output) by the relative pixel budget of each resolution tier. Volcengine
-// bills Seedance per output token, and tokens grow with pixel area, so 1080p
-// costs roughly 2.25x the tokens of 720p at a ~1.1x higher token price, while
-// 480p uses ~0.45x the tokens.
-var seedanceResolutionRatios = map[string]float64{
-	"480p":  0.45,
-	"720p":  1,
-	"1080p": 2.5,
-}
-
 func isSeedanceModel(name string) bool {
-	return seedanceModelPattern.MatchString(name)
+	return relaycommon.IsSeedanceModel(name)
 }
 
 func seedanceReferenceLimit(name string) int {
@@ -55,46 +31,12 @@ func seedanceReferenceLimit(name string) int {
 	return 9
 }
 
-// seedanceOutputFromSize maps an OpenAI-style `WxH` size to the Volcengine
-// resolution tier and aspect ratio. Unknown or malformed sizes return empty
-// strings so upstream defaults apply.
 func seedanceOutputFromSize(size string) (resolution string, ratio string) {
-	parts := strings.Split(strings.ToLower(strings.TrimSpace(size)), "x")
-	if len(parts) != 2 {
-		return "", ""
-	}
-	width, errW := strconv.Atoi(strings.TrimSpace(parts[0]))
-	height, errH := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if errW != nil || errH != nil || width <= 0 || height <= 0 {
-		return "", ""
-	}
-	shorter := math.Min(float64(width), float64(height))
-	switch {
-	case shorter >= 1000:
-		resolution = "1080p"
-	case shorter >= 640:
-		resolution = "720p"
-	default:
-		resolution = "480p"
-	}
-	aspect := float64(width) / float64(height)
-	bestDiff := math.Inf(1)
-	for _, candidate := range seedanceAspectRatios {
-		diff := math.Abs(candidate.value - aspect)
-		if diff < bestDiff {
-			bestDiff = diff
-			ratio = candidate.label
-		}
-	}
-	return resolution, ratio
+	return relaycommon.SeedanceOutputFromSize(size)
 }
 
 func seedanceResolutionRatio(resolution string) float64 {
-	ratio, ok := seedanceResolutionRatios[strings.ToLower(strings.TrimSpace(resolution))]
-	if !ok {
-		return 1
-	}
-	return ratio
+	return relaycommon.SeedanceResolutionRatio(resolution)
 }
 
 func bodyString(body map[string]interface{}, key string) string {

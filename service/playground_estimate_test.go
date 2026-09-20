@@ -80,3 +80,49 @@ func TestEstimatePlaygroundCost_IgnoresLegacyCompactWildcard(t *testing.T) {
 	assert.Nil(t, result.ModelPrice)
 	assert.Nil(t, result.Amount)
 }
+
+func TestEstimatePlaygroundCost_SeedanceVideoUsesDurationAndResolution(t *testing.T) {
+	savedPrices := ratio_setting.ModelPrice2JSONString()
+	savedRatios := ratio_setting.ModelRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedPrices))
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+	})
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"dreamina-seedance-2-5":0.20684931506849315}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"dreamina-seedance-2-5":4.9}`))
+
+	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
+		Modality: "video",
+		Model:    "dreamina-seedance-2-5",
+		Group:    "default",
+		Size:     "1920x1080",
+		Duration: 30,
+	})
+	assert.Equal(t, "per_request", result.Kind)
+	require.NotNil(t, result.Amount)
+	// 0.20684931506849315 * 30 * 2.5 = 15.513698630136986, not $183.75
+	assert.InDelta(t, 0.20684931506849315*30*2.5, *result.Amount, 1e-6)
+	assert.Less(t, *result.Amount, 20.0)
+	assert.Greater(t, *result.Amount, 10.0)
+}
+
+func TestEstimatePlaygroundCost_SeedanceDoesNotFallBackToTokenRatio(t *testing.T) {
+	savedPrices := ratio_setting.ModelPrice2JSONString()
+	savedRatios := ratio_setting.ModelRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedPrices))
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+	})
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"unknown-seedance-9-9":4.9}`))
+
+	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
+		Modality: "video",
+		Model:    "unknown-seedance-9-9",
+		Duration: 30,
+		Size:     "1920x1080",
+	})
+	assert.Equal(t, "unknown", result.Kind)
+	assert.Nil(t, result.Amount)
+	assert.Contains(t, result.Message, "not configured")
+}

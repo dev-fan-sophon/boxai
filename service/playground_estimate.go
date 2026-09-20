@@ -66,10 +66,34 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 		n = 128
 	}
 
-	// Fixed price: only when explicitly present in model_price map
+	duration := req.Duration
+	if duration < 0 {
+		duration = 0
+	}
+	if duration > float64(relaycommon.MaxTaskDurationSeconds) {
+		duration = float64(relaycommon.MaxTaskDurationSeconds)
+	}
+
 	price, usePrice := ratio_setting.GetModelPrice(modelName, false)
+	if !usePrice {
+		if fallback, ok := ratio_setting.GetDefaultSeedanceModelPrice(modelName); ok {
+			price = fallback
+			usePrice = true
+		}
+	}
 	if usePrice && price >= 0 {
 		amount := price * float64(n) * groupRatio
+		if req.Modality == "video" {
+			seconds := duration
+			if seconds <= 0 {
+				seconds = float64(relaycommon.SeedanceDefaultDurationSeconds)
+			}
+			amount *= seconds
+			if relaycommon.IsSeedanceModel(modelName) {
+				resolution := relaycommon.ResolveSeedanceResolution("", req.Size)
+				amount *= relaycommon.SeedanceResolutionRatio(resolution)
+			}
+		}
 		if amount < 0 {
 			amount = 0
 		}
@@ -85,6 +109,11 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 		if req.HasReference {
 			result.Message = "reference media may use edit/i2v routes; estimate uses base model price"
 		}
+		return result
+	}
+
+	if relaycommon.SeedanceRequiresPerSecondPrice(modelName) {
+		result.Message = "model price/ratio not configured"
 		return result
 	}
 
@@ -110,14 +139,6 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 	}
 	if maxTokens > 128000 {
 		maxTokens = 128000
-	}
-
-	duration := req.Duration
-	if duration < 0 {
-		duration = 0
-	}
-	if duration > float64(relaycommon.MaxTaskDurationSeconds) {
-		duration = float64(relaycommon.MaxTaskDurationSeconds)
 	}
 
 	tokens := float64(promptTokens + maxTokens)

@@ -192,9 +192,19 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 
 	if !success {
 		defaultPrice, ok := ratio_setting.GetDefaultModelPriceMap()[info.OriginModelName]
+		if !ok {
+			// Public Seedance aliases (dreamina-seedance-2-5) and upstream
+			// ids (doubao-seedance-2-0-260128) share one per-second table.
+			defaultPrice, ok = ratio_setting.GetDefaultSeedanceModelPrice(info.OriginModelName)
+		}
 		if ok {
 			modelPrice = defaultPrice
 			usePrice = true
+		} else if relaycommon.SeedanceRequiresPerSecondPrice(info.OriginModelName) {
+			// Seedance OtherRatios multiply a USD/s ModelPrice. Falling back
+			// to ModelRatio/2 treats the token multiplier as dollars-per-call
+			// and overcharges by an order of magnitude (e.g. 4.9 → $2.45/s).
+			return types.PriceData{}, modelPriceNotConfiguredError(info.OriginModelName, info.UserId)
 		} else {
 			var ratioSuccess bool
 			var matchName string

@@ -10,6 +10,7 @@ type RequestErrorLike = {
         param?: string
         type?: string
       }
+      code?: string
       message?: string
     }
   }
@@ -44,7 +45,7 @@ export function parseRequestErrorDetails(error: unknown): RequestErrorDetails {
   const openAIMessage = formatOpenAIErrorMessage(data?.error)
 
   return {
-    errorCode: data?.error?.code || undefined,
+    errorCode: data?.error?.code || data?.code || undefined,
     errorMessage:
       openAIMessage ||
       (typeof data?.message === 'string' ? data.message : undefined) ||

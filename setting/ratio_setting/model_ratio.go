@@ -307,6 +307,15 @@ var defaultModelPrice = map[string]float64{
 	"veo-3.0-fast-generate-001":      0.15,
 	"veo-3.1-generate-preview":       0.4,
 	"veo-3.1-fast-generate-preview":  0.15,
+	// Seedance ModelPrice is USD per second at 720p with no video input.
+	// Official Volcengine CNY/s ÷ site Price (USD2RMB = 7.3):
+	//   2.5 1.51 CNY/s → 0.206849, 2.0 0.99 → 0.135616, 2.0-fast 0.80 → 0.109589.
+	// Duration and 480p/1080p are OtherRatios (seconds × resolution), not extra
+	// ModelPrice keys. Production options must merge these keys; UpdateModelPrice
+	// replaces the whole map.
+	"dreamina-seedance-2-5": 1.51 / USD2RMB,
+	"seedance-2-0":          0.99 / USD2RMB,
+	"seedance-2-0-fast":     0.80 / USD2RMB,
 }
 
 var defaultAudioRatio = map[string]float64{
@@ -412,6 +421,49 @@ func GetDefaultModelRatioMap() map[string]float64 {
 
 func GetDefaultModelPriceMap() map[string]float64 {
 	return defaultModelPrice
+}
+
+// defaultSeedanceModelPriceAliases maps public aliases and Volcengine upstream
+// ids onto the per-second catalog keys in defaultModelPrice.
+var defaultSeedanceModelPriceAliases = map[string]string{
+	"dreamina-seedance-2-5":           "dreamina-seedance-2-5",
+	"dreamina-seedance-2-5-260628":    "dreamina-seedance-2-5",
+	"doubao-seedance-2-5":             "dreamina-seedance-2-5",
+	"doubao-seedance-2-5-260628":      "dreamina-seedance-2-5",
+	"seedance-2-5":                    "dreamina-seedance-2-5",
+	"seedance-2-0":                    "seedance-2-0",
+	"doubao-seedance-2-0":             "seedance-2-0",
+	"doubao-seedance-2-0-260128":      "seedance-2-0",
+	"seedance-2-0-fast":               "seedance-2-0-fast",
+	"doubao-seedance-2-0-fast":        "seedance-2-0-fast",
+	"doubao-seedance-2-0-fast-260128": "seedance-2-0-fast",
+}
+
+// GetDefaultSeedanceModelPrice returns the compiled-in USD/s 720p price for a
+// Seedance alias or upstream id. It does not consult the live ModelPrice map.
+func GetDefaultSeedanceModelPrice(name string) (float64, bool) {
+	name = FormatMatchingModelName(strings.TrimSpace(name))
+	if name == "" {
+		return 0, false
+	}
+	if key, ok := defaultSeedanceModelPriceAliases[name]; ok {
+		price, found := defaultModelPrice[key]
+		return price, found
+	}
+	lower := strings.ToLower(name)
+	switch {
+	case strings.Contains(lower, "seedance-2.5") || strings.Contains(lower, "seedance-2-5"):
+		price, found := defaultModelPrice["dreamina-seedance-2-5"]
+		return price, found
+	case strings.Contains(lower, "seedance-2.0-fast") || strings.Contains(lower, "seedance-2-0-fast") || strings.Contains(lower, "seedance-2-0.fast"):
+		price, found := defaultModelPrice["seedance-2-0-fast"]
+		return price, found
+	case strings.Contains(lower, "seedance-2.0") || strings.Contains(lower, "seedance-2-0"):
+		price, found := defaultModelPrice["seedance-2-0"]
+		return price, found
+	default:
+		return 0, false
+	}
 }
 
 func CompletionRatio2JSONString() string {

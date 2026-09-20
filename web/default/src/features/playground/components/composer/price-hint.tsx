@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { PricingModel } from '@/features/pricing/types'
+import { formatCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 import {
@@ -84,11 +85,12 @@ function mergeEstimate(
   estimate: PlaygroundEstimateResult | null | undefined
 ): PriceHint {
   if (!estimate) return catalog
-  if (estimate.kind === 'per_request' && estimate.amount_label) {
+  const amountLabel = formatEstimateAmount(estimate)
+  if (estimate.kind === 'per_request' && amountLabel) {
     return {
       kind: 'per_request',
       labelKey: 'per run',
-      amountLabel: estimate.amount_label,
+      amountLabel,
       groupRatio: estimate.group_ratio,
     }
   }
@@ -96,11 +98,24 @@ function mergeEstimate(
     return {
       kind: 'token',
       labelKey: 'Token billing',
-      amountLabel: estimate.amount_label,
+      amountLabel,
       groupRatio: estimate.group_ratio,
     }
   }
   return catalog
+}
+
+function formatEstimateAmount(
+  estimate: PlaygroundEstimateResult
+): string | undefined {
+  if (typeof estimate.amount === 'number' && Number.isFinite(estimate.amount)) {
+    return formatCurrencyFromUSD(estimate.amount, {
+      digitsLarge: 4,
+      digitsSmall: 4,
+      abbreviate: false,
+    })
+  }
+  return estimate.amount_label
 }
 
 function formatHintLabel(hint: PriceHint, t: (key: string) => string): string {
