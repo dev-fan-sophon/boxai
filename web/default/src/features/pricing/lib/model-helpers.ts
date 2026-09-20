@@ -210,3 +210,15 @@ export function replaceModelInPath(path: string, modelName: string): string {
 export function isTokenBasedModel(model: PricingModel): boolean {
   return model.quota_type === QUOTA_TYPE_VALUES.TOKEN
 }
+
+/**
+ * xAI Imagine video and Seedance bill from a per-second ModelPrice
+ * (480p/720p base) multiplied by duration and resolution. Catalog
+ * quota_type 1 would otherwise label that base as "per request".
+ */
+export function isPerSecondVideoModel(model: PricingModel): boolean {
+  const name = model.model_name?.trim().toLowerCase() ?? ''
+  if (name.startsWith('grok-imagine-video')) return true
+  if (name.includes('seedance')) return true
+  return false
+}

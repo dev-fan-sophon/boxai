@@ -1,3 +1,4 @@
+import { isPerSecondVideoModel } from '@/features/pricing/lib/model-helpers'
 import type { PricingModel } from '@/features/pricing/types'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 
@@ -26,8 +27,14 @@ export function buildPriceHint(
 
   const resolvedGroupRatio = groupRatio ?? model.group_ratio?.[group]
 
-  // quota_type 1 is typically fixed / per-request pricing in this codebase
-  if (model.quota_type === 1 && typeof model.model_price === 'number') {
+  // quota_type 1 is typically fixed / per-request pricing in this codebase.
+  // Per-second video models wait for the duration×resolution server estimate
+  // instead of showing the 480p/sec base as a full run price.
+  if (
+    model.quota_type === 1 &&
+    typeof model.model_price === 'number' &&
+    !isPerSecondVideoModel(model)
+  ) {
     const amount = model.model_price * (resolvedGroupRatio ?? 1)
     if (Number.isFinite(amount) && amount > 0) {
       return {

@@ -19,7 +19,11 @@ import {
   getDynamicDisplayGroupRatio,
   getDynamicPricingSummary,
 } from '../lib/dynamic-price'
-import { getGroupSavingsPercent, isTokenBasedModel } from '../lib/model-helpers'
+import {
+  getGroupSavingsPercent,
+  isPerSecondVideoModel,
+  isTokenBasedModel,
+} from '../lib/model-helpers'
 import { canTryInPlayground } from '../lib/playground-eligibility'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
@@ -258,7 +262,9 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         items={[
           {
             key: 'request',
-            label: t('Per request'),
+            label: isPerSecondVideoModel(props.model)
+              ? t('Per second')
+              : t('Per request'),
             tone: 'default',
             emphasized: true,
             formatted: formatRequestPrice(props.model, props.selectedGroup),

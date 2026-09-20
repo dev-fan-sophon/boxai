@@ -106,6 +106,29 @@ func TestEstimatePlaygroundCost_SeedanceVideoUsesDurationAndResolution(t *testin
 	assert.Greater(t, *result.Amount, 10.0)
 }
 
+func TestEstimatePlaygroundCost_GrokImagineVideoUsesDurationAndResolution(t *testing.T) {
+	savedPrices := ratio_setting.ModelPrice2JSONString()
+	savedRatios := ratio_setting.ModelRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedPrices))
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+	})
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"grok-imagine-video-1.5":0.003}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{}`))
+
+	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
+		Modality: "video",
+		Model:    "grok-imagine-video-1.5",
+		Group:    "default",
+		Size:     "1280x720",
+		Duration: 5,
+	})
+	assert.Equal(t, "per_request", result.Kind)
+	require.NotNil(t, result.Amount)
+	// 0.003 USD/s × 5s × 1.75 (720p) = 0.02625, not the catalog $0.003 "per request"
+	assert.InDelta(t, 0.003*5*1.75, *result.Amount, 1e-9)
+}
+
 func TestEstimatePlaygroundCost_SeedanceDoesNotFallBackToTokenRatio(t *testing.T) {
 	savedPrices := ratio_setting.ModelPrice2JSONString()
 	savedRatios := ratio_setting.ModelRatio2JSONString()

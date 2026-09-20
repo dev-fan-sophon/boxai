@@ -55,7 +55,11 @@ import {
   buildModelAgentGuide,
   resolveGatewayBaseUrl,
 } from '../lib/model-agent-guide'
-import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
+import {
+  getAvailableGroups,
+  isPerSecondVideoModel,
+  isTokenBasedModel,
+} from '../lib/model-helpers'
 import { formatFixedPrice, formatGroupPrice } from '../lib/price'
 import type {
   ModelCapability,
@@ -756,7 +760,9 @@ function PriceSection(props: { model: PricingModel; tokenUnit: TokenUnit }) {
         <SectionTitle>{t('Base Price')}</SectionTitle>
         <div className='flex items-baseline justify-between'>
           <span className='text-muted-foreground text-sm'>
-            {t('Per request')}
+            {isPerSecondVideoModel(props.model)
+              ? t('Per second')
+              : t('Per request')}
           </span>
           <span className='text-foreground font-price text-sm font-semibold tabular-nums'>
             {formatFixedPrice(props.model, baseGroupKey, baseGroupRatioMap)}
@@ -1111,6 +1117,11 @@ function GroupPricingSection(props: {
         {isTokenBased && (
           <p className='text-muted-foreground mt-1.5 px-4 text-[10px] sm:px-0'>
             {t('Prices shown per')} {tokenUnitLabel} tokens
+          </p>
+        )}
+        {!isTokenBased && isPerSecondVideoModel(props.model) && (
+          <p className='text-muted-foreground mt-1.5 px-4 text-[10px] sm:px-0'>
+            {t('Prices shown per')} {t('second')}
           </p>
         )}
       </div>

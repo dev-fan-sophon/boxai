@@ -130,16 +130,11 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	if err != nil {
 		return nil
 	}
-	ratio := 1.0
-	if info.UpstreamModelName == modelImagine15 {
-		if resolution == "720p" {
-			ratio = 1.75
-		} else if resolution == "1080p" {
-			ratio = 3.125
-		}
-	} else if resolution == "720p" {
-		ratio = 1.4
+	modelName := info.UpstreamModelName
+	if modelName == "" {
+		modelName = req.Model
 	}
+	ratio := relaycommon.GrokImagineResolutionRatio(modelName, resolution)
 	// Task ModelPrice supports multiplicative parameters only, so there is no
 	// separate input-image charge here. ModelPrice is the configured 480p/sec base.
 	return map[string]float64{"seconds": float64(req.Duration), "resolution": ratio}

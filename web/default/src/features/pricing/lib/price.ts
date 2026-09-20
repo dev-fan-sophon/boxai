@@ -2,7 +2,11 @@ import { formatCurrencyFromUSD } from '@/lib/currency'
 
 import { QUOTA_TYPE_VALUES, TOKEN_UNIT_DIVISORS } from '../constants'
 import type { PricingModel, TokenUnit, PriceType } from '../types'
-import { getConfiguredGroupRatio, getDisplayGroupRatio } from './model-helpers'
+import {
+  getConfiguredGroupRatio,
+  getDisplayGroupRatio,
+  isPerSecondVideoModel,
+} from './model-helpers'
 
 // ----------------------------------------------------------------------------
 // Price Calculation Utilities
@@ -173,4 +177,16 @@ export function formatRequestPrice(
     digitsSmall: 4,
     abbreviate: false,
   })
+}
+
+/** Unit shown next to a non-token catalog price. */
+export function requestPriceUnitKey(model: PricingModel): 'second' | 'request' {
+  return isPerSecondVideoModel(model) ? 'second' : 'request'
+}
+
+/** Full label for a non-token catalog price. */
+export function requestPriceLabelKey(
+  model: PricingModel
+): 'Per second' | 'Per request' {
+  return isPerSecondVideoModel(model) ? 'Per second' : 'Per request'
 }

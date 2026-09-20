@@ -86,12 +86,19 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 		if req.Modality == "video" {
 			seconds := duration
 			if seconds <= 0 {
-				seconds = float64(relaycommon.SeedanceDefaultDurationSeconds)
+				if relaycommon.IsGrokImagineVideoModel(modelName) {
+					seconds = float64(relaycommon.GrokImagineDefaultSeconds)
+				} else {
+					seconds = float64(relaycommon.SeedanceDefaultDurationSeconds)
+				}
 			}
 			amount *= seconds
 			if relaycommon.IsSeedanceModel(modelName) {
 				resolution := relaycommon.ResolveSeedanceResolution("", req.Size)
 				amount *= relaycommon.SeedanceResolutionRatio(resolution)
+			} else if relaycommon.IsGrokImagineVideoModel(modelName) {
+				resolution := relaycommon.GrokImagineResolutionFromSize(req.Size)
+				amount *= relaycommon.GrokImagineResolutionRatio(modelName, resolution)
 			}
 		}
 		if amount < 0 {

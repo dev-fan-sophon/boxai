@@ -16,7 +16,7 @@ import {
   getDynamicPricingSummary,
 } from '../lib/dynamic-price'
 import { parseTags } from '../lib/filters'
-import { isTokenBasedModel } from '../lib/model-helpers'
+import { isPerSecondVideoModel, isTokenBasedModel } from '../lib/model-helpers'
 import {
   formatPrice,
   formatRequestPrice,
@@ -178,7 +178,7 @@ export function usePricingColumns(
           <div className='max-w-full min-w-0'>
             <span className='font-price text-sm tabular-nums'>{price}</span>
             <div className='text-muted-foreground text-[10px]'>
-              / {t('request')}
+              / {isPerSecondVideoModel(model) ? t('second') : t('request')}
             </div>
           </div>
         )
