@@ -16,8 +16,6 @@ describe('parseRequestErrorDetails', () => {
     })
     expect(details.errorCode).toBe('insufficient_user_quota')
     expect(details.errorMessage).toContain('预扣费失败')
-    expect(details.errorMessage).not.toBe(
-      'Request failed with status code 403'
-    )
+    expect(details.errorMessage).not.toBe('Request failed with status code 403')
   })
 })
