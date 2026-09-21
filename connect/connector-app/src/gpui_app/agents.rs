@@ -747,7 +747,15 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
             } else {
                 root.join(".claude.json")
             };
-            vec![root.join("settings.json"), mcp, root.join("skills/<id>/")]
+            vec![
+                std::path::PathBuf::from(format!(
+                    "{} (fallback: {})",
+                    root.join("settings.json").display(),
+                    root.join("claude.json").display()
+                )),
+                mcp,
+                root.join("skills/<id>/"),
+            ]
         }
         AgentId::Codex => {
             let mut paths = vec![root.join("config.toml")];
@@ -763,7 +771,14 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
             root.join("skills/<id>/"),
         ],
         AgentId::Grokbuild => vec![root.join("config.toml"), root.join("skills/<id>/")],
-        AgentId::Opencode => vec![root.join("opencode.json"), root.join("skills/<id>/")],
+        AgentId::Opencode => vec![
+            std::path::PathBuf::from(format!(
+                "{} (fallback: {})",
+                root.join("opencode.json").display(),
+                root.join("opencode.jsonc").display()
+            )),
+            root.join("skills/<id>/"),
+        ],
         AgentId::Workbuddy => vec![
             root.join("models.json"),
             root.join("settings.json"),
@@ -775,4 +790,18 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
         .drain(..)
         .map(|path| path.display().to_string())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_targets_are_displayed_with_transaction_fallbacks() {
+        let root = Path::new("/fixture");
+        let claude = write_targets(AgentId::Claude, Some(root), false).join("\n");
+        assert!(claude.contains("settings.json (fallback: /fixture/claude.json)"));
+        let opencode = write_targets(AgentId::Opencode, Some(root), false).join("\n");
+        assert!(opencode.contains("opencode.json (fallback: /fixture/opencode.jsonc)"));
+    }
 }

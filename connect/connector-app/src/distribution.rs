@@ -15,14 +15,13 @@ pub static BOXAI_DISTRIBUTION: Distribution = Distribution {
     organization: "you-box",
     application: "connect",
     bundle_id: "com.you-box.connect",
-    supported_locales: &["vi", "en", "zh-CN"],
+    supported_locales: &["vi", "en"],
     supported_agents: &[
         AgentId::Claude,
         AgentId::Codex,
         AgentId::Gemini,
         AgentId::Grokbuild,
         AgentId::Opencode,
-        AgentId::Workbuddy,
     ],
     asset_identity: Some(AssetIdentity {
         icon_key: "boxai-connect-shell-icon",
@@ -68,7 +67,7 @@ mod tests {
                 && BOXAI_DISTRIBUTION.manifest_url.is_some(),
             "BoxAI sign-in must probe the pinned Gateway and open browser PKCE"
         );
-        assert_eq!(BOXAI_DISTRIBUTION.supported_locales, ["vi", "en", "zh-CN"]);
+        assert_eq!(BOXAI_DISTRIBUTION.supported_locales, ["vi", "en"]);
         assert_eq!(
             BOXAI_DISTRIBUTION.supported_agents,
             [
@@ -77,7 +76,6 @@ mod tests {
                 AgentId::Gemini,
                 AgentId::Grokbuild,
                 AgentId::Opencode,
-                AgentId::Workbuddy,
             ]
         );
     }

@@ -12,7 +12,7 @@ mod vault;
 
 pub use backend::{
     BackendError, BrowserLoginOffer, ConnectRequest, ConnectRequestWithoutCredential,
-    ConnectionResult, ConnectorBackend, ProbeResult,
+    ConnectionResult, ConnectorBackend, DisconnectOutcome, ProbeResult,
 };
 pub use discovery::{
     DiscoveredManifest, DiscoveryError, GatewayClient, ModelCapability, ModelDescriptor, Overview,

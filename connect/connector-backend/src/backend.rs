@@ -34,6 +34,11 @@ pub struct ConnectionResult {
     pub synchronized_skills: BTreeMap<String, PathBuf>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DisconnectOutcome {
+    pub revocation_warning: bool,
+}
+
 #[derive(Debug, Clone)]
 pub enum ProbeResult {
     Direct {
@@ -874,7 +879,10 @@ impl ConnectorBackend {
         Ok(profiles)
     }
 
-    pub fn disconnect(&self, profile: &ConnectionProfile) -> Result<(), BackendError> {
+    pub fn disconnect(
+        &self,
+        profile: &ConnectionProfile,
+    ) -> Result<DisconnectOutcome, BackendError> {
         let _connection_guard = self
             .connection_lock
             .lock()
@@ -882,9 +890,29 @@ impl ConnectorBackend {
         if self.projection.is_some() {
             self.disconnect_projection(profile)?;
         }
+        let mut revocation_warning = false;
+        if profile.mode == ConnectionMode::Provisioned {
+            let revoked = (|| -> Result<bool, BackendError> {
+                self.validate_distribution_profile(profile)?;
+                let manifest_url = profile
+                    .manifest_url
+                    .clone()
+                    .ok_or(BackendError::ManifestDisappeared)?;
+                let manifest = self
+                    .client
+                    .discover_manifest(&profile.base_url, manifest_url)?;
+                self.validate_platform(profile, &manifest.document)?;
+                let bearer = self
+                    .credentials
+                    .get(profile)?
+                    .ok_or(BackendError::MissingCredential)?;
+                Ok(self.client.revoke_credential(&manifest.document, &bearer)?)
+            })();
+            revocation_warning = !matches!(revoked, Ok(true));
+        }
         self.credentials.delete(&profile.credential)?;
         self.profiles.delete(profile.id)?;
-        Ok(())
+        Ok(DisconnectOutcome { revocation_warning })
     }
 
     fn disconnect_projection_locked(

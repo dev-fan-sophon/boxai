@@ -22,7 +22,7 @@ pub enum Locale {
 }
 
 impl Locale {
-    pub const ALL: [Self; 3] = [Self::Vi, Self::En, Self::ZhCn];
+    pub const ALL: [Self; 2] = [Self::Vi, Self::En];
 
     pub const fn id(self) -> &'static str {
         match self {
@@ -44,7 +44,9 @@ impl Locale {
         match value.trim().to_ascii_lowercase().as_str() {
             "en" => Some(Self::En),
             "vi" | "vi-vn" | "vi_vn" => Some(Self::Vi),
-            "zh" | "zh-cn" | "zh_cn" | "zh-hans" | "zh_hans" => Some(Self::ZhCn),
+            // Keep parsing old files, but migrate the retired choice to the
+            // product's supported fallback rather than exposing it in UI.
+            "zh" | "zh-cn" | "zh_cn" | "zh-hans" | "zh_hans" => Some(Self::En),
             _ => None,
         }
     }
@@ -604,6 +606,9 @@ fn vietnamese_text(english: &'static str) -> &'static str {
         "Loading saved connection" => "Đang tải kết nối đã lưu",
         "Connect a Gateway" => "Kết nối cổng BoxAI",
         "Connect" => "Kết nối",
+        "Disconnect completed locally, but the Gateway credential could not be confirmed as revoked." => {
+            "Đã ngắt kết nối cục bộ, nhưng chưa thể xác nhận thông tin xác thực đã bị thu hồi trên Gateway."
+        }
         "Testing…" => "Đang kiểm tra…",
         "BoxAI account" => "Tài khoản BoxAI",
         "BoxAI Connect needs an account. Sign-in is confirmed in the browser; the account stays in this app's local config directory." => {
@@ -789,6 +794,7 @@ impl PreferenceStore {
             .and_then(Result::ok)
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_else(fallback)
+            .normalized()
     }
 
     pub fn save(&self, preferences: &Preferences) -> io::Result<()> {
@@ -832,6 +838,15 @@ impl PreferenceStore {
         let value = operation();
         lock.unlock()?;
         Ok(value)
+    }
+}
+
+impl Preferences {
+    fn normalized(mut self) -> Self {
+        if self.locale == Locale::ZhCn {
+            self.locale = Locale::En;
+        }
+        self
     }
 }
 
@@ -919,7 +934,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("tempdir");
         let store = PreferenceStore::new(directory.path().join("preferences.json"));
         let expected = Preferences {
-            locale: Locale::ZhCn,
+            locale: Locale::En,
             theme: ThemePreference::Dark,
             density: DensityPreference::Compact,
             auto_check_updates: false,
@@ -948,5 +963,14 @@ mod tests {
         assert_eq!(preferences.theme, ThemePreference::Dark);
         assert_eq!(preferences.density, DensityPreference::Comfortable);
         assert!(preferences.auto_check_updates);
+    }
+
+    #[test]
+    fn retired_chinese_preference_migrates_to_english() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("preferences.json");
+        fs::write(&path, br#"{"locale":"zh-cn"}"#).expect("write");
+        assert_eq!(PreferenceStore::new(path).load().locale, Locale::En);
+        assert_eq!(Locale::ALL, [Locale::Vi, Locale::En]);
     }
 }

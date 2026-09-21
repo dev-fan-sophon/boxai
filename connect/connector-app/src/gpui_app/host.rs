@@ -2021,20 +2021,27 @@ impl ConnectorHost {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    backend.disconnect(&profile)?;
-                    Ok::<_, gateway_connector_backend::BackendError>(profile)
+                    let outcome = backend.disconnect(&profile)?;
+                    Ok::<_, gateway_connector_backend::BackendError>((profile, outcome))
                 })
                 .await;
             this.update(cx, |this, cx| {
                 this.set_projection_busy(false, cx);
                 match result {
-                    Ok(profile) => {
+                    Ok((profile, outcome)) => {
                         this.gateway_url.update(cx, |input, cx| {
                             input.set_value(profile.base_url.to_string(), cx)
                         });
                         this.pending_save = None;
                         this.save_error = None;
                         this.action_error = None;
+                        if outcome.revocation_warning {
+                            this.toast_warning(
+                                cx,
+                                "connector.disconnect.revocation-warning",
+                                this.text("Disconnect completed locally, but the Gateway credential could not be confirmed as revoked."),
+                            );
+                        }
                         this.page = Page::Overview;
                         this.state = AppState::FirstRun;
                     }
