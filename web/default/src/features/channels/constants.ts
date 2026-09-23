@@ -54,7 +54,7 @@ export const CHANNEL_TYPES = {
   51: 'Jimeng',
   52: 'Vidu',
   53: 'Submodel',
-  54: 'DoubaoVideo',
+  54: 'Seedance Gateway',
   55: 'Sora',
   56: 'Replicate',
   57: 'ChatGPT Subscription (Codex)',
@@ -266,6 +266,15 @@ export const DEFAULT_CHANNEL_VALUES = {
   auto_ban: 1,
   remark: '',
 } as const
+
+// Public names on the Volcengine edge gateway (volcengine-aigc). The channel
+// model_mapping sends these to the gateway's cdance* ids.
+export const SEEDANCE_GATEWAY_DEFAULT_MODELS = [
+  'seedance-2-0',
+  'seedance-2-0-fast',
+  'seedance-2-0-mini',
+  'dreamina-seedance-2-5',
+] as const
 
 export const ELEVENLABS_DEFAULT_MODELS = [
   'eleven_v3',

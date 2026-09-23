@@ -1,4 +1,8 @@
-import { CHANNEL_TYPES, ELEVENLABS_DEFAULT_MODELS } from '../constants'
+import {
+  CHANNEL_TYPES,
+  ELEVENLABS_DEFAULT_MODELS,
+  SEEDANCE_GATEWAY_DEFAULT_MODELS,
+} from '../constants'
 
 // ============================================================================
 // Channel Type Configuration
@@ -154,6 +158,19 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       baseUrl: 'Required Codex Proxy upstream URL without /v1',
       key: 'API key issued by the Codex Proxy upstream',
       models: 'Supported and priced models discovered from the upstream',
+    },
+  },
+  54: {
+    id: 54,
+    name: CHANNEL_TYPES[54],
+    icon: 'Doubao',
+    defaultBaseUrl: 'https://www.volcengine-aigc.com.cn',
+    supportedModels: [...SEEDANCE_GATEWAY_DEFAULT_MODELS],
+    hints: {
+      baseUrl: 'Default: https://www.volcengine-aigc.com.cn',
+      key: 'API key from the Volcengine edge gateway console',
+      models:
+        'seedance-2-0,seedance-2-0-fast,seedance-2-0-mini,dreamina-seedance-2-5',
     },
   },
   62: {

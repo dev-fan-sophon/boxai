@@ -119,7 +119,7 @@ var ChannelBaseURLs = []string{
 	"https://visual.volcengineapi.com",          //51
 	"https://api.vidu.cn",                       //52
 	"https://llm.submodel.ai",                   //53
-	"https://ark.cn-beijing.volces.com",         //54
+	"https://ark.cn-beijing.volces.com",         //54 DoubaoVideo; edge gateway overrides base_url
 	"https://api.openai.com",                    //55
 	"https://api.replicate.com",                 //56
 	"https://chatgpt.com",                       //57

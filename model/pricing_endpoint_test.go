@@ -271,7 +271,7 @@ func TestPricingCanonicalCatalogMetadataAndVendorFacets(t *testing.T) {
 		"gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-image-2", "gpt-oss-120b", "grok-4.5",
 		"grok-4.6", "grok-imagine-image-2.0", "grok-imagine-video-1.5", "inkling", "kimi-k2.6",
 		"kimi-k2.7-code", "kimi-k3", "kimi-k3-fast", "music_v2", "qwen3.8-max", "scribe_v2",
-		"seedance-2-0", "seedance-2-0-fast", "text-embedding-3-large", "text-embedding-3-small",
+		"seedance-2-0", "seedance-2-0-fast", "seedance-2-0-mini", "text-embedding-3-large", "text-embedding-3-small",
 	}
 	for _, modelName := range publicModels {
 		insertPricingEndpointAbility(t, 263, modelName)
@@ -324,7 +324,7 @@ func TestPricingMatchesCanonicalSharedModelMetadataFixture(t *testing.T) {
 
 	var fixture []canonicalSharedModelMetadata
 	require.NoError(t, common.Unmarshal(canonicalSharedModelMetadataFixture, &fixture))
-	require.Len(t, fixture, 53)
+	require.Len(t, fixture, 54)
 
 	staleVendor := &Vendor{Name: "stale vendor", Description: "old", Icon: "old", Status: 1}
 	require.NoError(t, DB.Create(staleVendor).Error)

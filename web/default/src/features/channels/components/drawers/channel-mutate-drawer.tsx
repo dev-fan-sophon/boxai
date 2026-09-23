@@ -64,6 +64,7 @@ import {
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_OPTIONS,
   ELEVENLABS_DEFAULT_MODELS,
+  SEEDANCE_GATEWAY_DEFAULT_MODELS,
   ERROR_MESSAGES,
   MODEL_FETCHABLE_TYPES,
 } from '../../constants'
@@ -841,6 +842,15 @@ export function ChannelMutateDrawer({
       const currentBaseUrlValue = form.getValues('base_url')
       if (!currentBaseUrlValue || currentBaseUrlValue === '') {
         form.setValue('base_url', 'https://ark.cn-beijing.volces.com')
+      }
+    }
+
+    if (currentType === 54) {
+      if (!form.getValues('base_url')) {
+        form.setValue('base_url', 'https://www.volcengine-aigc.com.cn')
+      }
+      if (!form.getValues('models')) {
+        form.setValue('models', SEEDANCE_GATEWAY_DEFAULT_MODELS.join(','))
       }
     }
 

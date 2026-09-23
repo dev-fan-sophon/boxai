@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { ELEVENLABS_DEFAULT_MODELS, MODEL_FETCHABLE_TYPES } from '../constants'
+import {
+  ELEVENLABS_DEFAULT_MODELS,
+  MODEL_FETCHABLE_TYPES,
+  SEEDANCE_GATEWAY_DEFAULT_MODELS,
+} from '../constants'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   channelFormSchema,
@@ -63,6 +67,18 @@ describe('Codex Proxy channel form', () => {
       id: 61,
       name: 'Codex Proxy',
       icon: 'openai',
+    })
+  })
+})
+
+describe('Seedance gateway channel form', () => {
+  it('exposes the edge gateway base URL and public Seedance models', () => {
+    expect(getChannelTypeConfig(54)).toMatchObject({
+      id: 54,
+      name: 'Seedance Gateway',
+      icon: 'Doubao',
+      defaultBaseUrl: 'https://www.volcengine-aigc.com.cn',
+      supportedModels: SEEDANCE_GATEWAY_DEFAULT_MODELS,
     })
   })
 })

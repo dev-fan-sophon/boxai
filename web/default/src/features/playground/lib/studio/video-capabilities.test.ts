@@ -17,6 +17,9 @@ describe('getVideoModelCapabilities', () => {
     ['seedance-2-0', 'seedance-2', 9, 15],
     ['doubao-seedance-2-0-fast-260128', 'seedance-2-fast', 9, 15],
     ['dreamina-seedance-2-5', 'seedance-2.5', 30, 30],
+    ['cdance2.0-0611', 'seedance-2', 9, 15],
+    ['cdance2.0-mini-0611', 'seedance-2-fast', 9, 15],
+    ['cdance2.5-0807', 'seedance-2.5', 30, 30],
     ['grok-imagine-video-1.5', 'xai', 1, 15],
     ['kling-v2', 'generic', 1, 60],
   ] as const)(

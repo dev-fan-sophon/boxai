@@ -17,8 +17,8 @@ import (
 // The helpers below rewrite the passthrough body so BoxAI clients can keep
 // using one uniform OpenAI-style request for every video channel.
 
-var seedance2Pattern = regexp.MustCompile(`(?i)seedance-2[.-]`)
-var seedance25Pattern = regexp.MustCompile(`(?i)seedance-2[.-]5`)
+var seedance2Pattern = regexp.MustCompile(`(?i)(?:seedance-2[.-]|cdance2[.-])`)
+var seedance25Pattern = regexp.MustCompile(`(?i)(?:seedance-2[.-]5|cdance2[.-]5)`)
 
 func isSeedanceModel(name string) bool {
 	return relaycommon.IsSeedanceModel(name)

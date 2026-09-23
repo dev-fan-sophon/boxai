@@ -120,11 +120,15 @@ export function getVideoModelCapabilities(
   model: string | undefined
 ): VideoModelCapabilities {
   const name = (model ?? '').toLowerCase()
-  if (/seedance-2[.-]5/.test(name)) return SEEDANCE_2_5
-  if (/seedance-2[.-]0-fast|seedance-2[.-]0[.-]fast/.test(name)) {
+  if (/seedance-2[.-]5|cdance2[.-]5/.test(name)) return SEEDANCE_2_5
+  if (
+    /seedance-2[.-]0-fast|seedance-2[.-]0[.-]fast|cdance2[.-]0-fast|cdance2[.-]0-mini/.test(
+      name
+    )
+  ) {
     return SEEDANCE_2_FAST
   }
-  if (/seedance-2[.-]0/.test(name)) return SEEDANCE_2
+  if (/seedance-2[.-]0|cdance2[.-]0/.test(name)) return SEEDANCE_2
   if (/grok-imagine-video|grok-video/.test(name)) return XAI_IMAGINE
   return GENERIC
 }

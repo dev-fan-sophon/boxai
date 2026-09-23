@@ -37,7 +37,11 @@ func TestSeedanceResolutionRatio(t *testing.T) {
 func TestIsSeedanceModel(t *testing.T) {
 	assert.True(t, IsSeedanceModel("dreamina-seedance-2-5"))
 	assert.True(t, IsSeedanceModel("doubao-seedance-2-0-260128"))
+	assert.True(t, IsSeedanceModel("cdance2.0-0611"))
+	assert.True(t, IsSeedanceModel("cdance2.0-fast-0611"))
+	assert.True(t, IsSeedanceModel("cdance2.5-0807"))
 	assert.False(t, IsSeedanceModel("sora-2"))
 	assert.True(t, SeedanceRequiresPerSecondPrice("dreamina-seedance-2-5"))
+	assert.True(t, SeedanceRequiresPerSecondPrice("cdance2.0-mini-0611"))
 	assert.False(t, SeedanceRequiresPerSecondPrice("sora-2"))
 }

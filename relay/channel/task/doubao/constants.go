@@ -9,6 +9,12 @@ var ModelList = []string{
 	"doubao-seedance-1-5-pro-251215",
 	"doubao-seedance-2-0-260128",
 	"doubao-seedance-2-0-fast-260128",
+	// Volcengine edge gateway (https://www.volcengine-aigc.com.cn) ids.
+	// Same contents/generations API; the gateway prefixes Seedance with cdance.
+	"cdance2.0-0611",
+	"cdance2.0-fast-0611",
+	"cdance2.0-mini-0611",
+	"cdance2.5-0807",
 }
 
 var ChannelName = "doubao-video"

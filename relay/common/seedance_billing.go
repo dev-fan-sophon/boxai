@@ -7,7 +7,9 @@ import (
 	"strings"
 )
 
-var seedanceModelPattern = regexp.MustCompile(`(?i)seedance`)
+// cdance is the Volcengine edge-gateway prefix for the same Seedance family
+// (cdance2.0-0611, cdance2.0-fast-0611, cdance2.0-mini-0611, cdance2.5-0807).
+var seedanceModelPattern = regexp.MustCompile(`(?i)(?:seedance|cdance)`)
 
 // SeedanceResolutionRatios scales the per-second ModelPrice (720p, no video
 // input) by the relative pixel budget of each output tier. Official Volcengine
@@ -25,8 +27,8 @@ var SeedanceResolutionRatios = map[string]float64{
 const SeedanceDefaultDurationSeconds = 4
 
 // IsSeedanceModel reports whether name is a Seedance family model, including
-// public aliases (dreamina-seedance-2-5) and upstream ids
-// (doubao-seedance-2-0-260128).
+// public aliases (dreamina-seedance-2-5), Volcengine upstream ids
+// (doubao-seedance-2-0-260128), and edge-gateway ids (cdance2.0-0611).
 func IsSeedanceModel(name string) bool {
 	return seedanceModelPattern.MatchString(name)
 }

@@ -316,6 +316,7 @@ var defaultModelPrice = map[string]float64{
 	"dreamina-seedance-2-5": 1.51 / USD2RMB,
 	"seedance-2-0":          0.99 / USD2RMB,
 	"seedance-2-0-fast":     0.80 / USD2RMB,
+	"seedance-2-0-mini":     0.80 / USD2RMB,
 }
 
 var defaultAudioRatio = map[string]float64{
@@ -437,6 +438,13 @@ var defaultSeedanceModelPriceAliases = map[string]string{
 	"seedance-2-0-fast":               "seedance-2-0-fast",
 	"doubao-seedance-2-0-fast":        "seedance-2-0-fast",
 	"doubao-seedance-2-0-fast-260128": "seedance-2-0-fast",
+	// Volcengine edge gateway (volcengine-aigc) model ids. They are the same
+	// Seedance family; the gateway prefixes them with cdance.
+	"cdance2.0-0611":      "seedance-2-0",
+	"cdance2.0-fast-0611": "seedance-2-0-fast",
+	"cdance2.0-mini-0611": "seedance-2-0-mini",
+	"cdance2.5-0807":      "dreamina-seedance-2-5",
+	"seedance-2-0-mini":   "seedance-2-0-mini",
 }
 
 // GetDefaultSeedanceModelPrice returns the compiled-in USD/s 720p price for a
@@ -452,13 +460,16 @@ func GetDefaultSeedanceModelPrice(name string) (float64, bool) {
 	}
 	lower := strings.ToLower(name)
 	switch {
-	case strings.Contains(lower, "seedance-2.5") || strings.Contains(lower, "seedance-2-5"):
+	case strings.Contains(lower, "seedance-2.5") || strings.Contains(lower, "seedance-2-5") || strings.Contains(lower, "cdance2.5") || strings.Contains(lower, "cdance2-5"):
 		price, found := defaultModelPrice["dreamina-seedance-2-5"]
 		return price, found
-	case strings.Contains(lower, "seedance-2.0-fast") || strings.Contains(lower, "seedance-2-0-fast") || strings.Contains(lower, "seedance-2-0.fast"):
+	case strings.Contains(lower, "mini") && (strings.Contains(lower, "seedance-2") || strings.Contains(lower, "cdance2")):
+		price, found := defaultModelPrice["seedance-2-0-mini"]
+		return price, found
+	case strings.Contains(lower, "seedance-2.0-fast") || strings.Contains(lower, "seedance-2-0-fast") || strings.Contains(lower, "seedance-2-0.fast") || strings.Contains(lower, "cdance2.0-fast") || strings.Contains(lower, "cdance2-0-fast"):
 		price, found := defaultModelPrice["seedance-2-0-fast"]
 		return price, found
-	case strings.Contains(lower, "seedance-2.0") || strings.Contains(lower, "seedance-2-0"):
+	case strings.Contains(lower, "seedance-2.0") || strings.Contains(lower, "seedance-2-0") || strings.Contains(lower, "cdance2.0") || strings.Contains(lower, "cdance2-0"):
 		price, found := defaultModelPrice["seedance-2-0"]
 		return price, found
 	default:

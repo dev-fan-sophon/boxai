@@ -86,7 +86,7 @@ export function getChannelTypeIcon(type: number): string {
     52: 'Vidu', // Vidu
     36: 'Suno', // SunoAPI
     55: 'OpenAI', // Sora
-    54: 'Doubao', // DoubaoVideo
+    54: 'Doubao', // Seedance Gateway (Volcengine edge)
     56: 'Replicate', // Replicate
 
     // Tools & Platforms
