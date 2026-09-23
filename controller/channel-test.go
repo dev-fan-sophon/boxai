@@ -46,7 +46,7 @@ func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointTyp
 		return normalized
 	}
 	normalizedModel := strings.ToLower(strings.TrimSpace(modelName))
-	if strings.HasPrefix(normalizedModel, "grok-imagine-video") {
+	if strings.HasPrefix(normalizedModel, "grok-imagine-video") || strings.Contains(normalizedModel, "seedance") || strings.Contains(normalizedModel, "cdance") {
 		return string(constant.EndpointTypeOpenAIVideo)
 	}
 	if strings.HasPrefix(normalizedModel, "gpt-image-") ||

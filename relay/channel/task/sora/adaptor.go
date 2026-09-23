@@ -187,6 +187,9 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
+	if isVolcengineGateway(a.baseURL) && info.Action != constant.TaskActionRemix {
+		return fmt.Sprintf("%s/api/v3/contents/generations/tasks", strings.TrimRight(a.baseURL, "/")), nil
+	}
 	if info.Action == constant.TaskActionRemix {
 		return fmt.Sprintf("%s/v1/videos/%s/remix", a.baseURL, info.OriginTaskID), nil
 	}
@@ -196,11 +199,19 @@ func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, erro
 // BuildRequestHeader sets required headers.
 func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
 	req.Header.Set("Authorization", "Bearer "+a.apiKey)
+	if isVolcengineGateway(a.baseURL) {
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		return nil
+	}
 	req.Header.Set("Content-Type", c.Request.Header.Get("Content-Type"))
 	return nil
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
+	if isVolcengineGateway(a.baseURL) && info.Action != constant.TaskActionRemix {
+		return a.buildVolcengineGatewayBody(c, info)
+	}
 	storage, err := common.GetBodyStorage(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "get_request_body_failed")
@@ -295,6 +306,23 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 	_ = resp.Body.Close()
 
+	if isVolcengineGateway(a.baseURL) {
+		var created gatewayCreateResponse
+		if err := common.Unmarshal(responseBody, &created); err != nil || created.ID == "" {
+			taskErr = service.TaskErrorWrapper(fmt.Errorf("task_id is empty"), "invalid_response", http.StatusInternalServerError)
+			return
+		}
+		ov := dto.NewOpenAIVideo()
+		ov.ID = info.PublicTaskID
+		ov.TaskID = info.PublicTaskID
+		ov.Model = info.OriginModelName
+		if !info.StartTime.IsZero() {
+			ov.CreatedAt = info.StartTime.Unix()
+		}
+		c.JSON(http.StatusOK, ov)
+		return created.ID, responseBody, nil
+	}
+
 	// Parse Sora response
 	var dResp responseTask
 	if err := common.Unmarshal(responseBody, &dResp); err != nil {
@@ -328,6 +356,9 @@ func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseUrl, key str
 	if !ok {
 		return nil, fmt.Errorf("invalid task_id")
 	}
+	if isVolcengineGateway(baseUrl) {
+		return a.fetchVolcengineGatewayTask(ctx, baseUrl, key, taskID, proxy)
+	}
 
 	uri := fmt.Sprintf("%s/v1/videos/%s", baseUrl, taskID)
 
@@ -354,6 +385,9 @@ func (a *TaskAdaptor) GetChannelName() string {
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	if isVolcengineGatewayTask(respBody) {
+		return parseVolcengineGatewayTask(respBody)
+	}
 	resTask := responseTask{}
 	if err := common.Unmarshal(respBody, &resTask); err != nil {
 		return nil, errors.Wrap(err, "unmarshal task result failed")
@@ -388,6 +422,9 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(task *model.Task) ([]byte, error) {
+	if isVolcengineGatewayTask(task.Data) {
+		return convertVolcengineGatewayToOpenAIVideo(task)
+	}
 	data := task.Data
 	var err error
 	if data, err = sjson.SetBytes(data, "id", task.TaskID); err != nil {

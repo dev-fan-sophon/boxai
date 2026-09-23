@@ -51,7 +51,8 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 			}
 		}
 	}
-	if strings.HasPrefix(modelName, "grok-imagine-video") {
+	lowerModel := strings.ToLower(modelName)
+	if strings.HasPrefix(lowerModel, "grok-imagine-video") || strings.Contains(lowerModel, "seedance") || strings.Contains(lowerModel, "cdance") {
 		return []constant.EndpointType{constant.EndpointTypeOpenAIVideo}
 	}
 	if strings.HasPrefix(modelName, "grok-imagine-image") || IsImageGenerationModel(modelName) {
