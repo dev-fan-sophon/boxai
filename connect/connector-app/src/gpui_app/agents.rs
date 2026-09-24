@@ -102,7 +102,7 @@ impl ConnectorHost {
         let detected_count = installs
             .value
             .as_ref()
-            .map(|values| values.iter().filter(|install| install.detected).count());
+            .map(|values| detected_supported_count(values, self.distribution.supported_agents));
         let mut children = vec![
             self.page_banner(
                 &theme,
@@ -736,6 +736,16 @@ fn agent_toggle_rows(
         .collect()
 }
 
+fn detected_supported_count(
+    installs: &[gateway_connector_core::AgentInstall],
+    supported: &[AgentId],
+) -> usize {
+    installs
+        .iter()
+        .filter(|install| install.detected && supported.contains(&install.agent))
+        .count()
+}
+
 fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<String> {
     let Some(root) = root else {
         return Vec::new();
@@ -801,6 +811,24 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detected_count_excludes_legacy_adapters_and_undetected_supported_agents() {
+        let installs = [
+            (AgentId::Claude, true),
+            (AgentId::Codex, false),
+            (AgentId::Workbuddy, true),
+        ]
+        .map(|(agent, detected)| gateway_connector_core::AgentInstall {
+            agent,
+            detected,
+            root: "/fixture".into(),
+        });
+        assert_eq!(
+            detected_supported_count(&installs, &[AgentId::Claude, AgentId::Codex]),
+            1
+        );
+    }
 
     #[test]
     fn displayed_targets_follow_actual_transaction_file_precedence() {
