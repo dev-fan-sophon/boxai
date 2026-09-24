@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -65,22 +65,37 @@ func (s *r2Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if err != nil {
 		return err
 	}
-	body, length, err := seekableBody(r, size)
-	if err != nil {
-		return err
+	// Small known payloads stay a single PutObject. Unknown or large bodies
+	// stream through multipart upload so a finished 1080p/4K video is never
+	// buffered in the API process.
+	if size > 0 && size <= 8<<20 {
+		if seeker, ok := r.(io.ReadSeeker); ok {
+			in := &s3.PutObjectInput{
+				Bucket:        aws.String(s.bucket),
+				Key:           aws.String(clean),
+				Body:          seeker,
+				ContentLength: aws.Int64(size),
+			}
+			if contentType != "" {
+				in.ContentType = aws.String(contentType)
+			}
+			_, err = s.client.PutObject(ctx, in)
+			return err
+		}
 	}
-	in := &s3.PutObjectInput{
+	in := &transfermanager.UploadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(clean),
-		Body:   body,
-	}
-	if length >= 0 {
-		in.ContentLength = aws.Int64(length)
+		Body:   r,
 	}
 	if contentType != "" {
 		in.ContentType = aws.String(contentType)
 	}
-	_, err = s.client.PutObject(ctx, in)
+	uploader := transfermanager.New(s.client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = 8 << 20
+		o.Concurrency = 1
+	})
+	_, err = uploader.UploadObject(ctx, in)
 	return err
 }
 
@@ -129,6 +144,28 @@ func (s *r2Store) PresignGet(ctx context.Context, key string, ttl time.Duration)
 	return req.URL, nil
 }
 
+func (s *r2Store) PresignPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, error) {
+	clean, err := cleanKey(key)
+	if err != nil {
+		return "", err
+	}
+	if ttl <= 0 {
+		ttl = s.presignTTL
+	}
+	in := &s3.PutObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(clean),
+	}
+	if contentType != "" {
+		in.ContentType = aws.String(contentType)
+	}
+	req, err := s.presign.PresignPutObject(ctx, in, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
+}
+
 func (s *r2Store) PublicURL(key string) (string, bool) {
 	clean, err := cleanKey(key)
 	if err != nil {
@@ -138,18 +175,4 @@ func (s *r2Store) PublicURL(key string) (string, bool) {
 		return "", false
 	}
 	return fmt.Sprintf("%s/%s", s.publicBase, clean), true
-}
-
-// seekableBody returns a seekable reader and its length. When size is unknown
-// and r is not already seekable, it buffers the (size-bounded) content so the
-// S3 client can compute signatures.
-func seekableBody(r io.Reader, size int64) (io.ReadSeeker, int64, error) {
-	if rs, ok := r.(io.ReadSeeker); ok {
-		return rs, size, nil
-	}
-	buf, err := io.ReadAll(r)
-	if err != nil {
-		return nil, 0, err
-	}
-	return bytes.NewReader(buf), int64(len(buf)), nil
 }

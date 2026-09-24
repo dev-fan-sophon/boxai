@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -47,6 +48,32 @@ func TestPersistPlaygroundOutputDataURL(t *testing.T) {
 	require.NoError(t, body.Close())
 	require.NoError(t, err)
 	assert.Equal(t, png, got)
+}
+
+func TestPersistPlaygroundOutputHTTPStreamsWithoutBufferingWholeBody(t *testing.T) {
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundAsset{}))
+	t.Cleanup(func() { model.DB.Exec("DELETE FROM playground_assets") })
+
+	root := t.TempDir()
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", root)
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+
+	mp4 := append([]byte{0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}, []byte("isom streamed video")...)
+	asset, err := persistPlaygroundOutputStream(context.Background(), 8, "video", bytes.NewReader(mp4), int64(len(mp4)), "video/mp4")
+	require.NoError(t, err)
+	require.NotNil(t, asset)
+	assert.Equal(t, "video", asset.Kind)
+	assert.Equal(t, int64(len(mp4)), asset.Size)
+	assert.True(t, strings.HasPrefix(asset.StorageKey, "outputs/8/"))
+
+	body, err := OpenPlaygroundAssetContentDirect(context.Background(), asset.Backend, asset.StorageKey)
+	require.NoError(t, err)
+	got, err := io.ReadAll(body)
+	require.NoError(t, body.Close())
+	require.NoError(t, err)
+	assert.Equal(t, mp4, got)
 }
 
 func TestPersistPlaygroundVideoDataURL(t *testing.T) {

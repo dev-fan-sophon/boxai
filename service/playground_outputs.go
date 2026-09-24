@@ -26,15 +26,19 @@ func PersistPlaygroundOutput(ctx context.Context, userId int, modality, resultRe
 		return nil, nil
 	}
 
-	content, declaredMime, err := fetchPlaygroundOutput(ctx, ref)
-	if err != nil {
-		return nil, err
+	lower := strings.ToLower(ref)
+	switch {
+	case strings.HasPrefix(lower, "data:"):
+		content, declaredMime, err := decodePlaygroundDataURL(ref)
+		if err != nil {
+			return nil, err
+		}
+		return persistPlaygroundOutputContent(ctx, userId, modality, content, declaredMime)
+	case strings.HasPrefix(lower, "http://"), strings.HasPrefix(lower, "https://"):
+		return persistPlaygroundOutputHTTP(ctx, userId, modality, ref)
+	default:
+		return nil, nil
 	}
-	if content == nil {
-		return nil, nil // not persistable
-	}
-
-	return persistPlaygroundOutputContent(ctx, userId, modality, content, declaredMime)
 }
 
 // PersistPlaygroundOutputRequest stores media returned by an operator-managed
@@ -49,14 +53,7 @@ func PersistPlaygroundOutputRequest(ctx context.Context, userId int, modality st
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("provider media request failed: status %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, PlaygroundAssetMaxVideoBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(body) > PlaygroundAssetMaxVideoBytes {
-		return nil, fmt.Errorf("output exceeds size limit")
-	}
-	return persistPlaygroundOutputContent(ctx, userId, modality, body, resp.Header.Get("Content-Type"))
+	return persistPlaygroundOutputStream(ctx, userId, modality, resp.Body, resp.ContentLength, resp.Header.Get("Content-Type"))
 }
 
 func persistPlaygroundOutputContent(ctx context.Context, userId int, modality string, content []byte, declaredMime string) (*model.PlaygroundAsset, error) {
@@ -92,40 +89,78 @@ func persistPlaygroundOutputContent(ctx context.Context, userId int, modality st
 	return asset, nil
 }
 
-// fetchPlaygroundOutput returns the raw bytes and declared mime for a result
-// reference. Only data:, http:// and https:// refs are persistable; other refs
-// yield (nil, "", nil).
-func fetchPlaygroundOutput(ctx context.Context, ref string) ([]byte, string, error) {
-	lower := strings.ToLower(ref)
-	switch {
-	case strings.HasPrefix(lower, "data:"):
-		return decodePlaygroundDataURL(ref)
-	case strings.HasPrefix(lower, "http://"), strings.HasPrefix(lower, "https://"):
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, ref, nil)
-		if err != nil {
-			return nil, "", fmt.Errorf("create output download request failed")
-		}
-		resp, err := GetStrictUntrustedMediaHTTPClient().Do(req)
-		if err != nil {
-			return nil, "", fmt.Errorf("output download request failed")
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return nil, "", fmt.Errorf("download failed: status %d", resp.StatusCode)
-		}
-		// Read with a hard cap; video is the largest allowed kind.
-		var max int64 = PlaygroundAssetMaxVideoBytes
-		body, err := io.ReadAll(io.LimitReader(resp.Body, max+1))
-		if err != nil {
-			return nil, "", err
-		}
-		if int64(len(body)) > max {
-			return nil, "", fmt.Errorf("output exceeds size limit")
-		}
-		return body, resp.Header.Get("Content-Type"), nil
-	default:
-		return nil, "", nil
+func persistPlaygroundOutputHTTP(ctx context.Context, userId int, modality, ref string) (*model.PlaygroundAsset, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ref, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create output download request failed")
 	}
+	resp, err := GetStrictUntrustedMediaHTTPClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("output download request failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed: status %d", resp.StatusCode)
+	}
+	return persistPlaygroundOutputStream(ctx, userId, modality, resp.Body, resp.ContentLength, resp.Header.Get("Content-Type"))
+}
+
+// persistPlaygroundOutputStream copies a provider body into object storage
+// without buffering the whole file. Only the first 512 bytes are peeked so the
+// MIME allowlist can still reject unexpected content.
+func persistPlaygroundOutputStream(ctx context.Context, userId int, modality string, body io.Reader, contentLength int64, declaredMime string) (*model.PlaygroundAsset, error) {
+	header := make([]byte, 512)
+	n, readErr := io.ReadFull(body, header)
+	if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+		return nil, readErr
+	}
+	header = header[:n]
+	mimeType, kind, err := resolveOutputMime(header, declaredMime, modality)
+	if err != nil {
+		return nil, err
+	}
+	max := MaxBytesForPlaygroundKind(kind)
+	if contentLength > max {
+		return nil, fmt.Errorf("output exceeds size limit for %s", kind)
+	}
+	ext := safeExtFromName("", mimeType)
+	key := path.Join("outputs", fmt.Sprintf("%d", userId), uuid.New().String()+ext)
+	store := storage.Default()
+	limited := io.LimitReader(io.MultiReader(bytes.NewReader(header), body), max+1)
+	counting := &countingReader{r: limited}
+	if err := store.Put(ctx, key, counting, contentLength, mimeType); err != nil {
+		_ = store.Delete(ctx, key)
+		return nil, err
+	}
+	if counting.n > max {
+		_ = store.Delete(ctx, key)
+		return nil, fmt.Errorf("output exceeds size limit for %s", kind)
+	}
+	asset := &model.PlaygroundAsset{
+		UserId:     userId,
+		Kind:       kind,
+		Name:       path.Base(key),
+		StorageKey: key,
+		Backend:    store.Backend(),
+		Mime:       mimeType,
+		Size:       counting.n,
+	}
+	if err := model.CreatePlaygroundAsset(asset); err != nil {
+		_ = store.Delete(ctx, key)
+		return nil, err
+	}
+	return asset, nil
+}
+
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
 }
 
 // resolveOutputMime validates content against the allowlist, preferring the

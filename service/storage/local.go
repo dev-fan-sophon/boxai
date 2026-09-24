@@ -81,6 +81,10 @@ func (s *localStore) PresignGet(_ context.Context, _ string, _ time.Duration) (s
 	return "", ErrPresignUnsupported
 }
 
+func (s *localStore) PresignPut(_ context.Context, _, _ string, _ time.Duration) (string, error) {
+	return "", ErrPresignUnsupported
+}
+
 // PublicURL is unsupported for the local backend; public objects are served
 // through the authenticated app content route instead.
 func (s *localStore) PublicURL(_ string) (string, bool) {

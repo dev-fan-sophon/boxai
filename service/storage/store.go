@@ -33,6 +33,9 @@ type AssetStore interface {
 	Delete(ctx context.Context, key string) error
 	// PresignGet returns a short-lived GET URL, or ErrPresignUnsupported.
 	PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error)
+	// PresignPut returns a short-lived PUT URL, or ErrPresignUnsupported.
+	// Browsers upload directly so the API process does not read the file.
+	PresignPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, error)
 	// PublicURL returns a public CDN URL when key is publicly delivered.
 	PublicURL(key string) (string, bool)
 }
