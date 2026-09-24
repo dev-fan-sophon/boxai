@@ -689,6 +689,14 @@ fn provisioned_connection_uses_manifest_catalog_and_bearer_boundary() {
             api_key: ApiKey::new("enhanced-key").expect("key"),
         })
         .expect("provisioned connection");
+    assert!(
+        connected.synchronized_skills.is_empty(),
+        "connection must not download archives"
+    );
+    assert!(!state.path().join("skill-archives").exists());
+    let stale_plan = backend
+        .plan_projection(&connected)
+        .expect("on-demand projection preview");
     let captures = handle.join().expect("enhanced server");
 
     assert_eq!(
@@ -711,17 +719,44 @@ fn provisioned_connection_uses_manifest_catalog_and_bearer_boundary() {
     );
     assert!(connected.provisioning.is_some());
     assert!(connected.manifest.is_some());
+    let cached = backend
+        .cached_connection()
+        .expect("offline cache")
+        .expect("cached catalog");
+    assert_eq!(cached.models[0].id, "agent-model");
+    assert!(
+        cached.manifest.is_none(),
+        "cached data is not authorization to apply"
+    );
+    assert!(cached.profile.credential_secret.is_empty());
+    assert!(backend.plan_projection(&cached).is_err());
+    let cache_text = fs::read_to_string(state.path().join("catalog.json")).expect("cache");
+    assert!(!cache_text.contains("enhanced-key"));
+    assert!(!cache_text.contains("\"account\""));
+    for field in ["profile_id", "platform_id", "origin"] {
+        let mut document: serde_json::Value =
+            serde_json::from_str(&cache_text).expect("cache JSON");
+        document[field] = serde_json::json!("different-identity");
+        fs::write(state.path().join("catalog.json"), document.to_string())
+            .expect("change identity");
+        assert!(
+            backend.cached_connection().expect("cache lookup").is_none(),
+            "{field}"
+        );
+    }
+    fs::write(state.path().join("catalog.json"), &cache_text).expect("restore catalog");
     assert_eq!(
-        fs::read(connected.synchronized_skills["online-skill"].join("SKILL.md"))
-            .expect("synchronized Skill"),
+        fs::read(
+            state
+                .path()
+                .join("synchronized-skills/test-platform/online-skill/SKILL.md")
+        )
+        .expect("synchronized Skill"),
         b"online Skill"
     );
 
     let installs = backend.discover_agents().expect("Agent discovery");
     assert!(installs.iter().all(|install| install.detected));
-    let stale_plan = backend
-        .plan_projection(&connected)
-        .expect("projection preview");
     assert!(!format!("{stale_plan:?}").contains("enhanced-key"));
     credentials
         .set(
@@ -768,6 +803,13 @@ fn provisioned_connection_uses_manifest_catalog_and_bearer_boundary() {
     backend
         .disconnect(&connected.profile)
         .expect("disconnect projections and profile");
+    assert!(!state.path().join("catalog.json").exists());
+    assert!(
+        backend
+            .cached_connection()
+            .expect("removed account")
+            .is_none()
+    );
     assert!(
         backend
             .profiles()

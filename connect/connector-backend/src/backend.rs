@@ -244,8 +244,46 @@ impl ConnectorBackend {
         token: &ApiKey,
     ) -> Result<(Provisioning, BTreeMap<String, PathBuf>), BackendError> {
         let provisioning = self.client.fetch_provisioning(manifest, token)?;
-        let synchronized_skills = self.synchronize_skills(manifest, &provisioning, token)?;
-        Ok((provisioning, synchronized_skills))
+        // Model discovery must not wait for archives. Skills are acquired only
+        // when an Agent is applied and are reused by verified content digest.
+        Ok((provisioning, BTreeMap::new()))
+    }
+
+    fn remember_catalog(
+        &self,
+        profile: &ConnectionProfile,
+        manifest: &ConnectionManifest,
+        provisioning: &Provisioning,
+    ) -> Result<(), BackendError> {
+        if let Some(catalog) = &self.catalog {
+            catalog
+                .remember(profile, manifest, provisioning)
+                .map_err(|error| BackendError::Catalog(error.to_string()))?;
+        }
+        Ok(())
+    }
+
+    /// Inspectable cached catalog, deliberately without an authorization
+    /// manifest so it cannot be used to apply configuration until refreshed.
+    pub fn cached_connection(&self) -> Result<Option<ConnectionResult>, BackendError> {
+        let Some(mut profile) = self.single_profile()? else {
+            return Ok(None);
+        };
+        let Some(provisioning) = self
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.remembered(&profile))
+        else {
+            return Ok(None);
+        };
+        profile.credential_secret.clear();
+        Ok(Some(ConnectionResult {
+            profile,
+            models: models_from_provisioning(&provisioning),
+            manifest: None,
+            provisioning: Some(provisioning),
+            synchronized_skills: BTreeMap::new(),
+        }))
     }
 
     pub fn discover_agents(&self) -> Result<Vec<AgentInstall>, BackendError> {
@@ -371,6 +409,13 @@ impl ConnectorBackend {
                 agent.display_name()
             )));
         }
+        let mut selected_catalog = provisioning.clone();
+        selected_catalog.skills.retain(|skill| {
+            agents
+                .values()
+                .any(|selection| !selection.disabled_skills.contains(&skill.id))
+        });
+        let synchronized_skills = self.synchronize_skills(&manifest, &selected_catalog, &bearer)?;
         runtime
             .connector
             .plan(ApplyInput {
@@ -379,7 +424,7 @@ impl ConnectorBackend {
                 bearer: &secret,
                 agents,
                 installs,
-                synchronized_skills: connection.synchronized_skills.clone(),
+                synchronized_skills,
             })
             .map_err(Into::into)
     }
@@ -569,6 +614,9 @@ impl ConnectorBackend {
                 Err(rollback) => Err(BackendError::CredentialCommit { source, rollback }),
             };
         }
+        if let (Some(manifest), Some(provisioning)) = (&manifest, &provisioning) {
+            self.remember_catalog(&profile, manifest, provisioning)?;
+        }
         Ok(ConnectionResult {
             profile,
             models,
@@ -655,6 +703,7 @@ impl ConnectorBackend {
         // transient outage leaves the saved connection available to resume.
         let (provisioning, synchronized_skills) =
             self.provisioned_catalog(&offer.manifest, &pending.token)?;
+        self.remember_catalog(&profile, &offer.manifest, &provisioning)?;
         let models = models_from_provisioning(&provisioning);
         Ok(ConnectionResult {
             profile,
@@ -665,13 +714,21 @@ impl ConnectorBackend {
         })
     }
 
-    pub fn resume(&self, profile: ConnectionProfile) -> Result<ConnectionResult, BackendError> {
+    pub fn resume(&self, mut profile: ConnectionProfile) -> Result<ConnectionResult, BackendError> {
         profile.validate()?;
         self.validate_distribution_profile(&profile)?;
         let api_key = self
             .credentials
             .get(&profile)?
             .ok_or(BackendError::MissingCredential)?;
+        // Native migration may have removed a legacy secret. Do not return a
+        // stale plaintext copy to UI state where a later edit can persist it.
+        if let Some(saved) = self
+            .single_profile()?
+            .filter(|saved| saved.id == profile.id)
+        {
+            profile.credential_secret = saved.credential_secret;
+        }
         if let Some(runtime) = &self.projection {
             let _guard = self
                 .projection_lock
@@ -703,6 +760,7 @@ impl ConnectorBackend {
                 self.validate_platform(&profile, &found.document)?;
                 let (provisioning, synchronized_skills) =
                     self.provisioned_catalog(&found.document, &api_key)?;
+                self.remember_catalog(&profile, &found.document, &provisioning)?;
                 let models = models_from_provisioning(&provisioning);
                 Ok(ConnectionResult {
                     profile,
@@ -758,8 +816,7 @@ impl ConnectorBackend {
                 self.profiles.delete(profile.id)?;
                 return Ok(None);
             }
-            profile.credential_pending = false;
-            self.profiles.save(&profile)?;
+            profile = self.finish_credential_commit(&profile)?;
         }
         self.resume(profile).map(Some)
     }
@@ -816,6 +873,7 @@ impl ConnectorBackend {
             .map_err(|_| BackendError::PendingLock)? = None;
         let (provisioning, synchronized_skills) =
             self.provisioned_catalog(&pending.manifest, &pending.token)?;
+        self.remember_catalog(&profile, &pending.manifest, &provisioning)?;
         let models = models_from_provisioning(&provisioning);
         Ok(ConnectionResult {
             profile,
@@ -853,7 +911,14 @@ impl ConnectorBackend {
 
     pub fn save_profile(&self, profile: &ConnectionProfile) -> Result<(), BackendError> {
         profile.validate()?;
-        self.profiles.save(profile).map_err(Into::into)
+        let mut profile = profile.clone();
+        if let Some(saved) = self
+            .single_profile()?
+            .filter(|saved| saved.id == profile.id)
+        {
+            profile.credential_secret = saved.credential_secret;
+        }
+        self.profiles.save(&profile).map_err(Into::into)
     }
 
     fn finish_credential_commit(
@@ -911,6 +976,11 @@ impl ConnectorBackend {
             revocation_warning = !matches!(revoked, Ok(true));
         }
         self.credentials.delete(&profile.credential)?;
+        if let Some(catalog) = &self.catalog {
+            catalog
+                .forget()
+                .map_err(|error| BackendError::Catalog(error.to_string()))?;
+        }
         self.profiles.delete(profile.id)?;
         Ok(DisconnectOutcome { revocation_warning })
     }

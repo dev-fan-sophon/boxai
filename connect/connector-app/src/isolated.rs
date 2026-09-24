@@ -1294,13 +1294,8 @@ mod tests {
                 api_key: ApiKey::new("isolated-secret").expect("credential"),
             })
             .expect("connect");
-        assert_eq!(connected.synchronized_skills.len(), 1);
-        assert!(
-            connected
-                .synchronized_skills
-                .values()
-                .all(|path| path.starts_with(layout.root()))
-        );
+        assert!(connected.synchronized_skills.is_empty());
+        assert!(!layout.state_dir().join("skill-archives").exists());
         assert_eq!(
             connected
                 .provisioning
@@ -1318,6 +1313,7 @@ mod tests {
         let plan = backend
             .plan_projection(&connected)
             .expect("provisioned plan");
+        assert!(layout.state_dir().join("skill-archives").is_dir());
         assert!(app_state.start_direct_apply());
         backend
             .apply_projection(&connected.profile, &plan)
@@ -1335,12 +1331,9 @@ mod tests {
             .resume_saved()
             .expect("resume")
             .expect("saved connection");
-        assert_eq!(resumed.synchronized_skills.len(), 1);
         assert!(
-            resumed
-                .synchronized_skills
-                .values()
-                .all(|path| path.starts_with(layout.root()))
+            resumed.synchronized_skills.is_empty(),
+            "resume does not download archives"
         );
         resumed_backend
             .disconnect(&resumed.profile)

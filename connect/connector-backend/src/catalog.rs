@@ -7,7 +7,9 @@ use std::{
 };
 
 use fs2::FileExt;
-use gateway_connector_core::{ConnectionManifest, Provisioning, Skill, SkillArchiveAuthorization};
+use gateway_connector_core::{
+    ConnectionManifest, ConnectionProfile, Provisioning, Skill, SkillArchiveAuthorization,
+};
 use reqwest::{StatusCode, header};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -70,6 +72,87 @@ impl SkillCatalog {
         self.synchronize_with_limits(manifest, provisioning, token, MAX_ENTRIES, MAX_EXPANDED)
     }
 
+    /// Only public catalog fields are persisted. Never cache the profile,
+    /// bearer, account, wallet, billing snapshot, or signed URL query strings.
+    pub(crate) fn remember(
+        &self,
+        profile: &ConnectionProfile,
+        manifest: &ConnectionManifest,
+        provisioning: &Provisioning,
+    ) -> Result<(), CatalogError> {
+        use std::io::Write;
+        ensure_plain_directory_tree(&self.state_dir)?;
+        let mut mcp = provisioning.mcp_servers.clone();
+        let mut skills = provisioning.skills.clone();
+        let mut plaza = provisioning.model_plaza.clone();
+        for url in mcp
+            .iter_mut()
+            .map(|m| &mut m.url)
+            .chain(skills.iter_mut().map(|s| &mut s.archive.url))
+            .chain(plaza.iter_mut().map(|p| &mut p.portal_url))
+        {
+            url.set_query(None);
+            url.set_fragment(None);
+        }
+        let document = serde_json::json!({
+            "profile_id": profile.id,
+            "platform_id": manifest.platform.id,
+            "origin": manifest.gateway.base_url.origin().ascii_serialization(),
+            "catalog": { "success": true, "data": {
+                "schema_version": provisioning.schema_version,
+                "models": provisioning.models, "default_model": provisioning.default_model,
+                "model_plaza": plaza, "mcp_servers": mcp, "skills": skills,
+            }}
+        });
+        let path = self.state_dir.join("catalog.json");
+        validate_cache_file(&path)?;
+        let mut temporary = tempfile::NamedTempFile::new_in(&self.state_dir).map_err(io(&path))?;
+        temporary
+            .write_all(document.to_string().as_bytes())
+            .map_err(io(&path))?;
+        temporary.as_file().sync_all().map_err(io(&path))?;
+        temporary.persist(&path).map_err(|error| CatalogError::Io {
+            path,
+            source: error.error,
+        })?;
+        Ok(())
+    }
+
+    pub(crate) fn remembered(&self, profile: &ConnectionProfile) -> Option<Provisioning> {
+        validate_plain_directory_tree(&self.state_dir).ok()?;
+        let path = self.state_dir.join("catalog.json");
+        validate_cache_file(&path).ok()?;
+        let mut bytes = Vec::new();
+        fs::File::open(path)
+            .ok()?
+            .take(2 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        if bytes.len() > 2 * 1024 * 1024 {
+            return None;
+        }
+        let document: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+        if document["profile_id"] != serde_json::to_value(profile.id).ok()?
+            || document["platform_id"].as_str()? != profile.platform_id
+            || document["origin"].as_str()?
+                != profile.base_url.as_url().origin().ascii_serialization()
+        {
+            return None;
+        }
+        Provisioning::parse(&serde_json::to_vec(&document["catalog"]).ok()?).ok()
+    }
+
+    pub(crate) fn forget(&self) -> Result<(), CatalogError> {
+        validate_plain_directory_tree(&self.state_dir)?;
+        let path = self.state_dir.join("catalog.json");
+        validate_cache_file(&path)?;
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(io(&path)(error)),
+        }
+    }
+
     fn synchronize_with_limits(
         &self,
         manifest: &ConnectionManifest,
@@ -78,6 +161,9 @@ impl SkillCatalog {
         max_entries: usize,
         max_expanded: u64,
     ) -> Result<BTreeMap<String, PathBuf>, CatalogError> {
+        provisioning
+            .validate_for(manifest)
+            .map_err(|error| CatalogError::Invalid(error.to_string()))?;
         let parent = self.state_dir.join("synchronized-skills");
         ensure_plain_directory_tree(&parent)?;
         reject_non_directory(&parent)?;
@@ -104,7 +190,7 @@ impl SkillCatalog {
             let archives = provisioning
                 .skills
                 .iter()
-                .map(|skill| self.download(manifest, skill, token))
+                .map(|skill| self.cached_download(manifest, skill, token))
                 .collect::<Result<Vec<_>, _>>()?;
             preflight_catalog(&archives, max_entries, max_expanded)?;
             validate_plain_directory_tree(&parent)?;
@@ -145,6 +231,39 @@ impl SkillCatalog {
             .iter()
             .map(|s| (s.id.clone(), root.join(&s.id)))
             .collect())
+    }
+
+    fn cached_download(
+        &self,
+        manifest: &ConnectionManifest,
+        skill: &Skill,
+        token: &ApiKey,
+    ) -> Result<Vec<u8>, CatalogError> {
+        use std::io::Write;
+        let cache = self.state_dir.join("skill-archives");
+        ensure_plain_directory_tree(&cache)?;
+        let path = cache.join(format!("{}.zip", skill.archive.sha256));
+        validate_cache_file(&path)?;
+        if let Ok(file) = fs::File::open(&path) {
+            let mut bytes = Vec::new();
+            file.take(skill.archive.size_bytes + 1)
+                .read_to_end(&mut bytes)
+                .map_err(io(&path))?;
+            if bytes.len() as u64 == skill.archive.size_bytes
+                && format!("{:x}", Sha256::digest(&bytes)) == skill.archive.sha256
+            {
+                return Ok(bytes);
+            }
+        }
+        let bytes = self.download(manifest, skill, token)?;
+        let mut temporary = tempfile::NamedTempFile::new_in(&cache).map_err(io(&path))?;
+        temporary.write_all(&bytes).map_err(io(&path))?;
+        temporary.as_file().sync_all().map_err(io(&path))?;
+        temporary.persist(&path).map_err(|error| CatalogError::Io {
+            path,
+            source: error.error,
+        })?;
+        Ok(bytes)
     }
 
     fn download(
@@ -285,6 +404,15 @@ fn reject_non_directory(path: &Path) -> Result<(), CatalogError> {
     }
     Ok(())
 }
+fn validate_cache_file(path: &Path) -> Result<(), CatalogError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() && !is_reparse(&metadata) => Ok(()),
+        Ok(_) => Err(CatalogError::Invalid("cache is not a plain file".into())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(io(path)(error)),
+    }
+}
+
 fn reject_existing_special(path: &Path) -> Result<(), CatalogError> {
     match fs::symlink_metadata(path) {
         Ok(m) if m.is_dir() && !is_reparse(&m) => Ok(()),
@@ -798,11 +926,11 @@ mod tests {
         let origin = format!("http://{}", server.server_addr());
         let response = archive.clone();
         let handle = thread::spawn(move || {
-            for _ in 0..2 {
-                recv_request(&server, "aggregate budget archive request")
-                    .respond(Response::from_data(response.clone()))
-                    .expect("archive response");
-            }
+            // Both records have the same digest: download once, but charge
+            // extraction budget twice because both trees would be installed.
+            recv_request(&server, "aggregate budget archive request")
+                .respond(Response::from_data(response))
+                .expect("archive response");
         });
         let records = vec![
             skill("one", &format!("{origin}/one.zip"), &archive, "none"),
@@ -1015,6 +1143,20 @@ mod tests {
         assert_eq!(
             fs::read(paths["private"].join("SKILL.md")).expect("private Skill"),
             b"private"
+        );
+        // The server is gone: a new catalog instance must verify/reuse both
+        // digest-addressed archives rather than trying the network again.
+        let cached = SkillCatalog::new(temp.path().to_owned())
+            .expect("catalog")
+            .synchronize(
+                &manifest,
+                &provisioning,
+                &ApiKey::new("catalog-token").expect("token"),
+            )
+            .expect("offline archive reuse");
+        assert_eq!(
+            fs::read(cached["public"].join("SKILL.md")).expect("cached Skill"),
+            b"public"
         );
     }
 

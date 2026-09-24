@@ -120,9 +120,21 @@ pub fn run_launch_with_assets(
             let profiles: Arc<dyn ProfileStore> = Arc::new(JsonProfileStore::new(
                 directories.data_local_dir().join("profiles.json"),
             ));
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            let credentials: Arc<dyn gateway_connector_backend::CredentialStore> =
+                Arc::new(gateway_connector_backend::MigratingCredentialStore::new(
+                    Arc::clone(&profiles),
+                    Arc::new(
+                        gateway_connector_backend::NativeCredentialStore::new()
+                            .expect("native credential worker"),
+                    ),
+                ));
+            #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+            let credentials: Arc<dyn gateway_connector_backend::CredentialStore> =
+                panic!("BoxAI Connect requires macOS or Windows native credential storage");
             let backend = Arc::new(
                 ConnectorBackend::with_dependencies(
-                    Arc::new(ProfileCredentialStore::new(Arc::clone(&profiles))),
+                    credentials,
                     profiles,
                     distribution,
                     Arc::clone(&browser),

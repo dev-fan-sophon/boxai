@@ -1,5 +1,5 @@
 use crate::{Error, Result, WireProtocol};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, fmt};
 use url::Url;
 
@@ -197,7 +197,7 @@ impl ConnectionManifest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
     pub id: String,
     #[serde(default)]
@@ -247,7 +247,7 @@ impl Model {
         self.is_responses_native() || self.has_responses_endpoint()
     }
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelVendor {
     pub id: i64,
     pub name: String,
@@ -344,18 +344,18 @@ pub struct SubscriptionSnapshot {
     pub next_reset_time: i64,
     pub wallet_fallback: bool,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelPlaza {
     pub portal_url: Url,
     #[serde(default)]
     pub models: Vec<Model>,
 }
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum McpAuthorization {
     ConnectionBearer,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServer {
     pub id: String,
     pub name: String,
@@ -364,13 +364,13 @@ pub struct McpServer {
     #[serde(default)]
     pub description: Option<String>,
 }
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillArchiveAuthorization {
     None,
     ConnectionBearer,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillArchive {
     pub url: Url,
     pub sha256: String,
@@ -378,7 +378,7 @@ pub struct SkillArchive {
     pub format: String,
     pub authorization: SkillArchiveAuthorization,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
     pub id: String,
     pub name: String,

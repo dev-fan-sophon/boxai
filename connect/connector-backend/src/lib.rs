@@ -5,6 +5,7 @@ mod catalog;
 mod discovery;
 mod distribution;
 mod install;
+mod native_vault;
 mod pkce;
 mod profile_store;
 mod update;
@@ -25,6 +26,9 @@ pub use install::{
     ShellIntegration, UNINSTALL_KEY_NAME, classify as classify_install, install, install_root,
     plan as plan_install, system_shell, uninstall,
 };
+pub use native_vault::MigratingCredentialStore;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub use native_vault::NativeCredentialStore;
 pub use pkce::{Browser, PkceError, PkceFlow, SystemBrowser};
 pub use profile_store::{InMemoryProfileStore, JsonProfileStore, ProfileStore, StoreError};
 pub use update::{
