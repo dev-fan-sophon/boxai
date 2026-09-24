@@ -19,6 +19,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/service/storage"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,11 @@ func VideoProxy(c *gin.Context) {
 	// Stream (do not 302 to R2) so browser fetch downloads stay same-origin.
 	if run, runErr := model.GetPlaygroundRunByTaskId(taskID, userID); runErr == nil && run.AssetId > 0 {
 		if asset, assetErr := model.GetPlaygroundAsset(run.AssetId, userID); assetErr == nil {
+			// Default stays same-origin so browser fetch/download can read the body.
+			// ?redirect=1 is the opt-in that hands the bytes to a signed URL.
+			if c.Query("redirect") == "1" && redirectPresignedVideo(c, asset) {
+				return
+			}
 			streamPlaygroundVideoAsset(c, asset)
 			return
 		}
@@ -256,6 +262,25 @@ func VideoProxy(c *gin.Context) {
 	if _, err = io.Copy(c.Writer, io.MultiReader(bytes.NewReader(header), resp.Body)); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to stream video content: %s", err.Error()))
 	}
+}
+
+// redirectPresignedVideo hands a finished playground video to object storage
+// when the caller asked for it and the backend can sign a GET. Otherwise the
+// caller keeps the same-origin stream.
+func redirectPresignedVideo(c *gin.Context, asset *model.PlaygroundAsset) bool {
+	if asset == nil || asset.StorageKey == "" {
+		return false
+	}
+	store, err := storage.ForBackend(asset.Backend)
+	if err != nil {
+		return false
+	}
+	signed, err := store.PresignGet(c.Request.Context(), asset.StorageKey, 10*time.Minute)
+	if err != nil || signed == "" {
+		return false
+	}
+	c.Redirect(http.StatusFound, signed)
+	return true
 }
 
 // streamPlaygroundVideoAsset delivers a stored playground video asset inline
