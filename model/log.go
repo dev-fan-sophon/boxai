@@ -123,7 +123,22 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			delete(otherMap, "admin_info")
 			// Remove operation-audit details (operator/route info), admin-only.
 			delete(otherMap, "audit_info")
-			// delete(otherMap, "reject_reason")
+			delete(otherMap, "root_info")
+			delete(otherMap, "reject_reason")
+			delete(otherMap, "channel_affinity")
+			delete(otherMap, "po")
+			// Keep public stream outcome, never raw upstream errors or future diagnostics.
+			if stream, ok := otherMap["stream_status"].(map[string]interface{}); ok {
+				public := make(map[string]interface{})
+				for _, key := range []string{"status", "end_reason", "error_count"} {
+					if value, exists := stream[key]; exists {
+						public[key] = value
+					}
+				}
+				otherMap["stream_status"] = public
+			} else {
+				delete(otherMap, "stream_status")
+			}
 		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
 	}

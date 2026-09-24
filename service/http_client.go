@@ -93,6 +93,12 @@ func newRelayHTTPTransport() *http.Transport {
 	transport.MaxIdleConns = common.RelayMaxIdleConns
 	transport.MaxIdleConnsPerHost = common.RelayMaxIdleConnsPerHost
 	transport.IdleConnTimeout = time.Duration(common.RelayIdleConnTimeout) * time.Second
+	headerTimeout := common.RelayResponseHeaderTimeout
+	if headerTimeout < 0 || int64(headerTimeout) > int64((1<<63-1)/time.Second) {
+		common.SysError("invalid RELAY_RESPONSE_HEADER_TIMEOUT; using 1800 seconds")
+		headerTimeout = 1800
+	}
+	transport.ResponseHeaderTimeout = time.Duration(headerTimeout) * time.Second
 	transport.ForceAttemptHTTP2 = true
 	if common.TLSInsecureSkipVerify {
 		transport.TLSClientConfig = common.InsecureTLSConfig

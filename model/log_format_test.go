@@ -5,6 +5,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,10 +37,17 @@ func TestFormatUserLogsStripsQuotaSaturation(t *testing.T) {
 
 func TestFormatUserLogsPreservesStreamStatus(t *testing.T) {
 	other := common.MapToJsonStr(map[string]interface{}{
+		"root_info":        "private",
+		"reject_reason":    "internal rule",
+		"po":               map[string]interface{}{"authorization": "private"},
+		"channel_affinity": "private channel",
 		"stream_status": map[string]interface{}{
-			"status":      "error",
-			"end_reason":  "upstream_error",
-			"error_count": 1,
+			"status":            "error",
+			"end_reason":        "upstream_error",
+			"error_count":       1,
+			"end_error":         "upstream secret",
+			"errors":            []string{"upstream secret"},
+			"future_diagnostic": "private",
 		},
 	})
 	logs := []*Log{{Other: other}}
@@ -48,8 +56,12 @@ func TestFormatUserLogsPreservesStreamStatus(t *testing.T) {
 
 	parsed, err := common.StrToMap(logs[0].Other)
 	require.NoError(t, err)
+	for _, key := range []string{"root_info", "reject_reason", "po", "channel_affinity"} {
+		assert.NotContains(t, parsed, key)
+	}
 	streamStatus, ok := parsed["stream_status"].(map[string]interface{})
 	require.True(t, ok)
+	assert.Len(t, streamStatus, 3)
 	require.Equal(t, "error", streamStatus["status"])
 	require.Equal(t, "upstream_error", streamStatus["end_reason"])
 	require.Equal(t, float64(1), streamStatus["error_count"])

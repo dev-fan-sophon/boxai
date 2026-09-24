@@ -143,7 +143,8 @@ var SyncFrequency int // unit is second
 var BatchUpdateEnabled = false
 var BatchUpdateInterval int
 
-var RelayTimeout int // unit is second
+var RelayTimeout int                  // unit is second
+var RelayResponseHeaderTimeout = 1800 // seconds; zero disables the header wait limit
 
 var RelayIdleConnTimeout int // unit is second
 var RelayMaxIdleConns int

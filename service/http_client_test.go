@@ -10,11 +10,54 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRelayResponseHeaderTimeout(t *testing.T) {
+	old := common.RelayResponseHeaderTimeout
+	t.Cleanup(func() { common.RelayResponseHeaderTimeout = old })
+	for _, tc := range []struct {
+		seconds int
+		want    time.Duration
+	}{{17, 17 * time.Second}, {0, 0}, {-1, 1800 * time.Second}, {int((1<<63-1)/time.Second) + 1, 1800 * time.Second}} {
+		common.RelayResponseHeaderTimeout = tc.seconds
+		transport := newRelayHTTPTransport()
+		assert.Equal(t, tc.want, transport.ResponseHeaderTimeout)
+		transport.CloseIdleConnections()
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/headers" {
+			<-r.Context().Done()
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		// Body may outlive the response-header timeout without being truncated.
+		select {
+		case <-time.After(100 * time.Millisecond):
+			_, _ = io.WriteString(w, "complete body")
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	transport := newRelayHTTPTransport()
+	transport.ResponseHeaderTimeout = 30 * time.Millisecond
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport}
+	_, err := client.Get(server.URL + "/headers")
+	require.ErrorContains(t, err, "timeout awaiting response headers")
+	response, err := client.Get(server.URL + "/body")
+	require.NoError(t, err)
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "complete body", string(body))
+}
 
 func initProxyClientTestCache(t *testing.T) {
 	t.Helper()
