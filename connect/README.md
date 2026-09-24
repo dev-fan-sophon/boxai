@@ -1,9 +1,24 @@
 # BoxAI Connect
 
 BoxAI Connect is the native GPUI client for configuring Claude Code, Codex,
-Gemini CLI, Grok Build, OpenCode, and WorkBuddy with BoxAI. It includes model
-discovery, per-Agent configuration, MCP server and Skill management, reversible
-apply and disconnect operations, account usage, and signed self-updates.
+Gemini CLI, Grok Build, and OpenCode with BoxAI. Choose an Agent, search the
+current model catalog, then Apply. Advanced options retain per-Agent protocol,
+Codex runtime, MCP and Skill controls. Restore returns backed-up Agent files
+without signing out; revoke-device authorization restores configuration and
+removes the local credential. Quit or close the last window leaves configured
+Agents intact and stops Connect. There is no background service.
+
+Account and billing open in the browser. Startup does not request dashboard
+usage or download Skill archives. Skills download on demand and reuse verified
+digest-addressed archives. A profile/platform/origin-bound, credential-free
+catalog remains inspectable offline; it is not authorization to Apply.
+
+Browser sign-in uses the deployed BoxAI PKCE contract. Credentials live in
+macOS Keychain or Windows Credential Manager. Legacy profile secrets migrate
+only after verified native-store read-back; failed cleanup remains retryable.
+English and Vietnamese are supported; retired Chinese preferences migrate to
+English. WorkBuddy is excluded from the distribution, while its old backups
+remain restorable.
 
 The source is based on OriginGame's latest GPUI bkit design. Exact upstream
 revisions and licensing are recorded in [`UPSTREAM.md`](UPSTREAM.md). Neutral
@@ -72,6 +87,13 @@ has no credentials, and disables network/install/apply/revoke actions. It is
 not evidence of live authorization or Agent mutation. Change language in
 Settings to exercise English/Vietnamese and relaunch the same root to check
 persistence; its preference file is `data/ui-preferences.json`.
+
+Test the actual native credential store separately with a disposable random
+identity (no network, installed profile or Agent access):
+
+```sh
+cargo run --locked -p gateway-connector-backend --example native_vault_probe
+```
 
 ## BoxAI Media and official Skills
 

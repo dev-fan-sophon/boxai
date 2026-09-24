@@ -12,6 +12,7 @@ use crate::preferences::{DensityPreference, Locale, ThemePreference};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     SignIn,
+    CancelSignIn,
     Connect,
     ContinueBrowserLogin,
     BackToFirstRun,
@@ -44,6 +45,7 @@ pub enum Action {
     SetAutoCheckUpdates(bool),
     CheckUpdates,
     OpenDownloadPage,
+    OpenAccount,
     InstallUpdate,
     /// Install this download into the directory the product manages.
     InstallPackage,

@@ -1,8 +1,17 @@
 //! Explicit native-store acceptance. No network or installed Agent state.
 //! Uses a fresh random credential identity and removes only that entry.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use gateway_connector_backend::{ApiKey, CredentialStore, NativeCredentialStore};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use gateway_connector_core::{CanonicalBaseUrl, ConnectionProfile};
 
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn main() {
+    eprintln!("Native credential acceptance requires macOS or Windows; no fallback store is used.");
+    std::process::exit(2);
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let profile = ConnectionProfile::new(
         "Disposable native credential acceptance",

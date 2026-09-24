@@ -228,7 +228,7 @@ impl ConnectorHost {
         card = card
             .child(
                 Callout::new(
-                    locale.text("BoxAI Connect needs an account. Sign-in is confirmed in the browser; the account stays in this app's local config directory."),
+                    locale.text("Sign in with your BoxAI account in the browser. Device credentials stay in Keychain or Windows Credential Manager."),
                     Tone::Neutral,
                 )
                 .id("connector.sign-in.boundary"),
@@ -264,6 +264,16 @@ impl ConnectorHost {
             if let Some(invitation) = &self.sign_in_invitation {
                 card = card.child(self.render_sign_in_invitation(invitation, cx));
             }
+            let cancel = cx.entity().downgrade();
+            card = card.child(
+                Button::new("connector.sign-in.cancel")
+                    .label(locale.text("Cancel"))
+                    .secondary()
+                    .on_click(move |_, cx| {
+                        let _ =
+                            cancel.update(cx, |this, cx| this.dispatch(Action::CancelSignIn, cx));
+                    }),
+            );
         }
         card.into_any_element()
     }

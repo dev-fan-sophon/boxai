@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder;
@@ -15,6 +14,27 @@ use super::host::ConnectorHost;
 use super::vendor_icons::vendor_icon_path;
 
 impl ConnectorHost {
+    pub(crate) fn rebuild_catalog_rows(&mut self) {
+        let rows = match &self.state {
+            AppState::Connected { connection, .. }
+                if connection
+                    .provisioning
+                    .as_ref()
+                    .and_then(|p| p.model_plaza.as_ref())
+                    .is_some() =>
+            {
+                self.plaza_models(self.preferences.locale)
+            }
+            AppState::Connected { .. } => self.gateway_models(self.preferences.locale),
+            _ => Vec::new(),
+        };
+        self.catalog_snapshot = gpui_kit::data::RowSnapshot::new(
+            rows.iter().map(|row| row.row_id.clone()),
+            vec![0; rows.len()],
+        );
+        self.catalog_rows = Rc::new(rows);
+    }
+
     pub(crate) fn render_model_catalog(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
         let AppState::Connected { connection, .. } = &self.state else {
             unreachable!("model catalog requires connected state")
@@ -36,11 +56,7 @@ impl ConnectorHost {
             Some(plaza) => ("Model Plaza", plaza.models.len()),
             None => ("Models", connection.models.len()),
         };
-        let rows = Rc::new(if plaza.is_some() {
-            self.plaza_models(locale)
-        } else {
-            self.gateway_models(locale)
-        });
+        let rows = Rc::clone(&self.catalog_rows);
         let unfiltered =
             query.is_empty() && self.model_kinds.is_empty() && self.model_vendors.is_empty();
         let catalog = if rows.is_empty() {
@@ -75,6 +91,7 @@ impl ConnectorHost {
                     .text(model.name.clone())
                 },
             )
+            .snapshot(self.catalog_snapshot.clone())
             .row_height(MODEL_ROW_HEIGHT)
             .visible_rows(count.clamp(1, 10))
             .into_any_element()
@@ -108,7 +125,6 @@ impl ConnectorHost {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let kind_view = cx.entity().downgrade();
-        let vendor_view = cx.entity().downgrade();
         let clear_view = cx.entity().downgrade();
         let remove_view = cx.entity().downgrade();
         let kind_ids = self
@@ -116,7 +132,6 @@ impl ConnectorHost {
             .iter()
             .map(|kind| kind.id().to_owned())
             .collect::<Vec<_>>();
-        let vendor_ids = self.model_vendors.iter().cloned().collect::<Vec<_>>();
         let mut conditions = Vec::new();
         for kind in &self.model_kinds {
             conditions.push(FilterCondition::new(
@@ -142,7 +157,7 @@ impl ConnectorHost {
                 self.model_query.trim().to_owned(),
             ));
         }
-        let count = ResultCount::Known(self.filtered_model_count());
+        let count = ResultCount::Known(self.catalog_rows.len());
         div()
             .w_full()
             .column()
@@ -185,28 +200,7 @@ impl ConnectorHost {
                     ),
             )
             .when(!vendors.is_empty(), |element| {
-                element.child(
-                    ToggleGroup::new("connector.models.vendors")
-                        .label(locale.text("Vendor"))
-                        .variant(ButtonVariant::Secondary)
-                        .control_size(ControlSize::Sm)
-                        .selection(ToggleSelection::Any)
-                        .items(
-                            vendors
-                                .iter()
-                                .map(|vendor| ToggleItem::new(vendor.clone(), vendor.clone())),
-                        )
-                        .pressed_ids(&vendor_ids)
-                        .on_change(move |pressed, _, _, cx| {
-                            let vendors = pressed
-                                .into_iter()
-                                .map(|id| id.to_string())
-                                .collect::<BTreeSet<_>>();
-                            let _ = vendor_view.update(cx, |this, cx| {
-                                this.dispatch(Action::SetModelVendors(vendors), cx)
-                            });
-                        }),
-                )
+                element.child(self.vendor_filter.clone())
             })
             .child(
                 FilterBar::new("connector.models.filters")
@@ -246,13 +240,6 @@ impl ConnectorHost {
             });
             self.sync_model_filters(cx);
         }
-    }
-
-    fn filtered_model_count(&self) -> usize {
-        let AppState::Connected { connection, .. } = &self.state else {
-            return 0;
-        };
-        self.filtered_plaza_count(connection)
     }
 
     fn plaza_models(&self, locale: Locale) -> Vec<CatalogModel> {
@@ -316,7 +303,7 @@ impl ConnectorHost {
 /// rows it does not show.
 const MODEL_ROW_HEIGHT: f32 = 72.0;
 
-struct CatalogModel {
+pub(crate) struct CatalogModel {
     row_id: String,
     name: String,
     vendor: String,

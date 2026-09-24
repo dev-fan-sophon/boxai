@@ -30,6 +30,13 @@ const MAX_TOKEN_RESPONSE_BYTES: u64 = 64 * 1024;
 
 pub trait Browser: Send + Sync + std::fmt::Debug {
     fn open(&self, url: &Url) -> Result<(), PkceError>;
+    fn cancelled(&self) -> bool {
+        false
+    }
+    /// Atomically ends cancellation before durable credential commit.
+    fn begin_credential_commit(&self) -> bool {
+        !self.cancelled()
+    }
 }
 #[derive(Debug, Default)]
 pub struct SystemBrowser;
@@ -110,6 +117,9 @@ impl PkceFlow {
         listener.set_nonblocking(true)?;
         let deadline = std::time::Instant::now() + callback_timeout;
         let code = loop {
+            if browser.cancelled() {
+                return Err(PkceError::Cancelled);
+            }
             match listener.accept() {
                 Ok((stream, _)) => match self.read_callback(stream)? {
                     Some(code) => break code,
@@ -124,6 +134,9 @@ impl PkceFlow {
                 Err(e) => return Err(e.into()),
             }
         };
+        if browser.cancelled() {
+            return Err(PkceError::Cancelled);
+        }
         let client = reqwest::blocking::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(15))
@@ -257,6 +270,8 @@ pub enum PkceError {
     Io(#[from] std::io::Error),
     #[error("sign-in timed out")]
     Timeout,
+    #[error("sign-in cancelled")]
+    Cancelled,
     #[error("invalid callback")]
     InvalidCallback,
     #[error("sign-in denied: {0}")]
@@ -282,6 +297,34 @@ mod tests {
     use tiny_http::{Header, Request, Response, Server, StatusCode};
 
     const MOCK_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+
+    #[test]
+    fn cancellation_closes_the_callback_without_redeeming_a_code() {
+        #[derive(Debug, Default)]
+        struct CancelledBrowser(Mutex<Option<Url>>);
+        impl Browser for CancelledBrowser {
+            fn open(&self, url: &Url) -> Result<(), PkceError> {
+                *self.0.lock().expect("invitation") = Some(url.clone());
+                Ok(())
+            }
+            fn cancelled(&self) -> bool {
+                true
+            }
+        }
+        let browser = CancelledBrowser::default();
+        let endpoint = Url::parse("http://127.0.0.1:1/token").expect("endpoint");
+        let result = PkceFlow::random().login(&endpoint, &endpoint, "test", "test", &browser);
+        assert!(matches!(result, Err(PkceError::Cancelled)));
+        let authorization = browser.0.lock().expect("invitation").clone().expect("URL");
+        let callback = authorization
+            .query_pairs()
+            .find(|(key, _)| key == "redirect_uri")
+            .expect("callback")
+            .1
+            .into_owned();
+        let callback = Url::parse(&callback).expect("callback URL");
+        assert!(TcpStream::connect(("127.0.0.1", callback.port().expect("port"))).is_err());
+    }
 
     fn recv_request(server: &Server, context: &str) -> Request {
         server

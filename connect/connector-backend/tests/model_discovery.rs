@@ -26,6 +26,152 @@ use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 const MOCK_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
+#[test]
+fn disconnect_cleanup_failures_remain_retryable_after_credential_deletion() {
+    #[derive(Debug)]
+    struct DeleteFailure {
+        inner: gateway_connector_backend::JsonProfileStore,
+        failures: AtomicUsize,
+    }
+    impl ProfileStore for DeleteFailure {
+        fn load(&self) -> Result<Vec<ConnectionProfile>, StoreError> {
+            self.inner.load()
+        }
+        fn create(&self, p: &ConnectionProfile) -> Result<(), StoreError> {
+            self.inner.create(p)
+        }
+        fn save(&self, p: &ConnectionProfile) -> Result<(), StoreError> {
+            self.inner.save(p)
+        }
+        fn delete(&self, id: ProfileId) -> Result<(), StoreError> {
+            if self.failures.swap(0, Ordering::SeqCst) > 0 {
+                return Err(StoreError::Poisoned);
+            }
+            self.inner.delete(id)
+        }
+    }
+    let state = tempdir().expect("state");
+    let home = tempdir().expect("home");
+    let profiles = Arc::new(DeleteFailure {
+        inner: gateway_connector_backend::JsonProfileStore::new(state.path().join("profiles.json")),
+        failures: AtomicUsize::new(1),
+    });
+    let credentials = Arc::new(InMemoryCredentialStore::default());
+    let profile = ConnectionProfile::new(
+        "Local",
+        CanonicalBaseUrl::parse("https://acceptance.invalid").expect("URL"),
+    )
+    .expect("profile");
+    profiles.create(&profile).expect("save");
+    credentials
+        .set(
+            &profile,
+            &ApiKey::new("disposable-cleanup-value").expect("key"),
+        )
+        .expect("key");
+    let backend = ConnectorBackend::new(credentials.clone(), profiles.clone())
+        .expect("backend")
+        .with_runtime_directories(state.path(), state.path().join("coordinator"), home.path())
+        .expect("runtime");
+    fs::create_dir(state.path().join("catalog.json")).expect("inject cache cleanup failure");
+    assert!(matches!(
+        backend.disconnect(&profile),
+        Err(BackendError::Catalog(_))
+    ));
+    assert!(credentials.get(&profile).expect("retained key").is_some());
+    assert!(
+        profiles.load().expect("profile")[0]
+            .pending_disconnect
+            .is_none()
+    );
+    fs::remove_dir(state.path().join("catalog.json")).expect("repair cache path");
+    assert!(
+        backend.disconnect(&profile).is_err(),
+        "profile deletion fails after native deletion"
+    );
+    assert!(credentials.get(&profile).expect("deleted key").is_none());
+    assert!(
+        profiles.load().expect("durable pending profile")[0]
+            .pending_disconnect
+            .is_some()
+    );
+    drop(backend);
+    let restarted = ConnectorBackend::new(credentials, profiles.clone())
+        .expect("restart")
+        .with_runtime_directories(state.path(), state.path().join("coordinator"), home.path())
+        .expect("runtime");
+    assert!(
+        restarted
+            .resume_saved()
+            .expect("finish pending removal")
+            .is_none()
+    );
+    assert!(profiles.load().expect("removed profile").is_empty());
+}
+
+#[test]
+fn cancellation_during_token_exchange_revokes_without_persisting() {
+    #[derive(Debug)]
+    struct CancelBeforeCommit;
+    impl Browser for CancelBeforeCommit {
+        fn open(&self, url: &Url) -> Result<(), PkceError> {
+            AutoCallbackBrowser.open(url)
+        }
+        fn begin_credential_commit(&self) -> bool {
+            false
+        }
+    }
+    let server = Server::http("127.0.0.1:0").expect("server");
+    let origin = format!("http://{}", server.server_addr());
+    let distribution = pinned_distribution(leak_str(format!("{origin}/connector-manifest.json")));
+    let manifest = browser_manifest_body("pinned-platform", &origin);
+    let handle = thread::spawn(move || {
+        for path in [
+            "/connector-manifest.json",
+            "/token",
+            "/api/connector/revoke",
+        ] {
+            let request = recv_request(&server, "canceled exchange");
+            assert_eq!(request.url(), path);
+            let (status, body) = match path {
+                "/token" => (
+                    200,
+                    r#"{"access_token":"late-canceled-token","token_type":"Bearer"}"#,
+                ),
+                "/api/connector/revoke" => {
+                    assert!(
+                        request
+                            .headers()
+                            .iter()
+                            .any(|h| h.field.equiv("authorization")
+                                && h.value.as_str() == "Bearer late-canceled-token")
+                    );
+                    (204, "")
+                }
+                _ => (200, manifest.as_str()),
+            };
+            request
+                .respond(Response::from_string(body).with_status_code(StatusCode(status)))
+                .expect("response");
+        }
+    });
+    let profiles = Arc::new(InMemoryProfileStore::default());
+    let backend = ConnectorBackend::with_dependencies(
+        Arc::new(InMemoryCredentialStore::default()),
+        profiles.clone(),
+        distribution,
+        Arc::new(CancelBeforeCommit),
+    )
+    .expect("backend");
+    assert!(matches!(
+        backend.sign_in(&origin, "Canceled".into()),
+        Err(BackendError::Pkce(PkceError::Cancelled))
+    ));
+    assert!(profiles.load().expect("profiles").is_empty());
+    assert!(!backend.has_pending_credential().expect("pending"));
+    handle.join().expect("server");
+}
+
 fn recv_request(server: &Server, context: &str) -> Request {
     server
         .recv_timeout(MOCK_REQUEST_TIMEOUT)

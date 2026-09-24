@@ -62,6 +62,7 @@ enum ConnectOutcome {
 
 enum SignInOutcome {
     Connected(Box<ConnectionResult>),
+    Cancelled,
     /// A failure the sign-in card explains in its own words.
     Refused(SignInFailure),
     Failed(String),
@@ -197,9 +198,12 @@ pub(crate) struct ConnectorHost {
     pub(crate) density_select: Entity<Select>,
     pub(crate) gateway_url: Entity<TextInput>,
     pub(crate) api_key: Entity<PasswordInput>,
-    pub(crate) settings_search: Entity<TextInput>,
+    pub(crate) settings_search: Entity<SearchInput>,
     pub(crate) settings_query: String,
-    pub(crate) model_search: Entity<TextInput>,
+    pub(crate) model_search: Entity<SearchInput>,
+    pub(crate) vendor_filter: Entity<MultiSelect>,
+    pub(crate) catalog_rows: std::rc::Rc<Vec<super::models::CatalogModel>>,
+    pub(crate) catalog_snapshot: gpui_kit::data::RowSnapshot,
     pub(crate) model_query: String,
     pub(crate) model_kinds: BTreeSet<ModelKind>,
     pub(crate) model_vendors: BTreeSet<String>,
@@ -293,14 +297,19 @@ impl ConnectorHost {
                 .placeholder(locale.text("API key, or leave blank for advertised browser login"))
         });
         let settings_search = cx.new(|cx| {
-            TextInput::new("connector.settings.search", window, cx)
+            SearchInput::new("connector.settings.search", window, cx)
                 .name(locale.text("Search settings"))
                 .placeholder(locale.text("Filter settings"))
         });
         let model_search = cx.new(|cx| {
-            TextInput::new("connector.model-search", window, cx)
+            SearchInput::new("connector.model-search", window, cx)
                 .name(locale.text("Search model catalog"))
                 .placeholder(locale.text("Filter by model ID, provider, or tag"))
+        });
+        let vendor_filter = cx.new(|cx| {
+            MultiSelect::new("connector.models.vendors", window, cx)
+                .name(locale.text("Vendor"))
+                .placeholder(locale.text("All vendors"))
         });
         let mut model_selects = Vec::new();
         let mut protocol_selects = Vec::new();
@@ -382,16 +391,33 @@ impl ConnectorHost {
             })
             .detach();
         }
-        cx.subscribe(&model_search, |this, _, event: &TextInputEvent, cx| {
-            if let TextInputEvent::Change(value) = event {
+        cx.subscribe(&model_search, |this, _, event: &SearchInputEvent, cx| {
+            if let SearchInputEvent::Change(value) = event {
                 this.dispatch(Action::SetModelQuery(value.to_string()), cx);
             }
         })
         .detach();
-        cx.subscribe(&settings_search, |this, _, event: &TextInputEvent, cx| {
-            if let TextInputEvent::Change(value) = event {
+        cx.subscribe(&settings_search, |this, _, event: &SearchInputEvent, cx| {
+            if let SearchInputEvent::Change(value) = event {
                 this.dispatch(Action::SetSettingsQuery(value.to_string()), cx);
             }
+        })
+        .detach();
+        cx.subscribe(&vendor_filter, |this, _, event: &MultiSelectEvent, cx| {
+            let mut vendors = this.model_vendors.clone();
+            match event {
+                MultiSelectEvent::Toggled(id) => {
+                    if !vendors.insert(id.to_string()) {
+                        vendors.remove(id.as_ref());
+                    }
+                }
+                MultiSelectEvent::Removed(id) => {
+                    vendors.remove(id.as_ref());
+                }
+                MultiSelectEvent::Cleared => vendors.clear(),
+                _ => return,
+            }
+            this.dispatch(Action::SetModelVendors(vendors), cx);
         })
         .detach();
         cx.subscribe(&language_select, |this, _, event, cx| {
@@ -437,7 +463,7 @@ impl ConnectorHost {
             backend,
             distribution,
             state: AppState::Loading,
-            page: Page::Overview,
+            page: Page::Agents,
             selected_agent: AgentId::Claude,
             expanded_agent_details: BTreeSet::new(),
             request_sort: ("time".into(), SortDirection::Descending),
@@ -455,6 +481,9 @@ impl ConnectorHost {
             settings_search,
             settings_query: String::new(),
             model_search,
+            vendor_filter,
+            catalog_rows: Default::default(),
+            catalog_snapshot: gpui_kit::data::RowSnapshot::new(Vec::<String>::new(), Vec::new()),
             model_query: String::new(),
             model_kinds: BTreeSet::new(),
             model_vendors: BTreeSet::new(),
@@ -506,16 +535,21 @@ impl ConnectorHost {
             CanonicalBaseUrl::parse("https://acceptance.invalid").expect("fixture URL"),
         )
         .expect("fixture profile");
-        let models = ["gpt-5.4", "claude-sonnet-4-6", "gemini-3.1-pro", "grok-4.6"]
-            .map(|id| ModelDescriptor {
-                id: id.into(),
-                capability: ModelCapability::Chat,
-                owned_by: None,
-                created: None,
-                object: None,
-                metadata: BTreeMap::new(),
-            })
-            .to_vec();
+        let models = [
+            ("gpt-5.4", "OpenAI"),
+            ("claude-sonnet-4-6", "Anthropic"),
+            ("gemini-3.1-pro", "Google"),
+            ("grok-4.6", "xAI"),
+        ]
+        .map(|(id, vendor)| ModelDescriptor {
+            id: id.into(),
+            capability: ModelCapability::Chat,
+            owned_by: Some(vendor.into()),
+            created: None,
+            object: None,
+            metadata: BTreeMap::new(),
+        })
+        .to_vec();
         for agent in self.distribution.supported_agents {
             if let Some(selection) = profile.agents.get_mut(agent) {
                 selection.default_model = Some(models[0].id.clone());
@@ -540,7 +574,7 @@ impl ConnectorHost {
         }
         self.page = Page::Agents;
         self.capture_applied_choices();
-        self.sync_model_selects(cx);
+        self.sync_model_filters(cx);
         self.sync_protocol_selects(cx);
         self.sync_codex_selects(cx);
     }
@@ -649,6 +683,7 @@ impl ConnectorHost {
                     | Action::ConfirmDestructive
                     | Action::CheckUpdates
                     | Action::OpenDownloadPage
+                    | Action::OpenAccount
                     | Action::InstallUpdate
                     | Action::InstallPackage
             )
@@ -662,6 +697,15 @@ impl ConnectorHost {
         }
         match action {
             Action::SignIn => self.begin_sign_in(cx),
+            Action::CancelSignIn => {
+                if !self.sign_in_progress.cancel() {
+                    self.toast_warning(
+                        cx,
+                        "connector.sign-in.committing",
+                        self.text("Authorization completed. Finishing sign-in…"),
+                    );
+                }
+            }
             Action::Connect => self.begin_connect(cx),
             Action::ContinueBrowserLogin => self.begin_browser_login(cx),
             Action::BackToFirstRun => {
@@ -669,6 +713,7 @@ impl ConnectorHost {
                 self.state = AppState::FirstRun;
             }
             Action::SelectPage(page) => self.page = page,
+            Action::OpenAccount => cx.open_url("https://you-box.com/console/topup"),
             Action::SelectAgent(agent) => {
                 self.selected_agent = agent;
                 self.page = Page::Agents;
@@ -708,7 +753,7 @@ impl ConnectorHost {
             Action::SetSettingsQuery(query) => self.settings_query = query,
             Action::SetModelQuery(query) => {
                 self.model_query = query;
-                self.sync_model_selects(cx);
+                self.sync_model_filters(cx);
             }
             Action::SetModelKinds(kinds) => {
                 self.model_kinds = kinds;
@@ -766,12 +811,12 @@ impl ConnectorHost {
         let locale = self.preferences.locale;
         let (title, description) = match kind {
             ConfirmKind::SignOut => (
-                locale.text("Sign out of BoxAI Connect?"),
+                locale.text("Revoke device authorization?"),
                 locale.text("This removes managed Agent configuration and the local credential."),
             ),
             ConfirmKind::Disconnect => (
-                locale.text("Disconnect managed configuration?"),
-                locale.text("Agent files will no longer be managed by this connection."),
+                locale.text("Restore Agent configuration?"),
+                locale.text("Restore backed-up Agent files. Keep this device signed in to BoxAI."),
             ),
         };
         self.pending_confirm = Some(kind);
@@ -784,9 +829,52 @@ impl ConnectorHost {
 
     fn finish_confirm(&mut self, cx: &mut Context<Self>) {
         match self.pending_confirm.take() {
-            Some(ConfirmKind::SignOut | ConfirmKind::Disconnect) => self.begin_disconnect(cx),
+            Some(ConfirmKind::SignOut) => self.begin_disconnect(cx),
+            Some(ConfirmKind::Disconnect) => self.begin_restore(cx),
             None => {}
         }
+    }
+
+    fn begin_restore(&mut self, cx: &mut Context<Self>) {
+        if self.projection_busy || self.save_in_flight || !self.ensure_isolated_paths(false, cx) {
+            return;
+        }
+        let AppState::Connected { connection, .. } = &self.state else {
+            return;
+        };
+        let profile = connection.profile.clone();
+        let backend = Arc::clone(&self.backend);
+        self.set_projection_busy(true, cx);
+        self.projection_status_generation.invalidate();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { backend.disconnect_projection(&profile) })
+                .await;
+            this.update(cx, |this, cx| {
+                this.set_projection_busy(false, cx);
+                match result {
+                    Ok(()) => {
+                        this.action_error = None;
+                        this.begin_projection_status(cx);
+                        this.toast_success(
+                            cx,
+                            "connector.restore.ok",
+                            this.text(
+                                "Agent configuration restored. Device authorization retained.",
+                            ),
+                        );
+                    }
+                    Err(error) => {
+                        this.action_error = Some(error.to_string());
+                        this.toast_danger(cx, "connector.restore.error", error.to_string());
+                    }
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     fn set_locale(&mut self, locale: Locale, cx: &mut Context<Self>) {
@@ -1161,13 +1249,46 @@ impl ConnectorHost {
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { backend.resume_saved() })
+                .spawn(async move {
+                    match backend.resume_saved() {
+                        Ok(result) => (Ok(result), None),
+                        Err(error) => match backend.cached_connection() {
+                            Ok(Some(cached)) => (Ok(Some(cached)), Some(error.to_string())),
+                            _ => match backend
+                                .profiles()
+                                .ok()
+                                .and_then(|profiles| profiles.into_iter().next())
+                            {
+                                Some(mut profile) => {
+                                    profile.credential_secret.clear();
+                                    (
+                                        Ok(Some(ConnectionResult {
+                                            profile,
+                                            models: Vec::new(),
+                                            manifest: None,
+                                            provisioning: None,
+                                            synchronized_skills: BTreeMap::new(),
+                                        })),
+                                        Some(error.to_string()),
+                                    )
+                                }
+                                None => (Err(error), None),
+                            },
+                        },
+                    }
+                })
                 .await;
             this.update(cx, |this, cx| {
-                match result {
+                match result.0 {
                     Ok(Some(result)) => this.complete_connection(result, cx),
                     Ok(None) => this.state = AppState::FirstRun,
                     Err(error) => this.state = AppState::Failed(error.to_string()),
+                }
+                if let Some(error) = result.1 {
+                    this.action_error = Some(format!(
+                        "{} {error}",
+                        this.text("Offline catalog. Refresh before applying changes.")
+                    ));
                 }
                 cx.notify();
             })
@@ -1216,6 +1337,7 @@ impl ConnectorHost {
                         Err(BackendError::Pkce(PkceError::Timeout)) => {
                             SignInOutcome::Refused(SignInFailure::CallbackNeverArrived)
                         }
+                        Err(BackendError::Pkce(PkceError::Cancelled)) => SignInOutcome::Cancelled,
                         Err(BackendError::Pkce(PkceError::Denied(_))) => {
                             SignInOutcome::Refused(SignInFailure::Declined)
                         }
@@ -1228,6 +1350,7 @@ impl ConnectorHost {
                 this.sign_in_progress.clear();
                 match result {
                     SignInOutcome::Connected(result) => this.complete_connection(*result, cx),
+                    SignInOutcome::Cancelled => this.state = AppState::FirstRun,
                     SignInOutcome::Refused(failure) => {
                         // The sign-in card, not a bare error line, owns these:
                         // each one has its own remedy and its own retry.
@@ -1428,7 +1551,6 @@ impl ConnectorHost {
             .ok()
             .map(|since| since.as_secs() as i64);
         self.begin_projection_status(cx);
-        self.begin_overview_fetch(cx);
     }
 
     fn capture_applied_choices(&mut self) {
@@ -1478,6 +1600,21 @@ impl ConnectorHost {
         let vendors = self.available_model_vendors();
         self.model_vendors
             .retain(|vendor| vendors.iter().any(|value| value == vendor));
+        let selected = self.model_vendors.iter().cloned().collect::<Vec<_>>();
+        let locale = self.preferences.locale;
+        self.vendor_filter.update(cx, |filter, cx| {
+            filter.set_name(locale.text("Vendor").into(), cx);
+            filter.set_placeholder(Some(locale.text("All vendors").into()), cx);
+            filter.set_options(
+                vendors
+                    .into_iter()
+                    .map(|vendor| SelectOption::new(vendor.clone(), vendor))
+                    .collect(),
+                cx,
+            );
+            filter.set_selected(selected, cx);
+        });
+        self.rebuild_catalog_rows();
     }
 
     pub(crate) fn available_model_vendors(&self) -> Vec<String> {
@@ -1551,26 +1688,10 @@ impl ConnectorHost {
         let no_models = connection.models.is_empty();
         let dirty = self.agent_has_unapplied_edits(agent);
         let managed = self.agent_is_managed(agent);
-        !self.projection_busy && detected && !no_models && (dirty || !managed)
-    }
-
-    pub(crate) fn filtered_plaza_count(&self, connection: &ConnectionResult) -> usize {
-        if let Some(plaza) = connection
-            .provisioning
-            .as_ref()
-            .and_then(|value| value.model_plaza.as_ref())
-        {
-            return plaza
-                .models
-                .iter()
-                .filter(|model| self.plaza_model_visible(model))
-                .count();
-        }
-        connection
-            .models
-            .iter()
-            .filter(|model| self.descriptor_visible(model))
-            .count()
+        let offline = connection.profile.mode
+            == gateway_connector_core::ConnectionMode::Provisioned
+            && connection.manifest.is_none();
+        !offline && !self.projection_busy && detected && !no_models && (dirty || !managed)
     }
 
     pub(crate) fn plaza_model_visible(&self, model: &gateway_connector_core::Model) -> bool {
@@ -1934,44 +2055,6 @@ impl ConnectorHost {
         self.sync_codex_selects(cx);
     }
 
-    fn begin_overview_fetch(&mut self, cx: &mut Context<Self>) {
-        let AppState::Connected {
-            connection,
-            overview,
-            ..
-        } = &mut self.state
-        else {
-            return;
-        };
-        let Some(manifest) = connection.manifest.clone() else {
-            return;
-        };
-        let profile = connection.profile.clone();
-        let profile_id = profile.id;
-        overview.begin_refresh();
-        let backend = Arc::clone(&self.backend);
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_executor()
-                .spawn(async move { backend.fetch_overview(&profile, &manifest) })
-                .await;
-            this.update(cx, |this, cx| {
-                if let AppState::Connected {
-                    overview,
-                    connection,
-                    ..
-                } = &mut this.state
-                    && connection.profile.id == profile_id
-                {
-                    overview.finish(result.map_err(|error| error.to_string()));
-                }
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
     fn begin_refresh(&mut self, cx: &mut Context<Self>) {
         if self.projection_busy {
             return;
@@ -2003,6 +2086,9 @@ impl ConnectorHost {
                         );
                     }
                     Err(error) => {
+                        if let AppState::Connected { connection, .. } = &mut this.state {
+                            connection.manifest = None;
+                        }
                         this.action_error = Some(error.to_string());
                         this.toast_danger(cx, "connector.refresh.error", error.to_string());
                     }

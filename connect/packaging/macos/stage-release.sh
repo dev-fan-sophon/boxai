@@ -160,7 +160,6 @@ hdiutil create \
 
 release="$root/release/$version"
 report="$release/$artifact_name.assertion.json"
-rm -rf "$release"
 mkdir -p "$release"
 cp "$artifact" "$release/$artifact_name"
 "$root/packaging/macos/assert-release.sh" "$artifact" >"$report"

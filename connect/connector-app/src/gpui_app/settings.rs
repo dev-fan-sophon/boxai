@@ -17,9 +17,9 @@ impl ConnectorHost {
         let disconnect_semantic = self.disconnect_semantic();
         let mut disconnect = Button::new("connector.disconnect").label(locale.text(
             if disconnect_semantic == Some(ProjectionSemantic::Disconnecting) {
-                "Disconnecting…"
+                "Working…"
             } else {
-                "Disconnect"
+                "Restore all Agents"
             },
         ));
         if self.projection_busy || self.save_in_flight {
@@ -33,6 +33,21 @@ impl ConnectorHost {
             .label(locale.text("Quit application"))
             .secondary()
             .on_click(|_window, cx| cx.quit());
+        let revoke_view = cx.entity().downgrade();
+        let revoke = Button::new("connector.revoke")
+            .label(locale.text("Revoke device authorization"))
+            .danger()
+            .disabled(self.projection_busy || self.save_in_flight)
+            .on_click(move |window, cx| {
+                let _ = revoke_view.update(cx, |this, cx| this.request_sign_out(window, cx));
+            });
+        let account_view = cx.entity().downgrade();
+        let account = Button::new("connector.account.browser")
+            .label(locale.text("Open BoxAI in browser"))
+            .secondary()
+            .on_click(move |_window, cx| {
+                let _ = account_view.update(cx, |this, cx| this.dispatch(Action::OpenAccount, cx));
+            });
         let preferences =
             SettingsSection::new("connector.settings.preferences", locale.text("Settings"))
                 .row(
@@ -59,14 +74,28 @@ impl ConnectorHost {
                         .control(self.density_select.clone()),
                 );
         let connection =
-            SettingsSection::new("connector.security.title", locale.text("Connection")).row(
-                SettingsRow::new(
-                    "connector.disconnect.row",
-                    locale.text("Managed Agent configuration"),
+            SettingsSection::new("connector.security.title", locale.text("Connection"))
+                .row(
+                    SettingsRow::new(
+                        "connector.disconnect.row",
+                        locale.text("Managed Agent configuration"),
+                    )
+                    .description(locale.text(
+                        "Restore backed-up Agent files. Keep this device signed in to BoxAI.",
+                    ))
+                    .control(disconnect),
                 )
-                .search_terms([locale.text("Disconnect")])
-                .control(disconnect),
-            );
+                .row(
+                    SettingsRow::new("connector.revoke.row", locale.text("Device authorization"))
+                        .description(locale.text(
+                            "This removes managed Agent configuration and the local credential.",
+                        ))
+                        .control(revoke),
+                )
+                .row(
+                    SettingsRow::new("connector.account.row", locale.text("Account and billing"))
+                        .control(account),
+                );
         let application = SettingsSection::new("connector.application", locale.text("Application"))
             .row(
                 SettingsRow::new(

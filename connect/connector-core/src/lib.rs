@@ -17,8 +17,8 @@ pub use model::{
 pub use profile::{
     AgentId, AgentSelection, CanonicalBaseUrl, CodexApprovalPolicy, CodexReasoningEffort,
     CodexReasoningSummary, CodexSandboxMode, CodexSettings, CodexVerbosity, CodexWebSearch,
-    ConnectionMode, ConnectionProfile, CredentialKind, CredentialRef, ProfileError, ProfileId,
-    Protocol, WireProtocol,
+    ConnectionMode, ConnectionProfile, CredentialKind, CredentialRef, PendingDisconnect,
+    ProfileError, ProfileId, Protocol, WireProtocol,
 };
 pub use transaction::{
     ApplyInput, Change, ChangeKind, Connector, EffectiveAgentSelection, Plan, Verification,

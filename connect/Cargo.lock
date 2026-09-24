@@ -2204,7 +2204,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-connector-app"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "cocoa 0.26.0",
  "directories",
@@ -2235,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-connector-backend"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -2261,7 +2261,7 @@ dependencies = [
 
 [[package]]
 name = "gateway-connector-core"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "aes-gcm",
  "fs2",

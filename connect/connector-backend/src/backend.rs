@@ -675,6 +675,16 @@ impl ConnectorBackend {
             self.distribution.device_name,
             self.browser.as_ref(),
         )?;
+        if !self.browser.begin_credential_commit() {
+            // Cancellation may arrive while the token HTTP request is in
+            // flight. Never persist that late result; revoke it if possible.
+            let revoked = self.client.revoke_credential(&offer.manifest, &token);
+            return if matches!(revoked, Ok(true)) {
+                Err(crate::PkceError::Cancelled.into())
+            } else {
+                Err(BackendError::CancelledRevocationUnconfirmed)
+            };
+        }
         let pending = PendingCredential {
             token,
             profile: {
@@ -811,6 +821,10 @@ impl ConnectorBackend {
         let Some(mut profile) = self.single_profile()? else {
             return Ok(None);
         };
+        if profile.pending_disconnect.is_some() {
+            self.disconnect(&profile)?;
+            return Ok(None);
+        }
         if profile.credential_pending {
             if self.credentials.get(&profile)?.is_none() {
                 self.profiles.delete(profile.id)?;
@@ -952,13 +966,24 @@ impl ConnectorBackend {
             .connection_lock
             .lock()
             .map_err(|_| BackendError::ConnectionLock)?;
+        let mut profile = self
+            .single_profile()?
+            .filter(|saved| saved.id == profile.id)
+            .unwrap_or_else(|| profile.clone());
+        if let Some(pending) = &profile.pending_disconnect {
+            self.credentials.delete(&profile.credential)?;
+            self.profiles.delete(profile.id)?;
+            return Ok(DisconnectOutcome {
+                revocation_warning: pending.revocation_warning,
+            });
+        }
         if self.projection.is_some() {
-            self.disconnect_projection(profile)?;
+            self.disconnect_projection(&profile)?;
         }
         let mut revocation_warning = false;
         if profile.mode == ConnectionMode::Provisioned {
             let revoked = (|| -> Result<bool, BackendError> {
-                self.validate_distribution_profile(profile)?;
+                self.validate_distribution_profile(&profile)?;
                 let manifest_url = profile
                     .manifest_url
                     .clone()
@@ -966,21 +991,24 @@ impl ConnectorBackend {
                 let manifest = self
                     .client
                     .discover_manifest(&profile.base_url, manifest_url)?;
-                self.validate_platform(profile, &manifest.document)?;
+                self.validate_platform(&profile, &manifest.document)?;
                 let bearer = self
                     .credentials
-                    .get(profile)?
+                    .get(&profile)?
                     .ok_or(BackendError::MissingCredential)?;
                 Ok(self.client.revoke_credential(&manifest.document, &bearer)?)
             })();
             revocation_warning = !matches!(revoked, Ok(true));
         }
-        self.credentials.delete(&profile.credential)?;
         if let Some(catalog) = &self.catalog {
             catalog
                 .forget()
                 .map_err(|error| BackendError::Catalog(error.to_string()))?;
         }
+        profile.pending_disconnect =
+            Some(gateway_connector_core::PendingDisconnect { revocation_warning });
+        self.profiles.save(&profile)?;
+        self.credentials.delete(&profile.credential)?;
         self.profiles.delete(profile.id)?;
         Ok(DisconnectOutcome { revocation_warning })
     }
@@ -1275,6 +1303,10 @@ pub enum BackendError {
     ManifestValidation(String),
     #[error(transparent)]
     Pkce(#[from] crate::PkceError),
+    #[error(
+        "Sign-in was canceled and nothing was saved locally. BoxAI could not confirm revocation; remove this device authorization in your browser."
+    )]
+    CancelledRevocationUnconfirmed,
     #[error("a connection is already active; disconnect it before starting another browser login")]
     AlreadyConnected,
     #[error("pending credential state is unavailable")]

@@ -127,15 +127,35 @@ impl ConnectorHost {
                         .id(format!("connector.{}.unapplied", agent.as_str()))
                 }))
                 .into_any_element(),
+            self.model_search.clone().into_any_element(),
             self.render_connection_card(agent, cx),
         ];
-        if agent == AgentId::Codex {
-            children.push(self.render_codex_catalog_card(cx));
-            children.push(self.render_codex_runtime_card(cx));
+        let advanced = self.expanded_agent_details.contains(&agent);
+        let advanced_view = cx.entity().downgrade();
+        children.push(
+            Button::new(format!("connector.{}.advanced", agent.as_str()))
+                .label(locale.text(if advanced {
+                    "Hide advanced options"
+                } else {
+                    "Advanced options"
+                }))
+                .secondary()
+                .on_click(move |_, cx| {
+                    let _ = advanced_view.update(cx, |this, cx| {
+                        this.dispatch(Action::ToggleAgentDetails(agent), cx)
+                    });
+                })
+                .into_any_element(),
+        );
+        if advanced {
+            if agent == AgentId::Codex {
+                children.push(self.render_codex_catalog_card(cx));
+                children.push(self.render_codex_runtime_card(cx));
+            }
+            children.push(self.render_image_card(agent, selection, cx));
+            children.push(self.render_agent_mcp_card(agent, cx));
+            children.push(self.render_agent_skills_card(agent, cx));
         }
-        children.push(self.render_image_card(agent, selection, cx));
-        children.push(self.render_agent_mcp_card(agent, cx));
-        children.push(self.render_agent_skills_card(agent, cx));
         children.push(self.render_destination_card(
             agent,
             &ownership,
@@ -149,6 +169,18 @@ impl ConnectorHost {
             !selection.codex.catalog_models.is_empty(),
             cx,
         ));
+        let restore_view = cx.entity().downgrade();
+        let mut restore = Button::new("connector.agents.restore")
+            .label(locale.text("Restore all Agents"))
+            .secondary();
+        if self.projection_busy {
+            restore = restore.disabled(true);
+        } else {
+            restore = restore.on_click(move |window, cx| {
+                let _ = restore_view.update(cx, |this, cx| this.request_disconnect(window, cx));
+            });
+        }
+        children.push(restore.into_any_element());
         page_column(&theme, children)
     }
 

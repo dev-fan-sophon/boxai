@@ -255,6 +255,12 @@ pub fn run_launch_with_assets(
             },
         )
         .expect("open GatewayConnector window");
+        cx.on_window_closed(|cx, _| {
+            if cx.windows().is_empty() {
+                cx.quit();
+            }
+        })
+        .detach();
         cx.activate(true);
     });
 }

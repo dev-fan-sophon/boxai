@@ -36,6 +36,9 @@ impl ConnectorHost {
             unreachable!("status bar requires connected state")
         };
         let locale = self.preferences.locale;
+        let offline = connection.profile.mode
+            == gateway_connector_core::ConnectionMode::Provisioned
+            && connection.manifest.is_none();
         let mut end = Vec::new();
         if self.refresh_busy() {
             end.push(StatusItem::progress("refresh", locale.text("Refreshing…")));
@@ -60,7 +63,19 @@ impl ConnectorHost {
             .label(locale.text("Connection status"))
             .start([
                 StatusItem::text("gateway", connection.profile.base_url.to_string()),
-                StatusItem::state("connection", locale.text("Connected"), Tone::Success),
+                StatusItem::state(
+                    "connection",
+                    locale.text(if offline {
+                        "Offline inspection"
+                    } else {
+                        "Connected"
+                    }),
+                    if offline {
+                        Tone::Warning
+                    } else {
+                        Tone::Success
+                    },
+                ),
             ])
             .end(end)
     }
@@ -95,9 +110,7 @@ impl ConnectorHost {
                     .truncate(),
             )
             .on_click(move |_window, cx| {
-                let _ = identity_view.update(cx, |this, cx| {
-                    this.dispatch(Action::SelectPage(Page::Account), cx)
-                });
+                let _ = identity_view.update(cx, |this, cx| this.dispatch(Action::OpenAccount, cx));
             });
         if let Some(group) = group {
             identity = identity.trailing(Badge::new(group.to_owned()).accent());
@@ -126,7 +139,6 @@ impl ConnectorHost {
             .child(settings);
         let mut items = Vec::new();
         for (page, label, icon) in [
-            (Page::Overview, "Overview", gpui_kit::assets::Icon::Global),
             (Page::Mcp, "MCP", gpui_kit::assets::Icon::Widget),
             (Page::Skills, "Skills", gpui_kit::assets::Icon::Document),
             (Page::Models, "Model Plaza", gpui_kit::assets::Icon::Chat),
@@ -150,7 +162,7 @@ impl ConnectorHost {
                     item
                 });
             items.insert(
-                1,
+                0,
                 SidebarItem::new(Page::Agents.id(), locale.text("Agents"))
                     .icon(gpui_kit::assets::Icon::Terminal)
                     .children(children),
@@ -223,6 +235,19 @@ impl Render for ConnectorHost {
             _ => "connector.page.signed-out".into(),
         };
         let content = page_enter(page_id, &theme, content);
+        let content = if connected && let Some(error) = &self.action_error {
+            page_column(
+                &theme,
+                [
+                    Callout::new(error.clone(), Tone::Warning)
+                        .id("connector.action-error")
+                        .into_any_element(),
+                    content.into_any_element(),
+                ],
+            )
+        } else {
+            content.into_any_element()
+        };
         let content = if let Some(banner) = self.isolation_banner() {
             page_column(&theme, [banner, content.into_any_element()])
         } else {

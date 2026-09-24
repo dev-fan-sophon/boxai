@@ -12,7 +12,10 @@
 //! link to copy into another browser, which reaches the same callback port, and
 //! can name the failure precisely when the wait runs out.
 
-use std::sync::Mutex;
+use std::sync::{
+    Mutex,
+    atomic::{AtomicU8, Ordering},
+};
 
 use gateway_connector_backend::{Browser, PkceError, SystemBrowser};
 use url::Url;
@@ -32,6 +35,8 @@ pub struct SignInInvitation {
 #[derive(Debug, Default)]
 pub struct SignInProgress {
     invitation: Mutex<Option<SignInInvitation>>,
+    // 0 waiting, 1 cancellation accepted, 2 durable commit started.
+    phase: AtomicU8,
 }
 
 impl SignInProgress {
@@ -48,9 +53,17 @@ impl SignInProgress {
     /// Called when a sign-in starts, so a previous attempt's link cannot be
     /// shown next to a fresh wait.
     pub fn clear(&self) {
+        self.phase.store(0, Ordering::Release);
         if let Ok(mut slot) = self.invitation.lock() {
             *slot = None;
         }
+    }
+
+    pub fn cancel(&self) -> bool {
+        self.phase
+            .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+            || self.phase.load(Ordering::Acquire) == 1
     }
 }
 
@@ -74,7 +87,20 @@ impl<B: Browser> Browser for AnnouncingBrowser<B> {
             authorization_url: url.to_string(),
             browser_opened: result.is_ok(),
         });
-        result
+        // The UI has the exact PKCE link. Keep the same callback listener
+        // alive for manual opening even when the OS launch failed.
+        Ok(())
+    }
+
+    fn cancelled(&self) -> bool {
+        self.progress.phase.load(Ordering::Acquire) == 1
+    }
+
+    fn begin_credential_commit(&self) -> bool {
+        self.progress
+            .phase
+            .compare_exchange(0, 2, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
     }
 }
 
@@ -108,7 +134,7 @@ mod tests {
         let url =
             Url::parse("https://you-box.com/api/v1/connector/authorize?state=abc").expect("url");
 
-        assert!(browser.open(&url).is_err());
+        assert!(browser.open(&url).is_ok());
         assert_eq!(
             progress.read(),
             Some(SignInInvitation {
@@ -119,6 +145,21 @@ mod tests {
     }
 
     #[test]
+    fn cancellation_and_commit_are_mutually_exclusive() {
+        let progress = Arc::new(SignInProgress::default());
+        let browser = AnnouncingBrowser::new(AcceptingBrowser, Arc::clone(&progress));
+        assert!(progress.cancel());
+        assert!(!browser.begin_credential_commit());
+        progress.clear();
+        assert!(browser.begin_credential_commit());
+        assert!(
+            !progress.cancel(),
+            "a completed authorization cannot be reported canceled"
+        );
+        assert!(!browser.cancelled());
+    }
+
+    #[test]
     fn each_attempt_starts_without_the_previous_link() {
         let progress = Arc::new(SignInProgress::default());
         let browser = AnnouncingBrowser::new(AcceptingBrowser, Arc::clone(&progress));
@@ -126,7 +167,10 @@ mod tests {
 
         browser.open(&url).expect("open");
         assert!(progress.read().is_some_and(|held| held.browser_opened));
+        progress.cancel();
+        assert!(browser.cancelled());
         progress.clear();
+        assert!(!browser.cancelled());
         assert_eq!(progress.read(), None);
     }
 }

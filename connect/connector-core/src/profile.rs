@@ -593,6 +593,11 @@ impl<'de> Deserialize<'de> for CanonicalBaseUrl {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingDisconnect {
+    pub revocation_warning: bool,
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "UncheckedConnectionProfile")]
 pub struct ConnectionProfile {
@@ -608,6 +613,10 @@ pub struct ConnectionProfile {
     /// been durably confirmed. Used to recover an interrupted PKCE commit.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub credential_pending: bool,
+    /// Restoration and cache cleanup completed; native/profile deletion may
+    /// be retried without requiring the deleted credential.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_disconnect: Option<PendingDisconnect>,
     pub mode: ConnectionMode,
     pub credential_kind: CredentialKind,
     pub platform_id: String,
@@ -630,6 +639,7 @@ impl fmt::Debug for ConnectionProfile {
             .field("credential", &self.credential)
             .field("credential_secret", &"[REDACTED]")
             .field("credential_pending", &self.credential_pending)
+            .field("pending_disconnect", &self.pending_disconnect)
             .field("mode", &self.mode)
             .field("credential_kind", &self.credential_kind)
             .field("platform_id", &self.platform_id)
@@ -684,6 +694,7 @@ impl ConnectionProfile {
             credential,
             credential_secret: String::new(),
             credential_pending: false,
+            pending_disconnect: None,
             mode: ConnectionMode::Direct,
             credential_kind: CredentialKind::ApiKey,
             platform_id: "gateway-connector".into(),
@@ -846,6 +857,8 @@ struct UncheckedConnectionProfile {
     #[serde(default)]
     credential_pending: bool,
     #[serde(default)]
+    pending_disconnect: Option<PendingDisconnect>,
+    #[serde(default)]
     mode: Option<ConnectionMode>,
     #[serde(default)]
     credential_kind: Option<CredentialKind>,
@@ -896,6 +909,7 @@ impl TryFrom<UncheckedConnectionProfile> for ConnectionProfile {
                 unchecked.credential_secret
             },
             credential_pending: unchecked.credential_pending,
+            pending_disconnect: unchecked.pending_disconnect,
             mode: if legacy {
                 ConnectionMode::Direct
             } else {

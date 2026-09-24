@@ -24,8 +24,8 @@ pub mod gpui_app;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Page {
-    #[default]
     Overview,
+    #[default]
     Agents,
     Mcp,
     Skills,
@@ -1023,7 +1023,7 @@ mod tests {
             Some(AgentId::Gemini)
         );
         assert_eq!(crate::agent_page_id(AgentId::Claude), "agents.claude");
-        assert_eq!(Page::default(), Page::Overview);
+        assert_eq!(Page::default(), Page::Agents);
     }
 
     #[test]

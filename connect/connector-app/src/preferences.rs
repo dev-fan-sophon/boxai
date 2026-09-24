@@ -568,6 +568,279 @@ fn simplified_chinese_text(english: &'static str) -> &'static str {
 
 fn vietnamese_text(english: &'static str) -> &'static str {
     match english {
+        "Reasoning effort" => "Mức suy luận",
+        "Reasoning summary" => "Tóm tắt suy luận",
+        "Response detail" => "Chi tiết phản hồi",
+        "Command approvals" => "Phê duyệt lệnh",
+        "Sandbox access" => "Quyền trong môi trường cách ly",
+        "Web search" => "Tìm kiếm web",
+        "Automatic" => "Tự động",
+        "Concise" => "Ngắn gọn",
+        "Detailed" => "Chi tiết",
+        "Hidden" => "Ẩn",
+        "Balanced" => "Cân bằng",
+        "Minimal" => "Tối thiểu",
+        "Low" => "Thấp",
+        "Medium" => "Trung bình",
+        "High" => "Cao",
+        "Extra high" => "Rất cao",
+        "Controls the reasoning summary shown by Codex." => {
+            "Điều chỉnh tóm tắt suy luận được Codex hiển thị."
+        }
+        "Controls final-answer detail for supported models." => {
+            "Điều chỉnh mức chi tiết của câu trả lời với mô hình được hỗ trợ."
+        }
+        "Ask for untrusted commands" => "Hỏi trước khi chạy lệnh chưa tin cậy",
+        "Trusted read-only commands run automatically; other commands ask first." => {
+            "Lệnh chỉ đọc đáng tin cậy chạy tự động; các lệnh khác cần được phê duyệt."
+        }
+        "Ask when Codex requests it" => "Hỏi khi Codex yêu cầu",
+        "Codex decides when an action needs your approval." => {
+            "Codex quyết định khi nào một thao tác cần bạn phê duyệt."
+        }
+        "Never ask" => "Không bao giờ hỏi",
+        "Codex will not pause for command approval." => {
+            "Codex sẽ không dừng để chờ phê duyệt lệnh."
+        }
+        "Read only" => "Chỉ đọc",
+        "Commands can inspect files but cannot modify the workspace." => {
+            "Lệnh có thể đọc tệp nhưng không thể sửa không gian làm việc."
+        }
+        "Workspace access" => "Quyền truy cập không gian làm việc",
+        "Commands can modify the current workspace within the sandbox." => {
+            "Lệnh có thể sửa không gian làm việc hiện tại trong môi trường cách ly."
+        }
+        "Full system access" => "Toàn quyền hệ thống",
+        "Commands run without filesystem or network sandbox restrictions." => {
+            "Lệnh chạy không bị giới hạn hệ thống tệp hoặc mạng bởi môi trường cách ly."
+        }
+        "Off" => "Tắt",
+        "Remove the web search tool." => "Gỡ công cụ tìm kiếm web.",
+        "Cached index" => "Chỉ mục lưu sẵn",
+        "Use OpenAI's maintained index without live external access." => {
+            "Dùng chỉ mục do OpenAI duy trì, không truy cập trực tiếp bên ngoài."
+        }
+        "Indexed live access" => "Truy cập trực tiếp theo chỉ mục",
+        "Allow external access only when the search index requires it." => {
+            "Chỉ cho phép truy cập bên ngoài khi chỉ mục tìm kiếm yêu cầu."
+        }
+        "Live web" => "Web trực tiếp",
+        "Allow unrestricted live web retrieval." => {
+            "Cho phép truy xuất web trực tiếp không giới hạn."
+        }
+        "Configured for Agents" => "Đã cấu hình cho tác nhân",
+        "Agent configuration restored. Device authorization retained." => {
+            "Đã khôi phục cấu hình tác nhân. Quyền thiết bị được giữ lại."
+        }
+        "Installing update…" => "Đang cài đặt bản cập nhật…",
+        "No managed Agent files yet." => "Chưa có tệp tác nhân được quản lý.",
+        "Managed files exist. Apply changes or disconnect this connection." => {
+            "Đã có tệp được quản lý. Áp dụng thay đổi hoặc khôi phục cấu hình."
+        }
+        "Applying managed files…" => "Đang áp dụng tệp được quản lý…",
+        "Apply failed. You can apply again." => "Áp dụng thất bại. Bạn có thể thử lại.",
+        "Disconnecting managed files…" => "Đang khôi phục tệp được quản lý…",
+        "Disconnect failed. Managed files may still be present." => {
+            "Khôi phục thất bại. Có thể vẫn còn tệp được quản lý."
+        }
+        "Sign in with your BoxAI account in the browser. Device credentials stay in Keychain or Windows Credential Manager." => {
+            "Đăng nhập tài khoản BoxAI trong trình duyệt. Thông tin xác thực thiết bị được lưu trong Keychain hoặc Windows Credential Manager."
+        }
+        "Authorization completed. Finishing sign-in…" => {
+            "Đã xác nhận quyền truy cập. Đang hoàn tất đăng nhập…"
+        }
+        "Offline inspection" => "Xem ngoại tuyến",
+        "Offline catalog. Refresh before applying changes." => {
+            "Danh mục ngoại tuyến. Hãy làm mới trước khi áp dụng thay đổi."
+        }
+        "Refreshed account and catalogs." => "Đã làm mới tài khoản và danh mục.",
+        "Applied this Agent's configuration." => "Đã áp dụng cấu hình tác nhân này.",
+        "Restored Agent configuration. Device remains signed in." => {
+            "Đã khôi phục cấu hình tác nhân. Thiết bị vẫn đăng nhập."
+        }
+        "Detected" => "Đã phát hiện",
+        "Not detected" => "Chưa phát hiện",
+        "Not managed" => "Chưa được quản lý",
+        "Managed by this connection" => "Do kết nối này quản lý",
+        "Checking standard root…" => "Đang kiểm tra thư mục mặc định…",
+        "Default model" => "Mô hình mặc định",
+        "Default" => "Mặc định",
+        "Protocol" => "Giao thức",
+        "Choose a model" => "Chọn mô hình",
+        "Choose what this Agent uses. Gateway address and credentials stay managed by BoxAI Connect." => {
+            "Chọn cấu hình cho tác nhân này. BoxAI Connect quản lý địa chỉ cổng và thông tin xác thực."
+        }
+        "Used for new sessions unless the Agent overrides it." => {
+            "Dùng cho phiên mới, trừ khi tác nhân chọn mô hình khác."
+        }
+        "Automatic chooses the first protocol supported by both the Agent and Gateway." => {
+            "Tự động chọn giao thức đầu tiên mà cả tác nhân và cổng đều hỗ trợ."
+        }
+        "Advanced options" => "Tùy chọn nâng cao",
+        "Hide advanced options" => "Ẩn tùy chọn nâng cao",
+        "Restore all Agents" => "Khôi phục mọi tác nhân",
+        "Restore Agent configuration?" => "Khôi phục cấu hình tác nhân?",
+        "Restore backed-up Agent files. Keep this device signed in to BoxAI." => {
+            "Khôi phục các tệp tác nhân đã sao lưu. Giữ thiết bị này đăng nhập BoxAI."
+        }
+        "Revoke device authorization" => "Thu hồi quyền thiết bị",
+        "Revoke device authorization?" => "Thu hồi quyền thiết bị?",
+        "This removes managed Agent configuration and the local credential." => {
+            "Thao tác này xóa cấu hình tác nhân được quản lý và thông tin xác thực cục bộ."
+        }
+        "Device authorization" => "Quyền thiết bị",
+        "Account and billing" => "Tài khoản và thanh toán",
+        "Open BoxAI in browser" => "Mở BoxAI trong trình duyệt",
+        "Application" => "Ứng dụng",
+        "Managed Agent configuration" => "Cấu hình tác nhân được quản lý",
+        "Working…" => "Đang xử lý…",
+        "Unapplied changes" => "Thay đổi chưa áp dụng",
+        "Connection status" => "Trạng thái kết nối",
+        "Configuration folder" => "Thư mục cấu hình",
+        "Apply writes only this Agent. Other Agents stay as they are." => {
+            "Áp dụng chỉ ghi cấu hình tác nhân này. Các tác nhân khác không thay đổi."
+        }
+        "Updating managed Agent configuration" => "Đang cập nhật cấu hình tác nhân",
+        "Install a supported Agent before applying configuration." => {
+            "Cài đặt tác nhân được hỗ trợ trước khi áp dụng cấu hình."
+        }
+        "Direct image generation" => "Tạo ảnh trực tiếp",
+        "Write OPENAI_BASE_URL and OPENAI_API_KEY so image skills can call the Gateway Images API directly." => {
+            "Ghi OPENAI_BASE_URL và OPENAI_API_KEY để Skill tạo ảnh gọi trực tiếp Images API của cổng."
+        }
+        "Codex already uses the Gateway Responses provider for native image generation." => {
+            "Codex đã dùng nhà cung cấp Responses của cổng để tạo ảnh trực tiếp."
+        }
+        "This Agent has no environment-variable channel for Images API credentials." => {
+            "Tác nhân này không hỗ trợ biến môi trường cho thông tin xác thực Images API."
+        }
+        "MCP servers" => "Máy chủ MCP",
+        "Enablement is written when you apply this Agent." => {
+            "Trạng thái bật/tắt được ghi khi áp dụng tác nhân này."
+        }
+        "Enable each Skill on the Agent page, then apply that Agent." => {
+            "Bật từng Skill trên trang tác nhân, rồi áp dụng tác nhân đó."
+        }
+        "Enable each server on the Agent page, then apply that Agent." => {
+            "Bật từng máy chủ trên trang tác nhân, rồi áp dụng tác nhân đó."
+        }
+        "No MCP servers were provisioned." => "Chưa có máy chủ MCP được cấp.",
+        "No Skills were provisioned." => "Chưa có Skill được cấp.",
+        "Codex model list" => "Danh sách mô hình Codex",
+        "Always included as the default model." => "Luôn được thêm làm mô hình mặc định.",
+        "The Gateway currently offers no Codex Responses models." => {
+            "Cổng hiện chưa cung cấp mô hình Codex Responses."
+        }
+        "The Gateway currently offers no chat-capable models." => {
+            "Cổng hiện chưa cung cấp mô hình trò chuyện."
+        }
+        "Tune supported Responses models without changing the Gateway connection." => {
+            "Tinh chỉnh mô hình Responses được hỗ trợ mà không đổi kết nối cổng."
+        }
+        "Controls how much reasoning the model performs." => "Điều chỉnh mức suy luận của mô hình.",
+        "This Codex configuration reduces local safety checks. Use it only in a trusted environment." => {
+            "Cấu hình Codex này giảm kiểm tra an toàn cục bộ. Chỉ dùng trong môi trường đáng tin cậy."
+        }
+        "BoxAI Connect will leave this value unchanged." => {
+            "BoxAI Connect sẽ giữ nguyên giá trị này."
+        }
+        "Keep current" => "Giữ hiện tại",
+        "Search model catalog" => "Tìm trong danh mục mô hình",
+        "Filter by model ID, provider, or tag" => "Lọc theo mã mô hình, nhà cung cấp hoặc thẻ",
+        "Search settings" => "Tìm cài đặt",
+        "Filter settings" => "Lọc cài đặt",
+        "Clear" => "Xóa bộ lọc",
+        "Provider" | "Vendor" => "Nhà cung cấp",
+        "Type" => "Loại",
+        "Platform" => "Nền tảng",
+        "Available from platform" => "Do nền tảng cung cấp",
+        "Provisioned" => "Đã cấp",
+        "Synced" => "Đã đồng bộ",
+        "Pending" => "Đang chờ",
+        "No description." => "Không có mô tả.",
+        "Selected model is hidden by the current filter" => {
+            "Mô hình đã chọn bị ẩn bởi bộ lọc hiện tại"
+        }
+        "Saved choice is not in the current catalog" => {
+            "Lựa chọn đã lưu không có trong danh mục hiện tại"
+        }
+        "Saved choice is not a Codex Responses model" => {
+            "Lựa chọn đã lưu không phải mô hình Codex Responses"
+        }
+        "Saved choice is explicitly non-chat and cannot be projected" => {
+            "Lựa chọn đã lưu không hỗ trợ trò chuyện nên không thể áp dụng"
+        }
+        "Unknown chat capability — choosing this model confirms its use" => {
+            "Chưa rõ khả năng trò chuyện — chọn mô hình này để xác nhận sử dụng"
+        }
+        "This protocol is not advertised by the Gateway" => {
+            "Cổng không công bố hỗ trợ giao thức này"
+        }
+        "(selected)" => "(đã chọn)",
+        "(unavailable)" => "(không khả dụng)",
+        "model" | "models" => "mô hình",
+        "servers" => "máy chủ",
+        "s" => "giây",
+        "is" => "là",
+        "Updated" => "Đã cập nhật",
+        "Check for updates automatically" => "Tự động kiểm tra cập nhật",
+        "Update status" => "Trạng thái cập nhật",
+        "Update check failed" => "Kiểm tra cập nhật thất bại",
+        "Not checked yet." => "Chưa kiểm tra.",
+        "You have the latest version." => "Bạn đang dùng phiên bản mới nhất.",
+        "A newer package is available:" => "Có gói cài đặt mới hơn:",
+        "A signed update is available:" => "Có bản cập nhật đã ký:",
+        "This build is not a packaged install. Open the download page instead." => {
+            "Đây không phải bản cài đặt đóng gói. Hãy mở trang tải xuống."
+        }
+        "This distribution has no download page" => "Bản phân phối này không có trang tải xuống",
+        "This platform has no Connector package." => "Nền tảng này không có gói Connect.",
+        "Preference could not be saved" => "Không thể lưu tùy chọn",
+        "Security" => "Bảo mật",
+        "Confirm" => "Xác nhận",
+        "Back" => "Quay lại",
+        "API key" => "Khóa API",
+        "API key, or leave blank for advertised browser login" => {
+            "Khóa API, hoặc để trống để đăng nhập qua trình duyệt"
+        }
+        "Gateway base URL" => "URL gốc của cổng",
+        "Browser login available" => "Có thể đăng nhập qua trình duyệt",
+        "Testing connection" => "Đang kiểm tra kết nối",
+        "If the browser did not come up, open this link yourself. It stays valid while this window waits." => {
+            "Nếu trình duyệt không mở, hãy tự mở liên kết này. Liên kết còn hiệu lực khi cửa sổ này đang chờ."
+        }
+        "No browser could be opened on this machine. Copy the link below and open it in any browser." => {
+            "Không thể mở trình duyệt trên máy này. Sao chép liên kết bên dưới và mở bằng trình duyệt bất kỳ."
+        }
+        "No browser could be opened. Set a default browser, then sign in again — the link is shown here so it can be opened by hand." => {
+            "Không thể mở trình duyệt. Hãy mở liên kết hiển thị bên dưới để tiếp tục đăng nhập."
+        }
+        "Sign-in was declined in the browser. Nothing was saved." => {
+            "Đăng nhập bị từ chối trong trình duyệt. Không có gì được lưu."
+        }
+        "The browser never returned to this app. That is almost always a proxy or security tool that intercepts 127.0.0.1: switch the proxy to rule mode or exempt 127.0.0.1, allow this program to accept local connections, then sign in again." => {
+            "Trình duyệt chưa trả kết quả về ứng dụng. Hãy kiểm tra proxy hoặc phần mềm bảo mật có chặn 127.0.0.1 không, cho phép kết nối cục bộ rồi đăng nhập lại."
+        }
+        "Isolated mode" => "Chế độ biệt lập",
+        "Isolated mode path validation failed:" => "Đường dẫn chế độ biệt lập không hợp lệ:",
+        "Managing fixture Agents under this path; installed Agents are not being modified:" => {
+            "Chỉ quản lý tác nhân thử nghiệm trong đường dẫn này; không sửa tác nhân đã cài đặt:"
+        }
+        "Add a desktop shortcut" => "Thêm lối tắt trên màn hình",
+        "Current location" => "Vị trí hiện tại",
+        "Install location" => "Vị trí cài đặt",
+        "Install and start" => "Cài đặt và khởi chạy",
+        "Update and restart" => "Cập nhật và khởi động lại",
+        "Update the installed copy" => "Cập nhật bản đã cài đặt",
+        "An earlier version is already installed. Installing replaces it in place and keeps your account, so the copy you just downloaded can be deleted afterwards." => {
+            "Đã có phiên bản cũ. Cài đặt sẽ thay thế bản đó và giữ tài khoản của bạn; sau đó có thể xóa bản vừa tải xuống."
+        }
+        "Installing copies the program into your own program folder and adds it to the Start menu, so it keeps working after this download is cleaned up. Your account and settings stay where they are." => {
+            "Cài đặt sao chép ứng dụng vào thư mục chương trình của bạn và thêm vào menu Start. Ứng dụng vẫn hoạt động sau khi xóa bản tải xuống. Tài khoản và cài đặt được giữ nguyên."
+        }
+        "This copy is running from the temporary folder a file manager uses to preview an archive. That folder is deleted without warning, so a sign-in saved here does not survive. Install it first." => {
+            "Bản này đang chạy từ thư mục tạm dùng để xem tệp nén. Thư mục có thể bị xóa bất kỳ lúc nào. Hãy cài đặt trước."
+        }
         "Gateway" => "Cổng kết nối",
         "Connection" => "Kết nối",
         "Overview" => "Tổng quan",
