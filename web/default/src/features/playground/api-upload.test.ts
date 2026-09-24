@@ -22,7 +22,11 @@ describe('uploadPlaygroundAsset', () => {
         success: true,
         data: {
           put_url: 'https://r2.example/uploads/ref.mp4?sig=1',
-          asset: { id: 9, kind: 'image', url: '/api/playground/assets/9/content' },
+          asset: {
+            id: 9,
+            kind: 'image',
+            url: '/api/playground/assets/9/content',
+          },
         },
       },
     })
@@ -47,9 +51,18 @@ describe('uploadPlaygroundAsset', () => {
 
   it('falls back to multipart when direct upload is unavailable', async () => {
     post
-      .mockResolvedValueOnce({ data: { success: false, message: 'direct upload is not available' } })
       .mockResolvedValueOnce({
-        data: { success: true, data: { id: 3, kind: 'video', url: '/api/playground/assets/3/content' } },
+        data: { success: false, message: 'direct upload is not available' },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            id: 3,
+            kind: 'video',
+            url: '/api/playground/assets/3/content',
+          },
+        },
       })
     const file = new File(['clip'], 'clip.mp4', { type: 'video/mp4' })
 
