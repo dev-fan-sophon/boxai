@@ -568,6 +568,8 @@ fn simplified_chinese_text(english: &'static str) -> &'static str {
 
 fn vietnamese_text(english: &'static str) -> &'static str {
     match english {
+        "Other" => "Khác",
+        "No models match this search." => "Không có mô hình nào khớp với tìm kiếm này.",
         "Reasoning effort" => "Mức suy luận",
         "Reasoning summary" => "Tóm tắt suy luận",
         "Response detail" => "Chi tiết phản hồi",
@@ -1162,6 +1164,20 @@ fn replace_file(from: &Path, to: &Path) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn catalog_category_and_no_matches_follow_locale() {
+        for (english, vietnamese) in [
+            ("Other", "Khác"),
+            (
+                "No models match this search.",
+                "Không có mô hình nào khớp với tìm kiếm này.",
+            ),
+        ] {
+            assert_eq!(Locale::Vi.text(english), vietnamese);
+            assert_eq!(Locale::En.text(english), english);
+        }
+    }
 
     #[test]
     fn retired_chinese_os_variants_use_english() {
