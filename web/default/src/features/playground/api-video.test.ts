@@ -121,6 +121,21 @@ describe('video references', () => {
     )
   })
 
+  it('sends playground asset URLs without downloading them as base64', async () => {
+    await submitVideo({
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'animate',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      referenceImages: ['/api/playground/assets/42/content'],
+    })
+    const body = vi.mocked(api.post).mock.calls.at(-1)?.[1] as {
+      images: string[]
+    }
+    expect(body.images).toEqual(['/api/playground/assets/42/content'])
+    expect(JSON.stringify(body)).not.toContain('base64')
+  })
+
   it('keeps first-frame semantics for other video models', async () => {
     await submitVideo({
       model: 'grok-imagine-video',

@@ -570,6 +570,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			// upload-session file accepts session token (no user auth cookie on phone)
 			playgroundPublic.POST("/upload-sessions/:token/file", middleware.UploadRateLimit(), controller.UploadPlaygroundUploadSessionFile)
+			playgroundPublic.GET("/media-fetch/:token", controller.GetPlaygroundMediaFetch)
 			playgroundPublic.GET("/inspiration/categories", controller.ListInspirationCategories)
 			playgroundPublic.GET("/inspiration/templates", controller.ListInspirationTemplates)
 			playgroundPublic.GET("/inspiration/templates/:slug", controller.GetInspirationTemplate)

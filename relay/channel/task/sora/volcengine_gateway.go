@@ -14,6 +14,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -119,6 +120,9 @@ func (a *TaskAdaptor) buildVolcengineGatewayBody(c *gin.Context, info *relaycomm
 	if err := normalizeSeedancePassthroughBody(body, info.UpstreamModelName); err != nil {
 		return nil, err
 	}
+	if err := rewriteGatewayReferenceURLs(body, info.UserId); err != nil {
+		return nil, err
+	}
 	payload, err := gatewayCreateFromPassthrough(body, info.UpstreamModelName)
 	if err != nil {
 		return nil, err
@@ -149,9 +153,13 @@ func gatewayCreateFromPassthrough(body map[string]interface{}, modelName string)
 				continue
 			}
 			converted, ok := gatewayContentFromMap(entry)
-			if ok {
-				req.Content = append(req.Content, converted)
+			if !ok {
+				continue
 			}
+			if err := rejectInlineGatewayMedia(converted); err != nil {
+				return nil, err
+			}
+			req.Content = append(req.Content, converted)
 		}
 	}
 	if len(req.Content) == 0 {
@@ -206,6 +214,99 @@ func gatewayContentFromMap(entry map[string]interface{}) (gatewayContentItem, bo
 	default:
 		return gatewayContentItem{}, false
 	}
+}
+
+func rewriteGatewayReferenceURLs(body map[string]interface{}, userID int) error {
+	metadata, _ := body["metadata"].(map[string]interface{})
+	if metadata == nil {
+		return nil
+	}
+	content, ok := metadata["content"].([]interface{})
+	if !ok {
+		return nil
+	}
+	origin := strings.TrimRight(strings.TrimSpace(system_setting.ServerAddress), "/")
+	for _, item := range content {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		for _, key := range []string{"image_url", "video_url", "audio_url"} {
+			media, ok := entry[key].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			raw := bodyString(media, "url")
+			rewritten, err := gatewayFetchableURL(raw, origin, userID)
+			if err != nil {
+				return err
+			}
+			if rewritten != raw {
+				media["url"] = rewritten
+			}
+		}
+	}
+	return nil
+}
+
+func gatewayFetchableURL(raw, origin string, userID int) (string, error) {
+	value := strings.TrimSpace(raw)
+	lower := strings.ToLower(value)
+	if value == "" || strings.HasPrefix(lower, "asset://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
+		if strings.Contains(value, "/api/playground/assets/") {
+			return "", errors.New("reference media must be a fetchable https or asset URL")
+		}
+		return value, nil
+	}
+	if !strings.HasPrefix(value, "/api/playground/assets/") {
+		return "", errors.New("reference media must be a fetchable https or asset URL")
+	}
+	assetID := playgroundAssetID(value)
+	if assetID <= 0 || userID <= 0 {
+		return "", errors.New("reference media must be a fetchable https or asset URL")
+	}
+	grantPath, err := service.IssueMediaFetchGrant(userID, assetID)
+	if err != nil {
+		return "", err
+	}
+	return service.AbsoluteMediaFetchURL(origin, grantPath), nil
+}
+
+func playgroundAssetID(ref string) int {
+	const marker = "/api/playground/assets/"
+	idx := strings.Index(ref, marker)
+	if idx < 0 {
+		return 0
+	}
+	rest := ref[idx+len(marker):]
+	idPart := rest
+	if slash := strings.IndexByte(rest, '/'); slash >= 0 {
+		idPart = rest[:slash]
+	}
+	id, err := strconv.Atoi(idPart)
+	if err != nil {
+		return 0
+	}
+	return id
+}
+
+func rejectInlineGatewayMedia(item gatewayContentItem) error {
+	urls := []string{}
+	if item.ImageURL != nil {
+		urls = append(urls, item.ImageURL.URL)
+	}
+	if item.VideoURL != nil {
+		urls = append(urls, item.VideoURL.URL)
+	}
+	if item.AudioURL != nil {
+		urls = append(urls, item.AudioURL.URL)
+	}
+	for _, raw := range urls {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(raw)), "data:") {
+			return errors.New("reference media must be an https or asset URL, not inline file bytes")
+		}
+	}
+	return nil
 }
 
 func nestedURL(entry map[string]interface{}, key string) string {

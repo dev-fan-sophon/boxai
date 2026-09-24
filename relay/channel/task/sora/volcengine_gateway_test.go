@@ -1,10 +1,12 @@
 package sora
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,6 +39,45 @@ func TestGatewayCreateFromPassthroughMapsCdanceRequest(t *testing.T) {
 	assert.Equal(t, "reference_image", payload.Content[1].Role)
 	require.NotNil(t, payload.Content[1].ImageURL)
 	assert.Equal(t, "https://example.com/a.jpg", payload.Content[1].ImageURL.URL)
+}
+
+func TestGatewayRewritesAppAssetToFetchGrant(t *testing.T) {
+	old := system_setting.ServerAddress
+	system_setting.ServerAddress = "https://you-box.com"
+	t.Cleanup(func() { system_setting.ServerAddress = old })
+
+	body := map[string]interface{}{
+		"prompt": "a red apple",
+		"images": []interface{}{"/api/playground/assets/42/content"},
+	}
+	require.NoError(t, normalizeSeedancePassthroughBody(body, "cdance2.0-0611"))
+	require.NoError(t, rewriteGatewayReferenceURLs(body, 7))
+
+	payload, err := gatewayCreateFromPassthrough(body, "cdance2.0-0611")
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(payload.Content), 2)
+	got := payload.Content[1].ImageURL.URL
+	assert.True(t, strings.HasPrefix(got, "https://you-box.com/api/playground/media-fetch/"))
+	assert.NotContains(t, got, "/api/playground/assets/")
+	assert.NotContains(t, got, "base64")
+}
+
+func TestGatewayCreateRejectsInlineReferenceBytes(t *testing.T) {
+	body := map[string]interface{}{
+		"prompt": "a red apple",
+		"metadata": map[string]interface{}{
+			"content": []interface{}{
+				map[string]interface{}{
+					"type":      "image_url",
+					"role":      "reference_image",
+					"image_url": map[string]interface{}{"url": "data:image/png;base64,YQ=="},
+				},
+			},
+		},
+	}
+	_, err := gatewayCreateFromPassthrough(body, "cdance2.0-0611")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not inline file bytes")
 }
 
 func TestParseVolcengineGatewayTaskSucceeded(t *testing.T) {

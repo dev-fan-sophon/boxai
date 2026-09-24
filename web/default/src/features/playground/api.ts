@@ -1,6 +1,6 @@
 import { t } from 'i18next'
 
-import { api, getCommonHeaders } from '@/lib/api'
+import { api } from '@/lib/api'
 
 import { API_ENDPOINTS } from './constants'
 import type {
@@ -83,8 +83,10 @@ export async function getUserGroups(): Promise<GroupOption[]> {
 
 /**
  * Resolve media for upstream providers.
- * Relative auth-gated asset URLs cannot be fetched by providers — convert to data URLs.
- * Already-inline data: and absolute http(s) URLs are returned unchanged.
+ * App asset URLs stay as URLs. The video gateway fetches them itself, so the
+ * browser must not download the file and resend it as a data URL.
+ * Already-inline data: URLs are returned unchanged for image edit, which still
+ * posts multipart bytes to providers that have no fetchable URL.
  */
 export async function resolveMediaForUpstream(
   ref: string | null | undefined
@@ -92,47 +94,16 @@ export async function resolveMediaForUpstream(
   if (!ref) return null
   const value = ref.trim()
   if (!value) return null
-  if (value.startsWith('data:')) return value
-  // same-origin auth-gated asset content (or other relative app paths)
-  const isAppAsset =
-    value.startsWith('/api/playground/assets/') ||
-    value.includes('/api/playground/assets/') ||
-    value.startsWith(`${window.location.origin}/api/playground/assets/`)
-  if (isAppAsset || (value.startsWith('/') && !value.startsWith('//'))) {
-    let fetchUrl = value
-    if (!value.startsWith('http') && !value.startsWith('/')) {
-      fetchUrl = `/${value}`
-    }
-    const headers = getCommonHeaders()
-    delete headers['Content-Type']
-    const res = await fetch(fetchUrl, {
-      credentials: 'include',
-      headers,
-    })
-    if (!res.ok) {
-      throw new Error(`Failed to load reference media (${res.status})`)
-    }
-    const blob = await res.blob()
-    return await blobToDataUrl(blob)
-  }
-  // absolute public URLs — pass through
-  if (value.startsWith('https://') || value.startsWith('http://')) {
+  if (
+    value.startsWith('data:') ||
+    value.startsWith('asset://') ||
+    value.startsWith('https://') ||
+    value.startsWith('http://') ||
+    value.startsWith('/')
+  ) {
     return value
   }
   return value
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('load', () => {
-      resolve(String(reader.result ?? ''))
-    })
-    reader.addEventListener('error', () => {
-      reject(new Error('Could not read media blob'))
-    })
-    reader.readAsDataURL(blob)
-  })
 }
 
 export type ImageGenerateInput = {
