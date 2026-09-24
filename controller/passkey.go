@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/middleware"
 	"github.com/dev-fan-sophon/boxai/model"
 	passkeysvc "github.com/dev-fan-sophon/boxai/service/passkey"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
@@ -494,10 +495,11 @@ func PasskeyVerifyFinish(c *gin.Context) {
 
 	session := sessions.Default(c)
 	// Mark passkey as ready; /api/verify will convert this into the final secure verification session.
+	middleware.DeleteSecureVerificationSession(session)
 	session.Set(PasskeyReadySessionKey, time.Now().Unix())
-	session.Delete(SecureVerificationSessionKey)
-	session.Delete(secureVerificationMethodSessionKey)
+	session.Set(middleware.PasskeyReadyUserSessionKey, user.Id)
 	if err := session.Save(); err != nil {
+		middleware.DeleteSecureVerificationSession(session)
 		common.ApiError(c, fmt.Errorf("保存验证状态失败: %v", err))
 		return
 	}
@@ -515,7 +517,7 @@ func getSessionUser(c *gin.Context) (*model.User, error) {
 		return nil, errors.New("未登录")
 	}
 	id, ok := idRaw.(int)
-	if !ok {
+	if !ok || !middleware.SecureVerificationIdentityMatches(c, id) {
 		return nil, errors.New("无效的会话信息")
 	}
 	user := &model.User{Id: id}
@@ -569,9 +571,9 @@ func requirePasskeyDeleteVerification(c *gin.Context, userID int) bool {
 func requireSecureVerificationMethod(c *gin.Context, method string) bool {
 	session := sessions.Default(c)
 	verifiedAt, ok := session.Get(SecureVerificationSessionKey).(int64)
-	if !ok || time.Now().Unix()-verifiedAt >= SecureVerificationTimeout {
-		session.Delete(SecureVerificationSessionKey)
-		session.Delete(secureVerificationMethodSessionKey)
+	now := time.Now().Unix()
+	if !ok || !middleware.SecureVerificationIdentityMatches(c, session.Get(middleware.SecureVerificationUserSessionKey)) || verifiedAt > now || verifiedAt <= now-SecureVerificationTimeout {
+		middleware.DeleteSecureVerificationSession(session)
 		_ = session.Save()
 		common.ApiErrorMsg(c, "请先完成安全验证")
 		return false

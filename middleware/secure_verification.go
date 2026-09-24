@@ -12,6 +12,8 @@ const (
 	// SecureVerificationSessionKey 安全验证的 session key（与 controller 保持一致）
 	SecureVerificationSessionKey       = "secure_verified_at"
 	secureVerificationMethodSessionKey = "secure_verified_method"
+	SecureVerificationUserSessionKey   = "secure_verified_user_id"
+	PasskeyReadyUserSessionKey         = "secure_passkey_ready_user_id"
 	// SecureVerificationTimeout 验证有效期（秒）
 	SecureVerificationTimeout = 300 // 5分钟
 )
@@ -47,7 +49,7 @@ func SecureVerificationRequired() gin.HandlerFunc {
 		}
 
 		verifiedAt, ok := verifiedAtRaw.(int64)
-		if !ok {
+		if !ok || !SecureVerificationIdentityMatches(c, session.Get(SecureVerificationUserSessionKey)) || verifiedAt > time.Now().Unix() {
 			// session 数据格式错误
 			clearSecureVerificationSession(session)
 			c.JSON(http.StatusForbidden, gin.H{
@@ -60,8 +62,7 @@ func SecureVerificationRequired() gin.HandlerFunc {
 		}
 
 		// 检查验证是否过期
-		elapsed := time.Now().Unix() - verifiedAt
-		if elapsed >= SecureVerificationTimeout {
+		if verifiedAt <= time.Now().Unix()-SecureVerificationTimeout {
 			// 验证已过期，清除 session
 			clearSecureVerificationSession(session)
 			c.JSON(http.StatusForbidden, gin.H{
@@ -78,9 +79,27 @@ func SecureVerificationRequired() gin.HandlerFunc {
 }
 
 func clearSecureVerificationSession(session sessions.Session) {
+	DeleteSecureVerificationSession(session)
+	_ = session.Save()
+}
+
+// DeleteSecureVerificationSession removes both stages of step-up verification.
+// Callers changing login identity must save this together with the new identity.
+func DeleteSecureVerificationSession(session sessions.Session) {
 	session.Delete(SecureVerificationSessionKey)
 	session.Delete(secureVerificationMethodSessionKey)
-	_ = session.Save()
+	session.Delete(SecureVerificationUserSessionKey)
+	session.Delete("secure_passkey_ready_at")
+	session.Delete(PasskeyReadyUserSessionKey)
+}
+
+// SecureVerificationIdentityMatches binds a marker to both the authenticated
+// request identity and its login session, not merely a supplied user header.
+func SecureVerificationIdentityMatches(c *gin.Context, markerUser any) bool {
+	userID := c.GetInt("id")
+	sessionID, ok := sessions.Default(c).Get("id").(int)
+	verifiedID, markerOK := markerUser.(int)
+	return userID > 0 && ok && markerOK && sessionID == userID && verifiedID == userID
 }
 
 // OptionalSecureVerification 可选的安全验证中间件
@@ -105,14 +124,14 @@ func OptionalSecureVerification() gin.HandlerFunc {
 		}
 
 		verifiedAt, ok := verifiedAtRaw.(int64)
-		if !ok {
+		if !ok || !SecureVerificationIdentityMatches(c, session.Get(SecureVerificationUserSessionKey)) || verifiedAt > time.Now().Unix() {
+			clearSecureVerificationSession(session)
 			c.Set("secure_verified", false)
 			c.Next()
 			return
 		}
 
-		elapsed := time.Now().Unix() - verifiedAt
-		if elapsed >= SecureVerificationTimeout {
+		if verifiedAt <= time.Now().Unix()-SecureVerificationTimeout {
 			clearSecureVerificationSession(session)
 			c.Set("secure_verified", false)
 			c.Next()

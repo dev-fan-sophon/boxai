@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -106,7 +105,7 @@ func HandleOAuth(c *gin.Context) {
 	}
 
 	// 7. Find or create user
-	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session)
+	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session, token)
 	if err != nil {
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
@@ -203,7 +202,7 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 }
 
 // findOrCreateOAuthUser finds existing user or creates new user
-func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, session sessions.Session) (*model.User, error) {
+func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, session sessions.Session, token *oauth.OAuthToken) (*model.User, error) {
 	user := &model.User{}
 
 	// Check if user already exists with new ID
@@ -219,20 +218,21 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		return user, nil
 	}
 
-	// Try to find user with legacy ID (for GitHub migration from login to numeric ID)
-	if legacyID, ok := oauthUser.Extra["legacy_id"].(string); ok && legacyID != "" {
-		if provider.IsUserIDTaken(legacyID) {
-			err := provider.FillUserByProviderID(user, legacyID)
-			if err != nil {
+	// A reusable GitHub login is not identity evidence. Only a verified email
+	// belonging to this token may authorize upgrading an old binding.
+	if github, ok := provider.(*oauth.GitHubProvider); ok {
+		legacyID, _ := oauthUser.Extra["legacy_id"].(string)
+		if oauth.IsGitHubLegacyLogin(legacyID) {
+			err := model.DB.Where("github_id = ?", legacyID).First(user).Error
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
 			}
-			if user.Id != 0 {
-				// Found user with legacy ID, migrate to new ID
-				common.SysLog(fmt.Sprintf("[OAuth] Migrating user %d from legacy_id=%s to new_id=%s",
-					user.Id, legacyID, oauthUser.ProviderUserID))
-				if err := user.UpdateGitHubId(oauthUser.ProviderUserID); err != nil {
-					common.SysError(fmt.Sprintf("[OAuth] Failed to migrate user %d: %s", user.Id, err.Error()))
-					// Continue with login even if migration fails
+			if err == nil {
+				if err := github.VerifyLegacyEmail(c.Request.Context(), token, user.Email); err != nil {
+					return nil, err
+				}
+				if err := user.MigrateLegacyGitHubID(oauthUser.ProviderUserID); err != nil {
+					return nil, err
 				}
 				return user, nil
 			}

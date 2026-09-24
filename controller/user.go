@@ -14,6 +14,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/i18n"
 	"github.com/dev-fan-sophon/boxai/logger"
+	"github.com/dev-fan-sophon/boxai/middleware"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/dev-fan-sophon/boxai/service/authz"
@@ -143,6 +144,7 @@ func recordLoginAudit(user *model.User, c *gin.Context) {
 func setupLogin(user *model.User, c *gin.Context) {
 	model.UpdateUserLastLoginAt(user.Id)
 	session := sessions.Default(c)
+	middleware.DeleteSecureVerificationSession(session)
 	session.Set("id", user.Id)
 	session.Set("username", user.Username)
 	session.Set("role", user.Role)

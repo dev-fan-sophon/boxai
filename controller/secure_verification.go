@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/middleware"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -39,7 +40,7 @@ type VerificationStatusResponse struct {
 // 支持 2FA 和 Passkey 验证，验证成功后在 session 中记录时间戳
 func UniversalVerify(c *gin.Context) {
 	userId := c.GetInt("id")
-	if userId == 0 {
+	if !middleware.SecureVerificationIdentityMatches(c, userId) {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "未登录",
@@ -144,11 +145,19 @@ func UniversalVerify(c *gin.Context) {
 
 func setSecureVerificationSession(c *gin.Context, method string) (int64, error) {
 	session := sessions.Default(c)
-	session.Delete(PasskeyReadySessionKey)
+	middleware.DeleteSecureVerificationSession(session)
+	if !middleware.SecureVerificationIdentityMatches(c, c.GetInt("id")) || (method != secureVerificationMethod2FA && method != secureVerificationMethodPasskey) {
+		if err := session.Save(); err != nil {
+			return 0, err
+		}
+		return 0, fmt.Errorf("无效的验证身份或方式")
+	}
 	now := time.Now().Unix()
 	session.Set(SecureVerificationSessionKey, now)
 	session.Set(secureVerificationMethodSessionKey, method)
+	session.Set(middleware.SecureVerificationUserSessionKey, c.GetInt("id"))
 	if err := session.Save(); err != nil {
+		middleware.DeleteSecureVerificationSession(session)
 		return 0, err
 	}
 	return now, nil
@@ -157,22 +166,16 @@ func setSecureVerificationSession(c *gin.Context, method string) (int64, error) 
 func consumePasskeyReady(c *gin.Context) (bool, error) {
 	session := sessions.Default(c)
 	readyAtRaw := session.Get(PasskeyReadySessionKey)
-	if readyAtRaw == nil {
-		return false, nil
-	}
-
+	identityMatches := middleware.SecureVerificationIdentityMatches(c, session.Get(middleware.PasskeyReadyUserSessionKey))
 	readyAt, ok := readyAtRaw.(int64)
-	if !ok {
-		session.Delete(PasskeyReadySessionKey)
-		_ = session.Save()
-		return false, fmt.Errorf("无效的 Passkey 验证状态")
-	}
 	session.Delete(PasskeyReadySessionKey)
+	session.Delete(middleware.PasskeyReadyUserSessionKey)
 	if err := session.Save(); err != nil {
 		return false, err
 	}
 	// Expired ready markers cannot be reused.
-	if time.Now().Unix()-readyAt >= PasskeyReadyTimeout {
+	now := time.Now().Unix()
+	if !ok || !identityMatches || readyAt > now || readyAt <= now-PasskeyReadyTimeout {
 		return false, nil
 	}
 	return true, nil

@@ -3,7 +3,6 @@ package oauth
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,7 +56,7 @@ func (p *GitHubProvider) ExchangeToken(ctx context.Context, code string, c *gin.
 		"client_secret": common.GitHubClientSecret,
 		"code":          code,
 	}
-	jsonData, err := json.Marshal(values)
+	jsonData, err := common.Marshal(values)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +81,7 @@ func (p *GitHubProvider) ExchangeToken(ctx context.Context, code string, c *gin.
 	logger.LogDebug(ctx, "[OAuth-GitHub] ExchangeToken response status: %d", res.StatusCode)
 
 	var oAuthResponse gitHubOAuthResponse
-	err = json.NewDecoder(res.Body).Decode(&oAuthResponse)
+	err = common.DecodeJson(res.Body, &oAuthResponse)
 	if err != nil {
 		logger.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] ExchangeToken decode error: %s", err.Error()))
 		return nil, err
@@ -135,13 +134,13 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*O
 	}
 
 	var githubUser gitHubUser
-	err = json.NewDecoder(res.Body).Decode(&githubUser)
+	err = common.DecodeJson(res.Body, &githubUser)
 	if err != nil {
 		logger.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] GetUserInfo decode error: %s", err.Error()))
 		return nil, err
 	}
 
-	if githubUser.Id == 0 || githubUser.Login == "" {
+	if githubUser.Id <= 0 || githubUser.Login == "" {
 		logger.LogError(ctx, "[OAuth-GitHub] GetUserInfo failed: empty id or login field")
 		return nil, NewOAuthError(i18n.MsgOAuthUserInfoEmpty, map[string]any{"Provider": "GitHub"})
 	}
@@ -149,15 +148,65 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*O
 	logger.LogDebug(ctx, "[OAuth-GitHub] GetUserInfo success: id=%d, login=%s, name=%s, email=%s",
 		githubUser.Id, githubUser.Login, githubUser.Name, githubUser.Email)
 
+	legacyID := githubUser.Login
+	if !IsGitHubLegacyLogin(legacyID) {
+		legacyID = ""
+	}
 	return &OAuthUser{
 		ProviderUserID: strconv.FormatInt(githubUser.Id, 10), // Use numeric ID as primary identifier
 		Username:       githubUser.Login,
 		DisplayName:    githubUser.Name,
 		Email:          githubUser.Email,
 		Extra: map[string]any{
-			"legacy_id": githubUser.Login, // Store login for migration from old accounts
+			"legacy_id": legacyID,
 		},
 	}, nil
+}
+
+// IsGitHubLegacyLogin excludes numeric IDs, including values too large for int64.
+func IsGitHubLegacyLogin(login string) bool {
+	for _, ch := range login {
+		if ch < '0' || ch > '9' {
+			return true
+		}
+	}
+	return false
+}
+
+// VerifyLegacyEmail uses the authenticated email endpoint, never the unverified
+// public profile email. It is needed only for legacy migration, not login/binding.
+func (p *GitHubProvider) VerifyLegacyEmail(ctx context.Context, token *OAuthToken, email string) error {
+	denied := fmt.Errorf("GitHub legacy identity cannot be verified; sign in with another method to recover this account")
+	if model.NormalizeEmail(email) == "" || token == nil {
+		return denied
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	client := &http.Client{Timeout: 20 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return denied
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return denied
+	}
+	var emails []struct {
+		Email    string `json:"email"`
+		Verified bool   `json:"verified"`
+	}
+	if err := common.DecodeJson(res.Body, &emails); err != nil {
+		return denied
+	}
+	for _, candidate := range emails {
+		if candidate.Verified && model.NormalizeEmail(candidate.Email) == model.NormalizeEmail(email) {
+			return nil
+		}
+	}
+	return denied
 }
 
 func (p *GitHubProvider) IsUserIDTaken(providerUserID string) bool {
