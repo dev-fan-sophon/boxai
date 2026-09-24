@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -377,6 +378,31 @@ func GetByOnlyTaskId(taskId string) (*Task, bool, error) {
 		return nil, false, err
 	}
 	return task, exist, err
+}
+
+func GetByUpstreamTaskID(upstreamID string) (*Task, bool, error) {
+	upstreamID = strings.TrimSpace(upstreamID)
+	if upstreamID == "" {
+		return nil, false, nil
+	}
+	var task Task
+	err := DB.Where("task_id = ?", upstreamID).Order("id desc").First(&task).Error
+	exist, err := RecordExist(err)
+	if err == nil && exist && task.GetUpstreamTaskID() == upstreamID {
+		return &task, true, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	err = DB.Where("private_data LIKE ?", "%"+upstreamID+"%").Order("id desc").First(&task).Error
+	exist, err = RecordExist(err)
+	if err != nil || !exist {
+		return nil, exist, err
+	}
+	if task.GetUpstreamTaskID() != upstreamID {
+		return nil, false, nil
+	}
+	return &task, true, nil
 }
 
 func GetByTaskId(userId int, taskId string) (*Task, bool, error) {

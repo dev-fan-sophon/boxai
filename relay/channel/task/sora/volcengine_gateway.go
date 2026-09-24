@@ -75,6 +75,7 @@ type gatewayCreateRequest struct {
 	Duration        *int                 `json:"duration,omitempty"`
 	Watermark       *bool                `json:"watermark,omitempty"`
 	ReturnLastFrame *bool                `json:"return_last_frame,omitempty"`
+	CallbackURL     string               `json:"callback_url,omitempty"`
 }
 
 type gatewayCreateResponse struct {
@@ -180,7 +181,16 @@ func gatewayCreateFromPassthrough(body map[string]interface{}, modelName string)
 	} else if watermark, ok := metadata["watermark"].(bool); ok {
 		req.Watermark = &watermark
 	}
+	req.CallbackURL = gatewayCallbackURL()
 	return req, nil
+}
+
+func gatewayCallbackURL() string {
+	origin := strings.TrimRight(strings.TrimSpace(system_setting.ServerAddress), "/")
+	if origin == "" || strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+		return ""
+	}
+	return origin + "/api/playground/task/volcengine/callback"
 }
 
 func gatewayContentFromMap(entry map[string]interface{}) (gatewayContentItem, bool) {
@@ -330,6 +340,23 @@ func (a *TaskAdaptor) fetchVolcengineGatewayTask(ctx context.Context, baseURL, k
 		return nil, fmt.Errorf("new proxy http client failed: %w", err)
 	}
 	return client.Do(req)
+}
+
+// ParseVolcengineGatewayCallback maps an Ark callback body onto the internal
+// task status. The payload matches the query-task response.
+func ParseVolcengineGatewayCallback(body []byte) (*relaycommon.TaskInfo, error) {
+	info, err := parseVolcengineGatewayTask(body)
+	if err != nil {
+		return nil, err
+	}
+	var probe struct {
+		ID string `json:"id"`
+	}
+	if err := common.Unmarshal(body, &probe); err != nil {
+		return nil, err
+	}
+	info.TaskID = probe.ID
+	return info, nil
 }
 
 func parseVolcengineGatewayTask(respBody []byte) (*relaycommon.TaskInfo, error) {

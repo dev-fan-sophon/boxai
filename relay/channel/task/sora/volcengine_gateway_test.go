@@ -62,6 +62,35 @@ func TestGatewayRewritesAppAssetToFetchGrant(t *testing.T) {
 	assert.NotContains(t, got, "base64")
 }
 
+func TestGatewayCreateIncludesCallbackAndNoInlineBytes(t *testing.T) {
+	old := system_setting.ServerAddress
+	system_setting.ServerAddress = "https://you-box.com"
+	t.Cleanup(func() { system_setting.ServerAddress = old })
+
+	body := map[string]interface{}{
+		"prompt": "a red apple",
+		"images": []interface{}{"https://cdn.example/ref.jpg"},
+	}
+	payload, err := gatewayCreateFromPassthrough(body, "cdance2.0-0611")
+	require.NoError(t, err)
+	assert.Equal(t, "https://you-box.com/api/playground/task/volcengine/callback", payload.CallbackURL)
+	raw, err := common.Marshal(payload)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "base64")
+	assert.NotContains(t, string(raw), "data:")
+}
+
+func TestGatewayCreateOmitsLocalCallback(t *testing.T) {
+	old := system_setting.ServerAddress
+	system_setting.ServerAddress = "http://localhost:3000"
+	t.Cleanup(func() { system_setting.ServerAddress = old })
+
+	body := map[string]interface{}{"prompt": "a red apple"}
+	payload, err := gatewayCreateFromPassthrough(body, "cdance2.0-0611")
+	require.NoError(t, err)
+	assert.Empty(t, payload.CallbackURL)
+}
+
 func TestGatewayCreateRejectsInlineReferenceBytes(t *testing.T) {
 	body := map[string]interface{}{
 		"prompt": "a red apple",

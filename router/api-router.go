@@ -517,6 +517,7 @@ func SetApiRouter(router *gin.Engine) {
 
 			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
 			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)
+			playgroundDataRoute.POST("/assets/upload-intent", controller.CreatePlaygroundUploadIntent)
 			playgroundDataRoute.POST("/assets/import", middleware.UploadRateLimit(), controller.ImportPlaygroundAsset)
 			playgroundDataRoute.POST("/assets/:id/publish", controller.PublishPlaygroundAsset)
 			playgroundDataRoute.POST("/assets/:id/unpublish", controller.UnpublishPlaygroundAsset)
@@ -571,6 +572,7 @@ func SetApiRouter(router *gin.Engine) {
 			// upload-session file accepts session token (no user auth cookie on phone)
 			playgroundPublic.POST("/upload-sessions/:token/file", middleware.UploadRateLimit(), controller.UploadPlaygroundUploadSessionFile)
 			playgroundPublic.GET("/media-fetch/:token", controller.GetPlaygroundMediaFetch)
+			playgroundPublic.POST("/task/volcengine/callback", controller.VolcengineTaskCallback)
 			playgroundPublic.GET("/inspiration/categories", controller.ListInspirationCategories)
 			playgroundPublic.GET("/inspiration/templates", controller.ListInspirationTemplates)
 			playgroundPublic.GET("/inspiration/templates/:slug", controller.GetInspirationTemplate)
