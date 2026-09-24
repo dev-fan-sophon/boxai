@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
@@ -130,6 +131,10 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 
 	var usage = &dto.Usage{}
 	var responseTextBuilder strings.Builder
+	hasUsage := false
+	upstreamFailed := false
+	receivedEvent := false
+	receivedTerminal := false
 	imageCounter := &relaycommon.ImageGenerationCallCounter{}
 	imageCommitted := false
 	imageQuality := ""
@@ -145,25 +150,39 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			sr.Error(err)
 			return
 		}
+		receivedEvent = true
 		sendResponsesStreamData(c, streamResponse, data)
-		switch streamResponse.Type {
-		case "response.completed", "response.done":
-			if streamResponse.Response != nil {
-				if streamResponse.Response.Usage != nil {
-					if streamResponse.Response.Usage.InputTokens != 0 {
-						usage.PromptTokens = streamResponse.Response.Usage.InputTokens
-					}
-					if streamResponse.Response.Usage.OutputTokens != 0 {
-						usage.CompletionTokens = streamResponse.Response.Usage.OutputTokens
-					}
-					if streamResponse.Response.Usage.TotalTokens != 0 {
-						usage.TotalTokens = streamResponse.Response.Usage.TotalTokens
-					}
-					if streamResponse.Response.Usage.InputTokensDetails != nil {
-						usage.PromptTokensDetails.CachedTokens = streamResponse.Response.Usage.InputTokensDetails.CachedTokens
-						usage.PromptTokensDetails.CacheWriteTokens = streamResponse.Response.Usage.InputTokensDetails.CacheWriteTokens
-					}
+		if response := streamResponse.Response; response != nil {
+			if string(response.Status) == `"failed"` || response.GetOpenAIError() != nil {
+				upstreamFailed = true
+				sr.Error(fmt.Errorf("upstream Responses failure"))
+			}
+			if actual := response.Usage; actual != nil {
+				hasUsage = true
+				usage.PromptTokens = actual.InputTokens
+				usage.CompletionTokens = actual.OutputTokens
+				usage.TotalTokens = actual.TotalTokens
+				if actual.InputTokensDetails != nil {
+					usage.PromptTokensDetails.CachedTokens = actual.InputTokensDetails.CachedTokens
+					usage.PromptTokensDetails.CacheWriteTokens = actual.InputTokensDetails.CacheWriteTokens
 				}
+			}
+		}
+		switch streamResponse.Type {
+		case "error", "response.failed":
+			receivedTerminal = true
+			if !upstreamFailed {
+				sr.Error(fmt.Errorf("upstream Responses failure"))
+			}
+			upstreamFailed = true
+			if !imageCommitted {
+				imageCounter.Reset()
+				imageCounter.Commit(info)
+				imageCommitted = true
+			}
+		case "response.completed", "response.done":
+			receivedTerminal = true
+			if streamResponse.Response != nil {
 				if !imageCommitted {
 					if relaycommon.IsNonBillableResponsesStatus(streamResponse.Response.Status) {
 						imageCounter.Reset()
@@ -185,14 +204,17 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 				imageCounter.Commit(info)
 				imageCommitted = true
 			}
-		case "response.failed", "response.incomplete", "response.cancelled", "response.canceled":
+		case "response.incomplete", "response.cancelled", "response.canceled":
+			receivedTerminal = true
+			sr.Error(fmt.Errorf("upstream Responses did not complete: %s", streamResponse.Type))
 			if !imageCommitted {
 				imageCounter.Reset()
 				imageCounter.Commit(info)
 				imageCommitted = true
 			}
-		case "response.output_text.delta":
-			// 处理输出文本
+		case "response.output_text.delta", "response.function_call_arguments.delta",
+			"response.reasoning_text.delta", "response.reasoning_summary_text.delta", "response.refusal.delta":
+			// Only deltas: done events repeat the same content.
 			responseTextBuilder.WriteString(streamResponse.Delta)
 		case dto.ResponsesOutputTypeItemDone:
 			if relaycommon.IsBillableResponsesOutput(streamResponse.Item) {
@@ -223,6 +245,9 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			}
 		}
 	})
+	if !receivedTerminal {
+		info.StreamStatus.RecordError("upstream Responses ended without a terminal event")
+	}
 	if imageCommitted && imageCounter.Count() > 0 {
 		c.Set("image_generation_call", true)
 		c.Set("image_generation_call_count", min(imageCounter.Count(), dto.MaxImageN))
@@ -230,7 +255,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		c.Set("image_generation_call_size", imageSize)
 	}
 
-	if usage.CompletionTokens == 0 {
+	if !hasUsage && !upstreamFailed {
 		// 计算输出文本的 token 数量
 		tempStr := responseTextBuilder.String()
 		if len(tempStr) > 0 {
@@ -240,11 +265,18 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		}
 	}
 
-	if usage.PromptTokens == 0 && usage.CompletionTokens != 0 {
+	if !hasUsage && !upstreamFailed && receivedEvent {
 		usage.PromptTokens = info.GetEstimatePromptTokens()
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 	}
 
-	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	if !hasUsage || usage.TotalTokens == 0 {
+		var clamp *common.QuotaClamp
+		usage.TotalTokens, clamp = common.QuotaFromFloatChecked(float64(usage.PromptTokens) + float64(usage.CompletionTokens))
+		if clamp != nil {
+			info.QuotaClamp = clamp
+		}
+	}
 
 	return usage, nil
 }

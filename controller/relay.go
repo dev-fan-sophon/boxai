@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/common/limiter"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
@@ -77,7 +78,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	var (
 		newAPIError *types.NewAPIError
 		ws          *websocket.Conn
+		outcomeInfo *relaycommon.RelayInfo
 	)
+	defer func() {
+		success := newAPIError == nil && outcomeInfo != nil && c.Request.Context().Err() == nil
+		if outcomeInfo != nil {
+			status := outcomeInfo.StreamStatus
+			if status != nil {
+				success = success && status.IsNormalEnd() && status.EndError == nil && !status.HasErrors()
+			} else if outcomeInfo.IsStream {
+				// A streaming adaptor without a protocol outcome is not proven successful.
+				success = false
+			}
+		}
+		c.Set(limiter.RelayOutcomeKey, success)
+	}()
 
 	if relayFormat == types.RelayFormatOpenAIRealtime {
 		var err error
@@ -121,6 +136,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 
 	relayInfo, err := relaycommon.GenRelayInfo(c, relayFormat, request, ws)
+	outcomeInfo = relayInfo
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return

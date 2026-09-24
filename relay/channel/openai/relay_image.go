@@ -175,12 +175,12 @@ func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
 
-	updateOpenAIImageCount(info, gjson.GetBytes(responseBody, "data.#").Int())
+	updateOpenAIImageCount(info, countOpenAIImagePayloads(responseBody))
 
 	// 写入新的 response body
 	service.IOCopyBytesGracefully(c, resp, responseBody)
 
-	normalizeOpenAIUsage(&usageResp.Usage)
+	normalizeOpenAIUsage(info, &usageResp.Usage, responseBody)
 	applyUsagePostProcessing(info, &usageResp.Usage, responseBody)
 	return &usageResp.Usage, nil
 }
@@ -193,7 +193,7 @@ func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 // previous additive (+=) behavior while avoiding any future double-counting if
 // both field sets are ever populated. Do not reuse this on chat/embedding paths
 // without revisiting the overwrite semantics.
-func normalizeOpenAIUsage(usage *dto.Usage) {
+func normalizeOpenAIUsage(info *relaycommon.RelayInfo, usage *dto.Usage, responseBody []byte) {
 	if usage == nil {
 		return
 	}
@@ -211,9 +211,43 @@ func normalizeOpenAIUsage(usage *dto.Usage) {
 		usage.PromptTokensDetails.TextTokens = usage.InputTokensDetails.TextTokens
 		usage.PromptTokensDetails.AudioTokens = usage.InputTokensDetails.AudioTokens
 	}
-	if usage.TotalTokens == 0 {
-		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	// dto.Usage has only the canonical completion_tokens_details field.
+	if imageTokens := gjson.GetBytes(responseBody, "usage.output_tokens_details.image_tokens"); imageTokens.Type == gjson.Number {
+		value, clamp := common.QuotaFromFloatChecked(imageTokens.Float())
+		usage.CompletionTokenDetails.ImageTokens = value
+		if clamp != nil && info != nil {
+			info.QuotaClamp = clamp
+		}
 	}
+	if usage.TotalTokens == 0 {
+		value, clamp := common.QuotaFromFloatChecked(float64(usage.PromptTokens) + float64(usage.CompletionTokens))
+		usage.TotalTokens = value
+		if clamp != nil && info != nil {
+			info.QuotaClamp = clamp
+		}
+	}
+}
+
+// Count results, not placeholders or metadata-only entries. Leave the existing
+// requested-n fallback intact when upstream supplies no usable payloads.
+func countOpenAIImagePayloads(body []byte) int64 {
+	var count int64
+	for _, image := range gjson.GetBytes(body, "data").Array() {
+		if hasOpenAIImagePayload(image) {
+			count++
+		}
+	}
+	return count
+}
+
+func hasOpenAIImagePayload(image gjson.Result) bool {
+	for _, field := range []string{"url", "b64_json"} {
+		value := image.Get(field)
+		if value.Type == gjson.String && strings.TrimSpace(value.String()) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
@@ -252,7 +286,7 @@ func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 			Usage dto.Usage `json:"usage"`
 		}
 		if err := common.Unmarshal(raw, &chunk); err == nil {
-			normalizeOpenAIUsage(&chunk.Usage)
+			normalizeOpenAIUsage(info, &chunk.Usage, raw)
 			if service.ValidUsage(&chunk.Usage) {
 				usage = &chunk.Usage
 			}
@@ -375,11 +409,12 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 	if oaiError := usageResp.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
-	normalizeOpenAIUsage(&usageResp.Usage)
+	normalizeOpenAIUsage(info, &usageResp.Usage, responseBody)
 	applyUsagePostProcessing(info, &usageResp.Usage, responseBody)
 
 	imageCount := gjson.GetBytes(responseBody, "data.#").Int()
-	updateOpenAIImageCount(info, imageCount)
+	actualImageCount := countOpenAIImagePayloads(responseBody)
+	updateOpenAIImageCount(info, actualImageCount)
 
 	helper.SetEventStreamHeaders(c)
 	c.Status(http.StatusOK)
@@ -403,6 +438,9 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 
 	for i := int64(0); i < imageCount; i++ {
 		image := gjson.GetBytes(responseBody, "data."+strconv.FormatInt(i, 10))
+		if !hasOpenAIImagePayload(image) {
+			continue
+		}
 		payload := []byte(`{"type":"image_generation.completed"}`)
 		payload, err = sjson.SetBytes(payload, "created_at", created)
 		if err != nil {
@@ -445,7 +483,7 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 		return &usageResp.Usage, nil
 	}
 	if info != nil {
-		info.ReceivedResponseCount += int(imageCount)
+		info.ReceivedResponseCount += int(actualImageCount)
 		if info.StreamStatus == nil {
 			info.StreamStatus = relaycommon.NewStreamStatus()
 		}
