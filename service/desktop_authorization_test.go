@@ -103,6 +103,32 @@ func TestDesktopAuthorizationDenial(t *testing.T) {
 	assert.ErrorIs(t, err, ErrDesktopInvalidGrant)
 }
 
+func TestDesktopCodeExchangeRejectsUserDisabledAfterApproval(t *testing.T) {
+	for _, clientID := range []string{DesktopClientID, ConnectClientID} {
+		t.Run(clientID, func(t *testing.T) {
+			user := setupDesktopAuthorizationTest(t)
+			verifier := "0123456789012345678901234567890123456789012"
+			redirect := "http://127.0.0.1:49152/auth/callback"
+			authorization, err := CreateDesktopAuthorization(clientID, redirect, pkce(verifier), "S256", desktopTestState, "Laptop")
+			require.NoError(t, err)
+			code, _, err := DecideDesktopAuthorization(authorization.ID, user.Id, true)
+			require.NoError(t, err)
+			require.NoError(t, model.DB.Model(user).Update("status", common.UserStatusDisabled).Error)
+
+			access, refresh, apiKey, _, err := ExchangeDesktopCode(code, verifier, clientID, redirect)
+			assert.ErrorIs(t, err, ErrDesktopInvalidGrant)
+			assert.Empty(t, access)
+			assert.Empty(t, refresh)
+			assert.Empty(t, apiKey)
+			var tokens, sessions int64
+			require.NoError(t, model.DB.Model(&model.Token{}).Count(&tokens).Error)
+			require.NoError(t, model.DB.Model(&model.DesktopSession{}).Count(&sessions).Error)
+			assert.Zero(t, tokens, "disabled accounts must not receive relay credentials")
+			assert.Zero(t, sessions)
+		})
+	}
+}
+
 // Both desktop products share these endpoints, but a code minted for one must
 // never be redeemable by the other: they mint separate relay keys the user
 // revokes separately.

@@ -191,6 +191,9 @@ func ExchangeDesktopCode(code, verifier, clientID, redirect string) (access, ref
 		if e := tx.First(&user, a.UserID).Error; e != nil {
 			return e
 		}
+		if user.Status != common.UserStatusEnabled {
+			return ErrDesktopInvalidGrant
+		}
 		key, e := common.GenerateKey()
 		if e != nil {
 			return e
