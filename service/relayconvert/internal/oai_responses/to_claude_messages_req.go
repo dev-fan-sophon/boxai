@@ -9,6 +9,7 @@ import (
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	relaymedia "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/media"
 	sharedclaude "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/claude"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/toolresult"
 	"github.com/dev-fan-sophon/boxai/setting/model_setting"
 	"github.com/gin-gonic/gin"
 )
@@ -89,7 +90,17 @@ func OpenAIResponsesRequestToClaudeMessages(c *gin.Context, req *dto.OpenAIRespo
 		case ResponsesInputTypeCustomToolCall:
 			claudeRequest.Messages = appendClaudeToolUse(claudeRequest.Messages, responsesFunctionCallItemToClaudeToolUse(item, "input"))
 		case ResponsesInputTypeFunctionCallOutput, ResponsesInputTypeCustomToolOutput:
-			claudeRequest.Messages = appendClaudeToolResult(claudeRequest.Messages, responsesFunctionOutputItemToClaudeToolResult(item))
+			parts, err := toolresult.Content(item["output"], true)
+			if err != nil {
+				return nil, fmt.Errorf("tool output %s: %w", CallID(item), err)
+			}
+			var content any = parts
+			if text, ok := item["output"].(string); ok {
+				content = text
+			}
+			claudeRequest.Messages = appendClaudeToolResult(claudeRequest.Messages, dto.ClaudeMediaMessage{
+				Type: "tool_result", ToolUseId: CallID(item), Content: content,
+			})
 		default:
 			role := responsesClaudeRole(item)
 			parts, err := responsesInputContentToClaudeMediaMessages(c, item["content"])
@@ -227,21 +238,6 @@ func responsesFunctionCallItemToClaudeToolUse(item map[string]any, inputKey stri
 		Name:  strings.TrimSpace(common.Interface2String(item["name"])),
 		Input: ObjectValue(item[inputKey], inputKey),
 	}
-}
-
-func responsesFunctionOutputItemToClaudeToolResult(item map[string]any) dto.ClaudeMediaMessage {
-	return dto.ClaudeMediaMessage{
-		Type:      "tool_result",
-		ToolUseId: CallID(item),
-		Content:   responsesToolOutputValue(item["output"]),
-	}
-}
-
-func responsesToolOutputValue(value any) any {
-	if value == nil {
-		return ""
-	}
-	return value
 }
 
 func appendClaudeToolUse(messages []dto.ClaudeMessage, toolUse dto.ClaudeMediaMessage) []dto.ClaudeMessage {

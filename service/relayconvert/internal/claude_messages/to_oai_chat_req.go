@@ -9,6 +9,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	relaymeta "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/meta"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/toolresult"
 )
 
 const (
@@ -176,6 +177,12 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 					}
 					toolCalls = append(toolCalls, toolCall)
 				case "tool_result":
+					if len(mediaMessages) > 0 {
+						preceding := dto.Message{Role: claudeMessage.Role}
+						preceding.SetMediaContent(mediaMessages)
+						openAIMessages = append(openAIMessages, preceding)
+						mediaMessages = nil
+					}
 					toolName := mediaMsg.Name
 					if toolName == "" {
 						toolName = claudeRequest.SearchToolNameByToolCallId(mediaMsg.ToolUseId)
@@ -185,13 +192,11 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 						Name:       &toolName,
 						ToolCallId: mediaMsg.ToolUseId,
 					}
-					if mediaMsg.IsStringContent() {
-						oaiToolMessage.SetStringContent(mediaMsg.GetStringContent())
-					} else {
-						mediaContents := mediaMsg.ParseMediaContent()
-						encodedJSON, _ := common.Marshal(mediaContents)
-						oaiToolMessage.SetStringContent(string(encodedJSON))
+					parts, err := toolresult.Content(mediaMsg.Content, false)
+					if err != nil {
+						return nil, fmt.Errorf("tool_result %s: %w", mediaMsg.ToolUseId, err)
 					}
+					oaiToolMessage.Content = parts
 					openAIMessages = append(openAIMessages, oaiToolMessage)
 				}
 			}
@@ -208,7 +213,7 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 		}
 	}
 
-	openAIRequest.Messages = openAIMessages
+	openAIRequest.Messages = toolresult.PromoteChat(openAIMessages)
 	return &openAIRequest, nil
 }
 

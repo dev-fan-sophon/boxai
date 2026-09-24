@@ -8,6 +8,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/toolresult"
 )
 
 const (
@@ -57,7 +58,7 @@ func ResponsesRequestToChatCompletionsRequest(req *dto.OpenAIResponsesRequest) (
 
 	out := &dto.GeneralOpenAIRequest{
 		Model:                req.Model,
-		Messages:             messages,
+		Messages:             toolresult.PromoteChat(messages),
 		Stream:               req.Stream,
 		StreamOptions:        req.StreamOptions,
 		MaxCompletionTokens:  req.MaxOutputTokens,
@@ -181,9 +182,12 @@ func responsesInputItemToChatMessages(item map[string]any, messages []dto.Messag
 			return nil, err
 		}
 		return appendToolCallToLastAssistant(messages, toolCall), nil
-	case responsesInputTypeFunctionCallOutput:
+	case responsesInputTypeFunctionCallOutput, responsesInputTypeCustomToolOutput:
 		callID := strings.TrimSpace(common.Interface2String(item["call_id"]))
-		content := responseToolOutputToChatContent(item["output"])
+		content, err := toolresult.Content(item["output"], true)
+		if err != nil {
+			return nil, fmt.Errorf("tool output %s: %w", callID, err)
+		}
 		return append(messages, dto.Message{Role: "tool", ToolCallId: callID, Content: content}), nil
 	}
 
@@ -509,21 +513,6 @@ func responsesArgumentsString(value any) string {
 		raw, err := common.Marshal(v)
 		if err != nil {
 			return common.Interface2String(v)
-		}
-		return string(raw)
-	}
-}
-
-func responseToolOutputToChatContent(value any) any {
-	switch v := value.(type) {
-	case nil:
-		return ""
-	case string:
-		return v
-	default:
-		raw, err := common.Marshal(v)
-		if err != nil {
-			return fmt.Sprintf("%v", v)
 		}
 		return string(raw)
 	}

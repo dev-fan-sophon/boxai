@@ -604,7 +604,9 @@ func TestConvertRequestResponsesToClaudeUsesDirectConverter(t *testing.T) {
 	require.Len(t, toolResultParts, 1)
 	assert.Equal(t, "tool_result", toolResultParts[0].Type)
 	assert.Equal(t, "call_1", toolResultParts[0].ToolUseId)
-	assert.Equal(t, map[string]any{"ok": true}, toolResultParts[0].Content)
+	outputParts := toolResultParts[0].ParseMediaContent()
+	require.Len(t, outputParts, 1)
+	assert.JSONEq(t, `{"ok":true}`, outputParts[0].GetText())
 }
 
 func TestConvertRequestViaResponsesToGeminiStillUsesDirectSteps(t *testing.T) {
