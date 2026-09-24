@@ -11,6 +11,8 @@ publish = false
 
 [features]
 default = ["gpui-app"]
+# Local native acceptance only. Never enable for distributed installers.
+acceptance = ["gpui-app"]
 gpui-app = [
   "dep:gpui",
   "dep:gpui-kit",

@@ -16,7 +16,7 @@ mod sign_in;
 mod skills;
 mod vendor_icons;
 
-pub use launch::{run, run_launch, run_with_assets};
+pub use launch::{run, run_launch, run_launch_with_assets, run_with_assets};
 
 impl<T> gpui_kit::prelude::HasPhase for crate::AsyncValue<T> {
     fn phase(&self) -> gpui_kit::prelude::Phase {

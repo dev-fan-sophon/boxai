@@ -177,6 +177,30 @@ impl AssetSource for BoxAIAssets {
 fn main() {
     let distribution = &distribution::BOXAI_DISTRIBUTION;
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    #[cfg(feature = "acceptance")]
+    if let [flag, root] = args.as_slice()
+        && flag == "--acceptance-root"
+    {
+        let fixture_distribution = Box::leak(Box::new(gateway_connector_backend::Distribution {
+            product_name: "BoxAI Connect — Offline Acceptance",
+            default_gateway_url: Some("https://acceptance.invalid"),
+            manifest_url: None,
+            release_metadata: None,
+            allow_isolated_root: true,
+            ..*distribution
+        }));
+        let request = gateway_connector_app::isolated::LaunchRequest::from_args(
+            fixture_distribution,
+            [OsString::from("--isolated-root"), root.clone()],
+        )
+        .expect("acceptance requires a new absolute isolated root");
+        gateway_connector_app::gpui_app::run_launch_with_assets(
+            fixture_distribution,
+            request,
+            BoxAIAssets,
+        );
+        return;
+    }
     if uninstall_requested(&args) {
         let result = gateway_connector_backend::install_root()
             .ok_or(gateway_connector_backend::InstallError::MissingProgramDirectory)

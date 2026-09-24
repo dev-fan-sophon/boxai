@@ -484,11 +484,65 @@ impl ConnectorHost {
             }
         })
         .detach();
+        #[cfg(feature = "acceptance")]
+        if view.isolated_layout.is_some() {
+            view.load_acceptance_fixture(cx);
+            return view;
+        }
         view.begin_resume(cx);
         if view.preferences.auto_check_updates {
             view.begin_check_updates(true, cx);
         }
         view
+    }
+
+    /// Read-only rendering fixture. No credentials, discovery, resume, update,
+    /// browser, or network tasks are started in this feature-gated launch.
+    #[cfg(feature = "acceptance")]
+    fn load_acceptance_fixture(&mut self, cx: &mut Context<Self>) {
+        use gateway_connector_backend::ModelDescriptor;
+        let mut profile = ConnectionProfile::new(
+            "Offline acceptance",
+            CanonicalBaseUrl::parse("https://acceptance.invalid").expect("fixture URL"),
+        )
+        .expect("fixture profile");
+        let models = ["gpt-5.4", "claude-sonnet-4-6", "gemini-3.1-pro", "grok-4.6"]
+            .map(|id| ModelDescriptor {
+                id: id.into(),
+                capability: ModelCapability::Chat,
+                owned_by: None,
+                created: None,
+                object: None,
+                metadata: BTreeMap::new(),
+            })
+            .to_vec();
+        for agent in self.distribution.supported_agents {
+            if let Some(selection) = profile.agents.get_mut(agent) {
+                selection.default_model = Some(models[0].id.clone());
+            }
+        }
+        self.state = AppState::connected(ConnectionResult {
+            profile,
+            models,
+            manifest: None,
+            provisioning: None,
+            synchronized_skills: BTreeMap::new(),
+        });
+        if let AppState::Connected { installs, .. } = &mut self.state {
+            installs.value = Some(
+                self.isolated_layout
+                    .as_ref()
+                    .expect("isolated fixture")
+                    .agent_roots()
+                    .discover(),
+            );
+            installs.status = AsyncStatus::Ready;
+        }
+        self.page = Page::Agents;
+        self.capture_applied_choices();
+        self.sync_model_selects(cx);
+        self.sync_protocol_selects(cx);
+        self.sync_codex_selects(cx);
     }
 
     pub(crate) fn text(&self, english: &'static str) -> &'static str {
@@ -583,6 +637,29 @@ impl ConnectorHost {
     }
 
     pub(crate) fn dispatch(&mut self, action: Action, cx: &mut Context<Self>) {
+        #[cfg(feature = "acceptance")]
+        if self.isolated_layout.is_some()
+            && matches!(
+                action,
+                Action::SignIn
+                    | Action::Connect
+                    | Action::ContinueBrowserLogin
+                    | Action::Refresh
+                    | Action::ApplyAgent(_)
+                    | Action::ConfirmDestructive
+                    | Action::CheckUpdates
+                    | Action::OpenDownloadPage
+                    | Action::InstallUpdate
+                    | Action::InstallPackage
+            )
+        {
+            self.toast_warning(
+                cx,
+                "acceptance.read-only",
+                "Offline acceptance: external actions are disabled.",
+            );
+            return;
+        }
         match action {
             Action::SignIn => self.begin_sign_in(cx),
             Action::Connect => self.begin_connect(cx),

@@ -67,7 +67,6 @@ impl ConnectorHost {
                 Card::new()
                     .id("connector.skills.list")
                     .variant(CardVariant::Elevated)
-                    .divided(true)
                     .children(
                         skills
                             .iter()

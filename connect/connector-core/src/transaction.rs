@@ -2965,12 +2965,10 @@ fn project(
                         .iter()
                         .any(|model| model.id == *id && model.is_codex_catalog_model())
                 });
-                if p.models
-                    .iter()
-                    .any(|item| item.id == model && item.is_codex_catalog_model())
-                {
-                    catalog.insert(model.to_owned());
-                }
+                // The explicit selection already passed model/protocol validation.
+                // Discovery can omit endpoint metadata; filtering the selection
+                // again would produce an empty catalog that Codex cannot load.
+                catalog.insert(model.to_owned());
                 d["model_catalog_json"] = value(CODEX_MODEL_CATALOG_FILE);
                 out.push((
                     i.root.join(CODEX_MODEL_CATALOG_FILE),

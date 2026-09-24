@@ -747,12 +747,14 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
             } else {
                 root.join(".claude.json")
             };
+            let settings = root.join("settings.json");
+            let legacy = root.join("claude.json");
             vec![
-                std::path::PathBuf::from(format!(
-                    "{} (fallback: {})",
-                    root.join("settings.json").display(),
-                    root.join("claude.json").display()
-                )),
+                if !settings.exists() && legacy.exists() {
+                    legacy
+                } else {
+                    settings
+                },
                 mcp,
                 root.join("skills/<id>/"),
             ]
@@ -771,14 +773,18 @@ fn write_targets(agent: AgentId, root: Option<&Path>, catalog: bool) -> Vec<Stri
             root.join("skills/<id>/"),
         ],
         AgentId::Grokbuild => vec![root.join("config.toml"), root.join("skills/<id>/")],
-        AgentId::Opencode => vec![
-            std::path::PathBuf::from(format!(
-                "{} (fallback: {})",
-                root.join("opencode.json").display(),
-                root.join("opencode.jsonc").display()
-            )),
-            root.join("skills/<id>/"),
-        ],
+        AgentId::Opencode => {
+            let json = root.join("opencode.json");
+            let jsonc = root.join("opencode.jsonc");
+            vec![
+                if !json.exists() && jsonc.exists() {
+                    jsonc
+                } else {
+                    json
+                },
+                root.join("skills/<id>/"),
+            ]
+        }
         AgentId::Workbuddy => vec![
             root.join("models.json"),
             root.join("settings.json"),
@@ -797,11 +803,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn legacy_targets_are_displayed_with_transaction_fallbacks() {
-        let root = Path::new("/fixture");
-        let claude = write_targets(AgentId::Claude, Some(root), false).join("\n");
-        assert!(claude.contains("settings.json (fallback: /fixture/claude.json)"));
-        let opencode = write_targets(AgentId::Opencode, Some(root), false).join("\n");
-        assert!(opencode.contains("opencode.json (fallback: /fixture/opencode.jsonc)"));
+    fn displayed_targets_follow_actual_transaction_file_precedence() {
+        let directory = tempfile::tempdir().expect("fixture directory");
+        let root = directory.path();
+        for (agent, current, legacy) in [
+            (AgentId::Claude, "settings.json", "claude.json"),
+            (AgentId::Opencode, "opencode.json", "opencode.jsonc"),
+        ] {
+            assert_eq!(
+                write_targets(agent, Some(root), false)[0],
+                root.join(current).display().to_string()
+            );
+            std::fs::write(root.join(legacy), "{}").expect("legacy settings");
+            assert_eq!(
+                write_targets(agent, Some(root), false)[0],
+                root.join(legacy).display().to_string()
+            );
+            std::fs::write(root.join(current), "{}").expect("current settings");
+            assert_eq!(
+                write_targets(agent, Some(root), false)[0],
+                root.join(current).display().to_string()
+            );
+        }
     }
 }

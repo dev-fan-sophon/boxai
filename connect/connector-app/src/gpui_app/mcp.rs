@@ -57,7 +57,6 @@ impl ConnectorHost {
                 Card::new()
                     .id("connector.mcp.list")
                     .variant(CardVariant::Elevated)
-                    .divided(true)
                     .children(
                         servers
                             .iter()

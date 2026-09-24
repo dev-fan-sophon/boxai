@@ -3018,3 +3018,57 @@ fn codex_model_catalog_keeps_native_grok_46() {
         .collect::<Vec<_>>();
     assert_eq!(slugs, vec!["gpt-5.6-sol", "grok-4.6"]);
 }
+
+#[test]
+fn codex_explicit_unknown_metadata_model_has_a_loadable_catalog() {
+    let t = tempdir().unwrap();
+    let (manifest, _) = contracts();
+    let provisioning = Provisioning::parse(br#"{"success":true,"data":{"schema_version":2,"models":[{"id":"selected-direct","chat_capable":true},{"id":"unselected-unknown","chat_capable":true}],"default_model":"selected-direct","mcp_servers":[],"skills":[]}}"#).unwrap();
+    let codex = t.path().join("codex");
+    fs::create_dir_all(&codex).unwrap();
+    let original = b"# preserve user settings\n";
+    fs::write(codex.join("config.toml"), original).unwrap();
+    let connector = Connector::new(t.path().join("state"));
+    let mut agents = selections(&[(
+        AgentId::Codex,
+        "selected-direct",
+        WireProtocol::OpenaiResponses,
+    )]);
+    agents
+        .get_mut(&AgentId::Codex)
+        .unwrap()
+        .codex
+        .catalog_models
+        .insert("unselected-unknown".into());
+    let plan = connector
+        .plan(ApplyInput {
+            manifest: &manifest,
+            provisioning: &provisioning,
+            bearer: &Secret::new("secret").unwrap(),
+            agents,
+            installs: vec![AgentInstall {
+                agent: AgentId::Codex,
+                root: codex.clone(),
+                detected: true,
+            }],
+            synchronized_skills: BTreeMap::new(),
+        })
+        .unwrap();
+    connector.apply(&plan).unwrap();
+    let catalog: Value =
+        serde_json::from_slice(&fs::read(codex.join("connector-model-catalog.json")).unwrap())
+            .unwrap();
+    let models = catalog["models"].as_array().unwrap();
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0]["slug"], "selected-direct");
+    assert!(models[0]["base_instructions"].is_string());
+    assert_eq!(
+        models[0]["supported_reasoning_levels"],
+        serde_json::json!([])
+    );
+    connector
+        .disconnect(&manifest.platform.id, &Secret::new("secret").unwrap())
+        .unwrap();
+    assert_eq!(fs::read(codex.join("config.toml")).unwrap(), original);
+    assert!(!codex.join("connector-model-catalog.json").exists());
+}

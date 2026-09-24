@@ -53,6 +53,26 @@ The current DMG and NSIS setup are unsigned and the macOS app is not notarized.
 The in-app updater independently requires a valid Ed25519 signature. Do not
 describe the OS packages as signed until platform signing is introduced.
 
+## Offline native acceptance
+
+The optional `acceptance` feature is for local rendering/resource checks only;
+never pass it to packaging. Normal production builds still reject isolated
+launches. Use a dedicated Cargo target directory, then run:
+
+```sh
+cargo build --locked --features acceptance --bin boxai-connect
+"$CARGO_TARGET_DIR/debug/boxai-connect" --acceptance-root /absolute/new/fixture-root
+```
+
+On Windows use `$env:CARGO_TARGET_DIR` and `debug/boxai-connect.exe`. The root
+must be new/empty or have a valid isolation marker. Profiles, preferences,
+Agent roots and the projection coordinator resolve only inside that root.
+This read-only fixture bypasses normal resume/authentication and update checks,
+has no credentials, and disables network/install/apply/revoke actions. It is
+not evidence of live authorization or Agent mutation. Change language in
+Settings to exercise English/Vietnamese and relaunch the same root to check
+persistence; its preference file is `data/ui-preferences.json`.
+
 ## BoxAI Media and official Skills
 
 [`catalog.json`](catalog.json) defines the BoxAI Media MCP server and the three

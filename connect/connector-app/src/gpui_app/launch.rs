@@ -84,7 +84,7 @@ pub fn run_with_assets(distribution: &'static Distribution, assets: impl AssetSo
     run_launch_with_assets(distribution, LaunchRequest::Normal, assets);
 }
 
-fn run_launch_with_assets(
+pub fn run_launch_with_assets(
     distribution: &'static Distribution,
     request: LaunchRequest,
     assets: impl AssetSource,

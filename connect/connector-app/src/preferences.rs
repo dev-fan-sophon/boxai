@@ -891,9 +891,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn simplified_chinese_os_variants_are_supported() {
-        assert_eq!(Locale::from_os(Some("zh-CN")), Locale::ZhCn);
-        assert_eq!(Locale::from_os(Some("zh_Hans")), Locale::ZhCn);
+    fn retired_chinese_os_variants_use_english() {
+        assert_eq!(Locale::from_os(Some("zh-CN")), Locale::En);
+        assert_eq!(Locale::from_os(Some("zh_Hans")), Locale::En);
+        assert_eq!(Locale::from_os(Some("vi-VN")), Locale::Vi);
         assert_eq!(Locale::from_os(Some("fr-FR")), Locale::En);
     }
 
@@ -944,6 +945,12 @@ mod tests {
         let json = fs::read_to_string(directory.path().join("preferences.json")).expect("read");
         assert!(!json.contains("credential"));
         assert!(!json.contains("token"));
+        let vietnamese = Preferences {
+            locale: Locale::Vi,
+            ..expected
+        };
+        store.save(&vietnamese).expect("switch to Vietnamese");
+        assert_eq!(store.load(), vietnamese);
     }
 
     #[test]
