@@ -121,11 +121,25 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var secondLastStreamData string // 存储倒数第二个stream data，用于音频模型
 	seenStreamToolCalls := make(map[string]struct{})
 	var streamFunctionCallNames []string
+	var streamErr *types.NewAPIError
 
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
+		var chunk dto.ChatCompletionsStreamResponse
+		if common.UnmarshalJsonStr(data, &chunk) == nil {
+			for _, choice := range chunk.Choices {
+				if choice.FinishReason != nil && *choice.FinishReason == "error" {
+					streamErr = types.NewOpenAIError(fmt.Errorf("upstream returned finish_reason=error"), types.ErrorCodeBadResponse, http.StatusBadGateway)
+					if c.Writer.Written() {
+						types.ErrOptionWithSkipRetry()(streamErr)
+					}
+					sr.Stop(streamErr)
+					return
+				}
+			}
+		}
 		if lastStreamData != "" {
 			if err := HandleStreamFormat(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent); err != nil {
 				common.SysLog("error handling stream format: " + err.Error())
@@ -146,6 +160,12 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 		}
 	})
+
+	// Earlier chunks may already be committed; leave error emission to the caller
+	// and do not finalize the stream or return successful, billable usage.
+	if streamErr != nil {
+		return nil, streamErr
+	}
 
 	// 对音频模型，从倒数第二个stream data中提取usage信息
 	if isAudioModel && secondLastStreamData != "" {
@@ -251,6 +271,12 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 
 	if oaiError := simpleResponse.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
+	}
+
+	for _, choice := range simpleResponse.Choices {
+		if choice.FinishReason == "error" {
+			return nil, types.NewOpenAIError(fmt.Errorf("upstream returned finish_reason=error"), types.ErrorCodeBadResponse, http.StatusBadGateway)
+		}
 	}
 
 	for _, choice := range simpleResponse.Choices {

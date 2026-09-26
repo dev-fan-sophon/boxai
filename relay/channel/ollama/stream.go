@@ -12,9 +12,11 @@ import (
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
+	"github.com/dev-fan-sophon/boxai/relay/channel/openai"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/relay/helper"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
@@ -96,6 +98,25 @@ func toUnix(ts string) int64 {
 	return t.Unix()
 }
 
+// Ollama includes cache hits in prompt_eval_count; Claude input_tokens excludes them.
+// Keep the original usage intact for billing and OpenAI clients.
+func ollamaClaudeUsage(usage *dto.Usage) *dto.Usage {
+	converted := *usage
+	converted.PromptTokens = max(0, usage.PromptTokens-usage.PromptTokensDetails.CachedTokens)
+	return &converted
+}
+
+func ollamaStreamResponse(c *gin.Context, info *relaycommon.RelayInfo, response *dto.ChatCompletionsStreamResponse) error {
+	data, err := common.Marshal(response)
+	if err != nil {
+		return err
+	}
+	if info.RelayFormat != types.RelayFormatClaude {
+		return helper.StringData(c, string(data))
+	}
+	return openai.HandleStreamFormat(c, info, string(data), false, false)
+}
+
 func ollamaStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	if resp == nil || resp.Body == nil {
 		return nil, types.NewOpenAIError(fmt.Errorf("empty response"), types.ErrorCodeBadResponse, http.StatusBadRequest)
@@ -110,8 +131,8 @@ func ollamaStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 	var created = time.Now().Unix()
 	var toolCallIndex int
 	start := helper.GenerateStartEmptyResponse(responseId, created, model, nil)
-	if data, err := common.Marshal(start); err == nil {
-		_ = helper.StringData(c, string(data))
+	if err := ollamaStreamResponse(c, info, start); err != nil {
+		return usage, types.NewError(err, types.ErrorCodeBadResponseBody)
 	}
 
 	for scanner.Scan() {
@@ -168,8 +189,32 @@ func ollamaStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 			if chunk.Message != nil && len(chunk.Message.ToolCalls) > 0 {
 				delta.Choices[0].Delta.ToolCalls, toolCallIndex = ollamaToolCallsToOpenAI(chunk.Message.ToolCalls, toolCallIndex, true)
 			}
-			if data, err := common.Marshal(delta); err == nil {
-				_ = helper.StringData(c, string(data))
+			if info.RelayFormat == types.RelayFormatClaude {
+				// The shared converter consumes one block type per delta. Ollama can
+				// return thinking, text and tools together, so send each in order.
+				original := delta.Choices[0].Delta
+				parts := []dto.ChatCompletionsStreamResponseChoiceDelta{}
+				if reasoning := original.GetReasoningContent(); reasoning != "" {
+					part := dto.ChatCompletionsStreamResponseChoiceDelta{}
+					part.SetReasoningContent(reasoning)
+					parts = append(parts, part)
+				}
+				if content := original.GetContentString(); content != "" {
+					part := dto.ChatCompletionsStreamResponseChoiceDelta{}
+					part.SetContentString(content)
+					parts = append(parts, part)
+				}
+				if len(original.ToolCalls) > 0 {
+					parts = append(parts, dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: original.ToolCalls})
+				}
+				for _, part := range parts {
+					delta.Choices[0].Delta = part
+					if err := ollamaStreamResponse(c, info, &delta); err != nil {
+						return usage, types.NewError(err, types.ErrorCodeBadResponseBody)
+					}
+				}
+			} else if err := ollamaStreamResponse(c, info, &delta); err != nil {
+				return usage, types.NewError(err, types.ErrorCodeBadResponseBody)
 			}
 			continue
 		}
@@ -185,6 +230,17 @@ func ollamaStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 		if toolCallIndex > 0 {
 			finishReason = constant.FinishReasonToolCalls
+		}
+		if info.RelayFormat == types.RelayFormatClaude {
+			stop := helper.GenerateStopResponse(responseId, created, model, finishReason)
+			stop.Usage = ollamaClaudeUsage(usage)
+			data, err := common.Marshal(stop)
+			if err != nil {
+				return usage, types.NewError(err, types.ErrorCodeBadResponseBody)
+			}
+			info.SendResponseCount++
+			openai.HandleFinalResponse(c, info, string(data), responseId, created, model, "", stop.Usage, true)
+			break
 		}
 		// emit stop delta
 		if stop := helper.GenerateStopResponse(responseId, created, model, finishReason); stop != nil {
@@ -340,7 +396,31 @@ func ollamaChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 		}},
 		Usage: *usage,
 	}
-	out, _ := common.Marshal(full)
+	var output any = &full
+	if info.RelayFormat == types.RelayFormatClaude {
+		// StringContent used by the converter expects a string, not *string.
+		full.Choices[0].Message.SetStringContent(content)
+		full.Usage = *ollamaClaudeUsage(usage)
+		result, err := relayconvert.ConvertResponse(c, info, types.RelayFormatClaude, &full)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		}
+		claudeResponse, ok := result.Value.(*dto.ClaudeResponse)
+		if !ok {
+			return nil, types.NewError(fmt.Errorf("expected Claude response, got %T", result.Value), types.ErrorCodeBadResponseBody)
+		}
+		// The shared non-stream converter currently maps text and tools only.
+		if msg.ReasoningContent != nil {
+			claudeResponse.Content = append([]dto.ClaudeMediaMessage{{
+				Type: "thinking", Thinking: msg.ReasoningContent,
+			}}, claudeResponse.Content...)
+		}
+		output = claudeResponse
+	}
+	out, err := common.Marshal(output)
+	if err != nil {
+		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+	}
 	service.IOCopyBytesGracefully(c, resp, out)
 	return usage, nil
 }
