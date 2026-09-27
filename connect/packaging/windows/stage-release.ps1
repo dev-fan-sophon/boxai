@@ -95,6 +95,7 @@ try {
     }
     $script = Join-Path $PSScriptRoot 'installer.nsi'
     & $makensis `
+        '/INPUTCHARSET' 'UTF8' `
         "/DPRODUCT_VERSION=$($versionParts -join '.')" `
         "/DSOURCE_EXE=$(Join-Path $stage $exeName)" `
         "/DOUTPUT_FILE=$artifact" `

@@ -172,7 +172,9 @@ namespace BoxAI {
 }
 
 $resourceLanguage = [uint16]0x0409
-$iconResources = [BoxAI.ReleaseResourceInspector]::Inspect($ExecutablePath, 3, $resourceLanguage)
+# go-winres stores image payloads as neutral; only the icon group is localized.
+$iconLanguage = [uint16]0x0000
+$iconResources = [BoxAI.ReleaseResourceInspector]::Inspect($ExecutablePath, 3, $iconLanguage)
 $groupIconResources = [BoxAI.ReleaseResourceInspector]::Inspect($ExecutablePath, 14, $resourceLanguage)
 $versionResources = [BoxAI.ReleaseResourceInspector]::Inspect($ExecutablePath, 16, $resourceLanguage)
 $iconCount = $iconResources[0]
@@ -182,7 +184,7 @@ if ($iconCount -ne $metadata.windows_icon_images -or $groupIconCount -ne 1 -or $
     throw "required PE resource counts differ: RT_ICON=$iconCount RT_GROUP_ICON=$groupIconCount RT_VERSION=$versionCount"
 }
 if ($iconResources[1] -ne 0 -or $groupIconResources[1] -ne 0 -or $versionResources[1] -ne 0) {
-    throw 'icon and version resources must use the expected Windows language identifier 0x0409'
+    throw 'icon images must use language 0x0000; icon groups and version resources must use 0x0409'
 }
 $manifest = [BoxAI.ReleaseResourceInspector]::ReadIntResource($ExecutablePath, 24, 1)
 if ($manifest -notmatch '(?i)<dpiAwareness[^>]*>permonitorv2(?:,system)?</dpiAwareness>') {
@@ -288,6 +290,7 @@ $artifactHash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash
         group_icon = $groupIconCount
         version = $versionCount
         language = ('0x{0:X4}' -f $resourceLanguage)
+        icon_language = ('0x{0:X4}' -f $iconLanguage)
     }
     product_name = $version.ProductName
     file_description = $version.FileDescription
