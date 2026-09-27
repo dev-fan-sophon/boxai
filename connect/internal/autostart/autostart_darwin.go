@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const label = "com.yetone.magpie"
+const label = "com.boxai.connect"
 
 func record() string {
 	home, _ := os.UserHomeDir()

@@ -3,6 +3,8 @@ package provider
 import (
 	"errors"
 	"sync/atomic"
+
+	"github.com/yetone/magpie/internal/boxai"
 )
 
 var boxAIOnly atomic.Bool
@@ -19,6 +21,27 @@ var boxAIPreset = PresetDef{
 	Chat: "https://you-box.com/v1", Responses: "https://you-box.com/v1",
 	Anthropic: "https://you-box.com", Website: "https://you-box.com",
 	KeysURL: "https://you-box.com/keys",
+}
+
+func authenticatedBoxAI(stored []Provider) []Provider {
+	token := boxai.CachedToken()
+	if token == "" {
+		return nil
+	}
+	p := Provider{ID: "boxai"}
+	for _, saved := range stored {
+		if saved.ID == "boxai" {
+			p = saved
+			break
+		}
+	}
+	p.Account, p.Decide, p.ModelsURL, p.BalanceURL = nil, "", "", ""
+	p.Chat, p.Responses, p.Anthropic = boxAIPreset.Chat, boxAIPreset.Responses, boxAIPreset.Anthropic
+	p.Name, p.Preset, p.Icon = "BoxAI", "boxai", boxAIPreset.Icon
+	// A manually configured key or auth header must never bypass the session.
+	p.Key, p.Keys, p.Headers, p.KeyProtocol = token, nil, nil, ""
+	p.BalanceToken = ""
+	return []Provider{normalize(p)}
 }
 
 // Accept the normal preset/key form, but never a substitute relay endpoint.

@@ -1,12 +1,15 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
 	"sync"
 
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/provider"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,6 +32,9 @@ var syncing struct {
 // Errors are left for the picker: a file magpie can't write now is one the
 // next change, or a pick, writes.
 func SyncCatalog() {
+	if provider.BoxAIOnly() && boxai.Require(context.Background()) != nil {
+		return
+	}
 	syncing.Lock()
 	if syncing.running {
 		syncing.again = true

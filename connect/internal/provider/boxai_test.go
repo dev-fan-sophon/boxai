@@ -1,13 +1,22 @@
 package provider
 
 import (
+	"context"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yetone/magpie/internal/boxai"
 )
+
+type boxAITransport func(*http.Request) (*http.Response, error)
+
+func (f boxAITransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestBoxAIProviderConfiguration(t *testing.T) {
 	home := t.TempDir()
@@ -35,15 +44,30 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	id, err := Add(p)
 	require.NoError(t, err)
 	assert.Equal(t, "boxai", id)
-	require.NoError(t, AddKey(id, "Team", "second-test-key", Responses))
+	manual := load()
+	manual.Providers[1].Key = "manual-key-before-browser-login"
+	manual.Providers[1].Keys = []KeyAccount{{Key: "manual-secondary-key"}}
+	manual.Providers[1].Headers = map[string]string{"Authorization": "Bearer manual-override"}
+	require.NoError(t, store(manual))
+	assert.Empty(t, All(), "a provider file cannot bypass browser login")
+	// Validate a persisted browser session without making production calls.
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(Path()), "auth.json"), []byte(`{"session":"sk-browser-test-session"}`), 0600))
+	transport := http.DefaultTransport
+	http.DefaultTransport = boxAITransport(func(r *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/api/v1/connector/provisioning", r.URL.Path)
+		assert.Equal(t, "Bearer sk-browser-test-session", r.Header.Get("Authorization"))
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"success":true,"data":{"account":{"id":1},"usage":{},"billing":{}}}`))}, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = transport })
+	require.NoError(t, boxai.Require(context.Background()))
 	saved, err := Find(id)
 	require.NoError(t, err)
 	assert.Equal(t, "https://you-box.com/v1", saved.Chat)
 	assert.Equal(t, "https://you-box.com/v1", saved.Responses)
 	assert.Equal(t, "https://you-box.com", saved.Anthropic)
 	assert.Equal(t, p.Models, saved.Models)
-	require.Len(t, saved.KeysOn(), 2)
-	assert.Equal(t, Responses, saved.KeysOn()[1].Protocol)
+	require.Len(t, saved.KeysOn(), 1)
+	assert.Equal(t, "sk-browser-test-session", saved.Key)
 	saved.Routing = Rotate
 	require.NoError(t, Save(*saved))
 	assert.Equal(t, Rotate, All()[0].Routing)
@@ -57,6 +81,11 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 
 	before, err := os.ReadFile(Path())
 	require.NoError(t, err)
+	assert.NotContains(t, string(before), "sk-browser-test-session")
+	assert.Contains(t, string(before), "manual-key-before-browser-login")
+	assert.Contains(t, string(before), "manual-secondary-key")
+	assert.Contains(t, string(before), "manual-override")
+	assert.Empty(t, saved.Headers, "a stored Authorization header must not override the session")
 	for name, change := range map[string]func(*Provider){
 		"other ID":           func(p *Provider) { p.ID = "other" },
 		"other preset":       func(p *Provider) { p.Preset = "openai" },

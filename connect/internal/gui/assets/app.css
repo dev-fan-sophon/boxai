@@ -1145,3 +1145,18 @@ body.panel .modal { padding: 16px 12px; }
 .editor .fname { flex: 1; min-width: 0; font-size: 12.5px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor.sync-form .done { grid-column: 1 / -1; font-size: 12.5px; color: var(--fg-2); user-select: text; -webkit-user-select: text; }
 .editor.sync-form .bar { grid-column: 1 / -1; }
+
+/* The authenticated app keeps Magpie's layout; the gate is a separate surface. */
+body.boxai-locked > :not(#loginGate):not(script) { display: none !important; }
+.login-gate { margin: auto; width: min(420px, 100%); padding: 32px; text-align: center; }
+.login-gate h1 { font-size: 22px; margin: 0 0 16px; }
+.login-gate p { color: var(--fg-2); line-height: 1.6; overflow-wrap: anywhere; }
+.login-actions, .boxai-actions { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin: 24px 0; }
+.login-actions button { padding: 9px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
+#boxaiLogin { background: var(--accent); color: var(--accent-fg); }
+#loginState { min-height: 44px; }
+#view-providers, #panelQuota, #view-usage > :not(#boxaiUsage) { display: none !important; }
+.boxai-value { color: var(--fg-2); overflow-wrap: anywhere; text-align: right; user-select: text; -webkit-user-select: text; }
+#view-account .pref, #boxaiUsage .pref { gap: 24px; }
+#view-account h2, #boxaiUsage h2 { margin: 18px 0 12px; }
+.boxai-subscription { margin-bottom: 16px; }

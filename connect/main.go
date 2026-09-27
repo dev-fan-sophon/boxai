@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/yetone/magpie/internal/agent"
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/claudebridge"
 	"github.com/yetone/magpie/internal/davsync"
@@ -91,15 +92,37 @@ func main() {
 
 func run(args []string) error {
 	if provider.BoxAIOnly() && len(args) > 0 && (args[0] == "accounts" || args[0] == "account" || args[0] == "grok-token") {
-		return fmt.Errorf("BoxAI is the only supported provider; configure its API key with magpie provider")
+		return fmt.Errorf("open BoxAI Connect and sign in on the website to manage your BoxAI account")
 	}
 	// internal: the auth provider of a Grok run behind the gateway, asked
 	// for a token often; nothing else of magpie's needs to start for it
 	if len(args) == 3 && args[0] == "grok-token" {
 		return provider.GrokToken(os.Stdout, args[1], args[2], os.Getenv("GROK_AUTH_EXPIRED") == "1")
 	}
+	// GUI entry points must be able to display the browser login gate. CLI
+	// operations use the same saved session before touching agent files.
+	needsAuth := true
+	if len(args) == 0 && hasGUI {
+		needsAuth = false
+	}
+	if len(args) > 0 {
+		switch args[0] {
+		case "app", "gui", "tray", "serve", "-h", "--help", "help", "-v", "--version", "version":
+			needsAuth = false
+		}
+		if hasGUI && strings.HasPrefix(strings.ToLower(args[0]), "magpie:") {
+			needsAuth = false
+		}
+	}
+	if provider.BoxAIOnly() && needsAuth {
+		if err := boxai.Require(context.Background()); err != nil {
+			return fmt.Errorf("open BoxAI Connect and sign in on the website: %w", err)
+		}
+	}
 	settings.Migrate()
-	agent.RenameLegacy()
+	if !provider.BoxAIOnly() || needsAuth {
+		agent.RenameLegacy()
+	}
 	// a provider added, edited or removed, or a list fetched anew, reaches
 	// the model lists agents keep in files of their own
 	catalog.Changed = agent.SyncCatalog

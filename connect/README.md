@@ -1,13 +1,19 @@
 # BoxAI Connect
 
 Fork of [yetone/magpie](https://github.com/yetone/magpie) at
-`03a01a548df3d52fee86197fc2d0ff234b9fdfab`, with BoxAI branding and BoxAI as the
-only provider. Paste a BoxAI API key in the original Providers editor; keys
-remain in `~/.config/magpie/providers.json`. Multiple keys, model selection,
-routing, agents and the resource library retain the upstream UI and behavior.
-Other provider records already on disk are not loaded or used; adding BoxAI
-does not delete them. Subscription sign-ins and third-party provider imports
-are unavailable. No browser-login requirement or new credential store is added.
+`f7e38d0d2ebdf954f25aa09b351157ca8f9bd1f3`, with BoxAI branding and BoxAI as the
+only provider. Sign in through the BoxAI website before using the application.
+Browser PKCE authorization returns a revocable Connect credential kept in
+`~/.config/magpie/auth.json` (private local JSON, no Keychain). Manual provider
+keys cannot bypass sign-in and the cloud credential is not copied into agent
+configuration or provider backups.
+
+The original agent, gateway, routing and library views remain. Navigation is
+Agents, Gateway, Routing, Usage, Library, Account. Account shows identity and
+sign-out; Usage shows BoxAI's account-wide wallet, lifetime consumption and
+subscription counters in raw quota units, not local estimated prices. No model
+plaza or replacement resource library is introduced. Legacy third-party
+provider records are not used or deleted.
 
 The original project documentation follows for reference (its third-party
 provider and subscription instructions do not apply to this fork); the MIT

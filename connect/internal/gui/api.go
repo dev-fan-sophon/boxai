@@ -16,6 +16,7 @@ import (
 
 	"github.com/yetone/magpie/internal/agent"
 	"github.com/yetone/magpie/internal/autostart"
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/gateway"
 	"github.com/yetone/magpie/internal/library"
@@ -150,13 +151,21 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		served.Store(gw)
 	}
 	mux := http.NewServeMux()
+	if provider.BoxAIOnly() {
+		var openURL func(string)
+		if w != nil {
+			openURL = w.OpenURL
+		}
+		mux.Handle("/api/boxai/", boxai.Handler(openURL))
+		mux.HandleFunc("GET /api/boxai/account", boxai.AccountHandler)
+	}
 	mux.Handle("/", devPage(http.FileServer(http.FS(staticFS()))))
 	devRoutes(mux)
 	// boot.js hands the page the saved language and theme before it paints:
 	// they came only with the settings, so the tabs showed English first
 	mux.HandleFunc("GET /boot.js", func(rw http.ResponseWriter, r *http.Request) {
 		s := settings.Load()
-		b, _ := json.Marshal(map[string]string{"lang": s.Lang, "theme": s.Theme})
+		b, _ := json.Marshal(map[string]string{"lang": s.Lang, "theme": s.Theme, "uiToken": boxai.UIToken})
 		rw.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		rw.Header().Set("Cache-Control", "no-store")
 		rw.Write(append(append([]byte("window.bootPrefs = "), b...), ";\n"...))
@@ -397,13 +406,16 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		}
 		rw.WriteHeader(http.StatusNoContent)
 	})
-	handler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if provider.BoxAIOnly() && (strings.HasPrefix(r.URL.Path, "/api/signin") || strings.HasPrefix(r.URL.Path, "/api/login/") || strings.HasPrefix(r.URL.Path, "/api/import")) {
 			http.NotFound(rw, r)
 			return
 		}
 		mux.ServeHTTP(rw, r)
 	})
+	if provider.BoxAIOnly() {
+		handler = boxai.Guard(handler)
+	}
 	devListen(handler)
 	return handler
 }

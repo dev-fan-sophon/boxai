@@ -31,6 +31,7 @@ import (
 
 	"github.com/yetone/magpie/internal/agent"
 	"github.com/yetone/magpie/internal/backup"
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/profile"
 	"github.com/yetone/magpie/internal/provider"
@@ -198,6 +199,11 @@ func Now(ctx context.Context) error {
 	c, ok := Load()
 	if !ok {
 		return nil
+	}
+	if provider.BoxAIOnly() {
+		if err := boxai.Require(ctx); err != nil {
+			return err
+		}
 	}
 	st := loadState()
 	if st.Key != stateKey(c) { // another folder or passphrase: start afresh

@@ -692,6 +692,7 @@ function fit(extra = 0, glide) {
 }
 
 async function load() {
+  if (!boxai.authenticated) return;
   if (!load.done) renderAgentsLoading();
   if (view === "providers" && !providers) renderProvidersLoading();
   try {
@@ -701,7 +702,7 @@ async function load() {
     if (applyPrefs(state.settings) && view === "library") window.loadLibrary?.();
     tintPanel();
     renderAgents();
-    if (mode === "panel") { renderPanelQuota(); loadQuotas(); }
+    if (mode === "panel") $("#panelQuota").hidden = true;
     // an open provider editor is someone typing: coming back to the window
     // must not rebuild it under them
     if ((view === "providers" || view === "gateway") && !(editing || adding)) await loadProviders();
@@ -717,6 +718,7 @@ async function load() {
 // downloaded (a click restarts into it) or, where magpie can't replace
 // itself, out (a click opens the release page).
 async function renderUpdateBadge() {
+  if (!boxai.authenticated) return;
   const b = $("#update"), label = b.querySelector("span");
   const u = await api("update").catch(() => null);
   // pulling: a click is downloading it again, and restarts once it's in
@@ -1179,13 +1181,8 @@ $("#save").onclick = () => {
 
 async function loadProviders() {
   if (view === "gateway") renderGatewayLoading();
-  else if (!providers) renderProvidersLoading();
   providers = await api("providers");
-  // a reload's provider may be gone since
-  if (typeof editing === "string" && !providers.providers.some((p) => p.id === editing)) editing = null;
-  if (!providers.providers.length && editing === null) adding = true;
   if (view === "gateway") renderGatewayView();
-  else renderProviders();
 }
 
 // Rows in the shape of the list while it is first asked for; a reload keeps
@@ -1207,62 +1204,10 @@ function renderProvidersLoading() {
   $("#excluded").replaceChildren();
 }
 
-// One row per provider: logo, name, the agents pointed at it, key status.
-// Everything else lives in the editor, a dialog over the page.
+// Old provider links now lead to the BoxAI account, never a vendor editor.
 function renderProviders() {
-  // Rebuilding the list empties the page for a moment, which clamps its
-  // scroll to the top; put it back so closing the editor leaves the reader
-  // where they were.
-  const view = $("#view-providers"), top = view.scrollTop;
-  view.classList.remove("loading");
-  view.removeAttribute("aria-busy");
-  closeProtoMenu();
-  syncURL();
-  const list = $("#providers");
-  list.replaceChildren();
-  list.hidden = !providers.providers.length;
-  let dialog = null; // the editor, if one is open
-  for (const p of providers.providers) {
-    const open = editing === p.id;
-    const row = el("div", "row provider" + (open ? " selected" : ""));
-    row.dataset.id = p.id;
-    const who = el("div", "who");
-    const name = el("div", "name", p.name);
-    if (p.sponsored) name.append(el("span", "badge", t("sponsored")));
-    const n = p.models.filter((m) => m.on).length;
-    const models = n ? t(n === 1 ? "{n} model" : "{n} models", { n }) : t("no models exposed");
-    who.append(name, el("div", "sub", (p.account ? t("signed in as {user}", { user: p.account.user }) : p.host) + " · " + models));
-    const using = p.agents.filter((a) => a.current);
-    const uses = el("div", "uses");
-    for (const a of using) {
-      const b = el("button", "use");
-      b.title = a.group ? t("{name} · {model}, through the routing group {group} — click to change", { name: a.name, model: a.model, group: a.group })
-        : t("{name} · {model} — click to change", { name: a.name, model: a.model });
-      b.append(icon(a.icon));
-      b.onclick = (ev) => pickForAgent(a, p, b, ev);
-      uses.append(b);
-    }
-    let key;
-    if (p.account) {
-      key = el("span", "key acct", accountPlan(p.account));
-      key.title = t("{agent} is signed in; its models are here for every other agent", { agent: p.account.agentName });
-    } else {
-      key = el("span", "key " + (p.key.set ? (keyPill(p) === p.key.masked ? "on" : "on acct") : p.ready ? "free" : "none"), p.key.set ? keyPill(p) : p.ready ? t("no key") : t("needs a key"));
-      key.title = p.key.set ? t("API key {masked}", { masked: p.key.masked }) : p.ready ? t("Local servers need no key") : t("Open the row and paste an API key");
-    }
-    const chev = el("span", "chev");
-    chev.append(svg(CHEV_R, 11, 1.7));
-    row.append(icon(p.icon || "generic"), who, uses, key, chev);
-    row.onclick = () => { editing = open ? null : p.id; draft = null; renderProviders(); }; // the preset sheet stays as it is under the dialog
-    list.append(row);
-    if (open) dialog = renderEditor(p);
-  }
-  renderExcluded();
-  dialog = renderAdd() || dialog;
-  if (importing) dialog = renderImport(importing);
-  if (importingApps) dialog = renderImportApps(importingApps);
-  if (dialog) openModal(dialog); else closeModal();
-  view.scrollTop = top;
+  editing = null; draft = null; adding = false;
+  show("account");
 }
 
 // Sign-ins magpie found but leaves alone, so nobody wonders why an agent that
@@ -3588,10 +3533,7 @@ const PERIODS = [["today", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["all
 // never waits for them. They don't depend on the period either.
 let quotas = null;
 async function loadUsage() {
-  renderUsageLoading();
-  loadQuotas();
-  usage = await api("usage?period=" + period);
-  renderUsage();
+  await boxai.loadUsage();
 }
 
 let quotasLoading = null;
@@ -4410,17 +4352,20 @@ for (const v of document.querySelectorAll(".view")) {
 }
 
 function show(v) {
+  if (!boxai.authenticated) return;
+  if (v === "providers") v = "account";
   view = v;
   if (mode === "window") { for (const b of $("#nav").querySelectorAll("button")) b.classList.toggle("on", b.dataset.view === v); slide($("#nav"), "nav"); }
   $("#prefs").classList.toggle("on", v === "settings");
-  for (const id of ["agents", "providers", "gateway", "routing", "usage", "library", "settings"]) $("#view-" + id).hidden = v !== id;
+  for (const id of ["agents", "providers", "gateway", "routing", "usage", "library", "account", "settings"]) $("#view-" + id).hidden = v !== id;
   // back to where the reader was in it, and again once it has what it loads
   const back = () => backToReader($("#view-" + v));
   requestAnimationFrame(back);
   closePicker();
-  if (v !== "providers" && editing !== null) cancelEdit();
+  editing = null; draft = null; adding = false;
   if (v === "providers" || v === "gateway" || v === "routing") loadProviders().then(back, (e) => status(e.message, "err"));
   if (v === "usage") loadUsage().then(back, (e) => status(e.message, "err"));
+  if (v === "account") boxai.loadAccount().then(back, (e) => status(e.message, "err"));
   if (v === "settings") loadSettings().then(back, (e) => status(e.message, "err"));
   if (v === "library") window.loadLibrary?.()?.then(back);
   syncURL();
@@ -4519,7 +4464,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { lo
 // window is up: ask what drifted now and then, and redraw only on a change —
 // never under an open menu
 setInterval(async () => {
-  if (document.hidden || !state?.agents || document.querySelector(".pop:not([hidden])")) return;
+  if (!boxai.authenticated || document.hidden || !state?.agents || document.querySelector(".pop:not([hidden])")) return;
   let drift;
   try { drift = await api("drift"); } catch { return; }
   let changed = false;
@@ -4608,18 +4553,4 @@ setInterval(renderUpdateBadge, 15 * 60 * 1000); // a window left open still hear
   setMasked(masked);
 })();
 
-// Opened on a magpie://import link: fetch what it describes (once — the
-// id is spent) and ask before adding it.
-if (mode === "window" && params.get("import")) {
-  const id = params.get("import");
-  params.delete("import");
-  history.replaceState(null, "", "?" + params);
-  api("import/" + encodeURIComponent(id)).then((im) => {
-    importing = im;
-    if (providers && view === "providers") renderProviders();
-  }).catch(() => {});
-}
-if (mode === "window" && params.get("view") === "providers" && params.get("edit")) editing = params.get("edit");
-if (mode === "window" && ["providers", "gateway", "routing", "usage", "library", "settings"].includes(params.get("view"))) show(params.get("view"));
-else if (mode === "window") slide($("#nav"), "nav");
-load();
+boxai.start();

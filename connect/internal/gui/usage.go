@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/agent"
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/usage"
 )
@@ -61,6 +62,10 @@ func usageState(p usage.Period) usageJSON {
 
 func usageRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/usage", func(rw http.ResponseWriter, r *http.Request) {
+		if provider.BoxAIOnly() {
+			boxai.AccountHandler(rw, r)
+			return
+		}
 		p := usage.Period(r.URL.Query().Get("period"))
 		switch p {
 		case usage.Today, usage.Week, usage.Month, usage.All:
@@ -74,6 +79,10 @@ func usageRoutes(mux *http.ServeMux) {
 	// vendors, which can be slow or unreachable, so the page asks for them
 	// apart from the local log.
 	mux.HandleFunc("GET /api/usage/quotas", func(rw http.ResponseWriter, r *http.Request) {
+		if provider.BoxAIOnly() {
+			boxai.AccountHandler(rw, r)
+			return
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 		defer cancel()
 		writeJSON(rw, provider.Quotas(ctx))

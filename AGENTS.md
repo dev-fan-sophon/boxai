@@ -59,10 +59,11 @@ connect/       — BoxAI Connect (Go/Wails app with an always-running local gate
 do not reintroduce the removed GPUI or Tauri Connect implementations.
 
 **Connect is being forked incrementally from Magpie.** Preserve the complete
-upstream project, UI, interactions and features. The current step changes only
-visible BoxAI branding; BYOK/provider configuration is a separate next step.
-Do not reintroduce the custom Connect UI, browser-login gate, five-agent limit,
-official-only library restrictions or custom migration/update machinery.
+upstream project, UI and interactions except the requested BoxAI-only adaptation.
+The app has a website-authorization login gate, private local auth.json storage,
+no Providers tab, a final Account tab and server-reported BoxAI Usage.
+Do not reintroduce the custom Connect UI, five-agent limit, official-only library
+restrictions, Keychain storage or custom migration/update machinery.
 Leave Desktop authentication unchanged. Preserve the upstream MIT license and
 do not add per-file license header blocks under `connect/`.
 

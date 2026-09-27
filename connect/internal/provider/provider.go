@@ -192,12 +192,7 @@ func store(f file) error {
 func All() []Provider {
 	stored := load().Providers
 	if BoxAIOnly() {
-		for _, p := range stored {
-			if p, err := boxAIProvider(p); err == nil {
-				return []Provider{normalize(p)}
-			}
-		}
-		return nil
+		return authenticatedBoxAI(stored)
 	}
 	picks := map[string]Provider{}
 	var out []Provider
@@ -311,11 +306,21 @@ func Save(p Provider) error {
 		if p.Chat == "" && p.Responses == "" && p.Anthropic == "" && p.Decide == "" {
 			return errors.New("a provider needs a base URL")
 		}
-		if p.Key == "" && !keyOptional(p) {
+		if p.Key == "" && !keyOptional(p) && !BoxAIOnly() {
 			return fmt.Errorf("%s needs an API key", p.Name)
 		}
 	}
 	f := load()
+	if BoxAIOnly() {
+		// All injects the session only in memory. Never persist it through a
+		// model/routing edit; retain the user's previous manual configuration.
+		p.Key, p.Keys, p.Headers, p.BalanceToken = "", nil, nil, ""
+		p.KeyName, p.KeyProtocol = "", ""
+		if old, ok := find(f.Providers, p.ID); ok {
+			p.Key, p.Keys, p.Headers, p.BalanceToken = old.Key, old.Keys, old.Headers, old.BalanceToken
+			p.KeyName, p.KeyProtocol = old.KeyName, old.KeyProtocol
+		}
+	}
 	for i := range f.Providers {
 		if f.Providers[i].ID == p.ID {
 			if p.Was == nil {

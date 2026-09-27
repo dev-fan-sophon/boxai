@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/netproxy"
 	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/usage"
@@ -214,7 +215,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, provider.Chat, http.StatusNotFound, "magpie serves /v1/chat/completions, /v1/responses, /v1/messages and /v1beta/models/*")
 	})
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The root is only process discovery. Every actual gateway API is
+		// gated, even when a caller supplies an old/manual provider key.
+		if provider.BoxAIOnly() && r.URL.Path != "/" {
+			if err := boxai.Require(r.Context()); err != nil {
+				writeError(w, provider.Chat, boxai.AuthStatus(err), err.Error())
+				return
+			}
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) info(w http.ResponseWriter, r *http.Request) {
