@@ -82,6 +82,7 @@ func newComputer(t *testing.T) computer { return computer(t.TempDir()) }
 
 func (c computer) use(t *testing.T) {
 	t.Setenv("HOME", string(c))
+	t.Setenv("USERPROFILE", string(c))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(string(c), ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(string(c), ".cache"))
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(string(c), ".claude"))

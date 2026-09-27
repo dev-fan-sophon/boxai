@@ -17,7 +17,7 @@ class ReleaseContract(unittest.TestCase):
 
     def test_metadata_and_compiled_trust_anchor(self):
         release.validate_metadata(self.metadata)
-        source = (release.ROOT / "internal/update/update.go").read_text()
+        source = (release.ROOT / "internal/update/update.go").read_text(encoding="utf-8")
         key = re.search(r'const PublicKey = "([0-9a-f]+)"', source).group(1)
         self.assertEqual(key, self.metadata["update_public_key"])
         for field, bad in (("update_feed_url", "https://usemagpie.ai/api/latest"),

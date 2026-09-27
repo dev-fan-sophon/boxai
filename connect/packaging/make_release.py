@@ -50,7 +50,8 @@ def public_key_hex(key: pathlib.Path) -> str:
 
 
 def sign_artifact(key: pathlib.Path, artifact: pathlib.Path) -> str:
-    with tempfile.NamedTemporaryFile() as signature:
+    with tempfile.TemporaryDirectory() as directory:
+        signature = pathlib.Path(directory) / "signature"
         run_openssl(
             [
                 "pkeyutl",
@@ -61,10 +62,10 @@ def sign_artifact(key: pathlib.Path, artifact: pathlib.Path) -> str:
                 "-in",
                 str(artifact),
                 "-out",
-                signature.name,
+                str(signature),
             ]
         )
-        data = pathlib.Path(signature.name).read_bytes()
+        data = signature.read_bytes()
     if len(data) != 64:
         fail(f"Ed25519 signature for {artifact.name} is not 64 bytes")
     return base64.b64encode(data).decode("ascii")

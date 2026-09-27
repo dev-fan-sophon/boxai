@@ -14,6 +14,7 @@ import (
 func TestBoxAISafetyGatesAppliesAndRestores(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("CODEX_HOME", "")
 	t.Setenv("GROK_HOME", "")

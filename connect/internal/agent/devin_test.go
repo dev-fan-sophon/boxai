@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -15,9 +16,14 @@ func TestDevin(t *testing.T) {
 	home := t.TempDir()
 	cfg := filepath.Join(home, ".config")
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
 
 	dir := filepath.Join(cfg, "devin")
+	if runtime.GOOS == "windows" {
+		dir = filepath.Join(home, "AppData", "Roaming", "devin")
+	}
 	path := filepath.Join(dir, "config.json")
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(path, []byte("{\n  // mine\n  \"theme_mode\": \"dark\",\n  \"agent\": {\"model\": \"swe-2-max\"}\n}\n"), 0o644)

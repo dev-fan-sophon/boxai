@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,7 +99,12 @@ func TestLegacySkillTreeDigestAndMarker(t *testing.T) {
 	marker := []byte("123456789012")
 	require.NoError(t, os.WriteFile(filepath.Join(d, ".gateway-connector-owner"), marker, 0600))
 	// Independently generated SHA256 of Rust's length-prefixed one-file tree.
-	hash, err := hex.DecodeString("04ccd35b7e19868a39ef6c9e7615c7b0f25f27e01bdad2d58f6480a3abc5c474")
+	golden := "04ccd35b7e19868a39ef6c9e7615c7b0f25f27e01bdad2d58f6480a3abc5c474"
+	if runtime.GOOS == "windows" {
+		// Windows Rust paths use UTF-16LE bytes, not UTF-8.
+		golden = "635330fada01ed0d2955fa573906236668ddc7730d10bafeabecae43d5d216a6"
+	}
+	hash, err := hex.DecodeString(golden)
 	require.NoError(t, err)
 	s := legacySkill{Path: d, Hash: hash, Marker: marker, Kind: "Directory"}
 	changes, err := restoreSkill(s)
