@@ -810,13 +810,23 @@ func RunVideoOutputReconciliation(ctx context.Context) error {
 		QueuePlaygroundVideoOutputReconciliation(run.TaskId, run.UserId, "")
 	}
 	var tasks []*model.Task
-	err := model.DB.WithContext(ctx).Where("status = ? AND output_asset_id = 0 AND output_next_at <= ?", model.TaskStatusSuccess, time.Now().Unix()).
+	query := model.DB.WithContext(ctx).Where("status = ? AND output_asset_id = 0 AND output_next_at <= ?", model.TaskStatusSuccess, time.Now().Unix()).
 		Where("finish_time >= ? OR created_at >= ?", int64(1790380800), int64(1790380800)). // 2026-09-26 UTC rollout.
-		Where("platform NOT IN ?", []constant.TaskPlatform{constant.TaskPlatformSuno, constant.TaskPlatformMidjourney}).
-		Order("output_next_at").Order("id").Limit(8).Find(&tasks).Error
-	if err != nil {
+		Where("platform NOT IN ?", []constant.TaskPlatform{constant.TaskPlatformSuno, constant.TaskPlatformMidjourney})
+	// Reserve one slot for the oldest due item, but process fresh completions
+	// first so historical URLs timing out cannot monopolize the rollout queue.
+	var oldest []*model.Task
+	if err := query.Session(&gorm.Session{}).Order("output_next_at").Order("id").Limit(1).Find(&oldest).Error; err != nil {
 		return err
 	}
+	if len(oldest) == 0 {
+		return nil
+	}
+	if err := query.Session(&gorm.Session{}).Where("id != ?", oldest[0].ID).
+		Order("output_next_at").Order("finish_time DESC").Order("id DESC").Limit(7).Find(&tasks).Error; err != nil {
+		return err
+	}
+	tasks = append(tasks, oldest[0])
 	for _, task := range tasks {
 		if ctx.Err() != nil {
 			return ctx.Err()

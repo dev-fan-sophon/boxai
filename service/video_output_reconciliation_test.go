@@ -83,6 +83,27 @@ func TestVideoOutputReconciliationOrdinaryAPIRecovery(t *testing.T) {
 	assert.Equal(t, task.OutputAssetID, run.AssetId)
 }
 
+func TestVideoOutputBacklogDoesNotHideFreshCompletions(t *testing.T) {
+	truncate(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundRun{}, &model.PlaygroundAsset{}))
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", t.TempDir())
+	storage.Reset()
+	t.Cleanup(func() { storage.Reset(); model.DB.Exec("DELETE FROM playground_assets") })
+	ref := "data:video/mp4;base64," + base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'})
+	var tasks []*model.Task
+	for i := 0; i < 10; i++ {
+		task := &model.Task{TaskID: "backlog-" + time.Unix(int64(i), 0).Format("150405"), UserId: 77, Platform: "2", Status: model.TaskStatusSuccess, FinishTime: time.Now().Unix() - int64(10-i), PrivateData: model.TaskPrivateData{ResultURL: ref}}
+		require.NoError(t, model.DB.Create(task).Error)
+		tasks = append(tasks, task)
+	}
+	require.NoError(t, RunVideoOutputReconciliation(context.Background()))
+	for _, index := range []int{0, 9} {
+		require.NoError(t, model.DB.First(tasks[index], tasks[index].ID).Error)
+		assert.NotZero(t, tasks[index].OutputAssetID, "both oldest and latest must progress")
+	}
+}
+
 func TestVideoOutputLostClaimCleansOrphan(t *testing.T) {
 	truncate(t)
 	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundRun{}, &model.PlaygroundAsset{}))
