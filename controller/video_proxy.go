@@ -336,7 +336,7 @@ func streamPlaygroundVideoAsset(c *gin.Context, asset *model.PlaygroundAsset) {
 			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
 			return
 		}
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), service.VideoOutputTransferTimeout)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, signed, nil)
 		if err != nil {

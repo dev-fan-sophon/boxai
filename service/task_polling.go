@@ -786,12 +786,12 @@ func QueuePlaygroundVideoOutputReconciliation(taskID string, userID int, videoUR
 
 var videoOutputCapacity = make(chan struct{}, 1)
 
-// RunVideoOutputReconciliation handles at most eight tasks in two minutes,
+// RunVideoOutputReconciliation handles at most eight tasks in five minutes,
 // sequentially (one download per process). Cross-process claims expire after
-// two minutes. A fixed rollout cutoff avoids downloading the historical corpus
+// the transfer deadline plus one minute. A fixed rollout cutoff avoids downloading the historical corpus
 // without aging queued/retrying work out when the scheduler is offline.
 func RunVideoOutputReconciliation(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	select {
 	case videoOutputCapacity <- struct{}{}:
@@ -840,9 +840,9 @@ func persistVideoTaskOutput(ctx context.Context, task *model.Task, preferredURL 
 	if task == nil || task.OutputAssetID != 0 {
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, VideoOutputTransferTimeout)
 	defer cancel()
-	lease := time.Now().Unix() + 120
+	lease := time.Now().Add(VideoOutputTransferTimeout + time.Minute).Unix()
 	claim := model.DB.WithContext(ctx).Model(&model.Task{}).
 		Where("id = ? AND output_asset_id = 0 AND output_next_at <= ? AND output_attempts = ?", task.ID, time.Now().Unix(), task.OutputAttempts).
 		Updates(map[string]any{"output_next_at": lease, "output_attempts": task.OutputAttempts + 1})
@@ -919,7 +919,7 @@ func persistVideoTaskOutput(ctx context.Context, task *model.Task, preferredURL 
 }
 
 func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Task, resultURL string) (*model.PlaygroundAsset, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, VideoOutputTransferTimeout)
 	defer cancel()
 	channel, err := model.CacheGetChannel(task.ChannelId)
 	if err != nil {

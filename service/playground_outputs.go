@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service/storage"
@@ -17,6 +18,8 @@ import (
 
 // Generated videos have a separate budget from user reference uploads.
 const PlaygroundOutputMaxVideoBytes int64 = 200 << 20
+
+const VideoOutputTransferTimeout = 3 * time.Minute
 
 func maxBytesForPlaygroundOutput(kind string) int64 {
 	if kind == "video" {
