@@ -6,7 +6,6 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/library"
 	"github.com/yetone/magpie/internal/provider"
+	"github.com/yetone/magpie/internal/settings"
 )
 
 // Profile is every agent's fields, and the library's setup.
@@ -74,11 +74,7 @@ func (p *Profile) UnmarshalJSON(b []byte) error {
 
 // Path is the profiles file.
 func Path() string {
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "magpie", "profiles.json")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "magpie", "profiles.json")
+	return filepath.Join(settings.Dir(), "profiles.json")
 }
 
 // Load reads every profile.

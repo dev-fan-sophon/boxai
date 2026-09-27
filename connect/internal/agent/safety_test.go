@@ -30,6 +30,7 @@ func TestBoxAISafetyGatesAppliesAndRestores(t *testing.T) {
 	SetPolicies(map[string]Policy{"claude": {Enabled: true, Models: []string{"allowed", "blocked"}, LockedModel: "allowed"}, "codex": {Enabled: true, Models: []string{"allowed"}}, "grokbuild": {Enabled: true, Models: []string{"allowed"}}, "opencode": {Enabled: true, Models: []string{"allowed"}}, "gemini": {Enabled: true, Models: []string{"allowed"}}})
 	for _, a := range All() {
 		assert.Error(t, a.Apply("model", "boxai/allowed"))
+		assert.Error(t, a.Keep(), "unauthenticated bookkeeping changes must report failure")
 		_, err := os.Stat(a.Path)
 		assert.ErrorIs(t, err, os.ErrNotExist)
 	}

@@ -3,8 +3,8 @@
 // of its models should show up in the agents' pickers.
 //
 // Provider keys are never read from environment variables. A provider is
-// exactly what the user entered, kept in ~/.config/magpie/providers.json
-// (mode 0600).
+// exactly what the user entered in upstream mode. BoxAI product mode ignores
+// this file; its directory also owns the branded projection bookkeeping.
 package provider
 
 import (
@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/yetone/magpie/internal/catalog"
+	"github.com/yetone/magpie/internal/settings"
 )
 
 // Protocol is a wire API magpie can speak to an upstream.
@@ -150,11 +151,7 @@ type file struct {
 
 // Path is the file the user's providers live in.
 func Path() string {
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "magpie", "providers.json")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "magpie", "providers.json")
+	return filepath.Join(settings.Dir(), "providers.json")
 }
 
 func load() file {

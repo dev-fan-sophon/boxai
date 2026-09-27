@@ -245,8 +245,8 @@ func (a *Agent) Reapply() error {
 
 // Keep takes the agent's config as it is now: what magpie set before is
 // forgotten, and no longer said to have been changed.
-func (a *Agent) Keep() {
-	_ = Project(a, []string{appliedPath()}, func() error {
+func (a *Agent) Keep() error {
+	return Project(a, []string{appliedPath()}, func() error {
 		appliedMu.Lock()
 		defer appliedMu.Unlock()
 		m := appliedLoad()

@@ -140,10 +140,10 @@ var (
 // CachePath is where `magpie sync` stores the models.dev catalog.
 func CachePath() string {
 	if x := os.Getenv("XDG_CACHE_HOME"); x != "" {
-		return filepath.Join(x, "magpie", "models.json")
+		return filepath.Join(x, "boxai-connect", "models.json")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".cache", "magpie", "models.json")
+	return filepath.Join(home, ".cache", "boxai-connect", "models.json")
 }
 
 func opencodeCache() string {
