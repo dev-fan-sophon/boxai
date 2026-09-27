@@ -6,18 +6,21 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service/storage"
-	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -583,4 +586,110 @@ func TestCompletedVideoOutputIsPersistedOnlyByCASWinner(t *testing.T) {
 	var assetCount int64
 	require.NoError(t, model.DB.Model(&model.PlaygroundAsset{}).Where("user_id = ?", task.UserId).Count(&assetCount).Error)
 	assert.Equal(t, int64(1), assetCount)
+}
+
+func TestPersistDoubaoVideoOutput(t *testing.T) {
+	oldMemoryCache := common.MemoryCacheEnabled
+	common.MemoryCacheEnabled = false
+	t.Cleanup(func() { common.MemoryCacheEnabled = oldMemoryCache })
+	InitHttpClient()
+
+	for _, tc := range []struct {
+		name       string
+		taskKey    string
+		result     string
+		redirect   bool
+		wantStored bool
+	}{
+		{name: "stored task key", taskKey: "task-secret", wantStored: true},
+		{name: "channel key fallback", wantStored: true},
+		{name: "arbitrary private URL blocked", taskKey: "task-secret", result: "external"},
+		{name: "content URL with query is not trusted", taskKey: "task-secret", result: "query"},
+		{name: "redirect not followed", taskKey: "task-secret", redirect: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			truncate(t)
+			require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundRun{}, &model.PlaygroundAsset{}))
+			t.Cleanup(func() {
+				model.DB.Exec("DELETE FROM playground_runs")
+				model.DB.Exec("DELETE FROM playground_assets")
+			})
+			t.Setenv("STORAGE_BACKEND", "local")
+			t.Setenv("PLAYGROUND_ASSETS_DIR", t.TempDir())
+			storage.Reset()
+			t.Cleanup(storage.Reset)
+
+			var externalRequests, providerRequests atomic.Int32
+			external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				externalRequests.Add(1)
+				assert.Empty(t, r.Header.Get("Authorization"))
+				w.WriteHeader(http.StatusInternalServerError)
+			}))
+			defer external.Close()
+			mp4 := []byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}
+			const upstreamID = "upstream/with space?query"
+			contentPath := "/gateway/v1/videos/" + url.PathEscape(upstreamID) + "/content"
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				providerRequests.Add(1)
+				assert.Equal(t, contentPath, r.URL.EscapedPath())
+				wantKey := tc.taskKey
+				if wantKey == "" {
+					wantKey = "channel-secret"
+				}
+				assert.Equal(t, "Bearer "+wantKey, r.Header.Get("Authorization"))
+				if tc.redirect {
+					http.Redirect(w, r, external.URL+"/private", http.StatusFound)
+					return
+				}
+				w.Header().Set("Content-Type", "video/mp4")
+				_, _ = w.Write(mp4)
+			}))
+			defer provider.Close()
+			baseURL := provider.URL + "/gateway/"
+			channel := &model.Channel{Type: constant.ChannelTypeDoubaoVideo, Key: "channel-secret", BaseURL: &baseURL}
+			require.NoError(t, model.DB.Create(channel).Error)
+			resultURL := provider.URL + contentPath
+			switch tc.result {
+			case "external":
+				resultURL = external.URL + "/signed.mp4?signature=secret"
+			case "query":
+				resultURL += "?other=endpoint"
+			}
+			task := seedPollingTask(t, channel.Id, "doubao-public", upstreamID)
+			task.Platform = constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeDoubaoVideo))
+			task.PrivateData.Key = tc.taskKey
+			task.PrivateData.ResultURL = resultURL
+			require.NoError(t, model.DB.Save(task).Error)
+			run := &model.PlaygroundRun{UserId: task.UserId, Modality: "video", TaskId: task.TaskID}
+			require.NoError(t, model.CreatePlaygroundRun(run))
+
+			persistPlaygroundVideoRun(context.Background(), run, task, "")
+
+			require.NoError(t, model.DB.First(run, run.Id).Error)
+			assert.Zero(t, externalRequests.Load(), "untrusted URLs and redirects must never reach private hosts")
+			if tc.result != "" {
+				assert.Zero(t, providerRequests.Load())
+			} else {
+				assert.EqualValues(t, 1, providerRequests.Load())
+			}
+			var count int64
+			require.NoError(t, model.DB.Model(&model.PlaygroundAsset{}).Count(&count).Error)
+			if !tc.wantStored {
+				assert.Zero(t, run.AssetId)
+				assert.Zero(t, count)
+				return
+			}
+			require.NotZero(t, run.AssetId)
+			assert.EqualValues(t, 1, count)
+			assert.Equal(t, "/api/playground/assets/"+strconv.Itoa(run.AssetId)+"/content", run.ResultURL)
+			var asset model.PlaygroundAsset
+			require.NoError(t, model.DB.First(&asset, run.AssetId).Error)
+			body, err := OpenPlaygroundAssetContentDirect(context.Background(), asset.Backend, asset.StorageKey)
+			require.NoError(t, err)
+			got, err := io.ReadAll(body)
+			require.NoError(t, body.Close())
+			require.NoError(t, err)
+			assert.Equal(t, mp4, got)
+		})
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -242,6 +243,16 @@ func TestUnifiedRequestRequiresPrompt(t *testing.T) {
 	err := (&TaskAdaptor{}).ValidateRequestAndSetAction(c, &relaycommon.RelayInfo{TaskRelayInfo: &relaycommon.TaskRelayInfo{}})
 	require.NotNil(t, err)
 	assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+}
+
+func TestCompletedVideoUsesPublicAuthenticatedURL(t *testing.T) {
+	body, err := (&TaskAdaptor{}).ConvertToOpenAIVideo(&model.Task{
+		TaskID: "task_public", Status: model.TaskStatusSuccess,
+		Data: []byte(`{"status":"succeeded","content":{"video_url":"https://upstream.test/v1/videos/private/content"}}`),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "/v1/videos/task_public/content")
+	assert.NotContains(t, string(body), "upstream.test")
 }
 
 func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {

@@ -599,7 +599,8 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 }
 
 func publicTaskResultURL(task *model.Task) string {
-	if task.Platform != constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeXai)) {
+	if task.Platform != constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeXai)) &&
+		task.Platform != constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeDoubaoVideo)) {
 		return task.GetResultURL()
 	}
 	if task.Status != model.TaskStatusSuccess || task.PrivateData.ResultURL == "" {

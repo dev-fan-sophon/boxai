@@ -691,10 +691,11 @@ func persistPlaygroundVideoRun(ctx context.Context, run *model.PlaygroundRun, ta
 	var asset *model.PlaygroundAsset
 	var err error
 	isPersistableRef := strings.HasPrefix(videoURL, "data:") || strings.HasPrefix(videoURL, "http://") || strings.HasPrefix(videoURL, "https://")
-	if isPersistableRef && !strings.Contains(videoURL, "/v1/videos/"+task.TaskID+"/content") {
+	isDoubao := task.Platform == constant.TaskPlatform(fmt.Sprint(constant.ChannelTypeDoubaoVideo))
+	if !isDoubao && isPersistableRef && !strings.Contains(videoURL, "/v1/videos/"+task.TaskID+"/content") {
 		asset, err = PersistPlaygroundOutput(ctx, run.UserId, "video", videoURL)
 	} else {
-		asset, err = persistProviderVideoOutput(ctx, run.UserId, task)
+		asset, err = persistProviderVideoOutput(ctx, run.UserId, task, videoURL)
 	}
 	if err != nil {
 		common.SysError(fmt.Sprintf("persist playground video for task %s: %v", run.TaskId, err))
@@ -717,7 +718,7 @@ func persistPlaygroundVideoRun(ctx context.Context, run *model.PlaygroundRun, ta
 	}
 }
 
-func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Task) (*model.PlaygroundAsset, error) {
+func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Task, resultURL string) (*model.PlaygroundAsset, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	channel, err := model.CacheGetChannel(task.ChannelId)
@@ -732,8 +733,17 @@ func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Tas
 	if baseURL == "" {
 		baseURL = strings.TrimRight(constant.ChannelBaseURLs[channel.Type], "/")
 	}
-	if channel.Type == constant.ChannelTypeOpenAI {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID()), nil)
+	contentURL := fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
+	if channel.Type == constant.ChannelTypeDoubaoVideo {
+		contentURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, url.PathEscape(task.GetUpstreamTaskID()))
+		// Only this exact operator-managed endpoint may receive the task key.
+		// Signed external media URLs must retain strict unauthenticated fetching.
+		if resultURL != contentURL {
+			return PersistPlaygroundOutput(ctx, userID, "video", resultURL)
+		}
+	}
+	if channel.Type == constant.ChannelTypeOpenAI || channel.Type == constant.ChannelTypeDoubaoVideo {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, contentURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -745,6 +755,12 @@ func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Tas
 			if err != nil {
 				return nil, err
 			}
+		}
+		if channel.Type == constant.ChannelTypeDoubaoVideo {
+			// Do not mutate the shared provider client or forward credentials on redirects.
+			boundedClient := *client
+			boundedClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+			client = &boundedClient
 		}
 		return PersistPlaygroundOutputRequest(ctx, userID, "video", req, client)
 	}
@@ -776,7 +792,7 @@ func persistProviderVideoOutput(ctx context.Context, userID int, task *model.Tas
 	if err != nil || info == nil {
 		return nil, fmt.Errorf("parse completed video task failed: %w", err)
 	}
-	resultURL := strings.TrimSpace(info.Url)
+	resultURL = strings.TrimSpace(info.Url)
 	if resultURL == "" {
 		resultURL = strings.TrimSpace(info.RemoteUrl)
 		if resultURL != "" && channel.Type == constant.ChannelTypeGemini {
