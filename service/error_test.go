@@ -10,10 +10,32 @@ import (
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNormalizeRelayFaultPreservesOnlyLocalParamRejections(t *testing.T) {
+	local := relaycommon.NewAPIErrorFromParamOverride(&relaycommon.ParamOverrideReturnError{
+		Message: "JSON mode is unavailable for this model", StatusCode: 400,
+		Code: "unsupported_response_format", Type: "invalid_request_error", SkipRetry: true,
+	})
+	require.NotNil(t, local)
+	want := local.ToOpenAIError()
+	NormalizeRelayServiceFault(local)
+	assert.Equal(t, 400, local.StatusCode)
+	assert.Equal(t, want, local.ToOpenAIError())
+	assert.True(t, types.IsSkipRetryError(local))
+
+	// An upstream cannot bypass sanitization by returning the same public code.
+	upstream := types.WithOpenAIError(want, 400)
+	NormalizeRelayServiceFault(upstream)
+	assert.Equal(t, 502, upstream.StatusCode)
+	assert.Equal(t, types.ErrorCode("service_unavailable"), upstream.PublicCode())
+	assert.NotEqual(t, want.Message, upstream.ToOpenAIError().Message)
+}
 
 func TestResetStatusCode(t *testing.T) {
 	t.Parallel()

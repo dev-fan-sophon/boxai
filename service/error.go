@@ -14,6 +14,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/types"
 )
 
@@ -164,6 +165,9 @@ func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) 
 // diagnostics and must never be returned to a user.
 func NormalizeRelayServiceFault(err *types.NewAPIError) {
 	if err == nil || err.GetErrorType() != types.ErrorTypeOpenAIError && err.GetErrorType() != types.ErrorTypeClaudeError {
+		return
+	}
+	if _, local := relaycommon.AsParamOverrideReturnError(err); local {
 		return
 	}
 	diagnostic := map[string]any{
