@@ -1,23 +1,20 @@
-// Package update keeps magpie current. Builds are published as GitHub
-// releases of yetone/magpie-releases; usemagpie.ai/api/latest describes the
-// newest one: its version, notes, and every file with its SHA-256.
-//
-// The macOS app replaces its own bundle: the new zip is downloaded, checked
-// against its hash, unpacked, and accepted only if it is signed by the same
-// team as the app already installed. A bare binary (the terminal build,
-// and the desktop app on Windows and Linux) replaces itself the same way,
-// minus the signature.
+// Package update verifies BoxAI's exact signed installers before handing
+// them to the native installer UI. No upstream feed or environment override
+// can change the download origin or the compiled trust anchor.
 package update
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,34 +26,45 @@ import (
 	"github.com/yetone/magpie/internal/proc"
 )
 
-// Site is magpie's home; its /api/latest is the update feed.
-const Site = "https://usemagpie.ai"
+const Site = "https://you-box.com/connect"
+const PublicKey = "cc293254aa2eebd39040f0802b10dfdd46c92045b5fe8693241a3d53d8c4b4f1"
+const maxInstallerSize int64 = 512 << 20
 
-// Feed is where the newest release is described. MAGPIE_UPDATE_FEED points
-// it elsewhere, for testing an update against a local server.
-func Feed() string {
-	if f := os.Getenv("MAGPIE_UPDATE_FEED"); f != "" {
-		return f
-	}
-	return Site + "/api/latest"
-}
+var errLegacyUpdate = errors.New("automatic replacement is disabled; use the verified BoxAI installer handoff")
+
+func Feed() string { return "https://dl.you-box.com/connect/native-latest.json" }
 
 // Release is one published version.
 type Release struct {
-	Version string           `json:"version"` // "0.2.0", no v
-	Notes   string           `json:"notes"`   // markdown
-	URL     string           `json:"url"`     // the release page
-	Assets  map[string]Asset `json:"assets"`  // by file name
+	Version   string           `json:"version"` // "0.2.0", no v
+	Notes     string           `json:"notes"`   // markdown
+	URL       string           `json:"url"`     // the release page
+	Assets    map[string]Asset `json:"assets"`  // by file name
+	Platforms map[string]Asset `json:"platforms"`
 }
 
 // Asset is one downloadable file of a release.
 type Asset struct {
-	URL    string `json:"url"`
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256"`
+	URL       string `json:"url"`
+	Size      int64  `json:"size"`
+	SHA256    string `json:"sha256"`
+	Signature string `json:"signature"`
 }
 
-var client = &http.Client{Timeout: 10 * time.Minute}
+var client = &http.Client{Timeout: 10 * time.Minute, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("too many update redirects")
+	}
+	return trustedURL(req.URL.String())
+}}
+
+func trustedURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Host != "dl.you-box.com" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.RawPath != "" || !strings.HasPrefix(u.Path, "/connect/") || strings.Contains(u.Path, "..") || strings.Contains(u.Path, "\\") {
+		return errors.New("update URL is outside the trusted BoxAI download origin")
+	}
+	return nil
+}
 
 // Latest asks the feed for the newest release.
 func Latest(ctx context.Context) (*Release, error) {
@@ -73,13 +81,138 @@ func Latest(ctx context.Context) (*Release, error) {
 		return nil, fmt.Errorf("update feed: %s", res.Status)
 	}
 	var r Release
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&r); err != nil {
 		return nil, fmt.Errorf("update feed: %w", err)
 	}
 	if parse(r.Version) == nil {
 		return nil, fmt.Errorf("update feed: no version")
 	}
+	r.URL = Site
+	for platform, asset := range r.Platforms {
+		name := installerName(r.Version, platform)
+		if name == "" || asset.URL != "https://dl.you-box.com/connect/"+r.Version+"/"+name {
+			return nil, errors.New("update feed contains an unexpected installer URL")
+		}
+		if err := validateAsset(asset); err != nil {
+			return nil, err
+		}
+	}
+	if len(r.Platforms) != 2 {
+		return nil, errors.New("update feed must contain both native platforms")
+	}
 	return &r, nil
+}
+
+func installerName(version, platform string) string {
+	switch platform {
+	case "darwin-arm64":
+		return "BoxAI-Connect-" + version + "-macos-arm64.dmg"
+	case "win32-x64":
+		return "BoxAI-Connect-" + version + "-windows-x64-setup.exe"
+	}
+	return ""
+}
+
+func validateAsset(a Asset) error {
+	if err := trustedURL(a.URL); err != nil {
+		return err
+	}
+	hash, err := hex.DecodeString(a.SHA256)
+	if err != nil || len(hash) != sha256.Size {
+		return errors.New("invalid installer checksum")
+	}
+	sig, err := base64.StdEncoding.Strict().DecodeString(a.Signature)
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return errors.New("invalid installer signature")
+	}
+	if a.Size <= 0 || a.Size > maxInstallerSize {
+		return errors.New("invalid installer size")
+	}
+	return nil
+}
+
+// DownloadInstaller only supports the two natively asserted release targets.
+func DownloadInstaller(ctx context.Context, rel *Release) (string, error) {
+	platform := runtime.GOOS + "-" + runtime.GOARCH
+	if platform == "windows-amd64" {
+		platform = "win32-x64"
+	}
+	name := installerName(rel.Version, platform)
+	a, ok := rel.Platforms[platform]
+	if !ok || name == "" {
+		return "", errors.New("no signed installer for this platform")
+	}
+	if a.URL != "https://dl.you-box.com/connect/"+rel.Version+"/"+name {
+		return "", errors.New("unexpected installer URL")
+	}
+	dir, err := os.MkdirTemp("", "boxai-connect-update-")
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, name)
+	if err := download(ctx, a, path); err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	return path, nil
+}
+
+// OpenInstaller rechecks the exact bytes immediately before handoff.
+// The proof is stored beside the installer in its private temporary directory.
+func OpenInstaller(path string) error {
+	proof, err := os.ReadFile(path + ".signature")
+	if err != nil {
+		return err
+	}
+	key, _ := hex.DecodeString(PublicKey)
+	if err := verifySignature(path, proof, key); err != nil {
+		return err
+	}
+	var cmdName string
+	var args []string
+	switch runtime.GOOS {
+	case "darwin":
+		if !strings.HasSuffix(path, ".dmg") {
+			return errors.New("expected DMG installer")
+		}
+		cmdName, args = "open", []string{path}
+	case "windows":
+		if !strings.HasSuffix(path, "-setup.exe") {
+			return errors.New("expected setup installer")
+		}
+		cmdName = path
+	default:
+		return errors.New("no native installer on this platform")
+	}
+	cmd := proc.Command(cmdName, args...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}
+
+// Ed25519 signs the installer itself, not its digest (nor Ed25519ph).
+func verifySignature(path string, signature []byte, key ed25519.PublicKey) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maxInstallerSize {
+		return errors.New("invalid installer size or type")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxInstallerSize+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) > maxInstallerSize || len(key) != ed25519.PublicKeySize || !ed25519.Verify(key, data, signature) {
+		return errors.New("installer signature mismatch")
+	}
+	return nil
 }
 
 // Released reports whether v is a release version rather than a build from
@@ -203,58 +336,9 @@ func Writable(dir string) bool {
 	return true
 }
 
-// Stage downloads the app in rel and unpacks it next to the installed
-// bundle, ready for Install. It returns the unpacked app.
+// Legacy updater APIs fail closed while callers migrate to explicit handoff.
 func Stage(ctx context.Context, rel *Release, bundle string) (string, error) {
-	a, ok := rel.Assets[AppAsset()]
-	if !ok {
-		return "", fmt.Errorf("release %s has no %s", rel.Version, AppAsset())
-	}
-	dir := stageDir(filepath.Dir(bundle))
-	os.RemoveAll(dir)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	zip := filepath.Join(dir, AppAsset())
-	if err := download(ctx, a, zip); err != nil {
-		os.RemoveAll(dir)
-		return "", err
-	}
-	out := filepath.Join(dir, "app")
-	if b, err := proc.CommandContext(ctx, "ditto", "-x", "-k", zip, out).CombinedOutput(); err != nil {
-		os.RemoveAll(dir)
-		return "", fmt.Errorf("unzip: %v: %s", err, b)
-	}
-	os.Remove(zip)
-	app := filepath.Join(out, "magpie.app")
-	if err := sameSigner(ctx, bundle, app); err != nil {
-		os.RemoveAll(dir)
-		return "", err
-	}
-	return app, nil
-}
-
-// sameSigner accepts app only if its signature is intact and made by the
-// team that signed the bundle it replaces.
-func sameSigner(ctx context.Context, bundle, app string) error {
-	if b, err := proc.CommandContext(ctx, "codesign", "--verify", "--deep", "--strict", app).CombinedOutput(); err != nil {
-		return fmt.Errorf("the downloaded app's signature is broken: %s", strings.TrimSpace(string(b)))
-	}
-	want, got := team(ctx, bundle), team(ctx, app)
-	if want != got {
-		return fmt.Errorf("the downloaded app is signed by %q, not %q", got, want)
-	}
-	return nil
-}
-
-func team(ctx context.Context, app string) string {
-	b, _ := proc.CommandContext(ctx, "codesign", "-dv", app).CombinedOutput()
-	for _, l := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(l, "TeamIdentifier="); ok && v != "not set" {
-			return v
-		}
-	}
-	return ""
+	return "", errLegacyUpdate
 }
 
 // stageDir is where an update is unpacked: beside what it replaces, so
@@ -269,111 +353,30 @@ func stageDir(dir string) string {
 	return filepath.Join(dir, ".magpie-update")
 }
 
-// Install swaps the staged app in for bundle. The running copy keeps going
-// until it quits; the next launch is the new one. Where the folder is not
-// magpie's to change the error is a permission one (NeedsAdmin), and
-// InstallAsAdmin can do it instead.
 func Install(staged, bundle string) error {
-	old := filepath.Join(filepath.Dir(staged), "old.app")
-	os.RemoveAll(old)
-	if err := os.Rename(bundle, old); err != nil {
-		return err
-	}
-	if err := os.Rename(staged, bundle); err != nil {
-		os.Rename(old, bundle) // put it back
-		return err
-	}
-	os.RemoveAll(filepath.Dir(filepath.Dir(staged))) // .magpie-update
-	return nil
+	return errLegacyUpdate
 }
 
 // InstallAsAdmin is Install with the administrator's password, asked for
 // by the system.
 func InstallAsAdmin(staged, bundle string) error {
-	old := filepath.Join(filepath.Dir(staged), "old.app")
-	err := asAdmin(swapScript(staged, bundle, old))
-	if err == nil {
-		os.RemoveAll(filepath.Dir(filepath.Dir(staged)))
-	}
-	return err
+	return errors.New("BoxAI updates never elevate; open the verified installer")
 }
 
-// Relaunch opens bundle again once this process (pid) has exited.
 func Relaunch(bundle string) error {
-	script := fmt.Sprintf(`while kill -0 %d 2>/dev/null; do sleep 0.2; done; open %q`, os.Getpid(), bundle)
-	cmd := proc.Command("/bin/sh", "-c", script)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	return cmd.Start()
+	return errLegacyUpdate
 }
 
-// ReplaceBinary puts the release's build for this binary where the
-// running one is.
 func ReplaceBinary(ctx context.Context, rel *Release) error {
-	exe, err := Executable()
-	if err != nil {
-		return err
-	}
-	staged, err := StageBinary(ctx, rel)
-	if err != nil {
-		return err
-	}
-	err = InstallBinary(staged, exe)
-	if NeedsAdmin(err) && CanElevate() {
-		err = InstallBinaryAsAdmin(staged, exe)
-	}
-	return err
+	return errLegacyUpdate
 }
 
-// StageBinary downloads the release's build for this binary next to it (or
-// to the cache, where magpie may not write there), ready for InstallBinary.
 func StageBinary(ctx context.Context, rel *Release) (string, error) {
-	a, ok := rel.Assets[BinaryAsset()]
-	if !ok {
-		return "", fmt.Errorf("release %s has no %s", rel.Version, BinaryAsset())
-	}
-	exe, err := Executable()
-	if err != nil {
-		return "", err
-	}
-	tmp := exe + ".new"
-	if !Writable(filepath.Dir(exe)) {
-		dir := stageDir(filepath.Dir(exe))
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", err
-		}
-		tmp = filepath.Join(dir, filepath.Base(exe)+".new")
-	}
-	if err := download(ctx, a, tmp); err != nil {
-		return "", err
-	}
-	if err := os.Chmod(tmp, 0o755); err != nil {
-		os.Remove(tmp)
-		return "", err
-	}
-	return tmp, nil
+	return "", errLegacyUpdate
 }
 
-// InstallBinary swaps a staged binary in for exe, the running one, which
-// keeps going until it exits.
 func InstallBinary(staged, exe string) error {
-	if runtime.GOOS == "windows" {
-		// A running .exe cannot be overwritten, but it can be moved aside.
-		// What the last update moved aside may still be running too (a
-		// `magpie serve` started before it), and can't be removed or
-		// replaced then: this one goes beside it, under a name of its own.
-		// The download is kept, for another try.
-		RemoveOld(exe)
-		if err := os.Rename(exe, oldName(exe)); err != nil {
-			return fmt.Errorf("couldn't move %s aside to put the new version in: %w", filepath.Base(exe), err)
-		}
-	}
-	if err := os.Rename(staged, exe); err != nil {
-		if !NeedsAdmin(err) { // kept for InstallBinaryAsAdmin
-			os.Remove(staged)
-		}
-		return err
-	}
-	return nil
+	return errLegacyUpdate
 }
 
 // oldName is where a running exe is moved aside to: exe.old, or when
@@ -435,25 +438,11 @@ func fileHash(path string) string {
 
 // InstallBinaryAsAdmin is InstallBinary with the administrator's password.
 func InstallBinaryAsAdmin(staged, exe string) error {
-	err := asAdmin("mv -f " + shellQuote(staged) + " " + shellQuote(exe))
-	if err != nil && !errors.Is(err, ErrCanceled) {
-		os.Remove(staged)
-	}
-	return err
+	return errors.New("BoxAI updates never elevate; open the verified installer")
 }
 
-// RelaunchBinary starts exe again as the tray app. The new process waits
-// for this one to exit before it takes the gateway's port; see
-// AwaitPredecessor.
 func RelaunchBinary(exe string) error {
-	cmd := proc.Command(exe, "tray")
-	cmd.Env = append(os.Environ(), "MAGPIE_REPLACES="+strconv.Itoa(os.Getpid()))
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	detach(cmd)
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	return cmd.Process.Release()
+	return errLegacyUpdate
 }
 
 // AwaitPredecessor blocks, for a while at most, until the magpie that
@@ -480,8 +469,8 @@ func WithProgress(ctx context.Context, f func(done, total int64)) context.Contex
 // download fetches a to path and checks its hash. A connection that drops
 // part way — GitHub from some networks — gets two more tries.
 func download(ctx context.Context, a Asset, path string) error {
-	if a.SHA256 == "" {
-		return errors.New("the release lists no checksum for " + filepath.Base(path))
+	if err := validateAsset(a); err != nil {
+		return err
 	}
 	var err error
 	for try := 0; try < 3; try++ {
@@ -500,6 +489,9 @@ func download(ctx context.Context, a Asset, path string) error {
 }
 
 func fetch(ctx context.Context, a Asset, path string) error {
+	if err := validateAsset(a); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", a.URL, nil)
 	if err != nil {
 		return err
@@ -526,15 +518,27 @@ func fetch(ctx context.Context, a Asset, path string) error {
 		body = &counter{r: res.Body, total: max(total, 0), report: report}
 		report(0, max(total, 0))
 	}
-	_, err = io.Copy(io.MultiWriter(f, h), body)
+	n, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(body, a.Size+1))
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
 	if err == nil && !strings.EqualFold(hex.EncodeToString(h.Sum(nil)), a.SHA256) {
 		err = fmt.Errorf("%s does not match its checksum", filepath.Base(path))
 	}
+	if err == nil && n != a.Size {
+		err = errors.New("installer size mismatch")
+	}
+	if err == nil {
+		key, _ := hex.DecodeString(PublicKey)
+		sig, _ := base64.StdEncoding.Strict().DecodeString(a.Signature)
+		err = verifySignature(path, sig, key)
+		if err == nil {
+			err = os.WriteFile(path+".signature", sig, 0o600)
+		}
+	}
 	if err != nil {
 		os.Remove(path)
+		os.Remove(path + ".signature")
 	}
 	return err
 }

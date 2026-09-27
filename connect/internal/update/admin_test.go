@@ -49,8 +49,8 @@ func TestInstallNeedsAdmin(t *testing.T) {
 		t.Error("stageDir picked a folder it can't write to")
 	}
 	err := Install(staged, bundle)
-	if !NeedsAdmin(err) {
-		t.Fatalf("Install = %v, want a permission error", err)
+	if err == nil {
+		t.Fatal("unsigned legacy bundle must not be installed")
 	}
 	if version(t, bundle) != "old" || version(t, staged) != "new" {
 		t.Error("a failed Install changed something")
