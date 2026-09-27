@@ -12,10 +12,10 @@ Luôn lấy trình cài đặt hiện tại từ [BoxAI Connect](/connect), khô
 
 ## Chọn nền tảng
 
-| Nền tảng | Gói cài đặt | Yêu cầu và chữ ký |
-| --- | --- | --- |
-| macOS | `.dmg` cho Apple silicon arm64 | macOS 11 trở lên; đã ký Developer ID và được Apple công chứng. |
-| Windows | Trình cài `.exe` x64 | Windows 10 trở lên; hiện chưa có chữ ký số. |
+| Nền tảng | Gói cài đặt                    | Yêu cầu và chữ ký                                              |
+| -------- | ------------------------------ | -------------------------------------------------------------- |
+| macOS    | `.dmg` cho Apple silicon arm64 | macOS 11 trở lên; đã ký Developer ID và được Apple công chứng. |
+| Windows  | Trình cài `.exe` x64           | Windows 10 trở lên; hiện chưa có chữ ký số.                    |
 
 Đây không phải các bản dành cho Mac Intel hoặc Windows ARM.
 

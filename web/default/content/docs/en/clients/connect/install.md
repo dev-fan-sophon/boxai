@@ -12,10 +12,10 @@ Always get the current installer from [BoxAI Connect](/connect), not a third-par
 
 ## Choose your platform
 
-| Platform | Package | Requirements and signing |
-| --- | --- | --- |
-| macOS | Apple silicon arm64 `.dmg` | macOS 11 or later; Developer ID signed and notarized. |
-| Windows | x64 setup `.exe` | Windows 10 or later; currently unsigned. |
+| Platform | Package                    | Requirements and signing                              |
+| -------- | -------------------------- | ----------------------------------------------------- |
+| macOS    | Apple silicon arm64 `.dmg` | macOS 11 or later; Developer ID signed and notarized. |
+| Windows  | x64 setup `.exe`           | Windows 10 or later; currently unsigned.              |
 
 These packages are not Intel Mac or Windows ARM releases.
 

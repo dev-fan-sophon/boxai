@@ -23,14 +23,14 @@ Tài liệu này dành cho **BoxAI Connect 1.1.1**, dựa trên **Magpie v0.1.18
 
 Tên tiếng Anh dưới đây giúp bạn đối chiếu với giao diện ứng dụng.
 
-| Thẻ | Công dụng |
-| --- | --- |
-| Agents | Chọn mô hình và các thiết lập được hỗ trợ cho agent phát hiện trên máy. |
-| Gateway | Xem thông tin kết nối, ID mô hình và các yêu cầu gần đây. |
-| Routing | Theo dõi quyết định định tuyến trực tiếp của cổng API. |
-| Usage | Xem số dư ví, tổng mức sử dụng và hạn mức gói của toàn tài khoản BoxAI. |
+| Thẻ     | Công dụng                                                                |
+| ------- | ------------------------------------------------------------------------ |
+| Agents  | Chọn mô hình và các thiết lập được hỗ trợ cho agent phát hiện trên máy.  |
+| Gateway | Xem thông tin kết nối, ID mô hình và các yêu cầu gần đây.                |
+| Routing | Theo dõi quyết định định tuyến trực tiếp của cổng API.                   |
+| Usage   | Xem số dư ví, tổng mức sử dụng và hạn mức gói của toàn tài khoản BoxAI.  |
 | Library | Quản lý hướng dẫn, tài nguyên MCP và kỹ năng theo cơ chế gốc của Magpie. |
-| Account | Kiểm tra danh tính, mở trang quản lý tài khoản và đăng xuất. |
+| Account | Kiểm tra danh tính, mở trang quản lý tài khoản và đăng xuất.             |
 
 Không có thẻ Providers. Library giữ trải nghiệm tài nguyên gốc của Magpie, không phải danh mục chỉ gồm nội dung chính thức của BoxAI. Hãy xem xét tài nguyên bên thứ ba trước khi bật.
 

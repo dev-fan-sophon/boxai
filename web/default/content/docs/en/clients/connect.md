@@ -21,14 +21,14 @@ This guide covers **BoxAI Connect 1.1.1**, based on **Magpie v0.1.185**. It is n
 
 ## The six tabs
 
-| Tab | What it is for |
-| --- | --- |
-| Agents | Select models and supported settings for detected local agents. |
-| Gateway | Find connection details, available model IDs and recent calls. |
-| Routing | Inspect live routing decisions made by the gateway. |
-| Usage | Read BoxAI account-wide wallet, lifetime consumption and subscription counters. |
-| Library | Manage upstream Magpie instructions, MCP resources and skills. |
-| Account | Check identity, open account management and sign out. |
+| Tab     | What it is for                                                                  |
+| ------- | ------------------------------------------------------------------------------- |
+| Agents  | Select models and supported settings for detected local agents.                 |
+| Gateway | Find connection details, available model IDs and recent calls.                  |
+| Routing | Inspect live routing decisions made by the gateway.                             |
+| Usage   | Read BoxAI account-wide wallet, lifetime consumption and subscription counters. |
+| Library | Manage upstream Magpie instructions, MCP resources and skills.                  |
+| Account | Check identity, open account management and sign out.                           |
 
 There is no Providers tab. Library retains the upstream resource experience; it is not an official-only BoxAI catalog. Review third-party resources before enabling them.
 
