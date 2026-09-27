@@ -279,35 +279,39 @@ var served atomic.Pointer[gateway.Server]
 // running from before an update, a magpie serve in a terminal), and the
 // model lists kept warm.
 func startBackend() (gw *gateway.Server) {
-	gw = serveGateway()
-	go watchGateway()
+	gw = serveGateway(context.Background())
+	go watchGateway(context.Background(), 15*time.Second)
 	// Authentication provisioning owns model refresh. Starting the desktop
 	// must not read vendor sessions or change any agent configuration.
 	return gw
 }
 
-var gatewayWatch = 15 * time.Second
-
 // watchGateway takes the gateway up once the magpie that had it is gone.
-func watchGateway() {
+func watchGateway(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
-		time.Sleep(gatewayWatch)
-		if served.Load() == nil && !gateway.Running() {
-			serveGateway()
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if served.Load() == nil && !gateway.Running() {
+				serveGateway(ctx)
+			}
 		}
 	}
 }
 
 // serveGateway starts the gateway here when no magpie has it: the one
 // started, or nil.
-func serveGateway() *gateway.Server {
+func serveGateway(ctx context.Context) *gateway.Server {
 	if gateway.Running() {
 		return nil
 	}
 	gw := gateway.New()
 	served.Store(gw)
 	go func() {
-		if err := gw.ListenAndServe(context.Background()); err != nil {
+		if err := gw.ListenAndServe(ctx); err != nil {
 			log.Println("gateway:", err)
 			served.CompareAndSwap(gw, nil) // another took the port first
 		}

@@ -5,6 +5,31 @@ Product identity remains `com.you-box.connect`; the executable is
 `boxai-connect` (`boxai-connect.exe` on Windows). See [UPSTREAM.md](UPSTREAM.md)
 for pinned source and retained license notices.
 
+## Account and configuration lifecycle
+
+Sign in through the BoxAI browser flow before accessing models, Agents, MCP
+servers or Skills. Account credentials stay in macOS Keychain or Windows
+Credential Manager; there is no plaintext fallback. Linux builds are for
+development checks and fail closed when native credential storage is unavailable.
+
+Only account-authorized BoxAI models and the official provisioning catalog can
+be applied. Keep Connect running: configured Agents use its authenticated
+loopback gateway, not the account credential. Third-party provider imports,
+subscription logins, public marketplaces and Magpie sync/backup workflows are
+not supported product entrypoints.
+
+The first authenticated use restores supported legacy Rust Connect projections
+under the same neutral ownership lock. Original profiles and encrypted receipt
+backups remain available; old model choices are not automatically applied to
+the new client. Select the desired authorized models and official resources
+explicitly. Missing original native secrets, conflicting external edits or
+unrecoverable legacy journals block migration rather than overwriting files.
+
+Signing out first restores Connect-owned model/MCP/Skill changes, then revokes
+the device session and deletes its credentials. A failed restore or revocation
+leaves sign-out pending across restarts; resolve the reported conflict and retry
+sign-out. Do not delete the original vault entry or receipt to bypass recovery.
+
 ## Development and checks
 
 Use the Go version declared in `go.mod` (1.26.3 or newer).
