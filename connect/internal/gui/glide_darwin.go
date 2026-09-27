@@ -86,8 +86,7 @@ static int tintPanel(void *w, int r, int g, int b, int a, int ms) {
 static void setDock(int on, int front) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSApplicationActivationPolicy p = on ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
-		if ([NSApp activationPolicy] == p) return;
-		[NSApp setActivationPolicy:p];
+		if ([NSApp activationPolicy] != p) [NSApp setActivationPolicy:p];
 		if (front) [NSApp activateIgnoringOtherApps:YES];
 	});
 }

@@ -160,10 +160,12 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	mux := http.NewServeMux()
 	if provider.BoxAIOnly() {
 		var openURL func(string)
+		var onAuthorized func()
 		if w != nil {
 			openURL = w.OpenURL
+			onAuthorized = func() { w.ShowMain("agents") }
 		}
-		mux.Handle("/api/boxai/", boxai.Handler(openURL))
+		mux.Handle("/api/boxai/", boxai.Handler(openURL, onAuthorized))
 		mux.HandleFunc("GET /api/boxai/account", boxai.AccountHandler)
 	}
 	mux.Handle("/", devPage(http.FileServer(http.FS(staticFS()))))

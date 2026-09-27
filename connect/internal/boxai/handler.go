@@ -103,7 +103,7 @@ func guard(next http.Handler, browser bool) http.Handler {
 	})
 }
 
-func (c *Client) Handler(openURL func(string)) http.Handler {
+func (c *Client) Handler(openURL func(string), onAuthorized func()) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		switch r.URL.Path {
@@ -132,7 +132,7 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 					}
 				}
 			case "/api/boxai/login":
-				err = c.Login(context.Background(), openURL)
+				err = c.startLogin(context.Background(), openURL, onAuthorized)
 			case "/api/boxai/cancel":
 				c.Cancel()
 			case "/api/boxai/logout":

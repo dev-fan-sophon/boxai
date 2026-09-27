@@ -57,7 +57,9 @@ func Token(ctx context.Context) (string, error) { return defaultClient.Token(ctx
 func Provisioning(ctx context.Context) (ProvisioningData, error) {
 	return defaultClient.Provisioning(ctx)
 }
-func Handler(openURL func(string)) http.Handler             { return defaultClient.Handler(openURL) }
+func Handler(openURL func(string), onAuthorized func()) http.Handler {
+	return defaultClient.Handler(openURL, onAuthorized)
+}
 func Snapshot() Session                                     { return defaultClient.Session() }
 func Logout(ctx context.Context) error                      { return defaultClient.Logout(ctx) }
 func Cancel()                                               { defaultClient.Cancel() }

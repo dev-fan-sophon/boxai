@@ -24,6 +24,7 @@ const testToken = "sk-test-browser-session"
 func TestBrowserHandshakeConfiguresKeyWithoutAccountRequests(t *testing.T) {
 	ctx := context.Background()
 	calls := 0
+	authorized := 0
 	verifier := "test-verifier"
 	challenge := sha256.Sum256([]byte(verifier))
 	var origin, redirect string
@@ -66,6 +67,9 @@ func TestBrowserHandshakeConfiguresKeyWithoutAccountRequests(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 200, res.StatusCode)
 		res.Body.Close()
+	}, func() {
+		assert.True(t, c.Session().Authenticated, "show the application only after the key is persisted")
+		authorized++
 	})
 	require.True(t, c.Session().Authenticated)
 	assert.False(t, c.Session().Pending)
@@ -82,8 +86,10 @@ func TestBrowserHandshakeConfiguresKeyWithoutAccountRequests(t *testing.T) {
 	require.NoError(t, restarted.Require(ctx))
 	require.NoError(t, c.Require(ctx))
 	assert.Equal(t, 1, calls, "restart and normal use never fetch account metadata")
+	assert.Equal(t, 1, authorized)
 	require.NoError(t, restarted.Logout(ctx))
 	assert.Equal(t, 1, calls, "logout needs no cloud request")
+	assert.Equal(t, 1, authorized, "logout must not show the app")
 	_, err = v.Get(ctx, "session")
 	assert.ErrorIs(t, err, errMissing)
 	assert.False(t, c.Session().Authenticated)
@@ -195,7 +201,7 @@ func TestBrowserCancelAndExpiredFlow(t *testing.T) {
 			require.NoError(t, err)
 			c.cancel, c.generation = cancel, 1
 			opened := false
-			c.login(ctx, cancel, listener, 1, "verifier", "state", func(string) { opened = true; c.Cancel() })
+			c.login(ctx, cancel, listener, 1, "verifier", "state", func(string) { opened = true; c.Cancel() }, func() { t.Error("cancelled login must not show the app") })
 			assert.Equal(t, !expired, opened)
 			assert.False(t, c.Session().Pending)
 			assert.False(t, c.Session().Authenticated)
@@ -268,7 +274,7 @@ func TestSessionHandlerDoesNotRequireRemoteService(t *testing.T) {
 	v := fileVault{path: filepath.Join(t.TempDir(), "auth.json")}
 	require.NoError(t, v.Set(context.Background(), "session", testToken))
 	c := newClient(s.URL, v, nil)
-	h := c.Handler(nil)
+	h := c.Handler(nil, nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/boxai/session", nil))
 	assert.Equal(t, http.StatusOK, w.Code)

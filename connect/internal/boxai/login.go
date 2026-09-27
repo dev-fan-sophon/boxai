@@ -16,6 +16,10 @@ import (
 // Login starts a bounded browser flow. ctx must outlive the initiating HTTP
 // request; Handler supplies an independent three-minute lifetime.
 func (c *Client) Login(ctx context.Context, openURL func(string)) error {
+	return c.startLogin(ctx, openURL, nil)
+}
+
+func (c *Client) startLogin(ctx context.Context, openURL func(string), onAuthorized func()) error {
 	if openURL == nil {
 		return errors.New("browser opener unavailable")
 	}
@@ -46,10 +50,10 @@ func (c *Client) Login(ctx context.Context, openURL func(string)) error {
 	c.generation++
 	generation := c.generation
 	c.lastError = ""
-	go c.login(flow, cancel, l, generation, verifier, state, openURL)
+	go c.login(flow, cancel, l, generation, verifier, state, openURL, onAuthorized)
 	return nil
 }
-func (c *Client) login(ctx context.Context, cancel context.CancelFunc, l net.Listener, generation uint64, verifier, state string, openURL func(string)) {
+func (c *Client) login(ctx context.Context, cancel context.CancelFunc, l net.Listener, generation uint64, verifier, state string, openURL func(string), onAuthorized func()) {
 	defer cancel()
 	defer l.Close()
 	redirect := "http://" + l.Addr().String() + "/callback"
@@ -118,7 +122,9 @@ func (c *Client) login(ctx context.Context, cancel context.CancelFunc, l net.Lis
 	if err == nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}
-	c.finish(ctx, generation, response.AccessToken, err)
+	if c.finish(ctx, generation, response.AccessToken, err) && onAuthorized != nil {
+		onAuthorized()
+	}
 }
 func (c *Client) finish(ctx context.Context, generation uint64, token string, err error) bool {
 	c.mu.Lock()
