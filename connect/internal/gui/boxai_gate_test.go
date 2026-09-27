@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yetone/magpie/internal/agent"
 	"github.com/yetone/magpie/internal/boxai"
 	"github.com/yetone/magpie/internal/provider"
 )
@@ -30,6 +31,22 @@ func TestBoxAIAPIGate(t *testing.T) {
 	}
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	provider.UseBoxAI()
+	choices := []agent.Option{
+		{Value: "native-model"},
+		{Value: "magpie/boxai/claude[1m]", Ref: "boxai/claude"},
+		{Value: "other/gpt", Ref: "other/gpt"},
+	}
+	opts, restricted := fieldOptions(agent.Field{Key: "model", Label: "model", Options: func(map[string]string) []agent.Option { return choices }}, nil)
+	assert.True(t, restricted)
+	assert.Equal(t, choices[1:2], opts, "filter by Ref, preserving adapter spelling and context suffix")
+	opts, restricted = fieldOptions(agent.Field{Key: "effort", Label: "effort", Options: func(map[string]string) []agent.Option { return choices }}, nil)
+	assert.False(t, restricted)
+	assert.Equal(t, choices, opts)
+	opts, restricted = fieldOptions(agent.Field{Key: "provider", Label: "auth", Options: func(map[string]string) []agent.Option {
+		return []agent.Option{{Value: "google"}, {Value: "magpie"}, {Value: "vertex"}}
+	}}, nil)
+	assert.True(t, restricted)
+	assert.Equal(t, []agent.Option{{Value: "magpie"}}, opts)
 	h := Handler(nil, nil)
 	for _, tc := range []struct {
 		method, path, token string

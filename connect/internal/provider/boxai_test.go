@@ -41,6 +41,7 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	p, err := FromPreset("boxai")
 	require.NoError(t, err)
 	p.Key, p.Models = "first-test-key", []string{"model-a", "model-b"}
+	require.NoError(t, catalog.SaveLive("boxai", p.Chat, []catalog.Model{{ID: "model-a"}, {ID: "model-b"}}))
 	id, err := Add(p)
 	require.NoError(t, err)
 	assert.Equal(t, "boxai", id)
@@ -130,4 +131,25 @@ func TestBoxAIModelsDoNotRequireProviderEditorSelection(t *testing.T) {
 	assert.Equal(t, "model-24", exposed[24].ID)
 	p.Models = []string{"model-24"}
 	require.Len(t, p.Exposed(), 1, "preserve an existing explicit model selection")
+}
+
+func TestBoxAIExposedConversationalCatalog(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	UseBoxAI()
+	t.Cleanup(func() { boxAIOnly.Store(false) })
+	no, yes := false, true
+	require.NoError(t, catalog.SaveLive("boxai", "https://you-box.com/v1", []catalog.Model{
+		{ID: "vision-chat", Images: true, Conversational: &yes},
+		{ID: "artist", Conversational: &no},
+		{ID: "veo-3"},
+		{ID: "text-chat"},
+	}))
+	p := Provider{ID: "boxai", Models: []string{"artist", "vision-chat", "veo-3", "missing"}}
+	models := p.Exposed()
+	require.Len(t, models, 1)
+	assert.Equal(t, "vision-chat", models[0].ID)
+	p.Models = nil
+	models = p.Exposed()
+	require.Len(t, models, 2)
+	assert.Equal(t, "text-chat", models[1].ID)
 }

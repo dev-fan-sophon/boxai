@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,10 +55,11 @@ type Windows interface {
 }
 
 type fieldJSON struct {
-	Key     string         `json:"key"`
-	Label   string         `json:"label"`
-	Value   string         `json:"value"`
-	Options []agent.Option `json:"options"`
+	Key        string         `json:"key"`
+	Label      string         `json:"label"`
+	Value      string         `json:"value"`
+	Options    []agent.Option `json:"options"`
+	Restricted bool           `json:"restricted,omitempty"`
 }
 
 type agentJSON struct {
@@ -196,6 +198,13 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		f := a.Field(in.Field)
 		if f == nil {
 			http.Error(rw, "unknown field", http.StatusBadRequest)
+			return
+		}
+		options, restricted := fieldOptions(*f, a.Values())
+		if restricted && !slices.ContainsFunc(options, func(o agent.Option) bool { return o.Value == strings.TrimSpace(in.Value) }) {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusBadRequest)
+			writeJSON(rw, map[string]string{"error": "Select a BoxAI model from the list"})
 			return
 		}
 		if err := a.Apply(f.Key, strings.TrimSpace(in.Value)); err != nil {
@@ -434,6 +443,26 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	return handler
 }
 
+// fieldOptions constrains only product choices, leaving upstream config writers alone.
+func fieldOptions(f agent.Field, values map[string]string) ([]agent.Option, bool) {
+	opts := f.Options(values)
+	if !provider.BoxAIOnly() {
+		return opts, false
+	}
+	switch f.Label {
+	case "model", "small", "large", "haiku", "sonnet", "opus", "subagents", "provider", "auth":
+	default:
+		return opts, false
+	}
+	filtered := make([]agent.Option, 0, len(opts))
+	for _, o := range opts {
+		if strings.HasPrefix(o.Ref, "boxai/") || f.Key == "provider" && o.Value == "magpie" {
+			filtered = append(filtered, o)
+		}
+	}
+	return filtered, true
+}
+
 func state() stateJSON {
 	s := stateJSON{Agents: []agentJSON{}, Profiles: []profileJSON{}, Catalog: catalog.Source(), Settings: settings.Load()}
 	for _, a := range agent.Clients() {
@@ -443,11 +472,11 @@ func state() stateJSON {
 		vals := a.Values()
 		aj := agentJSON{ID: a.ID, Name: a.Name, Icon: a.Icon, Path: tilde(a.Path)}
 		for _, f := range a.Fields {
-			opts := f.Options(vals)
+			opts, restricted := fieldOptions(f, vals)
 			if opts == nil {
 				opts = []agent.Option{}
 			}
-			aj.Fields = append(aj.Fields, fieldJSON{Key: f.Key, Label: f.Label, Value: vals[f.Key], Options: opts})
+			aj.Fields = append(aj.Fields, fieldJSON{Key: f.Key, Label: f.Label, Value: vals[f.Key], Options: opts, Restricted: restricted})
 		}
 		aj.Drift = a.Drift()
 		s.Agents = append(s.Agents, aj)

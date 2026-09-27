@@ -62,7 +62,7 @@ async function api(path, body) {
   });
   if (res.status === 204) return null;
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) throw new Error(t(data.error || res.statusText));
   return data;
 }
 
@@ -835,14 +835,14 @@ function openPicker(agent, field, anchor, ev, only) {
   // their natural low → high order because their position is meaningful.
   const i = options.findIndex((o) => o.value === cur);
   if (!effortPicker && !field.menu && i > 0) { const [c] = options.splice(i, 1); options.unshift({ ...c, group: "" }); }
-  else if (i < 0 && cur && !only) options.unshift({ value: cur, note: t("current value") });
+  else if (i < 0 && cur && !only && !field.restricted) options.unshift({ value: cur, note: t("current value") });
   // the agent's own default: magpie's wiring comes out and the key is removed
-  if (FOLLOWS_MODEL.includes(field.label)) {
+  if (!field.restricted && FOLLOWS_MODEL.includes(field.label)) {
     const main = agent.fields.find((f) => f.key === "model");
     options.unshift({ value: "", label: t("Same as model"), note: optionFor(main, main.value)?.label || main.value, icon: optionFor(main, main.value)?.icon, reset: true });
-  } else if (!only && !field.menu && !field.onPick) options.unshift({ value: "", label: t("Default"), note: t("what {agent} ships with", { agent: agent.name }), icon: agent.icon, reset: true });
+  } else if (!field.restricted && !only && !field.menu && !field.onPick) options.unshift({ value: "", label: t("Default"), note: t("what {agent} ships with", { agent: agent.name }), icon: agent.icon, reset: true });
   const modelPicker = ["model", "small", "large", ...FOLLOWS_MODEL].includes(field.label) && !only;
-  pick = { agent, field, options, anchor, cursor: 0, free: !only && !field.menu, modelPicker, effortPicker, groupFilter: "all" };
+  pick = { agent, field, options, anchor, cursor: 0, free: !field.restricted && !only && !field.menu, modelPicker, effortPicker, groupFilter: "all" };
   anchor.classList.add("open");
   const pop = $("#pop");
   pop.classList.toggle("model-picker", modelPicker);
@@ -860,6 +860,7 @@ function openPicker(agent, field, anchor, ev, only) {
   const q = $("#q");
   q.value = "";
   q.placeholder = modelPicker && extra(field) ? t("{field} — filter, or type any model id…", { field: t(field.label) }) : modelPicker ? t("Filter, or type any model id…") : t("Filter {field}…", { field: t(field.label) });
+  if (field.restricted) q.placeholder = t("Filter…");
   filter();
   q.focus();
 }
@@ -1506,8 +1507,8 @@ function renderConnect() {
   box.append(...field("Base URL", b, t("What {env} takes.", { env: f.baseEnv })));
 
   const k = el("div", "val");
-  k.append(el("code", "", "magpie"), copyBtn("magpie", t("Key")));
-  box.append(...field(t("API key"), k, t("{env}=magpie. The gateway trusts everything on loopback, so any value works.", { env: f.keyEnv })));
+  k.append(el("code", "", "boxai"), copyBtn("boxai", t("Key")));
+  box.append(...field(t("API key"), k, t("Local placeholder only. Your BoxAI API key stays private.")));
 
   const m = el("div", "val");
   m.append(el("code", "", model), copyBtn(model, t("Model id")));
@@ -1515,9 +1516,10 @@ function renderConnect() {
 
   const ex = el("div", "stack");
   ex.append(segs(LANGS, lang, (id) => { lang = id; localStorage.setItem("magpie.lang", id); renderConnect(); }));
-  const code = lang === "shell" ? envSnippet([[f.baseEnv, base], [f.keyEnv, "magpie"]])
+  const example = lang === "shell" ? envSnippet([[f.baseEnv, base], [f.keyEnv, "boxai"]])
     : lang === "curl" ? curlSnippet(f.curl(base, model))
     : f[lang](base, model);
+  const code = example.replace(/(api_key=|apiKey: |Bearer |x-api-key: |x-goog-api-key: )(["']?)magpie\b/g, "$1$2boxai");
   const pre = el("pre", "snip");
   const c = el("code");
   c.append(highlight(code, lang));

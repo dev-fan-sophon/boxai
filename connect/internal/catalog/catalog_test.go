@@ -8,7 +8,38 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestBoxAIConversationalCatalog(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[
+		 {"id":"vision-chat","input_modalities":["text","image"],"output_modalities":["text"],"supported_endpoint_types":["openai"]},
+		 {"id":"image-understanding","output_modalities":["text"],"supported_endpoint_types":["anthropic"]},
+		 {"id":"artist","output_modalities":["text","image"],"supported_endpoint_types":["openai","image-generation"]},
+		 {"id":"movie","output_modalities":["video"],"supported_endpoint_types":["openai-video"]},
+		 {"id":"speech","output_modalities":["audio"],"supported_endpoint_types":["audio-tts"]},
+		 {"id":"transcription","output_modalities":["text"],"supported_endpoint_types":["audio-stt"]},
+		 {"id":"ranking","output_modalities":["text"],"supported_endpoint_types":["jina-rerank"]},
+		 {"id":"gpt-chat"}, {"id":"Veo-3"}, {"id":"flux-pro"}, {"id":"gpt-image-1","supported_endpoint_types":["openai"]}
+		]}`))
+	}))
+	defer s.Close()
+	models, err := fetchOne(context.Background(), s.URL, "", false, nil)
+	require.NoError(t, err)
+	var ids []string
+	for _, m := range models {
+		ids = append(ids, m.ID)
+	}
+	assert.Equal(t, []string{"vision-chat", "image-understanding", "gpt-chat"}, ids)
+	require.Len(t, models, 3)
+	assert.True(t, models[0].Images, "vision input is not media generation")
+	require.NotNil(t, models[1].Conversational)
+	assert.True(t, *models[1].Conversational, "explicit capabilities override model name heuristics")
+}
 
 // writeCatalog puts a valid models.dev-shaped file where load() will find it;
 // load() falls back to the machine's own caches, so a malformed file would

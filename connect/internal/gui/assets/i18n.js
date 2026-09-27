@@ -575,6 +575,8 @@ const I18N = {
     "{what} copied": "Đã sao chép {what}",
     "Connect": "Kết nối",
     "Loopback only · the key can be anything": "Chỉ trên máy này · khóa có thể là giá trị bất kỳ",
+    "Local placeholder only. Your BoxAI API key stays private.": "Chỉ là khóa mẫu cục bộ. Khóa API BoxAI của bạn vẫn được giữ riêng tư.",
+    "Select a BoxAI model from the list": "Chọn một mô hình BoxAI trong danh sách",
     "Chat Completions, the API most tools speak. Anything with an OpenAI base-URL setting works.": "Chat Completions, API được hầu hết công cụ sử dụng. Mọi công cụ có cài đặt URL cơ sở OpenAI đều dùng được.",
     "OpenAI's newer API: reasoning, built-in tool items, encrypted reasoning. Codex speaks this.": "API mới hơn của OpenAI: suy luận, công cụ tích hợp, suy luận mã hóa. Codex dùng API này.",
     "Messages API. Claude Code reads ANTHROPIC_AUTH_TOKEN instead of the key; the Agents tab sets that for you.": "Messages API. Claude Code đọc ANTHROPIC_AUTH_TOKEN thay vì khóa; thẻ Tác nhân sẽ thiết lập giúp bạn.",

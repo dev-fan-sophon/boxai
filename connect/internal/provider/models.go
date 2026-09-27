@@ -234,6 +234,15 @@ func (p Provider) Serves(k KeyAccount, model string) bool {
 // user's picks; else the preset's; else everything, when that is few.
 func (p Provider) Exposed() []catalog.Model {
 	avail := p.Available()
+	if BoxAIOnly() {
+		var chat []catalog.Model
+		for _, m := range avail {
+			if catalog.ConversationalModel(m) && (len(p.Models) == 0 || slices.Contains(p.Models, m.ID)) {
+				chat = append(chat, m)
+			}
+		}
+		return chat
+	}
 	byID := make(map[string]catalog.Model, len(avail))
 	for _, m := range avail {
 		byID[m.ID] = m

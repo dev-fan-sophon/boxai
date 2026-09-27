@@ -194,7 +194,7 @@ func fetchOne(ctx context.Context, url, key string, anthropic bool, headers map[
 		if id == "" {
 			id = r.Name
 		}
-		if id == "" || !textModel(mdModel{ID: id}) {
+		if id == "" {
 			continue
 		}
 		name := r.DisplayName
@@ -202,7 +202,23 @@ func fetchOne(ctx context.Context, url, key string, anthropic bool, headers map[
 			name = id
 		}
 		input := imageInput(r.Modalities.Input)
+		if r.InputModalities != nil {
+			input = imageInput(r.InputModalities)
+		}
 		m := Model{ID: id, Name: name, ImageInput: input, APIs: EndpointAPIs(r.Endpoints)}
+		if r.OutputModalities != nil || r.EndpointTypes != nil {
+			chat := ConversationalModel(m)
+			if r.OutputModalities != nil {
+				chat = slices.Contains(r.OutputModalities, "text") && !slices.Contains(r.OutputModalities, "image") && !slices.Contains(r.OutputModalities, "video") && !slices.Contains(r.OutputModalities, "audio")
+			}
+			if r.EndpointTypes != nil {
+				chat = chat && (slices.Contains(r.EndpointTypes, "openai") || slices.Contains(r.EndpointTypes, "openai-response") || slices.Contains(r.EndpointTypes, "anthropic") || slices.Contains(r.EndpointTypes, "gemini"))
+			}
+			m.Conversational = &chat
+		}
+		if !ConversationalModel(m) {
+			continue
+		}
 		if input != nil {
 			m.Images = *input
 		}
@@ -212,10 +228,13 @@ func fetchOne(ctx context.Context, url, key string, anthropic bool, headers map[
 }
 
 type liveModel struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Modalities  struct {
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	DisplayName      string   `json:"display_name"`
+	InputModalities  []string `json:"input_modalities"`
+	OutputModalities []string `json:"output_modalities"`
+	EndpointTypes    []string `json:"supported_endpoint_types"`
+	Modalities       struct {
 		Input []string `json:"input"`
 	} `json:"modalities"`
 	// the paths the model is served on, where the vendor says: Command

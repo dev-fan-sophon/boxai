@@ -37,6 +37,8 @@ type Model struct {
 	APIs []string `json:",omitempty"`
 	// Images is set on a model that takes images as input.
 	Images bool `json:",omitempty"`
+	// Conversational is the server's explicit classification, when supplied.
+	Conversational *bool `json:",omitempty"`
 	// ImageInput is the source's explicit answer; nil means it did not say.
 	ImageInput *bool `json:",omitempty"`
 	// Context is how many tokens a prompt may hold, when known: models.dev's
@@ -470,6 +472,21 @@ func bareID(id string) string {
 		id = id[i+1:]
 	}
 	return id
+}
+
+// ConversationalModel excludes media generation and non-chat utility models.
+// Vision input is allowed; explicit server metadata takes priority over names.
+func ConversationalModel(m Model) bool {
+	if m.Conversational != nil {
+		return *m.Conversational
+	}
+	id := strings.ToLower(m.ID)
+	for _, media := range []string{"video", "veo", "kling", "flux", "imagen", "stable-diffusion", "suno", "music", "rerank"} {
+		if strings.Contains(id, media) {
+			return false
+		}
+	}
+	return textModel(mdModel{ID: id})
 }
 
 func textModel(m mdModel) bool {
