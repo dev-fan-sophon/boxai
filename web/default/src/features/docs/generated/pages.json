@@ -226,6 +226,255 @@
       ],
       "body": "## Version checked\n\nChecked on **September 5, 2026** against OpenAI's live [production macOS update feed](https://persistent.oaistatic.com/codex-app-prod/appcast.xml): **26.901.41600, build 7982**, published at **02:13 UTC / 09:13 Vietnam time**. We also inspected the downloaded package's version metadata and bundled Codex binary, which contains version **0.153.4**. The current package is named `ChatGPT.app`; OpenAI's documentation now refers to Codex inside the ChatGPT desktop app.\n\nThis is a dated compatibility guide, not a promise that this version remains the newest forever. Use the app's update check and About screen before following it. A separately installed `codex --version` reports the CLI, **not your desktop app version**. Windows instructions below use the same configuration schema; we have not independently verified the newest Windows Store build number. Package/configuration inspection does not constitute a native macOS or Windows GUI end-to-end test.\n\n## Before you start\n\n- Create a **BoxAI inference API key** in [API keys](/keys), with enough balance and permission for your chosen model. Do not use a BoxAI administrator token, ChatGPT session token, or another provider's key.\n- Confirm the exact model ID in [Model Hub](/pricing). The example uses `gpt-6-astra`; replace it if your key cannot access it.\n- This guide configures **local desktop tasks**, billed to BoxAI. It does not make ChatGPT cloud tasks or remote-control features available with a BoxAI key.\n- Fully quit the desktop app before editing. Back up existing `config.toml` and `auth.json` privately. These settings may also affect the CLI and IDE extension sharing the same Codex home. Do not replace unrelated MCP, project, or safety settings.\n\n## 1. Open the user configuration directory\n\n| System  | Default directory                                  |\n| ------- | -------------------------------------------------- |\n| macOS   | `~/.codex/` — in Finder, use Go → Go to Folder     |\n| Windows | `%USERPROFILE%\\.codex\\` — paste into File Explorer |\n\nIf `CODEX_HOME` is set for the app, use that directory instead. Use **user-level** configuration, not a repository's `.codex/config.toml`: current clients restrict project-level provider/authentication overrides.\n\nCreate `config.toml` and `auth.json` if missing. Save as plain text with those exact filenames, not `config.toml.txt` or `auth.json.txt`.\n\n## 2. Configure config.toml\n\nThis is the **file-based API-login recipe**. Merge these settings into your user configuration. Top-level keys must appear **before any `[table]` header**; replace existing keys rather than duplicating them.\n\n```toml\nmodel_provider = \"boxai\"\nmodel = \"gpt-6-astra\"\nmodel_reasoning_effort = \"high\"\n\n# Keep this Codex home in API-key mode, not ChatGPT login mode.\nforced_login_method = \"api\"\n# Make the auth.json file in the next step the credential source.\ncli_auth_credentials_store = \"file\"\n\n[model_providers.boxai]\nname = \"BoxAI\"\nbase_url = \"https://you-box.com/v1\"\nwire_api = \"responses\"\nrequires_openai_auth = true\nsupports_websockets = false\n```\n\n**Do not miss `forced_login_method = \"api\"`.** It belongs at the top level, not inside `[model_providers.boxai]`. In this recipe it prevents an existing ChatGPT login from being used instead of the API-key login. It is **not a setting newly introduced in 26.901.41600**: OpenAI added the login restriction in 2025. It is also not universally required for every custom provider; the environment-key alternative below uses a different authentication path.\n\n| Setting                               | Why it is here                                                                                                                                                                                    |\n| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `model_provider = \"boxai\"`            | Must exactly match the suffix of `[model_providers.boxai]`. Do not redefine the reserved `openai` provider.                                                                                       |\n| `base_url`                            | Use `https://you-box.com/v1`, not `/v1/responses`. Codex appends `/responses`.                                                                                                                    |\n| `wire_api = \"responses\"`              | Current Codex uses the Responses protocol. Old `wire_api = \"chat\"` examples are not supported.                                                                                                    |\n| `requires_openai_auth = true`         | Uses Codex's cached API-login credential from `auth.json` for this recipe. It does **not** change the destination to OpenAI; `base_url` selects BoxAI. Do not combine this recipe with `env_key`. |\n| `supports_websockets = false`         | Uses HTTP/SSE instead of assuming the gateway supports Responses WebSockets. Streaming still works over SSE.                                                                                      |\n| `cli_auth_credentials_store = \"file\"` | Avoids an OS keyring entry taking precedence over the file you edited. The file contains a plaintext secret, so protect it.                                                                       |\n\n`model_reasoning_effort` is optional and model-dependent. Astra supports `low`, `medium`, `high`, `xhigh`, and `max`; it does not support `none`. Do not copy context limits or reasoning settings from a different model. Do not add sandbox-bypass settings: they are unrelated to configuring an API provider.\n\n## 3. Configure auth.json\n\nFor this API-only setup, save the following object in the same directory. Replace the placeholder with your **own BoxAI API key**. Do not copy ChatGPT refresh/access tokens into this object.\n\n```json\n{\n  \"auth_mode\": \"apikey\",\n  \"OPENAI_API_KEY\": \"REPLACE_WITH_YOUR_BOXAI_API_KEY\"\n}\n```\n\nBoth the spelling of `auth_mode = apikey` and the JSON field name `OPENAI_API_KEY` matter. The field name is Codex's credential format; the value is a **BoxAI** key for the configured BoxAI endpoint. JSON does not support comments or trailing commas.\n\nOn macOS, restrict access after saving:\n\n```bash\nchmod 700 ~/.codex\nchmod 600 ~/.codex/config.toml ~/.codex/auth.json\n```\n\nOn Windows, keep these files in your private user profile and restrict their file permissions to your account. Never commit, upload, screenshot, or share `auth.json`. Keep backups equally private. Do not use `codex login` with ChatGPT after this setup unless you intend to switch authentication modes.\n\n## 4. Restart and verify a new local task\n\n1. Fully quit and reopen the desktop app; closing a window alone may leave the app running.\n2. Create a **new local task**. Existing conversations may retain their original model/provider; do not use an old conversation to validate a provider change.\n3. Select `gpt-6-astra` if the picker offers it, and send a small request such as “Reply with OK.” A model response by itself does not prove which provider handled it.\n4. Open [BoxAI usage logs](/console/log). Check the new request's time, model name, token usage, and charge. A matching successful entry is the decisive evidence that BoxAI handled the request.\n5. Confirm no unexpected request appeared in another provider's billing history. Never rely only on a model label in the desktop UI.\n\nIf the app still shows a login screen, check the files, `CODEX_HOME`, and API mode first. Current OpenAI documentation calls the API-key login entry **Sign in another way**. Do not switch to ChatGPT login to bypass a custom-provider error, and do not submit your BoxAI key to an unrelated website.\n\n## Alternative: use an environment key\n\nUse this **instead of**, not together with, the file-based recipe when you can reliably supply an environment variable to the actual desktop/app-server process:\n\n```toml\nmodel_provider = \"boxai\"\nmodel = \"gpt-6-astra\"\nmodel_reasoning_effort = \"high\"\n\n[model_providers.boxai]\nname = \"BoxAI\"\nbase_url = \"https://you-box.com/v1\"\nwire_api = \"responses\"\nenv_key = \"BOXAI_API_KEY\"\nrequires_openai_auth = false\nsupports_websockets = false\n```\n\nSet `BOXAI_API_KEY` securely in the environment inherited by the desktop/app-server process, then fully restart it. Merely exporting a variable in a terminal does not guarantee an app opened from Finder, Dock, or the Windows Start menu can read it. This alternative does not need a BoxAI key in `auth.json`; do not delete existing credentials unnecessarily. Remove the file-recipe's `forced_login_method` restriction if you intend to retain ChatGPT-authenticated features. Those features have separate eligibility requirements; this configuration does not guarantee their availability.\n\n## Common problems and outdated advice\n\n| Symptom                                       | Check                                                                                                                                                                                                     |\n| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| Still uses ChatGPT or the wrong provider      | Check top-level `model_provider`, `forced_login_method`, active Codex home, and start a new task. Check BoxAI usage logs.                                                                                 |\n| `401` / invalid key                           | Use a BoxAI inference key. For file mode, check `auth_mode`, `OPENAI_API_KEY`, and `cli_auth_credentials_store`. For environment mode, check the app process has the variable without printing its value. |\n| `404` / unsupported endpoint                  | Use the base `/v1` URL and `wire_api = \"responses\"`; do not append `/responses` yourself or use `\"chat\"`.                                                                                                 |\n| Model unavailable                             | Check the exact ID, enabled group, key permissions, and balance in BoxAI. A model appearing in a custom catalog does not grant access.                                                                    |\n| Model picker missing or wrong                 | Desktop releases have had custom-provider picker/routing limitations. Update the app, restart, and use a new task. Do not edit Codex's SQLite database to force a model.                                  |\n| Configuration ignored                         | Check duplicate TOML keys, table placement, `CODEX_HOME`, profile/managed configuration, and whether the app actually restarted.                                                                          |\n| WebSocket handshake errors                    | Keep `supports_websockets = false` unless your chosen endpoint's WebSocket support has been verified.                                                                                                     |\n| Cloud or remote-control feature stops working | API-key mode is not ChatGPT cloud authentication. Restore your private backup if returning to ChatGPT login; review the provider as well as the credential settings.                                      |\n\n`model_catalog_json` is an **optional top-level custom model catalog**, not a newly mandatory authentication flag. It replaces the catalog and uses Codex's schema, not a raw `/v1/models` response. It does not by itself fix desktop provider routing. `preferred_auth_method` and `disable_response_storage` are not needed by this recipe; do not add old tutorial settings without checking the current schema.\n\n## Sources and next steps\n\n- [Official desktop production update feed](https://persistent.oaistatic.com/codex-app-prod/appcast.xml)\n- [Official authentication and alternative-provider documentation](https://developers.openai.com/codex/auth/)\n- [Official configuration reference](https://developers.openai.com/codex/config-reference/)\n- [Official advanced provider configuration](https://developers.openai.com/codex/config-advanced/)\n- [Codex 0.153.4 release](https://github.com/openai/codex/releases/tag/rust-v0.153.4) and [the original forced-login restriction change](https://github.com/openai/codex/commit/d87f87e25b6711f0268cfd884fa28555c6c46093)\n- [Create and manage BoxAI keys](/docs/console/api-keys) · [Usage logs](/docs/console/usage-logs) · [Model Hub](/pricing)\n"
     },
+    "clients/connect/account-and-troubleshooting": {
+      "path": "clients/connect/account-and-troubleshooting",
+      "locale": "en",
+      "title": "Account, usage and troubleshooting",
+      "summary": "Understand account-wide usage, manage authorization and recover safely from common Connect problems.",
+      "section": "clients",
+      "order": 35,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "account-and-usage",
+          "text": "Account and Usage",
+          "level": 2
+        },
+        {
+          "id": "common-problems",
+          "text": "Common problems",
+          "level": 2
+        },
+        {
+          "id": "the-app-is-running-but-no-window-appears",
+          "text": "The app is running but no window appears",
+          "level": 3
+        },
+        {
+          "id": "browser-authorization-stalls-or-times-out",
+          "text": "Browser authorization stalls or times out",
+          "level": 3
+        },
+        {
+          "id": "account-usage-or-model-lists-fail-to-load",
+          "text": "Account, Usage or model lists fail to load",
+          "level": 3
+        },
+        {
+          "id": "a-key-was-revoked-deleted-or-rejected",
+          "text": "A key was revoked, deleted or rejected",
+          "level": 3
+        },
+        {
+          "id": "an-image-video-or-audio-model-is-missing",
+          "text": "An image, video or audio model is missing",
+          "level": 3
+        },
+        {
+          "id": "an-agent-cannot-connect",
+          "text": "An agent cannot connect",
+          "level": 3
+        },
+        {
+          "id": "sharing-a-useful-problem-report",
+          "text": "Sharing a useful problem report",
+          "level": 2
+        }
+      ],
+      "body": "## Account and Usage\n\n**Account** shows identity and authorization information, with links to top up, manage subscriptions and account security. Confirm the account before sending requests. Use **Reverify authorization** when you need a fresh authorization check and **Sign out** to remove the local credential.\n\n**Usage** comes from BoxAI's account service: wallet balance, lifetime consumption and subscription counters are shown in **raw quota units**. These are account-wide figures, including activity outside this Connect installation. They are not currency amounts, a per-agent breakdown or local estimated costs. Gateway activity and Routing are useful diagnostics, not billing records.\n\nUse [Billing](/billing) for balance and subscriptions, [Keys](/keys) for credential management, [account security](/profile) for your website account and the [model catalog](/pricing) for model prices and availability.\n\n## Common problems\n\n### The app is running but no window appears\n\nCheck the macOS menu bar or Windows notification area, including hidden icons. Use **Open BoxAI Connect** in its icon menu. Closing the window normally hides it instead of quitting. If the icon is absent, launch the installed app once; do not start multiple copies as a workaround.\n\n**Check:** the sign-in screen or six tabs become visible. Keep the app running for agent requests.\n\n### Browser authorization stalls or times out\n\nThe browser callback must return to Connect on the same computer within about three minutes. Keep Connect open, verify that the authorization site is `you-box.com`, and finish the browser approval. Use **Cancel** for a pending flow, or **Retry** after an error, then start a new flow. Do not reuse an expired callback URL or send it to support.\n\nIf a managed browser, proxy or firewall blocks the local callback, ask your administrator to review that specific connection. Do not disable security protections.\n\n**Check:** Connect leaves the sign-in gate and Account shows the intended identity.\n\n### Account, Usage or model lists fail to load\n\nCheck whether `https://you-box.com` opens in your browser and whether the network or proxy is reporting a failure. Retry after connectivity returns; refresh model lists if needed. A temporary account-service outage is not by itself evidence that your saved key was deleted. Opening Connect uses the local credential, while these cloud-backed views need successful API requests.\n\n**Check:** Account or Usage loads fresh data without an error. Do not interpret missing data as a zero balance.\n\n### A key was revoked, deleted or rejected\n\nCheck the corresponding entry in website [Keys](/keys). Use **Reverify authorization** if available. If the key is no longer valid, sign out locally and [authorize again](/docs/clients/connect/sign-in) with the intended account. Authorization creates a new ordinary key; do not copy the old secret into agent settings.\n\nRevocation is enforced when requests reach the server; an already open window is not proof of ongoing access. Signing out only removes the local credential. To invalidate a leaked key, revoke it on the website as well.\n\n**Check:** Account loads and a short agent request succeeds. Neither sign-out nor uninstall promises to restore previous agent configuration.\n\n### An image, video or audio model is missing\n\nThis is expected for media-generation models: Connect's BoxAI picker is conversational-only. Vision-input chat models may still appear. Use the [model catalog](/pricing) and [API documentation](/docs/api/overview) to choose another suitable workflow. For a missing chat model, check key access and refresh the model list instead of bypassing the filter.\n\n### An agent cannot connect\n\nFollow [Gateway and Routing](/docs/clients/connect/gateway-and-routing): confirm Connect is running and signed in, compare the client's Base URL and model ID with the displayed values, and inspect recent calls. Check [Billing](/billing) for quota-related failures. Avoid repeated billable retries while investigating.\n\n## Sharing a useful problem report\n\nInclude your OS and architecture, Connect version from its menu, the failing step, approximate time and exact error message with private values removed. Describe whether the failure is in sign-in, an account view or an agent request. Do not attach `auth.json`, API keys, full callback URLs, private prompts or unreviewed configuration backups.\n\nReturn to the [Connect overview](/docs/clients/connect) or [installation guide](/docs/clients/connect/install).\n"
+    },
+    "clients/connect/agents-and-models": {
+      "path": "clients/connect/agents-and-models",
+      "locale": "en",
+      "title": "Agents, models and Library",
+      "summary": "Choose conversational BoxAI models for your installed agents and use Library carefully.",
+      "section": "clients",
+      "order": 33,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "select-a-model-for-an-agent",
+          "text": "Select a model for an agent",
+          "level": 2
+        },
+        {
+          "id": "which-models-appear",
+          "text": "Which models appear?",
+          "level": 2
+        },
+        {
+          "id": "library-is-the-upstream-resource-library",
+          "text": "Library is the upstream resource library",
+          "level": 2
+        }
+      ],
+      "body": "## Select a model for an agent\n\n1. Install the coding agent you want to use separately, then [sign in to Connect](/docs/clients/connect/sign-in).\n2. Open **Agents** and find it in the detected list. Examples include Claude Code, Codex, Gemini CLI and OpenCode; the available controls depend on the agent.\n3. Open its model field and choose an available BoxAI model. Selection applies the setting to that agent's local configuration; there is no universal extra Save step for a model choice.\n4. Review other fields only if the agent exposes them, such as reasoning effort or model tiers. Do not assume every agent supports the same options.\n5. Reopen the agent if it has not picked up the change, then send a short, non-sensitive prompt. Requests can consume your account balance or subscription allowance.\n\n**Success check:** the chosen model appears in the agent row, the agent returns a response, and the corresponding request appears in Gateway's recent calls. Keep Connect running throughout.\n\nIf no agents appear, confirm the agent is installed for the same operating-system user. Check folded or hidden entries in the list before assuming it is unsupported. Do not overwrite unrelated agent configuration to force detection.\n\n## Which models appear?\n\nConnect fetches the BoxAI model list using your authorized key and exposes conversational models for coding and chat. Model access can differ by account and key restrictions; compare with the [website model catalog](/pricing), not an assumed fixed list.\n\nVision **input** is allowed where the conversational model and agent support it. This does not mean the picker supports image, video, music, speech or other media **generation**. Embedding and reranking models are also outside this conversational picker. A missing media model is therefore expected, not a reason to paste its ID into configuration to bypass the filter.\n\nIf an expected chat model is missing, check connectivity and key access, refresh the model lists using the toolbar refresh control, and reopen the picker. See [troubleshooting](/docs/clients/connect/account-and-troubleshooting) if it remains absent. For other API workflows, consult the [API overview](/docs/api/overview).\n\n## Library is the upstream resource library\n\n**Library** retains Magpie's instructions, MCP and skills workflows, including upstream marketplace resources. It is not limited to official BoxAI content and is not another model store.\n\nReview a resource's source, instructions, permissions and any commands or servers it uses before adding it. Library actions can write files used by your agents. Do not install resources merely to fix sign-in, and never give a resource your `auth.json` or BoxAI key. Keep your own backup of important agent files before making changes; sign-out is not an undo operation.\n\nNext: [Gateway and Routing](/docs/clients/connect/gateway-and-routing).\n"
+    },
+    "clients/connect/gateway-and-routing": {
+      "path": "clients/connect/gateway-and-routing",
+      "locale": "en",
+      "title": "Gateway and Routing",
+      "summary": "Use Connect's local connection details and inspect requests without exposing your cloud key.",
+      "section": "clients",
+      "order": 34,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "keep-the-gateway-available",
+          "text": "Keep the gateway available",
+          "level": 2
+        },
+        {
+          "id": "use-the-displayed-connection-details",
+          "text": "Use the displayed connection details",
+          "level": 2
+        },
+        {
+          "id": "inspect-routing",
+          "text": "Inspect routing",
+          "level": 2
+        },
+        {
+          "id": "if-a-request-fails",
+          "text": "If a request fails",
+          "level": 2
+        }
+      ],
+      "body": "## Keep the gateway available\n\nAn agent configured for Connect sends requests to the local gateway, which uses your private BoxAI credential to reach the cloud. The app must remain running and signed in. Closing its window hides it; quitting the app stops the gateway. Sleep or loss of network connectivity can interrupt requests too.\n\n## Use the displayed connection details\n\nFor supported agents, prefer the [Agents tab](/docs/clients/connect/agents-and-models). For a client you configure manually:\n\n1. Open **Gateway** and check its status.\n2. Use the connection details for the protocol your client supports. Copy the displayed **Base URL** instead of assuming a fixed port or appending an extra API path.\n3. Use the displayed local API-key placeholder, such as `boxai`, and a model ID from the Gateway list. Copy the complete model ID rather than guessing its prefix.\n4. Send one short request and inspect **Recent calls**.\n\nThe local placeholder is **not a secret BoxAI key** and will not authorize direct requests to `you-box.com`. Do not replace it with your cloud key or extract the key from `auth.json`. Local connection details are for this computer; do not expose the gateway to the internet or open firewall ports to solve a connection error.\n\n## Inspect routing\n\n**Routing** shows decisions as the gateway makes them. Use it alongside Gateway's recent calls to see where a request was sent and investigate failures. It is a local routing view, not proof of final account charges and not a way to add third-party providers in this BoxAI-only fork.\n\n**Success check:** your client receives a response, Gateway records the call, and Routing reflects the request when it passes through the gateway. If nothing appears, first check that the client is actually using the Base URL shown by Connect, not a previous provider endpoint.\n\nBefore sharing screenshots, use Routing's email-masking control and inspect the result for remaining personal information. Never share keys, authorization callback URLs or private prompt content.\n\n## If a request fails\n\n- **Connection refused:** confirm Connect is running, then compare the client's address with the current Gateway details.\n- **Authentication rejected:** check [Keys](/keys) and [sign in again](/docs/clients/connect/sign-in) if the credential was revoked.\n- **Cloud/network error:** check access to `you-box.com` and retry once connectivity returns. Do not disable TLS verification or security software.\n- **Balance or allowance issue:** check [Billing](/billing); local routing does not create extra quota.\n\nSee [account and troubleshooting](/docs/clients/connect/account-and-troubleshooting) for more recovery steps and the meaning of Usage.\n"
+    },
+    "clients/connect/install": {
+      "path": "clients/connect/install",
+      "locale": "en",
+      "title": "Install BoxAI Connect",
+      "summary": "Install the macOS Apple silicon or Windows x64 release safely.",
+      "section": "clients",
+      "order": 31,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "choose-your-platform",
+          "text": "Choose your platform",
+          "level": 2
+        },
+        {
+          "id": "macos",
+          "text": "macOS",
+          "level": 2
+        },
+        {
+          "id": "windows",
+          "text": "Windows",
+          "level": 2
+        },
+        {
+          "id": "success-check-and-updates",
+          "text": "Success check and updates",
+          "level": 2
+        }
+      ],
+      "body": "Always get the current installer from [BoxAI Connect](/connect), not a third-party mirror. Download links there follow the current release; you do not need a version-specific URL.\n\n## Choose your platform\n\n| Platform | Package | Requirements and signing |\n| --- | --- | --- |\n| macOS | Apple silicon arm64 `.dmg` | macOS 11 or later; Developer ID signed and notarized. |\n| Windows | x64 setup `.exe` | Windows 10 or later; currently unsigned. |\n\nThese packages are not Intel Mac or Windows ARM releases.\n\n## macOS\n\n1. Download and open the arm64 DMG.\n2. Drag **BoxAI Connect** into **Applications**.\n3. Open the app from Applications, rather than running it from the mounted disk image.\n4. Look for its menu-bar icon if no window appears. Open Connect from that icon's menu.\n\nIf macOS blocks the download or reports damage, stop and download again from the official page. Do not remove quarantine attributes or disable Gatekeeper. If the warning remains, record the exact message and seek support.\n\n## Windows\n\n1. Download the x64 setup EXE from the official page.\n2. Review any Windows warning before deciding whether to continue. The current installer is unsigned, so a publisher/reputation warning is possible; it is not proof that a file is safe.\n3. Run the installer and choose the installation directory. It installs for your user, by default under `%LOCALAPPDATA%\\Programs\\BoxAI Connect`.\n4. Launch **BoxAI Connect** from the Start menu. Check the notification area, including hidden icons, if no window appears.\n\nIf security software or an organization policy blocks installation, stop and contact your administrator or support. Do not disable Defender, SmartScreen or other protections.\n\n## Success check and updates\n\nYou should be able to open Connect from its menu-bar or tray icon and see the sign-in screen, or the six tabs if already authorized. Closing the window hides it; **Quit BoxAI Connect** exits it and stops serving your agents.\n\nUse the [Connect page](/connect) to check the current release and obtain a replacement installer. Before quitting or updating, finish active agent requests. Do not assume uninstalling removes credentials or undoes agent configuration.\n\nNext: [sign in](/docs/clients/connect/sign-in). For a missing window or blocked request, see [troubleshooting](/docs/clients/connect/account-and-troubleshooting).\n"
+    },
+    "clients/connect/sign-in": {
+      "path": "clients/connect/sign-in",
+      "locale": "en",
+      "title": "Sign in to BoxAI Connect",
+      "summary": "Authorize Connect in your browser and understand where its API key is stored.",
+      "section": "clients",
+      "order": 32,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "authorize-on-the-same-computer",
+          "text": "Authorize on the same computer",
+          "level": 2
+        },
+        {
+          "id": "what-authorization-creates",
+          "text": "What authorization creates",
+          "level": 2
+        },
+        {
+          "id": "success-check",
+          "text": "Success check",
+          "level": 2
+        },
+        {
+          "id": "sign-out-versus-revoke",
+          "text": "Sign out versus revoke",
+          "level": 2
+        }
+      ],
+      "body": "## Authorize on the same computer\n\n1. Open Connect and select **Sign in with BoxAI**.\n2. In the browser, check that the authorization website is `https://you-box.com`. Sign in to the BoxAI account you want to use and approve authorization.\n3. Complete the flow in that computer's browser. Connect receives the result through a temporary local callback; do not move the authorization link to another device or share it.\n4. Return to Connect when the browser says you may close the window. Open **Account** and check the identity before configuring an agent.\n\nThe flow expires after about **three minutes**. If it stalls, use **Cancel** and start again. If it has already timed out, use **Retry** and begin a fresh authorization rather than reusing the old browser tab.\n\n## What authorization creates\n\nAuthorization creates an ordinary BoxAI API key visible in website [Keys](/keys). This is not a Desktop session or a refresh-token login. You do not need to paste a provider key into Connect, and manually adding one cannot bypass the sign-in gate.\n\nConnect saves the key in `~/.config/magpie/auth.json`, under your operating-system home directory. The retained `magpie` directory name comes from upstream. It is private local JSON protected by file permissions, **not Keychain storage or an encrypted password vault**. Do not share this file, put it in a repository or attach it to a support ticket.\n\nThe cloud key is not copied into agent configuration or provider backups. A local value such as `boxai` is only a placeholder for the gateway, not the website key.\n\n## Success check\n\n- The sign-in gate is replaced by the six tabs.\n- **Account** shows the intended account when the account request succeeds.\n- Website [Keys](/keys) contains the key created by authorization. You do not need to reveal or copy its secret to verify this.\n\nAn existing local authorization lets Connect open without checking the account service on every launch. That does not guarantee the key is still valid: model requests, usage and cloud calls still need network access and an accepted key.\n\n## Sign out versus revoke\n\n**Sign out** in Account removes the locally saved key and returns to the sign-in gate. It does **not** revoke the key on the website or restore your previous agent settings. To invalidate the cloud credential, revoke or delete its corresponding entry in [Keys](/keys). Other copies of that key then lose access too.\n\nNext: [agents and models](/docs/clients/connect/agents-and-models). For network failures or a revoked key, see [troubleshooting](/docs/clients/connect/account-and-troubleshooting).\n"
+    },
+    "clients/connect": {
+      "path": "clients/connect",
+      "locale": "en",
+      "title": "BoxAI Connect",
+      "summary": "Connect your local coding agents to BoxAI through a desktop gateway.",
+      "section": "clients",
+      "order": 30,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "start-here",
+          "text": "Start here",
+          "level": 2
+        },
+        {
+          "id": "the-six-tabs",
+          "text": "The six tabs",
+          "level": 2
+        },
+        {
+          "id": "know-the-boundaries",
+          "text": "Know the boundaries",
+          "level": 2
+        }
+      ],
+      "body": "BoxAI Connect is a desktop companion for coding agents you install separately. It configures those agents to use a local gateway, which forwards requests to BoxAI using your authorized account. Keep Connect running while those agents use it.\n\nThis guide covers **BoxAI Connect 1.1.1**, based on **Magpie v0.1.185**. It is not [BoxAI Desktop](/docs/clients/desktop). Upstream instructions for adding third-party providers do not apply: this fork uses BoxAI only and requires website sign-in.\n\n## Start here\n\n1. [Install Connect](/docs/clients/connect/install) from the [Connect download page](/connect).\n2. [Sign in through your browser](/docs/clients/connect/sign-in).\n3. [Choose an agent and model](/docs/clients/connect/agents-and-models).\n4. Send a short prompt in that agent and check [Gateway and Routing](/docs/clients/connect/gateway-and-routing).\n\n## The six tabs\n\n| Tab | What it is for |\n| --- | --- |\n| Agents | Select models and supported settings for detected local agents. |\n| Gateway | Find connection details, available model IDs and recent calls. |\n| Routing | Inspect live routing decisions made by the gateway. |\n| Usage | Read BoxAI account-wide wallet, lifetime consumption and subscription counters. |\n| Library | Manage upstream Magpie instructions, MCP resources and skills. |\n| Account | Check identity, open account management and sign out. |\n\nThere is no Providers tab. Library retains the upstream resource experience; it is not an official-only BoxAI catalog. Review third-party resources before enabling them.\n\n## Know the boundaries\n\n- The model picker is for conversation and coding. Compatible vision-input models can accept images, but this is not a picker for image, video or audio generation.\n- Usage is server-reported account usage in quota units, not a per-agent bill or a local cost estimate.\n- Browser authorization creates an ordinary entry in website [Keys](/keys). The cloud key stays in private local `auth.json`, not Keychain or agent configuration.\n- Signing out locally does not revoke that website key. See [account and troubleshooting](/docs/clients/connect/account-and-troubleshooting).\n\nFor model availability and prices, use the [model catalog](/pricing). Manage balance and subscriptions in [Billing](/billing), or see the [API overview](/docs/api/overview) for direct integrations.\n"
+    },
     "clients/desktop": {
       "path": "clients/desktop",
       "locale": "en",
@@ -926,6 +1175,255 @@
         }
       ],
       "body": "## Phiên bản đã kiểm tra\n\nKiểm tra ngày **05/09/2026** qua [nguồn cập nhật macOS chính thức](https://persistent.oaistatic.com/codex-app-prod/appcast.xml) của OpenAI: **26.901.41600, build 7982**, phát hành lúc **02:13 UTC / 09:13 giờ Việt Nam**. Chúng tôi cũng kiểm tra thông tin phiên bản trong gói tải về và chương trình Codex đi kèm, có chuỗi phiên bản **0.153.4**. Gói hiện tại mang tên `ChatGPT.app`; tài liệu OpenAI hiện gọi đây là Codex trong ứng dụng ChatGPT desktop.\n\nĐây là hướng dẫn theo ngày kiểm tra, không khẳng định phiên bản này luôn mới nhất. Hãy kiểm tra cập nhật và mục About của ứng dụng. Lệnh `codex --version` cài riêng chỉ cho biết phiên bản CLI, **không phải phiên bản desktop**. Các bước Windows dưới đây dùng cùng định dạng cấu hình; chúng tôi chưa xác minh độc lập số build mới nhất trên Windows Store. Việc kiểm tra gói và cấu hình không thay thế thử nghiệm toàn trình trên giao diện macOS hoặc Windows thực tế.\n\n## Chuẩn bị\n\n- Tạo **khóa API gọi mô hình của BoxAI** tại [Khóa API](/keys), có đủ số dư và quyền dùng mô hình. Không dùng token quản trị BoxAI, token phiên ChatGPT hoặc khóa của nhà cung cấp khác.\n- Kiểm tra ID chính xác tại [Model Hub](/pricing). Ví dụ dùng `gpt-6-astra`; đổi ID nếu khóa của bạn không được phép dùng mô hình này.\n- Hướng dẫn áp dụng cho **tác vụ desktop chạy cục bộ**, tính phí qua BoxAI. Khóa BoxAI không mở quyền dùng tác vụ đám mây ChatGPT hoặc tính năng điều khiển từ xa.\n- Thoát hẳn ứng dụng trước khi chỉnh sửa. Sao lưu riêng tư `config.toml` và `auth.json` nếu đã có. CLI và tiện ích IDE dùng chung thư mục Codex cũng có thể bị ảnh hưởng. Giữ nguyên các thiết lập MCP, dự án và an toàn không liên quan.\n\n## 1. Mở thư mục cấu hình người dùng\n\n| Hệ điều hành | Thư mục mặc định                                   |\n| ------------ | -------------------------------------------------- |\n| macOS        | `~/.codex/` — trong Finder, chọn Go → Go to Folder |\n| Windows      | `%USERPROFILE%\\.codex\\` — dán vào File Explorer    |\n\nNếu ứng dụng có biến `CODEX_HOME`, dùng thư mục đó. Dùng cấu hình **cấp người dùng**, không phải `.codex/config.toml` trong kho mã: phiên bản hiện tại giới hạn việc ghi đè nhà cung cấp và xác thực từ cấu hình dự án.\n\nTạo `config.toml` và `auth.json` nếu chưa có. Lưu dưới dạng văn bản thuần, đúng tên file; tránh `config.toml.txt` hoặc `auth.json.txt`.\n\n## 2. Cấu hình config.toml\n\nĐây là cách **đăng nhập API bằng thông tin lưu trong file**. Ghép các thiết lập sau vào cấu hình người dùng. Khóa cấp cao nhất phải nằm **trước mọi tiêu đề `[table]`**; sửa khóa có sẵn thay vì tạo khóa trùng.\n\n```toml\nmodel_provider = \"boxai\"\nmodel = \"gpt-6-astra\"\nmodel_reasoning_effort = \"high\"\n\n# Dùng đăng nhập bằng khóa API, không dùng phiên đăng nhập ChatGPT.\nforced_login_method = \"api\"\n# Đọc thông tin xác thực từ auth.json ở bước tiếp theo.\ncli_auth_credentials_store = \"file\"\n\n[model_providers.boxai]\nname = \"BoxAI\"\nbase_url = \"https://you-box.com/v1\"\nwire_api = \"responses\"\nrequires_openai_auth = true\nsupports_websockets = false\n```\n\n**Đừng bỏ sót `forced_login_method = \"api\"`.** Khóa này ở cấp cao nhất, không nằm trong `[model_providers.boxai]`. Với cách này, nó ngăn dùng phiên ChatGPT hiện có thay cho đăng nhập API. Đây **không phải khóa mới được thêm trong 26.901.41600**: OpenAI đã thêm giới hạn đăng nhập này từ năm 2025. Nó cũng không bắt buộc cho mọi nhà cung cấp tùy chỉnh; cách dùng biến môi trường bên dưới có cơ chế xác thực khác.\n\n| Thiết lập                             | Ý nghĩa                                                                                                                                                |\n| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |\n| `model_provider = \"boxai\"`            | Phải khớp chính xác với phần sau của `[model_providers.boxai]`. Không định nghĩa lại nhà cung cấp dành riêng `openai`.                                 |\n| `base_url`                            | Dùng `https://you-box.com/v1`, không dùng `/v1/responses`. Codex tự nối `/responses`.                                                                  |\n| `wire_api = \"responses\"`              | Codex hiện dùng giao thức Responses. Ví dụ cũ có `wire_api = \"chat\"` không còn được hỗ trợ.                                                            |\n| `requires_openai_auth = true`         | Dùng thông tin đăng nhập API của Codex từ `auth.json`. Không chuyển đích gọi sang OpenAI; `base_url` chọn BoxAI. Không kết hợp cách này với `env_key`. |\n| `supports_websockets = false`         | Dùng HTTP/SSE thay vì mặc định gateway hỗ trợ Responses WebSocket. Vẫn có thể nhận luồng qua SSE.                                                      |\n| `cli_auth_credentials_store = \"file\"` | Tránh thông tin trong kho khóa hệ điều hành được ưu tiên hơn file vừa sửa. File chứa bí mật dạng văn bản thuần, cần bảo vệ.                            |\n\n`model_reasoning_effort` là tùy chọn theo mô hình. Astra hỗ trợ `low`, `medium`, `high`, `xhigh`, `max`, không hỗ trợ `none`. Không sao chép giới hạn ngữ cảnh hoặc mức suy luận từ mô hình khác. Không thêm thiết lập bỏ qua sandbox: chúng không liên quan đến nhà cung cấp API.\n\n## 3. Cấu hình auth.json\n\nVới cách chỉ dùng API này, lưu đối tượng sau vào cùng thư mục. Thay giá trị mẫu bằng **khóa API BoxAI của bạn**. Không chép access token hoặc refresh token của ChatGPT vào đây.\n\n```json\n{\n  \"auth_mode\": \"apikey\",\n  \"OPENAI_API_KEY\": \"REPLACE_WITH_YOUR_BOXAI_API_KEY\"\n}\n```\n\nPhải giữ đúng `auth_mode` là `apikey` và tên trường JSON `OPENAI_API_KEY`. Tên trường thuộc định dạng thông tin xác thực của Codex; giá trị là khóa **BoxAI** dùng với endpoint BoxAI đã cấu hình. JSON không cho phép chú thích hoặc dấu phẩy cuối.\n\nTrên macOS, giới hạn quyền truy cập sau khi lưu:\n\n```bash\nchmod 700 ~/.codex\nchmod 600 ~/.codex/config.toml ~/.codex/auth.json\n```\n\nTrên Windows, lưu file trong hồ sơ người dùng riêng tư và giới hạn quyền đọc cho tài khoản của bạn. Không commit, tải lên, chụp ảnh hoặc chia sẻ `auth.json`. Bảo vệ cả bản sao lưu. Không chạy `codex login` để đăng nhập ChatGPT sau đó, trừ khi bạn chủ động muốn đổi phương thức xác thực.\n\n## 4. Khởi động lại và kiểm tra tác vụ cục bộ mới\n\n1. Thoát hẳn rồi mở lại ứng dụng; chỉ đóng cửa sổ có thể chưa kết thúc tiến trình.\n2. Tạo **tác vụ cục bộ mới**. Hội thoại cũ có thể giữ nhà cung cấp và mô hình ban đầu, nên không dùng để kiểm tra thay đổi.\n3. Chọn `gpt-6-astra` nếu có trong danh sách và gửi yêu cầu nhỏ như “Reply with OK.” Chỉ có câu trả lời chưa chứng minh nhà cung cấp nào đã xử lý.\n4. Mở [Nhật ký sử dụng BoxAI](/console/log), đối chiếu thời gian, tên mô hình, số token và phí của yêu cầu mới. Bản ghi thành công trùng khớp là bằng chứng quyết định BoxAI đã xử lý yêu cầu.\n5. Kiểm tra không có yêu cầu ngoài ý muốn trong lịch sử tính phí của nhà cung cấp khác. Không chỉ dựa vào tên mô hình trên giao diện desktop.\n\nNếu vẫn xuất hiện màn hình đăng nhập, kiểm tra file, `CODEX_HOME` và chế độ API trước. Tài liệu OpenAI hiện gọi lối đăng nhập API là **Sign in another way**. Không chuyển sang đăng nhập ChatGPT chỉ để bỏ qua lỗi nhà cung cấp tùy chỉnh, và không nhập khóa BoxAI vào website không liên quan.\n\n## Cách khác: dùng khóa từ biến môi trường\n\nDùng cách này **thay cho**, không kết hợp với cách lưu thông tin xác thực trong file, khi bạn có thể cấp biến môi trường cho đúng tiến trình desktop/app-server:\n\n```toml\nmodel_provider = \"boxai\"\nmodel = \"gpt-6-astra\"\nmodel_reasoning_effort = \"high\"\n\n[model_providers.boxai]\nname = \"BoxAI\"\nbase_url = \"https://you-box.com/v1\"\nwire_api = \"responses\"\nenv_key = \"BOXAI_API_KEY\"\nrequires_openai_auth = false\nsupports_websockets = false\n```\n\nThiết lập `BOXAI_API_KEY` an toàn trong môi trường mà tiến trình desktop/app-server kế thừa, rồi khởi động lại hoàn toàn. Chỉ export biến trong terminal không bảo đảm ứng dụng mở từ Finder, Dock hoặc Start menu đọc được biến đó. Cách này không cần khóa BoxAI trong `auth.json`; không xóa thông tin xác thực hiện có nếu không cần thiết. Bỏ giới hạn `forced_login_method` của cách dùng file nếu muốn giữ các tính năng cần đăng nhập ChatGPT. Các tính năng đó có điều kiện riêng; cấu hình này không bảo đảm quyền sử dụng.\n\n## Lỗi thường gặp và hướng dẫn đã cũ\n\n| Hiện tượng                                              | Cần kiểm tra                                                                                                                                                                            |\n| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| Vẫn dùng ChatGPT hoặc nhà cung cấp sai                  | Kiểm tra `model_provider`, `forced_login_method` ở cấp cao nhất, thư mục Codex đang dùng; tạo tác vụ mới và đối chiếu nhật ký BoxAI.                                                    |\n| `401` / khóa không hợp lệ                               | Dùng khóa gọi mô hình BoxAI. Với file, kiểm tra `auth_mode`, `OPENAI_API_KEY`, `cli_auth_credentials_store`. Với biến môi trường, kiểm tra tiến trình có biến mà không in giá trị khóa. |\n| `404` / endpoint không hỗ trợ                           | Dùng URL gốc kết thúc bằng `/v1` và `wire_api = \"responses\"`; không tự nối `/responses` hoặc dùng `\"chat\"`.                                                                             |\n| Không có quyền dùng mô hình                             | Kiểm tra ID, nhóm, quyền khóa và số dư BoxAI. Thêm mô hình vào danh mục tùy chỉnh không cấp quyền truy cập.                                                                             |\n| Danh sách mô hình thiếu hoặc sai                        | Một số bản desktop có hạn chế với danh sách hoặc định tuyến nhà cung cấp tùy chỉnh. Cập nhật, khởi động lại và tạo tác vụ mới. Không sửa cơ sở dữ liệu SQLite của Codex để ép mô hình.  |\n| Cấu hình bị bỏ qua                                      | Kiểm tra khóa TOML trùng, vị trí bảng, `CODEX_HOME`, cấu hình profile/quản trị và việc khởi động lại.                                                                                   |\n| Lỗi bắt tay WebSocket                                   | Giữ `supports_websockets = false` nếu chưa xác minh endpoint hỗ trợ WebSocket.                                                                                                          |\n| Tính năng đám mây hoặc điều khiển từ xa ngừng hoạt động | Chế độ khóa API không phải xác thực ChatGPT cloud. Khôi phục bản sao lưu riêng tư nếu quay lại ChatGPT; kiểm tra cả nhà cung cấp và thông tin xác thực.                                 |\n\n`model_catalog_json` là danh mục mô hình tùy chỉnh **tùy chọn ở cấp cao nhất**, không phải cờ xác thực mới bắt buộc. Nó thay thế danh mục, dùng schema Codex chứ không phải phản hồi `/v1/models` thô, và không tự sửa lỗi định tuyến desktop. `preferred_auth_method` và `disable_response_storage` không cần cho cấu hình này; không thêm thiết lập từ hướng dẫn cũ nếu chưa kiểm tra schema hiện tại.\n\n## Nguồn và bước tiếp theo\n\n- [Nguồn cập nhật desktop chính thức](https://persistent.oaistatic.com/codex-app-prod/appcast.xml)\n- [Tài liệu chính thức về xác thực và nhà cung cấp thay thế](https://developers.openai.com/codex/auth/)\n- [Tham chiếu cấu hình chính thức](https://developers.openai.com/codex/config-reference/)\n- [Cấu hình nhà cung cấp nâng cao](https://developers.openai.com/codex/config-advanced/)\n- [Bản phát hành Codex 0.153.4](https://github.com/openai/codex/releases/tag/rust-v0.153.4) và [thay đổi ban đầu về giới hạn đăng nhập](https://github.com/openai/codex/commit/d87f87e25b6711f0268cfd884fa28555c6c46093)\n- [Tạo và quản lý khóa BoxAI](/docs/console/api-keys) · [Nhật ký sử dụng](/docs/console/usage-logs) · [Model Hub](/pricing)\n"
+    },
+    "clients/connect/account-and-troubleshooting": {
+      "path": "clients/connect/account-and-troubleshooting",
+      "locale": "vi",
+      "title": "Tài khoản, mức sử dụng và xử lý sự cố",
+      "summary": "Hiểu mức sử dụng toàn tài khoản, quản lý quyền truy cập và xử lý lỗi Connect an toàn.",
+      "section": "clients",
+      "order": 35,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "account-va-usage",
+          "text": "Account và Usage",
+          "level": 2
+        },
+        {
+          "id": "cac-van-e-thuong-gap",
+          "text": "Các vấn đề thường gặp",
+          "level": 2
+        },
+        {
+          "id": "ung-dung-ang-chay-nhung-khong-thay-cua-so",
+          "text": "Ứng dụng đang chạy nhưng không thấy cửa sổ",
+          "level": 3
+        },
+        {
+          "id": "cap-quyen-qua-trinh-duyet-bi-ket-hoac-het-han",
+          "text": "Cấp quyền qua trình duyệt bị kẹt hoặc hết hạn",
+          "level": 3
+        },
+        {
+          "id": "khong-tai-uoc-account-usage-hoac-danh-sach-mo-hinh",
+          "text": "Không tải được Account, Usage hoặc danh sách mô hình",
+          "level": 3
+        },
+        {
+          "id": "khoa-a-bi-thu-hoi-xoa-hoac-tu-choi",
+          "text": "Khóa đã bị thu hồi, xóa hoặc từ chối",
+          "level": 3
+        },
+        {
+          "id": "thieu-mo-hinh-tao-anh-video-hoac-am-thanh",
+          "text": "Thiếu mô hình tạo ảnh, video hoặc âm thanh",
+          "level": 3
+        },
+        {
+          "id": "agent-khong-ket-noi-uoc",
+          "text": "Agent không kết nối được",
+          "level": 3
+        },
+        {
+          "id": "gui-bao-cao-loi-huu-ich",
+          "text": "Gửi báo cáo lỗi hữu ích",
+          "level": 2
+        }
+      ],
+      "body": "## Account và Usage\n\n**Account** hiển thị danh tính và thông tin cấp quyền, kèm liên kết nạp tiền, quản lý gói và bảo mật tài khoản. Kiểm tra đúng tài khoản trước khi gửi yêu cầu. Dùng **Reverify authorization** (kiểm tra lại quyền truy cập) khi cần kiểm tra mới và **Sign out** (đăng xuất) để xóa khóa trên máy.\n\n**Usage** lấy dữ liệu từ dịch vụ tài khoản BoxAI: số dư ví, tổng mức sử dụng từ trước đến nay và các bộ đếm của gói được hiển thị theo **đơn vị quota gốc**. Đây là số liệu toàn tài khoản, gồm cả hoạt động ngoài bản Connect trên máy này. Chúng không phải số tiền, thống kê riêng từng agent hay chi phí ước tính cục bộ. Hoạt động Gateway và Routing hữu ích để tìm lỗi, không phải bản ghi thanh toán.\n\nDùng [Thanh toán](/billing) để quản lý số dư và gói, [trang khóa API](/keys) để quản lý khóa, [bảo mật tài khoản](/profile) cho tài khoản website và [danh mục mô hình](/pricing) để xem giá và mô hình có sẵn.\n\n## Các vấn đề thường gặp\n\n### Ứng dụng đang chạy nhưng không thấy cửa sổ\n\nKiểm tra thanh menu macOS hoặc vùng thông báo Windows, kể cả biểu tượng bị ẩn. Chọn **Open BoxAI Connect** trong menu của biểu tượng. Đóng cửa sổ thường chỉ ẩn ứng dụng chứ không thoát. Nếu không có biểu tượng, mở ứng dụng đã cài một lần; không khởi chạy nhiều bản để khắc phục.\n\n**Kiểm tra:** màn hình đăng nhập hoặc sáu thẻ xuất hiện. Giữ ứng dụng chạy để agent gửi yêu cầu.\n\n### Cấp quyền qua trình duyệt bị kẹt hoặc hết hạn\n\nTrình duyệt phải gọi lại Connect trên cùng máy tính trong khoảng ba phút. Giữ Connect mở, xác nhận website cấp quyền là `you-box.com` và hoàn tất chấp thuận trên trình duyệt. Dùng **Cancel** khi quy trình còn chờ hoặc **Retry** sau lỗi, rồi bắt đầu quy trình mới. Không dùng lại URL gọi lại đã hết hạn hoặc gửi URL đó cho hỗ trợ.\n\nNếu trình duyệt do tổ chức quản lý, proxy hoặc tường lửa chặn kết nối gọi lại cục bộ, hãy nhờ quản trị viên kiểm tra kết nối cụ thể đó. Không tắt các biện pháp bảo mật.\n\n**Kiểm tra:** Connect thoát màn hình đăng nhập và Account hiển thị đúng danh tính.\n\n### Không tải được Account, Usage hoặc danh sách mô hình\n\nKiểm tra trình duyệt có mở được `https://you-box.com` không và mạng hoặc proxy có báo lỗi không. Thử lại khi kết nối ổn định; làm mới danh sách mô hình nếu cần. Dịch vụ tài khoản tạm thời gián đoạn không tự chứng minh khóa đã lưu bị xóa. Connect mở bằng khóa cục bộ, còn các màn hình lấy dữ liệu từ máy chủ cần yêu cầu API thành công.\n\n**Kiểm tra:** Account hoặc Usage tải được dữ liệu mới mà không báo lỗi. Không hiểu dữ liệu bị thiếu là số dư bằng không.\n\n### Khóa đã bị thu hồi, xóa hoặc từ chối\n\nKiểm tra mục tương ứng trong [trang khóa API](/keys) trên website. Dùng **Reverify authorization** nếu có. Nếu khóa không còn hợp lệ, đăng xuất trên máy rồi [cấp quyền lại](/docs/clients/connect/sign-in) bằng đúng tài khoản. Việc cấp quyền tạo khóa thông thường mới; không chép khóa cũ vào thiết lập agent.\n\nViệc thu hồi có hiệu lực khi yêu cầu đến máy chủ; cửa sổ vẫn đang mở không chứng minh bạn còn quyền truy cập. Đăng xuất chỉ xóa khóa trên máy. Nếu khóa bị lộ, cần thu hồi khóa trên website nữa.\n\n**Kiểm tra:** Account tải được dữ liệu và một yêu cầu ngắn từ agent thành công. Đăng xuất hay gỡ cài đặt đều không bảo đảm khôi phục cấu hình agent trước đó.\n\n### Thiếu mô hình tạo ảnh, video hoặc âm thanh\n\nĐiều này bình thường với mô hình tạo nội dung đa phương tiện: bộ chọn BoxAI trong Connect chỉ dành cho hội thoại. Mô hình trò chuyện nhận ảnh đầu vào vẫn có thể xuất hiện. Dùng [danh mục mô hình](/pricing) và [tài liệu API](/docs/api/overview) để chọn quy trình khác phù hợp. Nếu thiếu mô hình trò chuyện, kiểm tra quyền của khóa và làm mới danh sách thay vì bỏ qua bộ lọc.\n\n### Agent không kết nối được\n\nLàm theo [Gateway và Routing](/docs/clients/connect/gateway-and-routing): xác nhận Connect đang chạy và đã đăng nhập, so sánh Base URL và ID mô hình của ứng dụng khách với giá trị hiển thị, rồi kiểm tra yêu cầu gần đây. Với lỗi quota, xem [Thanh toán](/billing). Tránh thử lặp lại nhiều yêu cầu có tính phí trong lúc tìm lỗi.\n\n## Gửi báo cáo lỗi hữu ích\n\nCung cấp hệ điều hành và kiến trúc máy, phiên bản Connect trong menu, bước bị lỗi, thời điểm gần đúng và nguyên văn thông báo lỗi sau khi xóa dữ liệu riêng tư. Nêu rõ lỗi xảy ra khi đăng nhập, xem tài khoản hay gửi yêu cầu từ agent. Không đính kèm `auth.json`, khóa API, URL gọi lại đầy đủ, nội dung yêu cầu riêng tư hoặc bản sao lưu cấu hình chưa được kiểm tra.\n\nQuay lại [tổng quan Connect](/docs/clients/connect) hoặc [hướng dẫn cài đặt](/docs/clients/connect/install).\n"
+    },
+    "clients/connect/agents-and-models": {
+      "path": "clients/connect/agents-and-models",
+      "locale": "vi",
+      "title": "Agent, mô hình và Library",
+      "summary": "Chọn mô hình hội thoại BoxAI cho agent đã cài và sử dụng Library thận trọng.",
+      "section": "clients",
+      "order": 33,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "chon-mo-hinh-cho-agent",
+          "text": "Chọn mô hình cho agent",
+          "level": 2
+        },
+        {
+          "id": "nhung-mo-hinh-nao-xuat-hien",
+          "text": "Những mô hình nào xuất hiện?",
+          "level": 2
+        },
+        {
+          "id": "library-la-thu-vien-tai-nguyen-goc",
+          "text": "Library là thư viện tài nguyên gốc",
+          "level": 2
+        }
+      ],
+      "body": "## Chọn mô hình cho agent\n\n1. Cài riêng trợ lý lập trình muốn dùng, rồi [đăng nhập Connect](/docs/clients/connect/sign-in).\n2. Mở **Agents** và tìm agent trong danh sách được phát hiện. Ví dụ có Claude Code, Codex, Gemini CLI và OpenCode; các điều khiển hiển thị tùy thuộc vào agent.\n3. Mở trường chọn mô hình và chọn một mô hình BoxAI có sẵn. Lựa chọn được áp dụng vào cấu hình cục bộ của agent; không có bước lưu bổ sung chung cho mọi lựa chọn mô hình.\n4. Chỉ điều chỉnh các trường khác nếu agent có hiển thị, chẳng hạn mức suy luận hoặc các cấp mô hình. Không mặc định mọi agent đều hỗ trợ cùng tùy chọn.\n5. Mở lại agent nếu chưa nhận thay đổi, rồi gửi một yêu cầu ngắn không chứa dữ liệu nhạy cảm. Yêu cầu có thể sử dụng số dư hoặc hạn mức gói của tài khoản.\n\n**Kiểm tra kết quả:** mô hình đã chọn xuất hiện ở dòng agent, agent trả lời và yêu cầu tương ứng xuất hiện trong danh sách yêu cầu gần đây của Gateway. Giữ Connect chạy suốt quá trình.\n\nNếu không thấy agent nào, xác nhận agent được cài cho cùng người dùng hệ điều hành. Kiểm tra các mục thu gọn hoặc bị ẩn trước khi kết luận không được hỗ trợ. Không ghi đè cấu hình agent không liên quan chỉ để buộc ứng dụng nhận diện.\n\n## Những mô hình nào xuất hiện?\n\nConnect lấy danh sách mô hình BoxAI bằng khóa đã cấp quyền và hiển thị các mô hình hội thoại cho lập trình, trò chuyện. Quyền truy cập có thể khác nhau theo tài khoản và giới hạn của khóa; hãy đối chiếu với [danh mục mô hình trên website](/pricing), không dựa vào một danh sách cố định.\n\nẢnh **đầu vào** được phép nếu mô hình hội thoại và agent hỗ trợ. Điều này không có nghĩa bộ chọn hỗ trợ **tạo** ảnh, video, nhạc, giọng nói hay nội dung đa phương tiện khác. Mô hình embedding và reranking cũng không thuộc bộ chọn hội thoại này. Vì vậy, việc thiếu mô hình tạo nội dung đa phương tiện là bình thường, không phải lý do để dán ID vào cấu hình nhằm bỏ qua bộ lọc.\n\nNếu thiếu mô hình trò chuyện mong đợi, kiểm tra mạng và quyền của khóa, dùng nút làm mới trên thanh công cụ để cập nhật danh sách rồi mở lại bộ chọn. Xem [xử lý sự cố](/docs/clients/connect/account-and-troubleshooting) nếu vẫn thiếu. Với quy trình API khác, đọc [tổng quan API](/docs/api/overview).\n\n## Library là thư viện tài nguyên gốc\n\n**Library** giữ các quy trình quản lý hướng dẫn, MCP và kỹ năng của Magpie, bao gồm tài nguyên từ các chợ tài nguyên gốc. Nội dung không giới hạn ở tài nguyên chính thức của BoxAI và đây không phải kho mô hình khác.\n\nTrước khi thêm tài nguyên, hãy xem nguồn, hướng dẫn, quyền truy cập và các lệnh hoặc máy chủ mà tài nguyên sử dụng. Thao tác trong Library có thể ghi các tệp mà agent dùng. Không cài tài nguyên chỉ để sửa lỗi đăng nhập và không cung cấp `auth.json` hay khóa BoxAI cho tài nguyên. Tự sao lưu các tệp agent quan trọng trước khi thay đổi; đăng xuất không phải thao tác hoàn tác.\n\nTiếp theo: [Gateway và Routing](/docs/clients/connect/gateway-and-routing).\n"
+    },
+    "clients/connect/gateway-and-routing": {
+      "path": "clients/connect/gateway-and-routing",
+      "locale": "vi",
+      "title": "Gateway và Routing",
+      "summary": "Dùng thông tin kết nối cục bộ và kiểm tra yêu cầu mà không để lộ khóa BoxAI thật.",
+      "section": "clients",
+      "order": 34,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "giu-cong-api-hoat-ong",
+          "text": "Giữ cổng API hoạt động",
+          "level": 2
+        },
+        {
+          "id": "dung-thong-tin-ket-noi-ang-hien-thi",
+          "text": "Dùng thông tin kết nối đang hiển thị",
+          "level": 2
+        },
+        {
+          "id": "kiem-tra-inh-tuyen",
+          "text": "Kiểm tra định tuyến",
+          "level": 2
+        },
+        {
+          "id": "neu-yeu-cau-that-bai",
+          "text": "Nếu yêu cầu thất bại",
+          "level": 2
+        }
+      ],
+      "body": "## Giữ cổng API hoạt động\n\nAgent đã cấu hình cho Connect gửi yêu cầu đến cổng API cục bộ; cổng này dùng khóa BoxAI riêng tư của bạn để kết nối máy chủ. Ứng dụng phải tiếp tục chạy và đã đăng nhập. Đóng cửa sổ chỉ ẩn ứng dụng; thoát hẳn sẽ dừng cổng API. Máy ngủ hoặc mất mạng cũng có thể làm gián đoạn yêu cầu.\n\n## Dùng thông tin kết nối đang hiển thị\n\nVới agent được hỗ trợ, ưu tiên [thẻ Agents](/docs/clients/connect/agents-and-models). Nếu cấu hình ứng dụng khách thủ công:\n\n1. Mở **Gateway** và kiểm tra trạng thái.\n2. Dùng thông tin kết nối cho giao thức mà ứng dụng khách hỗ trợ. Sao chép **Base URL** đang hiển thị thay vì đoán cổng cố định hoặc nối thêm đường dẫn API.\n3. Dùng giá trị thay thế khóa API cục bộ đang hiển thị, chẳng hạn `boxai`, cùng một ID mô hình trong danh sách Gateway. Sao chép đầy đủ ID thay vì đoán tiền tố.\n4. Gửi một yêu cầu ngắn và kiểm tra **Recent calls** (các yêu cầu gần đây).\n\nGiá trị thay thế cục bộ **không phải khóa BoxAI bí mật** và không cấp quyền gọi trực tiếp đến `you-box.com`. Không thay nó bằng khóa thật hoặc lấy khóa từ `auth.json`. Thông tin kết nối cục bộ dành cho máy này; không công khai cổng API ra internet hoặc mở cổng tường lửa để sửa lỗi kết nối.\n\n## Kiểm tra định tuyến\n\n**Routing** hiển thị quyết định định tuyến khi cổng API xử lý yêu cầu. Kết hợp với danh sách yêu cầu gần đây của Gateway để biết yêu cầu được chuyển đến đâu và tìm lỗi. Đây là thông tin định tuyến cục bộ, không phải bằng chứng về khoản phí cuối cùng và không phải cách thêm nhà cung cấp bên thứ ba vào phiên bản chỉ dùng BoxAI này.\n\n**Kiểm tra kết quả:** ứng dụng khách nhận được câu trả lời, Gateway ghi nhận yêu cầu và Routing phản ánh yêu cầu đi qua cổng API. Nếu không có gì xuất hiện, trước tiên hãy kiểm tra ứng dụng khách có đang dùng Base URL của Connect thay vì địa chỉ nhà cung cấp cũ hay không.\n\nTrước khi chia sẻ ảnh chụp màn hình, dùng chức năng ẩn email của Routing rồi kiểm tra xem còn thông tin cá nhân nào khác không. Không chia sẻ khóa, URL gọi lại khi cấp quyền hoặc nội dung yêu cầu riêng tư.\n\n## Nếu yêu cầu thất bại\n\n- **Bị từ chối kết nối:** xác nhận Connect đang chạy, rồi so sánh địa chỉ của ứng dụng khách với thông tin Gateway hiện tại.\n- **Bị từ chối xác thực:** kiểm tra [trang khóa API](/keys) và [đăng nhập lại](/docs/clients/connect/sign-in) nếu khóa đã bị thu hồi.\n- **Lỗi mạng hoặc máy chủ:** kiểm tra truy cập đến `you-box.com` và thử lại khi mạng ổn định. Không tắt kiểm tra TLS hay phần mềm bảo mật.\n- **Vấn đề số dư hoặc hạn mức:** kiểm tra [Thanh toán](/billing); định tuyến cục bộ không tạo thêm quota.\n\nXem [tài khoản và xử lý sự cố](/docs/clients/connect/account-and-troubleshooting) để biết thêm cách khắc phục và hiểu số liệu Usage.\n"
+    },
+    "clients/connect/install": {
+      "path": "clients/connect/install",
+      "locale": "vi",
+      "title": "Cài đặt BoxAI Connect",
+      "summary": "Cài bản macOS Apple silicon hoặc Windows x64 một cách an toàn.",
+      "section": "clients",
+      "order": 31,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "chon-nen-tang",
+          "text": "Chọn nền tảng",
+          "level": 2
+        },
+        {
+          "id": "macos",
+          "text": "macOS",
+          "level": 2
+        },
+        {
+          "id": "windows",
+          "text": "Windows",
+          "level": 2
+        },
+        {
+          "id": "kiem-tra-ket-qua-va-cap-nhat",
+          "text": "Kiểm tra kết quả và cập nhật",
+          "level": 2
+        }
+      ],
+      "body": "Luôn lấy trình cài đặt hiện tại từ [BoxAI Connect](/connect), không tải qua trang bên thứ ba. Liên kết trên trang này theo bản phát hành hiện tại; bạn không cần URL chứa số phiên bản cụ thể.\n\n## Chọn nền tảng\n\n| Nền tảng | Gói cài đặt | Yêu cầu và chữ ký |\n| --- | --- | --- |\n| macOS | `.dmg` cho Apple silicon arm64 | macOS 11 trở lên; đã ký Developer ID và được Apple công chứng. |\n| Windows | Trình cài `.exe` x64 | Windows 10 trở lên; hiện chưa có chữ ký số. |\n\nĐây không phải các bản dành cho Mac Intel hoặc Windows ARM.\n\n## macOS\n\n1. Tải và mở DMG arm64.\n2. Kéo **BoxAI Connect** vào **Applications**.\n3. Mở ứng dụng từ Applications, thay vì chạy ngay trên ổ đĩa DMG đang gắn.\n4. Nếu không thấy cửa sổ, tìm biểu tượng trên thanh menu và mở Connect từ menu của biểu tượng đó.\n\nNếu macOS chặn tệp hoặc báo tệp bị hỏng, hãy dừng lại và tải lại từ trang chính thức. Không xóa thuộc tính cách ly của tệp hoặc tắt Gatekeeper. Nếu vẫn gặp cảnh báo, ghi lại nguyên văn thông báo và liên hệ hỗ trợ.\n\n## Windows\n\n1. Tải trình cài EXE x64 từ trang chính thức.\n2. Đọc cảnh báo của Windows trước khi quyết định tiếp tục. Trình cài hiện chưa có chữ ký số nên có thể xuất hiện cảnh báo về nhà phát hành hoặc độ tin cậy; điều đó không chứng minh tệp an toàn.\n3. Chạy trình cài và chọn thư mục. Ứng dụng được cài cho người dùng hiện tại, mặc định tại `%LOCALAPPDATA%\\Programs\\BoxAI Connect`.\n4. Mở **BoxAI Connect** từ menu Start. Nếu không thấy cửa sổ, kiểm tra vùng thông báo, kể cả các biểu tượng bị ẩn.\n\nNếu phần mềm bảo mật hoặc chính sách của tổ chức chặn cài đặt, hãy dừng lại và liên hệ quản trị viên hoặc hỗ trợ. Không tắt Defender, SmartScreen hay các biện pháp bảo vệ khác.\n\n## Kiểm tra kết quả và cập nhật\n\nBạn cần mở được Connect từ biểu tượng trên thanh menu hoặc khay hệ thống, rồi thấy màn hình đăng nhập hoặc sáu thẻ nếu đã cấp quyền. Đóng cửa sổ chỉ ẩn ứng dụng; **Quit BoxAI Connect** thoát hẳn và ngừng phục vụ agent.\n\nDùng [trang Connect](/connect) để kiểm tra bản phát hành hiện tại và tải trình cài thay thế. Hãy chờ các yêu cầu agent đang chạy hoàn tất trước khi thoát hoặc cập nhật. Không mặc định rằng gỡ cài đặt sẽ xóa thông tin xác thực hoặc hoàn tác cấu hình agent.\n\nTiếp theo: [đăng nhập](/docs/clients/connect/sign-in). Nếu không thấy cửa sổ hoặc yêu cầu bị chặn, xem [xử lý sự cố](/docs/clients/connect/account-and-troubleshooting).\n"
+    },
+    "clients/connect/sign-in": {
+      "path": "clients/connect/sign-in",
+      "locale": "vi",
+      "title": "Đăng nhập BoxAI Connect",
+      "summary": "Cấp quyền cho Connect qua trình duyệt và hiểu cách lưu khóa API trên máy.",
+      "section": "clients",
+      "order": 32,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "cap-quyen-tren-cung-may-tinh",
+          "text": "Cấp quyền trên cùng máy tính",
+          "level": 2
+        },
+        {
+          "id": "viec-cap-quyen-tao-ra-gi",
+          "text": "Việc cấp quyền tạo ra gì?",
+          "level": 2
+        },
+        {
+          "id": "kiem-tra-ket-qua",
+          "text": "Kiểm tra kết quả",
+          "level": 2
+        },
+        {
+          "id": "ang-xuat-khac-voi-thu-hoi-khoa",
+          "text": "Đăng xuất khác với thu hồi khóa",
+          "level": 2
+        }
+      ],
+      "body": "## Cấp quyền trên cùng máy tính\n\n1. Mở Connect và chọn **Sign in with BoxAI** (đăng nhập bằng BoxAI).\n2. Trong trình duyệt, kiểm tra website cấp quyền là `https://you-box.com`. Đăng nhập đúng tài khoản BoxAI muốn sử dụng và chấp thuận cấp quyền.\n3. Hoàn tất trên trình duyệt của chính máy tính đó. Connect nhận kết quả qua địa chỉ gọi lại cục bộ tạm thời; không chuyển liên kết cấp quyền sang thiết bị khác hoặc chia sẻ liên kết.\n4. Quay lại Connect khi trình duyệt thông báo có thể đóng cửa sổ. Mở **Account** và kiểm tra danh tính trước khi cấu hình agent.\n\nQuy trình hết hạn sau khoảng **ba phút**. Nếu bị kẹt, chọn **Cancel** (hủy) rồi bắt đầu lại. Nếu đã hết hạn, chọn **Retry** (thử lại) và cấp quyền mới, không dùng lại thẻ trình duyệt cũ.\n\n## Việc cấp quyền tạo ra gì?\n\nCấp quyền tạo một khóa API BoxAI thông thường, hiển thị trong [trang khóa API](/keys) trên website. Đây không phải phiên đăng nhập Desktop hay cơ chế dùng refresh token. Bạn không cần dán khóa nhà cung cấp vào Connect; tự thêm khóa cũng không bỏ qua được màn hình đăng nhập.\n\nConnect lưu khóa tại `~/.config/magpie/auth.json`, bên trong thư mục người dùng của hệ điều hành. Tên thư mục `magpie` được giữ từ dự án gốc. Đây là JSON riêng tư được bảo vệ bằng quyền truy cập tệp, **không phải Keychain hay kho mật khẩu được mã hóa**. Không chia sẻ tệp này, đưa vào kho mã nguồn hoặc đính kèm yêu cầu hỗ trợ.\n\nKhóa thật không được chép vào cấu hình agent hay bản sao lưu nhà cung cấp. Giá trị cục bộ như `boxai` chỉ là giá trị thay thế để dùng với cổng API, không phải khóa trên website.\n\n## Kiểm tra kết quả\n\n- Màn hình đăng nhập được thay bằng sáu thẻ chính.\n- **Account** hiển thị đúng tài khoản khi yêu cầu lấy thông tin tài khoản thành công.\n- [Trang khóa API](/keys) có khóa được tạo khi cấp quyền. Bạn không cần hiện hay sao chép giá trị bí mật của khóa để kiểm tra.\n\nThông tin cấp quyền đã lưu cho phép Connect mở mà không kiểm tra dịch vụ tài khoản ở mỗi lần khởi động. Điều đó không bảo đảm khóa vẫn hợp lệ: danh sách mô hình, mức sử dụng và yêu cầu đến máy chủ vẫn cần mạng và khóa được chấp nhận.\n\n## Đăng xuất khác với thu hồi khóa\n\n**Sign out** (đăng xuất) trong Account xóa khóa đã lưu trên máy và đưa bạn về màn hình đăng nhập. Thao tác này **không** thu hồi khóa trên website hoặc khôi phục thiết lập agent trước đó. Để vô hiệu hóa khóa trên máy chủ, thu hồi hoặc xóa mục tương ứng trong [trang khóa API](/keys). Các bản sao khác của cùng khóa đó cũng sẽ mất quyền truy cập.\n\nTiếp theo: [agent và mô hình](/docs/clients/connect/agents-and-models). Nếu lỗi mạng hoặc khóa đã bị thu hồi, xem [xử lý sự cố](/docs/clients/connect/account-and-troubleshooting).\n"
+    },
+    "clients/connect": {
+      "path": "clients/connect",
+      "locale": "vi",
+      "title": "BoxAI Connect",
+      "summary": "Kết nối các trợ lý lập trình trên máy với BoxAI qua cổng API cục bộ.",
+      "section": "clients",
+      "order": 30,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "bat-au",
+          "text": "Bắt đầu",
+          "level": 2
+        },
+        {
+          "id": "sau-the-chinh",
+          "text": "Sáu thẻ chính",
+          "level": 2
+        },
+        {
+          "id": "nhung-gioi-han-can-biet",
+          "text": "Những giới hạn cần biết",
+          "level": 2
+        }
+      ],
+      "body": "BoxAI Connect là ứng dụng đồng hành với các trợ lý lập trình (agent) mà bạn cài riêng. Ứng dụng cấu hình agent để gửi yêu cầu qua một cổng API cục bộ, rồi chuyển tiếp đến BoxAI bằng tài khoản bạn đã cấp quyền. Hãy giữ Connect chạy trong khi agent sử dụng kết nối này.\n\nTài liệu này dành cho **BoxAI Connect 1.1.1**, dựa trên **Magpie v0.1.185**. Đây không phải [BoxAI Desktop](/docs/clients/desktop). Hướng dẫn thêm nhà cung cấp bên thứ ba của Magpie không áp dụng: phiên bản này chỉ dùng BoxAI và yêu cầu đăng nhập qua website.\n\n## Bắt đầu\n\n1. [Cài Connect](/docs/clients/connect/install) từ [trang tải Connect](/connect).\n2. [Đăng nhập qua trình duyệt](/docs/clients/connect/sign-in).\n3. [Chọn agent và mô hình](/docs/clients/connect/agents-and-models).\n4. Gửi một yêu cầu ngắn trong agent rồi kiểm tra [Gateway và Routing](/docs/clients/connect/gateway-and-routing).\n\n## Sáu thẻ chính\n\nTên tiếng Anh dưới đây giúp bạn đối chiếu với giao diện ứng dụng.\n\n| Thẻ | Công dụng |\n| --- | --- |\n| Agents | Chọn mô hình và các thiết lập được hỗ trợ cho agent phát hiện trên máy. |\n| Gateway | Xem thông tin kết nối, ID mô hình và các yêu cầu gần đây. |\n| Routing | Theo dõi quyết định định tuyến trực tiếp của cổng API. |\n| Usage | Xem số dư ví, tổng mức sử dụng và hạn mức gói của toàn tài khoản BoxAI. |\n| Library | Quản lý hướng dẫn, tài nguyên MCP và kỹ năng theo cơ chế gốc của Magpie. |\n| Account | Kiểm tra danh tính, mở trang quản lý tài khoản và đăng xuất. |\n\nKhông có thẻ Providers. Library giữ trải nghiệm tài nguyên gốc của Magpie, không phải danh mục chỉ gồm nội dung chính thức của BoxAI. Hãy xem xét tài nguyên bên thứ ba trước khi bật.\n\n## Những giới hạn cần biết\n\n- Bộ chọn mô hình dành cho hội thoại và lập trình. Mô hình hỗ trợ thị giác có thể nhận ảnh đầu vào, nhưng đây không phải bộ chọn mô hình tạo ảnh, video hoặc âm thanh.\n- Usage là mức sử dụng toàn tài khoản do máy chủ cung cấp theo đơn vị quota, không phải hóa đơn từng agent hay chi phí ước tính trên máy.\n- Cấp quyền qua trình duyệt tạo một khóa API thông thường trong [trang khóa API](/keys). Khóa thật được lưu trong tệp `auth.json` riêng tư trên máy, không phải Keychain hay cấu hình agent.\n- Đăng xuất trên máy không thu hồi khóa trên website. Xem [tài khoản và xử lý sự cố](/docs/clients/connect/account-and-troubleshooting).\n\nXem mô hình và giá tại [danh mục mô hình](/pricing). Quản lý số dư và gói tại [Thanh toán](/billing), hoặc đọc [tổng quan API](/docs/api/overview) nếu tích hợp trực tiếp.\n"
     },
     "clients/desktop": {
       "path": "clients/desktop",

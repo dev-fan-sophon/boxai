@@ -75,6 +75,12 @@ export const DOCS_CORE_PATHS = [
   'api/streaming',
   'api/errors',
   'clients/desktop',
+  'clients/connect',
+  'clients/connect/install',
+  'clients/connect/sign-in',
+  'clients/connect/agents-and-models',
+  'clients/connect/gateway-and-routing',
+  'clients/connect/account-and-troubleshooting',
   'playground/overview',
   'concepts/models-groups-quota',
 ] as const

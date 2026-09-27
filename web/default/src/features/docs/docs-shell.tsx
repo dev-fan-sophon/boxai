@@ -36,8 +36,8 @@ function DocsNavigation(props: {
   profiles: IntegrationProfile[]
   onNavigate?: () => void
 }) {
-  const { t } = useTranslation()
-  const sections = docsNavSections()
+  const { t, i18n } = useTranslation()
+  const sections = docsNavSections(i18n.language)
   const protocols = useMemo(() => {
     const groups = new Map<string, IntegrationProfile[]>()
     for (const profile of props.profiles) {
@@ -54,6 +54,7 @@ function DocsNavigation(props: {
   const linkClass = (path: string) =>
     cn(
       'block rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
+      path.split('/').length > 2 && 'ml-3 border-l',
       path === props.activePath && 'bg-muted text-foreground font-medium'
     )
 
@@ -71,6 +72,7 @@ function DocsNavigation(props: {
               to='/docs/$'
               params={{ _splat: page.path }}
               className={linkClass(page.path)}
+              aria-current={page.path === props.activePath ? 'page' : undefined}
               onClick={props.onNavigate}
             >
               {page.title}

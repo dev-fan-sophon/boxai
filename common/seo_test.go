@@ -68,6 +68,9 @@ func TestBuildSitemapXML(t *testing.T) {
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/what-is-boxai</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/rankings</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/connect</loc>")
+	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect</loc>")
+	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect/sign-in</loc>")
+	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect/account-and-troubleshooting</loc>")
 	assert.NotContains(t, xml, "<loc>https://you-box.com/console")
 }
 

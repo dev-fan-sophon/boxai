@@ -53,7 +53,7 @@ export function DocSearch() {
   const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
   const locale = resolveDocsLocale(i18n.language)
-  const fallbackPages = listManifestPages()
+  const fallbackPages = useMemo(() => listManifestPages(locale), [locale])
 
   const indexQuery = useQuery({
     queryKey: ['docs-search-index', locale],

@@ -35,8 +35,11 @@ const RAILS = [
 ] as const
 
 export function DocsHomePage() {
-  const { t } = useTranslation()
-  const pages = listManifestPages()
+  const { t, i18n } = useTranslation()
+  const pages = listManifestPages(i18n.language)
+  const connectPages = pages.filter((page) =>
+    page.path.startsWith('clients/connect')
+  )
   const startPages = pages
     .filter((page) => page.section === 'start')
     .slice(0, 4)
@@ -79,6 +82,26 @@ export function DocsHomePage() {
           </Link>
         ))}
       </div>
+
+      <section className='mt-12'>
+        <h2 className='text-xl font-semibold'>{t('BoxAI Connect')}</h2>
+        <ul className='mt-4 grid gap-3 sm:grid-cols-2'>
+          {connectPages.map((page) => (
+            <li key={page.path}>
+              <Link
+                to='/docs/$'
+                params={{ _splat: page.path }}
+                className='hover:bg-muted/40 block h-full rounded-lg border p-4 transition-colors'
+              >
+                <h3 className='font-medium'>{page.title}</h3>
+                <p className='text-muted-foreground mt-1 text-sm'>
+                  {page.summary}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className='mt-12'>
         <h2 className='text-xl font-semibold'>{t('Popular guides')}</h2>

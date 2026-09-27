@@ -1,5 +1,9 @@
 # BoxAI Connect
 
+**User guide:** [English / Vietnamese documentation](https://you-box.com/docs/clients/connect).
+**Installers:** [official downloads](https://you-box.com/connect).
+For release engineering, see [build/release/README.md](build/release/README.md).
+
 Fork of [yetone/magpie](https://github.com/yetone/magpie) at
 v0.1.185 (`ab7dd015064186a9866d8d8e260891042742a97e`), with BoxAI branding and BoxAI as the
 only provider. Sign in through the BoxAI website before using the application.

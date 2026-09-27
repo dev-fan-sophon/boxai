@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T06:16:14.861Z",
+  "generatedAt": "2026-09-27T13:34:19.699Z",
   "version": 1,
   "pages": [
     {
@@ -562,6 +562,237 @@
         {
           "id": "sources-and-next-steps",
           "text": "Sources and next steps",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect",
+      "href": "/docs/clients/connect",
+      "locale": "en",
+      "title": "BoxAI Connect",
+      "summary": "Connect your local coding agents to BoxAI through a desktop gateway.",
+      "section": "clients",
+      "order": 30,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "start-here",
+          "text": "Start here",
+          "level": 2
+        },
+        {
+          "id": "the-six-tabs",
+          "text": "The six tabs",
+          "level": 2
+        },
+        {
+          "id": "know-the-boundaries",
+          "text": "Know the boundaries",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect/install",
+      "href": "/docs/clients/connect/install",
+      "locale": "en",
+      "title": "Install BoxAI Connect",
+      "summary": "Install the macOS Apple silicon or Windows x64 release safely.",
+      "section": "clients",
+      "order": 31,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "choose-your-platform",
+          "text": "Choose your platform",
+          "level": 2
+        },
+        {
+          "id": "macos",
+          "text": "macOS",
+          "level": 2
+        },
+        {
+          "id": "windows",
+          "text": "Windows",
+          "level": 2
+        },
+        {
+          "id": "success-check-and-updates",
+          "text": "Success check and updates",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect/sign-in",
+      "href": "/docs/clients/connect/sign-in",
+      "locale": "en",
+      "title": "Sign in to BoxAI Connect",
+      "summary": "Authorize Connect in your browser and understand where its API key is stored.",
+      "section": "clients",
+      "order": 32,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "authorize-on-the-same-computer",
+          "text": "Authorize on the same computer",
+          "level": 2
+        },
+        {
+          "id": "what-authorization-creates",
+          "text": "What authorization creates",
+          "level": 2
+        },
+        {
+          "id": "success-check",
+          "text": "Success check",
+          "level": 2
+        },
+        {
+          "id": "sign-out-versus-revoke",
+          "text": "Sign out versus revoke",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect/agents-and-models",
+      "href": "/docs/clients/connect/agents-and-models",
+      "locale": "en",
+      "title": "Agents, models and Library",
+      "summary": "Choose conversational BoxAI models for your installed agents and use Library carefully.",
+      "section": "clients",
+      "order": 33,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "select-a-model-for-an-agent",
+          "text": "Select a model for an agent",
+          "level": 2
+        },
+        {
+          "id": "which-models-appear",
+          "text": "Which models appear?",
+          "level": 2
+        },
+        {
+          "id": "library-is-the-upstream-resource-library",
+          "text": "Library is the upstream resource library",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect/gateway-and-routing",
+      "href": "/docs/clients/connect/gateway-and-routing",
+      "locale": "en",
+      "title": "Gateway and Routing",
+      "summary": "Use Connect's local connection details and inspect requests without exposing your cloud key.",
+      "section": "clients",
+      "order": 34,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "keep-the-gateway-available",
+          "text": "Keep the gateway available",
+          "level": 2
+        },
+        {
+          "id": "use-the-displayed-connection-details",
+          "text": "Use the displayed connection details",
+          "level": 2
+        },
+        {
+          "id": "inspect-routing",
+          "text": "Inspect routing",
+          "level": 2
+        },
+        {
+          "id": "if-a-request-fails",
+          "text": "If a request fails",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/connect/account-and-troubleshooting",
+      "href": "/docs/clients/connect/account-and-troubleshooting",
+      "locale": "en",
+      "title": "Account, usage and troubleshooting",
+      "summary": "Understand account-wide usage, manage authorization and recover safely from common Connect problems.",
+      "section": "clients",
+      "order": 35,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-09-27",
+      "headings": [
+        {
+          "id": "account-and-usage",
+          "text": "Account and Usage",
+          "level": 2
+        },
+        {
+          "id": "common-problems",
+          "text": "Common problems",
+          "level": 2
+        },
+        {
+          "id": "the-app-is-running-but-no-window-appears",
+          "text": "The app is running but no window appears",
+          "level": 3
+        },
+        {
+          "id": "browser-authorization-stalls-or-times-out",
+          "text": "Browser authorization stalls or times out",
+          "level": 3
+        },
+        {
+          "id": "account-usage-or-model-lists-fail-to-load",
+          "text": "Account, Usage or model lists fail to load",
+          "level": 3
+        },
+        {
+          "id": "a-key-was-revoked-deleted-or-rejected",
+          "text": "A key was revoked, deleted or rejected",
+          "level": 3
+        },
+        {
+          "id": "an-image-video-or-audio-model-is-missing",
+          "text": "An image, video or audio model is missing",
+          "level": 3
+        },
+        {
+          "id": "an-agent-cannot-connect",
+          "text": "An agent cannot connect",
+          "level": 3
+        },
+        {
+          "id": "sharing-a-useful-problem-report",
+          "text": "Sharing a useful problem report",
           "level": 2
         }
       ],

@@ -7,8 +7,20 @@ export function normalizeDocsPath(raw: string): string {
   return raw.replaceAll(/^\/+|\/+$/g, '').replaceAll(/\/+/g, '/')
 }
 
-export function listManifestPages(): DocsManifestPage[] {
-  return docsManifest.pages
+export function listManifestPages(language?: string): DocsManifestPage[] {
+  if (resolveDocsLocale(language) === 'en') return docsManifest.pages
+  return docsManifest.pages.map((page) => {
+    const translated = loadDocsPage(page.path, language)?.page
+    return translated
+      ? {
+          ...page,
+          title: translated.title,
+          summary: translated.summary,
+          headings: translated.headings,
+          locale: translated.locale,
+        }
+      : page
+  })
 }
 
 export function getManifestPage(docPath: string): DocsManifestPage | undefined {
@@ -46,12 +58,12 @@ export function loadDocsPage(
   return null
 }
 
-export function docsNavSections(): Array<{
+export function docsNavSections(language?: string): Array<{
   section: string
   pages: DocsManifestPage[]
 }> {
   const groups = new Map<string, DocsManifestPage[]>()
-  for (const page of docsManifest.pages) {
+  for (const page of listManifestPages(language)) {
     const list = groups.get(page.section) ?? []
     list.push(page)
     groups.set(page.section, list)
@@ -76,12 +88,15 @@ export function docsNavSections(): Array<{
     }))
 }
 
-export function adjacentDocsPages(docPath: string): {
+export function adjacentDocsPages(
+  docPath: string,
+  language?: string
+): {
   prev?: DocsManifestPage
   next?: DocsManifestPage
 } {
   const path = normalizeDocsPath(docPath)
-  const pages = docsManifest.pages
+  const pages = listManifestPages(language)
   const index = pages.findIndex((page) => page.path === path)
   if (index === -1) return {}
   return {

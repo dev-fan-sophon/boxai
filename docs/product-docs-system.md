@@ -16,6 +16,50 @@ This document is the single source of truth for the public docs redesign.
 Engineering notes in this repo’s top-level `docs/` stay internal; only content
 under the product docs pipeline is public.
 
+## Connect documentation maintenance (2026-09-27)
+
+Connect's public documentation now lives at `/docs/clients/connect`, with five
+task guides under that path: `install`, `sign-in`, `agents-and-models`,
+`gateway-and-routing`, and `account-and-troubleshooting`. All six pages are
+published in English and Vietnamese. These paths are required bilingual core
+pages in the documentation build. The numbered design sections below include
+historical planning; use source files and executable checks for delivery status.
+
+### One source for each kind of information
+
+- **User instructions:** `web/default/content/docs/{en,vi}/clients/connect.md`
+  and `clients/connect/*.md`. Edit both languages together. Never hand-edit the
+  generated pages, search indexes, manifest or `llms.txt`.
+- **Short product copy:** `features/client-apps/constants.ts`, its shared
+  walkthrough and installation note, and `features/home/components/sections/supported-apps.tsx`
+  under `web/default/src`. Public downloads and the console link to the full
+  guides; they should not duplicate the complete manual.
+- **Downloads and current version:** the Connect `releases.json` feed, consumed
+  by `useAppRelease`. Guide links use `/connect`, not a pinned installer URL.
+- **Engineering and publication:** `connect/README.md` and
+  `connect/build/release/README.md`. Retained upstream README/site material is
+  reference, not BoxAI user documentation; do not edit upstream behavior to
+  match a marketing claim.
+
+### Release documentation checklist
+
+1. Check actual tab labels, browser authorization, key storage, logout behavior,
+   model filtering, platform requirements and installer signing against source
+   and release evidence. Do not claim runtime acceptance from a compile.
+2. Update the relevant English/Vietnamese guides and their `updated` dates.
+   Add frontend copy through the i18n workflow for all supported UI languages.
+3. Run `bun run docs:validate`, focused docs tests and `bun run typecheck` in
+   `web/default`. Run `bun run build` before delivery. New guide paths also need
+   sitemap/SEO entries in `common/seo.go`.
+4. Inspect `/connect`, `/dashboard/connect`, `/docs` and affected guides in
+   English/Vietnamese, including mobile navigation, search and related links.
+   Use a mocked console session, not a real user's credentials or Agent files.
+
+Avoid obsolete claims: Connect has no Providers or Model Plaza tab; Library is
+not official-only; the cloud key is not placed in agent configuration; logout
+does not revoke the website key or guarantee configuration restoration; current
+Windows installers are unsigned. Usage is account-wide, not per-agent cost.
+
 ---
 
 ## 0. Decisions (locked)

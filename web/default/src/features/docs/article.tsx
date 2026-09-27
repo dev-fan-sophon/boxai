@@ -46,7 +46,7 @@ export function DocsArticlePage(props: { docPath: string }) {
   const { t, i18n } = useTranslation()
   const path = normalizeDocsPath(props.docPath)
   const loaded = loadDocsPage(path, i18n.language)
-  const pager = adjacentDocsPages(path)
+  const pager = adjacentDocsPages(path, i18n.language)
   const bodyRef = useRef<HTMLDivElement>(null)
 
   useSeo(
@@ -94,6 +94,7 @@ export function DocsArticlePage(props: { docPath: string }) {
         <Markdown
           className={cn(
             'mt-8',
+            '[&_table]:[overflow-wrap:normal]',
             '[&_.doc-callout]:my-4 [&_.doc-callout]:rounded-lg [&_.doc-callout]:border [&_.doc-callout]:px-4 [&_.doc-callout]:py-3',
             '[&_.doc-callout-warning]:border-warning/40 [&_.doc-callout-warning]:bg-warning/10',
             '[&_.doc-callout-danger]:border-destructive/40 [&_.doc-callout-danger]:bg-destructive/10',

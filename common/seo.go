@@ -207,6 +207,42 @@ func PublicSEOPages() []SEOPage {
 			Body:        "Download and install BoxAI Desktop, then sign in with your you-box.com account.",
 		},
 		{
+			Path: "/docs/clients/connect", Title: "BoxAI Connect guide",
+			Description: "Install BoxAI Connect, authorize your account, and connect coding agents through the local gateway.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "BoxAI Connect",
+			Body: "Guides to Connect's Agents, Gateway, Routing, Usage, Library and Account tabs, in English and Vietnamese.",
+		},
+		{
+			Path: "/docs/clients/connect/install", Title: "Install BoxAI Connect",
+			Description: "Install the signed macOS Apple silicon DMG or Windows x64 installer from the official Connect download page.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "Install BoxAI Connect",
+			Body: "System requirements, installer signing, safe installation and updating BoxAI Connect.",
+		},
+		{
+			Path: "/docs/clients/connect/sign-in", Title: "Sign in to BoxAI Connect",
+			Description: "Authorize Connect through the BoxAI website and understand local key storage, sign-out and revocation.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "Sign in to BoxAI Connect",
+			Body: "Browser authorization configures BoxAI using an ordinary API key stored privately on your computer.",
+		},
+		{
+			Path: "/docs/clients/connect/agents-and-models", Title: "Connect agents, models and Library",
+			Description: "Choose conversational BoxAI models for installed coding agents and manage Library resources.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "Agents, models and Library",
+			Body: "Configure supported agents, understand conversational model filtering and review third-party Library resources.",
+		},
+		{
+			Path: "/docs/clients/connect/gateway-and-routing", Title: "Connect Gateway and Routing",
+			Description: "Use local gateway connection details and inspect requests without exposing your BoxAI API key.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "Gateway and Routing",
+			Body: "Keep Connect running, use its displayed Base URL and local key placeholder, and inspect recent calls.",
+		},
+		{
+			Path: "/docs/clients/connect/account-and-troubleshooting", Title: "Connect account and troubleshooting",
+			Description: "Understand account-wide usage and troubleshoot authorization, hidden windows, missing models and gateway errors.",
+			Priority:    "0.7", Changefreq: "weekly", Heading: "Account, usage and troubleshooting",
+			Body: "Manage your account, distinguish local sign-out from key revocation, and share safe diagnostic reports.",
+		},
+		{
 			Path:        "/docs/playground/overview",
 			Title:       "Playground overview",
 			Description: "Try BoxAI models in the browser and prepare for API integration.",
@@ -236,11 +272,11 @@ func PublicSEOPages() []SEOPage {
 		{
 			Path:        "/connect",
 			Title:       "BoxAI Connect",
-			Description: "Download BoxAI Connect for macOS or Windows to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, OpenCode, and WorkBuddy to BoxAI with MCP and official Skills.",
+			Description: "Download BoxAI Connect for macOS or Windows. Sign in through your browser, choose BoxAI conversational models, and connect coding agents through a local gateway.",
 			Priority:    "0.7",
 			Changefreq:  "weekly",
 			Heading:     "BoxAI Connect",
-			Body:        "Download the native BoxAI Connect app from you-box.com to sign in, discover models, install BoxAI MCP servers and official Skills, and configure supported AI coding agents with reversible changes.",
+			Body:        "Use BoxAI Connect's local gateway, conversational model picker, resource library and account-wide usage. Read the installation, sign-in and troubleshooting guides.",
 		},
 		{
 			Path:        "/about",

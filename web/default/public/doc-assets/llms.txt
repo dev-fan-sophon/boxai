@@ -17,5 +17,11 @@
 - [Errors, retries, and rate limits](https://you-box.com/docs/api/errors): Classify failures, retry transient requests safely, and respect gateway limits.
 - [BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.
 - [Codex desktop with a custom BoxAI API](https://you-box.com/docs/clients/codex-desktop): Configure the current Codex desktop client with config.toml and auth.json, use BoxAI Responses models, and verify which provider is billed.
+- [BoxAI Connect](https://you-box.com/docs/clients/connect): Connect your local coding agents to BoxAI through a desktop gateway.
+- [Install BoxAI Connect](https://you-box.com/docs/clients/connect/install): Install the macOS Apple silicon or Windows x64 release safely.
+- [Sign in to BoxAI Connect](https://you-box.com/docs/clients/connect/sign-in): Authorize Connect in your browser and understand where its API key is stored.
+- [Agents, models and Library](https://you-box.com/docs/clients/connect/agents-and-models): Choose conversational BoxAI models for your installed agents and use Library carefully.
+- [Gateway and Routing](https://you-box.com/docs/clients/connect/gateway-and-routing): Use Connect's local connection details and inspect requests without exposing your cloud key.
+- [Account, usage and troubleshooting](https://you-box.com/docs/clients/connect/account-and-troubleshooting): Understand account-wide usage, manage authorization and recover safely from common Connect problems.
 - [Playground overview](https://you-box.com/docs/playground/overview): Try models in the browser, validate prompts, and prepare for API integration.
 - [Models, groups, and quota](https://you-box.com/docs/concepts/models-groups-quota): How model IDs, access groups, and remaining quota work together on BoxAI.
