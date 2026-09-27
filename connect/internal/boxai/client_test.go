@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -273,6 +274,62 @@ func TestVaultFailureCannotAuthenticate(t *testing.T) {
 	assert.Equal(t, ErrVaultUnavailable.Error(), c.Session().Error)
 	_, e := c.LocalGatewayToken()
 	assert.ErrorIs(t, e, ErrVaultUnavailable)
+}
+
+func TestLogoutHookRunsAfterOriginCheckAndBeforeCredentialMutation(t *testing.T) {
+	var revoked atomic.Bool
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/connector/revoke" {
+			revoked.Store(true)
+			w.WriteHeader(204)
+			return
+		}
+		writeJSON(w, map[string]any{"success": true, "data": provisioningFixture()})
+	}))
+	defer s.Close()
+	v := &memoryVault{values: map[string]string{"session": testToken}}
+	c := newClient(s.URL, v, nil)
+	require.NoError(t, c.Require(context.Background()))
+	var calls int
+	fail := true
+	c.SetBeforeLogout(func(ctx context.Context) error {
+		calls++
+		assert.False(t, c.Session().Authenticated)
+		assert.ErrorIs(t, c.Require(ctx), ErrLoginRequired)
+		stored, e := v.Get(ctx, "session")
+		assert.NoError(t, e)
+		assert.Equal(t, testToken, stored)
+		_, e = v.Get(ctx, "signout")
+		assert.ErrorIs(t, e, errMissing)
+		assert.False(t, revoked.Load())
+		if fail {
+			return errors.New("private restore failure")
+		}
+		return nil
+	})
+	h := c.Handler(nil)
+	r := httptest.NewRequest("POST", "http://wails.localhost/api/boxai/logout", nil)
+	r.Header.Set("Origin", "https://evil.example")
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	assert.Equal(t, 403, w.Code)
+	assert.Zero(t, calls)
+	r.Header.Set("Origin", "http://wails.localhost")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	assert.Equal(t, 409, w.Code)
+	assert.Equal(t, 1, calls)
+	assert.NotContains(t, w.Body.String(), "private restore failure")
+	assert.Error(t, c.Login(context.Background(), func(string) {}))
+	_, ok := c.CachedProvisioning()
+	assert.False(t, ok)
+	fail = false
+	require.NoError(t, c.Logout(context.Background()))
+	assert.Equal(t, 2, calls)
+	assert.True(t, revoked.Load())
+	_, e := v.Get(context.Background(), "session")
+	assert.ErrorIs(t, e, errMissing)
 }
 
 func TestCancelStopsLoopbackAndNeverStoresToken(t *testing.T) {

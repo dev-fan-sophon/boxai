@@ -31,18 +31,21 @@ type vault interface {
 // Client serializes vault and session mutations. Network calls have bounded
 // timeouts; cancelled login generations can never commit a credential.
 type Client struct {
-	mu         sync.Mutex
-	vault      vault
-	http       *http.Client
-	origin     string
-	now        func() time.Time
-	token      string
-	loaded     bool
-	validated  time.Time
-	data       ProvisioningData
-	lastError  string
-	cancel     context.CancelFunc
-	generation uint64
+	mu           sync.Mutex
+	logoutMu     sync.Mutex
+	beforeLogout func(context.Context) error
+	blocked      bool
+	vault        vault
+	http         *http.Client
+	origin       string
+	now          func() time.Time
+	token        string
+	loaded       bool
+	validated    time.Time
+	data         ProvisioningData
+	lastError    string
+	cancel       context.CancelFunc
+	generation   uint64
 }
 
 func New() *Client { return newClient(Origin, nativeVault{}, nil) }
@@ -60,12 +63,22 @@ func Token(ctx context.Context) (string, error) { return defaultClient.Token(ctx
 func Provisioning(ctx context.Context) (ProvisioningData, error) {
 	return defaultClient.Provisioning(ctx)
 }
-func CachedProvisioning() (ProvisioningData, bool) { return defaultClient.CachedProvisioning() }
-func LocalGatewayToken() (string, error)           { return defaultClient.LocalGatewayToken() }
-func Handler(openURL func(string)) http.Handler    { return defaultClient.Handler(openURL) }
-func Snapshot() Session                            { return defaultClient.Session() }
-func Logout(ctx context.Context) error             { return defaultClient.Logout(ctx) }
-func Cancel()                                      { defaultClient.Cancel() }
+func CachedProvisioning() (ProvisioningData, bool)          { return defaultClient.CachedProvisioning() }
+func LocalGatewayToken() (string, error)                    { return defaultClient.LocalGatewayToken() }
+func Handler(openURL func(string)) http.Handler             { return defaultClient.Handler(openURL) }
+func Snapshot() Session                                     { return defaultClient.Session() }
+func Logout(ctx context.Context) error                      { return defaultClient.Logout(ctx) }
+func Cancel()                                               { defaultClient.Cancel() }
+func Login(ctx context.Context, openURL func(string)) error { return defaultClient.Login(ctx, openURL) }
+func SetBeforeLogout(hook func(context.Context) error)      { defaultClient.SetBeforeLogout(hook) }
+
+// SetBeforeLogout installs the startup restore hook. It runs without the
+// session mutex, after access is blocked but before any durable signout change.
+func (c *Client) SetBeforeLogout(hook func(context.Context) error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.beforeLogout = hook
+}
 
 func (c *Client) request(ctx context.Context, method, path, token string, body any, out any) error {
 	var payload []byte
@@ -154,6 +167,9 @@ func (c *Client) safeURL(raw string, bearer bool) bool {
 	return u.Scheme == "https"
 }
 func (c *Client) requireLocked(ctx context.Context) error {
+	if c.blocked {
+		return ErrLoginRequired
+	}
 	if !c.loaded {
 		pending, e := c.vault.Get(ctx, "signout")
 		if e != nil && !errors.Is(e, errMissing) {
@@ -227,7 +243,7 @@ func clone(p ProvisioningData) ProvisioningData {
 	return out
 }
 func (c *Client) authenticated() bool {
-	return c.token != "" && !c.validated.IsZero() && c.now().Sub(c.validated) < validationTTL
+	return !c.blocked && c.token != "" && !c.validated.IsZero() && c.now().Sub(c.validated) < validationTTL
 }
 func (c *Client) CachedProvisioning() (ProvisioningData, bool) {
 	c.mu.Lock()
@@ -287,9 +303,23 @@ func (c *Client) cancelLocked() {
 	}
 }
 func (c *Client) Logout(ctx context.Context) error {
+	c.logoutMu.Lock()
+	defer c.logoutMu.Unlock()
+	c.mu.Lock()
+	c.cancelLocked()
+	c.blocked = true
+	hook := c.beforeLogout
+	c.mu.Unlock()
+	if hook != nil {
+		if err := hook(ctx); err != nil {
+			c.mu.Lock()
+			c.lastError = "Sign-out pending: restore agent configuration before retrying"
+			c.mu.Unlock()
+			return errors.New("Sign-out pending: restore agent configuration before retrying")
+		}
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cancelLocked()
 	t := c.token
 	c.token = ""
 	c.validated = time.Time{}
@@ -321,6 +351,7 @@ func (c *Client) Logout(ctx context.Context) error {
 	if e := c.vault.Delete(ctx, "signout"); e != nil && !errors.Is(e, errMissing) {
 		return ErrVaultUnavailable
 	}
+	c.blocked = false
 	c.lastError = ""
 	return nil
 }

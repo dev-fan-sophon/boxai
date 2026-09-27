@@ -21,6 +21,9 @@ func (c *Client) Login(ctx context.Context, openURL func(string)) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.blocked {
+		return errors.New("Sign-out pending: retry sign-out before signing in")
+	}
 	if c.cancel != nil {
 		return errors.New("BoxAI sign-in already pending")
 	}
