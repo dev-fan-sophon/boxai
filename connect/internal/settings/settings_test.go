@@ -12,10 +12,10 @@ func TestRoundTrip(t *testing.T) {
 	if s := Load(); s.Theme != "system" || s.Lang != "system" {
 		t.Fatalf("defaults: %+v", s)
 	}
-	if err := Save(Settings{Theme: "dark", Lang: "zh"}); err != nil {
+	if err := Save(Settings{Theme: "dark", Lang: "vi"}); err != nil {
 		t.Fatal(err)
 	}
-	if s := Load(); s.Theme != "dark" || s.Lang != "zh" {
+	if s := Load(); s.Theme != "dark" || s.Lang != "vi" {
 		t.Fatalf("saved: %+v", s)
 	}
 	if err := Save(Settings{Theme: "sepia"}); err == nil {

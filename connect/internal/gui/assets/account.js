@@ -263,7 +263,7 @@ const boxai = (() => {
       for (const [key, label] of [["current_period_start", "Period started"], ["end_time", "Subscription ends"], ["next_reset_time", "Next reset"]]) {
         const value = sub[key];
         const date = value ? new Date(typeof value === "number" ? value * 1000 : value) : null;
-        detail(section, label, date && !Number.isNaN(date.getTime()) ? date.toLocaleString(locale === "zh" ? "zh-CN" : "en") : null);
+        detail(section, label, date && !Number.isNaN(date.getTime()) ? date.toLocaleString(locale) : null);
       }
       detail(section, "Wallet fallback", sub.wallet_fallback == null ? null : t(sub.wallet_fallback ? "Yes" : "No"));
       page.append(section);

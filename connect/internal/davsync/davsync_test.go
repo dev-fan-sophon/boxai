@@ -203,14 +203,14 @@ func TestSync(t *testing.T) {
 	settings.Save(settings.Settings{Theme: "light", Proxy: "http://127.0.0.1:7890"})
 	now(t) // a's is on the server now
 	b.use(t)
-	settings.Save(settings.Settings{Theme: "system", Lang: "zh", Proxy: "direct"})
+	settings.Save(settings.Settings{Theme: "system", Lang: "vi", Proxy: "direct"})
 	old := time.Now().Add(-time.Hour)
 	os.Chtimes(settings.Path(), old, old)
 	v = now(t)
 	if v.Notice == nil || !slices.Equal(v.Notice.Here, []string{"settings"}) || len(v.Notice.There) != 0 {
 		t.Fatalf("older here: %+v", v.Notice)
 	}
-	if s := settings.Load(); s.Theme != "light" || s.Lang == "zh" {
+	if s := settings.Load(); s.Theme != "light" || s.Lang == "vi" {
 		t.Fatalf("b's settings: %+v", s)
 	}
 	// …and the newer one stays, the server's kept aside

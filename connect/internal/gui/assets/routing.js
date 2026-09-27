@@ -101,8 +101,8 @@
   const took = (ms = 0) => ms < 1000 ? t("{n} ms", { n: ms }) : t("{n} s", { n: (ms / 1000).toFixed(ms < 10e3 ? 1 : 0) });
   function clock(s) {
     const d = new Date(s), n = new Date();
-    const hm = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return d.toDateString() === n.toDateString() ? hm : d.toLocaleDateString([], { weekday: "short" }) + " " + hm;
+    const hm = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+    return d.toDateString() === n.toDateString() ? hm : d.toLocaleDateString(locale, { weekday: "short" }) + " " + hm;
   }
   const tokens = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(Math.round(n));
   const pct = (n) => Math.round(n) + "%";
@@ -358,7 +358,7 @@
   function condText(c) {
     let m;
     if ((m = /^intent "(.*)"$/.exec(c))) return t("asks for “{intent}”", { intent: m[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\") });
-    if ((m = /^tokens ≥ (\d+)$/.exec(c))) return t("≥ {n} tokens", { n: Number(m[1]).toLocaleString() });
+    if ((m = /^tokens ≥ (\d+)$/.exec(c))) return t("≥ {n} tokens", { n: Number(m[1]).toLocaleString(locale) });
     if (c === "images") return t("has an image");
     if (c === "reasoning") return t("reasoning on");
     if ((m = /^effort ≥ (\w+)$/.exec(c))) return t("reasoning ≥ {level}", { level: m[1] });
@@ -857,7 +857,7 @@
       const sel = pinned ? pinned.id === r.id : cur?.id === r.id;
       b.setAttribute("aria-pressed", String(sel));
       const ag = agentOf(r.agent);
-      const when = el("span", "at", new Date(r.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      const when = el("span", "at", new Date(r.time).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       const asked = el("span", "asked");
       const sw = el("i", "ag");
       sw.style.setProperty("--agent", hueOf(r.agent));
@@ -1275,7 +1275,7 @@
   // what a rule matches, in words
   function ruleText(r) {
     const bits = [];
-    if (r.tokens) bits.push(t("≥ {n} tokens", { n: r.tokens.toLocaleString() }));
+    if (r.tokens) bits.push(t("≥ {n} tokens", { n: r.tokens.toLocaleString(locale) }));
     if (r.images) bits.push(t("has an image"));
     if (r.effort) bits.push(r.effort === "on" ? t("reasoning on") : t("reasoning ≥ {level}", { level: r.effort }));
     if (r.agents?.length) bits.push(r.agents.map((id) => (state.clients || state.agents || []).find((a) => a.id === id)?.name || id).join(" / "));
@@ -1521,7 +1521,7 @@
         const warn = () => {
           const m = infoOf(r.use), bits = [];
           if (r.images && m && m.ready && !m.images) bits.push(t("it doesn't take images"));
-          if (r.tokens && m?.context && m.context < r.tokens) bits.push(t("it takes {n} tokens", { n: m.context.toLocaleString() }));
+          if (r.tokens && m?.context && m.context < r.tokens) bits.push(t("it takes {n} tokens", { n: m.context.toLocaleString(locale) }));
           hint.textContent = bits.join(" · ");
         };
         warn();

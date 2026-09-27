@@ -20,7 +20,7 @@ import (
 // Settings is what the user chose. "" and "system" both mean "follow the OS".
 type Settings struct {
 	Theme string `json:"theme,omitempty"` // system | light | dark
-	Lang  string `json:"lang,omitempty"`  // system | en | zh
+	Lang  string `json:"lang,omitempty"`  // system | en | vi
 	Tray  string `json:"tray,omitempty"`  // what clicking the tray icon opens: panel | window
 	// Dock keeps magpie in the Mac's Dock as well as the menu bar, for a
 	// menu bar too full to show its icon.
@@ -104,7 +104,7 @@ func Arrange[T any](s Settings, items []T, id func(T) string) (shown, hidden []T
 // Themes and Langs are the accepted values, in the order the UI offers them.
 var (
 	Themes = []string{"system", "light", "dark"}
-	Langs  = []string{"system", "en", "zh"}
+	Langs  = []string{"system", "en", "vi"}
 	Trays  = []string{"panel", "window"}
 )
 
@@ -169,6 +169,9 @@ func (s Settings) normal() Settings {
 	}
 	if s.Lang == "" {
 		s.Lang = "system"
+	}
+	if s.Lang == "zh" {
+		s.Lang = "en"
 	}
 	if s.Tray == "" {
 		s.Tray = "panel"

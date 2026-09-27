@@ -1637,7 +1637,7 @@ function renderActivity() {
     const chev = el("span", "call-chev");
     chev.append(svg(CHEV_R, 11, 1.6));
     r.append(chev);
-    r.append(el("span", "when", new Date(c.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })));
+    r.append(el("span", "when", new Date(c.time).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })));
     r.append(el("span", "a", c.agent || "—"));
     r.append(el("span", "m", c.model));
     r.append(el("span", "p", c.from === c.to ? c.from : `${c.from} → ${c.to}`));
@@ -3231,7 +3231,7 @@ function accountQuota(data, user) {
     m.append(el("span", "aq-n", t(w.name)), track, el("b", "", quotaText(w)));
     if (w.resetsAt) {
       const at = new Date(w.resetsAt);
-      m.title = t("Resets {when}", { when: at.toLocaleString() });
+      m.title = t("Resets {when}", { when: at.toLocaleString(locale) });
       if (used >= 80) m.append(el("span", "aq-r", t("resets {in}", { in: untilText(at) })));
     }
     line.append(m);
@@ -3705,7 +3705,7 @@ function panelQuotaRow(q) {
       fill.style.width = quotaFill(w) + "%";
       track.append(fill);
       m.append(el("span", "pq-n", t(w.name)), track, el("b", "", quotaFill(w) + "%"));
-      m.title = t(w.name) + " · " + quotaText(w) + (w.resetsAt ? "\n" + t("Resets {when}", { when: new Date(w.resetsAt).toLocaleString() }) : "");
+      m.title = t(w.name) + " · " + quotaText(w) + (w.resetsAt ? "\n" + t("Resets {when}", { when: new Date(w.resetsAt).toLocaleString(locale) }) : "");
       ws.append(m);
     }
   }
@@ -3739,7 +3739,7 @@ function quotaWindows(sub) {
     fill.style.width = `${quotaFill(w)}%`;
     track.append(fill);
     quota.append(labels, track);
-    if (w.resetsAt) quota.title = t("Resets {when}", { when: new Date(w.resetsAt).toLocaleString() });
+    if (w.resetsAt) quota.title = t("Resets {when}", { when: new Date(w.resetsAt).toLocaleString(locale) });
     windows.append(quota);
   }
   return windows;
@@ -3862,7 +3862,7 @@ function renderUsage() {
 // the version, where magpie keeps its files, the gateway's address.
 
 const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
-const LOCALES = [["system", "System"], ["en", "English"], ["zh", "中文"]];
+const LOCALES = [["system", "System"], ["en", "English"], ["vi", "Tiếng Việt"]];
 const TRAYS = [["panel", "Quick panel"], ["window", "Main window"]];
 
 // applyPrefs paints and speaks as the saved settings say. A ?theme= or
@@ -4013,8 +4013,8 @@ function refreshAfterSync() {
 
 function syncWhen(iso) {
   const d = new Date(iso);
-  const time = d.toLocaleTimeString(locale === "zh" ? "zh-CN" : undefined, { hour: "2-digit", minute: "2-digit" });
-  return new Date().toDateString() === d.toDateString() ? t("at {time}", { time }) : d.toLocaleDateString(locale === "zh" ? "zh-CN" : undefined) + " " + time;
+  const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  return new Date().toDateString() === d.toDateString() ? t("at {time}", { time }) : d.toLocaleDateString(locale) + " " + time;
 }
 
 function tick(label, on) {

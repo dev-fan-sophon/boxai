@@ -312,7 +312,7 @@
       card.append(ttl);
       const g = rtk.gain;
       card.append(el("p", "lib-rtk-gain", g
-        ? t("{saved} tokens saved over {n} commands — {pct}% on average", { saved: tokens(g.saved), n: g.commands.toLocaleString(), pct: Math.round(g.pct) })
+        ? t("{saved} tokens saved over {n} commands — {pct}% on average", { saved: tokens(g.saved), n: g.commands.toLocaleString(locale), pct: Math.round(g.pct) })
         : t("Nothing saved yet: the agents' commands go through RTK once it's switched on and the agent is restarted.")));
     } else {
       card.append(ttl);
@@ -1388,7 +1388,7 @@
     const foot = el("div", "mk-foot");
     const n = el("span", "mk-installs");
     n.append(svg(GLYPH.down, 11, 1.5), el("span", "", compact(x.installs)));
-    n.title = t("{n} installs", { n: x.installs.toLocaleString() });
+    n.title = t("{n} installs", { n: x.installs.toLocaleString(locale) });
     foot.append(n, el("span", "grow"), addButton(x, () => addSkill(x)));
     c.append(top, d, foot);
     c.onclick = () => skillSheet(x);
