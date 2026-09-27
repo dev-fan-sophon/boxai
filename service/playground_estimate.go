@@ -75,6 +75,16 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 	}
 
 	price, usePrice := ratio_setting.GetModelPrice(modelName, false)
+	if !usePrice && relaycommon.IsSeedanceModel(modelName) {
+		if ratio, ok := configuredModelRatio(modelName); ok {
+			// Native Seedance settles on actual video tokens. This endpoint
+			// has neither the selected channel nor a video-token estimate;
+			// do not present a compiled per-second price as a billable quote.
+			result.ModelRatio = &ratio
+			result.Message = "video price depends on actual usage and selected channel"
+			return result
+		}
+	}
 	if !usePrice {
 		if fallback, ok := ratio_setting.GetDefaultSeedanceModelPrice(modelName); ok {
 			price = fallback

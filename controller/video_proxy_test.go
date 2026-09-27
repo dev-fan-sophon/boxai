@@ -269,3 +269,54 @@ func TestVideoProxyDoesNotTrustProtocolRelativeXAIResult(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, recorder.Code)
 }
+
+func TestDoubaoVideoProxyAuthenticatedContent(t *testing.T) {
+	for _, mode := range []string{"content", "redirect", "arbitrary path"} {
+		t.Run(mode, func(t *testing.T) {
+			db := setupVideoProxyTestDB(t)
+			service.InitHttpClient()
+			video := []byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}
+			requests := 0
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				assert.Equal(t, "/v1/videos/upstream-id/content", r.URL.Path)
+				assert.Equal(t, "Bearer selected-key", r.Header.Get("Authorization"))
+				if mode == "redirect" {
+					http.Redirect(w, r, "/private", http.StatusFound)
+					return
+				}
+				w.Header().Set("Content-Type", "video/mp4")
+				_, _ = w.Write(video)
+			}))
+			t.Cleanup(upstream.Close)
+			resultURL := upstream.URL + "/v1/videos/upstream-id/content"
+			if mode == "arbitrary path" {
+				resultURL = upstream.URL + "/private"
+			}
+			require.NoError(t, db.Create(&model.Channel{Id: 8, Type: constant.ChannelTypeDoubaoVideo, Key: "fallback-key", BaseURL: &upstream.URL}).Error)
+			require.NoError(t, db.Create(&model.Task{
+				TaskID: "task_doubao", UserId: 42, ChannelId: 8, Status: model.TaskStatusSuccess,
+				PrivateData: model.TaskPrivateData{Key: "selected-key", UpstreamTaskID: "upstream-id", ResultURL: resultURL},
+			}).Error)
+			router := gin.New()
+			router.GET("/v1/videos/:task_id/content", func(c *gin.Context) {
+				c.Set("id", 42)
+				VideoProxy(c)
+			})
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/videos/task_doubao/content", nil))
+			switch mode {
+			case "content":
+				assert.Equal(t, http.StatusOK, recorder.Code)
+				assert.Equal(t, video, recorder.Body.Bytes())
+				assert.Equal(t, 1, requests)
+			case "redirect":
+				assert.Equal(t, http.StatusBadGateway, recorder.Code)
+				assert.Equal(t, 1, requests)
+			case "arbitrary path":
+				assert.Equal(t, http.StatusForbidden, recorder.Code)
+				assert.Zero(t, requests)
+			}
+		})
+	}
+}

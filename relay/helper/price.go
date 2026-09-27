@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/pkg/billingexpr"
@@ -189,6 +190,12 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 	modelPrice, success := ratio_setting.GetModelPrice(info.OriginModelName, true)
 	usePrice := success
 	var modelRatio float64
+
+	// Native Seedance can report token usage. An explicit token price wins
+	// over compiled USD/s defaults, but never over an explicit ModelPrice.
+	if !success && info.ChannelMeta != nil && info.ChannelType == constant.ChannelTypeDoubaoVideo && relaycommon.IsSeedanceModel(info.OriginModelName) {
+		modelRatio, success = ratio_setting.GetModelRatioCopy()[ratio_setting.FormatMatchingModelName(info.OriginModelName)]
+	}
 
 	if !success {
 		defaultPrice, ok := ratio_setting.GetDefaultModelPriceMap()[info.OriginModelName]

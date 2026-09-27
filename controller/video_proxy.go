@@ -143,6 +143,21 @@ func VideoProxy(c *gin.Context) {
 				videoProxyError(c, http.StatusBadGateway, "server_error", "Failed to resolve Vertex video URL")
 				return
 			}
+		case constant.ChannelTypeDoubaoVideo:
+			videoURL = task.GetResultURL()
+			// Gateways can return their authenticated content endpoint instead
+			// of a signed CDN URL. Only this exact operator-owned endpoint may
+			// receive the channel credential; arbitrary media URLs must not.
+			contentURL := strings.TrimRight(baseURL, "/") + "/v1/videos/" + url.PathEscape(task.GetUpstreamTaskID()) + "/content"
+			if videoURL == contentURL {
+				apiKey := task.PrivateData.Key
+				if apiKey == "" {
+					apiKey = channel.Key
+				}
+				req.Header.Set("Authorization", "Bearer "+apiKey)
+				untrustedResultURL = false
+				operatorManagedURL = true
+			}
 		case constant.ChannelTypeOpenAI:
 			videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
 			apiKey := task.PrivateData.Key
@@ -200,6 +215,15 @@ func VideoProxy(c *gin.Context) {
 		}
 	} else if operatorManagedURL {
 		client = service.GetHttpClient()
+	}
+	if channel.Type == constant.ChannelTypeDoubaoVideo && operatorManagedURL {
+		// Do not forward credentials (or bypass media destination validation)
+		// through a redirect, even to a subdomain trusted by net/http.
+		clientCopy := *client
+		clientCopy.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		client = &clientCopy
 	}
 
 	var validateErr error

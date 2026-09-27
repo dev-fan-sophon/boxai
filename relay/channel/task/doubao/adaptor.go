@@ -155,46 +155,24 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	if err != nil {
 		return nil
 	}
-	hasVideo := hasVideoInMetadata(req.Metadata)
-	resolution, _ := req.Metadata["resolution"].(string)
-	if resolution == "" {
-		resolution, _ = videoOutputDimensions(req.Size)
+	req.Model = info.UpstreamModelName
+	payload, err := a.convertToRequestPayload(&req)
+	if err != nil {
+		return nil
+	}
+	hasVideo := false
+	for _, item := range payload.Content {
+		if item.Type == "video_url" || item.VideoURL != nil {
+			hasVideo = true
+			break
+		}
 	}
 	// 价格表以上游官方模型名为键；渠道映射后 OriginModelName 是对外别名，会查不到。
-	ratio, ok := GetVideoInputRatio(info.UpstreamModelName, resolution, hasVideo)
+	ratio, ok := GetVideoInputRatio(payload.Model, payload.Resolution, hasVideo)
 	if !ok || ratio == 1.0 {
 		return nil
 	}
 	return map[string]float64{"video_input": ratio}
-}
-
-// hasVideoInMetadata 直接检查 metadata 的 content 数组是否包含 video_url 条目，
-// 避免构建完整的上游 requestPayload。
-func hasVideoInMetadata(metadata map[string]interface{}) bool {
-	if metadata == nil {
-		return false
-	}
-	contentRaw, ok := metadata["content"]
-	if !ok {
-		return false
-	}
-	contentSlice, ok := contentRaw.([]interface{})
-	if !ok {
-		return false
-	}
-	for _, item := range contentSlice {
-		itemMap, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if itemMap["type"] == "video_url" {
-			return true
-		}
-		if _, has := itemMap["video_url"]; has {
-			return true
-		}
-	}
-	return false
 }
 
 // BuildRequestBody converts request into Doubao specific format.
@@ -298,7 +276,8 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		Content: []ContentItem{},
 	}
 	modelName := strings.ToLower(req.Model)
-	seedance20 := strings.Contains(modelName, "seedance-2-0") || strings.Contains(modelName, "seedance-2.0")
+	seedanceReferences := strings.Contains(modelName, "seedance-2-0") || strings.Contains(modelName, "seedance-2.0") ||
+		strings.Contains(modelName, "seedance-2-5") || strings.Contains(modelName, "seedance-2.5")
 
 	// Add images if present
 	if req.HasImage() {
@@ -309,7 +288,7 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 				role = "first_frame"
 			case req.LastFrame != "" && imgURL == strings.TrimSpace(req.LastFrame):
 				role = "last_frame"
-			case seedance20:
+			case seedanceReferences:
 				role = "reference_image"
 			}
 			r.Content = append(r.Content, ContentItem{
@@ -326,6 +305,17 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
 	}
+	// Metadata must not bypass channel model mapping or its billing price.
+	r.Model = req.Model
+	// Validate passthrough quantities even when unified fields override them below.
+	// Adaptive duration (-1) is not documented by this upstream.
+	if r.Duration != nil && (*r.Duration < 1 || *r.Duration > relaycommon.MaxTaskDurationSeconds) {
+		return nil, fmt.Errorf("duration must be between 1 and %d", relaycommon.MaxTaskDurationSeconds)
+	}
+	// Seedance generates at 24 frames per second; apply the shared duration cap.
+	if r.Frames != nil && (*r.Frames < 1 || *r.Frames > relaycommon.MaxTaskDurationSeconds*24) {
+		return nil, fmt.Errorf("frames must be between 1 and %d", relaycommon.MaxTaskDurationSeconds*24)
+	}
 
 	referenceCount, frameCount := 0, 0
 	for _, item := range r.Content {
@@ -339,10 +329,10 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 			frameCount++
 		}
 	}
-	if seedance20 && referenceCount > 9 {
+	if seedanceReferences && referenceCount > 9 {
 		return nil, errors.New("Seedance supports at most 9 reference images")
 	}
-	if seedance20 && referenceCount > 0 && frameCount > 0 {
+	if seedanceReferences && referenceCount > 0 && frameCount > 0 {
 		return nil, errors.New("reference images cannot be combined with first/last frames")
 	}
 
@@ -354,8 +344,15 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		r.Ratio = ratio
 	}
 	duration := req.Duration
-	if duration == 0 {
-		duration, _ = strconv.Atoi(req.Seconds)
+	if duration == 0 && req.Seconds != "" {
+		var err error
+		duration, err = strconv.Atoi(req.Seconds)
+		if err != nil || duration < 1 {
+			return nil, errors.New("invalid seconds")
+		}
+	}
+	if duration < 0 || duration > relaycommon.MaxTaskDurationSeconds {
+		return nil, fmt.Errorf("duration must be between 1 and %d", relaycommon.MaxTaskDurationSeconds)
 	}
 	if duration > 0 {
 		r.Duration = lo.ToPtr(dto.IntValue(duration))

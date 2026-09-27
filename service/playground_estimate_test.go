@@ -129,7 +129,7 @@ func TestEstimatePlaygroundCost_GrokImagineVideoUsesDurationAndResolution(t *tes
 	assert.InDelta(t, 0.003*5*1.75, *result.Amount, 1e-9)
 }
 
-func TestEstimatePlaygroundCost_SeedanceDoesNotFallBackToTokenRatio(t *testing.T) {
+func TestEstimatePlaygroundCost_TokenSeedanceDoesNotQuotePerSecondDefault(t *testing.T) {
 	savedPrices := ratio_setting.ModelPrice2JSONString()
 	savedRatios := ratio_setting.ModelRatio2JSONString()
 	t.Cleanup(func() {
@@ -137,15 +137,18 @@ func TestEstimatePlaygroundCost_SeedanceDoesNotFallBackToTokenRatio(t *testing.T
 		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
 	})
 	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{}`))
-	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"unknown-seedance-9-9":4.9}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"doubao-seedance-2-0-mini-260615":1.456323}`))
 
 	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
 		Modality: "video",
-		Model:    "unknown-seedance-9-9",
+		Model:    "doubao-seedance-2-0-mini-260615",
 		Duration: 30,
 		Size:     "1920x1080",
 	})
 	assert.Equal(t, "unknown", result.Kind)
 	assert.Nil(t, result.Amount)
-	assert.Contains(t, result.Message, "not configured")
+	assert.Nil(t, result.Quota)
+	require.NotNil(t, result.ModelRatio)
+	assert.Equal(t, 1.456323, *result.ModelRatio)
+	assert.Contains(t, result.Message, "actual usage")
 }

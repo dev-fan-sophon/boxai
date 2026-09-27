@@ -9,6 +9,8 @@ var ModelList = []string{
 	"doubao-seedance-1-5-pro-251215",
 	"doubao-seedance-2-0-260128",
 	"doubao-seedance-2-0-fast-260128",
+	"doubao-seedance-2-0-mini-260615",
+	"doubao-seedance-2-5-260628",
 	// Volcengine edge gateway (https://www.volcengine-aigc.com.cn) ids.
 	// Same contents/generations API; the gateway prefixes Seedance with cdance.
 	"cdance2.0-0611",
@@ -30,6 +32,18 @@ type videoPriceKey struct {
 // 其中零值键 {480p/720p, 不含视频} 为基准价，等于管理员应配置的 ModelRatio；
 // 计费时取 实际单价/基准价 作为 OtherRatio。
 var videoPriceTable = map[string]map[videoPriceKey]float64{
+	"doubao-seedance-2-0-mini-260615": {
+		{hasVideo: false}:                23.0,
+		{hasVideo: true}:                 14.0,
+		{is1080p: true, hasVideo: false}: 23.0,
+		{is1080p: true, hasVideo: true}:  14.0,
+	},
+	"doubao-seedance-2-5-260628": {
+		{hasVideo: false}:                70.0,
+		{hasVideo: true}:                 42.0,
+		{is1080p: true, hasVideo: false}: 70.0,
+		{is1080p: true, hasVideo: true}:  42.0,
+	},
 	"doubao-seedance-2-0-260128": {
 		{hasVideo: false}:                46.0,
 		{hasVideo: true}:                 28.0,
@@ -55,8 +69,11 @@ func GetVideoInputRatio(modelName, resolution string, hasVideo bool) (float64, b
 	res := strings.ToLower(strings.TrimSpace(resolution))
 	price, ok := prices[videoPriceKey{is1080p: res == "1080p", is4k: res == "4k", hasVideo: hasVideo}]
 	if !ok {
-		// 未配置的组合（如 fast 无 1080p/4k，上游会自行报错）按基准价计费即可。
-		return 1.0, true
+		// Preserve the input-video tier when no resolution-specific price exists.
+		price = prices[videoPriceKey{hasVideo: hasVideo}]
+		if price <= 0 {
+			price = base
+		}
 	}
 	return price / base, true
 }

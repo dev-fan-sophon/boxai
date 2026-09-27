@@ -13,6 +13,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
@@ -143,6 +144,59 @@ func makeTask(userId, channelId, quota, tokenId int, billingSource string, subsc
 				OriginModelName: "test-model",
 			},
 		},
+	}
+}
+
+func TestRecalculateTaskQuotaByTokensSnapshotAndLegacy(t *testing.T) {
+	savedRatios := ratio_setting.ModelRatio2JSONString()
+	savedGroups := ratio_setting.GroupRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(savedGroups))
+	})
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"dreamina-seedance-2-5":9,"other-token-task":9}`))
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"snapshot-test":2}`))
+	for _, tt := range []struct {
+		name, modelName string
+		snapshot        *model.TaskBillingContext
+		tokens, want    int
+	}{
+		{"seedance frozen", "dreamina-seedance-2-5", &model.TaskBillingContext{ModelRatio: 4.9, GroupRatio: 1.25, OtherRatios: map[string]float64{"video": 0.6}}, 12347, 45375},
+		{"other frozen", "other-token-task", &model.TaskBillingContext{ModelRatio: 2.5, GroupRatio: 1.5, OtherRatios: map[string]float64{"quality": 1.2}}, 12347, 55561},
+		{"removed live pricing", "removed-model", &model.TaskBillingContext{ModelRatio: 2.5, GroupRatio: 1.5}, 12347, 46301},
+		{"legacy live pricing", "other-token-task", nil, 12347, 222246},
+		{"zero model stays free", "other-token-task", &model.TaskBillingContext{GroupRatio: 1.5}, 12347, 1000},
+		{"zero group stays free", "other-token-task", &model.TaskBillingContext{ModelRatio: 2.5}, 12347, 1000},
+		{"fixed price unchanged", "other-token-task", &model.TaskBillingContext{ModelPrice: 0.1, GroupRatio: 1.5}, 12347, 1000},
+		{"per call unchanged", "other-token-task", &model.TaskBillingContext{ModelRatio: 2.5, GroupRatio: 1.5, PerCallBilling: true}, 12347, 1000},
+		{"negative tokens ignored", "other-token-task", &model.TaskBillingContext{ModelRatio: 2.5, GroupRatio: 1.5}, -1, 1000},
+		{"negative ratios cannot credit", "other-token-task", &model.TaskBillingContext{ModelRatio: -2.5, GroupRatio: -1.5}, 12347, 1000},
+		{"overflow saturates", "other-token-task", &model.TaskBillingContext{ModelRatio: 1e12, GroupRatio: 1.5}, 12347, common.MaxQuota},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, 95, common.MaxQuota)
+			task := makeTask(95, 0, 1000, 0, BillingSourceWallet, 0)
+			task.Properties.OriginModelName = tt.modelName
+			task.Group = "snapshot-test"
+			task.PrivateData.BillingContext = tt.snapshot
+			require.NoError(t, model.DB.Create(task).Error)
+			RecalculateTaskQuotaByTokens(context.Background(), task, tt.tokens)
+			assert.Equal(t, tt.want, task.Quota)
+			assert.Equal(t, tt.want, getTaskQuota(t, task.ID))
+			assert.Equal(t, common.MaxQuota-(tt.want-1000), getUserQuota(t, 95))
+			if tt.want != 1000 {
+				log := getLastLog(t)
+				require.NotNil(t, log)
+				assert.Equal(t, tt.want-1000, log.Quota)
+				if tt.want == common.MaxQuota {
+					assert.Contains(t, log.Other, `"quota_saturation"`)
+					assert.Contains(t, log.Other, `"overflow"`)
+				}
+			} else {
+				assert.Zero(t, countLogs(t))
+			}
+		})
 	}
 }
 

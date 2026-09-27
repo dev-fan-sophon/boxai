@@ -21,6 +21,7 @@ func TestVideoImageRoles(t *testing.T) {
 	}{
 		{"references", "doubao-seedance-2-0-260128", "", "", []string{"https://test/subject.png", "https://test/scene.png", "data:image/png;base64,YQ=="}, []string{"reference_image", "reference_image", "reference_image"}},
 		{"fast single reference", "doubao-seedance-2-0-fast-260128", "", "", []string{"https://test/style.png"}, []string{"reference_image"}},
+		{"2.5 reference", "doubao-seedance-2-5-260628", "", "", []string{"https://test/style.png"}, []string{"reference_image"}},
 		{"explicit frames", "doubao-seedance-2-0-260128", "https://test/start.png", "https://test/end.png", nil, []string{"first_frame", "last_frame"}},
 		{"legacy image", "doubao-seedance-1-0-pro-250528", "", "", []string{"https://test/start.png"}, []string{""}},
 	} {
@@ -159,4 +160,144 @@ func TestEstimateBillingDerivesResolutionFromSharedSize(t *testing.T) {
 	}
 
 	require.Equal(t, map[string]float64{"video_input": 51.0 / 46.0}, (&TaskAdaptor{}).EstimateBilling(c, info))
+}
+
+func TestNativeMetadataQuantityBounds(t *testing.T) {
+	for _, field := range []string{"duration", "frames"} {
+		max := relaycommon.MaxTaskDurationSeconds
+		if field == "frames" {
+			max *= 24
+		}
+		for _, value := range []any{-1, 0, max + 1, "18446744073709551615", 1.5, "invalid", 1, max, "6"} {
+			t.Run(fmt.Sprintf("%s/%v", field, value), func(t *testing.T) {
+				valid := value == 1 || value == max || value == "6"
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Set("task_request", relaycommon.TaskSubmitReq{
+					Model: "alias", Prompt: "animate", Duration: 5,
+					Metadata: map[string]interface{}{field: value},
+				})
+				info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
+					IsModelMapped: true, UpstreamModelName: "doubao-seedance-2-0-mini-260615",
+				}}
+				a := &TaskAdaptor{}
+				taskErr := a.ValidateMappedRequest(c, info)
+				_, err := a.BuildRequestBody(c, info)
+				if valid {
+					require.Nil(t, taskErr)
+					require.NoError(t, err)
+				} else {
+					require.NotNil(t, taskErr)
+					assert.Equal(t, http.StatusBadRequest, taskErr.StatusCode)
+					require.Error(t, err)
+					assert.Nil(t, a.EstimateBilling(c, info))
+				}
+			})
+		}
+	}
+}
+
+func TestNativeMetadataPreservesParametersNotModelOrPrompt(t *testing.T) {
+	for _, mapped := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mapped=%t", mapped), func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Set("task_request", relaycommon.TaskSubmitReq{
+				Model: "doubao-seedance-2-0-mini-260615", Prompt: "unified prompt",
+				Metadata: map[string]interface{}{
+					"model": "unpriced-model", "duration": 6, "frames": 144,
+					"seed": 0, "generate_audio": false, "ratio": "9:16", "resolution": "1080p",
+					"content": []ContentItem{{Type: "text", Text: "metadata prompt"},
+						{Type: "audio_url", AudioURL: &MediaURL{URL: "https://test/audio.mp3"}}},
+				},
+			})
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
+				IsModelMapped: mapped, UpstreamModelName: "doubao-seedance-2-5-260628",
+			}}
+			body, err := (&TaskAdaptor{}).BuildRequestBody(c, info)
+			require.NoError(t, err)
+			var payload map[string]interface{}
+			require.NoError(t, common.DecodeJson(body, &payload))
+			wantModel := "doubao-seedance-2-0-mini-260615"
+			if mapped {
+				wantModel = "doubao-seedance-2-5-260628"
+			}
+			assert.Equal(t, wantModel, payload["model"])
+			assert.Equal(t, float64(0), payload["seed"])
+			assert.Equal(t, false, payload["generate_audio"])
+			assert.Equal(t, float64(6), payload["duration"])
+			assert.Equal(t, float64(144), payload["frames"])
+			assert.Equal(t, "9:16", payload["ratio"])
+			assert.Equal(t, "1080p", payload["resolution"])
+			assert.Equal(t, []interface{}{
+				map[string]interface{}{"type": "audio_url", "audio_url": map[string]interface{}{"url": "https://test/audio.mp3"}},
+				map[string]interface{}{"type": "text", "text": "unified prompt"},
+			}, payload["content"])
+		})
+	}
+}
+
+func TestUnifiedRequestRequiresPrompt(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", strings.NewReader(`{"model":"doubao-seedance-2-5-260628","metadata":{"content":[{"type":"text","text":"native prompt"}]}}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	err := (&TaskAdaptor{}).ValidateRequestAndSetAction(c, &relaycommon.RelayInfo{TaskRelayInfo: &relaycommon.TaskRelayInfo{}})
+	require.NotNil(t, err)
+	assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+}
+
+func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
+	for _, tt := range []struct {
+		model                        string
+		base, video, full, fullVideo float64
+	}{
+		{"doubao-seedance-2-0-mini-260615", 23, 14, 23, 14},
+		{"doubao-seedance-2-0-fast-260128", 37, 22, 37, 22},
+		{"doubao-seedance-2-0-260128", 46, 28, 51, 31},
+		{"doubao-seedance-2-5-260628", 70, 42, 70, 42},
+	} {
+		for _, resolution := range []string{"720p", "1080p"} {
+			for _, video := range []bool{false, true} {
+				for _, typed := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%s/video=%t/typed=%t", tt.model, resolution, video, typed), func(t *testing.T) {
+						metadata := map[string]interface{}{"resolution": resolution, "model": "unpriced"}
+						if video {
+							if typed {
+								metadata["content"] = []ContentItem{{Type: "video_url", VideoURL: &MediaURL{URL: "https://test/input.mp4"}}}
+							} else {
+								metadata["content"] = []interface{}{map[string]interface{}{"type": "video_url", "video_url": map[string]interface{}{"url": "https://test/input.mp4"}}}
+							}
+						}
+						c, _ := gin.CreateTestContext(httptest.NewRecorder())
+						c.Set("task_request", relaycommon.TaskSubmitReq{Model: "alias", Prompt: "animate", Size: "1920x1080", Metadata: metadata})
+						info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{IsModelMapped: true, UpstreamModelName: tt.model}}
+						a := &TaskAdaptor{}
+						require.Nil(t, a.ValidateMappedRequest(c, info))
+						body, err := a.BuildRequestBody(c, info)
+						require.NoError(t, err)
+						var payload requestPayload
+						require.NoError(t, common.DecodeJson(body, &payload))
+						assert.Equal(t, resolution, payload.Resolution)
+						assert.Equal(t, tt.model, payload.Model)
+						price := tt.base
+						if resolution == "1080p" {
+							price = tt.full
+						}
+						if video {
+							price = tt.video
+							if resolution == "1080p" {
+								price = tt.fullVideo
+							}
+						}
+						var want map[string]float64
+						if price != tt.base {
+							want = map[string]float64{"video_input": price / tt.base}
+						}
+						assert.Equal(t, want, a.EstimateBilling(c, info))
+					})
+				}
+			}
+		}
+	}
+	ratio, ok := GetVideoInputRatio("doubao-seedance-2-0-fast-260128", "4k", true)
+	require.True(t, ok)
+	assert.Equal(t, 22.0/37.0, ratio)
 }
