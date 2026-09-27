@@ -30,7 +30,10 @@ import (
 // Codex app won't send anything for, whoever serves the model.
 
 func codex(home string) *Agent {
-	dir := filepath.Join(home, ".codex")
+	dir := os.Getenv("CODEX_HOME")
+	if dir == "" {
+		dir = filepath.Join(home, ".codex")
+	}
 	path := filepath.Join(dir, "config.toml")
 	catalogPath := filepath.Join(dir, "magpie-models.json")
 	get := func(k string) string { v, _ := edit.GetTOMLTop(path, k); return v }
@@ -66,7 +69,9 @@ func codex(home string) *Agent {
 		if err := edit.DelTOMLTable(path, "model_providers."+magpieID); err != nil {
 			return err
 		}
-		os.Remove(catalogPath)
+		if err := edit.Remove(catalogPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 		return nil
 	}
 	dropBase := func() error {
@@ -137,7 +142,9 @@ func codex(home string) *Agent {
 			if err := edit.DelTOMLTable(path, "model_providers."+magpieID); err != nil {
 				return err
 			}
-			os.Remove(catalogPath)
+			if err := edit.Remove(catalogPath); err != nil && !os.IsNotExist(err) {
+				return err
+			}
 			forget("codex.model", "codex.effort", "codex.provider", "codex.catalog")
 			return nil
 		}
@@ -149,7 +156,7 @@ func codex(home string) *Agent {
 			// a ChatGPT account out of allowance keeps the Codex app from
 			// sending at all, a magpie model's request too; as a provider
 			// of Codex's own, magpie is past that
-			if codexSignedIn(dir) && !codexUsedUp() {
+			if !SafetyEnabled() && codexSignedIn(dir) && !codexUsedUp() {
 				if err := dropProvider(); err != nil {
 					return err
 				}
@@ -170,10 +177,10 @@ func codex(home string) *Agent {
 				return err
 			}
 			if err := edit.SetTOMLTable(path, "model_providers."+magpieID,
-				edit.KV{Path: "name", Value: "magpie"},
+				edit.KV{Path: "name", Value: "BoxAI Connect"},
 				edit.KV{Path: "base_url", Value: gatewayV1()},
 				edit.KV{Path: "wire_api", Value: "responses"},
-				edit.KV{Path: "experimental_bearer_token", Value: gateway.Token},
+				edit.KV{Path: "experimental_bearer_token", Value: gateway.Credential()},
 			); err != nil {
 				return err
 			}
@@ -266,7 +273,7 @@ func codex(home string) *Agent {
 				}
 				for _, k := range []string{"model", "model_provider", "openai_base_url", "model_catalog_json"} {
 					if v, ok := t[k]; ok && v != get(k) {
-						return "Codex's profile " + p + " sets its own " + k + " (" + v + "), which Codex takes over magpie's"
+						return "Codex's profile " + p + " sets its own " + k + " (" + v + "), which Codex takes over BoxAI Connect's"
 					}
 				}
 			}
@@ -276,21 +283,21 @@ func codex(home string) *Agent {
 				if err != nil {
 					return err.Error()
 				}
-				if t["base_url"] != gatewayV1() || t["experimental_bearer_token"] != gateway.Token || t["wire_api"] != "responses" {
-					return "Codex's [model_providers.magpie] no longer points at magpie's gateway (" + gatewayV1() + ")"
+				if t["base_url"] != gatewayV1() || t["experimental_bearer_token"] != gateway.Credential() || t["wire_api"] != "responses" {
+					return "Codex's [model_providers.magpie] no longer points at BoxAI Connect's gateway (" + gatewayV1() + ")"
 				}
 				if c := get("model_catalog_json"); c != catalogPath {
-					return "Codex's model_catalog_json is no longer magpie's list"
+					return "Codex's model_catalog_json is no longer BoxAI Connect's list"
 				}
 				if _, err := os.Stat(catalogPath); err != nil {
-					return "magpie's model list for Codex (" + catalogPath + ") is gone"
+					return "BoxAI Connect's model list for Codex (" + catalogPath + ") is gone"
 				}
 			case viaBase():
 				if u := get("openai_base_url"); strings.TrimSuffix(u, "/") != codexGatewayURL() {
-					return "Codex's openai_base_url is " + u + ", not magpie's gateway at " + codexGatewayURL()
+					return "Codex's openai_base_url is " + u + ", not BoxAI Connect's gateway at " + codexGatewayURL()
 				}
 			default:
-				return "Codex's config no longer sends its model through magpie (no openai_base_url or model_provider of magpie's), so Codex asks OpenAI for a model OpenAI doesn't have"
+				return "Codex's config no longer sends its model through BoxAI Connect, so Codex asks OpenAI for a model OpenAI doesn't have"
 			}
 			return ""
 		},
@@ -354,7 +361,7 @@ func codex(home string) *Agent {
 						return edit.DelTOMLKey(path, "agents", "default_subagent_model")
 					}
 					if isMagpie(v) && !routed() {
-						return fmt.Errorf("pick a model through magpie for Codex first; its subagents can then have one of their own")
+						return fmt.Errorf("pick a model through BoxAI Connect for Codex first; its subagents can then have one of their own")
 					}
 					return edit.SetTOMLKey(path, "agents", "default_subagent_model", v)
 				},

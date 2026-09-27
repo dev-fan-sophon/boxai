@@ -2,9 +2,9 @@ package agent
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 
+	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/provider"
 )
 
@@ -15,7 +15,7 @@ func stashPath() string { return filepath.Join(filepath.Dir(provider.Path()), "s
 
 func stashLoad() map[string]string {
 	out := map[string]string{}
-	if b, err := os.ReadFile(stashPath()); err == nil {
+	if b, err := edit.Read(stashPath()); err == nil {
 		json.Unmarshal(b, &out)
 	}
 	return out
@@ -31,8 +31,7 @@ func stash(kv map[string]string) {
 		}
 	}
 	b, _ := json.MarshalIndent(m, "", "  ")
-	os.MkdirAll(filepath.Dir(stashPath()), 0o755)
-	os.WriteFile(stashPath(), b, 0o600)
+	_ = edit.WriteAtomic(stashPath(), b)
 }
 
 // forget drops stashed values without restoring them.
@@ -42,7 +41,7 @@ func forget(keys ...string) {
 		delete(m, k)
 	}
 	b, _ := json.MarshalIndent(m, "", "  ")
-	os.WriteFile(stashPath(), b, 0o600)
+	_ = edit.WriteAtomic(stashPath(), b)
 }
 
 func unstash(key string) string {
@@ -51,7 +50,7 @@ func unstash(key string) string {
 	if v != "" {
 		delete(m, key)
 		b, _ := json.MarshalIndent(m, "", "  ")
-		os.WriteFile(stashPath(), b, 0o600)
+		_ = edit.WriteAtomic(stashPath(), b)
 	}
 	return v
 }

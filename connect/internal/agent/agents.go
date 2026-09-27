@@ -30,7 +30,7 @@ func init() {
 // others are clients that reach the gateway without being agents magpie
 // sets up: known only by their requests, to be drawn with a logo.
 var others = []*Agent{
-	{ID: "magpie", Name: "magpie", Icon: "magpie", UA: []string{"magpie"}},
+	{ID: "magpie", Name: "BoxAI Connect", Icon: "magpie", UA: []string{"magpie"}},
 	{ID: "curl", Name: "curl", Icon: "curl", UA: []string{"curl"}},
 }
 
@@ -48,29 +48,24 @@ func All() []*Agent {
 	if cfg == "" {
 		cfg = filepath.Join(home, ".config")
 	}
-	return []*Agent{
+	agents := []*Agent{
 		claude(home),
 		codex(home),
 		gemini(home),
 		opencode(home, cfg),
-		mimocode(home, cfg),
-		pi(home),
-		goose(home, cfg),
-		cursor(home),
-		copilot(home),
-		crush(home, cfg),
-		dsh(home),
-		commandCode(home),
-		omp(home),
-		devin(home, cfg),
-		hermes(home),
-		cline(home),
-		qoder(home),
-		qoderCN(home),
 		grok(home),
-		zcode(home),
-		alma(),
 	}
+	if SafetyEnabled() {
+		for _, a := range agents {
+			for i := range a.Fields {
+				f := &a.Fields[i]
+				if f.Options != nil {
+					f.Options = policyOptions(a.ID, f.Key, f.Options)
+				}
+			}
+		}
+	}
+	return agents
 }
 
 // ---- accessors -------------------------------------------------------------
@@ -213,8 +208,8 @@ func magpieProviderJSONFor(shape, catalog string) any {
 			}
 			ms[m.ID] = e
 		}
-		return map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "magpie",
-			"options": map[string]any{"baseURL": gatewayV1(), "apiKey": gateway.Token}, "models": ms}
+		return map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "BoxAI Connect",
+			"options": map[string]any{"baseURL": gatewayV1(), "apiKey": gateway.Credential()}, "models": ms}
 	case "crush":
 		var ms []map[string]any
 		for _, m := range models {
@@ -228,7 +223,7 @@ func magpieProviderJSONFor(shape, catalog string) any {
 		if ms == nil {
 			ms = []map[string]any{}
 		}
-		return map[string]any{"type": "openai", "name": "magpie", "base_url": gatewayV1(), "api_key": gateway.Token, "models": ms}
+		return map[string]any{"type": "openai", "name": "magpie", "base_url": gatewayV1(), "api_key": gateway.Credential(), "models": ms}
 	case "pi":
 		var ms []map[string]any
 		for _, m := range models {
@@ -255,7 +250,7 @@ func magpieProviderJSONFor(shape, catalog string) any {
 		if ms == nil {
 			ms = []map[string]any{}
 		}
-		return map[string]any{"name": "magpie", "baseUrl": gatewayV1(), "api": "openai-completions", "apiKey": gateway.Token, "models": ms}
+		return map[string]any{"name": "magpie", "baseUrl": gatewayV1(), "api": "openai-completions", "apiKey": gateway.Credential(), "models": ms}
 	}
 	return nil
 }
@@ -325,7 +320,7 @@ func openCodeLike(id, name, icon, bin, dir, auth string, ua []string, aliases ..
 				return ""
 			}
 			return wiringOff(name, path, func(k string) (string, bool) { return edit.GetJSON(path, "provider."+magpieID+".options."+k) },
-				"baseURL", gatewayV1(), "apiKey", gateway.Token)
+				"baseURL", gatewayV1(), "apiKey", gateway.Credential())
 		},
 		Sync: func() error {
 			// a model of magpie's chosen, but its provider gone from the
@@ -415,7 +410,7 @@ func pi(home string) *Agent {
 				return ""
 			}
 			return wiringOff("Pi", modelsPath, func(k string) (string, bool) { return edit.GetJSON(modelsPath, "providers."+magpieID+"."+k) },
-				"baseUrl", gatewayV1(), "apiKey", gateway.Token)
+				"baseUrl", gatewayV1(), "apiKey", gateway.Credential())
 		},
 		Sync: func() error {
 			return syncJSON(modelsPath, "providers."+magpieID, func() any { return magpieProviderJSON("pi") })
@@ -635,7 +630,7 @@ func crush(home, cfg string) *Agent {
 				return ""
 			}
 			return wiringOff("Crush", path, func(k string) (string, bool) { return get("providers." + magpieID + "." + k) },
-				"base_url", gatewayV1(), "api_key", gateway.Token)
+				"base_url", gatewayV1(), "api_key", gateway.Credential())
 		},
 		Sync: func() error {
 			return syncJSON(path, "providers."+magpieID, func() any { return magpieProviderJSON("crush") })

@@ -29,6 +29,9 @@ var syncing struct {
 // Errors are left for the picker: a file magpie can't write now is one the
 // next change, or a pick, writes.
 func SyncCatalog() {
+	if !Authenticated() {
+		return
+	}
 	syncing.Lock()
 	if syncing.running {
 		syncing.again = true
@@ -40,7 +43,7 @@ func SyncCatalog() {
 	for {
 		for _, a := range All() {
 			if a.Sync != nil {
-				_ = a.Sync()
+				_ = Project(a, a.projectionPaths(), a.Sync)
 			}
 		}
 		syncing.Lock()

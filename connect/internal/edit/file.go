@@ -12,6 +12,9 @@ import (
 
 // Read returns the file contents, or (nil, nil) when the file does not exist.
 func Read(path string) ([]byte, error) {
+	if b, ok := stagedRead(path); ok {
+		return b, nil
+	}
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -22,12 +25,22 @@ func Read(path string) ([]byte, error) {
 // WriteAtomic writes data to path via a temp file + rename so a crash can
 // never leave a half-written config behind. File mode is preserved.
 func WriteAtomic(path string, data []byte) error {
-	mode := fs.FileMode(0o644)
+	if handled, err := stagedWrite(path, data); handled {
+		return err
+	}
+	return writeAtomic(path, data)
+}
+
+func writeAtomic(path string, data []byte) error {
+	if err := PlainPath(path); err != nil {
+		return err
+	}
+	mode := fs.FileMode(0o600)
 	if st, err := os.Stat(path); err == nil {
-		mode = st.Mode().Perm()
+		mode = st.Mode().Perm() & 0o600
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
@@ -46,6 +59,11 @@ func WriteAtomic(path string, data []byte) error {
 		cleanup()
 		return err
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		cleanup()
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		cleanup()
 		return err
@@ -54,5 +72,5 @@ func WriteAtomic(path string, data []byte) error {
 		cleanup()
 		return err
 	}
-	return nil
+	return syncDirectory(dir)
 }

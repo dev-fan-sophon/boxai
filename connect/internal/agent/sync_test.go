@@ -95,10 +95,10 @@ func TestPiModelsCarryMaxTokens(t *testing.T) {
 	}
 }
 
-// A provider added after a magpie model was picked reaches the lists agents
-// keep of magpie's models; a file magpie wrote nothing into stays as it is.
-func TestSyncCatalogRewritesAgentLists(t *testing.T) {
+// Catalog refresh before BoxAI sign-in never claims existing configurations.
+func TestSyncCatalogLeavesUnauthenticatedAgentLists(t *testing.T) {
 	home := syncHome(t)
+	SetAuthenticated(false)
 	piModels := filepath.Join(home, ".pi", "agent", "models.json")
 	writeFile(t, piModels, `{"providers":{"mine":{"baseUrl":"http://x"},"magpie":{"name":"magpie","models":[]}}}`)
 	crushCfg := filepath.Join(home, ".config", "crush", "crush.json")
@@ -115,15 +115,14 @@ func TestSyncCatalogRewritesAgentLists(t *testing.T) {
 	SyncCatalog()
 
 	pi := strings.ReplaceAll(readFile(piModels), " ", "")
-	if !strings.Contains(pi, `"relay/glm-4.6"`) || !strings.Contains(pi, `"added/m2"`) ||
-		!strings.Contains(pi, `"contextWindow":204800`) || !strings.Contains(pi, `"mine"`) {
+	if pi != `{"providers":{"mine":{"baseUrl":"http://x"},"magpie":{"name":"magpie","models":[]}}}` {
 		t.Errorf("pi models.json:\n%s", pi)
 	}
 	if got := readFile(crushCfg); got != crushBody {
 		t.Errorf("crush config without magpie changed:\n%s", got)
 	}
 	cx := readFile(codexCat)
-	if !strings.Contains(cx, `"slug": "added/m2"`) || !strings.Contains(cx, `"context_window": 204800`) {
+	if cx != `{"models":[]}` {
 		t.Errorf("codex catalog:\n%s", cx)
 	}
 
@@ -137,11 +136,10 @@ func TestSyncCatalogRewritesAgentLists(t *testing.T) {
 	}
 }
 
-// Signed in, Codex asks the gateway for its list and keeps it until it
-// ages; a cache from before magpie's list changed is aged at once, one of
-// the list as it is stays as it is.
-func TestSyncCatalogAgesCodexCache(t *testing.T) {
+// A native Codex login is not permission for BoxAI to mutate its cache.
+func TestSyncCatalogLeavesNativeCodexCache(t *testing.T) {
 	home := syncHome(t)
+	SetAuthenticated(false)
 	dir := filepath.Join(home, ".codex")
 	writeFile(t, filepath.Join(dir, "config.toml"), "model = \"relay/glm-4.6\"\nopenai_base_url = \""+codexGatewayURL()+"\"\n")
 	cache := filepath.Join(dir, "models_cache.json")
@@ -154,7 +152,7 @@ func TestSyncCatalogAgesCodexCache(t *testing.T) {
 		Models  []map[string]any `json:"models"`
 	}
 	json.Unmarshal([]byte(readFile(cache)), &c)
-	if c.At != "1970-01-01T00:00:00Z" || c.ETag != `W/"v1"` || c.Version != "0.155.1" || len(c.Models) != 1 {
+	if c.At != "2026-09-25T10:00:00Z" || c.ETag != `W/"v1"` || c.Version != "0.155.1" || len(c.Models) != 1 {
 		t.Errorf("stale cache: %+v", c)
 	}
 

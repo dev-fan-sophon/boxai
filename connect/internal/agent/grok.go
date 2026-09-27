@@ -39,7 +39,7 @@ func grokModelTables() []edit.Table {
 			{Path: "model", Value: m.ID},
 			{Path: "name", Value: m.Name},
 			{Path: "base_url", Value: gatewayV1()},
-			{Path: "api_key", Value: gateway.Token},
+			{Path: "api_key", Value: gateway.Credential()},
 			{Path: "api_backend", Value: "chat_completions"},
 		}
 		if m.Context > 0 {
@@ -141,10 +141,10 @@ func grok(home string) *Agent {
 				return err.Error()
 			}
 			if t == nil {
-				return "Grok Build's [model." + strconv.Quote(v) + "] (config.toml) is gone, so it no longer reaches magpie"
+				return "Grok Build's [model." + strconv.Quote(v) + "] (config.toml) is gone, so it no longer reaches BoxAI Connect"
 			}
 			return wiringOff("Grok Build", path, func(k string) (string, bool) { v, ok := t[k]; return v, ok },
-				"base_url", gatewayV1(), "api_key", gateway.Token)
+				"base_url", gatewayV1(), "api_key", gateway.Credential())
 		},
 		Fields: []Field{
 			{
