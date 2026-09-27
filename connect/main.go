@@ -25,7 +25,7 @@ import (
 
 var version = "dev"
 
-const usage = `magpie — one place to pick every agent's model
+const usage = `BoxAI Connect — one place to pick every agent's model
 
   magpie                          open the app: a window plus a menu bar icon
   magpie tray                     start in the menu bar only
@@ -132,7 +132,7 @@ func run(args []string) error {
 		fmt.Print(usage)
 		return nil
 	case "-v", "--version", "version":
-		fmt.Println("magpie", version)
+		fmt.Println("BoxAI Connect", version)
 		return nil
 	case "ls", "list":
 		// in the order the app lists them; those hidden there come last, dimmed

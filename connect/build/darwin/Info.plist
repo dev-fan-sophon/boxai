@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key><string>magpie</string>
-	<key>CFBundleDisplayName</key><string>magpie</string>
+	<key>CFBundleName</key><string>BoxAI Connect</string>
+	<key>CFBundleDisplayName</key><string>BoxAI Connect</string>
 	<key>CFBundleIdentifier</key><string>com.yetone.magpie</string>
 	<key>CFBundleExecutable</key><string>magpie</string>
 	<key>CFBundleIconFile</key><string>magpie</string>

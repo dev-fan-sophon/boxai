@@ -139,7 +139,7 @@ func Run(version string, showMain bool, link string) error {
 		// second launch); it hands its arguments to the running one and quits.
 		// The Mac sends the link to the running app itself.
 		SingleInstance: singleInstance(h),
-		Name:           "magpie",
+		Name:           "BoxAI Connect",
 		Description:    "one place to pick every agent's model",
 		Icon:           appIconLarge,
 		Assets:         application.AssetOptions{Handler: handler},
@@ -162,7 +162,7 @@ func Run(version string, showMain bool, link string) error {
 
 	h.panel = h.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:            "panel",
-		Title:           "magpie",
+		Title:           "BoxAI Connect",
 		URL:             "/?mode=panel" + theme,
 		Width:           panelWidth,
 		Height:          520,
@@ -187,7 +187,7 @@ func Run(version string, showMain bool, link string) error {
 	}
 	h.main = h.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:      "main",
-		Title:     "magpie",
+		Title:     "BoxAI Connect",
 		URL:       "/?" + theme,
 		Width:     width,
 		Height:    height,
@@ -233,7 +233,7 @@ func Run(version string, showMain bool, link string) error {
 	})
 
 	menu := h.app.NewMenu()
-	menu.Add("Open magpie").OnClick(func(*application.Context) { h.ShowMain("") })
+	menu.Add("Open BoxAI Connect").OnClick(func(*application.Context) { h.ShowMain("") })
 	menu.AddSeparator()
 	menu.Add("Version " + version).SetEnabled(false)
 	restart := menu.Add("Restart to Update").SetHidden(true)
@@ -242,7 +242,7 @@ func Run(version string, showMain bool, link string) error {
 			h.app.Quit()
 		}
 	})
-	menu.Add("Quit magpie").OnClick(func(*application.Context) { h.app.Quit() })
+	menu.Add("Quit BoxAI Connect").OnClick(func(*application.Context) { h.app.Quit() })
 	updates.onReady = func(v string) {
 		application.InvokeSync(func() {
 			restart.SetLabel("Restart to Update to " + v).SetHidden(false)
@@ -263,7 +263,7 @@ func Run(version string, showMain bool, link string) error {
 	}()
 
 	h.tray = h.app.SystemTray.New()
-	h.tray.SetTooltip("magpie")
+	h.tray.SetTooltip("BoxAI Connect")
 	if runtime.GOOS == "darwin" {
 		h.tray.SetTemplateIcon(trayIcon)
 	} else {

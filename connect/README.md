@@ -1,4 +1,9 @@
-# magpie
+# BoxAI Connect
+
+Branding-only fork of [yetone/magpie](https://github.com/yetone/magpie) at
+`03a01a548df3d52fee86197fc2d0ff234b9fdfab`. Upstream functionality, command
+names, configuration paths and provider/BYOK support are unchanged at this
+stage. The original project documentation follows; the MIT license is retained.
 
 One place to pick every agent's model: Codex on DeepSeek, Claude Code
 on Kimi, Gemini CLI on GLM, from the menu bar. [usemagpie.ai](https://usemagpie.ai)
