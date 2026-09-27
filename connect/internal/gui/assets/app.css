@@ -1157,6 +1157,9 @@ body.boxai-locked > :not(#loginGate):not(script) { display: none !important; }
 #loginState { min-height: 44px; }
 #view-providers, #panelQuota, #view-usage > :not(#boxaiUsage) { display: none !important; }
 .boxai-value { color: var(--fg-2); overflow-wrap: anywhere; text-align: right; user-select: text; -webkit-user-select: text; }
+#view-account { display: block; }
+#boxaiUsage { flex: none; }
+#view-account .boxai-actions { margin: 16px 0; }
 #view-account .pref, #boxaiUsage .pref { gap: 24px; }
 #view-account h2, #boxaiUsage h2 { margin: 18px 0 12px; }
 .boxai-subscription { margin-bottom: 16px; }

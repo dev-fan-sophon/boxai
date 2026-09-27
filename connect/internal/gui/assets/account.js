@@ -228,9 +228,7 @@ const boxai = (() => {
     signout.onclick = logout;
     sessionActions.append(verify, signout);
     page.replaceChildren(el("h2", "label", t("Account")), list,
-      el("h2", "label", t("Balance and subscriptions")), summary,
-      el("p", "note", t("Server-reported counters. Quota units are not currency.")), actions,
-      sessionActions, el("p", "note", t("To switch accounts, sign out here, then choose another account on the BoxAI website when signing in.")));
+      el("h2", "label", t("Balance and subscriptions")), summary, actions, sessionActions);
   }
 
   async function loadAccount() {
@@ -253,7 +251,7 @@ const boxai = (() => {
     detail(list, "Lifetime charged (quota units)", raw.lifetime_quota_used);
     detail(list, "Lifetime requests", raw.lifetime_request_count);
     detail(list, "Wallet fallback allowed", billing.wallet_fallback_allowed == null ? null : t(billing.wallet_fallback_allowed ? "Yes" : "No"));
-    page.replaceChildren(el("h2", "label", t("Account-wide usage")), el("p", "note", t("Server-reported counters. Quota units are not currency.")), list, el("h2", "label", t("Subscriptions")));
+    page.replaceChildren(el("h2", "label", t("Account-wide usage")), list, el("h2", "label", t("Subscriptions")));
     for (const sub of billing.subscriptions || []) {
       const section = el("section", "list prefs boxai-subscription");
       detail(section, "Subscription ID", sub.id);
