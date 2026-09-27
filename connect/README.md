@@ -1,7 +1,7 @@
 # BoxAI Connect
 
 Fork of [yetone/magpie](https://github.com/yetone/magpie) at
-`f7e38d0d2ebdf954f25aa09b351157ca8f9bd1f3`, with BoxAI branding and BoxAI as the
+v0.1.185 (`ab7dd015064186a9866d8d8e260891042742a97e`), with BoxAI branding and BoxAI as the
 only provider. Sign in through the BoxAI website before using the application.
 Browser PKCE authorization returns a revocable Connect credential kept in
 `~/.config/magpie/auth.json` (private local JSON, no Keychain). Manual provider
@@ -201,10 +201,10 @@ Code process; Pi, OpenCode and every other agent use this path automatically.
 The generated harness stays out of Anthropic's system-prompt classifier while
 its instructions remain part of the user context. This requires Claude Code
 to be installed and signed in.
-Cursor, Grok (SuperGrok, through Grok Build) and Devin subscriptions likewise run through their own CLIs —
-none of them has an endpoint a borrowed key can be sent to — with Devin
-driven over ACP (`devin acp`) in a home of magpie's own that keeps only the
-caller's MCP tools and shares just the sign-in.
+Cursor and Grok (SuperGrok, through Grok Build) subscriptions likewise run
+through their own CLIs — neither has an endpoint a borrowed key can be sent
+to. A Devin subscription talks straight to the API the devin CLI uses, with
+the CLI's sign-in, the caller's tools passed through as they are.
 Google sign-ins — Gemini CLI's and Antigravity's — talk to Google's Code
 Assist API directly: magpie reads Gemini CLI's own login from `~/.gemini` or
 signs one in itself, and refreshes the token in memory. Google no longer
@@ -369,6 +369,8 @@ gateway translates.
 magpie                          # open the app: a window plus the menu bar icon
 magpie tray                     # menu bar icon only (use this in your login items)
 magpie tui                      # the same thing, in the terminal
+magpie web                      # the app's window in a browser (WSL, a server over SSH); --lan, --addr, --no-open
+                                # (a new key each run; MAGPIE_WEB_KEY keeps one, for a page run as a service)
 magpie ls                       # list every agent and its current settings
 magpie claude opus              # set a model (agent names accept prefixes: cc, oc, gem …)
 magpie codex gpt-5.6-sol
@@ -422,10 +424,16 @@ magpie backup                   # writes magpie.magpie-backup, asks for a passph
 magpie backup --no-keys ~/b.magpie-backup   # the same with no API keys in it
 magpie restore magpie.magpie-backup         # on the other machine
 magpie restore --no-agents b.magpie-backup  # providers, settings, profiles; agents left as they are
+magpie restore --no-library b.magpie-backup # the library here left as it is
 ```
 
 A backup holds your providers (with their keys, unless `--no-keys`), the
-pictures picked for them, the settings, the profiles and every agent's model.
+pictures picked for them, the settings, the profiles, every agent's model and
+the library (unless `--no-library`): the instruction sets, the MCP servers and
+the skills with their files (a file over 2 MB is left out). Without keys, a
+server's environment variables and headers that look like a key go empty.
+Restoring the library replaces the one there — what it replaces is kept with
+the library's backups — and writes it into the agents on that machine.
 It is encrypted on your machine (AES-256-GCM, the key derived from the
 passphrase with PBKDF2-SHA256); nothing in it can be read without the
 passphrase. Restoring replaces providers with the same id and adds the rest;

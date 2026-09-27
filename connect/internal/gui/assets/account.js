@@ -244,7 +244,7 @@ const boxai = (() => {
     const data = await api("usage");
     if (!authenticated || id !== usageRequest) return;
     let page = $("#boxaiUsage");
-    if (!page) { page = el("section"); page.id = "boxaiUsage"; $("#view-usage").append(page); }
+    if (!page) { page = el("section"); page.id = "boxaiUsage"; $("#usagePane").append(page); }
     const list = el("div", "list prefs");
     const raw = data.usage || {}, billing = data.billing || {};
     detail(list, "Wallet remaining (quota units)", raw.wallet_quota_remaining);

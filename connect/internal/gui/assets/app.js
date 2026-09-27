@@ -4,11 +4,15 @@ const $$ = (s) => document.querySelectorAll(s);
 const params = new URLSearchParams(location.search);
 const mode = params.get("mode") || "window";
 document.body.classList.add(mode);
+// `magpie web`: the page in a browser tab, with no window of the app's
+// around it — it opens links itself, and what is the desktop's is left out
+const web = !!window.bootPrefs?.web;
+if (web) document.body.classList.add("web");
 // The Mac window draws its title bar inside the page (the traffic lights);
 // on Linux the page's header is the whole title bar (plainTitlebar), so it
 // has the name, the close button and a double-click to maximise.
-if (/^Mac/.test(navigator.platform)) document.body.classList.add("mac");
-if (/^Linux/.test(navigator.platform)) document.body.classList.add("linux");
+if (!web && /^Mac/.test(navigator.platform)) document.body.classList.add("mac");
+if (!web && /^Linux/.test(navigator.platform)) document.body.classList.add("linux");
 // The window is dragged by its header, and only where the header says so
 // (--wails-draggable), so the tabs and buttons in it stay plain clicks.
 // Outside the app — a browser on the gateway's page — there is no runtime.
@@ -50,6 +54,7 @@ const favoriteKey = (o) => o.ref || o.value;
 const isFavorite = (o) => modelFavorites.has(favoriteKey(o)) || modelFavorites.has(o.value);
 
 async function api(path, body) {
+  if (web && path === "open") { window.open(body.url, "_blank", "noopener"); return null; }
   const res = await fetch("/api/" + path, {
     method: body === undefined ? "GET" : "POST",
     headers: { "Content-Type": "application/json" },
@@ -707,7 +712,9 @@ async function load() {
     // must not rebuild it under them
     if ((view === "providers" || view === "gateway") && !(editing || adding)) await loadProviders();
     if (view === "usage") await loadUsage();
-    if (view === "settings") await loadSettings();
+    // so is an open sync form (WebDAV, export, import): its passwords are
+    // never sent back, so a rebuild would empty it
+    if (view === "settings" && !syncOpen) await loadSettings();
   } catch (e) {
     status(e.message, "err");
   }
@@ -2144,9 +2151,17 @@ function renderEditor(p, presetID) {
       b.title = t(hint);
       b.onclick = () => {
         if (draft.api === v) return;
-        draft[apiField[draft.api]] = "";
+        // each protocol keeps its own URL (#105). One typed here and not
+        // saved moves to a protocol without one, spelled as that protocol
+        // wants it: the kind was picked after the URL (#73). A saved URL
+        // stays where it is, and one not given yet stays empty.
+        const from = apiField[draft.api], to = apiField[v];
+        if (!draft[to] && draft[from] && draft[from] !== (p?.[from] || "")) {
+          draft[to] = respellURL(draft[from], v);
+          draft[from] = p?.[from] || "";
+        }
         draft.api = v;
-        draft[apiField[v]] = url.value;
+        url.value = draft[to] || "";
         for (const x of seg.querySelectorAll(".opt")) x.classList.toggle("on", x === b);
         slide(seg, "api");
         url.placeholder = v === "anthropic" ? "https://…" : "https://…/v1";
@@ -2185,7 +2200,7 @@ function renderEditor(p, presetID) {
     const cancel = el("button", "text", t("Cancel"));
     cancel.onclick = cancelEdit;
     const saveBtn = el("button", "text primary", t("Save"));
-    saveBtn.onclick = () => { saveBtn.classList.add("busy"); providerAction("save", { id: p.id, models: draft.chosen, unlisted: draft.unlisted, fallback: draft.fallback }, t("{name} saved", { name: p.name })); };
+    saveBtn.onclick = () => { saveBtn.classList.add("busy"); providerAction("save", { id: p.id, models: chosenIds(), unlisted: draft.unlisted, fallback: draft.fallback }, t("{name} saved", { name: p.name })); };
     bar.append(cancel, saveBtn);
     ed.append(bar);
     return ed;
@@ -2351,7 +2366,7 @@ function renderEditor(p, presetID) {
   const saveBtn = el("button", "text primary", t(isNew ? "Add" : "Save"));
   const save = () => {
     // new: an Add never replaces a provider that has the id already
-    const body = { id: p ? slug(draft.id) || p.id : draft.id, from: p?.id, name: draft.name, preset: draft.preset, key: draft.key || "", chat: draft.chat, responses: draft.responses, anthropic: draft.anthropic, catalog: draft.catalog, models: p ? draft.chosen : draft.extra, headers: headersOf(draft.headers), new: isNew };
+    const body = { id: p ? slug(draft.id) || p.id : draft.id, from: p?.id, name: draft.name, preset: draft.preset, key: draft.key || "", chat: draft.chat, responses: draft.responses, anthropic: draft.anthropic, catalog: draft.catalog, models: p ? chosenIds() : draft.extra, headers: headersOf(draft.headers), new: isNew };
     if (custom) { body.icon = draft.icon || "generic"; body.balanceURL = (draft.balanceURL || "").trim(); body.balancePath = (draft.balancePath || "").trim(); body.modelsURL = (draft.modelsURL || "").trim(); }
     if (p) { body.fallback = draft.fallback; body.unlisted = draft.unlisted; }
     const cx = parseContexts(draft.contexts || "");
@@ -2724,6 +2739,13 @@ function renderEndpoints(p, src) {
 // model still being asked is null
 const modelTests = {};
 
+// chosenIds: the models picked, with the ids still in the add box, which
+// a Save takes as if Enter had been pressed on them
+function chosenIds() {
+  const typed = (draft.typed || "").split(/[,\s]+/).filter(Boolean);
+  return [...draft.chosen, ...typed.filter((id) => !draft.chosen.includes(id))].filter((id, i, all) => all.indexOf(id) === i);
+}
+
 function renderModels(p) {
   // a chip's dot: how its model answered, when it has been asked
   const tested = (c, id) => {
@@ -2828,10 +2850,11 @@ function renderModels(p) {
   if (q) { q.oninput = draw; box.append(q); }
   box.append(chips, names);
   const foot = el("div", "mfoot");
-  const add = input("", t("add a model id…"));
+  const add = input(draft.typed || "", t("add a model id…"));
+  add.oninput = () => { draft.typed = add.value; };
   add.onkeydown = (e) => {
     e.stopPropagation();
-    if (e.key === "Enter" && add.value.trim()) { const id = add.value.trim(); if (!draft.chosen.includes(id)) draft.chosen.push(id); add.value = ""; draw(); }
+    if (e.key === "Enter" && add.value.trim()) { draft.chosen = chosenIds(); draft.typed = add.value = ""; draw(); }
     else if (e.key === "Escape") cancelEdit();
   };
   const refresh = el("button", "text action", t("Refresh"));
@@ -3018,6 +3041,7 @@ async function startSignIn(agent, risky) {
   renderProviders();
   try {
     signing = await api("signin", { agent });
+    if (web && signing.url) api("open", { url: signing.url });
     renderProviders();
     followSignIn(signing.id);
   } catch (e) {
@@ -3481,6 +3505,14 @@ async function keyFingerprint(key) {
 // protocol chosen for it.
 const apiField = { openai: "chat", responses: "responses", anthropic: "anthropic" };
 
+// respellURL turns a base URL into the one protocol api is asked at: the
+// root for Anthropic, which adds /v1 itself, …/v1 for OpenAI's two.
+function respellURL(u, api) {
+  u = u.trim().replace(/\/+$/, "");
+  if (api === "anthropic") return u.replace(/\/v1$/, "");
+  return /\/v\d+[a-z]*$/.test(u) || !/^https?:\/\/[^/]+$/.test(u) ? u : u + "/v1";
+}
+
 async function providerAction(action, body, okMsg, base = "provider/") {
   try {
     providers = await api(base + action, body);
@@ -3533,6 +3565,8 @@ const PERIODS = [["today", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["all
 // never waits for them. They don't depend on the period either.
 let quotas = null;
 async function loadUsage() {
+  renderUsageTab();
+  if (usageTab === "sessions") return loadSessions();
   await boxai.loadUsage();
 }
 
@@ -3855,6 +3889,248 @@ function renderUsage() {
   $("#usageNote").textContent = t("Counted from the providers' own usage reports on every call through the gateway · {path}", { path: u.path });
 }
 
+// ---------- sessions ----------
+//
+// The agents' own sessions, read from their session files: what each cost,
+// and the command that picks it up again. A segment of the Usage page.
+
+const USAGE_TABS = [["usage", "Overview"], ["sessions", "Sessions"]];
+let usageTab = "usage";
+try { if (localStorage.getItem("magpie.usageTab") === "sessions") usageTab = "sessions"; } catch {}
+let sessions = null; // { sessions, terminal, dirs }
+let sessAgent = "all";
+let sessQuery = "";
+const sessOpen = new Set(); // agent:id of the sessions opened to their details
+
+function renderUsageTab() {
+  const seg = $("#usageTab");
+  seg.replaceChildren();
+  for (const [id, name] of USAGE_TABS) {
+    const b = el("button", "opt" + (id === usageTab ? " on" : ""), t(name));
+    b.onclick = () => {
+      if (id === usageTab) return;
+      usageTab = id;
+      try { localStorage.setItem("magpie.usageTab", id); } catch {}
+      $("#usageCost").replaceChildren();
+      loadUsage().catch((e) => status(e.message, "err"));
+    };
+    seg.append(b);
+  }
+  slide(seg, "usageTab");
+  const on = usageTab === "sessions";
+  $("#period").hidden = on;
+  $("#usagePane").hidden = on;
+  $("#sessionsPane").hidden = !on;
+}
+
+async function loadSessions() {
+  if (!sessions) renderSessionsLoading();
+  const s = await api("sessions");
+  if (sessions && JSON.stringify(s) === JSON.stringify(sessions)) return;
+  sessions = s;
+  if (view === "usage" && usageTab === "sessions") renderSessions();
+}
+
+function renderSessionsLoading() {
+  const view = $("#view-usage");
+  view.classList.add("loading");
+  view.setAttribute("aria-busy", "true");
+  $("#usageCost").replaceChildren(el("span", "skeleton sk-cost"));
+  $("#sessAgent").replaceChildren();
+  const stats = $("#sessStats");
+  stats.classList.remove("empty");
+  stats.replaceChildren();
+  for (let i = 0; i < 4; i++) {
+    const tile = el("div", "kpi loading-kpi");
+    tile.append(el("span", "skeleton sk-number"), el("span", "skeleton sk-label"));
+    stats.append(tile);
+  }
+  const list = $("#sessList");
+  list.hidden = false;
+  list.replaceChildren();
+  for (let i = 0; i < 4; i++) {
+    const r = el("div", "row sess-sk");
+    r.append(el("span", "skeleton sk-title"), el("span", "skeleton sk-line short"));
+    list.append(r);
+  }
+  $("#sessNote").textContent = t("Reading the agents' session files…");
+}
+
+const sessKey = (s) => s.agent + ":" + s.id;
+const sessTokens = (s) => s.input + s.output;
+// a session's cost: "—" when none of its models has a known price
+function sessCost(s) {
+  if (!s.models.some((m) => m.priced && (m.input || m.output || m.cache_read || m.cache_write))) return "—";
+  return "≈" + fmtCost({ cost: s.cost, unpriced: s.unpriced });
+}
+function ago(when) {
+  const sec = (new Date(when) - Date.now()) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(locale === "zh" ? "zh-CN" : "en", { numeric: "auto" });
+  for (const [unit, n] of [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]]) {
+    if (Math.abs(sec) >= n) return rtf.format(Math.round(sec / n), unit);
+  }
+  return t("just now");
+}
+function stamp(when) {
+  return new Date(when).toLocaleString(locale === "zh" ? "zh-CN" : undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+const baseName = (p) => (p || "").replace(/[\\/]+$/, "").split(/[\\/]/).pop() || p;
+
+function renderSessions() {
+  const view = $("#view-usage");
+  view.classList.remove("loading");
+  view.removeAttribute("aria-busy");
+  const all = sessions?.sessions || [];
+
+  // one segment per agent that has sessions
+  const agents = [...new Map(all.map((s) => [s.agent, s.name])).entries()];
+  if (sessAgent !== "all" && !agents.some(([id]) => id === sessAgent)) sessAgent = "all";
+  const seg = $("#sessAgent");
+  seg.replaceChildren();
+  seg.hidden = agents.length < 2;
+  for (const [id, name] of [["all", t("All")], ...agents]) {
+    const b = el("button", "opt" + (id === sessAgent ? " on" : ""), name);
+    b.onclick = () => { sessAgent = id; renderSessions(); };
+    seg.append(b);
+  }
+  slide(seg, "sessAgent");
+
+  const q = sessQuery.trim().toLowerCase();
+  const list = all.filter((s) => (sessAgent === "all" || s.agent === sessAgent) &&
+    (!q || [s.title, s.cwd, s.id, s.name, ...s.models.map((m) => m.model)].some((x) => (x || "").toLowerCase().includes(q))));
+
+  // the total of what is listed
+  const tot = { input: 0, output: 0, cache_read: 0, cache_write: 0, cost: 0, unpriced: 0 };
+  for (const s of list) {
+    for (const k of ["input", "output", "cache_read", "cache_write", "cost"]) tot[k] += s[k];
+    if (sessCost(s) === "—" ? sessTokens(s) : s.unpriced) tot.unpriced++;
+  }
+  const cost = $("#usageCost");
+  cost.replaceChildren();
+  cost.title = "";
+  const c = tot.cost ? fmtCost(tot) : "";
+  if (c) {
+    cost.append(el("b", "", "≈" + c), el("span", "", t("list price")));
+    cost.title = tot.unpriced ? t(tot.unpriced === 1 ? "{n} session used a model with no known price; its share is not counted" : "{n} sessions used a model with no known price; their share is not counted", { n: tot.unpriced }) : t("At each model's list price on models.dev");
+  }
+
+  const stats = $("#sessStats");
+  stats.replaceChildren();
+  const box = $("#sessList");
+  box.replaceChildren();
+  if (!list.length) {
+    stats.classList.add("empty");
+    stats.append(el("div", "none", all.length ? t("No session matches.") : t("No sessions yet. Claude Code's and Codex's sessions on this computer show up here, with what each cost and the command that resumes it.")));
+    box.hidden = true;
+  } else {
+    stats.classList.remove("empty");
+    box.hidden = false;
+    const tile = (n, label, sub, title) => {
+      const e = el("div", "kpi");
+      if (title) e.title = title;
+      e.append(el("b", "", n), el("span", "", label));
+      if (sub) e.append(el("small", "", sub));
+      stats.append(e);
+    };
+    const projects = new Set(list.map((s) => s.cwd).filter(Boolean)).size;
+    tile(String(list.length), t(list.length === 1 ? "session" : "sessions"), t(projects === 1 ? "{n} folder" : "{n} folders", { n: projects }));
+    tile(fmtN(tot.input + tot.output), t("tokens"), t("{a} in · {b} out", { a: fmtN(tot.input), b: fmtN(tot.output) }));
+    const prompt = tot.input + tot.cache_read;
+    tile(fmtN(tot.cache_read), t("cache read"), tot.cache_read && prompt ? t("hit rate {p}", { p: Math.round(100 * tot.cache_read / prompt) + "%" }) : "", tot.cache_write ? t("{n} written", { n: fmtN(tot.cache_write) }) : "");
+    tile(c ? "≈" + c : "—", t("cost"), t("at list price"));
+    for (const s of list) box.append(sessionItem(s));
+  }
+  const dirs = (sessions?.dirs || []).join(" · ");
+  $("#sessNote").textContent = t("Read from the agents' own session files, the latest {n} by activity · {dirs}", { n: all.length, dirs });
+}
+
+function sessionItem(s) {
+  const key = sessKey(s);
+  const item = el("div", "sess-item" + (sessOpen.has(key) ? " open" : ""));
+  const r = el("div", "row sess");
+  r.append(icon(s.icon || "generic"));
+  const who = el("div", "who");
+  who.append(el("div", "name", s.title || t("(no prompt)")));
+  const sub = el("div", "sub", [s.cwd ? baseName(s.cwd) : "", s.models.slice(0, 2).map((m) => m.model).join(", ") + (s.models.length > 2 ? " +" + (s.models.length - 2) : ""), ago(s.last)].filter(Boolean).join(" · "));
+  sub.title = s.cwd || "";
+  who.append(sub);
+  r.append(who);
+  const num = el("div", "num");
+  num.append(el("b", "", fmtN(sessTokens(s))), el("small", "", t("{a} in · {b} out", { a: fmtN(s.input), b: fmtN(s.output) }) + (s.cache_read ? " · " + t("{n} cached", { n: fmtN(s.cache_read) }) : "")));
+  r.append(num);
+  const sc = sessCost(s);
+  const cost = el("div", "cost" + (sc === "—" ? " none" : ""), sc);
+  if (sc === "—") cost.title = t("No known price for {models}", { models: s.models.map((m) => m.model).join(", ") || "—" });
+  else if (s.unpriced) cost.title = t("Not counted: {models}, with no known price", { models: s.models.filter((m) => !m.priced).map((m) => m.model).join(", ") });
+  r.append(cost);
+  if (s.resume) {
+    const res = el("button", "sess-resume", t("Resume"));
+    res.title = t("Copy the command that resumes it: {cmd}", { cmd: s.resume });
+    res.onclick = async (ev) => {
+      ev.stopPropagation();
+      await copy(s.resume, t("Resume command"));
+      res.textContent = t("Copied");
+      res.classList.add("done");
+      clearTimeout(res.copiedT);
+      res.copiedT = setTimeout(() => { res.textContent = t("Resume"); res.classList.remove("done"); }, 1400);
+    };
+    r.append(res);
+    if (sessions?.terminal) {
+      const term = el("button", "copy sess-term");
+      term.title = t("Open in Terminal");
+      term.append(svg("M3 4.5 6 7.5 3 10.5M7.5 11.5h5.5", 13, 1.6));
+      term.onclick = (ev) => {
+        ev.stopPropagation();
+        api("sessions/terminal", { agent: s.agent, id: s.id }).then(() => status(t("Opened in Terminal"), "ok"), (e) => status(e.message, "err"));
+      };
+      r.append(term);
+    }
+  }
+  r.onclick = () => {
+    if (window.getSelection()?.toString()) return;
+    if (sessOpen.has(key)) sessOpen.delete(key); else sessOpen.add(key);
+    item.replaceWith(sessionItem(s));
+  };
+  item.append(r);
+  if (sessOpen.has(key)) item.append(sessionDetail(s));
+  return item;
+}
+
+function sessionDetail(s) {
+  const d = el("div", "sess-detail");
+  const line = (label, value, extra) => {
+    const l = el("div", "sess-line");
+    l.append(el("span", "k", label));
+    const v = el("span", "v", value);
+    l.append(v);
+    if (extra) l.append(extra);
+    d.append(l);
+  };
+  line(t("When"), stamp(s.start) + " – " + stamp(s.last));
+  if (s.cwd) line(t("Folder"), s.cwd);
+  line(t("Session"), s.id, copyBtn(s.id, t("Session id")));
+  if (s.resume) {
+    const code = el("code", "", s.resume);
+    const l = el("div", "sess-line");
+    l.append(el("span", "k", t("Resume")), code, copyBtn(s.resume, t("Resume command")));
+    d.append(l);
+  }
+  if (s.models.length) {
+    const m = el("div", "sess-models");
+    for (const x of s.models) {
+      m.append(el("span", "model", x.model),
+        el("span", "n", t("{a} in · {b} out", { a: fmtN(x.input), b: fmtN(x.output) }) + (x.cache_read ? " · " + t("{n} cached", { n: fmtN(x.cache_read) }) : "") + (x.cache_write ? " · " + t("{n} written", { n: fmtN(x.cache_write) }) : "")),
+        el("span", "c" + (x.priced ? "" : " none"), x.priced ? "≈" + fmtCost({ cost: x.cost }) : "—"));
+    }
+    d.append(m);
+  }
+  line(t("File"), s.path);
+  return d;
+}
+
+$("#sessQ").oninput = (e) => { sessQuery = e.target.value; if (sessions) renderSessions(); };
+$("#sessQ").onkeydown = (e) => { if (e.key === "Escape" && e.target.value) { e.stopPropagation(); e.target.value = ""; sessQuery = ""; if (sessions) renderSessions(); } };
+
 // ---------- settings ----------
 //
 // Three choices (palette, language, what the tray icon opens) and the facts
@@ -3898,17 +4174,24 @@ const DISCORD_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="curre
 
 function renderSettings() {
   const s = prefs;
-  const keep = { theme: s.theme, lang: s.lang, tray: s.tray, dock: !!s.dock, proxy: s.proxy || "",
-    redact: !!s.redact, redactPersonal: !!s.redactPersonal, redactWords: s.redactWords || [] };
+  const keep = { theme: s.theme, lang: s.lang, tray: s.tray, dock: !!s.dock, dockWindow: !!s.dockWindow, proxy: s.proxy || "",
+    redact: !!s.redact, redactPersonal: !!s.redactPersonal, redactWords: s.redactWords || [], codexWarmup: s.codexWarmup || "" };
   $("#themeSegs").replaceChildren(segs(THEMES.map(([id, name]) => [id, t(name)]), s.theme, (theme) => savePrefs({ ...keep, theme })));
   $("#langSegs").replaceChildren(segs(LOCALES.map(([id, name]) => [id, t(name)]), s.lang, (lang) => savePrefs({ ...keep, lang })));
   $("#traySegs").replaceChildren(segs(TRAYS.map(([id, name]) => [id, t(name)]), s.tray || "panel", (tray) => savePrefs({ ...keep, tray })));
-  // the Dock is the Mac's
+  // the Dock is the Mac's; the tray and the login item the app's
   $("#dockRow").hidden = !document.body.classList.contains("mac");
-  $("#dockSegs").replaceChildren(segs([["off", t("Hide")], ["on", t("Show")]], s.dock ? "on" : "off", (v) => savePrefs({ ...keep, dock: v === "on" })));
+  $("#traySegs").parentElement.hidden = $("#loginSegs").parentElement.hidden = web;
+  $("#dockSegs").replaceChildren(segs([["off", t("Hide")], ["window", t("With window")], ["on", t("Show")]],
+    s.dock ? "on" : s.dockWindow ? "window" : "off", (v) => savePrefs({ ...keep, dock: v === "on", dockWindow: v === "window" })));
   // the system's record, set on its own, not with the other choices
   $("#loginSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.login ? "on" : "off", (v) =>
     api("settings/login", { on: v === "on" }).then((ns) => { prefs = ns; renderSettings(); }).catch((e) => { status(t(e.message), "err"); renderSettings(); })));
+  // a ChatGPT account's next window started as soon as the last resets
+  $("#warmSegs").replaceChildren(segs([["off", t("Off")], ["week", t("Weekly")], ["all", t("Weekly and 5-hour")]],
+    s.codexWarmup || "off", (v) => savePrefs({ ...keep, codexWarmup: v === "off" ? "" : v })));
+  $("#warmSub").textContent = t("When a ChatGPT account's window resets, send it one tiny request so the next one starts counting at once")
+    + (s.codexWarmed ? " · " + t("last started {when}", { when: syncWhen(s.codexWarmed) }) : "");
   renderProxy(s, keep);
   renderRedact(s, keep);
   renderLAN(s);
@@ -3968,10 +4251,10 @@ async function renderSync(v) {
   };
   const btn = (label, fn, cls = "text") => { const b = el("button", cls, label); b.onclick = fn; return b; };
   const toggle = (id) => () => { syncOpen = syncOpen === id ? "" : id; renderSync(); };
-  const parts = (ps) => ps.map((p) => t({ providers: "providers", settings: "settings", profiles: "profiles", agents: "agents' models" }[p])).join(t(", "));
+  const parts = (ps) => ps.map((p) => t({ providers: "providers", settings: "settings", profiles: "profiles", agents: "agents' models", library: "library" }[p])).join(t(", "));
 
   // WebDAV
-  let status = t("Keeps providers, settings, profiles and agents' models the same on every computer");
+  let status = t("Keeps providers, settings, profiles, agents' models and the library the same on every computer");
   if (v.on) {
     const host = (() => { try { return new URL(v.url).host; } catch { return v.url; } })();
     status = v.error ? t("Couldn't sync: {error}", { error: v.error })
@@ -4041,8 +4324,9 @@ function davForm(v) {
   const phrase = input("", v.passphraseSet ? t("saved · type a new one to replace it") : t("the same on every computer"), "password");
   const [keysL, keys] = tick(t("Providers' API keys"), v.keys !== false);
   const [agentsL, agents] = tick(t("Agents' models"), v.agents !== false);
+  const [libL, lib] = tick(t("Library: instructions, MCP servers and skills"), v.library !== false);
   const what = el("div", "stack");
-  what.append(keysL, agentsL);
+  what.append(keysL, agentsL, libL);
   ed.append(...field(t("Address"), url, t("A folder named magpie is made in it.")),
     ...field(t("User"), user),
     ...field(t("Password"), pass),
@@ -4058,7 +4342,7 @@ function davForm(v) {
     if (!v.passphraseSet && !phrase.value) return say(t("Pick a passphrase: the file is sealed with it"));
     save.classList.add("busy");
     try {
-      const r = await api("davsync/save", { url: url.value.trim(), user: user.value.trim(), password: pass.value, passphrase: phrase.value, keys: keys.checked, agents: agents.checked });
+      const r = await api("davsync/save", { url: url.value.trim(), user: user.value.trim(), password: pass.value, passphrase: phrase.value, keys: keys.checked, agents: agents.checked, library: lib.checked });
       if (!r.error) syncOpen = "";
       renderSync(r);
       if (r.error) return;
@@ -4076,8 +4360,11 @@ function exportForm() {
   const p1 = input("", t("passphrase"), "password");
   const p2 = input("", t("again"), "password");
   const [keysL, keys] = tick(t("With the providers' API keys"), true);
+  const [libL, lib] = tick(t("With the library: instructions, MCP servers and skills"), true);
+  const what = el("div", "stack");
+  what.append(keysL, libL);
   ed.append(...field(t("Passphrase"), p1, t("Needed to open the file. Subscriptions aren't in it: sign in to them on the other computer.")),
-    ...field("", p2), ...field("", keysL));
+    ...field("", p2), ...field("", what));
   const go = el("button", "text primary", t("Export"));
   const cancel = el("button", "text", t("Cancel"));
   const say = syncBar(ed, "", el("span", "grow"), cancel, go);
@@ -4087,7 +4374,7 @@ function exportForm() {
     if (p1.value !== p2.value) return say(t("The two passphrases differ"));
     go.classList.add("busy");
     try {
-      const r = await api("backup/export", { pass: p1.value, keys: keys.checked });
+      const r = await api("backup/export", { pass: p1.value, keys: keys.checked, library: lib.checked });
       ed.replaceChildren(el("div", "done", t("Saved to {path}", { path: r.path })));
     } catch (e) {
       go.classList.remove("busy");
@@ -4121,7 +4408,10 @@ function importForm() {
   pf.append(name, pick, file);
   const pass = input("", t("passphrase"), "password");
   const [agentsL, agents] = tick(t("Set the agents' models too"), true);
-  ed.append(...field(t("File"), pf), ...field(t("Passphrase"), pass), ...field("", agentsL, t("Providers with the same id are replaced; one that came without a key keeps the key it has here.")));
+  const [libL, lib] = tick(t("Bring in the library too: instructions, MCP servers and skills"), true);
+  const what = el("div", "stack");
+  what.append(agentsL, libL);
+  ed.append(...field(t("File"), pf), ...field(t("Passphrase"), pass), ...field("", what, t("Providers with the same id are replaced; one that came without a key keeps the key it has here. The library replaces the one here, which is kept with its backups.")));
   const go = el("button", "text primary", t("Import"));
   const cancel = el("button", "text", t("Cancel"));
   const say = syncBar(ed, "", el("span", "grow"), cancel, go);
@@ -4130,9 +4420,11 @@ function importForm() {
     if (!data) return say(t("Choose a file first"));
     go.classList.add("busy");
     try {
-      const r = await api("backup/import", { data, pass: pass.value, agents: agents.checked });
+      const r = await api("backup/import", { data, pass: pass.value, agents: agents.checked, library: lib.checked });
       const lines = [t("Providers: {added} added, {replaced} replaced; {profiles} profiles; {agents} agent settings changed", { added: r.Added, replaced: r.Replaced, profiles: r.Profiles, agents: r.Agents })];
       if (r.NeedKey?.length) lines.push(t("Needs a key: {names}", { names: r.NeedKey.join(", ") }));
+      if (r.Library) lines.push(t("Library brought in and written into the agents"));
+      for (const p of r.LibraryProblems || []) lines.push(t("{agent} couldn't get {what}: {error}", { agent: p.agent, what: p.what, error: p.error }));
       ed.replaceChildren(...lines.map((l) => el("div", "done", l)));
       refreshAfterSync();
     } catch (e) {
@@ -4474,6 +4766,26 @@ setInterval(async () => {
   }
   if (changed) renderAgents();
 }, 15000);
+// the usage page counts on while it is looked at: a request through the
+// gateway shows within seconds, the subscriptions' windows each minute (the
+// vendors' answers are cached behind them) — redrawn only on a change
+let usageTicks = 0;
+setInterval(async () => {
+  if (view !== "usage" || document.hidden || document.querySelector(".pop:not([hidden])")) return;
+  if (usageTab === "sessions") {
+    // the agents write their session files as they go
+    if (++usageTicks % 3 === 0 && sessions) loadSessions().catch(() => {});
+    return;
+  }
+  if (!usage) return;
+  if (++usageTicks % 12 === 0) loadQuotas();
+  const p = period;
+  let u;
+  try { u = await api("usage?period=" + p); } catch { return; }
+  if (view !== "usage" || usageTab !== "usage" || p !== period || JSON.stringify(u) === JSON.stringify(usage)) return;
+  usage = u;
+  renderUsage();
+}, 5000);
 window.addEventListener("focus", load);
 setInterval(renderUpdateBadge, 15 * 60 * 1000); // a window left open still hears of a new version
 // ---------- hiding emails, for a screenshot to share ----------

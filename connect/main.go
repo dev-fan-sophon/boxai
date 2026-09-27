@@ -32,6 +32,8 @@ const usage = `BoxAI Connect — one place to pick every agent's model
   magpie tray                     start in the menu bar only
   magpie autostart [on|off]       open magpie (in the menu bar) when you log in, or say whether it does
   magpie tui                      the same thing, in the terminal
+  magpie web [--addr host:port] [--lan] [--no-open]
+                                  the app's window in a browser, with the gateway (no desktop needed: WSL, a server over SSH)
   magpie ls                       list detected agents and their settings
   magpie <agent>                  show one agent
   magpie <agent> <model>          set an agent's model   e.g. magpie claude boxai/claude-sonnet-4-6
@@ -43,8 +45,8 @@ const usage = `BoxAI Connect — one place to pick every agent's model
   magpie profiles                 list profiles
   magpie rm <name>                delete a profile
 
-  magpie backup [--no-keys] [file]    providers, keys, settings, profiles and agent models in one file, sealed with a passphrase
-  magpie restore [--no-agents] <file> put a backup in on this machine
+  magpie backup [--no-keys] [--no-library] [file]    providers, keys, settings, profiles, agent models and the library in one file, sealed with a passphrase
+  magpie restore [--no-agents] [--no-library] <file> put a backup in on this machine
 
   magpie library [sync|instructions|mcp|skill]   the instructions, MCP servers and skills written into every agent (magpie library help)
 
@@ -145,6 +147,8 @@ func run(args []string) error {
 	switch args[0] {
 	case "tui":
 		return tui.Run()
+	case "web":
+		return webCmd(args[1:])
 	case "app", "gui":
 		return runGUI(true, "")
 	case "tray":
@@ -251,13 +255,22 @@ func set(a *agent.Agent, key, value string) error {
 	if err != nil {
 		return err
 	}
+	before := f.Get()
 	if err := a.Apply(f.Key, value); err != nil {
 		return err
 	}
+	// what the config reads now, not what was asked: an agent may name the
+	// model under a provider of its own (OpenCode's magpie-relay/…), and a
+	// value it had already is said to be so
+	now := f.Get()
+	shown := now
 	if value == "" {
-		value = muted.Render("default")
+		shown = muted.Render("default")
 	}
-	fmt.Println(green.Render("✓"), bold.Render(a.Name), muted.Render(f.Label), value)
+	if now == before {
+		shown += " " + muted.Render("(unchanged)")
+	}
+	fmt.Println(green.Render("✓"), bold.Render(a.Name), muted.Render(f.Label), shown)
 	if a.Notice != nil {
 		if n := a.Notice(); n != "" {
 			fmt.Println(muted.Render("  ↻ " + n))

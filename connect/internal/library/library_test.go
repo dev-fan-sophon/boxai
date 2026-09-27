@@ -29,13 +29,13 @@ func sandbox(t *testing.T) string {
 	t.Setenv("USERPROFILE", h)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(h, ".config"))
 	t.Setenv("PATH", "")
-	for _, k := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "PI_CODING_AGENT_DIR", "COPILOT_HOME", "APPDATA"} {
+	for _, k := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "PI_CODING_AGENT_DIR", "COPILOT_HOME", "APPDATA", "DSH_HOME"} {
 		t.Setenv(k, "")
 	}
 	for _, f := range []string{
 		".claude/settings.json", ".codex/config.toml", ".gemini/settings.json",
 		".config/opencode/opencode.json", ".config/mimocode/mimocode.json", ".pi/agent/settings.json", ".config/goose/config.yaml",
-		".cursor/cli-config.json", ".copilot/settings.json", ".config/crush/crush.json",
+		".cursor/cli-config.json", ".copilot/settings.json", ".config/crush/crush.json", ".dsh/profiles/web/cordis.patch.yml",
 	} {
 		write(t, filepath.Join(h, f), "")
 	}
@@ -86,7 +86,7 @@ func ids(ts []*Target) []string {
 func TestTargets(t *testing.T) {
 	sandbox(t)
 	got := ids(Targets())
-	for _, id := range []string{"claude", "codex", "gemini", "opencode", "mimocode", "pi", "goose", "cursor", "copilot", "crush"} {
+	for _, id := range []string{"claude", "codex", "gemini", "opencode", "mimocode", "pi", "goose", "cursor", "copilot", "crush", "dsh"} {
 		if !slices.Contains(got, id) {
 			t.Errorf("%s not a target: %v", id, got)
 		}
@@ -723,6 +723,37 @@ func TestPiMCP(t *testing.T) {
 	}
 }
 
+// pi-mcp-adapter 3 reads mcp-adapter.json: with it installed, mcp.json is
+// moved there and the servers are written there; before it, mcp.json.
+func TestPiMCPAdapter3(t *testing.T) {
+	h := sandbox(t)
+	d := filepath.Join(h, ".pi/agent")
+	old, adapter := filepath.Join(d, "mcp.json"), filepath.Join(d, "mcp-adapter.json")
+	pkg := filepath.Join(d, "npm/node_modules/pi-mcp-adapter/package.json")
+	write(t, old, `{"mcpServers": {"mine": {"command": "npx", "args": ["x"]}}}`)
+	write(t, pkg, `{"name": "pi-mcp-adapter", "version": "2.9.1"}`)
+	if tg := targetByID("pi"); tg.MCP.Path != old {
+		t.Fatalf("with 2.9.1: %s", tg.MCP.Path)
+	}
+	write(t, pkg, `{"name": "pi-mcp-adapter", "version": "3.0.0"}`)
+	ok(t)(SaveServer("", Server{Name: "ev", Transport: "sse", URL: "https://example.com/sse", Agents: []string{"pi"}}))
+	if exists(old) {
+		t.Error("mcp.json left beside mcp-adapter.json")
+	}
+	var doc struct{ MCPServers map[string]map[string]any }
+	if err := json.Unmarshal([]byte(read(t, adapter)), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.MCPServers["mine"] == nil || doc.MCPServers["ev"]["url"] != "https://example.com/sse" {
+		t.Errorf("mcp-adapter.json: %v", doc.MCPServers)
+	}
+	// once there, it is the file whatever is installed
+	write(t, pkg, `{"name": "pi-mcp-adapter", "version": "2.0.0"}`)
+	if tg := targetByID("pi"); tg.MCP.Path != adapter {
+		t.Errorf("after the move: %s", tg.MCP.Path)
+	}
+}
+
 // Claude Desktop is given only the servers it runs itself: a remote one is
 // its Connectors', and the page says so.
 func TestClaudeDesktopMCP(t *testing.T) {
@@ -801,5 +832,189 @@ command = "gh-mcp"
 	want := map[string]bool{"node_repl": true, "cua_repl": true, "computer-use": true, "gh": false}
 	if !maps.Equal(own, want) {
 		t.Errorf("own: %v, want %v", own, want)
+	}
+}
+
+// TestInstructionSets: several sets are kept, one is on, and the agents
+// read that one; switching rewrites their files (#106).
+func TestInstructionSets(t *testing.T) {
+	h := sandbox(t)
+	cx := filepath.Join(h, ".codex/AGENTS.md")
+	first := "Use tabs."
+	ok(t)(SaveInstructions(InstructionsChange{Shared: &first, Agents: []string{"codex"}}))
+	work := "Company rules."
+	ok(t)(SaveInstructions(InstructionsChange{Create: &InstrSet{ID: "work", Name: "Work"}, Texts: map[string]*string{"work": &work}}))
+	if s := read(t, cx); !strings.Contains(s, "Use tabs.") || strings.Contains(s, "Company") {
+		t.Errorf("a new set was written before it was switched to:\n%s", s)
+	}
+	ok(t)(SaveInstructions(InstructionsChange{Activate: "work"}))
+	if s := read(t, cx); !strings.Contains(s, "Company rules.") || strings.Contains(s, "tabs") {
+		t.Errorf("after switching:\n%s", s)
+	}
+	iv, _ := ReadInstructions()
+	if iv.Shared != work || len(iv.Sets) != 2 || iv.Sets[0].Text != first || !iv.Sets[1].Active || iv.Sets[1].Name != "Work" {
+		t.Errorf("view: %+v", iv)
+	}
+	if _, err := SaveInstructions(InstructionsChange{Remove: "work"}); err == nil {
+		t.Error("the set on was removed")
+	}
+	// the page's text is the set on's; a profile taken now switches back to it
+	snap, _ := Snapshot()
+	ok(t)(SaveInstructions(InstructionsChange{Activate: "default", Rename: &InstrSet{ID: "default", Name: "Home"}}))
+	if s := read(t, cx); !strings.Contains(s, "Use tabs.") {
+		t.Errorf("back to the first:\n%s", s)
+	}
+	ok(t)(Restore(snap))
+	if s := read(t, cx); !strings.Contains(s, "Company rules.") {
+		t.Errorf("a profile's set wasn't put back:\n%s", s)
+	}
+	ok(t)(SaveInstructions(InstructionsChange{Activate: "default"}))
+	ok(t)(SaveInstructions(InstructionsChange{Remove: "work"}))
+	iv, _ = ReadInstructions()
+	if len(iv.Sets) != 1 || iv.Sets[0].Name != "Home" || !iv.Sets[0].Active {
+		t.Errorf("after removing: %+v", iv.Sets)
+	}
+	if _, err := os.Stat(setPath("work")); !os.IsNotExist(err) {
+		t.Error("a removed set's file stayed")
+	}
+	if _, err := SaveInstructions(InstructionsChange{Remove: "default"}); err == nil {
+		t.Error("the first set was removed")
+	}
+}
+
+// DeepSeek Harness takes instructions in $DSH_HOME/AGENTS.md, skills in
+// $DSH_HOME/skills, and a server as a dsh-mcp-client row an insert of
+// magpie's adds to every profile's patch list; the user's own entries,
+// rows and !!js values stay as they are.
+func TestDsh(t *testing.T) {
+	h := sandbox(t)
+	d := filepath.Join(h, "dsh-home")
+	t.Setenv("DSH_HOME", d)
+	web, desk := filepath.Join(d, "profiles/web/cordis.patch.yml"), filepath.Join(d, "profiles/desktop/cordis.patch.yml")
+	head := "# Your patch layer for this dsh profile\n"
+	user := head + "- id: llm-deepseek\n  config:\n    thinking: enabled\n" +
+		"- insert:\n    - id: mcp-engram\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: engram\n        transport: stdio\n        command: engram\n        args: [mcp]\n        cwd: !!js process.cwd()\n" +
+		"    - id: mcp-web\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: web\n        transport: streamable-http\n        url: http://localhost:3000/mcp\n        toolCallTimeoutMs: 5000\n"
+	write(t, web, user)
+	write(t, desk, head+"[]\n")
+	write(t, filepath.Join(d, "AGENTS.md"), "# Mine\n")
+
+	tg := targetByID("dsh")
+	if tg == nil || tg.Instructions != filepath.Join(d, "AGENTS.md") || tg.Skills != filepath.Join(d, "skills") ||
+		tg.MCP == nil || tg.MCP.Path != web || !slices.Equal(tg.MCP.Also, []string{desk}) {
+		t.Fatalf("dsh target: %+v %+v", tg, tg.MCP)
+	}
+	got, err := tg.MCP.read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := got["engram"]; s == nil || s.Command != "engram" || !slices.Equal(s.Args, []string{"mcp"}) {
+		t.Errorf("engram read as %+v", s)
+	}
+	if s := got["web"]; s == nil || s.Transport != "http" || s.URL != "http://localhost:3000/mcp" {
+		t.Errorf("web read as %+v", s)
+	}
+
+	shared := "Use tabs."
+	ok(t)(SaveInstructions(InstructionsChange{Shared: &shared, Agents: []string{"dsh"}}))
+	if s := read(t, filepath.Join(d, "AGENTS.md")); !strings.HasPrefix(s, "# Mine\n\n"+blockBegin+"\nUse tabs.\n"+blockEnd) {
+		t.Errorf("AGENTS.md:\n%s", s)
+	}
+
+	src := filepath.Join(h, "src/skills")
+	skill(t, filepath.Join(src, "pdf"), "pdf", "Read PDFs")
+	ok(t)(InstallSkills(src, []string{"pdf"}, []string{"dsh"}))
+	if _, err := os.Stat(filepath.Join(d, "skills/pdf/SKILL.md")); err != nil {
+		t.Error(err)
+	}
+
+	fs := Server{Name: "fs", Transport: "stdio", Command: "npx", Args: []string{"-y", "@mcp/fs"}, Env: map[string]string{"TOKEN": "t\"q"}, Agents: []string{"dsh"}}
+	ok(t)(SaveServer("", fs))
+	// the user's web, now magpie's: out of the user's insert, its timeout kept
+	ok(t)(SaveServer("", Server{Name: "web", Transport: "http", URL: "https://example.com/mcp", Headers: map[string]string{"Authorization": "Bearer x"}, Agents: []string{"dsh"}}))
+	// dsh-mcp-client has no SSE
+	if r, err := SaveServer("", Server{Name: "ev", Transport: "sse", URL: "https://example.com/sse", Agents: []string{"dsh"}}); err != nil ||
+		len(r.Problems) != 1 || r.Problems[0].Error != errNoSSE.Error() {
+		t.Errorf("ev: %+v %v", r, err)
+	}
+	ok(t)(RemoveServer("ev"))
+	for _, p := range []string{web, desk} {
+		f := &mcpFile{Path: p, Format: fmtDsh}
+		got, err := f.read()
+		if err != nil {
+			t.Fatalf("%s: %v", p, err)
+		}
+		if s := got["fs"]; s == nil || !s.same(&fs) {
+			t.Errorf("%s: fs read back as %+v\n%s", p, s, read(t, p))
+		}
+		if s := got["web"]; s == nil || s.URL != "https://example.com/mcp" || s.Headers["Authorization"] != "Bearer x" {
+			t.Errorf("%s: web read back as %+v\n%s", p, s, read(t, p))
+		}
+		if got["ev"] != nil {
+			t.Errorf("%s has ev over SSE", p)
+		}
+		if s := read(t, p); !strings.HasPrefix(s, head) {
+			t.Errorf("%s lost its head:\n%s", p, s)
+		}
+	}
+	s := read(t, web)
+	for _, want := range []string{"- id: llm-deepseek\n  config:\n    thinking: enabled\n", "serverName: engram", "cwd: !!js process.cwd()",
+		"toolCallTimeoutMs: 5000", "- insert: # magpie\n    - id: magpie-mcp-fs\n      name: \"@deepseek-ai/dsh-mcp-client\""} {
+		if !strings.Contains(s, want) {
+			t.Errorf("web profile lacks %q:\n%s", want, s)
+		}
+	}
+	if strings.Count(s, "serverName") != 3 {
+		t.Errorf("web profile:\n%s", s)
+	}
+	if es, _ := os.ReadDir(BackupDir()); len(es) == 0 {
+		t.Error("nothing was backed up")
+	}
+
+	// off again: magpie's inserts go, the user's stay
+	ok(t)(RemoveServer("fs"))
+	ok(t)(RemoveServer("web"))
+	ok(t)(SaveInstructions(InstructionsChange{Agents: []string{}}))
+	ok(t)(RemoveSkill("pdf"))
+	if s := read(t, desk); s != head+"[]\n" {
+		t.Errorf("desktop:\n%q", s)
+	}
+	s = read(t, web)
+	if strings.Contains(s, "# magpie") || !strings.Contains(s, "serverName: engram") || !strings.Contains(s, "cwd: !!js process.cwd()") {
+		t.Errorf("web:\n%s", s)
+	}
+	if s := read(t, filepath.Join(d, "AGENTS.md")); s != "# Mine\n" {
+		t.Errorf("AGENTS.md after: %q", s)
+	}
+	if _, err := os.Lstat(filepath.Join(d, "skills/pdf")); !os.IsNotExist(err) {
+		t.Error("dsh still has the skill")
+	}
+}
+
+// A server by a name dsh-mcp-client can't take isn't written.
+func TestDshServerName(t *testing.T) {
+	sandbox(t)
+	r, err := SaveServer("", Server{Name: "a-name-that-is-longer-than-32-characters", Transport: "stdio", Command: "x", Agents: []string{"dsh"}})
+	if err != nil || len(r.Problems) != 1 || r.Problems[0].Agent != "dsh" {
+		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+// A server of the user's the library takes in keeps what dsh works out
+// itself (!!js) when magpie writes it again.
+func TestDshImportKeepsJS(t *testing.T) {
+	h := sandbox(t)
+	p := filepath.Join(h, ".dsh/profiles/web/cordis.patch.yml")
+	write(t, p, "- insert:\n    - id: mcp-engram\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: engram\n        transport: stdio\n        command: engram\n        cwd: !!js process.cwd()\n        env:\n          HOME: !!js process.env.HOME\n")
+	v, _ := Read(nil)
+	if len(v.FoundServers) != 0 {
+		t.Errorf("an env dsh works out read as a server: %+v", v.FoundServers)
+	}
+	write(t, p, "- insert:\n    - id: mcp-engram\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: engram\n        transport: stdio\n        command: engram\n        cwd: !!js process.cwd()\n")
+	ok(t)(ImportServer("engram"))
+	ok(t)(SaveServer("engram", Server{Name: "engram", Transport: "stdio", Command: "engram", Args: []string{"mcp"}, Agents: []string{"dsh"}}))
+	s := read(t, p)
+	if !strings.Contains(s, "- insert: # magpie") || !strings.Contains(s, `cwd: !!js "process.cwd()"`) || strings.Count(s, "serverName") != 1 {
+		t.Errorf("patch list:\n%s", s)
 	}
 }

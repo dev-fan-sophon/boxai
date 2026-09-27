@@ -34,6 +34,20 @@ const DefaultAddr = "127.0.0.1:3425"
 // listens on loopback and accepts anything, but agents insist on one.
 const Token = "magpie"
 
+// TokenFor is the token an agent that says nothing of itself in its
+// User-Agent is told to use, so the gateway still knows it: Alma's requests
+// go out as the AI SDK's ("ai-sdk/openai/…"), with nothing of Alma's own.
+func TokenFor(agent string) string { return Token + "-" + agent }
+
+// agentOf is the agent a request came from: the one its token names
+// (TokenFor), else the one its User-Agent does.
+func agentOf(r *http.Request) string {
+	if id, ok := strings.CutPrefix(callerKey(r), Token+"-"); ok && id != "" {
+		return usage.AgentOf(id)
+	}
+	return usage.AgentOf(r.Header.Get("User-Agent"))
+}
+
 // Version is set by main.
 var Version = "dev"
 
@@ -165,6 +179,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		go provider.KeepLoginsAlive(ctx)
 		// and signs Codex in to its next account when the one it is on is out
 		go provider.KeepCodexOnAnAccountWithRoom(ctx)
+		go provider.KeepCodexWindowsWarm(ctx)
 	}
 	for _, f := range WhileServing {
 		go f(ctx)
@@ -174,6 +189,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		srv.Shutdown(c)
+		s.subscription.abortAll()
 	}()
 	for {
 		err := srv.Serve(ln)
@@ -271,7 +287,7 @@ func modelObject(e provider.Entry) map[string]any {
 
 // catalogFor is the catalog as the agent asking is shown it.
 func catalogFor(r *http.Request) []provider.Entry {
-	shown, _ := provider.CatalogFor(usage.AgentOf(r.Header.Get("User-Agent")))
+	shown, _ := provider.CatalogFor(agentOf(r))
 	return shown
 }
 
@@ -461,7 +477,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 	requestBody, requestTruncated := captureRequestBody(body)
 	capture := &captureResponseWriter{ResponseWriter: w}
 	w = capture
-	call := Call{Time: start, From: from, Model: modelOf(body), Agent: usage.AgentOf(r.Header.Get("User-Agent")),
+	call := Call{Time: start, From: from, Model: modelOf(body), Agent: agentOf(r),
 		RequestBody: requestBody, RequestTruncated: requestTruncated}
 	usage.Saw(call.Agent)
 	finishCapture := func() {
@@ -795,13 +811,10 @@ func (s *Server) attempt(w http.ResponseWriter, r *http.Request, from provider.P
 		}
 		return s.serveSubscription(w, r, from, "Grok", model, body, &call.Usage, start)
 	}
-	// and Devin's, which the CLI serves over ACP
+	// Devin's through the API its CLI talks to, with the CLI's sign-in
 	if p.Account != nil && p.Account.Agent == "devin" {
 		call.To = from
-		start := func(ctx context.Context, req *Request) (*subscriptionRun, <-chan Event, error) {
-			return s.subscription.startDevin(ctx, req, model)
-		}
-		return s.serveSubscription(w, r, from, "Devin", model, body, &call.Usage, start)
+		return s.serveDevin(w, r, from, model, body, &call.Usage)
 	}
 	// Kiro's is served through its own API, with kiro-cli's or the Kiro
 	// IDE's sign-in, or a Kiro API key saved on the provider

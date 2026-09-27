@@ -25,6 +25,10 @@ type Settings struct {
 	// Dock keeps magpie in the Mac's Dock as well as the menu bar, for a
 	// menu bar too full to show its icon.
 	Dock bool `json:"dock,omitempty"`
+	// DockWindow shows it in the Dock only while its window is open, so
+	// Cmd-Tab reaches the window without an icon kept there the rest of
+	// the time. Dock wins over it.
+	DockWindow bool `json:"dockWindow,omitempty"`
 	// Proxy for magpie's own requests to vendors: "" follows the
 	// environment and then the system, "direct" uses none, anything else
 	// is the proxy (http://, https:// or socks5://; host:port means http).
@@ -42,6 +46,11 @@ type Settings struct {
 	// key magpie makes when LAN is first turned on.
 	LAN    bool   `json:"lan,omitempty"`
 	LANKey string `json:"lanKey,omitempty"`
+	// CodexWarmup starts a ChatGPT account's next window as soon as the
+	// last one resets, with one tiny request, so it counts from then (a
+	// Codex window starts at its first use): "" off, "week" the weekly
+	// window, "all" the 5-hour one too.
+	CodexWarmup string `json:"codexWarmup,omitempty"`
 	// How the agents are listed, by agent id. AgentOrder comes first, as
 	// ordered; an agent it doesn't name (one installed since) follows in
 	// magpie's own order. A hidden agent is folded away at the bottom of the
@@ -106,6 +115,8 @@ var (
 	Themes = []string{"system", "light", "dark"}
 	Langs  = []string{"system", "en", "vi"}
 	Trays  = []string{"panel", "window"}
+	// Warmups are CodexWarmup's values, off as "".
+	Warmups = []string{"", "week", "all"}
 )
 
 // Path is the settings file.
@@ -141,6 +152,9 @@ func Save(s Settings) error {
 	if !slices.Contains(Trays, s.Tray) {
 		return fmt.Errorf("tray must be one of %v, not %q", Trays, s.Tray)
 	}
+	if !slices.Contains(Warmups, s.CodexWarmup) {
+		return fmt.Errorf("codex warm-up must be off, week or all, not %q", s.CodexWarmup)
+	}
 	s.Proxy = strings.TrimSpace(s.Proxy)
 	if s.Proxy != "" && s.Proxy != "direct" {
 		raw := s.Proxy
@@ -175,6 +189,9 @@ func (s Settings) normal() Settings {
 	}
 	if s.Tray == "" {
 		s.Tray = "panel"
+	}
+	if s.CodexWarmup == "off" {
+		s.CodexWarmup = ""
 	}
 	return s
 }

@@ -115,6 +115,8 @@ type settingsJSON struct {
 	Login bool `json:"login"`
 	// where other machines reach the gateway while it is shared
 	LANURLs []string `json:"lanURLs,omitempty"`
+	// when the Codex warm-up last started an account's window
+	CodexWarmed *time.Time `json:"codexWarmed,omitempty"`
 }
 
 func settingsState() settingsJSON {
@@ -124,12 +126,17 @@ func settingsState() settingsJSON {
 	if s.LAN {
 		s.LANURLs = gateway.LANURLs()
 	}
+	for _, t := range provider.CodexWarmed() {
+		if s.CodexWarmed == nil || t.After(*s.CodexWarmed) {
+			s.CodexWarmed = &t
+		}
+	}
 	return s
 }
 
-// onDock puts the app in the Mac's Dock or takes it out, when the Settings
-// page changes that; set by the process that has the app.
-var onDock func(bool)
+// onDock puts the app in the Mac's Dock or takes it out as the settings say,
+// when the Settings page changes them; set by the process that has the app.
+var onDock func(settings.Settings)
 
 // assetTypes are the page's own files' types. The file server takes them
 // from Windows' registry, which another program may have changed — an SVG
@@ -165,7 +172,7 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	// they came only with the settings, so the tabs showed English first
 	mux.HandleFunc("GET /boot.js", func(rw http.ResponseWriter, r *http.Request) {
 		s := settings.Load()
-		b, _ := json.Marshal(map[string]string{"lang": s.Lang, "theme": s.Theme, "uiToken": boxai.UIToken})
+		b, _ := json.Marshal(map[string]any{"lang": s.Lang, "theme": s.Theme, "web": isWeb(w), "uiToken": boxai.UIToken})
 		rw.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		rw.Header().Set("Cache-Control", "no-store")
 		rw.Write(append(append([]byte("window.bootPrefs = "), b...), ";\n"...))
@@ -296,6 +303,7 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	providerRoutes(mux, w)
 	importRoutes(mux)
 	usageRoutes(mux)
+	sessionRoutes(mux, w)
 	backupRoutes(mux, w)
 	libraryRoutes(mux, w)
 	updateRoutes(mux, w)
@@ -321,8 +329,8 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 			fail(rw, err)
 			return
 		}
-		if in.Dock != cur.Dock && onDock != nil {
-			onDock(in.Dock)
+		if (in.Dock != cur.Dock || in.DockWindow != cur.DockWindow) && onDock != nil {
+			onDock(in)
 		}
 		writeJSON(rw, settingsState())
 	})
