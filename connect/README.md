@@ -3,10 +3,15 @@
 Fork of [yetone/magpie](https://github.com/yetone/magpie) at
 v0.1.185 (`ab7dd015064186a9866d8d8e260891042742a97e`), with BoxAI branding and BoxAI as the
 only provider. Sign in through the BoxAI website before using the application.
-Browser PKCE authorization returns a revocable Connect credential kept in
+Browser PKCE authorization creates an ordinary BoxAI API key kept in
 `~/.config/magpie/auth.json` (private local JSON, no Keychain). Manual provider
 keys cannot bypass sign-in and the cloud credential is not copied into agent
 configuration or provider backups.
+
+Login configures the BoxAI provider. Models and account usage are fetched through
+public key-authenticated APIs when needed; opening the app and configuring agents
+do not require account-service validation, Desktop sessions or refresh tokens.
+Sign out removes the local key; revoke it in the website's Keys page if needed.
 
 The original agent, gateway, routing and library views remain. Navigation is
 Agents, Gateway, Routing, Usage, Library, Account. Account shows identity and

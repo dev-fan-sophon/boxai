@@ -29,8 +29,8 @@ import (
 	"github.com/yetone/magpie/internal/proc"
 )
 
-// Site is magpie's home; its /api/latest is the update feed.
-const Site = "https://usemagpie.ai"
+// Site is the product's download page.
+const Site = "https://you-box.com/connect"
 
 // Feed is where the newest release is described. MAGPIE_UPDATE_FEED points
 // it elsewhere, for testing an update against a local server.
@@ -38,7 +38,7 @@ func Feed() string {
 	if f := os.Getenv("MAGPIE_UPDATE_FEED"); f != "" {
 		return f
 	}
-	return Site + "/api/latest"
+	return "https://dl.you-box.com/connect/magpie-latest.json"
 }
 
 // Release is one published version.

@@ -422,7 +422,11 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		mux.ServeHTTP(rw, r)
 	})
 	if provider.BoxAIOnly() {
-		handler = boxai.Guard(handler)
+		if isWeb(w) {
+			handler = boxai.GuardBrowser(handler)
+		} else {
+			handler = boxai.Guard(handler)
+		}
 	}
 	devListen(handler)
 	return handler

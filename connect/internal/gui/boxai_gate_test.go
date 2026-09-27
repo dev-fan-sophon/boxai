@@ -57,7 +57,7 @@ func TestBoxAIAPIGate(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(provider.Path()), "auth.json"), []byte(`{"session":"sk-ui-test-session"}`), 0600))
 	transport := http.DefaultTransport
 	http.DefaultTransport = accountTransport(func(r *http.Request) (*http.Response, error) {
-		assert.Equal(t, "/api/v1/connector/provisioning", r.URL.Path)
+		assert.Equal(t, "/api/usage/account", r.URL.Path)
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"success":true,"data":{"account":{"id":9},"usage":{"wallet_quota_remaining":765432,"lifetime_quota_used":123,"lifetime_request_count":4},"billing":{"subscriptions":[]},"models":["hidden"],"agents":{"hidden":true}}}`))}, nil
 	})
 	t.Cleanup(func() { http.DefaultTransport = transport })

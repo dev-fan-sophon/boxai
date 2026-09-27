@@ -21,9 +21,6 @@ func (c *Client) Login(ctx context.Context, openURL func(string)) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.blocked {
-		return errors.New("Sign-out pending: retry sign-out before signing in")
-	}
 	if c.cancel != nil {
 		return errors.New("BoxAI sign-in already pending")
 	}
@@ -31,13 +28,6 @@ func (c *Client) Login(ctx context.Context, openURL func(string)) error {
 		return nil
 	} else if !errors.Is(err, ErrLoginRequired) && !errors.Is(err, errRejected) {
 		return err
-	}
-	pending, err := c.vault.Get(ctx, "signout")
-	if err != nil && !errors.Is(err, errMissing) {
-		return ErrVaultUnavailable
-	}
-	if pending != "" {
-		return errors.New("Sign-out pending: retry sign-out before signing in")
 	}
 	verifier, e := randomValue()
 	if e != nil {
@@ -95,19 +85,25 @@ func (c *Client) login(ctx context.Context, cancel context.CancelFunc, l net.Lis
 	challenge := sha256.Sum256([]byte(verifier))
 	query := url.Values{"redirect_uri": {redirect}, "state": {state}, "code_challenge": {base64.RawURLEncoding.EncodeToString(challenge[:])}, "code_challenge_method": {"S256"}, "client_name": {"BoxAI Connect"}}
 	if ctx.Err() != nil {
-		c.finish(ctx, generation, "", ProvisioningData{}, ctx.Err())
+		c.finish(ctx, generation, "", ctx.Err())
 		return
 	}
-	openURL(c.origin + "/api/v1/connector/authorize?" + query.Encode())
+	loginURL := c.origin + "/api/connect/authorize?" + query.Encode()
+	c.mu.Lock()
+	if c.generation == generation {
+		c.loginURL = loginURL
+	}
+	c.mu.Unlock()
+	openURL(loginURL)
 	var code string
 	select {
 	case <-ctx.Done():
-		c.finish(ctx, generation, "", ProvisioningData{}, errors.New("BoxAI sign-in cancelled or timed out"))
+		c.finish(ctx, generation, "", errors.New("BoxAI sign-in cancelled or timed out"))
 		return
 	case code = <-result:
 	}
 	if code == "" {
-		c.finish(ctx, generation, "", ProvisioningData{}, errors.New("BoxAI sign-in denied"))
+		c.finish(ctx, generation, "", errors.New("BoxAI sign-in denied"))
 		return
 	}
 	var response struct {
@@ -115,30 +111,23 @@ func (c *Client) login(ctx context.Context, cancel context.CancelFunc, l net.Lis
 		TokenType   string `json:"token_type"`
 		BaseURL     string `json:"base_url"`
 	}
-	err := c.request(ctx, "POST", "/api/v1/connector/token", "", map[string]string{"code": code, "code_verifier": verifier, "redirect_uri": redirect}, &response)
+	err := c.request(ctx, "POST", "/api/connect/token", "", map[string]string{"code": code, "code_verifier": verifier, "redirect_uri": redirect}, &response)
 	if err == nil && (!validToken(response.AccessToken) || response.TokenType != "Bearer" || response.BaseURL != c.origin+"/v1") {
 		err = errors.New("invalid BoxAI token response")
-	}
-	var data ProvisioningData
-	if err == nil {
-		data, err = c.fetch(ctx, response.AccessToken)
 	}
 	if err == nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}
-	if !c.finish(ctx, generation, response.AccessToken, data, err) && validToken(response.AccessToken) {
-		cleanup, done := context.WithTimeout(context.Background(), 15*time.Second)
-		defer done()
-		_ = c.request(cleanup, "POST", "/api/v1/connector/revoke", response.AccessToken, nil, nil)
-	}
+	c.finish(ctx, generation, response.AccessToken, err)
 }
-func (c *Client) finish(ctx context.Context, generation uint64, token string, data ProvisioningData, err error) bool {
+func (c *Client) finish(ctx context.Context, generation uint64, token string, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.generation != generation {
 		return false
 	}
 	c.cancel = nil
+	c.loginURL = ""
 	if err == nil {
 		err = ctx.Err()
 	}
@@ -159,8 +148,6 @@ func (c *Client) finish(ctx context.Context, generation uint64, token string, da
 		return false
 	}
 	c.token = token
-	c.data = data
-	c.validated = c.now()
 	c.lastError = ""
 	return true
 }

@@ -21,31 +21,22 @@ import (
 
 const testToken = "sk-test-browser-session"
 
-func TestBrowserHandshakePersistenceAndExpiry(t *testing.T) {
+func TestBrowserHandshakeConfiguresKeyWithoutAccountRequests(t *testing.T) {
 	ctx := context.Background()
-	status := 200
 	calls := 0
 	verifier := "test-verifier"
 	challenge := sha256.Sum256([]byte(verifier))
 	var origin, redirect string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/connector/token":
+		case "/api/connect/token":
+			calls++
 			b, err := io.ReadAll(r.Body)
 			assert.NoError(t, err)
 			var in map[string]string
 			assert.NoError(t, unmarshal(b, &in))
 			assert.Equal(t, map[string]string{"code": "approved", "code_verifier": verifier, "redirect_uri": redirect}, in)
 			respond(w, 200, map[string]string{"access_token": testToken, "token_type": "Bearer", "base_url": origin + "/v1"})
-		case "/api/v1/connector/provisioning":
-			calls++
-			assert.Equal(t, "Bearer "+testToken, r.Header.Get("Authorization"))
-			respond(w, status, map[string]any{"success": true, "data": map[string]any{
-				"account": Account{ID: 7, Username: "tester"}, "usage": Usage{WalletQuotaRemaining: 123456, LifetimeQuotaUsed: 567, LifetimeRequestCount: 8},
-				"billing": map[string]any{"subscriptions": []any{}}, "models": []string{"not-for-ui"}, "mcp_servers": []any{},
-			}})
-		case "/api/v1/connector/revoke":
-			respond(w, 200, map[string]bool{"success": true})
 		default:
 			t.Errorf("unexpected endpoint %s", r.URL.Path)
 			w.WriteHeader(404)
@@ -55,8 +46,6 @@ func TestBrowserHandshakePersistenceAndExpiry(t *testing.T) {
 	origin = server.URL
 	v := fileVault{path: filepath.Join(t.TempDir(), "auth.json")}
 	c := newClient(origin, v, nil)
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	c.now = func() time.Time { return now }
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
 	flow, cancel := context.WithCancel(ctx)
@@ -64,9 +53,10 @@ func TestBrowserHandshakePersistenceAndExpiry(t *testing.T) {
 	c.login(flow, cancel, listener, 1, verifier, "expected-state", func(raw string) {
 		u, err := url.Parse(raw)
 		require.NoError(t, err)
-		assert.Equal(t, "/api/v1/connector/authorize", u.Path)
+		assert.Equal(t, "/api/connect/authorize", u.Path)
 		assert.Equal(t, base64.RawURLEncoding.EncodeToString(challenge[:]), u.Query().Get("code_challenge"))
 		assert.Equal(t, "S256", u.Query().Get("code_challenge_method"))
+		assert.Equal(t, raw, c.Session().AuthorizationURL)
 		redirect = u.Query().Get("redirect_uri")
 		bad, err := http.Get(redirect + "?state=wrong&code=approved")
 		require.NoError(t, err)
@@ -79,6 +69,7 @@ func TestBrowserHandshakePersistenceAndExpiry(t *testing.T) {
 	})
 	require.True(t, c.Session().Authenticated)
 	assert.False(t, c.Session().Pending)
+	assert.Empty(t, c.Session().AuthorizationURL)
 	saved, err := v.Get(ctx, "session")
 	require.NoError(t, err)
 	assert.Equal(t, testToken, saved)
@@ -89,19 +80,10 @@ func TestBrowserHandshakePersistenceAndExpiry(t *testing.T) {
 	}
 	restarted := newClient(origin, v, nil)
 	require.NoError(t, restarted.Require(ctx))
-	assert.Equal(t, 2, calls)
 	require.NoError(t, c.Require(ctx))
-	assert.Equal(t, 2, calls)
-	now = now.Add(validationTTL)
-	status = 503
-	err = c.Require(ctx)
-	require.Error(t, err)
-	assert.Equal(t, 503, AuthStatus(err))
-	saved, err = v.Get(ctx, "session")
-	require.NoError(t, err)
-	assert.Equal(t, testToken, saved, "transient failure must retain credential")
-	status = 404 // ConnectorAuth hides invalid/revoked credentials behind 404.
-	assert.Equal(t, 401, AuthStatus(c.Require(ctx)))
+	assert.Equal(t, 1, calls, "restart and normal use never fetch account metadata")
+	require.NoError(t, restarted.Logout(ctx))
+	assert.Equal(t, 1, calls, "logout needs no cloud request")
 	_, err = v.Get(ctx, "session")
 	assert.ErrorIs(t, err, errMissing)
 	assert.False(t, c.Session().Authenticated)
@@ -121,7 +103,7 @@ func TestCancelAndDeadlineCannotPersistLogin(t *testing.T) {
 			} else {
 				c.Cancel()
 			}
-			assert.False(t, c.finish(ctx, 1, testToken, ProvisioningData{Account: Account{ID: 7}}, nil))
+			assert.False(t, c.finish(ctx, 1, testToken, nil))
 			assert.False(t, c.Session().Authenticated)
 			assert.False(t, c.Session().Pending)
 			_, err := v.Get(context.Background(), "session")
@@ -163,13 +145,40 @@ func TestGuardAndAccountContract(t *testing.T) {
 		assert.Equal(t, tc.status == 204, called)
 	}
 	require.NoError(t, v.Set(context.Background(), "session", testToken))
-	c.token, c.validated = testToken, time.Now()
-	c.data = ProvisioningData{Account: Account{ID: 7}, Usage: Usage{WalletQuotaRemaining: 123456}, Billing: map[string]any{"subscriptions": []any{}}}
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/usage/account", r.URL.Path)
+		assert.Equal(t, "Bearer "+testToken, r.Header.Get("Authorization"))
+		respond(w, 200, map[string]any{"success": true, "data": ProvisioningData{Account: Account{ID: 7}, Usage: Usage{WalletQuotaRemaining: 123456}, Billing: map[string]any{"subscriptions": []any{}}}})
+	}))
+	defer s.Close()
+	c.origin = s.URL
 	w := httptest.NewRecorder()
 	Guard(http.HandlerFunc(AccountHandler)).ServeHTTP(w, httptest.NewRequest("GET", "http://localhost/api/boxai/account", nil))
 	assert.Equal(t, 200, w.Code)
 	assert.JSONEq(t, `{"account":{"id":7,"username":"","display_name":"","email":"","group":""},"usage":{"wallet_quota_remaining":123456,"lifetime_quota_used":0,"lifetime_request_count":0},"billing":{"subscriptions":[]}}`, w.Body.String())
 	assert.NotContains(t, w.Body.String(), testToken)
+}
+
+func TestBrowserGuardRequiresSameOriginAndProcessToken(t *testing.T) {
+	h := GuardBrowser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	for _, tc := range []struct {
+		origin, token, site string
+		status              int
+	}{
+		{"http://192.168.1.20:8080", UIToken, "same-origin", 204},
+		{"http://192.168.1.20:8080", "", "same-origin", 403},
+		{"http://evil.invalid", UIToken, "", 403},
+		{"null", UIToken, "", 403},
+		{"", UIToken, "cross-site", 403},
+	} {
+		r := httptest.NewRequest("POST", "http://192.168.1.20:8080/api/boxai/cancel", nil)
+		r.Header.Set("Origin", tc.origin)
+		r.Header.Set("X-BoxAI-UI-Token", tc.token)
+		r.Header.Set("Sec-Fetch-Site", tc.site)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		assert.Equal(t, tc.status, w.Code, "%+v", tc)
+	}
 }
 
 func TestBrowserCancelAndExpiredFlow(t *testing.T) {
@@ -196,23 +205,21 @@ func TestBrowserCancelAndExpiredFlow(t *testing.T) {
 	}
 }
 
-func TestLogoutRemainsBlockedUntilRevocationSucceeds(t *testing.T) {
-	status := 503
+func TestOfflineLogoutClearsKeyAndLegacyMarker(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/connector/revoke", r.URL.Path)
-		assert.Equal(t, "Bearer "+testToken, r.Header.Get("Authorization"))
-		w.WriteHeader(status)
+		t.Error("logout must not contact the server")
+		w.WriteHeader(503)
 	}))
 	defer s.Close()
 	v := fileVault{path: filepath.Join(t.TempDir(), "auth.json")}
 	ctx := context.Background()
 	require.NoError(t, v.Set(ctx, "session", testToken))
+	require.NoError(t, v.Set(ctx, "signout", "pending"))
 	c := newClient(s.URL, v, nil)
-	require.Error(t, c.Logout(ctx))
+	require.NoError(t, c.Logout(ctx))
 	assert.ErrorIs(t, c.Require(ctx), ErrLoginRequired)
 	restarted := newClient(s.URL, v, nil)
 	assert.ErrorIs(t, restarted.Require(ctx), ErrLoginRequired)
-	status = 200
 	require.NoError(t, restarted.Logout(ctx))
 	_, err := v.Get(ctx, "session")
 	assert.ErrorIs(t, err, errMissing)
@@ -220,11 +227,12 @@ func TestLogoutRemainsBlockedUntilRevocationSucceeds(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestVerifyBypassesCacheAndHandlesRevocation(t *testing.T) {
+func TestPageFailuresDoNotInvalidateConfiguredProvider(t *testing.T) {
 	ctx := context.Background()
 	calls, remoteStatus := 0, http.StatusOK
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
+		assert.Equal(t, "/api/usage/account", r.URL.Path)
 		respond(w, remoteStatus, map[string]any{"success": true, "data": ProvisioningData{Account: Account{ID: 42}}})
 	}))
 	defer s.Close()
@@ -233,33 +241,25 @@ func TestVerifyBypassesCacheAndHandlesRevocation(t *testing.T) {
 	c := newClient(s.URL, v, nil)
 	require.NoError(t, c.Require(ctx))
 	require.NoError(t, c.Require(ctx))
-	assert.Equal(t, 1, calls)
-	h := Guard(c.Handler(nil))
-	for _, code := range []int{200, 503, 200, 404} {
+	assert.Equal(t, 0, calls)
+	for _, code := range []int{200, 503, 200, 401} {
 		remoteStatus = code
-		r := httptest.NewRequest("POST", "http://localhost/api/boxai/verify", nil)
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		assert.Equal(t, 403, w.Code)
-		r.Header.Set("X-BoxAI-UI-Token", UIToken)
-		w = httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		if code == 503 {
-			assert.Equal(t, 503, w.Code)
-			stored, err := v.Get(ctx, "session")
-			require.NoError(t, err)
-			assert.Equal(t, testToken, stored)
+		data, err := c.Provisioning(ctx)
+		if code != 200 {
+			require.Error(t, err)
 		} else {
-			assert.Equal(t, 200, w.Code)
+			require.NoError(t, err)
+			assert.Equal(t, 42, data.Account.ID)
 		}
-		assert.Equal(t, code == 200, c.Session().Authenticated)
+		assert.True(t, c.Session().Authenticated)
+		token, err := c.Token(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, testToken, token)
 	}
-	assert.Equal(t, 5, calls)
-	_, err := v.Get(ctx, "session")
-	assert.ErrorIs(t, err, errMissing)
+	assert.Equal(t, 4, calls)
 }
 
-func TestSessionHandlerDistinguishesOutageFromRevocation(t *testing.T) {
+func TestSessionHandlerDoesNotRequireRemoteService(t *testing.T) {
 	status := http.StatusServiceUnavailable
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
@@ -271,14 +271,13 @@ func TestSessionHandlerDistinguishesOutageFromRevocation(t *testing.T) {
 	h := c.Handler(nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/boxai/session", nil))
-	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 	_, err := v.Get(context.Background(), "session")
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("POST", "/api/boxai/logout", nil))
-	assert.Equal(t, http.StatusConflict, w.Code)
-	assert.Contains(t, w.Body.String(), "Sign-out pending:")
-	status = http.StatusNotFound // Already revoked is successful local sign-out.
+	assert.Equal(t, http.StatusOK, w.Code)
+	status = http.StatusNotFound
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("POST", "/api/boxai/logout", nil))
 	assert.Equal(t, http.StatusOK, w.Code)

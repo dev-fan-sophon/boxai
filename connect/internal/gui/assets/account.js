@@ -6,6 +6,7 @@ const boxai = (() => {
   let retryAction = "session";
   let epoch = 0, requestID = 0, timer, verificationError = "";
   let accountData = null, usageRequest = 0, accountRequest = 0;
+  let authorizationURL = "";
   const controllers = new Set();
   const sessionPaths = new Set(["/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout", "/api/boxai/verify"]);
 
@@ -81,7 +82,7 @@ const boxai = (() => {
   function renderGate(message = "") {
     const signoutPending = message.startsWith("Sign-out pending:");
     $("#loginState").textContent = message || (pending ? t("Finish signing in in your browser. You can cancel and try again.") : "");
-    $("#boxaiLogin").hidden = pending || signoutPending;
+    $("#boxaiLogin").hidden = (pending && !(web && authorizationURL)) || signoutPending;
     $("#boxaiLogin").disabled = busy;
     $("#boxaiCancel").hidden = !pending;
     $("#boxaiCancel").disabled = busy && retryAction !== "session";
@@ -91,6 +92,7 @@ const boxai = (() => {
 
   async function accept(session) {
     pending = !!session.pending;
+    authorizationURL = session.authorization_url || "";
     verificationError = session.error || "";
     if (!session.authenticated) {
       if (authenticated) { revoke(); return; }
@@ -138,7 +140,7 @@ const boxai = (() => {
       if (id !== requestID) return;
       busy = false;
       await accept(result);
-      if (authenticated && ["account", "usage"].includes(view)) {
+      if (action === "verify" && authenticated && ["account", "usage"].includes(view)) {
         if (view === "account") await loadAccount(); else await loadUsage();
       }
     } catch (error) {
@@ -157,7 +159,7 @@ const boxai = (() => {
     } finally {
       if (id === requestID) {
         busy = false;
-        timer = setTimeout(() => sessionRequest(), pending ? 2500 : 60000);
+        if (pending) timer = setTimeout(() => sessionRequest(), 2500);
       }
     }
   }
@@ -233,8 +235,20 @@ const boxai = (() => {
 
   async function loadAccount() {
     const id = ++accountRequest;
-    const data = await api("boxai/account");
+    // Keep sign-out and retry available even when the first cloud fetch fails.
+    renderAccount(accountData || {});
+    let data;
+    try {
+      data = await api("boxai/account");
+    } catch (error) {
+      if (authenticated && id === accountRequest) {
+        verificationError = error.message;
+        renderAccount(accountData || {});
+      }
+      throw error;
+    }
     if (!authenticated || id !== accountRequest) return;
+    verificationError = "";
     accountData = data;
     renderAccount(data);
   }
@@ -272,7 +286,7 @@ const boxai = (() => {
   }
 
   function start() {
-    $("#boxaiLogin").onclick = () => sessionRequest("login");
+    $("#boxaiLogin").onclick = () => pending && web && authorizationURL ? window.open(authorizationURL, "_blank", "noopener") : sessionRequest("login");
     $("#boxaiCancel").onclick = () => sessionRequest("cancel");
     $("#boxaiRetry").onclick = () => started ? reloadClean() : sessionRequest(retryAction);
     sessionRequest();

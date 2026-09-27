@@ -109,7 +109,7 @@ func run(args []string) error {
 	}
 	if len(args) > 0 {
 		switch args[0] {
-		case "app", "gui", "tray", "serve", "-h", "--help", "help", "-v", "--version", "version":
+		case "app", "gui", "tray", "web", "serve", "-h", "--help", "help", "-v", "--version", "version":
 			needsAuth = false
 		}
 		if hasGUI && strings.HasPrefix(strings.ToLower(args[0]), "magpie:") {

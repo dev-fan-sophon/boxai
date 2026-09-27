@@ -97,8 +97,9 @@ func TestClaudeLogins(t *testing.T) {
 	})
 	writeFile(t, profile, map[string]any{
 		"numStartups":  1234567890123,
-		"oauthAccount": map[string]any{"emailAddress": "b@example.com", "accountUuid": "u-b"},
+		"oauthAccount": map[string]any{"emailAddress": "b@example.com", "accountUuid": "u-second"},
 	})
+	// Different profile size invalidates filememo even on coarse-mtime filesystems.
 	forgetClaudeCredential()
 	rememberLogins(true)
 

@@ -225,7 +225,7 @@ body.window .top.cramped .seg { position: relative; left: auto; top: auto; trans
   body.window:lang(vi) .top { height: auto; min-height: 84px; flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
   body.window:lang(vi) .top .brand { flex: 1; }
   body.window:lang(vi) .top .actions { margin-left: auto; }
-  body.window:lang(vi) .top .seg { position: relative; left: auto; top: auto; transform: none; order: 3; flex: 1 0 100%; width: 100%; margin: 0; justify-content: center; }
+  body.window:lang(vi) .top .seg { position: relative; left: auto; top: auto; transform: none; order: 3; flex: 1 0 100%; width: 100%; min-width: 0; margin: 0; justify-content: safe center; overflow-x: auto; }
   body.window:lang(vi) .top .seg button { padding: 0 6px; font-size: 12px; }
 }
 @keyframes update-in { from { opacity: 0; transform: translateY(-3px) scale(.94); } }

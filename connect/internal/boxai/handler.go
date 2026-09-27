@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // UIToken belongs to this process, never to the persisted cloud session.
@@ -66,8 +65,27 @@ func PublicSessionPath(path string) bool {
 
 // Guard runs before any original API handler (including GET side effects).
 func Guard(next http.Handler) http.Handler {
+	return guard(next, false)
+}
+
+// GuardBrowser runs inside Magpie's authenticated webGuard. Its host can be
+// a LAN address, unlike a native webview; mutations still need the UI token.
+func GuardBrowser(next http.Handler) http.Handler {
+	return guard(next, true)
+}
+
+func guard(next http.Handler, browser bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !trustedUI(r) {
+		trusted := trustedUI(r)
+		if browser {
+			scheme := "http://"
+			if r.TLS != nil {
+				scheme = "https://"
+			}
+			origin := r.Header.Get("Origin")
+			trusted = r.Header.Get("Sec-Fetch-Site") != "cross-site" && (origin == "" || origin == scheme+r.Host)
+		}
+		if !trusted {
 			respond(w, 403, map[string]string{"error": "Untrusted UI origin"})
 			return
 		}
@@ -102,10 +120,17 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 			}
 			switch r.URL.Path {
 			case "/api/boxai/verify":
-				c.mu.Lock()
-				c.validated = time.Time{}
-				err = c.requireLocked(r.Context())
-				c.mu.Unlock()
+				var token string
+				token, err = c.Token(r.Context())
+				if err == nil {
+					var result struct {
+						Code bool `json:"code"`
+					}
+					err = c.request(r.Context(), "GET", "/api/usage/token/", token, nil, &result)
+					if err == nil && !result.Code {
+						err = errRejected
+					}
+				}
 			case "/api/boxai/login":
 				err = c.Login(context.Background(), openURL)
 			case "/api/boxai/cancel":
@@ -121,7 +146,7 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 		status := http.StatusOK
 		if err != nil && !errors.Is(err, ErrLoginRequired) {
 			s.Error = err.Error()
-			if r.URL.Path != "/api/boxai/session" && r.URL.Path != "/api/boxai/verify" {
+			if r.URL.Path != "/api/boxai/session" {
 				status = http.StatusConflict
 			} else if !errors.Is(err, errRejected) {
 				status = http.StatusServiceUnavailable
@@ -134,7 +159,9 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 func AccountHandler(w http.ResponseWriter, r *http.Request) {
 	p, err := Provisioning(r.Context())
 	if err != nil {
-		WriteAuthError(w, err)
+		// This is a page fetch, not the app's login state. Even a rejected
+		// key remains configurable until the user replaces or removes it.
+		respond(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
 	respond(w, 200, p)

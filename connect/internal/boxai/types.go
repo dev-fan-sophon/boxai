@@ -22,8 +22,9 @@ type ProvisioningData struct {
 }
 
 type Session struct {
-	Authenticated bool     `json:"authenticated"`
-	Pending       bool     `json:"pending"`
-	Error         string   `json:"error,omitempty"`
-	Account       *Account `json:"account,omitempty"`
+	Authenticated    bool     `json:"authenticated"`
+	Pending          bool     `json:"pending"`
+	Error            string   `json:"error,omitempty"`
+	Account          *Account `json:"account,omitempty"`
+	AuthorizationURL string   `json:"authorization_url,omitempty"`
 }

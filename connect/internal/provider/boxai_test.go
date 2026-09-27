@@ -3,11 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,13 +50,12 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	manual.Providers[1].Headers = map[string]string{"Authorization": "Bearer manual-override"}
 	require.NoError(t, store(manual))
 	assert.Empty(t, All(), "a provider file cannot bypass browser login")
-	// Validate a persisted browser session without making production calls.
+	// A saved key configures the provider, with no account/session request.
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(Path()), "auth.json"), []byte(`{"session":"sk-browser-test-session"}`), 0600))
 	transport := http.DefaultTransport
 	http.DefaultTransport = boxAITransport(func(r *http.Request) (*http.Response, error) {
-		assert.Equal(t, "/api/v1/connector/provisioning", r.URL.Path)
-		assert.Equal(t, "Bearer sk-browser-test-session", r.Header.Get("Authorization"))
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"success":true,"data":{"account":{"id":1},"usage":{},"billing":{}}}`))}, nil
+		t.Error("reading provider configuration must not make a network request")
+		return nil, fmt.Errorf("unexpected network request")
 	})
 	t.Cleanup(func() { http.DefaultTransport = transport })
 	require.NoError(t, boxai.Require(context.Background()))
