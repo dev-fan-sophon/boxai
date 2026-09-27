@@ -1673,6 +1673,7 @@
     "Create account": "创建账户",
     "Create an account": "创建一个账户",
     "Create an account, pick a model in Model Hub, and send your first request through https://you-box.com/v1.": "创建账户，在模型广场选择模型，并通过 https://you-box.com/v1 发送第一次请求。",
+    "Create an API key that you can manage in Keys": "创建可在密钥页面管理的 API 密钥",
     "Create an API key to unlock the real request": "创建 API 密钥以解锁真实请求",
     "Create an API key, choose an available model, and send your first gateway request.": "创建 API 密钥，选择可用模型，然后发送您的第一个网关请求。",
     "Create and review invite or credit codes.": "创建和审查邀请或信用代码。",

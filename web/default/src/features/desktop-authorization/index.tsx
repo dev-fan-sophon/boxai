@@ -27,19 +27,28 @@ import {
 const routeApi = getRouteApi('/_authenticated/desktop/authorize')
 
 export function DesktopAuthorizationPage() {
-  const { t } = useTranslation()
   const requestId = routeApi.useSearch().request
+  return <AuthorizationPage requestId={requestId} product='desktop' />
+}
+
+export function AuthorizationPage(props: {
+  requestId?: string
+  product: 'desktop' | 'connect'
+}) {
+  const { t } = useTranslation()
+  const requestId = props.requestId
   const user = useAuthStore((state) => state.auth.user)
   const userDisplay = useUserDisplay(user)
   const requestQuery = useQuery({
-    queryKey: ['desktop-authorization-request', requestId],
-    queryFn: () => getDesktopAuthorizationRequest(requestId ?? ''),
+    queryKey: [props.product, 'authorization-request', requestId],
+    queryFn: () =>
+      getDesktopAuthorizationRequest(requestId ?? '', props.product),
     enabled: Boolean(requestId),
     retry: false,
   })
   const decision = useMutation({
     mutationFn: (approve: boolean) =>
-      decideDesktopAuthorization(requestId ?? '', approve),
+      decideDesktopAuthorization(requestId ?? '', approve, props.product),
     onSuccess: (result) => window.location.replace(result.redirect_uri),
   })
 
@@ -51,7 +60,8 @@ export function DesktopAuthorizationPage() {
   // Three BoxAI desktop products share this page. Naming the wrong one is how a user
   // ends up approving something they did not start, so the copy follows the
   // client that actually opened the request.
-  let productName = 'BoxAI Desktop'
+  let productName =
+    props.product === 'connect' ? 'BoxAI Connect' : 'BoxAI Desktop'
   if (request?.client_id === 'boxai-connect') productName = 'BoxAI Connect'
 
   let stateMessage: string | null = null
@@ -150,6 +160,11 @@ export function DesktopAuthorizationPage() {
                     {t('Minimum permissions')}
                   </h2>
                   <ul className='text-muted-foreground space-y-2 text-sm'>
+                    {props.product === 'connect' && (
+                      <li>
+                        {t('Create an API key that you can manage in Keys')}
+                      </li>
+                    )}
                     <li className='flex gap-2'>
                       <Check
                         className='text-primary mt-0.5 size-4 shrink-0'

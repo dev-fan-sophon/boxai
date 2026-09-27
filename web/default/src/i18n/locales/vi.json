@@ -1673,6 +1673,7 @@
     "Create account": "Tạo tài khoản",
     "Create an account": "Tạo tài khoản",
     "Create an account, pick a model in Model Hub, and send your first request through https://you-box.com/v1.": "Tạo tài khoản, chọn mô hình trong Model Hub và gửi yêu cầu đầu tiên qua https://you-box.com/v1.",
+    "Create an API key that you can manage in Keys": "Tạo khóa API có thể quản lý trong trang Khóa",
     "Create an API key to unlock the real request": "Tạo khóa API để mở yêu cầu thật",
     "Create an API key, choose an available model, and send your first gateway request.": "Tạo khóa API, chọn một mô hình có sẵn và gửi yêu cầu cổng đầu tiên của bạn.",
     "Create and review invite or credit codes.": "Tạo và xem xét mã mời hoặc mã tín dụng.",

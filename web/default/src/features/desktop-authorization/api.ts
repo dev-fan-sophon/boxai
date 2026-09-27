@@ -12,11 +12,12 @@ export type DesktopAuthorizationRequest = {
 type ApiEnvelope<T> = { success?: boolean; message?: string; data?: T }
 
 export async function getDesktopAuthorizationRequest(
-  requestId: string
+  requestId: string,
+  product: 'desktop' | 'connect' = 'desktop'
 ): Promise<DesktopAuthorizationRequest> {
   const response = await api.get<
     DesktopAuthorizationRequest | ApiEnvelope<DesktopAuthorizationRequest>
-  >(`/api/desktop/authorization-requests/${encodeURIComponent(requestId)}`, {
+  >(`/api/${product}/authorization-requests/${encodeURIComponent(requestId)}`, {
     skipBusinessError: true,
     skipErrorHandler: true,
   })
@@ -27,13 +28,14 @@ export async function getDesktopAuthorizationRequest(
 
 export async function decideDesktopAuthorization(
   requestId: string,
-  approve: boolean
+  approve: boolean,
+  product: 'desktop' | 'connect' = 'desktop'
 ): Promise<{ status: string; redirect_uri: string }> {
   const response = await api.post<
     | { status: string; redirect_uri: string }
     | ApiEnvelope<{ status: string; redirect_uri: string }>
   >(
-    `/api/desktop/authorization-requests/${encodeURIComponent(requestId)}/decision`,
+    `/api/${product}/authorization-requests/${encodeURIComponent(requestId)}/decision`,
     { approve },
     { skipBusinessError: true, skipErrorHandler: true }
   )

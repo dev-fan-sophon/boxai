@@ -1673,6 +1673,7 @@
     "Create account": "アカウントを作成",
     "Create an account": "アカウントを作成",
     "Create an account, pick a model in Model Hub, and send your first request through https://you-box.com/v1.": "アカウントを作成し、Model Hub でモデルを選び、https://you-box.com/v1 へ最初のリクエストを送信。",
+    "Create an API key that you can manage in Keys": "キー画面で管理できる API キーを作成する",
     "Create an API key to unlock the real request": "実際のリクエストを使うには API キーを作成してください",
     "Create an API key, choose an available model, and send your first gateway request.": "API キーを作成し、利用可能なモデルを選択して、最初のゲートウェイ リクエストを送信します。",
     "Create and review invite or credit codes.": "招待コードまたはクレジットコードを作成および確認。",

@@ -72,6 +72,7 @@ import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authen
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedDesktopAuthorizeRouteImport } from './routes/_authenticated/desktop/authorize'
 import { Route as AuthenticatedDashboardSectionRouteImport } from './routes/_authenticated/dashboard/$section'
+import { Route as AuthenticatedConnectAuthorizeRouteImport } from './routes/_authenticated/connect/authorize'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as authUserResetRouteImport } from './routes/(auth)/user/reset'
 import { Route as PublicPricingModelIdIndexRouteImport } from './routes/_public/pricing/$modelId/index'
@@ -430,6 +431,12 @@ const AuthenticatedDashboardSectionRoute =
     path: '/dashboard/$section',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConnectAuthorizeRoute =
+  AuthenticatedConnectAuthorizeRouteImport.update({
+    id: '/connect/authorize',
+    path: '/connect/authorize',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChatChatIdRoute = AuthenticatedChatChatIdRouteImport.update({
   id: '/chat/$chatId',
   path: '/chat/$chatId',
@@ -583,6 +590,7 @@ export interface FileRoutesByFullPath {
   '/setup/': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/connect/authorize': typeof AuthenticatedConnectAuthorizeRoute
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -664,6 +672,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/connect/authorize': typeof AuthenticatedConnectAuthorizeRoute
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -751,6 +760,7 @@ export interface FileRoutesById {
   '/setup/': typeof SetupIndexRoute
   '/(auth)/user/reset': typeof authUserResetRoute
   '/_authenticated/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/_authenticated/connect/authorize': typeof AuthenticatedConnectAuthorizeRoute
   '/_authenticated/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/_authenticated/desktop/authorize': typeof AuthenticatedDesktopAuthorizeRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -836,6 +846,7 @@ export interface FileRouteTypes {
     | '/setup/'
     | '/user/reset'
     | '/chat/$chatId'
+    | '/connect/authorize'
     | '/dashboard/$section'
     | '/desktop/authorize'
     | '/errors/$error'
@@ -917,6 +928,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/user/reset'
     | '/chat/$chatId'
+    | '/connect/authorize'
     | '/dashboard/$section'
     | '/desktop/authorize'
     | '/errors/$error'
@@ -1003,6 +1015,7 @@ export interface FileRouteTypes {
     | '/setup/'
     | '/(auth)/user/reset'
     | '/_authenticated/chat/$chatId'
+    | '/_authenticated/connect/authorize'
     | '/_authenticated/dashboard/$section'
     | '/_authenticated/desktop/authorize'
     | '/_authenticated/errors/$error'
@@ -1518,6 +1531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardSectionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/connect/authorize': {
+      id: '/_authenticated/connect/authorize'
+      path: '/connect/authorize'
+      fullPath: '/connect/authorize'
+      preLoaderRoute: typeof AuthenticatedConnectAuthorizeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chat/$chatId': {
       id: '/_authenticated/chat/$chatId'
       path: '/chat/$chatId'
@@ -1757,6 +1777,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDeviceRoute: typeof AuthenticatedDeviceRoute
   AuthenticatedInspirationAdminRoute: typeof AuthenticatedInspirationAdminRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
+  AuthenticatedConnectAuthorizeRoute: typeof AuthenticatedConnectAuthorizeRoute
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedDesktopAuthorizeRoute: typeof AuthenticatedDesktopAuthorizeRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
@@ -1792,6 +1813,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDeviceRoute: AuthenticatedDeviceRoute,
   AuthenticatedInspirationAdminRoute: AuthenticatedInspirationAdminRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
+  AuthenticatedConnectAuthorizeRoute: AuthenticatedConnectAuthorizeRoute,
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedDesktopAuthorizeRoute: AuthenticatedDesktopAuthorizeRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
