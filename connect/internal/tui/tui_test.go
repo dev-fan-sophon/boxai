@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/yetone/magpie/internal/library"
 	"github.com/yetone/magpie/internal/provider"
@@ -235,72 +237,38 @@ func TestPutRule(t *testing.T) {
 
 func TestLibraryPage(t *testing.T) {
 	h := home(t)
+	config := filepath.Join(h, ".claude.json")
+	original := `{"mcpServers":{"mine":{"command":"user-command"}}}`
+	write(t, config, original)
 	m := press(t, model{w: 120, h: 40}, "5")
-	if m.page != pageLibrary || m.libErr != "" {
-		t.Fatalf("page %d: %s", m.page, m.libErr)
-	}
-	row := func(kind, name string) int {
-		t.Helper()
-		i := slices.IndexFunc(m.lib, func(r libRow) bool { return r.kind == kind && r.name == name })
-		if i < 0 {
-			t.Fatalf("no %s %s: %+v", kind, name, m.lib)
-		}
-		return i
-	}
+	require.Equal(t, pageLibrary, m.page)
+	require.Empty(t, m.libErr)
+	i := slices.IndexFunc(m.lib, func(r libRow) bool { return r.kind == "found-mcp" && r.name == "mine" })
+	require.NotEqual(t, -1, i, "existing user servers remain visible without importing them")
+	assert.Equal(t, []string{"claude"}, m.lib[i].on)
+	assert.Contains(t, m.View(), "mine")
 
-	// a server by URL
+	// The legacy terminal form reports the official-catalog restriction.
 	m = press(t, m, "a", "enter")
 	m = typeIn(m, "ctx https://example.com/mcp")
 	m = press(t, m, "enter")
-	wantFlash(t, m, true, "added ctx")
+	wantFlash(t, m, false, "official catalog")
+	m = press(t, m, "esc", "s")
+	wantFlash(t, m, false, "official catalog")
 
-	// given to Claude Code, from the list of agents
-	m.lrow = row("mcp", "ctx")
-	m = press(t, m, "enter")
-	m = typeIn(m, "claude")
-	m = press(t, m, "enter", "esc")
-	servers := func() []library.ServerView {
-		v, err := library.Read(nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return v.Servers
-	}
-	if s := servers(); len(s) != 1 || !slices.Equal(s[0].Agents, []string{"claude"}) {
-		t.Fatalf("servers %+v, flash %q", s, m.flash)
-	}
-	if !strings.Contains(m.View(), "Claude Code") {
-		t.Fatalf("its agents aren't shown:\n%s", m.View())
-	}
-
-	// its URL changed, its agents kept
-	m.lrow = row("mcp", "ctx")
-	m = press(t, m, "e", "ctrl+u")
-	m = typeIn(m, "ctx https://example.com/v2")
-	m = press(t, m, "enter")
-	if s := servers(); len(s) != 1 || s[0].URL != "https://example.com/v2" || !slices.Equal(s[0].Agents, []string{"claude"}) {
-		t.Fatalf("servers %+v, flash %q", s[0].Server, m.flash)
-	}
-	m = press(t, m, "s")
-	wantFlash(t, m, true, "synced")
-
-	// skills from a folder
+	// Arbitrary local skill imports cannot bypass verified provisioning.
 	src := filepath.Join(h, "src")
 	write(t, filepath.Join(src, "tidy/SKILL.md"), "---\nname: tidy\ndescription: Tidies up\n---\n")
 	m = press(t, m, "a", "down", "enter")
 	m = typeIn(m, src)
 	m = press(t, m, "enter")
-	if m.mode != modePick || len(m.pk.items) != 1 || m.pk.items[0].Value != "tidy" {
-		t.Fatalf("mode %d items %+v flash %q", m.mode, m.pk.items, m.flash)
-	}
-	m = press(t, m, "enter")
-	wantFlash(t, m, true, "added the skill")
-	row("skill", "tidy")
-
-	// d twice takes the server out
-	m.lrow = row("mcp", "ctx")
-	m = press(t, m, "d", "d")
-	if s := servers(); len(s) != 0 {
-		t.Fatalf("servers %+v", s)
-	}
+	wantFlash(t, m, false, "official catalog")
+	v, err := library.Read(nil)
+	require.NoError(t, err)
+	assert.Empty(t, v.Servers)
+	assert.Empty(t, v.Skills)
+	got, err := os.ReadFile(config)
+	require.NoError(t, err)
+	assert.Equal(t, original, string(got))
+	require.NoFileExists(t, filepath.Join(h, ".claude", "skills", "tidy", "SKILL.md"))
 }
