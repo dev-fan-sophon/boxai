@@ -220,6 +220,45 @@ func TestLogoutRemainsBlockedUntilRevocationSucceeds(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestVerifyBypassesCacheAndHandlesRevocation(t *testing.T) {
+	ctx := context.Background()
+	calls, remoteStatus := 0, http.StatusOK
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		respond(w, remoteStatus, map[string]any{"success": true, "data": ProvisioningData{Account: Account{ID: 42}}})
+	}))
+	defer s.Close()
+	v := fileVault{path: filepath.Join(t.TempDir(), "auth.json")}
+	require.NoError(t, v.Set(ctx, "session", testToken))
+	c := newClient(s.URL, v, nil)
+	require.NoError(t, c.Require(ctx))
+	require.NoError(t, c.Require(ctx))
+	assert.Equal(t, 1, calls)
+	h := Guard(c.Handler(nil))
+	for _, code := range []int{200, 503, 200, 404} {
+		remoteStatus = code
+		r := httptest.NewRequest("POST", "http://localhost/api/boxai/verify", nil)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		assert.Equal(t, 403, w.Code)
+		r.Header.Set("X-BoxAI-UI-Token", UIToken)
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if code == 503 {
+			assert.Equal(t, 503, w.Code)
+			stored, err := v.Get(ctx, "session")
+			require.NoError(t, err)
+			assert.Equal(t, testToken, stored)
+		} else {
+			assert.Equal(t, 200, w.Code)
+		}
+		assert.Equal(t, code == 200, c.Session().Authenticated)
+	}
+	assert.Equal(t, 5, calls)
+	_, err := v.Get(ctx, "session")
+	assert.ErrorIs(t, err, errMissing)
+}
+
 func TestSessionHandlerDistinguishesOutageFromRevocation(t *testing.T) {
 	status := http.StatusServiceUnavailable
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

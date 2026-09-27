@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // UIToken belongs to this process, never to the persisted cloud session.
@@ -57,7 +58,7 @@ func trustedUI(r *http.Request) bool {
 
 func PublicSessionPath(path string) bool {
 	switch path {
-	case "/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout":
+	case "/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout", "/api/boxai/verify":
 		return true
 	}
 	return false
@@ -94,12 +95,17 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 				return
 			}
 			err = c.Require(r.Context())
-		case "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout":
+		case "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout", "/api/boxai/verify":
 			if r.Method != "POST" {
 				respond(w, 405, map[string]string{"error": "Method not allowed"})
 				return
 			}
 			switch r.URL.Path {
+			case "/api/boxai/verify":
+				c.mu.Lock()
+				c.validated = time.Time{}
+				err = c.requireLocked(r.Context())
+				c.mu.Unlock()
 			case "/api/boxai/login":
 				err = c.Login(context.Background(), openURL)
 			case "/api/boxai/cancel":
@@ -115,7 +121,7 @@ func (c *Client) Handler(openURL func(string)) http.Handler {
 		status := http.StatusOK
 		if err != nil && !errors.Is(err, ErrLoginRequired) {
 			s.Error = err.Error()
-			if r.URL.Path != "/api/boxai/session" {
+			if r.URL.Path != "/api/boxai/session" && r.URL.Path != "/api/boxai/verify" {
 				status = http.StatusConflict
 			} else if !errors.Is(err, errRejected) {
 				status = http.StatusServiceUnavailable

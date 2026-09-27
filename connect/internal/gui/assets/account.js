@@ -7,7 +7,7 @@ const boxai = (() => {
   let epoch = 0, requestID = 0, timer, verificationError = "";
   let accountData = null, usageRequest = 0, accountRequest = 0;
   const controllers = new Set();
-  const sessionPaths = new Set(["/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout"]);
+  const sessionPaths = new Set(["/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout", "/api/boxai/verify"]);
 
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === "string" ? input : input.url, location.href);
@@ -186,28 +186,51 @@ const boxai = (() => {
     who.append(el("div", "name", t(label)));
     row.append(who, el("span", "boxai-value", value === undefined || value === null || value === "" ? "—" : String(value)));
     list.append(row);
+    return row;
   }
 
   function renderAccount(data) {
     const page = $("#view-account"), account = data.account || {};
     const list = el("div", "list prefs");
+    const identity = detail(list, "Account ID", account.id);
+    if (account.id != null) identity.append(copyBtn(String(account.id), t("Account ID")));
     detail(list, "Username", account.username);
     detail(list, "Display name", account.display_name);
     detail(list, "Email", account.email);
     detail(list, "Group", account.group);
     detail(list, "Authorization", verificationError ? t("Verification temporarily unavailable") : t("Authorized"));
+    const summary = el("div", "list prefs");
+    detail(summary, "Wallet remaining (quota units)", data.usage?.wallet_quota_remaining);
+    const subscriptions = data.billing?.subscriptions || [];
+    detail(summary, "Subscriptions", subscriptions.length);
+    for (const sub of subscriptions) {
+      detail(summary, "Plan ID", sub.plan_id);
+      detail(summary, "Status", sub.status);
+    }
     const actions = el("div", "boxai-actions");
-    const portal = el("button", "text", t("Open website console"));
-    portal.onclick = () => {
-      let url;
-      try { url = new URL(data.billing?.portal_url || "https://you-box.com/console"); } catch { return; }
-      if (url.protocol !== "https:") return;
-      api("open", { url: url.href }).catch((error) => status(error.message, "err"));
+    for (const [label, path] of [["Top up", "/billing"], ["Manage subscription", "/billing#billing-subscription"], ["Account security", "/profile"]]) {
+      const button = el("button", "text", t(label));
+      button.onclick = () => api("open", { url: "https://you-box.com" + path }).catch((error) => status(error.message, "err"));
+      actions.append(button);
+    }
+    const usageButton = el("button", "text", t("View usage details"));
+    usageButton.onclick = () => show("usage");
+    actions.append(usageButton);
+    const sessionActions = el("div", "boxai-actions");
+    const verify = el("button", "text", t("Reverify authorization"));
+    verify.disabled = busy;
+    verify.onclick = async () => {
+      verify.disabled = true;
+      await sessionRequest("verify");
+      verify.disabled = false;
     };
     const signout = el("button", "text", t("Sign out"));
     signout.onclick = logout;
-    actions.append(portal, signout);
-    page.replaceChildren(el("h2", "label", t("Account")), list, actions);
+    sessionActions.append(verify, signout);
+    page.replaceChildren(el("h2", "label", t("Account")), list,
+      el("h2", "label", t("Balance and subscriptions")), summary,
+      el("p", "note", t("Server-reported counters. Quota units are not currency.")), actions,
+      sessionActions, el("p", "note", t("To switch accounts, sign out here, then choose another account on the BoxAI website when signing in.")));
   }
 
   async function loadAccount() {
