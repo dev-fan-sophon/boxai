@@ -252,7 +252,7 @@ func (p Provider) Exposed() []catalog.Model {
 	if len(p.Models) > 0 {
 		return pick(p.Models)
 	}
-	if len(avail) <= manyModels {
+	if BoxAIOnly() || len(avail) <= manyModels {
 		return avail
 	}
 	// More than an agent's picker wants. Show the first slice of the

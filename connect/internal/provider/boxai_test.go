@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yetone/magpie/internal/boxai"
+	"github.com/yetone/magpie/internal/catalog"
 )
 
 type boxAITransport func(*http.Request) (*http.Response, error)
@@ -114,4 +116,21 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	after, err := os.ReadFile(Path())
 	require.NoError(t, err)
 	assert.Equal(t, before, after, "rejected operations must not change configuration")
+}
+
+func TestBoxAIModelsDoNotRequireProviderEditorSelection(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	UseBoxAI()
+	t.Cleanup(func() { boxAIOnly.Store(false) })
+	models := make([]catalog.Model, 25)
+	for i := range models {
+		models[i] = catalog.Model{ID: fmt.Sprintf("model-%02d", i)}
+	}
+	require.NoError(t, catalog.SaveLive("boxai", "https://you-box.com/v1", models))
+	p := Provider{ID: "boxai"}
+	exposed := p.Exposed()
+	require.Len(t, exposed, 25, "no provider editor remains to select models beyond the old 24-model default")
+	assert.Equal(t, "model-24", exposed[24].ID)
+	p.Models = []string{"model-24"}
+	require.Len(t, p.Exposed(), 1, "preserve an existing explicit model selection")
 }

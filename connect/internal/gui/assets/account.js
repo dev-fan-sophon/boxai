@@ -120,6 +120,9 @@ const boxai = (() => {
       ready = true;
       const requested = params.get("import") ? "account" : params.get("view");
       show(mode === "window" && ["providers", "gateway", "routing", "usage", "library", "settings", "account"].includes(requested) ? requested : "agents");
+      // The provider editor used to fetch models when saving a key. Website
+      // login now supplies that key, so populate the original Agent pickers.
+      api("provider/models", { id: "boxai" }).then(() => load()).catch((error) => status(error.message, "err"));
     }
   }
 

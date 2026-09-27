@@ -65,8 +65,7 @@ var (
 
 var geminiApp = googleApp{
 	agent: "gemini", name: "Gemini CLI", icon: "geminicli-color", website: "https://github.com/google-gemini/gemini-cli",
-	// Gemini CLI's own OAuth client, an installed app's (its "secret" is
-	// no secret: it ships in the CLI)
+	// Third-party OAuth credentials are intentionally removed in this fork.
 	clientID:     "",
 	clientSecret: "",
 	scopes: []string{"https://www.googleapis.com/auth/cloud-platform",

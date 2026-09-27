@@ -13,7 +13,8 @@ Agents, Gateway, Routing, Usage, Library, Account. Account shows identity and
 sign-out; Usage shows BoxAI's account-wide wallet, lifetime consumption and
 subscription counters in raw quota units, not local estimated prices. No model
 plaza or replacement resource library is introduced. Legacy third-party
-provider records are not used or deleted.
+provider records are not used or deleted. Bundled Google OAuth credentials
+are removed from the upstream import; BoxAI authorization does not use them.
 
 The original project documentation follows for reference (its third-party
 provider and subscription instructions do not apply to this fork); the MIT
