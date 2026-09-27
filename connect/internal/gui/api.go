@@ -5,21 +5,16 @@
 package gui
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"mime"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/yetone/magpie/internal/agent"
-	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/gateway"
-	"github.com/yetone/magpie/internal/library"
 	"github.com/yetone/magpie/internal/netproxy"
-	"github.com/yetone/magpie/internal/profile"
 	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/settings"
 )
@@ -76,25 +71,9 @@ type clientJSON struct {
 	Icon string `json:"icon"`
 }
 
-type profileJSON struct {
-	Name    string `json:"name"`
-	Summary string `json:"summary"`
-	// Library is what the profile gives out from the library, for one
-	// saved with its setup
-	Library *profileLibraryJSON `json:"library,omitempty"`
-}
-
-type profileLibraryJSON struct {
-	Servers      int  `json:"servers"`      // given to at least one agent
-	Skills       int  `json:"skills"`       // given to at least one agent
-	Instructions bool `json:"instructions"` // some agent gets them
-}
-
 type stateJSON struct {
 	Agents   []agentJSON       `json:"agents"`
-	Clients  []clientJSON      `json:"clients"` // who a request may come from, by id
-	Profiles []profileJSON     `json:"profiles"`
-	Catalog  string            `json:"catalog"`
+	Clients  []clientJSON      `json:"clients"`          // who a request may come from, by id
 	Notice   string            `json:"notice,omitempty"` // advice after a change, e.g. "restart Codex"
 	Settings settings.Settings `json:"settings"`
 }
@@ -147,13 +126,35 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	// they came only with the settings, so the tabs showed English first
 	mux.HandleFunc("GET /boot.js", func(rw http.ResponseWriter, r *http.Request) {
 		s := settings.Load()
-		b, _ := json.Marshal(map[string]string{"lang": s.Lang, "theme": s.Theme})
+		b, _ := json.Marshal(map[string]string{"lang": s.Lang, "theme": s.Theme, "uiToken": uiToken})
 		rw.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		rw.Header().Set("Cache-Control", "no-store")
 		rw.Write(append(append([]byte("window.bootPrefs = "), b...), ";\n"...))
 	})
 	mux.HandleFunc("GET /api/state", func(rw http.ResponseWriter, r *http.Request) {
 		writeJSON(rw, state())
+	})
+	mux.HandleFunc("POST /api/account", func(rw http.ResponseWriter, r *http.Request) {
+		w.OpenURL("https://you-box.com")
+		rw.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("GET /api/models", func(rw http.ResponseWriter, r *http.Request) {
+		models := []map[string]string{}
+		for _, m := range provider.Catalog() {
+			if m.Provider.ID == "boxai" && m.Group == "" {
+				models = append(models, map[string]string{"id": m.ID, "name": m.Name})
+			}
+		}
+		writeJSON(rw, models)
+	})
+	mux.HandleFunc("GET /api/diagnostics", func(rw http.ResponseWriter, r *http.Request) {
+		calls := []map[string]any{}
+		if gw := served.Load(); gw != nil {
+			for _, c := range gw.Recent() {
+				calls = append(calls, map[string]any{"model": c.Model, "status": c.Status, "ms": c.Millis, "time": c.Time})
+			}
+		}
+		writeJSON(rw, map[string]any{"running": gateway.Running(), "url": gateway.URL(), "calls": calls})
 	})
 	mux.HandleFunc("POST /api/set", func(rw http.ResponseWriter, r *http.Request) {
 		var in struct{ Agent, Field, Value string }
@@ -219,68 +220,8 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		}
 		writeJSON(rw, s)
 	})
-	mux.HandleFunc("POST /api/profile/{action}", func(rw http.ResponseWriter, r *http.Request) {
-		var in struct{ Name string }
-		_ = json.NewDecoder(r.Body).Decode(&in)
-		in.Name = strings.TrimSpace(in.Name)
-		var err error
-		var applied profile.Applied
-		switch r.PathValue("action") {
-		case "save":
-			var p profile.Profile
-			if p, err = profile.Snapshot(); err == nil {
-				err = profile.Save(in.Name, p)
-			}
-		case "use":
-			var ps map[string]profile.Profile
-			if ps, err = profile.Load(); err == nil {
-				applied, err = profile.Apply(ps[in.Name])
-			}
-			if applied.Library != nil {
-				lastProblems.Lock()
-				lastProblems.p = applied.Library.Problems
-				lastProblems.Unlock()
-			}
-		case "delete":
-			err = profile.Delete(in.Name)
-		default:
-			http.NotFound(rw, r)
-			return
-		}
-		if err != nil {
-			fail(rw, err)
-			return
-		}
-		s := state()
-		writeJSON(rw, struct {
-			stateJSON
-			Changed int `json:"changed"`
-			// Library is what bringing the profile's library setup back did
-			Library *library.Result `json:"library,omitempty"`
-		}{s, applied.Changed, applied.Library})
-	})
-	mux.HandleFunc("POST /api/sync", func(rw http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-		if err := catalog.Sync(ctx); err != nil {
-			fail(rw, err)
-			return
-		}
-		for _, p := range provider.All() {
-			if p.Ready() {
-				c, cancel := context.WithTimeout(ctx, 8*time.Second)
-				p.Fetch(c)
-				cancel()
-			}
-		}
-		writeJSON(rw, state())
-	})
-	providerRoutes(mux, w)
-	importRoutes(mux)
-	usageRoutes(mux)
-	backupRoutes(mux, w)
 	libraryRoutes(mux, w)
-	updateRoutes(mux, w)
+	installerRoutes(mux)
 	mux.HandleFunc("GET /api/settings", func(rw http.ResponseWriter, r *http.Request) {
 		writeJSON(rw, settingsState())
 	})
@@ -347,12 +288,13 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		}
 		rw.WriteHeader(http.StatusNoContent)
 	})
-	devListen(mux)
-	return mux
+	handler := productHandler(mux)
+	devListen(handler)
+	return handler
 }
 
 func state() stateJSON {
-	s := stateJSON{Agents: []agentJSON{}, Profiles: []profileJSON{}, Catalog: catalog.Source(), Settings: settings.Load()}
+	s := stateJSON{Agents: []agentJSON{}, Settings: settings.Load()}
 	for _, a := range agent.Clients() {
 		s.Clients = append(s.Clients, clientJSON{ID: a.ID, Name: a.Name, Icon: a.Icon})
 	}
@@ -368,16 +310,6 @@ func state() stateJSON {
 		}
 		aj.Drift = a.Drift()
 		s.Agents = append(s.Agents, aj)
-	}
-	if ps, err := profile.Load(); err == nil {
-		for _, n := range profile.Names(ps) {
-			pj := profileJSON{Name: n, Summary: profile.Summary(ps[n])}
-			if l := ps[n].Library; l != nil {
-				servers, skills := l.On()
-				pj.Library = &profileLibraryJSON{Servers: servers, Skills: skills, Instructions: l.GivesInstructions()}
-			}
-			s.Profiles = append(s.Profiles, pj)
-		}
 	}
 	return s
 }

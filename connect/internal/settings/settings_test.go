@@ -3,88 +3,59 @@ package settings
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRoundTrip(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	if s := Load(); s.Theme != "system" || s.Lang != "system" {
-		t.Fatalf("defaults: %+v", s)
-	}
-	if err := Save(Settings{Theme: "dark", Lang: "zh"}); err != nil {
-		t.Fatal(err)
-	}
-	if s := Load(); s.Theme != "dark" || s.Lang != "zh" {
-		t.Fatalf("saved: %+v", s)
-	}
-	if err := Save(Settings{Theme: "sepia"}); err == nil {
-		t.Fatal("bad theme accepted")
-	}
-	if Save(Settings{}) != nil || Load().Theme != "system" {
-		t.Fatal("empty means system")
-	}
-	if filepath.Base(Path()) != "settings.json" {
-		t.Fatal(Path())
-	}
+func TestBoxAISettings(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	assert.Equal(t, filepath.Join(cfg, "boxai-connect", "settings.json"), Path())
+	assert.Equal(t, "direct", Load().Proxy)
+	assert.Equal(t, "system", Load().Theme)
+	require.NoError(t, Save(Settings{Theme: "dark", Lang: "vi", Tray: "window"}))
+	s := Load()
+	assert.Equal(t, "vi", s.Lang)
+	assert.Equal(t, "dark", s.Theme)
+	assert.Equal(t, "window", s.Tray)
+	assert.Equal(t, "direct", s.Proxy)
+	require.Error(t, Save(Settings{Theme: "sepia"}))
+	require.Error(t, Save(Settings{Lang: "zh"}))
+	require.Error(t, Save(Settings{Proxy: "http://untrusted.example"}))
+	require.NoError(t, Save(Settings{}))
+	assert.Equal(t, "system", Load().Theme)
+	require.NoError(t, os.WriteFile(Path(), []byte(`{"proxy":"http://untrusted.example"}`), 0o600))
+	assert.Equal(t, "direct", Load().Proxy, "hand-edited settings cannot redirect account traffic")
 }
 
-func TestMigrate(t *testing.T) {
-	cfg, cache := t.TempDir(), t.TempDir()
+func TestMigrateDoesNotImportCredentials(t *testing.T) {
+	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
-	t.Setenv("XDG_CACHE_HOME", cache)
-	old := filepath.Join(cfg, "dial")
-	if err := os.MkdirAll(filepath.Join(old, "sub"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(old, "providers.json"), []byte("{}"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(old, "sub", "x"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
+	for _, product := range []string{"dial", "magpie"} {
+		old := filepath.Join(cfg, product)
+		require.NoError(t, os.MkdirAll(old, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(old, "providers.json"), []byte(`{"key":"old-secret"}`), 0o600))
 	}
 	Migrate()
-	fi, err := os.Stat(filepath.Join(cfg, "magpie", "providers.json"))
-	if err != nil || fi.Mode().Perm() != 0o600 {
-		t.Fatalf("providers.json not copied with its mode: %v %v", fi, err)
-	}
-	if _, err := os.Stat(filepath.Join(cfg, "magpie", "sub", "x")); err != nil {
-		t.Fatal("nested file not copied")
-	}
-	if _, err := os.Stat(old); err != nil {
-		t.Fatal("the old folder must stay")
-	}
-	if _, err := os.Stat(filepath.Join(cache, "magpie")); err == nil {
-		t.Fatal("no old cache, so no new one")
-	}
-	// a second run must not touch an existing folder
-	if err := os.WriteFile(filepath.Join(cfg, "magpie", "providers.json"), []byte("new"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	assert.NoDirExists(t, Dir())
+	require.NoError(t, Save(Settings{Lang: "en"}))
 	Migrate()
-	if b, _ := os.ReadFile(filepath.Join(cfg, "magpie", "providers.json")); string(b) != "new" {
-		t.Fatal("existing folder overwritten")
-	}
+	assert.NoFileExists(t, filepath.Join(Dir(), "providers.json"))
+	assert.Equal(t, "en", Load().Lang)
 }
 
 func TestArrange(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	s := Settings{AgentOrder: []string{"codex", "gone", "claude", "codex"}, AgentsHidden: []string{"crush"}}
-	if err := Save(s); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, Save(s))
 	s = Load()
-	if strings.Join(s.AgentOrder, ",") != "codex,gone,claude" {
-		t.Fatalf("order kept as %v", s.AgentOrder)
-	}
-	// an agent the order doesn't name follows, in the order it came
+	assert.Equal(t, []string{"codex", "gone", "claude"}, s.AgentOrder)
 	shown, hidden := Arrange(s, []string{"claude", "gemini", "crush", "codex", "pi"}, func(x string) string { return x })
-	if strings.Join(shown, ",") != "codex,claude,gemini,pi" || strings.Join(hidden, ",") != "crush" {
-		t.Fatalf("arranged %v, hidden %v", shown, hidden)
-	}
-	// the rest of the settings leave it as it is
+	assert.Equal(t, []string{"codex", "claude", "gemini", "pi"}, shown)
+	assert.Equal(t, []string{"crush"}, hidden)
 	s.Theme = "dark"
-	if Save(s) != nil || len(Load().AgentsHidden) != 1 {
-		t.Fatal("arrangement lost")
-	}
+	require.NoError(t, Save(s))
+	assert.Equal(t, []string{"crush"}, Load().AgentsHidden)
 }

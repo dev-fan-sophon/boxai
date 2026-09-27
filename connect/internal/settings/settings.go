@@ -1,16 +1,15 @@
 // Package settings keeps the few preferences the desktop app has: which
 // palette to paint with, which language to speak, how the agents are
-// arranged. Everything else magpie knows is derived from the agents' own
+// arranged. Everything else BoxAI Connect knows is derived from the agents' own
 // files.
 //
-// The file is ~/.config/magpie/settings.json; a missing file means "follow
+// The file is ~/.config/boxai-connect/settings.json; a missing file means "follow
 // the system" for both.
 package settings
 
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -20,14 +19,12 @@ import (
 // Settings is what the user chose. "" and "system" both mean "follow the OS".
 type Settings struct {
 	Theme string `json:"theme,omitempty"` // system | light | dark
-	Lang  string `json:"lang,omitempty"`  // system | en | zh
+	Lang  string `json:"lang,omitempty"`  // system | en | vi
 	Tray  string `json:"tray,omitempty"`  // what clicking the tray icon opens: panel | window
 	// Dock keeps magpie in the Mac's Dock as well as the menu bar, for a
 	// menu bar too full to show its icon.
 	Dock bool `json:"dock,omitempty"`
-	// Proxy for magpie's own requests to vendors: "" follows the
-	// environment and then the system, "direct" uses none, anything else
-	// is the proxy (http://, https:// or socks5://; host:port means http).
+	// Proxy is fixed to direct; user settings cannot redirect account traffic.
 	Proxy string `json:"proxy,omitempty"`
 	// Redact keeps secrets in what agents send (API keys, private keys,
 	// tokens, passwords) from the vendors behind magpie: they go as
@@ -99,17 +96,17 @@ func Arrange[T any](s Settings, items []T, id func(T) string) (shown, hidden []T
 // Themes and Langs are the accepted values, in the order the UI offers them.
 var (
 	Themes = []string{"system", "light", "dark"}
-	Langs  = []string{"system", "en", "zh"}
+	Langs  = []string{"system", "en", "vi"}
 	Trays  = []string{"panel", "window"}
 )
 
 // Path is the settings file.
 func Path() string {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "magpie", "settings.json")
+		return filepath.Join(x, "boxai-connect", "settings.json")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "magpie", "settings.json")
+	return filepath.Join(home, ".config", "boxai-connect", "settings.json")
 }
 
 // Dir is the folder every magpie file lives in.
@@ -121,6 +118,8 @@ func Load() Settings {
 	if b, err := os.ReadFile(Path()); err == nil {
 		_ = json.Unmarshal(b, &s)
 	}
+	// A hand-edited or older file cannot redirect account-bearing requests.
+	s.Proxy = "direct"
 	return s.normal()
 }
 
@@ -136,29 +135,24 @@ func Save(s Settings) error {
 	if !slices.Contains(Trays, s.Tray) {
 		return fmt.Errorf("tray must be one of %v, not %q", Trays, s.Tray)
 	}
-	s.Proxy = strings.TrimSpace(s.Proxy)
-	if s.Proxy != "" && s.Proxy != "direct" {
-		raw := s.Proxy
-		if !strings.Contains(raw, "://") {
-			raw = "http://" + raw
-		}
-		u, err := url.Parse(raw)
-		if err != nil || u.Host == "" || !slices.Contains([]string{"http", "https", "socks5", "socks5h"}, u.Scheme) {
-			return fmt.Errorf("proxy must look like http://127.0.0.1:7890 or socks5://127.0.0.1:1080, not %q", s.Proxy)
-		}
+	if s.Proxy != "direct" {
+		return fmt.Errorf("custom network proxies are not supported")
 	}
 	s.AgentOrder, s.AgentsHidden, s.AgentsShown = ids(s.AgentOrder), ids(s.AgentsHidden), ids(s.AgentsShown)
-	if err := os.MkdirAll(Dir(), 0o755); err != nil {
+	if err := os.MkdirAll(Dir(), 0o700); err != nil {
 		return err
 	}
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(Path(), append(b, '\n'), 0o644)
+	return os.WriteFile(Path(), append(b, '\n'), 0o600)
 }
 
 func (s Settings) normal() Settings {
+	if s.Proxy == "" {
+		s.Proxy = "direct"
+	}
 	if s.Theme == "" {
 		s.Theme = "system"
 	}
