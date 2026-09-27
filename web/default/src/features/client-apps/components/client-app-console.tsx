@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, ListChecks, TriangleAlert } from 'lucide-react'
+import { ArrowRight, ListChecks } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,7 @@ import { CLIENT_APPS } from '../constants'
 import { useClientAppSessions } from '../hooks/use-client-app-sessions'
 import { ClientAppSessionsCard } from './client-app-sessions-card'
 import { ConnectClientsCard } from './connect-clients-card'
+import { ConnectInstallationNote } from './connect-installation-note'
 import { ConnectWalkthrough } from './connect-walkthrough'
 
 export function ClientAppConsole(props: { app: ClientAppId }) {
@@ -28,12 +29,14 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
   const { release, loading, failed, fallbackUrl } = useAppRelease(props.app)
   const downloads = release?.downloads ?? []
   const primary = primaryDownload(downloads, detectPlatform())
-  const sessions = useClientAppSessions()
-  const appSessions =
-    props.app === 'connect' ? sessions.connect : sessions.desktop
+  const sessions = useClientAppSessions(props.app === 'desktop')
+  const appSessions = sessions.desktop
   const appName = t(meta.nameKey)
 
-  let requirement = t('macOS 12 or later · Windows 10 or later')
+  let requirement =
+    props.app === 'connect'
+      ? t('macOS 11 or later · Windows 10 or later')
+      : t('macOS 12 or later · Windows 10 or later')
   if (primary?.platform === 'macos') {
     requirement = t('Requires macOS {{version}} or later', {
       version: primary.minimum_os,
@@ -67,13 +70,17 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
                 <h2 className='text-base font-semibold sm:text-lg'>
                   {appName}
                 </h2>
-                <Badge variant={appSessions.length > 0 ? 'default' : 'outline'}>
-                  {appSessions.length > 0
-                    ? t('{{count}} device(s) connected', {
-                        count: appSessions.length,
-                      })
-                    : t('Not connected')}
-                </Badge>
+                {props.app === 'desktop' && (
+                  <Badge
+                    variant={appSessions.length > 0 ? 'default' : 'outline'}
+                  >
+                    {appSessions.length > 0
+                      ? t('{{count}} device(s) connected', {
+                          count: appSessions.length,
+                        })
+                      : t('Not connected')}
+                  </Badge>
+                )}
               </div>
               <p className='text-muted-foreground mt-1 max-w-2xl text-sm text-pretty'>
                 {t(meta.descriptionKey)}
@@ -96,27 +103,33 @@ export function ClientAppConsole(props: { app: ClientAppId }) {
             <span key={fact}>{fact}</span>
           ))}
         </p>
-        {props.app === 'connect' && (
-          <p className='text-muted-foreground flex items-start gap-2 text-xs text-pretty'>
-            <TriangleAlert
-              className='mt-0.5 size-3.5 shrink-0'
-              aria-hidden='true'
-            />
-            {t(
-              'The current macOS and Windows installers are not OS-signed or notarized. Your system may show a security warning during installation.'
-            )}
-          </p>
-        )}
+        {props.app === 'connect' && <ConnectInstallationNote />}
       </section>
 
-      <ClientAppSessionsCard
-        appName={appName}
-        sessions={appSessions}
-        loading={sessions.loading}
-        failed={sessions.failed}
-        fetching={sessions.fetching}
-        onRefresh={() => void sessions.refetch()}
-      />
+      {props.app === 'connect' ? (
+        <div className='flex flex-wrap gap-2'>
+          <Button
+            variant='outline'
+            render={
+              <Link to='/docs/$' params={{ _splat: 'clients/connect' }} />
+            }
+          >
+            {t('Documentation')}
+          </Button>
+          <Button variant='outline' render={<Link to='/keys' />}>
+            {t('Manage API Keys')}
+          </Button>
+        </div>
+      ) : (
+        <ClientAppSessionsCard
+          appName={appName}
+          sessions={appSessions}
+          loading={sessions.loading}
+          failed={sessions.failed}
+          fetching={sessions.fetching}
+          onRefresh={() => void sessions.refetch()}
+        />
+      )}
 
       <TitledCard
         title={t('Set up in three steps')}

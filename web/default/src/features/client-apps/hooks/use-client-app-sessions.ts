@@ -15,12 +15,12 @@ export function appOfSession(session: DesktopSession): ClientAppId {
 }
 
 /**
- * Live desktop authorization sessions, split by the app that created them.
- * A signed-in install is what "connected" means for both client apps.
+ * Legacy desktop authorization sessions. Connect now uses ordinary API keys.
  */
-export function useClientAppSessions() {
+export function useClientAppSessions(enabled = true) {
   const query = useQuery({
     queryKey: clientAppSessionsQueryKey,
+    enabled,
     queryFn: async () => {
       const response = await getDesktopSessions()
       if (!response.success) throw new Error(response.message)

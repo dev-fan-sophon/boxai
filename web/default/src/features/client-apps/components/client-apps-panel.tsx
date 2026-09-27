@@ -4,16 +4,15 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { detectPlatform, primaryDownload } from '@/features/downloads/release'
-import {
-  useAppRelease,
-  type ClientAppId,
-} from '@/features/downloads/use-app-release'
+import { useAppRelease } from '@/features/downloads/use-app-release'
 import { cn } from '@/lib/utils'
 
 import { CLIENT_APPS } from '../constants'
 import { useClientAppSessions } from '../hooks/use-client-app-sessions'
 
-function ClientAppCard(props: { app: ClientAppId; connected: number }) {
+function ClientAppCard(
+  props: { app: 'connect' } | { app: 'desktop'; connected: number }
+) {
   const { t } = useTranslation()
   const meta = CLIENT_APPS[props.app]
   const { release, fallbackUrl } = useAppRelease(props.app)
@@ -33,25 +32,31 @@ function ClientAppCard(props: { app: ClientAppId; connected: number }) {
         <div className='min-w-0 flex-1'>
           <div className='flex flex-wrap items-center gap-2'>
             <p className='truncate text-sm font-semibold'>{t(meta.nameKey)}</p>
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                props.connected > 0
-                  ? 'bg-success/10 text-success'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
+            {props.app === 'desktop' && (
               <span
                 className={cn(
-                  'size-1.5 rounded-full',
-                  props.connected > 0 ? 'bg-success' : 'bg-muted-foreground/50'
+                  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                  props.connected > 0
+                    ? 'bg-success/10 text-success'
+                    : 'bg-muted text-muted-foreground'
                 )}
-                aria-hidden='true'
-              />
-              {props.connected > 0
-                ? t('{{count}} device(s) connected', { count: props.connected })
-                : t('Not connected')}
-            </span>
+              >
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    props.connected > 0
+                      ? 'bg-success'
+                      : 'bg-muted-foreground/50'
+                  )}
+                  aria-hidden='true'
+                />
+                {props.connected > 0
+                  ? t('{{count}} device(s) connected', {
+                      count: props.connected,
+                    })
+                  : t('Not connected')}
+              </span>
+            )}
           </div>
           <p className='text-muted-foreground mt-1 text-xs text-pretty'>
             {t(meta.taglineKey)}
@@ -89,15 +94,14 @@ function ClientAppCard(props: { app: ClientAppId; connected: number }) {
 }
 
 /**
- * Desktop client apps at a glance: what they are, whether this account has a
- * device signed in, and a one-click download for the current platform.
+ * Client downloads at a glance, with device session status for Desktop only.
  */
 export function ClientAppsPanel() {
   const sessions = useClientAppSessions()
 
   return (
     <div className='grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2'>
-      <ClientAppCard app='connect' connected={sessions.connect.length} />
+      <ClientAppCard app='connect' />
       <ClientAppCard app='desktop' connected={sessions.desktop.length} />
     </div>
   )

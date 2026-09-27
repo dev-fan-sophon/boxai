@@ -460,7 +460,7 @@ export function resolveRouteSeo(pathname: string, siteName: string): SeoInput {
     '/connect': {
       title: 'BoxAI Connect',
       description:
-        'Download BoxAI Connect for macOS or Windows. Sign in with BoxAI to connect Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode through a local gateway with MCP and official Skills.',
+        'Download BoxAI Connect for macOS or Windows. Sign in through your browser, choose BoxAI conversational models, and connect coding agents through a local gateway.',
     },
   }
 

@@ -24,9 +24,7 @@ export type ClientAppMeta = {
 }
 
 /**
- * Both apps sign in through the desktop authorization flow, so a session's
- * `client_name` is what tells them apart. BoxAI Connect names its sessions
- * `BoxAI Connect · <device>`; everything else is Desktop.
+ * Identifies legacy Connect sessions; current Connect uses ordinary API keys.
  */
 export const CONNECT_SESSION_PREFIX = 'BoxAI Connect'
 
@@ -36,7 +34,7 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
     nameKey: 'BoxAI Connect',
     taglineKey: 'A native app for connecting your AI coding agents to BoxAI',
     descriptionKey:
-      'BoxAI Connect requires BoxAI browser sign-in and routes your coding agents through an always-running local gateway, with model discovery, MCP, official Skills, and account usage.',
+      'Sign in with BoxAI, then keep Connect running while your agents use its local gateway.',
     icon: BoxAIConnectIcon,
     logoSrc: CLIENT_APP_LOGO.connect.src,
     section: 'connect',
@@ -46,9 +44,9 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
       'Choose an agent and model, then apply the configuration in one click.',
     ],
     highlightKeys: [
-      'Discover compatible models in Model Plaza',
-      'Add MCP servers and official Skills from one place',
-      'Apply or disconnect with a reversible one-click change',
+      'Choose BoxAI conversational models and manage routing rules.',
+      'Manage MCP servers and Skills in the original library.',
+      'Configure supported coding agents to use the local gateway.',
     ],
   },
   desktop: {
@@ -95,7 +93,7 @@ export const UPCOMING_CLIENT_APPS = [
  * that client expects to be configured.
  *
  * A client advertised here must be supported by the current native Connect
- * release. Keep this list intentionally limited to the five supported agents.
+ * release. This is a selection, not a limit on the native agent catalog.
  *
  * `icon` is a `@lobehub/icons` key for `LobeIcon` (prefer `.Color` when available).
  * `href` is the product home / docs the marketing strip links to.

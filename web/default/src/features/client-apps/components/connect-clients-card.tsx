@@ -14,7 +14,7 @@ export function ConnectClientsCard() {
     <TitledCard
       title={t('Clients it configures')}
       description={t(
-        'Connect writes only the provider entry it owns and keeps a restorable backup of the rest.'
+        'BoxAI Connect configures agents to use its local gateway. Your cloud API key stays in private local storage, not in agent configuration.'
       )}
       icon={<Terminal aria-hidden='true' />}
       disableHoverEffect

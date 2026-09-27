@@ -29,7 +29,7 @@ export function SupportedApps() {
           </h2>
           <p className='text-muted-foreground mx-auto mt-2 max-w-xl text-sm leading-relaxed text-pretty'>
             {t(
-              'BoxAI Connect writes the endpoint and key into the tools you already use — no hand-editing config files.'
+              'BoxAI Connect configures agents to use its local gateway. Your cloud API key stays in private local storage, not in agent configuration.'
             )}
           </p>
         </AnimateInView>

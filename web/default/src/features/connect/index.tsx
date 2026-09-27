@@ -1,11 +1,13 @@
-import { TriangleAlert } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ConnectClientsCard } from '@/features/client-apps/components/connect-clients-card'
+import { ConnectInstallationNote } from '@/features/client-apps/components/connect-installation-note'
 import { ConnectWalkthrough } from '@/features/client-apps/components/connect-walkthrough'
 import { CLIENT_APPS } from '@/features/client-apps/constants'
 import { DownloadActions } from '@/features/downloads/download-actions'
@@ -37,7 +39,7 @@ export function ConnectView() {
     )
   )
 
-  let requirement = t('macOS 12 or later · Windows 10 or later')
+  let requirement = t('macOS 11 or later · Windows 10 or later')
   if (primary?.platform === 'macos') {
     requirement = t('Requires macOS {{version}} or later', {
       version: primary.minimum_os,
@@ -101,20 +103,23 @@ export function ConnectView() {
                   />
                 </div>
 
+                <Button
+                  className='mt-3'
+                  variant='outline'
+                  render={
+                    <Link to='/docs/$' params={{ _splat: 'clients/connect' }} />
+                  }
+                >
+                  {t('Documentation')}
+                </Button>
                 <p className='text-muted-foreground mt-4 flex flex-wrap gap-x-3 gap-y-1 text-xs'>
                   {facts.map((fact) => (
                     <span key={fact}>{fact}</span>
                   ))}
                 </p>
-                <p className='text-muted-foreground mt-3 flex max-w-2xl items-start gap-2 text-xs text-pretty'>
-                  <TriangleAlert
-                    className='mt-0.5 size-3.5 shrink-0'
-                    aria-hidden='true'
-                  />
-                  {t(
-                    'The current macOS and Windows installers are not OS-signed or notarized. Your system may show a security warning during installation.'
-                  )}
-                </p>
+                <div className='mt-3'>
+                  <ConnectInstallationNote />
+                </div>
               </div>
             </div>
           </div>

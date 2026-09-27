@@ -1,54 +1,52 @@
-import {
-  Blocks,
-  RefreshCw,
-  Route,
-  Search,
-  ShieldCheck,
-  UserRound,
-  Zap,
-} from 'lucide-react'
+import { Blocks, Terminal, Route, Network, UserRound, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { TitledCard } from '@/components/ui/titled-card'
 
-const FEATURES = [
-  {
-    title: 'Model Plaza',
-    description: 'Discover models that work with each supported coding agent.',
-    icon: Search,
-  },
-  {
-    title: 'MCP and official Skills',
-    description:
-      'Install MCP servers and BoxAI official Skills from one place.',
-    icon: Blocks,
-  },
-  {
-    title: 'Reversible by design',
-    description:
-      'Apply BoxAI in one click, then disconnect to restore your previous configuration.',
-    icon: RefreshCw,
-  },
-  {
-    title: 'Browser sign-in',
-    description:
-      'Sign in with your BoxAI account without copying API keys into the app.',
-    icon: ShieldCheck,
-  },
-  {
-    title: 'Account and usage',
-    description: 'See your BoxAI account and usage without leaving Connect.',
-    icon: UserRound,
-  },
-  {
-    title: 'Signed in-app updates',
-    description: 'Receive verified Connect updates directly inside the app.',
-    icon: Zap,
-  },
-] as const
-
 export function ConnectWalkthrough() {
   const { t } = useTranslation()
+  const features = [
+    {
+      title: t('Agents'),
+      description: t(
+        'Configure supported coding agents to use the local gateway.'
+      ),
+      icon: Terminal,
+    },
+    {
+      title: t('Gateway'),
+      description: t(
+        'Keep Connect running to route agent requests through BoxAI, the only provider.'
+      ),
+      icon: Network,
+    },
+    {
+      title: t('Routing'),
+      description: t(
+        'Choose BoxAI conversational models and manage routing rules.'
+      ),
+      icon: Route,
+    },
+    {
+      title: t('Usage'),
+      description: t(
+        'View account-wide balance, lifetime consumption, and subscription counters reported by BoxAI.'
+      ),
+      icon: Zap,
+    },
+    {
+      title: t('Library'),
+      description: t('Manage MCP servers and Skills in the original library.'),
+      icon: Blocks,
+    },
+    {
+      title: t('Account'),
+      description: t(
+        'Authorize in your browser. Sign out locally, or revoke the API key on the Keys page.'
+      ),
+      icon: UserRound,
+    },
+  ] as const
 
   return (
     <TitledCard
@@ -60,7 +58,7 @@ export function ConnectWalkthrough() {
       disableHoverEffect
     >
       <ul className='grid gap-3 sm:grid-cols-2'>
-        {FEATURES.map((feature) => {
+        {features.map((feature) => {
           const Icon = feature.icon
           return (
             <li
@@ -68,9 +66,9 @@ export function ConnectWalkthrough() {
               className='bg-muted/40 rounded-lg border p-3'
             >
               <Icon className='text-primary size-5' aria-hidden='true' />
-              <p className='mt-2 text-sm font-medium'>{t(feature.title)}</p>
+              <p className='mt-2 text-sm font-medium'>{feature.title}</p>
               <p className='text-muted-foreground mt-1 text-xs text-pretty'>
-                {t(feature.description)}
+                {feature.description}
               </p>
             </li>
           )
