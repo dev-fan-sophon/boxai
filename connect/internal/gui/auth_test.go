@@ -22,7 +22,7 @@ func TestProductAuthenticationBoundary(t *testing.T) {
 			}
 			return nil
 		})
-		for _, path := range []string{"/api/state", "/api/models", "/api/settings", "/api/library", "/api/library/skill", "/api/diagnostics", "/api/drift"} {
+		for _, path := range []string{"/api/state", "/api/models", "/api/settings", "/api/library", "/api/library/market/servers", "/api/library/market/skills", "/api/diagnostics", "/api/drift"} {
 			t.Run(path+"/"+map[bool]string{true: "authenticated", false: "locked"}[authenticated], func(t *testing.T) {
 				called := false
 				h := productHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true; w.WriteHeader(204) }))
@@ -36,6 +36,20 @@ func TestProductAuthenticationBoundary(t *testing.T) {
 					assert.Equal(t, 401, w.Code)
 				}
 			})
+		}
+		for _, path := range []string{"/api/library/market/server", "/api/library/market/skill"} {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest("POST", "http://wails.localhost"+path, strings.NewReader(`{"id":"official","agents":["claude"]}`))
+			r.Header.Set("Origin", "http://wails.localhost")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("X-BoxAI-UI-Token", uiToken)
+			called := false
+			productHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(204)
+			})).ServeHTTP(w, r)
+			assert.Equal(t, authenticated, called, "official installs still require a session")
+			assert.Equal(t, map[bool]int{true: 204, false: 401}[authenticated], w.Code)
 		}
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("POST", "http://wails.localhost/api/boxai/login", nil)
@@ -75,6 +89,13 @@ func TestProductRejectsLegacyRoutesAndCrossOriginWrites(t *testing.T) {
 		{"POST", "/api/sync", "http://wails.localhost", "application/json", 404},
 		{"POST", "/api/profile/use", "http://wails.localhost", "application/json", 404},
 		{"POST", "/api/library/servers/import", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/servers/save", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/servers/agents", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/skills/probe", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/skills/install", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/instructions/save", "http://wails.localhost", "application/json", 404},
+		{"POST", "/api/library/market/server", "http://wails.localhost", "application/json", 204},
+		{"POST", "/api/library/market/skill", "http://wails.localhost", "application/json", 204},
 		{"POST", "/api/library/all/sync", "http://wails.localhost", "application/json", 404},
 		{"GET", "/api/usage/quotas", "", "", 404},
 		{"GET", "/api/groups", "", "", 404},

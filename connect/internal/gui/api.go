@@ -205,7 +205,7 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		case "reapply":
 			err = a.Reapply()
 		case "keep":
-			a.Keep()
+			err = a.Keep()
 		default:
 			http.NotFound(rw, r)
 			return

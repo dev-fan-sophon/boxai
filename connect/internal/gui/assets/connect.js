@@ -6,7 +6,6 @@ const views = [
   "Models",
   "MCP servers",
   "Skills",
-  "Instructions",
   "Diagnostics",
   "Settings",
 ];
@@ -14,6 +13,7 @@ let session = { authenticated: false, pending: false };
 let currentView = "Agents";
 let state = null;
 let library = null;
+let catalog = null;
 let prefs = null;
 let availableModels = [];
 let generation = 0; // invalidates every pending management request at logout/401
@@ -58,7 +58,7 @@ function locked(message = "") {
   generation++;
   session = { authenticated: false, pending: false };
   checking = false;
-  state = library = prefs = null;
+  state = library = catalog = prefs = null;
   availableModels = [];
   gateError = message;
   dialog.close();
@@ -117,7 +117,14 @@ function renderLanguage() {
   };
   document.querySelector("#language").replaceChildren(select);
 }
+function needsSignOutRecovery(snapshot = session) {
+  return (
+    typeof snapshot.error === "string" &&
+    /^Sign-out pending\b/i.test(snapshot.error)
+  );
+}
 function renderGate() {
+  const recovery = needsSignOutRecovery();
   const gate = node("main", "gate");
   const card = node("section", "gate-card");
   const logo = node("img");
@@ -131,9 +138,11 @@ function renderGate() {
       t(
         checking
           ? "Checking your session…"
-          : session.pending
-            ? "Continue in your browser"
-            : "Your agents. One connection.",
+          : recovery
+            ? "Finish signing out"
+            : session.pending
+              ? "Continue in your browser"
+              : "Your agents. One connection.",
       ),
     ),
   );
@@ -143,9 +152,11 @@ function renderGate() {
         "p",
         "",
         t(
-          session.pending
-            ? "Complete sign-in in your browser. This window will update automatically."
-            : "Sign in to connect your coding agents to BoxAI models, MCP servers and skills.",
+          recovery
+            ? "Your previous sign-out did not finish. Retry to restore agent settings and revoke access before signing in again."
+            : session.pending
+              ? "Complete sign-in in your browser. This window will update automatically."
+              : "Sign in to connect your coding agents to BoxAI models, MCP servers and skills.",
         ),
       ),
     );
@@ -156,16 +167,30 @@ function renderGate() {
     }
     card.append(
       button(
-        session.pending ? "Cancel sign-in" : "Sign in with BoxAI",
+        recovery
+          ? "Retry sign-out"
+          : session.pending
+            ? "Cancel sign-in"
+            : "Sign in with BoxAI",
         async () => {
           generation++;
           clearTimeout(pollTimer);
           try {
-            await api(session.pending ? "boxai/cancel" : "boxai/login", {});
+            await api(
+              recovery
+                ? "boxai/logout"
+                : session.pending
+                  ? "boxai/cancel"
+                  : "boxai/login",
+              {},
+            );
+            gateError = "";
             await checkSession();
           } catch (error) {
             if (error.name !== "AbortError") {
-              gateError = "Sign-in could not be completed. Please try again.";
+              gateError = recovery
+                ? "Sign-out is still pending. Check your connection and retry."
+                : "Sign-in could not be completed. Please try again.";
               renderGate();
             }
           }
@@ -195,7 +220,9 @@ async function checkSession() {
         locked("Session expired. Sign in again to continue.");
       session = snapshot;
       if (snapshot.error)
-        gateError = "Sign-in could not be completed. Please try again.";
+        gateError = needsSignOutRecovery(snapshot)
+          ? "Sign-out is still pending. Check your connection and retry."
+          : "Sign-in could not be completed. Please try again.";
       renderGate();
     } else if (!wasAuthenticated) {
       gateError = "";
@@ -277,8 +304,12 @@ async function showView(view) {
   try {
     if (selected === "Agents") state = await api("state");
     if (selected === "Models") availableModels = await api("models");
-    if (["MCP servers", "Skills", "Instructions"].includes(selected))
+    if (["MCP servers", "Skills"].includes(selected)) {
       library = await api("library");
+      catalog = await api(
+        "library/market/" + (selected === "Skills" ? "skills" : "servers"),
+      );
+    }
     if (selected === "Settings") prefs = await api("settings");
     const diagnostics =
       selected === "Diagnostics" ? await api("diagnostics") : null;
@@ -297,13 +328,10 @@ async function showView(view) {
         renderModels(main);
         break;
       case "MCP servers":
-        renderMCP(main);
+        renderCatalog(main, false);
         break;
       case "Skills":
-        renderSkills(main);
-        break;
-      case "Instructions":
-        renderInstructions(main);
+        renderCatalog(main, true);
         break;
       case "Settings":
         renderSettings(main);
@@ -494,54 +522,72 @@ async function libraryChange(path, body) {
       : "Changes saved",
   );
 }
-function renderMCP(main) {
-  heading(
-    main,
-    "Give your agents access to tools and services.",
-    button("Add MCP server", () => editServer(), "primary"),
-  );
-  if (!library.servers?.length) empty(main, "No MCP servers yet");
-  for (const server of library.servers || []) {
+function renderCatalog(main, skills) {
+  heading(main, "Choose official BoxAI tools and assign them to your agents.");
+  if (catalog.error) {
+    empty(main, "Unable to connect. Check your connection and try again.");
+    main.append(button("Try again", () => showView(currentView)));
+    return;
+  }
+  if (!catalog.items?.length)
+    empty(main, "No official tools available for this account");
+  for (const item of catalog.items || []) {
     const card = node("section", "card");
     const head = node("div", "card-head");
-    const actions = node("div", "buttons");
-    actions.append(
-      button("Edit", () => editServer(server)),
-      button(
-        "Remove",
-        () =>
-          confirmAction(
-            "Remove this item from the library and assigned agents?",
-            "Remove",
-            () => libraryChange("servers/remove", { name: server.name }),
-          ),
-        "danger",
-      ),
+    head.append(
+      node("h2", "", item.title || item.name),
+      node("span", "badge", "BoxAI"),
     );
-    head.append(node("h2", "", server.name), actions);
+    card.append(head);
+    if (item.description) card.append(node("p", "", item.description));
     card.append(
-      head,
-      node(
-        "p",
-        "path",
-        server.transport === "stdio" ? server.command : server.url,
+      button(
+        "Install for agents",
+        () => {
+          const form = openDialog("Install for agents");
+          form.append(node("h3", "", item.title || item.name));
+          const group = assignments(
+            library.agents,
+            [],
+            skills ? "skills" : "mcp",
+          );
+          form.append(
+            node(
+              "p",
+              "",
+              t(
+                "Select agents to receive this official tool. Other agents are unchanged.",
+              ),
+            ),
+            group,
+          );
+          const actions = node("div", "buttons");
+          actions.append(
+            button("Cancel", () => dialog.close()),
+            button(
+              "Install",
+              async () => {
+                const agents = chosen(group);
+                if (!agents.length) {
+                  notify("Select at least one agent");
+                  return;
+                }
+                await libraryChange(
+                  skills ? "market/skill" : "market/server",
+                  skills
+                    ? { source: "boxai", id: item.id, agents }
+                    : { id: item.id, values: {}, agents },
+                );
+                dialog.close();
+              },
+              "primary",
+            ),
+          );
+          form.append(actions);
+        },
+        "primary",
       ),
     );
-    const group = assignments(library.agents, server.agents, "mcp");
-    group.onchange = async () => {
-      try {
-        await libraryChange("servers/agents", {
-          name: server.name,
-          agents: chosen(group),
-        });
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          notify("Could not save this change. Check your input and try again.");
-          await showView(currentView);
-        }
-      }
-    };
-    card.append(group);
     main.append(card);
   }
 }
@@ -572,257 +618,6 @@ function confirmAction(message, label, action) {
     ),
   );
   form.append(actions);
-}
-function inputField(form, label, value, multiline = false) {
-  const input = node(multiline ? "textarea" : "input");
-  input.value = value || "";
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  form.append(field(label, input));
-  return input;
-}
-function editServer(server = {}) {
-  const form = openDialog(server.name ? "Edit" : "Add MCP server");
-  form.append(
-    node(
-      "p",
-      "warning",
-      t(
-        "Only add tools you trust. MCP commands run on your computer when an agent starts them.",
-      ),
-    ),
-  );
-  const name = inputField(form, "Name", server.name);
-  name.required = true;
-  name.pattern = "[A-Za-z0-9][A-Za-z0-9_-]{0,63}";
-  const transport = select(
-    [
-      ["stdio", "stdio"],
-      ["http", "HTTP"],
-      ["sse", "SSE"],
-    ],
-    server.transport || "stdio",
-  );
-  form.append(field("Transport", transport));
-  const command = inputField(form, "Command", server.command);
-  const args = inputField(
-    form,
-    "Arguments (JSON array)",
-    JSON.stringify(server.args || []),
-  );
-  const env = inputField(
-    form,
-    "Environment (JSON object)",
-    JSON.stringify(server.env || {}),
-    true,
-  );
-  const url = inputField(form, "Server URL", server.url);
-  const headers = inputField(
-    form,
-    "Headers (JSON object)",
-    JSON.stringify(server.headers || {}),
-    true,
-  );
-  const group = assignments(library.agents, server.agents, "mcp");
-  form.append(node("h3", "", t("Assign to agents")), group);
-  transport.onchange = () => {
-    for (const e of [command, args, env])
-      e.parentElement.hidden = transport.value !== "stdio";
-    for (const e of [url, headers])
-      e.parentElement.hidden = transport.value === "stdio";
-  };
-  transport.onchange();
-  const actions = node("div", "buttons");
-  actions.append(
-    button("Cancel", () => dialog.close()),
-    button(
-      "Save",
-      async () => {
-        if (!form.reportValidity()) return;
-        let parsedArgs, parsedEnv, parsedHeaders;
-        try {
-          parsedArgs = JSON.parse(args.value);
-          parsedEnv = JSON.parse(env.value);
-          parsedHeaders = JSON.parse(headers.value);
-          if (
-            !Array.isArray(parsedArgs) ||
-            parsedArgs.some((v) => typeof v !== "string") ||
-            !parsedEnv ||
-            Array.isArray(parsedEnv) ||
-            !parsedHeaders ||
-            Array.isArray(parsedHeaders) ||
-            Object.values(parsedEnv).some((v) => typeof v !== "string") ||
-            Object.values(parsedHeaders).some((v) => typeof v !== "string")
-          )
-            throw new Error();
-        } catch {
-          notify("Invalid JSON. Check the arguments, environment and headers.");
-          return;
-        }
-        await libraryChange("servers/save", {
-          old: server.name || "",
-          server: {
-            name: name.value,
-            transport: transport.value,
-            command: command.value,
-            args: parsedArgs,
-            env: parsedEnv,
-            url: url.value,
-            headers: parsedHeaders,
-            agents: chosen(group),
-          },
-        });
-        dialog.close();
-      },
-      "primary",
-    ),
-  );
-  form.append(actions);
-}
-function renderSkills(main) {
-  heading(
-    main,
-    "Reusable skills, shared with the agents you choose.",
-    button("Add skill", addSkill, "primary"),
-  );
-  if (!library.skills?.length) empty(main, "No skills yet");
-  for (const skill of library.skills || []) {
-    const card = node("section", "card");
-    const head = node("div", "card-head");
-    const actions = node("div", "buttons");
-    actions.append(
-      button("View skill", async () => {
-        const data = await api(
-          "library/skill?name=" + encodeURIComponent(skill.name),
-        );
-        const form = openDialog("View skill");
-        form.append(
-          node("pre", "", data.text),
-          button("Close", () => dialog.close()),
-        );
-      }),
-    );
-    if (skill.kind === "github")
-      actions.append(
-        button("Update", () =>
-          libraryChange("skills/update", { name: skill.name }),
-        ),
-      );
-    actions.append(
-      button(
-        "Remove",
-        () =>
-          confirmAction(
-            "Remove this item from the library and assigned agents?",
-            "Remove",
-            () => libraryChange("skills/remove", { name: skill.name }),
-          ),
-        "danger",
-      ),
-    );
-    head.append(node("h2", "", skill.name), actions);
-    card.append(head, node("p", "", skill.description));
-    if (skill.missing) card.append(node("p", "warning", t("Missing files")));
-    const group = assignments(library.agents, skill.agents, "skills");
-    group.onchange = async () => {
-      try {
-        await libraryChange("skills/agents", {
-          name: skill.name,
-          agents: chosen(group),
-        });
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          notify("Could not save this change. Check your input and try again.");
-          await showView(currentView);
-        }
-      }
-    };
-    card.append(group);
-    main.append(card);
-  }
-}
-function addSkill() {
-  const form = openDialog("Add skill");
-  form.append(
-    node(
-      "p",
-      "warning",
-      t(
-        "Review skills before installing. Skills can instruct agents to run commands.",
-      ),
-    ),
-  );
-  const source = inputField(form, "Skill source", "");
-  source.placeholder = t("Local folder or GitHub repository URL");
-  source.required = true;
-  const candidates = node("div");
-  const group = assignments(library.agents, [], "skills");
-  const inspect = button("Inspect source", async () => {
-    if (!form.reportValidity()) return;
-    candidates.replaceChildren();
-    const probe = await api("library/skills/probe", { source: source.value });
-    if (!probe.candidates?.length)
-      candidates.append(node("p", "", t("No skills found at this source")));
-    for (const candidate of probe.candidates || []) {
-      const row = node("div", "row");
-      row.append(node("span", "", candidate.name));
-      row.append(
-        candidate.have
-          ? node("span", "badge", t("Installed"))
-          : button(
-              "Install",
-              async () => {
-                await libraryChange("skills/install", {
-                  source: probe.source,
-                  paths: [candidate.path],
-                  agents: chosen(group),
-                });
-                dialog.close();
-              },
-              "primary",
-            ),
-      );
-      candidates.append(row);
-    }
-  });
-  source.oninput = () => candidates.replaceChildren();
-  form.append(
-    node("h3", "", t("Assign to agents")),
-    group,
-    inspect,
-    candidates,
-    button("Cancel", () => dialog.close()),
-  );
-}
-function renderInstructions(main) {
-  heading(main, "Shared instructions for your coding agents.");
-  const form = node("form", "card");
-  form.onsubmit = (e) => e.preventDefault();
-  const text = inputField(
-    form,
-    "Shared instructions",
-    library.instructions?.shared,
-    true,
-  );
-  text.rows = 12;
-  const selected = (library.instructions?.agents || [])
-    .filter((a) => a.on)
-    .map((a) => a.agent);
-  const group = assignments(library.agents, selected, "instructions");
-  form.append(
-    node("h3", "", t("Assign to agents")),
-    group,
-    button(
-      "Save",
-      () =>
-        libraryChange("instructions/save", {
-          shared: text.value,
-          agents: chosen(group),
-        }),
-      "primary",
-    ),
-  );
-  main.append(form);
 }
 function renderDiagnostics(main, data) {
   heading(

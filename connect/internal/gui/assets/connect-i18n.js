@@ -1,6 +1,14 @@
 // The desktop's vanilla UI supports English and Vietnamese. English source
 // strings are the keys; every exposed string has a Vietnamese counterpart.
 const translations = {
+  "Choose official BoxAI tools and assign them to your agents.":
+    "Chọn công cụ chính thức của BoxAI và gán cho các tác tử của bạn.",
+  "No official tools available for this account":
+    "Tài khoản này chưa có công cụ chính thức",
+  "Install for agents": "Cài đặt cho tác tử",
+  "Select agents to receive this official tool. Other agents are unchanged.":
+    "Chọn tác tử để cài công cụ chính thức này. Các tác tử khác không thay đổi.",
+  "Select at least one agent": "Chọn ít nhất một tác tử",
   "Check for updates": "Kiểm tra cập nhật",
   "You are up to date": "Bạn đang dùng phiên bản mới nhất",
   "Open installer": "Mở trình cài đặt",
@@ -14,6 +22,12 @@ const translations = {
   "Sign in to connect your coding agents to BoxAI models, MCP servers and skills.":
     "Đăng nhập để kết nối các tác tử lập trình với mô hình, máy chủ MCP và kỹ năng của BoxAI.",
   "Sign in with BoxAI": "Đăng nhập bằng BoxAI",
+  "Finish signing out": "Hoàn tất đăng xuất",
+  "Retry sign-out": "Thử đăng xuất lại",
+  "Your previous sign-out did not finish. Retry to restore agent settings and revoke access before signing in again.":
+    "Lần đăng xuất trước chưa hoàn tất. Hãy thử lại để khôi phục cài đặt tác tử và thu hồi quyền truy cập trước khi đăng nhập lại.",
+  "Sign-out is still pending. Check your connection and retry.":
+    "Đăng xuất vẫn chưa hoàn tất. Kiểm tra kết nối mạng và thử lại.",
   "Continue in your browser": "Tiếp tục trong trình duyệt",
   "Complete sign-in in your browser. This window will update automatically.":
     "Hoàn tất đăng nhập trong trình duyệt. Cửa sổ này sẽ tự động cập nhật.",

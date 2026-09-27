@@ -10,6 +10,7 @@ let session = {
   account: { display_name: "Minh Nguyen" },
 };
 let failNext = false;
+let logoutFailures = 0;
 const requests = [];
 let settings = {
   lang: "en",
@@ -100,6 +101,7 @@ const server = Bun.serve({
       const patch = await request.json();
       session = { ...session, ...patch };
       failNext = patch.failNext || false;
+      logoutFailures = patch.logoutFailures || 0;
       requests.length = 0;
       return json(session);
     }
@@ -138,6 +140,8 @@ const server = Bun.serve({
       return json({ error: "fixture UI token missing" }, 403);
     if (path === "/api/boxai/session") return json(session);
     if (path === "/api/boxai/login") {
+      if (session.error?.startsWith("Sign-out pending"))
+        return json({ error: session.error }, 409);
       session.pending = true;
       return json(session, 202);
     }
@@ -146,7 +150,16 @@ const server = Bun.serve({
       return json(session);
     }
     if (path === "/api/boxai/logout") {
+      if (logoutFailures > 0) {
+        logoutFailures--;
+        return json(
+          { error: "Sign-out pending: fixture restore failure" },
+          400,
+        );
+      }
       session.authenticated = false;
+      session.pending = false;
+      session.error = "";
       return json(session);
     }
     if (!session.authenticated || failNext) {
@@ -163,21 +176,49 @@ const server = Bun.serve({
       return json(settings);
     }
     if (path === "/api/library") return json(library);
-    if (path === "/api/library/skill")
-      return json({ text: "# BoxAI tools\n\nUI fixture only." });
-    if (path === "/api/library/skills/probe")
+    if (path === "/api/library/market/servers")
       return json({
-        source: "fixture",
-        candidates: [{ name: "review", path: "review", have: false }],
+        items: [
+          {
+            id: "boxai-media",
+            title: "BoxAI Media",
+            name: "BoxAI Media",
+            inputs: [],
+          },
+        ],
       });
-    if (path === "/api/library/servers/save") {
+    if (path === "/api/library/market/skills")
+      return json({
+        items: [
+          {
+            id: "boxai-tools",
+            name: "BoxAI Tools",
+            source: "boxai",
+            official: true,
+          },
+        ],
+      });
+    if (
+      ["/api/library/market/server", "/api/library/market/skill"].includes(path)
+    ) {
       const body = await request.json();
-      const index = library.servers.findIndex((s) => s.name === body.old);
-      if (index < 0) library.servers.push(body.server);
-      else library.servers[index] = body.server;
-      return json(library);
+      requests.at(-1).body = body;
+      const skill = path.endsWith("/skill");
+      if (
+        body.id !== (skill ? "boxai-tools" : "boxai-media") ||
+        (skill && body.source !== "boxai") ||
+        !Array.isArray(body.agents) ||
+        !body.agents.length ||
+        body.agents.some((id) => !library.agents.some((a) => a.id === id))
+      )
+        return json({ error: "invalid official installation" }, 400);
+      return json({
+        ...library,
+        result: { changed: body.agents, problems: [] },
+      });
     }
-    if (path.startsWith("/api/library/")) return json(library);
+    if (path.startsWith("/api/library/"))
+      return json({ error: "unsupported library operation" }, 404);
     if (path === "/api/set") {
       const body = await request.json();
       state.agents

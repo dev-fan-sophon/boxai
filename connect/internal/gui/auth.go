@@ -101,13 +101,13 @@ func productHandler(next http.Handler) http.Handler {
 		allowed := false
 		if r.Method == http.MethodGet {
 			switch p {
-			case "/api/state", "/api/models", "/api/settings", "/api/drift", "/api/library", "/api/library/skill", "/api/diagnostics":
+			case "/api/state", "/api/models", "/api/settings", "/api/drift", "/api/library", "/api/library/market/servers", "/api/library/market/skills", "/api/diagnostics":
 				allowed = true
 			}
 		} else if r.Method == http.MethodPost {
 			switch p {
 			case "/api/set", "/api/settings", "/api/settings/reveal", "/api/account", "/api/installer/check", "/api/installer/open", "/api/window/hide", "/api/window/main", "/api/window/quit", "/api/window/fit", "/api/window/tint", "/api/agents/arrange",
-				"/api/library/instructions/save", "/api/library/servers/save", "/api/library/servers/agents", "/api/library/servers/remove", "/api/library/skills/probe", "/api/library/skills/install", "/api/library/skills/update", "/api/library/skills/agents", "/api/library/skills/remove", "/api/library/reveal":
+				"/api/library/market/server", "/api/library/market/skill":
 				allowed = true
 			}
 			if strings.HasPrefix(p, "/api/agents/reapply/") || strings.HasPrefix(p, "/api/agents/keep/") {
