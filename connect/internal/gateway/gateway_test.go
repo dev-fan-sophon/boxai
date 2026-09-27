@@ -268,6 +268,50 @@ func TestResponsesClientFallsBackToChat(t *testing.T) {
 	}
 }
 
+// OpenCode Go serves its Grok models on /responses only, and says so on
+// /messages and /chat/completions alike: Claude Code's request goes on
+// past both, and the next is sent straight to /responses.
+func TestAnthropicClientFallsBackPastOpenCodeFormats(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	calls := map[string]int{}
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body)
+		calls[r.URL.Path]++
+		switch r.URL.Path {
+		case "/v1/messages", "/v1/chat/completions":
+			format := map[string]string{"/v1/messages": "anthropic", "/v1/chat/completions": "oa-compat"}[r.URL.Path]
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, `{"type":"error","error":{"type":"ModelError","message":"Model grok-x is not supported for format `+format+`"}}`)
+		case "/v1/responses":
+			w.Header().Set("Content-Type", "text/event-stream")
+			io.WriteString(w, sse(
+				`event: response.output_text.delta`+"\n"+`data: {"type":"response.output_text.delta","delta":"grok ok"}`,
+				`event: response.completed`+"\n"+`data: {"type":"response.completed","response":{"id":"r1","model":"grok-x","status":"completed","usage":{"input_tokens":4,"output_tokens":2}}}`,
+			))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(up.Close)
+	if err := provider.Save(provider.Provider{ID: "fake", Name: "Fake", Key: "k", Models: []string{"grok-x"},
+		Chat: up.URL + "/v1", Responses: up.URL + "/v1", Anthropic: up.URL}); err != nil {
+		t.Fatal(err)
+	}
+	handler := New().Handler()
+	for i, want := range []int{1, 2} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("POST", "/v1/messages", strings.NewReader(`{"model":"grok-x","max_tokens":100,"messages":[{"role":"user","content":"hi"}]}`)))
+		if rec.Code != 200 || !strings.Contains(rec.Body.String(), "grok ok") {
+			t.Fatalf("call %d: status %d: %s", i, rec.Code, rec.Body.String())
+		}
+		if calls["/v1/messages"] != 1 || calls["/v1/chat/completions"] != 1 || calls["/v1/responses"] != want {
+			t.Fatalf("call %d: %v", i, calls)
+		}
+	}
+}
+
 func TestWrongEndpoint(t *testing.T) {
 	for _, tc := range []struct {
 		status int
@@ -278,6 +322,8 @@ func TestWrongEndpoint(t *testing.T) {
 		{404, `use v1/completions`, true},
 		{400, `{"code":null,"message":"model \"gpt-6-sol\" is not accessible via the /chat/completions endpoint","type":"invalid_request_error"}`, true},
 		{400, `{"error":{"message":"model not accessible","code":"unsupported_api_for_model"}}`, true},
+		{400, `{"type":"error","error":{"type":"ModelError","message":"Model grok-4.7 is not supported for format anthropic"}}`, true},
+		{400, `{"type":"error","error":{"type":"invalid_request_error","message":"Model does not support this protocol."}}`, true},
 		{429, `rate limit`, false},
 		{500, `use v1/responses`, false},
 		{200, `use v1/responses`, false},
@@ -1049,5 +1095,85 @@ func TestUsagePromptCountsCacheWrites(t *testing.T) {
 	}
 	if g := u.gemini(); g["promptTokenCount"] != 26741 || g["totalTokenCount"] != 26771 {
 		t.Errorf("gemini: %v", g)
+	}
+}
+
+// Reject invalid envelopes before routing, including on passthrough APIs.
+func TestRequestValidationBeforeRouting(t *testing.T) {
+	f := &fake{t: t}
+	setup(t, provider.Responses, f)
+	chatgpt(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("invalid request reached OpenAI")
+		w.WriteHeader(400)
+	})
+	cases := []struct{ name, body string }{
+		{"empty", ""},
+		{"truncated", `{"model":"fake/m1","input":`},
+		{"null", `null`},
+		{"array", `[]`},
+		{"missing_model", `{}`},
+		{"null_model", `{"model":null}`},
+		{"wrong_model_type", `{"model":7}`},
+		{"blank_model", `{"model":"  "}`},
+		{"empty_provider", `{"model":"/m1"}`},
+		{"empty_vendor_model", `{"model":"fake/"}`},
+		{"trailing_junk", `{"model":"fake/m1"}garbage`},
+		{"second_object", `{"model":"fake/m1"}{}`},
+	}
+	for _, path := range []string{"/v1/responses", "/v1/chat/completions", "/v1/messages", "/v1/messages/count_tokens", CodexPath + "/responses", CodexPath + "/responses/compact"} {
+		t.Run(path, func(t *testing.T) {
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					code, body := post(t, path, tc.body)
+					if code != 400 || !json.Valid([]byte(body)) {
+						t.Fatalf("status %d: %s", code, body)
+					}
+					if f.calls != 0 {
+						t.Fatalf("invalid request reached provider: %d calls", f.calls)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestGeminiRequestValidation(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	f := &fake{t: t, reply: sse(
+		`data: {"id":"c1","choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}`,
+		`data: [DONE]`)}
+	setup(t, provider.Chat, f)
+	for _, method := range []string{"generateContent", "streamGenerateContent", "countTokens"} {
+		t.Run(method, func(t *testing.T) {
+			for _, body := range []string{"", `null`, `[]`, `{"contents":`, `{"contents":[]}junk`, `{"contents":[]}{}`} {
+				code, reply := post(t, "/v1beta/models/fake/m1:"+method, body)
+				if code != 400 || !strings.Contains(reply, `"INVALID_ARGUMENT"`) {
+					t.Fatalf("body %q: %d %s", body, code, reply)
+				}
+			}
+		})
+	}
+	if f.calls != 0 {
+		t.Fatalf("invalid request reached provider: %d calls", f.calls)
+	}
+	// Gemini gets its model from the URL, not a required body field.
+	code, body := post(t, "/v1beta/models/fake/m1:generateContent", `{"contents":[{"parts":[{"text":"hi"}]}]}`)
+	if code != 200 || f.calls != 1 || !strings.Contains(body, "OK") {
+		t.Fatalf("URL model: %d %s, calls %d", code, body, f.calls)
+	}
+}
+
+func TestRequestValidationPreservesPayload(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	f := &fake{t: t, ctype: "application/json", reply: `{"id":"r1","output":[]}`}
+	setup(t, provider.Responses, f)
+	code, body := post(t, "/v1/responses", `{"model":"  fake/vendor/new-model  ","input":"hi","extension":{"number":9007199254740993}}`)
+	if code != 200 || f.calls != 1 || modelOf(f.got) != "vendor/new-model" || !strings.Contains(string(f.got), "9007199254740993") {
+		t.Fatalf("%d %s; upstream %s, calls %d", code, body, f.got, f.calls)
+	}
+	// Valid unknown models can still use the existing local token estimate.
+	code, body = post(t, "/v1/messages/count_tokens", `{"model":"unknown","messages":[{"role":"user","content":"hello"}]}`)
+	if code != 200 || !strings.Contains(body, `"input_tokens"`) || f.calls != 1 {
+		t.Fatalf("token estimate: %d %s, calls %d", code, body, f.calls)
 	}
 }

@@ -44,8 +44,15 @@ func Addr() string {
 	return DefaultAddr
 }
 
-// URL is the base URL agents use, e.g. http://127.0.0.1:3425.
-func URL() string { return "http://" + Addr() }
+// URL is the base URL agents use, e.g. http://127.0.0.1:3425: a gateway
+// listening on every interface is reached here on loopback.
+func URL() string {
+	a := Addr()
+	if h, p, err := net.SplitHostPort(a); err == nil && (h == "" || net.ParseIP(h) != nil && net.ParseIP(h).IsUnspecified()) {
+		a = net.JoinHostPort("127.0.0.1", p)
+	}
+	return "http://" + a
+}
 
 // Running reports whether a gateway answers at the address.
 func Running() bool {
@@ -89,6 +96,10 @@ type Server struct {
 	subscription *subscriptionBridge
 	debug        bool
 	trace        trace // what routing did with each request, for the Gateway view
+	// the listener, swapped when the gateway is shared on the network or
+	// taken off it (see Relisten)
+	lnMu sync.Mutex
+	ln   net.Listener
 }
 
 // New makes a gateway.
@@ -138,11 +149,15 @@ var WhileServing []func(context.Context)
 // ListenAndServe runs the gateway until ctx ends. A bind error means
 // another magpie is already serving, which is fine for the caller to ignore.
 func (s *Server) ListenAndServe(ctx context.Context) error {
-	ln, err := net.Listen("tcp", Addr())
+	loadLANKey()
+	ln, err := net.Listen("tcp", listenAddr())
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 5 * time.Minute}
+	s.lnMu.Lock()
+	s.ln = ln
+	s.lnMu.Unlock()
+	srv := &http.Server{Handler: lanGuard(s.Handler()), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 5 * time.Minute}
 	// the magpie serving the gateway, and only it, keeps the saved accounts
 	// signed in, so two never refresh one sign-in at once
 	if !provider.BoxAIOnly() {
@@ -159,10 +174,20 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		defer cancel()
 		srv.Shutdown(c)
 	}()
-	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+	for {
+		err := srv.Serve(ln)
+		if err == nil || errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		// Relisten closed it to move the gateway: serve the one it opened
+		s.lnMu.Lock()
+		next := s.ln
+		s.lnMu.Unlock()
+		if next == ln {
+			return err
+		}
+		ln = next
 	}
-	return nil
 }
 
 // Handler routes the client APIs.
@@ -270,7 +295,13 @@ func (s *Server) countTokens(w http.ResponseWriter, r *http.Request) {
 		writeError(w, provider.Anthropic, 400, err.Error())
 		return
 	}
-	p, model, ok := provider.Resolve(modelOf(body))
+	var model string
+	body, model, err = requestModel(body)
+	if err != nil {
+		writeError(w, provider.Anthropic, 400, err.Error())
+		return
+	}
+	p, model, ok := provider.Resolve(model)
 	// Claude Subscription generations run through the Claude Code binary. Its
 	// OAuth token must not take a direct HTTP side path just for token counting.
 	if ok && p.Account != nil && (p.Account.Agent == "claude" || p.Account.Agent == "cursor" || p.Account.Agent == "grok" || p.Account.Agent == "devin" || p.Account.Agent == "kiro" || p.Account.Agent == "gemini" || p.Account.Agent == "antigravity") {
@@ -322,6 +353,11 @@ func (s *Server) handle(from provider.Protocol) http.HandlerFunc {
 			writeError(w, from, 400, err.Error())
 			return
 		}
+		body, _, err = requestModel(body)
+		if err != nil {
+			writeError(w, from, 400, err.Error())
+			return
+		}
 		s.serve(w, r, from, body)
 	}
 }
@@ -338,6 +374,15 @@ func (s *Server) gemini(w http.ResponseWriter, r *http.Request) {
 	}
 	model, method := call[:i], call[i+1:]
 	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<20))
+	if err != nil {
+		writeError(w, provider.Gemini, 400, err.Error())
+		return
+	}
+	if err := decodeRequest(body, &struct{}{}); err != nil {
+		writeError(w, provider.Gemini, 400, err.Error())
+		return
+	}
+	model, err = validateModel(model)
 	if err != nil {
 		writeError(w, provider.Gemini, 400, err.Error())
 		return
@@ -1016,6 +1061,8 @@ func wrongEndpoint(status int, body []byte) bool {
 		"use /v1/chat/completions",
 		"not accessible via the", // Copilot
 		"unsupported_api_for_model",
+		"is not supported for format",    // OpenCode: "Model grok-4.7 is not supported for format anthropic"
+		"does not support this protocol", // OpenCode, with a key: "Model does not support this protocol"
 	} {
 		if strings.Contains(msg, phrase) {
 			return true
@@ -1201,6 +1248,49 @@ func streamOf(body []byte) bool {
 	}
 	json.Unmarshal(body, &v)
 	return v.Stream
+}
+
+// decodeRequest requires one complete JSON object before fields are rewritten
+// or a request is routed. In particular, null is not an empty object.
+func decodeRequest(body []byte, dst any) error {
+	body = bytes.TrimSpace(body)
+	if len(body) == 0 || body[0] != '{' {
+		return errors.New("invalid request: expected a JSON object")
+	}
+	if err := json.Unmarshal(body, dst); err != nil {
+		return fmt.Errorf("invalid request: %w", err)
+	}
+	return nil
+}
+
+func validateModel(model string) (string, error) {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return "", errors.New("invalid request: model must be a nonempty string")
+	}
+	if p, m, ok := strings.Cut(model, "/"); ok && (p == "" || m == "") {
+		return "", errors.New("invalid request: expected provider/model with both parts nonempty")
+	}
+	return model, nil
+}
+
+// requestModel checks the envelope without restricting vendor-specific fields.
+// Only a model with surrounding whitespace needs its body rewritten.
+func requestModel(body []byte) ([]byte, string, error) {
+	var q struct {
+		Model string `json:"model"`
+	}
+	if err := decodeRequest(body, &q); err != nil {
+		return nil, "", err
+	}
+	model, err := validateModel(q.Model)
+	if err != nil {
+		return nil, "", err
+	}
+	if model != q.Model {
+		body = withModel(body, model)
+	}
+	return body, model, nil
 }
 
 func modelOf(body []byte) string {

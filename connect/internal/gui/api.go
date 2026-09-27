@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/agent"
+	"github.com/yetone/magpie/internal/autostart"
 	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/gateway"
 	"github.com/yetone/magpie/internal/library"
@@ -109,11 +110,19 @@ type settingsJSON struct {
 	// settings, environment, system, off or none
 	ProxyNow    string `json:"proxyNow"`
 	ProxySource string `json:"proxySource"`
+	// whether magpie opens at login: the system's record, not a setting
+	Login bool `json:"login"`
+	// where other machines reach the gateway while it is shared
+	LANURLs []string `json:"lanURLs,omitempty"`
 }
 
 func settingsState() settingsJSON {
 	s := settingsJSON{Settings: settings.Load(), Version: Version, Dir: tilde(settings.Dir()), Gateway: gateway.URL()}
 	s.ProxyNow, s.ProxySource = netproxy.Describe()
+	s.Login = autostart.Enabled()
+	if s.LAN {
+		s.LANURLs = gateway.LANURLs()
+	}
 	return s
 }
 
@@ -295,6 +304,10 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		cur := settings.Load()
 		in.AgentOrder, in.AgentsHidden, in.AgentsShown = cur.AgentOrder, cur.AgentsHidden, cur.AgentsShown
 		in.Window = cur.Window // the window's own, as it was last resized
+		// and what other pages keep here: the models' names, levels and
+		// who sees them, and sharing on the network, set on its own
+		in.Visible, in.ModelNames, in.ModelEfforts = cur.Visible, cur.ModelNames, cur.ModelEfforts
+		in.LAN, in.LANKey = cur.LAN, cur.LANKey
 		if err := settings.Save(in); err != nil {
 			fail(rw, err)
 			return
@@ -316,6 +329,43 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		if err := settings.Save(s); err != nil {
 			fail(rw, err)
 			return
+		}
+		writeJSON(rw, settingsState())
+	})
+	mux.HandleFunc("POST /api/settings/login", func(rw http.ResponseWriter, r *http.Request) {
+		var in struct{ On bool }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			fail(rw, err)
+			return
+		}
+		if err := autostart.Set(in.On); err != nil {
+			fail(rw, err)
+			return
+		}
+		writeJSON(rw, settingsState())
+	})
+	// sharing the gateway on the local network: on makes its key the first
+	// time, new asks for another (the old one stops working)
+	mux.HandleFunc("POST /api/settings/lan", func(rw http.ResponseWriter, r *http.Request) {
+		var in struct{ On, NewKey bool }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			fail(rw, err)
+			return
+		}
+		s := settings.Load()
+		s.LAN = in.On
+		if s.LANKey == "" || in.NewKey {
+			s.LANKey = gateway.NewLANKey()
+		}
+		if err := settings.Save(s); err != nil {
+			fail(rw, err)
+			return
+		}
+		if gw := served.Load(); gw != nil {
+			if err := gw.Relisten(); err != nil {
+				fail(rw, err)
+				return
+			}
 		}
 		writeJSON(rw, settingsState())
 	})

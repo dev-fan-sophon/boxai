@@ -27,7 +27,8 @@ type modelJSON struct {
 	Default string   `json:"default,omitempty"` // its own name, when the user gave it another
 	Kept    []string `json:"kept,omitempty"`    // the reasoning levels the user keeps of Efforts, when not all
 	Efforts []string `json:"efforts,omitempty"`
-	On      bool     `json:"on"` // exposed to agents
+	Given   bool     `json:"given,omitempty"` // its levels aren't known: Efforts are those it can be given, Kept those it was
+	On      bool     `json:"on"`              // exposed to agents
 }
 
 type providerJSON struct {
@@ -220,6 +221,9 @@ func providerInfo(p provider.Provider, agents []agentUse) providerJSON {
 			j.Default = cmp.Or(m.Name, m.ID)
 			j.Name = n
 		}
+		if len(j.Efforts) == 0 {
+			j.Efforts, j.Given = provider.Levels, true
+		}
 		if k, ok := kept[m.ID]; ok {
 			j.Kept = slices.DeleteFunc(slices.Clone(j.Efforts), func(e string) bool { return !slices.Contains(k, e) })
 		}
@@ -379,6 +383,9 @@ func providerRoutes(mux *http.ServeMux, w Windows) {
 			// Efforts, for efforts: the reasoning levels it offers, none
 			// for all it has
 			Efforts []string `json:"efforts"`
+			// Test, for test: models to send a request each, in place of
+			// one per endpoint
+			Test []string `json:"test"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			fail(rw, err)
@@ -506,6 +513,12 @@ func providerRoutes(mux *http.ServeMux, w Windows) {
 			p, err := provider.Find(in.ID)
 			if err != nil {
 				fail(rw, err)
+				return
+			}
+			if len(req.Test) > 0 {
+				ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+				defer cancel()
+				writeJSON(rw, map[string]any{"results": p.TestModels(ctx, req.Test)})
 				return
 			}
 			ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
