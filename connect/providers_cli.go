@@ -21,44 +21,29 @@ var amber = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#B4530
 
 const providerUsage = `usage:
   magpie providers                        list providers, keys and who uses them
-  magpie presets                          list the vendors magpie knows out of the box
+  magpie presets                          show the BoxAI preset
   magpie provider <id>                    show one provider and its models
-  magpie provider add <preset> <key>      add a preset vendor   e.g. magpie provider add deepseek sk-…
-                                          again, it adds another (deepseek-2); k=v pairs too: id, name, header.X-Foo
-  magpie provider add <name> k=v…         add a custom vendor   k: url, anthropic, responses, key, models, catalog, icon, header.X-Foo, balance, balance.path, balance.token, models.url
-  magpie provider set <id> k=v…           change a provider's settings, with the same k=v pairs as add
+  magpie provider add boxai <key>        configure BoxAI; additional keys use the Providers editor
+  magpie provider set boxai k=v…         change models, context, family or header.X-Foo
   magpie provider key <id> <key>          change the API key
-  magpie provider icon <id> <file|name>   give a custom provider a picture (PNG, JPEG, SVG…) or a built-in icon
   magpie provider fallback <id> <provider/model>…   where requests go when it's out of quota or down (none clears)
   magpie provider models <id> [ids…]      fetch the vendor's model list, or choose which models to expose
   magpie provider listed <id> yes|no      no: its models serve only through routing groups, not in the list
   magpie provider test <id>               send a tiny request through each endpoint
   magpie provider rm <id>                 remove a provider
 
-  e.g. magpie provider add "My Relay" url=https://relay.example.com/v1 key=sk-…
-       magpie provider add "Own Claude" anthropic=https://gw.example.com key=sk-… catalog=anthropic
-       magpie provider add "My Relay" url=https://relay.example.com/v1 key=sk-… header.X-Org-Id=acme
-       magpie provider add anthropic sk-… id=anthropic-ws2 name="Anthropic WS2" header.anthropic-workspace-id=wrkspc_…
-       magpie provider set my-relay models.url=https://relay.example.com/api/models catalog=
-       magpie provider add "My Relay" url=https://relay.example.com/v1 key=sk-… balance=https://relay.example.com/api/usage/token balance.path='$data.total_available / 500000'
-       magpie provider set my-relay balance.path='(1 - credits.monthlyCredits / 70) %'
-       magpie provider set my-relay balance=https://relay.example.com/api/user/self balance.path='$data.quota / 500000' balance.token=<access token> header.New-Api-User=<user id>
-                                   (a new-api relay's whole account: its access token and user id, from its personal settings)
-                                   (balance.path: where the amount is in the reply, or a sum of those with + - * / and
-                                    brackets; $ or ¥ in front adds the sign, % after it shows a percent of 1;
-                                    several go apart by ; each with a label: '5h: a.used / a.cap %; $credits.left')
-       magpie provider set my-relay context=272k context.gpt-6=1m
+  e.g. magpie provider add boxai sk-…
+       magpie provider set boxai context=272k context.gpt-6=1m
                                    (context: how long a request agents are told the models take, over what the
                                     vendor or models.dev says; context.<model> for one of them; empty clears)
-       magpie provider set opencode-go family=ocgo
-       magpie provider set my-relay id=relay   (renames it: groups and agents on my-relay/… move to relay/…)
-                                   (family: a tag for which agents are shown its models, see magpie visible)`
+  BoxAI is the only provider. Endpoints are fixed at https://you-box.com.
+  Keys remain in ~/.config/magpie/providers.json.`
 
 // providers: `magpie providers`
 func providers() error {
 	all := provider.All()
 	if len(all) == 0 && len(provider.Excluded()) == 0 {
-		fmt.Println(muted.Render("no providers yet ·"), "magpie provider add deepseek sk-…", muted.Render("· magpie presets lists the vendors"))
+		fmt.Println(muted.Render("no providers yet ·"), "magpie provider add boxai sk-…", muted.Render("· magpie presets lists the vendors"))
 		return nil
 	}
 	uses := usesByProvider()
@@ -429,7 +414,7 @@ func providerCmd(args []string) error {
 // addProvider: `magpie provider add <preset> [key]` or `magpie provider add <name> k=v…`
 func addProvider(rest []string) error {
 	if len(rest) == 0 {
-		return fmt.Errorf("magpie provider add <preset> <key>   or   magpie provider add <name> k=v…\n\n%s", providerUsage)
+		return fmt.Errorf("%s", providerUsage)
 	}
 	if len(rest) == 1 && slices.ContainsFunc(provider.Excluded(), func(x provider.Exclusion) bool { return x.Provider == strings.ToLower(rest[0]) }) {
 		// a signed-in account the user removed comes back with its picks

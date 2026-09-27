@@ -149,7 +149,7 @@ func codex(home string) *Agent {
 			// a ChatGPT account out of allowance keeps the Codex app from
 			// sending at all, a magpie model's request too; as a provider
 			// of Codex's own, magpie is past that
-			if codexSignedIn(dir) && !codexUsedUp() {
+			if !provider.BoxAIOnly() && codexSignedIn(dir) && !codexUsedUp() {
 				if err := dropProvider(); err != nil {
 					return err
 				}

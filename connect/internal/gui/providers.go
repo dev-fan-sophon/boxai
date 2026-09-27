@@ -122,6 +122,7 @@ type excludedJSON struct {
 }
 
 type providersJSON struct {
+	BoxAIOnly bool           `json:"boxaiOnly"`
 	Providers []providerJSON `json:"providers"`
 	Presets   []presetJSON   `json:"presets"`
 	Excluded  []excludedJSON `json:"excluded"` // sign-ins magpie found but will not share
@@ -255,7 +256,7 @@ func providerInfo(p provider.Provider, agents []agentUse) providerJSON {
 
 func providersState() providersJSON {
 	agents := agent.Detected()
-	s := providersJSON{Providers: []providerJSON{}, Presets: []presetJSON{}, Excluded: []excludedJSON{}}
+	s := providersJSON{BoxAIOnly: provider.BoxAIOnly(), Providers: []providerJSON{}, Presets: []presetJSON{}, Excluded: []excludedJSON{}}
 	for _, x := range provider.Excluded() {
 		e := excludedJSON{Exclusion: x, Name: x.Agent, Icon: "generic"}
 		if a, err := agent.Find(x.Agent); err == nil {

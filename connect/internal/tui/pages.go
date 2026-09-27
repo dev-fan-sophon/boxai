@@ -303,9 +303,13 @@ func (m *model) openPresets() {
 	for _, d := range provider.Presets() {
 		items = append(items, agent.Option{Value: d.ID, Note: d.Name + " · " + string(d.Kind)})
 	}
+	hint := "a vendor magpie knows (magpie provider add <name> url=… for another)"
+	if provider.BoxAIOnly() {
+		hint = "BoxAI"
+	}
 	m.pk = picker{
 		crumbs: []string{"providers", "add"},
-		input:  newInput("a vendor magpie knows (magpie provider add <name> url=… for another)"),
+		input:  newInput(hint),
 		items:  items,
 		onPick: func(id string) tea.Cmd {
 			return func() tea.Msg {

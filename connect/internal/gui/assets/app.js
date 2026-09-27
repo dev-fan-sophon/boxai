@@ -1749,8 +1749,9 @@ let presetQuery = "";
 function renderAdd() {
   const sheet = $("#addSheet");
   sheet.replaceChildren();
+  if (providers.boxaiOnly && providers.providers.length) adding = false;
   sheet.hidden = !adding;
-  $("#addProvider").hidden = adding;
+  $("#addProvider").hidden = adding || (providers.boxaiOnly && providers.providers.length > 0);
   if (!adding) return null;
   const head = el("div", "row-head");
   head.append(el("span", "label", t(providers.providers.length ? "Add a provider" : "Add your first provider")), el("span", "grow"));
@@ -1761,7 +1762,7 @@ function renderAdd() {
   const imp = el("button", "text", t("Import…"));
   imp.title = t("Bring over providers set up in other apps");
   imp.onclick = openImportApps;
-  head.append(imp);
+  if (!providers.boxaiOnly) head.append(imp);
   if (providers.providers.length) {
     const x = el("button", "text", t("Close"));
     x.onclick = () => { adding = false; editing = null; draft = null; presetQuery = ""; renderProviders(); };
@@ -1775,7 +1776,7 @@ function renderAdd() {
     const f = presetQuery.trim().toLowerCase();
     const hit = (pr) => !f || pr.name.toLowerCase().includes(f) || pr.id.includes(f) || hostOf(pr.chat || pr.responses || pr.anthropic).includes(f) || (pr.note || "").toLowerCase().includes(f);
     let any = false;
-    const subs = SUBS.filter((x) => !f || x.name.toLowerCase().includes(f) || x.agent.includes(f) || "subscription".includes(f));
+    const subs = providers.boxaiOnly ? [] : SUBS.filter((x) => !f || x.name.toLowerCase().includes(f) || x.agent.includes(f) || "subscription".includes(f));
     if (subs.length) {
       any = true;
       tiles.append(el("div", "kind", t("Subscriptions · sign in, no key")));
@@ -1787,12 +1788,12 @@ function renderAdd() {
     }
     for (const [kind, title] of [["vendor", "Vendors"], ["relay", "Relays · many vendors behind one key"], ["local", "On this machine"]]) {
       const ps = providers.presets.filter((p) => p.kind === kind && hit(p));
-      if (!ps.length && !(kind === "local" && !f)) continue;
+      if (!ps.length && !(kind === "local" && !f && !providers.boxaiOnly)) continue;
       any = true;
       tiles.append(el("div", "kind", t(title)));
       const grid = el("div", "grid");
       for (const pr of ps) grid.append(tile(pr));
-      if (kind === "local" && !f) {
+      if (kind === "local" && !f && !providers.boxaiOnly) {
         const c = el("button", "tile custom" + (editing?.custom ? " on" : ""));
         const ic = el("span", "ic plus");
         ic.append(svg(PLUS, 13, 1.8));
@@ -1808,7 +1809,7 @@ function renderAdd() {
       none.append(t("Nothing called “{q}”. ", { q: presetQuery.trim() }));
       const b = el("button", "link", t("Add it as a custom provider"));
       b.onclick = () => { editing = { custom: true }; draft = null; renderProviders(); };
-      none.append(b);
+      if (!providers.boxaiOnly) none.append(b);
       tiles.append(none);
     }
   };
@@ -2180,7 +2181,7 @@ function renderEditor(p, presetID) {
     w.append(idIn, hint);
     ed.append(el("label", "", t("ID")), w);
   };
-  if (p && !p.account && !custom) idField();
+  if (p && !p.account && !custom && !providers.boxaiOnly) idField();
   let fillEndpoints = () => {};
   if (custom) {
     name = input(draft.name, t("e.g. My Relay"));
@@ -2391,7 +2392,7 @@ function renderEditor(p, presetID) {
     del.onclick = () => providerAction("delete", { id: p.id }, t("{name} removed", { name: p.name }));
     bar.append(del);
   }
-  if (p && pr) {
+  if (p && pr && !providers.boxaiOnly) {
     // another key of the vendor, or the same key for another workspace
     const more = el("button", "text", t("Add another {name}", { name: pr.name }));
     more.title = t("One more {name} provider, with its own key, headers and models", { name: pr.name });

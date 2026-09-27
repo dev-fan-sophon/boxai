@@ -72,6 +72,9 @@ var appReaders = []struct {
 
 // ImportSources reads every app magpie can import from.
 func ImportSources() []AppSource {
+	if BoxAIOnly() {
+		return nil
+	}
 	have := load().Providers
 	used := map[string]bool{} // ids across all sources, so two never collide
 	var out []AppSource
@@ -93,6 +96,9 @@ func ImportSources() []AppSource {
 // ImportFromApps adds what the user picked, reading the sources again so
 // keys never pass through the window. It answers the names added.
 func ImportFromApps(picks []AppPick) ([]string, error) {
+	if BoxAIOnly() {
+		return nil, errBoxAIOnly
+	}
 	sources := map[string]AppSource{}
 	for _, s := range ImportSources() {
 		sources[s.ID] = s

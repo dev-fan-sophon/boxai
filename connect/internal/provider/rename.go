@@ -20,6 +20,9 @@ import (
 // own files are the agent package's to rewrite (agent.RenameProvider).
 // A signed-in account keeps the id of its agent.
 func Rename(from, to string) error {
+	if BoxAIOnly() && (from != "boxai" || to != "boxai") {
+		return errBoxAIOnly
+	}
 	from = strings.ToLower(strings.TrimSpace(from))
 	to = strings.ToLower(strings.TrimSpace(to))
 	if to == "" || to != Slug(to) {

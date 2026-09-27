@@ -88,6 +88,9 @@ func randomToken(n int) string {
 // An agent signed in with a CLI that isn't installed has it installed first:
 // the sign-in is then "installing", and gets its URL when that is done.
 func StartSignIn(agent string) (SignInState, error) {
+	if BoxAIOnly() {
+		return SignInState{}, errBoxAIOnly
+	}
 	s := &signInFlow{verifier: randomToken(48), state: randomToken(24), done: make(chan struct{})}
 	s.st = SignInState{ID: randomToken(9), Agent: agent, State: "waiting"}
 	cli, install := missingCLI(agent)

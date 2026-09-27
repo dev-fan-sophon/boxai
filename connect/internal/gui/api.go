@@ -347,8 +347,15 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		}
 		rw.WriteHeader(http.StatusNoContent)
 	})
-	devListen(mux)
-	return mux
+	handler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if provider.BoxAIOnly() && (strings.HasPrefix(r.URL.Path, "/api/signin") || strings.HasPrefix(r.URL.Path, "/api/login/") || strings.HasPrefix(r.URL.Path, "/api/import")) {
+			http.NotFound(rw, r)
+			return
+		}
+		mux.ServeHTTP(rw, r)
+	})
+	devListen(handler)
+	return handler
 }
 
 func state() stateJSON {

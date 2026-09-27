@@ -1,9 +1,17 @@
 # BoxAI Connect
 
-Branding-only fork of [yetone/magpie](https://github.com/yetone/magpie) at
-`03a01a548df3d52fee86197fc2d0ff234b9fdfab`. Upstream functionality, command
-names, configuration paths and provider/BYOK support are unchanged at this
-stage. The original project documentation follows; the MIT license is retained.
+Fork of [yetone/magpie](https://github.com/yetone/magpie) at
+`03a01a548df3d52fee86197fc2d0ff234b9fdfab`, with BoxAI branding and BoxAI as the
+only provider. Paste a BoxAI API key in the original Providers editor; keys
+remain in `~/.config/magpie/providers.json`. Multiple keys, model selection,
+routing, agents and the resource library retain the upstream UI and behavior.
+Other provider records already on disk are not loaded or used; adding BoxAI
+does not delete them. Subscription sign-ins and third-party provider imports
+are unavailable. No browser-login requirement or new credential store is added.
+
+The original project documentation follows for reference (its third-party
+provider and subscription instructions do not apply to this fork); the MIT
+license is retained.
 
 One place to pick every agent's model: Codex on DeepSeek, Claude Code
 on Kimi, Gemini CLI on GLM, from the menu bar. [usemagpie.ai](https://usemagpie.ai)

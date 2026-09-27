@@ -13,6 +13,13 @@ func Stored() []Provider { return load().Providers }
 // its id; one that came without keys keeps the keys already here. It
 // returns how many were new and how many replaced one here.
 func Restore(ps []Provider) (added, replaced int, err error) {
+	if BoxAIOnly() {
+		for _, p := range ps {
+			if _, err := boxAIProvider(p); err != nil {
+				return 0, 0, err
+			}
+		}
+	}
 	f := load()
 	for _, p := range ps {
 		p.IconURL = ""
@@ -72,6 +79,13 @@ func RestoreGroups(gs []Group) error {
 // from another computer: one not among them goes, one that came without
 // keys keeps the keys it has here.
 func Mirror(ps []Provider, gs []Group) error {
+	if BoxAIOnly() {
+		for _, p := range ps {
+			if _, err := boxAIProvider(p); err != nil {
+				return err
+			}
+		}
+	}
 	f := load()
 	here := map[string]Provider{}
 	for _, p := range f.Providers {

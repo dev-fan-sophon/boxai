@@ -191,6 +191,14 @@ func store(f file) error {
 // model picks for one of those accounts.
 func All() []Provider {
 	stored := load().Providers
+	if BoxAIOnly() {
+		for _, p := range stored {
+			if p, err := boxAIProvider(p); err == nil {
+				return []Provider{normalize(p)}
+			}
+		}
+		return nil
+	}
 	picks := map[string]Provider{}
 	var out []Provider
 	for _, p := range stored {
@@ -260,6 +268,13 @@ func Slug(name string) string {
 
 // Save adds or replaces a provider.
 func Save(p Provider) error {
+	if BoxAIOnly() {
+		var err error
+		p, err = boxAIProvider(p)
+		if err != nil {
+			return err
+		}
+	}
 	p = normalize(p)
 	p.IconURL = "" // import-only: never stored
 	if p.ID == "" {
@@ -320,6 +335,12 @@ func Save(p Provider) error {
 // second key of a vendor, or one key for another workspace, is a provider of
 // its own rather than one replacing the first. It answers the id saved.
 func Add(p Provider) (string, error) {
+	if BoxAIOnly() {
+		if len(All()) != 0 {
+			return "", errors.New("BoxAI is already configured; add another key to the existing provider")
+		}
+		return p.ID, Save(p)
+	}
 	p.ID = strings.ToLower(strings.TrimSpace(p.ID))
 	if p.ID == "" {
 		p.ID = Slug(p.Name)

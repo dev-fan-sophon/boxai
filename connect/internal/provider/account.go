@@ -121,6 +121,9 @@ type Exclusion struct {
 // user removed from magpie, and the saved accounts of an agent that isn't
 // signed in here (a magpie serve under another HOME, say).
 func Excluded() []Exclusion {
+	if BoxAIOnly() {
+		return nil
+	}
 	var out []Exclusion
 	for _, a := range Hidden() {
 		out = append(out, Exclusion{Agent: a.Account.Agent, Provider: a.ID, Why: "You removed it from magpie."})
@@ -635,6 +638,9 @@ func claudeRefresh(ctx context.Context, c *claudeCredentials) error {
 
 // Accounts lists the signed-in agents as providers.
 func Accounts() []Provider {
+	if BoxAIOnly() {
+		return nil
+	}
 	rememberLogins(false)
 	home, _ := os.UserHomeDir()
 	cfg := os.Getenv("XDG_CONFIG_HOME")

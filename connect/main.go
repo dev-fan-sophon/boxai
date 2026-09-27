@@ -32,7 +32,7 @@ const usage = `BoxAI Connect — one place to pick every agent's model
   magpie tui                      the same thing, in the terminal
   magpie ls                       list detected agents and their settings
   magpie <agent>                  show one agent
-  magpie <agent> <model>          set an agent's model   e.g. magpie claude deepseek/deepseek-chat
+  magpie <agent> <model>          set an agent's model   e.g. magpie claude boxai/claude-sonnet-4-6
   magpie <agent> <field> <value>  set another field   e.g. magpie codex effort high
   magpie <agent> [field] default  back to the agent's own default, magpie's wiring removed
 
@@ -47,12 +47,10 @@ const usage = `BoxAI Connect — one place to pick every agent's model
   magpie library [sync|instructions|mcp|skill]   the instructions, MCP servers and skills written into every agent (magpie library help)
 
   magpie providers                list your providers: host, key, models, who uses them
-  magpie presets                  the vendors magpie knows: add one with just a key
-  magpie provider add <preset> <key>   e.g. magpie provider add deepseek sk-…
-  magpie provider add <name> k=v…      a custom vendor (magpie provider for the fields)
+  magpie presets                  the BoxAI provider preset
+  magpie provider add boxai <key>     configure your BoxAI API key
   magpie provider key|models|test|rm <id>
   magpie provider fallback <id> <provider/model>…   use these when it's out of quota or down
-  magpie import [-y] <link>       add the provider a magpie://import?… link describes
   magpie models [<agent>]         every model agents can pick, as provider/model; an agent's, and why others aren't
   magpie model name <provider/model> <name>|--reset       the name a model goes by, everywhere
   magpie model efforts <provider/model> <l>,<l>|--reset   the reasoning levels a model offers (magpie model help)
@@ -61,11 +59,6 @@ const usage = `BoxAI Connect — one place to pick every agent's model
   magpie groups                   routing groups: several models agents pick as one, group/<id>
   magpie group add <name> models=<m1>,<m2> [routing=smart|order|rotate|usage] [stays=auto|session|turn|off]
   magpie group <id> | set <id> k=v… | rm <id>   show, change or remove one (magpie group help for more)
-  magpie accounts [agent] [--json]  every subscription magpie knows, with each one's allowance used and when it resets
-  magpie accounts add <agent>     sign in to one more Claude, ChatGPT or Google (Gemini CLI, Antigravity) subscription
-  magpie accounts switch <agent> <email>   sign the agent in to another of them
-  magpie accounts refresh         renew the saved Claude and ChatGPT sign-ins now (the gateway does it daily)
-  magpie accounts project <gemini|antigravity> <email> <project>   the Google Cloud project a Google account's requests go to
 
   magpie serve                    run the gateway alone (the app runs it too)
   magpie usage [today|7d|30d|all] tokens and cost per agent and model (30d)
@@ -85,6 +78,7 @@ var (
 )
 
 func main() {
+	provider.UseBoxAI()
 	gateway.Version = version
 	netproxy.Install()
 	update.GUI = hasGUI
@@ -95,6 +89,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if provider.BoxAIOnly() && len(args) > 0 && (args[0] == "accounts" || args[0] == "account" || args[0] == "grok-token") {
+		return fmt.Errorf("BoxAI is the only supported provider; configure its API key with magpie provider")
+	}
 	// internal: the auth provider of a Grok run behind the gateway, asked
 	// for a token often; nothing else of magpie's needs to start for it
 	if len(args) == 3 && args[0] == "grok-token" {

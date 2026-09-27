@@ -369,6 +369,9 @@ func rememberLogins(force bool) {
 // Logins lists the remembered accounts of an agent ("" for every one),
 // the active one flagged.
 func Logins(agent string) []Login {
+	if BoxAIOnly() {
+		return nil
+	}
 	var side []Login
 	switch agent {
 	case "grok":

@@ -191,6 +191,9 @@ var presets = []PresetDef{
 
 // Presets lists every preset, sponsored ones first within their kind.
 func Presets() []PresetDef {
+	if BoxAIOnly() {
+		return []PresetDef{boxAIPreset}
+	}
 	out := make([]PresetDef, 0, len(presets))
 	for _, p := range presets {
 		if p.Sponsored {
@@ -207,6 +210,13 @@ func Presets() []PresetDef {
 
 // Preset finds a preset by id.
 func Preset(id string) *PresetDef {
+	if BoxAIOnly() {
+		if id == boxAIPreset.ID {
+			p := boxAIPreset
+			return &p
+		}
+		return nil
+	}
 	for i := range presets {
 		if presets[i].ID == id {
 			return &presets[i]

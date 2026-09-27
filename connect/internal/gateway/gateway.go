@@ -145,9 +145,11 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	srv := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 5 * time.Minute}
 	// the magpie serving the gateway, and only it, keeps the saved accounts
 	// signed in, so two never refresh one sign-in at once
-	go provider.KeepLoginsAlive(ctx)
-	// and signs Codex in to its next account when the one it is on is out
-	go provider.KeepCodexOnAnAccountWithRoom(ctx)
+	if !provider.BoxAIOnly() {
+		go provider.KeepLoginsAlive(ctx)
+		// and signs Codex in to its next account when the one it is on is out
+		go provider.KeepCodexOnAnAccountWithRoom(ctx)
+	}
 	for _, f := range WhileServing {
 		go f(ctx)
 	}
@@ -178,8 +180,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/messages", s.handle(provider.Anthropic))
 	mux.HandleFunc("POST /messages", s.handle(provider.Anthropic))
 	mux.HandleFunc("POST /v1/messages/count_tokens", s.countTokens)
-	mux.HandleFunc("POST /_magpie/claude-mcp/{token}", s.subscription.mcpCall)
-	mux.HandleFunc(CodexPath+"/", s.codexBackend)
+	if !provider.BoxAIOnly() {
+		mux.HandleFunc("POST /_magpie/claude-mcp/{token}", s.subscription.mcpCall)
+		mux.HandleFunc(CodexPath+"/", s.codexBackend)
+	}
 	mux.HandleFunc("GET /v1beta/models", s.geminiModels)
 	mux.HandleFunc("POST /v1beta/models/{call...}", s.gemini)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
