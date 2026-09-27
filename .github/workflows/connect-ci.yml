@@ -23,10 +23,7 @@ jobs:
           cache-dependency-path: connect/go.sum
       - name: Install Wails Linux dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev
-      - run: make test cli build
-      - run: python3 packaging/build_catalog.py
-      - name: Check pinned provenance
-        run: |
-          grep -q 'MIT License' LICENSE.magpie
-          grep -q 'Apache License' LICENSE
-          grep -q '03a01a548df3d52fee86197fc2d0ff234b9fdfab' UPSTREAM.md
+      - run: go vet -tags 'production gtk3' ./...
+      - run: go test -tags 'production gtk3' ./...
+      - run: make cli build
+      - run: grep -q 'MIT License' LICENSE

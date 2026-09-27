@@ -269,9 +269,6 @@ func tomlTableNamed(tables []tomlTableSpan, name string) (tomlTableSpan, bool) {
 // changes: an agent's config can be large (Codex's lists every project it
 // was trusted in) and is read field by field. Missing files are (nil, nil).
 func tomlTablesOf(path string) ([]tomlTableSpan, error) {
-	if b, ok := stagedRead(path); ok {
-		return parseTOMLTables(splitLines(string(b)))
-	}
 	tables, err := filememo.Read("toml tables", path, func(b []byte) ([]tomlTableSpan, error) {
 		tables, err := parseTOMLTables(splitLines(string(b)))
 		if err != nil {

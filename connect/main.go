@@ -11,11 +11,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/yetone/magpie/internal/agent"
-	"github.com/yetone/magpie/internal/boxai"
+	"github.com/yetone/magpie/internal/catalog"
+	"github.com/yetone/magpie/internal/claudebridge"
+	"github.com/yetone/magpie/internal/davsync"
 	"github.com/yetone/magpie/internal/gateway"
 	"github.com/yetone/magpie/internal/netproxy"
 	"github.com/yetone/magpie/internal/profile"
+	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/settings"
+	"github.com/yetone/magpie/internal/tui"
 	"github.com/yetone/magpie/internal/update"
 )
 
@@ -85,38 +89,51 @@ func main() {
 	netproxy.Install()
 	update.GUI = hasGUI
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "BoxAI Connect:", err)
+		fmt.Fprintln(os.Stderr, "magpie:", err)
 		os.Exit(1)
 	}
 }
 
 func run(args []string) error {
-	initializeBoxAI()
+	// internal: the auth provider of a Grok run behind the gateway, asked
+	// for a token often; nothing else of magpie's needs to start for it
+	if len(args) == 3 && args[0] == "grok-token" {
+		return provider.GrokToken(os.Stdout, args[1], args[2], os.Getenv("GROK_AUTH_EXPIRED") == "1")
+	}
+	settings.Migrate()
+	agent.RenameLegacy()
+	// a provider added, edited or removed, or a list fetched anew, reaches
+	// the model lists agents keep in files of their own
+	catalog.Changed = agent.SyncCatalog
+	// the setup kept the same on every computer, by whichever serves
+	gateway.WhileServing = append(gateway.WhileServing, davsync.Run)
 	if len(args) == 0 {
-		return runGUI(true, "")
+		if hasGUI {
+			return runGUI(true, "")
+		}
+		return tui.Run()
+	}
+	// a magpie:// link the system handed over (Windows, Linux): the app
+	// opens it for the user to confirm
+	if strings.HasPrefix(strings.ToLower(args[0]), "magpie:") {
+		if !hasGUI {
+			return importCmd(args)
+		}
+		return runGUI(false, args[0])
 	}
 	switch args[0] {
+	case "tui":
+		return tui.Run()
 	case "app", "gui":
 		return runGUI(true, "")
 	case "tray":
 		return runGUI(false, "")
 	case "-h", "--help", "help":
-		fmt.Print(boxaiUsage)
+		fmt.Print(usage)
 		return nil
 	case "-v", "--version", "version":
-		fmt.Println("BoxAI Connect", version)
+		fmt.Println("magpie", version)
 		return nil
-	case "login", "logout", "status":
-		return boxaiAccountCommand(args[0])
-	case "providers", "presets", "provider", "import", "groups", "group", "accounts", "account", "backup", "restore", "tui", "grok-token", "claude-mcp-helper", "save", "use", "rm", "profiles":
-		return fmt.Errorf("%q is not available in BoxAI Connect; sign in with your BoxAI account", args[0])
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := requireBoxAI(ctx); err != nil {
-		return err
-	}
-	switch args[0] {
 	case "ls", "list":
 		// in the order the app lists them; those hidden there come last, dimmed
 		shown, hidden := settings.Arrange(settings.Load(), agent.Detected(), func(a *agent.Agent) string { return a.ID })
@@ -124,32 +141,52 @@ func run(args []string) error {
 	case "agents":
 		return list(agent.All(), false, -1)
 	case "sync":
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := catalog.Sync(ctx); err != nil {
+			return err
+		}
+		fmt.Println(green.Render("✓"), "catalog saved to", catalog.CachePath())
 		refreshLive(ctx)
 		return nil
+	case "save", "use", "rm", "profiles":
+		return profiles(args)
+	case "import":
+		return importCmd(args[1:])
+	case "providers":
+		return providers()
+	case "presets":
+		return presets()
+	case "provider":
+		return providerCmd(args)
 	case "models":
 		return models(args[1:])
 	case "model":
 		return modelCmd(args[1:])
 	case "visible":
 		return visibleCmd(args[1:])
+	case "groups":
+		return groups()
+	case "group":
+		return groupCmd(args)
 	case "serve":
 		return serve()
+	case "accounts", "account":
+		return accountsCmd(args)
 	case "usage":
 		return usageCmd(args)
 	case "quota", "quotas":
-		data, err := boxai.Provisioning(ctx)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("BoxAI wallet quota remaining: %d\nBilling: %s\n", data.Usage.WalletQuotaRemaining, data.Billing.PortalURL)
-		return nil
+		return quotaCmd(args)
 	case "update":
 		return updateCmd(args)
 	case "library", "lib":
-		if len(args) > 1 {
-			return fmt.Errorf("manage official BoxAI MCP servers and Skills in the desktop app")
-		}
-		return libraryStatus()
+		return libraryCmd(args)
+	case "backup":
+		return backupCmd(args[1:])
+	case "restore":
+		return restoreCmd(args[1:])
+	case "claude-mcp-helper": // internal: stdio MCP subprocess spawned by Claude Code
+		return claudebridge.RunMCP(args[1:])
 	}
 
 	a, err := agent.Find(args[0])
@@ -175,7 +212,7 @@ func run(args []string) error {
 		}
 		return set(a, args[1], args[2])
 	}
-	return fmt.Errorf("too many arguments\n\n%s", boxaiUsage)
+	return fmt.Errorf("too many arguments\n\n%s", usage)
 }
 
 func set(a *agent.Agent, key, value string) error {

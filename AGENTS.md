@@ -58,14 +58,13 @@ connect/       — BoxAI Connect (Go/Wails app with an always-running local gate
 `desktop/surfaces/gui/` uses npm. Follow `connect/`'s Go/Wails build instructions;
 do not reintroduce the removed GPUI or Tauri Connect implementations.
 
-**BoxAI Connect requires browser BoxAI authentication.** Preserve the existing
-Connect client/session identity and `/api/v1/connector` contracts; Desktop auth
-is separate product behavior and must remain unchanged. The five shipped
-agents are Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode. Their
-requests use Connect's always-running local gateway; Connect must stay running
-while agents use it. Preserve safe configuration ownership and migration,
-BoxAI branding, Vietnamese localization, MCP, official Skills, bundle/file
-names, and download URLs. Do not add per-file license header blocks under `connect/`.
+**Connect is being forked incrementally from Magpie.** Preserve the complete
+upstream project, UI, interactions and features. The current step changes only
+visible BoxAI branding; BYOK/provider configuration is a separate next step.
+Do not reintroduce the custom Connect UI, browser-login gate, five-agent limit,
+official-only library restrictions or custom migration/update machinery.
+Leave Desktop authentication unchanged. Preserve the upstream MIT license and
+do not add per-file license header blocks under `connect/`.
 
 ## Internationalization (i18n)
 

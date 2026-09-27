@@ -130,7 +130,7 @@ func zcodeProviderJSON(path string) any {
 		on = false
 	}
 	return map[string]any{"name": "magpie", "kind": "anthropic", "enabled": on, "source": "custom",
-		"options": map[string]any{"apiKey": gateway.Credential(), "baseURL": gateway.URL()}, "models": ms}
+		"options": map[string]any{"apiKey": gateway.Token, "baseURL": gateway.URL()}, "models": ms}
 }
 
 // zcodeMaxOutput caps a model's output limit: some vendors report their
@@ -275,7 +275,7 @@ func zcodeRules(path string, on bool) error {
 		rule := map[string]any{"providerId": magpieID, "providerName": "magpie", "enabled": true,
 			"config": map[string]any{
 				"group":            "standard-personal",
-				"access":           map[string]any{"type": "api-key", "apiKey": gateway.Credential()},
+				"access":           map[string]any{"type": "api-key", "apiKey": gateway.Token},
 				"api":              map[string]any{"type": "anthropic-messages", "baseUrl": gateway.URL()},
 				"personalModelIds": ids, "modelOrder": ids,
 			}}

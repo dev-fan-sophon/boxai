@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/gateway"
 	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/usage"
@@ -36,7 +35,7 @@ func appliedPath() string { return filepath.Join(filepath.Dir(provider.Path()), 
 // appliedLoad is agent id → what magpie set on it.
 func appliedLoad() map[string]applied {
 	out := map[string]applied{}
-	if b, err := edit.Read(appliedPath()); err == nil {
+	if b, err := os.ReadFile(appliedPath()); err == nil {
 		json.Unmarshal(b, &out)
 	}
 	return out
@@ -44,7 +43,8 @@ func appliedLoad() map[string]applied {
 
 func appliedSave(m map[string]applied) {
 	b, _ := json.MarshalIndent(m, "", "  ")
-	_ = edit.WriteAtomic(appliedPath(), b)
+	os.MkdirAll(filepath.Dir(appliedPath()), 0o755)
+	os.WriteFile(appliedPath(), b, 0o600)
 }
 
 func appliedOf(id string) applied {
@@ -81,25 +81,11 @@ func (a *Agent) Apply(key, v string) error {
 	if f == nil {
 		return nil
 	}
-	if modelField(f.Key) {
-		v = strings.TrimPrefix(v, magpieID+"/")
-		if a.ID == "opencode" || a.ID == "grok" {
-			v = magpieID + "/" + v
-		}
-	}
-	if err := authorizeField(a.ID, f.Key, v); err != nil {
+	if err := f.Set(v); err != nil {
 		return err
 	}
-	return Project(a, a.projectionPaths(), func() error {
-		if err := authorizeField(a.ID, f.Key, v); err != nil {
-			return err
-		}
-		if err := f.Set(v); err != nil {
-			return err
-		}
-		record(a.ID, f.Key, f.Get())
-		return nil
-	})
+	record(a.ID, f.Key, f.Get())
+	return nil
 }
 
 // Drift is how an agent differs from what magpie set on it.
@@ -153,24 +139,24 @@ func (a *Agent) Drift() *Drift {
 			continue
 		}
 		return &Drift{Kind: "replaced", Field: f.Key, Now: vals[f.Key], Want: want,
-			Detail: a.Name + "'s config was changed outside BoxAI Connect: " + f.Label + " is " + orDefault(vals[f.Key]) + ", not " + want + " as BoxAI Connect set it"}
+			Detail: a.Name + "'s config was changed outside magpie: " + f.Label + " is " + orDefault(vals[f.Key]) + ", not " + want + " as magpie set it"}
 	}
 	if a.Reached != nil && onMagpie {
 		if at, to, refused := a.Reached(rec.At); !at.IsZero() {
 			switch {
 			case !sameHost(to, gateway.URL()):
 				return &Drift{Kind: "bypassed", Field: on.Key, Now: vals[on.Key], Want: vals[on.Key],
-					Detail: a.Name + "'s last request (" + at.Format("15:04") + ") went to " + hostOf(to) + ", not BoxAI Connect — it still runs on its old config: quit and reopen it"}
+					Detail: a.Name + "'s last request (" + at.Format("15:04") + ") went to " + hostOf(to) + ", not magpie — it was started before magpie set it up and still runs on its old config: quit and reopen it"}
 			case refused:
 				return &Drift{Kind: "bypassed", Field: on.Key, Now: vals[on.Key], Want: vals[on.Key],
-					Detail: a.Name + " couldn't reach BoxAI Connect at " + at.Format("15:04") + " — BoxAI Connect wasn't running then: quit and reopen it"}
+					Detail: a.Name + " couldn't reach magpie at " + at.Format("15:04") + " — magpie wasn't running then, so it has none of magpie's models: quit and reopen it"}
 			}
 		}
 	}
 	if a.LastUsed != nil && onMagpie {
 		if used := a.LastUsed(); bypassed(used, rec.At, usage.LastSeen(a.ID)) {
 			return &Drift{Kind: "bypassed", Field: on.Key, Now: vals[on.Key], Want: vals[on.Key],
-				Detail: a.Name + " was used at " + used.Format("15:04") + " but none of its requests reached BoxAI Connect — it may still run on its old config: restart it"}
+				Detail: a.Name + " was used at " + used.Format("15:04") + " but none of its requests reached magpie — one started before magpie set it up still runs on its old config: restart it"}
 		}
 	}
 	return nil
@@ -245,18 +231,15 @@ func (a *Agent) Reapply() error {
 
 // Keep takes the agent's config as it is now: what magpie set before is
 // forgotten, and no longer said to have been changed.
-func (a *Agent) Keep() error {
-	return Project(a, []string{appliedPath()}, func() error {
-		appliedMu.Lock()
-		defer appliedMu.Unlock()
-		m := appliedLoad()
-		if _, ok := m[a.ID]; !ok {
-			return nil
-		}
-		delete(m, a.ID)
-		appliedSave(m)
-		return nil
-	})
+func (a *Agent) Keep() {
+	appliedMu.Lock()
+	defer appliedMu.Unlock()
+	m := appliedLoad()
+	if _, ok := m[a.ID]; !ok {
+		return
+	}
+	delete(m, a.ID)
+	appliedSave(m)
 }
 
 // lastJSONLTime reads the newest Unix timestamp (seconds or milliseconds)
@@ -317,11 +300,11 @@ func wiringOff(name, file string, get func(string) (string, bool), kvs ...string
 		where := name + "'s " + k + " (" + filepath.Base(file) + ")"
 		switch {
 		case v == "":
-			return where + " is gone, so it no longer reaches BoxAI Connect"
+			return where + " is gone, so it no longer reaches magpie"
 		case strings.Contains(strings.ToLower(k), "url"):
-			return where + " is " + v + ", not BoxAI Connect's gateway at " + want
+			return where + " is " + v + ", not magpie's gateway at " + want
 		default:
-			return where + " was changed, so BoxAI Connect's gateway won't take its requests"
+			return where + " was changed, so magpie's gateway won't take its requests"
 		}
 	}
 	return ""

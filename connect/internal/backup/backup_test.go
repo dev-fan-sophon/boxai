@@ -42,7 +42,7 @@ func setUp(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := settings.Save(settings.Settings{Theme: "dark", Lang: "vi"}); err != nil {
+	if err := settings.Save(settings.Settings{Theme: "dark", Lang: "zh"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := profile.Save("work", profile.Profile{Fields: map[string]string{"claude.model": "acme/m1"}}); err != nil {
@@ -90,7 +90,7 @@ func TestRoundTrip(t *testing.T) {
 	if _, err := os.Stat(provider.IconFile(name)); err != nil {
 		t.Fatalf("icon: %v", err)
 	}
-	if s := settings.Load(); s.Theme != "dark" || s.Lang != "vi" {
+	if s := settings.Load(); s.Theme != "dark" || s.Lang != "zh" {
 		t.Fatalf("settings: %+v", s)
 	}
 	if ps, _ := profile.Load(); ps["work"].Fields["claude.model"] != "acme/m1" {

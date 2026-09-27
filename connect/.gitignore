@@ -1,3 +1,8 @@
+/magpie
+/magpie.exe
+/magpie.app/
 /dist/
-/release/
-/target/
+/magpie-dev
+/rsrc_windows_*.syso
+/magpie-dev-backend
+/magpie-dev.new

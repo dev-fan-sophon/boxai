@@ -635,9 +635,6 @@ func claudeRefresh(ctx context.Context, c *claudeCredentials) error {
 
 // Accounts lists the signed-in agents as providers.
 func Accounts() []Provider {
-	if managedSession.Load() != nil {
-		return nil
-	}
 	rememberLogins(false)
 	home, _ := os.UserHomeDir()
 	cfg := os.Getenv("XDG_CONFIG_HOME")

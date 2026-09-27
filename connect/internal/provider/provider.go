@@ -3,8 +3,8 @@
 // of its models should show up in the agents' pickers.
 //
 // Provider keys are never read from environment variables. A provider is
-// exactly what the user entered in upstream mode. BoxAI product mode ignores
-// this file; its directory also owns the branded projection bookkeeping.
+// exactly what the user entered, kept in ~/.config/magpie/providers.json
+// (mode 0600).
 package provider
 
 import (
@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/yetone/magpie/internal/catalog"
-	"github.com/yetone/magpie/internal/settings"
 )
 
 // Protocol is a wire API magpie can speak to an upstream.
@@ -151,13 +150,14 @@ type file struct {
 
 // Path is the file the user's providers live in.
 func Path() string {
-	return filepath.Join(settings.Dir(), "providers.json")
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
+		return filepath.Join(x, "magpie", "providers.json")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "magpie", "providers.json")
 }
 
 func load() file {
-	if managedSession.Load() != nil {
-		return file{}
-	}
 	var f file
 	if b, err := os.ReadFile(Path()); err == nil {
 		json.Unmarshal(b, &f)
@@ -166,9 +166,6 @@ func load() file {
 }
 
 func store(f file) error {
-	if managedSession.Load() != nil {
-		return ErrManagedProvider
-	}
 	p := Path()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return err
@@ -193,9 +190,6 @@ func store(f file) error {
 // the signed-in agents. An entry in the file with no URL is only the
 // model picks for one of those accounts.
 func All() []Provider {
-	if managedSession.Load() != nil {
-		return managedProviders()
-	}
 	stored := load().Providers
 	picks := map[string]Provider{}
 	var out []Provider
@@ -266,9 +260,6 @@ func Slug(name string) string {
 
 // Save adds or replaces a provider.
 func Save(p Provider) error {
-	if managedSession.Load() != nil {
-		return ErrManagedProvider
-	}
 	p = normalize(p)
 	p.IconURL = "" // import-only: never stored
 	if p.ID == "" {

@@ -140,10 +140,6 @@ func set(list []string, id string, on bool) []string {
 // change runs f on the library under the lock, saves it, and writes what
 // changed into the agents.
 func change(f func(l *Library) error) (*Result, error) {
-	return nil, fmt.Errorf("use the authenticated BoxAI official catalog to change agent configuration")
-}
-
-func legacyChange(f func(l *Library) error) (*Result, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	l, err := load()

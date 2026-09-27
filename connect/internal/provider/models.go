@@ -21,13 +21,6 @@ const manyModels = 24
 // from the vendor itself when there is one, over the models.dev catalog (or,
 // for an account, whatever the agent's own sign-in can see).
 func (p Provider) Available() []catalog.Model {
-	if source := managedSession.Load(); source != nil {
-		key, models := (*source)()
-		if p.ID != "boxai" || key == "" {
-			return nil
-		}
-		return slices.Clone(models)
-	}
 	if p.Decides() {
 		return p.decideModels()
 	}
@@ -79,12 +72,6 @@ func (p Provider) Fetched() (time.Time, bool) {
 
 // Fetch asks the vendor which models it serves and remembers the answer.
 func (p Provider) Fetch(ctx context.Context) ([]catalog.Model, error) {
-	if managedSession.Load() != nil {
-		if p.ID != "boxai" {
-			return nil, ErrManagedProvider
-		}
-		return p.Available(), nil
-	}
 	if p.Decides() {
 		return p.fetchDecide(ctx)
 	}
@@ -429,14 +416,6 @@ func resolveIn(entries []Entry, id string) (Provider, string, bool) {
 		if e.ID == id {
 			return e.Provider, e.Model, true
 		}
-	}
-	if managedSession.Load() != nil {
-		for _, e := range entries {
-			if e.Model == id {
-				return e.Provider, e.Model, true
-			}
-		}
-		return Provider{}, "", false
 	}
 	if pid, model, ok := strings.Cut(id, "/"); ok {
 		if p, err := Find(pid); err == nil && p.Ready() {

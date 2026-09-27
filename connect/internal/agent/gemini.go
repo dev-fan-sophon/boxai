@@ -84,7 +84,7 @@ func gemini(home string) *Agent {
 			if !routed() {
 				stash(map[string]string{"gemini.base_url": base(), "gemini.api_key": envKey(), "gemini.auth": auth(), "gemini.model": model()})
 			}
-			if err := edit.SetEnvFile(envPath, edit.KV{Path: "GOOGLE_GEMINI_BASE_URL", Value: gateway.URL()}, edit.KV{Path: "GEMINI_API_KEY", Value: gateway.Credential()}); err != nil {
+			if err := edit.SetEnvFile(envPath, edit.KV{Path: "GOOGLE_GEMINI_BASE_URL", Value: gateway.URL()}, edit.KV{Path: "GEMINI_API_KEY", Value: gateway.Token}); err != nil {
 				return err
 			}
 			return edit.SetJSON(path, edit.KV{Path: "security.auth.selectedType", Value: "gemini-api-key"}, edit.KV{Path: "model.name", Value: v})
@@ -115,7 +115,7 @@ func gemini(home string) *Agent {
 			if routed() {
 				return nil
 			}
-			return fmt.Errorf("pick a model via BoxAI Connect instead; that routes Gemini CLI through the gateway")
+			return fmt.Errorf("pick a model via magpie instead; that routes Gemini CLI through the gateway")
 		}
 		if err := unroute(); err != nil {
 			return err
@@ -163,11 +163,11 @@ func gemini(home string) *Agent {
 				return ""
 			}
 			if d := wiringOff("Gemini CLI", envPath, func(k string) (string, bool) { return edit.GetEnvFile(envPath, k) },
-				"GOOGLE_GEMINI_BASE_URL", gateway.URL(), "GEMINI_API_KEY", gateway.Credential()); d != "" {
+				"GOOGLE_GEMINI_BASE_URL", gateway.URL(), "GEMINI_API_KEY", gateway.Token); d != "" {
 				return d
 			}
 			if a := auth(); a != "gemini-api-key" {
-				return "Gemini CLI signs in with " + orDefault(a) + " rather than BoxAI Connect's key, so it asks Google directly"
+				return "Gemini CLI signs in with " + orDefault(a) + " rather than magpie's key, so it asks Google directly"
 			}
 			return ""
 		},
@@ -186,11 +186,11 @@ func gemini(home string) *Agent {
 					key := Option{Value: "api-key", Label: "API key", Icon: "gemini-color"}
 					switch {
 					case magpieKey() != "":
-						key.Note = "the configured Google key"
+						key.Note = "the Google key from magpie's providers"
 					case envKey() != "":
 						key.Note = "GEMINI_API_KEY from ~/.gemini/.env"
 					default:
-						key.Note = "managed by BoxAI Connect"
+						key.Note = "needs GEMINI_API_KEY — add Google Gemini in magpie's providers"
 					}
 					out := []Option{
 						{Value: "google", Label: "Google", Icon: "gemini-color", Note: "Google account · OAuth sign-in"},

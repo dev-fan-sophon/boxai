@@ -38,9 +38,6 @@ var Version = "dev"
 
 // Addr is the listen address.
 func Addr() string {
-	if boxaiAccess.Load() != nil {
-		return DefaultAddr
-	}
 	if a := os.Getenv("MAGPIE_ADDR"); a != "" {
 		return a
 	}
@@ -59,9 +56,6 @@ func Running() bool {
 	}
 	defer res.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
-	if boxaiAccess.Load() != nil {
-		return res.StatusCode == http.StatusOK && bytes.Contains(b, []byte(`"boxai-connect"`))
-	}
 	return bytes.Contains(b, []byte(`"magpie"`))
 }
 
@@ -99,7 +93,7 @@ type Server struct {
 
 // New makes a gateway.
 func New() *Server {
-	s := &Server{
+	return &Server{
 		client: &http.Client{Transport: &http.Transport{
 			Proxy:                 netproxy.Func,
 			ResponseHeaderTimeout: 10 * time.Minute,
@@ -111,12 +105,6 @@ func New() *Server {
 		subscription: newSubscriptionBridge(),
 		debug:        os.Getenv("MAGPIE_DEBUG") != "",
 	}
-	if boxaiAccess.Load() != nil {
-		s.client.Transport = boxaiTransport{base: s.client.Transport}
-		s.client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-		s.debug = false
-	}
-	return s
 }
 
 // Recent lists the last calls, newest first.
@@ -157,10 +145,9 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	srv := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 5 * time.Minute}
 	// the magpie serving the gateway, and only it, keeps the saved accounts
 	// signed in, so two never refresh one sign-in at once
-	if boxaiAccess.Load() == nil {
-		go provider.KeepLoginsAlive(ctx)
-		go provider.KeepCodexOnAnAccountWithRoom(ctx)
-	}
+	go provider.KeepLoginsAlive(ctx)
+	// and signs Codex in to its next account when the one it is on is out
+	go provider.KeepCodexOnAnAccountWithRoom(ctx)
 	for _, f := range WhileServing {
 		go f(ctx)
 	}
@@ -198,9 +185,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, provider.Chat, http.StatusNotFound, "magpie serves /v1/chat/completions, /v1/responses, /v1/messages and /v1beta/models/*")
 	})
-	if policy := boxaiAccess.Load(); policy != nil {
-		return policy.handler(mux)
-	}
 	return mux
 }
 
@@ -414,19 +398,15 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 	// what the vendor saw and said
 	w, body, unmask := redacted(w, body)
 	defer unmask()
-	call := Call{Time: start, From: from, Model: modelOf(body), Agent: usage.AgentOf(r.Header.Get("User-Agent"))}
-	var capture *captureResponseWriter
-	if boxaiAccess.Load() == nil {
-		call.RequestBody, call.RequestTruncated = captureRequestBody(body)
-		capture = &captureResponseWriter{ResponseWriter: w}
-		w = capture
-	}
+	requestBody, requestTruncated := captureRequestBody(body)
+	capture := &captureResponseWriter{ResponseWriter: w}
+	w = capture
+	call := Call{Time: start, From: from, Model: modelOf(body), Agent: usage.AgentOf(r.Header.Get("User-Agent")),
+		RequestBody: requestBody, RequestTruncated: requestTruncated}
 	usage.Saw(call.Agent)
 	finishCapture := func() {
-		if capture != nil {
-			call.ResponseBody = capture.body.text()
-			call.ResponseTruncated = capture.body.truncated
-		}
+		call.ResponseBody = capture.body.text()
+		call.ResponseTruncated = capture.body.truncated
 	}
 	// a model's id without a provider in it that names a routing group is
 	// the group's, as "group/<id>" is, rather than one provider's that

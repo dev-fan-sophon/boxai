@@ -33,9 +33,6 @@ func version(t *testing.T, path string) string {
 // A folder magpie may not write to: Install fails with a permission error,
 // leaves the app as it was, and keeps what it staged.
 func TestInstallNeedsAdmin(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("POSIX directory permissions do not represent Windows ACLs")
-	}
 	if os.Getuid() == 0 {
 		t.Skip("root writes anywhere")
 	}
@@ -52,8 +49,8 @@ func TestInstallNeedsAdmin(t *testing.T) {
 		t.Error("stageDir picked a folder it can't write to")
 	}
 	err := Install(staged, bundle)
-	if err == nil {
-		t.Fatal("unsigned legacy bundle must not be installed")
+	if !NeedsAdmin(err) {
+		t.Fatalf("Install = %v, want a permission error", err)
 	}
 	if version(t, bundle) != "old" || version(t, staged) != "new" {
 		t.Error("a failed Install changed something")
@@ -63,9 +60,6 @@ func TestInstallNeedsAdmin(t *testing.T) {
 // The script InstallAsAdmin runs as root swaps the apps, awkward names and
 // all; run here as the user in a folder they own.
 func TestSwapScript(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("legacy macOS bundle swap requires POSIX paths and /bin/sh")
-	}
 	dir := filepath.Join(t.TempDir(), `it's "a" \ $(dir) `)
 	bundle, staged, old := filepath.Join(dir, "magpie.app"), filepath.Join(dir, "s", "magpie.app"), filepath.Join(dir, "s", "old.app")
 	app(t, bundle, "old")

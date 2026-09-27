@@ -185,7 +185,7 @@ var seenServers = struct {
 
 // MarketServers is what the market shows for a search: the featured servers
 // that match it, then the registry's.
-func publicMarketServers(q string) ([]MarketServer, error) {
+func MarketServers(q string) ([]MarketServer, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	var out []MarketServer
 	for _, m := range featured {
@@ -527,7 +527,7 @@ func marketServer(id string) (MarketServer, bool) {
 // InstallServer adds a market server to the library, filled in with values
 // (by input key), and gives it to the agents named — to every agent that can
 // have it when none are.
-func installPublicServer(id string, values map[string]string, agents []string) (*Result, error) {
+func InstallServer(id string, values map[string]string, agents []string) (*Result, error) {
 	m, ok := marketServer(id)
 	if !ok {
 		return nil, fmt.Errorf("the market has no server %s; search for it again", id)
@@ -729,7 +729,7 @@ func searchSkillsSh(q string) ([]skillsShEntry, error) {
 
 // MarketSkills is what the market shows for a search: the most installed
 // skills that match it, then what skills.sh finds for it.
-func publicMarketSkills(q string) ([]MarketSkill, error) {
+func MarketSkills(q string) ([]MarketSkill, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	var list []skillsShEntry
 	var err error
@@ -803,10 +803,6 @@ func cachedAbout() map[string]string {
 // SkillsAbout is what each skill says of itself, by id (owner/repo/skill),
 // from its SKILL.md; kept on disk once known.
 func SkillsAbout(ids []string) map[string]string {
-	return map[string]string{}
-}
-
-func legacySkillsAbout(ids []string) map[string]string {
 	have := cachedAbout()
 	out := map[string]string{}
 	var wg sync.WaitGroup
@@ -860,7 +856,7 @@ func legacySkillsAbout(ids []string) map[string]string {
 // InstallMarketSkill adds a skill from the market, found in its repository,
 // and gives it to the agents named — to every agent that can have skills
 // when none are.
-func installPublicMarketSkill(source, id string, agents []string) (*Result, error) {
+func InstallMarketSkill(source, id string, agents []string) (*Result, error) {
 	if !repoRe.MatchString(source) {
 		return nil, fmt.Errorf("%s isn't a GitHub repository", source)
 	}
@@ -893,10 +889,6 @@ func installPublicMarketSkill(source, id string, agents []string) (*Result, erro
 // Icon is a market icon, fetched once and kept on disk: only an icon the
 // market gave out is fetched, so the page can't have magpie fetch anything else.
 func Icon(u string) ([]byte, string, error) {
-	return nil, "", errors.New("public marketplace icons are unavailable")
-}
-
-func legacyIcon(u string) ([]byte, string, error) {
 	sum := sha256.Sum256([]byte(u))
 	file := marketCache(filepath.Join("icons", hex.EncodeToString(sum[:16])))
 	if b, err := os.ReadFile(file); err == nil {

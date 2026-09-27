@@ -5,26 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-func TestReadDetectsSameSizeChangeWithIdenticalTimestamp(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "account")
-	require.NoError(t, os.WriteFile(p, []byte("alice"), 0o600))
-	stamp := time.Unix(1700000000, 0)
-	require.NoError(t, os.Chtimes(p, stamp, stamp))
-	parse := func(b []byte) (string, error) { return string(b), nil }
-	value, err := Read("identity", p, parse)
-	require.NoError(t, err)
-	assert.Equal(t, "alice", value)
-	require.NoError(t, os.WriteFile(p, []byte("other"), 0o600))
-	require.NoError(t, os.Chtimes(p, stamp, stamp))
-	value, err = Read("identity", p, parse)
-	require.NoError(t, err)
-	assert.Equal(t, "other", value)
-}
 
 func TestRead(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "f")

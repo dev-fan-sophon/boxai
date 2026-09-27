@@ -428,10 +428,6 @@ func candidates(root, sub string) []Candidate {
 // ProbeSkills looks for skills at what the user typed: a GitHub repository
 // (or a folder in one), or a folder on this machine.
 func ProbeSkills(input string) (*Probe, error) {
-	return nil, fmt.Errorf("install skills from the BoxAI official catalog")
-}
-
-func legacyProbeSkills(input string) (*Probe, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return nil, fmt.Errorf("paste a GitHub link or a folder's path")
@@ -544,10 +540,6 @@ func InstallSkills(input string, paths, agents []string) (*Result, error) {
 // UpdateSkill fetches a skill from GitHub again, in place: the agents'
 // links go on pointing at it.
 func UpdateSkill(name string) (*Result, error) {
-	return nil, fmt.Errorf("install skills from the BoxAI official catalog")
-}
-
-func legacyUpdateSkill(name string) (*Result, error) {
 	mu.Lock()
 	l, err := load()
 	mu.Unlock()
@@ -571,10 +563,6 @@ func legacyUpdateSkill(name string) (*Result, error) {
 // repository once, and writes the agents once. A skill that couldn't be
 // fetched is said in Unupdated; the others are updated all the same.
 func UpdateSkills() (*Result, error) {
-	return nil, fmt.Errorf("install skills from the BoxAI official catalog")
-}
-
-func legacyUpdateSkills() (*Result, error) {
 	mu.Lock()
 	l, err := load()
 	mu.Unlock()

@@ -18,8 +18,7 @@ export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 	dev-infra dev-api dev-web dev-web-local dev \
 	reset-setup deploy deploy-bootstrap deploy-web \
 	desktop-build desktop-stage desktop-publish desktop-screenshots \
-	connect-dev connect-check connect-build connect-stage connect-publish \
-	connect-catalog-build connect-catalog-publish
+	connect-dev connect-check connect-build
 
 all: build-web start-api
 
@@ -89,32 +88,15 @@ desktop-publish:
 desktop-screenshots:
 	@cd $(DESKTOP_GUI_DIR) && npm run screenshots
 
-# BoxAI Connect is the native Go/Wails client. Native staging builds and
-# asserts the macOS arm64 DMG or Windows x64 setup program on that target OS.
+# Connect starts from the complete upstream Magpie Go/Wails project.
 connect-dev:
 	@$(MAKE) -C $(CONNECT_DIR) dev
 
 connect-check:
 	@$(MAKE) -C $(CONNECT_DIR) test
-	@cd $(CONNECT_DIR) && python3 packaging/build_catalog.py
 
 connect-build:
 	@$(MAKE) -C $(CONNECT_DIR) build
-
-connect-stage:
-	@case "$$(uname -s)" in \
-		Darwin) cd $(CONNECT_DIR) && bash packaging/macos/stage-release.sh ;; \
-		*) echo "connect-stage supports native macOS here; use packaging/windows/stage-release.ps1 on Windows" >&2; exit 1 ;; \
-	esac
-
-connect-publish:
-	@cd $(CONNECT_DIR) && bash packaging/publish_release.sh
-
-connect-catalog-build:
-	@cd $(CONNECT_DIR) && python3 packaging/build_catalog.py
-
-connect-catalog-publish:
-	@cd $(CONNECT_DIR) && bash packaging/publish_catalog.sh
 
 reset-setup:
 	@echo "Resetting local setup wizard state..."

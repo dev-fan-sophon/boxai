@@ -753,9 +753,8 @@ func kiroIdentity(key string) (user, plan string) {
 	}
 	if time.Since(kiroStatus.at) > 5*time.Minute && !kiroStatus.refreshing {
 		kiroStatus.refreshing = true
-		ask := askKiroIdentity
 		go func() {
-			u, p := ask(key)
+			u, p := askKiroIdentity(key)
 			kiroStatus.Lock()
 			if kiroStatus.key == key {
 				if u != "" || p != "" {

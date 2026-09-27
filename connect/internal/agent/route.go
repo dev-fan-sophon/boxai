@@ -28,13 +28,13 @@ func viaMagpie(agent, prefix string) []Option {
 	shown, _ := provider.CatalogFor(agent)
 	for _, e := range shown {
 		if e.Group != "" {
-			groups = append(groups, Option{Value: prefix + e.ID, Label: e.Name, Note: "routing group · via BoxAI Connect",
+			groups = append(groups, Option{Value: prefix + e.ID, Label: e.Name, Note: "routing group · via magpie",
 				Icon: e.Provider.Icon, Icons: e.Icons, Group: RoutingGroups, Ref: e.ID})
 			continue
 		}
-		note := e.Provider.Name + " · via BoxAI Connect"
+		note := e.Provider.Name + " · via magpie"
 		if a := e.Provider.Account; a != nil {
-			note = a.User + " · via BoxAI Connect"
+			note = a.User + " · via magpie"
 		}
 		out = append(out, Option{Value: prefix + e.ID, Label: e.Name, Note: note,
 			Icon: e.Provider.Icon, Group: e.Provider.Name, Ref: e.ID})
@@ -73,9 +73,6 @@ func magpieModels(agent string) []catalog.Model {
 	var out []catalog.Model
 	shown, _ := provider.CatalogFor(agent)
 	for _, e := range shown {
-		if SafetyEnabled() && !policyModel(agent, e.ID) {
-			continue
-		}
 		out = append(out, catalog.Model{ID: e.ID, Name: e.Label(), Provider: firstOf(e.Provider.Catalogs()), Efforts: e.Efforts, Images: e.Images, Context: e.Context, Output: e.Output})
 	}
 	return out

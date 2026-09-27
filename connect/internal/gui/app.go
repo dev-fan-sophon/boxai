@@ -16,8 +16,13 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/yetone/magpie/internal/agent"
+	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/gateway"
+	"github.com/yetone/magpie/internal/library"
+	"github.com/yetone/magpie/internal/provider"
 	"github.com/yetone/magpie/internal/settings"
+	"github.com/yetone/magpie/internal/update"
 )
 
 //go:embed tray.png
@@ -55,7 +60,7 @@ func (h *host) whenReady(fn func()) {
 	}()
 }
 
-func (h *host) HidePanel() { h.panel.Hide(); h.main.Hide() }
+func (h *host) HidePanel() { h.panel.Hide() }
 func (h *host) ShowMain(view string) {
 	h.panel.Hide()
 	if view != "" {
@@ -67,8 +72,13 @@ func (h *host) ShowMain(view string) {
 
 // Import opens the window on an import link, for the user to confirm.
 func (h *host) Import(link string) {
-	// Provider import links are deliberately unsupported by BoxAI Connect.
-	h.whenReady(func() { h.ShowMain("") })
+	id := stash(link)
+	h.whenReady(func() {
+		h.panel.Hide()
+		h.main.SetURL("/?view=providers&import=" + id + h.query)
+		h.main.Show()
+		h.main.Focus()
+	})
 }
 func (h *host) Quit()                        { h.app.Quit() }
 func (h *host) OpenURL(url string)           { _ = h.app.Browser.OpenURL(url) }
@@ -106,9 +116,17 @@ func Run(version string, showMain bool, link string) error {
 	if devRole() == "backend" {
 		return devBackend(func(w Windows) http.Handler { return Handler(w, startBackend()) })
 	}
-	// BOXAI_CONNECT_THEME=light|dark forces the native window preference.
+	// After an update off the Mac, the old process starts this one and then
+	// quits; let it go before looking for the gateway.
+	update.AwaitPredecessor()
+	go func() {
+		if err := registerScheme(); err != nil {
+			log.Println("magpie:// links:", err)
+		}
+	}()
+	// MAGPIE_THEME=light|dark forces the palette; handy for screenshots.
 	theme := ""
-	if t := os.Getenv("BOXAI_CONNECT_THEME"); t != "" {
+	if t := os.Getenv("MAGPIE_THEME"); t != "" {
 		theme = "&theme=" + t
 	}
 	h := &host{query: theme, ready: make(chan struct{})}
@@ -121,14 +139,17 @@ func Run(version string, showMain bool, link string) error {
 		// second launch); it hands its arguments to the running one and quits.
 		// The Mac sends the link to the running app itself.
 		SingleInstance: singleInstance(h),
-		Name:           "BoxAI Connect",
-		Description:    "Connect your coding agents to BoxAI",
+		Name:           "magpie",
+		Description:    "one place to pick every agent's model",
 		Icon:           appIconLarge,
 		Assets:         application.AssetOptions{Handler: handler},
 		Mac:            application.MacOptions{ActivationPolicy: dockPolicy(settings.Load().Dock)},
 		Windows:        application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		// A version downloaded but not restarted into is installed on the
+		// way out, so the next launch is the new one.
+		OnShutdown: func() { updates.install(false) },
 		// Wails exits on some webview errors; say why before it does.
-		ErrorHandler: func(err error) { log.Println("BoxAI Connect:", err) },
+		ErrorHandler: func(err error) { log.Println("magpie:", err) },
 	})
 
 	onDock = setDock
@@ -141,7 +162,7 @@ func Run(version string, showMain bool, link string) error {
 
 	h.panel = h.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:            "panel",
-		Title:           "BoxAI Connect",
+		Title:           "magpie",
 		URL:             "/?mode=panel" + theme,
 		Width:           panelWidth,
 		Height:          520,
@@ -160,13 +181,13 @@ func Run(version string, showMain bool, link string) error {
 	})
 
 	// the window opens at the size it was last given
-	width, height := 1000, 740
+	width, height := 660, 600
 	if s := settings.Load().Window; len(s) == 2 && s[0] >= 560 && s[1] >= 420 {
 		width, height = s[0], s[1]
 	}
 	h.main = h.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:      "main",
-		Title:     "BoxAI Connect",
+		Title:     "magpie",
 		URL:       "/?" + theme,
 		Width:     width,
 		Height:    height,
@@ -212,13 +233,37 @@ func Run(version string, showMain bool, link string) error {
 	})
 
 	menu := h.app.NewMenu()
-	menu.Add(nativeText("Open BoxAI Connect", "Mở BoxAI Connect")).OnClick(func(*application.Context) { h.ShowMain("") })
+	menu.Add("Open magpie").OnClick(func(*application.Context) { h.ShowMain("") })
 	menu.AddSeparator()
-	menu.Add(nativeText("Version ", "Phiên bản ") + version).SetEnabled(false)
-	menu.Add(nativeText("Quit — stops agent connections", "Thoát — ngắt kết nối tác tử")).OnClick(func(*application.Context) { h.app.Quit() })
+	menu.Add("Version " + version).SetEnabled(false)
+	restart := menu.Add("Restart to Update").SetHidden(true)
+	restart.OnClick(func(*application.Context) {
+		if restartToUpdate() {
+			h.app.Quit()
+		}
+	})
+	menu.Add("Quit magpie").OnClick(func(*application.Context) { h.app.Quit() })
+	updates.onReady = func(v string) {
+		application.InvokeSync(func() {
+			restart.SetLabel("Restart to Update to " + v).SetHidden(false)
+			menu.Update()
+		})
+	}
+	updates.start()
+	// the library written into the agents again, once: one installed or
+	// updated since (or an edit by hand) gets it without a visit to the page
+	go func() {
+		if res, err := library.Sync(); err != nil {
+			log.Println("library sync:", err)
+		} else {
+			for _, p := range res.Problems {
+				log.Println("library sync:", p.Agent, p.What, p.Error)
+			}
+		}
+	}()
 
 	h.tray = h.app.SystemTray.New()
-	h.tray.SetTooltip("BoxAI Connect")
+	h.tray.SetTooltip("magpie")
 	if runtime.GOOS == "darwin" {
 		h.tray.SetTemplateIcon(trayIcon)
 	} else {
@@ -279,39 +324,63 @@ var served atomic.Pointer[gateway.Server]
 // running from before an update, a magpie serve in a terminal), and the
 // model lists kept warm.
 func startBackend() (gw *gateway.Server) {
-	gw = serveGateway(context.Background())
-	go watchGateway(context.Background(), 15*time.Second)
-	// Authentication provisioning owns model refresh. Starting the desktop
-	// must not read vendor sessions or change any agent configuration.
+	gw = serveGateway()
+	go watchGateway()
+	// Model lists are fetched, never compiled in: whatever the agents can see
+	// comes from the models.dev catalog plus each vendor's own /models answer.
+	// Keep both halves warm without making the user click anything.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if catalog.Stale() {
+			if err := catalog.Sync(ctx); err != nil {
+				log.Println("catalog:", err)
+			}
+		}
+		cancel()
+		// A signed-in agent's list exists only at the vendor; fill it in the
+		// first time so the picker never shows a stale snapshot.
+		for _, p := range provider.All() {
+			if p.Account == nil || !p.Ready() {
+				continue
+			}
+			if _, ok := p.Fetched(); ok {
+				continue
+			}
+			c, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			if _, err := p.Fetch(c); err != nil {
+				log.Println(p.ID + ": " + err.Error())
+			}
+			cancel()
+		}
+		// lists an older magpie wrote into agents' files, without what
+		// it has learnt since (context windows, providers added)
+		agent.SyncCatalog()
+	}()
 	return gw
 }
 
+var gatewayWatch = 15 * time.Second
+
 // watchGateway takes the gateway up once the magpie that had it is gone.
-func watchGateway(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+func watchGateway() {
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if served.Load() == nil && !gateway.Running() {
-				serveGateway(ctx)
-			}
+		time.Sleep(gatewayWatch)
+		if served.Load() == nil && !gateway.Running() {
+			serveGateway()
 		}
 	}
 }
 
 // serveGateway starts the gateway here when no magpie has it: the one
 // started, or nil.
-func serveGateway(ctx context.Context) *gateway.Server {
+func serveGateway() *gateway.Server {
 	if gateway.Running() {
 		return nil
 	}
 	gw := gateway.New()
 	served.Store(gw)
 	go func() {
-		if err := gw.ListenAndServe(ctx); err != nil {
+		if err := gw.ListenAndServe(context.Background()); err != nil {
 			log.Println("gateway:", err)
 			served.CompareAndSwap(gw, nil) // another took the port first
 		}
@@ -329,7 +398,7 @@ func singleInstance(h *host) *application.SingleInstanceOptions {
 	exe, _ := os.Executable()
 	sum := sha256.Sum256([]byte(exe + "\x00" + settings.Dir()))
 	return &application.SingleInstanceOptions{
-		UniqueID: "com.you-box.connect.i" + hex.EncodeToString(sum[:6]),
+		UniqueID: "ai.usemagpie.app.i" + hex.EncodeToString(sum[:6]),
 		OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
 			args := d.Args
 			if len(args) > 0 {
@@ -351,11 +420,4 @@ func abs(n int) int {
 		return -n
 	}
 	return n
-}
-
-func nativeText(en, vi string) string {
-	if settings.Load().Lang == "vi" {
-		return vi
-	}
-	return en
 }

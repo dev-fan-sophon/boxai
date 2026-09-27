@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -37,11 +36,7 @@ var claudeEfforts = []string{"low", "medium", "high", "xhigh"}
 func tierEnv(tier string) string { return "ANTHROPIC_DEFAULT_" + strings.ToUpper(tier) + "_MODEL" }
 
 func claude(home string) *Agent {
-	dir := os.Getenv("CLAUDE_CONFIG_DIR")
-	if dir == "" {
-		dir = filepath.Join(home, ".claude")
-	}
-	path := filepath.Join(dir, "settings.json")
+	path := filepath.Join(home, ".claude", "settings.json")
 	env := func(k string) string { v, _ := edit.GetJSON(path, "env."+k); return v }
 	model := jsonGet(path, "model")
 	routed := func() bool { return env("ANTHROPIC_BASE_URL") == gateway.URL() }
@@ -115,7 +110,7 @@ func claude(home string) *Agent {
 	writeTiers = func(main string, tiers map[string]string) error {
 		kvs := []edit.KV{
 			{Path: "env.ANTHROPIC_BASE_URL", Value: gateway.URL()},
-			{Path: "env.ANTHROPIC_AUTH_TOKEN", Value: gateway.Credential()},
+			{Path: "env.ANTHROPIC_AUTH_TOKEN", Value: gateway.Token},
 			{Path: "env.ANTHROPIC_MODEL", Value: main},
 			{Path: "env.ANTHROPIC_SMALL_FAST_MODEL", Value: tiers["haiku"]},
 			{Path: "model", Value: main},
@@ -186,10 +181,10 @@ func claude(home string) *Agent {
 					if v == "" {
 						return nil
 					}
-					return fmt.Errorf("pick a model through BoxAI Connect for Claude Code first; %s can then have its own", tier)
+					return fmt.Errorf("pick a model through magpie for Claude Code first; %s can then have its own", tier)
 				}
 				if v != "" && !isMagpie(v) {
-					return fmt.Errorf("%s: %q is not a model BoxAI Connect serves", tier, v)
+					return fmt.Errorf("%s: %q is not a model magpie serves", tier, v)
 				}
 				main := env("ANTHROPIC_MODEL")
 				tiers := map[string]string{}
@@ -225,10 +220,10 @@ func claude(home string) *Agent {
 			}
 			// an administrator's settings win over the user's
 			if u, _ := edit.GetJSON(claudeManaged(), "env.ANTHROPIC_BASE_URL"); u != "" && u != gateway.URL() {
-				return "Claude Code's managed settings (" + claudeManaged() + ") set ANTHROPIC_BASE_URL to " + u + ", which wins over BoxAI Connect's"
+				return "Claude Code's managed settings (" + claudeManaged() + ") set ANTHROPIC_BASE_URL to " + u + ", which wins over magpie's"
 			}
 			return wiringOff("Claude Code", path, func(k string) (string, bool) { return edit.GetJSON(path, "env."+k) },
-				"ANTHROPIC_BASE_URL", gateway.URL(), "ANTHROPIC_AUTH_TOKEN", gateway.Credential())
+				"ANTHROPIC_BASE_URL", gateway.URL(), "ANTHROPIC_AUTH_TOKEN", gateway.Token)
 		},
 		// every prompt typed into Claude Code goes into history.jsonl
 		LastUsed: func() time.Time {

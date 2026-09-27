@@ -61,7 +61,7 @@ func qoderSite(home string, b qoderBuild) *Agent {
 	get := func(k string) string { v, _ := edit.GetJSON(path, k); return v }
 	onMagpie := func() bool {
 		_, ok := cutMagpie(get("model.name"))
-		return ok && get(slot+".apiKey") == gateway.Credential()
+		return ok && get(slot+".apiKey") == gateway.Token
 	}
 	return &Agent{
 		ID: b.id, Name: b.name, Icon: "qoder", Aliases: b.aliases,
@@ -100,7 +100,7 @@ func qoderSite(home string, b qoderBuild) *Agent {
 				}
 				// out of magpie: its provider goes, and the model the user
 				// had comes back when none is asked for
-				if onMagpie() || get(slot+".apiKey") == gateway.Credential() {
+				if onMagpie() || get(slot+".apiKey") == gateway.Token {
 					if err := edit.DelJSON(path, slot); err != nil {
 						return err
 					}
@@ -163,5 +163,5 @@ func qoderProvider(agent, model string) map[string]any {
 		ms = append(ms, e)
 	}
 	return map[string]any{"displayName": "magpie", "protocol": "openai", "baseUrl": gatewayV1(),
-		"apiKey": gateway.Credential(), "model": model, "models": ms}
+		"apiKey": gateway.Token, "model": model, "models": ms}
 }

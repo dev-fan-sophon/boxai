@@ -91,10 +91,6 @@ func targetOf(a *agent.Agent) *Target {
 		t.Instructions = filepath.Join(d, "AGENTS.md")
 		t.MCP = &mcpFile{Path: a.Path, Format: fmtOpenCode}
 		t.Skills = filepath.Join(d, "skills")
-	case "grok":
-		t.Instructions = filepath.Join(a.Dir, "AGENTS.md")
-		t.MCP = &mcpFile{Path: a.Path, Format: fmtCodex}
-		t.Skills = filepath.Join(a.Dir, "skills")
 	case "pi":
 		d := os.Getenv("PI_CODING_AGENT_DIR")
 		if d == "" {

@@ -483,10 +483,6 @@ func ReadRTK() *RTKView {
 // by taking out what that put in — which needs no rtk, so an agent left
 // with the hook of an rtk since removed can be put right.
 func SetRTK(id string, on bool) (*RTKView, error) {
-	return nil, fmt.Errorf("install integrations from the BoxAI official catalog")
-}
-
-func legacySetRTK(id string, on bool) (*RTKView, error) {
 	rtkMu.Lock()
 	defer rtkMu.Unlock()
 	var a *agent.Agent
@@ -585,10 +581,6 @@ func rtkInstaller() []string {
 
 // InstallRTK installs rtk, when the user asks for it.
 func InstallRTK() (*RTKView, error) {
-	return nil, fmt.Errorf("install integrations from the BoxAI official catalog")
-}
-
-func legacyInstallRTK() (*RTKView, error) {
 	rtkMu.Lock()
 	defer rtkMu.Unlock()
 	if rtkPath() != "" {

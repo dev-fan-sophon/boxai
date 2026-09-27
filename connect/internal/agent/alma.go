@@ -238,7 +238,7 @@ func almaWire() (string, error) {
 	if p == nil {
 		var made almaProvider
 		if err := almaDo("POST", "/api/providers", map[string]any{"name": magpieID, "type": "openai",
-			"apiKey": gateway.Credential(), "baseURL": gatewayV1(), "enabled": true}, &made); err != nil {
+			"apiKey": gateway.Token, "baseURL": gatewayV1(), "enabled": true}, &made); err != nil {
 			return "", err
 		}
 		if made.ID == "" {
@@ -254,7 +254,7 @@ func almaWire() (string, error) {
 		p = &made
 	} else if p.BaseURL != gatewayV1() || !p.Enabled {
 		if err := almaDo("PUT", "/api/providers/"+p.ID, map[string]any{"baseURL": gatewayV1(),
-			"apiKey": gateway.Credential(), "enabled": true}, nil); err != nil {
+			"apiKey": gateway.Token, "enabled": true}, nil); err != nil {
 			return "", err
 		}
 	}

@@ -3,11 +3,11 @@ package netproxy
 import (
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/yetone/magpie/internal/settings"
 )
 
@@ -57,39 +57,81 @@ func TestParseWindows(t *testing.T) {
 }
 
 func TestFor(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		t.Setenv(k, "http://127.0.0.1:7891")
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "NO_PROXY", "no_proxy"} {
+		t.Setenv(k, "")
 	}
 	sysCache.at, sysCache.p = farFuture, Proxy{URL: "http://127.0.0.1:7890", Bypass: []string{"*.corp"}}
 	t.Cleanup(func() { sysCache.at = zero })
 
-	// Neither system nor environment proxies may divert BoxAI traffic.
-	for _, target := range []string{"https://you-box.com/api/desktop/session", "https://git.corp/x", "http://127.0.0.1:3425"} {
-		u, err := url.Parse(target)
-		require.NoError(t, err)
-		p, err := For(u)
-		require.NoError(t, err)
-		assert.Nil(t, p, target)
-		p, err = Func(&http.Request{URL: u})
-		require.NoError(t, err)
-		assert.Nil(t, p, target)
+	u, _ := url.Parse("https://chatgpt.com/backend-api/codex/responses")
+	if p, _ := For(u); p == nil || p.String() != "http://127.0.0.1:7890" {
+		t.Fatalf("system: %v", p)
 	}
-	for _, proxy := range []string{"socks5://127.0.0.1:1080", "ftp://x", "127.0.0.1:7890"} {
-		require.Error(t, settings.Save(settings.Settings{Proxy: proxy}))
+	corp, _ := url.Parse("https://git.corp/x")
+	if p, _ := For(corp); p != nil {
+		t.Fatalf("bypass: %v", p)
 	}
-	require.NoError(t, settings.Save(settings.Settings{Proxy: "direct"}))
+	local := &http.Request{URL: &url.URL{Scheme: "http", Host: "127.0.0.1:3425"}}
+	if p, _ := Func(local); p != nil {
+		t.Fatalf("loopback: %v", p)
+	}
+
+	// magpie's own setting wins; "direct" turns it off
+	settings.Save(settings.Settings{Proxy: "socks5://127.0.0.1:1080"})
+	if p, _ := For(u); p == nil || p.String() != "socks5://127.0.0.1:1080" {
+		t.Fatalf("setting: %v", p)
+	}
+	settings.Save(settings.Settings{Proxy: "direct"})
+	if p, _ := For(u); p != nil {
+		t.Fatalf("direct: %v", p)
+	}
+	if err := settings.Save(settings.Settings{Proxy: "ftp://x"}); err == nil {
+		t.Fatal("ftp proxy accepted")
+	}
+	if settings.Save(settings.Settings{Proxy: "127.0.0.1:7890"}) != nil || filepath.Dir(settings.Path()) != filepath.Join(dir, "magpie") {
+		t.Fatal("host:port proxy refused")
+	}
 }
 
 func TestEnv(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	sysCache.at, sysCache.p = farFuture, Proxy{URL: "http://127.0.0.1:7890", Bypass: []string{"*.corp", "<local>"}}
 	t.Cleanup(func() { sysCache.at = zero })
-	assert.Equal(t, []string{"PATH=/bin", "HOME=/h"}, Env([]string{"PATH=/bin", "HOME=/h"}), "system proxy must not be injected")
-	input := []string{"HTTPS_PROXY=http://10.0.0.1:1", "https_proxy=http://10.0.0.2:2", "HTTP_PROXY=http://x", "http_proxy=http://y", "ALL_PROXY=socks5://x", "all_proxy=socks5://y", "NO_PROXY=x", "no_proxy=y", "PATH=/bin", "HOME=/h", "CUSTOM_PROXY=preserved"}
-	original := append([]string(nil), input...)
-	assert.Equal(t, []string{"PATH=/bin", "HOME=/h", "CUSTOM_PROXY=preserved"}, Env(input), "strip standard proxies and preserve unrelated environment")
-	assert.Equal(t, original, input, "caller environment must remain intact")
+	get := func(env []string, k string) string {
+		v := ""
+		for _, e := range env {
+			if key, val, _ := strings.Cut(e, "="); key == k {
+				v = val
+			}
+		}
+		return v
+	}
+
+	// the system's proxy, where the environment names none
+	env := Env([]string{"PATH=/bin", "HOME=/h"})
+	if get(env, "HTTPS_PROXY") != "http://127.0.0.1:7890" || get(env, "all_proxy") != "http://127.0.0.1:7890" ||
+		get(env, "NO_PROXY") != "localhost,127.0.0.1,::1,.corp" || get(env, "PATH") != "/bin" {
+		t.Fatalf("system: %v", env)
+	}
+	// one the environment names is kept
+	env = Env([]string{"https_proxy=http://10.0.0.1:1", "NO_PROXY=x"})
+	if len(env) != 2 || get(env, "https_proxy") != "http://10.0.0.1:1" {
+		t.Fatalf("environment: %v", env)
+	}
+	// magpie's own replaces the environment's
+	settings.Save(settings.Settings{Proxy: "127.0.0.1:6152"})
+	env = Env([]string{"HTTPS_PROXY=http://10.0.0.1:1", "PATH=/bin"})
+	if get(env, "HTTPS_PROXY") != "http://127.0.0.1:6152" || get(env, "http_proxy") != "http://127.0.0.1:6152" ||
+		get(env, "NO_PROXY") != "localhost,127.0.0.1,::1" || len(env) != 9 {
+		t.Fatalf("setting: %v", env)
+	}
+	// and "direct" leaves none
+	settings.Save(settings.Settings{Proxy: "direct"})
+	if env = Env([]string{"HTTPS_PROXY=http://10.0.0.1:1", "PATH=/bin"}); len(env) != 1 {
+		t.Fatalf("direct: %v", env)
+	}
 }
 
 var farFuture = time.Now().Add(time.Hour)

@@ -3,7 +3,6 @@ package agent
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -16,10 +15,8 @@ func effortHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("DSH_HOME", "")
 	if err := provider.Save(provider.Provider{ID: "deepseek", Name: "DeepSeek", Chat: "https://api.deepseek.com/v1", Key: "k", Models: []string{"pro", "flash"}}); err != nil {
@@ -85,11 +82,7 @@ func TestEffortFields(t *testing.T) {
 	writeFile(t, filepath.Join(home, ".omp", "agent", "config.yml"), "modelRoles:\n  default: a/b\n")
 	setEffort(t, omp(home), "xhigh", "default: a/b")
 
-	goosePath := filepath.Join(cfg, "goose", "config.yaml")
-	if runtime.GOOS == "windows" {
-		goosePath = filepath.Join(home, "AppData", "Roaming", "Block", "goose", "config", "config.yaml")
-	}
-	writeFile(t, goosePath, "GOOSE_MODEL: m\nGOOSE_PROVIDER: p\n")
+	writeFile(t, filepath.Join(cfg, "goose", "config.yaml"), "GOOSE_MODEL: m\nGOOSE_PROVIDER: p\n")
 	g := goose(home, cfg)
 	setEffort(t, g, "max", "GOOSE_MODEL: m")
 	if v, _ := edit.GetYAMLTop(g.Path, "GOOSE_PROVIDER"); v != "p" {

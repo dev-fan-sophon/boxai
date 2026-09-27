@@ -46,7 +46,7 @@ func cline(home string) *Agent {
 	get := func(k string) string { v, _ := edit.GetJSON(path, k); return v }
 	inUse := func() string { return get("lastUsedProvider") }
 	onMagpie := func() bool {
-		return inUse() == clineSlot && get(slot+".settings.apiKey") == gateway.Credential()
+		return inUse() == clineSlot && get(slot+".settings.apiKey") == gateway.Token
 	}
 	// restore puts back the openai-compatible provider and the provider in
 	// use the user had before magpie
@@ -194,7 +194,7 @@ func cutMagpie(v string) (string, bool) {
 // effort (none unset).
 func clineProvider(model, effort string) map[string]any {
 	s := map[string]any{
-		"provider": clineSlot, "apiKey": gateway.Credential(), "model": model, "baseUrl": gatewayV1(),
+		"provider": clineSlot, "apiKey": gateway.Token, "model": model, "baseUrl": gatewayV1(),
 		"headers": map[string]string{"User-Agent": "cline"},
 	}
 	if effort != "" {

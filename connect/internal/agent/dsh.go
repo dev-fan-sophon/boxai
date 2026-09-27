@@ -224,7 +224,7 @@ func dshCheck(dir string) string {
 	if len(files) > 0 {
 		env := filepath.Join(dir, ".env")
 		return wiringOff("DeepSeek Harness", env, func(k string) (string, bool) { return edit.GetEnvFile(env, k) },
-			dshKeyRef, gateway.Credential())
+			dshKeyRef, gateway.Token)
 	}
 	return ""
 }
@@ -271,7 +271,7 @@ func dshSet(dir, v string) error {
 	}
 	env := filepath.Join(dir, ".env")
 	if viaGateway {
-		if err := edit.SetEnvFile(env, edit.KV{Path: dshKeyRef, Value: gateway.Credential()}); err != nil {
+		if err := edit.SetEnvFile(env, edit.KV{Path: dshKeyRef, Value: gateway.Token}); err != nil {
 			return err
 		}
 	} else if _, ok := edit.GetEnvFile(env, dshKeyRef); ok {
@@ -366,7 +366,7 @@ func yamlQuote(s string) string {
 // credential the entry names rather than holds. effort is the thinking
 // effort sessions start with, high (dsh's own default) when "".
 func dshProviderLines(modern bool, effort string) []string {
-	key := "    apiKey: " + yamlQuote(gateway.Credential())
+	key := "    apiKey: " + yamlQuote(gateway.Token)
 	if modern {
 		key = "    apiKeyEnv: " + dshKeyRef
 	}

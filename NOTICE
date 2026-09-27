@@ -20,10 +20,8 @@ frontend bundles, and desktop installers distributed to users.
 
 connect/
 BoxAI Connect, the Go/Wails client adapted from yetone/magpie at revision
-03a01a548df3d52fee86197fc2d0ff234b9fdfab (MIT; connect/LICENSE.magpie).
-Retained OriginGame bkit and GatewayConnector-derived code remains Apache-2.0
-(connect/LICENSE). Exact source revisions and licensing live in
-connect/UPSTREAM.md. Preserve both license texts in distributions.
+03a01a548df3d52fee86197fc2d0ff234b9fdfab (MIT; connect/LICENSE).
+Preserve the original Magpie copyright and MIT license in distributions.
 
 ==== Apache-2.0 Notices ====
 

@@ -11,9 +11,9 @@ The newly imported desktop manifests under `desktop/` and all transitive depende
 Connect 2 adapts `yetone/magpie` revision
 `03a01a548df3d52fee86197fc2d0ff234b9fdfab` (MIT), including its Go/Wails
 dependency graph pinned in `connect/go.mod` and `connect/go.sum`. Preserve
-`connect/LICENSE.magpie`. Retained OriginGame/GatewayConnector-derived code
-remains Apache-2.0; preserve `connect/LICENSE` and NOTICE. See
-`connect/UPSTREAM.md` for provenance. The legacy GPUI runtime is no longer built.
+the original MIT copyright and license in `connect/LICENSE`. The subtree is
+the complete Magpie fork; the previous custom Connect implementation is not
+part of this baseline.
 
 | Area        | Scope       | Ecosystem | Dependency                                            | Version                              | License                                            |
 |-------------|-------------|-----------|-------------------------------------------------------|--------------------------------------|----------------------------------------------------|

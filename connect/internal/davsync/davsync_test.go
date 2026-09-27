@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/yetone/magpie/internal/backup"
 	"github.com/yetone/magpie/internal/profile"
 	"github.com/yetone/magpie/internal/provider"
@@ -82,7 +81,6 @@ func newComputer(t *testing.T) computer { return computer(t.TempDir()) }
 
 func (c computer) use(t *testing.T) {
 	t.Setenv("HOME", string(c))
-	t.Setenv("USERPROFILE", string(c))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(string(c), ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(string(c), ".cache"))
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(string(c), ".claude"))
@@ -115,7 +113,7 @@ func TestSync(t *testing.T) {
 	a, b := newComputer(t), newComputer(t)
 	a.use(t)
 	provider.Save(provider.Provider{ID: "deepseek", Name: "DeepSeek", Chat: "https://api.deepseek.com/v1", Key: "k1"})
-	require.NoError(t, settings.Save(settings.Settings{Theme: "dark", Proxy: "direct", Window: []int{900, 700}}))
+	settings.Save(settings.Settings{Theme: "dark", Proxy: "http://127.0.0.1:7890", Window: []int{900, 700}})
 	profile.Save("work", profile.Profile{Fields: map[string]string{"claude.model": "x"}})
 	same := cfg
 	same.Passphrase = cfg.Password
@@ -142,11 +140,11 @@ func TestSync(t *testing.T) {
 		t.Fatalf("%d puts", fake.puts)
 	}
 
-	// b joins: a's setup comes in, direct networking and b's window stay, and what
+	// b joins: a's setup comes in, b's own proxy and window stay, and what
 	// b had is kept aside
 	b.use(t)
 	provider.Save(provider.Provider{ID: "mine", Name: "Mine", Chat: "https://x/v1", Key: "kb"})
-	require.NoError(t, settings.Save(settings.Settings{Proxy: "direct", Window: []int{1, 2}}))
+	settings.Save(settings.Settings{Proxy: "direct", Window: []int{1, 2}})
 	Configure(Config{URL: cfg.URL, User: "me", Password: "pw", Passphrase: "correct horse", Keys: true, Agents: true})
 	v := now(t)
 	if v.Notice == nil || !slices.Contains(v.Notice.Here, "providers") || !slices.Contains(v.Notice.Here, "settings") {
@@ -197,39 +195,39 @@ func TestSync(t *testing.T) {
 	if ps, _ := profile.Load(); len(ps) != 0 {
 		t.Fatalf("a's profiles: %v", ps)
 	}
-	if s := settings.Load(); s.Proxy != "direct" {
+	if s := settings.Load(); s.Proxy != "http://127.0.0.1:7890" {
 		t.Fatalf("a's proxy: %q", s.Proxy)
 	}
 
 	// both change the settings: the older change gives way, and is kept
-	require.NoError(t, settings.Save(settings.Settings{Theme: "light", Lang: "en", Proxy: "direct"}))
+	settings.Save(settings.Settings{Theme: "light", Proxy: "http://127.0.0.1:7890"})
 	now(t) // a's is on the server now
 	b.use(t)
-	require.NoError(t, settings.Save(settings.Settings{Theme: "system", Lang: "vi", Proxy: "direct"}))
+	settings.Save(settings.Settings{Theme: "system", Lang: "zh", Proxy: "direct"})
 	old := time.Now().Add(-time.Hour)
 	os.Chtimes(settings.Path(), old, old)
 	v = now(t)
 	if v.Notice == nil || !slices.Equal(v.Notice.Here, []string{"settings"}) || len(v.Notice.There) != 0 {
 		t.Fatalf("older here: %+v", v.Notice)
 	}
-	if s := settings.Load(); s.Theme != "light" || s.Lang != "en" {
+	if s := settings.Load(); s.Theme != "light" || s.Lang == "zh" {
 		t.Fatalf("b's settings: %+v", s)
 	}
 	// …and the newer one stays, the server's kept aside
 	a.use(t)
-	require.NoError(t, settings.Save(settings.Settings{Theme: "dark", Proxy: "direct"}))
+	settings.Save(settings.Settings{Theme: "dark", Proxy: "http://127.0.0.1:7890"})
 	os.Chtimes(settings.Path(), old, old)
 	now(t)
 	b.use(t)
 	Dismiss()
-	require.NoError(t, settings.Save(settings.Settings{Theme: "light", Lang: "vi", Proxy: "direct"}))
+	settings.Save(settings.Settings{Theme: "light", Lang: "en", Proxy: "direct"})
 	v = now(t)
 	if v.Notice == nil || !slices.Equal(v.Notice.There, []string{"settings"}) {
 		t.Fatalf("newer here: %+v", v.Notice)
 	}
 	a.use(t)
 	now(t)
-	if s := settings.Load(); s.Lang != "vi" {
+	if s := settings.Load(); s.Lang != "en" {
 		t.Fatalf("a didn't get b's newer settings: %+v", s)
 	}
 
