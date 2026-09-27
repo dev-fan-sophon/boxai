@@ -16,8 +16,8 @@ describe('uploadPlaygroundAsset', () => {
     vi.unstubAllGlobals()
   })
 
-  it('puts the file to the signed URL and does not send it to the API', async () => {
-    post.mockResolvedValue({
+  it('puts the file to the signed URL and returns only the finalized asset', async () => {
+    post.mockResolvedValueOnce({
       data: {
         success: true,
         data: {
@@ -25,8 +25,19 @@ describe('uploadPlaygroundAsset', () => {
           asset: {
             id: 9,
             kind: 'image',
-            url: '/api/playground/assets/9/content',
+            upload_state: 'pending',
+            url: '',
           },
+        },
+      },
+    })
+    post.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          id: 9,
+          upload_state: 'ready',
+          url: '/api/playground/assets/9/content',
         },
       },
     })
@@ -37,16 +48,39 @@ describe('uploadPlaygroundAsset', () => {
     const asset = await uploadPlaygroundAsset(file, 'image', 'library')
 
     expect(asset.id).toBe(9)
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(asset.upload_state).toBe('ready')
+    expect(asset.url).toBe('/api/playground/assets/9/content')
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(post.mock.calls[1]?.[0]).toBe('/api/playground/assets/9/finalize')
     expect(post.mock.calls[0]?.[0]).toBe('/api/playground/assets/upload-intent')
     const body = post.mock.calls[0]?.[1] as { size: number; kind: string }
     expect(body.size).toBe(file.size)
     expect(body.kind).toBe('image')
+    expect(body).toHaveProperty('source', 'library')
     expect(JSON.stringify(body)).not.toContain('pixels')
     expect(fetchMock).toHaveBeenCalledWith(
       'https://r2.example/uploads/ref.mp4?sig=1',
       expect.objectContaining({ method: 'PUT', body: file })
     )
+  })
+
+  it('does not return a pending asset or retry multipart after verification fails', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { put_url: 'https://r2.example/staging', asset: { id: 9 } },
+      },
+    })
+    post.mockResolvedValueOnce({
+      data: { success: false, message: 'uploaded size does not match intent' },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const file = new File(['pixels'], 'ref.png', { type: 'image/png' })
+
+    await expect(uploadPlaygroundAsset(file, 'image')).rejects.toThrow(
+      'uploaded size does not match intent'
+    )
+    expect(post).toHaveBeenCalledTimes(2)
   })
 
   it('falls back to multipart when direct upload is unavailable', async () => {

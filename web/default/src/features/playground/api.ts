@@ -348,6 +348,8 @@ export type PlaygroundAsset = {
   source?: string
   name: string
   storage_key?: string
+  upload_state?: '' | 'pending' | 'ready'
+  upload_expires_at?: number
   url: string
   mime: string
   size: number
@@ -374,7 +376,7 @@ export async function uploadPlaygroundAsset(
   kind?: string,
   source?: string
 ): Promise<PlaygroundAsset> {
-  const direct = await uploadPlaygroundAssetDirect(file, kind)
+  const direct = await uploadPlaygroundAssetDirect(file, kind, source)
   if (direct) return direct
   const form = new FormData()
   form.append('file', file)
@@ -391,9 +393,10 @@ export async function uploadPlaygroundAsset(
 
 async function uploadPlaygroundAssetDirect(
   file: File,
-  kind?: string
+  kind?: string,
+  source?: string
 ): Promise<PlaygroundAsset | null> {
-  if (!kind || kind === 'document') return null
+  if (!kind || kind === 'document' || !file.type) return null
   const intent = await api.post(
     `${API_ENDPOINTS.ASSETS}/upload-intent`,
     {
@@ -401,6 +404,7 @@ async function uploadPlaygroundAssetDirect(
       content_type: file.type || 'application/octet-stream',
       size: file.size,
       kind,
+      source,
     },
     { skipErrorHandler: true, validateStatus: () => true }
   )
@@ -413,7 +417,16 @@ async function uploadPlaygroundAssetDirect(
   if (!put.ok) {
     throw new Error(`Direct upload failed (${put.status})`)
   }
-  return intent.data.data.asset as PlaygroundAsset
+  const finalized = await api.post(
+    `${API_ENDPOINTS.ASSETS}/${intent.data.data.asset.id}/finalize`
+  )
+  if (
+    !finalized.data?.success ||
+    finalized.data?.data?.upload_state !== 'ready'
+  ) {
+    throw new Error(finalized.data?.message || t('Upload failed'))
+  }
+  return finalized.data.data as PlaygroundAsset
 }
 
 /** Fetch the raw bytes of a private asset through the same-origin app route. */
