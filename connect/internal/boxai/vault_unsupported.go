@@ -4,8 +4,6 @@ package boxai
 
 import "context"
 
-// Linux intentionally fails closed until a supported Secret Service backend
-// is available. macOS builds without Security.framework support do likewise.
-func readNative(context.Context, string) (string, error) { return "", ErrVaultUnavailable }
-func writeNative(context.Context, string, string) error  { return ErrVaultUnavailable }
-func deleteNative(context.Context, string) error         { return ErrVaultUnavailable }
+// Only old encrypted projection migration needs a native credential backend.
+// New sign-ins use auth.json on every platform.
+func readNative(context.Context, string) (string, error) { return "", errLegacyVaultUnavailable }

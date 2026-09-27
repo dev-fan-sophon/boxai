@@ -44,8 +44,11 @@ The in-app update feed is still signed over the exact installer bytes with the
 Connect Ed25519 key. Do not claim Authenticode, Developer ID, or notarization.
 
 Connect requires BoxAI browser authentication before proxying or changing Agent
-configuration. Native acceptance must exercise the login gate, system credential
-store, configuration restore and installer handoff. A Linux build or Windows
+configuration. New credentials live in private plaintext `auth.json` beside
+settings (Unix `0600`, current-user-only Windows ACL), not the system vault.
+Never print or capture that file. Native vault access is read-only legacy
+migration support. Native acceptance must exercise the login gate, auth-file
+persistence/deletion, configuration restore and installer handoff. A Linux build or Windows
 cross-compile is not native acceptance. The updater downloads and verifies an
 installer, then opens its native UI; it does not silently replace the executable.
 

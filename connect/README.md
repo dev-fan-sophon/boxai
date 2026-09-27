@@ -8,9 +8,19 @@ for pinned source and retained license notices.
 ## Account and configuration lifecycle
 
 Sign in through the BoxAI browser flow before accessing models, Agents, MCP
-servers or Skills. Account credentials stay in macOS Keychain or Windows
-Credential Manager; there is no plaintext fallback. Linux builds are for
-development checks and fail closed when native credential storage is unavailable.
+servers or Skills. Credentials are stored in `auth.json` beside `settings.json`:
+`$XDG_CONFIG_HOME/boxai-connect/auth.json`, or
+`~/.config/boxai-connect/auth.json` when XDG_CONFIG_HOME is unset (including
+`%USERPROFILE%/.config/boxai-connect/auth.json` on Windows).
+The JSON contains the `session` token, independent `gateway` credential and,
+only during incomplete logout, a `signout` marker. It is plaintext: processes
+running as your OS user can read it. Unix permissions are `0600`; Windows uses
+a current-user-only protected ACL. Atomic writes and a separate file lock
+protect concurrent GUI/CLI use. Never share this file or include it in logs.
+
+New logins do not use Keychain or Credential Manager. Read-only native vault
+support remains solely to restore encrypted configuration from the old Rust
+client; its original credential is not copied into the new auth file.
 
 Only account-authorized BoxAI models and the official provisioning catalog can
 be applied. Keep Connect running: configured Agents use its authenticated
@@ -28,7 +38,8 @@ unrecoverable legacy journals block migration rather than overwriting files.
 Signing out first restores Connect-owned model/MCP/Skill changes, then revokes
 the device session and deletes its credentials. A failed restore or revocation
 leaves sign-out pending across restarts; resolve the reported conflict and retry
-sign-out. Do not delete the original vault entry or receipt to bypass recovery.
+sign-out. Successful logout removes `auth.json`. Do not delete pending auth
+state, the original legacy vault entry or receipts to bypass recovery.
 
 ## Development and checks
 

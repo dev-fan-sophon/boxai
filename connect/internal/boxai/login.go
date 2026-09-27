@@ -189,7 +189,6 @@ func (c *Client) finish(ctx context.Context, generation uint64, token string, da
 		return false
 	}
 	c.token = token
-	c.loaded = true
 	c.data = data
 	c.validated = c.now()
 	c.lastError = ""

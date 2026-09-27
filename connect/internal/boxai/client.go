@@ -9,16 +9,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/yetone/magpie/internal/settings"
 )
 
 const Origin = "https://you-box.com"
 const validationTTL = 30 * time.Second
 
 var ErrLoginRequired = errors.New("BoxAI sign-in required")
-var ErrVaultUnavailable = errors.New("native credential storage unavailable; no plaintext fallback is permitted")
+var ErrVaultUnavailable = errors.New("local auth.json credential storage unavailable")
 var errMissing = errors.New("credential not found")
 var errRejected = errors.New("BoxAI credential rejected")
 
@@ -40,7 +43,6 @@ type Client struct {
 	origin       string
 	now          func() time.Time
 	token        string
-	loaded       bool
 	validated    time.Time
 	data         ProvisioningData
 	lastError    string
@@ -48,7 +50,9 @@ type Client struct {
 	generation   uint64
 }
 
-func New() *Client { return newClient(Origin, nativeVault{}, nil) }
+func New() *Client {
+	return newClient(Origin, fileVault{path: filepath.Join(settings.Dir(), "auth.json")}, nil)
+}
 func newClient(origin string, v vault, transport http.RoundTripper) *Client {
 	return &Client{origin: origin, vault: v, now: time.Now, http: &http.Client{
 		Transport: transport, Timeout: 15 * time.Second,
@@ -170,30 +174,32 @@ func (c *Client) requireLocked(ctx context.Context) error {
 	if c.blocked {
 		return ErrLoginRequired
 	}
-	if !c.loaded {
-		pending, e := c.vault.Get(ctx, "signout")
-		if e != nil && !errors.Is(e, errMissing) {
-			return ErrVaultUnavailable
-		}
-		if pending != "" {
-			c.lastError = "Sign-out pending: retry sign-out to revoke BoxAI session"
-			return ErrLoginRequired
-		}
-		t, err := c.vault.Get(ctx, "session")
-		if errors.Is(err, errMissing) {
-			c.loaded = true
-			return ErrLoginRequired
-		}
-		if err != nil {
-			return ErrVaultUnavailable
-		}
-		c.loaded = true
-		if !validToken(t) {
-			return ErrLoginRequired
-		}
-		c.token = t
+	// The CLI and GUI share auth.json. Observe sign-out and changed/deleted
+	// credentials immediately, even while remote validation is cached.
+	pending, err := c.vault.Get(ctx, "signout")
+	if err != nil && !errors.Is(err, errMissing) {
+		c.validated = time.Time{}
+		c.data = ProvisioningData{}
+		return ErrVaultUnavailable
 	}
-	if c.token == "" {
+	if pending != "" {
+		c.validated = time.Time{}
+		c.data = ProvisioningData{}
+		c.lastError = "Sign-out pending: retry sign-out to revoke BoxAI session"
+		return ErrLoginRequired
+	}
+	t, err := c.vault.Get(ctx, "session")
+	if err != nil && !errors.Is(err, errMissing) {
+		c.validated = time.Time{}
+		c.data = ProvisioningData{}
+		return ErrVaultUnavailable
+	}
+	if t != c.token {
+		c.token = t
+		c.validated = time.Time{}
+		c.data = ProvisioningData{}
+	}
+	if !validToken(c.token) {
 		return ErrLoginRequired
 	}
 	if !c.validated.IsZero() && c.now().Sub(c.validated) < validationTTL {
@@ -331,7 +337,6 @@ func (c *Client) Logout(ctx context.Context) error {
 	c.token = ""
 	c.validated = time.Time{}
 	c.data = ProvisioningData{}
-	c.loaded = true
 	if t == "" {
 		var e error
 		t, e = c.vault.Get(ctx, "session")
@@ -339,7 +344,7 @@ func (c *Client) Logout(ctx context.Context) error {
 			return ErrVaultUnavailable
 		}
 	}
-	// Retain the native credential on failed revocation so signout can retry.
+	// Retain the file credential on failed revocation so signout can retry.
 	if t != "" {
 		e := c.request(ctx, "POST", "/api/v1/connector/revoke", t, nil, nil)
 		if e != nil && !errors.Is(e, errRejected) {
