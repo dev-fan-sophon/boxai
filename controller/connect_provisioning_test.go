@@ -73,15 +73,16 @@ type connectorManifestResponse struct {
 type connectorProvisioningResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		Account       connectorAccount     `json:"account"`
-		Usage         connectorUsage       `json:"usage"`
-		Billing       connectorBilling     `json:"billing"`
-		ModelPlaza    connectorModelPlaza  `json:"model_plaza"`
-		SchemaVersion int                  `json:"schema_version"`
-		Models        []connectorModel     `json:"models"`
-		DefaultModel  string               `json:"default_model"`
-		MCPServers    []connectorMCPServer `json:"mcp_servers"`
-		Skills        []connectorSkill     `json:"skills"`
+		Account       connectorAccount                    `json:"account"`
+		Usage         connectorUsage                      `json:"usage"`
+		Billing       connectorBilling                    `json:"billing"`
+		ModelPlaza    connectorModelPlaza                 `json:"model_plaza"`
+		SchemaVersion int                                 `json:"schema_version"`
+		Models        []connectorModel                    `json:"models"`
+		DefaultModel  string                              `json:"default_model"`
+		MCPServers    []connectorMCPServer                `json:"mcp_servers"`
+		Skills        []connectorSkill                    `json:"skills"`
+		Agents        map[string]connectProvisioningAgent `json:"agents"`
 	} `json:"data"`
 }
 
@@ -275,6 +276,7 @@ func TestConnectorSelfRevokeUsesOnlyAuthenticatedContext(t *testing.T) {
 func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t *testing.T) {
 	originalServerAddress := system_setting.ServerAddress
 	t.Cleanup(func() { system_setting.ServerAddress = originalServerAddress })
+	withConnectPolicies(t, `{"claude":{"enabled":true,"recommended_model":"zz-connector-chat","locked_model":"zz-connector-disabled"},"codex":{"enabled":false,"recommended_model":"zz-connector-chat"},"gemini":{"enabled":true,"locked_model":"zz-connector-chat"}}`)
 	withSelfUseModeEnabled(t)
 	db := setupModelListControllerTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.ConnectorMCPServer{}, &model.ConnectorSkillRelease{}, &model.SubscriptionPlan{}, &model.UserSubscription{}))
@@ -297,6 +299,8 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	require.NoError(t, db.Create(&vendor).Error)
 	require.NoError(t, db.Create(&model.Model{
 		ModelName: "zz-connector-chat", Description: "Authoritative description", Icon: "model-icon",
+		DisplayName: "Connector Chat", ContextLength: 200000, MaxOutputTokens: 64000,
+		InputModalities: `["text","image","bad\nmodality"]`, Capabilities: `["tools","bad\u007fcapability"]`,
 		Tags: "zeta, alpha,alpha", VendorID: vendor.Id, Status: 1,
 	}).Error)
 	now := common.GetTimestamp()
@@ -338,6 +342,14 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	assert.Equal(t, []string{"openai", "openai-response"}, payload.Data.Models[0].Endpoints)
 	assert.Empty(t, payload.Data.Models[0].SupportedReasoning)
 	assert.Equal(t, "Authoritative description", payload.Data.Models[0].Description)
+	assert.Equal(t, "Connector Chat", payload.Data.Models[0].DisplayName)
+	assert.Equal(t, 200000, payload.Data.Models[0].ContextLength)
+	assert.Equal(t, 64000, payload.Data.Models[0].MaxOutputTokens)
+	assert.Equal(t, []string{"text", "image"}, payload.Data.Models[0].InputModalities)
+	assert.Equal(t, []string{"tools"}, payload.Data.Models[0].Capabilities)
+	assert.Equal(t, connectProvisioningAgent{Enabled: true, Models: []string{"zz-connector-chat"}, RecommendedModel: "zz-connector-chat"}, payload.Data.Agents["claude"])
+	assert.Equal(t, connectProvisioningAgent{Models: []string{}}, payload.Data.Agents["codex"])
+	assert.Equal(t, "zz-connector-chat", payload.Data.Agents["gemini"].LockedModel)
 	assert.Equal(t, "model-icon", payload.Data.Models[0].Icon)
 	assert.Equal(t, []string{"alpha", "zeta"}, payload.Data.Models[0].Tags)
 	require.NotNil(t, payload.Data.Models[0].Vendor)
@@ -373,6 +385,20 @@ func TestConnectorProvisioningReturnsAccountCallableModelsAndAuthoritativeData(t
 	assert.NotContains(t, recorder.Body.String(), "upstream-disabled-secret")
 	assert.NotContains(t, recorder.Body.String(), "upstream-image-secret")
 	assert.NotContains(t, recorder.Body.String(), "password-secret")
+
+	require.NoError(t, config.GlobalConfig.UpdateRegistered("connect", map[string]string{"enabled": "false"}))
+	disabledRecorder := httptest.NewRecorder()
+	disabledContext, _ := gin.CreateTestContext(disabledRecorder)
+	disabledContext.Request = httptest.NewRequest(http.MethodGet, "https://gateway.example/api/v1/connector/provisioning", nil)
+	disabledContext.Set("id", 2101)
+	GetConnectorProvisioning(disabledContext)
+	var disabled connectorProvisioningResponse
+	require.NoError(t, common.Unmarshal(disabledRecorder.Body.Bytes(), &disabled))
+	require.True(t, disabled.Success)
+	assert.Equal(t, payload.Data.Models, disabled.Data.Models, "disabling projection does not change account model discovery")
+	for name, agent := range disabled.Data.Agents {
+		assert.Equal(t, connectProvisioningAgent{Models: []string{}}, agent, name)
+	}
 }
 
 func TestConnectorProvisioningReturnsEmptyManagedCatalogsHonestly(t *testing.T) {

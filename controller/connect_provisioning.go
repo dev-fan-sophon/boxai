@@ -152,6 +152,11 @@ type connectorManifest struct {
 
 type connectorModel struct {
 	ID                 string           `json:"id"`
+	DisplayName        string           `json:"display_name,omitempty"`
+	ContextLength      int              `json:"context_length,omitempty"`
+	MaxOutputTokens    int              `json:"max_output_tokens,omitempty"`
+	InputModalities    []string         `json:"input_modalities,omitempty"`
+	Capabilities       []string         `json:"capabilities,omitempty"`
 	ChatCapable        bool             `json:"chat_capable"`
 	ResponsesNative    bool             `json:"responses_native"`
 	Endpoints          []string         `json:"endpoints"`
@@ -230,15 +235,16 @@ type connectorSkill struct {
 }
 
 type connectorProvisioning struct {
-	SchemaVersion int                  `json:"schema_version"`
-	Account       connectorAccount     `json:"account"`
-	Usage         connectorUsage       `json:"usage"`
-	Billing       connectorBilling     `json:"billing"`
-	ModelPlaza    connectorModelPlaza  `json:"model_plaza"`
-	Models        []connectorModel     `json:"models"`
-	DefaultModel  string               `json:"default_model"`
-	MCPServers    []connectorMCPServer `json:"mcp_servers"`
-	Skills        []connectorSkill     `json:"skills"`
+	SchemaVersion int                                 `json:"schema_version"`
+	Account       connectorAccount                    `json:"account"`
+	Usage         connectorUsage                      `json:"usage"`
+	Billing       connectorBilling                    `json:"billing"`
+	ModelPlaza    connectorModelPlaza                 `json:"model_plaza"`
+	Models        []connectorModel                    `json:"models"`
+	DefaultModel  string                              `json:"default_model"`
+	MCPServers    []connectorMCPServer                `json:"mcp_servers"`
+	Skills        []connectorSkill                    `json:"skills"`
+	Agents        map[string]connectProvisioningAgent `json:"agents"`
 }
 
 // GetConnectorManifest is public discovery metadata for the shared neutral
@@ -378,6 +384,21 @@ func GetConnectorProvisioning(c *gin.Context) {
 		}
 		entry.ResponsesNative = responsesNativeModel(endpointTypes, owners[name])
 		if pricing, ok := pricingByModel[name]; ok {
+			if validConnectorMetadata(pricing.DisplayName, 255) {
+				entry.DisplayName = pricing.DisplayName
+			}
+			entry.ContextLength = max(pricing.ContextLength, 0)
+			entry.MaxOutputTokens = max(pricing.MaxOutputTokens, 0)
+			for _, modality := range pricing.InputModalities {
+				if validConnectorMetadata(modality, 128) {
+					entry.InputModalities = append(entry.InputModalities, modality)
+				}
+			}
+			for _, capability := range pricing.Capabilities {
+				if validConnectorMetadata(capability, 128) {
+					entry.Capabilities = append(entry.Capabilities, capability)
+				}
+			}
 			if pricing.SupportedReasoning {
 				entry.SupportedReasoning = append(entry.SupportedReasoning, pricing.ReasoningEfforts...)
 			}
@@ -491,6 +512,11 @@ func GetConnectorProvisioning(c *gin.Context) {
 	if len(chatModels) > 0 {
 		data.DefaultModel = chatModels[0].ID
 	}
+	chatNames := make([]string, 0, len(chatModels))
+	for _, entry := range chatModels {
+		chatNames = append(chatNames, entry.ID)
+	}
+	data.Agents = connectAgentPolicies(chatNames)
 	desktopNoStore(c)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }
@@ -577,18 +603,6 @@ func GetConnectProvisioning(c *gin.Context) {
 		Policies: policies,
 	})
 	policyHash := sha256.Sum256(policyJSON)
-	agents := make(map[string]connectProvisioningAgent, len(system_setting.ConnectAgentNames))
-	for _, name := range system_setting.ConnectAgentNames {
-		policy := policies[name]
-		agentEnabled := connectSettings.Enabled && policy.Enabled
-		agent := connectProvisioningAgent{Enabled: agentEnabled, Models: []string{}}
-		if agentEnabled {
-			agent.Models = append([]string(nil), chatModels...)
-			agent.RecommendedModel = availableModel(policy.RecommendedModel, chatModels)
-			agent.LockedModel = availableModel(policy.LockedModel, chatModels)
-		}
-		agents[name] = agent
-	}
 
 	data := connectProvisioning{
 		ChatModels:   chatModels,
@@ -603,7 +617,7 @@ func GetConnectProvisioning(c *gin.Context) {
 		MCPEndpoint:         publicOrigin(c) + "/mcp",
 		Revision:            hex.EncodeToString(policyHash[:]),
 		RefreshAfterSeconds: 60,
-		Agents:              agents,
+		Agents:              connectAgentPolicies(chatModels),
 	}
 	// A missing user is not fatal: the catalog is still usable, and the app
 	// simply renders its account panel without a name.
@@ -630,6 +644,24 @@ func GetConnectProvisioning(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, payload)
+}
+
+// connectAgentPolicies keeps both provisioning contracts account-filtered.
+func connectAgentPolicies(chatModels []string) map[string]connectProvisioningAgent {
+	settings := system_setting.GetConnectSettings()
+	policies := system_setting.GetConnectAgentPolicies()
+	agents := make(map[string]connectProvisioningAgent, len(system_setting.ConnectAgentNames))
+	for _, name := range system_setting.ConnectAgentNames {
+		policy := policies[name]
+		agent := connectProvisioningAgent{Enabled: settings.Enabled && policy.Enabled, Models: []string{}}
+		if agent.Enabled {
+			agent.Models = append(agent.Models, chatModels...)
+			agent.RecommendedModel = availableModel(policy.RecommendedModel, chatModels)
+			agent.LockedModel = availableModel(policy.LockedModel, chatModels)
+		}
+		agents[name] = agent
+	}
+	return agents
 }
 
 func availableModel(configured string, chatModels []string) string {
