@@ -1084,18 +1084,18 @@ input.words { width: 240px; max-width: 100%; }
 .prefs .val { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; min-width: 0; max-width: 60%; flex: none; }
 .prefs .val code { font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text; -webkit-user-select: text; padding: 0 6px; }
 .prefs .val .text { padding: 3px 6px; }
-/* the community row's way in: Discord's own colour, quiet until hovered */
-.prefs .val .discord {
+/* BoxAI's Zalo community, quiet until hovered */
+.prefs .val .community {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px 0 9px; border-radius: 999px;
-  font-size: 12px; font-weight: 560; white-space: nowrap; color: #5865f2;
-  background: color-mix(in srgb, #5865f2 11%, transparent);
-  box-shadow: inset 0 0 0 .5px color-mix(in srgb, #5865f2 35%, transparent);
+  font-size: 12px; font-weight: 560; white-space: nowrap; color: #0068ff;
+  background: color-mix(in srgb, #0068ff 11%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, #0068ff 35%, transparent);
   transition: background .15s, color .15s, transform .12s var(--ease);
 }
-.prefs .val .discord:hover { background: #5865f2; color: #fff; }
-.prefs .val .discord:active { transform: scale(.96); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .prefs .val .discord:not(:hover) { color: #8b95ff; } }
-:root[data-theme="dark"] .prefs .val .discord:not(:hover) { color: #8b95ff; }
+.prefs .val .community:hover { background: #0068ff; color: #fff; }
+.prefs .val .community:active { transform: scale(.96); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .prefs .val .community:not(:hover) { color: #80b4ff; } }
+:root[data-theme="dark"] .prefs .val .community:not(:hover) { color: #80b4ff; }
 
 
 /* ---------- motion ----------

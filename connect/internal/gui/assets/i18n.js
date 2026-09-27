@@ -562,7 +562,7 @@ const I18N = {
     "Choose a file first": "Hãy chọn tệp trước",
     "Providers: {added} added, {replaced} replaced; {profiles} profiles; {agents} agent settings changed": "Nhà cung cấp: thêm {added}, thay {replaced}; {profiles} hồ sơ cấu hình; đổi {agents} cài đặt tác nhân",
     "Needs a key: {names}": "Cần khóa: {names}",
-    "Community": "Cộng đồng", "questions, ideas and feedback, on Discord": "câu hỏi, ý tưởng và góp ý trên Discord", "Join Discord": "Tham gia Discord",
+    "Community": "Cộng đồng", "questions, ideas and feedback, in the BoxAI Zalo group": "câu hỏi, ý tưởng và góp ý trong nhóm Zalo của BoxAI", "Join Zalo": "Tham gia Zalo",
     "Copy": "Sao chép",
     "Copied": "Đã sao chép",
     "Region": "Khu vực",
