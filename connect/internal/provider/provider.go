@@ -158,6 +158,9 @@ func Path() string {
 }
 
 func load() file {
+	if managedSession.Load() != nil {
+		return file{}
+	}
 	var f file
 	if b, err := os.ReadFile(Path()); err == nil {
 		json.Unmarshal(b, &f)
@@ -166,6 +169,9 @@ func load() file {
 }
 
 func store(f file) error {
+	if managedSession.Load() != nil {
+		return ErrManagedProvider
+	}
 	p := Path()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return err
@@ -190,6 +196,9 @@ func store(f file) error {
 // the signed-in agents. An entry in the file with no URL is only the
 // model picks for one of those accounts.
 func All() []Provider {
+	if managedSession.Load() != nil {
+		return managedProviders()
+	}
 	stored := load().Providers
 	picks := map[string]Provider{}
 	var out []Provider
@@ -260,6 +269,9 @@ func Slug(name string) string {
 
 // Save adds or replaces a provider.
 func Save(p Provider) error {
+	if managedSession.Load() != nil {
+		return ErrManagedProvider
+	}
 	p = normalize(p)
 	p.IconURL = "" // import-only: never stored
 	if p.ID == "" {
