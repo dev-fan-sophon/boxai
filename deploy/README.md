@@ -163,7 +163,8 @@ back the binary does not require dropping the additive columns; do not drop them
   only request polling; they cannot update results or settle billing.
 - Independent `video_output` jobs persist successful API and Playground videos
   (created/completed from 2026-09-26 UTC), eight per pass, one download at a time.
-  Downloads have a 60-second deadline and the existing 50 MiB video size limit.
+  Downloads have a 60-second deadline and a 200 MiB generated-video size limit.
+  Reference-video uploads retain their separate 50 MiB limit.
   Failures retain the generation/billing result and retry with backoff up to six
   hours. Stored `/v1/videos/:id/content` supports streaming and Range;
   `?redirect=1` opts into a short-lived signed object URL to avoid app bandwidth.

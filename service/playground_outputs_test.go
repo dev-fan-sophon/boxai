@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -74,6 +76,46 @@ func TestPersistPlaygroundOutputHTTPStreamsWithoutBufferingWholeBody(t *testing.
 	require.NoError(t, body.Close())
 	require.NoError(t, err)
 	assert.Equal(t, mp4, got)
+}
+
+func TestGeneratedVideo200MiBBoundary(t *testing.T) {
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundAsset{}))
+	t.Cleanup(func() { model.DB.Exec("DELETE FROM playground_assets") })
+	root := t.TempDir()
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", root)
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+	f, err := os.CreateTemp(t.TempDir(), "video")
+	require.NoError(t, err)
+	defer f.Close()
+	require.NoError(t, f.Truncate(200<<20+1))
+	_, err = f.WriteAt([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}, 0)
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		size, declared int64
+		accepted       bool
+	}{
+		{200 << 20, 200 << 20, true},
+		{200<<20 + 1, 200<<20 + 1, false},
+		{200<<20 + 1, -1, false},
+	} {
+		asset, err := persistPlaygroundOutputStream(context.Background(), 991, "video", io.NewSectionReader(f, 0, tc.size), tc.declared, "video/mp4")
+		if tc.accepted {
+			require.NoError(t, err)
+			require.NotNil(t, asset)
+			assert.Equal(t, tc.size, asset.Size)
+			stat, statErr := os.Stat(filepath.Join(root, asset.StorageKey))
+			require.NoError(t, statErr)
+			assert.Equal(t, tc.size, stat.Size())
+		} else {
+			require.ErrorContains(t, err, "exceeds size limit")
+			assert.Nil(t, asset)
+		}
+	}
+	files, err := filepath.Glob(filepath.Join(root, "outputs", "991", "*"))
+	require.NoError(t, err)
+	assert.Len(t, files, 1, "oversize streams must not leave stored objects")
 }
 
 func TestPersistPlaygroundVideoDataURL(t *testing.T) {

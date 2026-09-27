@@ -15,6 +15,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// Generated videos have a separate budget from user reference uploads.
+const PlaygroundOutputMaxVideoBytes int64 = 200 << 20
+
+func maxBytesForPlaygroundOutput(kind string) int64 {
+	if kind == "video" {
+		return PlaygroundOutputMaxVideoBytes
+	}
+	return MaxBytesForPlaygroundKind(kind)
+}
+
 // PersistPlaygroundOutput downloads (http/https, SSRF-protected) or decodes
 // (data URL) a generation result and stores it under an "outputs/<uid>/" key,
 // creating a PlaygroundAsset. It returns nil (no error) when resultRef is not
@@ -61,7 +71,7 @@ func persistPlaygroundOutputContent(ctx context.Context, userId int, modality st
 	if err != nil {
 		return nil, err
 	}
-	if int64(len(content)) > MaxBytesForPlaygroundKind(kind) {
+	if int64(len(content)) > maxBytesForPlaygroundOutput(kind) {
 		return nil, fmt.Errorf("output exceeds size limit for %s", kind)
 	}
 
@@ -119,7 +129,7 @@ func persistPlaygroundOutputStream(ctx context.Context, userId int, modality str
 	if err != nil {
 		return nil, err
 	}
-	max := MaxBytesForPlaygroundKind(kind)
+	max := maxBytesForPlaygroundOutput(kind)
 	if contentLength > max {
 		return nil, fmt.Errorf("output exceeds size limit for %s", kind)
 	}
