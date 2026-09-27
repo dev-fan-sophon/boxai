@@ -263,6 +263,7 @@ func migrateDB() error {
 		&Token{},
 		&DesktopAuthorization{},
 		&DesktopSession{},
+		&ConnectAuthorization{},
 		&ConnectorCatalogState{},
 		&ConnectorMCPServer{},
 		&ConnectorSkillRelease{},

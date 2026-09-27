@@ -114,6 +114,14 @@ func SetApiRouter(router *gin.Engine) {
 			desktopRoute.DELETE("/sessions/:id", middleware.UserSessionAuth(), controller.DeleteDesktopSession)
 		}
 
+		connectRoute := apiRouter.Group("/connect")
+		{
+			connectRoute.GET("/authorize", middleware.CriticalRateLimit(), controller.StartConnectAuthorization)
+			connectRoute.POST("/token", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ExchangeConnectToken)
+			connectRoute.GET("/authorization-requests/:id", middleware.UserSessionAuth(), controller.GetConnectAuthorization)
+			connectRoute.POST("/authorization-requests/:id/decision", middleware.UserSessionAuth(), middleware.CriticalRateLimit(), controller.DecideConnectAuthorization)
+		}
+
 		// TokenAuth, not UserSessionAuth: a BoxAI Connect install holds the sk-
 		// relay key its desktop authorization minted, never a portal session.
 		apiRouter.GET("/connect/provisioning", middleware.TokenAuthReadOnly(), controller.GetConnectProvisioning)
@@ -374,6 +382,7 @@ func SetApiRouter(router *gin.Engine) {
 		usageRoute := apiRouter.Group("/usage")
 		usageRoute.Use(middleware.CORS(), middleware.CriticalRateLimit())
 		{
+			usageRoute.GET("/account", middleware.TokenAuthReadOnly(), controller.GetAccountUsage)
 			tokenUsageRoute := usageRoute.Group("/token")
 			tokenUsageRoute.Use(middleware.TokenAuthReadOnly())
 			{
