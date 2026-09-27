@@ -8,7 +8,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$env:PATH = "$env:USERPROFILE\.cargo\bin;C:\Program Files\Git\cmd;C:\Program Files\NSIS;C:\Program Files\7-Zip;" + $env:PATH
+$env:PATH = "C:\Program Files\Go\bin;C:\Program Files\Git\cmd;C:\Program Files\NSIS;C:\Program Files\7-Zip;" + $env:PATH
 
 $log = Join-Path $env:USERPROFILE 'build_connect_remote.log'
 $done = Join-Path $env:USERPROFILE 'build_connect_remote.done'
@@ -21,11 +21,8 @@ function Write-BuildLog([string]$Message) {
 
 try {
     Write-BuildLog "ref: $Ref"
-    Write-BuildLog ("rustup: " + (& rustup --version | Select-Object -First 1))
-    & rustup toolchain install 1.97.0 --profile minimal
-    if ($LASTEXITCODE -ne 0) { throw "rustup failed with exit code $LASTEXITCODE" }
-    & rustup component add rustfmt clippy --toolchain 1.97.0
-    if ($LASTEXITCODE -ne 0) { throw "rustup component install failed with exit code $LASTEXITCODE" }
+    Write-BuildLog ("Go: " + (& go version))
+    if ($LASTEXITCODE -ne 0) { throw 'Install Go 1.26.3 or newer before building Connect' }
 
     $work = Join-Path $env:USERPROFILE 'src\boxai-connect-work'
     if (Test-Path $work) { Remove-Item $work -Recurse -Force }

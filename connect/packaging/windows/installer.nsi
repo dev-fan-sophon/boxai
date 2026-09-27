@@ -1,7 +1,7 @@
 ; BoxAI Connect setup program.
 ;
 ; One published Windows file, used two ways: a person downloads and runs it,
-; and the updater runs the same file with /S over an existing install. Both
+; and the updater opens the same file over an existing install. Both
 ; paths therefore lay out the install identically (same directory, same Start
 ; menu entry, same uninstall record) because they are the same code.
 ;
@@ -28,6 +28,12 @@ SetCompressor /SOLID lzma
 !endif
 !ifndef LICENSE_FILE
   !error "LICENSE_FILE must be defined by the staging script"
+!endif
+!ifndef MAGPIE_LICENSE_FILE
+  !error "MAGPIE_LICENSE_FILE must be defined by the staging script"
+!endif
+!ifndef NOTICE_FILE
+  !error "NOTICE_FILE must be defined by the staging script"
 !endif
 
 !define PRODUCT_NAME "BoxAI Connect"
@@ -117,6 +123,8 @@ Section "Install"
   ; longer has it running, clears it.
   Delete "$INSTDIR\BoxAI-Connect-*.exe"
   File "/oname=LICENSE" "${LICENSE_FILE}"
+  File "/oname=LICENSE.magpie" "${MAGPIE_LICENSE_FILE}"
+  File "/oname=NOTICE" "${NOTICE_FILE}"
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}.lnk" "$INSTDIR\${EXE_NAME}"
@@ -149,6 +157,8 @@ Section "Uninstall"
   Delete "$INSTDIR\${EXE_NAME}"
   Delete "$INSTDIR\${EXE_NAME}.previous"
   Delete "$INSTDIR\LICENSE"
+  Delete "$INSTDIR\LICENSE.magpie"
+  Delete "$INSTDIR\NOTICE"
   Delete "$INSTDIR\uninstall.exe"
   ; Only if it is now empty. Someone may have put files here, and uninstalling
   ; is not a licence to clear a path.

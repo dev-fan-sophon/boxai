@@ -4,7 +4,7 @@
   "file_description": "BoxAI native AI agent connector",
   "company_name": "BoxAI",
   "legal_copyright": "Copyright 2026 BoxAI",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "bundle_id": "com.you-box.connect",
   "binary_name": "boxai-connect",
   "original_filename": "boxai-connect.exe",
@@ -22,23 +22,21 @@
   ],
   "browser_target": false,
   "macos_target": "macos-arm64",
-  "macos_rust_target": "aarch64-apple-darwin",
+  "macos_go_target": "darwin/arm64",
   "macos_architecture": "arm64",
   "macos_bundle_id": "com.you-box.connect",
   "macos_icon_name": "BoxAIConnect.icns",
-  "macos_icon_source": "connector-app/packaging/icon.png",
+  "macos_icon_source": "../logo/exports/app-icon-connect-1024.png",
   "macos_artifact": "BoxAI-Connect-{version}-macos-arm64.dmg",
   "macos_volume_name": "BoxAI Connect",
   "windows_target": "windows-x64",
-  "windows_rust_target": "x86_64-pc-windows-msvc",
+  "windows_go_target": "windows/amd64",
   "windows_icon_images": 6,
   "windows_artifact": "BoxAI-Connect-{version}-windows-x64-setup.exe",
   "upstream": {
-    "repository": "fran0220/origingame",
-    "revision": "c9d03dbfb9dbc16fe4f16a0bdd649a49cb66946b",
-    "public_repository": "fran0220/GatewayConnector",
-    "public_revision": "bdc03cad32c6cfc96993c177831cb8d124f1aa2f",
-    "gpui_box": "7636d2e4a4b26b7981843dc59f04153f7a51f20d"
+    "repository": "yetone/magpie",
+    "revision": "03a01a548df3d52fee86197fc2d0ff234b9fdfab",
+    "license": "MIT"
   },
   "windows_install_directory": "BoxAI Connect"
 }

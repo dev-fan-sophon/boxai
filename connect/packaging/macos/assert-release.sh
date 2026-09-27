@@ -88,8 +88,10 @@ expected_directories = {
     f"{app_name}/Contents/Resources",
 }
 expected_files = {
-    "LICENSE",
     "release-metadata.json",
+    f"{app_name}/Contents/Resources/LICENSE",
+    f"{app_name}/Contents/Resources/LICENSE.magpie",
+    f"{app_name}/Contents/Resources/NOTICE",
     f"{app_name}/Contents/Info.plist",
     f"{app_name}/Contents/MacOS/{metadata['binary_name']}",
     f"{app_name}/Contents/Resources/{metadata['macos_icon_name']}",
@@ -119,8 +121,13 @@ if actual_directories != expected_directories or actual_files != expected_files:
 # outside the image.
 if actual_symlinks != {"Applications": "/Applications"}:
     raise SystemExit(f"release image symlinks differ: {actual_symlinks}")
-if (root / "LICENSE").read_bytes() != license_path.read_bytes():
+resources = root / app_name / "Contents" / "Resources"
+if (resources / "LICENSE").read_bytes() != license_path.read_bytes():
     raise SystemExit("release LICENSE differs from the repository source")
+if (resources / "LICENSE.magpie").read_bytes() != (metadata_path.parent / "LICENSE.magpie").read_bytes():
+    raise SystemExit("release Magpie MIT license differs from the repository source")
+if (resources / "NOTICE").read_bytes() != (metadata_path.parent.parent / "NOTICE").read_bytes():
+    raise SystemExit("release NOTICE differs from the repository source")
 if (root / "release-metadata.json").read_bytes() != metadata_path.read_bytes():
     raise SystemExit("release metadata differs from the repository source of truth")
 

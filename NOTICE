@@ -19,10 +19,11 @@ frontend bundles, and desktop installers distributed to users.
 ==== Separately Licensed Subtrees ====
 
 connect/
-BoxAI Connect, the native GPUI client for configuring AI coding agents. Its
-vendored OriginGame bkit and GatewayConnector lineage is distributed under the
-Apache License 2.0. Exact source revisions and licensing live in
-connect/LICENSE and connect/UPSTREAM.md.
+BoxAI Connect, the Go/Wails client adapted from yetone/magpie at revision
+03a01a548df3d52fee86197fc2d0ff234b9fdfab (MIT; connect/LICENSE.magpie).
+Retained OriginGame bkit and GatewayConnector-derived code remains Apache-2.0
+(connect/LICENSE). Exact source revisions and licensing live in
+connect/UPSTREAM.md. Preserve both license texts in distributions.
 
 ==== Apache-2.0 Notices ====
 

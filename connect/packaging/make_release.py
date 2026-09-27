@@ -119,9 +119,9 @@ def validate_metadata(metadata: dict[str, object]) -> None:
         "desktop_release_targets": ["macos", "windows"],
         "browser_target": False,
         "macos_target": "macos-arm64",
-        "macos_rust_target": "aarch64-apple-darwin",
+        "macos_go_target": "darwin/arm64",
         "windows_target": "windows-x64",
-        "windows_rust_target": "x86_64-pc-windows-msvc",
+        "windows_go_target": "windows/amd64",
     }
     for field, value in expected.items():
         if metadata.get(field) != value:

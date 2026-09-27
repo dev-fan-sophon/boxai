@@ -17,17 +17,8 @@ $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
 
 Push-Location $root
 try {
-    $cargoMetadataText = & cargo metadata --locked --no-deps --format-version 1
-    if ($LASTEXITCODE -ne 0) {
-        throw "cargo metadata failed with exit code $LASTEXITCODE"
-    }
-    $cargoMetadata = $cargoMetadataText | ConvertFrom-Json
-    $appPackage = @($cargoMetadata.packages | Where-Object name -eq 'gateway-connector-app')
-    if ($appPackage.Count -ne 1) {
-        throw 'cargo metadata did not contain exactly one BoxAI Connect package'
-    }
-    if ($appPackage[0].version -ne $metadata.version) {
-        throw "release metadata version $($metadata.version) does not match Cargo version $($appPackage[0].version)"
+    if ((& go env GOOS) -ne 'windows' -or (& go env GOARCH) -ne 'amd64') {
+        throw 'Go must target native windows/amd64'
     }
     if ($metadata.release_mode -ne 'unsigned-package-signed-updates' -or $metadata.signed -ne $false -or
         $metadata.notarized -ne $false -or $metadata.updater -ne $true -or
@@ -40,17 +31,24 @@ try {
         throw 'release metadata must describe only native macOS and Windows desktop targets'
     }
     if ($metadata.windows_target -ne 'windows-x64' -or
-        $metadata.windows_rust_target -ne 'x86_64-pc-windows-msvc') {
-        throw 'release metadata must select the native Windows x64 MSVC target'
+        $metadata.windows_go_target -ne 'windows/amd64') {
+        throw 'release metadata must select the native Windows x64 Go target'
     }
 
-    $cargoArgs = @(
-        'build', '--locked', '--release', '--target', $metadata.windows_rust_target,
-        '--bin', $metadata.binary_name
-    )
-    & cargo @cargoArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "cargo release build failed with exit code $LASTEXITCODE"
+    $resources = Get-Content 'build\windows\winres.json' -Raw | ConvertFrom-Json
+    $info = $resources.RT_VERSION.'#1'.'0409'.info.'0409'
+    $info.FileVersion = $metadata.version
+    $info.ProductVersion = $metadata.version
+    $resourceFile = Join-Path $root 'build\windows\winres.release.json'
+    [System.IO.File]::WriteAllText($resourceFile, ($resources | ConvertTo-Json -Depth 20))
+    try {
+        & go run github.com/tc-hib/go-winres@v0.3.3 make --in $resourceFile --arch amd64 --out rsrc --file-version $metadata.version --product-version $metadata.version
+        if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
+        & go build -tags production -trimpath "-ldflags=-s -w -H windowsgui -X main.version=$($metadata.version)" -o "dist\$($metadata.binary_name).exe" .
+        if ($LASTEXITCODE -ne 0) { throw 'Go/Wails release build failed' }
+    } finally {
+        Remove-Item $resourceFile -ErrorAction SilentlyContinue
+        Remove-Item 'rsrc_windows_*.syso' -ErrorAction SilentlyContinue
     }
 
     $stage = Join-Path $root 'dist\windows-x64'
@@ -59,12 +57,14 @@ try {
     }
     New-Item $stage -ItemType Directory | Out-Null
     $exeName = "$($metadata.binary_name).exe"
-    $releaseDirectory = Join-Path $cargoMetadata.target_directory "$($metadata.windows_rust_target)\release"
+    $releaseDirectory = Join-Path $root 'dist'
     Copy-Item (Join-Path $releaseDirectory $exeName) $stage
     Copy-Item (Join-Path $root 'LICENSE') $stage
+    Copy-Item (Join-Path $root 'LICENSE.magpie') $stage
+    Copy-Item (Join-Path $root '..\NOTICE') $stage
     Copy-Item $metadataPath $stage
 
-    $expected = @($exeName, 'LICENSE', 'release-metadata.json')
+    $expected = @($exeName, 'LICENSE', 'LICENSE.magpie', 'NOTICE', 'release-metadata.json')
     $staged = @(Get-ChildItem $stage -File | ForEach-Object Name | Sort-Object)
     if (Compare-Object ($expected | Sort-Object) $staged) {
         throw "staging directory has unexpected contents: $($staged -join ', ')"
@@ -79,8 +79,8 @@ try {
         Remove-Item $artifact -Force
     }
 
-    # The download is the setup program, and the updater runs the same file
-    # with /S. One artifact, one install path, so an update cannot lay out an
+    # The download and explicit updater handoff open the same setup program.
+    # One artifact, one install path, so an update cannot lay out an
     # install differently from the way a person installing by hand would.
     $makensis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
     if (-not (Test-Path $makensis)) {
@@ -99,6 +99,8 @@ try {
         "/DSOURCE_EXE=$(Join-Path $stage $exeName)" `
         "/DOUTPUT_FILE=$artifact" `
         "/DLICENSE_FILE=$(Join-Path $stage 'LICENSE')" `
+        "/DMAGPIE_LICENSE_FILE=$(Join-Path $stage 'LICENSE.magpie')" `
+        "/DNOTICE_FILE=$(Join-Path $stage 'NOTICE')" `
         $script
     if ($LASTEXITCODE -ne 0) {
         throw "makensis failed with exit code $LASTEXITCODE"

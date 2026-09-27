@@ -89,19 +89,17 @@ desktop-publish:
 desktop-screenshots:
 	@cd $(DESKTOP_GUI_DIR) && npm run screenshots
 
-# BoxAI Connect is the native Rust/GPUI client. Native staging builds and
+# BoxAI Connect is the native Go/Wails client. Native staging builds and
 # asserts the macOS arm64 DMG or Windows x64 setup program on that target OS.
 connect-dev:
-	@cd $(CONNECT_DIR) && cargo run --locked -p gateway-connector-app --bin boxai-connect
+	@$(MAKE) -C $(CONNECT_DIR) dev
 
 connect-check:
-	@cd $(CONNECT_DIR) && cargo fmt --all -- --check
-	@cd $(CONNECT_DIR) && cargo clippy --locked --all-targets -- -D warnings
-	@cd $(CONNECT_DIR) && cargo test --locked
+	@$(MAKE) -C $(CONNECT_DIR) test
 	@cd $(CONNECT_DIR) && python3 packaging/build_catalog.py
 
 connect-build:
-	@cd $(CONNECT_DIR) && cargo build --locked --release --bin boxai-connect
+	@$(MAKE) -C $(CONNECT_DIR) build
 
 connect-stage:
 	@case "$$(uname -s)" in \

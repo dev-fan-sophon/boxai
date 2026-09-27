@@ -29,7 +29,7 @@ if len(metadata.get("update_public_key", "")) != 64:
     raise SystemExit("release metadata must carry the update public key the client compiles in")
 if metadata["desktop_release_targets"] != ["macos", "windows"] or metadata["browser_target"]:
     raise SystemExit("release metadata must describe only native macOS and Windows desktop targets")
-if metadata["macos_target"] != "macos-arm64" or metadata["macos_rust_target"] != "aarch64-apple-darwin":
+if metadata["macos_target"] != "macos-arm64" or metadata["macos_go_target"] != "darwin/arm64":
     raise SystemExit("release metadata must select the native macOS arm64 target")
 if metadata["macos_architecture"] != "arm64":
     raise SystemExit("release metadata must select the arm64 Mach-O architecture")
@@ -50,7 +50,6 @@ PY
 version="$(metadata_value version)"
 product_name="$(metadata_value product_name)"
 binary_name="$(metadata_value binary_name)"
-rust_target="$(metadata_value macos_rust_target)"
 architecture="$(metadata_value macos_architecture)"
 target_name="$(metadata_value macos_target)"
 icon_name="$(metadata_value macos_icon_name)"
@@ -69,15 +68,11 @@ if [[ ! -f "$icon_source" ]]; then
 fi
 
 cd "$root"
-cargo_metadata="$(cargo metadata --locked --no-deps --format-version 1)"
-app_version="$(python3 -c 'import json,sys; packages=[p for p in json.load(sys.stdin)["packages"] if p["name"] == "gateway-connector-app"]; assert len(packages) == 1; print(packages[0]["version"])' <<<"$cargo_metadata")"
-target_directory="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])' <<<"$cargo_metadata")"
-if [[ "$app_version" != "$version" ]]; then
-  echo "release metadata version $version does not match Cargo version $app_version" >&2
+if [[ "$(go env GOOS)/$(go env GOARCH)" != "darwin/arm64" ]]; then
+  echo "Go must target native darwin/arm64" >&2
   exit 1
 fi
-
-cargo build --locked --release --target "$rust_target" --bin "$binary_name"
+make build
 
 dist="$root/dist"
 stage="$dist/$target_name"
@@ -88,7 +83,7 @@ resources="$contents/Resources"
 artifact="$dist/$artifact_name"
 rm -rf "$stage"
 mkdir -p "$macos" "$resources"
-install -m 755 "$target_directory/$rust_target/release/$binary_name" "$macos/$binary_name"
+install -m 755 "$dist/$binary_name" "$macos/$binary_name"
 
 icon_work="$(mktemp -d "$dist/.BoxAI-icons.XXXXXX")"
 iconset="$icon_work/BoxAIConnect.iconset"
@@ -140,7 +135,9 @@ with pathlib.Path(sys.argv[2]).open("wb") as output:
     plistlib.dump(plist, output, fmt=plistlib.FMT_XML, sort_keys=True)
 PY
 
-cp "$root/LICENSE" "$stage/LICENSE"
+cp "$root/LICENSE" "$resources/LICENSE"
+cp "$root/LICENSE.magpie" "$resources/LICENSE.magpie"
+cp "$root/../NOTICE" "$resources/NOTICE"
 cp "$metadata_path" "$stage/release-metadata.json"
 # The drop target every macOS user expects. Without it the disk image opens on
 # a bundle with nowhere obvious to put it, and people run the app from the

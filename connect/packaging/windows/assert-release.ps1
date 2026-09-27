@@ -185,7 +185,7 @@ if ($iconResources[1] -ne 0 -or $groupIconResources[1] -ne 0 -or $versionResourc
     throw 'icon and version resources must use the expected Windows language identifier 0x0409'
 }
 $manifest = [BoxAI.ReleaseResourceInspector]::ReadIntResource($ExecutablePath, 24, 1)
-if ($manifest -notmatch '<dpiAwareness[^>]*>PerMonitorV2</dpiAwareness>') {
+if ($manifest -notmatch '(?i)<dpiAwareness[^>]*>permonitorv2(?:,system)?</dpiAwareness>') {
     throw 'release executable manifest must declare PerMonitorV2 DPI awareness'
 }
 if ($manifest -notmatch '<requestedExecutionLevel\s+level="asInvoker"\s+uiAccess="false"\s*/>') {
@@ -255,6 +255,15 @@ try {
     $payloadHash = (Get-FileHash -LiteralPath $payload[0].FullName -Algorithm SHA256).Hash
     if ($payloadHash -cne $executableHash) {
         throw 'the setup program does not carry the asserted executable'
+    }
+    foreach ($license in @('LICENSE', 'LICENSE.magpie', 'NOTICE')) {
+        $copies = @(Get-ChildItem $unpacked -Recurse -File | Where-Object Name -ceq $license)
+        if ($copies.Count -ne 1) { throw "setup must carry exactly one $license" }
+        $source = Join-Path $root $license
+        if ($license -eq 'NOTICE') { $source = Join-Path $root '..\NOTICE' }
+        if ((Get-FileHash $copies[0].FullName -Algorithm SHA256).Hash -cne (Get-FileHash $source -Algorithm SHA256).Hash) {
+            throw "setup $license differs from repository source"
+        }
     }
 } finally {
     if (Test-Path $unpacked) {

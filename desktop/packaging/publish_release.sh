@@ -5,7 +5,7 @@
 #
 # Shared by both desktop products. BOXAI_RELEASE_PRODUCT selects which one:
 #   desktop (default)  BoxAI Desktop, from desktop/surfaces/gui
-#   connect            BoxAI Connect, from connect/
+#   Connect uses connect/packaging/publish_release.sh (signed native feed).
 #   connector          BoxAI Connector, from boxai-connector/
 # Each publishes under its own key prefix, so one product can never overwrite the
 # other's manifests.
@@ -30,7 +30,7 @@ REPO="$(cd "$PLATFORM/.." && pwd)"
 PRODUCT="${BOXAI_RELEASE_PRODUCT:-desktop}"
 case "$PRODUCT" in
   desktop) SOURCE_DIR="$PLATFORM/surfaces/gui"; PRODUCT_NAME="BoxAI Desktop"; STAGE_ROOT="$PLATFORM/release" ;;
-  connect) SOURCE_DIR="$REPO/connect";          PRODUCT_NAME="BoxAI Connect"; STAGE_ROOT="$REPO/connect/release" ;;
+  connect) echo "ERROR: Connect requires connect/packaging/publish_release.sh and native Ed25519 assertions" >&2; exit 1 ;;
   connector) SOURCE_DIR="$REPO/boxai-connector"; PRODUCT_NAME="BoxAI Connector"; STAGE_ROOT="$REPO/boxai-connector/release" ;;
   *) echo "ERROR: unknown BOXAI_RELEASE_PRODUCT '$PRODUCT'" >&2; exit 1 ;;
 esac

@@ -2,63 +2,31 @@ name: Connect CI
 
 on:
   push:
-    paths:
-      - "connect/**"
-      - ".github/workflows/connect-ci.yml"
+    paths: ["connect/**", ".github/workflows/connect-ci.yml"]
   pull_request:
-    paths:
-      - "connect/**"
-      - ".github/workflows/connect-ci.yml"
+    paths: ["connect/**", ".github/workflows/connect-ci.yml"]
 
 permissions:
   contents: read
 
 jobs:
-  native:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: connect
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          toolchain: 1.97.0
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          workspaces: connect
-      - name: Install GPUI Linux dependencies
-        working-directory: .
+          go-version-file: connect/go.mod
+          cache-dependency-path: connect/go.sum
+      - name: Install Wails Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run: make test cli build
+      - run: python3 packaging/build_catalog.py
+      - name: Check pinned provenance
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev pkg-config
-      - name: Format
-        run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --locked --all-targets -- -D warnings
-      - name: Test
-        run: cargo test --locked
-      - name: Deterministic official Skill catalog
-        run: python3 packaging/build_catalog.py
-
-  compliance:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Verify lineage and BoxAI production identity
-        run: |
-          test -f connect/LICENSE
-          grep -q 'Apache License' connect/LICENSE
-          grep -q 'c9d03dbfb9dbc16fe4f16a0bdd649a49cb66946b' connect/UPSTREAM.md
-          grep -q '1e5bb24995d7531e32f7dec1658e0cd49db472ff' connect/UPSTREAM.md
-          grep -q '"product_name": "BoxAI Connect"' connect/release-metadata.json
-          unexpected="$(grep -rliE 'origingame|origin kit|gateway kit' connect/ \
-            --exclude-dir=target --exclude-dir=dist --exclude=UPSTREAM.md \
-            --exclude=README.md --exclude=release-metadata.json || true)"
-          if [ -n "$unexpected" ]; then
-            echo "::error::stale upstream identity outside lineage records"
-            printf '%s\n' "$unexpected"
-            exit 1
-          fi
+          grep -q 'MIT License' LICENSE.magpie
+          grep -q 'Apache License' LICENSE
+          grep -q '03a01a548df3d52fee86197fc2d0ff234b9fdfab' UPSTREAM.md

@@ -1,113 +1,81 @@
 # BoxAI Connect
 
-BoxAI Connect is the native GPUI client for configuring Claude Code, Codex,
-Gemini CLI, Grok Build, and OpenCode with BoxAI. Choose an Agent, search the
-current model catalog, then Apply. Advanced options retain per-Agent protocol,
-Codex runtime, MCP and Skill controls. Restore returns backed-up Agent files
-without signing out; revoke-device authorization restores configuration and
-removes the local credential. Quit or close the last window leaves configured
-Agents intact and stops Connect. There is no background service.
+BoxAI Connect 2 uses Go and Wails native webviews, adapted from Magpie.
+Product identity remains `com.you-box.connect`; the executable is
+`boxai-connect` (`boxai-connect.exe` on Windows). See [UPSTREAM.md](UPSTREAM.md)
+for pinned source and retained license notices.
 
-Account and billing open in the browser. Startup does not request dashboard
-usage or download Skill archives. Skills download on demand and reuse verified
-digest-addressed archives. A profile/platform/origin-bound, credential-free
-catalog remains inspectable offline; it is not authorization to Apply.
+## Development and checks
 
-Browser sign-in uses the deployed BoxAI PKCE contract. Credentials live in
-macOS Keychain or Windows Credential Manager. Legacy profile secrets migrate
-only after verified native-store read-back; failed cleanup remains retryable.
-English and Vietnamese are supported; retired Chinese preferences migrate to
-English. WorkBuddy is excluded from the distribution, while its old backups
-remain restorable.
-
-The source is based on OriginGame's latest GPUI bkit design. Exact upstream
-revisions and licensing are recorded in [`UPSTREAM.md`](UPSTREAM.md). Neutral
-projection lock and lease identities intentionally remain vendor-neutral so
-another compatible Connector cannot concurrently own the same Agent install.
+Use the Go version declared in `go.mod` (1.26.3 or newer).
 
 ```sh
-cargo run --locked -p gateway-connector-app --bin boxai-connect
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
+make test       # Go vet/tests and packaging schema tests; needs native webview headers
+make cli        # terminal-only development binary, not a release installer
+make build     # native Wails GUI; Linux needs GTK3 and WebKitGTK 4.1 headers
+make dev
 ```
 
-`cargo run` is a bare Mach-O, so macOS has no bundle `icns`. The host paints
-the Dock tile from `connector-app/packaging/icon.png` — the same master the
-staged `.app` turns into `BoxAIConnect.icns`.
-
-Native staging:
+Native GUI builds use the embedded `internal/gui/assets`; no separate web
+bundle or Rust toolchain is involved. The committed Windows icon renditions
+and native macOS icon generation use `../logo/exports/app-icon-connect-1024.png`.
+To regenerate the Windows renditions with ImageMagick, run from `connect/`:
 
 ```sh
-# Native Apple Silicon macOS only. This builds, packages, and writes the
-# assertion beside the versioned DMG in release/<version>/.
+for size in 16 32 48 64 128 256; do
+  magick ../logo/exports/app-icon-connect-1024.png -resize ${size}x${size} build/windows/icon-${size}.png
+done
+```
+
+## Native release staging
+
+`release-metadata.json` is the version and artifact source of truth. Native
+acceptance must run on each target OS; a Linux compile is not native acceptance.
+
+```sh
+# Native Apple Silicon Mac, with Xcode command line tools:
 bash packaging/macos/stage-release.sh
 ```
 
-Windows x64 staging must run on a native Windows host:
-
 ```powershell
-# This builds, packages, and writes the assertion beside the versioned setup.
+# Native Windows x64, with Go, NSIS, 7-Zip, and WebView2 installed:
 ./packaging/windows/stage-release.ps1
 ```
 
-Both native artifacts and both assertion reports must be combined in
-`release/<version>/`. The publisher verifies the reports and Ed25519 key,
-signs the exact installer bytes, uploads immutable artifacts, and advances both
-complete feeds:
+The scripts build `BoxAI-Connect-2.0.0-macos-arm64.dmg` and
+`BoxAI-Connect-2.0.0-windows-x64-setup.exe`, respectively, together with
+`<artifact>.assertion.json` in `release/2.0.0/`. Assertions inspect actual
+Mach-O/PE architecture, bundle/resource identity and installer payload. Never
+write an assertion manually or reuse it for different bytes. Both licenses
+(`LICENSE` for retained Apache-derived code and `LICENSE.magpie`) ship in packages.
 
-```sh
-bash packaging/publish_release.sh
-```
+The current packages are unsigned and not notarized. Staging and publishing
+reject metadata claiming otherwise; platform signing requires corresponding
+native verification before changing that policy. Ad-hoc Mach-O signatures are
+not Developer ID signing or notarization.
 
-- `https://dl.you-box.com/connect/releases.json` drives the website downloads.
-- `https://dl.you-box.com/connect/native-latest.json` drives signed in-app updates.
-- `https://you-box.com/connect` remains the public download page.
+## Update trust and publication
 
-The current DMG and NSIS setup are unsigned and the macOS app is not notarized.
-The in-app updater independently requires a valid Ed25519 signature. Do not
-describe the OS packages as signed until platform signing is introduced.
+The updater reads only `https://dl.you-box.com/connect/native-latest.json`.
+It rejects non-BoxAI origins, unsafe URL forms, unsupported targets, missing
+signatures, incorrect sizes/hashes, and invalid Ed25519 signatures over the
+**exact installer bytes**. The trust anchor matches the existing BoxAI feed.
+No environment variable can replace the feed or key. Downloading does not
+install anything; user-initiated handoff opens the verified DMG/setup UI.
+Connect does not elevate, silently replace itself, or use Magpie releases.
 
-## Offline native acceptance
+With explicit publication authorization, combine both native stages, then use
+`packaging/publish_release.sh`. It requires matching assertions and the BoxAI
+Ed25519 private key, uploads immutable artifacts first, and advances both feeds:
 
-The optional `acceptance` feature is for local rendering/resource checks only;
-never pass it to packaging. Normal production builds still reject isolated
-launches. Use a dedicated Cargo target directory, then run:
+- `https://dl.you-box.com/connect/releases.json` (website)
+- `https://dl.you-box.com/connect/native-latest.json` (updater)
 
-```sh
-cargo build --locked --features acceptance --bin boxai-connect
-"$CARGO_TARGET_DIR/debug/boxai-connect" --acceptance-root /absolute/new/fixture-root
-```
+`https://you-box.com/connect` remains the download page. Source changes alone
+do not publish; do not trigger release workflows merely to test packaging.
 
-On Windows use `$env:CARGO_TARGET_DIR` and `debug/boxai-connect.exe`. The root
-must be new/empty or have a valid isolation marker. Profiles, preferences,
-Agent roots and the projection coordinator resolve only inside that root.
-This read-only fixture bypasses normal resume/authentication and update checks,
-has no credentials, and disables network/install/apply/revoke actions. It is
-not evidence of live authorization or Agent mutation. Change language in
-Settings to exercise English/Vietnamese and relaunch the same root to check
-persistence; its preference file is `data/ui-preferences.json`.
+## Official catalog
 
-Test the actual native credential store separately with a disposable random
-identity (no network, installed profile or Agent access):
-
-```sh
-cargo run --locked -p gateway-connector-backend --example native_vault_probe
-```
-
-## BoxAI Media and official Skills
-
-[`catalog.json`](catalog.json) defines the BoxAI Media MCP server and the three
-official Skills under [`skills/`](skills/). Build reproducible archives and
-verify their committed hashes with:
-
-```sh
-python3 packaging/build_catalog.py
-```
-
-After the matching BoxAI backend is deployed, publish the immutable archives
-and atomically activate the complete production catalog with:
-
-```sh
-bash packaging/publish_catalog.sh
-```
+`python3 packaging/build_catalog.py` builds deterministic official Skill ZIPs.
+`packaging/publish_catalog.sh` publishes them and activates the catalog only
+after explicit production authorization.
