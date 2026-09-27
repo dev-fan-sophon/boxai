@@ -51,20 +51,21 @@ web/             — Frontend container
  web/default/   — Default frontend (React 19, Rsbuild, Base UI, Tailwind)
   web/default/src/i18n/ — Frontend internationalization (i18next, zh/en/fr/ru/ja/vi)
 desktop/       — BoxAI Desktop (Python coworker + Tauri GUI, npm)
-connect/       — BoxAI Connect (native Rust + GPUI client, Cargo)
+connect/       — BoxAI Connect (Go/Wails app with an always-running local gateway)
 ```
 
-**Package managers remain intentional.** `web/` uses bun,
-`desktop/surfaces/gui/` uses npm, and `connect/` is a Cargo workspace. Do not
-reintroduce the removed Tauri/React/pnpm Connect implementation.
+**Package managers remain intentional.** `web/` uses bun and
+`desktop/surfaces/gui/` uses npm. Follow `connect/`'s Go/Wails build instructions;
+do not reintroduce the removed GPUI or Tauri Connect implementations.
 
-**`connect/` vendors OriginGame's GPUI bkit workspace under Apache-2.0.** Exact
-private/public upstream and gpui-box revisions are pinned in
-`connect/UPSTREAM.md` and `connect/Cargo.lock`. Preserve its neutral projection
-lock and lease identities so compatible connectors cannot concurrently own an
-Agent configuration. BoxAI product identity, Vietnamese localization, Media
-MCP, official Skills, release metadata, and distribution tooling are maintained
-here. Do not add per-file copyright/license header blocks under `connect/`.
+**BoxAI Connect requires browser BoxAI authentication.** Preserve the existing
+Connect client/session identity and `/api/v1/connector` contracts; Desktop auth
+is separate product behavior and must remain unchanged. The five shipped
+agents are Claude Code, Codex CLI, Gemini CLI, Grok Build, and OpenCode. Their
+requests use Connect's always-running local gateway; Connect must stay running
+while agents use it. Preserve safe configuration ownership and migration,
+BoxAI branding, Vietnamese localization, MCP, official Skills, bundle/file
+names, and download URLs. Do not add per-file license header blocks under `connect/`.
 
 ## Internationalization (i18n)
 

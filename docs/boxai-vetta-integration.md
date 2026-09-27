@@ -2,8 +2,12 @@
 
 BoxAI Desktop (`desktop/`, Tauri + Python) is replaced by a fork of
 [openvetta/open-vetta](https://github.com/openvetta/open-vetta) `v0.5.59`.
-BoxAI Connect (`connect/`) stays. It configures other coding agents; Open Vetta
-does not, and must not be asked to.
+BoxAI Connect (`connect/`) stays as a separate product. Its Go/Wails client
+requires BoxAI browser sign-in and runs a local gateway for Claude Code,
+Codex CLI, Gemini CLI, Grok Build, and OpenCode. Keep Connect running while
+agents use that gateway. Open Vetta does not configure these agents and must
+not be asked to. Connect keeps its existing client/session identity,
+`/api/v1/connector/*` endpoints, and download names and URLs.
 
 The client lives in its own repository, `dev-fan-sophon/boxai-vetta`. Until the
 org GitHub token can create that repo, the working copy is

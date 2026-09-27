@@ -649,7 +649,7 @@ export const STATIC_I18N_KEYS = [
   'BoxAI Desktop',
   'BoxAI Coding',
   'A native app for connecting your AI coding agents to BoxAI',
-  'Built in Rust with GPUI, BoxAI Connect brings browser sign-in, model discovery, MCP, official Skills, and account usage into one Vietnamese-first native app.',
+  'BoxAI Connect requires BoxAI browser sign-in and routes your coding agents through an always-running local gateway, with model discovery, MCP, official Skills, and account usage.',
   'An AI coworker for the office work you do every day',
   'BoxAI Desktop turns everyday office work into finished files. It reads the folders and documents already on your machine, drafts the report, spreadsheet, or deck, and hands back something you can send.',
   'A coding agent that ships changes, not suggestions',
@@ -669,7 +669,7 @@ export const STATIC_I18N_KEYS = [
 
   // Connect features (features/client-apps/components/connect-walkthrough.tsx)
   'Everything your agents need',
-  'A fast native Rust and GPUI experience, designed Vietnamese-first for the BoxAI workflow.',
+  'Sign in with BoxAI, then keep Connect running while your agents use its local gateway.',
   'Model Plaza',
   'Discover models that work with each supported coding agent.',
   'MCP and official Skills',

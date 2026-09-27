@@ -54,7 +54,7 @@ export function ConnectWalkthrough() {
     <TitledCard
       title={t('Everything your agents need')}
       description={t(
-        'A fast native Rust and GPUI experience, designed Vietnamese-first for the BoxAI workflow.'
+        'Sign in with BoxAI, then keep Connect running while your agents use its local gateway.'
       )}
       icon={<Route aria-hidden='true' />}
       disableHoverEffect
