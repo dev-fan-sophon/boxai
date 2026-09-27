@@ -7,8 +7,10 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
+	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestGatewayCreateFromPassthroughMapsCdanceRequest(t *testing.T) {
@@ -42,6 +44,14 @@ func TestGatewayCreateFromPassthroughMapsCdanceRequest(t *testing.T) {
 }
 
 func TestGatewayRewritesAppAssetToFetchGrant(t *testing.T) {
+	t.Setenv("CRYPTO_SECRET", "gateway-test-shared-secret")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	oldDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = oldDB })
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}))
+	require.NoError(t, db.Create(&model.PlaygroundAsset{Id: 42, UserId: 7, Kind: "image", StorageKey: "test"}).Error)
 	old := system_setting.ServerAddress
 	system_setting.ServerAddress = "https://you-box.com"
 	t.Cleanup(func() { system_setting.ServerAddress = old })

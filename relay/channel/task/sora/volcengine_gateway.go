@@ -260,44 +260,15 @@ func rewriteGatewayReferenceURLs(body map[string]interface{}, userID int) error 
 }
 
 func gatewayFetchableURL(raw, origin string, userID int) (string, error) {
+	if strings.HasPrefix(strings.TrimSpace(raw), "/api/playground/assets/") {
+		return service.PrivateReferenceMediaURL(raw, origin, userID)
+	}
 	value := strings.TrimSpace(raw)
 	lower := strings.ToLower(value)
 	if value == "" || strings.HasPrefix(lower, "asset://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
-		if strings.Contains(value, "/api/playground/assets/") {
-			return "", errors.New("reference media must be a fetchable https or asset URL")
-		}
-		return value, nil
+		return raw, nil
 	}
-	if !strings.HasPrefix(value, "/api/playground/assets/") {
-		return "", errors.New("reference media must be a fetchable https or asset URL")
-	}
-	assetID := playgroundAssetID(value)
-	if assetID <= 0 || userID <= 0 {
-		return "", errors.New("reference media must be a fetchable https or asset URL")
-	}
-	grantPath, err := service.IssueMediaFetchGrant(userID, assetID)
-	if err != nil {
-		return "", err
-	}
-	return service.AbsoluteMediaFetchURL(origin, grantPath), nil
-}
-
-func playgroundAssetID(ref string) int {
-	const marker = "/api/playground/assets/"
-	idx := strings.Index(ref, marker)
-	if idx < 0 {
-		return 0
-	}
-	rest := ref[idx+len(marker):]
-	idPart := rest
-	if slash := strings.IndexByte(rest, '/'); slash >= 0 {
-		idPart = rest[:slash]
-	}
-	id, err := strconv.Atoi(idPart)
-	if err != nil {
-		return 0
-	}
-	return id
+	return "", errors.New("reference media must be a fetchable https or asset URL")
 }
 
 func rejectInlineGatewayMedia(item gatewayContentItem) error {

@@ -20,6 +20,7 @@ type playgroundUploadIntentRequest struct {
 	ContentType string `json:"content_type"`
 	Size        int64  `json:"size"`
 	Kind        string `json:"kind"`
+	Source      string `json:"source"`
 }
 
 // CreatePlaygroundUploadIntent returns a short-lived PUT URL so the browser
@@ -41,10 +42,27 @@ func CreatePlaygroundUploadIntent(c *gin.Context) {
 		common.ApiErrorMsg(c, "file exceeds size limit")
 		return
 	}
+	putContentType := req.ContentType // Keep the exact header the browser will PUT.
+	req.ContentType = service.NormalizePlaygroundMime(req.ContentType)
+	declaredKind, err := service.DetectPlaygroundAssetKind(req.ContentType)
+	if err != nil || declaredKind != kind {
+		common.ApiErrorMsg(c, "content type does not match upload kind")
+		return
+	}
+	if req.Source == "" {
+		req.Source = model.PlaygroundAssetSourceLibrary
+	}
+	if req.Source != model.PlaygroundAssetSourceLibrary && req.Source != model.PlaygroundAssetSourceAttachment {
+		common.ApiErrorMsg(c, "invalid asset source")
+		return
+	}
 	store := storage.Default()
 	ext := path.Ext(req.Name)
-	key := path.Join("uploads", itoaUser(userID), uuid.NewString()+ext)
-	putURL, err := store.PresignPut(c.Request.Context(), key, req.ContentType, 15*time.Minute)
+	// Only staging keys are ever exposed to signed PUTs. Finalization snapshots
+	// verified bytes to a different key, so replay cannot overwrite ready media.
+	key := path.Join("upload-intents", itoaUser(userID), uuid.NewString()+ext)
+	expiresAt := time.Now().Add(15 * time.Minute).Unix()
+	putURL, err := store.PresignPut(c.Request.Context(), key, putContentType, 15*time.Minute)
 	if err != nil {
 		if errors.Is(err, storage.ErrPresignUnsupported) {
 			common.ApiErrorMsg(c, "direct upload is not available")
@@ -54,21 +72,21 @@ func CreatePlaygroundUploadIntent(c *gin.Context) {
 		return
 	}
 	asset := &model.PlaygroundAsset{
-		UserId:     userID,
-		Kind:       kind,
-		Source:     model.PlaygroundAssetSourceLibrary,
-		Name:       path.Base(req.Name),
-		StorageKey: key,
-		Backend:    store.Backend(),
-		Mime:       req.ContentType,
-		Size:       req.Size,
+		UserId:          userID,
+		Kind:            kind,
+		Source:          req.Source,
+		Name:            path.Base(req.Name),
+		StorageKey:      key,
+		Backend:         store.Backend(),
+		Mime:            req.ContentType,
+		Size:            req.Size,
+		UploadState:     "pending",
+		UploadExpiresAt: expiresAt,
 	}
 	if err := model.CreatePlaygroundAsset(asset); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	asset.URL = playgroundAssetContentURL(asset.Id)
-	_ = model.DB.Model(asset).Update("url", asset.URL).Error
 	common.ApiSuccess(c, gin.H{
 		"asset":   model.PublicPlaygroundAssetDTO(asset),
 		"put_url": putURL,

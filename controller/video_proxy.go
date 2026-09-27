@@ -60,6 +60,16 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
+	// Ordinary API and Playground tasks share the same owner-scoped durable output.
+	if task.OutputAssetID > 0 {
+		if asset, assetErr := model.GetPlaygroundAsset(task.OutputAssetID, userID); assetErr == nil {
+			if c.Query("redirect") == "1" && redirectPresignedVideo(c, asset) {
+				return
+			}
+			streamPlaygroundVideoAsset(c, asset)
+			return
+		}
+	}
 	// Playground video outputs are persisted independently of the upstream
 	// task. Prefer that durable, owner-scoped asset once it is available so old
 	// chat cards do not depend on temporary provider URLs or channel secrets.
@@ -303,6 +313,7 @@ func redirectPresignedVideo(c *gin.Context, asset *model.PlaygroundAsset) bool {
 	if err != nil || signed == "" {
 		return false
 	}
+	c.Header("Cache-Control", "private, no-store")
 	c.Redirect(http.StatusFound, signed)
 	return true
 }
@@ -312,6 +323,50 @@ func redirectPresignedVideo(c *gin.Context, asset *model.PlaygroundAsset) bool {
 // browser downloads are not blocked by cross-origin R2 redirects.
 func streamPlaygroundVideoAsset(c *gin.Context, asset *model.PlaygroundAsset) {
 	forceDownload := c.Query("download") == "1"
+	// R2 supports byte ranges at the object endpoint. Proxy that response for
+	// clients that did not opt into redirects, without buffering the object.
+	if asset.Backend == "r2" {
+		store, err := storage.ForBackend(asset.Backend)
+		if err != nil {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
+			return
+		}
+		signed, err := store.PresignGet(c.Request.Context(), asset.StorageKey, 10*time.Minute)
+		if err != nil || signed == "" {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
+			return
+		}
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, signed, nil)
+		if err != nil {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
+			return
+		}
+		for _, header := range []string{"Range", "If-Range"} {
+			req.Header.Set(header, c.GetHeader(header))
+		}
+		resp, err := service.GetHttpClient().Do(req)
+		if err != nil {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusRequestedRangeNotSatisfiable {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Video storage unavailable")
+			return
+		}
+		copyVideoResponseHeaders(c.Writer.Header(), resp.Header)
+		c.Header("Content-Type", asset.Mime)
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Cache-Control", "private, no-store")
+		if forceDownload {
+			c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filepath.Base(asset.Name)}))
+		}
+		c.Status(resp.StatusCode)
+		_, _ = io.Copy(c.Writer, resp.Body)
+		return
+	}
 	body, err := service.OpenPlaygroundAssetContentDirect(c.Request.Context(), asset.Backend, asset.StorageKey)
 	if err != nil {
 		videoProxyError(c, http.StatusNotFound, "invalid_request_error", "Video asset not found")
@@ -336,6 +391,10 @@ func streamPlaygroundVideoAsset(c *gin.Context, asset *model.PlaygroundAsset) {
 		c.Writer.Header().Set("Cache-Control", "private, no-store")
 	} else {
 		c.Writer.Header().Set("Cache-Control", "private, max-age=3600")
+	}
+	if seekable, ok := body.(io.ReadSeeker); ok {
+		http.ServeContent(c.Writer, c.Request, asset.Name, time.Time{}, seekable)
+		return
 	}
 	c.Status(http.StatusOK)
 	if _, err := io.Copy(c.Writer, body); err != nil {

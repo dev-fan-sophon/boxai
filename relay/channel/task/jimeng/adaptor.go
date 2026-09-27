@@ -2,6 +2,7 @@ package jimeng
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -213,6 +214,10 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 
 // FetchTask fetch task status
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTaskWithContext(context.Background(), baseUrl, key, body, proxy)
+}
+
+func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
 	taskID, ok := body["task_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid task_id")
@@ -231,7 +236,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 		return nil, errors.Wrap(err, "marshal fetch task payload failed")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package doubao
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/relay/channel/task/taskcommon"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -194,6 +196,17 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	} else {
 		info.UpstreamModelName = body.Model
 	}
+	for _, item := range body.Content {
+		for _, media := range []*MediaURL{item.ImageURL, item.VideoURL, item.AudioURL} {
+			if media == nil {
+				continue
+			}
+			media.URL, err = service.PrivateReferenceMediaURL(media.URL, system_setting.ServerAddress, info.UserId)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	data, err := common.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -239,6 +252,10 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 
 // FetchTask fetch task status
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTaskWithContext(context.Background(), baseUrl, key, body, proxy)
+}
+
+func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
 	taskID, ok := body["task_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid task_id")
@@ -246,7 +263,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
 
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}

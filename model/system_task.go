@@ -23,6 +23,8 @@ const (
 	SystemTaskTypeMidjourneyPoll   = "midjourney_poll"
 	SystemTaskTypeAsyncTaskPoll    = "async_task_poll"
 	SystemTaskTypeBillingReconcile = "billing_reconcile"
+	SystemTaskTypeVideoOutput      = "video_output"
+	SystemTaskTypeUploadCleanup    = "upload_cleanup"
 	SystemTaskTypeExchangeRateSync = "exchange_rate_sync"
 )
 

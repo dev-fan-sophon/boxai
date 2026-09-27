@@ -33,6 +33,10 @@ type PlaygroundAsset struct {
 	URL        string `json:"url" gorm:"type:varchar(1024)"` // public or app-relative URL
 	Mime       string `json:"mime" gorm:"type:varchar(128)"`
 	Size       int64  `json:"size"`
+	// Empty is ready for legacy and server-side uploads. Direct PUTs remain
+	// pending until a verified snapshot is stored under a server-only key.
+	UploadState     string `json:"upload_state" gorm:"type:varchar(16);index"`
+	UploadExpiresAt int64  `json:"upload_expires_at,omitempty" gorm:"bigint;index"`
 	// ContentHash (sha256 hex) links document assets to their cached parse, so
 	// the same file uploaded twice is only ever parsed once. Empty on legacy
 	// rows and on non-document kinds.
@@ -368,7 +372,7 @@ func SetPlaygroundAssetContentHash(id int, contentHash string) error {
 
 func GetPlaygroundAsset(id int, userId int) (*PlaygroundAsset, error) {
 	var a PlaygroundAsset
-	err := DB.Where("id = ? AND user_id = ?", id, userId).First(&a).Error
+	err := DB.Where("id = ? AND user_id = ?", id, userId).Where("upload_state IS NULL OR upload_state IN ?", []string{"", "ready"}).First(&a).Error
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +381,7 @@ func GetPlaygroundAsset(id int, userId int) (*PlaygroundAsset, error) {
 
 func GetPlaygroundAssetById(id int) (*PlaygroundAsset, error) {
 	var a PlaygroundAsset
-	err := DB.Where("id = ?", id).First(&a).Error
+	err := DB.Where("id = ?", id).Where("upload_state IS NULL OR upload_state IN ?", []string{"", "ready"}).First(&a).Error
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +389,8 @@ func GetPlaygroundAssetById(id int) (*PlaygroundAsset, error) {
 }
 
 func ListPlaygroundAssets(userId int, kind string, source string, offset, limit int) ([]PlaygroundAsset, int64, error) {
-	q := DB.Model(&PlaygroundAsset{}).Where("user_id = ?", userId)
+	q := DB.Model(&PlaygroundAsset{}).Where("user_id = ?", userId).
+		Where("upload_state IS NULL OR upload_state IN ?", []string{"", "ready"})
 	if kind != "" {
 		q = q.Where("kind = ?", kind)
 	}
@@ -470,6 +475,7 @@ func DeletePlaygroundAttachmentAssetIfUnreferenced(id, userId int) (*PlaygroundA
 func ListPlaygroundAssetsForBackfill(limit int) ([]PlaygroundAsset, error) {
 	var items []PlaygroundAsset
 	q := DB.Where("backend = ? OR backend = ?", "local", "").
+		Where("upload_state IS NULL OR upload_state IN ?", []string{"", "ready"}).
 		Where("storage_key <> ?", "").
 		Order("id ASC")
 	if limit > 0 {
@@ -1124,16 +1130,52 @@ func PublicPlaygroundAssetDTO(a *PlaygroundAsset) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":         a.Id,
-		"user_id":    a.UserId,
-		"kind":       a.Kind,
-		"source":     a.Source,
-		"name":       a.Name,
-		"url":        a.URL,
-		"visibility": a.Visibility,
-		"public_url": a.PublicURL,
-		"mime":       a.Mime,
-		"size":       a.Size,
-		"created_at": a.CreatedAt,
+		"id":                a.Id,
+		"user_id":           a.UserId,
+		"kind":              a.Kind,
+		"source":            a.Source,
+		"name":              a.Name,
+		"url":               a.URL,
+		"visibility":        a.Visibility,
+		"public_url":        a.PublicURL,
+		"mime":              a.Mime,
+		"size":              a.Size,
+		"created_at":        a.CreatedAt,
+		"upload_state":      a.UploadState,
+		"upload_expires_at": a.UploadExpiresAt,
 	}
+}
+
+// GetPlaygroundUploadIntent is owner-scoped but deliberately includes pending
+// rows. Ordinary media/document consumers must use GetPlaygroundAsset instead.
+func GetPlaygroundUploadIntent(id, userID int) (*PlaygroundAsset, error) {
+	var a PlaygroundAsset
+	err := DB.Where("id = ? AND user_id = ?", id, userID).First(&a).Error
+	return &a, err
+}
+
+// FinalizePlaygroundUploadCAS publishes only an unexpired pending intent. Each
+// caller uses a unique snapshot key; a losing caller must delete its own copy.
+func FinalizePlaygroundUploadCAS(id, userID int, key, mime, url string, size, now int64) (bool, error) {
+	res := DB.Model(&PlaygroundAsset{}).
+		Where("id = ? AND user_id = ? AND upload_state = ? AND upload_expires_at > ?", id, userID, "pending", now).
+		Updates(map[string]any{"upload_state": "ready", "storage_key": key, "mime": mime, "size": size, "url": url})
+	return res.RowsAffected == 1, res.Error
+}
+
+// ListExpiredPlaygroundUploads never selects ready/generated/legacy assets.
+// A grace period in the caller allows PUTs started before URL expiry to drain.
+func ListExpiredPlaygroundUploads(before int64, limit int) ([]PlaygroundAsset, error) {
+	var assets []PlaygroundAsset
+	if limit <= 0 {
+		return assets, nil
+	}
+	err := DB.Where("upload_state = ? AND upload_expires_at > 0 AND upload_expires_at <= ?", "pending", before).
+		Order("id ASC").Limit(limit).Find(&assets).Error
+	return assets, err
+}
+
+func DeleteExpiredPlaygroundUpload(id int, before int64) error {
+	return DB.Where("id = ? AND upload_state = ? AND upload_expires_at > 0 AND upload_expires_at <= ?", id, "pending", before).
+		Delete(&PlaygroundAsset{}).Error
 }

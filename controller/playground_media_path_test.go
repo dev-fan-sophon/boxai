@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service/storage"
@@ -36,7 +37,7 @@ func TestUploadIntentDoesNotReadFileBytes(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), "direct upload is not available")
 }
 
-func TestVolcengineCallbackUpdatesTaskWithoutPolling(t *testing.T) {
+func TestVolcengineCallbackRequestsAuthenticatedPolling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
@@ -46,9 +47,10 @@ func TestVolcengineCallbackUpdatesTaskWithoutPolling(t *testing.T) {
 	t.Cleanup(func() { model.DB = old })
 
 	task := &model.Task{
-		TaskID: "cgt-callback",
-		UserId: 7,
-		Status: model.TaskStatusInProgress,
+		TaskID:     "cgt-callback",
+		UserId:     7,
+		Status:     model.TaskStatusInProgress,
+		NextPollAt: time.Now().Add(time.Minute).Unix(),
 	}
 	task.PrivateData.UpstreamTaskID = "cgt-callback"
 	require.NoError(t, task.Insert())
@@ -64,9 +66,10 @@ func TestVolcengineCallbackUpdatesTaskWithoutPolling(t *testing.T) {
 	stored, exists, err := model.GetByUpstreamTaskID("cgt-callback")
 	require.NoError(t, err)
 	require.True(t, exists)
-	assert.Equal(t, model.TaskStatus(model.TaskStatusSuccess), stored.Status)
-	assert.Equal(t, "https://tos.example/video.mp4", stored.GetResultURL())
-	assert.NotContains(t, string(stored.Data), "base64")
+	assert.Equal(t, model.TaskStatus(model.TaskStatusInProgress), stored.Status)
+	assert.Empty(t, stored.GetResultURL())
+	assert.Empty(t, stored.Data)
+	assert.LessOrEqual(t, stored.NextPollAt, time.Now().Unix())
 }
 
 func TestRedirectPresignedVideoFallsBackWithoutPresign(t *testing.T) {

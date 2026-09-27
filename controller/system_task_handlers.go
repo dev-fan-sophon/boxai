@@ -24,6 +24,8 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
 	service.RegisterSystemTaskHandler(billingReconcileHandler{})
+	service.RegisterSystemTaskHandler(videoOutputHandler{})
+	service.RegisterSystemTaskHandler(uploadCleanupHandler{})
 	service.RegisterSystemTaskHandler(exchangeRateSyncHandler{})
 }
 
@@ -176,7 +178,7 @@ type asyncTaskPollHandler struct{}
 func (asyncTaskPollHandler) Type() string { return model.SystemTaskTypeAsyncTaskPoll }
 
 func (asyncTaskPollHandler) Enabled() bool {
-	return constant.UpdateTask && (model.HasUnfinishedSyncTasks() || model.HasUnpersistedSuccessfulVideoRuns() ||
+	return constant.UpdateTask && (model.HasUnfinishedSyncTasks() ||
 		model.HasPendingTerminalTaskRefunds() || model.HasPendingTerminalTaskSettlements() ||
 		model.HasPendingBillingOperationProjections())
 }
@@ -208,6 +210,39 @@ func (billingReconcileHandler) Run(ctx context.Context, task *model.SystemTask, 
 	service.ReconcileTaskRefunds(ctx)
 	service.ReconcileMidjourneyRefunds(ctx)
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
+}
+
+// Storage has its own lease and deadline: a slow download must never delay polling.
+type videoOutputHandler struct{}
+
+func (videoOutputHandler) Type() string            { return model.SystemTaskTypeVideoOutput }
+func (videoOutputHandler) Enabled() bool           { return true }
+func (videoOutputHandler) Interval() time.Duration { return 15 * time.Second }
+func (videoOutputHandler) NewPayload() any         { return nil }
+func (videoOutputHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	err := service.RunVideoOutputReconciliation(ctx)
+	status := model.SystemTaskStatusSucceeded
+	if err != nil {
+		status = model.SystemTaskStatusFailed
+	}
+	finishSystemTaskHandler(task, runnerID, status, nil, err)
+}
+
+type uploadCleanupHandler struct{}
+
+func (uploadCleanupHandler) Type() string            { return model.SystemTaskTypeUploadCleanup }
+func (uploadCleanupHandler) Enabled() bool           { return true }
+func (uploadCleanupHandler) Interval() time.Duration { return 15 * time.Minute }
+func (uploadCleanupHandler) NewPayload() any         { return nil }
+func (uploadCleanupHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	err := CleanupExpiredPlaygroundUploads(ctx, time.Now(), 100)
+	status := model.SystemTaskStatusSucceeded
+	if err != nil {
+		status = model.SystemTaskStatusFailed
+	}
+	finishSystemTaskHandler(task, runnerID, status, nil, err)
 }
 
 type exchangeRateSyncHandler struct{}

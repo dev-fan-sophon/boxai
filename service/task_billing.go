@@ -280,6 +280,10 @@ func ReconcileTaskRefunds(ctx context.Context) {
 		RefundTaskQuota(ctx, task, task.FailReason)
 	}
 	for _, task := range model.GetPendingTerminalTaskSettlements(100) {
+		if task.PrivateData.CompletionBilling != nil {
+			settleTaskBillingOnComplete(ctx, nil, task, nil)
+			continue
+		}
 		if _, err := settleTaskBillingOperation(task, task.Quota); err != nil {
 			logger.LogWarn(ctx, fmt.Sprintf("durable task settlement recovery failed task %s: %v", task.TaskID, err))
 		}
@@ -421,16 +425,18 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 // RecalculateTaskQuotaByTokens 根据实际 token 消耗重新计费（异步差额结算）。
 // 当任务成功且返回了 totalTokens 时，根据模型倍率和分组倍率重新计算实际扣费额度，
 // 与预扣费的差额进行补扣或退还。支持钱包和订阅计费来源。
-func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTokens int) {
+// Reports whether a positive adjustment was attempted. False means pricing
+// intentionally retains the precharge; it does not indicate a settlement error.
+func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTokens int) bool {
 	if totalTokens <= 0 {
-		return
+		return false
 	}
 
 	var modelRatio, finalGroupRatio float64
 	if bc := task.PrivateData.BillingContext; bc != nil {
 		// Submission pricing is immutable, including zero/free ratios.
 		if bc.PerCallBilling {
-			return
+			return false
 		}
 		modelRatio = bc.ModelRatio
 		finalGroupRatio = bc.GroupRatio
@@ -439,7 +445,7 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		var hasRatioSetting bool
 		modelRatio, hasRatioSetting, _ = ratio_setting.GetModelRatio(taskModelName(task))
 		if !hasRatioSetting {
-			return
+			return false
 		}
 		group := task.Group
 		if group == "" {
@@ -449,7 +455,7 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 			}
 		}
 		if group == "" {
-			return
+			return false
 		}
 		finalGroupRatio = ratio_setting.GetGroupRatio(group)
 		if userGroupRatio, ok := ratio_setting.GetGroupGroupRatio(group, group); ok {
@@ -457,7 +463,7 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		}
 	}
 	if modelRatio <= 0 || finalGroupRatio <= 0 {
-		return
+		return false
 	}
 
 	// 计算 OtherRatios 乘积（视频折扣、时长等）
@@ -471,4 +477,5 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 
 	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
 	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
+	return actualQuota > 0
 }

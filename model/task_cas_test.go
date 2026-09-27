@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -296,4 +297,45 @@ func TestUpdateWithStatus_ConcurrentWinner(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, winCount, "exactly one goroutine should win the CAS")
+}
+
+func TestDueTasksRotatePastFullBatchAndPersistBackoff(t *testing.T) {
+	require.NoError(t, DB.Exec("DELETE FROM tasks").Error)
+	t.Cleanup(func() { DB.Exec("DELETE FROM tasks") })
+	ctx := context.Background()
+	for _, id := range []string{"old-a", "old-b", "new"} {
+		require.NoError(t, DB.Create(&Task{TaskID: id, Status: TaskStatusInProgress, Progress: "30%"}).Error)
+	}
+	first, err := GetDueSyncTasks(ctx, 100, 2)
+	require.NoError(t, err)
+	require.Len(t, first, 2)
+	for _, task := range first {
+		require.NoError(t, task.ScheduleNextPoll(ctx, 100, true))
+	}
+	// Even after the retry becomes due, never-polled work is first.
+	next, err := GetDueSyncTasks(ctx, 200, 1)
+	require.NoError(t, err)
+	require.Len(t, next, 1)
+	assert.Equal(t, "new", next[0].TaskID)
+	var persisted Task
+	require.NoError(t, DB.First(&persisted, first[0].ID).Error)
+	assert.EqualValues(t, 110, persisted.NextPollAt)
+	assert.Equal(t, 1, persisted.PollFailures)
+	for _, delay := range []int64{20, 40, 80, 160, 300, 300} {
+		require.NoError(t, persisted.ScheduleNextPoll(ctx, 200, true))
+		assert.Equal(t, 200+delay, persisted.NextPollAt)
+	}
+	snapshot := persisted.Snapshot()
+	require.NoError(t, persisted.ScheduleNextPoll(ctx, 300, false))
+	assert.Zero(t, persisted.PollFailures)
+	assert.EqualValues(t, 305, persisted.NextPollAt)
+	// A stale lifecycle write must not roll back the scheduling columns.
+	stale := *first[0]
+	stale.Progress = "40%"
+	won, err := stale.UpdateIfUnchanged(snapshot)
+	require.NoError(t, err)
+	require.True(t, won)
+	require.NoError(t, DB.First(&persisted, persisted.ID).Error)
+	assert.EqualValues(t, 305, persisted.NextPollAt)
+	assert.Zero(t, persisted.PollFailures)
 }

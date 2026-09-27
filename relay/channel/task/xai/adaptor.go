@@ -2,6 +2,7 @@ package xai
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -197,11 +198,15 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	return result.RequestID, b, nil
 }
 func (a *TaskAdaptor) FetchTask(baseURL, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTaskWithContext(context.Background(), baseURL, key, body, proxy)
+}
+
+func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseURL, key string, body map[string]any, proxy string) (*http.Response, error) {
 	id, ok := body["task_id"].(string)
 	if !ok || id == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
-	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(baseURL, "/")+"/v1/videos/"+url.PathEscape(id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/v1/videos/"+url.PathEscape(id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -222,10 +227,13 @@ func (a *TaskAdaptor) FetchTask(baseURL, key string, body map[string]any, proxy 
 		resp.Body.Close()
 		return nil, fmt.Errorf("xAI video polling returned retryable status %d", resp.StatusCode)
 	}
-	responseBody, readErr := io.ReadAll(resp.Body)
+	responseBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 1024*1024+1))
 	resp.Body.Close()
 	if readErr != nil {
 		return nil, readErr
+	}
+	if len(responseBody) > 1024*1024 {
+		return nil, fmt.Errorf("xAI polling error response exceeds limit")
 	}
 	message := strings.TrimSpace(string(responseBody))
 	var upstreamError struct {

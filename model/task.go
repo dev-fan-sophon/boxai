@@ -2,6 +2,7 @@ package model
 
 import (
 	"bytes"
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"strconv"
@@ -66,6 +67,11 @@ type Task struct {
 	FinishTime     int64                 `json:"finish_time" gorm:"index"`
 	Progress       string                `json:"progress" gorm:"type:varchar(20);index"`
 	BillingSettled bool                  `json:"-" gorm:"index;not null;default:false"`
+	NextPollAt     int64                 `json:"-" gorm:"index;not null;default:0"`
+	PollFailures   int                   `json:"-" gorm:"not null;default:0"`
+	OutputAssetID  int                   `json:"-" gorm:"not null;default:0"`
+	OutputNextAt   int64                 `json:"-" gorm:"index;not null;default:0"`
+	OutputAttempts int                   `json:"-" gorm:"not null;default:0"`
 	Properties     Properties            `json:"properties" gorm:"type:json"`
 	Username       string                `json:"username,omitempty" gorm:"-"`
 	// 禁止返回给用户，内部可能包含key等隐私信息
@@ -127,9 +133,11 @@ func (m Properties) Value() (driver.Value, error) {
 }
 
 type TaskPrivateData struct {
-	Key            string `json:"key,omitempty"`
-	UpstreamTaskID string `json:"upstream_task_id,omitempty"` // 上游真实 task ID
-	ResultURL      string `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）
+	OutputSource      string                 `json:"output_source,omitempty"` // Inline media retained until durable output reconciliation.
+	CompletionBilling *TaskCompletionBilling `json:"completion_billing,omitempty"`
+	Key               string                 `json:"key,omitempty"`
+	UpstreamTaskID    string                 `json:"upstream_task_id,omitempty"` // 上游真实 task ID
+	ResultURL         string                 `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）
 	// 计费上下文：用于异步退款/差额结算（轮询阶段读取）
 	BillingSource               string              `json:"billing_source,omitempty"` // "wallet" 或 "subscription"
 	BillingOperationKey         string              `json:"billing_operation_key,omitempty"`
@@ -138,6 +146,13 @@ type TaskPrivateData struct {
 	TokenId                     int                 `json:"token_id,omitempty"`        // 令牌 ID，用于令牌额度退款
 	NodeName                    string              `json:"node_name,omitempty"`       // 发起任务的节点名，轮询结算阶段据此归属日志而非最后查询节点
 	BillingContext              *TaskBillingContext `json:"billing_context,omitempty"` // 计费参数快照（用于轮询阶段重新计算）
+}
+
+// TaskCompletionBilling survives a crash between the terminal CAS and billing.
+// Quota remains the precharge until the idempotent settlement is applied.
+type TaskCompletionBilling struct {
+	Quota       int `json:"quota"`
+	TotalTokens int `json:"total_tokens"`
 }
 
 // TaskBillingContext 记录任务提交时的计费参数，以便轮询阶段可以重新计算额度。
@@ -162,6 +177,9 @@ func (t *Task) GetUpstreamTaskID() string {
 // GetResultURL 获取任务结果 URL（视频地址等）
 // 新数据存在 PrivateData.ResultURL 中；旧数据回退到 FailReason（历史兼容）
 func (t *Task) GetResultURL() string {
+	if t.OutputAssetID > 0 {
+		return "/v1/videos/" + t.TaskID + "/content"
+	}
 	if t.PrivateData.ResultURL != "" {
 		return t.PrivateData.ResultURL
 	}
@@ -351,6 +369,46 @@ func GetAllUnFinishSyncTasks(limit int) []*Task {
 	return tasks
 }
 
+// GetDueSyncTasks orders by persisted due time, not ID alone: a full batch of
+// long-running tasks cannot permanently hide newer work. NULL handles upgrades.
+func GetDueSyncTasks(ctx context.Context, now int64, limit int) ([]*Task, error) {
+	var tasks []*Task
+	err := DB.WithContext(ctx).Where("progress != ?", "100%").
+		Where("status NOT IN ?", []string{TaskStatusFailure, TaskStatusSuccess}).
+		Where("platform != ?", constant.TaskPlatformMidjourney).
+		Where("next_poll_at IS NULL OR next_poll_at <= ?", now).
+		Order("next_poll_at").Order("id").Limit(limit).Find(&tasks).Error
+	return tasks, err
+}
+
+// ScheduleNextPoll updates only scheduling columns, never lifecycle or billing.
+func (t *Task) ScheduleNextPoll(ctx context.Context, now int64, failed bool) error {
+	failures := 0
+	delay := int64(5)
+	if failed {
+		failures = t.PollFailures
+		if failures < 0 {
+			failures = 0
+		}
+		if failures < 6 {
+			failures++
+		} else {
+			failures = 6
+		}
+		delay = int64(5) << failures
+		if delay > 300 {
+			delay = 300
+		}
+	}
+	next := now + delay
+	err := DB.WithContext(ctx).Model(&Task{}).Where("id = ?", t.ID).
+		Updates(map[string]any{"next_poll_at": next, "poll_failures": failures}).Error
+	if err == nil {
+		t.NextPollAt, t.PollFailures = next, failures
+	}
+	return err
+}
+
 // HasUnfinishedSyncTasks reports whether at least one async (Suno/video) task is
 // still in progress. It is a cheap existence check (LIMIT 1) used to decide
 // whether the async_task_poll system task needs to run; when no task is pending
@@ -493,7 +551,7 @@ func (t *Task) UpdateQuota() error {
 // falls back to INSERT ON CONFLICT when the WHERE-guarded UPDATE matches
 // zero rows, which silently bypasses the CAS guard.
 func (t *Task) UpdateWithStatus(fromStatus TaskStatus) (bool, error) {
-	result := DB.Model(t).Where("status = ?", fromStatus).Select("*").Updates(t)
+	result := DB.Model(t).Where("status = ?", fromStatus).Select("*").Omit("next_poll_at", "poll_failures", "output_asset_id", "output_next_at", "output_attempts").Updates(t)
 	if result.Error != nil {
 		return false, result.Error
 	}
@@ -514,7 +572,7 @@ func (t *Task) UpdateIfUnchanged(from taskSnapshot) (bool, error) {
 		if !current.Snapshot().Equal(from) {
 			return nil
 		}
-		result := tx.Model(t).Select("*").Updates(t)
+		result := tx.Model(t).Select("*").Omit("next_poll_at", "poll_failures", "output_asset_id", "output_next_at", "output_attempts").Updates(t)
 		if result.Error != nil {
 			return result.Error
 		}

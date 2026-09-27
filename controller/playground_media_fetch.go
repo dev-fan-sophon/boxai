@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
-	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/service/storage"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,8 +20,24 @@ func GetPlaygroundMediaFetch(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	asset, err := model.GetPlaygroundAsset(assetID, userID)
+	asset, err := service.GetMediaFetchAsset(userID, assetID)
 	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	c.Header("Referrer-Policy", "no-referrer")
+	store, err := storage.ForBackend(asset.Backend)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	signedURL, err := store.PresignGet(c.Request.Context(), asset.StorageKey, time.Minute)
+	if err == nil {
+		c.Redirect(http.StatusTemporaryRedirect, signedURL)
+		return
+	}
+	if !errors.Is(err, storage.ErrPresignUnsupported) {
 		c.Status(http.StatusNotFound)
 		return
 	}

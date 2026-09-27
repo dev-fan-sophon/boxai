@@ -28,7 +28,8 @@ func LocalRoot() string {
 }
 
 // Default returns the process-wide asset store selected by STORAGE_BACKEND.
-// Unknown or misconfigured backends fall back to the local filesystem.
+// Unknown or misconfigured backends return a store whose operations fail
+// explicitly, rather than silently changing persistence or panicking at boot.
 func Default() AssetStore {
 	defaultMu.Lock()
 	defer defaultMu.Unlock()
@@ -77,11 +78,12 @@ func build() AssetStore {
 	case "r2", "s3":
 		s, err := newR2Store()
 		if err != nil {
-			common.SysError("storage: r2 backend init failed, falling back to local: " + err.Error())
-			return newLocalStore(LocalRoot())
+			return &unavailableStore{backend: backend, err: err}
 		}
 		return s
-	default:
+	case "local", "":
 		return newLocalStore(LocalRoot())
+	default:
+		return &unavailableStore{backend: backend, err: fmt.Errorf("storage: unsupported backend %q", backend)}
 	}
 }

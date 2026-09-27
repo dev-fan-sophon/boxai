@@ -2,6 +2,7 @@ package suno
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -129,13 +130,17 @@ func (a *TaskAdaptor) GetChannelName() string {
 }
 
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTaskWithContext(context.Background(), baseUrl, key, body, proxy)
+}
+
+func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
 	requestUrl := fmt.Sprintf("%s/suno/fetch", baseUrl)
 	byteBody, err := common.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", requestUrl, bytes.NewBuffer(byteBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", requestUrl, bytes.NewBuffer(byteBody))
 	if err != nil {
 		common.SysLog(fmt.Sprintf("Get Task error: %v", err))
 		return nil, err

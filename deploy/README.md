@@ -145,6 +145,54 @@ make deploy-bootstrap
 
 There is **no** automated “run E2E then promote to prod” gate today. Cutover is: build on host → health checks (`/api/status`, chat `readyz`) → restart. For UI-only, cutover is symlink flip + public HTTP smoke in `deploy-web.sh`.
 
+### Async media rollout and capacity
+
+The media lifecycle release adds task polling/output columns and asset upload
+state/expiry columns through AutoMigrate. Back up the database and approve the
+production migration before deploying. Publish the API before the matching web
+build: new clients require `POST /api/playground/assets/:id/finalize`. Rolling
+back the binary does not require dropping the additive columns; do not drop them.
+
+- Polling has 16 process-wide slots, at most 4 per channel, a 30-second request
+  deadline and a 45-second pass budget. Persisted due times prevent oldest-row
+  starvation; query errors back off up to 5 minutes. Existing system-task DB
+  leases choose one scheduler across instances; this is not a sharded queue.
+- A modern task's local age is not proof of upstream failure. It remains pending
+  until authenticated polling confirms a terminal state. Investigate tasks older
+  than `TASK_TIMEOUT_MINUTES` rather than assuming a refund occurred. Unverified callbacks
+  only request polling; they cannot update results or settle billing.
+- Independent `video_output` jobs persist successful API and Playground videos
+  (created/completed from 2026-09-26 UTC), eight per pass, one download at a time.
+  Downloads have a 60-second deadline and the existing 50 MiB video size limit.
+  Failures retain the generation/billing result and retry with backoff up to six
+  hours. Stored `/v1/videos/:id/content` supports streaming and Range;
+  `?redirect=1` opts into a short-lived signed object URL to avoid app bandwidth.
+- Direct uploads remain private/pending until verified. Finalization uses a
+  bounded disk snapshot (four concurrent, one-minute deadline), then publishes a
+  different immutable object key. It therefore still incurs one object download
+  and upload through the app; presigned upload alone does not eliminate app I/O.
+  `upload_cleanup` removes expired pending uploads only, after a one-hour grace.
+- Configure an R2 lifecycle expiry **only on `upload-intents/`**, e.g. one day,
+  after infrastructure approval. Signed PUT replay can recreate staging objects
+  after finalization. Never apply this rule to `uploads/` or `outputs/`.
+- All app instances need the same explicitly configured `CRYPTO_SECRET` (or
+  `SESSION_SECRET`), database and R2 bucket. References use 15-minute signed
+  capabilities and R2 redirects; local legacy assets need shared storage.
+- SQL pools default to 20 open / 5 idle connections per pool per process.
+  `SQL_MAX_OPEN_CONNS` / `SQL_MAX_IDLE_CONNS` override these. Budget the sum across
+  API replicas, a separate log pool when used, chat, migrations and operators
+  below the database connection limit.
+
+Acceptance must include real R2 PUT → finalize → provider reference fetch,
+generated video → R2 → authenticated Range/download, and restart recovery. Watch
+oldest due poll, unpersisted successful output age/attempts, SQL connection waits,
+RSS, temporary-disk usage and network throughput. A growing output backlog needs
+more transfer capacity before increasing generation admission. Hard termination
+between object/asset creation and task attachment can still leave an orphan;
+do not automatically delete unreferenced paid media without a reconciliation
+ledger and an agreed retention policy. No public-cloud traffic allowance or
+production capacity number is implied by these bounded concurrency defaults.
+
 ### Ops
 
 ```bash

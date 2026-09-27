@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +42,201 @@ type videoSuccessPollingAdaptor struct {
 	resultURL string
 }
 
+type httpPollingTestAdaptor struct {
+	videoSuccessPollingAdaptor
+	used   atomic.Bool
+	reused *atomic.Bool
+}
+
+func (a *httpPollingTestAdaptor) FetchTaskWithContext(ctx context.Context, base, _ string, body map[string]any, _ string) (*http.Response, error) {
+	if a.used.Swap(true) {
+		a.reused.Store(true)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/"+body["task_id"].(string), nil)
+	if err != nil {
+		return nil, err
+	}
+	return http.DefaultClient.Do(req)
+}
+
+func TestPollingBoundsConcurrencyCancelsHTTPAndUsesIndependentAdaptors(t *testing.T) {
+	truncate(t)
+	started := make(chan string, 32)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		started <- r.URL.Path
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+	var reused atomic.Bool
+	var factories atomic.Int32
+	previous := GetTaskAdaptorFunc
+	GetTaskAdaptorFunc = func(constant.TaskPlatform) TaskPollingAdaptor {
+		factories.Add(1)
+		return &httpPollingTestAdaptor{reused: &reused}
+	}
+	defer func() { GetTaskAdaptorFunc = previous }()
+	channelTasks := make(map[int][]string)
+	tasks := make(map[string]*model.Task)
+	for channelID := 1; channelID <= 5; channelID++ {
+		seedTaskPollingChannel(t, channelID, false)
+		require.NoError(t, model.DB.Model(&model.Channel{}).Where("id = ?", channelID).Update("base_url", server.URL).Error)
+		for i := 0; i < 5; i++ {
+			id := fmt.Sprintf("%d-%d", channelID, i)
+			task := seedPollingTask(t, channelID, id, id)
+			task.Quota = 100
+			require.NoError(t, task.UpdateQuota())
+			channelTasks[channelID] = append(channelTasks[channelID], id)
+			tasks[id] = task
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- UpdateVideoTasks(ctx, "kling", channelTasks, tasks) }()
+	counts := make(map[byte]int)
+	for i := 0; i < 16; i++ {
+		select {
+		case path := <-started:
+			counts[path[1]]++
+		case <-time.After(5 * time.Second):
+			t.Fatal("polls did not fill global capacity")
+		}
+	}
+	for _, count := range counts {
+		assert.LessOrEqual(t, count, 4)
+	}
+	assert.EqualValues(t, 16, factories.Load())
+	assert.False(t, reused.Load())
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("HTTP body reads did not cancel")
+	}
+	var persisted []model.Task
+	require.NoError(t, model.DB.Find(&persisted).Error)
+	require.Len(t, persisted, 25)
+	for _, task := range persisted {
+		assert.Equal(t, model.TaskStatus(model.TaskStatusInProgress), task.Status)
+		assert.Equal(t, 100, task.Quota)
+		assert.False(t, task.BillingSettled)
+	}
+}
+
+func TestTerminalRecoveryUsesPersistedFinalUsageNotPrecharge(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		completion model.TaskCompletionBilling
+		modelRatio float64
+		wantQuota  int
+	}{
+		{"adaptor", model.TaskCompletionBilling{Quota: 600}, 2, 600},
+		{"tokens", model.TaskCompletionBilling{TotalTokens: 300}, 2, 600},
+		{"no token adjustment", model.TaskCompletionBilling{TotalTokens: 300}, 0, 1000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, 901, 10000)
+			seedToken(t, 901, 901, "recovery-token", 10000)
+			seedChannel(t, 901)
+			task := &model.Task{TaskID: "crash-success", UserId: 901, ChannelId: 901, Status: model.TaskStatusInProgress, Quota: 1000,
+				PrivateData: model.TaskPrivateData{TokenId: 901, BillingContext: &model.TaskBillingContext{ModelRatio: tc.modelRatio, GroupRatio: 1}}}
+			require.NoError(t, model.DB.Create(task).Error)
+			snap := task.Snapshot()
+			task.Status = model.TaskStatusSuccess
+			task.Progress = "100%"
+			task.PrivateData.CompletionBilling = &tc.completion
+			won, err := task.UpdateIfUnchanged(snap)
+			require.NoError(t, err)
+			require.True(t, won)
+			// Simulate process loss immediately after the terminal CAS.
+			ReconcileTaskRefunds(context.Background())
+			ReconcileTaskRefunds(context.Background())
+			var persisted model.Task
+			require.NoError(t, model.DB.First(&persisted, task.ID).Error)
+			assert.Equal(t, tc.wantQuota, persisted.Quota)
+			assert.True(t, persisted.BillingSettled)
+			var user model.User
+			require.NoError(t, model.DB.First(&user, 901).Error)
+			assert.Equal(t, 11000-tc.wantQuota, user.Quota, "only refund the difference from the recorded precharge, once")
+		})
+	}
+}
+
+type pollingResponseBody struct {
+	remaining int64
+	read      int64
+	closed    bool
+}
+
+func (b *pollingResponseBody) Read(p []byte) (int, error) {
+	if b.remaining == 0 {
+		return 0, io.EOF
+	}
+	n := min(int64(len(p)), b.remaining)
+	b.remaining -= n
+	b.read += n
+	clear(p[:int(n)])
+	return int(n), nil
+}
+func (b *pollingResponseBody) Close() error { b.closed = true; return nil }
+
+func TestPollingResponseRejectsOversizeAndHTTPFailuresAndClosesBody(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		size   int64
+		read   int64
+	}{
+		{"oversize", http.StatusOK, taskPollResponseLimit + 100, taskPollResponseLimit + 1},
+		{"rate limited", http.StatusTooManyRequests, 100, 0},
+		{"gateway timeout", http.StatusGatewayTimeout, 100, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := &pollingResponseBody{remaining: tc.size}
+			_, err := readPollingResponse(&http.Response{StatusCode: tc.status, Body: body})
+			require.Error(t, err)
+			assert.Equal(t, tc.read, body.read)
+			assert.True(t, body.closed)
+		})
+	}
+}
+
+type timeoutPollingAdaptor struct{ videoSuccessPollingAdaptor }
+
+func (a *timeoutPollingAdaptor) FetchTaskWithContext(context.Context, string, string, map[string]any, string) (*http.Response, error) {
+	return nil, context.DeadlineExceeded
+}
+
+func TestPollingNetworkTimeoutPersistsRetryWithoutFailureOrRefund(t *testing.T) {
+	truncate(t)
+	seedTaskPollingChannel(t, 912, false)
+	task := seedPollingTask(t, 912, "timeout", "timeout-upstream")
+	task.Quota = 1000
+	require.NoError(t, task.UpdateQuota())
+	previous := GetTaskAdaptorFunc
+	GetTaskAdaptorFunc = func(constant.TaskPlatform) TaskPollingAdaptor { return &timeoutPollingAdaptor{} }
+	defer func() { GetTaskAdaptorFunc = previous }()
+	pollTasks(context.Background(), []*model.Task{task})
+	var persisted model.Task
+	require.NoError(t, model.DB.First(&persisted, task.ID).Error)
+	assert.Equal(t, model.TaskStatus(model.TaskStatusInProgress), persisted.Status)
+	assert.Equal(t, 1000, persisted.Quota)
+	assert.Equal(t, 1, persisted.PollFailures)
+	assert.Greater(t, persisted.NextPollAt, int64(0))
+	assert.Empty(t, persisted.FailReason)
+	var operations int64
+	require.NoError(t, model.DB.Model(&model.BillingOperation{}).Count(&operations).Error)
+	assert.Zero(t, operations)
+}
+
 func (a *sunoFailurePollingAdaptor) Init(_ *relaycommon.RelayInfo) {}
+func (a *sunoFailurePollingAdaptor) FetchTaskWithContext(_ context.Context, base, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTask(base, key, body, proxy)
+}
 func (a *sunoFailurePollingAdaptor) FetchTask(_ string, _ string, body map[string]any, _ string) (*http.Response, error) {
 	taskIDs, _ := body["ids"].([]string)
 	items := make([]dto.SunoDataResponse, 0, len(taskIDs))
@@ -62,6 +257,9 @@ func (a *sunoFailurePollingAdaptor) AdjustBillingOnComplete(*model.Task, *relayc
 }
 
 func (a *videoSuccessPollingAdaptor) Init(_ *relaycommon.RelayInfo) {}
+func (a *videoSuccessPollingAdaptor) FetchTaskWithContext(_ context.Context, base, key string, body map[string]any, proxy string) (*http.Response, error) {
+	return a.FetchTask(base, key, body, proxy)
+}
 func (a *videoSuccessPollingAdaptor) FetchTask(_ string, _ string, body map[string]any, _ string) (*http.Response, error) {
 	taskID, _ := body["task_id"].(string)
 	response := dto.TaskResponse[model.Task]{
@@ -109,6 +307,10 @@ func TestRedactVideoResponseBodyFailsClosedForMalformedXAIResponse(t *testing.T)
 func (a *taskPollingFetchAdaptor) Init(_ *relaycommon.RelayInfo) {}
 
 func (a *taskPollingFetchAdaptor) FetchTask(_ string, _ string, body map[string]any, _ string) (*http.Response, error) {
+	return a.FetchTaskWithContext(context.Background(), "", "", body, "")
+}
+
+func (a *taskPollingFetchAdaptor) FetchTaskWithContext(ctx context.Context, _ string, _ string, body map[string]any, _ string) (*http.Response, error) {
 	taskID, _ := body["task_id"].(string)
 	if taskID == a.blockTaskID && a.releaseBlock != nil {
 		a.blockOnce.Do(func() {
@@ -116,7 +318,11 @@ func (a *taskPollingFetchAdaptor) FetchTask(_ string, _ string, body map[string]
 				close(a.blockStarted)
 			}
 		})
-		<-a.releaseBlock
+		select {
+		case <-a.releaseBlock:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 
 	a.mu.Lock()
@@ -202,7 +408,7 @@ func seedPollingTask(t *testing.T, channelID int, publicID string, upstreamID st
 	return task
 }
 
-func TestUpdateVideoTasksDefaultSleepWaitsBetweenTasks(t *testing.T) {
+func TestUpdateVideoTasksDefaultHasNoSerialDelay(t *testing.T) {
 	truncate(t)
 
 	const channelID = 101
@@ -215,8 +421,7 @@ func TestUpdateVideoTasksDefaultSleepWaitsBetweenTasks(t *testing.T) {
 	GetTaskAdaptorFunc = func(constant.TaskPlatform) TaskPollingAdaptor { return adaptor }
 	t.Cleanup(func() { GetTaskAdaptorFunc = previousFactory })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
+	ctx := context.Background()
 
 	err := UpdateVideoTasks(ctx, constant.TaskPlatform("kling"), map[int][]string{
 		channelID: {
@@ -228,8 +433,8 @@ func TestUpdateVideoTasksDefaultSleepWaitsBetweenTasks(t *testing.T) {
 		second.GetUpstreamTaskID(): second,
 	})
 
-	require.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Equal(t, 1, adaptor.fetchCount())
+	require.NoError(t, err)
+	assert.Equal(t, 2, adaptor.fetchCount())
 }
 
 func TestUpdateVideoTasksCanSkipPollingSleepPerChannel(t *testing.T) {
@@ -262,7 +467,7 @@ func TestUpdateVideoTasksCanSkipPollingSleepPerChannel(t *testing.T) {
 	assert.Equal(t, 2, adaptor.fetchCount())
 }
 
-func TestUpdateVideoTasksDefaultSleepDoesNotBlockOtherChannels(t *testing.T) {
+func TestUpdateVideoTasksPollsAllChannels(t *testing.T) {
 	truncate(t)
 
 	const firstChannelID = 201
@@ -279,8 +484,7 @@ func TestUpdateVideoTasksDefaultSleepDoesNotBlockOtherChannels(t *testing.T) {
 	GetTaskAdaptorFunc = func(constant.TaskPlatform) TaskPollingAdaptor { return adaptor }
 	t.Cleanup(func() { GetTaskAdaptorFunc = previousFactory })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
+	ctx := context.Background()
 
 	err := UpdateVideoTasks(ctx, constant.TaskPlatform("kling"), map[int][]string{
 		firstChannelID: {
@@ -298,8 +502,8 @@ func TestUpdateVideoTasksDefaultSleepDoesNotBlockOtherChannels(t *testing.T) {
 		secondChannelSecond.GetUpstreamTaskID(): secondChannelSecond,
 	})
 
-	require.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.ElementsMatch(t, []string{"upstream_a_1", "upstream_b_1"}, adaptor.fetchedTaskIDs())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"upstream_a_1", "upstream_a_2", "upstream_b_1", "upstream_b_2"}, adaptor.fetchedTaskIDs())
 }
 
 func TestUpdateVideoTasksSlowChannelDoesNotBlockOtherChannels(t *testing.T) {
@@ -356,12 +560,14 @@ func TestUpdateVideoTasksSlowChannelDoesNotBlockOtherChannels(t *testing.T) {
 		t.Fatal("slow channel did not start blocking")
 	}
 
-	require.Eventually(t, func() bool {
-		fetchedTaskIDs := adaptor.fetchedTaskIDs()
-		return len(fetchedTaskIDs) == 2 &&
-			fetchedTaskIDs[0] == fastFirstUpstreamID &&
-			fetchedTaskIDs[1] == fastSecondUpstreamID
-	}, 500*time.Millisecond, 10*time.Millisecond)
+	for range 2 {
+		select {
+		case <-adaptor.fetched:
+		case <-time.After(5 * time.Second):
+			t.Fatal("fast channel was blocked")
+		}
+	}
+	assert.ElementsMatch(t, []string{fastFirstUpstreamID, fastSecondUpstreamID}, adaptor.fetchedTaskIDs())
 
 	releaseBlockedTask()
 	require.NoError(t, <-errCh)
@@ -372,7 +578,7 @@ func TestUpdateVideoTasksSlowChannelDoesNotBlockOtherChannels(t *testing.T) {
 	}, adaptor.fetchedTaskIDs())
 }
 
-func TestUpdateVideoTasksMixedChannelSleepSettings(t *testing.T) {
+func TestUpdateVideoTasksLegacySleepSettingsDoNotSerialize(t *testing.T) {
 	truncate(t)
 
 	const sleepyChannelID = 301
@@ -389,8 +595,7 @@ func TestUpdateVideoTasksMixedChannelSleepSettings(t *testing.T) {
 	GetTaskAdaptorFunc = func(constant.TaskPlatform) TaskPollingAdaptor { return adaptor }
 	t.Cleanup(func() { GetTaskAdaptorFunc = previousFactory })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
+	ctx := context.Background()
 
 	err := UpdateVideoTasks(ctx, constant.TaskPlatform("kling"), map[int][]string{
 		sleepyChannelID: {
@@ -408,8 +613,8 @@ func TestUpdateVideoTasksMixedChannelSleepSettings(t *testing.T) {
 		fastSecond.GetUpstreamTaskID():   fastSecond,
 	})
 
-	require.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.ElementsMatch(t, []string{"upstream_sleepy_1", "upstream_fast_1", "upstream_fast_2"}, adaptor.fetchedTaskIDs())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"upstream_sleepy_1", "upstream_sleepy_2", "upstream_fast_1", "upstream_fast_2"}, adaptor.fetchedTaskIDs())
 }
 
 func TestUpdateSunoTasksStaleSnapshotsRefundOnce(t *testing.T) {
@@ -441,7 +646,7 @@ func TestUpdateSunoTasksStaleSnapshotsRefundOnce(t *testing.T) {
 	assert.Zero(t, getTaskQuota(t, task.ID))
 }
 
-func TestSweepTimedOutTasksRefundBoundaryAndCASLoser(t *testing.T) {
+func TestLocalAgeDoesNotFailOrRefundModernTasks(t *testing.T) {
 	truncate(t)
 	const userID = 402
 	seedUser(t, userID, 10000)
@@ -460,9 +665,13 @@ func TestSweepTimedOutTasksRefundBoundaryAndCASLoser(t *testing.T) {
 	sweepTimedOutTasks(context.Background())
 
 	assert.Zero(t, getTaskQuota(t, legacy.ID))
-	assert.Zero(t, getTaskQuota(t, modern.ID))
-	assert.Equal(t, 11200, getUserQuota(t, userID))
-	assert.Equal(t, int64(1), countLogs(t))
+	assert.Equal(t, 1200, getTaskQuota(t, modern.ID))
+	assert.Equal(t, 10000, getUserQuota(t, userID))
+	assert.Zero(t, countLogs(t))
+	var reloaded model.Task
+	require.NoError(t, model.DB.First(&reloaded, modern.ID).Error)
+	assert.Equal(t, modern.Status, reloaded.Status)
+	assert.Zero(t, reloaded.FinishTime)
 }
 
 func TestFailPollingTaskCASWinnerAndLoser(t *testing.T) {
@@ -579,10 +788,11 @@ func TestCompletedVideoOutputIsPersistedOnlyByCASWinner(t *testing.T) {
 		task.GetUpstreamTaskID(): &stale,
 	}))
 
-	require.Eventually(t, func() bool {
-		var run model.PlaygroundRun
-		return model.DB.Where("task_id = ?", task.TaskID).First(&run).Error == nil && run.AssetId != 0
-	}, time.Second, 10*time.Millisecond)
+	require.NoError(t, RunVideoOutputReconciliation(context.Background()))
+	require.NoError(t, RunVideoOutputReconciliation(context.Background()))
+	var run model.PlaygroundRun
+	require.NoError(t, model.DB.Where("task_id = ?", task.TaskID).First(&run).Error)
+	require.NotZero(t, run.AssetId)
 	var assetCount int64
 	require.NoError(t, model.DB.Model(&model.PlaygroundAsset{}).Where("user_id = ?", task.UserId).Count(&assetCount).Error)
 	assert.Equal(t, int64(1), assetCount)
@@ -663,7 +873,7 @@ func TestPersistDoubaoVideoOutput(t *testing.T) {
 			run := &model.PlaygroundRun{UserId: task.UserId, Modality: "video", TaskId: task.TaskID}
 			require.NoError(t, model.CreatePlaygroundRun(run))
 
-			persistPlaygroundVideoRun(context.Background(), run, task, "")
+			persistVideoTaskOutput(context.Background(), task, "")
 
 			require.NoError(t, model.DB.First(run, run.Id).Error)
 			assert.Zero(t, externalRequests.Load(), "untrusted URLs and redirects must never reach private hosts")
