@@ -316,6 +316,9 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 	}
 	// Normalize playground first_frame / last_frame into images + input_reference
 	normalizeTaskFrameReferences(&req)
+	if len(req.Images) == 0 && strings.TrimSpace(req.InputReference) != "" {
+		req.Images = []string{strings.TrimSpace(req.InputReference)}
+	}
 
 	storeTaskRequest(c, info, action, req)
 	return nil

@@ -59,6 +59,22 @@ func TestPrivateMediaReferences(t *testing.T) {
 	}
 }
 
+func TestInputReferenceReachesNativeRequest(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", strings.NewReader(`{"model":"seedance-2-0-mini","prompt":"animate","input_reference":"https://example.com/reference.png"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}, TaskRelayInfo: &relaycommon.TaskRelayInfo{}}
+	a := &TaskAdaptor{}
+	require.Nil(t, a.ValidateRequestAndSetAction(c, info))
+	body, err := a.BuildRequestBody(c, info)
+	require.NoError(t, err)
+	var payload requestPayload
+	require.NoError(t, common.DecodeJson(body, &payload))
+	require.NotEmpty(t, payload.Content)
+	require.NotNil(t, payload.Content[0].ImageURL)
+	assert.Equal(t, "https://example.com/reference.png", payload.Content[0].ImageURL.URL)
+}
+
 func TestFetchTaskContext(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v3/contents/generations/tasks/cgt-test", r.URL.Path)
