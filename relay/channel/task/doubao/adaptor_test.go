@@ -255,6 +255,22 @@ func TestCompletedVideoUsesPublicAuthenticatedURL(t *testing.T) {
 	assert.NotContains(t, string(body), "upstream.test")
 }
 
+func TestSeedance25ReferenceLimit(t *testing.T) {
+	for _, count := range []int{30, 31} {
+		req := relaycommon.TaskSubmitReq{Model: "doubao-seedance-2-5-260628", Prompt: "animate"}
+		for i := 0; i < count; i++ {
+			req.Images = append(req.Images, fmt.Sprintf("https://example.test/%d.png", i))
+		}
+		payload, err := (&TaskAdaptor{}).convertToRequestPayload(&req)
+		if count == 30 {
+			require.NoError(t, err)
+			assert.Len(t, payload.Content, 31)
+		} else {
+			require.ErrorContains(t, err, "at most 30")
+		}
+	}
+}
+
 func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
 	for _, tt := range []struct {
 		model                        string

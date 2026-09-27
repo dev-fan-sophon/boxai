@@ -329,8 +329,12 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 			frameCount++
 		}
 	}
-	if seedanceReferences && referenceCount > 9 {
-		return nil, errors.New("Seedance supports at most 9 reference images")
+	maxReferences := 9
+	if strings.Contains(modelName, "seedance-2-5") || strings.Contains(modelName, "seedance-2.5") {
+		maxReferences = 30
+	}
+	if seedanceReferences && referenceCount > maxReferences {
+		return nil, fmt.Errorf("Seedance supports at most %d reference images", maxReferences)
 	}
 	if seedanceReferences && referenceCount > 0 && frameCount > 0 {
 		return nil, errors.New("reference images cannot be combined with first/last frames")
