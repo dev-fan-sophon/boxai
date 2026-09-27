@@ -41,8 +41,8 @@ var videoPriceTable = map[string]map[videoPriceKey]float64{
 	"doubao-seedance-2-5-260628": {
 		{hasVideo: false}:                70.0,
 		{hasVideo: true}:                 42.0,
-		{is1080p: true, hasVideo: false}: 70.0,
-		{is1080p: true, hasVideo: true}:  42.0,
+		{is1080p: true, hasVideo: false}: 77.0,
+		{is1080p: true, hasVideo: true}:  46.0,
 	},
 	"doubao-seedance-2-0-260128": {
 		{hasVideo: false}:                46.0,

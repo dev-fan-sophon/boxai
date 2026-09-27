@@ -279,7 +279,7 @@ func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
 		{"doubao-seedance-2-0-mini-260615", 23, 14, 23, 14},
 		{"doubao-seedance-2-0-fast-260128", 37, 22, 37, 22},
 		{"doubao-seedance-2-0-260128", 46, 28, 51, 31},
-		{"doubao-seedance-2-5-260628", 70, 42, 70, 42},
+		{"doubao-seedance-2-5-260628", 70, 42, 77, 46},
 	} {
 		for _, resolution := range []string{"720p", "1080p"} {
 			for _, video := range []bool{false, true} {
