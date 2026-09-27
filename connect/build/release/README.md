@@ -1,6 +1,6 @@
 # Connect native release
 
-Product version: `VERSION` (1.1.0). Magpie source version: upstream v0.1.185.
+Product version: `VERSION` (1.1.1). Magpie source version: upstream v0.1.185.
 These scripts wrap the upstream Makefile. They do not add an app updater,
 custom GUI, Desktop release, migration, or catalog publication.
 
@@ -15,7 +15,7 @@ From the repository root on macOS, source signing credentials privately and run:
 ```sh
 export APPLE_SIGNING_IDENTITY='Developer ID Application: fan Z (9UUWCMKMDH)'
 # APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID must also be exported.
-bash connect/build/release/macos.sh 1.1.0 /absolute/stage/1.1.0
+bash connect/build/release/macos.sh 1.1.1 /absolute/stage/1.1.1
 ```
 
 The macOS script signs, notarizes and staples both app and DMG and checks
@@ -27,7 +27,7 @@ On Windows, put the Go toolchain required by `connect/go.mod`, GNU make,
 Git Bash and NSIS on PATH, then use Git Bash:
 
 ```sh
-bash connect/build/release/windows.sh 1.1.0 /c/absolute/stage/1.1.0
+bash connect/build/release/windows.sh 1.1.1 /c/absolute/stage/1.1.1
 ```
 
 The script calls `make release-windows`, including upstream resources and GUI
@@ -36,21 +36,22 @@ Windows artifacts are unsigned until an Authenticode identity is provisioned.
 The installer does not manage WebView2: acceptance must verify the system's
 WebView2 runtime, which upstream Wails requires.
 
-Tests use a disposable HOME (and Windows profile/AppData), never real sessions.
-Build scripts do not launch the app or install it. Native acceptance must install
-these exact artifacts into disposable locations, launch using isolated profile
-directories, verify browser authorization, auth persistence/logout, agent config
-apply/restore and a real upstream request. Exercise the existing upstream updater
-with a local fixture feed. Record screenshots, logs, source commit and hashes;
-do not hand-write a report claiming checks that were not executed.
+Build scripts only build/package; they do not run the upstream test suite,
+launch the app, or install it. Per the owner's scope, do not test Agent config
+apply/restore. Run focused BoxAI and catalog tests in the orb instead. On native
+hosts verify signatures, resources, versions, installer payloads and hashes
+without executing the app. HOME overrides alone do not isolate agent-specific
+environment paths, WebKit caches, Windows registry or Start Menu writes.
+Real login/install checks need separate user approval; never claim them from
+static package checks.
 
 ## Stage the four artifacts
 
 Combine both platform outputs without changing their bytes:
 
 ```text
-BoxAI-Connect-1.1.0-macos-arm64.dmg
-BoxAI-Connect-1.1.0-windows-x64-setup.exe
+BoxAI-Connect-1.1.1-macos-arm64.dmg
+BoxAI-Connect-1.1.1-windows-x64-setup.exe
 magpie-darwin-arm64.zip
 magpie-windows-amd64.exe
 macos-source.txt
@@ -60,9 +61,9 @@ windows-source.txt
 After acceptance, generate manifests with Python 3.9+:
 
 ```sh
-python3 connect/build/release/manifests.py /absolute/stage/1.1.0 \
+python3 connect/build/release/manifests.py /absolute/stage/1.1.1 \
   --commit FULL_ACCEPTED_COMMIT --published-at 2026-09-27T00:00:00Z \
-  --notes 'BoxAI Connect 1.1.0, based on Magpie v0.1.185.'
+  --notes 'BoxAI Connect 1.1.1, based on Magpie v0.1.185.'
 ```
 
 Use the actual UTC publication time. The generator validates matching build
@@ -81,7 +82,7 @@ Use account `4379d21a3d3eadc0e37d63abff091f31`, bucket `boxai-desktop`, prefix
 1. Read live `releases.json` and refuse a version that is not newer. Read the
    new `magpie-latest.json` if present as well. Save their exact bytes and ETags
    before publication. Save legacy `latest.json` and `native-latest.json` hashes.
-2. Upload each of the four artifacts under `connect/1.1.0/`, using conditional
+2. Upload each of the four artifacts under `connect/1.1.1/`, using conditional
    `PutObject` with `If-None-Match: *`. An existing object is a conflict, not
    permission to overwrite. If resuming a partial upload, first compare the
    complete downloaded existing bytes against the local size and SHA-256.
@@ -101,7 +102,7 @@ AWS CLI v2 supports the conditional operations (use a current version):
 
 ```sh
 aws s3api put-object --endpoint-url "$R2_ENDPOINT" --bucket boxai-desktop \
-  --key "connect/1.1.0/$NAME" --body "$STAGE/$NAME" \
+  --key "connect/1.1.1/$NAME" --body "$STAGE/$NAME" \
   --if-none-match '*' --cache-control 'public, max-age=31536000, immutable'
 ```
 

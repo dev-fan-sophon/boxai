@@ -18,12 +18,11 @@ ZIP="$OUT/magpie-darwin-arm64.zip"
 [[ ! -e "$DMG" && ! -e "$ZIP" ]]
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-# Tests and build never read the operator's app state; Go cache is reusable.
+# Packaging only: run focused tests in the sandbox, never agent tests on this host.
 export GOPATH="$(go env GOPATH)" GOCACHE="$(go env GOCACHE)"
 SIGNING_HOME="$HOME"
 export HOME="$WORK/home"
 mkdir -p "$HOME"
-make test
 make app VERSION="$VERSION"
 cp LICENSE magpie.app/Contents/Resources/LICENSE.txt
 # Signing must use the existing login keychain; the app is never launched here.
@@ -49,4 +48,4 @@ xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature "$DMG"
 shasum -a 256 "$DMG" "$ZIP"
 git rev-parse HEAD > "$OUT/macos-source.txt"
-echo 'Built and notarized; native install/login/agent acceptance is still required before publication.'
+echo 'Built and notarized; application not launched and agent configurations not tested.'

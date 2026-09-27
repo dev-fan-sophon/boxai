@@ -19,10 +19,10 @@ export HOME="$WORK/home" USERPROFILE="$(cygpath -w "$WORK/home")"
 export APPDATA="$(cygpath -w "$WORK/home/AppData/Roaming")"
 export LOCALAPPDATA="$(cygpath -w "$WORK/home/AppData/Local")"
 mkdir -p "$HOME/AppData/Roaming" "$HOME/AppData/Local"
-make test
+# Packaging only: run focused tests in the sandbox, never agent tests on this host.
 make release-windows VERSION="$VERSION"
 cp dist/magpie-windows-amd64.exe "$EXE"
 makensis -WX -DVERSION="$VERSION" -DLICENSE="$(cygpath -aw LICENSE)" -DPAYLOAD="$(cygpath -w "$EXE")" -DOUTPUT="$(cygpath -w "$SETUP")" build/release/windows.nsi
 sha256sum "$EXE" "$SETUP"
 git rev-parse HEAD > "$OUT/windows-source.txt"
-echo 'Built unsigned; native install/login/agent acceptance is still required before publication.'
+echo 'Built unsigned; application not launched and agent configurations not tested.'
