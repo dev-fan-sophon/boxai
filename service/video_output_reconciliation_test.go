@@ -97,6 +97,9 @@ func TestVideoOutputBacklogDoesNotHideFreshCompletions(t *testing.T) {
 		require.NoError(t, model.DB.Create(task).Error)
 		tasks = append(tasks, task)
 	}
+	// A fresh completion whose first transfer failed must not sit behind the
+	// entire untouched historical backlog just because its retry time is nonzero.
+	require.NoError(t, model.DB.Model(tasks[9]).Updates(map[string]any{"output_attempts": 1, "output_next_at": time.Now().Unix() - 1}).Error)
 	require.NoError(t, RunVideoOutputReconciliation(context.Background()))
 	for _, index := range []int{0, 9} {
 		require.NoError(t, model.DB.First(tasks[index], tasks[index].ID).Error)

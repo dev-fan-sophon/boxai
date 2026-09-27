@@ -787,7 +787,7 @@ func QueuePlaygroundVideoOutputReconciliation(taskID string, userID int, videoUR
 var videoOutputCapacity = make(chan struct{}, 1)
 
 // RunVideoOutputReconciliation handles at most eight tasks in five minutes,
-// sequentially (one download per process). Cross-process claims expire after
+// with two concurrent downloads per process. Cross-process claims expire after
 // the transfer deadline plus one minute. A fixed rollout cutoff avoids downloading the historical corpus
 // without aging queued/retrying work out when the scheduler is offline.
 func RunVideoOutputReconciliation(ctx context.Context) error {
@@ -813,8 +813,8 @@ func RunVideoOutputReconciliation(ctx context.Context) error {
 	query := model.DB.WithContext(ctx).Where("status = ? AND output_asset_id = 0 AND output_next_at <= ?", model.TaskStatusSuccess, time.Now().Unix()).
 		Where("finish_time >= ? OR created_at >= ?", int64(1790380800), int64(1790380800)). // 2026-09-26 UTC rollout.
 		Where("platform NOT IN ?", []constant.TaskPlatform{constant.TaskPlatformSuno, constant.TaskPlatformMidjourney})
-	// Reserve one slot for the oldest due item, but process fresh completions
-	// first so historical URLs timing out cannot monopolize the rollout queue.
+	// Reserve one slot for the oldest due item, and the rest for fresh
+	// completions so historical retries cannot monopolize the rollout queue.
 	var oldest []*model.Task
 	if err := query.Session(&gorm.Session{}).Order("output_next_at").Order("id").Limit(1).Find(&oldest).Error; err != nil {
 		return err
@@ -823,16 +823,29 @@ func RunVideoOutputReconciliation(ctx context.Context) error {
 		return nil
 	}
 	if err := query.Session(&gorm.Session{}).Where("id != ?", oldest[0].ID).
-		Order("output_next_at").Order("finish_time DESC").Order("id DESC").Limit(7).Find(&tasks).Error; err != nil {
+		Order("finish_time DESC").Order("id DESC").Limit(7).Find(&tasks).Error; err != nil {
 		return err
 	}
-	tasks = append(tasks, oldest[0])
+	tasks = append(oldest, tasks...)
+	jobs := make(chan *model.Task, len(tasks))
 	for _, task := range tasks {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		persistVideoTaskOutput(ctx, task, "")
+		jobs <- task
 	}
+	close(jobs)
+	var workers sync.WaitGroup
+	for range 2 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for task := range jobs {
+				if ctx.Err() != nil {
+					return
+				}
+				persistVideoTaskOutput(ctx, task, "")
+			}
+		}()
+	}
+	workers.Wait()
 	return ctx.Err()
 }
 

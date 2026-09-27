@@ -162,7 +162,9 @@ back the binary does not require dropping the additive columns; do not drop them
   than `TASK_TIMEOUT_MINUTES` rather than assuming a refund occurred. Unverified callbacks
   only request polling; they cannot update results or settle billing.
 - Independent `video_output` jobs persist successful API and Playground videos
-  (created/completed from 2026-09-26 UTC), eight per pass, one download at a time.
+  (created/completed from 2026-09-26 UTC), eight per pass, two downloads at a time.
+  Each pass reserves the first slot for oldest due work and the rest for fresh
+  completions, including retries, so historical backfill cannot take every slot.
   Downloads have a three-minute deadline and a 200 MiB generated-video size limit;
   claims last four minutes and a reconciliation pass has a five-minute budget.
   Reference-video uploads retain their separate 50 MiB limit.
