@@ -13,14 +13,15 @@ import (
 type boxaiPolicy struct {
 	require    func(context.Context) error
 	credential func() string
+	mcp        http.Handler
 }
 
 var boxaiAccess atomic.Pointer[boxaiPolicy]
 
 // ConfigureBoxAI installs the mandatory account and local-client gates before
 // the application starts any listeners. It cannot be changed by user config.
-func ConfigureBoxAI(require func(context.Context) error, credential func() string) {
-	if require == nil || credential == nil || !boxaiAccess.CompareAndSwap(nil, &boxaiPolicy{require, credential}) {
+func ConfigureBoxAI(require func(context.Context) error, credential func() string, mcp http.Handler) {
+	if require == nil || credential == nil || !boxaiAccess.CompareAndSwap(nil, &boxaiPolicy{require: require, credential: credential, mcp: mcp}) {
 		panic("BoxAI gateway policy must be configured exactly once")
 	}
 }
@@ -71,6 +72,10 @@ func (p *boxaiPolicy) handler(next http.Handler) http.Handler {
 		}
 		if strings.HasPrefix(r.URL.Path, "/_magpie/") || strings.HasPrefix(r.URL.Path, CodexPath+"/") {
 			http.NotFound(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/mcp/") && p.mcp != nil {
+			p.mcp.ServeHTTP(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

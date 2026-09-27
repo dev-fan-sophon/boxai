@@ -25,6 +25,16 @@ func TestBoxAIAccountIsTheOnlyProviderAndModelAuthority(t *testing.T) {
 	assert.Equal(t, "boxai", ps[0].ID)
 	assert.Equal(t, "https://you-box.com/v1", ps[0].Responses)
 	assert.Empty(t, Accounts())
+	subscriptionUsageCache.Lock()
+	previousUsage := subscriptionUsageCache.data
+	subscriptionUsageCache.data = []SubscriptionQuota{{Provider: "claude"}}
+	subscriptionUsageCache.Unlock()
+	t.Cleanup(func() {
+		subscriptionUsageCache.Lock()
+		subscriptionUsageCache.data = previousUsage
+		subscriptionUsageCache.Unlock()
+	})
+	assert.Empty(t, SubscriptionUsage(context.Background()), "BoxAI must not expose cached third-party subscriptions")
 	assert.ErrorIs(t, Save(ps[0]), ErrManagedProvider)
 	assert.ErrorIs(t, store(file{}), ErrManagedProvider)
 	for _, id := range []string{"boxai/vendor/allowed", "vendor/allowed"} {

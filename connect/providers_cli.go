@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"os/signal"
 	"slices"
 	"strings"
 	"time"
@@ -715,25 +716,16 @@ func refreshLive(ctx context.Context) {
 	}
 }
 
-// serve: `magpie serve` — the gateway alone, in the foreground.
+// serve runs the authenticated BoxAI gateway in the foreground.
 func serve() error {
 	s := gateway.New()
-	fmt.Println(green.Render("●"), "magpie gateway on", bold.Render(gateway.URL()))
+	fmt.Println(green.Render("●"), "BoxAI Connect gateway on", bold.Render(gateway.URL()))
 	fmt.Println(muted.Render("  OpenAI  "), gateway.URL()+"/v1/chat/completions", muted.Render("·"), gateway.URL()+"/v1/responses")
 	fmt.Println(muted.Render("  Anthropic"), gateway.URL()+"/v1/messages")
-	fmt.Println(muted.Render("  key     "), gateway.Token, muted.Render("(anything works; the gateway only listens on localhost)"))
-	n := len(provider.Catalog())
-	if n == 0 {
-		fmt.Println(amber.Render("!"), "no models yet ·", "magpie provider add deepseek sk-…")
-	} else {
-		fmt.Printf("  %d models · %s\n", n, muted.Render("magpie models"))
-	}
-	for _, x := range provider.Excluded() {
-		if x.SignedOut {
-			fmt.Println(amber.Render("!"), x.Agent+":", x.Why)
-		}
-	}
-	return s.ListenAndServe(context.Background())
+	fmt.Printf("  %d authorized BoxAI models; local credentials are configured by Apply\n", len(provider.Catalog()))
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	return s.ListenAndServe(ctx)
 }
 
 // importCmd adds the provider a magpie://import link describes, after

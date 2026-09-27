@@ -160,6 +160,10 @@ func TestHandlerOriginAndSecretFreeSession(t *testing.T) {
 	}{
 		{"wails.localhost", "wails://wails.localhost", "POST", "cancel", "application/json", 200},
 		{"wails.localhost", "http://wails.localhost", "POST", "cancel", "application/json", 200},
+		{"localhost", "wails://localhost", "POST", "cancel", "application/json", 200},
+		{"localhost", "null", "POST", "cancel", "application/json", 403},
+		{"localhost", "", "POST", "cancel", "application/json", 403},
+		{"localhost", "", "GET", "session", "", 200},
 		{"127.0.0.1:1234", "http://127.0.0.1:1234", "POST", "cancel", "application/json", 200},
 		{"127.0.0.1:1234", "http://evil.test", "POST", "cancel", "application/json", 403},
 		{"evil.test:1234", "http://evil.test:1234", "POST", "cancel", "application/json", 403},
@@ -276,7 +280,7 @@ func TestVaultFailureCannotAuthenticate(t *testing.T) {
 	assert.ErrorIs(t, e, ErrVaultUnavailable)
 }
 
-func TestLogoutHookRunsAfterOriginCheckAndBeforeCredentialMutation(t *testing.T) {
+func TestLogoutHookRunsAfterOriginCheckAndRetainsCredentialOnFailure(t *testing.T) {
 	var revoked atomic.Bool
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/connector/revoke" {
@@ -299,8 +303,9 @@ func TestLogoutHookRunsAfterOriginCheckAndBeforeCredentialMutation(t *testing.T)
 		stored, e := v.Get(ctx, "session")
 		assert.NoError(t, e)
 		assert.Equal(t, testToken, stored)
-		_, e = v.Get(ctx, "signout")
-		assert.ErrorIs(t, e, errMissing)
+		pending, e := v.Get(ctx, "signout")
+		assert.NoError(t, e)
+		assert.Equal(t, "pending", pending)
 		assert.False(t, revoked.Load())
 		if fail {
 			return errors.New("private restore failure")
@@ -322,6 +327,9 @@ func TestLogoutHookRunsAfterOriginCheckAndBeforeCredentialMutation(t *testing.T)
 	assert.Equal(t, 1, calls)
 	assert.NotContains(t, w.Body.String(), "private restore failure")
 	assert.Error(t, c.Login(context.Background(), func(string) {}))
+	restarted := newClient(s.URL, v, nil)
+	assert.ErrorIs(t, restarted.Require(context.Background()), ErrLoginRequired)
+	assert.Error(t, restarted.Login(context.Background(), func(string) {}))
 	_, ok := c.CachedProvisioning()
 	assert.False(t, ok)
 	fail = false

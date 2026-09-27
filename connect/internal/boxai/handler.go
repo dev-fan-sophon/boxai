@@ -12,6 +12,14 @@ import (
 // Wails uses a native custom scheme on macOS and HTTP on Windows/Linux.
 func trustedUI(r *http.Request, mutation bool) bool {
 	u, e := url.Parse(r.Header.Get("Origin"))
+	if r.Host == "localhost" {
+		if !mutation && r.Header.Get("Origin") == "" {
+			return true
+		}
+		// The native GUI validates a per-window CSRF token before normalizing
+		// WebKit's opaque Origin to its actual Wails asset origin.
+		return e == nil && u.String() == "wails://localhost"
+	}
 	if r.Host == "wails.localhost" {
 		if !mutation && r.Header.Get("Origin") == "" {
 			return true

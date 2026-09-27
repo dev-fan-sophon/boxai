@@ -5,7 +5,7 @@ description: Builds, natively asserts, stages, and publishes BoxAI Desktop and B
 
 # Releasing BoxAI Clients
 
-Release BoxAI Desktop and the native Rust/GPUI BoxAI Connect to the
+Release BoxAI Desktop and the Magpie-derived Go/Wails BoxAI Connect to the
 `boxai-desktop` Cloudflare R2 bucket served at `https://dl.you-box.com`.
 
 ## Products
@@ -16,8 +16,8 @@ Release BoxAI Desktop and the native Rust/GPUI BoxAI Connect to the
 | Connect | `connect/release-metadata.json` | `connect/release/<version>/` | `connect/native-latest.json`, `connect/releases.json` |
 
 Desktop remains Tauri and uses the minisign key at
-`~/.config/boxai/desktop-updater.key`. Connect is not Tauri: it uses Cargo,
-native GPUI packaging, and the Ed25519 PEM key at
+`~/.config/boxai/desktop-updater.key`. Connect is not Tauri: it uses the Go
+toolchain pinned by `connect/go.mod`, Wails native webviews, and the Ed25519 PEM key at
 `~/.config/boxai/connect-update-signing.pem`.
 
 Connect's metadata public key must match the private PEM before anything can
@@ -42,6 +42,12 @@ requires both exact artifacts and their assertion JSON:
 The OS packages are currently unsigned and the macOS app is not notarized.
 The in-app update feed is still signed over the exact installer bytes with the
 Connect Ed25519 key. Do not claim Authenticode, Developer ID, or notarization.
+
+Connect requires BoxAI browser authentication before proxying or changing Agent
+configuration. Native acceptance must exercise the login gate, system credential
+store, configuration restore and installer handoff. A Linux build or Windows
+cross-compile is not native acceptance. The updater downloads and verifies an
+installer, then opens its native UI; it does not silently replace the executable.
 
 ## Full release
 
@@ -86,7 +92,7 @@ stages the artifact and assertion report.
 ### 3. Build/assert Windows x64
 
 The helper uploads `connect/packaging/win_remote_build.ps1`, clones the pushed
-ref on the Studio Windows host, installs Rust 1.97, builds NSIS, reads the PE
+ref on the Studio Windows host, installs the pinned Go toolchain, builds NSIS, reads the PE
 resources and installer payload back, and stages the exact setup + report.
 
 ```bash

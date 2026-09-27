@@ -73,7 +73,7 @@ func Login(ctx context.Context, openURL func(string)) error { return defaultClie
 func SetBeforeLogout(hook func(context.Context) error)      { defaultClient.SetBeforeLogout(hook) }
 
 // SetBeforeLogout installs the startup restore hook. It runs without the
-// session mutex, after access is blocked but before any durable signout change.
+// session mutex, after signout is durably marked but before deleting secrets.
 func (c *Client) SetBeforeLogout(hook func(context.Context) error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -309,6 +309,13 @@ func (c *Client) Logout(ctx context.Context) error {
 	c.cancelLocked()
 	c.blocked = true
 	hook := c.beforeLogout
+	// A failed restore must remain blocked after a restart, while retaining
+	// the original credential needed to restore encrypted legacy receipts.
+	if c.vault.Set(ctx, "signout", "pending") != nil {
+		c.lastError = ErrVaultUnavailable.Error()
+		c.mu.Unlock()
+		return ErrVaultUnavailable
+	}
 	c.mu.Unlock()
 	if hook != nil {
 		if err := hook(ctx); err != nil {
@@ -334,10 +341,6 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 	// Retain the native credential on failed revocation so signout can retry.
 	if t != "" {
-		if c.vault.Set(ctx, "signout", "pending") != nil {
-			c.lastError = ErrVaultUnavailable.Error()
-			return ErrVaultUnavailable
-		}
 		e := c.request(ctx, "POST", "/api/v1/connector/revoke", t, nil, nil)
 		if e != nil && !errors.Is(e, errRejected) {
 			c.lastError = "Sign-out pending: could not revoke BoxAI session"
@@ -346,6 +349,9 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 	if e := c.vault.Delete(ctx, "session"); e != nil && !errors.Is(e, errMissing) {
 		c.lastError = ErrVaultUnavailable.Error()
+		return ErrVaultUnavailable
+	}
+	if e := c.vault.Delete(ctx, "gateway"); e != nil && !errors.Is(e, errMissing) {
 		return ErrVaultUnavailable
 	}
 	if e := c.vault.Delete(ctx, "signout"); e != nil && !errors.Is(e, errMissing) {

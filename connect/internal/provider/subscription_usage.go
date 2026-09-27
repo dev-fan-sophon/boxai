@@ -62,6 +62,9 @@ var subscriptionTimeout = 10 * time.Second
 // cached it comes back at once, and a stale copy is refreshed in the
 // background; only the very first call waits, for as long as ctx allows.
 func SubscriptionUsage(ctx context.Context) []SubscriptionQuota {
+	if managedSession.Load() != nil {
+		return nil
+	}
 	c := &subscriptionUsageCache
 	c.Lock()
 	have, fresh := c.data != nil, time.Since(c.at) < time.Minute

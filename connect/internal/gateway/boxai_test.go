@@ -63,7 +63,7 @@ func TestBoxAIGatewayRequiresLocalCredentialAndLiveAccount(t *testing.T) {
 
 func TestBoxAIGatewayPinsLoopbackAndDoesNotExposeAccountInHealth(t *testing.T) {
 	t.Setenv("MAGPIE_ADDR", "0.0.0.0:9876")
-	ConfigureBoxAI(func(context.Context) error { return errors.New("signed out") }, func() string { return "" })
+	ConfigureBoxAI(func(context.Context) error { return errors.New("signed out") }, func() string { return "" }, nil)
 	t.Cleanup(func() { boxaiAccess.Store(nil) })
 	assert.Equal(t, DefaultAddr, Addr())
 	s := New()
@@ -79,4 +79,38 @@ func TestBoxAIGatewayPinsLoopbackAndDoesNotExposeAccountInHealth(t *testing.T) {
 		assert.Contains(t, err.Error(), "refuses an upstream")
 	}
 	assert.ErrorIs(t, s.client.CheckRedirect(nil, nil), http.ErrUseLastResponse)
+}
+
+func TestBoxAIMCPUsesSameAccountGateAsModels(t *testing.T) {
+	secret := strings.Repeat("b", 64)
+	for _, signedIn := range []bool{false, true} {
+		called := false
+		p := boxaiPolicy{
+			credential: func() string { return secret },
+			require: func(context.Context) error {
+				if !signedIn {
+					return errors.New("revoked")
+				}
+				return nil
+			},
+			mcp: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				assert.Equal(t, "/mcp/media", r.URL.Path)
+				w.WriteHeader(http.StatusAccepted)
+			}),
+		}
+		h := p.handler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			t.Error("MCP request reached model proxy")
+		}))
+		r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:3425/mcp/media", nil)
+		r.Header.Set("Authorization", "Bearer "+secret)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		assert.Equal(t, signedIn, called)
+		if signedIn {
+			assert.Equal(t, http.StatusAccepted, w.Code)
+		} else {
+			assert.Equal(t, http.StatusUnauthorized, w.Code)
+		}
+	}
 }
