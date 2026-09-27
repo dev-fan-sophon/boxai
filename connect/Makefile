@@ -4,6 +4,9 @@ TAGS = production
 ifeq ($(shell uname -s),Darwin)
 export CGO_CFLAGS = -mmacosx-version-min=12.0
 export CGO_LDFLAGS = -mmacosx-version-min=12.0
+# macOS exposes its default temporary directory through /var, a symlink.
+# Keep projection symlink rejection intact while using physical test paths.
+export TMPDIR := $(shell python3 -c 'import os,tempfile; print(os.path.realpath(tempfile.gettempdir()))')
 endif
 ifeq ($(shell uname -s),Linux)
 TAGS += gtk3
