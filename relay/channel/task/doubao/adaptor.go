@@ -451,11 +451,9 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, erro
 	openAIVideo.Status = originTask.Status.ToVideoStatus()
 	openAIVideo.SetProgressStr(originTask.Progress)
 	if originTask.Status == model.TaskStatusSuccess {
-		resultURL := originTask.GetResultURL()
-		if resultURL == "" {
-			resultURL = taskcommon.BuildProxyURL(originTask.TaskID)
-		}
-		openAIVideo.SetMetadata("url", resultURL)
+		// Gateways may return content endpoints requiring the upstream key.
+		// The owner-authenticated proxy streams on demand without archiving.
+		openAIVideo.SetMetadata("url", taskcommon.BuildProxyURL(originTask.TaskID))
 	}
 	openAIVideo.CreatedAt = originTask.CreatedAt
 	openAIVideo.CompletedAt = originTask.UpdatedAt

@@ -329,16 +329,17 @@ func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
 	assert.Equal(t, 22.0/37.0, ratio)
 }
 
-func TestCompletedVideoReturnsUpstreamURLWithoutArchive(t *testing.T) {
+func TestCompletedVideoUsesProxyWithoutArchive(t *testing.T) {
 	task := &model.Task{TaskID: "task_public", Status: model.TaskStatusSuccess, Progress: "100%", Data: []byte(`{"status":"succeeded"}`)}
-	task.PrivateData.ResultURL = "https://media.example/result.mp4?signature=upstream"
+	task.PrivateData.ResultURL = "https://gateway.example/v1/videos/task_private/content"
 	data, err := (&TaskAdaptor{}).ConvertToOpenAIVideo(task)
 	require.NoError(t, err)
 	var video map[string]any
 	require.NoError(t, common.Unmarshal(data, &video))
 	assert.Equal(t, "completed", video["status"])
-	assert.Contains(t, string(data), task.PrivateData.ResultURL)
-	assert.NotContains(t, string(data), "/content")
+	assert.Contains(t, string(data), "/v1/videos/task_public/content")
+	assert.NotContains(t, string(data), "task_private")
+	assert.Equal(t, "https://gateway.example/v1/videos/task_private/content", task.GetResultURL(), "proxy retains its upstream source")
 	task.OutputAssetID = 123
 	data, err = (&TaskAdaptor{}).ConvertToOpenAIVideo(task)
 	require.NoError(t, err)

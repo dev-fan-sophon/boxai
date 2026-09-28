@@ -339,3 +339,20 @@ func TestDueTasksRotatePastFullBatchAndPersistBackoff(t *testing.T) {
 	assert.EqualValues(t, 305, persisted.NextPollAt)
 	assert.Zero(t, persisted.PollFailures)
 }
+
+func TestVideoPublicStatusLifecycle(t *testing.T) {
+	for _, tc := range []struct {
+		internal TaskStatus
+		public   string
+	}{
+		{TaskStatusNotStart, "queued"},
+		{TaskStatusSubmitted, "queued"},
+		{TaskStatusQueued, "queued"},
+		{TaskStatusInProgress, "in_progress"},
+		{TaskStatusSuccess, "completed"},
+		{TaskStatusFailure, "failed"},
+		{TaskStatusUnknown, "unknown"},
+	} {
+		assert.Equal(t, tc.public, tc.internal.ToVideoStatus(), tc.internal)
+	}
+}
