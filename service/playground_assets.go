@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	PlaygroundAssetMaxImageBytes    = 10 * 1024 * 1024 // 10MB
-	PlaygroundAssetMaxVideoBytes    = 50 * 1024 * 1024 // 50MB
-	PlaygroundAssetMaxAudioBytes    = 20 * 1024 * 1024 // 20MB
-	PlaygroundAssetMaxDocumentBytes = 20 * 1024 * 1024 // 20MB
+	PlaygroundAssetMaxImageBytes    = 10 * 1024 * 1024  // 10MB
+	PlaygroundAssetMaxVideoBytes    = 200 * 1024 * 1024 // 200 MiB
+	PlaygroundAssetMaxAudioBytes    = 20 * 1024 * 1024  // 20MB
+	PlaygroundAssetMaxDocumentBytes = 20 * 1024 * 1024  // 20MB
 )
 
 var playgroundImageMimes = map[string]bool{
@@ -272,6 +272,27 @@ func SavePlaygroundAssetFile(userId int, originalName, declaredMime string, r io
 	max := MaxBytesForPlaygroundKind(kind)
 	if size > 0 && size > max {
 		return "", "", "", "", "", fmt.Errorf("file exceeds size limit (%d bytes)", max)
+	}
+
+	// Videos may be 200 MiB. Stream them rather than holding both a read buffer
+	// and a copied buffer in the API process. Documents retain hashing below.
+	if kind == "video" {
+		storageKey = path.Join("uploads", fmt.Sprintf("%d", userId), uuid.New().String()+safeExtFromName(originalName, mimeType))
+		store := storage.Default()
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		counting := &countingReader{r: io.LimitReader(io.MultiReader(bytes.NewReader(header), r), max+1)}
+		err = store.Put(ctx, storageKey, counting, -1, mimeType)
+		if err == nil && counting.n > max {
+			err = fmt.Errorf("file exceeds size limit (%d bytes)", max)
+		}
+		if err != nil {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cleanupCancel()
+			_ = store.Delete(cleanupCtx, storageKey)
+			return "", "", "", "", "", err
+		}
+		return storageKey, store.Backend(), mimeType, kind, "", nil
 	}
 
 	// Read the remaining bytes with a hard cap (media sizes are bounded).

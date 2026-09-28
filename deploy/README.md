@@ -167,12 +167,15 @@ back the binary does not require dropping the additive columns; do not drop them
   completions, including retries, so historical backfill cannot take every slot.
   Downloads have a three-minute deadline and a 200 MiB generated-video size limit;
   claims last four minutes and a reconciliation pass has a five-minute budget.
-  Reference-video uploads retain their separate 50 MiB limit.
+  Reference-video uploads also allow 200 MiB; image/audio/document limits are
+  unchanged. Use signed R2 PUT for large files rather than relying on CDN
+  multipart-body limits. Multipart video storage streams instead of buffering
+  the whole file; parsing spills above 8 MiB and caps the body at 201 MiB.
   Failures retain the generation/billing result and retry with backoff up to six
   hours. Stored `/v1/videos/:id/content` supports streaming and Range;
   `?redirect=1` opts into a short-lived signed object URL to avoid app bandwidth.
 - Direct uploads remain private/pending until verified. Finalization uses a
-  bounded disk snapshot (four concurrent, one-minute deadline), then publishes a
+  bounded disk snapshot (four concurrent, three-minute deadline), then publishes a
   different immutable object key. It therefore still incurs one object download
   and upload through the app; presigned upload alone does not eliminate app I/O.
   `upload_cleanup` removes expired pending uploads only, after a one-hour grace.

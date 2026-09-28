@@ -39,7 +39,7 @@ func FinalizePlaygroundUpload(c *gin.Context) {
 }
 
 func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.PlaygroundAsset, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	select {
 	case uploadFinalizeCapacity <- struct{}{}:

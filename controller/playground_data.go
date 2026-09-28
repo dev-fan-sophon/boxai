@@ -40,6 +40,11 @@ func normalizePlaygroundAssetSource(raw string) string {
 
 func UploadPlaygroundAsset(c *gin.Context) {
 	userId := c.GetInt("id")
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.PlaygroundAssetMaxVideoBytes+(1<<20))
+	if err := c.Request.ParseMultipartForm(8 << 20); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	file, err := c.FormFile("file")
 	if err != nil {
 		common.ApiErrorMsg(c, "file is required")
@@ -465,6 +470,11 @@ func UploadPlaygroundUploadSessionFile(c *gin.Context) {
 	}
 	if s.ExpiresAt < time.Now().Unix() {
 		common.ApiErrorMsg(c, "session expired")
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.PlaygroundAssetMaxVideoBytes+(1<<20))
+	if err := c.Request.ParseMultipartForm(8 << 20); err != nil {
+		common.ApiError(c, err)
 		return
 	}
 	file, err := c.FormFile("file")

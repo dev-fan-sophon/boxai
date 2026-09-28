@@ -198,6 +198,44 @@ func TestSavePlaygroundAssetFile_SizeLimit(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestReferenceVideo200MiBBoundary(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", root)
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+	f, err := os.CreateTemp(t.TempDir(), "video")
+	require.NoError(t, err)
+	defer f.Close()
+	require.NoError(t, f.Truncate((200<<20)+1))
+	_, err = f.WriteAt([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}, 0)
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		size, declared int64
+		accepted       bool
+	}{
+		{200 << 20, 200 << 20, true},
+		{(200 << 20) + 1, (200 << 20) + 1, false},
+		{(200 << 20) + 1, -1, false},
+	} {
+		key, _, _, kind, hash, err := SavePlaygroundAssetFile(991, "reference.mp4", "video/mp4", io.NewSectionReader(f, 0, tc.size), tc.declared)
+		if tc.accepted {
+			require.NoError(t, err)
+			assert.Equal(t, "video", kind)
+			assert.Empty(t, hash)
+			stat, err := os.Stat(filepath.Join(root, key))
+			require.NoError(t, err)
+			assert.Equal(t, tc.size, stat.Size())
+		} else {
+			require.ErrorContains(t, err, "exceeds size limit")
+			assert.Empty(t, key)
+		}
+	}
+	files, err := filepath.Glob(filepath.Join(root, "uploads", "991", "*"))
+	require.NoError(t, err)
+	assert.Len(t, files, 1)
+}
+
 func TestOpenPlaygroundAssetContentNeverPresignRedirects(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("STORAGE_BACKEND", "local")

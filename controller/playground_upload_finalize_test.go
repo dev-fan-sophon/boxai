@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -47,6 +48,30 @@ func TestPlaygroundUploadIntentRemainsPending(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, items)
 	assert.Zero(t, total)
+}
+
+func TestFinalize200MiBReferenceVideo(t *testing.T) {
+	db := setupVideoProxyTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}))
+	t.Setenv("PLAYGROUND_ASSETS_DIR", t.TempDir())
+	store, err := storage.ForBackend("local")
+	require.NoError(t, err)
+	f, err := os.CreateTemp(t.TempDir(), "video")
+	require.NoError(t, err)
+	defer f.Close()
+	require.NoError(t, f.Truncate((200<<20)+1))
+	_, err = f.WriteAt([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}, 0)
+	require.NoError(t, err)
+	a := &model.PlaygroundAsset{UserId: 42, Kind: "video", Mime: "video/mp4", Size: 200 << 20, Backend: "local", StorageKey: "upload-intents/42/large", UploadState: "pending", UploadExpiresAt: time.Now().Add(time.Hour).Unix()}
+	require.NoError(t, model.CreatePlaygroundAsset(a))
+	require.NoError(t, store.Put(context.Background(), a.StorageKey, io.NewSectionReader(f, 0, (200<<20)+1), (200<<20)+1, a.Mime))
+	_, err = finalizePlaygroundUpload(context.Background(), a.Id, 42)
+	require.Error(t, err, "oversize actual object must not become ready")
+	require.NoError(t, store.Put(context.Background(), a.StorageKey, io.NewSectionReader(f, 0, 200<<20), 200<<20, a.Mime))
+	ready, err := finalizePlaygroundUpload(context.Background(), a.Id, 42)
+	require.NoError(t, err)
+	assert.Equal(t, "ready", ready.UploadState)
+	assert.EqualValues(t, 200<<20, ready.Size)
 }
 
 func TestFinalizePlaygroundUploadLifecycle(t *testing.T) {
