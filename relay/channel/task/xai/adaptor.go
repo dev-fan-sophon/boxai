@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,6 +82,14 @@ func (a *TaskAdaptor) validateRequest(c *gin.Context, info *relaycommon.RelayInf
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if req.Seconds != "" {
+		seconds, err := strconv.Atoi(req.Seconds)
+		if err != nil || seconds < 1 || seconds > 15 || (req.Duration != 0 && req.Duration != seconds) {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("seconds must be between 1 and 15 and agree with duration"), "invalid_duration", http.StatusBadRequest)
+		}
+		req.Duration = seconds
+		c.Set("task_request", req)
 	}
 	if req.Duration < 1 || req.Duration > 15 {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("duration must be between 1 and 15 seconds"), "invalid_duration", http.StatusBadRequest)

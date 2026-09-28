@@ -34,6 +34,14 @@ func TestValidateRequestConstraints(t *testing.T) {
 		{"maximum duration", `{"model":"grok-imagine-video","prompt":"p","duration":15}`, true},
 		{"zero duration", `{"model":"grok-imagine-video","prompt":"p","duration":0}`, false},
 		{"too long", `{"model":"grok-imagine-video","prompt":"p","duration":16}`, false},
+		{"seconds minimum", `{"model":"grok-imagine-video","prompt":"p","seconds":"1"}`, true},
+		{"seconds maximum", `{"model":"grok-imagine-video","prompt":"p","seconds":"15"}`, true},
+		{"seconds zero", `{"model":"grok-imagine-video","prompt":"p","seconds":"0","duration":8}`, false},
+		{"seconds too long", `{"model":"grok-imagine-video","prompt":"p","seconds":"16"}`, false},
+		{"seconds malformed", `{"model":"grok-imagine-video","prompt":"p","seconds":"oops","duration":8}`, false},
+		{"seconds overflow", `{"model":"grok-imagine-video","prompt":"p","seconds":"18446744073709551616"}`, false},
+		{"conflicting aliases", `{"model":"grok-imagine-video","prompt":"p","seconds":"2","duration":8}`, false},
+		{"matching aliases", `{"model":"grok-imagine-video","prompt":"p","seconds":"8","duration":8}`, true},
 		{"1.5 needs image", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8}`, false},
 		{"1.5 image", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8,"image":"data:image/png;base64,AA"}`, true},
 		{"base rejects 1080p", `{"model":"grok-imagine-video","prompt":"p","duration":8,"size":"1920x1080","image":"https://img.test/a.png"}`, false},
@@ -69,10 +77,12 @@ func TestValidateMappedRequestUsesUpstreamModel(t *testing.T) {
 }
 
 func TestBuildRequestUsesMappedModelAndJSONProtocol(t *testing.T) {
-	c, info := requestContext(t, `{"model":"client-alias","prompt":"animate","duration":8,"size":"720x1280","images":["https://img.test/a.png"]}`)
+	c, info := requestContext(t, `{"model":"client-alias","prompt":"animate","seconds":"2","size":"720x1280","images":["https://img.test/a.png"]}`)
 	adaptor := &TaskAdaptor{}
 	require.Nil(t, adaptor.ValidateRequestAndSetAction(c, info))
 	info.UpstreamModelName = modelImagine15
+	require.Nil(t, adaptor.ValidateMappedRequest(c, info))
+	assert.Equal(t, 2.0, adaptor.EstimateBilling(c, info)["seconds"])
 	body, err := adaptor.BuildRequestBody(c, info)
 	require.NoError(t, err)
 	b, err := io.ReadAll(body)
@@ -80,6 +90,7 @@ func TestBuildRequestUsesMappedModelAndJSONProtocol(t *testing.T) {
 	var got videoRequest
 	require.NoError(t, common.Unmarshal(b, &got))
 	assert.Equal(t, modelImagine15, got.Model)
+	assert.Equal(t, 2, got.Duration)
 	assert.Equal(t, "9:16", got.AspectRatio)
 	assert.Equal(t, "720p", got.Resolution)
 	require.NotNil(t, got.Image)
