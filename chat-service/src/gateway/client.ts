@@ -227,6 +227,7 @@ export type ResolvedAsset = ImportedAsset & {
   source?: string
   visibility?: string
   created_at?: number
+  fetch_url?: string
 }
 
 export type ResolvedDocumentParse = {

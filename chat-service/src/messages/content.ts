@@ -31,7 +31,7 @@ type ModelContent =
   | { type: 'text'; text: string }
   | {
       type: 'file'
-      data: Uint8Array
+      data: Uint8Array | URL
       mediaType: string
       filename: string
     }
@@ -208,7 +208,9 @@ async function fileModelContent(
     }
     const content: ModelContent = {
       type: 'file' as const,
-      data: await getAssetBytes(userId, asset.id, signal),
+      data: asset.fetch_url
+        ? new URL(asset.fetch_url)
+        : await getAssetBytes(userId, asset.id, signal),
       mediaType: asset.mime || 'image',
       filename: asset.name,
     }

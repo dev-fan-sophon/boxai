@@ -167,6 +167,64 @@ describe('agent message content', () => {
     ).toBe(true)
   })
 
+  test('passes temporary image references without downloading or persisting the signed URL', async () => {
+    process.env.INTERNAL_SERVICE_SECRET = 'attachment-test-secret'
+    const requests: string[] = []
+    const signed = 'https://storage.example/image.png?signature=temporary'
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        const url = String(input)
+        requests.push(url)
+        if (!url.endsWith('/api/internal/playground/assets/9')) {
+          throw new Error('image bytes must not pass through the chat service')
+        }
+        return jsonResponse({
+          success: true,
+          data: {
+            id: 9,
+            kind: 'image',
+            name: 'canonical.png',
+            mime: 'image/png',
+            size: 1024,
+            url: '/api/playground/assets/9/content',
+            fetch_url: signed,
+          },
+        })
+      },
+      { preconnect: () => {} }
+    )
+    const canonical = await canonicalizeUserMessage(
+      42,
+      {
+        id: 'signed-image',
+        role: 'user',
+        parts: [
+          {
+            type: 'file',
+            mediaType: 'image/png',
+            url: '/api/playground/assets/9/content',
+          },
+        ],
+      },
+      'default'
+    )
+    expect(requests).toHaveLength(1)
+    expect(canonical.modelMessage).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'file',
+          data: new URL(signed),
+          mediaType: 'image/png',
+          filename: 'canonical.png',
+        },
+      ],
+    })
+    expect(canonical.contentJson).not.toContain('signature')
+    expect(canonical.contentJson).toContain('/api/playground/assets/9/content')
+    expect(canonical.attachmentContext.imageBytes).toBe(1024)
+  })
+
   test('runs scanned PDF OCR through the billed relay and imports the result', async () => {
     process.env.INTERNAL_SERVICE_SECRET = 'attachment-test-secret'
     let relayCalls = 0

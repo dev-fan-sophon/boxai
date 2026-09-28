@@ -83,10 +83,8 @@ export async function getUserGroups(): Promise<GroupOption[]> {
 
 /**
  * Resolve media for upstream providers.
- * App asset URLs stay as URLs. The video gateway fetches them itself, so the
- * browser must not download the file and resend it as a data URL.
- * Already-inline data: URLs are returned unchanged for image edit, which still
- * posts multipart bytes to providers that have no fetchable URL.
+ * Exchange private content paths for temporary provider-readable references.
+ * All other references retain their original transport semantics.
  */
 export async function resolveMediaForUpstream(
   ref: string | null | undefined
@@ -94,14 +92,15 @@ export async function resolveMediaForUpstream(
   if (!ref) return null
   const value = ref.trim()
   if (!value) return null
-  if (
-    value.startsWith('data:') ||
-    value.startsWith('asset://') ||
-    value.startsWith('https://') ||
-    value.startsWith('http://') ||
-    value.startsWith('/')
-  ) {
-    return value
+  const asset = /^\/api\/playground\/assets\/(\d+)\/content$/.exec(value)
+  if (asset) {
+    const response = await api.post(
+      `/api/playground/assets/${asset[1]}/reference`
+    )
+    if (!response.data.success || !response.data.data?.url) {
+      throw new Error(response.data.message || t('Request failed'))
+    }
+    return response.data.data.url
   }
   return value
 }
@@ -111,7 +110,7 @@ export type ImageGenerateInput = {
   group: string
   prompt: string
   settings: StudioSettings
-  /** data URL or asset content URL — resolved to data URL before relay */
+  /** data URL or asset content URL — private paths become signed references */
   referenceImage?: string | null
   /** extra references sent alongside the first one (multi-image edit) */
   referenceImages?: Array<string | null | undefined>
@@ -150,7 +149,7 @@ export async function generateImages(
     return items
       .map((item) => ({
         url:
-          item.url ??
+          item.url ||
           (item.b64_json ? `data:image/png;base64,${item.b64_json}` : ''),
         revisedPrompt: item.revised_prompt,
       }))

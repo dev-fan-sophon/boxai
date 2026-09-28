@@ -121,7 +121,10 @@ describe('video references', () => {
     )
   })
 
-  it('sends playground asset URLs without downloading them as base64', async () => {
+  it('sends signed playground asset URLs without downloading them as base64', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: { success: true, data: { url: 'https://storage.example/signed' } },
+    })
     await submitVideo({
       model: 'seedance-2-0',
       group: 'default',
@@ -132,7 +135,8 @@ describe('video references', () => {
     const body = vi.mocked(api.post).mock.calls.at(-1)?.[1] as {
       images: string[]
     }
-    expect(body.images).toEqual(['/api/playground/assets/42/content'])
+    expect(api.post).toHaveBeenCalledWith('/api/playground/assets/42/reference')
+    expect(body.images).toEqual(['https://storage.example/signed'])
     expect(JSON.stringify(body)).not.toContain('base64')
   })
 

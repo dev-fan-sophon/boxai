@@ -12,7 +12,9 @@ import (
 	"github.com/dev-fan-sophon/boxai/constant"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,6 +35,24 @@ func newImageTestContext(t *testing.T, body, contentType string, isStream bool) 
 		IsStream:    isStream,
 	}
 	return c, recorder, resp, info
+}
+
+func TestImageResponseBudgetDoesNotRetryPaidGeneration(t *testing.T) {
+	old := constant.MaxRequestBodyMB
+	constant.MaxRequestBodyMB = 1
+	t.Cleanup(func() { constant.MaxRequestBodyMB = old })
+	body := `{"data":[{"b64_json":"` + strings.Repeat("a", (1<<20)-28) + `"}]}`
+	// Pad a valid JSON response to the exact configured boundary.
+	body += strings.Repeat(" ", (1<<20)-len(body))
+	c, w, resp, info := newImageTestContext(t, body, "application/json", false)
+	_, err := OpenaiImageHandler(c, info, resp)
+	require.Nil(t, err)
+	assert.Equal(t, body, w.Body.String())
+	c, w, resp, info = newImageTestContext(t, body+" ", "application/json", false)
+	_, err = OpenaiImageHandler(c, info, resp)
+	require.NotNil(t, err)
+	assert.True(t, types.IsSkipRetryError(err))
+	assert.Empty(t, w.Body.String())
 }
 
 func TestOpenaiImageDoResponseUsesInfoIsStream(t *testing.T) {

@@ -18,6 +18,9 @@ export function userModel(
     name: 'boxai-gateway',
     baseURL: `${config.gatewayBaseUrl}/pg`,
     fetch: billedRelayFetch(userId, group),
+    // The gateway/provider adapters accept image URLs. Do not let the SDK
+    // download owner-validated temporary references and re-encode them inline.
+    supportedUrls: () => ({ 'image/*': [/^https?:\/\//] }),
   })
   return provider.chatModel(modelId)
 }

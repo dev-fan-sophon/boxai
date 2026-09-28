@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
@@ -24,14 +25,32 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+// JSON/base64 image protocols still need buffering for usage/error parsing.
+// Apply the configured body budget rather than trusting unbounded upstream data.
+func readImageResponseBody(body io.Reader) ([]byte, error) {
+	maxMB := constant.MaxRequestBodyMB
+	if maxMB <= 0 {
+		maxMB = 128
+	}
+	limit := int64(maxMB) << 20
+	data, err := io.ReadAll(io.LimitReader(body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("image response exceeds %d MB", maxMB)
+	}
+	return data, nil
+}
+
 // OpenaiResponsesImageHandler converts a synchronous Responses
 // image_generation tool result back to the OpenAI Images response contract.
 func OpenaiResponsesImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
 
-	responseBody, err := io.ReadAll(resp.Body)
+	responseBody, err := readImageResponseBody(resp.Body)
 	if err != nil {
-		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
+		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusBadGateway, types.ErrOptionWithSkipRetry())
 	}
 	var responsesResponse dto.OpenAIResponsesResponse
 	if err := common.Unmarshal(responseBody, &responsesResponse); err != nil {
@@ -160,9 +179,9 @@ func updateOpenAIImageCount(info *relaycommon.RelayInfo, count int64) {
 func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
 
-	responseBody, err := io.ReadAll(resp.Body)
+	responseBody, err := readImageResponseBody(resp.Body)
 	if err != nil {
-		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
+		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusBadGateway, types.ErrOptionWithSkipRetry())
 	}
 
 	var usageResp dto.SimpleResponse
@@ -394,9 +413,9 @@ func extractOpenAIImageStreamErrorMessage(data []byte) string {
 func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
 
-	responseBody, err := io.ReadAll(resp.Body)
+	responseBody, err := readImageResponseBody(resp.Body)
 	if err != nil {
-		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
+		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusBadGateway, types.ErrOptionWithSkipRetry())
 	}
 
 	// Only decode usage/error. Do not Unmarshal data[] into dto.ImageResponse —

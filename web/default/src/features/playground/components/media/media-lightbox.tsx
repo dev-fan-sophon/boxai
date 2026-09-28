@@ -15,7 +15,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-import { downloadGeneratedMedia } from '../../lib/download-generated-media'
+import {
+  downloadGeneratedMedia,
+  retryGeneratedImage,
+} from '../../lib/download-generated-media'
 
 export type LightboxItem = {
   url: string
@@ -119,6 +122,7 @@ export function MediaLightbox(props: MediaLightboxProps) {
           <img
             key={item.url}
             src={item.url}
+            onError={(event) => retryGeneratedImage(event.currentTarget)}
             alt={item.alt || t('Image preview')}
             className='max-h-full max-w-full rounded-lg object-contain shadow-2xl select-none'
             referrerPolicy='no-referrer'

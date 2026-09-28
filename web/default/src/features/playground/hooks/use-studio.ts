@@ -9,9 +9,7 @@ import {
   generateImages,
   generateSpeech,
   submitVideo,
-  uploadPlaygroundAsset,
 } from '../api'
-import { persistGeneratedMediaAsset } from '../lib/download-generated-media'
 import type { StudioRunSummary } from '../lib/session/session-types'
 import {
   createLocalRunId,
@@ -81,6 +79,9 @@ export function useStudio() {
         asset_id: input.assetId,
         task_id: input.taskId,
         project_id: input.projectId || undefined,
+        result_url: /^https?:\/\//i.test(input.fallbackUrl ?? '')
+          ? input.fallbackUrl
+          : undefined,
       })
       const run: StudioRunSummary = cloudRun
         ? {
@@ -134,27 +135,10 @@ export function useStudio() {
       if (generated.length === 0) {
         throw new Error('The model returned no images.')
       }
-      // Persist to same-origin assets before surfacing URLs so <img> and
-      // download both work even when the provider blocks hotlinking / CORS.
-      const persisted = await Promise.all(
-        generated.map(async (image, index) => {
-          try {
-            const asset = await persistGeneratedMediaAsset(
-              image.url,
-              `generated-image-${index + 1}`,
-              'image'
-            )
-            return { url: asset.url, assetId: asset.id as number | undefined }
-          } catch {
-            return { url: image.url, assetId: undefined }
-          }
-        })
-      )
       const projectId = await ensureActiveStudioProjectId(generation.sessionId)
-      for (const image of persisted) {
+      for (const image of generated) {
         await finalizeRun({
           generation,
-          assetId: image.assetId,
           fallbackUrl: image.url,
           projectId,
         })
@@ -196,25 +180,11 @@ export function useStudio() {
         text: generation.prompt,
         settings: snapshot,
       })
-      let assetId: number | undefined
-      let resultUrl = ''
-      try {
-        const extension = snapshot.audioFormat || 'mp3'
-        const asset = await uploadPlaygroundAsset(
-          new File([blob], `speech.${extension}`, { type: blob.type }),
-          'audio'
-        )
-        assetId = asset.id
-        resultUrl = asset.url
-      } catch {
-        // Keep playback for this tab even when the asset upload fails.
-        resultUrl = URL.createObjectURL(blob)
-        blobUrlsRef.current.push(resultUrl)
-      }
+      const resultUrl = URL.createObjectURL(blob)
+      blobUrlsRef.current.push(resultUrl)
       const projectId = await ensureActiveStudioProjectId(generation.sessionId)
       await finalizeRun({
         generation,
-        assetId,
         fallbackUrl: resultUrl,
         projectId,
       })

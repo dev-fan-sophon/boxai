@@ -52,7 +52,7 @@ async function buildImageAttachment(file: File): Promise<ChatAttachment> {
   }
   // Asset storage is the durable source of truth for server-owned history.
   // Do not admit an inline-only image that would disappear after reload.
-  const asset = await uploadPlaygroundAsset(file, undefined, 'attachment')
+  const asset = await uploadPlaygroundAsset(file, 'image', 'attachment')
   rememberAttachmentAsset(asset.id, dataUrl)
   attachment.assetId = asset.id
   return attachment

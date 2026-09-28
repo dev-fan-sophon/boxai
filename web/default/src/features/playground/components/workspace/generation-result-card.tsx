@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+import { retryGeneratedImage } from '../../lib/download-generated-media'
+
 type GenerationImageCardProps = {
   url: string
   alt: string
@@ -99,7 +101,9 @@ export function GenerationImageCard(props: GenerationImageCardProps) {
       >
         {!loaded && <div className='skeleton-shimmer absolute inset-0' />}
         <img
+          key={props.url}
           src={props.url}
+          onError={(event) => retryGeneratedImage(event.currentTarget)}
           alt={props.alt}
           className={cn(
             'absolute inset-0 size-full object-contain',

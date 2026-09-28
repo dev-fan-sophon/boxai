@@ -10,6 +10,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -84,7 +85,13 @@ func GetInternalPlaygroundAsset(c *gin.Context) {
 	if asset.URL == "" {
 		asset.URL = playgroundAssetContentURL(asset.Id)
 	}
-	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
+	data := model.PublicPlaygroundAssetDTO(asset)
+	if asset.Kind == "image" {
+		if ref, err := service.PrivateReferenceMediaURL(playgroundAssetContentURL(asset.Id), system_setting.ServerAddress, userId); err == nil {
+			data["fetch_url"] = ref
+		}
+	}
+	common.ApiSuccess(c, data)
 }
 
 // GetInternalPlaygroundAssetParse reports the cached parse contract to a

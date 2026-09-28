@@ -507,13 +507,15 @@ func SetApiRouter(router *gin.Engine) {
 			taskRoute.GET("/", middleware.AdminAuth(), controller.GetAllTask)
 		}
 
+		// Storage-free downloads support the same session/API credentials as video.
+		apiRouter.GET("/playground/media-proxy", middleware.TokenOrUserAuth(), middleware.CriticalRateLimit(), controller.GetPlaygroundMediaProxy)
+
 		// Playground media streams: session cookie only (no New-Api-User header).
 		// Browser <img>/<video>/<audio> cannot set custom headers, so UserAuth
 		// would 401 every same-origin content URL even when the user is logged in.
 		playgroundMediaRoute := apiRouter.Group("/playground")
 		playgroundMediaRoute.Use(middleware.UserSessionAuth())
 		{
-			playgroundMediaRoute.GET("/media-proxy", middleware.CriticalRateLimit(), controller.GetPlaygroundMediaProxy)
 			playgroundMediaRoute.GET("/assets/:id/content", controller.GetPlaygroundAssetContent)
 			playgroundMediaRoute.GET("/assets/:id/parse/pages/:page", controller.GetPlaygroundAssetParsePage)
 		}

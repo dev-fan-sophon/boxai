@@ -9,7 +9,7 @@ import {
 type DownloadableMediaKind = 'image' | 'video' | 'audio'
 
 const SAME_ORIGIN_DOWNLOADABLE =
-  /(?:\/api\/playground\/assets\/\d+\/content|\/v1\/videos\/[^/?#]+\/content)(?:\?|$)/
+  /^(?:\/api\/playground\/assets\/\d+\/content|\/v1\/videos\/[^/?#]+\/content)$/
 
 const EXTENSIONS: Record<string, string> = {
   'audio/aac': 'aac',
@@ -47,11 +47,15 @@ function withDownloadParam(url: string): string {
   return url.includes('?') ? `${url}&download=1` : `${url}?download=1`
 }
 
-function mediaFetchHeaders(url: string): HeadersInit | undefined {
+function mediaFetchHeaders(url: URL): HeadersInit | undefined {
   // Same-origin private streams may still sit behind UserAuth on other
   // endpoints; attach New-Api-User when available. Session cookie alone is
   // enough for /assets/:id/content (UserSessionAuth).
-  if (!SAME_ORIGIN_DOWNLOADABLE.test(url) && !url.includes('/api/')) {
+  if (
+    url.origin !== window.location.origin ||
+    (!SAME_ORIGIN_DOWNLOADABLE.test(url.pathname) &&
+      !url.pathname.startsWith('/api/'))
+  ) {
     return undefined
   }
   const headers = getCommonHeaders()
@@ -60,20 +64,39 @@ function mediaFetchHeaders(url: string): HeadersInit | undefined {
 }
 
 export async function fetchGeneratedMedia(sourceUrl: string): Promise<Blob> {
+  const url = new URL(sourceUrl, window.location.href)
+  const sameOrigin = url.origin === window.location.origin
   let fetchUrl = sourceUrl
   // Force attachment stream on same-origin media endpoints so browsers get a
   // CORS-readable body (no cross-origin R2 redirect).
-  if (SAME_ORIGIN_DOWNLOADABLE.test(sourceUrl)) {
+  if (sameOrigin && SAME_ORIGIN_DOWNLOADABLE.test(url.pathname)) {
     fetchUrl = withDownloadParam(sourceUrl)
   }
   const response = await fetch(fetchUrl, {
-    credentials: 'include',
-    headers: mediaFetchHeaders(sourceUrl),
+    credentials: sameOrigin ? 'same-origin' : 'omit',
+    headers: mediaFetchHeaders(url),
+    // Do not forward app-specific headers through a cross-origin redirect.
+    redirect: sameOrigin ? 'error' : 'follow',
   })
   if (!response.ok) {
     throw new Error(`Media download failed (${response.status})`)
   }
   return response.blob()
+}
+
+export function generatedMediaProxyUrl(
+  sourceUrl: string,
+  kind: DownloadableMediaKind
+): string {
+  return `/api/playground/media-proxy?url=${encodeURIComponent(sourceUrl)}&kind=${kind}`
+}
+
+/** Retry remote image loads once through the storage-free session proxy. */
+export function retryGeneratedImage(image: HTMLImageElement): void {
+  const source = image.getAttribute('src') ?? ''
+  if (!/^https?:\/\//i.test(source)) return
+  if (new URL(source).origin === window.location.origin) return
+  image.src = generatedMediaProxyUrl(source, 'image')
 }
 
 export async function persistGeneratedMediaAsset(
@@ -102,11 +125,9 @@ export async function downloadGeneratedMedia(
   try {
     blob = await fetchGeneratedMedia(sourceUrl)
   } catch (error) {
-    // External provider URLs often block browser CORS; import server-side then
-    // stream the stored asset.
+    // Provider CORS failures use a storage-free server-side stream.
     if (!/^https?:\/\//i.test(sourceUrl)) throw error
-    const asset = await importPlaygroundAsset(sourceUrl, kind)
-    blob = await fetchGeneratedMedia(asset.url)
+    blob = await fetchGeneratedMedia(generatedMediaProxyUrl(sourceUrl, kind))
   }
 
   const extension = generatedMediaExtension(blob.type, kind)
