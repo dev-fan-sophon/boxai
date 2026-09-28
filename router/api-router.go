@@ -513,6 +513,7 @@ func SetApiRouter(router *gin.Engine) {
 		playgroundMediaRoute := apiRouter.Group("/playground")
 		playgroundMediaRoute.Use(middleware.UserSessionAuth())
 		{
+			playgroundMediaRoute.GET("/media-proxy", middleware.CriticalRateLimit(), controller.GetPlaygroundMediaProxy)
 			playgroundMediaRoute.GET("/assets/:id/content", controller.GetPlaygroundAssetContent)
 			playgroundMediaRoute.GET("/assets/:id/parse/pages/:page", controller.GetPlaygroundAssetParsePage)
 		}
@@ -527,6 +528,7 @@ func SetApiRouter(router *gin.Engine) {
 			playgroundDataRoute.GET("/assets", controller.ListPlaygroundAssets)
 			playgroundDataRoute.POST("/assets", middleware.UploadRateLimit(), controller.UploadPlaygroundAsset)
 			playgroundDataRoute.POST("/assets/upload-intent", controller.CreatePlaygroundUploadIntent)
+			playgroundDataRoute.POST("/assets/:id/reference", controller.CreatePlaygroundReferenceURL)
 			playgroundDataRoute.POST("/assets/:id/finalize", middleware.UploadRateLimit(), controller.FinalizePlaygroundUpload)
 			playgroundDataRoute.POST("/assets/import", middleware.UploadRateLimit(), controller.ImportPlaygroundAsset)
 			playgroundDataRoute.POST("/assets/:id/publish", controller.PublishPlaygroundAsset)

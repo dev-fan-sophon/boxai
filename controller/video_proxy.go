@@ -59,6 +59,14 @@ func VideoProxy(c *gin.Context) {
 			fmt.Sprintf("Task is not completed yet, current status: %s", task.Status))
 		return
 	}
+	select {
+	case mediaProxyCapacity <- struct{}{}:
+		defer func() { <-mediaProxyCapacity }()
+	default:
+		c.Header("Retry-After", "2")
+		videoProxyError(c, http.StatusServiceUnavailable, "server_error", "Media transfer capacity reached")
+		return
+	}
 
 	// Ordinary API and Playground tasks share the same owner-scoped durable output.
 	if task.OutputAssetID > 0 {
@@ -102,7 +110,7 @@ func VideoProxy(c *gin.Context) {
 	untrustedResultURL := isUntrustedVideoResultURL(isXAITask, channel.Type)
 	operatorManagedURL := false
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), service.VideoOutputTransferTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "", nil)
 	if err != nil {
@@ -259,6 +267,25 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
+	// Ignore malformed and multi-range requests rather than accepting multipart
+	// responses. If-Range only has meaning with a valid single byte range.
+	if ranges := c.Request.Header.Values("Range"); len(ranges) == 1 {
+		value := strings.TrimSpace(ranges[0])
+		if strings.HasPrefix(value, "bytes=") {
+			if _, _, ok := parseVideoByteRange(strings.TrimPrefix(value, "bytes=")); ok {
+				req.Header.Set("Range", value)
+				req.Header.Set("If-Range", c.GetHeader("If-Range"))
+			}
+		}
+	}
+	// Keep byte offsets and lengths in the original representation.
+	req.Header.Set("Accept-Encoding", "identity")
+
+	// A shared client's shorter timeout would otherwise override our transfer
+	// deadline. Copy it without mutating clients used by other relay requests.
+	transferClient := *client
+	transferClient.Timeout = service.VideoOutputTransferTimeout
+	client = &transferClient
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to fetch video for task %s from host %s", taskID, req.URL.Hostname()))
@@ -267,24 +294,61 @@ func VideoProxy(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && req.Header.Get("Range") != "" {
+		// Do not relay an upstream HTML error page as video content.
+		if value := resp.Header.Get("Content-Range"); strings.HasPrefix(value, "bytes */") {
+			if _, err := strconv.ParseUint(strings.TrimPrefix(value, "bytes */"), 10, 63); err == nil {
+				c.Header("Content-Range", value)
+				c.Header("Cache-Control", "private, no-store")
+				c.Header("Content-Length", "0")
+				c.Status(http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+		}
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Upstream returned status %d for video task %s from host %s", resp.StatusCode, taskID, req.URL.Hostname()))
 		videoProxyError(c, http.StatusBadGateway, "server_error",
 			fmt.Sprintf("Upstream service returned status %d", resp.StatusCode))
 		return
 	}
 
-	header := make([]byte, 512)
-	n, readErr := io.ReadFull(resp.Body, header)
-	if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
-		videoProxyError(c, http.StatusBadGateway, "server_error", "Failed to read video content")
-		return
+	if resp.StatusCode == http.StatusPartialContent {
+		value := resp.Header.Get("Content-Range")
+		span, total, found := strings.Cut(strings.TrimPrefix(value, "bytes "), "/")
+		start, end, valid := parseVideoByteRange(span)
+		size, sizeErr := strconv.ParseInt(total, 10, 64)
+		if req.Header.Get("Range") == "" || !strings.HasPrefix(value, "bytes ") || !found || !valid || start < 0 || end < 0 ||
+			(total != "*" && (sizeErr != nil || size <= end)) ||
+			end-start == int64(1<<63-1) || (resp.ContentLength >= 0 && resp.ContentLength != end-start+1) {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Upstream returned invalid video range")
+			return
+		}
 	}
-	header = header[:n]
-	mimeType, kind, err := service.SniffPlaygroundMime(header, resp.Header.Get("Content-Type"))
-	if err != nil || kind != "video" {
-		videoProxyError(c, http.StatusBadGateway, "server_error", "Upstream returned invalid video content")
-		return
+
+	// Partial chunks may omit or truncate the container signature. Use a narrowly allowed
+	// declared video MIME instead; full responses still require sniffing.
+	mimeType, _, mimeErr := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	var header []byte
+	if resp.StatusCode == http.StatusPartialContent {
+		if mimeErr != nil || (mimeType != "video/mp4" && mimeType != "video/webm" && mimeType != "video/quicktime") {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Upstream returned invalid video content type")
+			return
+		}
+	} else {
+		header = make([]byte, 512)
+		n, readErr := io.ReadFull(resp.Body, header)
+		if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Failed to read video content")
+			return
+		}
+		header = header[:n]
+		var kind string
+		mimeType, kind, err = service.SniffPlaygroundMime(header, resp.Header.Get("Content-Type"))
+		if err != nil || kind != "video" {
+			videoProxyError(c, http.StatusBadGateway, "server_error", "Upstream returned invalid video content")
+			return
+		}
 	}
 
 	copyVideoResponseHeaders(c.Writer.Header(), resp.Header)
@@ -296,6 +360,31 @@ func VideoProxy(c *gin.Context) {
 	if _, err = io.Copy(c.Writer, io.MultiReader(bytes.NewReader(header), resp.Body)); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to stream video content: %s", err.Error()))
 	}
+}
+
+// parseVideoByteRange accepts one bounded, open-ended, or suffix byte range.
+// Missing endpoints are represented by -1; integers cannot overflow int64.
+func parseVideoByteRange(value string) (start, end int64, ok bool) {
+	first, last, found := strings.Cut(value, "-")
+	if !found || (first == "" && last == "") {
+		return 0, 0, false
+	}
+	values := [2]int64{-1, -1}
+	for i, part := range []string{first, last} {
+		if part == "" {
+			continue
+		}
+		if strings.Trim(part, "0123456789") != "" {
+			return 0, 0, false
+		}
+		n, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return 0, 0, false
+		}
+		values[i] = n
+	}
+	start, end = values[0], values[1]
+	return start, end, (start < 0 && end > 0) || (start >= 0 && (end < 0 || end >= start))
 }
 
 // redirectPresignedVideo hands a finished playground video to object storage

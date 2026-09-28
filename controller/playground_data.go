@@ -1361,9 +1361,23 @@ func CreatePlaygroundRun(c *gin.Context) {
 	}
 	switch mod {
 	case "image", "audio":
-		if assetId == 0 || taskId != "" {
-			common.ApiErrorMsg(c, "exactly one matching asset is required for media run")
+		if taskId != "" {
+			common.ApiErrorMsg(c, "image and audio runs cannot reference a video task")
 			return
+		}
+		if assetId == 0 {
+			// History stores a remote reference or metadata only, not generated
+			// bytes. Data/blob outputs live in the current browser tab until saved.
+			resultURL = strings.TrimSpace(body.ResultURL)
+			if resultURL != "" {
+				parsed, err := url.Parse(resultURL)
+				if err != nil || len(resultURL) > 1000 || parsed.Host == "" || parsed.User != nil ||
+					(parsed.Scheme != "http" && parsed.Scheme != "https") {
+					common.ApiErrorMsg(c, "invalid remote media URL")
+					return
+				}
+			}
+			break
 		}
 		asset, err := model.GetPlaygroundAsset(assetId, userId)
 		if err != nil {

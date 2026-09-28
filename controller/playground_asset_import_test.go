@@ -92,7 +92,9 @@ func TestCreatePlaygroundRunRejectsAnotherUsersTask(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), "task not found")
 }
 
-func TestCreatePlaygroundRunRequiresOwnedMediaReference(t *testing.T) {
+func TestCreatePlaygroundRunKeepsRemoteReferenceWithoutArchiving(t *testing.T) {
+	db := setupVideoProxyTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundRun{}, &model.PlaygroundAsset{}))
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(
@@ -105,8 +107,14 @@ func TestCreatePlaygroundRunRequiresOwnedMediaReference(t *testing.T) {
 
 	CreatePlaygroundRun(ctx)
 
-	assert.Contains(t, recorder.Body.String(), `"success":false`)
-	assert.Contains(t, recorder.Body.String(), "asset")
+	assert.Contains(t, recorder.Body.String(), `"success":true`)
+	var run model.PlaygroundRun
+	require.NoError(t, db.First(&run).Error)
+	assert.Equal(t, "https://unowned.example/image.png", run.ResultURL)
+	assert.Zero(t, run.AssetId)
+	var count int64
+	require.NoError(t, db.Model(&model.PlaygroundAsset{}).Count(&count).Error)
+	assert.Zero(t, count)
 }
 
 func TestCreatePlaygroundRunRejectsCrossModalityReferences(t *testing.T) {

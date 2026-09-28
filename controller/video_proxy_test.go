@@ -270,6 +270,86 @@ func TestVideoProxyDoesNotTrustProtocolRelativeXAIResult(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, recorder.Code)
 }
 
+func TestVideoProxyRemoteRanges(t *testing.T) {
+	video := string([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}) + "payload"
+	for _, tc := range []struct {
+		name, requestRange, forwardedRange, contentRange, contentType, body string
+		upstreamStatus, wantStatus                                          int
+	}{
+		{"nonzero", "bytes=12-18", "bytes=12-18", "bytes 12-18/19", "video/mp4", "payload", 206, 206},
+		{"suffix", "bytes=-7", "bytes=-7", "bytes 12-18/19", "video/webm", "payload", 206, 206},
+		{"open ended", "bytes=12-", "bytes=12-", "bytes 12-18/19", "video/quicktime", "payload", 206, 206},
+		{"short initial", "bytes=0-1", "bytes=0-1", "bytes 0-1/19", "video/mp4", video[:2], 206, 206},
+		{"unsatisfiable", "bytes=99-", "bytes=99-", "bytes */19", "text/html", "upstream error", 416, 416},
+		{"ignored", "bytes=12-18", "bytes=12-18", "", "video/mp4", video, 200, 200},
+		{"multipart ignored", "bytes=0-1,12-18", "", "", "video/mp4", video, 200, 200},
+		{"overflow ignored", "bytes=9223372036854775808-", "", "", "video/mp4", video, 200, 200},
+		{"reversed ignored", "bytes=18-12", "", "", "video/mp4", video, 200, 200},
+		{"invalid partial MIME", "bytes=12-18", "bytes=12-18", "bytes 12-18/19", "text/html", "payload", 206, 502},
+		{"invalid content range", "bytes=12-18", "bytes=12-18", "bytes 12-18/15", "video/mp4", "payload", 206, 502},
+		{"unsolicited partial", "", "", "bytes 12-18/19", "video/mp4", "payload", 206, 502},
+		{"invalid full body", "bytes=12-18", "bytes=12-18", "", "video/mp4", "not video", 200, 502},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupVideoProxyTestDB(t)
+			service.InitHttpClient()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.forwardedRange, r.Header.Get("Range"))
+				if tc.forwardedRange == "" {
+					assert.Empty(t, r.Header.Get("If-Range"))
+				} else {
+					assert.Equal(t, `"version-1"`, r.Header.Get("If-Range"))
+				}
+				assert.Equal(t, "identity", r.Header.Get("Accept-Encoding"))
+				assert.Equal(t, "Bearer selected-key", r.Header.Get("Authorization"))
+				assert.Empty(t, r.Header.Get("Cookie"))
+				w.Header().Set("Content-Type", tc.contentType)
+				w.Header().Set("Content-Length", strconv.Itoa(len(tc.body)))
+				w.Header().Set("Content-Range", tc.contentRange)
+				w.Header().Set("Accept-Ranges", "bytes")
+				w.Header().Set("ETag", `"version-1"`)
+				w.Header().Set("Set-Cookie", "secret=upstream")
+				w.WriteHeader(tc.upstreamStatus)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(upstream.Close)
+			require.NoError(t, db.Create(&model.Channel{Id: 8, Type: constant.ChannelTypeDoubaoVideo, Key: "fallback-key", BaseURL: &upstream.URL}).Error)
+			require.NoError(t, db.Create(&model.Task{
+				TaskID: "task_range", UserId: 42, ChannelId: 8, Status: model.TaskStatusSuccess,
+				PrivateData: model.TaskPrivateData{Key: "selected-key", UpstreamTaskID: "upstream-id", ResultURL: upstream.URL + "/v1/videos/upstream-id/content"},
+			}).Error)
+			router := gin.New()
+			router.GET("/v1/videos/:task_id/content", func(c *gin.Context) {
+				c.Set("id", 42)
+				VideoProxy(c)
+			})
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/v1/videos/task_range/content", nil)
+			request.Header.Set("Range", tc.requestRange)
+			request.Header.Set("If-Range", `"version-1"`)
+			request.Header.Set("Authorization", "Bearer user-token")
+			request.Header.Set("Cookie", "session=user")
+			router.ServeHTTP(recorder, request)
+			require.Equal(t, tc.wantStatus, recorder.Code)
+			assert.Empty(t, recorder.Header().Get("Set-Cookie"))
+			if tc.wantStatus == 200 || tc.wantStatus == 206 {
+				assert.Equal(t, tc.body, recorder.Body.String())
+				assert.Equal(t, tc.contentType, recorder.Header().Get("Content-Type"))
+				assert.Equal(t, tc.contentRange, recorder.Header().Get("Content-Range"))
+				assert.Equal(t, strconv.Itoa(len(tc.body)), recorder.Header().Get("Content-Length"))
+				assert.Equal(t, "bytes", recorder.Header().Get("Accept-Ranges"))
+				assert.Equal(t, `"version-1"`, recorder.Header().Get("ETag"))
+				assert.Equal(t, "nosniff", recorder.Header().Get("X-Content-Type-Options"))
+				assert.Equal(t, "private, no-store", recorder.Header().Get("Cache-Control"))
+			} else if tc.wantStatus == 416 {
+				assert.Empty(t, recorder.Body.String())
+				assert.Equal(t, "bytes */19", recorder.Header().Get("Content-Range"))
+				assert.Equal(t, "0", recorder.Header().Get("Content-Length"))
+			}
+		})
+	}
+}
+
 func TestDoubaoVideoProxyAuthenticatedContent(t *testing.T) {
 	for _, mode := range []string{"content", "redirect", "arbitrary path"} {
 		t.Run(mode, func(t *testing.T) {

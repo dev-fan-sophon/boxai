@@ -1,11 +1,12 @@
 package openai
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"os"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -56,22 +57,6 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 		})
 	} else {
 		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
-		// 读取响应体到缓冲区
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.LogError(c, fmt.Sprintf("failed to read TTS response body: %v", err))
-			c.Writer.WriteHeaderNow()
-			return usage
-		}
-
-		// 写入响应到客户端
-		c.Writer.WriteHeaderNow()
-		_, err = c.Writer.Write(bodyBytes)
-		if err != nil {
-			logger.LogError(c, fmt.Sprintf("failed to write TTS response: %v", err))
-		}
-
-		// 计算音频时长并更新 usage
 		audioFormat := "mp3" // 默认格式
 		if audioReq, ok := info.Request.(*dto.AudioRequest); ok && audioReq.ResponseFormat != "" {
 			audioFormat = audioReq.ResponseFormat
@@ -79,6 +64,67 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 
 		var duration float64
 		var durationErr error
+		// PCM needs only a byte count. Other formats require seekable input;
+		// retain at most 64 MiB locally, never archive a paid response. Respect
+		// a smaller configured download limit as well. Probe failures use the
+		// existing size-based estimate without interrupting audio delivery.
+		spoolLimit := int64(64 << 20)
+		if constant.MaxFileDownloadMB > 0 && constant.MaxFileDownloadMB < 64 {
+			spoolLimit = int64(constant.MaxFileDownloadMB) << 20
+		}
+		var spool *os.File
+		if audioFormat != "pcm" {
+			spool, durationErr = os.CreateTemp("", "boxai-tts-*")
+			if spool != nil {
+				defer os.Remove(spool.Name())
+				defer spool.Close()
+			}
+		}
+		// Closing the body unblocks a pending upstream read on cancellation.
+		stopCancel := context.AfterFunc(c.Request.Context(), func() { resp.Body.Close() })
+		defer stopCancel()
+		var bodySize int64
+		buffer := make([]byte, 32*1024)
+		c.Writer.WriteHeaderNow()
+		for {
+			if err := c.Request.Context().Err(); err != nil {
+				logger.LogError(c, fmt.Sprintf("TTS response canceled: %v", err))
+				return usage
+			}
+			n, readErr := resp.Body.Read(buffer)
+			if n > 0 {
+				bodySize += int64(n)
+				written, writeErr := c.Writer.Write(buffer[:n])
+				if writeErr == nil && written != n {
+					writeErr = io.ErrShortWrite
+				}
+				if writeErr != nil {
+					logger.LogError(c, fmt.Sprintf("failed to write TTS response: %v", writeErr))
+					// Do not drain or retry a paid request after client disconnect.
+					durationErr = writeErr
+					break
+				}
+				c.Writer.Flush()
+				if spool != nil && durationErr == nil {
+					if bodySize > spoolLimit {
+						durationErr = fmt.Errorf("TTS duration probe exceeds %d bytes", spoolLimit)
+					} else {
+						_, durationErr = spool.Write(buffer[:n])
+					}
+					if durationErr != nil {
+						spool.Close()
+						os.Remove(spool.Name())
+					}
+				}
+			}
+			if readErr != nil {
+				if readErr != io.EOF {
+					logger.LogError(c, fmt.Sprintf("failed to read TTS response body: %v", readErr))
+					return usage
+				}
+				break
+			}
+		}
 
 		if audioFormat == "pcm" {
 			// PCM 格式没有文件头，根据 OpenAI TTS 的 PCM 参数计算时长
@@ -86,11 +132,11 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 			const sampleRate = 24000
 			const bytesPerSample = 2
 			const channels = 1
-			duration = float64(len(bodyBytes)) / float64(sampleRate*bytesPerSample*channels)
-		} else {
-			ext := "." + audioFormat
-			reader := bytes.NewReader(bodyBytes)
-			duration, durationErr = common.GetAudioDuration(c.Request.Context(), reader, ext)
+			duration = float64(bodySize) / float64(sampleRate*bytesPerSample*channels)
+		} else if durationErr == nil {
+			if _, durationErr = spool.Seek(0, io.SeekStart); durationErr == nil {
+				duration, durationErr = common.GetAudioDuration(c.Request.Context(), spool, "."+audioFormat)
+			}
 		}
 
 		usage.PromptTokensDetails.TextTokens = usage.PromptTokens
@@ -98,8 +144,8 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 		if durationErr != nil {
 			logger.LogWarn(c, fmt.Sprintf("failed to get audio duration: %v", durationErr))
 			// 如果无法获取时长，则设置保底的 CompletionTokens，根据body大小计算
-			sizeInKB := float64(len(bodyBytes)) / 1000.0
-			estimatedTokens := int(math.Ceil(sizeInKB)) // 粗略估算每KB约等于1 token
+			sizeInKB := float64(bodySize) / 1000.0
+			estimatedTokens := common.QuotaFromFloat(math.Ceil(sizeInKB)) // 粗略估算每KB约等于1 token
 			usage.CompletionTokens = estimatedTokens
 			usage.CompletionTokenDetails.AudioTokens = estimatedTokens
 		} else if duration > 0 {
