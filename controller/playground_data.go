@@ -1359,7 +1359,6 @@ func CreatePlaygroundRun(c *gin.Context) {
 	if len(taskId) > 191 {
 		taskId = taskId[:191]
 	}
-	completedVideoURL := ""
 	switch mod {
 	case "image", "audio":
 		if assetId == 0 || taskId != "" {
@@ -1395,9 +1394,11 @@ func CreatePlaygroundRun(c *gin.Context) {
 			return
 		}
 		if task.Status == model.TaskStatusSuccess {
-			completedVideoURL = task.GetResultURL()
+			// Keep a stable, owner-scoped proxy address without archiving the video.
+			resultURL = "/v1/videos/" + task.TaskID + "/content"
+		} else {
+			resultURL = ""
 		}
-		resultURL = ""
 	case "chat":
 		if assetId != 0 || taskId != "" {
 			common.ApiErrorMsg(c, "chat run cannot reference media")
@@ -1446,9 +1447,6 @@ func CreatePlaygroundRun(c *gin.Context) {
 			}
 			_ = model.UpdatePlaygroundProject(p)
 		}
-	}
-	if completedVideoURL != "" {
-		service.QueuePlaygroundVideoOutputReconciliation(taskId, userId, completedVideoURL)
 	}
 	common.ApiSuccess(c, run)
 }

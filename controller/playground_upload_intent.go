@@ -21,6 +21,7 @@ type playgroundUploadIntentRequest struct {
 	Size        int64  `json:"size"`
 	Kind        string `json:"kind"`
 	Source      string `json:"source"`
+	CreateOnly  bool   `json:"create_only"`
 }
 
 // CreatePlaygroundUploadIntent returns a short-lived PUT URL so the browser
@@ -58,9 +59,15 @@ func CreatePlaygroundUploadIntent(c *gin.Context) {
 	}
 	store := storage.Default()
 	ext := path.Ext(req.Name)
-	// Only staging keys are ever exposed to signed PUTs. Finalization snapshots
-	// verified bytes to a different key, so replay cannot overwrite ready media.
+	// Legacy clients use replayable staging PUTs; create-only clients avoid copying.
 	key := path.Join("upload-intents", itoaUser(userID), uuid.NewString()+ext)
+	putHeaders := map[string]string{}
+	if req.CreateOnly {
+		// New clients sign a create-only PUT and keep this object in place.
+		// Older clients retain the staging flow until their next page reload.
+		key = path.Join(storage.DirectUploadPrefix, itoaUser(userID), uuid.NewString()+ext)
+		putHeaders["If-None-Match"] = "*"
+	}
 	expiresAt := time.Now().Add(15 * time.Minute).Unix()
 	putURL, err := store.PresignPut(c.Request.Context(), key, putContentType, 15*time.Minute)
 	if err != nil {
@@ -88,8 +95,9 @@ func CreatePlaygroundUploadIntent(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"asset":   model.PublicPlaygroundAssetDTO(asset),
-		"put_url": putURL,
+		"asset":       model.PublicPlaygroundAssetDTO(asset),
+		"put_url":     putURL,
+		"put_headers": putHeaders,
 	})
 }
 

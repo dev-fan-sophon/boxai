@@ -22,6 +22,7 @@ describe('uploadPlaygroundAsset', () => {
         success: true,
         data: {
           put_url: 'https://r2.example/uploads/ref.mp4?sig=1',
+          put_headers: { 'If-None-Match': '*' },
           asset: {
             id: 9,
             kind: 'image',
@@ -57,10 +58,15 @@ describe('uploadPlaygroundAsset', () => {
     expect(body.size).toBe(file.size)
     expect(body.kind).toBe('image')
     expect(body).toHaveProperty('source', 'library')
+    expect(body).toHaveProperty('create_only', true)
     expect(JSON.stringify(body)).not.toContain('pixels')
     expect(fetchMock).toHaveBeenCalledWith(
       'https://r2.example/uploads/ref.mp4?sig=1',
-      expect.objectContaining({ method: 'PUT', body: file })
+      expect.objectContaining({
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'image/png', 'If-None-Match': '*' },
+      })
     )
   })
 

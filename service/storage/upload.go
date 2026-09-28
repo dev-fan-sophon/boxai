@@ -7,6 +7,15 @@ import (
 	"os"
 )
 
+// InspectUpload checks a create-only R2 upload without copying or downloading it.
+func InspectUpload(ctx context.Context, store AssetStore, key string, size int64) ([]byte, error) {
+	r2, ok := store.(*r2Store)
+	if !ok {
+		return nil, ErrPresignUnsupported
+	}
+	return r2.inspectUpload(ctx, key, size)
+}
+
 // SnapshotUpload fixes an uploaded object at a fresh, server-only key and returns
 // its first 512 bytes for type validation. The caller must delete the destination
 // on error or failed validation. R2 copies inside the bucket, never through the app.

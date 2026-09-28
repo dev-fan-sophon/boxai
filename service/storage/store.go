@@ -16,6 +16,10 @@ var ErrPresignUnsupported = errors.New("storage: presigned url not supported by 
 // ErrInvalidKey is returned when a storage key is empty or attempts traversal.
 var ErrInvalidKey = errors.New("storage: invalid object key")
 
+// DirectUploadPrefix contains create-only uploads retained at their original key.
+// Unlike upload-intents/, this prefix must not have a staging expiry rule.
+const DirectUploadPrefix = "uploads/direct/"
+
 // PublicPrefixes marks key prefixes that are eligible for public CDN delivery.
 var PublicPrefixes = []string{"public/", "inspiration/"}
 

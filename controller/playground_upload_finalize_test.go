@@ -6,9 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -72,6 +74,61 @@ func TestFinalize200MiBReferenceVideo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ready", ready.UploadState)
 	assert.EqualValues(t, 200<<20, ready.Size)
+}
+
+func TestFinalizeCreateOnlyR2UploadDoesNotCopy(t *testing.T) {
+	db := setupVideoProxyTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}))
+	var size atomic.Int64
+	var requests atomic.Int64
+	size.Store((200 << 20) + 1)
+	key := storage.DirectUploadPrefix + "42/reference.mp4"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		assert.Equal(t, "/test-bucket/"+key, r.URL.Path)
+		switch r.Method {
+		case http.MethodHead:
+			w.Header().Set("Content-Length", strconv.FormatInt(size.Load(), 10))
+			w.Header().Set("ETag", `"uploaded"`)
+		case http.MethodGet:
+			assert.Equal(t, "bytes=0-511", r.Header.Get("Range"))
+			assert.Equal(t, `"uploaded"`, r.Header.Get("If-Match"))
+			w.Header().Set("Content-Range", "bytes 0-511/209715200")
+			w.WriteHeader(http.StatusPartialContent)
+			header := make([]byte, 512)
+			copy(header, []byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'})
+			_, _ = w.Write(header)
+		default:
+			t.Errorf("finalize must not copy, upload or delete: %s", r.Method)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("R2_ENDPOINT", server.URL)
+	t.Setenv("R2_BUCKET", "test-bucket")
+	t.Setenv("R2_ACCESS_KEY_ID", "test-key")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "test-secret")
+	store, err := storage.NewR2Store()
+	require.NoError(t, err)
+	put, err := store.PresignPut(context.Background(), key, "video/mp4", time.Minute)
+	require.NoError(t, err)
+	signed, err := url.Parse(put)
+	require.NoError(t, err)
+	assert.Contains(t, signed.Query().Get("X-Amz-SignedHeaders"), "if-none-match", "create-only condition cannot be removed by uploader")
+	a := &model.PlaygroundAsset{UserId: 42, Kind: "video", Mime: "video/mp4", Size: 200 << 20, Backend: "r2", StorageKey: key, UploadState: "pending", UploadExpiresAt: time.Now().Add(time.Hour).Unix()}
+	require.NoError(t, model.CreatePlaygroundAsset(a))
+	_, err = finalizePlaygroundUpload(context.Background(), a.Id, 42)
+	require.Error(t, err)
+	size.Store(200 << 20)
+	ready, err := finalizePlaygroundUpload(context.Background(), a.Id, 42)
+	require.NoError(t, err)
+	assert.Equal(t, "ready", ready.UploadState)
+	assert.Equal(t, key, ready.StorageKey, "the uploaded object stays in place")
+	assert.EqualValues(t, 200<<20, ready.Size)
+	again, err := finalizePlaygroundUpload(context.Background(), a.Id, 42)
+	require.NoError(t, err)
+	assert.Equal(t, key, again.StorageKey)
+	assert.EqualValues(t, 3, requests.Load(), "one rejected HEAD, one HEAD+Range GET; retry does no I/O")
 }
 
 func TestFinalizePlaygroundUploadLifecycle(t *testing.T) {

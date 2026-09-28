@@ -4,6 +4,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -77,4 +79,29 @@ func TestPrivateReferenceMediaURLValidation(t *testing.T) {
 	}
 	_, err := PrivateReferenceMediaURL("/api/playground/assets/1/content", "", 7)
 	require.Error(t, err)
+}
+
+func TestR2ReferenceUsesDirectTemporaryURL(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	old := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = old })
+	require.NoError(t, db.AutoMigrate(&model.PlaygroundAsset{}))
+	t.Setenv("R2_ENDPOINT", "https://storage.example.test")
+	t.Setenv("R2_BUCKET", "references")
+	t.Setenv("R2_ACCESS_KEY_ID", "test-key")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "test-secret")
+	a := &model.PlaygroundAsset{UserId: 7, Kind: "video", Backend: "r2", StorageKey: "uploads/direct/7/ref.mp4", UploadState: "ready"}
+	require.NoError(t, model.CreatePlaygroundAsset(a))
+	raw := fmt.Sprintf("/api/playground/assets/%d/content", a.Id)
+	signed, err := PrivateReferenceMediaURL(raw, "https://you-box.com", 7)
+	require.NoError(t, err)
+	u, err := url.Parse(signed)
+	require.NoError(t, err)
+	assert.Equal(t, "storage.example.test", u.Host)
+	assert.Equal(t, "/references/uploads/direct/7/ref.mp4", u.Path)
+	assert.Equal(t, "86400", u.Query().Get("X-Amz-Expires"))
+	_, err = PrivateReferenceMediaURL(raw, "https://you-box.com", 8)
+	require.Error(t, err, "signing must remain owner-scoped")
 }

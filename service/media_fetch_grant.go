@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/service/storage"
 )
 
 const mediaFetchGrantTTL = 15 * time.Minute
@@ -105,6 +108,21 @@ func PrivateReferenceMediaURL(raw, origin string, userID int) (string, error) {
 	parsed, err := url.Parse(origin)
 	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
 		return "", fmt.Errorf("public server address required for reference media")
+	}
+	asset, err := GetMediaFetchAsset(userID, id)
+	if err != nil {
+		return "", err
+	}
+	store, err := storage.ForBackend(asset.Backend)
+	if err != nil {
+		return "", err
+	}
+	// Providers read R2 directly, without an app redirect or file transfer.
+	// Keep enough validity for upstream queues; this does not make the bucket public.
+	if signed, signErr := store.PresignGet(context.Background(), asset.StorageKey, 24*time.Hour); signErr == nil {
+		return signed, nil
+	} else if !errors.Is(signErr, storage.ErrPresignUnsupported) {
+		return "", signErr
 	}
 	grant, err := IssueMediaFetchGrant(userID, id)
 	if err != nil {

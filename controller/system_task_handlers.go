@@ -212,20 +212,16 @@ func (billingReconcileHandler) Run(ctx context.Context, task *model.SystemTask, 
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
 }
 
-// Storage has its own lease and deadline: a slow download must never delay polling.
+// Automatic video archiving is disabled for the passthrough gateway. Keep a
+// no-op handler to drain jobs queued by older deployments without copying media.
 type videoOutputHandler struct{}
 
 func (videoOutputHandler) Type() string            { return model.SystemTaskTypeVideoOutput }
-func (videoOutputHandler) Enabled() bool           { return true }
+func (videoOutputHandler) Enabled() bool           { return false }
 func (videoOutputHandler) Interval() time.Duration { return 15 * time.Second }
 func (videoOutputHandler) NewPayload() any         { return nil }
 func (videoOutputHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
-	err := service.RunVideoOutputReconciliation(ctx)
-	status := model.SystemTaskStatusSucceeded
-	if err != nil {
-		status = model.SystemTaskStatusFailed
-	}
-	finishSystemTaskHandler(task, runnerID, status, nil, err)
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
 }
 
 type uploadCleanupHandler struct{}

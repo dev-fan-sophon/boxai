@@ -19,8 +19,8 @@ import (
 
 var uploadFinalizeCapacity = make(chan struct{}, 4)
 
-// FinalizePlaygroundUpload publishes a verified immutable upload. R2 performs
-// a conditional in-bucket copy; only the file header passes through the app.
+// FinalizePlaygroundUpload checks create-only R2 objects in place. Legacy
+// replayable uploads retain their snapshot path until clients reload.
 func FinalizePlaygroundUpload(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
@@ -32,7 +32,13 @@ func FinalizePlaygroundUpload(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, model.PublicPlaygroundAssetDTO(asset))
+	data := model.PublicPlaygroundAssetDTO(asset)
+	if store, storeErr := storage.ForBackend(asset.Backend); storeErr == nil {
+		if fetchURL, signErr := store.PresignGet(c.Request.Context(), asset.StorageKey, 24*time.Hour); signErr == nil {
+			data["fetch_url"] = fetchURL
+		}
+	}
+	common.ApiSuccess(c, data)
 }
 
 func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.PlaygroundAsset, error) {
@@ -63,7 +69,11 @@ func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.Playg
 		return nil, err
 	}
 	key := path.Join("uploads", strconv.Itoa(userID), uuid.NewString())
-	keepObject := false
+	direct := strings.HasPrefix(asset.StorageKey, storage.DirectUploadPrefix+strconv.Itoa(userID)+"/")
+	keepObject := direct
+	if direct {
+		key = asset.StorageKey
+	}
 	defer func() {
 		if !keepObject {
 			cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
@@ -71,7 +81,12 @@ func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.Playg
 			_ = store.Delete(cleanupCtx, key)
 		}
 	}()
-	header, err := storage.SnapshotUpload(ctx, store, asset.StorageKey, key, asset.Size, asset.Mime)
+	var header []byte
+	if direct {
+		header, err = storage.InspectUpload(ctx, store, key, asset.Size)
+	} else {
+		header, err = storage.SnapshotUpload(ctx, store, asset.StorageKey, key, asset.Size, asset.Mime)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +106,9 @@ func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.Playg
 		return model.GetPlaygroundAsset(id, userID)
 	}
 	keepObject = true
+	if direct {
+		return model.GetPlaygroundAsset(id, userID)
+	}
 	// PUT URLs cannot be revoked. This delete is best effort only: a replay can
 	// recreate staging, but cannot mutate the ready object. Configure an R2
 	// lifecycle rule ONLY for upload-intents/ (e.g. 1 day), never uploads/.
@@ -110,8 +128,9 @@ func CleanupExpiredPlaygroundUploads(ctx context.Context, now time.Time, limit i
 		return err
 	}
 	for _, asset := range assets {
-		// Fail closed if corrupt data points outside the staging namespace.
-		if !strings.HasPrefix(asset.StorageKey, "upload-intents/") {
+		// Only expired pending uploads, never ready references or library assets.
+		if !strings.HasPrefix(asset.StorageKey, "upload-intents/") &&
+			!strings.HasPrefix(asset.StorageKey, storage.DirectUploadPrefix+strconv.Itoa(asset.UserId)+"/") {
 			return fmt.Errorf("pending asset %d has non-staging key", asset.Id)
 		}
 		store, err := storage.ForBackend(asset.Backend)

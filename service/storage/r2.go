@@ -62,6 +62,34 @@ func newR2Store() (*r2Store, error) {
 
 func (s *r2Store) Backend() string { return "r2" }
 
+func (s *r2Store) inspectUpload(ctx context.Context, key string, size int64) ([]byte, error) {
+	if _, err := cleanKey(key); err != nil {
+		return nil, err
+	}
+	if size <= 0 || !strings.HasPrefix(key, DirectUploadPrefix) {
+		return nil, errors.New("storage: not a create-only upload")
+	}
+	head, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if err != nil {
+		return nil, err
+	}
+	if aws.ToInt64(head.ContentLength) != size || aws.ToString(head.ETag) == "" {
+		return nil, errors.New("uploaded size does not match intent or object has no ETag")
+	}
+	length := min(size, 512)
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket), Key: aws.String(key),
+		Range: aws.String(fmt.Sprintf("bytes=0-%d", length-1)), IfMatch: head.ETag,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer out.Body.Close()
+	header := make([]byte, length)
+	_, err = io.ReadFull(out.Body, header)
+	return header, err
+}
+
 func (s *r2Store) snapshotUpload(ctx context.Context, source, destination string, size int64, contentType string) ([]byte, error) {
 	if _, err := cleanKey(source); err != nil {
 		return nil, err
@@ -201,6 +229,9 @@ func (s *r2Store) PresignPut(ctx context.Context, key, contentType string, ttl t
 	in := &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(clean),
+	}
+	if strings.HasPrefix(clean, DirectUploadPrefix) {
+		in.IfNoneMatch = aws.String("*")
 	}
 	if contentType != "" {
 		in.ContentType = aws.String(contentType)

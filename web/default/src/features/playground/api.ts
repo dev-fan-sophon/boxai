@@ -405,6 +405,7 @@ async function uploadPlaygroundAssetDirect(
       size: file.size,
       kind,
       source,
+      create_only: true,
     },
     { skipErrorHandler: true, validateStatus: () => true }
   )
@@ -412,7 +413,10 @@ async function uploadPlaygroundAssetDirect(
   const put = await fetch(intent.data.data.put_url as string, {
     method: 'PUT',
     body: file,
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      ...intent.data.data.put_headers,
+    },
   })
   if (!put.ok) {
     throw new Error(`Direct upload failed (${put.status})`)

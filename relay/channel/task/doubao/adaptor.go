@@ -451,7 +451,11 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, erro
 	openAIVideo.Status = originTask.Status.ToVideoStatus()
 	openAIVideo.SetProgressStr(originTask.Progress)
 	if originTask.Status == model.TaskStatusSuccess {
-		openAIVideo.SetMetadata("url", taskcommon.BuildProxyURL(originTask.TaskID))
+		resultURL := originTask.GetResultURL()
+		if resultURL == "" {
+			resultURL = taskcommon.BuildProxyURL(originTask.TaskID)
+		}
+		openAIVideo.SetMetadata("url", resultURL)
 	}
 	openAIVideo.CreatedAt = originTask.CreatedAt
 	openAIVideo.CompletedAt = originTask.UpdatedAt

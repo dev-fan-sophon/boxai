@@ -328,3 +328,19 @@ func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 22.0/37.0, ratio)
 }
+
+func TestCompletedVideoReturnsUpstreamURLWithoutArchive(t *testing.T) {
+	task := &model.Task{TaskID: "task_public", Status: model.TaskStatusSuccess, Progress: "100%", Data: []byte(`{"status":"succeeded"}`)}
+	task.PrivateData.ResultURL = "https://media.example/result.mp4?signature=upstream"
+	data, err := (&TaskAdaptor{}).ConvertToOpenAIVideo(task)
+	require.NoError(t, err)
+	var video map[string]any
+	require.NoError(t, common.Unmarshal(data, &video))
+	assert.Equal(t, "completed", video["status"])
+	assert.Contains(t, string(data), task.PrivateData.ResultURL)
+	assert.NotContains(t, string(data), "/content")
+	task.OutputAssetID = 123
+	data, err = (&TaskAdaptor{}).ConvertToOpenAIVideo(task)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "/v1/videos/task_public/content", "previously archived outputs remain usable")
+}

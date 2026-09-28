@@ -161,47 +161,43 @@ back the binary does not require dropping the additive columns; do not drop them
   until authenticated polling confirms a terminal state. Investigate tasks older
   than `TASK_TIMEOUT_MINUTES` rather than assuming a refund occurred. Unverified callbacks
   only request polling; they cannot update results or settle billing.
-- Independent `video_output` jobs persist successful API and Playground videos
-  (created/completed from 2026-09-26 UTC), eight per pass, two downloads at a time.
-  Each pass reserves the first slot for oldest due work and the rest for fresh
-  completions, including retries, so historical backfill cannot take every slot.
-  Downloads have a three-minute deadline and a 200 MiB generated-video size limit;
-  claims last four minutes and a reconciliation pass has a five-minute budget.
-  Reference-video uploads also allow 200 MiB; image/audio/document limits are
+- Automatic generated-video archiving is disabled. No new `video_output` jobs
+  are scheduled; queued jobs from older releases drain without downloading.
+  Seedance responses return upstream result URLs immediately. The owner-scoped
+  `/v1/videos/:id/content` endpoint remains an on-demand streaming proxy, and
+  previously archived outputs remain readable. Upstream URL expiry now determines
+  new output availability; a BoxAI proxy URL does not extend the upstream lifetime.
+- Reference-video uploads allow 200 MiB; image/audio/document limits are
   unchanged. Use signed R2 PUT for large files rather than relying on CDN
   multipart-body limits. Multipart video storage streams instead of buffering
   the whole file; parsing spills above 8 MiB and caps the body at 201 MiB.
-  Failures retain the generation/billing result and retry with backoff up to six
-  hours. Stored `/v1/videos/:id/content` supports streaming and Range;
-  `?redirect=1` opts into a short-lived signed object URL to avoid app bandwidth.
-- Direct uploads remain private/pending until verified. R2 finalization checks
-  actual size with HEAD, conditionally copies that ETag to a server-only key inside
-  R2, and reads at most 512 bytes from the fixed object to check its file type.
-  The app no longer downloads/re-uploads the file or uses temporary disk for R2
-  confirmation. Local storage retains the bounded disk snapshot fallback.
-  Finalization remains four concurrent with a three-minute deadline; no new
-  background queue or browser upload protocol is required.
+- The web uploader requests `create_only: true` and sends the returned
+  `put_headers` (`If-None-Match: *`). R2 rejects overwrites, so the object stays
+  at its original `uploads/direct/` key. Finalize only checks HEAD and up to
+  512 header bytes, then returns a 24-hour `fetch_url`; no copy or full transfer.
+  R2 CORS must allow PUT and these headers from the application's allowed origins.
+  Older clients without `create_only` retain the legacy snapshot fallback.
+  Reference URLs sent upstream are direct 24-hour signed R2 GET URLs.
   `upload_cleanup` removes expired pending uploads only, after a one-hour grace.
+  Ready references keep existing library/chat deletion semantics: URL expiry is
+  not a file-retention policy and must not silently delete saved user assets.
 - Configure an R2 lifecycle expiry **only on `upload-intents/`**, e.g. one day,
   after infrastructure approval. Signed PUT replay can recreate staging objects
   after finalization. Never apply this rule to `uploads/` or `outputs/`.
 - All app instances need the same explicitly configured `CRYPTO_SECRET` (or
-  `SESSION_SECRET`), database and R2 bucket. References use 15-minute signed
-  capabilities and R2 redirects; local legacy assets need shared storage.
+  `SESSION_SECRET`), database and R2 bucket. Local legacy references retain
+  15-minute app fetch capabilities and need shared storage.
 - SQL pools default to 20 open / 5 idle connections per pool per process.
   `SQL_MAX_OPEN_CONNS` / `SQL_MAX_IDLE_CONNS` override these. Budget the sum across
   API replicas, a separate log pool when used, chat, migrations and operators
   below the database connection limit.
 
 Acceptance must include real R2 PUT → finalize → provider reference fetch,
-generated video → R2 → authenticated Range/download, and restart recovery. Watch
-oldest due poll, unpersisted successful output age/attempts, SQL connection waits,
-RSS, temporary-disk usage and network throughput. A growing output backlog needs
-more transfer capacity before increasing generation admission. Hard termination
-between object/asset creation and task attachment can still leave an orphan;
-do not automatically delete unreferenced paid media without a reconciliation
-ledger and an agreed retention policy. No public-cloud traffic allowance or
-production capacity number is implied by these bounded concurrency defaults.
+browser CORS/write-once behavior, completed upstream URL responses, existing
+archived downloads, and restart recovery. Watch oldest due poll, SQL connection
+waits, RSS and proxy bandwidth. Archiving new generated content is intentionally
+deferred; do not reactivate it without capacity and retention planning. No public
+cloud traffic allowance or production capacity number is implied by these bounds.
 
 ### Ops
 
