@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { PricingModel } from '@/features/pricing/types'
@@ -39,6 +40,7 @@ type GenerationComposerProps = {
  */
 export function GenerationComposer(props: GenerationComposerProps) {
   const { t } = useTranslation()
+  const [uploading, setUploading] = useState(false)
   const { text, setText } = useComposerText()
   const model = usePlaygroundStore((state) => state.config.model)
   const group = usePlaygroundStore((state) => state.config.group)
@@ -90,6 +92,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
         })
       : null
   const canSubmit =
+    !uploading &&
     Boolean(model) &&
     (props.modality === 'video'
       ? videoPlan !== null && videoPlan.prompts.length > 0
@@ -136,6 +139,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 label={mediaLabel}
                 value={props.references}
                 onChange={props.onReferencesChange}
+                onUploadingChange={setUploading}
                 attachable
                 kind='image'
                 maxFiles={maxFiles}

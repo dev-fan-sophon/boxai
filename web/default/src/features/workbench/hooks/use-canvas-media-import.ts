@@ -130,8 +130,12 @@ export function useCanvasMediaImport(): {
             }
           }
           offsetX += node.width + IMPORT_GAP
-        } catch {
-          toast.error(t('Failed to upload the file'))
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : t('Failed to upload the file')
+          )
         }
       }
     },
@@ -186,8 +190,12 @@ export function useCanvasMediaImport(): {
           })
           store.connectNodes(node.id, targetNodeId)
           offsetY += size.height + IMPORT_GAP
-        } catch {
-          toast.error(t('Failed to upload the file'))
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : t('Failed to upload the file')
+          )
         }
       }
       useCanvasStore.getState().setSelectedNodes([targetNodeId])

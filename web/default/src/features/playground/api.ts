@@ -408,7 +408,10 @@ async function uploadPlaygroundAssetDirect(
     },
     { skipErrorHandler: true, validateStatus: () => true }
   )
-  if (!intent.data?.success || !intent.data?.data?.put_url) return null
+  if (!intent.data?.success || !intent.data?.data?.put_url) {
+    if (intent.data?.message === 'direct upload is not available') return null
+    throw new Error(intent.data?.message || t('Upload failed'))
+  }
   const put = await fetch(intent.data.data.put_url as string, {
     method: 'PUT',
     body: file,

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import {
   createUploadSession,
   getUploadSession,
+  uploadPlaygroundAsset,
   type PlaygroundAsset,
 } from '../../../api'
 import { AssetLibraryDialog } from './asset-library-dialog'
@@ -25,9 +26,10 @@ type MediaReferenceSlotProps = {
   label: string
   value: MediaReference[]
   onChange: (value: MediaReference[]) => void
+  onUploadingChange?: (uploading: boolean) => void
   accept?: string
   className?: string
-  /** When false, file is kept in UI only (backend may not accept it yet). */
+  /** Disable local uploads when the model cannot accept references. */
   attachable?: boolean
   kind?: 'image' | 'video' | 'audio'
   maxFiles?: number
@@ -42,8 +44,11 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
   const maxFiles = props.maxFiles ?? 1
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [qrPolling, setQrPolling] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const uploadingRef = useRef(false)
 
   const handleFiles = async (files: File[]) => {
+    if (uploadingRef.current) return
     const remaining = maxFiles - props.value.length
     if (remaining <= 0) {
       toast.error(
@@ -75,46 +80,32 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       )
     }
 
+    if (acceptedFiles.length === 0) return
+    uploadingRef.current = true
+    setUploading(true)
+    props.onUploadingChange?.(true)
+    const references: MediaReference[] = []
     try {
-      const references = await Promise.all(
-        acceptedFiles.map(
-          (file) =>
-            new Promise<MediaReference>((resolve, reject) => {
-              const reader = new FileReader()
-              reader.addEventListener(
-                'load',
-                () => {
-                  const dataUrl = String(reader.result ?? '')
-                  if (!dataUrl) {
-                    reject(new Error('empty data URL'))
-                    return
-                  }
-                  resolve({
-                    id: crypto.randomUUID(),
-                    name: file.name,
-                    dataUrl,
-                    file,
-                  })
-                },
-                { once: true }
-              )
-              reader.addEventListener('error', () => reject(reader.error), {
-                once: true,
-              })
-              reader.readAsDataURL(file)
-            })
+      for (const file of acceptedFiles) {
+        const asset = await uploadPlaygroundAsset(
+          file,
+          props.kind ?? 'image',
+          'attachment'
         )
-      )
-      props.onChange([...props.value, ...references])
-      if (!attachable && references.length > 0) {
-        toast.info(t('Reference saved locally'), {
-          description: t(
-            'This model path may not send reference media yet. The file stays ready in the workbench.'
-          ),
+        references.push({
+          id: `asset-${asset.id}`,
+          name: file.name,
+          dataUrl: asset.url,
+          assetId: asset.id,
         })
       }
-    } catch {
-      toast.error(t('Could not read the selected image.'))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('Upload failed'))
+    } finally {
+      if (references.length > 0) props.onChange([...props.value, ...references])
+      uploadingRef.current = false
+      setUploading(false)
+      props.onUploadingChange?.(false)
     }
   }
 
@@ -185,6 +176,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
     <div className={cn('flex flex-wrap items-center gap-1', props.className)}>
       <button
         type='button'
+        disabled={uploading || !attachable}
         onClick={() => inputRef.current?.click()}
         className={cn(
           'inline-flex h-8 items-center gap-1.5 rounded-lg border border-transparent px-2 text-[11px] font-medium transition-colors',
@@ -218,6 +210,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           ) : null}
           <button
             type='button'
+            disabled={uploading}
             className='bg-background/90 text-foreground focus-visible:ring-ring absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full shadow-sm outline-none focus-visible:ring-2'
             aria-label={`${t('Remove reference')}: ${reference.name}`}
             onClick={() =>
@@ -236,6 +229,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         size='icon'
         className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Asset library')}
+        disabled={uploading}
         onClick={() => setLibraryOpen(true)}
       >
         <Library className='size-3.5' />
@@ -246,7 +240,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         size='icon'
         className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Scan to upload')}
-        disabled={qrPolling}
+        disabled={qrPolling || uploading}
         onClick={() => void startQrSession()}
       >
         <QrCode className='size-3.5' />
@@ -254,6 +248,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       <input
         ref={inputRef}
         type='file'
+        disabled={uploading || !attachable}
         accept={props.accept ?? 'image/*'}
         multiple={maxFiles > 1}
         className='sr-only'

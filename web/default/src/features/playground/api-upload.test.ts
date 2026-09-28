@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { uploadPlaygroundAsset } from './api'
+
 const post = vi.fn()
 
 vi.mock('@/lib/api', () => ({
@@ -7,8 +9,6 @@ vi.mock('@/lib/api', () => ({
     post: (...args: unknown[]) => post(...args),
   },
 }))
-
-import { uploadPlaygroundAsset } from './api'
 
 describe('uploadPlaygroundAsset', () => {
   beforeEach(() => {
@@ -87,6 +87,21 @@ describe('uploadPlaygroundAsset', () => {
       'uploaded size does not match intent'
     )
     expect(post).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves upload rejection instead of resending the file through the server', async () => {
+    post.mockResolvedValueOnce({
+      data: { success: false, message: 'file exceeds size limit' },
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const file = new File(['clip'], 'clip.mp4', { type: 'video/mp4' })
+
+    await expect(uploadPlaygroundAsset(file, 'video')).rejects.toThrow(
+      'file exceeds size limit'
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('falls back to multipart when direct upload is unavailable', async () => {
