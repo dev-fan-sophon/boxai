@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // r2Store is an S3-compatible object store backed by Cloudflare R2.
@@ -59,6 +61,50 @@ func newR2Store() (*r2Store, error) {
 }
 
 func (s *r2Store) Backend() string { return "r2" }
+
+func (s *r2Store) snapshotUpload(ctx context.Context, source, destination string, size int64, contentType string) ([]byte, error) {
+	if _, err := cleanKey(source); err != nil {
+		return nil, err
+	}
+	if _, err := cleanKey(destination); err != nil {
+		return nil, err
+	}
+	head, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(source)})
+	if err != nil {
+		return nil, err
+	}
+	if aws.ToInt64(head.ContentLength) != size || aws.ToString(head.ETag) == "" {
+		return nil, errors.New("uploaded size does not match intent or object has no ETag")
+	}
+	// Bind the copy to the inspected version: replaying the signed PUT between
+	// HEAD and COPY must fail, not publish unchecked replacement bytes.
+	_, err = s.client.CopyObject(ctx, &s3.CopyObjectInput{
+		Bucket:            aws.String(s.bucket),
+		Key:               aws.String(destination),
+		CopySource:        aws.String(url.PathEscape(s.bucket + "/" + source)),
+		CopySourceIfMatch: head.ETag,
+		MetadataDirective: types.MetadataDirectiveReplace,
+		ContentType:       aws.String(contentType),
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Read only the immutable destination's header. No full download, upload,
+	// or temporary disk snapshot is needed on the application server.
+	length := min(size, 512)
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(destination),
+		Range:  aws.String(fmt.Sprintf("bytes=0-%d", length-1)),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer out.Body.Close()
+	header := make([]byte, length)
+	_, err = io.ReadFull(out.Body, header)
+	return header, err
+}
 
 func (s *r2Store) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
 	clean, err := cleanKey(key)

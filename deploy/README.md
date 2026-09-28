@@ -174,10 +174,13 @@ back the binary does not require dropping the additive columns; do not drop them
   Failures retain the generation/billing result and retry with backoff up to six
   hours. Stored `/v1/videos/:id/content` supports streaming and Range;
   `?redirect=1` opts into a short-lived signed object URL to avoid app bandwidth.
-- Direct uploads remain private/pending until verified. Finalization uses a
-  bounded disk snapshot (four concurrent, three-minute deadline), then publishes a
-  different immutable object key. It therefore still incurs one object download
-  and upload through the app; presigned upload alone does not eliminate app I/O.
+- Direct uploads remain private/pending until verified. R2 finalization checks
+  actual size with HEAD, conditionally copies that ETag to a server-only key inside
+  R2, and reads at most 512 bytes from the fixed object to check its file type.
+  The app no longer downloads/re-uploads the file or uses temporary disk for R2
+  confirmation. Local storage retains the bounded disk snapshot fallback.
+  Finalization remains four concurrent with a three-minute deadline; no new
+  background queue or browser upload protocol is required.
   `upload_cleanup` removes expired pending uploads only, after a one-hour grace.
 - Configure an R2 lifecycle expiry **only on `upload-intents/`**, e.g. one day,
   after infrastructure approval. Signed PUT replay can recreate staging objects

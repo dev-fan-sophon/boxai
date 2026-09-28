@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -21,9 +19,8 @@ import (
 
 var uploadFinalizeCapacity = make(chan struct{}, 4)
 
-// FinalizePlaygroundUpload verifies one immutable read of the staging object.
-// Never HEAD then copy the mutable signed-PUT key: an attacker could overwrite
-// between verification and copy. The bounded local snapshot is what we publish.
+// FinalizePlaygroundUpload publishes a verified immutable upload. R2 performs
+// a conditional in-bucket copy; only the file header passes through the app.
 func FinalizePlaygroundUpload(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
@@ -65,59 +62,40 @@ func finalizePlaygroundUpload(ctx context.Context, id, userID int) (*model.Playg
 	if err != nil {
 		return nil, err
 	}
-	body, err := store.Open(ctx, asset.StorageKey)
+	key := path.Join("uploads", strconv.Itoa(userID), uuid.NewString())
+	keepObject := false
+	defer func() {
+		if !keepObject {
+			cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancelCleanup()
+			_ = store.Delete(cleanupCtx, key)
+		}
+	}()
+	header, err := storage.SnapshotUpload(ctx, store, asset.StorageKey, key, asset.Size, asset.Mime)
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
-	snapshot, err := os.CreateTemp("", "boxai-upload-*")
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(snapshot.Name())
-	defer snapshot.Close()
-	size, err := io.Copy(snapshot, io.LimitReader(body, limit+1))
-	if err != nil {
-		return nil, err
-	}
-	if size != asset.Size || size > limit {
-		return nil, errors.New("uploaded size does not match intent or exceeds limit")
-	}
-	header := make([]byte, 512)
-	n, err := snapshot.ReadAt(header, 0)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
-	}
-	mime, kind, err := service.SniffPlaygroundMime(header[:n], asset.Mime)
+	mime, kind, err := service.SniffPlaygroundMime(header, asset.Mime)
 	if err != nil {
 		return nil, err
 	}
 	if kind != asset.Kind || mime != service.NormalizePlaygroundMime(asset.Mime) {
 		return nil, errors.New("uploaded content type does not match intent")
 	}
-	if _, err = snapshot.Seek(0, io.SeekStart); err != nil {
-		return nil, err
-	}
-	key := path.Join("uploads", strconv.Itoa(userID), uuid.NewString())
-	err = store.Put(ctx, key, snapshot, size, mime)
-	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancelCleanup()
-	if err != nil {
-		_ = store.Delete(cleanupCtx, key)
-		return nil, err
-	}
-	ready, err := model.FinalizePlaygroundUploadCAS(id, userID, key, mime, playgroundAssetContentURL(id), size, time.Now().Unix())
+	ready, err := model.FinalizePlaygroundUploadCAS(id, userID, key, mime, playgroundAssetContentURL(id), asset.Size, time.Now().Unix())
 	if !ready || err != nil {
-		_ = store.Delete(cleanupCtx, key)
 		if err != nil {
 			return nil, err
 		}
 		// A concurrent same-owner finalize may have won. Return only ready rows.
 		return model.GetPlaygroundAsset(id, userID)
 	}
+	keepObject = true
 	// PUT URLs cannot be revoked. This delete is best effort only: a replay can
 	// recreate staging, but cannot mutate the ready object. Configure an R2
 	// lifecycle rule ONLY for upload-intents/ (e.g. 1 day), never uploads/.
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancelCleanup()
 	_ = store.Delete(cleanupCtx, asset.StorageKey)
 	return model.GetPlaygroundAsset(id, userID)
 }
