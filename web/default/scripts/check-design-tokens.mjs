@@ -70,7 +70,9 @@ for (const file of files) {
 let failed = false
 if (hardErrors.length) {
   console.error('design token lint:')
-  for (const error of hardErrors.slice(0, 30)) console.error(`  ${error}`)
+  for (const error of hardErrors.slice(0, 30)) {
+    console.error(`  ${error}`)
+  }
   failed = true
 }
 
@@ -80,8 +82,9 @@ const ratchet = (label, count, budget, name) => {
       `design token lint: ${count} ${label}, budget is ${budget}. Use semantic tokens instead. Top files:`
     )
     const top = [...paletteByFile.entries()].sort((a, b) => b[1] - a[1])
-    for (const [file, hits] of top.slice(0, 10))
+    for (const [file, hits] of top.slice(0, 10)) {
       console.error(`  ${file} (${hits})`)
+    }
     failed = true
   } else if (count < budget) {
     console.error(
