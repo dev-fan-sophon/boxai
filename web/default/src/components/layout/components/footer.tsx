@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import DOMPurify from 'dompurify'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ZALO_COMMUNITY_URL } from '@/components/zalo-community'
@@ -9,6 +8,18 @@ import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
 
 import { BrandWordmark } from './brand-wordmark'
+
+type HtmlSanitizer = (html: string) => string
+
+// DOMPurify is only needed when an admin configured a custom footer, so fetch
+// it on demand instead of shipping it with every public page.
+let loadedFooterSanitizer: HtmlSanitizer | null = null
+
+async function loadFooterSanitizer(): Promise<HtmlSanitizer> {
+  const module = await import('dompurify')
+  loadedFooterSanitizer = (html) => module.default.sanitize(html)
+  return loadedFooterSanitizer
+}
 
 interface FooterLink {
   text: string
@@ -125,10 +136,34 @@ export function Footer(props: FooterProps) {
   const { t } = useTranslation()
   const { systemName, logo: systemLogo, footerHtml } = useSystemConfig()
 
+  const [sanitizeFooterHtml, setSanitizeFooterHtml] =
+    useState<HtmlSanitizer | null>(() => loadedFooterSanitizer)
   const safeFooterHtml = useMemo(
-    () => (footerHtml ? DOMPurify.sanitize(footerHtml) : ''),
-    [footerHtml]
+    () =>
+      footerHtml && sanitizeFooterHtml ? sanitizeFooterHtml(footerHtml) : '',
+    [footerHtml, sanitizeFooterHtml]
   )
+
+  useEffect(() => {
+    if (!footerHtml || sanitizeFooterHtml) {
+      return
+    }
+
+    let active = true
+    loadFooterSanitizer()
+      .then((sanitizer) => {
+        if (active) {
+          setSanitizeFooterHtml(() => sanitizer)
+        }
+      })
+      .catch(() => {
+        // Never render unsanitized admin HTML; the footer stays empty instead.
+      })
+
+    return () => {
+      active = false
+    }
+  }, [footerHtml, sanitizeFooterHtml])
 
   const displayLogo = systemLogo || props.logo || '/logo.png'
   const displayName = systemName || props.name || 'BoxAI'

@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { MotionPreferences } from './components/page-transition'
+import { RoutePending } from './components/route-pending'
 import { DirectionProvider } from './context/direction-provider'
 import { ThemeProvider } from './context/theme-provider'
 import { i18nReady } from './i18n/config'
@@ -92,6 +93,11 @@ const router = createRouter({
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
+  // Fast loads never flash the placeholder; once it shows, keep it long
+  // enough that it doesn't blink away mid-frame.
+  defaultPendingComponent: RoutePending,
+  defaultPendingMs: 300,
+  defaultPendingMinMs: 300,
 })
 
 // Register the router instance for type safety

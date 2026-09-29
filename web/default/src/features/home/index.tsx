@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
-import { RichContent } from '@/components/rich-content'
+import { PublicLayout } from '@/components/layout/components/public-layout'
 import { useTheme } from '@/context/theme-provider'
 import { useSeo } from '@/hooks/use-page-seo'
 import { isLikelyHtml } from '@/lib/content-format'
@@ -21,6 +20,16 @@ import {
   ZaloCommunity,
 } from './components'
 import { useHomePageContent } from './hooks'
+
+// Only admin-configured home pages render RichContent; lazy-load it so the
+// default landing page doesn't ship marked/DOMPurify/KaTeX.
+const RichContent = lazy(() =>
+  import('@/components/rich-content').then((module) => ({
+    default: module.RichContent,
+  }))
+)
+
+const richContentFallback = <div className='min-h-[50vh]' aria-busy='true' />
 
 export function Home() {
   const { i18n, t } = useTranslation()
@@ -111,12 +120,14 @@ export function Home() {
     if (contentIsHtml) {
       return (
         <PublicLayout showMainContainer={false}>
-          <RichContent
-            mode='html'
-            htmlVariant='isolated'
-            content={content}
-            className='custom-home-content'
-          />
+          <Suspense fallback={richContentFallback}>
+            <RichContent
+              mode='html'
+              htmlVariant='isolated'
+              content={content}
+              className='custom-home-content'
+            />
+          </Suspense>
         </PublicLayout>
       )
     }
@@ -124,11 +135,13 @@ export function Home() {
     return (
       <PublicLayout>
         <div className='mx-auto max-w-6xl px-4 py-8'>
-          <RichContent
-            mode='markdown'
-            content={content}
-            className='custom-home-content'
-          />
+          <Suspense fallback={richContentFallback}>
+            <RichContent
+              mode='markdown'
+              content={content}
+              className='custom-home-content'
+            />
+          </Suspense>
         </div>
       </PublicLayout>
     )
