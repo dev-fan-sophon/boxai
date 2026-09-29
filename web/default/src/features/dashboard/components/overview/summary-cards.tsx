@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
+import { StatCard } from '@/components/stat-card'
 import { Button } from '@/components/ui/button'
 import {
   ChartContainer,
@@ -91,33 +92,6 @@ const HEALTH_CONFIG: Record<
   healthy: { dotClass: 'bg-success', labelKey: 'Healthy' },
   caution: { dotClass: 'bg-warning', labelKey: 'Low balance' },
   critical: { dotClass: 'bg-destructive', labelKey: 'Balance depleted' },
-}
-
-function KpiTile(props: {
-  title: string
-  value: string
-  icon: React.ComponentType<{ className?: string }>
-  tone: 'chart-1' | 'chart-2' | 'chart-3'
-  loading?: boolean
-}) {
-  const Icon = props.icon
-  return (
-    <div className='bg-card ring-border flex flex-col gap-3 rounded-xl p-4 ring-1'>
-      <div className='text-muted-foreground flex items-center gap-2 text-xs font-medium'>
-        <IconBadge tone={props.tone} size='stat'>
-          <Icon />
-        </IconBadge>
-        <span className='truncate'>{props.title}</span>
-      </div>
-      {props.loading ? (
-        <Skeleton className='h-8 w-24' />
-      ) : (
-        <div className='font-mono text-xl font-semibold tracking-tight tabular-nums sm:text-2xl'>
-          {props.value}
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function SummaryCards() {
@@ -323,17 +297,17 @@ export function SummaryCards() {
         </div>
 
         <div className='grid grid-cols-2 gap-3'>
-          <KpiTile
-            title={t('Historical Usage')}
+          <StatCard
+            label={t('Historical Usage')}
             value={formatQuota(usedQuota)}
             icon={TrendingUp}
-            tone='chart-2'
+            iconTone='chart-2'
           />
-          <KpiTile
-            title={t('Request Count')}
+          <StatCard
+            label={t('Request Count')}
             value={formatNumber(requestCount)}
             icon={Activity}
-            tone='chart-3'
+            iconTone='chart-3'
           />
         </div>
       </StaggerItem>

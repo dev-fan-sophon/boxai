@@ -3,13 +3,7 @@ import { Database } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { EmptyState } from '@/components/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -106,17 +100,13 @@ export function MobileCardList<TData>(props: MobileCardListProps<TData>) {
 
   if (!rows || rows.length === 0) {
     return (
-      <div className='border-border rounded-md border p-6'>
-        <Empty className='border-none p-0'>
-          <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
-            </EmptyMedia>
-            <EmptyTitle>{resolvedEmptyTitle}</EmptyTitle>
-            <EmptyDescription>{resolvedEmptyDescription}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
+      <EmptyState
+        icon={Database}
+        title={resolvedEmptyTitle}
+        description={resolvedEmptyDescription}
+        bordered={false}
+        className='border-border min-h-0 rounded-md border border-solid p-6'
+      />
     )
   }
 

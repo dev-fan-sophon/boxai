@@ -3,15 +3,9 @@ import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { DISABLED_ROW_MOBILE } from '@/components/data-table'
+import { EmptyState } from '@/components/empty-state'
 import { MaskedValueDisplay } from '@/components/masked-value-display'
 import { StatusBadge } from '@/components/status-badge'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -65,21 +59,15 @@ export function RedemptionsMobileList(props: RedemptionsMobileListProps) {
 
   if (!rows.length) {
     return (
-      <div className='rounded-lg border p-8'>
-        <Empty className='border-none p-0'>
-          <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
-            </EmptyMedia>
-            <EmptyTitle>{t('No Redemption Codes Found')}</EmptyTitle>
-            <EmptyDescription>
-              {t(
-                'No redemption codes available. Create your first redemption code to get started.'
-              )}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
+      <EmptyState
+        icon={Database}
+        title={t('No Redemption Codes Found')}
+        description={t(
+          'No redemption codes available. Create your first redemption code to get started.'
+        )}
+        bordered={false}
+        className='min-h-0 rounded-lg border border-solid p-8'
+      />
     )
   }
 

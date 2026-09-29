@@ -1,69 +1,39 @@
-import { Database } from 'lucide-react'
+import { Database, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { EmptyState } from '@/components/empty-state'
 import { TableRow, TableCell } from '@/components/ui/table'
 
 interface TableEmptyProps {
-  /**
-   * Number of columns to span
-   */
   colSpan: number
-  /**
-   * Custom title for empty state
-   * @default 'No Data'
-   */
+  /** @default 'No Data' */
   title?: string
-  /**
-   * Custom description for empty state
-   * @default 'No records found. Try adjusting your filters.'
-   */
+  /** @default 'No records found. Try adjusting your filters.' */
   description?: string
-  /**
-   * Custom icon component
-   * @default Database icon
-   */
-  icon?: React.ReactNode
-  /**
-   * Additional content to display (e.g., buttons)
-   */
-  children?: React.ReactNode
+  /** @default Database */
+  icon?: LucideIcon
+  /** Extra content below the message, e.g. a "Create" button. */
+  action?: ReactNode
 }
 
-/**
- * Generic table empty state component
- * Displays a centered empty state message when table has no data
- */
-export function TableEmpty({
-  colSpan,
-  title,
-  description,
-  icon,
-  children,
-}: TableEmptyProps) {
+/** The shared empty state, laid out as a full-width table row. */
+export function TableEmpty(props: TableEmptyProps) {
   const { t } = useTranslation()
-  const resolvedTitle = title ?? t('No Data')
-  const resolvedDescription =
-    description ?? t('No records found. Try adjusting your filters.')
   return (
     <TableRow>
-      <TableCell colSpan={colSpan} className='h-[400px] p-0'>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              {icon || <Database className='size-6' />}
-            </EmptyMedia>
-            <EmptyTitle>{resolvedTitle}</EmptyTitle>
-            <EmptyDescription>{resolvedDescription}</EmptyDescription>
-          </EmptyHeader>
-          {children}
-        </Empty>
+      <TableCell colSpan={props.colSpan} className='h-[400px] p-0'>
+        <EmptyState
+          icon={props.icon ?? Database}
+          title={props.title ?? t('No Data')}
+          description={
+            props.description ??
+            t('No records found. Try adjusting your filters.')
+          }
+          action={props.action}
+          bordered={false}
+          className='h-full min-h-0'
+        />
       </TableCell>
     </TableRow>
   )

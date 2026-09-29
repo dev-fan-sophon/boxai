@@ -3,6 +3,7 @@ import type {
   Row,
   Table as TanstackTable,
 } from '@tanstack/react-table'
+import type { LucideIcon } from 'lucide-react'
 import * as React from 'react'
 
 import { PageFooterPortal } from '@/components/layout/components/page-footer'
@@ -69,7 +70,7 @@ export type DataTablePageProps<TData> = {
   /**
    * Empty-state icon override (desktop only; mobile uses default Database icon).
    */
-  emptyIcon?: React.ReactNode
+  emptyIcon?: LucideIcon
 
   /**
    * Empty-state extra content — e.g. a "Create" button below the message.

@@ -10,9 +10,9 @@ import {
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { StatCard, type StatCardDelta } from '@/components/stat-card'
 import { DashboardSeriesChartView } from '@/features/dashboard/components/ui/dashboard-charts'
 import { PanelWrapper } from '@/features/dashboard/components/ui/panel-wrapper'
-import { StatCard } from '@/features/dashboard/components/ui/stat-card'
 import { formatNumber, formatQuota } from '@/lib/format'
 
 import {
@@ -28,20 +28,37 @@ import {
 import { FunnelPanel } from './funnel-panel'
 import { RetentionPanel } from './retention-panel'
 
-function deltaDescription(
+function periodChange(
   t: (key: string, options?: Record<string, unknown>) => string,
   current: number,
   previous: number
-): string {
+): StatCardDelta {
   const delta = periodDelta(current, previous)
   if (delta === null) {
-    return t('No comparable previous period')
+    return { label: t('No comparable previous period'), tone: 'neutral' }
   }
   const rounded = Math.round(delta * 10) / 10
-  if (rounded === 0) return t('Flat vs previous period')
-  return rounded > 0
-    ? t('Up {{value}}% vs previous period', { value: rounded })
-    : t('Down {{value}}% vs previous period', { value: Math.abs(rounded) })
+  if (rounded === 0) {
+    return {
+      label: t('Flat vs previous period'),
+      tone: 'neutral',
+      direction: 'flat',
+    }
+  }
+  if (rounded > 0) {
+    return {
+      label: t('Up {{value}}% vs previous period', { value: rounded }),
+      tone: 'success',
+      direction: 'up',
+    }
+  }
+  return {
+    label: t('Down {{value}}% vs previous period', {
+      value: Math.abs(rounded),
+    }),
+    tone: 'danger',
+    direction: 'down',
+  }
 }
 
 export function GrowthOverview(props: { days: number }) {
@@ -122,73 +139,65 @@ export function GrowthOverview(props: { days: number }) {
       key: 'new-users',
       title: t('New users'),
       value: formatNumber(current?.new_users ?? 0),
-      description: deltaDescription(
-        t,
-        current?.new_users ?? 0,
-        previous?.new_users ?? 0
-      ),
+      delta: periodChange(t, current?.new_users ?? 0, previous?.new_users ?? 0),
       icon: UserPlus,
       sparkline: trend.map((point) => point.new_users),
-      tone: 'accent-1' as const,
+      iconTone: 'chart-1' as const,
     },
     {
       key: 'active-users',
       title: t('Active users'),
       value: formatNumber(current?.active_users ?? 0),
-      description: deltaDescription(
+      delta: periodChange(
         t,
         current?.active_users ?? 0,
         previous?.active_users ?? 0
       ),
       icon: UserCheck,
       sparkline: trend.map((point) => point.active_users),
-      tone: 'accent-2' as const,
+      iconTone: 'chart-2' as const,
     },
     {
       key: 'paying-users',
       title: t('Paying users'),
       value: formatNumber(current?.paying_users ?? 0),
-      description: t('{{count}} first-time buyers', {
+      hint: t('{{count}} first-time buyers', {
         count: current?.new_paying_users ?? 0,
       }),
       icon: CreditCard,
       sparkline: trend.map((point) => point.paying_users),
-      tone: 'accent-3' as const,
+      iconTone: 'chart-3' as const,
     },
     {
       key: 'revenue',
       title: t('Revenue'),
       value: formatNumber(Math.round((current?.revenue ?? 0) * 100) / 100),
-      description: deltaDescription(
-        t,
-        current?.revenue ?? 0,
-        previous?.revenue ?? 0
-      ),
+      delta: periodChange(t, current?.revenue ?? 0, previous?.revenue ?? 0),
       icon: BadgeDollarSign,
       sparkline: trend.map((point) => point.revenue),
-      tone: 'accent-1' as const,
+      iconTone: 'chart-1' as const,
     },
     {
       key: 'arpu',
       title: t('ARPU / ARPPU'),
       value: `${(current?.arpu ?? 0).toFixed(2)} / ${(current?.arppu ?? 0).toFixed(2)}`,
-      description: t('{{count}} paid orders', {
+      hint: t('{{count}} paid orders', {
         count: current?.paid_orders ?? 0,
       }),
       icon: TrendingUp,
       sparkline: trend.map((point) => point.revenue),
-      tone: 'accent-2' as const,
+      iconTone: 'chart-2' as const,
     },
     {
       key: 'balance',
       title: t('Outstanding balance'),
       value: formatQuota(current?.outstanding_quota ?? 0),
-      description: t('Quota consumed: {{value}}', {
+      hint: t('Quota consumed: {{value}}', {
         value: formatQuota(current?.quota_consumed ?? 0),
       }),
       icon: Wallet,
       sparkline: trend.map((point) => point.quota),
-      tone: 'accent-3' as const,
+      iconTone: 'chart-3' as const,
     },
   ]
 
@@ -196,22 +205,18 @@ export function GrowthOverview(props: { days: number }) {
     <div className='space-y-3'>
       <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
         {cards.map((card) => (
-          <div
+          <StatCard
             key={card.key}
-            className='bg-card ring-border rounded-xl p-3 ring-1 sm:p-4'
-          >
-            <StatCard
-              title={card.title}
-              value={card.value}
-              description={card.description}
-              icon={card.icon}
-              sparkline={card.sparkline}
-              sparklineVariant='line'
-              tone={card.tone}
-              loading={loading}
-              error={error}
-            />
-          </div>
+            label={card.title}
+            value={card.value}
+            delta={card.delta}
+            hint={card.hint}
+            icon={card.icon}
+            iconTone={card.iconTone}
+            sparkline={card.sparkline}
+            loading={loading}
+            error={error}
+          />
         ))}
       </div>
 

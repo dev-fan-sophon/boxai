@@ -1,13 +1,15 @@
+import { Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-enter'
+import { Button } from '@/components/ui/button'
 import { useSeo } from '@/hooks/use-page-seo'
 
 import {
   LoadingSkeleton,
-  EmptyState,
   PricingTable,
   PricingToolbar,
   ModelCardGrid,
@@ -102,11 +104,27 @@ export function Pricing() {
 
   const renderPricingContent = () => {
     if (filteredModels.length === 0) {
+      const hasSearch = searchInput.trim().length > 0
       return (
         <EmptyState
-          searchQuery={searchInput}
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={handleClearAll}
+          className='min-h-[320px]'
+          icon={Search}
+          title={t('No models found')}
+          description={
+            hasSearch
+              ? t(
+                  'No results for "{{query}}". Try adjusting your search or filters.',
+                  { query: searchInput }
+                )
+              : t('No models match your current filters.')
+          }
+          action={
+            (hasActiveFilters || hasSearch) && (
+              <Button variant='outline' size='sm' onClick={handleClearAll}>
+                {t('Clear all filters')}
+              </Button>
+            )
+          }
         />
       )
     }

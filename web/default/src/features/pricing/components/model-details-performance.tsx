@@ -8,6 +8,7 @@ import {
   staticDataTableClassNames as tableStyles,
 } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
+import { StatCard } from '@/components/stat-card'
 import { getPerfMetrics } from '@/features/performance-metrics/api'
 import {
   formatLatency,
@@ -22,35 +23,6 @@ import type { UptimeDayPoint } from '../lib/mock-stats'
 import type { PricingModel } from '../types'
 import { LatencyTrendChart, UptimeTrendChart } from './model-details-charts'
 import { UptimeSparkline } from './model-details-uptime-sparkline'
-
-function StatCard(props: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: React.ReactNode
-  hint?: string
-  valueClassName?: string
-}) {
-  const Icon = props.icon
-  return (
-    <div className='bg-background flex flex-col gap-1 rounded-lg border p-3'>
-      <span className='text-muted-foreground text-3xs inline-flex items-center gap-1.5 font-medium tracking-wider uppercase'>
-        <Icon className='size-3' />
-        {props.label}
-      </span>
-      <span
-        className={cn(
-          'text-foreground font-mono text-lg font-semibold tabular-nums',
-          props.valueClassName
-        )}
-      >
-        {props.value}
-      </span>
-      {props.hint && (
-        <span className='text-muted-foreground text-2xs'>{props.hint}</span>
-      )}
-    </div>
-  )
-}
 
 type PerformanceRow = {
   group: string
@@ -203,17 +175,23 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
     <div className='flex flex-col gap-4'>
       <div className='grid grid-cols-1 gap-2 sm:grid-cols-3'>
         <StatCard
+          compact
+          surface='subtle'
           icon={Timer}
           label='TPS'
           value={formatThroughput(avgTps)}
           hint={t('Sustained tokens per second')}
         />
         <StatCard
+          compact
+          surface='subtle'
           icon={Timer}
           label={t('Average latency')}
           value={formatLatency(avgLatency)}
         />
         <StatCard
+          compact
+          surface='subtle'
           icon={HeartPulse}
           label={t('Success rate')}
           value={formatUptimePct(successRate)}
