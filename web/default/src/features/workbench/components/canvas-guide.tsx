@@ -146,7 +146,7 @@ export function CanvasGuide(props: { open: boolean; onClose: () => void }) {
         style={{ top: cardTop, left: cardLeft, width: CARD_WIDTH }}
       >
         <div className='flex items-center gap-2'>
-          <span className='flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white'>
+          <span className='from-primary to-chart-2 text-primary-foreground flex size-7 items-center justify-center rounded-full bg-gradient-to-br'>
             <step.icon className='size-3.5' />
           </span>
           <p className='flex-1 text-sm font-semibold'>{t(step.title)}</p>

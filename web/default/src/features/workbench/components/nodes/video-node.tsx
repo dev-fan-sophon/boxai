@@ -246,7 +246,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
               className={cn(
                 'flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed text-4xs transition-colors',
                 missingRequiredImage
-                  ? 'border-amber-500/60 text-amber-600 hover:bg-amber-500/10'
+                  ? 'border-warning/60 text-warning hover:bg-warning-subtle'
                   : 'border-border/70 text-muted-foreground hover:text-foreground hover:bg-foreground/5'
               )}
               onPointerDown={(event) => event.stopPropagation()}

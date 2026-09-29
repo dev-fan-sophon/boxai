@@ -323,7 +323,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
       >
         <span
           className={cn(
-            'flex size-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform duration-control group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+            'flex size-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-card shadow-sm transition-transform duration-control group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100',
             accent.chip,
             generating && 'animate-pulse'
           )}

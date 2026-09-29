@@ -27,7 +27,7 @@ import {
   transformImage,
   type CropRect,
 } from '../engine/canvas-media-transform'
-import { useCanvasTheme } from '../engine/canvas-theme'
+import { resolveCanvasColor, useCanvasTheme } from '../engine/canvas-theme'
 import { clampCanvasScale, viewportAtScale } from '../engine/canvas-viewport'
 import { useCanvasGeneration } from '../hooks/use-canvas-generation'
 import {
@@ -677,9 +677,9 @@ export function WorkbenchCanvas(props: { readOnly?: boolean } = {}) {
           onExportImage={async () => {
             const ok = await exportCanvasSnapshot(visibleNodes, {
               title: t('Canvas'),
-              background: theme.canvas.background,
-              stroke: theme.node.stroke,
-              text: theme.node.text,
+              background: resolveCanvasColor(theme.canvas.background),
+              stroke: resolveCanvasColor(theme.node.stroke),
+              text: resolveCanvasColor(theme.node.text),
             })
             if (!ok) toast.error(t('There is nothing to export'))
           }}

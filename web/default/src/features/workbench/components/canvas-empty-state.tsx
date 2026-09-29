@@ -23,21 +23,21 @@ const STARTERS: Array<{
     icon: ImageIcon,
     title: 'Generate an image',
     body: 'One card: write a prompt, pick a model, run it.',
-    chip: 'from-violet-500 to-fuchsia-500',
+    chip: 'from-chart-2 to-chart-8',
   },
   {
     kind: 'image-to-video',
     icon: Film,
     title: 'Turn an image into a video',
     body: 'Two connected cards: the image feeds the video step.',
-    chip: 'from-sky-500 to-cyan-500',
+    chip: 'from-chart-10 to-chart-3',
   },
   {
     kind: 'note',
     icon: StickyNote,
     title: 'Jot down an idea',
     body: 'A note card to park references and prompt fragments.',
-    chip: 'from-amber-400 to-orange-500',
+    chip: 'from-chart-5 to-chart-9',
   },
 ]
 
@@ -75,7 +75,7 @@ export function CanvasEmptyState(props: {
               className='border-border/60 hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-ring group duration-control rounded-xl border p-3.5 text-left transition-[border-color,background-color,transform] outline-none hover:-translate-y-0.5 focus-visible:ring-2'
             >
               <span
-                className={`duration-control flex size-8 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform group-hover:scale-105 ${starter.chip}`}
+                className={`duration-control text-card flex size-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm transition-transform group-hover:scale-105 ${starter.chip}`}
               >
                 <starter.icon className='size-4' />
               </span>

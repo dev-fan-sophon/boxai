@@ -187,7 +187,7 @@ export function NodePromptBar(props: {
             data-guide='node-generate'
             disabled={props.disabled}
             className={cn(
-              'transition-ui ml-auto flex h-8 shrink-0 items-center justify-center gap-1 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-sm hover:brightness-110 active:scale-95 disabled:from-slate-400 disabled:to-slate-400 disabled:opacity-50 disabled:active:scale-100',
+              'transition-ui ml-auto flex h-8 shrink-0 items-center justify-center gap-1 rounded-full bg-gradient-to-br from-primary to-chart-2 text-primary-foreground shadow-sm hover:brightness-110 active:scale-95 disabled:from-neutral disabled:to-neutral disabled:text-neutral-foreground disabled:opacity-50 disabled:active:scale-100',
               props.generateBadge ? 'px-3' : 'w-8'
             )}
             onPointerDown={(event) => event.stopPropagation()}
@@ -218,7 +218,9 @@ export function NodeModelSelect(props: {
       size='sm'
       className={cn(
         'h-8 min-w-0 flex-1 rounded-full border-transparent text-2xs',
-        props.value ? 'bg-foreground/5' : 'bg-amber-500/15 text-amber-700'
+        props.value
+          ? 'bg-foreground/5'
+          : 'bg-warning-subtle text-warning-subtle-foreground'
       )}
       value={props.value ?? ''}
       onPointerDown={(event) => event.stopPropagation()}
