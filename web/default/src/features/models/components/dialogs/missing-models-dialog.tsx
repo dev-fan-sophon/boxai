@@ -4,15 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
+import { EmptyState } from '@/components/empty-state'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
 
@@ -131,17 +125,14 @@ export function MissingModelsDialog({
         </div>
 
         {filteredModels.length === 0 ? (
-          <Empty className='border'>
-            <EmptyHeader>
-              <EmptyMedia variant='icon'>
-                <Search className='h-5 w-5' />
-              </EmptyMedia>
-              <EmptyTitle>{t('No matches found')}</EmptyTitle>
-              <EmptyDescription>
-                {t('Try adjusting your search to locate a missing model.')}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <EmptyState
+            icon={Search}
+            title={t('No matches found')}
+            description={t(
+              'Try adjusting your search to locate a missing model.'
+            )}
+            className='min-h-0'
+          />
         ) : (
           <div className='flex-shrink-0 rounded-lg border'>
             <div className='divide-y'>

@@ -291,9 +291,8 @@ function renderEmptyState<TData>(
       title={props.emptyTitle}
       description={props.emptyDescription}
       icon={props.emptyIcon}
-    >
-      {props.emptyAction}
-    </TableEmpty>
+      action={props.emptyAction}
+    />
   )
 }
 

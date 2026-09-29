@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Dialog } from '@/components/dialog'
+import { EmptyState } from '@/components/empty-state'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -28,12 +29,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -761,14 +756,11 @@ function ResetCreditsPanel(props: {
     )
   } else {
     creditsContent = (
-      <Empty className='min-h-32 border'>
-        <EmptyHeader>
-          <EmptyTitle>{t('No reset credits')}</EmptyTitle>
-          <EmptyDescription>
-            {t('Upstream did not return reset credit details.')}
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        title={t('No reset credits')}
+        description={t('Upstream did not return reset credit details.')}
+        className='min-h-32'
+      />
     )
   }
 

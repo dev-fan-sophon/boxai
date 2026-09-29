@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
-import { IconBadge } from '@/components/ui/icon-badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { StatCard } from '@/components/stat-card'
 import { getUserQuotaDates } from '@/features/dashboard/api'
 import { useModelStatCardsConfig } from '@/features/dashboard/hooks/use-dashboard-config'
 import {
@@ -126,54 +125,28 @@ export function LogStatCards(props: LogStatCardsProps) {
 
   return (
     <StaggerContainer className='bg-border ring-border grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-xl ring-1 sm:grid-cols-3 lg:grid-cols-5'>
-      {items.map((it, idx) => {
-        const Icon = it.icon
-        let valueContent
-        if (loading) {
-          valueContent = <Skeleton className='mt-2 h-7 w-16 sm:h-8 sm:w-20' />
-        } else if (error) {
-          valueContent = (
-            <div className='text-muted-foreground mt-2 font-mono text-xl font-semibold tabular-nums sm:text-2xl'>
-              --
-            </div>
-          )
-        } else {
-          valueContent = (
-            <div
-              className='text-foreground mt-2 max-w-full truncate font-mono text-xl font-semibold tabular-nums sm:text-2xl'
-              title={it.fullValue}
-            >
-              {it.value}
-            </div>
-          )
-        }
-
-        return (
-          <StaggerItem
-            key={it.title}
-            className={cn(
-              'bg-card hover:bg-muted/20 min-w-0 px-3 py-3 transition-colors sm:px-5 sm:py-4',
-              idx === items.length - 1 &&
-                items.length % 2 !== 0 &&
-                'col-span-2 sm:col-span-1'
-            )}
-          >
-            <div className='flex min-w-0 items-center gap-2'>
-              <IconBadge
-                tone={it.iconTone}
-                size='stat'
-                className='size-6 rounded-md sm:size-7 [&>svg]:size-3 sm:[&>svg]:size-3.5'
-              >
-                <Icon />
-              </IconBadge>
-              <div className='text-muted-foreground truncate text-xs font-medium'>
-                {it.title}
-              </div>
-            </div>
-            {valueContent}
-          </StaggerItem>
-        )
-      })}
+      {items.map((it, idx) => (
+        <StaggerItem
+          key={it.title}
+          className={cn(
+            'bg-card hover:bg-muted/20 min-w-0 px-3 py-3 transition-colors sm:px-5 sm:py-4',
+            idx === items.length - 1 &&
+              items.length % 2 !== 0 &&
+              'col-span-2 sm:col-span-1'
+          )}
+        >
+          <StatCard
+            surface='none'
+            label={it.title}
+            value={it.value}
+            valueTitle={it.fullValue}
+            icon={it.icon}
+            iconTone={it.iconTone}
+            loading={loading}
+            error={error}
+          />
+        </StaggerItem>
+      ))}
     </StaggerContainer>
   )
 }

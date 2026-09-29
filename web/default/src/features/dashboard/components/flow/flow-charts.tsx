@@ -14,15 +14,9 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { MultiSelect } from '@/components/multi-select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -407,15 +401,13 @@ export function FlowCharts(props: FlowChartsProps) {
     )
   } else if (displayState === 'empty') {
     chartContent = (
-      <Empty className='h-full border-0 py-12'>
-        <EmptyHeader>
-          <EmptyMedia variant='icon'>
-            <Route />
-          </EmptyMedia>
-          <EmptyTitle>{t('No flow data available')}</EmptyTitle>
-          <EmptyDescription>{t('No data available')}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        icon={Route}
+        title={t('No flow data available')}
+        description={t('No data available')}
+        bordered={false}
+        className='h-full min-h-0 py-12'
+      />
     )
   }
 

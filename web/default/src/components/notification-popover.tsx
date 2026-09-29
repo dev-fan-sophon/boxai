@@ -2,16 +2,10 @@ import type { TFunction } from 'i18next'
 import { Bell, Megaphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { RichContent } from '@/components/rich-content'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import {
   Popover,
   PopoverContent,
@@ -133,31 +127,6 @@ function getAnnouncementRenderKey(announcement: AnnouncementItem): string {
 }
 
 /**
- * Empty state component
- */
-function EmptyState({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  title: string
-  description?: string
-}) {
-  return (
-    <Empty className='min-h-48 border-0 p-4'>
-      <EmptyHeader>
-        <EmptyMedia variant='icon'>{icon}</EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
-        {description ? (
-          <EmptyDescription>{description}</EmptyDescription>
-        ) : null}
-      </EmptyHeader>
-    </Empty>
-  )
-}
-
-/**
  * Notice tab content
  */
 function NoticeContent({
@@ -172,7 +141,9 @@ function NoticeContent({
   if (loading) {
     return (
       <EmptyState
-        icon={<Bell />}
+        bordered={false}
+        className='min-h-48 p-4'
+        icon={Bell}
         title={t('Loading...')}
         description={t('Latest platform updates and notices')}
       />
@@ -181,7 +152,12 @@ function NoticeContent({
 
   if (!notice) {
     return (
-      <EmptyState icon={<Bell />} title={t('No announcements at this time')} />
+      <EmptyState
+        bordered={false}
+        className='min-h-48 p-4'
+        icon={Bell}
+        title={t('No announcements at this time')}
+      />
     )
   }
 
@@ -207,7 +183,9 @@ function AnnouncementsContent({
   if (loading) {
     return (
       <EmptyState
-        icon={<Megaphone />}
+        bordered={false}
+        className='min-h-48 p-4'
+        icon={Megaphone}
         title={t('Loading...')}
         description={t('Latest platform updates and notices')}
       />
@@ -216,7 +194,12 @@ function AnnouncementsContent({
 
   if (announcements.length === 0) {
     return (
-      <EmptyState icon={<Megaphone />} title={t('No system announcements')} />
+      <EmptyState
+        bordered={false}
+        className='min-h-48 p-4'
+        icon={Megaphone}
+        title={t('No system announcements')}
+      />
     )
   }
 

@@ -1,16 +1,10 @@
 import type { Row, Table } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
+import { Database, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { EmptyState } from '@/components/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CARD_STAGGER, MOTION_SPRING } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -36,7 +30,7 @@ export interface DataTableCardGridProps<TData> {
   isLoading?: boolean
   emptyTitle?: string
   emptyDescription?: string
-  emptyIcon?: React.ReactNode
+  emptyIcon?: LucideIcon
   getRowKey?: (row: Row<TData>) => string | number
   getRowClassName?: (row: Row<TData>) => string | undefined
   /**
@@ -119,15 +113,12 @@ export function DataTableCardGrid<TData>(props: DataTableCardGridProps<TData>) {
 
   if (!rows || rows.length === 0) {
     return (
-      <Empty className='border-border/60 bg-card/40 border border-dashed p-8'>
-        <EmptyHeader>
-          <EmptyMedia variant='icon'>
-            {props.emptyIcon ?? <Database className='size-6' />}
-          </EmptyMedia>
-          <EmptyTitle>{resolvedEmptyTitle}</EmptyTitle>
-          <EmptyDescription>{resolvedEmptyDescription}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        icon={props.emptyIcon ?? Database}
+        title={resolvedEmptyTitle}
+        description={resolvedEmptyDescription}
+        className='border-border/60 bg-card/40 min-h-0 p-8'
+      />
     )
   }
 

@@ -13,14 +13,8 @@ import {
   useDebouncedColumnFilter,
   useDataTable,
 } from '@/components/data-table'
+import { EmptyState } from '@/components/empty-state'
 import { StatusBadge } from '@/components/status-badge'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
@@ -90,27 +84,23 @@ function ApiKeysMobileList({
 
   if (!rows.length) {
     return (
-      <div className='rounded-lg border p-8'>
-        <Empty className='border-none p-0'>
-          <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
-            </EmptyMedia>
-            <EmptyTitle>{t('No API Keys Found')}</EmptyTitle>
-            <EmptyDescription>
-              {t(
-                'No API keys available. Create your first API key to get started.'
-              )}
-            </EmptyDescription>
-          </EmptyHeader>
+      <EmptyState
+        icon={Database}
+        title={t('No API Keys Found')}
+        description={t(
+          'No API keys available. Create your first API key to get started.'
+        )}
+        action={
           <a
             href='/docs/console/api-keys'
             className='text-primary mt-3 text-sm hover:underline'
           >
             {t('How to create an API key')}
           </a>
-        </Empty>
-      </div>
+        }
+        bordered={false}
+        className='min-h-0 rounded-lg border border-solid p-8'
+      />
     )
   }
 

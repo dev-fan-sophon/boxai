@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { EmptyState } from '@/components/empty-state'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,12 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -384,14 +379,14 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
 
       <section className='border-border bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border'>
         {!selectedModel || !editData ? (
-          <Empty className='h-full border-0'>
-            <EmptyHeader>
-              <EmptyTitle>{t('Select a model to edit pricing')}</EmptyTitle>
-              <EmptyDescription>
-                {t('Choose a model from the list to view and edit its price.')}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <EmptyState
+            title={t('Select a model to edit pricing')}
+            description={t(
+              'Choose a model from the list to view and edit its price.'
+            )}
+            bordered={false}
+            className='h-full min-h-0'
+          />
         ) : (
           <>
             <div className='flex flex-wrap items-start justify-between gap-3 border-b p-4'>
