@@ -56,11 +56,14 @@ scoped to **only `boxai-backup`**; `postgres-client.env` holds the application
 database connection. Never commit either file.
 
 - `boxai-backup.timer`: daily PostgreSQL custom-format dump, R2 upload and full
-  download SHA-256 verification. Local dumps retain seven days. R2 lifecycle
-  expires **only `ovh/postgres/`** after 30 days; other prefixes are untouched.
+  download SHA-256 verification, plus a private runtime configuration/TLS archive.
+  Local backups retain seven days. R2 lifecycle expires **only `ovh/postgres/`
+  and `ovh/config/`** after 30 days; other prefixes are untouched.
 - `boxai-health.timer`: every two minutes, publish a private heartbeat with
   service, PostgreSQL, Redis, free disk, available memory, load and backup-age
   checks. Backup freshness requires a verified success within 26 hours.
+- `boxai-certbot.timer`: twice-daily renewal checks using the existing webroot
+  configuration; reload nginx only after a certificate is renewed.
 - `workers/health-monitor`: runs outside OVH on the canonical Cloudflare account.
   Every two minutes it checks public gateway/Chat health and the host heartbeat.
   Two failed checks trigger email, with hourly reminders and recovery notices.
@@ -69,7 +72,9 @@ database connection. Never commit either file.
   interpreted as successful notification delivery.
 
 Restore drills download an R2 object into a separate disposable database and
-verify the restored data. A successful upload or VM snapshot alone is not a
+verify the restored data. `scripts/server/database-manifest.sql` compares counts,
+order-independent row hashes and sequence values while writers are stopped.
+A successful upload or VM snapshot alone is not a
 database recovery test. During cutover, stop old writers and drain requests
 before the final dump; compare table counts and billing totals before starting
 the new master. After the new origin accepts writes, DNS-only rollback to the

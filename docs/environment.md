@@ -70,6 +70,11 @@ BOXAI_SSH_HOST_KEY=<single known_hosts line for the host>
 | `BOXAI_ADMIN_TOKEN` | Header `Authorization: Bearer …` |
 | `BOXAI_SSH_*` | `scripts/boxai-server`, `make deploy` / `scripts/deploy-prod.sh` |
 
+The OVH production destination and public host pin are authoritative in
+`deploy/production.env` and `deploy/production_known_hosts`. Source the former
+with `set -a` before manual SSH operations. The release scripts load it themselves;
+old host values in Secrets are not deployment targets. Keep the private key secret.
+
 **Amp:** copy the same keys into the BoxAI Amp project **Settings → Environment / Secrets**.  
 Do **not** put `BOXAI_ADMIN_PASSWORD` in Amp long-term (bootstrap only).  
 Do **not** copy full production `/opt/boxai/.env` into Amp.
@@ -154,6 +159,12 @@ It does **not** grant access to the separate Gmail-owned Cloudflare account.
 ### Agent usage
 
 Subsequent product work that needs edge/CDN/DNS/Workers/R2/email/DNS **should use this token and account** as the default Cloudflare foundation for BoxAI:
+
+The migration added the independently scoped Amp secret
+`BOXAI_CLOUDFLARE_API_TOKEN`. Prefer it for BoxAI operations when present, and set
+the account/zone IDs explicitly from this document. A personal
+`CLOUDFLARE_ACCOUNT_ID` can belong to a different project; do not operate on it
+merely because it is already in the environment.
 
 ```bash
 set -a; source .env.cloudflare; set +a

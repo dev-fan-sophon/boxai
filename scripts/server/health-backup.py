@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import time
 
 import boto3
@@ -24,22 +25,32 @@ def main():
         with path.open('xb') as output:
             path.chmod(0o600)
             subprocess.run([*pg, 'pg_dump', '-Fc', '--no-owner', '--no-acl'], stdout=output, check=True)
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        key = 'ovh/postgres/' + path.name
-        client.upload_file(str(path), bucket, key, ExtraArgs={'Metadata': {'sha256': digest}})
-        # Read back the uploaded object; metadata alone does not prove integrity.
-        response = client.get_object(Bucket=bucket, Key=key)
-        remote_hash = hashlib.sha256()
-        for chunk in response['Body'].iter_chunks(1024 * 1024):
-            remote_hash.update(chunk)
-        response['Body'].close()
-        if remote_hash.hexdigest() != digest:
-            raise RuntimeError('Backup read-back checksum mismatch')
+        settings = path.with_suffix('.tar.gz')
+        with settings.open('xb') as output:
+            settings.chmod(0o600)
+            with tarfile.open(fileobj=output, mode='w:gz') as archive:
+                for filename in ('.env', 'chat.env', 'ovh-postgres-ca.pem', 'postgres-client.env'):
+                    archive.add(ROOT / filename, arcname='opt/boxai/' + filename)
+                archive.add('/etc/nginx', arcname='etc/nginx')
+                archive.add('/etc/letsencrypt', arcname='etc/letsencrypt')
+        for source, prefix in ((path, 'ovh/postgres/'), (settings, 'ovh/config/')):
+            with source.open('rb') as content:
+                digest = hashlib.file_digest(content, 'sha256').hexdigest()
+            key = prefix + source.name
+            client.upload_file(str(source), bucket, key, ExtraArgs={'Metadata': {'sha256': digest}})
+            # Read back the uploaded object; metadata alone does not prove integrity.
+            response = client.get_object(Bucket=bucket, Key=key)
+            remote_hash = hashlib.sha256()
+            for chunk in response['Body'].iter_chunks(1024 * 1024):
+                remote_hash.update(chunk)
+            response['Body'].close()
+            if remote_hash.hexdigest() != digest:
+                raise RuntimeError('Backup read-back checksum mismatch')
+            print('BACKUP_VERIFIED', key, source.stat().st_size, digest)
         (ROOT / 'backups' / 'last-success').write_text(str(int(time.time())))
-        for old in (ROOT / 'backups').glob('*.dump'):
+        for old in [*(ROOT / 'backups').glob('*.dump'), *(ROOT / 'backups').glob('*.tar.gz')]:
             if old.stat().st_mtime < time.time() - 7 * 86400:
                 old.unlink()
-        print('BACKUP_VERIFIED', key, path.stat().st_size, digest)
         return
     if sys.argv[1] != 'health':
         raise SystemExit('Expected backup or health')

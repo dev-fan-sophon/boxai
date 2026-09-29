@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew BoxAI TLS certificates
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/boxai/ops-venv/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"
+TimeoutStartSec=600
+UMask=0077

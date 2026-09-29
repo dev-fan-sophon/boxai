@@ -169,9 +169,17 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 | Layer | Production | Local default |
 |-------|------------|---------------|
 | App (Go + embedded web) | Host binary + **systemd** `boxai.service` on `127.0.0.1:3000` | Optional `go run` / `make start-api` |
-| Postgres / Redis | Docker only (`deploy/docker-compose.infra.yml`) on `127.0.0.1:5432` / `6379` | Optional `docker-compose.dev.yml` (infra only) |
+| Postgres / Redis | OVH managed PostgreSQL over private TLS; Docker Redis on `127.0.0.1:6379` (`BOXAI_POSTGRES_MODE=external`) | Optional `docker-compose.dev.yml` (infra only) |
 | TLS / reverse proxy | nginx → `127.0.0.1:3000` | n/a |
 | Edge / CDN / DNS / Workers / R2 / CF Email | Cloudflare **小 QQ** account (`you-box.com`) | Same account via `.env.cloudflare` |
+
+Production SSH destination and its verified public host key are tracked in
+`deploy/production.env` and `deploy/production_known_hosts`. Both release scripts
+use them instead of legacy host settings. Before manual server operations, run
+`set -a; source deploy/production.env; set +a`. Never start the optional local
+PostgreSQL container on the OVH production host; use `scripts/server/start-infra.sh`.
+When `BOXAI_CLOUDFLARE_API_TOKEN` is present, use it for the canonical BoxAI account
+and zone below; a personal `CLOUDFLARE_ACCOUNT_ID` may refer to another project.
 
 **Commands agents must prefer:**
 
