@@ -107,6 +107,26 @@ describe('buildStudioFeed', () => {
   })
 })
 
+describe('buildStudioFeed ordering with legacy runs', () => {
+  it('keeps timestamp-less legacy cards in place instead of reshuffling', () => {
+    const t = 1_700_000_000_000
+    const feed = buildStudioFeed(
+      [
+        { id: 1, prompt: 'legacy a' },
+        { id: 2, prompt: 'dated', batchId: 'd', createdAt: t },
+        { id: 3, prompt: 'legacy b' },
+      ],
+      [pendingJob('j1', 'new', 'new', t + 1000)]
+    )
+    expect(feed.map((batch) => batch.prompt)).toEqual([
+      'legacy a',
+      'dated',
+      'legacy b',
+      'new',
+    ])
+  })
+})
+
 describe('createLocalRunId', () => {
   it('returns unique negative ids', () => {
     const a = createLocalRunId()

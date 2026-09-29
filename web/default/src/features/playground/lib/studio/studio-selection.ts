@@ -73,16 +73,17 @@ export function toggleStudioSelectionGroup(
 const PERSISTED_ASSET_URL = /^\/api\/playground\/assets\/\d+\/content(?:[?#]|$)/
 
 /**
- * URL a result can be stored under outside this tab (a canvas document):
- * the archived asset route or a remote http(s) URL. In-tab `data:`/`blob:`
- * URLs fall back to the archived asset when there is one; otherwise the
- * result cannot leave the studio and this returns null.
+ * URL a result can be stored under outside this tab (a canvas document).
+ * The archived asset wins: provider http(s) URLs are usually signed and
+ * expire, so they are only a fallback when nothing was archived. In-tab
+ * `data:`/`blob:` URLs without an asset cannot leave the studio (null).
  */
 export function persistedStudioResultUrl(run: StudioRunSummary): string | null {
   const url = run.resultUrl?.trim() ?? ''
-  if (/^https?:\/\//i.test(url) || PERSISTED_ASSET_URL.test(url)) return url
+  if (PERSISTED_ASSET_URL.test(url)) return url
   if (run.assetId && run.assetId > 0) {
     return `/api/playground/assets/${run.assetId}/content`
   }
+  if (/^https?:\/\//i.test(url)) return url
   return null
 }

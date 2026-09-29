@@ -117,14 +117,16 @@ export function buildStudioFeed(
       batch.createdAt = job.queuedAt
     }
   }
+  // Legacy runs may lack timestamps; they inherit the previous card's time
+  // so every card has a key and the comparator stays a total order.
+  let previousKey = Number.NEGATIVE_INFINITY
   return batches
-    .map((batch, index) => ({ batch, index }))
-    .sort((a, b) => {
-      const left = a.batch.createdAt
-      const right = b.batch.createdAt
-      if (left == null || right == null) return a.index - b.index
-      return left - right || a.index - b.index
+    .map((batch, index) => {
+      const key = batch.createdAt ?? previousKey
+      previousKey = key
+      return { batch, index, key }
     })
+    .sort((a, b) => a.key - b.key || a.index - b.index)
     .map((entry) => entry.batch)
 }
 

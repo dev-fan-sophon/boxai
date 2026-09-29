@@ -37,6 +37,11 @@ const activeVideoNodeIds = new Set<string>()
 export type GenerateNodeOptions = {
   /** Regenerate just this node's own slot of an image batch. */
   singleSlot?: boolean
+  /**
+   * Prompt to send instead of the node's saved one, e.g. one `{a|b}`
+   * expansion, so the node keeps its template for the next run.
+   */
+  promptOverride?: string
 }
 
 function errorMessage(error: unknown): string {
@@ -374,6 +379,10 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
       }
 
       const existing = controllersRef.current.get(nodeId)
+      // An image batch keeps its root controller until every slot settles,
+      // even after the root's own image lands; a second click must not abort
+      // the in-flight (already billed) slots. Cancel stays explicit.
+      if (existing && node.type === CanvasNodeType.Image) return
       if (existing) existing.abort()
       stoppedObservationIdsRef.current.delete(nodeId)
 
@@ -388,15 +397,22 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
         node.type === CanvasNodeType.Image && node.metadata?.batchRootId
           ? store.nodes.find((item) => item.id === node.metadata?.batchRootId)
           : undefined
+      // References and preset come from the root; the child's own prompt and
+      // settings win when the user edited them on the expanded child.
       const source = batchRoot ?? node
+      let promptText = source.metadata?.prompt ?? ''
+      if (node.metadata?.prompt?.trim()) promptText = node.metadata.prompt
+      if (generateOptions.promptOverride != null) {
+        promptText = generateOptions.promptOverride
+      }
       const context = buildNodeGenerationContext(
         source.id,
         store.nodes,
         store.connections,
-        source.metadata?.prompt ?? ''
+        promptText
       )
       const settings = resolveGenerationSettings(
-        source,
+        node,
         store.nodes,
         context.presetNodeId
       )
@@ -464,6 +480,9 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
 
         if (node.type === CanvasNodeType.Video) {
           const result = await runCanvasVideoGeneration({
+            // Submissions share the studio's video budget; polling does not
+            // hold a slot, so a long render never blocks the next submit.
+            schedule: studioGenerationLimiters.video.schedule,
             prompt: context.prompt,
             referenceImages: context.referenceImages,
             disableLastFrame: node.metadata?.disableLastFrame,
@@ -557,11 +576,14 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
           })
         )
       }
+      const batchMode = Boolean(node.metadata?.videoBatchMode)
       if (plan.prompts.length === 1) {
-        if (node.metadata?.videoBatchMode) {
+        if (batchMode) {
           store.updateNodeMetadata(nodeId, { prompt: plan.prompts[0] })
+          await generateSingleNode(nodeId)
+          return
         }
-        await generateSingleNode(nodeId)
+        await generateSingleNode(nodeId, { promptOverride: plan.prompts[0] })
         return
       }
 
@@ -570,14 +592,20 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
         plan.prompts,
         store.connections
       )
+      // Batch mode reads prompts from `videoBatchPrompts`, so the root's
+      // `prompt` field is free to hold its own job; a `{a|b}` template in the
+      // single prompt box is kept intact and sent as an override instead.
       store.updateNodeMetadata(nodeId, {
-        prompt: plan.prompts[0],
+        ...(batchMode ? { prompt: plan.prompts[0] } : {}),
         isBatchRoot: true,
         batchChildIds: batch.nodes.map((child) => child.id),
       })
       store.insertNodes(batch.nodes, batch.connections)
       await Promise.all([
-        generateSingleNode(nodeId),
+        generateSingleNode(
+          nodeId,
+          batchMode ? {} : { promptOverride: plan.prompts[0] }
+        ),
         ...batch.nodes.map((child) => generateSingleNode(child.id)),
       ])
     },

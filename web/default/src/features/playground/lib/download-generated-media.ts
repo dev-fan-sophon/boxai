@@ -106,7 +106,8 @@ export async function persistGeneratedMediaAsset(
 ): Promise<PlaygroundAsset> {
   try {
     const blob = await fetchGeneratedMedia(sourceUrl)
-    return uploadPlaygroundAsset(
+    // Awaited so an upload failure reaches the server-side import fallback.
+    return await uploadPlaygroundAsset(
       new File([blob], filename, { type: blob.type }),
       kind
     )

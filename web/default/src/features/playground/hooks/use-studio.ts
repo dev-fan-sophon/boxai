@@ -50,14 +50,23 @@ export function useStudio() {
   const pendingRef = useRef<PendingStudioRun[]>([])
   const cancelledRef = useRef(new Set<string>())
   const blobUrlsRef = useRef<string[]>([])
+  const unmountedRef = useRef(false)
 
-  useEffect(
-    () => () => {
+  // Leaving the playground drops every job still waiting for a slot — the
+  // user can no longer see or cancel them, so they must not start (and bill)
+  // later. Jobs already running finish and land in the session history.
+  useEffect(() => {
+    unmountedRef.current = false
+    const cancelled = cancelledRef.current
+    return () => {
+      unmountedRef.current = true
+      for (const entry of pendingRef.current) {
+        if (entry.status === 'queued') cancelled.add(entry.clientId)
+      }
       for (const url of blobUrlsRef.current) URL.revokeObjectURL(url)
       blobUrlsRef.current = []
-    },
-    []
-  )
+    }
+  }, [])
 
   const updatePending = useCallback(
     (updater: (previous: PendingStudioRun[]) => PendingStudioRun[]) => {
@@ -226,6 +235,10 @@ export function useStudio() {
         settings: snapshot,
       })
       const resultUrl = URL.createObjectURL(blob)
+      if (unmountedRef.current) {
+        URL.revokeObjectURL(resultUrl)
+        return
+      }
       blobUrlsRef.current.push(resultUrl)
       const projectId = await ensureActiveStudioProjectId(generation.sessionId)
       await finalizeRun({
@@ -310,13 +323,13 @@ export function useStudio() {
       const ids = new Set(clientIds)
       const retried = pendingRef.current
         .filter((entry) => ids.has(entry.clientId) && entry.status === 'error')
+        // queuedAt is kept: it anchors the batch card's place in the feed.
         .map(
           (entry): PendingStudioRun => ({
             ...entry,
             status: 'queued',
             error: undefined,
             startedAt: undefined,
-            queuedAt: Date.now(),
           })
         )
       if (retried.length === 0) return

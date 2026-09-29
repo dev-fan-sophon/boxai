@@ -343,6 +343,8 @@ export async function runCanvasVideoGeneration(input: {
     taskId: string
   }) => void
   signal?: AbortSignal
+  /** Concurrency gate for the submit request only (not the polling). */
+  schedule?: <T>(task: () => Promise<T>) => Promise<T>
 }): Promise<{
   url: string
   assetId?: number
@@ -351,14 +353,18 @@ export async function runCanvasVideoGeneration(input: {
   naturalHeight?: number
 }> {
   throwIfAborted(input.signal)
-  const submission = await submitVideo(
-    buildCanvasVideoSubmitInput({
-      prompt: input.prompt,
-      referenceImages: input.referenceImages,
-      disableLastFrame: input.disableLastFrame,
-      settings: input.settings,
-    })
-  )
+  const submitInput = buildCanvasVideoSubmitInput({
+    prompt: input.prompt,
+    referenceImages: input.referenceImages,
+    disableLastFrame: input.disableLastFrame,
+    settings: input.settings,
+  })
+  const submission = input.schedule
+    ? await input.schedule(() => {
+        throwIfAborted(input.signal)
+        return submitVideo(submitInput)
+      })
+    : await submitVideo(submitInput)
   throwIfAborted(input.signal)
 
   const taskId = submission.taskId

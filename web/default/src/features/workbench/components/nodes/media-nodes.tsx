@@ -265,8 +265,11 @@ function ImageBatchStrip(props: {
           if (isCover) label = t('Cover image')
           const canRetry =
             slot?.status === 'error' && !props.readOnly && props.onGenerateSlot
+          // The root's own request may still land and would overwrite a
+          // swapped-in cover, so covers can only change once it settles.
           const canCover =
             !isCover &&
+            slots[0]?.status !== 'loading' &&
             slot?.status === 'success' &&
             slot.content &&
             !props.readOnly

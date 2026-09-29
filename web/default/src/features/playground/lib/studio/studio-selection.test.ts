@@ -123,6 +123,16 @@ describe('persistedStudioResultUrl', () => {
     ).toBe('https://cdn.example/a.png')
   })
 
+  it('prefers the archived asset over an expiring provider URL', () => {
+    expect(
+      persistedStudioResultUrl({
+        id: 1,
+        resultUrl: 'https://provider.example/signed.png?exp=1',
+        assetId: 9,
+      })
+    ).toBe('/api/playground/assets/9/content')
+  })
+
   it('swaps in-tab URLs for the archived asset when one exists', () => {
     expect(
       persistedStudioResultUrl({

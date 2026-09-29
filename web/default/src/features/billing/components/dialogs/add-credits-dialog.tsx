@@ -789,7 +789,12 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
   return (
     <Dialog
       open={props.open}
-      onOpenChange={props.onOpenChange}
+      onOpenChange={(open) => {
+        // While a payment or order request is in flight the dialog stays
+        // put, so a bank-QR order created by that request is always shown.
+        if (!open && (props.processing || props.creemProcessing)) return
+        props.onOpenChange(open)
+      }}
       title={view.title}
       description={view.description}
       contentClassName={
