@@ -21,8 +21,8 @@ import process from 'node:process'
 
 import { globSync } from 'tinyglobby'
 
-const PALETTE_BUDGET = 527
-const HEX_BUDGET = 126
+const PALETTE_BUDGET = 282
+const HEX_BUDGET = 97
 
 const EXEMPT = [
   /lobe-brand-colors\.generated\.ts$/,

@@ -146,7 +146,9 @@ function NoticeContent({
       <EmptyState
         bordered={false}
         className='min-h-48 p-4'
-        icon={Bell} title={t('No announcements at this time')} />
+        icon={Bell}
+        title={t('No announcements at this time')}
+      />
     )
   }
 
@@ -186,7 +188,9 @@ function AnnouncementsContent({
       <EmptyState
         bordered={false}
         className='min-h-48 p-4'
-        icon={Megaphone} title={t('No system announcements')} />
+        icon={Megaphone}
+        title={t('No system announcements')}
+      />
     )
   }
 

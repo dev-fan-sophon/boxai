@@ -114,6 +114,7 @@ function FlowSankeyTooltipContent(props: {
 }
 
 export function FlowSankeyChart(props: FlowSankeyChartProps) {
+  const { t } = useTranslation()
   const handleItemClick = (
     item: SankeyNodeProps | SankeyLinkProps,
     type: SankeyElementType
@@ -191,7 +192,16 @@ export function FlowSankeyChart(props: FlowSankeyChartProps) {
   }, [])
 
   return (
-    <div className='h-full w-full' onClick={handleAreaClick}>
+    // Clicking empty chart space (or pressing Escape) clears the selection.
+    <div
+      className='h-full w-full'
+      role='group'
+      aria-label={t('Request flow')}
+      onClick={handleAreaClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') props.onClearSelection()
+      }}
+    >
       <ChartContainer
         config={FLOW_SANKEY_CHART_CONFIG}
         className='aspect-auto h-full w-full'
