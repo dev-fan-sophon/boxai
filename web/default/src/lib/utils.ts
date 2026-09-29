@@ -5,8 +5,16 @@ import { extendTailwindMerge } from 'tailwind-merge'
 // `src/styles/index.css`) — the whitelist we use instead of `transition-all`.
 // Registering it in the `transition` group lets a later `transition-none` or
 // `transition-colors` from a `className` prop override it as callers expect.
+//
+// The type-scale steps added in `src/styles/theme.css` (`text-4xs` … `text-md`)
+// must be registered as font sizes too: tailwind-merge only knows Tailwind's
+// default size names, classifies any other `text-*` as a color, and would
+// silently drop `text-2xs` when it meets `text-muted-foreground` in one call.
 const twMerge = extendTailwindMerge({
-  extend: { classGroups: { transition: ['transition-ui'] } },
+  extend: {
+    classGroups: { transition: ['transition-ui'] },
+    theme: { text: ['4xs', '3xs', '2xs', 'ui', 'md'] },
+  },
 })
 
 export function cn(...inputs: ClassValue[]) {
