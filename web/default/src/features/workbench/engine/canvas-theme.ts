@@ -1,107 +1,89 @@
 import { useTheme } from '@/context/theme-provider'
 
-export type CanvasColorTheme = 'light' | 'dark'
+/**
+ * Canvas palette expressed as CSS token expressions from `src/styles/theme.css`.
+ * Every value is consumed as a CSS color (inline style, SVG paint, gradient
+ * stop), so it follows the light/dark scheme and the runtime brand color
+ * (`--primary`) without re-rendering. Consumers that cannot evaluate CSS, such
+ * as the 2D canvas export, go through `resolveCanvasColor`.
+ */
+const tint = (token: string, percent: number) =>
+  `color-mix(in oklab, var(${token}) ${percent}%, transparent)`
 
-export const canvasThemes = {
-  light: {
-    canvas: {
-      background: '#ffffff',
-      dot: 'rgba(15,23,42,.14)',
-      line: 'rgba(15,23,42,.065)',
-      selectionFill: 'rgba(79,110,232,.10)',
-    },
-    node: {
-      label: '#4b5563',
-      fill: '#ffffff',
-      panel: '#ffffff',
-      stroke: '#e2e4e8',
-      activeStroke: '#111827',
-      placeholder: '#9ca3af',
-      text: '#111827',
-      muted: '#6b7280',
-      faint: '#9ca3af',
-    },
-    frame: {
-      fill: 'rgba(17,24,39,.025)',
-      stroke: 'rgba(17,24,39,.18)',
-      activeFill: 'rgba(79,110,232,.05)',
-      activeStroke: '#4f6ee8',
-      preview: 'rgba(255,255,255,.82)',
-    },
-    toolbar: {
-      panel: 'rgba(255,255,255,.94)',
-      border: 'rgba(17,24,39,.10)',
-      item: '#4b5563',
-      itemHover: 'rgba(17,24,39,.06)',
-      activeBg: 'rgba(17,24,39,.10)',
-      activeText: '#111827',
-    },
-    spatial: {
-      surface: 'rgba(255,255,255,.72)',
-      elevated: 'rgba(255,255,255,.94)',
-      dropzone: 'rgba(248,250,252,.78)',
-      glow: 'rgba(79,110,232,.18)',
-      glowStrong: 'rgba(79,110,232,.52)',
-      shadow: 'rgba(15,23,42,.18)',
-    },
-    accent: {
-      primary: '#4f6ee8',
-      primarySoft: 'rgba(79,110,232,.14)',
-      danger: '#f87171',
-    },
+const canvasTokens = {
+  canvas: {
+    background: 'var(--background)',
+    dot: tint('--foreground', 15),
+    line: tint('--foreground', 6),
+    selectionFill: tint('--primary', 12),
   },
-  dark: {
-    canvas: {
-      background: '#111111',
-      dot: 'rgba(245,245,245,.16)',
-      line: 'rgba(245,245,245,.065)',
-      selectionFill: 'rgba(91,110,225,.16)',
-    },
-    node: {
-      label: '#a3a3a3',
-      fill: '#242424',
-      panel: '#202020',
-      stroke: 'rgba(255,255,255,.13)',
-      activeStroke: '#f5f5f5',
-      placeholder: '#777777',
-      text: '#f5f5f5',
-      muted: '#a3a3a3',
-      faint: '#666666',
-    },
-    frame: {
-      fill: 'rgba(255,255,255,.025)',
-      stroke: 'rgba(255,255,255,.18)',
-      activeFill: 'rgba(91,110,225,.08)',
-      activeStroke: '#8290f0',
-      preview: 'rgba(24,24,24,.86)',
-    },
-    toolbar: {
-      panel: 'rgba(36,36,36,.94)',
-      border: 'rgba(255,255,255,.12)',
-      item: '#d4d4d4',
-      itemHover: 'rgba(255,255,255,.08)',
-      activeBg: 'rgba(255,255,255,.13)',
-      activeText: '#ffffff',
-    },
-    spatial: {
-      surface: 'rgba(30,30,32,.72)',
-      elevated: 'rgba(22,22,24,.94)',
-      dropzone: 'rgba(10,10,12,.78)',
-      glow: 'rgba(130,144,240,.2)',
-      glowStrong: 'rgba(130,144,240,.58)',
-      shadow: 'rgba(0,0,0,.46)',
-    },
-    accent: {
-      primary: '#8290f0',
-      primarySoft: 'rgba(91,110,225,.2)',
-      danger: '#fb7185',
-    },
+  node: {
+    label: 'var(--muted-foreground)',
+    fill: 'var(--card)',
+    panel: 'var(--card)',
+    stroke: tint('--foreground', 12),
+    activeStroke: 'var(--card-foreground)',
+    placeholder: tint('--muted-foreground', 70),
+    text: 'var(--card-foreground)',
+    muted: 'var(--muted-foreground)',
+    faint: tint('--muted-foreground', 55),
   },
-} as const
+  frame: {
+    fill: tint('--foreground', 3),
+    stroke: tint('--foreground', 18),
+    activeFill: tint('--primary', 6),
+    activeStroke: 'var(--primary)',
+    preview: tint('--card', 84),
+  },
+  toolbar: {
+    panel: tint('--popover', 94),
+    border: tint('--foreground', 10),
+    item: tint('--popover-foreground', 78),
+    itemHover: tint('--foreground', 6),
+    activeBg: tint('--foreground', 10),
+    activeText: 'var(--popover-foreground)',
+  },
+  spatial: {
+    surface: tint('--card', 72),
+    elevated: tint('--popover', 94),
+    // The page ground sits below the card surface in both schemes, so a
+    // translucent wash of it reads as a recessed well inside a node.
+    dropzone: tint('--background', 78),
+    glow: tint('--primary', 18),
+    glowStrong: tint('--primary', 52),
+    // Light shadows tint toward the navy foreground; dark ones need a deeper
+    // neutral falloff (mirrors `--elevation-*` in theme.css).
+    shadow: tint('--foreground', 18),
+  },
+  accent: {
+    primary: 'var(--primary)',
+    primarySoft: tint('--primary', 16),
+    danger: 'var(--destructive)',
+  },
+}
 
-export type CanvasTheme = (typeof canvasThemes)[CanvasColorTheme]
+export type CanvasTheme = typeof canvasTokens
+
+const darkCanvasTokens: CanvasTheme = {
+  ...canvasTokens,
+  spatial: { ...canvasTokens.spatial, shadow: 'rgb(0 0 0 / 0.46)' },
+}
 
 export function useCanvasTheme(): CanvasTheme {
   const { resolvedTheme } = useTheme()
-  return canvasThemes[resolvedTheme === 'dark' ? 'dark' : 'light']
+  return resolvedTheme === 'dark' ? darkCanvasTokens : canvasTokens
+}
+
+/**
+ * Resolves a canvas token expression to a concrete color under the active
+ * scheme. Only for consumers that paint outside CSS (canvas 2D export).
+ */
+export function resolveCanvasColor(value: string): string {
+  const probe = document.createElement('span')
+  probe.style.display = 'none'
+  probe.style.color = value
+  document.body.appendChild(probe)
+  const resolved = getComputedStyle(probe).color
+  probe.remove()
+  return resolved
 }

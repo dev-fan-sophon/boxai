@@ -68,6 +68,8 @@ const ConnectionPath = memo(function ConnectionPath(
   const to = targetAnchor(resolved.to, props.connection.toHandleId)
   const d = bezierPath(from, to)
   const active = props.selected || hovered
+  // Paints are set via `style`: the theme values are token expressions
+  // (var(), color-mix()) that SVG presentation attributes don't reliably parse.
   let strokeColor: string = theme.frame.stroke
   if (hovered) strokeColor = theme.accent.primarySoft
   if (props.selected) strokeColor = theme.accent.primary
@@ -111,7 +113,7 @@ const ConnectionPath = memo(function ConnectionPath(
       <path
         d={d}
         fill='none'
-        stroke={strokeColor}
+        style={{ stroke: strokeColor }}
         strokeWidth={strokeWidth}
         className='duration-control pointer-events-none transition-[stroke,stroke-width]'
         strokeLinecap='round'
@@ -121,7 +123,7 @@ const ConnectionPath = memo(function ConnectionPath(
           cx={from.x}
           cy={from.y}
           r={2.5}
-          fill={theme.accent.primary}
+          style={{ fill: theme.accent.primary }}
           className='pointer-events-none'
         />
       ) : null}
@@ -129,7 +131,7 @@ const ConnectionPath = memo(function ConnectionPath(
         cx={to.x}
         cy={to.y}
         r={3.5}
-        fill={active ? theme.accent.primary : theme.frame.stroke}
+        style={{ fill: active ? theme.accent.primary : theme.frame.stroke }}
         className='duration-control pointer-events-none transition-[fill]'
       />
     </g>
@@ -181,7 +183,7 @@ export function CanvasConnections(props: CanvasConnectionsProps) {
               : targetAnchor(pendingNode, pending.handle.handleId)
           )}
           fill='none'
-          stroke={theme.accent.primary}
+          style={{ stroke: theme.accent.primary }}
           strokeWidth={2 * strokeScale}
           strokeDasharray='6 4'
           strokeLinecap='round'
