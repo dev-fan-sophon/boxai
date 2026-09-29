@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import i18next from 'i18next'
 
 import { getTopupInfo } from '../api'
+import { BILLING_QUERY_KEYS } from '../constants'
 import {
   generatePresetAmounts,
   mergePresetAmounts,
@@ -17,6 +19,8 @@ import type {
 // ============================================================================
 // Topup Info Hook
 // ============================================================================
+
+const EMPTY_PRESETS: PresetAmount[] = []
 
 function parseJsonArray(data: unknown): unknown[] {
   if (Array.isArray(data)) {
@@ -149,75 +153,57 @@ function parseDiscountMap(data: unknown): Record<number, number> {
   )
 }
 
+export interface TopupInfoQueryData {
+  topupInfo: TopupInfo
+  presetAmounts: PresetAmount[]
+}
+
+async function fetchTopupInfo(): Promise<TopupInfoQueryData> {
+  const response = await getTopupInfo()
+  if (!response.success || !response.data) {
+    throw new Error(
+      response.message || i18next.t('Failed to load top-up options')
+    )
+  }
+
+  const topupInfo: TopupInfo = {
+    ...response.data,
+    pay_methods: parsePaymentMethods(
+      response.data.pay_methods,
+      response.data.stripe_min_topup,
+      response.data.bank_qr_min_topup || 0
+    ),
+    amount_options: parseAmountOptions(response.data.amount_options),
+    discount: parseDiscountMap(response.data.discount),
+    creem_products: parseCreemProducts(response.data.creem_products),
+    waffo_pay_methods: parseWaffoPayMethods(response.data.waffo_pay_methods),
+  }
+
+  const presetAmounts =
+    topupInfo.amount_options.length > 0
+      ? mergePresetAmounts(topupInfo.amount_options, topupInfo.discount || {})
+      : generatePresetAmounts(getMinTopupAmount(topupInfo))
+
+  return { topupInfo, presetAmounts }
+}
+
+/**
+ * Top-up configuration (payment methods, presets, discounts). Shared between
+ * the billing page and the profile referral card through the query cache.
+ */
 export function useTopupInfo() {
-  const [topupInfo, setTopupInfo] = useState<TopupInfo | null>(null)
-  const [presetAmounts, setPresetAmounts] = useState<PresetAmount[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetchTopupInfo = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      const response = await getTopupInfo()
-
-      if (!response.success || !response.data) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to fetch topup info:', response.message)
-        return
-      }
-
-      const processedData: TopupInfo = {
-        ...response.data,
-        pay_methods: parsePaymentMethods(
-          response.data.pay_methods,
-          response.data.stripe_min_topup,
-          response.data.bank_qr_min_topup || 0
-        ),
-        amount_options: parseAmountOptions(response.data.amount_options),
-        discount: parseDiscountMap(response.data.discount),
-        creem_products: parseCreemProducts(response.data.creem_products),
-        waffo_pay_methods: parseWaffoPayMethods(
-          response.data.waffo_pay_methods
-        ),
-      }
-
-      setTopupInfo(processedData)
-
-      if (processedData.amount_options.length > 0) {
-        const customPresets = mergePresetAmounts(
-          processedData.amount_options,
-          processedData.discount || {}
-        )
-        setPresetAmounts(customPresets)
-      } else {
-        const minTopup = getMinTopupAmount(processedData)
-        const defaultPresets = generatePresetAmounts(minTopup)
-        setPresetAmounts(defaultPresets)
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch topup info:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    queueMicrotask(() => {
-      if (!cancelled) void fetchTopupInfo()
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [fetchTopupInfo])
+  const query = useQuery({
+    queryKey: BILLING_QUERY_KEYS.topupInfo,
+    queryFn: fetchTopupInfo,
+    // The API interceptor already toasts each failure; retry is user-driven.
+    retry: false,
+  })
 
   return {
-    topupInfo,
-    presetAmounts,
-    loading,
-    refetch: fetchTopupInfo,
+    topupInfo: query.data?.topupInfo ?? null,
+    presetAmounts: query.data?.presetAmounts ?? EMPTY_PRESETS,
+    loading: query.isPending,
+    isError: query.isError,
+    refetch: query.refetch,
   }
 }

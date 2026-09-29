@@ -9,6 +9,7 @@ import {
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ErrorState } from '@/components/error-state'
 import { StatusBadge } from '@/components/status-badge'
 import {
   AlertDialog,
@@ -207,6 +208,8 @@ export function TransactionsSection() {
     pageSize,
     keyword,
     loading,
+    isError,
+    hasData,
     completing,
     isAdmin,
     handlePageChange,
@@ -245,6 +248,15 @@ export function TransactionsSection() {
         ))}
       </div>
     )
+  } else if (isError && !hasData) {
+    recordsContent = (
+      <ErrorState
+        title={t('Failed to load billing history')}
+        description={t('Check your connection and try again.')}
+        onRetry={() => void refresh()}
+        className='min-h-60'
+      />
+    )
   } else if (records.length === 0) {
     recordsContent = (
       <div className='text-muted-foreground flex min-h-40 flex-col items-center justify-center py-10 text-center'>
@@ -269,7 +281,7 @@ export function TransactionsSection() {
             onCopy={copyToClipboard}
             onComplete={setConfirmTradeNo}
             onSubmitProof={setProofTradeNo}
-            onRefresh={refresh}
+            onRefresh={() => void refresh()}
           />
         ))}
       </div>
@@ -397,7 +409,7 @@ export function TransactionsSection() {
         expiresAt={
           records.find((record) => record.trade_no === proofTradeNo)?.expires_at
         }
-        onSubmitted={refresh}
+        onSubmitted={() => void refresh()}
       />
     </>
   )

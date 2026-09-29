@@ -1,3 +1,5 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import i18next from 'i18next'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -7,15 +9,15 @@ import { getSelf } from '@/lib/api'
 
 import { BalanceHero } from './components/balance-hero'
 import { BillingNav } from './components/billing-nav'
-import { AddCreditsDialog } from './components/dialogs/add-credits-dialog'
-import { BankQRPaymentDialog } from './components/dialogs/bank-qr-payment-dialog'
-import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
-import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
+import {
+  AddCreditsDialog,
+  type TopUpStep,
+} from './components/dialogs/add-credits-dialog'
 import { RedeemCodeDialog } from './components/dialogs/redeem-code-dialog'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { TransactionsSection } from './components/transactions-section'
 import { ZaloCommunityCard } from './components/zalo-community-card'
-import { DEFAULT_DISCOUNT_RATE } from './constants'
+import { BILLING_QUERY_KEYS, DEFAULT_DISCOUNT_RATE } from './constants'
 import {
   useTopupInfo,
   usePayment,
@@ -55,8 +57,7 @@ const SECTION_IDS = {
 
 export function Billing(props: BillingProps) {
   const { t } = useTranslation()
-  const [user, setUser] = useState<UserWalletData | null>(null)
-  const [userLoading, setUserLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [topupAmount, setTopupAmount] = useState(0)
   const [couponCode, setCouponCode] = useState('')
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null)
@@ -64,19 +65,23 @@ export function Billing(props: BillingProps) {
     useState<PaymentMethod>()
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [topUpStep, setTopUpStep] = useState<TopUpStep>('configure')
   const [redeemDialogOpen, setRedeemDialogOpen] = useState(false)
   const [redemptionCode, setRedemptionCode] = useState('')
-  const [creemDialogOpen, setCreemDialogOpen] = useState(false)
   const [selectedCreemProduct, setSelectedCreemProduct] =
     useState<CreemProduct | null>(null)
   const [showSubscriptionSection, setShowSubscriptionSection] = useState(true)
-  const [bankQRDialogOpen, setBankQRDialogOpen] = useState(false)
   const [bankQRPayment, setBankQRPayment] = useState<BankQRPaymentData | null>(
     null
   )
 
-  const { topupInfo, presetAmounts, loading: topupLoading } = useTopupInfo()
+  const {
+    topupInfo,
+    presetAmounts,
+    loading: topupLoading,
+    isError: topupError,
+    refetch: refetchTopupInfo,
+  } = useTopupInfo()
   const subscriptionCenter = useSubscriptionCenter()
 
   const {
@@ -95,24 +100,41 @@ export function Billing(props: BillingProps) {
   const { processing: bankQRProcessing, processBankQRPayment } =
     useBankQRPayment()
 
-  const fetchUser = useCallback(async () => {
-    try {
-      setUserLoading(true)
+  const walletQuery = useQuery({
+    queryKey: BILLING_QUERY_KEYS.wallet,
+    queryFn: async () => {
       const response = await getSelf()
-      if (response.success && response.data) {
-        setUser(response.data as UserWalletData)
+      if (!response.success || !response.data) {
+        throw new Error(
+          response.message || i18next.t('Failed to load account balance')
+        )
       }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch user data:', error)
-    } finally {
-      setUserLoading(false)
-    }
-  }, [])
+      return response.data as UserWalletData
+    },
+    retry: false,
+  })
+  const user = walletQuery.data ?? null
 
-  useEffect(() => {
-    fetchUser()
-  }, [fetchUser])
+  // Balance changes after payments and redemptions; history gains new orders.
+  const refreshAfterPayment = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: BILLING_QUERY_KEYS.wallet }),
+      queryClient.invalidateQueries({ queryKey: BILLING_QUERY_KEYS.history }),
+    ])
+  }, [queryClient])
+
+  const invalidateHistory = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: BILLING_QUERY_KEYS.history,
+    })
+  }, [queryClient])
+
+  const openAddCredits = () => {
+    setTopUpStep('configure')
+    setBankQRPayment(null)
+    setSelectedCreemProduct(null)
+    setAddCreditsOpen(true)
+  }
 
   // Gateways return to /billing?pay=..., and legacy links land with
   // show_history=true; both are consumed once and cleared from the URL.
@@ -184,7 +206,7 @@ export function Billing(props: BillingProps) {
     )
   }
 
-  // Opens the layered confirm dialog with the real calculated amount.
+  // Moves the top-up dialog to its review step with the real calculated amount.
   const handleContinueToPay = async () => {
     if (!selectedPaymentMethod) return
     setPaymentLoading(selectedPaymentMethod.type)
@@ -199,7 +221,7 @@ export function Billing(props: BillingProps) {
         couponCode
       )
       if (calculatedAmount === null) return
-      setConfirmDialogOpen(true)
+      setTopUpStep('review')
     } finally {
       setPaymentLoading(null)
     }
@@ -214,10 +236,9 @@ export function Billing(props: BillingProps) {
         couponCode
       )
       if (bankPayment) {
-        setConfirmDialogOpen(false)
-        setAddCreditsOpen(false)
         setBankQRPayment(bankPayment)
-        setBankQRDialogOpen(true)
+        setTopUpStep('bank-qr')
+        invalidateHistory()
       }
       return
     }
@@ -229,9 +250,8 @@ export function Billing(props: BillingProps) {
       : await processPayment(requestAmount, selectedPaymentMethod.type)
 
     if (success) {
-      setConfirmDialogOpen(false)
       setAddCreditsOpen(false)
-      await fetchUser()
+      await refreshAfterPayment()
     }
   }
 
@@ -241,22 +261,22 @@ export function Billing(props: BillingProps) {
     if (success) {
       setRedemptionCode('')
       setRedeemDialogOpen(false)
-      await fetchUser()
+      await refreshAfterPayment()
     }
   }
 
   const handleCreemProductSelect = (product: CreemProduct) => {
     setSelectedCreemProduct(product)
-    setCreemDialogOpen(true)
+    setTopUpStep('creem-review')
   }
 
   const handleCreemConfirm = async () => {
     if (!selectedCreemProduct) return
     const success = await processCreemPayment(selectedCreemProduct.productId)
     if (success) {
-      setCreemDialogOpen(false)
+      setAddCreditsOpen(false)
       setSelectedCreemProduct(null)
-      await fetchUser()
+      await refreshAfterPayment()
     }
   }
 
@@ -309,11 +329,15 @@ export function Billing(props: BillingProps) {
             <section id={SECTION_IDS.overview} className='scroll-mt-16'>
               <BalanceHero
                 user={user}
-                loading={userLoading}
+                loading={walletQuery.isPending}
+                isError={walletQuery.isError}
+                onRetry={() => void walletQuery.refetch()}
                 subscription={subscriptionSummary}
                 subscriptionLoading={subscriptionCenter.loading}
+                subscriptionError={subscriptionCenter.isError}
+                onRetrySubscription={() => void subscriptionCenter.refetch()}
                 redemptionEnabled={topupInfo?.enable_redemption !== false}
-                onAddCredits={() => setAddCreditsOpen(true)}
+                onAddCredits={openAddCredits}
                 onRedeem={() => setRedeemDialogOpen(true)}
                 onManageSubscription={() =>
                   scrollToSection(SECTION_IDS.subscription)
@@ -328,12 +352,14 @@ export function Billing(props: BillingProps) {
                 topupInfo={topupInfo}
                 data={subscriptionCenter.data}
                 loading={subscriptionCenter.loading}
+                isError={subscriptionCenter.isError}
+                onRetry={() => void subscriptionCenter.refetch()}
                 refreshing={subscriptionCenter.refreshing}
                 onRefresh={subscriptionCenter.refresh}
                 onOverageChange={subscriptionCenter.applyOverageSettings}
                 onAvailabilityChange={handleSubscriptionAvailabilityChange}
                 userQuota={user?.quota}
-                onPurchaseSuccess={fetchUser}
+                onPurchaseSuccess={refreshAfterPayment}
               />
             </section>
 
@@ -347,7 +373,12 @@ export function Billing(props: BillingProps) {
       <AddCreditsDialog
         open={addCreditsOpen}
         onOpenChange={setAddCreditsOpen}
+        step={topUpStep}
+        onStepChange={setTopUpStep}
         topupInfo={topupLoading ? null : topupInfo}
+        loading={topupLoading}
+        isError={topupError}
+        onRetry={() => void refetchTopupInfo()}
         presetAmounts={presetAmounts}
         selectedPreset={selectedPreset}
         onSelectPreset={handleSelectPreset}
@@ -373,6 +404,16 @@ export function Billing(props: BillingProps) {
         onCreemProductSelect={handleCreemProductSelect}
         waffoPayMethods={topupInfo?.waffo_pay_methods}
         onWaffoMethodSelect={handleWaffoMethodSelect}
+        onConfirmPayment={handlePaymentConfirm}
+        processing={processing || pancakeProcessing || bankQRProcessing}
+        discountRate={
+          topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
+        }
+        selectedCreemProduct={selectedCreemProduct}
+        onConfirmCreem={handleCreemConfirm}
+        creemProcessing={creemProcessing}
+        bankQRPayment={bankQRPayment}
+        onBankQROrderChanged={invalidateHistory}
       />
 
       <RedeemCodeDialog
@@ -384,35 +425,6 @@ export function Billing(props: BillingProps) {
         onRedeem={handleRedeem}
         redeeming={redeeming}
         topupLink={topupInfo?.topup_link}
-      />
-
-      <PaymentConfirmDialog
-        quote={quote}
-        open={confirmDialogOpen}
-        onOpenChange={setConfirmDialogOpen}
-        onConfirm={handlePaymentConfirm}
-        topupAmount={topupAmount}
-        paymentAmount={paymentAmount}
-        paymentMethod={selectedPaymentMethod}
-        calculating={calculating}
-        processing={processing || pancakeProcessing || bankQRProcessing}
-        discountRate={
-          topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
-        }
-      />
-
-      <CreemConfirmDialog
-        open={creemDialogOpen}
-        onOpenChange={setCreemDialogOpen}
-        onConfirm={handleCreemConfirm}
-        product={selectedCreemProduct}
-        processing={creemProcessing}
-      />
-
-      <BankQRPaymentDialog
-        open={bankQRDialogOpen}
-        onOpenChange={setBankQRDialogOpen}
-        payment={bankQRPayment}
       />
     </>
   )

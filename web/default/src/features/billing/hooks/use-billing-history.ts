@@ -1,5 +1,11 @@
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import i18next from 'i18next'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import { useIsAdmin } from '@/hooks/use-admin'
@@ -10,6 +16,7 @@ import {
   completeOrder,
   isApiSuccess,
 } from '../api'
+import { BILLING_QUERY_KEYS } from '../constants'
 import type { TopupRecord } from '../types'
 
 // ============================================================================
@@ -23,128 +30,113 @@ interface UseBillingHistoryOptions {
   initialPageSize?: number
 }
 
+const EMPTY_RECORDS: TopupRecord[] = []
+
+// Pending bank transfers change state when an admin reviews them, so the
+// visible list is polled while the tab is in the foreground.
+const HISTORY_POLL_INTERVAL_MS = 30_000
+
 export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   const { initialPage = 1, initialPageSize = 10 } = options
   const isAdmin = useIsAdmin()
+  const queryClient = useQueryClient()
 
-  const [records, setRecords] = useState<TopupRecord[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(initialPage)
   const [pageSize, setPageSize] = useState(initialPageSize)
   const [keyword, setKeyword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [completing, setCompleting] = useState(false)
 
-  /**
-   * Fetch billing history
-   */
-  const fetchBillingHistory = useCallback(async () => {
-    setLoading(true)
-    try {
+  const query = useQuery({
+    queryKey: [
+      ...BILLING_QUERY_KEYS.history,
+      { isAdmin, page, pageSize, keyword },
+    ],
+    queryFn: async () => {
       const response = isAdmin
         ? await getAllBillingHistory(page, pageSize, keyword)
         : await getUserBillingHistory(page, pageSize, keyword)
-
-      if (isApiSuccess(response) && response.data) {
-        setRecords(response.data.items || [])
-        setTotal(response.data.total || 0)
-      } else {
-        toast.error(
+      if (!isApiSuccess(response) || !response.data) {
+        throw new Error(
           response.message || i18next.t('Failed to load billing history')
         )
-        setRecords([])
-        setTotal(0)
       }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch billing history:', error)
-      toast.error(i18next.t('Failed to load billing history'))
-      setRecords([])
-      setTotal(0)
-    } finally {
-      setLoading(false)
-    }
-  }, [isAdmin, page, pageSize, keyword])
+      return {
+        items: response.data.items || [],
+        total: response.data.total || 0,
+      }
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: HISTORY_POLL_INTERVAL_MS,
+    retry: false,
+  })
+
+  const completeMutation = useMutation({
+    mutationFn: async (tradeNo: string) => {
+      const response = await completeOrder({ trade_no: tradeNo })
+      if (!isApiSuccess(response)) {
+        toast.error(response.message || i18next.t('Failed to complete order'))
+        return false
+      }
+      toast.success(i18next.t('Order completed successfully'))
+      return true
+    },
+    onSuccess: async (completed) => {
+      if (!completed) return
+      await queryClient.invalidateQueries({
+        queryKey: BILLING_QUERY_KEYS.history,
+      })
+    },
+  })
 
   /**
    * Complete a pending order (admin only)
    */
+  const mutateComplete = completeMutation.mutateAsync
   const handleCompleteOrder = useCallback(
     async (tradeNo: string) => {
       if (!isAdmin) {
         toast.error(i18next.t('Admin access required'))
         return false
       }
-
-      setCompleting(true)
-      try {
-        const response = await completeOrder({ trade_no: tradeNo })
-        if (isApiSuccess(response)) {
-          toast.success(i18next.t('Order completed successfully'))
-          // Refresh the list
-          await fetchBillingHistory()
-          return true
-        } else {
-          toast.error(response.message || i18next.t('Failed to complete order'))
-          return false
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to complete order:', error)
-        toast.error(i18next.t('Failed to complete order'))
-        return false
-      } finally {
-        setCompleting(false)
-      }
+      // Network failures are toasted by the global mutation onError.
+      return mutateComplete(tradeNo).catch(() => false)
     },
-    [isAdmin, fetchBillingHistory]
+    [isAdmin, mutateComplete]
   )
 
-  /**
-   * Change page
-   */
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage)
   }, [])
 
-  /**
-   * Change page size
-   */
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     setPageSize(newPageSize)
     setPage(1) // Reset to first page when changing page size
   }, [])
 
-  /**
-   * Search by keyword
-   */
   const handleSearch = useCallback((newKeyword: string) => {
     setKeyword(newKeyword)
     setPage(1) // Reset to first page when searching
   }, [])
 
-  // Fetch data when dependencies change
-  useEffect(() => {
-    fetchBillingHistory()
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void fetchBillingHistory()
-    }, 30000)
-    return () => clearInterval(timer)
-  }, [fetchBillingHistory])
+  const refetch = query.refetch
+  const refresh = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   return {
-    records,
-    total,
+    records: query.data?.items ?? EMPTY_RECORDS,
+    total: query.data?.total ?? 0,
     page,
     pageSize,
     keyword,
-    loading,
-    completing,
+    loading: query.isPending,
+    isError: query.isError,
+    hasData: query.data !== undefined,
+    completing: completeMutation.isPending,
     isAdmin,
     handlePageChange,
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
-    refresh: fetchBillingHistory,
+    refresh,
   }
 }
