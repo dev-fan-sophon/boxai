@@ -718,6 +718,17 @@ export const STATIC_I18N_KEYS = [
   'First request guide',
   'Press Ctrl/⌘ K to focus search',
 
+  // Rankings periods and model detail tabs (passed through labelKey)
+  '1 day',
+  '1 week',
+  '1 month',
+  '1 year',
+  'Pricing & availability',
+  'Integration',
+  'Auto Detect',
+  'Params (in body)',
+  'Header (Basic Auth)',
+
   // Playground studio: feed density labels and hero starter prompts
   'Compact grid',
   'Comfortable grid',
