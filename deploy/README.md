@@ -91,15 +91,18 @@ and streaming requests, and post-cutover backup read-back checks passed.
 Health, backup and certificate-check timers are enabled. The external monitor
 accepted both a simulated alert and recovery email and runs every two minutes.
 
-**DNS cutover is pending:** the current Cloudflare token can read but cannot
-edit the five production A records. They still point to `160.187.1.155`, whose
-nginx forwards HTTPS traffic to the verified OVH origin. The old application,
-Chat service and Redis are stopped with automatic startup disabled; its old
-database is retained and must not receive new application writes. Keep this
-forwarder running until DNS has moved and caches have expired. After obtaining
-Zone/DNS/Edit permission for `you-box.com`, change the five A records while
-preserving proxy flags and verify certificate renewal with `certbot renew
---dry-run` on OVH. Renewal has not yet been validated against the new origin.
+**DNS cutover is complete:** all five production A records point to
+`15.235.200.162`, preserving the four proxied records and unproxied `api-direct`.
+Public login, Chat, R2 and model smoke tests passed after the switch. On OVH,
+`certbot renew --dry-run --non-interactive` reported all simulated renewals
+succeeded for the certificate covering all five hostnames.
+
+The old host `160.187.1.155` still forwards HTTPS traffic to the verified OVH
+origin for stale DNS clients. Its application, Chat service and Redis are
+stopped with automatic startup disabled. The old database is retained and must
+not receive new application writes. Do not delete the old host or its data
+without separate approval, and do not treat it as an up-to-date database
+rollback target.
 
 ### Frontend vs API release (same origin)
 

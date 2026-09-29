@@ -166,6 +166,13 @@ the account/zone IDs explicitly from this document. A personal
 `CLOUDFLARE_ACCOUNT_ID` can belong to a different project; do not operate on it
 merely because it is already in the environment.
 
+DNS writes use the separate Amp secret `BOXAI_CLOUDFLARE_DNS_API_TOKEN`, scoped
+to DNS editing on `you-box.com`. The current `BOXAI_CLOUDFLARE_API_TOKEN` can
+manage the migration's Workers/R2 resources but returned an authorization error
+for DNS edits; do not assume it inherits the historical full-control token's
+permissions. Keep both token values in Secrets, not shell arguments or files
+committed to Git.
+
 ```bash
 set -a; source .env.cloudflare; set +a
 
