@@ -166,7 +166,7 @@ export function FlowSankeyChart(props: FlowSankeyChartProps) {
           textAnchor={atFirstColumn ? 'end' : 'start'}
           dominantBaseline='middle'
           className={cn(
-            'fill-muted-foreground pointer-events-none text-[11px] font-semibold',
+            'fill-muted-foreground pointer-events-none text-2xs font-semibold',
             node.dimmed && 'opacity-40'
           )}
         >

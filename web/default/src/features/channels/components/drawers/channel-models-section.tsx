@@ -293,14 +293,14 @@ export function ChannelModelsSectionContent(
                               </div>
                             ))}
                             {props.remainingMappingCount > 0 && (
-                              <div className='text-[11px] opacity-70'>
+                              <div className='text-2xs opacity-70'>
                                 +{props.remainingMappingCount}{' '}
                                 {t('more mapping')}
                                 {props.remainingMappingCount > 1 ? 's' : ''}
                               </div>
                             )}
                           </div>
-                          <p className='text-[11px] leading-relaxed opacity-80'>
+                          <p className='text-2xs leading-relaxed opacity-80'>
                             {t(
                               'Users call the model on the left. The platform forwards the request to the upstream model on the right.'
                             )}

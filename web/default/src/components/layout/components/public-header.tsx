@@ -231,7 +231,7 @@ export function PublicHeader(props: PublicHeaderProps) {
               ) : (
                 <BrandWordmark
                   name={displaySiteName}
-                  className='text-[15px] leading-none'
+                  className='text-md leading-none'
                 />
               )}
             </Link>
@@ -243,7 +243,7 @@ export function PublicHeader(props: PublicHeaderProps) {
               {links.map((link) => {
                 const isActive = isNavLinkActive(pathname, link.href)
                 const linkClassName = cn(
-                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap',
+                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-ui font-medium whitespace-nowrap',
                   isActive
                     ? 'bg-foreground/[0.06] text-foreground'
                     : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',

@@ -43,7 +43,7 @@ function SubscriptionPanel(props: BalanceHeroProps) {
           <IconBadge tone='warning' size='stat'>
             <Crown />
           </IconBadge>
-          <div className='text-muted-foreground text-[11px] font-medium tracking-wider uppercase'>
+          <div className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
             {t('Subscription')}
           </div>
         </div>
@@ -86,7 +86,7 @@ function SubscriptionPanel(props: BalanceHeroProps) {
 
       <div>
         <div className='flex items-baseline justify-between gap-2'>
-          <span className='text-muted-foreground text-[11px] font-medium tracking-wider uppercase'>
+          <span className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
             {t('Subscription remaining')}
           </span>
           <span className='font-mono text-lg font-bold tabular-nums'>
@@ -138,7 +138,7 @@ export function BalanceHero(props: BalanceHeroProps) {
     <Card data-card-hover='false' className='overflow-hidden py-0'>
       <CardContent className='grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-8'>
         <div className='flex flex-col gap-4'>
-          <div className='text-muted-foreground text-[11px] font-medium tracking-wider uppercase'>
+          <div className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
             {t('Account balance')}
           </div>
           {props.loading ? (

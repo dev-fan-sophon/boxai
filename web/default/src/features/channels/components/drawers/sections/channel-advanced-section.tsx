@@ -35,7 +35,7 @@ export function ChannelAdvancedSection(props: ChannelAdvancedSectionProps) {
             <Settings className='h-4 w-4' aria-hidden='true' />
           </span>
           <div className='flex flex-col gap-0.5'>
-            <div className='text-[13px] font-semibold'>
+            <div className='text-ui font-semibold'>
               {t('Advanced Settings')}
             </div>
             <div className='text-muted-foreground text-xs'>

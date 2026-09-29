@@ -127,7 +127,7 @@ export function DocSearch() {
           data-docs-search='true'
         />
       </label>
-      <p className='text-muted-foreground px-1 text-[11px]'>
+      <p className='text-muted-foreground text-2xs px-1'>
         {t('Press Ctrl/⌘ K to focus search')}
       </p>
       {results.length > 0 && (

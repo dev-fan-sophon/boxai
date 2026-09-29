@@ -227,7 +227,7 @@ function StatCardDetails(props: { details: StatCardDetail[] }) {
           key={detail.label}
           className='bg-muted/40 rounded-lg border border-transparent px-2.5 py-2'
         >
-          <div className='text-muted-foreground truncate text-[11px] leading-none font-medium'>
+          <div className='text-muted-foreground text-2xs truncate leading-none font-medium'>
             {detail.label}
           </div>
           <div
@@ -281,7 +281,7 @@ export function StatCard(props: StatCardProps) {
         {hasDescription && (
           <p
             className={cn(
-              'text-muted-foreground line-clamp-1 text-[11px] sm:text-xs',
+              'text-muted-foreground line-clamp-1 text-2xs sm:text-xs',
               props.compactMobile && 'hidden sm:block'
             )}
           >
@@ -299,7 +299,7 @@ export function StatCard(props: StatCardProps) {
         {hasDescription && (
           <p
             className={cn(
-              'text-muted-foreground line-clamp-1 text-[11px] leading-relaxed sm:text-xs',
+              'text-muted-foreground line-clamp-1 text-2xs leading-relaxed sm:text-xs',
               props.compactMobile && 'hidden sm:block'
             )}
           >

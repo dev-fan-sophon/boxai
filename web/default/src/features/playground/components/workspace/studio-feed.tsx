@@ -354,12 +354,12 @@ function BatchCard(props: {
           >
             {batch.prompt || t('(no prompt)')}
             {multiPrompt && (
-              <span className='bg-muted text-muted-foreground ml-1.5 inline-flex rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium'>
+              <span className='bg-muted text-muted-foreground text-3xs ml-1.5 inline-flex rounded-full px-1.5 py-0.5 align-middle font-medium'>
                 {t('+{{count}} prompts', { count: batch.prompts.length - 1 })}
               </span>
             )}
           </p>
-          <p className='text-muted-foreground mt-0.5 text-[11px] tabular-nums'>
+          <p className='text-muted-foreground text-2xs mt-0.5 tabular-nums'>
             {[
               batch.model,
               timeLabel,
@@ -539,7 +539,7 @@ function BatchProgress(props: {
           style={{ transform: `scaleX(${fraction})` }}
         />
       </div>
-      <span className='text-muted-foreground text-[11px] tabular-nums'>
+      <span className='text-muted-foreground text-2xs tabular-nums'>
         {t('{{done}} of {{total}} done', {
           done: props.done,
           total: props.total,

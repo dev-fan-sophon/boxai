@@ -288,7 +288,7 @@ export function FrameNodeBody(props: CanvasNodeBodyProps) {
               ) : null}
               {child.type !== CanvasNodeType.Image &&
               child.type !== CanvasNodeType.Video ? (
-                <span className='line-clamp-2 p-0.5 text-[7px]'>
+                <span className='text-4xs line-clamp-2 p-0.5'>
                   {child.metadata?.prompt ||
                     child.metadata?.content ||
                     child.metadata?.storyboard?.rows[0]?.plotDescription ||

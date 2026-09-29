@@ -282,7 +282,7 @@ export function SummaryCards() {
                   )}
                   aria-hidden='true'
                 />
-                <span className='text-muted-foreground text-[11px] font-medium'>
+                <span className='text-muted-foreground text-2xs font-medium'>
                   {t(healthCfg.labelKey)}
                 </span>
               </span>
@@ -291,7 +291,7 @@ export function SummaryCards() {
               {formatQuota(remainQuota)}
             </div>
             <div className='bg-muted/40 flex items-center justify-between gap-2 rounded-lg px-3 py-2.5'>
-              <div className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium'>
+              <div className='text-muted-foreground text-2xs flex items-center gap-1.5 font-medium'>
                 {runwayDays !== null && runwayDays < 3 ? (
                   <TrendingDown className='size-3' aria-hidden='true' />
                 ) : (

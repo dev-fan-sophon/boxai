@@ -122,7 +122,7 @@ function SummaryField<TData>({
       className={cn('bg-muted/20 min-w-0 rounded-md px-2 py-1.5', className)}
     >
       {label != null && label !== '' && (
-        <div className='text-muted-foreground mb-1 text-[11px] leading-none font-medium select-none'>
+        <div className='text-muted-foreground text-2xs mb-1 leading-none font-medium select-none'>
           {label}
         </div>
       )}
@@ -202,7 +202,7 @@ function MobileTokensField({ log }: { log: UsageLog }) {
           {promptTokens.toLocaleString()} / {completionTokens.toLocaleString()}
         </span>
         {showCache ? (
-          <div className='text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-none'>
+          <div className='text-muted-foreground text-2xs flex flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-none'>
             {cacheReadTokens > 0 && (
               <span>
                 {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
@@ -213,9 +213,7 @@ function MobileTokensField({ log }: { log: UsageLog }) {
             )}
           </div>
         ) : (
-          <span className='text-muted-foreground text-[11px] leading-none'>
-            —
-          </span>
+          <span className='text-muted-foreground text-2xs leading-none'>—</span>
         )}
       </div>
     </div>
@@ -242,7 +240,7 @@ function MobileUserField({ log }: { log: UsageLog }) {
       <Avatar className='ring-border/60 size-6 shrink-0 ring-1'>
         <AvatarFallback
           className={cn(
-            'text-[11px] font-semibold',
+            'text-2xs font-semibold',
             !sensitiveVisible && 'bg-muted text-muted-foreground'
           )}
           style={
@@ -329,7 +327,7 @@ function CommonLogsCard<TData>({
         )}
         <SummaryField
           cell={cells.get('token_name')}
-          valueClassName='[&_.flex-col]:max-w-none [&_.flex-col>*:not(:first-child)]:text-[11px] [&_.flex-col>*:not(:first-child)]:leading-none'
+          valueClassName='[&_.flex-col]:max-w-none [&_.flex-col>*:not(:first-child)]:text-2xs [&_.flex-col>*:not(:first-child)]:leading-none'
         />
         {rowData ? (
           <MobileStreamTimingField log={rowData} />

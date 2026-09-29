@@ -187,12 +187,12 @@ export function ModelCatalog(props: ModelCatalogProps) {
                   )}
                   aria-hidden='true'
                 />
-                <span className='text-[10px] leading-none font-semibold tracking-wide'>
+                <span className='text-3xs leading-none font-semibold tracking-wide'>
                   {t(item.labelKey)}
                 </span>
                 <span
                   className={cn(
-                    'font-mono text-[9px] leading-none tabular-nums',
+                    'font-mono text-4xs leading-none tabular-nums',
                     active ? 'text-primary/80' : 'text-muted-foreground'
                   )}
                 >
@@ -246,7 +246,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
               <span className='text-primary block text-xs font-semibold'>
                 {t('Multi-model collaboration')}
               </span>
-              <span className='text-muted-foreground mt-0.5 line-clamp-2 text-[11px]'>
+              <span className='text-muted-foreground text-2xs mt-0.5 line-clamp-2'>
                 {t('Compare answers from several chat models, then summarize.')}
               </span>
             </span>
@@ -352,10 +352,10 @@ function GroupHeader(props: {
   return (
     <div className='bg-sidebar/90 border-border/40 sticky -top-2 z-10 -mx-2 flex items-center gap-1.5 border-b px-3.5 py-1.5 backdrop-blur-md'>
       {props.icon}
-      <span className='text-foreground/80 truncate text-[11px] font-semibold tracking-wide'>
+      <span className='text-foreground/80 text-2xs truncate font-semibold tracking-wide'>
         {props.label}
       </span>
-      <span className='text-muted-foreground font-mono text-[10px] tabular-nums'>
+      <span className='text-muted-foreground text-3xs font-mono tabular-nums'>
         {props.count}
       </span>
     </div>
@@ -500,7 +500,7 @@ function ModelCard(props: {
             {model.model_name}
           </span>
           {isNew && (
-            <span className='bg-chart-4/20 text-chart-4 ring-chart-4/30 shrink-0 rounded px-1 py-px text-[9px] font-bold tracking-wide ring-1'>
+            <span className='bg-chart-4/20 text-chart-4 ring-chart-4/30 text-4xs shrink-0 rounded px-1 py-px font-bold tracking-wide ring-1'>
               {t('NEW')}
             </span>
           )}

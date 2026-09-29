@@ -197,7 +197,7 @@ export function DynamicPricingBreakdown({
             </div>
           </div>
         )}
-        <div className='text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase'>
+        <div className='text-muted-foreground text-3xs mb-1 font-medium tracking-wider uppercase'>
           {t('Raw expression')}
         </div>
         <code className='text-muted-foreground block text-xs break-all'>
@@ -294,7 +294,7 @@ export function DynamicPricingBreakdown({
                       )
                       return (
                         <div key={v.field} className='min-w-0'>
-                          <div className='text-muted-foreground truncate text-[10px] font-medium tracking-wider uppercase'>
+                          <div className='text-muted-foreground text-3xs truncate font-medium tracking-wider uppercase'>
                             {t(v.shortLabel)}
                           </div>
                           <div

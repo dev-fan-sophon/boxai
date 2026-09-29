@@ -236,7 +236,7 @@ export function PricingToolbar(props: PricingToolbarProps) {
             <Filter className='size-4' />
             {t('Filter')}
             {props.activeFilterCount > 0 && (
-              <Badge className='ml-0.5 size-5 justify-center p-0 text-[10px]'>
+              <Badge className='text-3xs ml-0.5 size-5 justify-center p-0'>
                 {props.activeFilterCount}
               </Badge>
             )}
@@ -256,7 +256,7 @@ export function PricingToolbar(props: PricingToolbarProps) {
               <Filter className='size-4' />
               {t('Filter')}
               {props.activeFilterCount > 0 && (
-                <Badge className='size-5 justify-center p-0 text-[10px]'>
+                <Badge className='text-3xs size-5 justify-center p-0'>
                   {props.activeFilterCount}
                 </Badge>
               )}

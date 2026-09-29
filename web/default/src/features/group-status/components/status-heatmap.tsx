@@ -83,7 +83,7 @@ export function StatusHeatmap(props: StatusHeatmapProps) {
             )
           })}
         </div>
-        <div className='text-muted-foreground flex flex-wrap gap-3 text-[10px]'>
+        <div className='text-muted-foreground text-3xs flex flex-wrap gap-3'>
           <LegendDot className={CELL_CLASS.healthy} label={t('Smooth')} />
           <LegendDot className={CELL_CLASS.slow} label={t('Slow')} />
           <LegendDot className={CELL_CLASS.down} label={t('Fault')} />

@@ -740,7 +740,7 @@ function ModelList(props: {
               </span>
               <span
                 className={cn(
-                  'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase',
+                  'shrink-0 rounded-full px-1.5 py-0.5 text-3xs font-medium tracking-wide uppercase',
                   model.configured
                     ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                     : 'bg-muted text-muted-foreground'

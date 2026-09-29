@@ -306,7 +306,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         <div className='min-w-0 flex-1'>
           <h3
             className={cn(
-              'text-foreground truncate text-sm leading-snug font-semibold sm:text-[15px]',
+              'text-foreground truncate text-sm leading-snug font-semibold sm:text-md',
               // 没有展示名时标题就是原始模型 ID，沿用副标题的等宽处理，
               // 避免同一种「标识符」在标题位和副标题位呈现两套字体语义
               !showsModelId && 'font-mono'
@@ -318,14 +318,14 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           {(subtitle || isNew) && (
             <div className='mt-0.5 flex min-w-0 items-center gap-1.5'>
               {isNew && (
-                <span className='bg-primary/10 text-primary inline-flex shrink-0 rounded px-1 py-px text-[10px] font-bold tracking-wide uppercase'>
+                <span className='bg-primary/10 text-primary text-3xs inline-flex shrink-0 rounded px-1 py-px font-bold tracking-wide uppercase'>
                   {t('NEW')}
                 </span>
               )}
               {subtitle && (
                 <span
                   className={cn(
-                    'text-muted-foreground min-w-0 truncate text-[11px]',
+                    'text-muted-foreground min-w-0 truncate text-2xs',
                     showsModelId && 'font-mono'
                   )}
                   title={subtitle}
@@ -338,7 +338,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         </div>
         {cornerDiscount != null && (
           <span
-            className='inline-flex shrink-0 items-center self-start rounded-md bg-rose-500/12 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300'
+            className='text-3xs inline-flex shrink-0 items-center self-start rounded-md bg-rose-500/12 px-1.5 py-0.5 font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300'
             title={cornerDiscountTitle}
           >
             -{formatDiscountPercent(cornerDiscount)}%
@@ -353,7 +353,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
             return (
               <span
                 key={chip.key}
-                className='border-border/60 bg-muted/30 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]'
+                className='border-border/60 bg-muted/30 text-muted-foreground text-2xs inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5'
                 title={chip.title}
               >
                 <ChipIcon className='size-3 shrink-0' aria-hidden />

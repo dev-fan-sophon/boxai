@@ -66,11 +66,6 @@
   /* Single source of truth for the card lift, consumed by the hover rule at
    * the bottom of this file. */
   --card-hover-lift: -2px;
-  --card-hover-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.12);
-}
-
-.dark {
-  --card-hover-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.45);
 }
 
 /* Vercel Geist-style skeleton shimmer */
@@ -116,6 +111,46 @@
     animation: none !important;
     background: var(--skeleton-base) !important;
   }
+}
+
+/*
+ * Stacking scale. Local stacking inside a component may use z-1…z-10; any
+ * layer that must beat other components uses one of these named tiers so
+ * "who wins" is decided here, not by an ever-growing z-[9999] arms race.
+ */
+:root {
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-overlay: 50;
+  --z-guide: 70;
+  --z-floating: 100;
+  --z-skip-link: 999;
+}
+
+@utility z-raised {
+  z-index: var(--z-raised);
+}
+
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
+
+/* Onboarding spotlight above dialogs but below floating pickers. */
+@utility z-guide {
+  z-index: var(--z-guide);
+}
+
+/* Pickers that open from inside dialogs. */
+@utility z-floating {
+  z-index: var(--z-floating);
+}
+
+@utility z-skip-link {
+  z-index: var(--z-skip-link);
 }
 
 @utility container {
@@ -599,7 +634,7 @@
     [data-slot='card']:not([data-card-hover='false']):hover,
     [data-card-hover='true']:hover {
       transform: translateY(var(--card-hover-lift));
-      box-shadow: var(--card-hover-shadow);
+      box-shadow: var(--elevation-raised);
     }
   }
 

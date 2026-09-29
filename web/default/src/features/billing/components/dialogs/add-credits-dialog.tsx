@@ -74,7 +74,7 @@ interface AddCreditsDialogProps {
 function StepHeader(props: { step: string; title: string }) {
   return (
     <div className='flex items-center gap-2.5'>
-      <span className='bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-bold'>
+      <span className='bg-muted text-muted-foreground text-2xs flex size-6 shrink-0 items-center justify-center rounded-md font-mono font-bold'>
         {props.step}
       </span>
       <h3 className='text-sm font-semibold'>{props.title}</h3>
@@ -349,7 +349,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                         )}
                       </span>
                       {showUsdUnit ? (
-                        <span className='text-muted-foreground text-left text-[11px] font-medium tabular-nums'>
+                        <span className='text-muted-foreground text-2xs text-left font-medium tabular-nums'>
                           {usdLabel}
                         </span>
                       ) : null}
@@ -386,7 +386,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                           role='tab'
                           aria-selected={active}
                           className={cn(
-                            'rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors',
+                            'rounded-md px-2 py-0.5 text-2xs font-medium transition-colors',
                             active
                               ? 'bg-background text-foreground shadow-sm'
                               : 'text-muted-foreground hover:text-foreground'
@@ -486,7 +486,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                         {t(method.name)}
                       </span>
                       {method.min_topup ? (
-                        <span className='text-muted-foreground text-[11px]'>
+                        <span className='text-muted-foreground text-2xs'>
                           {t('Minimum top-up {{amount}}', {
                             amount: showUsdUnit
                               ? `${formatPresetCredit(method.min_topup)} (${formatPresetUsd(method.min_topup)})`

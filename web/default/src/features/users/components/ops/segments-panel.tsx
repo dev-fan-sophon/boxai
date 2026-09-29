@@ -110,7 +110,7 @@ export function SegmentsPanel() {
                   {formatNumber(segment.cached_count)}
                 </Badge>
               </div>
-              <div className='text-muted-foreground text-[11px]'>
+              <div className='text-muted-foreground text-2xs'>
                 {segment.refreshed_at
                   ? t('Refreshed {{time}}', {
                       time: formatTimestamp(segment.refreshed_at),

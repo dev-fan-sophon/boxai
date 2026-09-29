@@ -65,7 +65,7 @@ export function ImagePlaceholder(props: {
             </motion.div>
           </AnimatePresence>
         )}
-        <div className='text-muted-foreground flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] tabular-nums'>
+        <div className='text-muted-foreground text-2xs flex flex-wrap items-center justify-center gap-x-2 gap-y-1 tabular-nums'>
           {props.elapsedLabel && (
             <span className='generation-timer inline-flex items-center gap-1.5'>
               <span

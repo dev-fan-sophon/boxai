@@ -184,7 +184,7 @@ function SummaryCell(props: {
         <IconBadge tone={props.tone} size='stat'>
           <Icon />
         </IconBadge>
-        <span className='text-muted-foreground truncate text-[11px] font-medium tracking-wider uppercase'>
+        <span className='text-muted-foreground text-2xs truncate font-medium tracking-wider uppercase'>
           {props.label}
         </span>
       </div>

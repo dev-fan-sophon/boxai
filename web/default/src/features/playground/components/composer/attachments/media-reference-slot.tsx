@@ -179,7 +179,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         disabled={uploading || !attachable}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          'inline-flex h-8 items-center gap-1.5 rounded-lg border border-transparent px-2 text-[11px] font-medium transition-colors',
+          'inline-flex h-8 items-center gap-1.5 rounded-lg border border-transparent px-2 text-2xs font-medium transition-colors',
           'outline-none focus-visible:ring-2 focus-visible:ring-ring',
           props.value.length > 0
             ? 'border-primary/40 bg-primary/10 text-primary'
@@ -204,7 +204,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
             className='border-border size-8 rounded-md border object-cover'
           />
           {props.roleForIndex ? (
-            <span className='bg-background/85 text-foreground/90 pointer-events-none absolute bottom-0 left-0 rounded px-0.5 text-[8px] font-semibold'>
+            <span className='bg-background/85 text-foreground/90 text-4xs pointer-events-none absolute bottom-0 left-0 rounded px-0.5 font-semibold'>
               {props.roleForIndex(index)}
             </span>
           ) : null}

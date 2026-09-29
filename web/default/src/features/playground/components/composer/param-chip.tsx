@@ -97,7 +97,7 @@ export function ParamChip(props: {
                 <span className='flex min-w-0 flex-1 flex-col'>
                   <span className='truncate'>{option.label}</span>
                   {option.hint ? (
-                    <span className='text-muted-foreground truncate text-[11px] font-normal'>
+                    <span className='text-muted-foreground text-2xs truncate font-normal'>
                       {option.hint}
                     </span>
                   ) : null}

@@ -29,7 +29,7 @@ export function FormDirtyIndicator({
     <SettingsPageTitleStatusPortal>
       <span
         className={cn(
-          'inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-[11px] font-medium whitespace-nowrap ring-1 ring-warning/25 ring-inset',
+          'inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-2xs font-medium whitespace-nowrap ring-1 ring-warning/25 ring-inset',
           tone('warning')
         )}
       >

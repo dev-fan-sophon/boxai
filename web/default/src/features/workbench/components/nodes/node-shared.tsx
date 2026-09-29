@@ -194,7 +194,7 @@ export function NodePromptBar(props: {
             onClick={props.onGenerate}
           >
             {props.generateBadge ? (
-              <span className='text-[11px] font-semibold'>
+              <span className='text-2xs font-semibold'>
                 {props.generateBadge}
               </span>
             ) : null}
@@ -217,7 +217,7 @@ export function NodeModelSelect(props: {
     <NativeSelect
       size='sm'
       className={cn(
-        'h-8 min-w-0 flex-1 rounded-full border-transparent text-[11px]',
+        'h-8 min-w-0 flex-1 rounded-full border-transparent text-2xs',
         props.value ? 'bg-foreground/5' : 'bg-amber-500/15 text-amber-700'
       )}
       value={props.value ?? ''}
@@ -244,7 +244,7 @@ export function NodeSettingsChips(props: { items: string[] }) {
       {props.items.map((item) => (
         <span
           key={item}
-          className='bg-foreground/5 text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-medium'
+          className='bg-foreground/5 text-muted-foreground text-3xs rounded-full px-2 py-0.5 font-medium'
         >
           {item}
         </span>
@@ -265,7 +265,7 @@ export function NodeStatusOverlay(props: {
   if (props.status === 'loading') {
     return (
       <div
-        className='absolute inset-0 flex flex-col items-center justify-center gap-2.5 rounded-xl text-[11px] backdrop-blur-md'
+        className='text-2xs absolute inset-0 flex flex-col items-center justify-center gap-2.5 rounded-xl backdrop-blur-md'
         style={{ background: theme.spatial.dropzone, color: theme.node.muted }}
       >
         <span className='relative flex size-8 items-center justify-center'>
@@ -304,7 +304,7 @@ export function NodeStatusOverlay(props: {
   if (props.status === 'error') {
     return (
       <div
-        className='absolute inset-0 flex items-center justify-center rounded-xl p-3 text-center text-[11px] backdrop-blur-sm'
+        className='text-2xs absolute inset-0 flex items-center justify-center rounded-xl p-3 text-center backdrop-blur-sm'
         style={{
           background: theme.spatial.dropzone,
           color: theme.accent.danger,
@@ -326,7 +326,7 @@ export function NodeEmptyMedia(props: {
   const theme = useCanvasTheme()
   return (
     <div
-      className='flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-center text-[11px]'
+      className='text-2xs flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-center'
       style={{ color: theme.node.placeholder }}
     >
       {props.icon ? (

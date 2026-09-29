@@ -138,7 +138,7 @@ export function PendingTile(props: {
             <Icon className='size-4 opacity-70' />
           )}
         </span>
-        <span className='text-muted-foreground text-[11px] font-medium tabular-nums'>
+        <span className='text-muted-foreground text-2xs font-medium tabular-nums'>
           {queued ? t('Queued') : elapsed}
         </span>
       </div>
@@ -154,7 +154,7 @@ export function PendingTile(props: {
         </button>
       )}
       {props.showPrompt && (
-        <p className='text-muted-foreground absolute inset-x-2 bottom-2 line-clamp-1 text-center text-[11px]'>
+        <p className='text-muted-foreground text-2xs absolute inset-x-2 bottom-2 line-clamp-1 text-center'>
           {job.input.prompt}
         </p>
       )}
@@ -237,7 +237,7 @@ export function ImageResultTile(props: {
         onClick={props.onOpen}
       />
       {natural && (
-        <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 z-10 rounded-full px-1.5 py-0.5 font-mono text-[10px] opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100'>
+        <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 z-10 rounded-full px-1.5 py-0.5 font-mono opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100'>
           {natural.w}×{natural.h}
         </span>
       )}
@@ -249,7 +249,7 @@ export function ImageResultTile(props: {
         )}
       >
         {props.caption && (
-          <figcaption className='line-clamp-2 px-1 text-[11px] text-white/90'>
+          <figcaption className='text-2xs line-clamp-2 px-1 text-white/90'>
             {props.caption}
           </figcaption>
         )}
@@ -359,7 +359,7 @@ export function VideoResultTile(props: {
         <div className='skeleton-shimmer absolute inset-0' />
         <div className='absolute inset-0 flex flex-col items-center justify-center gap-1.5'>
           <Video className='text-muted-foreground size-5' aria-hidden='true' />
-          <span className='text-muted-foreground text-[11px] font-medium tabular-nums'>
+          <span className='text-muted-foreground text-2xs font-medium tabular-nums'>
             {percent == null
               ? t('Rendering video…')
               : `${Math.round(percent)}%`}
@@ -402,7 +402,7 @@ export function VideoResultTile(props: {
       </div>
       <div className='flex items-center gap-1.5'>
         {props.caption ? (
-          <figcaption className='text-muted-foreground line-clamp-1 min-w-0 flex-1 text-[11px]'>
+          <figcaption className='text-muted-foreground text-2xs line-clamp-1 min-w-0 flex-1'>
             {props.caption}
           </figcaption>
         ) : (
@@ -443,7 +443,7 @@ export function AudioResultRow(props: {
     <div className='border-border/70 bg-muted/30 flex items-center gap-2 rounded-xl border p-2'>
       <div className='min-w-0 flex-1'>
         {props.caption && (
-          <p className='text-muted-foreground mb-1 line-clamp-1 px-1 text-[11px]'>
+          <p className='text-muted-foreground text-2xs mb-1 line-clamp-1 px-1'>
             {props.caption}
           </p>
         )}

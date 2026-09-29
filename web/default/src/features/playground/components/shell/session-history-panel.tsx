@@ -141,7 +141,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
           <p className='text-foreground truncate text-sm font-semibold'>
             {t('History')}
           </p>
-          <p className='text-muted-foreground truncate text-[11px]'>
+          <p className='text-muted-foreground text-2xs truncate'>
             {t(meta.labelKey)}
           </p>
         </div>
@@ -188,7 +188,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                 <Icon className='size-5' aria-hidden='true' />
               </span>
               <p>{t('No saved sessions yet')}</p>
-              <p className='text-[11px] opacity-80'>
+              <p className='text-2xs opacity-80'>
                 {t('Start chatting or generating to build history here.')}
               </p>
             </div>
@@ -253,7 +253,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                       )}
                       <span className='truncate'>{session.title}</span>
                     </span>
-                    <span className='text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]'>
+                    <span className='text-muted-foreground text-2xs mt-0.5 flex items-center gap-1.5'>
                       <span className='truncate font-mono'>{subtitle}</span>
                       <span aria-hidden='true'>·</span>
                       <span className='shrink-0'>

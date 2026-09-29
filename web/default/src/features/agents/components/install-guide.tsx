@@ -22,7 +22,7 @@ function ChecksumBlock(props: { download: DesktopDownload }) {
       <pre className='bg-muted text-foreground overflow-x-auto rounded-lg px-3 py-2 text-xs'>
         <code>{command}</code>
       </pre>
-      <p className='text-muted-foreground font-mono text-[11px] break-all'>
+      <p className='text-muted-foreground text-2xs font-mono break-all'>
         {props.download.sha256}
       </p>
     </div>

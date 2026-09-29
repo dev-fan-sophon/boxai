@@ -489,7 +489,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               <Avatar className='ring-border/60 size-6 ring-1 max-sm:hidden'>
                 <AvatarFallback
                   className={cn(
-                    'text-[11px] font-semibold',
+                    'text-2xs font-semibold',
                     !sensitiveVisible && 'bg-muted text-muted-foreground'
                   )}
                   style={
@@ -659,7 +659,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               {completionTokens.toLocaleString()}
             </span>
             {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
-              <div className='flex items-center gap-1 text-[11px]'>
+              <div className='text-2xs flex items-center gap-1'>
                 {cacheReadTokens > 0 && (
                   <span className='text-muted-foreground'>
                     {t('Cache')}↓ {cacheReadTokens.toLocaleString()}

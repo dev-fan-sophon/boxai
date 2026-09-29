@@ -256,7 +256,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               >
                 <item.icon />
               </IconBadge>
-              <span className='text-muted-foreground truncate text-[11px] font-medium tracking-wider uppercase'>
+              <span className='text-muted-foreground text-2xs truncate font-medium tracking-wider uppercase'>
                 {item.label}
               </span>
             </div>

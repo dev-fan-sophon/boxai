@@ -178,7 +178,7 @@ export function ChatComposer(props: ChatComposerProps) {
                     onClick={props.onOpenModelCatalog}
                     disabled={!props.onOpenModelCatalog}
                     className={cn(
-                      'border-border/60 bg-muted/40 text-foreground/85 flex h-8 max-w-[9.5rem] shrink-0 items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium outline-none sm:max-w-[13rem]',
+                      'border-border/60 bg-muted/40 text-foreground/85 flex h-8 max-w-[9.5rem] shrink-0 items-center gap-1.5 rounded-lg border px-2 text-2xs font-medium outline-none sm:max-w-[13rem]',
                       'hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring transition-colors focus-visible:ring-2',
                       !props.onOpenModelCatalog && 'pointer-events-none'
                     )}

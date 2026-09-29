@@ -54,7 +54,7 @@ export function CanvasEmptyState(props: {
   return (
     <div className='pointer-events-none absolute inset-0 flex items-center justify-center p-6 pb-24'>
       <div className='landing-animate-scale-in border-border/60 bg-background/85 pointer-events-auto w-full max-w-xl rounded-2xl border p-6 shadow-2xl backdrop-blur-2xl sm:p-7'>
-        <p className='text-primary/90 text-[11px] font-semibold tracking-[0.2em] uppercase'>
+        <p className='text-primary/90 text-2xs font-semibold tracking-[0.2em] uppercase'>
           {t('Canvas')}
         </p>
         <h2 className='mt-1.5 text-lg font-semibold tracking-tight'>
@@ -79,7 +79,7 @@ export function CanvasEmptyState(props: {
               >
                 <starter.icon className='size-4' />
               </span>
-              <span className='mt-2.5 block text-[13px] font-semibold'>
+              <span className='text-ui mt-2.5 block font-semibold'>
                 {t(starter.title)}
               </span>
               <span className='text-muted-foreground mt-0.5 block text-xs text-pretty'>

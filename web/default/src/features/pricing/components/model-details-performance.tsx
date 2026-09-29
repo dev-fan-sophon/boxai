@@ -33,7 +33,7 @@ function StatCard(props: {
   const Icon = props.icon
   return (
     <div className='bg-background flex flex-col gap-1 rounded-lg border p-3'>
-      <span className='text-muted-foreground inline-flex items-center gap-1.5 text-[10px] font-medium tracking-wider uppercase'>
+      <span className='text-muted-foreground text-3xs inline-flex items-center gap-1.5 font-medium tracking-wider uppercase'>
         <Icon className='size-3' />
         {props.label}
       </span>
@@ -46,7 +46,7 @@ function StatCard(props: {
         {props.value}
       </span>
       {props.hint && (
-        <span className='text-muted-foreground text-[11px]'>{props.hint}</span>
+        <span className='text-muted-foreground text-2xs'>{props.hint}</span>
       )}
     </div>
   )

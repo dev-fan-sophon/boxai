@@ -38,7 +38,7 @@ export function ChatAttachmentStrip(props: {
   return (
     <div className='no-scrollbar flex flex-col gap-1 px-3 pb-2 sm:px-5'>
       {failed && (
-        <p className='text-destructive text-[11px]'>
+        <p className='text-destructive text-2xs'>
           {failed.error || t('Could not read this document.')}{' '}
           {t('It will not be sent.')}
         </p>
@@ -85,7 +85,7 @@ export function ChatAttachmentStrip(props: {
                       {attachment.name}
                     </span>
                     {statusLine && (
-                      <span className='text-muted-foreground truncate text-[10px]'>
+                      <span className='text-muted-foreground text-3xs truncate'>
                         {statusLine}
                       </span>
                     )}
@@ -94,7 +94,7 @@ export function ChatAttachmentStrip(props: {
                         type='button'
                         disabled={props.disabled}
                         onClick={() => props.onRetry?.(index)}
-                        className='text-destructive inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline'
+                        className='text-destructive text-3xs inline-flex items-center gap-1 underline-offset-2 hover:underline'
                       >
                         <RotateCcw className='size-3' aria-hidden='true' />
                         {t('Retry')}

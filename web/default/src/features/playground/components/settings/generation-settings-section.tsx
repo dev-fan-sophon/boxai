@@ -56,14 +56,14 @@ export function GenerationSettingsSection(props: {
     return (
       <div className='space-y-3'>
         {!allowed && (
-          <p className='border-destructive/30 bg-destructive/5 text-destructive rounded-lg border px-2.5 py-2 text-[11px] text-pretty'>
+          <p className='border-destructive/30 bg-destructive/5 text-destructive text-2xs rounded-lg border px-2.5 py-2 text-pretty'>
             {t(
               'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
             )}
           </p>
         )}
         {allowed && (
-          <p className='border-border bg-muted/40 text-muted-foreground rounded-lg border px-2.5 py-2 text-[11px] text-pretty'>
+          <p className='border-border bg-muted/40 text-muted-foreground text-2xs rounded-lg border px-2.5 py-2 text-pretty'>
             {t('Image model')}: {model || PLAYGROUND_IMAGE_MODEL}
           </p>
         )}

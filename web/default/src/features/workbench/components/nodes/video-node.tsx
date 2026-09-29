@@ -174,7 +174,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           errorDetails={metadata.errorDetails}
         />
         {metadata.content && hasNatural ? (
-          <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm'>
+          <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono shadow-sm backdrop-blur-sm'>
             {metadata.naturalWidth}×{metadata.naturalHeight}
           </span>
         ) : null}
@@ -220,7 +220,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
                   draggable={false}
                   className='size-full object-cover'
                 />
-                <span className='bg-background/85 text-foreground/90 pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 text-[9px] font-semibold backdrop-blur-sm'>
+                <span className='bg-background/85 text-foreground/90 text-4xs pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 font-semibold backdrop-blur-sm'>
                   {referenceRole(index)}
                 </span>
                 {props.readOnly ? null : (
@@ -244,7 +244,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
               title={t('Add reference images')}
               aria-label={t('Add reference images')}
               className={cn(
-                'flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed text-[9px] transition-colors',
+                'flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed text-4xs transition-colors',
                 missingRequiredImage
                   ? 'border-amber-500/60 text-amber-600 hover:bg-amber-500/10'
                   : 'border-border/70 text-muted-foreground hover:text-foreground hover:bg-foreground/5'
@@ -272,14 +272,14 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         </div>
         <div className='flex items-center gap-2'>
           <span
-            className='min-w-0 flex-1 truncate text-[10px]'
+            className='text-3xs min-w-0 flex-1 truncate'
             style={{ color: theme.node.muted }}
           >
             {referenceSummary()}
           </span>
           {capabilities.maxReferenceImages > 1 ? (
             <div
-              className='bg-foreground/5 flex shrink-0 rounded-full p-0.5 text-[10px] font-medium'
+              className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
               role='radiogroup'
               aria-label={t('Reference mode')}
             >
@@ -311,7 +311,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           capabilities.supportsLastFrame &&
           references.length > 1 ? (
             <label
-              className='flex shrink-0 items-center gap-1 text-[10px]'
+              className='text-3xs flex shrink-0 items-center gap-1'
               style={{ color: theme.node.muted }}
               onPointerDown={(event) => event.stopPropagation()}
             >

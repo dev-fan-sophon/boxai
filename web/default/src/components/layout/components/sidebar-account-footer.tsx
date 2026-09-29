@@ -124,7 +124,7 @@ export function SidebarAccountFooter() {
                 )}
               >
                 <span className='flex items-baseline justify-between gap-2'>
-                  <span className='text-muted-foreground text-[10px] tracking-wide uppercase'>
+                  <span className='text-muted-foreground text-3xs tracking-wide uppercase'>
                     {t('Account balance')}
                   </span>
                   <span className='text-sidebar-foreground truncate text-sm font-semibold tabular-nums'>
@@ -133,7 +133,7 @@ export function SidebarAccountFooter() {
                 </span>
                 {subscriptionLabel && (
                   <span className='flex items-baseline justify-between gap-2'>
-                    <span className='text-muted-foreground text-[10px] tracking-wide uppercase'>
+                    <span className='text-muted-foreground text-3xs tracking-wide uppercase'>
                       {t('Subscription remaining')}
                     </span>
                     <span className='text-muted-foreground truncate text-xs font-medium tabular-nums'>

@@ -81,7 +81,7 @@ function DocsNavigation(props: {
           {group.section === 'api' &&
             protocols.map(([protocol, profiles]) => (
               <div key={protocol} className='mt-2 mb-1'>
-                <p className='text-muted-foreground px-3 py-1 text-[11px] font-medium tracking-wide uppercase'>
+                <p className='text-muted-foreground text-2xs px-3 py-1 font-medium tracking-wide uppercase'>
                   {protocol}
                 </p>
                 {profiles.map((profile) => {

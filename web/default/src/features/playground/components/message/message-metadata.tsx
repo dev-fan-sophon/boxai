@@ -97,7 +97,7 @@ export function MessageMetadata(props: MessageMetadataProps) {
       onFocus={() => hasDiagnostics && setExpanded(true)}
       onBlur={() => setExpanded(false)}
       className={cn(
-        'text-muted-foreground mt-1 flex min-h-4 flex-wrap items-center gap-1.5 text-[10px] leading-none outline-none',
+        'text-muted-foreground mt-1 flex min-h-4 flex-wrap items-center gap-1.5 text-3xs leading-none outline-none',
         props.alignment === 'right' && 'justify-end',
         hasDiagnostics && 'cursor-default'
       )}
@@ -115,7 +115,7 @@ export function MessageMetadata(props: MessageMetadataProps) {
       {messageTime ? <time>{messageTime}</time> : null}
 
       {expanded && hasDiagnostics ? (
-        <span className='flex flex-wrap items-center gap-1.5 text-[10px]'>
+        <span className='text-3xs flex flex-wrap items-center gap-1.5'>
           {duration ? (
             <>
               <span aria-hidden='true'>·</span>

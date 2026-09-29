@@ -84,7 +84,7 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           errorDetails={metadata.errorDetails}
         />
         {metadata.content && hasNatural ? (
-          <span className='bg-background/85 text-foreground/90 pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono text-[10px] shadow-sm backdrop-blur-sm'>
+          <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono shadow-sm backdrop-blur-sm'>
             {metadata.naturalWidth}×{metadata.naturalHeight}
           </span>
         ) : null}
@@ -92,7 +92,7 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           <Button
             size='sm'
             variant='secondary'
-            className='absolute right-2 bottom-2 h-6 gap-1 rounded-full px-2 text-[11px]'
+            className='text-2xs absolute right-2 bottom-2 h-6 gap-1 rounded-full px-2'
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() =>
               updateNodeMetadata(props.node.id, {
@@ -189,7 +189,7 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         }
         data-canvas-no-zoom
       >
-        <label className='flex items-center gap-1 text-[11px]'>
+        <label className='text-2xs flex items-center gap-1'>
           <Checkbox
             checked={Boolean(metadata.freeResize)}
             onCheckedChange={(checked) =>
@@ -199,7 +199,7 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           {t('Free resize')}
         </label>
         <label
-          className='flex items-center gap-1 text-[11px]'
+          className='text-2xs flex items-center gap-1'
           title={t(
             'Transparent background is not supported by this generation API.'
           )}
@@ -250,7 +250,7 @@ function ImageBatchStrip(props: {
 
   return (
     <div className='flex shrink-0 flex-col gap-1' data-canvas-no-zoom>
-      <span className='text-muted-foreground px-0.5 text-[10px] tabular-nums'>
+      <span className='text-muted-foreground text-3xs px-0.5 tabular-nums'>
         {t('{{done}} of {{total}} done', { done, total: slotIds.length })}
       </span>
       <div

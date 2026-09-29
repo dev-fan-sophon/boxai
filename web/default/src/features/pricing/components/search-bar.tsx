@@ -72,7 +72,7 @@ export function SearchBar(props: SearchBarProps) {
             <X className={compact ? 'size-3.5' : 'size-4'} />
           </Button>
         ) : (
-          <kbd className='bg-muted text-muted-foreground pointer-events-none hidden rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline-block'>
+          <kbd className='bg-muted text-muted-foreground text-3xs pointer-events-none hidden rounded border px-1.5 py-0.5 font-mono sm:inline-block'>
             ⌘K
           </kbd>
         )}

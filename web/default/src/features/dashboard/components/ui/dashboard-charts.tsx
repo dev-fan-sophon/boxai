@@ -355,7 +355,7 @@ export function DashboardRankChartView(props: {
             <LabelList
               dataKey='value'
               position='right'
-              className='fill-foreground text-[10px] tabular-nums'
+              className='fill-foreground text-3xs tabular-nums'
               formatter={(value) =>
                 formatSeriesValue(Number(value) || 0, props.chart.valueKind)
               }

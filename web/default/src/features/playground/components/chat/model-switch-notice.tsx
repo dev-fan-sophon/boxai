@@ -35,7 +35,7 @@ export function ModelSwitchNotice() {
       aria-live='polite'
     >
       <FadeIn key={notice.id}>
-        <span className='bg-muted/90 text-muted-foreground ring-border/60 inline-flex max-w-full items-center rounded-full px-3 py-1 font-mono text-[11px] shadow-sm ring-1 backdrop-blur-sm'>
+        <span className='bg-muted/90 text-muted-foreground ring-border/60 text-2xs inline-flex max-w-full items-center rounded-full px-3 py-1 font-mono shadow-sm ring-1 backdrop-blur-sm'>
           <span className='truncate'>
             {t('Switched model')}: {notice.from} → {notice.to}
           </span>

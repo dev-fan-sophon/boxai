@@ -10,6 +10,20 @@
    * utility and used across the pricing marketplace. */
   --font-price: Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', sans-serif;
 
+  /*
+   * Type scale below Tailwind's `text-xs` (12px) plus the two in-between UI
+   * sizes. Dense chrome (badges, meta lines, table sub-rows, canvas nodes)
+   * uses these instead of `text-[11px]` literals, which the design-token lint
+   * rejects. No paired line-height: like the literals they replace, they
+   * inherit leading from context. Keep Vietnamese diacritics legible — do not
+   * go below `text-3xs` for running text.
+   */
+  --text-4xs: 0.5625rem; /* 9px — role badges on thumbnails only */
+  --text-3xs: 0.625rem; /* 10px */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-ui: 0.8125rem; /* 13px */
+  --text-md: 0.9375rem; /* 15px */
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,6 +59,14 @@
   --color-info-subtle-foreground: var(--info-subtle-foreground);
   --color-destructive-subtle: var(--destructive-subtle);
   --color-destructive-subtle-foreground: var(--destructive-subtle-foreground);
+  /*
+   * Surface tiers, from recessed to lifted. Replaces the ad hoc spread of
+   * `bg-muted/20 … bg-muted/60` and `bg-background/85` on panels, wells and
+   * floating chrome with three named intents.
+   */
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-overlay: var(--surface-overlay);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -177,6 +199,9 @@
   --sidebar-accent-foreground: #1d4ed8;
   --sidebar-border: #e8eaef;
   --sidebar-ring: var(--brand-primary, #e05a3a);
+  --surface-sunken: color-mix(in oklab, var(--muted) 55%, var(--background));
+  --surface-subtle: color-mix(in oklab, var(--muted) 30%, var(--background));
+  --surface-overlay: color-mix(in oklab, var(--background) 86%, transparent);
   --skeleton-base: #e7edf6;
   --skeleton-highlight: #f8fbff;
   --table-row: #ffffff;
@@ -266,6 +291,9 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 8%);
   --sidebar-ring: #60a5fa;
+  --surface-sunken: color-mix(in oklab, var(--muted) 60%, var(--background));
+  --surface-subtle: color-mix(in oklab, var(--muted) 35%, var(--background));
+  --surface-overlay: color-mix(in oklab, var(--background) 82%, transparent);
   --skeleton-base: #162844;
   --skeleton-highlight: #263d62;
   --table-row: #0d1a35;

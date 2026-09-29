@@ -115,7 +115,7 @@ export function CanvasGuide(props: { open: boolean; onClose: () => void }) {
   }
 
   return (
-    <div className='fixed inset-0 z-[70]' role='dialog' aria-modal='true'>
+    <div className='z-guide fixed inset-0' role='dialog' aria-modal='true'>
       {rect ? (
         <div
           // The spotlight tracks an arbitrary element's box, so position and
@@ -150,7 +150,7 @@ export function CanvasGuide(props: { open: boolean; onClose: () => void }) {
             <step.icon className='size-3.5' />
           </span>
           <p className='flex-1 text-sm font-semibold'>{t(step.title)}</p>
-          <span className='text-muted-foreground text-[11px] tabular-nums'>
+          <span className='text-muted-foreground text-2xs tabular-nums'>
             {index + 1}/{GUIDE_STEPS.length}
           </span>
         </div>

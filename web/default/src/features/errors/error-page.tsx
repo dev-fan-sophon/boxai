@@ -120,7 +120,7 @@ export function ErrorPage(props: ErrorPageProps) {
               {props.title}
             </h1>
 
-            <div className='text-muted-foreground mx-auto mt-3 max-w-md text-sm leading-relaxed text-pretty sm:text-[15px]'>
+            <div className='text-muted-foreground sm:text-md mx-auto mt-3 max-w-md text-sm leading-relaxed text-pretty'>
               {props.description}
             </div>
 

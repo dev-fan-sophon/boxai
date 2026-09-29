@@ -35,7 +35,7 @@ function ClientAppCard(
             {props.app === 'desktop' && (
               <span
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-2xs font-medium',
                   props.connected > 0
                     ? 'bg-success/10 text-success'
                     : 'bg-muted text-muted-foreground'

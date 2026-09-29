@@ -104,10 +104,10 @@ export function usePricingColumns(
                 <div className='text-xs font-medium text-amber-700 dark:text-amber-300'>
                   {t('Special billing expression')}
                 </div>
-                <div className='text-muted-foreground text-[11px]'>
+                <div className='text-muted-foreground text-2xs'>
                   {t('Unable to parse structured pricing')}
                 </div>
-                <code className='text-muted-foreground mt-1 line-clamp-2 block font-mono text-[10px] leading-relaxed break-all'>
+                <code className='text-muted-foreground text-3xs mt-1 line-clamp-2 block font-mono leading-relaxed break-all'>
                   {dynamicSummary.rawExpression}
                 </code>
               </div>
@@ -135,7 +135,7 @@ export function usePricingColumns(
                   </span>
                 ))}
               </span>
-              <div className='text-muted-foreground text-[10px]'>
+              <div className='text-muted-foreground text-3xs'>
                 / {tokenUnitLabel} tokens
                 {dynamicSummary.tierCount > 1 &&
                   ` · ${t('{{count}} tiers', {
@@ -163,7 +163,7 @@ export function usePricingColumns(
                 <span className='text-muted-foreground mx-1'>/</span>
                 {outputPrice}
               </span>
-              <div className='text-muted-foreground text-[10px]'>
+              <div className='text-muted-foreground text-3xs'>
                 / {tokenUnitLabel} tokens
               </div>
             </div>
@@ -177,7 +177,7 @@ export function usePricingColumns(
         return (
           <div className='max-w-full min-w-0'>
             <span className='font-price text-sm tabular-nums'>{price}</span>
-            <div className='text-muted-foreground text-[10px]'>
+            <div className='text-muted-foreground text-3xs'>
               / {isPerSecondVideoModel(model) ? t('second') : t('request')}
             </div>
           </div>
@@ -222,7 +222,7 @@ export function usePricingColumns(
               <span className='font-price text-sm tabular-nums'>
                 {stripTrailingZeros(cacheEntry.formatted)}
               </span>
-              <div className='text-muted-foreground text-[10px]'>
+              <div className='text-muted-foreground text-3xs'>
                 / {tokenUnitLabel}
               </div>
             </div>
@@ -244,7 +244,7 @@ export function usePricingColumns(
             <span className='font-price text-sm tabular-nums'>
               {cachedPrice}
             </span>
-            <div className='text-muted-foreground text-[10px]'>
+            <div className='text-muted-foreground text-3xs'>
               / {tokenUnitLabel}
             </div>
           </div>

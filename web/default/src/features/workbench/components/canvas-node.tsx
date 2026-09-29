@@ -332,13 +332,13 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
           <accent.icon className='size-3' />
         </span>
         <span
-          className='min-w-0 flex-1 truncate text-[12px] font-semibold tracking-tight'
+          className='min-w-0 flex-1 truncate text-xs font-semibold tracking-tight'
           style={{ color: theme.node.text }}
         >
           {node.title}
         </span>
         {node.metadata?.versionLabel ? (
-          <span className='bg-foreground/8 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold'>
+          <span className='bg-foreground/8 text-3xs shrink-0 rounded-full px-1.5 py-0.5 font-semibold'>
             {node.metadata.versionLabel}
             {node.metadata.versionPrimary ? ' ★' : ''}
           </span>

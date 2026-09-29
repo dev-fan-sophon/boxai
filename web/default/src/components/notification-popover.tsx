@@ -303,7 +303,7 @@ export function NotificationPopover({
         {unreadCount > 0 ? (
           <Badge
             variant='destructive'
-            className='absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center px-1 text-[10px] font-semibold tabular-nums'
+            className='text-3xs absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center px-1 font-semibold tabular-nums'
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>

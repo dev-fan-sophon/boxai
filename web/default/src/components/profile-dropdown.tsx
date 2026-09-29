@@ -51,7 +51,7 @@ export function ProfileDropdown() {
         >
           <Avatar className='size-7'>
             <AvatarFallback
-              className={`${avatarFallbackClassName} text-[11px]`}
+              className={`${avatarFallbackClassName} text-2xs`}
               style={avatarFallbackStyle}
             >
               {avatarFallback}

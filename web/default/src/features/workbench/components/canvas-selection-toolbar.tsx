@@ -71,7 +71,7 @@ export function CanvasSelectionToolbar() {
         color: theme.toolbar.item,
       }}
     >
-      <span className='text-muted-foreground shrink-0 px-2 text-[11px] font-semibold tabular-nums'>
+      <span className='text-muted-foreground text-2xs shrink-0 px-2 font-semibold tabular-nums'>
         {t('{{count}} selected', { count })}
       </span>
       {ACTIONS.map((item) => (

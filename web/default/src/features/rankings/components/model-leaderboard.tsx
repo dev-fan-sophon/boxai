@@ -81,7 +81,7 @@ function ModelList(props: {
             <p
               className={
                 compact
-                  ? 'text-muted-foreground truncate text-[11px] italic'
+                  ? 'text-muted-foreground text-2xs truncate italic'
                   : 'text-muted-foreground truncate text-xs italic'
               }
             >
@@ -111,7 +111,7 @@ function ModelList(props: {
             </div>
             <GrowthText
               value={row.growth_pct}
-              className={compact ? 'text-[10px]' : 'text-[11px]'}
+              className={compact ? 'text-3xs' : 'text-2xs'}
             />
           </div>
         </li>

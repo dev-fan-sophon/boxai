@@ -399,7 +399,7 @@ export function ThroughputBarChart(props: {
             <LabelList
               dataKey='throughput_tps'
               position='right'
-              className='fill-muted-foreground text-[11px] tabular-nums'
+              className='fill-muted-foreground text-2xs tabular-nums'
               formatter={(value) => `${Number(value) || 0} t/s`}
             />
           </Bar>

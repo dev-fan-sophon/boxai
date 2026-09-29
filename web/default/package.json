@@ -11,7 +11,7 @@
     "build": "node scripts/docs/build-content.mjs && rsbuild build",
     "build:check": "node scripts/docs/build-content.mjs && tsgo -b && rsbuild build",
     "typecheck": "node scripts/docs/build-content.mjs && tsgo -b",
-    "lint": "oxlint -c .oxlintrc.json . && node scripts/check-motion.mjs && node scripts/check-icon-imports.mjs && node scripts/check-status-colors.mjs && node scripts/gen-lobe-icons.mjs --check && node scripts/gen-en-overrides.mjs --check",
+    "lint": "oxlint -c .oxlintrc.json . && node scripts/check-motion.mjs && node scripts/check-icon-imports.mjs && node scripts/check-status-colors.mjs && node scripts/check-design-tokens.mjs && node scripts/gen-lobe-icons.mjs --check && node scripts/gen-en-overrides.mjs --check",
     "lint:fix": "oxlint -c .oxlintrc.json . --fix",
     "lint:motion": "node scripts/check-motion.mjs",
     "lint:icons": "node scripts/check-icon-imports.mjs",
@@ -22,7 +22,8 @@
     "format": "node scripts/format.mjs --write",
     "i18n:sync": "node scripts/sync-i18n.mjs && node scripts/gen-en-overrides.mjs",
     "knip": "knip",
-    "lint:colors": "node scripts/check-status-colors.mjs"
+    "lint:colors": "node scripts/check-status-colors.mjs",
+    "lint:tokens": "node scripts/check-design-tokens.mjs"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.51",

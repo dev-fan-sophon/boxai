@@ -149,7 +149,7 @@ function KeysPane() {
             />
             <span
               className={cn(
-                'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                'shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium',
                 tone('success')
               )}
             >
@@ -254,7 +254,7 @@ function IntegratePane(props: { host: string }) {
         ))}
       </div>
 
-      <pre className='border-border/50 bg-background/70 overflow-x-auto rounded-xl border p-4 font-mono text-[12px] leading-relaxed'>
+      <pre className='border-border/50 bg-background/70 overflow-x-auto rounded-xl border p-4 font-mono text-xs leading-relaxed'>
         <code>
           <span className='text-emerald-600 dark:text-emerald-400'>curl</span>{' '}
           <span className='text-amber-700 dark:text-amber-300'>
@@ -302,11 +302,11 @@ export function ConsolePreview(props: {
           <span className='size-2.5 rounded-full bg-amber-400/70' />
           <span className='size-2.5 rounded-full bg-emerald-400/70' />
         </span>
-        <span className='border-border/50 bg-background/70 text-muted-foreground min-w-0 flex-1 truncate rounded-md border px-2.5 py-1 text-center font-mono text-[11px]'>
+        <span className='border-border/50 bg-background/70 text-muted-foreground text-2xs min-w-0 flex-1 truncate rounded-md border px-2.5 py-1 text-center font-mono'>
           {props.host}
           {STEP_PATHS[props.step]}
         </span>
-        <span className='text-muted-foreground shrink-0 text-[10px] tracking-wider uppercase'>
+        <span className='text-muted-foreground text-3xs shrink-0 tracking-wider uppercase'>
           {t('Illustration')}
         </span>
       </div>

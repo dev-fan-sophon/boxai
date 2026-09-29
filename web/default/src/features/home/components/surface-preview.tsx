@@ -75,7 +75,7 @@ export function GatewayPreview() {
           <span
             key={item.format}
             className={cn(
-              'transition-ui duration-page rounded-md px-1.5 py-0.5 font-mono text-[10px] font-medium',
+              'transition-ui duration-page rounded-md px-1.5 py-0.5 font-mono text-3xs font-medium',
               index === active
                 ? 'bg-chart-1/15 text-chart-1'
                 : 'text-muted-foreground/60'
@@ -87,7 +87,7 @@ export function GatewayPreview() {
       </div>
 
       <div className='space-y-1.5'>
-        <p className='text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase'>
+        <p className='text-muted-foreground/70 text-3xs font-mono tracking-wider uppercase'>
           {t('Base URL')}
         </p>
         <p className='text-foreground/80 truncate font-mono text-xs'>
@@ -101,9 +101,7 @@ export function GatewayPreview() {
 
       <div className='flex items-center gap-1.5'>
         <span className='bg-success surface-pulse size-1.5 rounded-full' />
-        <span className='text-muted-foreground font-mono text-[10px]'>
-          200 OK
-        </span>
+        <span className='text-muted-foreground text-3xs font-mono'>200 OK</span>
       </div>
     </PreviewFrame>
   )
@@ -121,7 +119,7 @@ export function WorkspacePreview() {
   return (
     <PreviewFrame className='flex flex-col justify-between'>
       <div className='border-border/50 bg-background/60 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5'>
-        <span className='text-muted-foreground truncate text-[11px]'>
+        <span className='text-muted-foreground text-2xs truncate'>
           {t('a product shot on a marble table')}
         </span>
         <span className='bg-chart-4 surface-caret inline-block h-3 w-px shrink-0' />
@@ -182,16 +180,14 @@ export function DesktopPreview() {
           ) : (
             <span className='border-border size-4 shrink-0 rounded-[22%] border border-dashed' />
           )}
-          <span className='text-foreground/80 truncate text-[11px] font-medium'>
+          <span className='text-foreground/80 text-2xs truncate font-medium'>
             {row.name}
           </span>
           <span className='ml-auto flex shrink-0 items-center gap-1'>
             {row.live && (
               <span className='bg-success surface-pulse size-1.5 rounded-full' />
             )}
-            <span className='text-muted-foreground text-[10px]'>
-              {row.status}
-            </span>
+            <span className='text-muted-foreground text-3xs'>{row.status}</span>
           </span>
         </div>
       ))}

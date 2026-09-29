@@ -206,7 +206,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
             {props.modality === 'video' &&
             videoCapabilities.maxReferenceImages > 1 ? (
               <div
-                className='bg-foreground/5 flex shrink-0 rounded-full p-0.5 text-[10px] font-medium'
+                className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
                 role='radiogroup'
                 aria-label={t('Reference mode')}
               >
@@ -240,7 +240,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
             videoOptions.referenceMode === 'frames' &&
             videoCapabilities.supportsLastFrame &&
             props.references.length > 1 ? (
-              <label className='text-muted-foreground flex shrink-0 items-center gap-1 text-[10px]'>
+              <label className='text-muted-foreground text-3xs flex shrink-0 items-center gap-1'>
                 <input
                   type='checkbox'
                   className='size-3'

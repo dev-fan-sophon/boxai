@@ -80,7 +80,7 @@ export function PerformanceHealthPanel() {
           <HeartPulse />
         </IconBadge>
         <h3 className='text-sm font-semibold'>{t('Performance health')}</h3>
-        <span className='text-muted-foreground bg-muted/50 ml-auto rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums'>
+        <span className='text-muted-foreground bg-muted/50 text-2xs ml-auto rounded-md px-1.5 py-0.5 font-mono tabular-nums'>
           24h
         </span>
       </div>
@@ -126,7 +126,7 @@ export function PerformanceHealthPanel() {
                     key={model.model_name}
                     className='hover:bg-muted/40 flex items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 transition-colors'
                   >
-                    <span className='min-w-0 flex-1 truncate font-mono text-[11px]'>
+                    <span className='text-2xs min-w-0 flex-1 truncate font-mono'>
                       {model.model_name}
                     </span>
                     <span className='inline-flex shrink-0 items-center gap-1'>
@@ -139,7 +139,7 @@ export function PerformanceHealthPanel() {
                       />
                       <span
                         className={cn(
-                          'font-mono text-[11px] font-semibold tabular-nums',
+                          'font-mono text-2xs font-semibold tabular-nums',
                           getSuccessRateTextClass(model.success_rate)
                         )}
                       >
@@ -168,7 +168,7 @@ function MetricCell(props: {
   const Icon = props.icon
   return (
     <div className='bg-muted/35 rounded-xl px-3 py-2.5'>
-      <div className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium'>
+      <div className='text-muted-foreground text-2xs flex items-center gap-1.5 font-medium'>
         <IconBadge tone={props.tone} size='xs'>
           <Icon />
         </IconBadge>

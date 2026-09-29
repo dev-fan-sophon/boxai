@@ -96,7 +96,7 @@ function TaskTypeCell(props: { task: SystemTask }) {
       <div className='font-medium'>
         {t(TYPE_LABEL[props.task.type] ?? props.task.type)}
       </div>
-      <div className='text-muted-foreground font-mono text-[11px]'>
+      <div className='text-muted-foreground text-2xs font-mono'>
         {TYPE_DISPLAY_ID[props.task.type] ?? props.task.type}
       </div>
     </div>
@@ -166,7 +166,7 @@ function SystemTasksMobileList(props: SystemTasksTableProps) {
 
             <div className='mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5'>
               <div className='col-span-2 min-w-0 overflow-hidden'>
-                <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+                <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                   {t('Progress')}
                 </div>
                 <TaskProgressCell
@@ -176,7 +176,7 @@ function SystemTasksMobileList(props: SystemTasksTableProps) {
                 />
               </div>
               <div className='min-w-0 overflow-hidden'>
-                <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+                <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                   {t('Executor')}
                 </div>
                 <div className='text-muted-foreground truncate font-mono text-xs'>
@@ -184,7 +184,7 @@ function SystemTasksMobileList(props: SystemTasksTableProps) {
                 </div>
               </div>
               <div className='min-w-0 overflow-hidden'>
-                <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+                <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                   {t('Updated')}
                 </div>
                 <div
@@ -199,7 +199,7 @@ function SystemTasksMobileList(props: SystemTasksTableProps) {
                 </div>
               </div>
               <div className='col-span-2 min-w-0 overflow-hidden'>
-                <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+                <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                   {t('Detail')}
                 </div>
                 <div

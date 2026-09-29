@@ -188,7 +188,7 @@ function ResourceCell(props: ResourceCellProps) {
   const content = (
     <div className='flex items-center gap-2'>
       <RingProgress percent={percent} />
-      <span className='font-mono text-[11px] tabular-nums'>
+      <span className='text-2xs font-mono tabular-nums'>
         {formatPercent(props.value)}
       </span>
     </div>
@@ -264,7 +264,7 @@ function InstanceNameCell(props: {
                 <div className='space-y-2 text-xs'>
                   <div>
                     <div className='mb-1 font-medium'>{t('Example')}</div>
-                    <code className='bg-muted block rounded-md px-2 py-1.5 font-mono text-[11px] break-all'>
+                    <code className='bg-muted text-2xs block rounded-md px-2 py-1.5 font-mono break-all'>
                       NODE_NAME=new-api-master-1
                     </code>
                   </div>
@@ -278,7 +278,7 @@ function InstanceNameCell(props: {
             </Popover>
           ) : null}
         </div>
-        <div className='text-muted-foreground truncate font-mono text-[11px]'>
+        <div className='text-muted-foreground text-2xs truncate font-mono'>
           {props.instance.info?.host?.hostname || '-'}
         </div>
       </div>
@@ -372,19 +372,19 @@ function InstanceResourceFields(props: { instance: SystemInstance }) {
   return (
     <>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('CPU')}
         </div>
         <ResourceCell value={resources?.cpu?.usage_percent} />
       </div>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('Memory')}
         </div>
         <ResourceCell value={resources?.memory?.usage_percent} />
       </div>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('Storage')}
         </div>
         <ResourceCell
@@ -412,13 +412,13 @@ function InstanceResourceFields(props: { instance: SystemInstance }) {
         />
       </div>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('Role')}
         </div>
         <InstanceRoleBadge instance={props.instance} />
       </div>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('Version')}
         </div>
         <div className='truncate font-mono text-xs'>
@@ -426,7 +426,7 @@ function InstanceResourceFields(props: { instance: SystemInstance }) {
         </div>
       </div>
       <div className='min-w-0 overflow-hidden'>
-        <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+        <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
           {t('Runtime')}
         </div>
         <div className='truncate font-mono text-xs'>
@@ -459,7 +459,7 @@ function SystemInstancesMobileList(props: SystemInstancesTableProps) {
           <div className='mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5'>
             <InstanceResourceFields instance={instance} />
             <div className='min-w-0 overflow-hidden'>
-              <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+              <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                 {t('Started')}
               </div>
               <div className='text-muted-foreground text-xs'>
@@ -467,7 +467,7 @@ function SystemInstancesMobileList(props: SystemInstancesTableProps) {
               </div>
             </div>
             <div className='min-w-0 overflow-hidden'>
-              <div className='text-muted-foreground mb-0.5 text-[10px] leading-none select-none'>
+              <div className='text-muted-foreground text-3xs mb-0.5 leading-none select-none'>
                 {t('Last Seen')}
               </div>
               <div

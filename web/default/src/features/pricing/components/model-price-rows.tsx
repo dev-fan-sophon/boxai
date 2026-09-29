@@ -48,7 +48,7 @@ export function ModelPriceRows(props: {
         <div key={item.key} className='flex items-center justify-between gap-3'>
           <span
             className={cn(
-              'inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] leading-4 font-medium',
+              'inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-2xs leading-4 font-medium',
               TONE_CLASSES[item.tone ?? 'default']
             )}
           >
@@ -58,13 +58,13 @@ export function ModelPriceRows(props: {
             className={cn(
               'whitespace-nowrap tabular-nums',
               item.emphasized
-                ? 'text-foreground text-sm font-semibold sm:text-[15px]'
+                ? 'text-foreground text-sm font-semibold sm:text-md'
                 : 'text-muted-foreground text-sm font-medium'
             )}
           >
             {item.formatted}
             {props.unitSuffix && (
-              <span className='text-muted-foreground text-[11px] font-normal'>
+              <span className='text-muted-foreground text-2xs font-normal'>
                 {props.unitSuffix}
               </span>
             )}
@@ -77,10 +77,10 @@ export function ModelPriceRows(props: {
           aria-hidden
           className='invisible flex items-center justify-between gap-3'
         >
-          <span className='inline-flex items-center rounded px-1.5 py-0.5 text-[11px] leading-4 font-medium'>
+          <span className='text-2xs inline-flex items-center rounded px-1.5 py-0.5 leading-4 font-medium'>
             &nbsp;
           </span>
-          <span className='text-sm font-semibold sm:text-[15px]'>&nbsp;</span>
+          <span className='sm:text-md text-sm font-semibold'>&nbsp;</span>
         </div>
       ))}
     </div>

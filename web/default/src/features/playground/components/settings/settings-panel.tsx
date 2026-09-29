@@ -65,7 +65,7 @@ function AdvancedSection(props: { children: React.ReactNode }) {
 
   return (
     <Collapsible>
-      <CollapsibleTrigger className='text-muted-foreground hover:text-foreground group flex w-full items-center justify-between py-1 text-[11px] font-semibold tracking-wide uppercase'>
+      <CollapsibleTrigger className='text-muted-foreground hover:text-foreground group text-2xs flex w-full items-center justify-between py-1 font-semibold tracking-wide uppercase'>
         {t('Advanced')}
         <ChevronDown
           className='size-3.5 transition-transform group-data-[panel-open]:rotate-180'
@@ -162,7 +162,7 @@ function GroupSection() {
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
     <section className='space-y-2'>
-      <h3 className='text-muted-foreground text-[11px] font-semibold tracking-wide uppercase'>
+      <h3 className='text-muted-foreground text-2xs font-semibold tracking-wide uppercase'>
         {props.title}
       </h3>
       {props.children}

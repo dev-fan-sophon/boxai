@@ -118,10 +118,7 @@ function VariableField(props: {
   }
   return (
     <div className='space-y-1.5'>
-      <label
-        htmlFor={id}
-        className='text-foreground/90 text-[13px] font-medium'
-      >
+      <label htmlFor={id} className='text-foreground/90 text-ui font-medium'>
         {props.variable.label}
         {props.variable.required ? ' *' : ''}
       </label>
@@ -265,7 +262,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
                 className='aspect-video w-full object-cover'
               />
               {model ? (
-                <span className='absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm'>
+                <span className='text-2xs absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 font-medium text-white backdrop-blur-sm'>
                   <Sparkles className='size-3' aria-hidden='true' />
                   {model}
                 </span>
@@ -301,9 +298,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
 
             <section className='space-y-2'>
               <div className='flex items-center justify-between'>
-                <h3 className='text-[13px] font-semibold'>
-                  {t('Final prompt')}
-                </h3>
+                <h3 className='text-ui font-semibold'>{t('Final prompt')}</h3>
                 <Button
                   size='sm'
                   variant='ghost'
@@ -324,7 +319,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
                 type='button'
                 aria-expanded={detailsOpen}
                 onClick={() => setDetailsOpen((open) => !open)}
-                className='focus-visible:ring-ring text-muted-foreground hover:text-foreground flex w-full items-center justify-between rounded-sm py-2 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2'
+                className='focus-visible:ring-ring text-muted-foreground hover:text-foreground text-ui flex w-full items-center justify-between rounded-sm py-2 font-medium transition-colors outline-none focus-visible:ring-2'
               >
                 {t('More details')}
                 <ChevronDown
@@ -355,7 +350,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
                             height='360'
                             className='aspect-video rounded-md object-cover'
                           />
-                          <figcaption className='text-muted-foreground mt-1 text-[11px]'>
+                          <figcaption className='text-muted-foreground text-2xs mt-1'>
                             {example.caption}
                           </figcaption>
                         </figure>

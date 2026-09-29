@@ -566,7 +566,7 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                 }}
               >
                 <span
-                  className='w-8 shrink-0 text-center text-[11px] font-medium'
+                  className='text-2xs w-8 shrink-0 text-center font-medium'
                   style={{ color: theme.node.muted }}
                 >
                   #{row.shotNumber}
@@ -625,7 +625,7 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                   ) : null}
                   {row.status === 'error' ? (
                     <span
-                      className='max-w-[52px] truncate text-[10px]'
+                      className='text-3xs max-w-[52px] truncate'
                       style={{ color: theme.accent.danger }}
                       title={row.errorDetails}
                     >
@@ -635,7 +635,7 @@ export function StoryboardNodeBody(props: CanvasNodeBodyProps) {
                   {batch?.items.find((item) => item.rowId === row.id) ? (
                     <button
                       type='button'
-                      className='max-w-[58px] truncate text-[10px] underline-offset-2 hover:underline'
+                      className='text-3xs max-w-[58px] truncate underline-offset-2 hover:underline'
                       title={t(
                         batch.items.find((item) => item.rowId === row.id)
                           ?.status ?? 'waiting'

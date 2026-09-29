@@ -149,7 +149,7 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
                     className='size-10 shrink-0 rounded object-cover'
                   />
                 ) : (
-                  <span className='bg-muted/50 text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded text-[10px] uppercase'>
+                  <span className='bg-muted/50 text-muted-foreground text-3xs flex size-10 shrink-0 items-center justify-center rounded uppercase'>
                     {asset.kind}
                   </span>
                 )}
@@ -157,7 +157,7 @@ export function AssetLibraryDialog(props: AssetLibraryDialogProps) {
                   <span className='text-foreground block truncate text-sm'>
                     {asset.name || `#${asset.id}`}
                   </span>
-                  <span className='text-muted-foreground text-[11px]'>
+                  <span className='text-muted-foreground text-2xs'>
                     {(asset.size / 1024).toFixed(0)} KB
                   </span>
                 </span>

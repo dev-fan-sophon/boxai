@@ -181,7 +181,7 @@ export function useUpstreamRatioSyncColumns(
                   {displayName}
                 </span>
                 {selectableCount > 0 && (
-                  <span className='bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-none font-normal tabular-nums'>
+                  <span className='bg-muted text-muted-foreground text-2xs shrink-0 rounded px-1.5 py-0.5 leading-none font-normal tabular-nums'>
                     {selectedCount}/{selectableCount}
                   </span>
                 )}

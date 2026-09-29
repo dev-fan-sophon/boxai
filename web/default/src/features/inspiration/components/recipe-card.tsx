@@ -65,7 +65,7 @@ export function RecipeCard(props: RecipeCardProps) {
             className='duration-expressive ease-emphasized size-full object-cover transition-transform group-hover:scale-[1.06]'
           />
           <div className='duration-overlay absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 opacity-0 transition-opacity group-hover:opacity-100' />
-          <span className='absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm'>
+          <span className='text-3xs absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 font-medium text-white backdrop-blur-sm'>
             {isVideo ? (
               <Play className='size-3' aria-hidden='true' />
             ) : (
@@ -73,7 +73,7 @@ export function RecipeCard(props: RecipeCardProps) {
             )}
             {isVideo ? t('Video series') : t('Image series')}
           </span>
-          <span className='transition-ui duration-overlay pointer-events-none absolute right-3 bottom-3 inline-flex translate-y-1 items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-black opacity-0 shadow-sm ease-out group-hover:translate-y-0 group-hover:opacity-100'>
+          <span className='transition-ui duration-overlay text-2xs pointer-events-none absolute right-3 bottom-3 inline-flex translate-y-1 items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 font-semibold text-black opacity-0 shadow-sm ease-out group-hover:translate-y-0 group-hover:opacity-100'>
             {t('Use template')}
             <ArrowUpRight className='size-3.5' aria-hidden='true' />
           </span>
@@ -83,7 +83,7 @@ export function RecipeCard(props: RecipeCardProps) {
             <h3 className='text-sm leading-snug font-semibold text-balance'>
               {props.recipe.title}
             </h3>
-            <span className='text-muted-foreground shrink-0 text-[11px] tabular-nums'>
+            <span className='text-muted-foreground text-2xs shrink-0 tabular-nums'>
               {props.recipe.use_count} {t('uses')}
             </span>
           </div>

@@ -81,7 +81,7 @@ export function Hero(props: HeroProps) {
       <div className='mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-12 lg:gap-8'>
         <div className='flex flex-col items-start text-left lg:col-span-5'>
           <div
-            className='landing-animate-fade-up mb-5 inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-[11px] font-medium text-blue-600 opacity-0 shadow-xs dark:border-blue-400/20 dark:bg-blue-400/5 dark:text-blue-400'
+            className='landing-animate-fade-up text-2xs mb-5 inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 font-medium text-blue-600 opacity-0 shadow-xs dark:border-blue-400/20 dark:bg-blue-400/5 dark:text-blue-400'
             style={{ animationDelay: '0ms' }}
           >
             <Sparkles className='size-3.5' />
@@ -99,7 +99,7 @@ export function Hero(props: HeroProps) {
           </h1>
 
           <p
-            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-md text-base leading-relaxed text-pretty opacity-0 md:text-[15px]'
+            className='landing-animate-fade-up text-muted-foreground md:text-md mt-5 max-w-md text-base leading-relaxed text-pretty opacity-0'
             style={{ animationDelay: '120ms' }}
           >
             {t(

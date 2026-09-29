@@ -137,7 +137,7 @@ export function ChatToolsSection() {
           </Button>
         </div>
         {hasPersona && (
-          <p className='text-muted-foreground line-clamp-2 text-[11px]'>
+          <p className='text-muted-foreground text-2xs line-clamp-2'>
             {chatTools.systemPrompt}
           </p>
         )}
@@ -359,7 +359,7 @@ function ToggleRow(props: {
           <Icon className='size-3.5' aria-hidden='true' />
           {props.label}
         </Label>
-        <p className='text-muted-foreground text-[11px] text-pretty'>
+        <p className='text-muted-foreground text-2xs text-pretty'>
           {props.description}
         </p>
       </div>

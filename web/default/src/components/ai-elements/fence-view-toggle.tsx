@@ -36,7 +36,7 @@ export function FenceViewToggle(props: FenceViewToggleProps) {
           aria-selected={props.view === segment.id}
           onClick={() => props.onViewChange(segment.id)}
           className={cn(
-            'focus-visible:ring-ring rounded px-2 py-0.5 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2',
+            'focus-visible:ring-ring rounded px-2 py-0.5 text-2xs font-medium transition-colors outline-none focus-visible:ring-2',
             props.view === segment.id
               ? 'bg-background text-primary shadow-xs'
               : 'text-muted-foreground hover:text-foreground'

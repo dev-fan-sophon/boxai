@@ -148,7 +148,7 @@ export function HowItWorks() {
                       </span>
                       <span className='min-w-0'>
                         <span className='flex items-center gap-2'>
-                          <span className='text-muted-foreground font-mono text-[11px]'>
+                          <span className='text-muted-foreground text-2xs font-mono'>
                             {step.num}
                           </span>
                           <span className='text-sm font-semibold'>

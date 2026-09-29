@@ -82,7 +82,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
           <span className='text-foreground block truncate text-sm font-semibold'>
             {props.sessionTitle || t(mediaTool.titleKey)}
           </span>
-          <span className='text-muted-foreground block truncate font-mono text-[11px]'>
+          <span className='text-muted-foreground text-2xs block truncate font-mono'>
             {props.model || t('Select a model')}
           </span>
         </span>
@@ -104,12 +104,12 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
             {props.sessionTitle || t('New chat')}
           </span>
           <span className='text-muted-foreground flex min-w-0 items-center gap-1.5'>
-            <span className='truncate font-mono text-[11px]'>
+            <span className='text-2xs truncate font-mono'>
               {props.model || t('Select a model')}
             </span>
             <span
               className={cn(
-                'shrink-0 rounded border px-1 py-px text-[10px] font-medium capitalize',
+                'shrink-0 rounded border px-1 py-px text-3xs font-medium capitalize',
                 MODALITY_COLORS[modality].tag
               )}
             >

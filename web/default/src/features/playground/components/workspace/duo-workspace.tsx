@@ -174,7 +174,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
                 aria-pressed={active}
                 onClick={() => toggleModel(model.value)}
                 className={cn(
-                  'rounded-lg border px-2 py-1 font-mono text-[11px] transition-colors',
+                  'rounded-lg border px-2 py-1 font-mono text-2xs transition-colors',
                   active
                     ? 'border-primary/40 bg-primary/15 text-primary'
                     : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
@@ -258,7 +258,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
               key={leg.model}
               className='border-border bg-muted/50 rounded-lg border p-3'
             >
-              <p className='text-primary font-mono text-[11px]'>{leg.model}</p>
+              <p className='text-primary text-2xs font-mono'>{leg.model}</p>
               {leg.error ? (
                 <p className='mt-1 text-sm text-red-300'>{leg.error}</p>
               ) : (

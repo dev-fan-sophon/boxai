@@ -514,7 +514,7 @@ export function WaffoPancakeSettingsSection({
             <>
               <div className='relative flex items-center py-1'>
                 <div className='flex-1 border-t' />
-                <span className='text-muted-foreground px-3 text-[10px] font-medium tracking-[0.2em] uppercase'>
+                <span className='text-muted-foreground text-3xs px-3 font-medium tracking-[0.2em] uppercase'>
                   {t('or pick existing')}
                 </span>
                 <div className='flex-1 border-t' />

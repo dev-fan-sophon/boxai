@@ -98,7 +98,7 @@ export function InspirationHome(props: {
     <div className='mx-auto w-full max-w-7xl px-4 pt-6 pb-10 sm:px-6 sm:pt-8'>
       <header className='landing-animate-fade-up flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
         <div className='max-w-xl space-y-1.5'>
-          <p className='text-primary/90 text-[11px] font-semibold tracking-[0.2em] uppercase'>
+          <p className='text-primary/90 text-2xs font-semibold tracking-[0.2em] uppercase'>
             {t('Canvas templates')}
           </p>
           <h1 className='text-2xl font-semibold tracking-tight text-balance sm:text-3xl'>

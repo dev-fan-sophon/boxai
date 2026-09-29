@@ -71,13 +71,13 @@ export function ChatParametersSection(props: {
                     {t(control.labelKey)}
                   </label>
                   <Badge
-                    className='h-4.5 max-w-24 shrink-0 px-1 font-mono text-[10px]'
+                    className='text-3xs h-4.5 max-w-24 shrink-0 px-1 font-mono'
                     variant='outline'
                   >
                     {t(getParameterControlValueText(control.key, value))}
                   </Badge>
                 </div>
-                <p className='text-muted-foreground text-[11px] leading-4'>
+                <p className='text-muted-foreground text-2xs leading-4'>
                   {t(control.descriptionKey)}
                 </p>
               </div>
@@ -182,7 +182,7 @@ function ReasoningDepthControl(props: { disabled?: boolean }) {
         >
           {t('Thinking depth')}
         </label>
-        <p className='text-muted-foreground text-[11px] leading-4'>
+        <p className='text-muted-foreground text-2xs leading-4'>
           {t('Available levels are defined by the selected model metadata.')}
         </p>
       </div>

@@ -58,7 +58,7 @@ export function LanguageSwitcher() {
           <DropdownMenuLabel>{t('Language')}</DropdownMenuLabel>
           {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
             <DropdownMenuRadioItem key={lang.code} value={lang.code}>
-              <span className='text-muted-foreground w-5 shrink-0 text-[11px] font-medium'>
+              <span className='text-muted-foreground text-2xs w-5 shrink-0 font-medium'>
                 {lang.short}
               </span>
               {lang.label}
