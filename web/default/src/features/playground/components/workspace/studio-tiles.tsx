@@ -8,6 +8,7 @@ import {
   Loader2,
   Music2,
   RefreshCcw,
+  Sparkles,
   Video,
   X,
 } from 'lucide-react'
@@ -184,9 +185,15 @@ export function ImageResultTile(props: {
   ratio: number
   index: number
   downloading: boolean
+  /** In select mode a click toggles selection instead of opening. */
+  selectMode?: boolean
+  selected?: boolean
+  /** `range` is true for a shift-click (extend from the last clicked tile). */
+  onSelect?: (range: boolean) => void
   onOpen: () => void
   onDownload: () => void
   onUseAsReference?: () => void
+  onVary?: () => void
 }) {
   const { t } = useTranslation()
   const [loaded, setLoaded] = useState(false)
@@ -203,7 +210,9 @@ export function ImageResultTile(props: {
     <figure
       className={cn(
         TILE_FRAME,
-        'border-border/70 bg-muted/40 group generation-result-enter hover:border-border hover:shadow-raised transition-ui duration-control'
+        'border-border/70 bg-muted/40 group generation-result-enter hover:border-border hover:shadow-raised transition-ui duration-control',
+        props.selected &&
+          'border-primary ring-primary ring-offset-background hover:border-primary ring-2 ring-offset-2'
       )}
       style={{
         aspectRatio: natural ? natural.w / natural.h : props.ratio,
@@ -230,13 +239,56 @@ export function ImageResultTile(props: {
           setLoaded(true)
         }}
       />
-      <button
-        type='button'
-        className='focus-visible:ring-ring absolute inset-0 z-[5] cursor-zoom-in rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset'
-        aria-label={t('View full image')}
-        onClick={props.onOpen}
-      />
-      {natural && (
+      {props.selectMode ? (
+        <button
+          type='button'
+          role='checkbox'
+          aria-checked={Boolean(props.selected)}
+          aria-label={t('Select image')}
+          className='focus-visible:ring-ring absolute inset-0 z-[5] cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset'
+          // Shift-click would otherwise extend the page's text selection.
+          onMouseDown={(event) => {
+            if (event.shiftKey) event.preventDefault()
+          }}
+          onClick={(event) => props.onSelect?.(event.shiftKey)}
+        />
+      ) : (
+        <button
+          type='button'
+          className='focus-visible:ring-ring absolute inset-0 z-[5] cursor-zoom-in rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset'
+          aria-label={t('View full image')}
+          onClick={(event) => {
+            // Modifier-click starts a selection straight from browsing.
+            const modified = event.shiftKey || event.metaKey || event.ctrlKey
+            if (modified && props.onSelect) {
+              props.onSelect(event.shiftKey)
+              return
+            }
+            props.onOpen()
+          }}
+        />
+      )}
+      {props.selectMode && (
+        <span
+          aria-hidden='true'
+          className={cn(
+            'pointer-events-none absolute top-2 left-2 z-10 flex size-5 items-center justify-center rounded-full border shadow-sm',
+            'transition-ui duration-control',
+            props.selected
+              ? 'bg-primary border-primary text-primary-foreground'
+              : 'bg-background/80 border-border backdrop-blur-sm'
+          )}
+        >
+          {props.selected && <Check className='size-3' strokeWidth={3} />}
+        </span>
+      )}
+      {props.selected && (
+        <span
+          aria-hidden='true'
+          className='bg-primary/10 pointer-events-none absolute inset-0'
+        />
+      )}
+      {natural && !props.selectMode && (
         <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 z-10 rounded-full px-1.5 py-0.5 font-mono opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100'>
           {natural.w}×{natural.h}
         </span>
@@ -245,7 +297,8 @@ export function ImageResultTile(props: {
         className={cn(
           'pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1.5 p-1.5',
           'bg-gradient-to-t from-black/60 via-black/25 to-transparent',
-          'opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100'
+          'opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+          props.selectMode && 'hidden'
         )}
       >
         {props.caption && (
@@ -254,6 +307,19 @@ export function ImageResultTile(props: {
           </figcaption>
         )}
         <div className='flex items-center justify-end gap-1'>
+          {props.onVary && (
+            <Button
+              type='button'
+              size='icon-sm'
+              variant='secondary'
+              className='bg-background/90 text-foreground hover:bg-background pointer-events-auto shadow-sm'
+              aria-label={t('Vary')}
+              title={t('Vary: new batch from this image')}
+              onClick={props.onVary}
+            >
+              <Sparkles className='size-3.5' />
+            </Button>
+          )}
           {props.onUseAsReference && (
             <Button
               type='button'
