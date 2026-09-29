@@ -2,14 +2,17 @@ import {
   FolderDown,
   Grid2x2,
   Grid3x3,
+  ListChecks,
   Loader2,
   PenLine,
   RefreshCcw,
+  Sparkles,
   Square,
+  SquareCheck,
   X,
 } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -26,12 +29,21 @@ import {
   downloadGeneratedMedia,
   downloadGeneratedMediaZip,
 } from '../../lib/download-generated-media'
+import type { StudioRunSummary } from '../../lib/session/session-types'
 import type { StudioFeedDensity } from '../../lib/storage/store-migration'
 import {
   ratioFromSize,
   type StudioFeedBatch,
 } from '../../lib/studio/studio-feed'
+import {
+  EMPTY_STUDIO_SELECTION,
+  clickStudioSelection,
+  selectableStudioImages,
+  toggleStudioSelectionGroup,
+  type StudioSelection,
+} from '../../lib/studio/studio-selection'
 import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
+import { StudioSelectionBar } from './studio-selection-bar'
 import {
   AudioResultRow,
   ImageResultTile,
@@ -41,6 +53,8 @@ import {
 
 type StudioModalityKind = 'image' | 'video' | 'audio'
 
+type ResultImage = { url: string; assetId?: number }
+
 type StudioFeedProps = {
   modality: StudioModalityKind
   batches: StudioFeedBatch[]
@@ -48,7 +62,13 @@ type StudioFeedProps = {
   onReusePrompt: (prompt: string) => void
   /** Queues the same jobs again with the current settings. */
   onRerun: (prompts: string[]) => void
-  onUseAsReference?: (image: { url: string; assetId?: number }) => void
+  onUseAsReference?: (image: ResultImage) => void
+  /** Adds several results as composer references (capped at the limit). */
+  onUseAsReferences?: (images: ResultImage[]) => void
+  /** New batch of the result's prompt, editing from that image. */
+  onVary?: (image: ResultImage & { prompt?: string }) => void
+  onSendToCanvas: (runs: StudioRunSummary[]) => void
+  sendingToCanvas: boolean
   onRetry: (clientIds: string[]) => void
   onCancelQueued: (clientIds: string[]) => void
   onDismiss: (clientIds: string[]) => void
@@ -114,6 +134,55 @@ export function StudioFeed(props: StudioFeedProps) {
     items: LightboxItem[]
     index: number
   } | null>(null)
+  const [selectModeOn, setSelectModeOn] = useState(false)
+  const [selection, setSelection] = useState<StudioSelection>(
+    EMPTY_STUDIO_SELECTION
+  )
+
+  // Multi-select covers finished images; reading the selection back through
+  // the current feed drops runs that left it (session switch, history trim).
+  const canSelect = props.modality === 'image'
+  const selectable = useMemo(
+    () => (canSelect ? selectableStudioImages(props.batches) : []),
+    [canSelect, props.batches]
+  )
+  const selectMode = selectModeOn && selectable.length > 0
+  // Leaving the image feed (or emptying it) ends select mode for good.
+  if (selectModeOn && selectable.length === 0) {
+    setSelectModeOn(false)
+    setSelection(EMPTY_STUDIO_SELECTION)
+  }
+  const selectionOrder = useMemo(
+    () => selectable.map((run) => run.id),
+    [selectable]
+  )
+  const selectedRuns = selectMode
+    ? selectable.filter((run) => selection.ids.has(run.id))
+    : []
+
+  const exitSelectMode = () => {
+    setSelectModeOn(false)
+    setSelection(EMPTY_STUDIO_SELECTION)
+  }
+
+  const clickSelect = (id: number, range: boolean) => {
+    setSelectModeOn(true)
+    setSelection((current) =>
+      clickStudioSelection(current, selectionOrder, id, range)
+    )
+  }
+
+  const lightboxOpen = lightbox != null
+  useEffect(() => {
+    if (!selectMode || lightboxOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      setSelectModeOn(false)
+      setSelection(EMPTY_STUDIO_SELECTION)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectMode, lightboxOpen])
 
   const resultCount = props.batches.reduce(
     (sum, batch) => sum + batch.runs.length,
@@ -180,6 +249,26 @@ export function StudioFeed(props: StudioFeedProps) {
     }
   }
 
+  const downloadSelected = async () => {
+    const items = selectedRuns.map((run, index) => ({
+      url: run.resultUrl as string,
+      filename: `image-${String(index + 1).padStart(2, '0')}`,
+      kind: 'image' as const,
+    }))
+    setDownloading('selection')
+    try {
+      const added = await downloadGeneratedMediaZip(
+        items,
+        `boxai-image-selection-${items.length}`
+      )
+      toast.success(t('Saved {{count}} files as ZIP', { count: added }))
+    } catch {
+      toast.error(t('Download failed'))
+    } finally {
+      setDownloading('')
+    }
+  }
+
   return (
     <div className='flex flex-col gap-4'>
       <div className='bg-background/85 supports-backdrop-filter:bg-background/70 sticky top-0 z-20 -mx-1 flex items-center justify-between gap-2 px-1 py-1.5 backdrop-blur-md'>
@@ -192,34 +281,51 @@ export function StudioFeed(props: StudioFeedProps) {
             </span>
           )}
         </p>
-        {props.modality !== 'audio' && (
-          <div
-            className='bg-muted/60 flex items-center rounded-lg p-0.5'
-            role='radiogroup'
-            aria-label={t('Tile size')}
-          >
-            {DENSITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type='button'
-                role='radio'
-                aria-checked={density === option.value}
-                aria-label={t(option.labelKey)}
-                title={t(option.labelKey)}
-                className={cn(
-                  'focus-visible:ring-ring flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2',
-                  'transition-ui duration-control',
-                  density === option.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                onClick={() => setFeedDensity(option.value)}
-              >
-                <option.Icon className='size-3.5' aria-hidden='true' />
-              </button>
-            ))}
-          </div>
-        )}
+        <div className='flex items-center gap-1.5'>
+          {canSelect && selectable.length > 0 && (
+            <Button
+              size='xs'
+              variant={selectMode ? 'secondary' : 'ghost'}
+              className={cn(!selectMode && 'text-muted-foreground')}
+              aria-pressed={selectMode}
+              title={t('Select results to download, reuse or send to canvas')}
+              onClick={() =>
+                selectMode ? exitSelectMode() : setSelectModeOn(true)
+              }
+            >
+              <SquareCheck aria-hidden='true' />
+              {selectMode ? t('Done') : t('Select')}
+            </Button>
+          )}
+          {props.modality !== 'audio' && (
+            <div
+              className='bg-muted/60 flex items-center rounded-lg p-0.5'
+              role='radiogroup'
+              aria-label={t('Tile size')}
+            >
+              {DENSITY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type='button'
+                  role='radio'
+                  aria-checked={density === option.value}
+                  aria-label={t(option.labelKey)}
+                  title={t(option.labelKey)}
+                  className={cn(
+                    'focus-visible:ring-ring flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2',
+                    'transition-ui duration-control',
+                    density === option.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => setFeedDensity(option.value)}
+                >
+                  <option.Icon className='size-3.5' aria-hidden='true' />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {props.batches.map((batch) => (
@@ -229,17 +335,56 @@ export function StudioFeed(props: StudioFeedProps) {
           modality={props.modality}
           density={density}
           downloading={downloading}
+          selectMode={selectMode}
+          selectedIds={selection.ids}
+          onSelect={canSelect ? clickSelect : undefined}
+          onToggleBatchSelection={(ids) =>
+            setSelection((current) => toggleStudioSelectionGroup(current, ids))
+          }
           onDownload={download}
           onDownloadAll={() => void downloadBatch(batch)}
           onOpenImage={(items, index) => setLightbox({ items, index })}
           onReusePrompt={props.onReusePrompt}
           onRerun={props.onRerun}
           onUseAsReference={props.onUseAsReference}
+          onVary={props.onVary}
           onRetry={props.onRetry}
           onCancelQueued={props.onCancelQueued}
           onDismiss={props.onDismiss}
         />
       ))}
+
+      {selectMode && (
+        <StudioSelectionBar
+          count={selectedRuns.length}
+          total={selectable.length}
+          downloading={downloading === 'selection'}
+          sending={props.sendingToCanvas}
+          onDownload={() => void downloadSelected()}
+          onUseAsReferences={
+            props.onUseAsReferences
+              ? () => {
+                  props.onUseAsReferences?.(
+                    selectedRuns.map((run) => ({
+                      url: run.resultUrl as string,
+                      assetId: run.assetId,
+                    }))
+                  )
+                  exitSelectMode()
+                }
+              : undefined
+          }
+          onSendToCanvas={() => props.onSendToCanvas(selectedRuns)}
+          onSelectAll={() =>
+            setSelection((current) => ({
+              ids: new Set(selectionOrder),
+              anchor: current.anchor,
+            }))
+          }
+          onClear={() => setSelection(EMPTY_STUDIO_SELECTION)}
+          onDone={exitSelectMode}
+        />
+      )}
 
       <div ref={anchorRef} aria-hidden='true' />
 
@@ -254,23 +399,45 @@ export function StudioFeed(props: StudioFeedProps) {
           setLightbox((state) => (state ? { ...state, index } : state))
         }
         actions={
-          props.onUseAsReference
+          props.onUseAsReference || props.onVary
             ? (item) => (
-                <Button
-                  size='sm'
-                  variant='ghost'
-                  className='rounded-full text-white hover:bg-white/15 hover:text-white'
-                  onClick={() => {
-                    props.onUseAsReference?.({
-                      url: item.url,
-                      assetId: item.assetId,
-                    })
-                    setLightbox(null)
-                  }}
-                >
-                  <PenLine className='size-4' />
-                  {t('Use as reference')}
-                </Button>
+                <>
+                  {props.onVary && (
+                    <Button
+                      size='sm'
+                      variant='ghost'
+                      className='rounded-full text-white hover:bg-white/15 hover:text-white'
+                      onClick={() => {
+                        props.onVary?.({
+                          url: item.url,
+                          assetId: item.assetId,
+                          prompt: item.caption,
+                        })
+                        setLightbox(null)
+                      }}
+                    >
+                      <Sparkles className='size-4' />
+                      {t('Vary')}
+                    </Button>
+                  )}
+                  {props.onUseAsReference && (
+                    <Button
+                      size='sm'
+                      variant='ghost'
+                      className='rounded-full text-white hover:bg-white/15 hover:text-white'
+                      onClick={() => {
+                        props.onUseAsReference?.({
+                          url: item.url,
+                          assetId: item.assetId,
+                        })
+                        setLightbox(null)
+                      }}
+                    >
+                      <PenLine className='size-4' />
+                      {t('Use as reference')}
+                    </Button>
+                  )}
+                </>
               )
             : undefined
         }
@@ -284,6 +451,11 @@ function BatchCard(props: {
   modality: StudioModalityKind
   density: StudioFeedDensity
   downloading: string
+  selectMode: boolean
+  selectedIds: ReadonlySet<number>
+  /** Select-mode click; `range` extends from the last clicked result. */
+  onSelect?: (runId: number, range: boolean) => void
+  onToggleBatchSelection: (runIds: number[]) => void
   onDownload: (
     url: string,
     filename: string,
@@ -293,7 +465,8 @@ function BatchCard(props: {
   onOpenImage: (items: LightboxItem[], index: number) => void
   onReusePrompt: (prompt: string) => void
   onRerun: (prompts: string[]) => void
-  onUseAsReference?: (image: { url: string; assetId?: number }) => void
+  onUseAsReference?: (image: ResultImage) => void
+  onVary?: (image: ResultImage & { prompt?: string }) => void
   onRetry: (clientIds: string[]) => void
   onCancelQueued: (clientIds: string[]) => void
   onDismiss: (clientIds: string[]) => void
@@ -323,6 +496,9 @@ function BatchCard(props: {
     downloadName: `image-run-${Math.abs(run.id) || index + 1}`,
     assetId: run.assetId,
   }))
+  const imageIds = images.map((run) => run.id)
+  const batchFullySelected =
+    imageIds.length > 0 && imageIds.every((id) => props.selectedIds.has(id))
 
   let gridClass = 'flex flex-col gap-2 max-w-2xl'
   if (props.modality !== 'audio') {
@@ -370,6 +546,18 @@ function BatchCard(props: {
           </p>
         </div>
         <div className='flex shrink-0 items-center gap-0.5'>
+          {props.selectMode && imageIds.length > 1 && (
+            <Button
+              size='xs'
+              variant={batchFullySelected ? 'secondary' : 'ghost'}
+              className={cn(!batchFullySelected && 'text-muted-foreground')}
+              aria-pressed={batchFullySelected}
+              onClick={() => props.onToggleBatchSelection(imageIds)}
+            >
+              <ListChecks aria-hidden='true' />
+              {batchFullySelected ? t('Deselect batch') : t('Select batch')}
+            </Button>
+          )}
           {jobPrompts.length > 0 && (
             <BatchAction
               label={t('Edit prompt in composer')}
@@ -433,12 +621,29 @@ function BatchCard(props: {
                 ratio={ratio}
                 index={index}
                 downloading={props.downloading === filename}
+                selectMode={props.selectMode}
+                selected={props.selectMode && props.selectedIds.has(run.id)}
+                onSelect={
+                  props.onSelect
+                    ? (range) => props.onSelect?.(run.id, range)
+                    : undefined
+                }
                 onOpen={() => props.onOpenImage(lightboxItems, index)}
                 onDownload={() => void props.onDownload(url, filename, 'image')}
                 onUseAsReference={
                   props.onUseAsReference
                     ? () =>
                         props.onUseAsReference?.({ url, assetId: run.assetId })
+                    : undefined
+                }
+                onVary={
+                  props.onVary && run.prompt?.trim()
+                    ? () =>
+                        props.onVary?.({
+                          url,
+                          assetId: run.assetId,
+                          prompt: run.prompt,
+                        })
                     : undefined
                 }
               />

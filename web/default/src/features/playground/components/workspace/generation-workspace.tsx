@@ -7,13 +7,17 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { fetchPlaygroundAssetBlob } from '../../api'
+import { useSendToCanvas } from '../../hooks/use-send-to-canvas'
 import type { UseStudioResult } from '../../hooks/use-studio'
 import { isStudioSession } from '../../lib'
 import {
   MAX_STUDIO_BATCH_JOBS,
   type GenerationJobPlan,
 } from '../../lib/studio/batch-plan'
-import { isPlaygroundImageModel } from '../../lib/studio/image-request-schema'
+import {
+  isPlaygroundImageModel,
+  normalizeImageCount,
+} from '../../lib/studio/image-request-schema'
 import { buildStudioFeed } from '../../lib/studio/studio-feed'
 import {
   getActiveVideoReferenceLimit,
@@ -32,6 +36,8 @@ type GenerationWorkspaceProps = {
   canSubmit: () => boolean
   studio: UseStudioResult
 }
+
+type ResultImage = { url: string; assetId?: number }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -55,6 +61,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const { studio } = props
   const [references, setReferences] = useState<MediaReference[]>([])
   const [referenceModality, setReferenceModality] = useState(props.modality)
+  const canvas = useSendToCanvas()
 
   const model = usePlaygroundStore((state) => state.config.model)
   const studioSettings = usePlaygroundStore((state) => state.studioSettings)
@@ -123,10 +130,16 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       entry.input.modality === props.modality && entry.status !== 'error'
   ).length
 
-  const startJobs = (prompts: string[]) => {
+  /**
+   * Queues one batch. `referenceUrls` replaces the composer references for
+   * this batch only (variations of a result), leaving the composer untouched.
+   */
+  const startJobs = (prompts: string[], referenceUrls?: string[]) => {
     if (prompts.length === 0 || !model) return
     if (!props.canSubmit()) return
-    if (references.length > maxFiles) {
+    const batchReferences =
+      referenceUrls ?? references.map((reference) => reference.dataUrl)
+    if (batchReferences.length > maxFiles) {
       toast.error(
         t('You can attach up to {{count}} images.', { count: maxFiles })
       )
@@ -143,7 +156,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     if (
       props.modality === 'video' &&
       videoCapabilities.requiresImage &&
-      references.length === 0
+      batchReferences.length === 0
     ) {
       toast.error(t('This model needs a reference image'))
       return
@@ -161,10 +174,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       sessionId,
       model,
       group,
-      references:
-        props.modality === 'audio'
-          ? []
-          : references.map((reference) => reference.dataUrl),
+      references: props.modality === 'audio' ? [] : batchReferences,
       prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),
     })
   }
@@ -181,34 +191,83 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     startJobs(plan.prompts)
   }
 
-  const addReferenceFromResult = async (image: {
-    url: string
-    assetId?: number
-  }) => {
+  /** Reads a finished result back as an image data URL for a reference. */
+  const loadResultReference = async (
+    image: ResultImage
+  ): Promise<MediaReference> => {
+    const blob = image.assetId
+      ? await fetchPlaygroundAssetBlob(image.assetId)
+      : await (await fetch(image.url)).blob()
+    const dataUrl = await blobToDataUrl(blob)
+    if (!dataUrl.startsWith('data:image/')) {
+      throw new Error('not an image')
+    }
+    return {
+      id: crypto.randomUUID(),
+      name: t('Generated image'),
+      dataUrl,
+      assetId: image.assetId,
+    }
+  }
+
+  const addReferencesFromResults = async (images: ResultImage[]) => {
+    if (images.length > maxFiles) {
+      toast.info(
+        t('This model accepts up to {{count}} reference images.', {
+          count: maxFiles,
+        })
+      )
+    }
+    const loaded = await Promise.allSettled(
+      images.slice(0, maxFiles).map(loadResultReference)
+    )
+    const added = loaded.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : []
+    )
+    const failed = loaded.length - added.length
+    if (added.length === 0) {
+      toast.error(t('Could not load this image as a reference.'))
+      return
+    }
+    setReferences((previous) => [...previous, ...added].slice(-maxFiles))
+    if (failed > 0) {
+      toast.warning(
+        t('{{count}} images could not be loaded as references.', {
+          count: failed,
+        })
+      )
+    }
+    toast.success(
+      added.length > 1
+        ? t('Added {{count}} references. Describe your edit and send.', {
+            count: added.length,
+          })
+        : t('Added as reference. Describe your edit and send.')
+    )
+  }
+
+  /**
+   * Variations: the result's prompt again, as a new batch of the current
+   * count, editing from that image. The composer's references stay as-is.
+   */
+  const varyResult = async (image: ResultImage & { prompt?: string }) => {
+    const prompt = image.prompt?.trim()
+    if (!prompt) {
+      toast.error(t('This result has no prompt to vary.'))
+      return
+    }
+    let reference: MediaReference
     try {
-      const blob = image.assetId
-        ? await fetchPlaygroundAssetBlob(image.assetId)
-        : await (await fetch(image.url)).blob()
-      const dataUrl = await blobToDataUrl(blob)
-      if (!dataUrl.startsWith('data:image/')) {
-        throw new Error('not an image')
-      }
-      setReferences((previous) => {
-        const next = [
-          ...previous,
-          {
-            id: crypto.randomUUID(),
-            name: t('Generated image'),
-            dataUrl,
-            assetId: image.assetId,
-          },
-        ]
-        return next.slice(-maxFiles)
-      })
-      toast.success(t('Added as reference. Describe your edit and send.'))
+      reference = await loadResultReference(image)
     } catch {
       toast.error(t('Could not load this image as a reference.'))
+      return
     }
+    const count = normalizeImageCount(studioSettings.imageCount)
+    startJobs(
+      Array.from({ length: count }, () => prompt),
+      [reference.dataUrl]
+    )
   }
 
   const supportsReferences =
@@ -241,12 +300,26 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
                 }
                 setPrefill(prompt)
               }}
-              onRerun={startJobs}
+              onRerun={(prompts) => startJobs(prompts)}
               onUseAsReference={
                 supportsReferences
-                  ? (image) => void addReferenceFromResult(image)
+                  ? (image) => void addReferencesFromResults([image])
                   : undefined
               }
+              onUseAsReferences={
+                supportsReferences
+                  ? (images) => void addReferencesFromResults(images)
+                  : undefined
+              }
+              onVary={
+                props.modality === 'image'
+                  ? (image) => void varyResult(image)
+                  : undefined
+              }
+              sendingToCanvas={canvas.sending}
+              onSendToCanvas={(runs) => {
+                if (props.canSubmit()) canvas.sendToCanvas(runs)
+              }}
               onRetry={studio.retryRuns}
               onCancelQueued={studio.cancelQueued}
               onDismiss={studio.dismissRuns}

@@ -3,7 +3,8 @@ import { createCanvasNode } from './canvas-domain'
 
 /** Children per row when an image batch is expanded onto the canvas. */
 export const IMAGE_BATCH_COLUMNS = 5
-const IMAGE_BATCH_GAP = 24
+/** Spacing between batch slots, shared by every image grid on the canvas. */
+export const IMAGE_BATCH_GAP = 24
 
 /**
  * Canvas position of batch child `index` (0-based, root excluded): a grid to
