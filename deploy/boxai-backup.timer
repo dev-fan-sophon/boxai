@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily verified BoxAI PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 19:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=boxai-maintenance@backup.service
+
+[Install]
+WantedBy=timers.target

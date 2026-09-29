@@ -42,6 +42,12 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Verify deployment and monitoring contracts
+        run: |
+          bash -n scripts/deploy-prod.sh scripts/deploy-web.sh scripts/server/start-infra.sh
+          python3 scripts/server/start-infra_test.py
+          node --test workers/health-monitor/index.test.mjs
+
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile

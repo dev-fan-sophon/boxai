@@ -11,9 +11,70 @@ Canonical production and local ops for this repository.
 | **App** (Go API + SEO shell) | Host binary + **systemd** `boxai.service` → `127.0.0.1:3000` | Optional `make start-api` (`go run`) |
 | **Web SPA** (disk, preferred) | `/opt/boxai/web` → `web-releases/<id>` (atomic symlink); `WEB_DIST_DIR` in unit | embed fallback / `make dev-web` |
 | **Chat service** (Bun/TypeScript, `chat-service/`) | **systemd** `boxai-chat.service` → `127.0.0.1:3100` | `cd chat-service && bun run dev` |
-| **Postgres** | Docker `boxai-postgres` → `127.0.0.1:5432` | Optional `docker-compose.dev.yml` |
+| **Postgres** | OVH managed PostgreSQL 18 over private network + verified TLS | Optional `docker-compose.dev.yml` |
 | **Redis** | Docker `boxai-redis` → `127.0.0.1:6379` | Optional `docker-compose.dev.yml` |
 | **TLS** | nginx → `http://127.0.0.1:3000`; `/chat-api/*` → `http://127.0.0.1:3100` (`deploy/nginx/chat-api.conf.example`) | n/a |
+
+### OVH production destination and data services
+
+The production destination is checked in as `deploy/production.env`, with the
+public SSH host key in `deploy/production_known_hosts`. Both deploy scripts load
+this after local configuration, so old GitHub host secrets cannot send a release
+to the retired origin. The private deployment key remains in Secrets. For manual
+administration, export this file before running `scripts/boxai-server`:
+
+```bash
+set -a; source deploy/production.env; set +a
+```
+
+The target is the `boxai` Public Cloud project, SGP1, one `b3-16` instance
+(4 vCPU, 16 GiB, 100 GB), with local Redis and an independent managed PostgreSQL
+Discovery service. This is **not** an HA application deployment.
+
+Set `BOXAI_POSTGRES_MODE=external` in `/opt/boxai/.env`. Releases run
+`scripts/server/start-infra.sh`, which starts **only Redis** in external mode and
+refuses a localhost PostgreSQL DSN. Without this setting it preserves the local
+PostgreSQL + Redis deployment. Do not run an unqualified `docker compose up` on
+the OVH host: the compose file still contains the optional local PostgreSQL.
+
+Gateway `SQL_DSN` uses `sslmode=verify-full` and
+`sslrootcert=/opt/boxai/ovh-postgres-ca.pem`. Chat uses the same database with
+`sslmode=verify-full` and `NODE_EXTRA_CA_CERTS` pointing to that CA. The application
+user owns its database, not the entire managed service. Access is restricted to
+the application's private IP. Database deletion protection is enabled.
+
+AlmaLinux keeps SELinux enforcing. Bun's executable at `/root/.bun/bin/bun` needs
+a persistent `bin_t` file-context rule and `restorecon`; nginx needs
+`httpd_can_network_connect`. Public ingress is restricted by firewalld to SSH,
+HTTP and HTTPS. Redis and PostgreSQL are not publicly exposed.
+
+### Backups and external monitoring
+
+`scripts/server/health-backup.py` runs from `/opt/boxai/ops/` in an isolated
+Python environment with boto3. Root-only `backup.env` contains S3 credentials
+scoped to **only `boxai-backup`**; `postgres-client.env` holds the application
+database connection. Never commit either file.
+
+- `boxai-backup.timer`: daily PostgreSQL custom-format dump, R2 upload and full
+  download SHA-256 verification. Local dumps retain seven days. R2 lifecycle
+  expires **only `ovh/postgres/`** after 30 days; other prefixes are untouched.
+- `boxai-health.timer`: every two minutes, publish a private heartbeat with
+  service, PostgreSQL, Redis, free disk, available memory, load and backup-age
+  checks. Backup freshness requires a verified success within 26 hours.
+- `workers/health-monitor`: runs outside OVH on the canonical Cloudflare account.
+  Every two minutes it checks public gateway/Chat health and the host heartbeat.
+  Two failed checks trigger email, with hourly reminders and recovery notices.
+  `ALERT_FROM`, `ALERT_TO` and `CHECK_TOKEN` are Worker secrets. Email delivery
+  requires available Cloudflare Email Sending quota. Workers errors must not be
+  interpreted as successful notification delivery.
+
+Restore drills download an R2 object into a separate disposable database and
+verify the restored data. A successful upload or VM snapshot alone is not a
+database recovery test. During cutover, stop old writers and drain requests
+before the final dump; compare table counts and billing totals before starting
+the new master. After the new origin accepts writes, DNS-only rollback to the
+old database is unsafe: keep the old host proxying to the new origin, or stop
+writes and migrate the latest data back before reverting.
 
 ### Frontend vs API release (same origin)
 

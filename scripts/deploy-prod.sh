@@ -40,6 +40,9 @@ if [[ -f .env.boxai-admin ]]; then
   set +a
 fi
 
+# The reviewed destination takes precedence over stale runner/GitHub variables.
+source "$ROOT/deploy/production.env"
+
 : "${BOXAI_SSH_HOST:?BOXAI_SSH_HOST required}"
 : "${BOXAI_SSH_USER:?BOXAI_SSH_USER required}"
 
@@ -191,7 +194,7 @@ scp -i "$KEY_FILE" -P "$PORT" \
 scp -i "$KEY_FILE" -P "$PORT" \
   -o BatchMode=yes -o IdentitiesOnly=yes \
   -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KNOWN_HOSTS" \
-  scripts/server/bootstrap-toolchain.sh scripts/server/build-native.sh \
+  scripts/server/bootstrap-toolchain.sh scripts/server/build-native.sh scripts/server/start-infra.sh \
   "${BOXAI_SSH_USER}@${BOXAI_SSH_HOST}:${APP_ROOT}/releases/${REF}/scripts/server/"
 "${SSH[@]}" "chmod +x ${APP_ROOT}/releases/${REF}/scripts/server/*.sh"
 
@@ -216,12 +219,13 @@ import re
 p = Path("${APP_ROOT}/.env")
 text = p.read_text()
 orig = text
-# postgres host
-text = re.sub(
-    r"(SQL_DSN=postgresql://[^@]+@)[^:/?\s]+",
-    r"\g<1>127.0.0.1",
-    text,
-)
+# Preserve the managed database address during host bootstrap.
+if not re.search(r"^BOXAI_POSTGRES_MODE=['\"]?external['\"]?\s*$", text, re.M):
+    text = re.sub(
+        r"(SQL_DSN=postgresql://[^@]+@)[^:/?\s]+",
+        r"\g<1>127.0.0.1",
+        text,
+    )
 # redis host
 text = re.sub(
     r"(REDIS_CONN_STRING=redis://(?:[^@]+@)?)[^:/?\s]+",
@@ -237,7 +241,7 @@ PY
 
 # Start / recreate infra with published localhost ports
 cd "$APP_ROOT"
-docker compose -f docker-compose.infra.yml --env-file "${APP_ROOT}/.env" up -d
+BOXAI_APP_ROOT="$APP_ROOT" bash "${APP_ROOT}/releases/${REF}/scripts/server/start-infra.sh"
 docker compose -f docker-compose.infra.yml --env-file "${APP_ROOT}/.env" ps
 
 # Stop dockerized app if present (free :3000)
@@ -283,51 +287,11 @@ fi
 # Keep infra up; never use legacy app compose
 cd "$APP_ROOT"
 rm -f docker-compose.yml
-# Ensure compose can start: derive POSTGRES_* from SQL_DSN when missing
-python3 - <<PY
-from pathlib import Path
-import re
-from urllib.parse import unquote
-
-env_path = Path("${APP_ROOT}/.env")
-text = env_path.read_text() if env_path.exists() else ""
-vals = {}
-for line in text.splitlines():
-    if not line or line.lstrip().startswith("#") or "=" not in line:
-        continue
-    k, v = line.split("=", 1)
-    vals[k.strip()] = v.strip().strip("'\"")
-
-need = ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
-missing = [k for k in need if not vals.get(k)]
-if missing:
-    dsn = vals.get("SQL_DSN", "")
-    # postgresql://user:pass@host:port/db?...
-    m = re.match(r"^postgres(?:ql)?://([^:/?#]+):([^@/]+)@[^/]+/([^?]+)", dsn)
-    if not m:
-        raise SystemExit(f"missing {missing} and cannot parse SQL_DSN for compose")
-    user, password, db = unquote(m.group(1)), unquote(m.group(2)), unquote(m.group(3))
-    derived = {
-        "POSTGRES_USER": user,
-        "POSTGRES_PASSWORD": password,
-        "POSTGRES_DB": db,
-    }
-    with env_path.open("a") as f:
-        if text and not text.endswith("\n"):
-            f.write("\n")
-        f.write("# Derived for docker-compose.infra.yml (boxai rename)\n")
-        for k in need:
-            if not vals.get(k):
-                f.write(f"{k}={derived[k]}\n")
-                print(f"ENV_ADDED {k}")
-else:
-    print("POSTGRES_ENV_OK")
-PY
 # Remove old container names so recreate picks boxai-* names (bind mounts keep data)
 for c in boxai2-postgres boxai2-redis; do
   docker rm -f "$c" 2>/dev/null || true
 done
-docker compose -f docker-compose.infra.yml --env-file "${APP_ROOT}/.env" up -d
+bash "${APP_ROOT}/releases/${REF}/scripts/server/start-infra.sh"
 # Ensure systemd unit is current
 cp -f "${APP_ROOT}/releases/${REF}/deploy/boxai.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload

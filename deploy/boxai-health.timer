@@ -1,0 +1,10 @@
+[Unit]
+Description=Publish BoxAI host health every two minutes
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=120
+Unit=boxai-maintenance@health.service
+
+[Install]
+WantedBy=timers.target

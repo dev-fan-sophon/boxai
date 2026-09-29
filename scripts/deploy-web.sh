@@ -38,6 +38,8 @@ if [[ -f .env.boxai-admin ]]; then
   set +a
 fi
 
+source "$ROOT/deploy/production.env"
+
 : "${BOXAI_SSH_HOST:?BOXAI_SSH_HOST required}"
 : "${BOXAI_SSH_USER:?BOXAI_SSH_USER required}"
 : "${BOXAI_BASE_URL:?BOXAI_BASE_URL required}"

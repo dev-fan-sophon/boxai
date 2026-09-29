@@ -1,0 +1,12 @@
+[Unit]
+Description=BoxAI %i maintenance
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/boxai/ops-venv/bin/python /opt/boxai/ops/health-backup.py %i
+TimeoutStartSec=600
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
