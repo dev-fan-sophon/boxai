@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { ErrorState } from '@/components/error-state'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -25,6 +26,8 @@ export function ReferralRewardsCard(props: ReferralRewardsCardProps) {
   const {
     affiliateLink,
     loading: affiliateLoading,
+    isError: affiliateError,
+    refetch: refetchAffiliate,
     transferQuota,
     transferring,
   } = useAffiliate()
@@ -47,6 +50,20 @@ export function ReferralRewardsCard(props: ReferralRewardsCardProps) {
           <Skeleton className='h-5 w-32' />
           <Skeleton className='h-14 rounded-lg' />
           <Skeleton className='h-10 rounded-lg' />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (affiliateError) {
+    return (
+      <Card data-card-hover='false' className='bg-muted/20 py-0'>
+        <CardContent className='p-3 sm:p-4'>
+          <ErrorState
+            title={t('Failed to load referral link')}
+            onRetry={() => void refetchAffiliate()}
+            className='min-h-40 p-2'
+          />
         </CardContent>
       </Card>
     )

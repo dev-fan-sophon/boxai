@@ -16,3 +16,11 @@ export const NOTIFICATION_METHODS = [
   { value: 'bark' as const, label: 'Bark' },
   { value: 'gotify' as const, label: 'Gotify' },
 ] as const
+
+/**
+ * React Query keys for profile data.
+ */
+export const PROFILE_QUERY_KEYS = {
+  self: ['profile', 'self'],
+  twoFAStatus: ['profile', '2fa-status'],
+} as const

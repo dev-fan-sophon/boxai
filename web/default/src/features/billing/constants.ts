@@ -48,3 +48,16 @@ export const DEFAULT_DISCOUNT_RATE = 1.0
  * Default minimum topup amount
  */
 export const DEFAULT_MIN_TOPUP = 1
+
+/**
+ * React Query keys for billing data. Keys are nested arrays so invalidating a
+ * prefix (for example `history`) refreshes every page/filter variant.
+ */
+export const BILLING_QUERY_KEYS = {
+  wallet: ['billing', 'wallet'],
+  topupInfo: ['billing', 'topup-info'],
+  history: ['billing', 'history'],
+  affiliateCode: ['billing', 'affiliate-code'],
+  subscriptionPlans: ['billing', 'subscription', 'plans'],
+  subscriptionSelf: ['billing', 'subscription', 'self'],
+} as const

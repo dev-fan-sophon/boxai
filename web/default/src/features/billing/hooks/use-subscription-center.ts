@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import i18next from 'i18next'
+import { useCallback, useMemo } from 'react'
 
 import {
   getPublicPlans,
@@ -10,6 +12,8 @@ import type {
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
 
+import { BILLING_QUERY_KEYS } from '../constants'
+
 export interface SubscriptionCenterData {
   plans: PlanRecord[]
   activeSubscriptions: UserSubscriptionRecord[]
@@ -19,8 +23,11 @@ export interface SubscriptionCenterData {
   overageLimitUsd: number
 }
 
-const EMPTY_DATA: SubscriptionCenterData = {
-  plans: [],
+type SelfSubscriptionState = Omit<SubscriptionCenterData, 'plans'>
+
+const EMPTY_PLANS: PlanRecord[] = []
+
+const EMPTY_SELF: SelfSubscriptionState = {
   activeSubscriptions: [],
   allSubscriptions: [],
   pendingBankQROrders: [],
@@ -33,65 +40,81 @@ const EMPTY_DATA: SubscriptionCenterData = {
  * plans section render the same data, so both APIs are fetched once here.
  */
 export function useSubscriptionCenter() {
-  const [data, setData] = useState<SubscriptionCenterData>(EMPTY_DATA)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const queryClient = useQueryClient()
 
-  const fetchSelfSubscription = useCallback(async () => {
-    try {
-      const res = await getSelfSubscriptionFull()
-      if (!res.success || !res.data) return
-      setData((prev) => ({
-        ...prev,
-        activeSubscriptions: res.data?.subscriptions || [],
-        allSubscriptions: res.data?.all_subscriptions || [],
-        pendingBankQROrders: res.data?.pending_bank_qr_orders || [],
-        overageEnabled: !!res.data?.overage_enabled,
-        overageLimitUsd: Number(res.data?.overage_limit_usd || 0),
-      }))
-    } catch {
-      /* keep previous data */
-    }
-  }, [])
-
-  const fetchPlans = useCallback(async () => {
-    try {
+  const plansQuery = useQuery({
+    queryKey: BILLING_QUERY_KEYS.subscriptionPlans,
+    queryFn: async () => {
       const res = await getPublicPlans()
-      if (!res.success) return
-      setData((prev) => ({ ...prev, plans: res.data || [] }))
-    } catch {
-      /* keep previous data */
-    }
-  }, [])
-
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true)
-      await Promise.all([fetchPlans(), fetchSelfSubscription()])
-      setLoading(false)
-    }
-    void init()
-  }, [fetchPlans, fetchSelfSubscription])
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true)
-    try {
-      await fetchSelfSubscription()
-    } finally {
-      setRefreshing(false)
-    }
-  }, [fetchSelfSubscription])
-
-  const applyOverageSettings = useCallback(
-    (enabled: boolean, limitUsd: number) => {
-      setData((prev) => ({
-        ...prev,
-        overageEnabled: enabled,
-        overageLimitUsd: limitUsd,
-      }))
+      if (!res.success) {
+        throw new Error(
+          res.message || i18next.t('Failed to load subscription plans')
+        )
+      }
+      return res.data || []
     },
-    []
+    retry: false,
+  })
+
+  const selfQuery = useQuery({
+    queryKey: BILLING_QUERY_KEYS.subscriptionSelf,
+    queryFn: async (): Promise<SelfSubscriptionState> => {
+      const res = await getSelfSubscriptionFull()
+      if (!res.success || !res.data) {
+        throw new Error(
+          res.message || i18next.t('Failed to load subscription plans')
+        )
+      }
+      return {
+        activeSubscriptions: res.data.subscriptions || [],
+        allSubscriptions: res.data.all_subscriptions || [],
+        pendingBankQROrders: res.data.pending_bank_qr_orders || [],
+        overageEnabled: !!res.data.overage_enabled,
+        overageLimitUsd: Number(res.data.overage_limit_usd || 0),
+      }
+    },
+    retry: false,
+  })
+
+  const plans = plansQuery.data ?? EMPTY_PLANS
+  const self = selfQuery.data ?? EMPTY_SELF
+  const data = useMemo<SubscriptionCenterData>(
+    () => ({ plans, ...self }),
+    [plans, self]
   )
 
-  return { data, loading, refreshing, refresh, applyOverageSettings }
+  const refetchSelf = selfQuery.refetch
+  const refresh = useCallback(async () => {
+    await refetchSelf()
+  }, [refetchSelf])
+
+  const refetchPlans = plansQuery.refetch
+  const refetch = useCallback(async () => {
+    await Promise.all([refetchPlans(), refetchSelf()])
+  }, [refetchPlans, refetchSelf])
+
+  // Optimistic write used by the overage toggle before/after the API call.
+  const applyOverageSettings = useCallback(
+    (enabled: boolean, limitUsd: number) => {
+      queryClient.setQueryData<SelfSubscriptionState>(
+        BILLING_QUERY_KEYS.subscriptionSelf,
+        (prev) => ({
+          ...(prev ?? EMPTY_SELF),
+          overageEnabled: enabled,
+          overageLimitUsd: limitUsd,
+        })
+      )
+    },
+    [queryClient]
+  )
+
+  return {
+    data,
+    loading: plansQuery.isPending || selfQuery.isPending,
+    refreshing: selfQuery.isFetching && !selfQuery.isPending,
+    isError: plansQuery.isError || selfQuery.isError,
+    refresh,
+    refetch,
+    applyOverageSettings,
+  }
 }

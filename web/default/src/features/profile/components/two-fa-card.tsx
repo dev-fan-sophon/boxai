@@ -1,6 +1,7 @@
 import { Shield, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ErrorState } from '@/components/error-state'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -31,7 +32,7 @@ type DialogKey = 'setup' | 'disable' | 'backup'
 
 export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
   const { t } = useTranslation()
-  const { status, loading, refetch } = useTwoFA(!pageLoading)
+  const { status, loading, isError, refetch } = useTwoFA(!pageLoading)
   const dialogs = useDialogs<DialogKey>()
 
   if (pageLoading || loading) {
@@ -43,6 +44,25 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
         </CardHeader>
         <CardContent className='p-3 sm:p-5'>
           <Skeleton className='h-20 w-full' />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
+        <CardHeader className='p-3 sm:p-5'>
+          <CardTitle className='text-lg tracking-tight sm:text-xl'>
+            {t('Two-Factor Authentication')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className='p-3 sm:p-5'>
+          <ErrorState
+            title={t('Failed to load 2FA status')}
+            onRetry={() => void refetch()}
+            className='min-h-40 p-2'
+          />
         </CardContent>
       </Card>
     )
@@ -146,7 +166,7 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
         onOpenChange={(open) =>
           open ? dialogs.open('setup') : dialogs.close('setup')
         }
-        onSuccess={refetch}
+        onSuccess={() => void refetch()}
       />
 
       <TwoFADisableDialog
@@ -154,7 +174,7 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
         onOpenChange={(open) =>
           open ? dialogs.open('disable') : dialogs.close('disable')
         }
-        onSuccess={refetch}
+        onSuccess={() => void refetch()}
       />
 
       <TwoFABackupDialog
@@ -162,7 +182,7 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
         onOpenChange={(open) =>
           open ? dialogs.open('backup') : dialogs.close('backup')
         }
-        onSuccess={refetch}
+        onSuccess={() => void refetch()}
       />
     </>
   )

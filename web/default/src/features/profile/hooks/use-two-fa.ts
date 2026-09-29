@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import i18next from 'i18next'
 
 import { get2FAStatus } from '@/lib/api'
 
+import { PROFILE_QUERY_KEYS } from '../constants'
 import type { TwoFAStatus } from '../types'
 
 // ============================================================================
@@ -15,33 +17,25 @@ const DEFAULT_STATUS: TwoFAStatus = {
 }
 
 export function useTwoFA(enabled = true) {
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState<TwoFAStatus>(DEFAULT_STATUS)
-
-  const fetchStatus = useCallback(async () => {
-    if (!enabled) return
-
-    try {
-      setLoading(true)
+  const query = useQuery({
+    queryKey: PROFILE_QUERY_KEYS.twoFAStatus,
+    queryFn: async (): Promise<TwoFAStatus> => {
       const response = await get2FAStatus()
-      if (response.success && response.data) {
-        setStatus(response.data)
+      if (!response.success || !response.data) {
+        throw new Error(
+          response.message || i18next.t('Failed to load 2FA status')
+        )
       }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch 2FA status:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [enabled])
-
-  useEffect(() => {
-    fetchStatus()
-  }, [fetchStatus])
+      return response.data
+    },
+    enabled,
+    retry: false,
+  })
 
   return {
-    status,
-    loading,
-    refetch: fetchStatus,
+    status: query.data ?? DEFAULT_STATUS,
+    loading: query.isPending,
+    isError: query.isError,
+    refetch: query.refetch,
   }
 }

@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { useStatus } from '@/hooks/use-status'
 import { MOTION_TRANSITION } from '@/lib/motion'
@@ -39,7 +40,7 @@ function FadeIn(props: {
 
 export function Profile() {
   const { t } = useTranslation()
-  const { profile, loading, refreshProfile } = useProfile()
+  const { profile, loading, isError, refetch, refreshProfile } = useProfile()
   const { status } = useStatus()
   const permissions = useAuthStore((s) => s.auth.user?.permissions)
 
@@ -49,6 +50,23 @@ export function Profile() {
   )
   const turnstileSiteKey = status?.turnstile_site_key || ''
   const canConfigureSidebar = permissions?.sidebar_settings !== false
+
+  if (isError && !profile) {
+    return (
+      <SectionPageLayout>
+        <SectionPageLayout.Title>{t('Profile')}</SectionPageLayout.Title>
+        <SectionPageLayout.Content>
+          <div className='mx-auto w-full max-w-6xl'>
+            <ErrorState
+              title={t('Failed to load profile')}
+              description={t('Check your connection and try again.')}
+              onRetry={() => void refetch()}
+            />
+          </div>
+        </SectionPageLayout.Content>
+      </SectionPageLayout>
+    )
+  }
 
   return (
     <SectionPageLayout>

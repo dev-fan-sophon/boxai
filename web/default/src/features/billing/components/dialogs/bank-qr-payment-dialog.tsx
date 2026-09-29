@@ -22,21 +22,97 @@ interface BankQRPaymentDialogProps {
 }
 
 export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
-  const { t, i18n } = useTranslation()
-  const qrContainerRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation()
   const [proofOpen, setProofOpen] = useState(false)
-  const expired = useOrderExpired(props.payment?.expires_at)
 
   if (!props.payment) {
     return null
   }
   const payment = props.payment
 
+  return (
+    <>
+      <Dialog
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        title={t('Pay by bank transfer')}
+        description={t(
+          'Scan the VietQR code or copy the bank details to complete your transfer.'
+        )}
+        contentClassName='sm:max-w-xl'
+        footer={
+          <BankQRPaymentActions
+            payment={payment}
+            onClose={() => props.onOpenChange(false)}
+            onPaid={() => {
+              props.onOpenChange(false)
+              setProofOpen(true)
+            }}
+          />
+        }
+      >
+        <BankQRPaymentDetails payment={payment} />
+      </Dialog>
+      <TopUpProofDialog
+        open={proofOpen}
+        onOpenChange={setProofOpen}
+        tradeNo={payment.trade_no}
+        expiresAt={payment.expires_at}
+      />
+    </>
+  )
+}
+
+interface BankQRPaymentActionsProps {
+  payment: BankQRPaymentData
+  /** Leaves the order pending ("Submit later") or after cancelling it. */
+  onClose: () => void
+  /** The user reports the transfer as done and moves on to the proof form. */
+  onPaid: () => void
+  onCancelled?: () => void
+}
+
+/**
+ * Footer actions for a pending bank QR order: cancel, pay later, or report
+ * the transfer. Shared by the standalone dialog and the top-up flow.
+ */
+export function BankQRPaymentActions(props: BankQRPaymentActionsProps) {
+  const { t } = useTranslation()
+  const expired = useOrderExpired(props.payment.expires_at)
+
+  return (
+    <>
+      <CancelTopUpButton
+        tradeNo={props.payment.trade_no}
+        onCancelled={() => {
+          props.onCancelled?.()
+          props.onClose()
+        }}
+      />
+      <Button variant='outline' onClick={props.onClose}>
+        {t('Submit later')}
+      </Button>
+      <Button disabled={expired} onClick={props.onPaid}>
+        {t('I have paid')}
+      </Button>
+    </>
+  )
+}
+
+/**
+ * VietQR code, exact amount and bank details for a pending bank QR order.
+ */
+export function BankQRPaymentDetails(props: { payment: BankQRPaymentData }) {
+  const { t, i18n } = useTranslation()
+  const qrContainerRef = useRef<HTMLDivElement>(null)
+  const payment = props.payment
+  const expired = useOrderExpired(payment.expires_at)
+
   const formattedAmount = new Intl.NumberFormat(toIntlLocale(i18n.language), {
     style: 'currency',
     currency: 'VND',
     maximumFractionDigits: 0,
-  }).format(props.payment.amount)
+  }).format(payment.amount)
 
   const downloadQRCode = () => {
     const svg = qrContainerRef.current?.querySelector('svg')
@@ -54,130 +130,86 @@ export function BankQRPaymentDialog(props: BankQRPaymentDialogProps) {
   }
 
   return (
-    <>
-      <Dialog
-        open={props.open}
-        onOpenChange={props.onOpenChange}
-        title={t('Pay by bank transfer')}
-        description={t(
-          'Scan the VietQR code or copy the bank details to complete your transfer.'
-        )}
-        contentClassName='sm:max-w-xl'
-        footer={
-          <>
-            <CancelTopUpButton
-              tradeNo={payment.trade_no}
-              onCancelled={() => props.onOpenChange(false)}
-            />
-            <Button variant='outline' onClick={() => props.onOpenChange(false)}>
-              {t('Submit later')}
-            </Button>
-            <Button
-              disabled={expired}
-              onClick={() => {
-                props.onOpenChange(false)
-                setProofOpen(true)
-              }}
-            >
-              {t('I have paid')}
-            </Button>
-          </>
-        }
-      >
-        <div className='space-y-4'>
-          <DiscountSummary snapshot={payment} paid={payment.amount} />
-          <OrderExpiry expiresAt={payment.expires_at} />
-          <div className='border-warning/40 bg-warning/10 text-foreground flex gap-3 rounded-lg border p-3 text-sm'>
-            <AlertTriangle
-              className='mt-0.5 size-4 shrink-0'
-              aria-hidden='true'
-            />
-            <div>
-              <p className='font-medium'>{t('Transfer the exact amount')}</p>
-              <p>
-                {t(
-                  'Use the exact transfer content below. Your payment will be fulfilled after an administrator verifies it.'
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className='grid gap-5 sm:grid-cols-[220px_1fr]'>
-            <div className='flex flex-col items-center gap-2'>
-              <div
-                ref={qrContainerRef}
-                className='rounded-xl border bg-white p-3 shadow-sm'
-              >
-                {!expired && (
-                  <QRCodeSVG
-                    value={props.payment.payload}
-                    size={192}
-                    level='M'
-                    includeMargin
-                  />
-                )}
-              </div>
-              <p className='text-muted-foreground text-center text-xs'>
-                {t('Scan with your banking app')}
-              </p>
-              <Button variant='outline' size='sm' onClick={downloadQRCode}>
-                <Download aria-hidden='true' />
-                {t('Download QR code')}
-              </Button>
-            </div>
-
-            <div className='space-y-3'>
-              <div className='bg-primary/5 border-primary/20 rounded-lg border p-3 text-center'>
-                <p className='text-muted-foreground text-xs'>
-                  {t('Exact transfer amount')}
-                </p>
-                <div className='flex items-center justify-center gap-1'>
-                  <p className='text-primary text-2xl font-bold tabular-nums'>
-                    {formattedAmount}
-                  </p>
-                  <CopyButton
-                    value={String(props.payment.amount)}
-                    tooltip={t('Copy amount')}
-                    aria-label={t('Copy amount')}
-                  />
-                </div>
-              </div>
-
-              <PaymentDetail
-                label={t('Bank')}
-                value={props.payment.bank_name}
-                icon={<Landmark className='size-4' aria-hidden='true' />}
-              />
-              <PaymentDetail
-                label={t('Account number')}
-                value={props.payment.account_number}
-                copyLabel={t('Copy account number')}
-              />
-              <PaymentDetail
-                label={t('Account holder')}
-                value={props.payment.account_name}
-              />
-              <PaymentDetail
-                label={t('Transfer content')}
-                value={props.payment.transfer_content}
-                copyLabel={t('Copy transfer content')}
-                emphasis
-              />
-              <PaymentDetail
-                label={t('Order number')}
-                value={props.payment.trade_no}
-              />
-            </div>
-          </div>
+    <div className='space-y-4'>
+      <DiscountSummary snapshot={payment} paid={payment.amount} />
+      <OrderExpiry expiresAt={payment.expires_at} />
+      <div className='border-warning/40 bg-warning/10 text-foreground flex gap-3 rounded-lg border p-3 text-sm'>
+        <AlertTriangle className='mt-0.5 size-4 shrink-0' aria-hidden='true' />
+        <div>
+          <p className='font-medium'>{t('Transfer the exact amount')}</p>
+          <p>
+            {t(
+              'Use the exact transfer content below. Your payment will be fulfilled after an administrator verifies it.'
+            )}
+          </p>
         </div>
-      </Dialog>
-      <TopUpProofDialog
-        open={proofOpen}
-        onOpenChange={setProofOpen}
-        tradeNo={payment.trade_no}
-        expiresAt={payment.expires_at}
-      />
-    </>
+      </div>
+
+      <div className='grid gap-5 sm:grid-cols-[220px_1fr]'>
+        <div className='flex flex-col items-center gap-2'>
+          <div
+            ref={qrContainerRef}
+            className='rounded-xl border bg-white p-3 shadow-sm'
+          >
+            {!expired && (
+              <QRCodeSVG
+                value={payment.payload}
+                size={192}
+                level='M'
+                includeMargin
+              />
+            )}
+          </div>
+          <p className='text-muted-foreground text-center text-xs'>
+            {t('Scan with your banking app')}
+          </p>
+          <Button variant='outline' size='sm' onClick={downloadQRCode}>
+            <Download aria-hidden='true' />
+            {t('Download QR code')}
+          </Button>
+        </div>
+
+        <div className='space-y-3'>
+          <div className='bg-primary/5 border-primary/20 rounded-lg border p-3 text-center'>
+            <p className='text-muted-foreground text-xs'>
+              {t('Exact transfer amount')}
+            </p>
+            <div className='flex items-center justify-center gap-1'>
+              <p className='text-primary text-2xl font-bold tabular-nums'>
+                {formattedAmount}
+              </p>
+              <CopyButton
+                value={String(payment.amount)}
+                tooltip={t('Copy amount')}
+                aria-label={t('Copy amount')}
+              />
+            </div>
+          </div>
+
+          <PaymentDetail
+            label={t('Bank')}
+            value={payment.bank_name}
+            icon={<Landmark className='size-4' aria-hidden='true' />}
+          />
+          <PaymentDetail
+            label={t('Account number')}
+            value={payment.account_number}
+            copyLabel={t('Copy account number')}
+          />
+          <PaymentDetail
+            label={t('Account holder')}
+            value={payment.account_name}
+          />
+          <PaymentDetail
+            label={t('Transfer content')}
+            value={payment.transfer_content}
+            copyLabel={t('Copy transfer content')}
+            emphasis
+          />
+          <PaymentDetail label={t('Order number')} value={payment.trade_no} />
+        </div>
+      </div>
+    </div>
   )
 }
 

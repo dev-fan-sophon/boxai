@@ -1,6 +1,7 @@
 import { CreditCard, Gift, Crown, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ErrorState } from '@/components/error-state'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,8 +16,12 @@ import type { UserWalletData } from '../types'
 interface BalanceHeroProps {
   user: UserWalletData | null
   loading: boolean
+  isError: boolean
+  onRetry: () => void
   subscription: ActiveSubscriptionSummary | null
   subscriptionLoading: boolean
+  subscriptionError: boolean
+  onRetrySubscription: () => void
   redemptionEnabled: boolean
   onAddCredits: () => void
   onRedeem: () => void
@@ -33,6 +38,16 @@ function SubscriptionPanel(props: BalanceHeroProps) {
         <Skeleton className='h-2 w-full' />
         <Skeleton className='h-4 w-40' />
       </div>
+    )
+  }
+
+  if (props.subscriptionError && !props.subscription) {
+    return (
+      <ErrorState
+        title={t('Failed to load subscription')}
+        onRetry={props.onRetrySubscription}
+        className='min-h-40 p-2'
+      />
     )
   }
 
@@ -134,6 +149,40 @@ function SubscriptionPanel(props: BalanceHeroProps) {
 export function BalanceHero(props: BalanceHeroProps) {
   const { t } = useTranslation()
 
+  let balanceContent
+  if (props.loading) {
+    balanceContent = (
+      <div className='space-y-2' aria-busy='true'>
+        <Skeleton className='h-10 w-48' />
+        <Skeleton className='h-4 w-56' />
+      </div>
+    )
+  } else if (props.isError && !props.user) {
+    balanceContent = (
+      <ErrorState
+        title={t('Failed to load account balance')}
+        onRetry={props.onRetry}
+        className='bg-muted/20 min-h-32 border p-3'
+      />
+    )
+  } else {
+    balanceContent = (
+      <>
+        <div className='font-mono text-3xl font-bold tracking-tight break-all tabular-nums sm:text-4xl'>
+          {formatQuota(props.user?.quota ?? 0)}
+        </div>
+        <div className='text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 text-xs'>
+          <span>
+            {t('Total used')}: {formatQuota(props.user?.used_quota ?? 0)}
+          </span>
+          <span>
+            {t('Requests')}: {formatNumber(props.user?.request_count ?? 0)}
+          </span>
+        </div>
+      </>
+    )
+  }
+
   return (
     <Card data-card-hover='false' className='overflow-hidden py-0'>
       <CardContent className='grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-8'>
@@ -141,22 +190,7 @@ export function BalanceHero(props: BalanceHeroProps) {
           <div className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
             {t('Account balance')}
           </div>
-          {props.loading ? (
-            <Skeleton className='h-10 w-48' />
-          ) : (
-            <div className='font-mono text-3xl font-bold tracking-tight break-all tabular-nums sm:text-4xl'>
-              {formatQuota(props.user?.quota ?? 0)}
-            </div>
-          )}
-
-          <div className='text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 text-xs'>
-            <span>
-              {t('Total used')}: {formatQuota(props.user?.used_quota ?? 0)}
-            </span>
-            <span>
-              {t('Requests')}: {formatNumber(props.user?.request_count ?? 0)}
-            </span>
-          </div>
+          {balanceContent}
 
           <div className='flex flex-wrap gap-2'>
             <Button className='gap-2' onClick={props.onAddCredits}>

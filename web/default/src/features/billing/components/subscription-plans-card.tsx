@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ErrorState } from '@/components/error-state'
 import {
   StatusBadge,
   dotColorMap,
@@ -43,6 +44,8 @@ interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
   data: SubscriptionCenterData
   loading: boolean
+  isError: boolean
+  onRetry: () => void
   refreshing: boolean
   onRefresh: () => Promise<void> | void
   onOverageChange: (enabled: boolean, limitUsd: number) => void
@@ -159,7 +162,11 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const hasActive = activeSubscriptions.length > 0
   const hasAny = allSubscriptions.length > 0
   const isAvailable =
-    loading || plans.length > 0 || hasAny || pendingBankQROrders.length > 0
+    loading ||
+    props.isError ||
+    plans.length > 0 ||
+    hasAny ||
+    pendingBankQROrders.length > 0
 
   // Mirrors the backend overage attribution rule: the active subscription that
   // ends first carries the per-period overage counter.
@@ -227,6 +234,24 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
           </div>
         </CardContent>
       </Card>
+    )
+  }
+
+  if (props.isError && plans.length === 0 && !hasAny) {
+    return (
+      <TitledCard
+        title={t('Subscription Plans')}
+        icon={<Crown className='h-4 w-4' />}
+        iconTone='warning'
+        disableHoverEffect
+      >
+        <ErrorState
+          title={t('Failed to load subscription plans')}
+          description={t('Check your connection and try again.')}
+          onRetry={props.onRetry}
+          className='min-h-60'
+        />
+      </TitledCard>
     )
   }
 

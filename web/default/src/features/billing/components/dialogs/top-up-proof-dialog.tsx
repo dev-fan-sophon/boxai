@@ -26,6 +26,44 @@ interface TopUpProofDialogProps {
 
 export function TopUpProofDialog(props: TopUpProofDialogProps) {
   const { t } = useTranslation()
+
+  return (
+    <Dialog
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title={t('Submit payment proof')}
+      description={t(
+        'Provide your bank transaction number or a payment screenshot.'
+      )}
+      contentClassName='sm:max-w-md'
+    >
+      <TopUpProofForm
+        active={props.open}
+        tradeNo={props.tradeNo}
+        expiresAt={props.expiresAt}
+        onSubmitted={props.onSubmitted}
+        onClose={() => props.onOpenChange(false)}
+      />
+    </Dialog>
+  )
+}
+
+interface TopUpProofFormProps {
+  /** Resets the draft and reloads the latest submission whenever it turns on. */
+  active: boolean
+  tradeNo: string | null
+  expiresAt?: number
+  onSubmitted?: () => void
+  /** "Submit later", and after a successful submission. */
+  onClose: () => void
+}
+
+/**
+ * Bank transfer proof form (transaction number and/or screenshot). Rendered
+ * by TopUpProofDialog and as the last step of the top-up dialog.
+ */
+export function TopUpProofForm(props: TopUpProofFormProps) {
+  const { t } = useTranslation()
   const expired = useOrderExpired(props.expiresAt)
   const [transactionNo, setTransactionNo] = useState('')
   const [note, setNote] = useState('')
@@ -36,7 +74,7 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
     useState<TopUpSubmission | null>(null)
 
   useEffect(() => {
-    if (!props.open) {
+    if (!props.active) {
       setTransactionNo('')
       setNote('')
       setFile(null)
@@ -48,7 +86,7 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
     void getTopUpSubmissions(props.tradeNo)
       .then((response) => setLatestSubmission(response.data?.[0] || null))
       .catch(() => setLatestSubmission(null))
-  }, [props.open, props.tradeNo])
+  }, [props.active, props.tradeNo])
 
   const handleFileChange = (selected: File | null) => {
     if (selected && !PROOF_TYPES.has(selected.type)) {
@@ -91,7 +129,7 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
       if (response.success || response.message === 'success') {
         toast.success(t('Payment proof submitted. Please wait for review.'))
         props.onSubmitted?.()
-        props.onOpenChange(false)
+        props.onClose()
       } else {
         setError(response.message || t('Failed to submit payment proof'))
       }
@@ -103,93 +141,81 @@ export function TopUpProofDialog(props: TopUpProofDialogProps) {
   }
 
   return (
-    <Dialog
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-      title={t('Submit payment proof')}
-      description={t(
-        'Provide your bank transaction number or a payment screenshot.'
-      )}
-      contentClassName='sm:max-w-md'
-    >
-      <form className='space-y-4' onSubmit={handleSubmit}>
-        <OrderExpiry expiresAt={props.expiresAt} />
-        {latestSubmission ? (
-          <div className='bg-muted rounded-md p-3 text-sm'>
-            <p className='font-medium'>
-              {t(
-                latestSubmission.status === 'rejected'
-                  ? 'Rejected'
-                  : 'Submitted'
-              )}
+    <form className='space-y-4' onSubmit={handleSubmit}>
+      <OrderExpiry expiresAt={props.expiresAt} />
+      {latestSubmission ? (
+        <div className='bg-muted rounded-md p-3 text-sm'>
+          <p className='font-medium'>
+            {t(
+              latestSubmission.status === 'rejected' ? 'Rejected' : 'Submitted'
+            )}
+          </p>
+          {latestSubmission.review_note ? (
+            <p className='text-muted-foreground mt-1'>
+              {t('Review note')}: {latestSubmission.review_note}
             </p>
-            {latestSubmission.review_note ? (
-              <p className='text-muted-foreground mt-1'>
-                {t('Review note')}: {latestSubmission.review_note}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        <div className='space-y-1.5'>
-          <Label htmlFor='bank-transaction-no'>
-            {t('Bank transaction number')}
-          </Label>
-          <Input
-            id='bank-transaction-no'
-            value={transactionNo}
-            onChange={(event) => setTransactionNo(event.target.value)}
-            placeholder={t('Enter the transaction number')}
-          />
+          ) : null}
         </div>
-        <div className='space-y-1.5'>
-          <Label htmlFor='payment-proof'>{t('Payment screenshot')}</Label>
-          <Input
-            id='payment-proof'
-            type='file'
-            accept='image/jpeg,image/png,image/webp'
-            onChange={(event) =>
-              handleFileChange(event.target.files?.[0] || null)
-            }
-          />
-          <p className='text-muted-foreground text-xs'>
-            {t('JPG, PNG, or WebP; maximum 10 MB')}
-          </p>
-        </div>
-        <div className='space-y-1.5'>
-          <Label htmlFor='payment-note'>{t('Note')}</Label>
-          <Textarea
-            id='payment-note'
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </div>
-        {error ? (
-          <p role='alert' className='text-destructive text-sm'>
-            {error}
-          </p>
-        ) : null}
-        <div className='flex justify-end gap-2'>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => props.onOpenChange(false)}
-            disabled={submitting}
-          >
-            {t('Submit later')}
-          </Button>
-          <Button
-            type='submit'
-            disabled={
-              expired ||
-              submitting ||
-              latestSubmission?.status === 'submitted' ||
-              latestSubmission?.status === 'approved'
-            }
-          >
-            {submitting ? t('Submitting...') : t('Submit payment proof')}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+      ) : null}
+      <div className='space-y-1.5'>
+        <Label htmlFor='bank-transaction-no'>
+          {t('Bank transaction number')}
+        </Label>
+        <Input
+          id='bank-transaction-no'
+          value={transactionNo}
+          onChange={(event) => setTransactionNo(event.target.value)}
+          placeholder={t('Enter the transaction number')}
+        />
+      </div>
+      <div className='space-y-1.5'>
+        <Label htmlFor='payment-proof'>{t('Payment screenshot')}</Label>
+        <Input
+          id='payment-proof'
+          type='file'
+          accept='image/jpeg,image/png,image/webp'
+          onChange={(event) =>
+            handleFileChange(event.target.files?.[0] || null)
+          }
+        />
+        <p className='text-muted-foreground text-xs'>
+          {t('JPG, PNG, or WebP; maximum 10 MB')}
+        </p>
+      </div>
+      <div className='space-y-1.5'>
+        <Label htmlFor='payment-note'>{t('Note')}</Label>
+        <Textarea
+          id='payment-note'
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </div>
+      {error ? (
+        <p role='alert' className='text-destructive text-sm'>
+          {error}
+        </p>
+      ) : null}
+      <div className='flex justify-end gap-2'>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={props.onClose}
+          disabled={submitting}
+        >
+          {t('Submit later')}
+        </Button>
+        <Button
+          type='submit'
+          disabled={
+            expired ||
+            submitting ||
+            latestSubmission?.status === 'submitted' ||
+            latestSubmission?.status === 'approved'
+          }
+        >
+          {submitting ? t('Submitting...') : t('Submit payment proof')}
+        </Button>
+      </div>
+    </form>
   )
 }
