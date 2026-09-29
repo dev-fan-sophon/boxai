@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { StaticDataTable } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
+import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'
 import { useSystemConfigStore } from '@/stores/system-config-store'
 
@@ -184,7 +185,12 @@ export function DynamicPricingBreakdown({
       <section className={cn('min-w-0', !compact && 'py-4')}>
         {!compact && (
           <div className='mb-3 flex items-center gap-2'>
-            <span className='inline-flex size-6 items-center justify-center rounded-lg bg-amber-100 text-amber-700 shadow-sm dark:bg-amber-500/20 dark:text-amber-300'>
+            <span
+              className={cn(
+                'inline-flex size-6 items-center justify-center rounded-lg shadow-sm',
+                tone('warning')
+              )}
+            >
               <TagIcon className='size-3.5' />
             </span>
             <div>
@@ -219,7 +225,12 @@ export function DynamicPricingBreakdown({
     <section className={cn('min-w-0', !compact && 'py-3 sm:py-4')}>
       {!compact && (
         <div className='mb-3 flex items-start gap-2 sm:mb-4'>
-          <span className='mt-0.5 inline-flex size-6 items-center justify-center rounded-lg bg-amber-100 text-amber-700 shadow-sm dark:bg-amber-500/20 dark:text-amber-300'>
+          <span
+            className={cn(
+              'mt-0.5 inline-flex size-6 items-center justify-center rounded-lg shadow-sm',
+              tone('warning')
+            )}
+          >
             <TagIcon className='size-3.5' />
           </span>
           <div>
@@ -263,21 +274,15 @@ export function DynamicPricingBreakdown({
                   key={tierKey || 'default-tier'}
                   className={cn(
                     'rounded-md border p-2',
-                    isMatched && 'border-emerald-500/40 bg-emerald-500/10'
+                    isMatched && 'border-success/40 bg-success/10'
                   )}
                 >
                   <div className='mb-1.5 flex flex-wrap items-center gap-1.5'>
-                    <Badge
-                      variant='secondary'
-                      className='bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
-                    >
+                    <Badge variant='secondary' className={tone('info')}>
                       {tier.label || t('Default')}
                     </Badge>
                     {isMatched && (
-                      <Badge
-                        variant='secondary'
-                        className='bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
-                      >
+                      <Badge variant='secondary' className={tone('success')}>
                         {t('Matched')}
                       </Badge>
                     )}
@@ -330,8 +335,7 @@ export function DynamicPricingBreakdown({
                 normalizedMatchedTierLabel !== '' &&
                 normalizeTierLabel(tier.label) === normalizedMatchedTierLabel
               return cn(
-                isMatched &&
-                  'bg-emerald-50/70 hover:bg-emerald-50/70 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/10'
+                isMatched && 'bg-success-subtle hover:bg-success-subtle'
               )
             }}
             columns={[
@@ -352,16 +356,13 @@ export function DynamicPricingBreakdown({
                   return (
                     <>
                       <div className='flex flex-wrap items-center gap-1.5'>
-                        <Badge
-                          variant='secondary'
-                          className='bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
-                        >
+                        <Badge variant='secondary' className={tone('info')}>
                           {tier.label || t('Default')}
                         </Badge>
                         {isMatched && (
                           <Badge
                             variant='secondary'
-                            className='bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                            className={tone('success')}
                           >
                             {t('Matched')}
                           </Badge>
@@ -432,7 +433,7 @@ export function DynamicPricingBreakdown({
                 </span>
                 <Badge
                   variant='secondary'
-                  className='shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'
+                  className={cn('shrink-0', tone('warning'))}
                 >
                   {group.multiplier}x
                 </Badge>

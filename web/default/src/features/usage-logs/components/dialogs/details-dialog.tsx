@@ -25,6 +25,7 @@ import { DynamicPricingBreakdown } from '@/features/pricing/components/dynamic-p
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
+import { toneText } from '@/lib/tone'
 import { cn } from '@/lib/utils'
 
 import type { UsageLog } from '../../data/schema'
@@ -56,14 +57,6 @@ const CHANNEL_FIELD_LABELS: Record<string, string> = {
   type: 'Type',
   base_url: 'Base URL',
   key: 'Key',
-}
-
-function timingTextColorClass(
-  variant: 'success' | 'warning' | 'danger'
-): string {
-  if (variant === 'success') return 'text-emerald-600'
-  if (variant === 'warning') return 'text-amber-600'
-  return 'text-rose-600'
 }
 
 function DetailRow(props: {
@@ -104,7 +97,7 @@ function DetailSection(props: {
       <Label
         className={cn(
           'flex items-center gap-1.5 text-xs font-semibold',
-          isDanger && 'text-red-500'
+          isDanger && 'text-destructive'
         )}
       >
         {props.icon && (
@@ -118,7 +111,7 @@ function DetailSection(props: {
         className={cn(
           'min-w-0 space-y-1 overflow-hidden rounded-md border p-2.5 max-sm:p-2',
           isDanger
-            ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'
+            ? 'border-destructive/25 bg-destructive-subtle'
             : 'bg-muted/30'
         )}
       >
@@ -662,7 +655,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
               label={t('IP Address')}
               value={
                 <span className='flex items-center gap-1'>
-                  <Globe className='size-3 text-amber-500' aria-hidden='true' />
+                  <Globe className='text-warning size-3' aria-hidden='true' />
                   {props.log.ip}
                 </span>
               }
@@ -677,7 +670,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 <span
                   className={cn(
                     'font-medium',
-                    timingTextColorClass(
+                    toneText(
                       getResponseTimeColor(
                         props.log.use_time,
                         props.log.completion_tokens
@@ -692,9 +685,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                       <span
                         className={cn(
                           'font-normal',
-                          timingTextColorClass(
-                            getFirstResponseTimeColor(other.frt / 1000)
-                          )
+                          toneText(getFirstResponseTimeColor(other.frt / 1000))
                         )}
                       >
                         {' '}
@@ -720,7 +711,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 aria-label={t('Copy to clipboard')}
               >
                 {copiedText === conversionLabel ? (
-                  <Check className='size-3 text-green-600' />
+                  <Check className='text-success size-3' />
                 ) : (
                   <Copy className='size-3' />
                 )}
@@ -803,11 +794,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
 
         {/* Platform diagnostics are deliberately admin-only and collapsed. */}
         {diagnosticError && (
-          <details className='min-w-0 overflow-hidden rounded-md border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'>
-            <summary className='cursor-pointer px-2.5 py-2 text-xs font-semibold text-red-600 select-none dark:text-red-400'>
+          <details className='border-destructive/25 bg-destructive-subtle min-w-0 overflow-hidden rounded-md border'>
+            <summary className='text-destructive-subtle-foreground cursor-pointer px-2.5 py-2 text-xs font-semibold select-none'>
               {t('Diagnostic Details')}
             </summary>
-            <div className='space-y-1 border-t border-red-200 px-2.5 py-2 dark:border-red-900'>
+            <div className='border-destructive/25 space-y-1 border-t px-2.5 py-2'>
               {diagnosticError.original_status != null && (
                 <DetailRow
                   label={t('Original Status')}
@@ -896,7 +887,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
               />
             ))}
             {showLegacyTopupWarning && (
-              <div className='flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400'>
+              <div className='text-warning-subtle-foreground flex items-start gap-1.5 text-xs'>
                 <Info className='mt-0.5 size-3.5 shrink-0' aria-hidden='true' />
                 <span>
                   {t(
@@ -1109,9 +1100,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
               value={
                 <span className='flex items-center gap-1'>
                   {isUsageBillingPathLocal(other.admin_info) ? (
-                    <Monitor className='size-3 text-blue-500' />
+                    <Monitor className='text-info size-3' />
                   ) : (
-                    <Cloud className='size-3 text-emerald-500' />
+                    <Cloud className='text-success size-3' />
                   )}
                   <span className='text-xs'>
                     {getUsageBillingPathLabel(t, other.admin_info)}
@@ -1258,7 +1249,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 aria-label={t('Copy to clipboard')}
               >
                 {copiedText === details ? (
-                  <Check className='size-3 text-green-600' />
+                  <Check className='text-success size-3' />
                 ) : (
                   <Copy className='size-3' />
                 )}

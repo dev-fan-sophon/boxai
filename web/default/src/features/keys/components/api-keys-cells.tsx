@@ -60,7 +60,7 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
     copyIcon = <Loader2 className='size-3.5 animate-spin' />
     copyTooltip = t('Loading...')
   } else if (isCopied) {
-    copyIcon = <Check className='size-3.5 text-green-600' />
+    copyIcon = <Check className='text-success size-3.5' />
     copyTooltip = t('Copied!')
   }
 
@@ -112,6 +112,7 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
               className='text-muted-foreground hover:text-foreground size-6 shrink-0'
               onClick={handleCopy}
               disabled={isLoading}
+              aria-label={copyTooltip}
             />
           }
         >

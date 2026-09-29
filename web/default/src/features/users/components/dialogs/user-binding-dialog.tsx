@@ -171,6 +171,7 @@ function CustomProviderIcon(props: { iconUrl?: string }) {
     <img
       src={props.iconUrl}
       alt=''
+      aria-hidden='true'
       className='h-4 w-4 rounded-sm object-contain'
       onError={(e) => {
         e.currentTarget.style.display = 'none'

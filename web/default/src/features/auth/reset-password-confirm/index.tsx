@@ -145,6 +145,7 @@ export function ResetPasswordConfirm({
                   size='icon'
                   variant='outline'
                   onClick={handleCopy}
+                  aria-label={copied ? t('Copied!') : t('Copy password')}
                 >
                   {copied ? (
                     <CheckIcon className='h-4 w-4' />

@@ -192,7 +192,7 @@ export function PrefillGroupManagementDialog({
                   </CardDescription>
                 ) : (
                   <CardDescription className='text-muted-foreground italic'>
-                    No description provided
+                    {t('No description provided')}
                   </CardDescription>
                 )}
               </div>
@@ -281,7 +281,7 @@ export function PrefillGroupManagementDialog({
                   </p>
                 ) : (
                   <p className='text-muted-foreground text-xs italic'>
-                    No description provided
+                    {t('No description provided')}
                   </p>
                 )}
               </div>

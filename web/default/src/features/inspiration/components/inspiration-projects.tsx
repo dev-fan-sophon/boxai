@@ -210,13 +210,14 @@ export function InspirationProjects(props: {
               {project.cover ? (
                 <img
                   src={project.cover}
-                  alt=''
+                  alt={project.title}
                   loading='lazy'
                   className='duration-expressive size-full object-cover transition-transform group-hover:scale-[1.03]'
                 />
               ) : (
                 <span className='text-muted-foreground flex size-full items-center justify-center'>
                   <ImageOff className='size-6' aria-hidden='true' />
+                  <span className='sr-only'>{project.title}</span>
                 </span>
               )}
             </button>
