@@ -1,14 +1,21 @@
 import { ExternalLinkIcon, RefreshCcwIcon } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
-import { Markdown } from '@/components/ui/markdown'
 import { formatTimestamp, formatTimestampToDate } from '@/lib/format'
 
 import { SettingsSection } from '../components/settings-section'
+
+// The console sidebar imports every settings section registry, so a static
+// Markdown import here would put marked + DOMPurify in the app shell.
+const Markdown = lazy(() =>
+  import('@/components/ui/markdown').then((module) => ({
+    default: module.Markdown,
+  }))
+)
 
 type ReleaseInfo = {
   tag_name: string
@@ -158,7 +165,16 @@ export function UpdateCheckerSection({
       >
         <div className='space-y-4'>
           {release?.body ? (
-            <Markdown>{release.body}</Markdown>
+            <Suspense
+              fallback={
+                <div
+                  aria-hidden='true'
+                  className='bg-muted h-32 animate-pulse rounded-md'
+                />
+              }
+            >
+              <Markdown>{release.body}</Markdown>
+            </Suspense>
           ) : (
             <p className='text-muted-foreground text-sm'>
               {t('No release notes provided.')}

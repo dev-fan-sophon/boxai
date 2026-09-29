@@ -1,8 +1,7 @@
 import DOMPurify from 'dompurify'
 import { Marked, Renderer, type MarkedExtension, type Tokens } from 'marked'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import { renderMathToHtml } from '@/lib/katex-render'
 import { cn } from '@/lib/utils'
 
 interface MarkdownProps {
@@ -156,8 +155,41 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
+// KaTeX (JS + CSS) is only fetched once a document actually contains math, so
+// markdown on the shell (notices, custom home page) doesn't pay for it.
+type MathRenderer = (source: string, displayMode: boolean) => string
+
+let loadedMathRenderer: MathRenderer | null = null
+let mathRendererRequest: Promise<MathRenderer> | null = null
+// Set around each synchronous parse, read by the marked math hooks below.
+let activeMathRenderer: MathRenderer | null = null
+let parseFoundPendingMath = false
+
+function loadMathRenderer(): Promise<MathRenderer> {
+  mathRendererRequest ??= import('@/lib/katex-render').then(
+    (module) => {
+      loadedMathRenderer = module.renderMathToHtml
+      return loadedMathRenderer
+    },
+    (error: unknown) => {
+      mathRendererRequest = null
+      throw error
+    }
+  )
+  return mathRendererRequest
+}
+
 function renderMath(source: string, displayMode: boolean): string {
-  return renderMathToHtml(source, displayMode)
+  if (activeMathRenderer) {
+    return activeMathRenderer(source, displayMode)
+  }
+
+  parseFoundPendingMath = true
+  const text = escapeHtml(source.trim())
+
+  return displayMode
+    ? `<pre><code>${text}</code></pre>`
+    : `<code>${text}</code>`
 }
 
 function replaceEmojiShortcodes(value: string): string {
@@ -706,21 +738,53 @@ function addExternalLinkAttributes(html: string): string {
   return template.innerHTML
 }
 
-function renderMarkdown(markdown: string, breaks = false): string {
+function renderMarkdown(
+  markdown: string,
+  breaks: boolean,
+  mathRenderer: MathRenderer | null
+): { html: string; needsMathRenderer: boolean } {
+  activeMathRenderer = mathRenderer
+  parseFoundPendingMath = false
   const parsedHtml = markdownParser.parse(markdown, {
     ...markdownOptions,
     breaks,
   })
+  const needsMathRenderer = parseFoundPendingMath
+  activeMathRenderer = null
   const html = DOMPurify.sanitize(parsedHtml, sanitizeOptions)
 
-  return addExternalLinkAttributes(html)
+  return { html: addExternalLinkAttributes(html), needsMathRenderer }
 }
 
 export function Markdown(props: MarkdownProps) {
-  const html = useMemo(
-    () => renderMarkdown(props.children, props.breaks),
-    [props.breaks, props.children]
+  const [mathRenderer, setMathRenderer] = useState<MathRenderer | null>(
+    () => loadedMathRenderer
   )
+  const { html, needsMathRenderer } = useMemo(
+    () => renderMarkdown(props.children, props.breaks ?? false, mathRenderer),
+    [mathRenderer, props.breaks, props.children]
+  )
+
+  useEffect(() => {
+    if (!needsMathRenderer) {
+      return
+    }
+
+    let active = true
+    loadMathRenderer()
+      .then((renderer) => {
+        if (active) {
+          setMathRenderer(() => renderer)
+        }
+      })
+      .catch(() => {
+        // Keep the math source visible as code if KaTeX can't be fetched.
+      })
+
+    return () => {
+      active = false
+    }
+  }, [needsMathRenderer])
 
   return (
     <div

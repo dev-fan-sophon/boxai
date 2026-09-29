@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { PublicHeader } from '@/components/layout'
+import { PublicHeader } from '@/components/layout/components/public-header'
 
 // The header lives on the layout route so it keeps a single instance across
 // public navigations; remounting it per page replayed the scroll-collapse
