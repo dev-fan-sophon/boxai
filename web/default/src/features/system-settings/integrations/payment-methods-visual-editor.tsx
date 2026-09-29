@@ -51,7 +51,7 @@ export function PaymentMethodsVisualEditor({
       name: t('Epay Alipay'),
       template: {
         icon: getDefaultIconName('alipay'),
-        name: '支付宝',
+        name: t('Alipay'),
         type: 'alipay',
       },
     },
@@ -59,7 +59,7 @@ export function PaymentMethodsVisualEditor({
       name: t('Epay WeChat Pay'),
       template: {
         icon: getDefaultIconName('wxpay'),
-        name: '微信',
+        name: t('WeChat Pay'),
         type: 'wxpay',
       },
     },

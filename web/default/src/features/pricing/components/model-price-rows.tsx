@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'
 
 type ModelPriceTone = 'input' | 'output' | 'cache' | 'default'
@@ -15,10 +16,9 @@ export interface ModelPriceRowItem {
 }
 
 const TONE_CLASSES: Record<ModelPriceTone, string> = {
-  input: 'bg-sky-500/10 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300',
-  output:
-    'bg-violet-500/10 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300',
-  cache: 'bg-teal-500/10 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300',
+  input: tone('info'),
+  output: 'bg-chart-2/10 text-chart-2',
+  cache: 'bg-chart-4/10 text-chart-4',
   default: 'bg-muted text-muted-foreground',
 }
 

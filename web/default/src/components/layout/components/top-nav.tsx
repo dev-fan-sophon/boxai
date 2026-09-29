@@ -47,10 +47,11 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                 size='icon'
                 variant='ghost'
                 className='text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-7'
+                aria-label={t('Toggle navigation menu')}
               />
             }
           >
-            <Menu />
+            <Menu aria-hidden='true' />
           </DropdownMenuTrigger>
           <DropdownMenuContent side='bottom' align='start'>
             {normalizedLinks.map(

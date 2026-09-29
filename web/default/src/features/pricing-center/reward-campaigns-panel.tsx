@@ -199,7 +199,11 @@ export function RewardCampaignsPanel() {
           <td className='px-3 py-3'>
             <div className='flex items-center gap-1'>
               <span className='max-w-40 truncate text-xs'>{link}</span>
-              <CopyButton value={link} size='icon' />
+              <CopyButton
+                value={link}
+                size='icon'
+                aria-label={t('Copy Link')}
+              />
             </div>
           </td>
           <td className='px-3 py-3 text-right'>

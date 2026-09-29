@@ -256,21 +256,21 @@ function IntegratePane(props: { host: string }) {
 
       <pre className='border-border/50 bg-background/70 overflow-x-auto rounded-xl border p-4 font-mono text-xs leading-relaxed'>
         <code>
-          <span className='text-emerald-600 dark:text-emerald-400'>curl</span>{' '}
-          <span className='text-amber-700 dark:text-amber-300'>
+          <span className='text-success-subtle-foreground'>curl</span>{' '}
+          <span className='text-warning-subtle-foreground'>
             &quot;https://{props.host}
             {format.path}&quot;
           </span>{' '}
           <span className='text-foreground/50'>\</span>
           {'\n  '}
-          <span className='text-blue-600 dark:text-blue-400'>-H</span>{' '}
-          <span className='text-amber-700 dark:text-amber-300'>
+          <span className='text-info-subtle-foreground'>-H</span>{' '}
+          <span className='text-warning-subtle-foreground'>
             &quot;{format.header}&quot;
           </span>{' '}
           <span className='text-foreground/50'>\</span>
           {'\n  '}
-          <span className='text-blue-600 dark:text-blue-400'>-d</span>{' '}
-          <span className='text-amber-700 dark:text-amber-300'>
+          <span className='text-info-subtle-foreground'>-d</span>{' '}
+          <span className='text-warning-subtle-foreground'>
             &apos;{'{'} &quot;model&quot;: &quot;your-model&quot;, ... {'}'}
             &apos;
           </span>
@@ -298,9 +298,9 @@ export function ConsolePreview(props: {
     <div className='border-border/60 bg-card shadow-panel overflow-hidden rounded-2xl border'>
       <div className='border-border/50 bg-muted/40 flex items-center gap-3 border-b px-4 py-2.5'>
         <span className='flex gap-1.5' aria-hidden='true'>
-          <span className='size-2.5 rounded-full bg-red-400/70' />
-          <span className='size-2.5 rounded-full bg-amber-400/70' />
-          <span className='size-2.5 rounded-full bg-emerald-400/70' />
+          <span className='bg-destructive/70 size-2.5 rounded-full' />
+          <span className='bg-warning/70 size-2.5 rounded-full' />
+          <span className='bg-success/70 size-2.5 rounded-full' />
         </span>
         <span className='border-border/50 bg-background/70 text-muted-foreground text-2xs min-w-0 flex-1 truncate rounded-md border px-2.5 py-1 text-center font-mono'>
           {props.host}

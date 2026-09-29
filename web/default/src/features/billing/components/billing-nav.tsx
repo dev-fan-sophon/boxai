@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
 
@@ -12,6 +13,7 @@ interface BillingNavProps {
 }
 
 export function BillingNav(props: BillingNavProps) {
+  const { t } = useTranslation()
   const [activeId, setActiveId] = useState(props.items[0]?.id ?? '')
   const ids = props.items.map((item) => item.id).join(',')
 
@@ -47,7 +49,7 @@ export function BillingNav(props: BillingNavProps) {
 
   return (
     <nav
-      aria-label='Billing sections'
+      aria-label={t('Billing sections')}
       className='bg-background/85 sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto px-1 py-2 backdrop-blur'
     >
       {props.items.map((item) => (

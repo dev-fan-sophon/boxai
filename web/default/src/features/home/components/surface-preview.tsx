@@ -174,6 +174,7 @@ export function DesktopPreview() {
             <img
               src={row.logo}
               alt=''
+              aria-hidden='true'
               draggable={false}
               className='size-4 shrink-0 rounded-[22%] object-contain'
             />

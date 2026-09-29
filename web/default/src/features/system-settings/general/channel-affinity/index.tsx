@@ -609,8 +609,9 @@ export function ChannelAffinitySection(props: Props) {
                         className='h-7 w-7'
                         onClick={() => setClearRuleName(rule.name)}
                         title={t('Clear cache for this rule')}
+                        aria-label={t('Clear cache for this rule')}
                       >
-                        <X className='h-3 w-3' />
+                        <X className='h-3 w-3' aria-hidden='true' />
                       </Button>
                     )}
                     <Button
@@ -622,16 +623,20 @@ export function ChannelAffinitySection(props: Props) {
                         setRuleTemplateKey(null)
                         setRuleEditorOpen(true)
                       }}
+                      title={t('Edit Rule')}
+                      aria-label={t('Edit Rule')}
                     >
-                      <Edit className='h-3 w-3' />
+                      <Edit className='h-3 w-3' aria-hidden='true' />
                     </Button>
                     <Button
                       variant='ghost'
                       size='icon'
                       className='h-7 w-7'
                       onClick={() => handleDeleteRule(idx)}
+                      title={t('Delete')}
+                      aria-label={t('Delete')}
                     >
-                      <Trash2 className='h-3 w-3' />
+                      <Trash2 className='h-3 w-3' aria-hidden='true' />
                     </Button>
                   </div>
                 ),
