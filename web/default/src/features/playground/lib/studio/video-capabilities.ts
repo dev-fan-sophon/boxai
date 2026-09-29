@@ -10,6 +10,7 @@
  */
 
 import type { StudioSettings } from '../../types'
+import { clampBatchCount } from './batch-plan'
 
 export type VideoAspectRatio =
   | '16:9'
@@ -43,9 +44,6 @@ export type VideoModelCapabilities = {
   /** Emits Volcengine `metadata.{resolution,ratio,generate_audio}` alongside `size`. */
   usesVolcengineMetadata: boolean
 }
-
-export const MAX_VIDEO_BATCH_JOBS = 10
-export const VIDEO_COUNTS = [1, 2, 3, 4] as const
 
 const SEEDANCE_RATIOS: VideoAspectRatio[] = [
   '16:9',
@@ -269,10 +267,7 @@ export function resolveVideoOptions(
       ? 'references'
       : 'frames'
 
-  const count = Math.min(
-    VIDEO_COUNTS.at(-1) ?? 1,
-    Math.max(1, Math.round(selection.count ?? 1) || 1)
-  )
+  const count = clampBatchCount(selection.count ?? 1)
 
   return {
     aspectRatio,
@@ -286,29 +281,6 @@ export function resolveVideoOptions(
   }
 }
 
-/**
- * Splits a batch prompt box into individual prompts. One prompt per line;
- * blank lines are ignored. Callers cap the total at `MAX_VIDEO_BATCH_JOBS`.
- */
-export function splitBatchPrompts(text: string): string[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
-export type VideoJobPlan = {
-  /** Prompts in generation order. */
-  prompts: string[]
-  /** Jobs dropped because the batch exceeded `MAX_VIDEO_BATCH_JOBS`. */
-  truncated: number
-}
-
-/**
- * Expands the composer/node prompt into the list of video jobs to run.
- * Batch mode treats every non-empty line as a prompt; `count` repeats each
- * prompt. The total is capped at `MAX_VIDEO_BATCH_JOBS`.
- */
 export function assignVideoReferences(input: {
   model: string
   references: string[]
@@ -370,27 +342,5 @@ export function applyResolvedVideoSettings(
     videoGenerateAudio: resolved.generateAudio,
     videoReferenceMode: resolved.referenceMode,
     videoCount: resolved.count,
-  }
-}
-
-export function planVideoJobs(input: {
-  text: string
-  batchMode: boolean
-  count: number
-}): VideoJobPlan {
-  const basePrompts = input.batchMode
-    ? splitBatchPrompts(input.text)
-    : [input.text.trim()].filter(Boolean)
-  const count = Math.min(
-    VIDEO_COUNTS.at(-1) ?? 1,
-    Math.max(1, Math.round(input.count) || 1)
-  )
-  const expanded = basePrompts.flatMap((prompt) =>
-    Array.from({ length: count }, () => prompt)
-  )
-  if (!expanded.length) return { prompts: [], truncated: 0 }
-  return {
-    prompts: expanded.slice(0, MAX_VIDEO_BATCH_JOBS),
-    truncated: Math.max(0, expanded.length - MAX_VIDEO_BATCH_JOBS),
   }
 }

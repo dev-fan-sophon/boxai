@@ -34,6 +34,8 @@ export type StudioRunSummary = {
   resultUrl?: string
   assetId?: number
   taskId?: string
+  /** Shared by every run of one studio submit. Absent on legacy runs. */
+  batchId?: string
   createdAt?: number
 }
 
@@ -78,4 +80,6 @@ export const SESSION_MODALITIES: SessionModality[] = [
 ]
 
 export const MAX_LOCAL_SESSIONS = 80
+/** Newest runs kept per studio session; a few full batches of history. */
+export const MAX_SESSION_RUNS = 200
 export const MAX_SESSION_MESSAGES = 100

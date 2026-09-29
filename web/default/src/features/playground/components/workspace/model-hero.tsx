@@ -21,6 +21,8 @@ type ModelHeroProps = {
   modality?: Exclude<StudioModality, 'chat'>
   className?: string
   compact?: boolean
+  /** Fills the composer with a starter prompt. */
+  onPickExample?: (prompt: string) => void
 }
 
 const MEDIA_HERO: Record<
@@ -29,6 +31,8 @@ const MEDIA_HERO: Record<
     titleKey: string
     descriptionKey: string
     tipKeys: string[]
+    /** Starter prompts; one shows off `{a|b}` variants for batch runs. */
+    exampleKeys: string[]
     Icon: LucideIcon
     accent: string
   }
@@ -40,6 +44,11 @@ const MEDIA_HERO: Record<
       'Tip: mention style, lighting, and camera angle',
       'Tip: add a reference image to guide the look',
     ],
+    exampleKeys: [
+      'A cozy café in Hoi An at golden hour, 35mm film photo',
+      'Ceramic coffee cup product shot, {studio light|window light|neon night}',
+      'Minimal travel poster of Ha Long Bay, flat illustration',
+    ],
     Icon: ImageIcon,
     accent: 'from-chart-3/25 via-chart-4/15 to-transparent',
   },
@@ -49,6 +58,10 @@ const MEDIA_HERO: Record<
     tipKeys: [
       'Tip: describe motion, duration, and camera path',
       'Tip: use a first frame to lock the composition',
+    ],
+    exampleKeys: [
+      'Slow drone shot over Sa Pa rice terraces at sunrise',
+      'Street food vendor in Saigon at night, handheld camera, {close-up|wide shot}',
     ],
     Icon: Video,
     accent: 'from-warning/25 via-chart-1/15 to-transparent',
@@ -60,6 +73,7 @@ const MEDIA_HERO: Record<
       'Tip: write natural sentences for clearer speech',
       'Tip: adjust voice and speed in settings',
     ],
+    exampleKeys: ['Hello! Welcome to BoxAI. How can I help you today?'],
     Icon: Music2,
     accent: 'from-success/25 via-chart-5/15 to-transparent',
   },
@@ -143,6 +157,21 @@ export function ModelHero(props: ModelHeroProps) {
             aria-hidden='true'
           />
           <span className='text-pretty'>{tip}</span>
+        </div>
+      )}
+
+      {media && props.onPickExample && !props.compact && (
+        <div className='flex max-w-xl flex-wrap justify-center gap-2'>
+          {media.exampleKeys.map((key) => (
+            <button
+              key={key}
+              type='button'
+              className='border-border/80 bg-background text-foreground/85 hover:border-primary/40 hover:text-foreground focus-visible:ring-ring transition-ui duration-control rounded-full border px-3 py-1.5 text-left text-xs text-pretty outline-none focus-visible:ring-2'
+              onClick={() => props.onPickExample?.(t(key))}
+            >
+              {t(key)}
+            </button>
+          ))}
         </div>
       )}
 

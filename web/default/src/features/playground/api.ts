@@ -836,6 +836,7 @@ export type PlaygroundRun = {
   project_id?: number
   quota: number
   task_id: string
+  batch_id?: string
   created_at: number
 }
 
@@ -860,6 +861,7 @@ export async function createPlaygroundRun(input: {
   project_id?: number
   quota?: number
   task_id?: string
+  batch_id?: string
 }): Promise<PlaygroundRun | null> {
   try {
     const res = await api.post(API_ENDPOINTS.PLAYGROUND_RUNS, input, {

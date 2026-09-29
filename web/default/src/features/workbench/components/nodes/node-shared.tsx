@@ -28,6 +28,8 @@ export type CanvasNodeBodyProps = {
   onMetadataChange: (patch: Partial<CanvasNodeMetadata>) => void
   onGenerate: () => void
   onCancel: () => void
+  /** Regenerates one slot of an image batch (the root or a child). */
+  onGenerateSlot?: (slotId: string) => void
   readOnly?: boolean
 }
 

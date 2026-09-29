@@ -268,6 +268,9 @@ type PlaygroundRun struct {
 	AssetId   int    `json:"asset_id" gorm:"index"` // persisted output asset, when stored
 	Quota     int    `json:"quota"`
 	TaskId    string `json:"task_id" gorm:"type:varchar(191);index"`
+	// BatchId groups the runs produced by one studio submit (N images, a
+	// multi-prompt video batch) so every client renders them as one card.
+	BatchId   string `json:"batch_id" gorm:"type:varchar(64)"`
 	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
 }
 

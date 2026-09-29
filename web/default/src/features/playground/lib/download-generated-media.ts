@@ -130,10 +130,21 @@ export async function downloadGeneratedMedia(
     blob = await fetchGeneratedMedia(generatedMediaProxyUrl(sourceUrl, kind))
   }
 
-  const extension = generatedMediaExtension(blob.type, kind)
-  const filename = baseFilename.endsWith(`.${extension}`)
+  saveBlob(blob, withExtension(baseFilename, blob.type, kind))
+}
+
+function withExtension(
+  baseFilename: string,
+  mimeType: string,
+  kind: DownloadableMediaKind
+): string {
+  const extension = generatedMediaExtension(mimeType, kind)
+  return baseFilename.endsWith(`.${extension}`)
     ? baseFilename
     : `${baseFilename}.${extension}`
+}
+
+function saveBlob(blob: Blob, filename: string): void {
   const objectUrl = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = objectUrl
@@ -142,4 +153,38 @@ export async function downloadGeneratedMedia(
   anchor.click()
   anchor.remove()
   URL.revokeObjectURL(objectUrl)
+}
+
+/**
+ * Saves a whole batch as one ZIP. Items that cannot be fetched are skipped;
+ * the returned count tells the caller how many made it into the archive.
+ */
+export async function downloadGeneratedMediaZip(
+  items: Array<{ url: string; filename: string; kind: DownloadableMediaKind }>,
+  zipName: string
+): Promise<number> {
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  let added = 0
+  for (const item of items) {
+    try {
+      let blob: Blob
+      try {
+        blob = await fetchGeneratedMedia(item.url)
+      } catch (error) {
+        if (!/^https?:\/\//i.test(item.url)) throw error
+        blob = await fetchGeneratedMedia(
+          generatedMediaProxyUrl(item.url, item.kind)
+        )
+      }
+      zip.file(withExtension(item.filename, blob.type, item.kind), blob)
+      added += 1
+    } catch {
+      // Keep going: one expired URL should not sink the whole archive.
+    }
+  }
+  if (added === 0) throw new Error('No media could be downloaded')
+  const archive = await zip.generateAsync({ type: 'blob' })
+  saveBlob(archive, zipName.endsWith('.zip') ? zipName : `${zipName}.zip`)
+  return added
 }

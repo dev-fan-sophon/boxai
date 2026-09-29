@@ -72,7 +72,7 @@ describe('normalizeImageSize', () => {
 describe('normalizeImageCount', () => {
   it('clamps to 1–4', () => {
     expect(normalizeImageCount(0)).toBe(1)
-    expect(normalizeImageCount(99)).toBe(4)
+    expect(normalizeImageCount(99)).toBe(10)
     expect(normalizeImageCount(2.7)).toBe(3)
   })
 })
@@ -81,12 +81,12 @@ describe('normalizeImageGenerationSettings', () => {
   it('migrates a full legacy studio blob', () => {
     expect(
       normalizeImageGenerationSettings({
-        imageCount: 10,
+        imageCount: 40,
         imageSize: '1792x1024',
         imageQuality: 'standard',
       })
     ).toEqual({
-      imageCount: 4,
+      imageCount: 10,
       imageSize: '1536x1024',
       imageQuality: 'medium',
     })

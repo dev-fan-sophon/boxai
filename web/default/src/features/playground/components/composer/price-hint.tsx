@@ -18,6 +18,8 @@ type PriceHintBadgeProps = {
   group: string
   groupRatio?: number
   className?: string
+  /** Results in the pending submit; the estimate is the batch total. */
+  jobCount?: number
   /** When set, debounced server estimate is preferred over catalog-only hint */
   estimateParams?: {
     modality: string
@@ -63,7 +65,14 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
 
   const hint = mergeEstimate(catalogHint, estimateQuery.data)
 
-  const label = formatHintLabel(hint, t)
+  const batchTotal =
+    (props.jobCount ?? 1) > 1 && hint.kind === 'per_request' && hint.amountLabel
+  const label = batchTotal
+    ? t('{{amount}} for {{count}}', {
+        amount: hint.amountLabel,
+        count: props.jobCount,
+      })
+    : formatHintLabel(hint, t)
 
   return (
     <span

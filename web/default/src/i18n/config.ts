@@ -36,6 +36,14 @@ const lazyLocaleBackend: BackendModule = {
   },
 }
 
+// Keep <html lang> in step with the UI language so screen readers, fonts
+// and hyphenation use the right locale rules (index.html ships `en`).
+i18n.on('languageChanged', (language) => {
+  if (typeof document === 'undefined') return
+  const htmlLang: Record<string, string> = { zhCN: 'zh-CN', zhTW: 'zh-TW' }
+  document.documentElement.lang = htmlLang[language] ?? language
+})
+
 export const i18nReady = i18n
   .use(lazyLocaleBackend)
   .use(LanguageDetector)

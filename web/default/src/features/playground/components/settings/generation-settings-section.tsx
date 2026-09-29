@@ -5,6 +5,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -21,7 +22,6 @@ import {
   PLAYGROUND_IMAGE_MODEL,
 } from '../../lib/studio/image-request-schema'
 import {
-  VIDEO_COUNTS,
   applyResolvedVideoSettings,
   getVideoModelCapabilities,
   resolveVideoOptions,
@@ -67,7 +67,7 @@ export function GenerationSettingsSection(props: {
             {t('Image model')}: {model || PLAYGROUND_IMAGE_MODEL}
           </p>
         )}
-        <SettingRow label={t('Count')} htmlFor='gen-image-count'>
+        <SettingRow label={t('Images per prompt')} htmlFor='gen-image-count'>
           <NativeSelect
             id='gen-image-count'
             size='sm'
@@ -83,6 +83,14 @@ export function GenerationSettingsSection(props: {
               </NativeSelectOption>
             ))}
           </NativeSelect>
+        </SettingRow>
+        <SettingRow label={t('Batch')} htmlFor='gen-image-batch'>
+          <Switch
+            id='gen-image-batch'
+            size='sm'
+            checked={settings.imageBatchMode}
+            onCheckedChange={(checked) => update('imageBatchMode', checked)}
+          />
         </SettingRow>
         <SettingRow label={t('Size')} htmlFor='gen-image-size'>
           <NativeSelect
@@ -245,7 +253,7 @@ export function GenerationSettingsSection(props: {
               persistVideo({ videoCount: Number(event.target.value) })
             }
           >
-            {VIDEO_COUNTS.map((count) => (
+            {BATCH_COUNTS.map((count) => (
               <NativeSelectOption key={count} value={String(count)}>
                 {count}
               </NativeSelectOption>

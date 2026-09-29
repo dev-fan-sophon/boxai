@@ -25,6 +25,7 @@ import {
 } from '@/features/playground/lib/session/session-utils'
 import {
   DEFAULT_STUDIO_SETTINGS,
+  DEFAULT_UI_PREFS,
   MAX_DUO_ANSWER_MODELS,
   PLAYGROUND_STORE_STORAGE_KEY,
   PLAYGROUND_STORE_VERSION,
@@ -33,6 +34,7 @@ import {
   preparePersistedPlaygroundState,
   type PersistedPlaygroundState,
   type PlaygroundWorkspaceMode,
+  type StudioFeedDensity,
 } from '@/features/playground/lib/storage/store-migration'
 import {
   DEFAULT_CHAT_TOOLS,
@@ -122,6 +124,7 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   setPrefill: (prompt: string) => void
   consumePrefill: () => void
   setSettingsPanelOpen: (open: boolean) => void
+  setFeedDensity: (density: StudioFeedDensity) => void
   beginGeneration: (modality: StudioModality) => void
   endGeneration: () => void
   resetWorkbenchPrefs: () => void
@@ -259,7 +262,7 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
       messages: [],
       sessions: [],
       activeSessionByModality: {},
-      ui: { settingsPanelOpen: true },
+      ui: { ...DEFAULT_UI_PREFS },
 
       models: [],
       groups: [],
@@ -546,7 +549,10 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
           prefill: { prompt, nonce: (state.prefill?.nonce ?? 0) + 1 },
         })),
       consumePrefill: () => set({ prefill: null }),
-      setSettingsPanelOpen: (open) => set({ ui: { settingsPanelOpen: open } }),
+      setSettingsPanelOpen: (open) =>
+        set((state) => ({ ui: { ...state.ui, settingsPanelOpen: open } })),
+      setFeedDensity: (feedDensity) =>
+        set((state) => ({ ui: { ...state.ui, feedDensity } })),
       beginGeneration: (modality) =>
         set((state) => ({
           generation: {

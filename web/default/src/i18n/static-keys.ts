@@ -717,4 +717,15 @@ export const STATIC_I18N_KEYS = [
   'How to create an API key',
   'First request guide',
   'Press Ctrl/⌘ K to focus search',
+
+  // Playground studio: feed density labels and hero starter prompts
+  'Compact grid',
+  'Comfortable grid',
+  'Large tiles',
+  'A cozy café in Hoi An at golden hour, 35mm film photo',
+  'Ceramic coffee cup product shot, {studio light|window light|neon night}',
+  'Minimal travel poster of Ha Long Bay, flat illustration',
+  'Slow drone shot over Sa Pa rice terraces at sunrise',
+  'Street food vendor in Saigon at night, handheld camera, {close-up|wide shot}',
+  'Hello! Welcome to BoxAI. How can I help you today?',
 ] as const

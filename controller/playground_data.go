@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -1308,6 +1309,9 @@ func ListPlaygroundTasks(c *gin.Context) {
 	})
 }
 
+// playgroundBatchIdPattern bounds the client-chosen studio batch key.
+var playgroundBatchIdPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 func CreatePlaygroundRun(c *gin.Context) {
 	userId := c.GetInt("id")
 	var body struct {
@@ -1318,8 +1322,9 @@ func CreatePlaygroundRun(c *gin.Context) {
 		AssetId   int    `json:"asset_id"`
 		ProjectId int    `json:"project_id"`
 		// Quota from client is ignored — runs are not a billing ledger
-		Quota  int    `json:"quota"`
-		TaskId string `json:"task_id"`
+		Quota   int    `json:"quota"`
+		TaskId  string `json:"task_id"`
+		BatchId string `json:"batch_id"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		common.ApiError(c, err)
@@ -1354,6 +1359,11 @@ func CreatePlaygroundRun(c *gin.Context) {
 			common.ApiErrorMsg(c, "project modality does not match run")
 			return
 		}
+	}
+	batchId := strings.TrimSpace(body.BatchId)
+	if batchId != "" && !playgroundBatchIdPattern.MatchString(batchId) {
+		common.ApiErrorMsg(c, "invalid batch id")
+		return
 	}
 	taskId := strings.TrimSpace(body.TaskId)
 	if len(taskId) > 191 {
@@ -1432,6 +1442,7 @@ func CreatePlaygroundRun(c *gin.Context) {
 		ResultURL: resultURL,
 		Quota:     0, // never trust client-supplied quota
 		TaskId:    taskId,
+		BatchId:   batchId,
 	}
 	if err := model.CreatePlaygroundRun(run); err != nil {
 		common.ApiError(c, err)

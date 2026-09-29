@@ -29,7 +29,7 @@ import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
 import {
   ImagePlaceholder,
   VideoPlaceholder,
-} from '../workspace/generation-progress'
+} from '../workspace/media-placeholders'
 import { ManagedDocumentArtifacts } from './managed-document-artifacts'
 
 const MANAGED_TOOL_META: Record<

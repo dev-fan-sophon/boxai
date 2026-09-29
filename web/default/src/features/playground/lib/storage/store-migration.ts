@@ -9,10 +9,11 @@ import type {
 } from '../../types'
 import { isAttachmentPersistable } from '../attachments/attachment-utils'
 import { isLegacyModelSwitchMarker } from '../message/message-utils'
-import type {
-  ActiveSessionByModality,
-  PlaygroundSession,
-  SessionModality,
+import {
+  MAX_SESSION_RUNS,
+  type ActiveSessionByModality,
+  type PlaygroundSession,
+  type SessionModality,
 } from '../session/session-types'
 import {
   createEmptySession,
@@ -25,9 +26,9 @@ import {
   getInitialParameterEnabled,
   getInitialPlaygroundConfig,
 } from '../state/playground-state-utils'
+import { MAX_BATCH_COUNT } from '../studio/batch-plan'
 import { normalizeImageGenerationSettings } from '../studio/image-request-schema'
 import {
-  VIDEO_COUNTS,
   videoOptionsFromSize,
   videoSizeForOptions,
   type VideoAspectRatio,
@@ -70,8 +71,17 @@ export type PlaygroundDuoConfig = {
   lastSummary?: string
 }
 
+/** Result tile size on the studio feed. */
+export type StudioFeedDensity = 'compact' | 'comfortable' | 'large'
+
 export type PlaygroundUiPrefs = {
   settingsPanelOpen: boolean
+  feedDensity: StudioFeedDensity
+}
+
+export const DEFAULT_UI_PREFS: PlaygroundUiPrefs = {
+  settingsPanelOpen: true,
+  feedDensity: 'comfortable',
 }
 
 /**
@@ -187,7 +197,7 @@ export function preparePersistedPlaygroundState(
       previewUrls: session.previewUrls
         ?.filter((url) => !url.startsWith('data:') && !url.startsWith('blob:'))
         .slice(0, 12),
-      runs: session.runs?.slice(-40).map((run) => ({
+      runs: session.runs?.slice(-MAX_SESSION_RUNS).map((run) => ({
         ...run,
         resultUrl:
           run.resultUrl?.startsWith('data:') ||
@@ -232,6 +242,7 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   imageCount: 1,
   imageSize: '1024x1024',
   imageQuality: 'auto',
+  imageBatchMode: false,
   videoDuration: 5,
   videoSize: '1280x720',
   videoAspectRatio: '16:9',
@@ -296,6 +307,7 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     imageCount: image.imageCount,
     imageSize: image.imageSize,
     imageQuality: image.imageQuality,
+    imageBatchMode: merged.imageBatchMode === true,
     videoDuration: clampNumber(
       merged.videoDuration,
       1,
@@ -317,7 +329,7 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     videoCount: clampNumber(
       merged.videoCount,
       1,
-      VIDEO_COUNTS.at(-1) ?? 4,
+      MAX_BATCH_COUNT,
       DEFAULT_STUDIO_SETTINGS.videoCount
     ),
     videoBatchMode: merged.videoBatchMode === true,
@@ -552,11 +564,12 @@ function normalizeSessionRecord(
             typeof item.resultUrl === 'string' ? item.resultUrl : undefined,
           assetId: typeof item.assetId === 'number' ? item.assetId : undefined,
           taskId: typeof item.taskId === 'string' ? item.taskId : undefined,
+          batchId: typeof item.batchId === 'string' ? item.batchId : undefined,
           createdAt:
             typeof item.createdAt === 'number' ? item.createdAt : undefined,
         }))
         .filter((item) => item.id > 0)
-        .slice(0, 40)
+        .slice(-MAX_SESSION_RUNS)
     : undefined
 
   return {
@@ -630,7 +643,7 @@ export function readLegacyPlaygroundState(): PersistedPlaygroundState {
     messages: [],
     sessions,
     activeSessionByModality,
-    ui: { settingsPanelOpen: true },
+    ui: DEFAULT_UI_PREFS,
   }
 }
 
@@ -780,6 +793,13 @@ export function loadPersistedPlaygroundState(): PersistedPlaygroundState {
       settingsPanelOpen: isRecord(state.ui)
         ? state.ui.settingsPanelOpen !== false
         : true,
+      feedDensity:
+        isRecord(state.ui) &&
+        (state.ui.feedDensity === 'compact' ||
+          state.ui.feedDensity === 'comfortable' ||
+          state.ui.feedDensity === 'large')
+          ? state.ui.feedDensity
+          : DEFAULT_UI_PREFS.feedDensity,
     },
   }
 }

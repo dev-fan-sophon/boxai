@@ -25,6 +25,8 @@ export type LightboxItem = {
   alt?: string
   caption?: string
   downloadName?: string
+  /** Private asset behind the URL, when the result was archived. */
+  assetId?: number
 }
 
 function DownloadIcon(props: { downloading: boolean; done: boolean }) {

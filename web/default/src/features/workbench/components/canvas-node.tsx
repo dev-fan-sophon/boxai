@@ -29,6 +29,7 @@ import { nodeMinSize } from '../constants'
 import { isFrameNode } from '../engine/canvas-frame'
 import { arrowDelta, keyboardStep } from '../engine/canvas-media-transform'
 import { useCanvasTheme } from '../engine/canvas-theme'
+import type { GenerateNodeOptions } from '../hooks/use-canvas-generation'
 import type { CanvasInteractions } from '../hooks/use-canvas-interactions'
 import { useCanvasStore } from '../store/canvas-store'
 import { CanvasNodeType, type CanvasNodeData } from '../types'
@@ -57,7 +58,7 @@ type CanvasNodeProps = {
   dragging: boolean
   isGenerating: boolean
   interactions: CanvasInteractions
-  onGenerate: (nodeId: string) => void
+  onGenerate: (nodeId: string, options?: GenerateNodeOptions) => void
   onCancel: (nodeId: string) => void
   onDownload?: (nodeId: string) => void
   onReplaceMedia?: (nodeId: string) => void
@@ -407,6 +408,9 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
             if (!props.readOnly) updateNodeMetadata(node.id, patch)
           }}
           onGenerate={() => props.onGenerate(node.id)}
+          onGenerateSlot={(slotId) =>
+            props.onGenerate(slotId, { singleSlot: true })
+          }
           onCancel={() => props.onCancel(node.id)}
         />
       </fieldset>

@@ -188,3 +188,50 @@ func TestCreateProjectRejectsInvalidModality(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), `"success":false`)
 	assert.Contains(t, recorder.Body.String(), "invalid modality")
 }
+
+func TestCreatePlaygroundRunBatchId(t *testing.T) {
+	setupPlaygroundSessionTestDB(t)
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name      string
+		batchId   string
+		wantOK    bool
+		wantBatch string
+	}{
+		{name: "keeps a valid batch key", batchId: "b_Xy-12", wantOK: true, wantBatch: "b_Xy-12"},
+		{name: "absent batch key stays empty", batchId: "", wantOK: true, wantBatch: ""},
+		{name: "rejects characters outside the key alphabet", batchId: "b/../1", wantOK: false},
+		{name: "rejects keys over 64 characters", batchId: strings.Repeat("a", 65), wantOK: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, err := json.Marshal(map[string]any{
+				"modality": "audio",
+				"model":    "tts-1",
+				"prompt":   "hello",
+				"batch_id": tt.batchId,
+			})
+			require.NoError(t, err)
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPost, "/api/playground/runs", strings.NewReader(string(body)))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			ctx.Set("id", 21)
+
+			CreatePlaygroundRun(ctx)
+
+			if !tt.wantOK {
+				assert.Contains(t, recorder.Body.String(), "invalid batch id")
+				return
+			}
+			var payload struct {
+				Success bool                `json:"success"`
+				Data    model.PlaygroundRun `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+			require.True(t, payload.Success)
+			assert.Equal(t, tt.wantBatch, payload.Data.BatchId)
+		})
+	}
+}

@@ -116,8 +116,8 @@ describe('loadPersistedPlaygroundState', () => {
       'hello from legacy storage'
     )
     // Studio values clamped on load, invalid pin entries dropped.
-    // Image count is clamped to the GPT Image 2 max (4), not the old 10.
-    expect(state.studioSettings.imageCount).toBe(4)
+    // Image count is clamped to the per-prompt batch max.
+    expect(state.studioSettings.imageCount).toBe(10)
     expect(state.studioSettings.imageQuality).toBe('auto')
     expect(state.studioSettings.voice).toBe('nova')
     expect(state.pinnedModels).toEqual(['gpt-4o'])
@@ -149,7 +149,7 @@ describe('loadPersistedPlaygroundState', () => {
       config: { model: 'gemini-pro' },
       messages: [v2Message],
       pinnedModels: ['gemini-pro'],
-      ui: { settingsPanelOpen: false },
+      ui: { settingsPanelOpen: false, feedDensity: 'comfortable' },
     })
 
     const state = loadPersistedPlaygroundState()
@@ -211,7 +211,7 @@ describe('loadPersistedPlaygroundState', () => {
         },
       ],
       activeSessionByModality: { chat: 's_keep' },
-      ui: { settingsPanelOpen: true },
+      ui: { settingsPanelOpen: true, feedDensity: 'comfortable' },
     })
     localStorage.setItem(STORAGE_KEYS.LEGACY_MESSAGES_IMPORTED, '1')
 
@@ -302,7 +302,7 @@ describe('loadPersistedPlaygroundState', () => {
         },
       ],
       activeSessionByModality: { chat: 's_doc' },
-      ui: { settingsPanelOpen: true },
+      ui: { settingsPanelOpen: true, feedDensity: 'comfortable' },
     })
 
     const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
@@ -339,7 +339,7 @@ describe('loadPersistedPlaygroundState', () => {
         },
       ],
       activeSessionByModality: { chat: 's_mixed' },
-      ui: { settingsPanelOpen: true },
+      ui: { settingsPanelOpen: true, feedDensity: 'comfortable' },
     })
 
     const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
@@ -377,7 +377,7 @@ describe('loadPersistedPlaygroundState', () => {
         },
       ],
       activeSessionByModality: { chat: 's_run' },
-      ui: { settingsPanelOpen: true },
+      ui: { settingsPanelOpen: true, feedDensity: 'comfortable' },
     })
 
     const messages = chatMessagesFromSessions(loadPersistedPlaygroundState())
@@ -412,7 +412,7 @@ describe('loadPersistedPlaygroundState', () => {
         },
       ],
       activeSessionByModality: { chat: 's_with_marker' },
-      ui: { settingsPanelOpen: true },
+      ui: { settingsPanelOpen: true, feedDensity: 'comfortable' },
     })
 
     const state = loadPersistedPlaygroundState()

@@ -30,6 +30,10 @@ type ComposerShellProps = {
   tools?: React.ReactNode
   /** Right footer content before the send button (price hint, …) */
   trailing?: React.ReactNode
+  /** Send button text; generation composers say what the click produces. */
+  submitLabel?: string
+  /** Enter adds a line and Ctrl/⌘+Enter sends (batch prompt lists). */
+  newlineOnEnter?: boolean
   onPaste?: React.ClipboardEventHandler<HTMLTextAreaElement>
   onDrop?: React.DragEventHandler<HTMLDivElement>
   onDragOver?: React.DragEventHandler<HTMLDivElement>
@@ -76,6 +80,7 @@ export function ComposerShell(props: ComposerShellProps) {
           spellCheck={false}
           className='min-h-[2.75rem] px-3.5 pt-3 pb-2 text-base leading-6 sm:min-h-0 sm:px-4 md:text-base'
           disabled={props.disabled}
+          newlineOnEnter={props.newlineOnEnter}
           onChange={(event) => props.onTextChange(event.target.value)}
           onPaste={props.onPaste}
           placeholder={props.placeholder}
@@ -120,11 +125,19 @@ export function ComposerShell(props: ComposerShellProps) {
                     }
                   >
                     <SendIcon size={16} />
-                    <span className='hidden sm:inline'>{t('Send')}</span>
-                    <span className='sr-only sm:hidden'>{t('Send')}</span>
+                    <span className='hidden sm:inline'>
+                      {props.submitLabel ?? t('Send')}
+                    </span>
+                    <span className='sr-only sm:hidden'>
+                      {props.submitLabel ?? t('Send')}
+                    </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{t('Enter to send, Shift+Enter for a new line')}</p>
+                    <p>
+                      {props.newlineOnEnter
+                        ? t('Ctrl+Enter to send, Enter for a new line')
+                        : t('Enter to send, Shift+Enter for a new line')}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               )}

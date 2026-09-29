@@ -1,10 +1,23 @@
-import { Image as ImageIcon, Layers, Music } from 'lucide-react'
+import {
+  Gauge,
+  Image as ImageIcon,
+  Layers,
+  Loader2,
+  Music,
+  Proportions,
+  RotateCcw,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AspectGlyph,
+  ParamChip,
+} from '@/features/playground/components/composer/param-chip'
 import {
   IMAGE_COUNTS,
   IMAGE_QUALITIES,
@@ -12,10 +25,14 @@ import {
   AUDIO_FORMATS,
   SPEEDS,
   VOICES,
+  imageQualityLabelKey,
 } from '@/features/playground/lib/studio/generation-options'
+import { normalizeImageGenerationSettings } from '@/features/playground/lib/studio/image-request-schema'
+import { cn } from '@/lib/utils'
 
 import { useWorkbenchModels } from '../../hooks/use-workbench-models'
 import { useCanvasStore } from '../../store/canvas-store'
+import type { CanvasNodeMetadata } from '../../types'
 import {
   NodeEmptyMedia,
   NodeModelSelect,
@@ -32,6 +49,11 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
   const batchChildIds = metadata.batchChildIds ?? []
   const updateNodeMetadata = useCanvasStore((state) => state.updateNodeMetadata)
   const experienceMode = useCanvasStore((state) => state.experienceMode)
+  const normalized = normalizeImageGenerationSettings({
+    imageCount: metadata.count,
+    imageSize: metadata.size,
+    imageQuality: metadata.quality,
+  })
   const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight)
   const naturalAspect =
     hasNatural && metadata.naturalHeight
@@ -66,17 +88,6 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
             {metadata.naturalWidth}×{metadata.naturalHeight}
           </span>
         ) : null}
-        {metadata.content ? (
-          <div className='absolute bottom-2 left-2'>
-            <NodeSettingsChips
-              items={[
-                metadata.size ?? 'auto',
-                metadata.quality ?? 'auto',
-                `×${metadata.count ?? 1}`,
-              ]}
-            />
-          </div>
-        ) : null}
         {batchChildIds.length ? (
           <Button
             size='sm'
@@ -92,16 +103,28 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
             <Layers className='size-3' />
             {metadata.imageBatchExpanded
               ? t('Collapse batch')
-              : `${batchChildIds.length + 1}`}
+              : t('Spread on canvas')}
           </Button>
         ) : null}
       </div>
+
+      {batchChildIds.length ? (
+        <ImageBatchStrip
+          rootId={props.node.id}
+          childIds={batchChildIds}
+          readOnly={props.readOnly}
+          onGenerateSlot={props.onGenerateSlot}
+        />
+      ) : null}
 
       <NodePromptBar
         value={metadata.prompt ?? ''}
         placeholder={t('Describe the image to generate')}
         isGenerating={props.isGenerating}
         disabled={!metadata.model}
+        generateBadge={
+          normalized.imageCount > 1 ? `×${normalized.imageCount}` : undefined
+        }
         onChange={(prompt) => props.onMetadataChange({ prompt })}
         onGenerate={props.onGenerate}
         onCancel={props.onCancel}
@@ -116,9 +139,52 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
       </NodePromptBar>
 
       <div
+        className='flex shrink-0 flex-wrap items-center gap-1.5'
+        data-canvas-no-zoom
+      >
+        <ParamChip
+          icon={<Proportions />}
+          ariaLabel={t('Image size')}
+          valueLabel={
+            normalized.imageSize === 'auto'
+              ? t('Auto')
+              : normalized.imageSize.replace('x', '×')
+          }
+          value={normalized.imageSize}
+          onChange={(size) => props.onMetadataChange({ size })}
+          options={IMAGE_SIZES.map((size) => ({
+            value: size,
+            label: size === 'auto' ? t('Auto') : size.replace('x', '×'),
+            glyph: <AspectGlyph size={size} />,
+          }))}
+        />
+        <ParamChip
+          icon={<Gauge />}
+          ariaLabel={t('Image quality')}
+          valueLabel={t(imageQualityLabelKey(normalized.imageQuality))}
+          value={normalized.imageQuality}
+          onChange={(quality) => props.onMetadataChange({ quality })}
+          options={IMAGE_QUALITIES.map((quality) => ({
+            value: quality,
+            label: t(imageQualityLabelKey(quality)),
+          }))}
+        />
+        <ParamChip
+          icon={<Layers />}
+          ariaLabel={t('Images per prompt')}
+          valueLabel={`×${normalized.imageCount}`}
+          value={String(normalized.imageCount)}
+          onChange={(count) => props.onMetadataChange({ count: Number(count) })}
+          options={IMAGE_COUNTS.map((count) => ({
+            value: String(count),
+            label: t('{{count}} images', { count }),
+          }))}
+        />
+      </div>
+      <div
         className={
           experienceMode === 'professional'
-            ? 'flex shrink-0 flex-wrap items-center gap-2'
+            ? 'flex shrink-0 flex-wrap items-center gap-3'
             : 'hidden'
         }
         data-canvas-no-zoom
@@ -132,67 +198,118 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
           />
           {t('Free resize')}
         </label>
-        <NativeSelect
-          size='sm'
-          className='min-w-0 flex-1'
-          value={metadata.size ?? 'auto'}
-          onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) =>
-            props.onMetadataChange({ size: event.target.value })
-          }
+        <label
+          className='flex items-center gap-1 text-[11px]'
+          title={t(
+            'Transparent background is not supported by this generation API.'
+          )}
         >
-          {IMAGE_SIZES.map((option) => (
-            <option key={option} value={option}>
-              {option === 'auto' ? t('Auto') : option}
-            </option>
-          ))}
-        </NativeSelect>
-        <NativeSelect
-          size='sm'
-          className='w-24'
-          value={metadata.quality ?? 'auto'}
-          onChange={(event) =>
-            props.onMetadataChange({ quality: event.target.value })
-          }
-        >
-          {IMAGE_QUALITIES.map((quality) => (
-            <option key={quality} value={quality}>
-              {t(
-                { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High' }[
-                  quality
-                ]
-              )}
-            </option>
-          ))}
-        </NativeSelect>
-        <NativeSelect
-          size='sm'
-          className='w-24'
-          value={String(metadata.count ?? 1)}
-          onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) =>
-            props.onMetadataChange({ count: Number(event.target.value) })
-          }
-        >
-          {IMAGE_COUNTS.map((option) => (
-            <option key={option} value={option}>
-              {t('{{count}} images', { count: option })}
-            </option>
-          ))}
-        </NativeSelect>
+          <Checkbox disabled checked={false} /> {t('Transparent background')}
+        </label>
       </div>
-      <label
-        className={
-          experienceMode === 'professional'
-            ? 'flex shrink-0 items-center gap-2 text-[11px]'
-            : 'hidden'
-        }
-        title={t(
-          'Transparent background is not supported by this generation API.'
-        )}
+    </div>
+  )
+}
+
+/**
+ * Contact sheet for an image batch inside its root node. Every slot shows
+ * its own state; clicking a finished child makes it the cover (the image the
+ * root passes downstream), clicking a failed slot regenerates just that slot.
+ */
+function ImageBatchStrip(props: {
+  rootId: string
+  childIds: string[]
+  readOnly?: boolean
+  onGenerateSlot?: (slotId: string) => void
+}) {
+  const { t } = useTranslation()
+  const slotIds = [props.rootId, ...props.childIds]
+  const slots = useCanvasStore(
+    useShallow((state) =>
+      slotIds.map(
+        (id) => state.nodes.find((node) => node.id === id)?.metadata ?? null
+      )
+    )
+  )
+  const updateNodeMetadata = useCanvasStore((state) => state.updateNodeMetadata)
+  const done = slots.filter((slot) => slot?.status === 'success').length
+
+  const makeCover = (childId: string, child: CanvasNodeMetadata) => {
+    const root = slots[0]
+    const coverFields = (source: CanvasNodeMetadata | null) => ({
+      content: source?.content,
+      assetId: source?.assetId,
+      naturalWidth: source?.naturalWidth,
+      naturalHeight: source?.naturalHeight,
+      status: source?.status,
+      errorDetails: source?.errorDetails,
+    })
+    updateNodeMetadata(props.rootId, coverFields(child))
+    updateNodeMetadata(childId, coverFields(root))
+  }
+
+  return (
+    <div className='flex shrink-0 flex-col gap-1' data-canvas-no-zoom>
+      <span className='text-muted-foreground px-0.5 text-[10px] tabular-nums'>
+        {t('{{done}} of {{total}} done', { done, total: slotIds.length })}
+      </span>
+      <div
+        className='flex items-center gap-1 overflow-x-auto pb-0.5'
+        data-canvas-wheel-scroll
       >
-        <Checkbox disabled checked={false} /> {t('Transparent background')}
-      </label>
+        {slotIds.map((slotId, index) => {
+          const slot = slots[index]
+          const isCover = index === 0
+          let label = t('Use as cover')
+          if (slot?.status === 'error') label = t('Retry this image')
+          if (isCover) label = t('Cover image')
+          const canRetry =
+            slot?.status === 'error' && !props.readOnly && props.onGenerateSlot
+          const canCover =
+            !isCover &&
+            slot?.status === 'success' &&
+            slot.content &&
+            !props.readOnly
+          return (
+            <button
+              key={slotId}
+              type='button'
+              title={label}
+              aria-label={`${index + 1}: ${label}`}
+              disabled={!canRetry && !canCover}
+              className={cn(
+                'bg-muted/40 relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md ring-1 ring-inset',
+                isCover ? 'ring-primary ring-2' : 'ring-border/60',
+                slot?.status === 'error' && 'ring-destructive/50',
+                'enabled:hover:ring-primary/60 disabled:cursor-default'
+              )}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => {
+                if (canRetry) {
+                  props.onGenerateSlot?.(slotId)
+                } else if (canCover && slot) {
+                  makeCover(slotId, slot)
+                }
+              }}
+            >
+              {slot?.content && slot.status !== 'loading' ? (
+                <img
+                  src={slot.content}
+                  alt=''
+                  draggable={false}
+                  className='size-full object-cover'
+                />
+              ) : null}
+              {slot?.status === 'loading' ? (
+                <Loader2 className='text-muted-foreground size-3.5 animate-spin' />
+              ) : null}
+              {slot?.status === 'error' ? (
+                <RotateCcw className='text-destructive size-3.5' />
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

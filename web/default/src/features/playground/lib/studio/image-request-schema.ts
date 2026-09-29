@@ -1,3 +1,5 @@
+import { BATCH_COUNTS, MAX_BATCH_COUNT } from './batch-plan'
+
 /**
  * Playground image generation uses one OpenAI Images API request shape for
  * every allowed model (GPT Image 2 and Grok Imagine image):
@@ -23,7 +25,8 @@ export const GPT_IMAGE_SIZES = [
 /** Official GPT Image / gpt-image-2 quality enum (not DALL·E standard/hd). */
 export const GPT_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high'] as const
 
-export const GPT_IMAGE_COUNTS = [1, 2, 3, 4] as const
+/** Images per prompt. The studio fans these out as one request per image. */
+export const GPT_IMAGE_COUNTS = BATCH_COUNTS
 
 export type GptImageSize = (typeof GPT_IMAGE_SIZES)[number]
 export type GptImageQuality = (typeof GPT_IMAGE_QUALITIES)[number]
@@ -31,7 +34,7 @@ export type GptImageQuality = (typeof GPT_IMAGE_QUALITIES)[number]
 export const DEFAULT_IMAGE_SIZE: GptImageSize = '1024x1024'
 export const DEFAULT_IMAGE_QUALITY: GptImageQuality = 'auto'
 export const DEFAULT_IMAGE_COUNT = 1
-export const MAX_IMAGE_COUNT = 4
+export const MAX_IMAGE_COUNT = MAX_BATCH_COUNT
 
 const GPT_IMAGE_SIZE_SET = new Set<string>(GPT_IMAGE_SIZES)
 const GPT_IMAGE_QUALITY_SET = new Set<string>(GPT_IMAGE_QUALITIES)

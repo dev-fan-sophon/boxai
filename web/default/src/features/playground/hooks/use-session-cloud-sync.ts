@@ -30,6 +30,7 @@ import {
   isChatSession,
   isLegacyModelSwitchMarker,
   isStudioSession,
+  MAX_SESSION_RUNS,
   type ChatSession,
   type PlaygroundSession,
   type StudioRunSummary,
@@ -156,6 +157,7 @@ function runsFromServer(runs: PlaygroundRun[]): StudioRunSummary[] {
     resultUrl: run.result_url,
     assetId: run.asset_id,
     taskId: run.task_id,
+    batchId: run.batch_id || undefined,
     createdAt: run.created_at ? run.created_at * 1000 : undefined,
   }))
 }
@@ -979,7 +981,7 @@ export function recordActiveStudioRun(input: {
     .filter((url) => !url.startsWith('data:') && !url.startsWith('blob:'))
     .slice(-12)
   const nextRuns = input.run
-    ? [...(session.runs ?? []), input.run].slice(-40)
+    ? [...(session.runs ?? []), input.run].slice(-MAX_SESSION_RUNS)
     : session.runs
   const title =
     session.isDraft ||

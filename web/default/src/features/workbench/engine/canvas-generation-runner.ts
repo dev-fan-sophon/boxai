@@ -211,7 +211,11 @@ export async function pollCanvasVideoTask(
   const startedAt = Date.now()
   while (Date.now() - startedAt < VIDEO_POLL_TIMEOUT_MS) {
     throwIfAborted(options.signal)
-    const response = await getUserTaskLogs({ p: 1, page_size: 20 })
+    const response = await getUserTaskLogs({
+      p: 1,
+      page_size: 5,
+      task_id: taskId,
+    })
     throwIfAborted(options.signal)
     const items = (response.data?.items ?? []) as TaskLog[]
     const task = items.find((item) => item.task_id === taskId)

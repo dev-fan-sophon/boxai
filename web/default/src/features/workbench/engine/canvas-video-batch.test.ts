@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
+
 import {
   CanvasNodeType,
   type CanvasConnection,
@@ -24,24 +26,15 @@ describe('planVideoBatch', () => {
     ).toEqual({ prompts: ['one'], truncated: 0 })
   })
 
-  it('repeats each line by count and caps the total at ten', () => {
+  it('repeats each line by count and caps the total', () => {
     const lines = Array.from({ length: 6 }, (_, i) => `p${i + 1}`).join('\n')
     const plan = planVideoBatch(
-      videoNode({ videoBatchMode: true, videoBatchPrompts: lines, count: 2 })
+      videoNode({ videoBatchMode: true, videoBatchPrompts: lines, count: 4 })
     )
-    expect(plan.prompts).toEqual([
-      'p1',
-      'p1',
-      'p2',
-      'p2',
-      'p3',
-      'p3',
-      'p4',
-      'p4',
-      'p5',
-      'p5',
-    ])
-    expect(plan.truncated).toBe(2)
+    expect(plan.prompts).toHaveLength(MAX_STUDIO_BATCH_JOBS)
+    expect(plan.prompts.slice(0, 5)).toEqual(['p1', 'p1', 'p1', 'p1', 'p2'])
+    expect(plan.prompts.at(-1)).toBe('p5')
+    expect(plan.truncated).toBe(24 - MAX_STUDIO_BATCH_JOBS)
   })
 
   it('treats an empty batch box as a single empty prompt', () => {

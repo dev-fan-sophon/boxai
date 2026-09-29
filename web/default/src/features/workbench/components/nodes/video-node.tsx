@@ -19,8 +19,10 @@ import {
   TogglePill,
 } from '@/features/playground/components/composer/param-chip'
 import {
-  MAX_VIDEO_BATCH_JOBS,
-  VIDEO_COUNTS,
+  BATCH_COUNTS,
+  MAX_STUDIO_BATCH_JOBS,
+} from '@/features/playground/lib/studio/batch-plan'
+import {
   getVideoModelCapabilities,
   resolveVideoOptions,
   type VideoAspectRatio,
@@ -338,7 +340,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         placeholder={
           metadata.videoBatchMode
             ? t('One prompt per line (up to {{max}} videos)', {
-                max: MAX_VIDEO_BATCH_JOBS,
+                max: MAX_STUDIO_BATCH_JOBS,
               })
             : t('Describe the video to generate')
         }
@@ -432,7 +434,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           valueLabel={`×${options.count}`}
           value={String(options.count)}
           onChange={(count) => props.onMetadataChange({ count: Number(count) })}
-          options={VIDEO_COUNTS.map((count) => ({
+          options={BATCH_COUNTS.map((count) => ({
             value: String(count),
             label: t('{{count}} videos', { count }),
           }))}

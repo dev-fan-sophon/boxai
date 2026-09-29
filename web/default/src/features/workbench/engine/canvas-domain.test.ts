@@ -186,4 +186,15 @@ describe('isHiddenBatchChild', () => {
     nodes[0].metadata = { ...nodes[0].metadata, imageBatchExpanded: true }
     expect(isHiddenBatchChild(nodes[1], nodes)).toBe(false)
   })
+
+  it('never hides video batch siblings, which have no collapsed stack', () => {
+    const nodes = [
+      node('root', CanvasNodeType.Video, {
+        isBatchRoot: true,
+        batchChildIds: ['take-2'],
+      }),
+      node('take-2', CanvasNodeType.Video, { batchRootId: 'root' }),
+    ]
+    expect(isHiddenBatchChild(nodes[1], nodes)).toBe(false)
+  })
 })

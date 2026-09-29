@@ -304,6 +304,8 @@ export type StudioSettings = {
   imageCount: number
   imageSize: string
   imageQuality: string
+  /** Composer holds one prompt per line and generates each. */
+  imageBatchMode: boolean
   videoDuration: number
   /** Derived `WxH` kept for legacy readers and price estimates. */
   videoSize: string

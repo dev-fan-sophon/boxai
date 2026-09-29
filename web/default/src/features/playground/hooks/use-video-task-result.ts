@@ -28,7 +28,8 @@ export function useVideoTaskResult(
 ): VideoTaskResult {
   const query = useQuery({
     queryKey: ['playground', 'task-history'],
-    queryFn: () => getUserTaskLogs({ p: 1, page_size: 20 }),
+    // Wide enough for a full studio batch plus other recent tasks.
+    queryFn: () => getUserTaskLogs({ p: 1, page_size: 50 }),
     enabled: enabled && Boolean(taskId),
     refetchInterval: (state) => {
       const items = (state.state.data?.data?.items ?? []) as TaskLog[]

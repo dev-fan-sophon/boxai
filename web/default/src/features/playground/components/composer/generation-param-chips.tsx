@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -28,7 +29,6 @@ import {
   type GptImageSize,
 } from '../../lib/studio/image-request-schema'
 import {
-  VIDEO_COUNTS,
   applyResolvedVideoSettings,
   getVideoModelCapabilities,
   resolveVideoOptions,
@@ -88,7 +88,7 @@ export function GenerationParamChips(props: {
         />
         <ParamChip
           icon={<Layers />}
-          ariaLabel={t('Image count')}
+          ariaLabel={t('Images per prompt')}
           valueLabel={`×${normalized.imageCount}`}
           value={String(normalized.imageCount)}
           onChange={(value) => update('imageCount', Number(value))}
@@ -96,6 +96,13 @@ export function GenerationParamChips(props: {
             value: String(count),
             label: t('{{count}} images', { count }),
           }))}
+        />
+        <TogglePill
+          icon={<ListOrdered />}
+          label={t('Batch')}
+          title={t('Enter several prompts and generate them at once')}
+          active={settings.imageBatchMode}
+          onToggle={() => update('imageBatchMode', !settings.imageBatchMode)}
         />
         <ParamChip
           icon={<Gauge />}
@@ -245,7 +252,7 @@ function VideoParamChips(props: { hasImage: boolean }) {
         valueLabel={`×${options.count}`}
         value={String(options.count)}
         onChange={(count) => persist({ videoCount: Number(count) })}
-        options={VIDEO_COUNTS.map((count) => ({
+        options={BATCH_COUNTS.map((count) => ({
           value: String(count),
           label: t('{{count}} videos', { count }),
         }))}

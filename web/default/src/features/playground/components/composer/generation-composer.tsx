@@ -1,3 +1,4 @@
+import { Layers } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,10 +7,14 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
-  MAX_VIDEO_BATCH_JOBS,
+  MAX_STUDIO_BATCH_JOBS,
+  planGenerationJobs,
+  type GenerationJobPlan,
+} from '../../lib/studio/batch-plan'
+import { normalizeImageCount } from '../../lib/studio/image-request-schema'
+import {
   getActiveVideoReferenceLimit,
   getVideoModelCapabilities,
-  planVideoJobs,
   resolveVideoOptions,
   videoSizeForOptions,
   type VideoReferenceMode,
@@ -27,16 +32,18 @@ import { useComposerText } from './use-composer'
 type GenerationComposerProps = {
   modality: Exclude<StudioModality, 'chat'>
   pricingModel?: PricingModel
-  isPending: boolean
+  /** Jobs of this modality still queued or running. */
+  activeJobs: number
   references: MediaReference[]
   onReferencesChange: (value: MediaReference[]) => void
-  onSubmit: (prompt: string) => void
+  onSubmit: (plan: GenerationJobPlan) => void
 }
 
 /**
- * Composer for image/video/audio generation: shared skeleton plus the
- * media reference slot (image reference / video first frame) and the
- * price hint. Generation parameters live in the settings panel.
+ * Composer for image/video/audio generation. The prompt box expands into a
+ * batch plan (lines × `{a|b}` variants × count) that is previewed live, so
+ * the send button and the price hint always describe the whole batch.
+ * The prompt stays in the box after sending so it can be tweaked and re-run.
  */
 export function GenerationComposer(props: GenerationComposerProps) {
   const { t } = useTranslation()
@@ -83,48 +90,85 @@ export function GenerationComposer(props: GenerationComposerProps) {
   }
   const groupRatio = groups.find((item) => item.value === group)?.ratio
   const showMediaSlot = props.modality === 'image' || props.modality === 'video'
-  const videoPlan =
-    props.modality === 'video'
-      ? planVideoJobs({
-          text,
-          batchMode: settings.videoBatchMode,
-          count: videoOptions.count,
-        })
-      : null
-  const canSubmit =
-    !uploading &&
-    Boolean(model) &&
-    (props.modality === 'video'
-      ? videoPlan !== null && videoPlan.prompts.length > 0
-      : Boolean(text.trim()))
+
+  let batchMode = false
+  let count = 1
+  if (props.modality === 'image') {
+    batchMode = settings.imageBatchMode
+    count = normalizeImageCount(settings.imageCount)
+  } else if (props.modality === 'video') {
+    batchMode = settings.videoBatchMode
+    count = videoOptions.count
+  }
+  // Speech text is spoken verbatim, so it never expands into variants.
+  const plan: GenerationJobPlan =
+    props.modality === 'audio'
+      ? { prompts: text.trim() ? [text.trim()] : [], truncated: 0 }
+      : planGenerationJobs({ text, batchMode, count })
+  const jobCount = plan.prompts.length
+  const distinctPrompts = new Set(plan.prompts).size
+  const canSubmit = !uploading && Boolean(model) && jobCount > 0
 
   const submit = () => {
     if (!canSubmit || !model) return
-    props.onSubmit(text)
-    if (props.modality !== 'video' || !settings.videoBatchMode) {
-      setText('')
-    }
+    props.onSubmit(plan)
   }
 
   let placeholder = t('Describe what you want to create…')
   if (props.modality === 'audio') {
     placeholder = t('Enter the text to speak…')
-  } else if (props.modality === 'video' && settings.videoBatchMode) {
-    placeholder = t('One prompt per line (up to {{max}} videos)', {
-      max: MAX_VIDEO_BATCH_JOBS,
-    })
+  } else if (batchMode) {
+    placeholder = t('One prompt per line · use {a|b} for variants')
   } else if (props.modality === 'video') {
     placeholder = t('Describe the video scene and motion…')
   } else if (props.modality === 'image') {
     placeholder = t('Describe the image you want to create…')
   }
 
+  let submitLabel = t('Generate')
+  if (jobCount > 1) {
+    submitLabel = t('Generate ×{{count}}', { count: jobCount })
+  }
+
+  let planSummary = ''
+  if (jobCount > 1 && distinctPrompts > 1) {
+    planSummary = t('{{count}} results from {{prompts}} prompts', {
+      count: jobCount,
+      prompts: distinctPrompts,
+    })
+  } else if (jobCount > 1) {
+    planSummary = t('{{count}} results', { count: jobCount })
+  }
+
   return (
     <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-3 md:px-3 md:py-3.5'>
-      {props.isPending && (
-        <p className='text-muted-foreground mb-2 px-1 text-center text-[11px]'>
-          {t('Generating… you can already queue the next run.')}
-        </p>
+      {(props.activeJobs > 0 || planSummary || plan.truncated > 0) && (
+        <div
+          className='text-muted-foreground mb-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 text-center text-xs'
+          aria-live='polite'
+        >
+          {planSummary ? (
+            <span className='text-foreground/80 inline-flex items-center gap-1 font-medium'>
+              <Layers className='size-3.5' aria-hidden='true' />
+              {planSummary}
+            </span>
+          ) : null}
+          {plan.truncated > 0 ? (
+            <span className='text-warning'>
+              {t('{{count}} more skipped (max {{max}} per run)', {
+                count: plan.truncated,
+                max: MAX_STUDIO_BATCH_JOBS,
+              })}
+            </span>
+          ) : null}
+          {props.activeJobs > 0 ? (
+            <span>
+              {t('{{count}} in progress — you can keep queuing', {
+                count: props.activeJobs,
+              })}
+            </span>
+          ) : null}
+        </div>
       )}
       <ComposerShell
         text={text}
@@ -132,6 +176,8 @@ export function GenerationComposer(props: GenerationComposerProps) {
         onSubmit={submit}
         placeholder={placeholder}
         canSubmit={canSubmit}
+        submitLabel={submitLabel}
+        newlineOnEnter={batchMode}
         tools={
           <div className='flex min-w-0 [scrollbar-width:none] items-center gap-1 overflow-x-auto py-0.5 [&::-webkit-scrollbar]:hidden'>
             {showMediaSlot && (
@@ -220,12 +266,10 @@ export function GenerationComposer(props: GenerationComposerProps) {
             model={props.pricingModel}
             group={group}
             groupRatio={groupRatio}
+            jobCount={jobCount}
             estimateParams={{
               modality: props.modality,
-              n:
-                props.modality === 'video'
-                  ? Math.max(1, videoPlan?.prompts.length ?? 1)
-                  : settings.imageCount,
+              n: Math.max(1, jobCount),
               size:
                 props.modality === 'video'
                   ? (videoSizeForOptions(

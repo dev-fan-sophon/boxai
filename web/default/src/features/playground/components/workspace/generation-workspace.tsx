@@ -9,13 +9,15 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 import { fetchPlaygroundAssetBlob } from '../../api'
 import type { UseStudioResult } from '../../hooks/use-studio'
 import { isStudioSession } from '../../lib'
-import { isPlaygroundImageModel } from '../../lib/studio/image-request-schema'
-import { groupRunsIntoBatches } from '../../lib/studio/studio-feed'
 import {
-  MAX_VIDEO_BATCH_JOBS,
+  MAX_STUDIO_BATCH_JOBS,
+  type GenerationJobPlan,
+} from '../../lib/studio/batch-plan'
+import { isPlaygroundImageModel } from '../../lib/studio/image-request-schema'
+import { buildStudioFeed } from '../../lib/studio/studio-feed'
+import {
   getActiveVideoReferenceLimit,
   getVideoModelCapabilities,
-  planVideoJobs,
   resolveVideoOptions,
 } from '../../lib/studio/video-capabilities'
 import type { StudioModality } from '../../types'
@@ -43,10 +45,10 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 /**
- * Continuous generation workspace: a chronological feed of prompt + result
- * cards (restored from the session's run history) with the composer docked
- * at the bottom. Submitting never blocks on a running generation — new runs
- * append to the feed as pending cards.
+ * Continuous generation workspace: a chronological feed of batch cards
+ * (restored from the session's run history, with in-flight jobs merged in)
+ * and the composer docked at the bottom. Submitting never blocks on a
+ * running batch — new batches queue behind the per-modality limiter.
  */
 export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const { t } = useTranslation()
@@ -80,7 +82,9 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   }
   const group = usePlaygroundStore((state) => state.config.group)
   const setPrefill = usePlaygroundStore((state) => state.setPrefill)
-  const activeModality = usePlaygroundStore((state) => state.activeModality)
+  const setStudioSettings = usePlaygroundStore(
+    (state) => state.setStudioSettings
+  )
   const activeSessionId = usePlaygroundStore(
     (state) => state.activeSessionByModality[state.activeModality] ?? null
   )
@@ -99,10 +103,6 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     session && isStudioSession(session) && session.modality === props.modality
       ? session
       : null
-  const batches = useMemo(
-    () => groupRunsIntoBatches(studioSession?.runs),
-    [studioSession?.runs]
-  )
   const pending = useMemo(
     () =>
       studio.pendingRuns.filter(
@@ -112,12 +112,19 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       ),
     [studio.pendingRuns, props.modality, studioSession]
   )
+  const batches = useMemo(
+    () => buildStudioFeed(studioSession?.runs, pending),
+    [studioSession?.runs, pending]
+  )
 
-  const showHero = batches.length === 0 && pending.length === 0
-  const hasRunning = pending.some((entry) => entry.status === 'running')
+  const showHero = batches.length === 0
+  const activeJobs = studio.pendingRuns.filter(
+    (entry) =>
+      entry.input.modality === props.modality && entry.status !== 'error'
+  ).length
 
-  const submit = (prompt: string) => {
-    if (!prompt || !model) return
+  const startJobs = (prompts: string[]) => {
+    if (prompts.length === 0 || !model) return
     if (!props.canSubmit()) return
     if (references.length > maxFiles) {
       toast.error(
@@ -149,48 +156,29 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         undefined
     }
     if (!sessionId) return
-    const referenceUrls =
-      props.modality === 'audio'
-        ? []
-        : references.map((reference) => reference.dataUrl)
-    if (props.modality === 'video') {
-      const plan = planVideoJobs({
-        text: prompt,
-        batchMode: studioSettings.videoBatchMode,
-        count: videoOptions.count,
-      })
-      if (plan.prompts.length === 0) return
-      if (plan.truncated > 0) {
-        toast.warning(
-          t(
-            'Batch limited to {{max}} videos; {{count}} prompts were skipped.',
-            {
-              max: MAX_VIDEO_BATCH_JOBS,
-              count: plan.truncated,
-            }
-          )
-        )
-      }
-      for (const jobPrompt of plan.prompts) {
-        studio.startGeneration({
-          modality: 'video',
-          sessionId,
-          prompt: jobPrompt,
-          model,
-          group,
-          references: referenceUrls,
-        })
-      }
-      return
-    }
-    studio.startGeneration({
+    studio.startBatch({
       modality: props.modality,
       sessionId,
-      prompt,
       model,
       group,
-      references: referenceUrls,
+      references:
+        props.modality === 'audio'
+          ? []
+          : references.map((reference) => reference.dataUrl),
+      prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),
     })
+  }
+
+  const submitPlan = (plan: GenerationJobPlan) => {
+    if (plan.truncated > 0) {
+      toast.warning(
+        t('Batch limited to {{max}} results; {{count}} were skipped.', {
+          max: MAX_STUDIO_BATCH_JOBS,
+          count: plan.truncated,
+        })
+      )
+    }
+    startJobs(plan.prompts)
   }
 
   const addReferenceFromResult = async (image: {
@@ -234,22 +222,34 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             model={props.pricingModel}
             modelName={model}
             modality={props.modality}
+            onPickExample={setPrefill}
           />
         ) : (
-          <div className='mx-auto w-full max-w-5xl px-3 pt-4 pb-6 sm:px-4 md:px-6'>
+          <div className='mx-auto w-full max-w-6xl px-3 pt-3 pb-6 sm:px-4 md:px-6'>
             <StudioFeed
               modality={props.modality}
               batches={batches}
-              pending={pending}
-              onReusePrompt={(prompt) => setPrefill(prompt)}
-              onRerun={(prompt) => submit(prompt)}
+              onReusePrompt={(prompt) => {
+                // A multi-prompt batch comes back as lines, so turn batch
+                // mode on for the modalities that read one prompt per line.
+                if (prompt.includes('\n') && props.modality !== 'audio') {
+                  setStudioSettings((prev) =>
+                    props.modality === 'image'
+                      ? { ...prev, imageBatchMode: true }
+                      : { ...prev, videoBatchMode: true }
+                  )
+                }
+                setPrefill(prompt)
+              }}
+              onRerun={startJobs}
               onUseAsReference={
                 supportsReferences
                   ? (image) => void addReferenceFromResult(image)
                   : undefined
               }
-              onRetryPending={studio.retryRun}
-              onDismissPending={studio.dismissRun}
+              onRetry={studio.retryRuns}
+              onCancelQueued={studio.cancelQueued}
+              onDismiss={studio.dismissRuns}
             />
           </div>
         )}
@@ -264,10 +264,10 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         <GenerationComposer
           modality={props.modality}
           pricingModel={props.pricingModel}
-          isPending={hasRunning && activeModality === props.modality}
+          activeJobs={activeJobs}
           references={references}
           onReferencesChange={setReferences}
-          onSubmit={submit}
+          onSubmit={submitPlan}
         />
       </div>
     </div>

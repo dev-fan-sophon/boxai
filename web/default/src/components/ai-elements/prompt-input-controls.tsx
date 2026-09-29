@@ -46,12 +46,18 @@ export const PromptInputBody = ({
   <div className={cn('contents', className)} {...props} />
 )
 
-export type PromptInputTextareaProps = ComponentProps<typeof InputGroupTextarea>
+export type PromptInputTextareaProps = ComponentProps<
+  typeof InputGroupTextarea
+> & {
+  /** Multi-line entry (one prompt per line): Enter adds a line, Ctrl/⌘+Enter sends. */
+  newlineOnEnter?: boolean
+}
 
 export const PromptInputTextarea = ({
   onChange,
   className,
   placeholder,
+  newlineOnEnter,
   ...props
 }: PromptInputTextareaProps) => {
   const { t } = useTranslation()
@@ -66,6 +72,9 @@ export const PromptInputTextarea = ({
         return
       }
       if (e.shiftKey) {
+        return
+      }
+      if (newlineOnEnter && !e.metaKey && !e.ctrlKey) {
         return
       }
       e.preventDefault()

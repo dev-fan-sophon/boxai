@@ -10,7 +10,9 @@ import {
   generateSpeech,
   submitVideo,
 } from '../api'
+import { persistGeneratedMediaAsset } from '../lib/download-generated-media'
 import type { StudioRunSummary } from '../lib/session/session-types'
+import { studioGenerationLimiters } from '../lib/studio/generation-limiter'
 import {
   createLocalRunId,
   type PendingStudioRun,
@@ -24,18 +26,29 @@ import {
 } from './use-session-cloud-sync'
 
 /**
- * Concurrent generation engine for the studio modalities. Every submit
- * appends a pending entry immediately (so the feed shows it), runs the
- * request, and finalizes into the owning session's run history. Multiple
- * runs may be in flight at once; failures stay on the feed with a retry.
+ * Batch generation engine for the studio modalities. A submit becomes a batch
+ * of single-output jobs that share a batch id; each job waits for a slot in
+ * the per-modality limiter, runs, and finalizes into the owning session's run
+ * history, so results stream into one feed card as they finish. Failed jobs
+ * stay on the card with a retry; queued jobs can be cancelled.
  */
 export type UseStudioResult = ReturnType<typeof useStudio>
+
+export type StudioBatchRequest = Omit<
+  StudioGenerationInput,
+  'prompt' | 'batchId'
+> & {
+  /** One prompt per job, already expanded by `planGenerationJobs`. */
+  prompts: string[]
+}
 
 export function useStudio() {
   const queryClient = useQueryClient()
   const settings = usePlaygroundStore((state) => state.studioSettings)
   const setSettings = usePlaygroundStore((state) => state.setStudioSettings)
   const [pendingRuns, setPendingRuns] = useState<PendingStudioRun[]>([])
+  const pendingRef = useRef<PendingStudioRun[]>([])
+  const cancelledRef = useRef(new Set<string>())
   const blobUrlsRef = useRef<string[]>([])
 
   useEffect(
@@ -46,22 +59,34 @@ export function useStudio() {
     []
   )
 
+  const updatePending = useCallback(
+    (updater: (previous: PendingStudioRun[]) => PendingStudioRun[]) => {
+      pendingRef.current = updater(pendingRef.current)
+      setPendingRuns(pendingRef.current)
+    },
+    []
+  )
+
   const patchPending = useCallback(
     (clientId: string, patch: Partial<PendingStudioRun>) => {
-      setPendingRuns((previous) =>
+      updatePending((previous) =>
         previous.map((entry) =>
           entry.clientId === clientId ? { ...entry, ...patch } : entry
         )
       )
     },
-    []
+    [updatePending]
   )
 
-  const removePending = useCallback((clientId: string) => {
-    setPendingRuns((previous) =>
-      previous.filter((entry) => entry.clientId !== clientId)
-    )
-  }, [])
+  const removePending = useCallback(
+    (clientIds: string[]) => {
+      const ids = new Set(clientIds)
+      updatePending((previous) =>
+        previous.filter((entry) => !ids.has(entry.clientId))
+      )
+    },
+    [updatePending]
+  )
 
   const finalizeRun = useCallback(
     async (input: {
@@ -78,6 +103,7 @@ export function useStudio() {
         prompt: generation.prompt,
         asset_id: input.assetId,
         task_id: input.taskId,
+        batch_id: generation.batchId,
         project_id: input.projectId || undefined,
         result_url: /^https?:\/\//i.test(input.fallbackUrl ?? '')
           ? input.fallbackUrl
@@ -91,6 +117,7 @@ export function useStudio() {
             resultUrl: cloudRun.result_url || input.fallbackUrl,
             assetId: cloudRun.asset_id,
             taskId: cloudRun.task_id,
+            batchId: generation.batchId,
             createdAt: cloudRun.created_at
               ? cloudRun.created_at * 1000
               : Date.now(),
@@ -102,6 +129,7 @@ export function useStudio() {
             resultUrl: input.fallbackUrl,
             assetId: input.assetId,
             taskId: input.taskId,
+            batchId: generation.batchId,
             createdAt: Date.now(),
           }
       const previewUrl = run.resultUrl
@@ -127,7 +155,8 @@ export function useStudio() {
         model: generation.model,
         group: generation.group,
         prompt: generation.prompt,
-        settings: snapshot,
+        // Every job is one image; the batch supplies the count.
+        settings: { ...snapshot, imageCount: 1 },
         referenceImage: generation.references[0] ?? null,
         referenceImages: generation.references.slice(1),
         editMode: generation.references.length > 0,
@@ -136,9 +165,25 @@ export function useStudio() {
         throw new Error('The model returned no images.')
       }
       const projectId = await ensureActiveStudioProjectId(generation.sessionId)
-      for (const image of generated) {
+      for (const [index, image] of generated.entries()) {
+        // Providers return base64 or short-lived URLs; archiving the bytes as
+        // a private asset keeps the result in history after a reload.
+        let assetId = image.assetId
+        if (!assetId) {
+          try {
+            const asset = await persistGeneratedMediaAsset(
+              image.url,
+              `studio-image-${Date.now()}-${index}.png`,
+              'image'
+            )
+            assetId = asset.id
+          } catch {
+            // The in-tab URL still renders; history falls back to it.
+          }
+        }
         await finalizeRun({
           generation,
+          assetId,
           fallbackUrl: image.url,
           projectId,
         })
@@ -193,23 +238,35 @@ export function useStudio() {
     [finalizeRun, queryClient]
   )
 
-  const executeRun = useCallback(
-    async (entry: PendingStudioRun) => {
-      try {
-        if (entry.input.modality === 'image') {
-          await executeImageRun(entry.input, entry.settings)
-        } else if (entry.input.modality === 'video') {
-          await executeVideoRun(entry.input, entry.settings)
-        } else {
-          await executeAudioRun(entry.input, entry.settings)
-        }
-        removePending(entry.clientId)
-      } catch (error) {
-        patchPending(entry.clientId, {
-          status: 'error',
-          error: error instanceof Error ? error.message : String(error),
+  const enqueueJob = useCallback(
+    (entry: PendingStudioRun) => {
+      const limiter = studioGenerationLimiters[entry.input.modality]
+      void limiter
+        .schedule(async () => {
+          // Cancelled while waiting for a slot: give the slot straight back.
+          if (cancelledRef.current.has(entry.clientId)) return
+          patchPending(entry.clientId, {
+            status: 'running',
+            startedAt: Date.now(),
+          })
+          if (entry.input.modality === 'image') {
+            await executeImageRun(entry.input, entry.settings)
+          } else if (entry.input.modality === 'video') {
+            await executeVideoRun(entry.input, entry.settings)
+          } else {
+            await executeAudioRun(entry.input, entry.settings)
+          }
+          removePending([entry.clientId])
         })
-      }
+        .catch((error: unknown) => {
+          patchPending(entry.clientId, {
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          })
+        })
+        .finally(() => {
+          cancelledRef.current.delete(entry.clientId)
+        })
     },
     [
       executeAudioRun,
@@ -220,45 +277,92 @@ export function useStudio() {
     ]
   )
 
-  const startGeneration = useCallback(
-    (input: StudioGenerationInput) => {
-      const entry: PendingStudioRun = {
+  /** Queues one job per prompt as a single batch; returns the batch id. */
+  const startBatch = useCallback(
+    (request: StudioBatchRequest): string => {
+      const batchId = nanoid(12)
+      const snapshot = { ...usePlaygroundStore.getState().studioSettings }
+      const queuedAt = Date.now()
+      const entries: PendingStudioRun[] = request.prompts.map((prompt) => ({
         clientId: nanoid(10),
-        input,
-        settings: { ...usePlaygroundStore.getState().studioSettings },
-        startedAt: Date.now(),
-        status: 'running',
-      }
-      setPendingRuns((previous) => [...previous, entry])
-      void executeRun(entry)
+        input: {
+          modality: request.modality,
+          sessionId: request.sessionId,
+          model: request.model,
+          group: request.group,
+          references: request.references,
+          batchId,
+          prompt,
+        },
+        settings: snapshot,
+        queuedAt,
+        status: 'queued',
+      }))
+      updatePending((previous) => [...previous, ...entries])
+      for (const entry of entries) enqueueJob(entry)
+      return batchId
     },
-    [executeRun]
+    [enqueueJob, updatePending]
   )
 
-  const retryRun = useCallback(
-    (clientId: string) => {
-      const entry = pendingRuns.find((item) => item.clientId === clientId)
-      if (!entry || entry.status !== 'error') return
-      const next: PendingStudioRun = {
-        ...entry,
-        status: 'running',
-        error: undefined,
-        startedAt: Date.now(),
-      }
-      setPendingRuns((previous) =>
-        previous.map((item) => (item.clientId === clientId ? next : item))
+  const retryRuns = useCallback(
+    (clientIds: string[]) => {
+      const ids = new Set(clientIds)
+      const retried = pendingRef.current
+        .filter((entry) => ids.has(entry.clientId) && entry.status === 'error')
+        .map(
+          (entry): PendingStudioRun => ({
+            ...entry,
+            status: 'queued',
+            error: undefined,
+            startedAt: undefined,
+            queuedAt: Date.now(),
+          })
+        )
+      if (retried.length === 0) return
+      const byId = new Map(retried.map((entry) => [entry.clientId, entry]))
+      updatePending((previous) =>
+        previous.map((entry) => byId.get(entry.clientId) ?? entry)
       )
-      void executeRun(next)
+      for (const entry of retried) enqueueJob(entry)
     },
-    [executeRun, pendingRuns]
+    [enqueueJob, updatePending]
+  )
+
+  /** Drops queued jobs before they start; running jobs finish normally. */
+  const cancelQueued = useCallback(
+    (clientIds: string[]) => {
+      const ids = new Set(clientIds)
+      const queued = pendingRef.current.filter(
+        (entry) => ids.has(entry.clientId) && entry.status === 'queued'
+      )
+      for (const entry of queued) cancelledRef.current.add(entry.clientId)
+      removePending(queued.map((entry) => entry.clientId))
+    },
+    [removePending]
+  )
+
+  const dismissRuns = useCallback(
+    (clientIds: string[]) => {
+      const ids = new Set(clientIds)
+      removePending(
+        pendingRef.current
+          .filter(
+            (entry) => ids.has(entry.clientId) && entry.status === 'error'
+          )
+          .map((entry) => entry.clientId)
+      )
+    },
+    [removePending]
   )
 
   return {
     settings,
     setSettings,
     pendingRuns,
-    startGeneration,
-    retryRun,
-    dismissRun: removePending,
+    startBatch,
+    retryRuns,
+    cancelQueued,
+    dismissRuns,
   }
 }

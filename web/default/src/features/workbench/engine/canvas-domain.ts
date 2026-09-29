@@ -276,14 +276,25 @@ export function attachNodeToStoryboardRow(
   })
 }
 
+/**
+ * Image batches stack behind their root until expanded. Video batch siblings
+ * also point at a root (for delete ownership) but are always laid out.
+ */
+function isCollapsedImageBatchRoot(root: CanvasNodeData | undefined | null) {
+  return Boolean(
+    root &&
+    root.type === CanvasNodeType.Image &&
+    !root.metadata?.imageBatchExpanded
+  )
+}
+
 export function isHiddenBatchChild(
   node: CanvasNodeData,
   nodes: CanvasNodeData[]
 ) {
   const rootId = node.metadata?.batchRootId
   if (!rootId) return false
-  const root = nodes.find((item) => item.id === rootId)
-  return Boolean(root && !root.metadata?.imageBatchExpanded)
+  return isCollapsedImageBatchRoot(nodes.find((item) => item.id === rootId))
 }
 
 export function sameStringSet(left: Set<string>, right: Set<string>) {
@@ -404,7 +415,7 @@ export function createNodeAlignmentContext(
     const batchRoot = node.metadata?.batchRootId
       ? nodeById.get(node.metadata.batchRootId)
       : null
-    if (batchRoot && !batchRoot.metadata?.imageBatchExpanded) return []
+    if (isCollapsedImageBatchRoot(batchRoot)) return []
     const parent = node.parentId ? nodeById.get(node.parentId) : null
     if (parent && isFrameNode(parent) && parent.metadata?.frame?.collapsed) {
       return []

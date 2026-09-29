@@ -21,6 +21,7 @@ import {
   createNodeVariant,
   setPrimaryNodeVersion,
 } from '../engine/canvas-node-versions'
+import { settleInterruptedGenerations } from '../engine/canvas-video-recovery'
 import {
   getCanvasNodesBounds,
   viewportForBounds,
@@ -143,7 +144,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
 
   loadDocument: (doc, options) =>
     set((state) => ({
-      nodes: doc?.nodes ?? [],
+      nodes: settleInterruptedGenerations(doc?.nodes ?? []),
       connections: doc?.connections ?? [],
       viewport: doc?.viewport ?? DEFAULT_VIEWPORT,
       backgroundMode: doc?.backgroundMode ?? 'lines',

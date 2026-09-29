@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { MAX_VIDEO_BATCH_JOBS } from '@/features/playground/lib/studio/video-capabilities'
+import {
+  MAX_STUDIO_BATCH_JOBS,
+  clampBatchCount,
+} from '@/features/playground/lib/studio/batch-plan'
+import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { MISSING_MODEL_ERROR } from '../components/nodes/node-shared'
-import { NODE_DEFAULT_SIZE } from '../constants'
-import { createCanvasNode } from '../engine/canvas-domain'
 import { buildNodeGenerationContext } from '../engine/canvas-generation-context'
 import {
   runCanvasAudioGeneration,
@@ -16,6 +18,7 @@ import {
   resumeCanvasVideoGeneration,
   type CanvasGenerationSettings,
 } from '../engine/canvas-generation-runner'
+import { planImageBatchSlots } from '../engine/canvas-image-batch'
 import {
   createVideoBatchSiblings,
   planVideoBatch,
@@ -29,8 +32,12 @@ import {
   type CanvasNodeMetadata,
 } from '../types'
 
-const BATCH_GAP = 24
 const activeVideoNodeIds = new Set<string>()
+
+export type GenerateNodeOptions = {
+  /** Regenerate just this node's own slot of an image batch. */
+  singleSlot?: boolean
+}
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message
@@ -126,9 +133,12 @@ function applyImageToNode(
     naturalWidth?: number
     naturalHeight?: number
   },
-  extra: Partial<CanvasNodeMetadata> = {}
+  extra: Partial<CanvasNodeMetadata> = {},
+  options: { resize?: boolean } = {}
 ) {
-  applyImageSize(nodeId, image.naturalWidth, image.naturalHeight)
+  if (options.resize !== false) {
+    applyImageSize(nodeId, image.naturalWidth, image.naturalHeight)
+  }
   useCanvasStore.getState().updateNodeMetadata(nodeId, {
     content: image.url,
     assetId: image.assetId,
@@ -140,50 +150,8 @@ function applyImageToNode(
   })
 }
 
-function createBatchChildNodes(
-  root: CanvasNodeData,
-  images: Array<{
-    url: string
-    assetId?: number
-    naturalWidth?: number
-    naturalHeight?: number
-  }>
-): CanvasNodeData[] {
-  const defaultSize = NODE_DEFAULT_SIZE[CanvasNodeType.Image]
-  let offsetX = root.position.x + root.width + BATCH_GAP
-
-  return images.map((image, index) => {
-    const fitted =
-      image.naturalWidth && image.naturalHeight
-        ? fitNodeSize(image.naturalWidth, image.naturalHeight)
-        : { width: defaultSize.width, height: defaultSize.height }
-    const center = {
-      x: offsetX + fitted.width / 2,
-      y: root.position.y + fitted.height / 2,
-    }
-    const child = createCanvasNode(CanvasNodeType.Image, center, {
-      content: image.url,
-      assetId: image.assetId,
-      naturalWidth: image.naturalWidth,
-      naturalHeight: image.naturalHeight,
-      status: 'success',
-      batchRootId: root.id,
-      prompt: root.metadata?.prompt,
-      model: root.metadata?.model,
-      size: root.metadata?.size,
-      quality: root.metadata?.quality,
-    })
-    child.width = fitted.width
-    child.height = fitted.height
-    child.position = { x: offsetX, y: root.position.y }
-    child.title = `${root.title} ${index + 2}`
-    offsetX += fitted.width + BATCH_GAP
-    return child
-  })
-}
-
 export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
-  generateNode: (nodeId: string) => Promise<void>
+  generateNode: (nodeId: string, options?: GenerateNodeOptions) => Promise<void>
   cancelNode: (nodeId: string) => void
   isNodeRunning: (nodeId: string) => boolean
 } {
@@ -286,6 +254,17 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
       controllersRef.current.delete(nodeId)
       stoppedObservationIdsRef.current.add(nodeId)
       syncRunningIds()
+      const node = useCanvasStore
+        .getState()
+        .nodes.find((item) => item.id === nodeId)
+      if (node?.type !== CanvasNodeType.Video) {
+        // Image/audio requests cannot be recalled; their results are dropped.
+        useCanvasStore.getState().updateNodeMetadata(nodeId, {
+          status: 'idle',
+          errorDetails: undefined,
+        })
+        return
+      }
       useCanvasStore.getState().updateNodeMetadata(nodeId, {
         status: 'idle',
         taskStatus: 'OBSERVATION_STOPPED',
@@ -305,8 +284,82 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
     [runningIds]
   )
 
+  /**
+   * Fans an image node out into `count` single-image jobs: the root is slot
+   * one, children fill the rest. Placeholders appear at once and each slot
+   * resolves on its own through the shared image limiter.
+   */
+  const runImageBatch = useCallback(
+    async (
+      root: CanvasNodeData,
+      count: number,
+      context: { prompt: string; referenceImages: string[] },
+      settings: CanvasGenerationSettings,
+      controller: AbortController
+    ) => {
+      const store = useCanvasStore.getState()
+      const plan = planImageBatchSlots(root, store.nodes, count)
+      if (plan.removeIds.length) store.removeNodes(plan.removeIds)
+      if (plan.created.length) store.insertNodes(plan.created)
+      const childIds = [
+        ...plan.reuseIds,
+        ...plan.created.map((child) => child.id),
+      ]
+      store.updateNodeMetadata(root.id, {
+        isBatchRoot: true,
+        primaryImageId: root.id,
+        batchChildIds: childIds,
+        imageBatchExpanded: root.metadata?.imageBatchExpanded ?? false,
+      })
+      for (const childId of plan.reuseIds) {
+        store.updateNodeMetadata(childId, {
+          status: 'loading',
+          errorDetails: undefined,
+          prompt: root.metadata?.prompt,
+          model: root.metadata?.model,
+          size: root.metadata?.size,
+          quality: root.metadata?.quality,
+        })
+      }
+      const slotIds = [root.id, ...childIds]
+      await Promise.all(
+        slotIds.map((slotId) =>
+          studioGenerationLimiters.image.schedule(async () => {
+            if (controller.signal.aborted) return
+            try {
+              const result = await runCanvasImageGeneration({
+                prompt: context.prompt,
+                referenceImages: context.referenceImages,
+                settings: { ...settings, count: 1 },
+              })
+              if (controller.signal.aborted) return
+              const image = result.images[0]
+              if (!image) throw new Error('No images were generated')
+              applyImageToNode(slotId, image, {}, { resize: false })
+            } catch (error) {
+              if (controller.signal.aborted) return
+              useCanvasStore.getState().updateNodeMetadata(slotId, {
+                status: 'error',
+                errorDetails: errorMessage(error),
+              })
+            }
+          })
+        )
+      )
+      if (!controller.signal.aborted) return
+      const latest = useCanvasStore.getState()
+      for (const slotId of slotIds) {
+        const slot = latest.nodes.find((item) => item.id === slotId)
+        if (slot?.metadata?.status === 'loading') {
+          latest.updateNodeMetadata(slotId, { status: 'idle' })
+        }
+      }
+    },
+    []
+  )
+
   const generateSingleNode = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, generateOptions: GenerateNodeOptions = {}) => {
       if (options.enabled === false) return
       const store = useCanvasStore.getState()
       const node = store.nodes.find((item) => item.id === nodeId)
@@ -329,14 +382,21 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
       controllersRef.current.set(nodeId, controller)
       syncRunningIds()
 
+      // Image batch children have no inputs of their own: a slot regenerates
+      // from the root's prompt, references and preset.
+      const batchRoot =
+        node.type === CanvasNodeType.Image && node.metadata?.batchRootId
+          ? store.nodes.find((item) => item.id === node.metadata?.batchRootId)
+          : undefined
+      const source = batchRoot ?? node
       const context = buildNodeGenerationContext(
-        nodeId,
+        source.id,
         store.nodes,
         store.connections,
-        node.metadata?.prompt ?? ''
+        source.metadata?.prompt ?? ''
       )
       const settings = resolveGenerationSettings(
-        node,
+        source,
         store.nodes,
         context.presetNodeId
       )
@@ -360,44 +420,45 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
 
       try {
         if (node.type === CanvasNodeType.Image) {
-          const result = await runCanvasImageGeneration({
-            prompt: context.prompt,
-            referenceImages: context.referenceImages,
-            settings,
-          })
+          const count =
+            batchRoot || generateOptions.singleSlot
+              ? 1
+              : clampBatchCount(settings.count ?? 1)
+          if (count > 1) {
+            await runImageBatch(node, count, context, settings, controller)
+            return
+          }
+          const result = await studioGenerationLimiters.image.schedule(() =>
+            runCanvasImageGeneration({
+              prompt: context.prompt,
+              referenceImages: context.referenceImages,
+              settings: { ...settings, count: 1 },
+            })
+          )
           if (controller.signal.aborted) {
             const abortError = new Error('Aborted')
             abortError.name = 'AbortError'
             throw abortError
           }
-
-          const images = result.images
-          if (!images.length) {
+          const image = result.images[0]
+          if (!image) {
             throw new Error('No images were generated')
           }
-
-          if (images.length === 1) {
-            applyImageToNode(nodeId, images[0], {
-              isBatchRoot: undefined,
-              batchChildIds: undefined,
-              primaryImageId: undefined,
-              imageBatchExpanded: undefined,
-            })
-          } else {
-            const [first, ...rest] = images
-            const latestRoot =
-              useCanvasStore
-                .getState()
-                .nodes.find((item) => item.id === nodeId) || node
-            const children = createBatchChildNodes(latestRoot, rest)
-            applyImageToNode(nodeId, first, {
-              isBatchRoot: true,
-              primaryImageId: nodeId,
-              batchChildIds: children.map((child) => child.id),
-              imageBatchExpanded: false,
-            })
-            useCanvasStore.getState().insertNodes(children)
+          if (batchRoot || generateOptions.singleSlot) {
+            // One slot of a batch: keep the grid geometry and batch links.
+            applyImageToNode(nodeId, image, {}, { resize: false })
+            return
           }
+          const staleChildren = node.metadata?.batchChildIds ?? []
+          if (staleChildren.length) {
+            useCanvasStore.getState().removeNodes(staleChildren)
+          }
+          applyImageToNode(nodeId, image, {
+            isBatchRoot: undefined,
+            batchChildIds: undefined,
+            primaryImageId: undefined,
+            imageBatchExpanded: undefined,
+          })
           return
         }
 
@@ -472,17 +533,17 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
         }
       }
     },
-    [options.enabled, syncRunningIds]
+    [options.enabled, runImageBatch, syncRunningIds]
   )
 
   const generateNode = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, generateOptions: GenerateNodeOptions = {}) => {
       if (options.enabled === false) return
       const store = useCanvasStore.getState()
       const node = store.nodes.find((item) => item.id === nodeId)
       if (!node) return
       if (node.type !== CanvasNodeType.Video) {
-        await generateSingleNode(nodeId)
+        await generateSingleNode(nodeId, generateOptions)
         return
       }
       if (node.metadata?.status === 'loading') return
@@ -490,13 +551,10 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
       const plan = planVideoBatch(node)
       if (plan.truncated > 0) {
         toast.warning(
-          t(
-            'Batch limited to {{max}} videos; {{count}} prompts were skipped.',
-            {
-              max: MAX_VIDEO_BATCH_JOBS,
-              count: plan.truncated,
-            }
-          )
+          t('Batch limited to {{max}} results; {{count}} were skipped.', {
+            max: MAX_STUDIO_BATCH_JOBS,
+            count: plan.truncated,
+          })
         )
       }
       if (plan.prompts.length === 1) {

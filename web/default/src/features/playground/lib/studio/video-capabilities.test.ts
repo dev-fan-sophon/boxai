@@ -5,9 +5,7 @@ import {
   applyResolvedVideoSettings,
   assignVideoReferences,
   getVideoModelCapabilities,
-  planVideoJobs,
   resolveVideoOptions,
-  splitBatchPrompts,
   videoOptionsFromSize,
   videoSizeForOptions,
 } from './video-capabilities'
@@ -96,7 +94,7 @@ describe('resolveVideoOptions', () => {
   it('clamps count to the supported range', () => {
     const seedance = getVideoModelCapabilities('seedance-2-0')
     expect(resolveVideoOptions(seedance, { count: 0 }).count).toBe(1)
-    expect(resolveVideoOptions(seedance, { count: 9 }).count).toBe(4)
+    expect(resolveVideoOptions(seedance, { count: 99 }).count).toBe(10)
   })
 })
 
@@ -109,35 +107,6 @@ describe('size mapping', () => {
     })
     expect(videoSizeForOptions('adaptive', '720p')).toBeUndefined()
     expect(videoOptionsFromSize('123x456')).toBeUndefined()
-  })
-})
-
-describe('splitBatchPrompts', () => {
-  it('ignores blank and whitespace-only lines and trims the rest', () => {
-    expect(splitBatchPrompts('  a sunrise \n\n   \r\nb\tsunset\n')).toEqual([
-      'a sunrise',
-      'b\tsunset',
-    ])
-  })
-})
-
-describe('planVideoJobs', () => {
-  it('repeats each line by count and caps the total at ten', () => {
-    const plan = planVideoJobs({
-      text: 'a\nb\nc\nd\ne\nf',
-      batchMode: true,
-      count: 2,
-    })
-    expect(plan.prompts).toHaveLength(10)
-    expect(plan.truncated).toBe(2)
-    expect(plan.prompts[0]).toBe('a')
-    expect(plan.prompts[9]).toBe('e')
-  })
-
-  it('uses the trimmed single prompt when batch mode is off', () => {
-    expect(
-      planVideoJobs({ text: '  one  ', batchMode: false, count: 3 })
-    ).toEqual({ prompts: ['one', 'one', 'one'], truncated: 0 })
   })
 })
 

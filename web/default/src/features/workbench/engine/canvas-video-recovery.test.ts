@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { CanvasNodeType, type CanvasNodeData } from '../types'
-import { shouldRecoverCanvasVideoTask } from './canvas-video-recovery'
+import {
+  settleInterruptedGenerations,
+  shouldRecoverCanvasVideoTask,
+} from './canvas-video-recovery'
 
 const pendingNode = {
   id: 'video-1',
@@ -33,5 +36,29 @@ describe('canvas video task recovery', () => {
     expect(
       shouldRecoverCanvasVideoTask(pendingNode, new Set(), new Set(['video-1']))
     ).toBe(false)
+  })
+})
+
+describe('settleInterruptedGenerations', () => {
+  it('clears stale spinners on unresumable nodes and leaves video tasks to the observer', () => {
+    const nodes = [
+      {
+        id: 'img-empty',
+        type: CanvasNodeType.Image,
+        metadata: { status: 'loading' },
+      },
+      {
+        id: 'img-done',
+        type: CanvasNodeType.Image,
+        metadata: { status: 'loading', content: '/a.png' },
+      },
+      {
+        ...pendingNode,
+        metadata: { ...pendingNode.metadata, status: 'loading' },
+      },
+    ] as CanvasNodeData[]
+    expect(
+      settleInterruptedGenerations(nodes).map((node) => node.metadata?.status)
+    ).toEqual(['idle', 'success', 'loading'])
   })
 })

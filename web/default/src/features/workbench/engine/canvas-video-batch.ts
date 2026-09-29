@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 
-import { planVideoJobs } from '@/features/playground/lib/studio/video-capabilities'
+import { planGenerationJobs } from '@/features/playground/lib/studio/batch-plan'
 
 import type { CanvasConnection, CanvasNodeData } from '../types'
 import { createCanvasNode } from './canvas-domain'
@@ -11,18 +11,19 @@ const BATCH_COLUMNS = 3
 export type VideoBatchPlan = {
   /** Prompts in generation order; index 0 runs on the root node. */
   prompts: string[]
-  /** Jobs dropped because the batch exceeded `MAX_VIDEO_BATCH_JOBS`. */
+  /** Jobs dropped because the batch exceeded `MAX_STUDIO_BATCH_JOBS`. */
   truncated: number
 }
 
 /**
  * Expands a video node's prompt box into the list of jobs to run. In batch
- * mode every non-empty line is a prompt; `count` repeats each prompt so the
- * user gets several takes. The total is capped at `MAX_VIDEO_BATCH_JOBS`.
+ * mode every non-empty line is a prompt, `{a|b}` groups expand into variants,
+ * and `count` repeats each prompt so the user gets several takes. The total
+ * is capped at `MAX_STUDIO_BATCH_JOBS`.
  */
 export function planVideoBatch(node: CanvasNodeData): VideoBatchPlan {
   const metadata = node.metadata ?? {}
-  const plan = planVideoJobs({
+  const plan = planGenerationJobs({
     text: metadata.videoBatchMode
       ? (metadata.videoBatchPrompts ?? '')
       : (metadata.prompt ?? ''),
