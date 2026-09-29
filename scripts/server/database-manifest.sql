@@ -1,5 +1,7 @@
 -- Compare source and restored databases only after stopping all writers.
 -- Output contains counts and hashes, never plaintext user records or secrets.
+-- Canonicalize timestamptz JSON across servers with different timezone defaults.
+SET TIME ZONE 'UTC';
 \pset tuples_only on
 \pset format unaligned
 SELECT format(

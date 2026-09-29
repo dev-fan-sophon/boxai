@@ -81,6 +81,26 @@ the new master. After the new origin accepts writes, DNS-only rollback to the
 old database is unsafe: keep the old host proxying to the new origin, or stop
 writes and migrate the latest data back before reverting.
 
+### Migration state on 2026-09-29
+
+The OVH origin `15.235.200.162` is serving production with `NODE_TYPE=master`.
+Final PostgreSQL table hashes/counts and sequences matched the stopped source
+after canonicalizing timestamps to UTC. Redis and local-file SHA-256 manifests
+also matched. Login, Chat sessions, R2 upload/finalize/delete, Kimi non-streaming
+and streaming requests, and post-cutover backup read-back checks passed.
+Health, backup and certificate-check timers are enabled. The external monitor
+accepted both a simulated alert and recovery email and runs every two minutes.
+
+**DNS cutover is pending:** the current Cloudflare token can read but cannot
+edit the five production A records. They still point to `160.187.1.155`, whose
+nginx forwards HTTPS traffic to the verified OVH origin. The old application,
+Chat service and Redis are stopped with automatic startup disabled; its old
+database is retained and must not receive new application writes. Keep this
+forwarder running until DNS has moved and caches have expired. After obtaining
+Zone/DNS/Edit permission for `you-box.com`, change the five A records while
+preserving proxy flags and verify certificate renewal with `certbot renew
+--dry-run` on OVH. Renewal has not yet been validated against the new origin.
+
 ### Frontend vs API release (same origin)
 
 | Layer | Path / process | How to publish | Restarts API? |
