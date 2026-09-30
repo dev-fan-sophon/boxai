@@ -306,6 +306,9 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	if !ok {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("video mode %s is unavailable", mode), "unsupported_video_capability", http.StatusBadRequest)
 	}
+	if len(req.Metadata) > 0 && !profile.UsesVolcengineMetadata {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("metadata options are unavailable for this video transport"), "unsupported_video_capability", http.StatusBadRequest)
+	}
 	seconds := req.Duration
 	if seconds == 0 && req.Seconds != "" {
 		seconds, _ = strconv.Atoi(req.Seconds)

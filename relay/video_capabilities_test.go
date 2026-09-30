@@ -56,3 +56,18 @@ func TestVideoCapabilityRechecksFalseAudioOnRetry(t *testing.T) {
 	require.NotNil(t, err)
 	assert.Equal(t, "unsupported_video_capability", err.Code)
 }
+
+func TestVideoCapabilityRejectsMetadataIgnoredByTransport(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/pg/video/generations", nil)
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeXai, UpstreamModelName: "grok-imagine-video"}}
+	common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{})
+	// Without this guard, a metadata-only portrait request would validate but
+	// the size-based transport would silently generate its default landscape.
+	c.Set("task_request", relaycommon.TaskSubmitReq{Duration: 5, Metadata: map[string]interface{}{"ratio": "9:16"}})
+	err := validatePlaygroundVideoCapability(c, info)
+	require.NotNil(t, err)
+	assert.Equal(t, "unsupported_video_capability", err.Code)
+	c.Set("task_request", relaycommon.TaskSubmitReq{Duration: 5, Size: "720x1280"})
+	assert.Nil(t, validatePlaygroundVideoCapability(c, info))
+}
