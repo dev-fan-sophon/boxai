@@ -357,24 +357,14 @@ export function ImageResultTile(props: {
   )
 }
 
-/** A submitted video task older than this is resolved via the content URL. */
-const VIDEO_POLL_MAX_AGE_MS = 10 * 60_000
-
-/** Playable URL for a video run: stored result, polled task, or content route. */
+/** Playable URL for a video run: stored result or confirmed successful task. */
 function useVideoRunSource(run: StudioRunSummary) {
-  const shouldPoll =
-    !run.resultUrl &&
-    Boolean(run.taskId) &&
-    (run.createdAt ?? Date.now()) > Date.now() - VIDEO_POLL_MAX_AGE_MS
+  const shouldPoll = !run.resultUrl && Boolean(run.taskId)
   const task = useVideoTaskResult(run.taskId, shouldPoll)
-  const stale = !run.resultUrl && Boolean(run.taskId) && !shouldPoll
-  const src =
-    run.resultUrl ||
-    task.resultUrl ||
-    (stale && run.taskId ? `/v1/videos/${run.taskId}/content` : '')
+  const src = run.resultUrl || task.resultUrl
   return {
     src,
-    ready: Boolean(run.resultUrl) || task.ready || (stale && Boolean(src)),
+    ready: Boolean(run.resultUrl) || task.ready,
     failed: task.failed,
     failReason: task.failReason,
     percent: task.percent,

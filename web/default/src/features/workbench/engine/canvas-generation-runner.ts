@@ -209,13 +209,23 @@ export async function pollCanvasVideoTask(
   }
 ): Promise<TaskLog> {
   const startedAt = Date.now()
+  let consecutiveErrors = 0
   while (Date.now() - startedAt < VIDEO_POLL_TIMEOUT_MS) {
     throwIfAborted(options.signal)
-    const response = await getUserTaskLogs({
-      p: 1,
-      page_size: 5,
-      task_id: taskId,
-    })
+    let response: Awaited<ReturnType<typeof getUserTaskLogs>>
+    try {
+      response = await getUserTaskLogs({
+        p: 1,
+        page_size: 5,
+        task_id: taskId,
+      })
+      consecutiveErrors = 0
+    } catch (error) {
+      throwIfAborted(options.signal)
+      if (++consecutiveErrors >= 3) throw error
+      await delay(VIDEO_POLL_INTERVAL_MS * consecutiveErrors, options.signal)
+      continue
+    }
     throwIfAborted(options.signal)
     const items = (response.data?.items ?? []) as TaskLog[]
     const task = items.find((item) => item.task_id === taskId)
@@ -283,7 +293,9 @@ export async function resumeCanvasVideoGeneration(input: {
 }> {
   await pollCanvasVideoTask(input.taskId, input)
   throwIfAborted(input.signal)
-  return persistCanvasVideoResult(input.taskId)
+  const result = await persistCanvasVideoResult(input.taskId)
+  throwIfAborted(input.signal)
+  return result
 }
 
 export async function runCanvasImageGeneration(input: {
@@ -365,20 +377,22 @@ export async function runCanvasVideoGeneration(input: {
         return submitVideo(submitInput)
       })
     : await submitVideo(submitInput)
-  throwIfAborted(input.signal)
-
   const taskId = submission.taskId
   input.onProgress?.({
     status: submission.status,
     percent: null,
     taskId,
   })
+  throwIfAborted(input.signal)
   await pollCanvasVideoTask(taskId, {
     onProgress: input.onProgress,
     signal: input.signal,
   })
 
-  return persistCanvasVideoResult(taskId)
+  throwIfAborted(input.signal)
+  const result = await persistCanvasVideoResult(taskId)
+  throwIfAborted(input.signal)
+  return result
 }
 
 export async function runCanvasAudioGeneration(input: {

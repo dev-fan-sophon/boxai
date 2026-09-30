@@ -1,5 +1,5 @@
 import { ImagePlus, Library, QrCode, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -46,9 +46,29 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
   const [qrPolling, setQrPolling] = useState(false)
   const [uploading, setUploading] = useState(false)
   const uploadingRef = useRef(false)
+  const currentProps = useRef(props)
+  const generation = useRef(0)
+  const qrTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const qrActive = useRef(false)
+
+  useLayoutEffect(() => {
+    currentProps.current = props
+  })
+  useLayoutEffect(() => {
+    setQrPolling(false)
+    setUploading(false)
+    return () => {
+      generation.current += 1
+      clearTimeout(qrTimer.current)
+      qrActive.current = false
+      if (uploadingRef.current) currentProps.current.onUploadingChange?.(false)
+      uploadingRef.current = false
+    }
+  }, [props.kind, attachable])
 
   const handleFiles = async (files: File[]) => {
-    if (uploadingRef.current) return
+    if (uploadingRef.current || !attachable) return
+    const startedGeneration = generation.current
     const remaining = maxFiles - props.value.length
     if (remaining <= 0) {
       toast.error(
@@ -92,6 +112,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           props.kind ?? 'image',
           'attachment'
         )
+        if (startedGeneration !== generation.current) return
         references.push({
           id: `asset-${asset.id}`,
           name: file.name,
@@ -100,24 +121,40 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         })
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('Upload failed'))
+      if (startedGeneration === generation.current) {
+        toast.error(error instanceof Error ? error.message : t('Upload failed'))
+      }
     } finally {
-      if (references.length > 0) props.onChange([...props.value, ...references])
-      uploadingRef.current = false
-      setUploading(false)
-      props.onUploadingChange?.(false)
+      if (startedGeneration === generation.current) {
+        const current = currentProps.current
+        const available = Math.max(
+          0,
+          (current.maxFiles ?? 1) - current.value.length
+        )
+        const additions = references.slice(0, available)
+        if (additions.length > 0) {
+          current.onChange([...current.value, ...additions])
+        }
+        uploadingRef.current = false
+        setUploading(false)
+        current.onUploadingChange?.(false)
+      }
     }
   }
 
   const selectAsset = (asset: PlaygroundAsset) => {
-    if (props.value.length >= maxFiles) {
+    const current = currentProps.current
+    if (current.attachable === false) return false
+    if (current.value.length >= (current.maxFiles ?? 1)) {
       toast.error(
-        t('You can attach up to {{count}} images.', { count: maxFiles })
+        t('You can attach up to {{count}} images.', {
+          count: current.maxFiles ?? 1,
+        })
       )
-      return
+      return false
     }
-    props.onChange([
-      ...props.value,
+    current.onChange([
+      ...current.value,
       {
         id: `asset-${asset.id}`,
         name: asset.name || `asset-${asset.id}`,
@@ -125,12 +162,17 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         assetId: asset.id,
       },
     ])
+    return true
   }
 
   const startQrSession = async () => {
+    if (qrActive.current || !attachable) return
+    qrActive.current = true
+    const startedGeneration = generation.current
     try {
       setQrPolling(true)
       const session = await createUploadSession(props.kind ?? 'image')
+      if (startedGeneration !== generation.current) return
       toast.info(t('Scan to upload'), {
         description: t(
           'Session ready for {{minutes}} min. Upload from another device to: {{url}}',
@@ -144,25 +186,34 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       // poll for completed upload
       const deadline = Date.now() + 15 * 60 * 1000
       const poll = async () => {
+        if (startedGeneration !== generation.current) return
         if (Date.now() > deadline) {
+          qrActive.current = false
           setQrPolling(false)
           return
         }
         try {
           const status = await getUploadSession(session.token)
+          if (startedGeneration !== generation.current) return
           if (status.asset) {
-            selectAsset(status.asset)
-            toast.success(t('Asset received from upload session'))
+            if (selectAsset(status.asset)) {
+              toast.success(t('Asset received from upload session'))
+            }
+            qrActive.current = false
             setQrPolling(false)
             return
           }
         } catch {
           // keep polling
         }
-        window.setTimeout(() => void poll(), 2500)
+        if (startedGeneration === generation.current) {
+          qrTimer.current = setTimeout(() => void poll(), 2500)
+        }
       }
       void poll()
     } catch (err) {
+      if (startedGeneration !== generation.current) return
+      qrActive.current = false
       setQrPolling(false)
       toast.error(
         err instanceof Error
@@ -229,7 +280,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         size='icon'
         className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Asset library')}
-        disabled={uploading}
+        disabled={uploading || !attachable}
         onClick={() => setLibraryOpen(true)}
       >
         <Library className='size-3.5' />
@@ -240,7 +291,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         size='icon'
         className='text-muted-foreground hover:bg-muted/70 hover:text-foreground size-8'
         aria-label={t('Scan to upload')}
-        disabled={qrPolling || uploading}
+        disabled={qrPolling || uploading || !attachable}
         onClick={() => void startQrSession()}
       >
         <QrCode className='size-3.5' />

@@ -21,7 +21,44 @@ describe('canvas video task recovery', () => {
       shouldRecoverCanvasVideoTask(
         {
           ...pendingNode,
-          metadata: { ...pendingNode.metadata, taskStatus: 'SUCCESS' },
+          metadata: {
+            ...pendingNode.metadata,
+            taskStatus: 'SUCCESS',
+            status: 'success',
+            content: '/done.mp4',
+          },
+        },
+        new Set(),
+        new Set()
+      )
+    ).toBe(false)
+  })
+
+  it('recovers upstream success while local finalization is unfinished, even with an older output', () => {
+    expect(
+      shouldRecoverCanvasVideoTask(
+        {
+          ...pendingNode,
+          metadata: {
+            ...pendingNode.metadata,
+            taskStatus: 'SUCCESS',
+            status: 'loading',
+            content: '/old.mp4',
+          },
+        },
+        new Set(),
+        new Set()
+      )
+    ).toBe(true)
+    expect(
+      shouldRecoverCanvasVideoTask(
+        {
+          ...pendingNode,
+          metadata: {
+            ...pendingNode.metadata,
+            taskStatus: 'FAILURE',
+            status: 'error',
+          },
         },
         new Set(),
         new Set()

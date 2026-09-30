@@ -1,3 +1,4 @@
+import { useQueries } from '@tanstack/react-query'
 import {
   FolderDown,
   Grid2x2,
@@ -25,6 +26,7 @@ import {
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { videoTaskQueryOptions } from '../../hooks/use-video-task-result'
 import {
   downloadGeneratedMedia,
   downloadGeneratedMediaZip,
@@ -138,6 +140,21 @@ export function StudioFeed(props: StudioFeedProps) {
   const [selection, setSelection] = useState<StudioSelection>(
     EMPTY_STUDIO_SELECTION
   )
+  const taskIds = [
+    ...new Set(
+      props.modality === 'video'
+        ? props.batches.flatMap((batch) =>
+            batch.runs.flatMap((run) =>
+              !run.resultUrl && run.taskId ? [run.taskId] : []
+            )
+          )
+        : []
+    ),
+  ]
+  const tasks = useQueries({ queries: taskIds.map(videoTaskQueryOptions) })
+  const successfulTasks = new Set(
+    taskIds.filter((_, index) => tasks[index].data?.status === 'SUCCESS')
+  )
 
   // Multi-select covers finished images; reading the selection back through
   // the current feed drops runs that left it (session switch, history trim).
@@ -223,7 +240,12 @@ export function StudioFeed(props: StudioFeedProps) {
   const downloadBatch = async (batch: StudioFeedBatch) => {
     const items = batch.runs.flatMap((run, index) => {
       let url = run.resultUrl
-      if (!url && props.modality === 'video' && run.taskId) {
+      if (
+        !url &&
+        props.modality === 'video' &&
+        run.taskId &&
+        successfulTasks.has(run.taskId)
+      ) {
         url = `/v1/videos/${run.taskId}/content`
       }
       if (!url) return []
@@ -335,6 +357,7 @@ export function StudioFeed(props: StudioFeedProps) {
           modality={props.modality}
           density={density}
           downloading={downloading}
+          successfulTasks={successfulTasks}
           selectMode={selectMode}
           selectedIds={selection.ids}
           onSelect={canSelect ? clickSelect : undefined}
@@ -451,6 +474,7 @@ function BatchCard(props: {
   modality: StudioModalityKind
   density: StudioFeedDensity
   downloading: string
+  successfulTasks: ReadonlySet<string>
   selectMode: boolean
   selectedIds: ReadonlySet<number>
   /** Select-mode click; `range` extends from the last clicked result. */
@@ -485,7 +509,11 @@ function BatchCard(props: {
   ].filter(Boolean)
   const timeLabel = formatBatchTime(batch.createdAt)
   const downloadable = batch.runs.filter(
-    (run) => run.resultUrl || (props.modality === 'video' && run.taskId)
+    (run) =>
+      run.resultUrl ||
+      (props.modality === 'video' &&
+        run.taskId &&
+        props.successfulTasks.has(run.taskId))
   ).length
 
   const images = batch.runs.filter((run) => Boolean(run.resultUrl))

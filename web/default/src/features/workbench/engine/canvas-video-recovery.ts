@@ -9,7 +9,9 @@ export function shouldRecoverCanvasVideoTask(
   return Boolean(
     node.type === CanvasNodeType.Video &&
     node.metadata?.taskId &&
-    status !== 'SUCCESS' &&
+    (status !== 'SUCCESS' ||
+      node.metadata?.status !== 'success' ||
+      !node.metadata?.content) &&
     status !== 'FAILURE' &&
     !activeNodeIds.has(node.id) &&
     !stoppedNodeIds.has(node.id)

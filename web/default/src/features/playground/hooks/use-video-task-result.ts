@@ -1,14 +1,34 @@
-import { useQuery } from '@tanstack/react-query'
+import { queryOptions, useQuery } from '@tanstack/react-query'
 
 import { getUserTaskLogs } from '@/features/usage-logs/api'
 import type { TaskLog } from '@/features/usage-logs/types'
 
-const activeStatuses = new Set([
-  'SUBMITTED',
-  'IN_PROGRESS',
-  'QUEUED',
-  'NOT_START',
-])
+// Key by task so tiles and batch downloads share requests, independently of
+// the paginated history and of unrelated tasks' lifecycles.
+export function videoTaskQueryOptions(taskId: string | undefined) {
+  return queryOptions({
+    queryKey: ['playground', 'task-history', taskId],
+    queryFn: async () => {
+      const response = await getUserTaskLogs({
+        p: 1,
+        page_size: 1,
+        task_id: taskId,
+      })
+      return (
+        (response.data?.items as TaskLog[] | undefined)?.find(
+          (item) => item.task_id === taskId
+        ) ?? null
+      )
+    },
+    enabled: Boolean(taskId),
+    staleTime: 5000,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'SUCCESS' ||
+      query.state.data?.status === 'FAILURE'
+        ? false
+        : 5000,
+  })
+}
 
 export type VideoTaskResult = {
   status?: string
@@ -19,30 +39,16 @@ export type VideoTaskResult = {
   percent: number | null
 }
 
-// useVideoTaskResult polls the shared task-history query and resolves a single
-// submitted video task. It shares the ['playground','task-history'] cache with
-// the task history panel, so no extra network polling is introduced.
 export function useVideoTaskResult(
   taskId: string | undefined,
   enabled: boolean
 ): VideoTaskResult {
   const query = useQuery({
-    queryKey: ['playground', 'task-history'],
-    // Wide enough for a full studio batch plus other recent tasks.
-    queryFn: () => getUserTaskLogs({ p: 1, page_size: 50 }),
+    ...videoTaskQueryOptions(taskId),
     enabled: enabled && Boolean(taskId),
-    refetchInterval: (state) => {
-      const items = (state.state.data?.data?.items ?? []) as TaskLog[]
-      return items.some((item) => activeStatuses.has(item.status))
-        ? 5000
-        : false
-    },
   })
 
-  const items = (query.data?.data?.items ?? []) as TaskLog[]
-  const task = taskId
-    ? items.find((item) => item.task_id === taskId)
-    : undefined
+  const task = enabled ? query.data : undefined
 
   const status = task?.status
   const ready = status === 'SUCCESS'

@@ -153,15 +153,19 @@ export function useCanvasMediaImport(): {
         .getState()
         .nodes.find((item) => item.id === targetNodeId)
       if (!target) return
-      const existingInputs = useCanvasStore
-        .getState()
-        .connections.filter(
-          (connection) => connection.toNodeId === targetNodeId
-        ).length
+      const current = useCanvasStore.getState()
+      const inputIds = new Set(
+        current.connections
+          .filter((connection) => connection.toNodeId === targetNodeId)
+          .map((connection) => connection.fromNodeId)
+      )
       const columnWidth = NODE_DEFAULT_SIZE[CanvasNodeType.Image].width
-      const columnX = target.position.x - IMPORT_GAP - columnWidth
-      let offsetY =
-        target.position.y + existingInputs * (REFERENCE_ROW + IMPORT_GAP)
+      let offsetY = Math.max(
+        target.position.y,
+        ...current.nodes
+          .filter((node) => inputIds.has(node.id))
+          .map((node) => node.position.y + node.height + IMPORT_GAP)
+      )
       for (const file of images) {
         try {
           const asset = await uploadPlaygroundAsset(file, 'image')
@@ -173,7 +177,7 @@ export function useCanvasMediaImport(): {
           const node = store.addNode(
             CanvasNodeType.Image,
             {
-              x: columnX + columnWidth - size.width / 2,
+              x: target.position.x - IMPORT_GAP - size.width / 2,
               y: offsetY + size.height / 2,
             },
             {
@@ -187,6 +191,10 @@ export function useCanvasMediaImport(): {
             title: file.name,
             width: size.width,
             height: size.height,
+            position: {
+              x: target.position.x - IMPORT_GAP - size.width,
+              y: offsetY,
+            },
           })
           store.connectNodes(node.id, targetNodeId)
           offsetY += size.height + IMPORT_GAP

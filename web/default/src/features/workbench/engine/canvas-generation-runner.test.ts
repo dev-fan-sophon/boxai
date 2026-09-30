@@ -1,6 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildCanvasVideoSubmitInput } from './canvas-generation-runner'
+import { submitVideo } from '@/features/playground/api'
+import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
+import { getUserTaskLogs } from '@/features/usage-logs/api'
+
+import {
+  buildCanvasVideoSubmitInput,
+  pollCanvasVideoTask,
+  runCanvasVideoGeneration,
+  resumeCanvasVideoGeneration,
+} from './canvas-generation-runner'
 
 vi.mock('@/features/playground/api', () => ({
   generateImages: vi.fn(),
@@ -14,6 +23,99 @@ vi.mock('@/features/playground/lib/download-generated-media', () => ({
 vi.mock('@/features/usage-logs/api', () => ({ getUserTaskLogs: vi.fn() }))
 
 const images = ['data:a', 'data:b', 'data:c']
+
+beforeEach(() => vi.resetAllMocks())
+
+describe('canvas video observation lifecycle', () => {
+  it('reports an accepted task before respecting cancellation during submit', async () => {
+    const controller = new AbortController()
+    vi.mocked(submitVideo).mockImplementation(async () => {
+      controller.abort()
+      return { taskId: 'accepted', status: 'SUBMITTED' }
+    })
+    const onProgress = vi.fn()
+    await expect(
+      runCanvasVideoGeneration({
+        prompt: 'p',
+        referenceImages: [],
+        settings: { model: 'seedance-2-0', group: '' },
+        signal: controller.signal,
+        onProgress,
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(onProgress).toHaveBeenCalledWith({
+      taskId: 'accepted',
+      status: 'SUBMITTED',
+      percent: null,
+    })
+    expect(getUserTaskLogs).not.toHaveBeenCalled()
+  })
+
+  it('drops a result when cancellation happens during persistence', async () => {
+    const controller = new AbortController()
+    vi.mocked(getUserTaskLogs).mockResolvedValue({
+      data: { items: [{ task_id: 'task', status: 'SUCCESS' }] },
+    } as Awaited<ReturnType<typeof getUserTaskLogs>>)
+    vi.mocked(persistGeneratedMediaAsset).mockImplementation(async () => {
+      controller.abort()
+      throw new Error('storage unavailable')
+    })
+    await expect(
+      resumeCanvasVideoGeneration({ taskId: 'task', signal: controller.signal })
+    ).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('reports terminal failure from upstream, but not from a transport rejection', async () => {
+    const onProgress = vi.fn()
+    vi.useFakeTimers()
+    vi.mocked(getUserTaskLogs).mockRejectedValue(new Error('offline'))
+    try {
+      const rejection = expect(
+        resumeCanvasVideoGeneration({ taskId: 'task', onProgress })
+      ).rejects.toThrow('offline')
+      await vi.runAllTimersAsync()
+      await rejection
+      expect(getUserTaskLogs).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(onProgress).not.toHaveBeenCalled()
+    vi.mocked(getUserTaskLogs).mockResolvedValueOnce({
+      data: {
+        items: [
+          { task_id: 'task', status: 'FAILURE', fail_reason: 'rejected' },
+        ],
+      },
+    } as Awaited<ReturnType<typeof getUserTaskLogs>>)
+    await expect(
+      resumeCanvasVideoGeneration({ taskId: 'task', onProgress })
+    ).rejects.toThrow('rejected')
+    expect(onProgress).toHaveBeenCalledWith({
+      taskId: 'task',
+      status: 'FAILURE',
+      percent: null,
+    })
+  })
+
+  it('recovers from a transient polling failure without resubmitting the video', async () => {
+    vi.useFakeTimers()
+    const task = { task_id: 'accepted', status: 'SUCCESS', progress: '100%' }
+    vi.mocked(getUserTaskLogs)
+      .mockRejectedValueOnce(new Error('temporary 503'))
+      .mockResolvedValueOnce({ data: { items: [task] } } as Awaited<
+        ReturnType<typeof getUserTaskLogs>
+      >)
+    try {
+      const result = pollCanvasVideoTask('accepted', {})
+      await vi.runAllTimersAsync()
+      expect(await result).toEqual(task)
+      expect(getUserTaskLogs).toHaveBeenCalledTimes(2)
+      expect(submitVideo).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
 
 describe('buildCanvasVideoSubmitInput', () => {
   it('sends first and last frame in frames mode, and only the first when the tail is disabled', () => {
