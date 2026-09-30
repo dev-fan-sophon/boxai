@@ -47,6 +47,19 @@ func GetGroupEnabledModels(group string) []string {
 	return models
 }
 
+// GetEnabledChannelsForGroupModel returns only routable candidates and omits keys.
+func GetEnabledChannelsForGroupModel(group, modelName string) ([]Channel, error) {
+	var channels []Channel
+	err := DB.Model(&Channel{}).
+		Select("channels.id, channels.type, channels.status, channels.model_mapping, channels.setting").
+		Joins("JOIN abilities ON abilities.channel_id = channels.id").
+		Where(clause.Eq{Column: clause.Column{Table: "abilities", Name: "group"}, Value: group}).
+		Where("abilities.model = ? AND abilities.enabled = ? AND channels.status = ?", modelName, true, common.ChannelStatusEnabled).
+		Group("channels.id, channels.type, channels.status, channels.model_mapping, channels.setting").
+		Order("channels.id ASC").Find(&channels).Error
+	return channels, err
+}
+
 func GetEnabledModels() []string {
 	var models []string
 	// Find distinct models

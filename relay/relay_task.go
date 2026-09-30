@@ -186,6 +186,11 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 			return nil, taskErr
 		}
 	}
+	if strings.HasPrefix(c.Request.URL.Path, "/pg/video/") {
+		if taskErr := validatePlaygroundVideoCapability(c, info); taskErr != nil {
+			return nil, taskErr
+		}
+	}
 
 	// 3. 预生成公开 task ID（仅首次）
 	if info.PublicTaskID == "" {
@@ -272,6 +277,132 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		Platform:       platform,
 		Quota:          finalQuota,
 	}, nil
+}
+
+func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	frameCount := 0
+	if strings.TrimSpace(req.FirstFrame) != "" {
+		frameCount++
+	}
+	if strings.TrimSpace(req.LastFrame) != "" {
+		frameCount++
+	}
+	mode := "text"
+	if frameCount > 0 || req.InputReference != "" {
+		mode = "frames"
+	} else if len(req.Images) > 0 {
+		mode = "references"
+	}
+	settingValue, ok := common.GetContextKey(c, constant.ContextKeyChannelSetting)
+	setting, valid := settingValue.(dto.ChannelSettings)
+	if !ok || !valid {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("video capabilities unavailable for selected channel"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, mode)
+	if !ok {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("video mode %s is unavailable", mode), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	seconds := req.Duration
+	if seconds == 0 && req.Seconds != "" {
+		seconds, _ = strconv.Atoi(req.Seconds)
+	}
+	if seconds < profile.DurationRange.Min || seconds > profile.DurationRange.Max {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("duration is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	resolution, ratio := "", ""
+	audioPresent := false
+	if req.Metadata != nil {
+		allowed := map[string]bool{"resolution": true, "ratio": true, "generate_audio": true, "first_frame": true, "first_frame_url": true, "last_frame": true, "last_frame_url": true}
+		for key := range req.Metadata {
+			if !allowed[key] {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("metadata field %q is unavailable", key), "invalid_request", http.StatusBadRequest)
+			}
+		}
+		var valid bool
+		if value, exists := req.Metadata["resolution"]; exists {
+			resolution, valid = value.(string)
+			if !valid {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("resolution must be a string"), "invalid_request", http.StatusBadRequest)
+			}
+		}
+		if value, exists := req.Metadata["ratio"]; exists {
+			ratio, valid = value.(string)
+			if !valid {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("ratio must be a string"), "invalid_request", http.StatusBadRequest)
+			}
+		}
+		if value, exists := req.Metadata["generate_audio"]; exists {
+			_, valid = value.(bool)
+			audioPresent = true
+			if !valid {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("generate_audio must be boolean"), "invalid_request", http.StatusBadRequest)
+			}
+		}
+	}
+	if req.Duration > 0 && req.Seconds != "" {
+		parsed, err := strconv.Atoi(req.Seconds)
+		if err != nil || parsed != req.Duration {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting duration aliases"), "invalid_request", http.StatusBadRequest)
+		}
+	}
+	if req.FirstFrame != "" && ((req.Image != "" && req.Image != req.FirstFrame) || (req.InputReference != "" && req.InputReference != req.FirstFrame)) {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting frame aliases"), "invalid_request", http.StatusBadRequest)
+	}
+	if mode == "frames" && frameCount > 2 {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("too many frame images"), "invalid_request", http.StatusBadRequest)
+	}
+	if req.LastFrame != "" && !profile.SupportsLastFrame {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("last frame is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if profile.RequiresImage && mode == "text" {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("an image is required"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if req.Size != "" {
+		sizeResolution, sizeRatio := relaycommon.SeedanceOutputFromSize(req.Size)
+		if sizeResolution == "" || (resolution != "" && resolution != sizeResolution) || (ratio != "" && ratio != "adaptive" && ratio != sizeRatio) {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("size conflicts with video options"), "invalid_request", http.StatusBadRequest)
+		}
+		if resolution == "" {
+			resolution = sizeResolution
+		}
+		if ratio == "" {
+			ratio = sizeRatio
+		}
+	}
+	if resolution != "" && !videoStringAllowed(resolution, profile.Resolutions) {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if ratio != "" && !videoStringAllowed(ratio, profile.AspectRatios) {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("aspect ratio is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if strings.Contains(strings.ToLower(info.UpstreamModelName), "2-5") || strings.Contains(strings.ToLower(info.UpstreamModelName), "2.5") {
+		if mode == "frames" && ratio != "" && ratio != "adaptive" {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("Seedance 2.5 frames require adaptive ratio"), "unsupported_video_capability", http.StatusBadRequest)
+		}
+	}
+	if mode == "text" && videoStringAllowed(resolution, profile.ImageOnlyResolutions) {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution requires an image"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if audioPresent && !profile.SupportsAudioToggle {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("audio toggle is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if mode == "references" && len(req.Images) > profile.MaxReferenceImages {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("too many reference images"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	return nil
+}
+
+func videoStringAllowed(value string, allowed []string) bool {
+	for _, candidate := range allowed {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }
 
 func taskPlatformForModel(platform constant.TaskPlatform, modelName string) constant.TaskPlatform {

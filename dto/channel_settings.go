@@ -27,6 +27,80 @@ type ChannelSettings struct {
 	// HTTP2ConnectionShards spreads HTTP/2 traffic across independent transports.
 	// Zero/unset means one connection shard.
 	HTTP2ConnectionShards int `json:"http2_connection_shards,omitempty"`
+	// VideoCapabilities declares exactly what this channel can transport after
+	// model mapping. Keys are upstream model names, then generation modes
+	// (text, frames, references). Missing entries mean unsupported.
+	VideoCapabilities map[string]map[string]VideoModelCapabilities `json:"video_capabilities,omitempty"`
+}
+
+type VideoModelCapabilities struct {
+	Family                 string             `json:"family"`
+	AspectRatios           []string           `json:"aspectRatios"`
+	Resolutions            []string           `json:"resolutions"`
+	ImageOnlyResolutions   []string           `json:"imageOnlyResolutions"`
+	Durations              []int              `json:"durations"`
+	DurationRange          VideoDurationRange `json:"durationRange"`
+	Defaults               VideoDefaults      `json:"defaults"`
+	MaxReferenceImages     int                `json:"maxReferenceImages"`
+	SupportsLastFrame      bool               `json:"supportsLastFrame"`
+	RequiresImage          bool               `json:"requiresImage"`
+	SupportsAudioToggle    bool               `json:"supportsAudioToggle"`
+	UsesVolcengineMetadata bool               `json:"usesVolcengineMetadata"`
+}
+
+type VideoDurationRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+type VideoDefaults struct {
+	AspectRatio string `json:"aspectRatio"`
+	Resolution  string `json:"resolution"`
+	Duration    int    `json:"duration"`
+}
+
+func (s *ChannelSettings) ValidateVideoCapabilities() error {
+	for model, modes := range s.VideoCapabilities {
+		if strings.TrimSpace(model) == "" {
+			return fmt.Errorf("video_capabilities model must not be empty")
+		}
+		for mode, p := range modes {
+			if mode != "text" && mode != "frames" && mode != "references" {
+				return fmt.Errorf("invalid video capability mode %q", mode)
+			}
+			if p.Family == "" || len(p.AspectRatios) == 0 || len(p.Resolutions) == 0 || p.DurationRange.Min < 1 || p.DurationRange.Max < p.DurationRange.Min || p.DurationRange.Max > 3600 {
+				return fmt.Errorf("invalid video capability profile for %s/%s", model, mode)
+			}
+			if p.MaxReferenceImages < 0 || p.MaxReferenceImages > 30 || (mode != "references" && p.MaxReferenceImages != 0) || (mode == "text" && (p.RequiresImage || p.SupportsLastFrame)) || (mode == "references" && (p.RequiresImage || p.SupportsLastFrame)) {
+				return fmt.Errorf("invalid video capability transport for %s/%s", model, mode)
+			}
+			for _, duration := range p.Durations {
+				if duration < p.DurationRange.Min || duration > p.DurationRange.Max {
+					return fmt.Errorf("invalid video capability duration for %s/%s", model, mode)
+				}
+			}
+			for _, resolution := range p.ImageOnlyResolutions {
+				if !containsString(p.Resolutions, resolution) {
+					return fmt.Errorf("invalid image-only resolution for %s/%s", model, mode)
+				}
+			}
+			if !containsString(p.AspectRatios, p.Defaults.AspectRatio) || !containsString(p.Resolutions, p.Defaults.Resolution) || p.Defaults.Duration < p.DurationRange.Min || p.Defaults.Duration > p.DurationRange.Max {
+				return fmt.Errorf("invalid video capability defaults for %s/%s", model, mode)
+			}
+			if mode == "references" && p.MaxReferenceImages < 1 {
+				return fmt.Errorf("invalid maxReferenceImages for %s/%s", model, mode)
+			}
+		}
+	}
+	return nil
+}
+
+func containsString(values []string, value string) bool {
+	for _, item := range values {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
 
 const (

@@ -132,6 +132,11 @@ func normalizeSeedancePassthroughBody(body map[string]interface{}, upstreamModel
 			references = append(references, image)
 		}
 		usesFrames := firstFrame != "" || lastFrame != ""
+		if usesFrames && seedance25Pattern.MatchString(upstreamModel) {
+			if ratio, _ := metadata["ratio"].(string); strings.TrimSpace(ratio) != "" && ratio != "adaptive" {
+				return fmt.Errorf("Seedance 2.5 first/last-frame generation requires adaptive ratio")
+			}
+		}
 		// A lone `images:[x]` on a model without reference-image support is an
 		// image-to-video first frame, not a style reference.
 		if !usesFrames && len(references) == 1 && !seedance2Pattern.MatchString(upstreamModel) {

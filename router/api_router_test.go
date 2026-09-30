@@ -34,6 +34,7 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 	}
 
 	for _, path := range []string{
+		"GET /api/playground/video-capabilities",
 		"GET /api/v1/connector/manifest",
 		"GET /api/v1/connector/authorize",
 		"POST /api/v1/connector/token",
@@ -80,6 +81,19 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 	} {
 		assert.True(t, registered[path], "missing route %s", path)
 	}
+}
+
+func TestVideoCapabilitiesRouteDoesNotLeakWithoutAuthentication(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("video-capability-test"))))
+	SetApiRouter(engine)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/playground/video-capabilities?model=secret-model&group=secret-group", nil)
+	engine.ServeHTTP(recorder, request)
+	assert.NotEqual(t, http.StatusOK, recorder.Code)
+	assert.NotContains(t, recorder.Body.String(), "secret-model")
+	assert.NotContains(t, recorder.Body.String(), "secret-group")
 }
 
 func TestTopUpDiscountConfigurationRequiresRoot(t *testing.T) {

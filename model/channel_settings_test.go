@@ -98,6 +98,14 @@ func TestChannelValidateSettingsRejectsInvalidProxy(t *testing.T) {
 	}
 }
 
+func TestChannelValidateSettingsRejectsInvalidVideoCapability(t *testing.T) {
+	channel := &Channel{}
+	channel.SetSetting(dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{
+		"video-model": {"frames": {Family: "generic", AspectRatios: []string{"16:9"}, Resolutions: []string{"720p"}, DurationRange: dto.VideoDurationRange{Min: 4, Max: 15}, Defaults: dto.VideoDefaults{AspectRatio: "1:1", Resolution: "720p", Duration: 5}}},
+	}})
+	require.ErrorContains(t, channel.ValidateSettings(), "defaults")
+}
+
 func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 	tests := []struct {
 		name    string

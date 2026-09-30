@@ -364,6 +364,9 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	if r.Ratio == "" {
 		r.Ratio = ratio
 	}
+	if (strings.Contains(modelName, "seedance-2-5") || strings.Contains(modelName, "seedance-2.5")) && frameCount > 0 && r.Ratio != "" && r.Ratio != "adaptive" {
+		return nil, errors.New("Seedance 2.5 first/last-frame generation requires adaptive ratio")
+	}
 	duration := req.Duration
 	if duration == 0 && req.Seconds != "" {
 		var err error
