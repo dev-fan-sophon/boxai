@@ -189,7 +189,11 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
   }
 
   return (
-    <div className='flex h-full min-h-0 flex-col gap-2'>
+    <div
+      className='flex h-full min-h-0 flex-col gap-2 overflow-y-auto'
+      data-canvas-wheel-scroll
+      data-canvas-no-zoom
+    >
       <div className='bg-muted/30 ring-border/50 relative flex min-h-24 flex-1 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset'>
         {metadata.content ? (
           <video
