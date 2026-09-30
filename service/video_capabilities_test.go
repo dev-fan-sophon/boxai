@@ -35,7 +35,7 @@ func TestSeedanceModeProfiles(t *testing.T) {
 }
 
 func TestConfiguredVideoProfileOverridesNative(t *testing.T) {
-	profile := dto.VideoModelCapabilities{Family: "generic", AspectRatios: []string{"1:1"}}
+	profile := dto.VideoModelCapabilities{Family: "generic", AspectRatios: []string{"1:1"}, ImageOnlyResolutions: []string{}}
 	channel := &model.Channel{Type: constant.ChannelTypeXai}
 	channel.SetSetting(dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{"grok-imagine-video": {"text": profile}}})
 	profiles := profilesForChannel(channel, "grok-imagine-video")
@@ -48,6 +48,23 @@ func TestIntersectVideoProfileFailsClosedOnIncompatibleFamily(t *testing.T) {
 	b := dto.VideoModelCapabilities{Family: "seedance-2"}
 	_, ok := intersectVideoProfile(a, b)
 	assert.False(t, ok)
+}
+
+func TestXaiVideoVersionDimensions(t *testing.T) {
+	channel := &model.Channel{Type: constant.ChannelTypeXai}
+	legacy := profilesForChannel(channel, "grok-imagine-video")
+	require.Contains(t, legacy, "text")
+	assert.Equal(t, []string{"720p"}, legacy["frames"].Resolutions)
+	current := profilesForChannel(channel, "grok-imagine-video-1.5")
+	assert.NotContains(t, current, "text")
+	assert.True(t, current["frames"].RequiresImage)
+	assert.Equal(t, []string{"16:9"}, current["frames"].ResolutionAspectRatios["1080p"])
+	a := current["frames"]
+	b := a
+	b.ResolutionAspectRatios = map[string][]string{"1080p": {"9:16"}}
+	merged, ok := intersectVideoProfile(a, b)
+	require.True(t, ok)
+	assert.Equal(t, []string{"720p"}, merged.Resolutions)
 }
 
 func TestResolveVideoCapabilitiesFromSQLiteRoutingCandidates(t *testing.T) {

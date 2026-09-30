@@ -2,17 +2,17 @@ import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { VideoModelCapabilities } from '@/features/playground/lib/studio/video-capabilities'
+
 import {
   buildCanvasVideoSubmitInput,
   runCanvasVideoGeneration,
 } from '../engine/canvas-generation-runner'
+import { resolveGenerationSettings } from '../engine/canvas-generation-settings'
 import { shouldRecoverCanvasVideoTask } from '../engine/canvas-video-recovery'
 import { useCanvasStore } from '../store/canvas-store'
 import { CanvasNodeType, type CanvasNodeData } from '../types'
-import {
-  resolveGenerationSettings,
-  useCanvasGeneration,
-} from './use-canvas-generation'
+import { useCanvasGeneration } from './use-canvas-generation'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -94,6 +94,24 @@ describe('canvas video settings and run ownership', () => {
         prompt: 'p',
         referenceImages: ['a', 'b'],
         settings,
+        capabilities: {
+          family: 'seedance-2',
+          aspectRatios: ['9:16'],
+          resolutions: ['1080p'],
+          imageOnlyResolutions: [],
+          durations: [5],
+          durationRange: { min: 5, max: 5 },
+          defaults: {
+            aspectRatio: '9:16',
+            resolution: '1080p',
+            duration: 5,
+          },
+          maxReferenceImages: 2,
+          supportsLastFrame: true,
+          requiresImage: false,
+          supportsAudioToggle: true,
+          usesVolcengineMetadata: true,
+        } satisfies VideoModelCapabilities,
       })
     ).toMatchObject({
       aspectRatio: '9:16',

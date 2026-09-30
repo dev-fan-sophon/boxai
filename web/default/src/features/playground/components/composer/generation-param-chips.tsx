@@ -14,6 +14,10 @@ import { useTranslation } from 'react-i18next'
 
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import {
+  getVideoCapabilityMode,
+  useVideoCapabilities,
+} from '../../hooks/use-video-capabilities'
 import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
@@ -30,8 +34,8 @@ import {
 } from '../../lib/studio/image-request-schema'
 import {
   applyResolvedVideoSettings,
-  getVideoModelCapabilities,
   resolveVideoOptions,
+  videoResolutionsForRatio,
   type VideoAspectRatio,
 } from '../../lib/studio/video-capabilities'
 import type { StudioModality, StudioSettings } from '../../types'
@@ -162,11 +166,18 @@ export function GenerationParamChips(props: {
 function VideoParamChips(props: { hasImage: boolean }) {
   const { t } = useTranslation()
   const model = usePlaygroundStore((state) => state.config.model)
+  const group = usePlaygroundStore((state) => state.config.group)
   const settings = usePlaygroundStore((state) => state.studioSettings)
   const setStudioSettings = usePlaygroundStore(
     (state) => state.setStudioSettings
   )
-  const capabilities = getVideoModelCapabilities(model)
+  const query = useVideoCapabilities(group, model, true)
+  const mode = getVideoCapabilityMode(
+    props.hasImage,
+    settings.videoReferenceMode
+  )
+  const capabilities = query.data?.[mode]
+  if (!capabilities) return null
   const options = resolveVideoOptions(
     capabilities,
     {
@@ -178,13 +189,14 @@ function VideoParamChips(props: { hasImage: boolean }) {
       referenceMode: settings.videoReferenceMode,
       count: settings.videoCount,
     },
-    { hasImage: props.hasImage }
+    { hasImage: props.hasImage, mode }
   )
 
   const persist = (patch: Partial<StudioSettings>) =>
     setStudioSettings((prev) =>
       applyResolvedVideoSettings(prev, capabilities, patch, {
         hasImage: props.hasImage,
+        mode,
       })
     )
 
@@ -212,7 +224,10 @@ function VideoParamChips(props: { hasImage: boolean }) {
         valueLabel={options.resolution}
         value={options.resolution}
         onChange={(resolution) => persist({ videoResolution: resolution })}
-        options={capabilities.resolutions.map((resolution) => {
+        options={videoResolutionsForRatio(
+          capabilities,
+          options.aspectRatio
+        ).map((resolution) => {
           const needsImage =
             capabilities.imageOnlyResolutions.includes(resolution) &&
             !props.hasImage

@@ -53,13 +53,13 @@ export function ComposerShell(props: ComposerShellProps) {
 
   return (
     <div
-      className={cn('grid shrink-0 gap-2 px-1', props.className)}
+      className={cn('grid min-w-0 shrink-0 gap-2 px-1', props.className)}
       onDrop={props.onDrop}
       onDragOver={props.onDragOver}
       onDragLeave={props.onDragLeave}
     >
       <PromptInput
-        className='relative'
+        className='relative min-w-0'
         groupClassName={cn(
           'playground-composer-surface bg-background/95 dark:bg-background/85 border-border/70 ring-1 ring-foreground/5 rounded-xl overflow-hidden',
           // The composer manages its own disabled look; keep the InputGroup

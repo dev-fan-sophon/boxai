@@ -34,18 +34,19 @@ type ChannelSettings struct {
 }
 
 type VideoModelCapabilities struct {
-	Family                 string             `json:"family"`
-	AspectRatios           []string           `json:"aspectRatios"`
-	Resolutions            []string           `json:"resolutions"`
-	ImageOnlyResolutions   []string           `json:"imageOnlyResolutions"`
-	Durations              []int              `json:"durations"`
-	DurationRange          VideoDurationRange `json:"durationRange"`
-	Defaults               VideoDefaults      `json:"defaults"`
-	MaxReferenceImages     int                `json:"maxReferenceImages"`
-	SupportsLastFrame      bool               `json:"supportsLastFrame"`
-	RequiresImage          bool               `json:"requiresImage"`
-	SupportsAudioToggle    bool               `json:"supportsAudioToggle"`
-	UsesVolcengineMetadata bool               `json:"usesVolcengineMetadata"`
+	Family                 string              `json:"family"`
+	AspectRatios           []string            `json:"aspectRatios"`
+	Resolutions            []string            `json:"resolutions"`
+	ResolutionAspectRatios map[string][]string `json:"resolutionAspectRatios,omitempty"`
+	ImageOnlyResolutions   []string            `json:"imageOnlyResolutions"`
+	Durations              []int               `json:"durations"`
+	DurationRange          VideoDurationRange  `json:"durationRange"`
+	Defaults               VideoDefaults       `json:"defaults"`
+	MaxReferenceImages     int                 `json:"maxReferenceImages"`
+	SupportsLastFrame      bool                `json:"supportsLastFrame"`
+	RequiresImage          bool                `json:"requiresImage"`
+	SupportsAudioToggle    bool                `json:"supportsAudioToggle"`
+	UsesVolcengineMetadata bool                `json:"usesVolcengineMetadata"`
 }
 
 type VideoDurationRange struct {
@@ -69,6 +70,32 @@ func (s *ChannelSettings) ValidateVideoCapabilities() error {
 			}
 			if p.Family == "" || len(p.AspectRatios) == 0 || len(p.Resolutions) == 0 || p.DurationRange.Min < 1 || p.DurationRange.Max < p.DurationRange.Min || p.DurationRange.Max > 3600 {
 				return fmt.Errorf("invalid video capability profile for %s/%s", model, mode)
+			}
+			if len(p.Durations) == 0 || (p.SupportsAudioToggle && !p.UsesVolcengineMetadata) {
+				return fmt.Errorf("invalid video options for %s/%s", model, mode)
+			}
+			for _, ratio := range p.AspectRatios {
+				if !containsString([]string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"}, ratio) || (ratio == "adaptive" && !p.UsesVolcengineMetadata) {
+					return fmt.Errorf("invalid video aspect ratio for %s/%s", model, mode)
+				}
+			}
+			for _, resolution := range p.Resolutions {
+				if !containsString([]string{"480p", "720p", "1080p"}, resolution) {
+					return fmt.Errorf("invalid video resolution for %s/%s", model, mode)
+				}
+			}
+			for resolution, ratios := range p.ResolutionAspectRatios {
+				if !containsString(p.Resolutions, resolution) || len(ratios) == 0 {
+					return fmt.Errorf("invalid video dimension constraint for %s/%s", model, mode)
+				}
+				for _, ratio := range ratios {
+					if !containsString(p.AspectRatios, ratio) {
+						return fmt.Errorf("invalid video dimension ratio for %s/%s", model, mode)
+					}
+				}
+				if resolution == p.Defaults.Resolution && !containsString(ratios, p.Defaults.AspectRatio) {
+					return fmt.Errorf("invalid video dimension default for %s/%s", model, mode)
+				}
 			}
 			if p.MaxReferenceImages < 0 || p.MaxReferenceImages > 30 || (mode != "references" && p.MaxReferenceImages != 0) || (mode == "text" && (p.RequiresImage || p.SupportsLastFrame)) || (mode == "references" && (p.RequiresImage || p.SupportsLastFrame)) {
 				return fmt.Errorf("invalid video capability transport for %s/%s", model, mode)

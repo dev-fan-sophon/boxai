@@ -19,17 +19,25 @@ import {
   TogglePill,
 } from '@/features/playground/components/composer/param-chip'
 import {
+  getVideoCapabilityMode,
+  useVideoCapabilities,
+} from '@/features/playground/hooks/use-video-capabilities'
+import {
   BATCH_COUNTS,
   MAX_STUDIO_BATCH_JOBS,
 } from '@/features/playground/lib/studio/batch-plan'
 import {
-  getVideoModelCapabilities,
+  getVideoUploadProfile,
   resolveVideoOptions,
+  videoResolutionsForRatio,
   type VideoAspectRatio,
   type VideoReferenceMode,
 } from '@/features/playground/lib/studio/video-capabilities'
 import { cn } from '@/lib/utils'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { buildNodeGenerationContext } from '../../engine/canvas-generation-context'
+import { resolveGenerationSettings } from '../../engine/canvas-generation-settings'
 import { useCanvasTheme } from '../../engine/canvas-theme'
 import { planVideoBatch } from '../../engine/canvas-video-batch'
 import { useCanvasMediaImport } from '../../hooks/use-canvas-media-import'
@@ -68,7 +76,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const metadata = props.node.metadata ?? {}
-  const capabilities = getVideoModelCapabilities(metadata.model)
+  const group = usePlaygroundStore((state) => state.config.group)
 
   const references = connections.flatMap<ReferenceEntry>((connection) => {
     if (connection.toNodeId !== props.node.id) return []
@@ -85,28 +93,68 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
     ]
   })
 
-  const options = resolveVideoOptions(
-    capabilities,
-    {
-      aspectRatio: metadata.aspectRatio,
-      resolution: metadata.resolution,
-      seconds: metadata.seconds,
-      size: metadata.size,
-      generateAudio: metadata.generateAudio,
-      referenceMode: metadata.videoReferenceMode,
-      count: metadata.count,
-    },
-    { hasImage: references.length > 0 }
+  const generationContext = buildNodeGenerationContext(
+    props.node.id,
+    nodes,
+    connections,
+    metadata.prompt ?? ''
   )
+  const effectiveSettings = resolveGenerationSettings(
+    props.node,
+    nodes,
+    generationContext.presetNodeId
+  )
+  const capabilityMode = getVideoCapabilityMode(
+    generationContext.referenceImages.length > 0,
+    effectiveSettings.videoReferenceMode
+  )
+  const capabilityQuery = useVideoCapabilities(group, effectiveSettings.model)
+  const activeCapabilities = capabilityQuery.data?.[capabilityMode]
+  const uploadProfile = getVideoUploadProfile(
+    capabilityQuery.data,
+    effectiveSettings.videoReferenceMode ?? 'frames'
+  )
+  const capabilities = activeCapabilities ?? uploadProfile?.capabilities
+  const displayMode = activeCapabilities ? capabilityMode : uploadProfile?.mode
+
+  let unavailableMessage = t(
+    'This video mode is unavailable for the selected model.'
+  )
+  if (capabilityQuery.isLoading) {
+    unavailableMessage = t('Loading video options…')
+  } else if (capabilityQuery.isError) {
+    unavailableMessage = t('Could not load video options. Retry to continue.')
+  }
+
+  const options = capabilities
+    ? resolveVideoOptions(
+        capabilities,
+        {
+          aspectRatio: effectiveSettings.aspectRatio,
+          resolution: effectiveSettings.resolution,
+          seconds: effectiveSettings.seconds,
+          size: effectiveSettings.size,
+          generateAudio: effectiveSettings.generateAudio,
+          referenceMode: effectiveSettings.videoReferenceMode,
+          count: effectiveSettings.count,
+        },
+        {
+          hasImage: generationContext.referenceImages.length > 0,
+          mode: displayMode,
+        }
+      )
+    : undefined
   const usesLastFrame =
-    options.referenceMode === 'frames' &&
-    capabilities.supportsLastFrame &&
+    options?.referenceMode === 'frames' &&
+    capabilities?.supportsLastFrame &&
     !metadata.disableLastFrame
   const frameSlots = usesLastFrame ? 2 : 1
   const activeReferenceLimit =
-    options.referenceMode === 'references'
-      ? capabilities.maxReferenceImages
+    options?.referenceMode === 'references'
+      ? (capabilities?.maxReferenceImages ?? 1)
       : frameSlots
+  const hasTooManyReferences =
+    generationContext.referenceImages.length > activeReferenceLimit
   const plan = planVideoBatch(props.node)
   const jobCount = plan.prompts.length
   const hasNatural = Boolean(metadata.naturalWidth && metadata.naturalHeight)
@@ -114,11 +162,13 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
     hasNatural && metadata.naturalHeight
       ? `${metadata.naturalWidth} / ${metadata.naturalHeight}`
       : undefined
-  const missingRequiredImage =
-    capabilities.requiresImage && references.length === 0
+  const missingRequiredImage = Boolean(
+    capabilities?.requiresImage &&
+    generationContext.referenceImages.length === 0
+  )
 
   const referenceRole = (index: number): string => {
-    if (options.referenceMode === 'references') return `${index + 1}`
+    if (options?.referenceMode === 'references') return `${index + 1}`
     if (index === 0) return t('First')
     if (index === 1 && usesLastFrame) return t('Last')
     return '—'
@@ -129,10 +179,10 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
 
   const referenceSummary = (): string => {
     if (missingRequiredImage) return t('This model needs a reference image')
-    if (options.referenceMode === 'references') {
+    if (options?.referenceMode === 'references') {
       return t('{{count}} of {{max}} reference images', {
-        count: Math.min(references.length, activeReferenceLimit),
-        max: capabilities.maxReferenceImages,
+        count: references.length,
+        max: capabilities?.maxReferenceImages ?? 1,
       })
     }
     return usesLastFrame ? t('First and last frame') : t('First frame')
@@ -153,7 +203,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           <div
             className='border-border/60 flex max-h-full max-w-full items-center justify-center rounded-lg border border-dashed'
             style={{
-              aspectRatio: aspectRatioCss(options.aspectRatio),
+              aspectRatio: aspectRatioCss(options?.aspectRatio ?? '16:9'),
               width: '82%',
             }}
           >
@@ -182,9 +232,9 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           <div className='absolute bottom-2 left-2'>
             <NodeSettingsChips
               items={[
-                ratioLabel(options.aspectRatio),
-                options.resolution,
-                `${options.duration}s`,
+                ratioLabel(options?.aspectRatio ?? '16:9'),
+                options?.resolution ?? '—',
+                options ? `${options.duration}s` : '—',
               ]}
             />
           </div>
@@ -260,7 +310,9 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
             ref={fileInputRef}
             type='file'
             accept='image/*'
-            multiple={capabilities.maxReferenceImages > 1 || usesLastFrame}
+            multiple={
+              (capabilities?.maxReferenceImages ?? 1) > 1 || usesLastFrame
+            }
             className='hidden'
             onChange={(event) => {
               const files = [...(event.target.files ?? [])]
@@ -277,7 +329,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           >
             {referenceSummary()}
           </span>
-          {capabilities.maxReferenceImages > 1 ? (
+          {capabilityQuery.data?.frames && capabilityQuery.data.references ? (
             <div
               className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
               role='radiogroup'
@@ -289,10 +341,10 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
                     key={mode}
                     type='button'
                     role='radio'
-                    aria-checked={options.referenceMode === mode}
+                    aria-checked={options?.referenceMode === mode}
                     className={cn(
                       'rounded-full px-2 py-0.5 transition-colors',
-                      options.referenceMode === mode
+                      options?.referenceMode === mode
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
@@ -307,8 +359,8 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
               )}
             </div>
           ) : null}
-          {options.referenceMode === 'frames' &&
-          capabilities.supportsLastFrame &&
+          {options?.referenceMode === 'frames' &&
+          capabilities?.supportsLastFrame &&
           references.length > 1 ? (
             <label
               className='text-3xs flex shrink-0 items-center gap-1'
@@ -346,7 +398,11 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         }
         rows={metadata.videoBatchMode ? 5 : 2}
         isGenerating={props.isGenerating}
-        disabled={!metadata.model}
+        disabled={
+          !effectiveSettings.model ||
+          !activeCapabilities ||
+          hasTooManyReferences
+        }
         generateBadge={
           jobCount > 1 ? t('{{count}} videos', { count: jobCount }) : undefined
         }
@@ -373,89 +429,107 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
         className='flex shrink-0 flex-wrap items-center gap-1.5'
         data-canvas-no-zoom
       >
-        <ParamChip
-          icon={<Proportions />}
-          ariaLabel={t('Aspect ratio')}
-          valueLabel={ratioLabel(options.aspectRatio)}
-          value={options.aspectRatio}
-          onChange={(aspectRatio) => props.onMetadataChange({ aspectRatio })}
-          options={capabilities.aspectRatios.map((ratio) => ({
-            value: ratio,
-            label:
-              ratio === 'adaptive'
-                ? t('Auto (match image)')
-                : ratioLabel(ratio),
-            glyph: <AspectGlyph size={ratio} />,
-          }))}
-        />
-        <ParamChip
-          icon={<Monitor />}
-          ariaLabel={t('Resolution')}
-          valueLabel={options.resolution}
-          value={options.resolution}
-          onChange={(resolution) => props.onMetadataChange({ resolution })}
-          options={capabilities.resolutions.map((resolution) => {
-            const needsImage =
-              capabilities.imageOnlyResolutions.includes(resolution) &&
-              references.length === 0
-            return {
-              value: resolution,
-              label: resolution,
-              disabled: needsImage,
-              hint: needsImage ? t('Needs a reference image') : undefined,
-            }
-          })}
-        />
-        <ParamChip
-          icon={<Clock />}
-          ariaLabel={t('Duration (seconds)')}
-          valueLabel={`${options.duration}s`}
-          value={String(options.duration)}
-          onChange={(seconds) => props.onMetadataChange({ seconds })}
-          options={capabilities.durations.map((duration) => ({
-            value: String(duration),
-            label: t('{{count}}s', { count: duration }),
-          }))}
-        />
-        {capabilities.supportsAudioToggle ? (
-          <TogglePill
-            icon={options.generateAudio ? <Volume2 /> : <VolumeX />}
-            label={options.generateAudio ? t('Audio') : t('Muted')}
-            title={t('Generate audio with the video')}
-            active={options.generateAudio}
-            onToggle={() =>
-              props.onMetadataChange({ generateAudio: !options.generateAudio })
-            }
-          />
+        {!activeCapabilities ? (
+          <span className='text-warning text-xs' aria-live='polite'>
+            {unavailableMessage}
+          </span>
         ) : null}
-        <ParamChip
-          icon={<Layers />}
-          ariaLabel={t('Videos per prompt')}
-          valueLabel={`×${options.count}`}
-          value={String(options.count)}
-          onChange={(count) => props.onMetadataChange({ count: Number(count) })}
-          options={BATCH_COUNTS.map((count) => ({
-            value: String(count),
-            label: t('{{count}} videos', { count }),
-          }))}
-        />
-        <TogglePill
-          icon={<ListOrdered />}
-          label={t('Batch')}
-          title={t('Enter several prompts and generate them at once')}
-          active={Boolean(metadata.videoBatchMode)}
-          onToggle={() =>
-            props.onMetadataChange(
-              metadata.videoBatchMode
-                ? { videoBatchMode: false }
-                : {
-                    videoBatchMode: true,
-                    videoBatchPrompts:
-                      metadata.videoBatchPrompts || metadata.prompt || '',
-                  }
-            )
-          }
-        />
+        {capabilities && options ? (
+          <>
+            <ParamChip
+              icon={<Proportions />}
+              ariaLabel={t('Aspect ratio')}
+              valueLabel={ratioLabel(options.aspectRatio)}
+              value={options.aspectRatio}
+              onChange={(aspectRatio) =>
+                props.onMetadataChange({ aspectRatio })
+              }
+              options={capabilities.aspectRatios.map((ratio) => ({
+                value: ratio,
+                label:
+                  ratio === 'adaptive'
+                    ? t('Auto (match image)')
+                    : ratioLabel(ratio),
+                glyph: <AspectGlyph size={ratio} />,
+              }))}
+            />
+            <ParamChip
+              icon={<Monitor />}
+              ariaLabel={t('Resolution')}
+              valueLabel={options.resolution}
+              value={options.resolution}
+              onChange={(resolution) => props.onMetadataChange({ resolution })}
+              options={videoResolutionsForRatio(
+                capabilities,
+                options.aspectRatio
+              ).map((resolution) => {
+                const needsImage =
+                  capabilities.imageOnlyResolutions.includes(resolution) &&
+                  references.length === 0
+                return {
+                  value: resolution,
+                  label: resolution,
+                  disabled: needsImage,
+                  hint: needsImage ? t('Needs a reference image') : undefined,
+                }
+              })}
+            />
+            <ParamChip
+              icon={<Clock />}
+              ariaLabel={t('Duration (seconds)')}
+              valueLabel={`${options.duration}s`}
+              value={String(options.duration)}
+              onChange={(seconds) => props.onMetadataChange({ seconds })}
+              options={capabilities.durations.map((duration) => ({
+                value: String(duration),
+                label: t('{{count}}s', { count: duration }),
+              }))}
+            />
+            {capabilities.supportsAudioToggle ? (
+              <TogglePill
+                icon={options.generateAudio ? <Volume2 /> : <VolumeX />}
+                label={options.generateAudio ? t('Audio') : t('Muted')}
+                title={t('Generate audio with the video')}
+                active={options.generateAudio}
+                onToggle={() =>
+                  props.onMetadataChange({
+                    generateAudio: !options.generateAudio,
+                  })
+                }
+              />
+            ) : null}
+            <ParamChip
+              icon={<Layers />}
+              ariaLabel={t('Videos per prompt')}
+              valueLabel={`×${options.count}`}
+              value={String(options.count)}
+              onChange={(count) =>
+                props.onMetadataChange({ count: Number(count) })
+              }
+              options={BATCH_COUNTS.map((count) => ({
+                value: String(count),
+                label: t('{{count}} videos', { count }),
+              }))}
+            />
+            <TogglePill
+              icon={<ListOrdered />}
+              label={t('Batch')}
+              title={t('Enter several prompts and generate them at once')}
+              active={Boolean(metadata.videoBatchMode)}
+              onToggle={() =>
+                props.onMetadataChange(
+                  metadata.videoBatchMode
+                    ? { videoBatchMode: false }
+                    : {
+                        videoBatchMode: true,
+                        videoBatchPrompts:
+                          metadata.videoBatchPrompts || metadata.prompt || '',
+                      }
+                )
+              }
+            />
+          </>
+        ) : null}
       </div>
     </div>
   )

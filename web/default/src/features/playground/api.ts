@@ -3,6 +3,7 @@ import { t } from 'i18next'
 import { api } from '@/lib/api'
 
 import { API_ENDPOINTS } from './constants'
+import type { VideoCapabilities } from './hooks/use-video-capabilities'
 import type {
   InspirationCollection,
   InspirationEventType,
@@ -12,9 +13,10 @@ import type {
 import { parseRequestErrorDetails } from './lib/streaming/request-error-utils'
 import { buildImageGenerationRequestBody } from './lib/studio/image-request-schema'
 import {
-  getVideoModelCapabilities,
+  resolveVideoOptions,
   videoSizeForOptions,
   type VideoAspectRatio,
+  type VideoModelCapabilities,
   type VideoResolution,
 } from './lib/studio/video-capabilities'
 import type {
@@ -79,6 +81,36 @@ export async function getUserGroups(): Promise<GroupOption[]> {
     ratio: info.ratio,
     desc: info.desc,
   }))
+}
+
+export async function getVideoCapabilities(
+  group: string,
+  model: string
+): Promise<VideoCapabilities> {
+  const response = await api.get('/api/playground/video-capabilities', {
+    params: { group, model },
+  })
+  const data: unknown = response.data?.data
+  if (!response.data?.success || !data || typeof data !== 'object') return {}
+  const result: VideoCapabilities = {}
+  for (const mode of ['text', 'frames', 'references'] as const) {
+    const profile = (data as Record<string, unknown>)[mode]
+    if (!profile || typeof profile !== 'object') continue
+    const value = profile as Partial<VideoModelCapabilities>
+    if (
+      !Array.isArray(value.aspectRatios) ||
+      !Array.isArray(value.resolutions) ||
+      !Array.isArray(value.imageOnlyResolutions) ||
+      !Array.isArray(value.durations) ||
+      !value.durationRange ||
+      !value.defaults ||
+      typeof value.maxReferenceImages !== 'number'
+    ) {
+      continue
+    }
+    result[mode] = value as VideoModelCapabilities
+  }
+  return result
 }
 
 /**
@@ -178,6 +210,7 @@ export type VideoSubmitInput = {
   resolution?: VideoResolution
   duration?: number
   generateAudio?: boolean
+  capabilities?: VideoModelCapabilities
 }
 
 /**
@@ -190,7 +223,8 @@ export type VideoSubmitInput = {
 export async function buildVideoRequestBody(
   input: VideoSubmitInput
 ): Promise<Record<string, unknown>> {
-  const capabilities = getVideoModelCapabilities(input.model)
+  const capabilities = input.capabilities
+  if (!capabilities) throw new Error(t('Video capabilities are unavailable.'))
   const references = input.referenceImages ?? []
   if (references.length > capabilities.maxReferenceImages) {
     throw new Error(
@@ -216,16 +250,14 @@ export async function buildVideoRequestBody(
     const metadata: Record<string, unknown> = {}
     if (input.resolution) metadata.resolution = input.resolution
     if (input.aspectRatio) metadata.ratio = input.aspectRatio
-    if (input.generateAudio !== undefined) {
+    if (capabilities.supportsAudioToggle && input.generateAudio !== undefined) {
       metadata.generate_audio = input.generateAudio
     }
     if (Object.keys(metadata).length) body.metadata = metadata
   }
 
   const first = await resolveMediaForUpstream(
-    input.firstFrame ||
-      input.inputReference ||
-      (capabilities.maxReferenceImages === 1 ? references[0] : null)
+    input.firstFrame || input.inputReference
   )
   const last = await resolveMediaForUpstream(input.lastFrame)
   if (first) {
@@ -241,7 +273,7 @@ export async function buildVideoRequestBody(
       body.images = [...images, last]
     }
   }
-  if (references.length > 0 && capabilities.maxReferenceImages > 1) {
+  if (references.length > 0) {
     if (first || last) {
       throw new Error(
         t('Reference images cannot be combined with first/last frames.')
@@ -255,7 +287,54 @@ export async function buildVideoRequestBody(
 export async function submitVideo(
   input: VideoSubmitInput
 ): Promise<VideoSubmission> {
-  const body = await buildVideoRequestBody(input)
+  // Policy can change while the composer is open. Recheck immediately before
+  // uploading media or creating a billable task.
+  const profiles = await getVideoCapabilities(input.group, input.model)
+  let mode: 'text' | 'frames' | 'references' = 'text'
+  if (input.referenceImages?.length) mode = 'references'
+  else if (input.firstFrame || input.lastFrame || input.inputReference) {
+    mode = 'frames'
+  }
+  const capabilities = profiles[mode]
+  if (!capabilities) {
+    throw new Error(t('This video mode is unavailable for the selected model.'))
+  }
+  const options = resolveVideoOptions(
+    capabilities,
+    {
+      aspectRatio: input.aspectRatio,
+      resolution: input.resolution,
+      seconds: input.duration,
+      size: input.settings.videoSize,
+      generateAudio: input.generateAudio,
+      referenceMode: mode,
+    },
+    { hasImage: mode !== 'text', mode }
+  )
+  const policyChanged =
+    options.aspectRatio !== input.aspectRatio ||
+    options.resolution !== input.resolution ||
+    options.duration !== input.duration ||
+    (Boolean(input.lastFrame) && !capabilities.supportsLastFrame) ||
+    (input.generateAudio !== undefined &&
+      (capabilities.supportsAudioToggle
+        ? options.generateAudio !== input.generateAudio
+        : true))
+  if (policyChanged) {
+    throw new Error(
+      t('Video options changed. Refresh the options and try again.')
+    )
+  }
+  const body = await buildVideoRequestBody({
+    ...input,
+    capabilities,
+    aspectRatio: options.aspectRatio,
+    resolution: options.resolution,
+    duration: options.duration,
+    generateAudio: capabilities.supportsAudioToggle
+      ? options.generateAudio
+      : undefined,
+  })
   try {
     const response = await api.post(API_ENDPOINTS.VIDEO_GENERATIONS, body, {
       skipErrorHandler: true,

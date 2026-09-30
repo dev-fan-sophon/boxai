@@ -1,6 +1,7 @@
 import {
   generateImages,
   generateSpeech,
+  getVideoCapabilities,
   submitVideo,
   uploadPlaygroundAsset,
   type VideoSubmitInput,
@@ -9,8 +10,8 @@ import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-g
 import { DEFAULT_STUDIO_SETTINGS } from '@/features/playground/lib/storage/store-migration'
 import {
   assignVideoReferences,
-  getVideoModelCapabilities,
   resolveVideoOptions,
+  type VideoModelCapabilities,
 } from '@/features/playground/lib/studio/video-capabilities'
 import type { StudioSettings } from '@/features/playground/types'
 import { getUserTaskLogs } from '@/features/usage-logs/api'
@@ -66,8 +67,17 @@ export function buildCanvasVideoSubmitInput(input: {
   referenceImages: string[]
   disableLastFrame?: boolean
   settings: CanvasGenerationSettings
+  capabilities?: VideoModelCapabilities
 }): VideoSubmitInput {
-  const capabilities = getVideoModelCapabilities(input.settings.model)
+  const capabilities = input.capabilities
+  if (!capabilities) throw new Error('Video capabilities are unavailable.')
+  let mode: 'text' | 'frames' | 'references' = 'text'
+  if (input.referenceImages.length > 0) {
+    mode =
+      input.settings.videoReferenceMode === 'references'
+        ? 'references'
+        : 'frames'
+  }
   const options = resolveVideoOptions(
     capabilities,
     {
@@ -78,10 +88,13 @@ export function buildCanvasVideoSubmitInput(input: {
       generateAudio: input.settings.generateAudio,
       referenceMode: input.settings.videoReferenceMode,
     },
-    { hasImage: input.referenceImages.length > 0 }
+    {
+      hasImage: input.referenceImages.length > 0,
+      mode,
+    }
   )
   const assigned = assignVideoReferences({
-    model: input.settings.model,
+    capabilities,
     references: input.referenceImages,
     referenceMode: options.referenceMode,
     disableLastFrame: input.disableLastFrame,
@@ -97,6 +110,7 @@ export function buildCanvasVideoSubmitInput(input: {
     generateAudio: capabilities.supportsAudioToggle
       ? options.generateAudio
       : undefined,
+    capabilities,
     ...assigned,
   }
 }
@@ -365,11 +379,27 @@ export async function runCanvasVideoGeneration(input: {
   naturalHeight?: number
 }> {
   throwIfAborted(input.signal)
+  let requestedMode: 'text' | 'frames' | 'references' = 'text'
+  if (input.referenceImages.length) {
+    requestedMode =
+      input.settings.videoReferenceMode === 'references'
+        ? 'references'
+        : 'frames'
+  }
+  const profiles = await getVideoCapabilities(
+    input.settings.group,
+    input.settings.model
+  )
+  const capabilities = profiles[requestedMode]
+  if (!capabilities) {
+    throw new Error('This video mode is unavailable for the selected model.')
+  }
   const submitInput = buildCanvasVideoSubmitInput({
     prompt: input.prompt,
     referenceImages: input.referenceImages,
     disableLastFrame: input.disableLastFrame,
     settings: input.settings,
+    capabilities,
   })
   const submission = input.schedule
     ? await input.schedule(() => {

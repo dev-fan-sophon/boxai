@@ -352,8 +352,36 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	if req.FirstFrame != "" && ((req.Image != "" && req.Image != req.FirstFrame) || (req.InputReference != "" && req.InputReference != req.FirstFrame)) {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting frame aliases"), "invalid_request", http.StatusBadRequest)
 	}
-	if mode == "frames" && frameCount > 2 {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("too many frame images"), "invalid_request", http.StatusBadRequest)
+	if mode == "frames" {
+		first := req.FirstFrame
+		if first == "" {
+			first = req.InputReference
+		}
+		if first == "" {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("last frame requires a first frame"), "invalid_request", http.StatusBadRequest)
+		}
+		for _, image := range req.Images {
+			if image != first && (req.LastFrame == "" || image != req.LastFrame) {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("reference images cannot be combined with frames"), "invalid_request", http.StatusBadRequest)
+			}
+		}
+		for _, key := range []string{"first_frame", "first_frame_url", "last_frame", "last_frame_url"} {
+			if value, exists := req.Metadata[key]; exists {
+				expected := first
+				if strings.HasPrefix(key, "last") {
+					expected = req.LastFrame
+				}
+				if value != expected {
+					return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting frame metadata"), "invalid_request", http.StatusBadRequest)
+				}
+			}
+		}
+	} else {
+		for _, key := range []string{"first_frame", "first_frame_url", "last_frame", "last_frame_url"} {
+			if _, exists := req.Metadata[key]; exists {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("frame metadata requires explicit frames"), "invalid_request", http.StatusBadRequest)
+			}
+		}
 	}
 	if req.LastFrame != "" && !profile.SupportsLastFrame {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("last frame is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
@@ -378,6 +406,9 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	}
 	if ratio != "" && !videoStringAllowed(ratio, profile.AspectRatios) {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("aspect ratio is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+	}
+	if permitted, limited := profile.ResolutionAspectRatios[resolution]; limited && !videoStringAllowed(ratio, permitted) {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution is unavailable for this aspect ratio"), "unsupported_video_capability", http.StatusBadRequest)
 	}
 	if strings.Contains(strings.ToLower(info.UpstreamModelName), "2-5") || strings.Contains(strings.ToLower(info.UpstreamModelName), "2.5") {
 		if mode == "frames" && ratio != "" && ratio != "adaptive" {

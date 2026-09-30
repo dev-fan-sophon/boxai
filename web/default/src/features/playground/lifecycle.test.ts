@@ -264,3 +264,73 @@ describe('phone reference upload lifecycle', () => {
     }
   )
 })
+
+describe('video capability lifecycle', () => {
+  const profile = (overrides: Record<string, unknown> = {}) => ({
+    family: 'generic',
+    aspectRatios: ['16:9'],
+    resolutions: ['720p'],
+    imageOnlyResolutions: [],
+    durations: [5],
+    durationRange: { min: 5, max: 5 },
+    defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
+    maxReferenceImages: 1,
+    supportsLastFrame: false,
+    requiresImage: false,
+    supportsAudioToggle: false,
+    usesVolcengineMetadata: false,
+    ...overrides,
+  })
+
+  it('keeps image upload available when text mode is unavailable and disables submit', async () => {
+    await page.route('**/api/playground/video-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: { frames: profile({ requiresImage: true }) },
+        },
+      })
+    )
+    await render({ videoComposer: true, group: 'image-only' })
+    await page
+      .getByText('This video mode is unavailable for the selected model.')
+      .waitFor()
+    expect(
+      await page.locator('input[type=file][accept="image/*"]').count()
+    ).toBe(1)
+    expect(
+      await page.getByRole('button', { name: 'Generate' }).isDisabled()
+    ).toBe(true)
+  })
+
+  it('locks frame ratio and unlocks the reference-mode ratio returned by the server', async () => {
+    await page.route('**/api/playground/video-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: {
+            text: profile(),
+            frames: profile({
+              aspectRatios: ['adaptive'],
+              defaults: {
+                aspectRatio: 'adaptive',
+                resolution: '720p',
+                duration: 5,
+              },
+            }),
+            references: profile({ aspectRatios: ['16:9', '9:16'] }),
+          },
+        },
+      })
+    )
+    await render({
+      videoComposer: true,
+      group: 'modes',
+      references: [{ id: 'one', name: 'one', dataUrl: '/media/one' }],
+    })
+    await page.getByRole('radio', { name: 'Frames' }).waitFor()
+    await page.getByRole('radio', { name: 'References' }).click()
+    await page.getByRole('button', { name: 'Aspect ratio' }).click()
+    expect(await page.getByText('9:16').count()).toBeGreaterThan(0)
+  })
+})

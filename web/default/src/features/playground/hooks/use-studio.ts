@@ -8,6 +8,7 @@ import {
   createPlaygroundRun,
   generateImages,
   generateSpeech,
+  getVideoCapabilities,
   submitVideo,
 } from '../api'
 import { persistGeneratedMediaAsset } from '../lib/download-generated-media'
@@ -24,6 +25,10 @@ import {
   ensureActiveStudioProjectId,
   recordActiveStudioRun,
 } from './use-session-cloud-sync'
+import {
+  getVideoCapabilityMode,
+  type VideoCapabilities,
+} from './use-video-capabilities'
 
 /**
  * Batch generation engine for the studio modalities. A submit becomes a batch
@@ -204,6 +209,20 @@ export function useStudio() {
 
   const executeVideoRun = useCallback(
     async (generation: StudioGenerationInput, snapshot: StudioSettings) => {
+      const profiles: VideoCapabilities = await getVideoCapabilities(
+        generation.group,
+        generation.model
+      )
+      const mode = getVideoCapabilityMode(
+        generation.references.length > 0,
+        snapshot.videoReferenceMode
+      )
+      const capabilities = profiles[mode]
+      if (!capabilities) {
+        throw new Error(
+          'This video mode is unavailable for the selected model.'
+        )
+      }
       const submission = await submitVideo(
         buildPlaygroundVideoSubmitInput({
           model: generation.model,
@@ -211,6 +230,7 @@ export function useStudio() {
           prompt: generation.prompt,
           settings: snapshot,
           references: generation.references,
+          capabilities,
         })
       )
       if (!submission.taskId) {

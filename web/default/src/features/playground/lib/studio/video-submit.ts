@@ -3,8 +3,8 @@ import type { StudioSettings } from '../../types'
 import { DEFAULT_STUDIO_SETTINGS } from '../storage/store-migration'
 import {
   assignVideoReferences,
-  getVideoModelCapabilities,
   resolveVideoOptions,
+  type VideoModelCapabilities,
 } from './video-capabilities'
 
 /**
@@ -18,8 +18,17 @@ export function buildPlaygroundVideoSubmitInput(input: {
   prompt: string
   settings: StudioSettings
   references: string[]
+  capabilities?: VideoModelCapabilities
 }): VideoSubmitInput {
-  const capabilities = getVideoModelCapabilities(input.model)
+  const capabilities = input.capabilities
+  if (!capabilities) throw new Error('Video capabilities are unavailable.')
+  let mode: 'text' | 'frames' | 'references' = 'text'
+  if (input.references.length > 0) {
+    mode =
+      input.settings.videoReferenceMode === 'references'
+        ? 'references'
+        : 'frames'
+  }
   const options = resolveVideoOptions(
     capabilities,
     {
@@ -31,10 +40,13 @@ export function buildPlaygroundVideoSubmitInput(input: {
       referenceMode: input.settings.videoReferenceMode,
       count: input.settings.videoCount,
     },
-    { hasImage: input.references.length > 0 }
+    {
+      hasImage: input.references.length > 0,
+      mode,
+    }
   )
   const assigned = assignVideoReferences({
-    model: input.model,
+    capabilities,
     references: input.references,
     referenceMode: options.referenceMode,
     disableLastFrame: input.settings.videoDisableLastFrame,
@@ -50,6 +62,7 @@ export function buildPlaygroundVideoSubmitInput(input: {
     generateAudio: capabilities.supportsAudioToggle
       ? options.generateAudio
       : undefined,
+    capabilities,
     ...assigned,
   }
 }

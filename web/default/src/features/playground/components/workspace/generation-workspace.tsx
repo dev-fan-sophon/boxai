@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -9,6 +9,10 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 import { fetchPlaygroundAssetBlob } from '../../api'
 import { useSendToCanvas } from '../../hooks/use-send-to-canvas'
 import type { UseStudioResult } from '../../hooks/use-studio'
+import {
+  getVideoCapabilityMode,
+  useVideoCapabilities,
+} from '../../hooks/use-video-capabilities'
 import { isStudioSession } from '../../lib'
 import {
   MAX_STUDIO_BATCH_JOBS,
@@ -21,8 +25,7 @@ import {
 import { buildStudioFeed } from '../../lib/studio/studio-feed'
 import {
   getActiveVideoReferenceLimit,
-  getVideoModelCapabilities,
-  resolveVideoOptions,
+  getVideoUploadProfile,
 } from '../../lib/studio/video-capabilities'
 import type { StudioModality } from '../../types'
 import type { MediaReference } from '../composer/attachments/media-reference-slot'
@@ -35,6 +38,10 @@ type GenerationWorkspaceProps = {
   pricingModel?: PricingModel
   canSubmit: () => boolean
   studio: UseStudioResult
+  onVideoContextChange?: (context: {
+    mode: 'text' | 'frames' | 'references'
+    referenceCount: number
+  }) => void
 }
 
 type ResultImage = { url: string; assetId?: number }
@@ -64,30 +71,38 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const canvas = useSendToCanvas()
 
   const model = usePlaygroundStore((state) => state.config.model)
+  const group = usePlaygroundStore((state) => state.config.group)
   const studioSettings = usePlaygroundStore((state) => state.studioSettings)
-  const videoCapabilities = getVideoModelCapabilities(model)
-  const videoOptions = resolveVideoOptions(
-    videoCapabilities,
-    {
-      aspectRatio: studioSettings.videoAspectRatio,
-      resolution: studioSettings.videoResolution,
-      seconds: studioSettings.videoDuration,
-      size: studioSettings.videoSize,
-      generateAudio: studioSettings.videoGenerateAudio,
-      referenceMode: studioSettings.videoReferenceMode,
-      count: studioSettings.videoCount,
-    },
-    { hasImage: references.length > 0 }
+  const capabilityQuery = useVideoCapabilities(
+    group,
+    model,
+    props.modality === 'video'
   )
+  const capabilityMode = getVideoCapabilityMode(
+    references.length > 0,
+    studioSettings.videoReferenceMode
+  )
+  const videoCapabilities = capabilityQuery.data?.[capabilityMode]
+  const onVideoContextChange = props.onVideoContextChange
+  useEffect(() => {
+    if (props.modality !== 'video') return
+    onVideoContextChange?.({
+      mode: capabilityMode,
+      referenceCount: references.length,
+    })
+  }, [capabilityMode, props.modality, onVideoContextChange, references.length])
   let maxFiles = 4
-  if (props.modality === 'video') {
+  const uploadProfile = getVideoUploadProfile(
+    capabilityQuery.data,
+    studioSettings.videoReferenceMode
+  )
+  if (props.modality === 'video' && uploadProfile) {
     maxFiles = getActiveVideoReferenceLimit({
-      model,
-      referenceMode: videoOptions.referenceMode,
+      capabilities: uploadProfile.capabilities,
+      referenceMode: uploadProfile.mode,
       disableLastFrame: studioSettings.videoDisableLastFrame,
     })
   }
-  const group = usePlaygroundStore((state) => state.config.group)
   const setPrefill = usePlaygroundStore((state) => state.setPrefill)
   const setStudioSettings = usePlaygroundStore(
     (state) => state.setStudioSettings
@@ -155,7 +170,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     }
     if (
       props.modality === 'video' &&
-      videoCapabilities.requiresImage &&
+      videoCapabilities?.requiresImage &&
       batchReferences.length === 0
     ) {
       toast.error(t('This model needs a reference image'))

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { submitVideo } from '@/features/playground/api'
+import { getVideoCapabilities, submitVideo } from '@/features/playground/api'
 import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
+import type { VideoModelCapabilities } from '@/features/playground/lib/studio/video-capabilities'
 import { getUserTaskLogs } from '@/features/usage-logs/api'
 
 import {
@@ -14,6 +15,7 @@ import {
 vi.mock('@/features/playground/api', () => ({
   generateImages: vi.fn(),
   generateSpeech: vi.fn(),
+  getVideoCapabilities: vi.fn(),
   submitVideo: vi.fn(),
   uploadPlaygroundAsset: vi.fn(),
 }))
@@ -22,9 +24,26 @@ vi.mock('@/features/playground/lib/download-generated-media', () => ({
 }))
 vi.mock('@/features/usage-logs/api', () => ({ getUserTaskLogs: vi.fn() }))
 
-const images = ['data:a', 'data:b', 'data:c']
+const images = ['data:a', 'data:b']
+const capabilities: VideoModelCapabilities = {
+  family: 'seedance-2',
+  aspectRatios: ['16:9', '9:16'],
+  resolutions: ['720p', '1080p'],
+  imageOnlyResolutions: [],
+  durations: [5, 8],
+  durationRange: { min: 5, max: 8 },
+  defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
+  maxReferenceImages: 12,
+  supportsLastFrame: true,
+  requiresImage: false,
+  supportsAudioToggle: true,
+  usesVolcengineMetadata: true,
+}
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => {
+  vi.resetAllMocks()
+  vi.mocked(getVideoCapabilities).mockResolvedValue({ text: capabilities })
+})
 
 describe('canvas video observation lifecycle', () => {
   it('reports an accepted task before respecting cancellation during submit', async () => {
@@ -124,6 +143,7 @@ describe('buildCanvasVideoSubmitInput', () => {
       prompt: 'p',
       referenceImages: images,
       settings,
+      capabilities,
     })
     expect(withTail).toMatchObject({
       firstFrame: 'data:a',
@@ -137,15 +157,16 @@ describe('buildCanvasVideoSubmitInput', () => {
 
     const noTail = buildCanvasVideoSubmitInput({
       prompt: 'p',
-      referenceImages: images,
+      referenceImages: images.slice(0, 1),
       disableLastFrame: true,
       settings,
+      capabilities,
     })
     expect(noTail.firstFrame).toBe('data:a')
     expect(noTail.lastFrame).toBeUndefined()
   })
 
-  it('sends every connected image as a reference in references mode, capped by the model', () => {
+  it('sends every connected image as a reference in references mode', () => {
     const many = Array.from({ length: 12 }, (_, i) => `data:${i}`)
     const input = buildCanvasVideoSubmitInput({
       prompt: 'p',
@@ -156,8 +177,9 @@ describe('buildCanvasVideoSubmitInput', () => {
         videoReferenceMode: 'references',
         generateAudio: false,
       },
+      capabilities,
     })
-    expect(input.referenceImages).toEqual(many.slice(0, 9))
+    expect(input.referenceImages).toEqual(many)
     expect(input.firstFrame).toBeUndefined()
     expect(input.generateAudio).toBe(false)
   })
@@ -165,7 +187,7 @@ describe('buildCanvasVideoSubmitInput', () => {
   it('never uses a last frame or audio flag on models without support', () => {
     const input = buildCanvasVideoSubmitInput({
       prompt: 'p',
-      referenceImages: images,
+      referenceImages: images.slice(0, 1),
       settings: {
         model: 'grok-imagine-video-1.5',
         group: 'g',
@@ -173,9 +195,19 @@ describe('buildCanvasVideoSubmitInput', () => {
         videoReferenceMode: 'references',
         generateAudio: true,
       },
+      capabilities: {
+        ...capabilities,
+        family: 'xai',
+        maxReferenceImages: 1,
+        supportsLastFrame: false,
+        supportsAudioToggle: false,
+      },
     })
-    expect(input).toMatchObject({ firstFrame: 'data:a', resolution: '1080p' })
-    expect(input.referenceImages).toBeUndefined()
+    expect(input).toMatchObject({
+      referenceImages: ['data:a'],
+      resolution: '1080p',
+    })
+    expect(input.firstFrame).toBeUndefined()
     expect(input.lastFrame).toBeUndefined()
     expect(input.generateAudio).toBeUndefined()
   })

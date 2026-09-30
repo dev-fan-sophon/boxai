@@ -26,6 +26,8 @@ import { GenerationSettingsSection } from './generation-settings-section'
 export function SettingsSections(props: {
   modality: StudioModality
   duoActive: boolean
+  videoMode?: 'text' | 'frames' | 'references'
+  videoReferenceCount?: number
 }) {
   const { t } = useTranslation()
   const chatMode = props.duoActive || props.modality === 'chat'
@@ -48,6 +50,8 @@ export function SettingsSections(props: {
           <Section title={t('Generation parameters')}>
             <GenerationSettingsSection
               modality={props.modality as Exclude<StudioModality, 'chat'>}
+              videoMode={props.videoMode}
+              videoReferenceCount={props.videoReferenceCount}
             />
           </Section>
         </>
@@ -90,6 +94,8 @@ export function SettingsPanel(props: {
   duoActive: boolean
   open: boolean
   onClose: () => void
+  videoMode?: 'text' | 'frames' | 'references'
+  videoReferenceCount?: number
 }) {
   const { t } = useTranslation()
   const isWide = useXlUp()
@@ -122,6 +128,8 @@ export function SettingsPanel(props: {
         <SettingsSections
           modality={props.modality}
           duoActive={props.duoActive}
+          videoMode={props.videoMode}
+          videoReferenceCount={props.videoReferenceCount}
         />
       </div>
     </aside>

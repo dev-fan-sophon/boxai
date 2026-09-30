@@ -455,6 +455,10 @@ export function Playground() {
   )
 
   const duoActive = workspaceMode === 'duo'
+  const [videoContext, setVideoContext] = useState<{
+    mode: 'text' | 'frames' | 'references'
+    referenceCount: number
+  }>({ mode: 'text', referenceCount: 0 })
   const desktopSettingsOpen = isWideDesktop
     ? settingsPanelOpen
     : narrowSettingsOpen
@@ -489,6 +493,8 @@ export function Playground() {
           duoActive={duoActive}
           open={desktopSettingsOpen}
           onClose={closeDesktopSettings}
+          videoMode={videoContext.mode}
+          videoReferenceCount={videoContext.referenceCount}
         />
       }
     >
@@ -585,6 +591,7 @@ export function Playground() {
             pricingModel={selectedCatalogModel}
             canSubmit={requireAuthentication}
             studio={studio}
+            onVideoContextChange={setVideoContext}
           />
         </div>
       )}
@@ -599,7 +606,12 @@ export function Playground() {
             <SheetTitle>{t('Settings')}</SheetTitle>
           </SheetHeader>
           <div className='px-4 pb-5'>
-            <SettingsSections modality={activeModality} duoActive={duoActive} />
+            <SettingsSections
+              modality={activeModality}
+              duoActive={duoActive}
+              videoMode={videoContext.mode}
+              videoReferenceCount={videoContext.referenceCount}
+            />
           </div>
         </SheetContent>
       </Sheet>

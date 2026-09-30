@@ -86,6 +86,12 @@ func mappedVideoModel(mappingJSON, name string) (string, error) {
 
 func profilesForChannel(channel *model.Channel, mappedModel string) map[string]dto.VideoModelCapabilities {
 	if configured := channel.GetSetting().VideoCapabilities[mappedModel]; configured != nil {
+		for mode, profile := range configured {
+			if profile.ImageOnlyResolutions == nil {
+				profile.ImageOnlyResolutions = []string{}
+			}
+			configured[mode] = profile
+		}
 		return configured
 	}
 	if (channel.Type == constant.ChannelTypeSora || channel.Type == constant.ChannelTypeDoubaoVideo) && isModeledSeedanceModel(mappedModel) {
@@ -112,11 +118,17 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 		return map[string]dto.VideoModelCapabilities{"text": base, "frames": frames, "references": references}
 	}
 	// Relay dispatch recognizes this exact model on compatibility channels too.
-	if mappedModel != "grok-imagine-video" {
+	if mappedModel != "grok-imagine-video" && mappedModel != "grok-imagine-video-1.5" {
 		return nil
 	}
-	p := dto.VideoModelCapabilities{Family: "xai", AspectRatios: []string{"16:9", "9:16"}, Resolutions: []string{"720p", "1080p"}, ImageOnlyResolutions: []string{"1080p"}, Durations: []int{3, 5, 8, 10, 15}, DurationRange: dto.VideoDurationRange{Min: 1, Max: 15}, Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}}
-	return map[string]dto.VideoModelCapabilities{"frames": p}
+	p := dto.VideoModelCapabilities{Family: "xai", AspectRatios: []string{"16:9", "9:16"}, Resolutions: []string{"720p"}, ImageOnlyResolutions: []string{}, Durations: []int{3, 5, 8, 10, 15}, DurationRange: dto.VideoDurationRange{Min: 1, Max: 15}, Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}}
+	if mappedModel == "grok-imagine-video-1.5" {
+		p.RequiresImage = true
+		p.Resolutions = []string{"720p", "1080p"}
+		p.ResolutionAspectRatios = map[string][]string{"1080p": {"16:9"}}
+		return map[string]dto.VideoModelCapabilities{"frames": p}
+	}
+	return map[string]dto.VideoModelCapabilities{"text": p, "frames": p}
 }
 
 func isModeledSeedanceModel(name string) bool {
@@ -139,7 +151,27 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 	}
 	a.AspectRatios = intersectStrings(a.AspectRatios, b.AspectRatios)
 	a.Resolutions = intersectStrings(a.Resolutions, b.Resolutions)
-	a.ImageOnlyResolutions = unionStrings(a.ImageOnlyResolutions, b.ImageOnlyResolutions)
+	pairs := map[string][]string{}
+	resolutions := []string{}
+	ratios := []string{}
+	for _, resolution := range a.Resolutions {
+		left, right := a.AspectRatios, b.AspectRatios
+		if limited, ok := a.ResolutionAspectRatios[resolution]; ok {
+			left = intersectStrings(left, limited)
+		}
+		if limited, ok := b.ResolutionAspectRatios[resolution]; ok {
+			right = intersectStrings(right, limited)
+		}
+		commonRatios := intersectStrings(left, right)
+		if len(commonRatios) > 0 {
+			pairs[resolution] = commonRatios
+			resolutions = append(resolutions, resolution)
+			ratios = unionStrings(ratios, commonRatios)
+		}
+	}
+	a.Resolutions, a.AspectRatios = resolutions, intersectStrings(a.AspectRatios, ratios)
+	a.ResolutionAspectRatios = pairs
+	a.ImageOnlyResolutions = intersectStrings(unionStrings(a.ImageOnlyResolutions, b.ImageOnlyResolutions), a.Resolutions)
 	a.Durations = intersectInts(a.Durations, b.Durations)
 	a.DurationRange.Min = max(a.DurationRange.Min, b.DurationRange.Min)
 	a.DurationRange.Max = min(a.DurationRange.Max, b.DurationRange.Max)
@@ -150,11 +182,17 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 	if len(a.AspectRatios) == 0 || len(a.Resolutions) == 0 || a.DurationRange.Min > a.DurationRange.Max {
 		return dto.VideoModelCapabilities{}, false
 	}
+	if len(a.Durations) == 0 {
+		a.Durations = []int{a.DurationRange.Min}
+	}
 	if !stringIn(a.Defaults.AspectRatio, a.AspectRatios) {
 		a.Defaults.AspectRatio = a.AspectRatios[0]
 	}
 	if !stringIn(a.Defaults.Resolution, a.Resolutions) {
 		a.Defaults.Resolution = a.Resolutions[0]
+	}
+	if !stringIn(a.Defaults.AspectRatio, pairs[a.Defaults.Resolution]) {
+		a.Defaults.AspectRatio = pairs[a.Defaults.Resolution][0]
 	}
 	if a.Defaults.Duration < a.DurationRange.Min || a.Defaults.Duration > a.DurationRange.Max {
 		a.Defaults.Duration = a.DurationRange.Min

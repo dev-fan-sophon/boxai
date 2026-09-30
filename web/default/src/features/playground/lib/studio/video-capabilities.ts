@@ -1,14 +1,8 @@
-/**
- * Per-model video generation capabilities.
- *
- * Option lists are driven by what the backend's upstream channels accept, not
- * by a generic UI list: the Seedance family (Volcengine via OpenAI-video
- * passthrough) takes resolution tiers, aspect ratios, 4–15 s (2.5: 4–30 s), an
- * audio toggle and role-based reference images; xAI `grok-imagine-video`
- * takes three fixed sizes, 1–15 s and exactly one image. Unknown video models
- * fall back to the conservative OpenAI-video profile.
- */
+/** Server-authoritative video generation capabilities. */
 
+import { t } from 'i18next'
+
+import type { VideoCapabilities } from '../../hooks/use-video-capabilities'
 import type { StudioSettings } from '../../types'
 import { clampBatchCount } from './batch-plan'
 
@@ -27,6 +21,7 @@ export type VideoModelCapabilities = {
   family: 'seedance-2' | 'seedance-2-fast' | 'seedance-2.5' | 'xai' | 'generic'
   aspectRatios: VideoAspectRatio[]
   resolutions: VideoResolution[]
+  resolutionAspectRatios?: Partial<Record<VideoResolution, VideoAspectRatio[]>>
   /** Resolutions that the provider only accepts for image-to-video runs. */
   imageOnlyResolutions: VideoResolution[]
   durations: number[]
@@ -45,103 +40,13 @@ export type VideoModelCapabilities = {
   usesVolcengineMetadata: boolean
 }
 
-const SEEDANCE_RATIOS: VideoAspectRatio[] = [
-  '16:9',
-  '9:16',
-  '1:1',
-  '4:3',
-  '3:4',
-  '21:9',
-  'adaptive',
-]
-
-const SEEDANCE_2: VideoModelCapabilities = {
-  family: 'seedance-2',
-  aspectRatios: SEEDANCE_RATIOS,
-  resolutions: ['480p', '720p', '1080p'],
-  imageOnlyResolutions: [],
-  durations: [4, 5, 6, 8, 10, 12, 15],
-  durationRange: { min: 4, max: 15 },
-  defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
-  maxReferenceImages: 9,
-  supportsLastFrame: true,
-  requiresImage: false,
-  supportsAudioToggle: true,
-  usesVolcengineMetadata: true,
-}
-
-const SEEDANCE_2_FAST: VideoModelCapabilities = {
-  ...SEEDANCE_2,
-  family: 'seedance-2-fast',
-  resolutions: ['480p', '720p'],
-}
-
-const SEEDANCE_2_5: VideoModelCapabilities = {
-  ...SEEDANCE_2,
-  family: 'seedance-2.5',
-  durations: [4, 5, 6, 8, 10, 12, 15, 20, 25, 30],
-  durationRange: { min: 4, max: 30 },
-  maxReferenceImages: 30,
-}
-
-const XAI_IMAGINE: VideoModelCapabilities = {
-  family: 'xai',
-  aspectRatios: ['16:9', '9:16'],
-  resolutions: ['720p', '1080p'],
-  imageOnlyResolutions: ['1080p'],
-  durations: [3, 5, 8, 10, 15],
-  durationRange: { min: 1, max: 15 },
-  defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
-  maxReferenceImages: 1,
-  supportsLastFrame: false,
-  requiresImage: true,
-  supportsAudioToggle: false,
-  usesVolcengineMetadata: false,
-}
-
-const GENERIC: VideoModelCapabilities = {
-  family: 'generic',
-  aspectRatios: ['16:9', '9:16'],
-  resolutions: ['720p', '1080p'],
-  imageOnlyResolutions: [],
-  durations: [4, 5, 8, 10, 12, 15, 20],
-  durationRange: { min: 1, max: 60 },
-  defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
-  maxReferenceImages: 1,
-  supportsLastFrame: true,
-  requiresImage: false,
-  supportsAudioToggle: false,
-  usesVolcengineMetadata: false,
-}
-
-export function getVideoModelCapabilities(
-  model: string | undefined
-): VideoModelCapabilities {
-  const name = (model ?? '').toLowerCase()
-  if (/seedance-2[.-]5|cdance2[.-]5/.test(name)) return SEEDANCE_2_5
-  if (
-    /seedance-2[.-]0-fast|seedance-2[.-]0[.-]fast|cdance2[.-]0-fast|cdance2[.-]0-mini/.test(
-      name
-    )
-  ) {
-    return SEEDANCE_2_FAST
-  }
-  if (/seedance-2[.-]0|cdance2[.-]0/.test(name)) return SEEDANCE_2
-  if (/grok-imagine-video|grok-video/.test(name)) return XAI_IMAGINE
-  return GENERIC
-}
-
-export function getVideoReferenceLimit(model: string): number {
-  return getVideoModelCapabilities(model).maxReferenceImages
-}
-
-/** How many attached images this model will actually send for the current mode. */
+/** How many attached images the current server profile accepts. */
 export function getActiveVideoReferenceLimit(input: {
-  model: string | undefined
+  capabilities: VideoModelCapabilities
   referenceMode: VideoReferenceMode
   disableLastFrame?: boolean
 }): number {
-  const capabilities = getVideoModelCapabilities(input.model)
+  const capabilities = input.capabilities
   if (input.referenceMode === 'references') {
     return capabilities.maxReferenceImages
   }
@@ -192,6 +97,16 @@ export function videoSizeForOptions(
   return SIZE_TABLE[resolution][aspectRatio]
 }
 
+export function videoResolutionsForRatio(
+  capabilities: VideoModelCapabilities,
+  ratio: VideoAspectRatio
+): VideoResolution[] {
+  return capabilities.resolutions.filter((resolution) => {
+    const ratios = capabilities.resolutionAspectRatios?.[resolution]
+    return !ratios || ratios.includes(ratio)
+  })
+}
+
 /** Inverse of `videoSizeForOptions` for legacy `size` metadata. */
 export function videoOptionsFromSize(
   size: string | undefined
@@ -215,6 +130,22 @@ export type VideoGenerationOptions = {
   count: number
 }
 
+/** Picks an image-taking profile solely for attachment limits and controls. */
+export function getVideoUploadProfile(
+  profiles: VideoCapabilities | undefined,
+  preferredMode: VideoReferenceMode
+):
+  | { mode: VideoReferenceMode; capabilities: VideoModelCapabilities }
+  | undefined {
+  const preferred = profiles?.[preferredMode]
+  if (preferred) return { mode: preferredMode, capabilities: preferred }
+  if (profiles?.frames) return { mode: 'frames', capabilities: profiles.frames }
+  if (profiles?.references) {
+    return { mode: 'references', capabilities: profiles.references }
+  }
+  return undefined
+}
+
 /**
  * Clamps a (possibly stale) selection to what the model supports. Metadata
  * written for one model stays valid after the user switches to another.
@@ -230,7 +161,10 @@ export function resolveVideoOptions(
     referenceMode?: string
     count?: number
   },
-  context: { hasImage: boolean } = { hasImage: true }
+  context: {
+    hasImage: boolean
+    mode?: 'text' | 'frames' | 'references'
+  } = { hasImage: true }
 ): VideoGenerationOptions {
   const legacy = videoOptionsFromSize(selection.size)
   const requestedRatio = (selection.aspectRatio ??
@@ -243,9 +177,10 @@ export function resolveVideoOptions(
   const requestedResolution = (selection.resolution ??
     legacy?.resolution ??
     capabilities.defaults.resolution) as VideoResolution
-  let resolution = capabilities.resolutions.includes(requestedResolution)
+  const resolutions = videoResolutionsForRatio(capabilities, aspectRatio)
+  let resolution = resolutions.includes(requestedResolution)
     ? requestedResolution
-    : capabilities.defaults.resolution
+    : resolutions[0]
   if (
     !context.hasImage &&
     capabilities.imageOnlyResolutions.includes(resolution)
@@ -262,8 +197,8 @@ export function resolveVideoOptions(
     : capabilities.defaults.duration
 
   const referenceMode: VideoReferenceMode =
-    capabilities.maxReferenceImages > 1 &&
-    selection.referenceMode === 'references'
+    context.mode === 'references' ||
+    (context.mode === undefined && selection.referenceMode === 'references')
       ? 'references'
       : 'frames'
 
@@ -282,7 +217,7 @@ export function resolveVideoOptions(
 }
 
 export function assignVideoReferences(input: {
-  model: string
+  capabilities: VideoModelCapabilities
   references: string[]
   referenceMode: VideoReferenceMode
   disableLastFrame?: boolean
@@ -291,16 +226,16 @@ export function assignVideoReferences(input: {
   lastFrame?: string
   referenceImages?: string[]
 } {
-  const capabilities = getVideoModelCapabilities(input.model)
-  if (
-    input.referenceMode === 'references' &&
-    capabilities.maxReferenceImages > 1
-  ) {
+  const capabilities = input.capabilities
+  const limit = getActiveVideoReferenceLimit(input)
+  if (input.references.length > limit) {
+    throw new Error(
+      t('You can attach up to {{count}} images.', { count: limit })
+    )
+  }
+  if (input.referenceMode === 'references') {
     return {
-      referenceImages: input.references.slice(
-        0,
-        capabilities.maxReferenceImages
-      ),
+      referenceImages: input.references,
     }
   }
   const [firstFrame, secondFrame] = input.references
@@ -315,7 +250,10 @@ export function applyResolvedVideoSettings(
   settings: StudioSettings,
   capabilities: VideoModelCapabilities,
   patch: Partial<StudioSettings>,
-  context: { hasImage: boolean } = { hasImage: true }
+  context: {
+    hasImage: boolean
+    mode?: 'text' | 'frames' | 'references'
+  } = { hasImage: true }
 ): StudioSettings {
   const next = { ...settings, ...patch }
   const resolved = resolveVideoOptions(
@@ -337,8 +275,7 @@ export function applyResolvedVideoSettings(
     videoResolution: resolved.resolution,
     videoDuration: resolved.duration,
     videoSize:
-      videoSizeForOptions(resolved.aspectRatio, resolved.resolution) ??
-      next.videoSize,
+      videoSizeForOptions(resolved.aspectRatio, resolved.resolution) ?? '',
     videoGenerateAudio: resolved.generateAudio,
     videoReferenceMode: resolved.referenceMode,
     videoCount: resolved.count,

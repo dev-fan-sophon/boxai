@@ -5,6 +5,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { useVideoCapabilities } from '../../hooks/use-video-capabilities'
 import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
@@ -23,8 +24,8 @@ import {
 } from '../../lib/studio/image-request-schema'
 import {
   applyResolvedVideoSettings,
-  getVideoModelCapabilities,
   resolveVideoOptions,
+  videoResolutionsForRatio,
   type VideoAspectRatio,
 } from '../../lib/studio/video-capabilities'
 import type { StudioModality, StudioSettings } from '../../types'
@@ -36,6 +37,8 @@ import type { StudioModality, StudioSettings } from '../../types'
  */
 export function GenerationSettingsSection(props: {
   modality: Exclude<StudioModality, 'chat'>
+  videoMode?: 'text' | 'frames' | 'references'
+  videoReferenceCount?: number
 }) {
   const { t } = useTranslation()
   const settings = usePlaygroundStore((state) => state.studioSettings)
@@ -43,6 +46,12 @@ export function GenerationSettingsSection(props: {
     (state) => state.setStudioSettings
   )
   const model = usePlaygroundStore((state) => state.config.model)
+  const group = usePlaygroundStore((state) => state.config.group)
+  const videoCapabilityQuery = useVideoCapabilities(
+    group,
+    model,
+    props.modality === 'video'
+  )
 
   const update = <K extends keyof StudioSettings>(
     key: K,
@@ -127,7 +136,16 @@ export function GenerationSettingsSection(props: {
   }
 
   if (props.modality === 'video') {
-    const capabilities = getVideoModelCapabilities(model)
+    const mode = props.videoMode ?? 'text'
+    const capabilities = videoCapabilityQuery.data?.[mode]
+    if (!capabilities) {
+      let message = t('This video mode is unavailable for the selected model.')
+      if (videoCapabilityQuery.isLoading) message = t('Loading video options…')
+      else if (videoCapabilityQuery.isError) {
+        message = t('Could not load video options. Retry to continue.')
+      }
+      return <p className='text-muted-foreground text-xs'>{message}</p>
+    }
     const options = resolveVideoOptions(
       capabilities,
       {
@@ -139,11 +157,14 @@ export function GenerationSettingsSection(props: {
         referenceMode: settings.videoReferenceMode,
         count: settings.videoCount,
       },
-      { hasImage: true }
+      { hasImage: Boolean(props.videoReferenceCount), mode }
     )
     const persistVideo = (patch: Partial<StudioSettings>) => {
       setStudioSettings((prev) =>
-        applyResolvedVideoSettings(prev, capabilities, patch)
+        applyResolvedVideoSettings(prev, capabilities, patch, {
+          hasImage: Boolean(props.videoReferenceCount),
+          mode,
+        })
       )
     }
     const ratioLabel = (ratio: VideoAspectRatio) =>
@@ -180,11 +201,13 @@ export function GenerationSettingsSection(props: {
               persistVideo({ videoResolution: event.target.value })
             }
           >
-            {capabilities.resolutions.map((resolution) => (
-              <NativeSelectOption key={resolution} value={resolution}>
-                {resolution}
-              </NativeSelectOption>
-            ))}
+            {videoResolutionsForRatio(capabilities, options.aspectRatio).map(
+              (resolution) => (
+                <NativeSelectOption key={resolution} value={resolution}>
+                  {resolution}
+                </NativeSelectOption>
+              )
+            )}
           </NativeSelect>
         </SettingRow>
         <SettingRow
@@ -219,7 +242,8 @@ export function GenerationSettingsSection(props: {
             />
           </SettingRow>
         ) : null}
-        {capabilities.maxReferenceImages > 1 ? (
+        {videoCapabilityQuery.data?.frames &&
+        videoCapabilityQuery.data.references ? (
           <SettingRow label={t('Reference mode')} htmlFor='gen-video-ref-mode'>
             <NativeSelect
               id='gen-video-ref-mode'

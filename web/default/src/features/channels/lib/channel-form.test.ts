@@ -72,6 +72,19 @@ describe('Codex Proxy channel form', () => {
 })
 
 describe('Seedance gateway channel form', () => {
+  it('preserves channel video policies when editing other settings', () => {
+    const video_capabilities = { 'mapped-model': {} }
+    const payload = transformFormDataToCreatePayload({
+      ...CHANNEL_FORM_DEFAULT_VALUES,
+      type: 54,
+      name: 'video',
+      setting: JSON.stringify({ video_capabilities }),
+    })
+    expect(
+      JSON.parse(payload.channel.setting || '{}').video_capabilities
+    ).toEqual(video_capabilities)
+  })
+
   it('exposes the edge gateway base URL and public Seedance models', () => {
     expect(getChannelTypeConfig(54)).toMatchObject({
       id: 54,

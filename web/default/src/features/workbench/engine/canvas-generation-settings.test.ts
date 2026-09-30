@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveGenerationSettings } from '../hooks/use-canvas-generation'
 import { CanvasNodeType, type CanvasNodeData } from '../types'
+import { resolveGenerationSettings } from './canvas-generation-settings'
 
 const node = (
   id: string,

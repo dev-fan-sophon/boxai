@@ -2,200 +2,133 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
 
-import { submitVideo } from './api'
+import { buildVideoRequestBody, submitVideo } from './api'
 import { DEFAULT_STUDIO_SETTINGS } from './lib/storage/store-migration'
-import { getVideoReferenceLimit } from './lib/studio/model-modality'
+import type { VideoModelCapabilities } from './lib/studio/video-capabilities'
 
 vi.mock('@/lib/api', () => ({
-  api: { post: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn() },
   getCommonHeaders: vi.fn(),
 }))
 
+const adaptive: VideoModelCapabilities = {
+  family: 'seedance-2.5',
+  aspectRatios: ['adaptive'],
+  resolutions: ['720p'],
+  imageOnlyResolutions: [],
+  durations: [5],
+  durationRange: { min: 5, max: 5 },
+  defaults: { aspectRatio: 'adaptive', resolution: '720p', duration: 5 },
+  maxReferenceImages: 3,
+  supportsLastFrame: true,
+  requiresImage: false,
+  supportsAudioToggle: false,
+  usesVolcengineMetadata: true,
+}
+
 beforeEach(() => {
-  vi.mocked(api.post).mockReset()
+  vi.resetAllMocks()
   vi.mocked(api.post).mockResolvedValue({ data: { id: 'video-task' } })
 })
 
-const skipErrorHandler = { skipErrorHandler: true }
-
-describe('video references', () => {
-  it.each(['seedance-2-0', 'seedance-2-0-fast', 'doubao-seedance-2-0-260128'])(
-    'sends all nine references in order without frame aliases for %s',
-    async (model) => {
-      const referenceImages = Array.from(
-        { length: 9 },
-        (_, i) => `data:image/png;base64,${i}`
-      )
-      const result = await submitVideo({
-        model,
-        group: 'default',
-        prompt: 'animate',
-        settings: DEFAULT_STUDIO_SETTINGS,
-        referenceImages,
-      })
-      expect(result.taskId).toBe('video-task')
-      expect(api.post).toHaveBeenCalledWith(
-        '/pg/video/generations',
-        {
-          model,
-          group: 'default',
-          prompt: 'animate',
-          duration: 5,
-          seconds: '5',
-          size: '1280x720',
-          images: referenceImages,
-        },
-        skipErrorHandler
-      )
-    }
-  )
-
-  it('emits Volcengine metadata and a matching size for capability-driven seedance runs', async () => {
-    await submitVideo({
-      model: 'seedance-2-0',
-      group: 'default',
+describe('server-authoritative video submission', () => {
+  it('keeps a single reference as a reference, and omits stale fixed size and unsupported audio', async () => {
+    const body = await buildVideoRequestBody({
+      model: 'model',
+      group: 'g',
       prompt: 'animate',
-      settings: DEFAULT_STUDIO_SETTINGS,
-      aspectRatio: '9:16',
-      resolution: '1080p',
-      duration: 8,
-      generateAudio: false,
-    })
-    expect(api.post).toHaveBeenCalledWith(
-      '/pg/video/generations',
-      {
-        model: 'seedance-2-0',
-        group: 'default',
-        prompt: 'animate',
-        duration: 8,
-        seconds: '8',
-        size: '1080x1920',
-        metadata: { resolution: '1080p', ratio: '9:16', generate_audio: false },
-      },
-      skipErrorHandler
-    )
-  })
-
-  it('omits size for adaptive ratio and never sends metadata to non-Volcengine models', async () => {
-    await submitVideo({
-      model: 'seedance-2-0',
-      group: 'default',
-      prompt: 'animate',
-      settings: DEFAULT_STUDIO_SETTINGS,
+      capabilities: { ...adaptive, maxReferenceImages: 1 },
+      settings: { ...DEFAULT_STUDIO_SETTINGS, videoSize: '1920x1080' },
       aspectRatio: 'adaptive',
       resolution: '720p',
       duration: 5,
+      generateAudio: false,
+      referenceImages: ['https://example.com/reference.png'],
     })
-    expect(api.post).toHaveBeenLastCalledWith(
-      '/pg/video/generations',
-      expect.not.objectContaining({ size: expect.anything() }),
-      skipErrorHandler
-    )
-
-    vi.mocked(api.post).mockClear()
-    await submitVideo({
-      model: 'grok-imagine-video-1.5',
-      group: 'default',
+    expect(body).toEqual({
+      model: 'model',
+      group: 'g',
       prompt: 'animate',
-      settings: DEFAULT_STUDIO_SETTINGS,
-      aspectRatio: '16:9',
-      resolution: '1080p',
-      duration: 10,
-      firstFrame: 'data:image/png;base64,YQ==',
+      duration: 5,
+      seconds: '5',
+      metadata: { ratio: 'adaptive', resolution: '720p' },
+      images: ['https://example.com/reference.png'],
     })
-    expect(api.post).toHaveBeenLastCalledWith(
-      '/pg/video/generations',
-      {
-        model: 'grok-imagine-video-1.5',
-        group: 'default',
-        prompt: 'animate',
-        duration: 10,
-        seconds: '10',
-        size: '1920x1080',
-        first_frame: 'data:image/png;base64,YQ==',
-        input_reference: 'data:image/png;base64,YQ==',
-        image: 'data:image/png;base64,YQ==',
-        images: ['data:image/png;base64,YQ=='],
-      },
-      skipErrorHandler
-    )
   })
 
-  it('sends signed playground asset URLs without downloading them as base64', async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { success: true, data: { url: 'https://storage.example/signed' } },
-    })
-    await submitVideo({
-      model: 'seedance-2-0',
-      group: 'default',
-      prompt: 'animate',
-      settings: DEFAULT_STUDIO_SETTINGS,
-      referenceImages: ['/api/playground/assets/42/content'],
-    })
-    const body = vi.mocked(api.post).mock.calls.at(-1)?.[1] as {
-      images: string[]
-    }
-    expect(api.post).toHaveBeenCalledWith('/api/playground/assets/42/reference')
-    expect(body.images).toEqual(['https://storage.example/signed'])
-    expect(JSON.stringify(body)).not.toContain('base64')
-  })
-
-  it('keeps first-frame semantics for other video models', async () => {
-    await submitVideo({
-      model: 'grok-imagine-video',
-      group: 'default',
-      prompt: 'animate',
-      settings: DEFAULT_STUDIO_SETTINGS,
-      referenceImages: ['data:image/png;base64,YQ=='],
-    })
-    expect(api.post).toHaveBeenCalledWith(
-      '/pg/video/generations',
-      expect.objectContaining({
-        first_frame: 'data:image/png;base64,YQ==',
-        input_reference: 'data:image/png;base64,YQ==',
-        images: ['data:image/png;base64,YQ=='],
-      }),
-      skipErrorHandler
-    )
-    expect(getVideoReferenceLimit('doubao-seedance-1-5-pro')).toBe(1)
-  })
-
-  it.each([
-    ['seedance-2-0', 10],
-    ['grok-imagine-video', 2],
-  ] as const)(
-    'rejects excess references for %s instead of dropping images',
-    async (model, count) => {
+  it.each([true, false])(
+    'rejects an explicit audio choice %s after audio support disappears',
+    async (generateAudio) => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: { success: true, data: { text: adaptive } },
+      })
       await expect(
         submitVideo({
-          model,
-          group: 'default',
+          model: 'model',
+          group: 'g',
           prompt: 'animate',
           settings: DEFAULT_STUDIO_SETTINGS,
-          referenceImages: Array(count).fill('data:image/png;base64,YQ=='),
+          aspectRatio: 'adaptive',
+          resolution: '720p',
+          duration: 5,
+          generateAudio,
         })
-      ).rejects.toThrow()
+      ).rejects.toBeInstanceOf(Error)
       expect(api.post).not.toHaveBeenCalled()
     }
   )
 
-  it('surfaces the task pre-consume message instead of Axios 403', async () => {
-    vi.mocked(api.post).mockRejectedValueOnce({
-      message: 'Request failed with status code 403',
-      response: {
-        data: {
-          code: 'insufficient_user_quota',
-          message: '预扣费失败：用户额度不足。需要 ₫15.51，剩余 ₫315,335.98',
-        },
-      },
+  it('rejects an explicit audio choice when refreshed policy no longer supports it', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { success: true, data: { text: adaptive } },
     })
     await expect(
       submitVideo({
-        model: 'dreamina-seedance-2-5',
-        group: 'default',
+        model: 'model',
+        group: 'group-a',
+        prompt: 'animate',
+        settings: { ...DEFAULT_STUDIO_SETTINGS, videoSize: '1920x1080' },
+        aspectRatio: 'adaptive',
+        resolution: '720p',
+        duration: 5,
+        generateAudio: true,
+      })
+    ).rejects.toBeInstanceOf(Error)
+    expect(api.get).toHaveBeenCalledWith('/api/playground/video-capabilities', {
+      params: { group: 'group-a', model: 'model' },
+    })
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the current mode disappeared before submission', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { success: true, data: { text: adaptive } },
+    })
+    await expect(
+      submitVideo({
+        model: 'model',
+        group: 'group-a',
         prompt: 'animate',
         settings: DEFAULT_STUDIO_SETTINGS,
+        firstFrame: 'data:image/png;base64,YQ==',
       })
-    ).rejects.toThrow('预扣费失败')
+    ).rejects.toBeInstanceOf(Error)
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('blocks over-limit references without truncating or submitting', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { success: true, data: { references: adaptive } },
+    })
+    await expect(
+      submitVideo({
+        model: 'model',
+        group: 'group-a',
+        prompt: 'animate',
+        settings: DEFAULT_STUDIO_SETTINGS,
+        referenceImages: ['a', 'b', 'c', 'd'],
+      })
+    ).rejects.toBeInstanceOf(Error)
+    expect(api.post).not.toHaveBeenCalled()
   })
 })

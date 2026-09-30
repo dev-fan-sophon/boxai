@@ -5,11 +5,13 @@ import { createRoot } from 'react-dom/client'
 import { initReactI18next } from 'react-i18next'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
   MediaReferenceSlot,
   type MediaReference,
 } from './components/composer/attachments/media-reference-slot'
+import { GenerationComposer } from './components/composer/generation-composer'
 import { StudioFeed } from './components/workspace/studio-feed'
 import type { StudioRunSummary } from './lib/session/session-types'
 
@@ -32,6 +34,8 @@ export type LifecycleFixture = {
   kind?: 'image' | 'video' | 'audio'
   attachable?: boolean
   unmount?: boolean
+  videoComposer?: boolean
+  group?: string
 }
 
 declare global {
@@ -43,6 +47,36 @@ declare global {
 
 window.referenceChanges = []
 window.renderLifecycleFixture = (state) => {
+  if (state.videoComposer) {
+    usePlaygroundStore.setState((current) => ({
+      config: {
+        ...current.config,
+        model: 'video-model',
+        group: state.group ?? 'g',
+      },
+    }))
+  }
+  let attachmentContent: React.ReactNode = null
+  if (!state.modality && !state.unmount) {
+    attachmentContent = state.videoComposer ? (
+      <GenerationComposer
+        modality='video'
+        activeJobs={0}
+        references={state.references ?? []}
+        onReferencesChange={(value) => window.referenceChanges.push(value)}
+        onSubmit={() => {}}
+      />
+    ) : (
+      <MediaReferenceSlot
+        label='References'
+        value={state.references ?? []}
+        maxFiles={state.maxFiles}
+        kind={state.kind}
+        attachable={state.attachable}
+        onChange={(value) => window.referenceChanges.push(value)}
+      />
+    )
+  }
   flushSync(() =>
     root.render(
       <QueryClientProvider client={client}>
@@ -68,16 +102,7 @@ window.renderLifecycleFixture = (state) => {
               onDismiss={() => {}}
             />
           ) : null}
-          {!state.modality && !state.unmount ? (
-            <MediaReferenceSlot
-              label='References'
-              value={state.references ?? []}
-              maxFiles={state.maxFiles}
-              kind={state.kind}
-              attachable={state.attachable}
-              onChange={(value) => window.referenceChanges.push(value)}
-            />
-          ) : null}
+          {attachmentContent}
         </TooltipProvider>
       </QueryClientProvider>
     )

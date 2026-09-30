@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -13,9 +14,10 @@ import {
   VOICES,
 } from '@/features/playground/lib/studio/generation-options'
 import {
-  getVideoModelCapabilities,
   resolveVideoOptions,
+  videoResolutionsForRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { useCanvasTheme } from '../../engine/canvas-theme'
 import { useWorkbenchModels } from '../../hooks/use-workbench-models'
@@ -47,14 +49,30 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
   const models = useWorkbenchModels()
   const metadata = props.node.metadata ?? {}
   const mode = metadata.generationMode ?? 'image'
-  const videoCapabilities = getVideoModelCapabilities(metadata.model)
-  const videoOptions = resolveVideoOptions(videoCapabilities, {
-    aspectRatio: metadata.aspectRatio,
-    resolution: metadata.resolution,
-    seconds: metadata.seconds,
-    size: metadata.size,
-    generateAudio: metadata.generateAudio,
-  })
+  const group = usePlaygroundStore((state) => state.config.group)
+  const capabilityQuery = useVideoCapabilities(
+    group,
+    metadata.model ?? '',
+    mode === 'video'
+  )
+  const videoCapabilities = capabilityQuery.data?.text
+  const videoOptions = videoCapabilities
+    ? resolveVideoOptions(videoCapabilities, {
+        aspectRatio: metadata.aspectRatio,
+        resolution: metadata.resolution,
+        seconds: metadata.seconds,
+        size: metadata.size,
+        generateAudio: metadata.generateAudio,
+      })
+    : undefined
+  let unavailableMessage = t(
+    'This video mode is unavailable for the selected model.'
+  )
+  if (capabilityQuery.isLoading) {
+    unavailableMessage = t('Loading video options…')
+  } else if (capabilityQuery.isError) {
+    unavailableMessage = t('Could not load video options. Retry to continue.')
+  }
 
   return (
     <div
@@ -125,7 +143,7 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
         </>
       ) : null}
 
-      {mode === 'video' ? (
+      {mode === 'video' && videoCapabilities && videoOptions ? (
         <>
           <Row label={t('Aspect ratio')}>
             <SelectOptions
@@ -142,7 +160,10 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
           <Row label={t('Resolution')}>
             <SelectOptions
               value={videoOptions.resolution}
-              options={videoCapabilities.resolutions.map((resolution) => ({
+              options={videoResolutionsForRatio(
+                videoCapabilities,
+                videoOptions.aspectRatio
+              ).map((resolution) => ({
                 value: resolution,
                 label: resolution,
               }))}
@@ -174,6 +195,9 @@ export function ConfigNodeBody(props: CanvasNodeBodyProps) {
             </Row>
           ) : null}
         </>
+      ) : null}
+      {mode === 'video' && !videoCapabilities ? (
+        <p className='text-muted-foreground text-xs'>{unavailableMessage}</p>
       ) : null}
 
       {mode === 'audio' ? (

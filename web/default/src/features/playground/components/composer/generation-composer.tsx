@@ -7,6 +7,10 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
+  getVideoCapabilityMode,
+  useVideoCapabilities,
+} from '../../hooks/use-video-capabilities'
+import {
   MAX_STUDIO_BATCH_JOBS,
   planGenerationJobs,
   type GenerationJobPlan,
@@ -14,7 +18,7 @@ import {
 import { normalizeImageCount } from '../../lib/studio/image-request-schema'
 import {
   getActiveVideoReferenceLimit,
-  getVideoModelCapabilities,
+  getVideoUploadProfile,
   resolveVideoOptions,
   videoSizeForOptions,
   type VideoReferenceMode,
@@ -57,35 +61,52 @@ export function GenerationComposer(props: GenerationComposerProps) {
     (state) => state.setStudioSettings
   )
 
-  const videoCapabilities = getVideoModelCapabilities(model)
-  const videoOptions = resolveVideoOptions(
-    videoCapabilities,
-    {
-      aspectRatio: settings.videoAspectRatio,
-      resolution: settings.videoResolution,
-      seconds: settings.videoDuration,
-      size: settings.videoSize,
-      generateAudio: settings.videoGenerateAudio,
-      referenceMode: settings.videoReferenceMode,
-      count: settings.videoCount,
-    },
-    { hasImage: props.references.length > 0 }
+  const capabilityQuery = useVideoCapabilities(
+    group,
+    model,
+    props.modality === 'video'
+  )
+  const capabilityMode = getVideoCapabilityMode(
+    props.references.length > 0,
+    settings.videoReferenceMode
+  )
+  const videoCapabilities = capabilityQuery.data?.[capabilityMode]
+  const videoOptions = videoCapabilities
+    ? resolveVideoOptions(
+        videoCapabilities,
+        {
+          aspectRatio: settings.videoAspectRatio,
+          resolution: settings.videoResolution,
+          seconds: settings.videoDuration,
+          size: settings.videoSize,
+          generateAudio: settings.videoGenerateAudio,
+          referenceMode: settings.videoReferenceMode,
+          count: settings.videoCount,
+        },
+        { hasImage: props.references.length > 0, mode: capabilityMode }
+      )
+    : undefined
+  const uploadProfile = getVideoUploadProfile(
+    capabilityQuery.data,
+    settings.videoReferenceMode
   )
   const usesLastFrame =
     props.modality === 'video' &&
-    videoOptions.referenceMode === 'frames' &&
-    videoCapabilities.supportsLastFrame &&
+    videoOptions?.referenceMode === 'frames' &&
+    videoCapabilities?.supportsLastFrame &&
     !settings.videoDisableLastFrame
   let maxFiles = 4
-  if (props.modality === 'video') {
+  if (props.modality === 'video' && uploadProfile) {
     maxFiles = getActiveVideoReferenceLimit({
-      model,
-      referenceMode: videoOptions.referenceMode,
+      capabilities: uploadProfile.capabilities,
+      referenceMode: uploadProfile.mode,
       disableLastFrame: settings.videoDisableLastFrame,
     })
+  } else if (props.modality === 'video') {
+    maxFiles = 1
   }
   let mediaLabel = t('Reference image')
-  if (props.modality === 'video' && videoOptions.referenceMode === 'frames') {
+  if (props.modality === 'video' && videoOptions?.referenceMode === 'frames') {
     mediaLabel = usesLastFrame ? t('First and last frame') : t('First frame')
   }
   const groupRatio = groups.find((item) => item.value === group)?.ratio
@@ -98,7 +119,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
     count = normalizeImageCount(settings.imageCount)
   } else if (props.modality === 'video') {
     batchMode = settings.videoBatchMode
-    count = videoOptions.count
+    count = videoOptions?.count ?? 1
   }
   // Speech text is spoken verbatim, so it never expands into variants.
   const plan: GenerationJobPlan =
@@ -107,7 +128,21 @@ export function GenerationComposer(props: GenerationComposerProps) {
       : planGenerationJobs({ text, batchMode, count })
   const jobCount = plan.prompts.length
   const distinctPrompts = new Set(plan.prompts).size
-  const canSubmit = !uploading && Boolean(model) && jobCount > 0
+  const referencesValid = Boolean(
+    videoCapabilities && props.references.length <= maxFiles
+  )
+  const videoReady =
+    props.modality !== 'video' ||
+    Boolean(videoOptions && videoCapabilities && referencesValid)
+  const canSubmit = !uploading && Boolean(model) && jobCount > 0 && videoReady
+  let unavailableMessage = t(
+    'This video mode is unavailable for the selected model.'
+  )
+  if (capabilityQuery.isLoading) {
+    unavailableMessage = t('Loading video options…')
+  } else if (capabilityQuery.isError) {
+    unavailableMessage = t('Could not load video options. Retry to continue.')
+  }
 
   const submit = () => {
     if (!canSubmit || !model) return
@@ -192,7 +227,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 roleForIndex={
                   props.modality === 'video'
                     ? (index) => {
-                        if (videoOptions.referenceMode === 'references') {
+                        if (videoOptions?.referenceMode === 'references') {
                           return `${index + 1}`
                         }
                         if (index === 0) return t('First')
@@ -204,7 +239,8 @@ export function GenerationComposer(props: GenerationComposerProps) {
               />
             )}
             {props.modality === 'video' &&
-            videoCapabilities.maxReferenceImages > 1 ? (
+            capabilityQuery.data?.frames &&
+            capabilityQuery.data.references ? (
               <div
                 className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
                 role='radiogroup'
@@ -216,10 +252,10 @@ export function GenerationComposer(props: GenerationComposerProps) {
                       key={mode}
                       type='button'
                       role='radio'
-                      aria-checked={videoOptions.referenceMode === mode}
+                      aria-checked={videoOptions?.referenceMode === mode}
                       className={cn(
                         'rounded-full px-2 py-0.5 transition-colors',
-                        videoOptions.referenceMode === mode
+                        videoOptions?.referenceMode === mode
                           ? 'bg-background text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
                       )}
@@ -237,8 +273,8 @@ export function GenerationComposer(props: GenerationComposerProps) {
               </div>
             ) : null}
             {props.modality === 'video' &&
-            videoOptions.referenceMode === 'frames' &&
-            videoCapabilities.supportsLastFrame &&
+            videoOptions?.referenceMode === 'frames' &&
+            videoCapabilities?.supportsLastFrame &&
             props.references.length > 1 ? (
               <label className='text-muted-foreground text-3xs flex shrink-0 items-center gap-1'>
                 <input
@@ -259,6 +295,21 @@ export function GenerationComposer(props: GenerationComposerProps) {
               modality={props.modality}
               hasImage={props.references.length > 0}
             />
+            {props.modality === 'video' && !videoCapabilities ? (
+              <span
+                className='text-warning shrink-0 text-xs'
+                aria-live='polite'
+              >
+                {unavailableMessage}
+              </span>
+            ) : null}
+            {props.modality === 'video' &&
+            videoCapabilities &&
+            !referencesValid ? (
+              <span className='text-warning shrink-0 text-xs'>
+                {t('Remove extra reference images before generating.')}
+              </span>
+            ) : null}
           </div>
         }
         trailing={
@@ -272,13 +323,13 @@ export function GenerationComposer(props: GenerationComposerProps) {
               n: Math.max(1, jobCount),
               size:
                 props.modality === 'video'
-                  ? (videoSizeForOptions(
-                      videoOptions.aspectRatio,
-                      videoOptions.resolution
-                    ) ?? settings.videoSize)
+                  ? videoSizeForOptions(
+                      videoOptions?.aspectRatio ?? 'adaptive',
+                      videoOptions?.resolution ?? '720p'
+                    )
                   : settings.imageSize,
               duration:
-                props.modality === 'video' ? videoOptions.duration : undefined,
+                props.modality === 'video' ? videoOptions?.duration : undefined,
               has_reference: props.references.length > 0,
             }}
           />
