@@ -89,6 +89,11 @@ func SendEmail(subject string, receiver string, content string) error {
 	if SMTPServer == "" && SMTPAccount == "" {
 		return fmt.Errorf("SMTP 服务器未配置")
 	}
+	// Cloudflare's SMTP submission port is blocked on some hosting networks.
+	// Its HTTPS API uses the same scoped sending token and delivery pipeline.
+	if strings.EqualFold(strings.TrimSuffix(SMTPServer, "."), "smtp.mx.cloudflare.net") {
+		return sendCloudflareEmail(subject, receiver, content)
+	}
 	encodedSubject := fmt.Sprintf("=?UTF-8?B?%s?=", base64.StdEncoding.EncodeToString([]byte(subject)))
 	mail := []byte(fmt.Sprintf("To: %s\r\n"+
 		"From: %s <%s>\r\n"+

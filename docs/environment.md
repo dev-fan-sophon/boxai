@@ -137,6 +137,16 @@ Production edge for BoxAI (`you-box.com`) runs under:
 | Token name | `xiaoqq-full-control` |
 | Token ID | `94ee2aa376955340fd3e2c1166bda7c0` |
 
+### Application email transport
+
+When the application's `SMTPServer` option is `smtp.mx.cloudflare.net`, BoxAI
+sends through Cloudflare Email Sending's HTTPS API on port 443, using the
+canonical account above and the existing `SMTPToken` (Email Sending permission).
+`SMTPFrom` and the product display name remain the sender. SMTP port and TLS
+options do not apply to this transport. Other SMTP hosts keep their existing
+SMTP behavior. This avoids blocked outbound SMTP ports on the production host;
+do not replace the scoped application token with an agent's full-control token.
+
 ### Variables
 
 ```text
