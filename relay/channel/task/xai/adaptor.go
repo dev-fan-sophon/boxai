@@ -101,16 +101,12 @@ func (a *TaskAdaptor) validateRequest(c *gin.Context, info *relaycommon.RelayInf
 	if requireKnownModel && modelName != modelImagine && modelName != modelImagine15 {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported xAI video model %q", modelName), "unsupported_model", http.StatusBadRequest)
 	}
-	hasImage := req.HasImage()
-	if modelName == modelImagine15 && !hasImage {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("%s requires an image", modelImagine15), "image_required", http.StatusBadRequest)
-	}
 	_, resolution, err := videoDimensions(req.Size)
 	if err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_size", http.StatusBadRequest)
 	}
-	if (modelName == modelImagine || modelName == modelImagine15) && resolution == "1080p" && (modelName != modelImagine15 || !hasImage) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("1080p is only supported by %s with an image", modelImagine15), "unsupported_resolution", http.StatusBadRequest)
+	if modelName == modelImagine && resolution == "1080p" {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("1080p is only supported by %s", modelImagine15), "unsupported_resolution", http.StatusBadRequest)
 	}
 	return nil
 }
@@ -168,12 +164,8 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	hasImage := len(req.Images) > 0
-	if info.UpstreamModelName == modelImagine15 && !hasImage {
-		return nil, fmt.Errorf("%s requires an image", modelImagine15)
-	}
-	if resolution == "1080p" && (info.UpstreamModelName != modelImagine15 || !hasImage) {
-		return nil, fmt.Errorf("1080p is only supported by %s with an image", modelImagine15)
+	if resolution == "1080p" && info.UpstreamModelName != modelImagine15 {
+		return nil, fmt.Errorf("1080p is only supported by %s", modelImagine15)
 	}
 	body := videoRequest{Model: info.UpstreamModelName, Prompt: req.Prompt, Duration: req.Duration, AspectRatio: aspect, Resolution: resolution}
 	if len(req.Images) > 0 {

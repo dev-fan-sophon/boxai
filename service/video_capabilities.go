@@ -123,10 +123,10 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 	}
 	p := dto.VideoModelCapabilities{Family: "xai", AspectRatios: []string{"16:9", "9:16"}, Resolutions: []string{"720p"}, ImageOnlyResolutions: []string{}, Durations: []int{3, 5, 8, 10, 15}, DurationRange: dto.VideoDurationRange{Min: 1, Max: 15}, Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}}
 	if mappedModel == "grok-imagine-video-1.5" {
-		p.RequiresImage = true
+		// xAI supports text-to-video, including 1080p, without a supplied image:
+		// https://docs.x.ai/developers/model-capabilities/video/generation
 		p.Resolutions = []string{"720p", "1080p"}
 		p.ResolutionAspectRatios = map[string][]string{"1080p": {"16:9"}}
-		return map[string]dto.VideoModelCapabilities{"frames": p}
 	}
 	return map[string]dto.VideoModelCapabilities{"text": p, "frames": p}
 }

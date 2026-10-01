@@ -42,9 +42,10 @@ func TestValidateRequestConstraints(t *testing.T) {
 		{"seconds overflow", `{"model":"grok-imagine-video","prompt":"p","seconds":"18446744073709551616"}`, false},
 		{"conflicting aliases", `{"model":"grok-imagine-video","prompt":"p","seconds":"2","duration":8}`, false},
 		{"matching aliases", `{"model":"grok-imagine-video","prompt":"p","seconds":"8","duration":8}`, true},
-		{"1.5 needs image", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8}`, false},
+		{"1.5 text only", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8}`, true},
 		{"1.5 image", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8,"image":"data:image/png;base64,AA"}`, true},
 		{"base rejects 1080p", `{"model":"grok-imagine-video","prompt":"p","duration":8,"size":"1920x1080","image":"https://img.test/a.png"}`, false},
+		{"1.5 accepts 1080p text", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8,"size":"1920x1080"}`, true},
 		{"1.5 accepts 1080p image", `{"model":"grok-imagine-video-1.5","prompt":"p","duration":8,"size":"1920x1080","input_reference":"https://img.test/a.png"}`, true},
 		{"unknown size", `{"model":"grok-imagine-video","prompt":"p","duration":8,"size":"1024x1024"}`, false},
 	}
@@ -62,18 +63,45 @@ func TestValidateRequestConstraints(t *testing.T) {
 }
 
 func TestValidateMappedRequestUsesUpstreamModel(t *testing.T) {
-	c, info := requestContext(t, `{"model":"video-alias","prompt":"p","duration":8}`)
+	c, info := requestContext(t, `{"model":"video-alias","prompt":"p","duration":8,"size":"1920x1080"}`)
 	require.Nil(t, (&TaskAdaptor{}).ValidateRequestAndSetAction(c, info))
 
 	info.UpstreamModelName = modelImagine15
+	require.Nil(t, (&TaskAdaptor{}).ValidateMappedRequest(c, info))
+
+	info.UpstreamModelName = modelImagine
 	taskErr := (&TaskAdaptor{}).ValidateMappedRequest(c, info)
 	require.NotNil(t, taskErr)
-	require.Contains(t, taskErr.Message, "requires an image")
+	assert.Equal(t, "unsupported_resolution", taskErr.Code)
 
 	info.UpstreamModelName = "unsupported-video-model"
 	taskErr = (&TaskAdaptor{}).ValidateMappedRequest(c, info)
 	require.NotNil(t, taskErr)
 	require.Contains(t, taskErr.Message, "unsupported xAI video model")
+}
+
+func TestBuildTextOnlyVideo15Request(t *testing.T) {
+	for _, size := range []string{"1280x720", "1920x1080"} {
+		t.Run(size, func(t *testing.T) {
+			c, info := requestContext(t, `{"model":"grok-imagine-video-1.5","prompt":"A paper boat on a lake","seconds":"3","size":"`+size+`"}`)
+			adaptor := &TaskAdaptor{}
+			require.Nil(t, adaptor.ValidateRequestAndSetAction(c, info))
+			info.UpstreamModelName = modelImagine15
+			require.Nil(t, adaptor.ValidateMappedRequest(c, info))
+			body, err := adaptor.BuildRequestBody(c, info)
+			require.NoError(t, err)
+			var got map[string]interface{}
+			require.NoError(t, common.DecodeJson(body, &got))
+			resolution := "720p"
+			if size == "1920x1080" {
+				resolution = "1080p"
+			}
+			assert.Equal(t, map[string]interface{}{
+				"model": modelImagine15, "prompt": "A paper boat on a lake", "duration": float64(3),
+				"aspect_ratio": "16:9", "resolution": resolution,
+			}, got)
+		})
+	}
 }
 
 func TestBuildRequestUsesMappedModelAndJSONProtocol(t *testing.T) {

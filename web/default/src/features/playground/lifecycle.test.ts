@@ -354,6 +354,36 @@ describe('video capability lifecycle', () => {
     ).toBe(0)
   })
 
+  it('enables Grok 1.5 text-only generation and offers 1080p without an image', async () => {
+    const grok = profile({
+      family: 'xai',
+      aspectRatios: ['16:9', '9:16'],
+      resolutions: ['720p', '1080p'],
+      resolutionAspectRatios: { '1080p': ['16:9'] },
+      durations: [3, 5, 8, 10, 15],
+      durationRange: { min: 1, max: 15 },
+      maxReferenceImages: 0,
+    })
+    await page.route('**/api/playground/video-capabilities?*', (route) =>
+      route.fulfill({
+        json: { success: true, data: { text: grok, frames: grok } },
+      })
+    )
+    await render({ videoComposer: true, group: 'default' })
+    await page.getByRole('textbox').fill('A paper boat floating across a lake')
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Generate' }).isEnabled())
+      .toBe(true)
+    expect(
+      await page.getByText('This model needs a reference image').count()
+    ).toBe(0)
+    await page.getByRole('button', { name: 'Resolution', exact: true }).click()
+    await page.getByText('1080p', { exact: true }).click()
+    expect(
+      await page.getByRole('button', { name: 'Generate' }).isEnabled()
+    ).toBe(true)
+  })
+
   it('locks frame ratio and unlocks the reference-mode ratio returned by the server', async () => {
     await page.route('**/api/playground/video-capabilities?*', (route) =>
       route.fulfill({

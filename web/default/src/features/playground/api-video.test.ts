@@ -32,6 +32,49 @@ beforeEach(() => {
 })
 
 describe('server-authoritative video submission', () => {
+  it('submits Grok 1.5 text-to-video at 1080p without image fields', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          text: {
+            ...adaptive,
+            family: 'xai',
+            aspectRatios: ['16:9', '9:16'],
+            resolutions: ['720p', '1080p'],
+            resolutionAspectRatios: { '1080p': ['16:9'] },
+            defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
+            maxReferenceImages: 0,
+            supportsLastFrame: false,
+            usesVolcengineMetadata: false,
+          },
+        },
+      },
+    })
+    const result = await submitVideo({
+      model: 'grok-imagine-video-1.5',
+      group: 'default',
+      prompt: 'A paper boat on a lake',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      duration: 5,
+    })
+    expect(result.taskId).toBe('video-task')
+    expect(api.post).toHaveBeenCalledWith(
+      '/pg/video/generations',
+      {
+        model: 'grok-imagine-video-1.5',
+        group: 'default',
+        prompt: 'A paper boat on a lake',
+        duration: 5,
+        seconds: '5',
+        size: '1920x1080',
+      },
+      { skipErrorHandler: true }
+    )
+  })
+
   it('keeps a single reference as a reference, and omits stale fixed size and unsupported audio', async () => {
     const body = await buildVideoRequestBody({
       model: 'model',

@@ -56,8 +56,11 @@ func TestXaiVideoVersionDimensions(t *testing.T) {
 	require.Contains(t, legacy, "text")
 	assert.Equal(t, []string{"720p"}, legacy["frames"].Resolutions)
 	current := profilesForChannel(channel, "grok-imagine-video-1.5")
-	assert.NotContains(t, current, "text")
-	assert.True(t, current["frames"].RequiresImage)
+	require.Contains(t, current, "text")
+	assert.False(t, current["text"].RequiresImage)
+	assert.False(t, current["frames"].RequiresImage)
+	assert.Equal(t, []string{"720p", "1080p"}, current["text"].Resolutions)
+	assert.Empty(t, current["text"].ImageOnlyResolutions)
 	assert.Equal(t, []string{"16:9"}, current["frames"].ResolutionAspectRatios["1080p"])
 	a := current["frames"]
 	b := a
