@@ -282,25 +282,76 @@ describe('video capability lifecycle', () => {
     ...overrides,
   })
 
-  it('keeps image upload available when text mode is unavailable and disables submit', async () => {
+  it('explains the required image and enables generation after one is attached', async () => {
     await page.route('**/api/playground/video-capabilities?*', (route) =>
       route.fulfill({
         json: {
           success: true,
-          data: { frames: profile({ requiresImage: true }) },
+          data: {
+            frames: profile({ requiresImage: true, maxReferenceImages: 0 }),
+          },
         },
       })
     )
     await render({ videoComposer: true, group: 'image-only' })
-    await page
-      .getByText('This video mode is unavailable for the selected model.')
-      .waitFor()
+    await page.getByText('This model needs a reference image').waitFor()
+    await page.getByRole('textbox').fill('A cat walking through a garden')
     expect(
       await page.locator('input[type=file][accept="image/*"]').count()
     ).toBe(1)
     expect(
       await page.getByRole('button', { name: 'Generate' }).isDisabled()
     ).toBe(true)
+    await render({
+      videoComposer: true,
+      group: 'image-only',
+      references: [{ id: 'one', name: 'one', dataUrl: '/media/one' }],
+    })
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Generate' }).isEnabled())
+      .toBe(true)
+    expect(
+      await page.getByText('This model needs a reference image').count()
+    ).toBe(0)
+  })
+
+  it('allows text-only generation with Seedance capabilities', async () => {
+    await page.route('**/api/playground/video-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: {
+            text: profile({
+              family: 'seedance-2.5',
+              aspectRatios: [
+                '16:9',
+                '9:16',
+                '1:1',
+                '4:3',
+                '3:4',
+                '21:9',
+                'adaptive',
+              ],
+              resolutions: ['480p', '720p', '1080p'],
+              durations: [4, 5, 6, 8, 10, 12, 15, 20, 25, 30],
+              durationRange: { min: 4, max: 30 },
+              maxReferenceImages: 0,
+              usesVolcengineMetadata: true,
+            }),
+          },
+        },
+      })
+    )
+    await render({ videoComposer: true, group: 'default' })
+    await page.getByRole('textbox').fill('A cat walking through a garden')
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Generate' }).isEnabled())
+      .toBe(true)
+    expect(
+      await page
+        .getByText('This video mode is unavailable for the selected model.')
+        .count()
+    ).toBe(0)
   })
 
   it('locks frame ratio and unlocks the reference-mode ratio returned by the server', async () => {

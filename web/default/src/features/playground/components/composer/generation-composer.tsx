@@ -142,6 +142,12 @@ export function GenerationComposer(props: GenerationComposerProps) {
     unavailableMessage = t('Loading video options…')
   } else if (capabilityQuery.isError) {
     unavailableMessage = t('Could not load video options. Retry to continue.')
+  } else if (
+    props.references.length === 0 &&
+    !capabilityQuery.data?.text &&
+    capabilityQuery.data?.frames?.requiresImage
+  ) {
+    unavailableMessage = t('This model needs a reference image')
   }
 
   const submit = () => {
