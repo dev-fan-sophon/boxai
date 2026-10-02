@@ -1,8 +1,8 @@
 # Example Plugins
 
 Sample plugins for development, specification, and integration tests. Start
-with the [zero-to-one plugin development guide](../../docs/plugin-development.md)
-before using these as API references.
+with the types and validators in [the Plugin SDK](../../packages/plugin-sdk/src)
+and compare the examples with current host tests before using them as API references.
 
 ## hello
 
@@ -18,17 +18,9 @@ Reference example covering:
 - inter-plugin `bus`
 - `permissions`
 
-Related specs:
-
-- `docs/spec/07-plugins/01-plugin-system.md`
-- `docs/spec/07-plugins/02-plugin-manifest-schema.md`
-- `docs/spec/07-plugins/03-plugin-api.md`
-- `docs/spec/07-plugins/05-plugin-lifecycle.md`
-- `docs/spec/07-plugins/09-plugin-command-palette.md`
-
 Panel chrome contract:
 
-- PI-Desktop owns exactly a transparent 46px drag band and the minimal
+- BoxAI Desktop owns exactly a transparent 46px drag band and the minimal
   top-right three-button window-control capsule on every platform.
 - Normal-flow panel content is offset below that band automatically. Do not
   add another 46px top padding.
@@ -38,7 +30,7 @@ Panel chrome contract:
 
 ## ui-slots-lab
 
-Test plugin for the renderer UI slots (`docs/plugin-plan/`). It puts one
+Test plugin for the renderer UI slots. It puts one
 visible sample in every slot, each marked `data-lab="<slot>[:<side>]"`:
 
 - `userAction` / `assistantAction` items; the assistant bar's right side has
@@ -59,24 +51,18 @@ with `mode: "crash"`, and a chart whose first line is `crash` or `tall`
 Covered by `apps/desktop/test/plugin-ui-slots-lab.test.mjs` and the Electron
 E2E.
 
-## Planned examples
+## Upstream marketplace reference
 
-- `panel-basic`
-- `agent-tool-basic`
-- `skill-pack`
-- `marketplace-mock-publisher`
-
-## Official marketplace repository
-
-Published plugins live in [`vastsa/pi-desktop-plugins`](https://github.com/vastsa/pi-desktop-plugins).
+Upstream plugins live in [`vastsa/pi-desktop-plugins`](https://github.com/vastsa/pi-desktop-plugins).
+This is a third-party source, not a BoxAI security endorsement.
 
 Local examples here remain useful for development loading (`Load dev plugin`).
-Marketplace installs should come from that repository's `catalog.json` + `packages/*.piplug`.
+Use the catalog configured by the current app for Marketplace installs and review permissions.
 
 
 ## Practical template
 
-Prefer the official warehouse template:
+An upstream template and contribution guide are available at:
 
 - https://github.com/vastsa/pi-desktop-plugins/tree/main/plugins/demo.workspace-summary
 - Contribution guide: https://github.com/vastsa/pi-desktop-plugins/blob/main/CONTRIBUTING.md

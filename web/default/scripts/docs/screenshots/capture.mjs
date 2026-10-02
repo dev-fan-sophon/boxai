@@ -208,7 +208,7 @@ const SHOTS = [
     area: 'clients',
     name: 'downloads',
     auth: 'public',
-    path: '/downloads',
+    path: '/agents',
     waitMs: 3000,
     waitFor: 'main',
   },

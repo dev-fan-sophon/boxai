@@ -17,6 +17,10 @@ checklist:
 - A BoxAI account at [you-box.com](https://you-box.com)
 - Enough quota for a small test call (top up if needed — see [Billing and top-up](/docs/console/billing-topup))
 
+## Prefer a desktop agent?
+
+Follow [BoxAI Desktop](/docs/clients/desktop) to install the app, authorize your BoxAI account, choose a model and start a project with tool approvals. You do not need to manually paste a provider key. The API steps below are for programmatic integrations; [BoxAI Connect](/docs/clients/connect) is for other coding agents you install separately.
+
 ## Three steps to production
 
 :::steps

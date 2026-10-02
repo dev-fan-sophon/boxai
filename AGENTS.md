@@ -50,12 +50,12 @@ pkg/           — Internal packages (cachex, ionet)
 web/             — Frontend container
  web/default/   — Default frontend (React 19, Rsbuild, Base UI, Tailwind)
   web/default/src/i18n/ — Frontend internationalization (i18next, zh/en/fr/ru/ja/vi)
-desktop/       — BoxAI Desktop (Python coworker + Tauri GUI, npm)
+desktop/       — BoxAI Desktop (pi-desktop fork: Electron/React + Rust host, pnpm)
 connect/       — BoxAI Connect (Go/Wails app with an always-running local gateway)
 ```
 
 **Package managers remain intentional.** `web/` uses bun and
-`desktop/surfaces/gui/` uses npm. Follow `connect/`'s Go/Wails build instructions;
+`desktop/` uses pnpm and Cargo. Follow `connect/`'s Go/Wails build instructions;
 do not reintroduce the removed GPUI or Tauri Connect implementations.
 
 **Connect is being forked incrementally from Magpie.** Preserve the complete

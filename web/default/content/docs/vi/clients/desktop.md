@@ -1,48 +1,35 @@
 ---
-title: BoxAI Desktop
-summary: Cài BoxAI Desktop trên macOS hoặc Windows và đăng nhập bằng tài khoản BoxAI.
+title: Bắt đầu với BoxAI Desktop
+summary: Cài ứng dụng, đăng nhập BoxAI và làm việc an toàn với dự án, mô hình cùng các công cụ của trợ lý AI.
 section: clients
 order: 10
 audience: [user]
-updated: 2026-08-04
+updated: 2026-10-02
 status: published
 ---
 
-## Tải về
+BoxAI Desktop là không gian làm việc với trợ lý AI trên máy tính. Bạn mở dự án, mô tả kết quả cần đạt, chọn mô hình BoxAI rồi kiểm tra công việc của trợ lý. Các yêu cầu tới mô hình được gửi qua cổng API BoxAI bằng tài khoản của bạn.
 
-![Downloads page](/doc-assets/screenshots/clients/downloads.en.webp '1. Get the latest build from Downloads')
+Hướng dẫn này dành cho ứng dụng hiện tại dựa trên pi-desktop. Cách cài đặt, cấu hình và các bộ kết nối của ứng dụng cũ không còn áp dụng. [BoxAI Connect](/docs/clients/connect) là ứng dụng khác, dùng để kết nối các trợ lý lập trình được cài riêng với BoxAI.
 
-![BoxAI Desktop session](/doc-assets/screenshots/clients/desktop-session.en.webp '2. Sign in and start a desktop session')
+## Hoàn thành tác vụ đầu tiên
 
-Lấy bản mới nhất từ trang [Downloads](/downloads) trên you-box.com. Ưu tiên site chính thức thay vì mirror bên thứ ba.
+1. [Cài đặt và mở Desktop](/docs/clients/desktop/install) từ [trang tải chính thức](/agents).
+2. [Đăng nhập bằng tài khoản BoxAI](/docs/clients/desktop/sign-in).
+3. [Chọn mô hình và kiểm tra cách tính phí](/docs/clients/desktop/models-and-billing).
+4. [Mở một dự án nhỏ và tạo phiên làm việc](/docs/clients/desktop/projects-and-sessions). Bắt đầu bằng yêu cầu chỉ đọc, chẳng hạn: “Tóm tắt README của dự án này, không sửa tệp.”
+5. [Xem xét yêu cầu dùng công cụ](/docs/clients/desktop/tool-approvals), rồi kiểm tra câu trả lời và mọi thay đổi trong tệp trước khi tiếp tục.
 
-## macOS
+<!-- Screenshot: /desktop-screenshots/docs/project-session.webp — dự án thử nghiệm và một phiên làm việc thực tế đã hoàn thành. -->
 
-:::steps
+## Trước khi cấp quyền truy cập
 
-1. Mở file `.dmg` đã tải.
-2. Kéo BoxAI Desktop vào Applications.
-3. Mở từ Applications và đăng nhập tài khoản BoxAI trong cửa sổ trình duyệt hiện ra.
-   :::
+Hãy dùng thư mục thử nghiệm cho phiên đầu tiên và sao lưu công việc quan trọng. Trợ lý có thể đọc nội dung dự án, sửa tệp và chạy lệnh khi công cụ và quyền cho phép. Nội dung hội thoại, tệp liên quan và kết quả công cụ có thể được gửi tới mô hình đã chọn; ứng dụng chạy trên máy tính không có nghĩa là mô hình hoạt động ngoại tuyến.
 
-Nếu bản build đã notarize, macOS mở không chặn Gatekeeper. Nếu chưa, mở một lần bằng Control-click → Open.
+Không đưa thông tin bí mật, tài liệu cá nhân hoặc thông tin xác thực của hệ thống đang vận hành vào dự án nếu tác vụ không cần đến chúng hoặc bạn chưa chấp nhận cách dữ liệu được xử lý. Skill, plugin và máy chủ MCP là các khả năng mở rộng của bên thứ ba, không mặc nhiên là dịch vụ đáng tin cậy của BoxAI.
 
-## Windows
+## Tìm hiểu thêm
 
-:::steps
-
-1. Chạy trình cài đã tải.
-2. Hoàn tất wizard cài đặt.
-3. Mở BoxAI Desktop và đăng nhập tài khoản BoxAI khi được nhắc.
-   :::
-
-## Sau khi đăng nhập
-
-- Xác nhận đang kết nối **you-box.com**.
-- Dùng cùng các model mà tài khoản web được phép.
-- Cập nhật app từ trang Downloads.
-
-## Tiếp theo
-
-- [Bắt đầu](/docs/start/getting-started)
-- [Tổng quan API](/docs/api/overview) nếu bạn cũng tích hợp bằng code
+- [Skill, plugin và MCP](/docs/clients/desktop/extensions): thêm khả năng mở rộng với phạm vi phù hợp.
+- [Cập nhật ứng dụng](/docs/clients/desktop/updates): cài phiên bản mới mà không xóa dữ liệu.
+- [Khắc phục sự cố](/docs/clients/desktop/troubleshooting): xử lý lỗi đăng nhập, mô hình, công cụ và khởi động.

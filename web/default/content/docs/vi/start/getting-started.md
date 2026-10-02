@@ -16,6 +16,10 @@ checklist: [Tạo tài khoản, Tạo API key, Chọn model ID, Gửi request th
 - Tài khoản BoxAI tại [you-box.com](https://you-box.com)
 - Đủ hạn mức cho một lần gọi thử (nạp thêm nếu cần — xem [Thanh toán và nạp tiền](/docs/console/billing-topup))
 
+## Muốn dùng trợ lý trên máy tính?
+
+Làm theo hướng dẫn [BoxAI Desktop](/docs/clients/desktop) để cài ứng dụng, cấp quyền cho tài khoản BoxAI, chọn mô hình và bắt đầu dự án với các bước phê duyệt công cụ. Bạn không cần tự dán API key của nhà cung cấp. Các bước API bên dưới dành cho tích hợp bằng mã; [BoxAI Connect](/docs/clients/connect) dành cho các trợ lý lập trình khác được cài riêng.
+
 ## Ba bước lên production
 
 :::steps

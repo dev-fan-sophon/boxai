@@ -28,7 +28,8 @@ class DesktopReleaseTest(unittest.TestCase):
                 filename=artifact.name, sha256=hashlib.sha256(payload).hexdigest(),
                 commit="test-commit", signed=False, installed=True,
                 boot=dict(ok=True, version="0.2.0", appName="BoxAI Desktop", platform=platform,
-                          projectRemove=dict(ok=True), ctrlRBlocked=True))
+                          account=dict(connected=False), providerCount=0, loginGateVisible=True,
+                          ctrlRBlocked=True))
             Path(f"{artifact}.assertion.json").write_text(json.dumps(report))
         Path(f"{self.artifacts[1]}.blockmap").write_bytes(b"block map")
 
@@ -62,6 +63,16 @@ class DesktopReleaseTest(unittest.TestCase):
         self.artifacts[1].unlink()
         with self.assertRaises(FileNotFoundError):
             prepare(self.stage, "0.2.0", "test-commit")
+
+    def test_missing_login_gate_or_inherited_account_fails(self):
+        path = Path(f"{self.artifacts[0]}.assertion.json")
+        original = json.loads(path.read_text())
+        for patch in [dict(account=dict(connected=True)), dict(providerCount=1), dict(loginGateVisible=False)]:
+            with self.subTest(patch=patch):
+                report = {**original, "boot": {**original["boot"], **patch}}
+                path.write_text(json.dumps(report))
+                with self.assertRaisesRegex(ValueError, "boot assertion"):
+                    prepare(self.stage, "0.2.0", "test-commit")
 
     def test_signed_claim_without_notarization_fails(self):
         path = Path(f"{self.artifacts[0]}.assertion.json")
