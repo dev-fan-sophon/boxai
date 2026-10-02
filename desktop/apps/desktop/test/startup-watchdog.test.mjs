@@ -230,7 +230,8 @@ test("the boot surfaces keep the window controls, so a stuck launch is closable"
     shell,
     /\{\(ready && !showSplash\) \|\| startupPhase !== "starting" \? \(\s*<WindowControls \/>/,
   );
-  assert.equal((shell.match(/<WindowControls\s*\/>/g) ?? []).length, 1);
+  // The signed-out account gate owns controls before the authenticated shell mounts.
+  assert.equal((shell.match(/<WindowControls\s*\/>/g) ?? []).length, 2);
   assert.match(css, /\.app-shell:has\(> \.startup-recovery\) > \.window-controls \{\n\s+z-index: 1500;/);
 });
 

@@ -4,6 +4,7 @@ import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { genericModelConfig } from "@pi-desktop/agent-runtime";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createSessionLaunchRuntime } = await import("../electron/main/runtime/session-launch.ts");
 
@@ -21,12 +22,12 @@ test.after(() => {
 
 const shell = { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true };
 const provider = {
-  id: "fixture-provider", vendorKey: "fixture", name: "Fixture", enabled: true,
-  authKind: "none", baseUrl: "http://127.0.0.1:1/v1", apiStyle: "openai-chat",
+  id: "fixture-provider", vendorKey: "boxai", name: "BoxAI", enabled: true,
+  authKind: "oauth", baseUrl: "http://127.0.0.1:1/v1", apiStyle: "chat_completions",
   models: [{ id: "parent", thinkingLevels: ["off"] }],
 };
 
-function launchRuntime() {
+function launchRuntime(session = async () => ({})) {
   return createSessionLaunchRuntime({
     runtimeState: { host: {
       isAvailable: () => true,
@@ -43,7 +44,11 @@ function launchRuntime() {
     } },
     logger: { app() {} }, userMcp: { setRecords() {}, toolsForProject: async () => [] },
     plugins: { listLoaded: () => [], getSkills: () => [], getTools: () => [], getAgentExtensions: () => [] },
-    sessionProjects: new Map(), dataDir: workspace, vendorOAuth: {},
+    sessionProjects: new Map(), dataDir: workspace, vendorOAuth: {
+      client: { session },
+      resolveAuth: async () => ({ apiKey: "fixture" }),
+      bindingFor: async (_provider, id) => ({ modelId: id, apiStyle: "chat_completions", baseUrl: provider.baseUrl, modelConfig: genericModelConfig(id, provider.baseUrl) }),
+    },
     modelsDevCatalog: { configureAccount: () => {}, ensureLoaded: async () => {}, findModel: () => undefined },
     getWorkspacePath: () => workspace, pluginActiveInProject: () => true,
     bindingForModel: (row, id) => row.models.find((m) => m.id === id),
@@ -85,4 +90,15 @@ test("launch discovers project custom system prompt files (issue #542)", async (
   // Deleting the project files reverts the launch to the global-only state.
   rmSync(join(workspace, ".pi"), { recursive: true, force: true });
   assert.deepEqual((await launchParams(runtime)).customSystemPrompt, baseline);
+});
+
+test("launch requires an active BoxAI session even with a saved model", async () => {
+  const runtime = launchRuntime(async () => { throw new Error("Sign in to BoxAI"); });
+  await assert.rejects(launchParams(runtime), /Sign in to BoxAI/);
+});
+
+test("launch rejects a saved non-BoxAI provider", async () => {
+  await assert.rejects(launchRuntime().resolveAgentRuntimeLaunch("session", {
+    providerId: "third-party", modelId: "parent", projectPath: workspace,
+  }, {}), /Only BoxAI models/);
 });

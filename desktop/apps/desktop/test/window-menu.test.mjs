@@ -194,7 +194,8 @@ test("Windows and Linux use menu-free frameless chrome with window controls", ()
   assert.match(controlsSource, /windowControl\("getState"\)/);
   assert.match(controlsSource, /ariaLabel=\{t\("window\.minimize"/);
   assert.match(controlsSource, /ariaLabel=\{t\("window\.close"/);
-  assert.equal((appSource.match(/<WindowControls\s*\/>/g) ?? []).length, 1);
+  // Account gate and authenticated shell each own one mutually exclusive control strip.
+  assert.equal((appSource.match(/<WindowControls\s*\/>/g) ?? []).length, 2);
   // The controls are rendered under the recovery surface too, so a window that
   // never reaches the shell is still closable (issue #831).
   assert.match(

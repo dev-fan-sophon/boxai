@@ -689,6 +689,13 @@ export const api = {
     invoke<{ ok: boolean }>(IPC.invoke.providersReorder, input),
   listProviders: () =>
     invoke<{ providers: ProviderPublic[] }>(IPC.invoke.providersList),
+  boxaiAccount: () => invoke<{
+    connected: boolean;
+    usage?: {
+      account: { username: string; display_name: string };
+      usage: { wallet_quota_remaining: number; lifetime_quota_used: number; lifetime_request_count: number };
+    };
+  }>(IPC.invoke.boxaiAccount),
   createProvider: (input: ProviderCreateInput) =>
     invoke<{ provider: ProviderPublic }>(IPC.invoke.providersCreate, input),
   updateProvider: (input: ProviderUpdateInput) =>

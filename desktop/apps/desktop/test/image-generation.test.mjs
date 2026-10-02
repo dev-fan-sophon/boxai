@@ -40,6 +40,7 @@ test("configure, batch generate, edit a result, replace binding, clear; files su
         return {
           provider: {
             id: "image-provider",
+            vendorKey: "boxai",
             enabled: true,
             authKind: "api_key_and_base_url",
             models: [{ id: "image-one" }, { id: "image-two" }],

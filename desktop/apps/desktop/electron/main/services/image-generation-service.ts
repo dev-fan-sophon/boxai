@@ -46,6 +46,7 @@ export function createImageGenerationTool(options: {
       id: binding.providerId,
     });
     if (
+      provider?.vendorKey !== "boxai" ||
       !provider?.enabled ||
       !provider.baseUrl ||
       !provider.models.some((model) => model.id === binding.modelId)
