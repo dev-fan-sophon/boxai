@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import type { ModelAuth } from "@earendil-works/pi-ai";
 import { capabilitiesFromModelConfig, genericModelConfig, type ModelConfig, type VendorModelBinding } from "@pi-desktop/agent-runtime";
-import { OAUTH_AUTH_KIND, THINKING_LEVELS, type OAuthLoginEvent, type OAuthRespondInput, type OAuthVendor } from "@pi-desktop/shared";
+import { OAUTH_AUTH_KIND, THINKING_LEVELS, type AppSettings, type OAuthLoginEvent, type OAuthRespondInput, type OAuthVendor } from "@pi-desktop/shared";
 import { BOXAI_HEADERS, BoxAISessionClient, type BoxAISession } from "./boxai-session.ts";
 
 export { OAUTH_AUTH_KIND };
@@ -157,5 +157,16 @@ export class VendorOAuth {
       baseUrl: `${this.origin}/v1`, headers: BOXAI_HEADERS, enabled: true,
       models,
       defaultModelId: options[0]?.modelId, apiStyle: "chat_completions" });
+    const settings = await this.deps.call<AppSettings>("settings.get");
+    if (options.length > 0 && (settings.defaultProviderId !== provider.id ||
+        !options.some(option => option.modelId === settings.defaultModelId))) {
+      // This order is only a first-choice heuristic, not a live availability check.
+      // Preserve valid user choices; avoid alphabetical defaults on unavailable GPT routes.
+      const defaultModelId = ["grok-4.6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+        .find(id => options.some(option => option.modelId === id)) ??
+        options.find(option => !/(^|\/)(gpt-|o\d)|preview|experimental|image/i.test(option.modelId))?.modelId;
+      if (defaultModelId) await this.deps.call("settings.set", { ...settings,
+        defaultProviderId: provider.id, defaultModelId });
+    }
   }
 }

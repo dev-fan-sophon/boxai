@@ -13,22 +13,22 @@ const listSource = await readComposerModule("ComposerModelList.tsx");
 const composerSource = `${modelMenuSource}\n${pickerSource}\n${sliderSource}\n${listSource}`;
 const stylesSource = await loadStyles();
 
-test("Composer uses one model popover with a root and one in-place submenu", () => {
-  assert.match(composerSource, /useState<ComposerMenuView>\("root"\)/);
+test("Composer opens directly to models without an intermediate submenu", () => {
+  assert.match(composerSource, /useState<ComposerMenuView>\("model"\)/);
   assert.match(composerSource, /showView\("model"\)/);
   // The reasoning level is the slider itself: no second submenu to enter.
   assert.doesNotMatch(composerSource, /showView\("thinking"\)/);
   assert.match(composerSource, /menuClassName="composer-model-menu composer-model-thinking-menu"/);
-  assert.match(composerSource, /role="menuitem"[\s\S]*?aria-haspopup="menu"/);
-  assert.match(composerSource, /className="composer-menu-back"/);
-  assert.match(composerSource, /IconChevronLeft/);
+  assert.doesNotMatch(pickerSource, /className="composer-menu-back"/);
+  assert.doesNotMatch(pickerSource, /showView\("root"\)/);
+  assert.match(pickerSource, /<ComposerModelList/);
   assert.doesNotMatch(composerSource, /className="composer-thinking"/);
   assert.doesNotMatch(composerSource, /className={`icon-btn mode-chip thinking-chip/);
 });
 
-test("model selection returns to the root without closing", () => {
+test("model selection closes the picker after configuration succeeds", () => {
   assert.match(composerSource, /await configureActiveSession\(\{[\s\S]*?thinkingLevel: nextThinkingLevel/);
-  assert.match(composerSource, /setQuery\(""\);[\s\S]*?setView\("root"\)/);
+  assert.match(composerSource, /setQuery\(""\);\s*setOpen\(false\)/);
   assert.match(composerSource, /const thinkingMenuLevels = sessionThinkingMenuLevels\(availableThinkingLevels\)/);
 });
 test("switching models adopts the target default without resetting same-model overrides", () => {
@@ -107,7 +107,7 @@ test("the combined chip and menu meet the compact accessible visual contract", (
   assert.match(composerSource, /role="menuitemradio"/);
   assert.match(composerSource, /aria-checked=\{active\}/);
   assert.doesNotMatch(composerSource, /aria-checked=\{thinkingLevel === level\}/);
-  assert.match(composerSource, /event\.key === "ArrowLeft"/);
+  assert.doesNotMatch(composerSource, /event\.key === "ArrowLeft"/);
   assert.match(composerSource, /event\.key === "Escape"/);
   assert.match(stylesSource, /\.composer-model-thinking-menu\s*\{[\s\S]*?position:\s*fixed;/);
   assert.match(stylesSource, /\.composer-model-thinking-menu\s*\{[\s\S]*?top:\s*0;/);
