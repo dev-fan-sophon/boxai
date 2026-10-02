@@ -3,25 +3,19 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { ArrowRight, Check, Code2, Sparkles } from '@/components/icons'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  CLIENT_APPS,
-  UPCOMING_CLIENT_APPS,
-} from '@/features/client-apps/constants'
+import { ArrowRight, Check } from '@/components/icons'
+import { CLIENT_APPS } from '@/features/client-apps/constants'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import { detectPlatform, primaryDownload } from '@/features/downloads/release'
 import {
   useAppRelease,
   type ClientAppId,
 } from '@/features/downloads/use-app-release'
-import { cn } from '@/lib/utils'
 
 import { MarketingSection, SectionIntro } from '../marketing'
 
 /**
- * Shared card frame for the three apps. `mt-auto` on the action row is what
+ * Shared card frame for the apps. `mt-auto` on the action row is what
  * keeps the download buttons on one baseline: the taglines run to different
  * line counts once translated, and without it each card's button floats to
  * wherever its own text ended.
@@ -31,32 +25,19 @@ function AppCard(props: {
   name: string
   tagline: string
   highlights: readonly string[]
-  badge?: ReactNode
   action: ReactNode
-  learnMore?: ReactNode
-  note?: string
+  learnMore: ReactNode
   delay: number
-  muted?: boolean
 }) {
   return (
     <AnimateInView delay={props.delay} className='h-full'>
-      <article
-        className={cn(
-          'bg-card flex h-full flex-col rounded-2xl border p-6 md:p-7',
-          props.muted
-            ? 'border-border/70 bg-card/50 border-dashed'
-            : 'border-border/60 hover:border-border hover:shadow-raised transition-ui duration-control shadow-xs'
-        )}
-      >
+      <article className='bg-card border-border/60 hover:border-border hover:shadow-raised transition-ui duration-control flex h-full flex-col rounded-2xl border p-6 shadow-xs md:p-7'>
         <div className='flex items-start gap-4'>
           {props.mark}
           <div className='min-w-0'>
-            <div className='flex flex-wrap items-center gap-2'>
-              <h3 className='text-lg font-semibold tracking-tight'>
-                {props.name}
-              </h3>
-              {props.badge}
-            </div>
+            <h3 className='text-lg font-semibold tracking-tight'>
+              {props.name}
+            </h3>
             <p className='text-muted-foreground mt-1 text-sm leading-relaxed text-pretty'>
               {props.tagline}
             </p>
@@ -67,10 +48,7 @@ function AppCard(props: {
           {props.highlights.map((highlight) => (
             <li key={highlight} className='flex items-start gap-2.5'>
               <Check
-                className={cn(
-                  'mt-0.5 size-4 shrink-0',
-                  props.muted ? 'text-muted-foreground/60' : 'text-primary'
-                )}
+                className='text-primary mt-0.5 size-4 shrink-0'
                 strokeWidth={2}
                 aria-hidden='true'
               />
@@ -82,13 +60,10 @@ function AppCard(props: {
         </ul>
 
         <div className='mt-auto pt-6'>
-          {props.note && (
-            <p className='text-muted-foreground mb-3 text-xs'>{props.note}</p>
-          )}
           <div className='flex flex-wrap items-center gap-2'>
             {props.action}
           </div>
-          {props.learnMore && <div className='mt-4'>{props.learnMore}</div>}
+          <div className='mt-4'>{props.learnMore}</div>
         </div>
       </article>
     </AnimateInView>
@@ -145,41 +120,6 @@ function ClientAppShowcase(props: { app: ClientAppId; delay: number }) {
   )
 }
 
-function UpcomingAppShowcase(props: { delay: number }) {
-  const { t } = useTranslation()
-  const app = UPCOMING_CLIENT_APPS[0]
-
-  return (
-    <AppCard
-      muted
-      delay={props.delay}
-      name={t(app.nameKey)}
-      tagline={t(app.taglineKey)}
-      highlights={app.highlightKeys.map((key) => t(key))}
-      badge={
-        <Badge variant='outline' className='gap-1'>
-          <Sparkles className='size-3' aria-hidden='true' />
-          {t('Coming soon')}
-        </Badge>
-      }
-      mark={
-        <span
-          aria-hidden='true'
-          className='from-chart-4/25 to-chart-1/25 text-foreground/70 ring-border/40 flex size-12 shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br shadow-xs ring-1'
-        >
-          <Code2 className='size-6' strokeWidth={1.5} />
-        </span>
-      }
-      note={t('Announced here the day it ships.')}
-      action={
-        <Button variant='secondary' size='lg' disabled aria-disabled='true'>
-          {t('In development')}
-        </Button>
-      }
-    />
-  )
-}
-
 /**
  * The BoxAI apps that run on the visitor's own machine: what each one is for,
  * and a download for their platform straight from the release manifest.
@@ -191,16 +131,15 @@ export function ClientApps() {
     <MarketingSection label={t('Desktop apps')}>
       <SectionIntro
         eyebrow={t('Desktop apps')}
-        title={t('Three apps that put BoxAI on your own machine')}
+        title={t('Two apps that put BoxAI on your own machine')}
         description={t(
-          'One for your coding tools, one for the office work, and one for the codebase itself. All of them sign in with the account you already have.'
+          'Connect plugs your existing coding tools into BoxAI. Desktop is a full agent workspace of its own. Both sign in with the account you already have.'
         )}
       />
 
-      <div className='grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3'>
-        <ClientAppShowcase app='connect' delay={100} />
-        <ClientAppShowcase app='desktop' delay={160} />
-        <UpcomingAppShowcase delay={220} />
+      <div className='mx-auto grid max-w-4xl items-stretch gap-4 md:grid-cols-2'>
+        <ClientAppShowcase app='desktop' delay={100} />
+        <ClientAppShowcase app='connect' delay={160} />
       </div>
     </MarketingSection>
   )
