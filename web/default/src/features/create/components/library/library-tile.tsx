@@ -37,9 +37,11 @@ export function LibraryTile(props: {
   const download = (src: string, kind: 'image' | 'video' | 'audio') => {
     const extension = { image: 'png', video: 'mp4', audio: 'mp3' }[kind]
     setDownloading(true)
-    void downloadGeneratedMedia(src, `boxai-${run.id}.${extension}`, kind).finally(
-      () => setDownloading(false)
-    )
+    void downloadGeneratedMedia(
+      src,
+      `boxai-${run.id}.${extension}`,
+      kind
+    ).finally(() => setDownloading(false))
   }
 
   let media: React.ReactNode = null
@@ -55,7 +57,7 @@ export function LibraryTile(props: {
           src={persistedUrl}
           alt={run.prompt}
           loading='lazy'
-          className='bg-muted aspect-square w-full object-cover transition-transform duration-page group-hover:scale-[1.03]'
+          className='bg-muted duration-page aspect-square w-full object-cover transition-transform group-hover:scale-[1.03]'
         />
       </button>
     ) : (
@@ -116,7 +118,10 @@ export function LibraryTile(props: {
               disabled={downloading}
               aria-label={t('Download')}
               onClick={() =>
-                download(persistedUrl, run.modality === 'audio' ? 'audio' : 'image')
+                download(
+                  persistedUrl,
+                  run.modality === 'audio' ? 'audio' : 'image'
+                )
               }
             >
               <Download className='size-3.5' />

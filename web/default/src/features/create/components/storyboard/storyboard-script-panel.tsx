@@ -88,7 +88,9 @@ export function StoryboardScriptPanel(props: {
               onChange={(event) => setStoryboardModel(event.target.value)}
             >
               {props.chatModels.length === 0 && (
-                <NativeSelectOption value=''>{t('No chat models')}</NativeSelectOption>
+                <NativeSelectOption value=''>
+                  {t('No chat models')}
+                </NativeSelectOption>
               )}
               {props.chatModels.map((model) => (
                 <NativeSelectOption key={model} value={model}>
@@ -113,11 +115,17 @@ export function StoryboardScriptPanel(props: {
         <Button
           variant='secondary'
           className='w-full gap-1.5'
-          disabled={!draft.script.trim() || !storyboardModel || storyboard.split.isPending}
+          disabled={
+            !draft.script.trim() ||
+            !storyboardModel ||
+            storyboard.split.isPending
+          }
           onClick={() => storyboard.split.mutate()}
         >
           <Wand2
-            className={storyboard.split.isPending ? 'size-4 animate-pulse' : 'size-4'}
+            className={
+              storyboard.split.isPending ? 'size-4 animate-pulse' : 'size-4'
+            }
             aria-hidden='true'
           />
           {storyboard.split.isPending

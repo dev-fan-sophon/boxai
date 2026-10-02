@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
-
 import {
   deletePlaygroundAsset,
   listPlaygroundAssets,

@@ -5,12 +5,12 @@ import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
-import { bareModelId } from '@/features/playground/lib/studio/image-request-schema'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { StudioSettings } from '@/features/playground/types'
 
-import type { GenerationDraft } from '../../hooks/use-generation-draft'
 import type { CreateTool } from '../../constants'
-import { ModeSwitch } from '../panel/mode-switch'
+import type { GenerationDraft } from '../../hooks/use-generation-draft'
+import { buildApiRequest } from '../../lib/api-request'
 
 type SnippetLanguage = 'curl' | 'python' | 'node'
 
@@ -25,54 +25,6 @@ function serverAddress(): string {
   return window.location.origin
 }
 
-/** The public API request equivalent to the run the panel would start. */
-export function buildApiRequest(input: {
-  modality: CreateTool
-  model: string
-  prompt: string
-  settings: StudioSettings
-  draft: Pick<GenerationDraft, 'videoOptions' | 'estimateParams'>
-}): { path: string; body: Record<string, unknown> } {
-  const prompt = input.prompt.trim() || 'A lighthouse on a cliff at sunrise'
-  if (input.modality === 'image') {
-    return {
-      path: '/v1/images/generations',
-      body: {
-        model: bareModelId(input.model) || input.model,
-        prompt,
-        n: input.settings.imageCount,
-        size: input.settings.imageSize,
-        quality: input.settings.imageQuality,
-      },
-    }
-  }
-  if (input.modality === 'video') {
-    const duration =
-      input.draft.videoOptions?.duration ?? input.settings.videoDuration
-    return {
-      path: '/v1/video/generations',
-      body: {
-        model: input.model,
-        prompt,
-        duration,
-        ...(input.draft.estimateParams.size
-          ? { size: input.draft.estimateParams.size }
-          : {}),
-      },
-    }
-  }
-  return {
-    path: '/v1/audio/speech',
-    body: {
-      model: input.model,
-      input: prompt,
-      voice: input.settings.voice,
-      speed: input.settings.speed,
-      response_format: input.settings.audioFormat,
-    },
-  }
-}
-
 function renderSnippet(
   language: SnippetLanguage,
   url: string,
@@ -85,7 +37,7 @@ function renderSnippet(
       `curl ${url} \\`,
       `  -H "Authorization: Bearer $BOXAI_API_KEY" \\`,
       `  -H "Content-Type: application/json" \\`,
-      `  -d '${json.replace(/'/g, "'\\''")}'${binaryOutput ? ' \\\n  --output speech.mp3' : ''}`,
+      `  -d '${json.replaceAll("'", "'\\''")}'${binaryOutput ? ' \\\n  --output speech.mp3' : ''}`,
     ].join('\n')
   }
   if (language === 'python') {
@@ -96,7 +48,7 @@ function renderSnippet(
       'response = requests.post(',
       `    "${url}",`,
       '    headers={"Authorization": f"Bearer {os.environ[\'BOXAI_API_KEY\']}"},',
-      `    json=${json.replace(/\n/g, '\n    ').replace(/true/g, 'True').replace(/false/g, 'False')},`,
+      `    json=${json.replaceAll('\n', '\n    ').replaceAll('true', 'True').replaceAll('false', 'False')},`,
       ')',
       binaryOutput
         ? 'open("speech.mp3", "wb").write(response.content)'
@@ -110,7 +62,7 @@ function renderSnippet(
     '    Authorization: `Bearer ${process.env.BOXAI_API_KEY}`,',
     "    'Content-Type': 'application/json',",
     '  },',
-    `  body: JSON.stringify(${json.replace(/\n/g, '\n  ')}),`,
+    `  body: JSON.stringify(${json.replaceAll('\n', '\n  ')}),`,
     '})',
     binaryOutput
       ? "await fs.promises.writeFile('speech.mp3', Buffer.from(await response.arrayBuffer()))"
@@ -163,10 +115,10 @@ export function ApiSnippetPanel(props: {
           {t('Get an API key')}
         </Button>
       </div>
-      <ModeSwitch<SnippetLanguage>
-        ariaLabel={t('Language')}
+      <SegmentedControl<SnippetLanguage>
+        aria-label={t('Language')}
         value={language}
-        onChange={setLanguage}
+        onValueChange={setLanguage}
         options={[
           { value: 'curl', label: 'cURL' },
           { value: 'python', label: 'Python' },

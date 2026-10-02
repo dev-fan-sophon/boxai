@@ -12,8 +12,11 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { usePlaygroundStore } from '@/stores/playground-store'
-
+import {
+  AspectGlyph,
+  ParamChip,
+  TogglePill,
+} from '@/features/playground/components/composer/param-chip'
 import {
   getVideoCapabilityMode,
   useVideoCapabilities,
@@ -38,8 +41,11 @@ import {
   videoResolutionsForRatio,
   type VideoAspectRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
-import type { StudioModality, StudioSettings } from '@/features/playground/types'
-import { AspectGlyph, ParamChip, TogglePill } from '@/features/playground/components/composer/param-chip'
+import type {
+  StudioModality,
+  StudioSettings,
+} from '@/features/playground/types'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 function imageSizeChipLabel(
   size: GptImageSize,

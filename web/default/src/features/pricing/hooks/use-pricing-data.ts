@@ -11,7 +11,9 @@ export function usePricingData(source: PricingDataSource = 'pricing') {
     queryKey: ['pricing', source],
     queryFn: () => {
       if (source === 'playground') return getPlaygroundCatalog()
-      if (source === 'create') return getPlaygroundCatalog('/api/create/catalog')
+      if (source === 'create') {
+        return getPlaygroundCatalog('/api/create/catalog')
+      }
       return getPricing()
     },
     staleTime: 5 * 60 * 1000,

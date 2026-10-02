@@ -18,8 +18,11 @@ export function StudioProvider(props: { children: React.ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStudioContext(): UseStudioResult {
   const studio = useContext(StudioContext)
-  if (!studio) throw new Error('useStudioContext must be used in StudioProvider')
+  if (!studio) {
+    throw new Error('useStudioContext must be used in StudioProvider')
+  }
   return studio
 }

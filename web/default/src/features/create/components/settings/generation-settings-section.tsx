@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
-import { usePlaygroundStore } from '@/stores/playground-store'
-
 import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'
 import { BATCH_COUNTS } from '@/features/playground/lib/studio/batch-plan'
 import {
@@ -28,7 +26,11 @@ import {
   videoResolutionsForRatio,
   type VideoAspectRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
-import type { StudioModality, StudioSettings } from '@/features/playground/types'
+import type {
+  StudioModality,
+  StudioSettings,
+} from '@/features/playground/types'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 /**
  * Generation parameters for the active non-chat modality.

@@ -12,6 +12,7 @@ import { memo, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
+import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { cn } from '@/lib/utils'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
@@ -112,6 +113,19 @@ function collectMetaChips(
     chips.push({ key: 'video', icon: Film, label: t('Video') })
   }
   return chips.slice(0, MAX_META_CHIPS)
+}
+
+/** Chat models open in the playground; media models in their creation tool. */
+function tryLinkFor(model: PricingModel) {
+  const modality = getModelModality(model)
+  if (modality === 'chat') {
+    return { to: '/playground', search: { model: model.model_name } } as const
+  }
+  return {
+    to: '/create/$tool',
+    params: { tool: modality },
+    search: { model: model.model_name },
+  } as const
 }
 
 /**
@@ -369,8 +383,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         {canTry && (
           <div className='mt-2.5 flex'>
             <Link
-              to='/playground'
-              search={{ model: props.model.model_name }}
+              {...tryLinkFor(props.model)}
               onClick={(event) => event.stopPropagation()}
               className='text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors'
             >

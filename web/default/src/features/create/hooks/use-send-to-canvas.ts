@@ -4,14 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { CANVAS_PROJECTS_QUERY_KEY } from '@/features/inspiration/constants'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import { persistedStudioResultUrl } from '@/features/playground/lib/studio/studio-selection'
 import { createCanvasProject } from '@/features/workbench/api'
 import {
   canvasDocumentFromImages,
   type CanvasImageSource,
 } from '@/features/workbench/engine/canvas-image-document'
-
-import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
-import { persistedStudioResultUrl } from '@/features/playground/lib/studio/studio-selection'
 
 /** Give up measuring a slow image and let the canvas use its default size. */
 const MEASURE_TIMEOUT_MS = 4000

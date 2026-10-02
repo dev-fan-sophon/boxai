@@ -4,7 +4,9 @@ import type { useWorkspaceBootstrap } from '@/features/playground/hooks/use-work
 
 export type CreateWorkspace = ReturnType<typeof useWorkspaceBootstrap>
 
-export const CreateWorkspaceContext = createContext<CreateWorkspace | null>(null)
+export const CreateWorkspaceContext = createContext<CreateWorkspace | null>(
+  null
+)
 
 /** Account scope, catalog and auth gate shared by every studio page. */
 export function useCreateWorkspace(): CreateWorkspace {

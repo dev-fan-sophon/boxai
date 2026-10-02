@@ -8,11 +8,10 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import type { StudioModality } from '@/features/playground/types'
 import type { PricingModel } from '@/features/pricing/types'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-
-import type { StudioModality } from '@/features/playground/types'
 
 type ModelHeroProps = {
   model?: PricingModel

@@ -10,23 +10,23 @@ import {
 } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import type { PricingModel } from '@/features/pricing/types'
 import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
+import type { PricingModel } from '@/features/pricing/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import type { GenerationController } from '../../hooks/use-generation-controller'
 import {
   useBalanceShortfall,
   useCostEstimate,
 } from '../../hooks/use-cost-estimate'
-import { referenceRoleLabeler } from '../composer/generation-composer'
+import type { GenerationController } from '../../hooks/use-generation-controller'
+import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationSettingsSection } from '../settings/generation-settings-section'
-import { ModeSwitch } from './mode-switch'
 import { PanelSection } from './panel-section'
 
 /**
@@ -40,6 +40,8 @@ export function ControlPanel(props: {
   pricingModel?: PricingModel
   modelPicker: React.ReactNode
   modeSwitch?: React.ReactNode
+  /** Called after Generate queued work, e.g. to close the mobile sheet. */
+  onGenerated?: () => void
   /**
    * Storyboard mode swaps the prompt and references for the script panel and
    * turns Generate into "generate the selected scenes".
@@ -73,7 +75,7 @@ export function ControlPanel(props: {
           <CollapsibleTrigger className='text-muted-foreground hover:text-foreground group text-2xs flex w-full items-center justify-between py-1 font-semibold tracking-wide uppercase'>
             {t('Parameters')}
             <ChevronDown
-              className='size-3.5 transition-transform duration-control group-data-[panel-open]:rotate-180'
+              className='duration-control size-3.5 transition-transform group-data-[panel-open]:rotate-180'
               aria-hidden='true'
             />
           </CollapsibleTrigger>
@@ -96,7 +98,10 @@ export function ControlPanel(props: {
             count: props.storyboard.sceneCount,
           })}
           disabled={props.storyboard.sceneCount === 0}
-          onGenerate={props.storyboard.onGenerate}
+          onGenerate={() => {
+            props.storyboard?.onGenerate()
+            props.onGenerated?.()
+          }}
           estimateOverride={{ n: Math.max(1, props.storyboard.sceneCount) }}
         />
       ) : (
@@ -106,7 +111,10 @@ export function ControlPanel(props: {
           label={draft.submitLabel}
           disabled={!draft.canSubmit}
           issue={draft.videoIssue}
-          onGenerate={controller.submit}
+          onGenerate={() => {
+            controller.submit()
+            props.onGenerated?.()
+          }}
         />
       )}
     </div>
@@ -181,14 +189,16 @@ function PromptAndReferences(props: { controller: GenerationController }) {
             roleForIndex={referenceRoleLabeler(draft, t)}
           />
           {draft.canSwitchReferenceMode && (
-            <ModeSwitch<VideoReferenceMode>
-              ariaLabel={t('Reference mode')}
+            <SegmentedControl<VideoReferenceMode>
+              fullWidth
+              size='sm'
+              aria-label={t('Reference mode')}
               value={draft.videoOptions?.referenceMode ?? 'frames'}
               options={[
                 { value: 'frames', label: t('Frames') },
                 { value: 'references', label: t('References') },
               ]}
-              onChange={(mode) =>
+              onValueChange={(mode) =>
                 setStudioSettings((prev) => ({
                   ...prev,
                   videoReferenceMode: mode,
@@ -250,7 +260,10 @@ export function GenerateFooter(props: {
           role='alert'
           className='border-destructive/30 bg-destructive/5 text-destructive flex items-start gap-2 rounded-lg border px-2.5 py-2 text-xs'
         >
-          <AlertTriangle className='mt-px size-3.5 shrink-0' aria-hidden='true' />
+          <AlertTriangle
+            className='mt-px size-3.5 shrink-0'
+            aria-hidden='true'
+          />
           <span className='min-w-0 flex-1'>
             {t('Your balance does not cover this run.')}{' '}
             <Link to='/billing' className='font-semibold underline'>

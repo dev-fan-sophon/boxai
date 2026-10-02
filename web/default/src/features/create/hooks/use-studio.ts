@@ -2,8 +2,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { usePlaygroundStore } from '@/stores/playground-store'
-
 import {
   createPlaygroundRun,
   generateImages,
@@ -11,6 +9,14 @@ import {
   getVideoCapabilities,
   submitVideo,
 } from '@/features/playground/api'
+import {
+  ensureActiveStudioProjectId,
+  recordActiveStudioRun,
+} from '@/features/playground/hooks/use-session-cloud-sync'
+import {
+  getVideoCapabilityMode,
+  type VideoCapabilities,
+} from '@/features/playground/hooks/use-video-capabilities'
 import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
@@ -21,14 +27,7 @@ import {
 } from '@/features/playground/lib/studio/studio-feed'
 import { buildPlaygroundVideoSubmitInput } from '@/features/playground/lib/studio/video-submit'
 import type { StudioSettings } from '@/features/playground/types'
-import {
-  ensureActiveStudioProjectId,
-  recordActiveStudioRun,
-} from '@/features/playground/hooks/use-session-cloud-sync'
-import {
-  getVideoCapabilityMode,
-  type VideoCapabilities,
-} from '@/features/playground/hooks/use-video-capabilities'
+import { usePlaygroundStore } from '@/stores/playground-store'
 
 /**
  * Batch generation engine for the studio modalities. A submit becomes a batch

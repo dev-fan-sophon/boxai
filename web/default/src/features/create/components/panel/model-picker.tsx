@@ -16,10 +16,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
-import { compareVendorNames } from '@/features/pricing/lib/model-helpers'
-import type { PricingModel } from '@/features/pricing/types'
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
+import { compareVendorNames } from '@/features/pricing/lib/model-helpers'
+import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
@@ -66,7 +66,9 @@ export function ModelPicker(props: ModelPickerProps) {
   const modelCount = groups.reduce((sum, group) => sum + group.models.length, 0)
 
   if (props.loading && modelCount === 0) {
-    return <Skeleton className={cn('h-12 w-full rounded-xl', props.className)} />
+    return (
+      <Skeleton className={cn('h-12 w-full rounded-xl', props.className)} />
+    )
   }
 
   return (
@@ -135,7 +137,10 @@ export function ModelPicker(props: ModelPickerProps) {
                       {model.model_name}
                     </span>
                     {model.model_name === props.value && (
-                      <Check className='text-primary size-4' aria-hidden='true' />
+                      <Check
+                        className='text-primary size-4'
+                        aria-hidden='true'
+                      />
                     )}
                   </CommandItem>
                 ))}

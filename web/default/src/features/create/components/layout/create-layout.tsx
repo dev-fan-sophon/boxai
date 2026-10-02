@@ -21,7 +21,9 @@ import '@/features/playground/styles/playground.css'
  */
 export function CreateLayout(props: { children: React.ReactNode }) {
   const workspace = useWorkspaceBootstrap({ surface: 'create' })
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
   return (
     <CreateWorkspaceContext.Provider value={workspace}>
@@ -50,7 +52,8 @@ function CreateNav(props: { pathname: string }) {
         className='flex min-w-0 [scrollbar-width:none] items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden'
       >
         {CREATE_NAV.map((item) => {
-          const href = item.id === 'library' ? '/create/library' : `/create/${item.id}`
+          const href =
+            item.id === 'library' ? '/create/library' : `/create/${item.id}`
           const active = props.pathname.startsWith(href)
           const Icon = item.Icon
           return (
@@ -105,7 +108,10 @@ function QueueIndicator() {
     >
       {active.length > 0 && (
         <>
-          <Loader2 className='text-primary size-3.5 animate-spin' aria-hidden='true' />
+          <Loader2
+            className='text-primary size-3.5 animate-spin'
+            aria-hidden='true'
+          />
           {t('{{count}} generating', { count: active.length })}
         </>
       )}

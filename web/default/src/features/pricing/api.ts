@@ -15,7 +15,9 @@ export async function getPricing(): Promise<PricingData> {
 }
 
 export async function getPlaygroundCatalog(
-  path: '/api/playground/catalog' | '/api/create/catalog' = '/api/playground/catalog'
+  path:
+    | '/api/playground/catalog'
+    | '/api/create/catalog' = '/api/playground/catalog'
 ): Promise<PricingData> {
   try {
     const res = await api.get(path)

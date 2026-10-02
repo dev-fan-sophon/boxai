@@ -23,9 +23,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
-import { usePlaygroundStore } from '@/stores/playground-store'
-
+import {
+  MediaLightbox,
+  type LightboxItem,
+} from '@/features/playground/components/media/media-lightbox'
 import { videoTaskQueryOptions } from '@/features/playground/hooks/use-video-task-result'
 import {
   downloadGeneratedMedia,
@@ -44,7 +45,9 @@ import {
   toggleStudioSelectionGroup,
   type StudioSelection,
 } from '@/features/playground/lib/studio/studio-selection'
-import { MediaLightbox, type LightboxItem } from '@/features/playground/components/media/media-lightbox'
+import { cn } from '@/lib/utils'
+import { usePlaygroundStore } from '@/stores/playground-store'
+
 import { StudioSelectionBar } from './studio-selection-bar'
 import {
   AudioResultRow,

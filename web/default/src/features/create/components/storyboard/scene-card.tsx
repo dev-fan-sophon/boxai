@@ -1,4 +1,10 @@
-import { ArrowDown, ArrowUp, Clapperboard, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  Clapperboard,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

@@ -283,6 +283,7 @@ const PRIVATE_PREFIXES = [
   '/otp',
   '/share',
   '/playground',
+  '/create',
   '/inspiration',
   '/agents',
   '/dashboard',

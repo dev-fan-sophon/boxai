@@ -1,16 +1,19 @@
 import { Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import type { PlaygroundEstimateResult } from '@/features/playground/api'
+import {
+  buildPriceHint,
+  type PriceHint,
+} from '@/features/playground/lib/workbench/price-hint'
 import type { PricingModel } from '@/features/pricing/types'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
-import type { PlaygroundEstimateResult } from '@/features/playground/api'
 import {
   useCostEstimate,
   type CostEstimateParams,
 } from '../../hooks/use-cost-estimate'
-import { buildPriceHint, type PriceHint } from '@/features/playground/lib/workbench/price-hint'
 
 type PriceHintBadgeProps = {
   model?: PricingModel

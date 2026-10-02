@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- test fixture entry */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import i18next from 'i18next'
 import { flushSync } from 'react-dom'
@@ -5,18 +6,19 @@ import { createRoot } from 'react-dom/client'
 import { initReactI18next } from 'react-i18next'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { GenerationComposer } from './components/composer/generation-composer'
+import { StudioFeed } from './components/feed/studio-feed'
 import {
   MediaReferenceSlot,
   type MediaReference,
 } from './components/references/media-reference-slot'
-import { GenerationComposer } from './components/composer/generation-composer'
-import { StudioFeed } from './components/feed/studio-feed'
 import { useGenerationController } from './hooks/use-generation-controller'
 import { useGenerationDraft } from './hooks/use-generation-draft'
 import { useStudio } from './hooks/use-studio'
-import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 
 // Real components and HTTP calls; only the test's network routes supply data.
 await i18next
@@ -77,6 +79,8 @@ declare global {
 }
 
 window.referenceChanges = []
+// Video capabilities are a signed-in endpoint; the fixture plays a user.
+useAuthStore.getState().auth.setUser({ id: 1, username: 'fixture', role: 1 })
 window.renderLifecycleFixture = (state) => {
   if (state.videoComposer) {
     usePlaygroundStore.setState((current) => ({

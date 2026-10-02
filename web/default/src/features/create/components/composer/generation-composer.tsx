@@ -1,15 +1,15 @@
 import { Layers } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import type { PricingModel } from '@/features/pricing/types'
 import { ComposerShell } from '@/features/playground/components/composer/composer'
 import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
+import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { GenerationController } from '../../hooks/use-generation-controller'
-import type { GenerationDraft } from '../../hooks/use-generation-draft'
+import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationParamChips } from './generation-param-chips'
 import { PriceHintBadge } from './price-hint'
@@ -164,20 +164,4 @@ export function GenerationComposer(props: GenerationComposerProps) {
       />
     </div>
   )
-}
-
-/** Badge drawn on each reference thumbnail: frame role or reference index. */
-export function referenceRoleLabeler(
-  draft: GenerationDraft,
-  t: (key: string) => string
-): ((index: number) => string) | undefined {
-  if (draft.estimateParams.modality !== 'video') return undefined
-  return (index) => {
-    if (draft.videoOptions?.referenceMode === 'references') {
-      return `${index + 1}`
-    }
-    if (index === 0) return t('First')
-    if (index === 1 && draft.usesLastFrame) return t('Last')
-    return '—'
-  }
 }

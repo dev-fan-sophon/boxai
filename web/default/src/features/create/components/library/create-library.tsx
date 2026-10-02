@@ -6,34 +6,24 @@ import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { listPlaygroundTasks, type PlaygroundRun } from '@/features/playground/api'
+import {
+  listPlaygroundTasks,
+  type PlaygroundRun,
+} from '@/features/playground/api'
 import { MediaLightbox } from '@/features/playground/components/media/media-lightbox'
-import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import { persistedStudioResultUrl } from '@/features/playground/lib/studio/studio-selection'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { isCreateTool, type CreateTool } from '../../constants'
 import { useCreateWorkspace } from '../../context/workspace-context'
-import { ModeSwitch } from '../panel/mode-switch'
+import { runToSummary } from '../../lib/runs'
 import { LibraryTile } from './library-tile'
 
 type LibraryFilter = 'all' | CreateTool
 
 const PAGE_SIZE = 30
-
-export function runToSummary(run: PlaygroundRun): StudioRunSummary {
-  return {
-    id: run.id,
-    model: run.model,
-    prompt: run.prompt,
-    resultUrl: run.result_url || undefined,
-    assetId: run.asset_id || undefined,
-    taskId: run.task_id || undefined,
-    batchId: run.batch_id || undefined,
-    createdAt: run.created_at ? run.created_at * 1000 : undefined,
-  }
-}
 
 /**
  * Every result the user generated in the studio, newest first, across
@@ -58,7 +48,9 @@ export function CreateLibrary() {
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) =>
-      pages.length * PAGE_SIZE < lastPage.runTotal ? pages.length + 1 : undefined,
+      pages.length * PAGE_SIZE < lastPage.runTotal
+        ? pages.length + 1
+        : undefined,
     enabled: workspace.isAuthenticated,
   })
 
@@ -75,7 +67,17 @@ export function CreateLibrary() {
         if (run.modality !== 'image') return []
         const url = persistedStudioResultUrl(runToSummary(run))
         return url
-          ? [{ run, item: { url, alt: run.prompt, caption: run.prompt, assetId: run.asset_id } }]
+          ? [
+              {
+                run,
+                item: {
+                  url,
+                  alt: run.prompt,
+                  caption: run.prompt,
+                  assetId: run.asset_id,
+                },
+              },
+            ]
           : []
       }),
     [runs]
@@ -88,7 +90,10 @@ export function CreateLibrary() {
     if (!node || !hasNextPage) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting) && !isFetchingNextPage) {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !isFetchingNextPage
+        ) {
           void fetchNextPage()
         }
       },
@@ -131,7 +136,9 @@ export function CreateLibrary() {
       <EmptyState
         icon={FolderOpen}
         title={t('Nothing here yet')}
-        description={t('Results you generate in Image, Video and Audio appear here.')}
+        description={t(
+          'Results you generate in Image, Video and Audio appear here.'
+        )}
         action={
           <Button
             onClick={() =>
@@ -153,7 +160,9 @@ export function CreateLibrary() {
               run={run}
               summary={runToSummary(run)}
               onOpen={() =>
-                setLightboxIndex(images.findIndex((image) => image.run.id === run.id))
+                setLightboxIndex(
+                  images.findIndex((image) => image.run.id === run.id)
+                )
               }
               onReuse={() => reuse(run)}
             />
@@ -183,17 +192,18 @@ export function CreateLibrary() {
                 : t('Everything you have created')}
             </p>
           </div>
-          <ModeSwitch<LibraryFilter>
-            ariaLabel={t('Filter by type')}
+          <SegmentedControl<LibraryFilter>
+            aria-label={t('Filter by type')}
             value={filter}
-            onChange={setFilter}
+            onValueChange={setFilter}
             options={[
               { value: 'all', label: t('All') },
               { value: 'image', label: t('Image') },
               { value: 'video', label: t('Video') },
               { value: 'audio', label: t('Audio') },
             ]}
-            className='w-full sm:w-auto sm:min-w-80'
+            fullWidth
+            className='sm:w-auto'
           />
         </div>
         {body}

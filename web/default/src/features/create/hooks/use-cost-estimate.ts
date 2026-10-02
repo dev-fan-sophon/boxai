@@ -24,6 +24,7 @@ export function useCostEstimate(input: {
   params?: CostEstimateParams
 }) {
   const [debounced, setDebounced] = useState(input.params)
+  const signedIn = useAuthStore((state) => Boolean(state.auth.user))
 
   useEffect(() => {
     const handle = window.setTimeout(() => setDebounced(input.params), 350)
@@ -31,7 +32,13 @@ export function useCostEstimate(input: {
   }, [input.params])
 
   return useQuery({
-    queryKey: ['playground', 'estimate', input.modelName, input.group, debounced],
+    queryKey: [
+      'playground',
+      'estimate',
+      input.modelName,
+      input.group,
+      debounced,
+    ],
     queryFn: () =>
       estimatePlaygroundCost({
         modality: debounced?.modality ?? 'chat',
@@ -45,7 +52,7 @@ export function useCostEstimate(input: {
         // Rough display estimate; backend also defaults when omitted
         prompt_tokens: debounced?.modality === 'chat' ? 500 : undefined,
       }),
-    enabled: Boolean(input.modelName && debounced),
+    enabled: signedIn && Boolean(input.modelName && debounced),
     staleTime: 30_000,
   })
 }

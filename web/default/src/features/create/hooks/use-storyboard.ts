@@ -110,7 +110,9 @@ export function useStoryboard(input: {
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : t('Could not split the script.')
+        error instanceof Error
+          ? error.message
+          : t('Could not split the script.')
       )
     },
   })
@@ -172,7 +174,9 @@ export function useStoryboard(input: {
     addScene: () => setScenes((scenes) => [...scenes, newStoryboardScene()]),
     updateScene: (id: string, value: Partial<StoryboardScene>) =>
       setScenes((scenes) =>
-        scenes.map((scene) => (scene.id === id ? { ...scene, ...value } : scene))
+        scenes.map((scene) =>
+          scene.id === id ? { ...scene, ...value } : scene
+        )
       ),
     removeScene: (id: string) =>
       setScenes((scenes) => scenes.filter((scene) => scene.id !== id)),
@@ -187,7 +191,9 @@ export function useStoryboard(input: {
         return next
       }),
     setAllSelected: (value: boolean) =>
-      setScenes((scenes) => scenes.map((scene) => ({ ...scene, selected: value }))),
+      setScenes((scenes) =>
+        scenes.map((scene) => ({ ...scene, selected: value }))
+      ),
     generate,
   }
 }

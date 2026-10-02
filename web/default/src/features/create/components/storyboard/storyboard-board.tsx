@@ -19,7 +19,8 @@ export function StoryboardBoard(props: {
   const { t } = useTranslation()
   const storyboard = props.storyboard
   const scenes = storyboard.draft.scenes
-  const allSelected = scenes.length > 0 && scenes.every((scene) => scene.selected)
+  const allSelected =
+    scenes.length > 0 && scenes.every((scene) => scene.selected)
   const failed = scenes.filter((scene) =>
     storyboard.progress
       .get(scene.id)
@@ -42,7 +43,11 @@ export function StoryboardBoard(props: {
             )}
           </p>
         </div>
-        <Button variant='outline' className='gap-1.5' onClick={storyboard.addScene}>
+        <Button
+          variant='outline'
+          className='gap-1.5'
+          onClick={storyboard.addScene}
+        >
           <Plus className='size-4' aria-hidden='true' />
           {t('Add a scene')}
         </Button>

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Sheet,
   SheetContent,
@@ -17,8 +18,8 @@ import { useCreateStore, type CreateMainTab } from '@/stores/create-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { CreateTool } from '../../constants'
-import { useCreateWorkspace } from '../../context/workspace-context'
 import { useStudioContext } from '../../context/studio-context'
+import { useCreateWorkspace } from '../../context/workspace-context'
 import { useGenerationController } from '../../hooks/use-generation-controller'
 import { useSendToCanvas } from '../../hooks/use-send-to-canvas'
 import { useStoryboard } from '../../hooks/use-storyboard'
@@ -28,7 +29,6 @@ import { ModelHero } from '../feed/model-hero'
 import { StudioFeed } from '../feed/studio-feed'
 import { ControlPanel } from '../panel/control-panel'
 import { ModelPicker } from '../panel/model-picker'
-import { ModeSwitch } from '../panel/mode-switch'
 import { StoryboardBoard } from '../storyboard/storyboard-board'
 import { StoryboardScriptPanel } from '../storyboard/storyboard-script-panel'
 
@@ -103,22 +103,29 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
     modeOptions.push({ value: 'storyboard', label: t('Storyboard') })
   }
 
+  const runnableScenes = storyboard.selected.filter((scene) =>
+    scene.prompt.trim()
+  )
+
   const modelPicker = (
     <ModelPicker
       modality={tool}
       catalogModels={workspace.catalogModels}
       loading={workspace.pricing.isLoading || workspace.isLoadingModels}
       value={model}
-      onChange={(name) => selectModel(name, undefined, { switchModality: tool })}
+      onChange={(name) =>
+        selectModel(name, undefined, { switchModality: tool })
+      }
     />
   )
   const modeSwitch =
     tool === 'audio' ? null : (
-      <ModeSwitch<CreateMode>
-        ariaLabel={t('Creation mode')}
+      <SegmentedControl<CreateMode>
+        fullWidth
+        aria-label={t('Creation mode')}
         value={mode}
         options={modeOptions}
-        onChange={changeMode}
+        onValueChange={changeMode}
       />
     )
 
@@ -137,8 +144,8 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
                   chatModels={chatModels}
                 />
               ),
-              sceneCount: storyboard.selected.length,
-              onGenerate: () => void storyboard.generate(storyboard.selected),
+              sceneCount: runnableScenes.length,
+              onGenerate: () => void storyboard.generate(runnableScenes),
             }
           : undefined
       }
@@ -236,11 +243,11 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               </TabsTrigger>
               <TabsTrigger value='projects' className='gap-1.5 px-2.5'>
                 <FolderClock aria-hidden='true' />
-                {t('Projects')}
+                <span className='sr-only sm:not-sr-only'>{t('Projects')}</span>
               </TabsTrigger>
               <TabsTrigger value='api' className='gap-1.5 px-2.5'>
                 <Code2 aria-hidden='true' />
-                API
+                <span className='sr-only sm:not-sr-only'>API</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -268,7 +275,7 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               onClick={() => setControlsOpen(true)}
             >
               <Settings2 className='size-4' aria-hidden='true' />
-              {t('Controls')}
+              <span className='sr-only sm:not-sr-only'>{t('Controls')}</span>
             </Button>
           )}
         </div>
@@ -296,7 +303,12 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
             <SheetHeader className='border-border/60 border-b px-4 py-3'>
               <SheetTitle>{t('Generation controls')}</SheetTitle>
             </SheetHeader>
-            <div className='min-h-0 flex-1'>{controlPanel}</div>
+            <div className='min-h-0 flex-1'>
+              <ControlPanel
+                {...controlPanel.props}
+                onGenerated={() => setControlsOpen(false)}
+              />
+            </div>
           </SheetContent>
         </Sheet>
       )}

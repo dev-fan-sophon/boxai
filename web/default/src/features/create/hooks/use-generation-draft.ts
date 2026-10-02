@@ -15,6 +15,7 @@ import {
   resolveVideoOptions,
   videoSizeForOptions,
 } from '@/features/playground/lib/studio/video-capabilities'
+import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { MediaReference } from '../components/references/media-reference-slot'
@@ -47,6 +48,7 @@ export function useGenerationDraft(input: {
   const groups = usePlaygroundStore((state) => state.groups)
   const settings = usePlaygroundStore((state) => state.studioSettings)
   const isVideo = input.modality === 'video'
+  const signedIn = useAuthStore((state) => Boolean(state.auth.user))
   const hasImage = input.references.length > 0
 
   const capabilityQuery = useVideoCapabilities(group, model, isVideo)
@@ -76,9 +78,9 @@ export function useGenerationDraft(input: {
   )
   const usesLastFrame = Boolean(
     isVideo &&
-      videoOptions?.referenceMode === 'frames' &&
-      videoCapabilities?.supportsLastFrame &&
-      !settings.videoDisableLastFrame
+    videoOptions?.referenceMode === 'frames' &&
+    videoCapabilities?.supportsLastFrame &&
+    !settings.videoDisableLastFrame
   )
 
   let maxFiles = 4
@@ -118,13 +120,19 @@ export function useGenerationDraft(input: {
   const referencesValid = Boolean(
     videoCapabilities && input.references.length <= maxFiles
   )
+  // Guests cannot load video options; Generate stays live so the click can
+  // open the sign-in prompt instead of looking broken.
   const videoReady =
-    !isVideo || Boolean(videoOptions && videoCapabilities && referencesValid)
+    !isVideo ||
+    !signedIn ||
+    Boolean(videoOptions && videoCapabilities && referencesValid)
   const canSubmit =
     !input.uploading && Boolean(model) && jobCount > 0 && videoReady
 
   let videoIssue: string | null = null
-  if (isVideo && !videoCapabilities) {
+  if (isVideo && !signedIn) {
+    videoIssue = t('Sign in to load the options of this video model.')
+  } else if (isVideo && !videoCapabilities) {
     videoIssue = t('This video mode is unavailable for the selected model.')
     if (capabilityQuery.isLoading) {
       videoIssue = t('Loading video options…')
@@ -206,9 +214,9 @@ export function useGenerationDraft(input: {
     ),
     canToggleLastFrame: Boolean(
       isVideo &&
-        videoOptions?.referenceMode === 'frames' &&
-        videoCapabilities?.supportsLastFrame &&
-        input.references.length > 1
+      videoOptions?.referenceMode === 'frames' &&
+      videoCapabilities?.supportsLastFrame &&
+      input.references.length > 1
     ),
   }
 }
