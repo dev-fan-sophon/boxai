@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "Chỉ có thể áp dụng giá tham khảo từ Trung tâm định giá",
     "Reference saved locally": "Đã lưu ảnh tham chiếu cục bộ",
     "Reference Video": "Video tham chiếu",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "Video tham chiếu {{width}}×{{height}} nằm ngoài kích thước hỗ trợ (khoảng 480p đến 4K). Hãy dùng đoạn video lớn hơn hoặc nhỏ hơn.",
     "Reference videos": "Video tham chiếu",
     "References": "Ảnh tham chiếu",
     "Referral link:": "Liên kết giới thiệu:",

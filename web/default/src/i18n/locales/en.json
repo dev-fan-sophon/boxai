@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "Reference prices can only be applied from Pricing Center",
     "Reference saved locally": "Reference saved locally",
     "Reference Video": "Reference Video",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.",
     "Reference videos": "Reference videos",
     "References": "References",
     "Referral link:": "Referral link:",

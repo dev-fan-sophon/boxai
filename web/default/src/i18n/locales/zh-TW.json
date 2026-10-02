@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "Reference prices can only be applied from Pricing Center",
     "Reference saved locally": "Reference saved locally",
     "Reference Video": "參照生影片",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "參考影片 {{width}}×{{height}} 超出支援的尺寸範圍（約 480p 至 4K），請換一個更大或更小的片段。",
     "Reference videos": "參考影片",
     "References": "References",
     "Referral link:": "推薦連結：",

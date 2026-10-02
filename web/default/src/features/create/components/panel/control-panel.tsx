@@ -24,6 +24,7 @@ import {
   useCostEstimate,
 } from '../../hooks/use-cost-estimate'
 import type { GenerationController } from '../../hooks/use-generation-controller'
+import { seedanceReferenceVideoIssue } from '../../lib/reference-media-limits'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
 import { AudioInputDropzone } from '../references/audio-input-dropzone'
@@ -280,6 +281,11 @@ function PromptAndReferences(props: { controller: GenerationController }) {
             onChange={controller.setReferenceVideos}
             onUploadingChange={controller.setUploading}
             kind='video'
+            validateFile={
+              draft.videoCapabilities?.family.startsWith('seedance')
+                ? seedanceReferenceVideoIssue
+                : undefined
+            }
             accept='video/*'
             maxFiles={draft.maxReferenceVideos}
             roleForIndex={(index) => `${index + 1}`}

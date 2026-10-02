@@ -35,6 +35,8 @@ type MediaReferenceSlotProps = {
   maxFiles?: number
   /** Optional role badge (First / Last / 1, 2, …) drawn on each thumbnail. */
   roleForIndex?: (index: number) => string
+  /** Provider-specific check run before upload; a message rejects the file. */
+  validateFile?: (file: File) => Promise<string | null>
 }
 
 export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
@@ -107,8 +109,17 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       }
       return true
     })
-    const acceptedFiles = validFiles.slice(0, remaining)
-    if (validFiles.length > remaining) {
+    const checkedFiles: File[] = []
+    for (const file of validFiles) {
+      const issue = props.validateFile ? await props.validateFile(file) : null
+      if (issue) {
+        toast.error(issue)
+        continue
+      }
+      checkedFiles.push(file)
+    }
+    const acceptedFiles = checkedFiles.slice(0, remaining)
+    if (checkedFiles.length > remaining) {
       toast.error(limitMessage(maxFiles))
     }
 
