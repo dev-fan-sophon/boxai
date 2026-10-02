@@ -1,14 +1,15 @@
 import base64
 import hashlib
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import yaml
 from botocore.exceptions import ClientError
-from desktop_release import prepare, publish
+from desktop_release import prepare, publish, verify_live
 
 
 class DesktopReleaseTest(unittest.TestCase):
@@ -32,6 +33,25 @@ class DesktopReleaseTest(unittest.TestCase):
                           ctrlRBlocked=True))
             Path(f"{artifact}.assertion.json").write_text(json.dumps(report))
         Path(f"{self.artifacts[1]}.blockmap").write_bytes(b"block map")
+
+    def test_live_verifier_identifies_itself_and_still_rejects_wrong_bytes(self):
+        url = "https://dl.you-box.com/desktop/latest.yml"
+        payload = b"verified public feed bytes"
+        for actual in (payload, payload[:-1] + b"!"):
+            with self.subTest(actual=actual), patch(
+                "desktop_release.urllib.request.urlopen", return_value=io.BytesIO(actual)
+            ) as open_url:
+                if actual == payload:
+                    verify_live(url, expected=payload)
+                else:
+                    with self.assertRaisesRegex(ValueError, "Live bytes differ"):
+                        verify_live(url, expected=payload)
+                request = open_url.call_args.args[0]
+                self.assertEqual(request.full_url, url)
+                self.assertEqual(request.get_method(), "GET")
+                self.assertEqual(request.get_header("User-agent"), "BoxAI-Desktop-Publisher/1.0")
+                self.assertIsNone(request.get_header("Authorization"))
+                self.assertEqual(open_url.call_args.kwargs["timeout"], 120)
 
     def test_exact_bytes_feed_and_website_contract(self):
         objects, feeds = prepare(self.stage, "0.2.0", "test-commit")
