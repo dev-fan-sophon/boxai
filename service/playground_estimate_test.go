@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -151,4 +152,19 @@ func TestEstimatePlaygroundCost_TokenSeedanceDoesNotQuotePerSecondDefault(t *tes
 	require.NotNil(t, result.ModelRatio)
 	assert.Equal(t, 1.456323, *result.ModelRatio)
 	assert.Contains(t, result.Message, "actual usage")
+}
+
+func TestEstimatePlaygroundCost_GeminiImageIncludesPerImageOutput(t *testing.T) {
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"gemini-3.1-flash-image":0.25}`))
+	require.NoError(t, ratio_setting.UpdateCompletionRatioByJSONString(`{"gemini-3.1-flash-image":240}`))
+
+	one := EstimatePlaygroundCost(PlaygroundEstimateRequest{Modality: "image", Model: "gemini-3.1-flash-image", N: 1})
+	two := EstimatePlaygroundCost(PlaygroundEstimateRequest{Modality: "image", Model: "gemini-3.1-flash-image", N: 2})
+	require.NotNil(t, one.Quota)
+	require.NotNil(t, two.Quota)
+	// 1000 assumed prompt tokens + 1120 output tokens per 1K image at the
+	// completion ratio, all at the model ratio.
+	expected := common.QuotaFromFloat((1000 + 1120*240) * 0.25 * one.GroupRatio)
+	assert.Equal(t, expected, *one.Quota)
+	assert.Greater(t, *two.Quota, *one.Quota)
 }

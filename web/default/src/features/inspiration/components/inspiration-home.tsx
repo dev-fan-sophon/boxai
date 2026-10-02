@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import type { InspirationRecipe } from '@/features/playground/inspiration/types'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
-import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
+import { canTryModel } from '@/features/pricing/lib/playground-eligibility'
 import { createCanvasProject } from '@/features/workbench/api'
 import type { CanvasDocument } from '@/features/workbench/types'
 import { useAuthStore } from '@/stores/auth-store'
@@ -52,7 +52,7 @@ export function InspirationHome(props: {
 
   const availableModels = useMemo(
     () =>
-      pricing.models.filter(canTryInPlayground).map((model) => ({
+      pricing.models.filter(canTryModel).map((model) => ({
         name: model.model_name,
         modality: getModelModality(model),
       })),

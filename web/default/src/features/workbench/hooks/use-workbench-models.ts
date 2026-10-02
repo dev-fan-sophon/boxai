@@ -4,7 +4,7 @@ import { getModelModality } from '@/features/playground/lib/studio/model-modalit
 import type { StudioModality } from '@/features/playground/types'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { compareVendorNames } from '@/features/pricing/lib/model-helpers'
-import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
+import { canTryModel } from '@/features/pricing/lib/playground-eligibility'
 
 export type WorkbenchModelOption = {
   value: string
@@ -18,7 +18,7 @@ export function useWorkbenchModels() {
 
   return useMemo(() => {
     const options = pricing.models
-      .filter(canTryInPlayground)
+      .filter(canTryModel)
       .map((model) => ({
         value: model.model_name,
         label: model.model_name,

@@ -987,7 +987,8 @@ export function recordActiveStudioRun(input: {
     session.isDraft ||
     session.title.startsWith('Untitled') ||
     session.title === 'New chat'
-      ? input.prompt.trim().slice(0, 48) || session.title
+      ? // First line only: batches and transcripts store several lines.
+        input.prompt.trim().split('\n')[0].trim().slice(0, 48) || session.title
       : session.title
 
   usePlaygroundStore.setState({

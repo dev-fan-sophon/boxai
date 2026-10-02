@@ -1,7 +1,10 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
-import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
+import {
+  canTryInPlayground,
+  canTryModel,
+} from '@/features/pricing/lib/playground-eligibility'
 import type { PricingModel } from '@/features/pricing/types'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCreateStore } from '@/stores/create-store'
@@ -86,9 +89,11 @@ export function useWorkspaceBootstrap(input: { surface: WorkspaceSurface }) {
     // integration. Otherwise fall back to the full catalog so production
     // sites that have not configured integrations yet still work.
     if (pricing.isLegacyPlaygroundCatalog) return pricing.models
-    const eligible = pricing.models.filter(canTryInPlayground)
+    const isEligible =
+      input.surface === 'create' ? canTryModel : canTryInPlayground
+    const eligible = pricing.models.filter(isEligible)
     return eligible.length > 0 ? eligible : pricing.models
-  }, [pricing.isLegacyPlaygroundCatalog, pricing.models])
+  }, [input.surface, pricing.isLegacyPlaygroundCatalog, pricing.models])
 
   const modalityByModel = useMemo(() => {
     const map = new Map<string, StudioModality>()

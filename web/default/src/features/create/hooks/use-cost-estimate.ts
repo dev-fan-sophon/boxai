@@ -32,6 +32,9 @@ export function useCostEstimate(input: {
   }, [input.params])
 
   return useQuery({
+    // An estimate built on an assumed prompt size is a display guess, not a
+    // quote; callers treat it as unknown (no amount, no balance block).
+    select: (data) => (data?.message?.startsWith('assumed ') ? null : data),
     queryKey: [
       'playground',
       'estimate',

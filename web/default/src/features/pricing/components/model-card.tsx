@@ -25,7 +25,7 @@ import {
   isPerSecondVideoModel,
   isTokenBasedModel,
 } from '../lib/model-helpers'
-import { canTryInPlayground } from '../lib/playground-eligibility'
+import { canTryModel } from '../lib/playground-eligibility'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
 import { ModelPriceRows, type ModelPriceRowItem } from './model-price-rows'
@@ -138,7 +138,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   const isTokenBased = isTokenBasedModel(props.model)
   const isNew = isRecentlyReleased(props.model)
   const title = props.model.display_name || props.model.model_name
-  const canTry = canTryInPlayground(props.model)
+  const canTry = canTryModel(props.model)
   const metaChips = collectMetaChips(props.model, t)
 
   const modelId = props.model.model_name
