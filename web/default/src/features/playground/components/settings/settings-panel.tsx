@@ -45,14 +45,14 @@ function AdvancedSection(props: { children: React.ReactNode }) {
 
   return (
     <Collapsible>
-      <CollapsibleTrigger className='text-muted-foreground hover:text-foreground group text-2xs flex w-full items-center justify-between py-1 font-semibold tracking-wide uppercase'>
-        {t('Advanced')}
+      <CollapsibleTrigger className='text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring group transition-ui -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs font-medium outline-none focus-visible:ring-2'>
+        <span className='min-w-0 truncate'>{t('Advanced')}</span>
         <ChevronDown
-          className='size-3.5 transition-transform group-data-[panel-open]:rotate-180'
+          className='duration-control size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-180'
           aria-hidden='true'
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className='space-y-4 pt-2'>
+      <CollapsibleContent className='space-y-3 pt-2'>
         {props.children}
       </CollapsibleContent>
     </Collapsible>
@@ -78,26 +78,26 @@ export function SettingsPanel(props: {
   return (
     <aside
       className={cn(
-        'border-border bg-background flex w-[280px] shrink-0 flex-col border-l',
-        !isWide && 'absolute inset-y-0 right-0 z-20 shadow-xl'
+        'border-border bg-background flex w-[min(19rem,40vw)] shrink-0 flex-col border-l',
+        !isWide && 'shadow-lifted absolute inset-y-0 right-0 z-20'
       )}
       aria-label={t('Settings')}
     >
-      <div className='border-border flex h-12 shrink-0 items-center justify-between border-b px-3'>
-        <h2 className='text-foreground text-sm font-semibold'>
+      <div className='border-border flex h-12 shrink-0 items-center justify-between gap-2 border-b pr-2 pl-4 sm:h-14'>
+        <h2 className='text-foreground min-w-0 truncate text-sm font-semibold'>
           {t('Settings')}
         </h2>
         <Button
           size='icon'
           variant='ghost'
-          className='text-muted-foreground size-7'
+          className='text-muted-foreground size-8'
           aria-label={t('Close settings')}
           onClick={props.onClose}
         >
           <X className='size-4' />
         </Button>
       </div>
-      <div className='min-h-0 flex-1 overflow-y-auto p-3'>
+      <div className='min-h-0 flex-1 overflow-y-auto px-4 py-4'>
         <SettingsSections duoActive={props.duoActive} />
       </div>
     </aside>
@@ -112,7 +112,7 @@ function GroupSection() {
 
   return (
     <div className='space-y-1.5'>
-      <Label htmlFor='settings-group' className='text-xs'>
+      <Label htmlFor='settings-group' className='text-xs font-medium'>
         {t('Channel')}
       </Label>
       <NativeSelect
@@ -138,7 +138,7 @@ function GroupSection() {
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
     <section className='space-y-2'>
-      <h3 className='text-muted-foreground text-2xs font-semibold tracking-wide uppercase'>
+      <h3 className='text-muted-foreground text-xs font-medium'>
         {props.title}
       </h3>
       {props.children}

@@ -1,19 +1,17 @@
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
 
 import { normalizeStatus, statusLabelKey } from '../lib/status'
 import type { GroupStatusModel } from '../types'
 import { StatusHeatmap } from './status-heatmap'
 
-const BADGE_CLASS: Record<string, string> = {
-  healthy:
-    'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  slow: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  down: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-  observing: 'border-border bg-muted text-muted-foreground',
-}
+const BADGE_VARIANT = {
+  healthy: 'success',
+  slow: 'warning',
+  down: 'destructive',
+  observing: 'secondary',
+} as const
 
 type ModelStatusCardProps = {
   model: GroupStatusModel
@@ -29,10 +27,13 @@ export function ModelStatusCard(props: ModelStatusCardProps) {
       : null
 
   return (
-    <div className='bg-card rounded-xl border p-3.5 sm:p-4'>
-      <div className='flex flex-wrap items-start justify-between gap-2'>
+    <div className='bg-card ring-border rounded-2xl p-4 ring-1'>
+      <div className='flex items-start justify-between gap-2'>
         <div className='min-w-0'>
-          <h4 className='truncate font-mono text-sm font-semibold'>
+          <h4
+            className='truncate font-mono text-sm font-semibold'
+            title={props.model.model}
+          >
             {props.model.model}
           </h4>
           <p className='text-muted-foreground mt-0.5 text-xs'>
@@ -41,10 +42,7 @@ export function ModelStatusCard(props: ModelStatusCardProps) {
             })}
           </p>
         </div>
-        <Badge
-          variant='outline'
-          className={cn('shrink-0 font-medium', BADGE_CLASS[tone])}
-        >
+        <Badge variant={BADGE_VARIANT[tone]} className='shrink-0'>
           {t(statusLabelKey(tone))}
         </Badge>
       </div>
@@ -53,7 +51,7 @@ export function ModelStatusCard(props: ModelStatusCardProps) {
         <span className='text-muted-foreground text-xs'>
           {t('Success rate')}
         </span>
-        <span className='font-mono text-xl font-semibold tabular-nums'>
+        <span className='text-xl font-semibold tabular-nums'>
           {rate == null ? '—' : rate}
         </span>
         <span className='text-muted-foreground text-sm'>%</span>

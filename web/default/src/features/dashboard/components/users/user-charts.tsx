@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Users, Loader2 } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getUserQuotaDataByUsers } from '@/features/dashboard/api'
 import {
   TIME_GRANULARITY_OPTIONS,
@@ -94,65 +94,44 @@ export function UserCharts(props: UserChartsProps) {
 
   return (
     <div className='space-y-3'>
-      <div className='flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2'>
-        <Tabs
+      <div className='flex flex-wrap items-center gap-2'>
+        <SegmentedControl
+          size='sm'
+          aria-label={t('Time range')}
           value={String(selectedRange)}
           onValueChange={(value) => handleRangeChange(Number(value))}
-          className='shrink-0'
-        >
-          <TabsList>
-            {TIME_RANGE_PRESETS.map((preset) => (
-              <TabsTrigger
-                key={preset.days}
-                value={String(preset.days)}
-                className='px-2.5 text-xs'
-              >
-                {t(preset.labelKey)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <Tabs
+          options={TIME_RANGE_PRESETS.map((preset) => ({
+            value: String(preset.days),
+            label: t(preset.labelKey),
+          }))}
+        />
+        <SegmentedControl
+          size='sm'
+          aria-label={t('Time granularity')}
           value={timeGranularity}
           onValueChange={(value) =>
             handleGranularityChange(value as TimeGranularity)
           }
-          className='shrink-0'
-        >
-          <TabsList>
-            {TIME_GRANULARITY_OPTIONS.map((opt) => (
-              <TabsTrigger
-                key={opt.value}
-                value={opt.value}
-                className='px-2.5 text-xs'
-              >
-                {t(opt.labelKey)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <Tabs
-          value={String(topUserLimit)}
-          onValueChange={(value) => handleTopUserLimitChange(Number(value))}
-          className='shrink-0'
-        >
-          <TabsList>
-            <span className='text-muted-foreground px-2 text-xs font-medium whitespace-nowrap'>
-              {t('Top Users')}
-            </span>
-            {TOP_USER_LIMIT_OPTIONS.map((limit) => (
-              <TabsTrigger
-                key={limit}
-                value={String(limit)}
-                className='px-2.5 text-xs'
-              >
-                {t('Top {{count}}', { count: limit })}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+          options={TIME_GRANULARITY_OPTIONS.map((opt) => ({
+            value: opt.value,
+            label: t(opt.labelKey),
+          }))}
+        />
+        <div className='flex items-center gap-2'>
+          <span className='text-muted-foreground text-xs font-medium whitespace-nowrap'>
+            {t('Top Users')}
+          </span>
+          <SegmentedControl
+            size='sm'
+            aria-label={t('Top Users')}
+            value={String(topUserLimit)}
+            onValueChange={(value) => handleTopUserLimitChange(Number(value))}
+            options={TOP_USER_LIMIT_OPTIONS.map((limit) => ({
+              value: String(limit),
+              label: t('Top {{count}}', { count: limit }),
+            }))}
+          />
+        </div>
 
         {isLoading && (
           <Loader2 className='text-muted-foreground size-4 animate-spin' />
@@ -160,8 +139,8 @@ export function UserCharts(props: UserChartsProps) {
       </div>
 
       <div className='grid gap-3'>
-        <div className='bg-card ring-border overflow-hidden rounded-xl ring-1'>
-          <div className='flex w-full items-center gap-2 border-b px-3 py-2.5 sm:px-5 sm:py-3'>
+        <div className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
+          <div className='flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 border-b px-4 py-3 sm:px-5'>
             <IconBadge tone='info' size='sm'>
               <Users />
             </IconBadge>
@@ -169,7 +148,7 @@ export function UserCharts(props: UserChartsProps) {
               {t('User Consumption Ranking')}
             </div>
             {chartData.rank.subtext && (
-              <span className='text-muted-foreground text-xs'>
+              <span className='text-muted-foreground text-xs tabular-nums'>
                 {chartData.rank.subtext}
               </span>
             )}
@@ -183,8 +162,8 @@ export function UserCharts(props: UserChartsProps) {
           </div>
         </div>
 
-        <div className='bg-card ring-border overflow-hidden rounded-xl ring-1'>
-          <div className='flex w-full items-center gap-2 border-b px-3 py-2.5 sm:px-5 sm:py-3'>
+        <div className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
+          <div className='flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 border-b px-4 py-3 sm:px-5'>
             <IconBadge tone='info' size='sm'>
               <Users />
             </IconBadge>

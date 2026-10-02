@@ -34,24 +34,24 @@ export function CompleteStep({ status, values }: CompleteStepProps) {
 
   return (
     <div className='flex flex-col items-center gap-6 text-center'>
-      <div className='rounded-2xl bg-emerald-500/10 p-4 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300'>
+      <div className='bg-success-subtle text-success rounded-2xl p-4'>
         <CheckCircle2 className='size-8' />
       </div>
       <div className='space-y-2'>
         <h2 className='text-2xl font-semibold tracking-tight'>
           {t('Ready to initialize')}
         </h2>
-        <p className='text-muted-foreground max-w-lg text-sm sm:text-base'>
+        <p className='text-muted-foreground max-w-lg text-sm text-pretty sm:text-base'>
           {t(
             'Double check the configuration below. Your system will be locked until initialization is complete.'
           )}
         </p>
       </div>
 
-      <div className='bg-card w-full rounded-xl border p-6 text-left shadow-sm sm:p-8'>
-        <dl className='grid gap-6'>
+      <div className='bg-surface-subtle ring-border/60 w-full rounded-xl p-5 text-left ring-1'>
+        <dl className='grid gap-4 sm:grid-cols-3'>
           <div className='space-y-1.5'>
-            <dt className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+            <dt className='text-muted-foreground text-xs font-medium'>
               {t('Database')}
             </dt>
             <dd className='flex flex-wrap items-center gap-2'>
@@ -67,7 +67,7 @@ export function CompleteStep({ status, values }: CompleteStepProps) {
           <Separator />
 
           <div className='space-y-1.5'>
-            <dt className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+            <dt className='text-muted-foreground text-xs font-medium'>
               {t('Administrator account')}
             </dt>
             <dd className='text-sm font-semibold'>
@@ -80,7 +80,7 @@ export function CompleteStep({ status, values }: CompleteStepProps) {
           <Separator />
 
           <div className='space-y-1.5'>
-            <dt className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+            <dt className='text-muted-foreground text-xs font-medium'>
               {t('Usage mode')}
             </dt>
             <dd className='text-sm font-semibold'>{t(usageLabelKey)}</dd>

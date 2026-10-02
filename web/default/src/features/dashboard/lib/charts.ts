@@ -7,6 +7,7 @@ import type {
 } from '@/features/dashboard/types'
 import { getCurrentIntlLocale } from '@/i18n/languages'
 import { getCurrencyDisplay } from '@/lib/currency'
+import { formatQuota } from '@/lib/format'
 import { formatChartTime, type TimeGranularity } from '@/lib/time'
 
 import { getDashboardChartColors, CHART_SERIES_COLORS } from './chart-palette'
@@ -21,22 +22,6 @@ const SERIES_VALUE_KEY = 'Value'
 /** Key format shared with `DashboardSeriesChart.rawByKey` consumers. */
 function rawValueKey(xValue: string, seriesKey: string): string {
   return `${xValue}::${seriesKey}`
-}
-
-function renderQuotaCompat(rawQuota: number, digits = 4): string {
-  const { config, meta } = getCurrencyDisplay()
-  if (meta.kind === 'tokens') {
-    return rawQuota.toLocaleString(getCurrentIntlLocale())
-  }
-  const usd = rawQuota / config.quotaPerUnit
-  const rate = 'exchangeRate' in meta ? meta.exchangeRate : 1
-  const symbol = 'symbol' in meta ? meta.symbol : '$'
-  const value = usd * rate
-  const fixed = value.toFixed(digits)
-  if (Number.parseFloat(fixed) === 0 && rawQuota > 0 && value > 0) {
-    return symbol + Math.pow(10, -digits).toFixed(digits)
-  }
-  return symbol + fixed
 }
 
 function getChartBucketTimestamp(
@@ -133,7 +118,7 @@ export function processChartData(
     Intl.NumberFormat(getCurrentIntlLocale(), {
       maximumFractionDigits: 0,
     }).format(value)
-  const formatQuotaTotal = (value: number) => renderQuotaCompat(value, 2)
+  const formatQuotaTotal = (value: number) => formatQuota(value)
 
   if (!data || data.length === 0) {
     return {
@@ -160,7 +145,7 @@ export function processChartData(
   const toDisplayQuota = (rawQuota: number) => {
     if (!rawQuota) return 0
     if (meta.kind === 'tokens') return rawQuota
-    return Number((rawQuota / quotaPerUnit).toFixed(4))
+    return Number(((rawQuota / quotaPerUnit) * meta.exchangeRate).toFixed(4))
   }
 
   // Aggregate all metrics by time and model
@@ -425,7 +410,7 @@ export function processUserChartData(
   const toDisplayQuota = (rawQuota: number) => {
     if (!rawQuota) return 0
     if (meta.kind === 'tokens') return rawQuota
-    return Number((rawQuota / quotaPerUnit).toFixed(4))
+    return Number(((rawQuota / quotaPerUnit) * meta.exchangeRate).toFixed(4))
   }
 
   if (!data || data.length === 0) {
@@ -508,7 +493,7 @@ export function processUserChartData(
       valueKind: 'quota',
       layout: 'vertical',
       title: tt('User Consumption Ranking'),
-      subtext: `${tt('Total:')} ${renderQuotaCompat(totalQuota, 2)}`,
+      subtext: `${tt('Total:')} ${formatQuota(totalQuota)}`,
     },
     trend: {
       rows: trend.rows,

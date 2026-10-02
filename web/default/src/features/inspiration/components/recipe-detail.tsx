@@ -522,7 +522,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
               variant='outline'
               aria-label={favorite ? t('Remove favorite') : t('Favorite')}
               title={favorite ? t('Remove favorite') : t('Favorite')}
-              className={cn(favorite && 'text-rose-500')}
+              className={cn(favorite && 'text-destructive')}
               onClick={() => {
                 if (!requireAuth()) return
                 mutateLibrary.mutate(() =>

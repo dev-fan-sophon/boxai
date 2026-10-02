@@ -4,7 +4,6 @@ import {
   FileImage,
   Gauge,
   Layers,
-  ListOrdered,
   Proportions,
   Scan,
   SquareDashed,
@@ -111,15 +110,6 @@ export function ImageParamChips() {
           value: String(count),
           label: t('{{count}} images', { count }),
         }))}
-      />
-      <TogglePill
-        icon={<ListOrdered />}
-        label={t('Batch')}
-        title={t('Enter several prompts and generate them at once')}
-        active={state.settings.imageBatchMode}
-        onToggle={() =>
-          state.update('imageBatchMode', !state.settings.imageBatchMode)
-        }
       />
       {qualities.length > 1 && (
         <ParamChip

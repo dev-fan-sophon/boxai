@@ -3,9 +3,24 @@ import { getRouteApi } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { CheckCircle2, Laptop, ShieldAlert, XCircle } from '@/components/icons'
+import {
+  ArrowRight,
+  CheckCircle2,
+  Laptop,
+  ShieldAlert,
+  XCircle,
+} from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -51,34 +66,53 @@ export function DeviceAuthorizePage() {
   if (submittedCode.length === 0) {
     return (
       <DeviceAuthShell>
-        <form
-          className='flex flex-col gap-4 rounded-xl border p-5'
-          onSubmit={(event) => {
-            event.preventDefault()
-            setSubmittedCode(userCode.trim())
-          }}
-        >
-          <div className='flex items-center gap-2'>
-            <Laptop className='size-4' aria-hidden='true' />
-            <h3 className='text-sm font-semibold'>
-              {t('Enter the code shown in the desktop app')}
-            </h3>
-          </div>
-          <div className='flex flex-col gap-2'>
-            <Label htmlFor='device-user-code'>{t('Sign-in code')}</Label>
-            <Input
-              id='device-user-code'
-              autoFocus
-              autoComplete='off'
-              placeholder='XXXX-XXXX'
-              value={userCode}
-              onChange={(event) => setUserCode(event.target.value)}
-            />
-          </div>
-          <Button type='submit' disabled={userCode.trim().length === 0}>
-            {t('Continue')}
-          </Button>
-        </form>
+        <Card>
+          <form
+            className='flex flex-col gap-5'
+            onSubmit={(event) => {
+              event.preventDefault()
+              setSubmittedCode(userCode.trim())
+            }}
+          >
+            <CardHeader>
+              <IconBadge tone='primary' size='lg' className='mb-2'>
+                <Laptop />
+              </IconBadge>
+              <CardTitle>
+                {t('Enter the code shown in the desktop app')}
+              </CardTitle>
+              <CardDescription>
+                {t(
+                  'Only approve if you just started a sign-in from the desktop app and the code matches.'
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='flex flex-col gap-2'>
+              <Label htmlFor='device-user-code'>{t('Sign-in code')}</Label>
+              <Input
+                id='device-user-code'
+                autoFocus
+                autoComplete='off'
+                spellCheck={false}
+                placeholder='XXXX-XXXX'
+                value={userCode}
+                onChange={(event) => setUserCode(event.target.value)}
+                className='h-12 text-center font-mono text-lg tracking-[0.2em]'
+              />
+            </CardContent>
+            <CardFooter>
+              <Button
+                type='submit'
+                size='lg'
+                className='w-full justify-center'
+                disabled={userCode.trim().length === 0}
+              >
+                {t('Continue')}
+                <ArrowRight data-icon='inline-end' />
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
       </DeviceAuthShell>
     )
   }
@@ -86,11 +120,17 @@ export function DeviceAuthorizePage() {
   if (infoQuery.isLoading) {
     return (
       <DeviceAuthShell>
-        <div className='flex flex-col gap-3 rounded-xl border p-5'>
-          <Skeleton className='h-5 w-40' />
-          <Skeleton className='h-4 w-64' />
-          <Skeleton className='h-9 w-full' />
-        </div>
+        <Card aria-busy='true'>
+          <CardHeader>
+            <Skeleton className='mb-2 size-10 rounded-xl' />
+            <Skeleton className='h-5 w-56 max-w-full' />
+            <Skeleton className='h-4 w-72 max-w-full' />
+          </CardHeader>
+          <CardContent className='space-y-3'>
+            <Skeleton className='h-16 w-full rounded-xl' />
+            <Skeleton className='h-24 w-full rounded-xl' />
+          </CardContent>
+        </Card>
       </DeviceAuthShell>
     )
   }
@@ -101,53 +141,56 @@ export function DeviceAuthorizePage() {
       infoQuery.data?.message ?? t('This sign-in code could not be verified')
     return (
       <DeviceAuthShell>
-        <div className='flex flex-col items-start gap-4 rounded-xl border p-5'>
-          <div className='flex items-center gap-2'>
-            <ShieldAlert
-              className='text-destructive size-4'
-              aria-hidden='true'
-            />
-            <h3 className='text-sm font-semibold'>{message}</h3>
-          </div>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => {
-              setUserCode('')
-              setSubmittedCode('')
-            }}
-          >
-            {t('Try another code')}
-          </Button>
-        </div>
+        <Card>
+          <CardHeader>
+            <IconBadge tone='destructive' size='lg' className='mb-2'>
+              <ShieldAlert />
+            </IconBadge>
+            <CardTitle className='break-words'>{message}</CardTitle>
+          </CardHeader>
+          <CardFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => {
+                setUserCode('')
+                setSubmittedCode('')
+              }}
+            >
+              {t('Try another code')}
+            </Button>
+          </CardFooter>
+        </Card>
       </DeviceAuthShell>
     )
   }
 
   return (
     <DeviceAuthShell>
-      <DeviceAuthRequestCard info={info} />
-      <div className='flex flex-col gap-2 sm:flex-row'>
-        <Button
-          type='button'
-          className='gap-1.5'
-          disabled={decision.isPending}
-          onClick={() => decision.mutate(true)}
-        >
-          <CheckCircle2 className='size-4' aria-hidden='true' />
-          {t('Authorize this device')}
-        </Button>
-        <Button
-          type='button'
-          variant='outline'
-          className='gap-1.5'
-          disabled={decision.isPending}
-          onClick={() => decision.mutate(false)}
-        >
-          <XCircle className='size-4' aria-hidden='true' />
-          {t('Deny')}
-        </Button>
-      </div>
+      <DeviceAuthRequestCard
+        info={info}
+        actions={
+          <>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={decision.isPending}
+              onClick={() => decision.mutate(false)}
+            >
+              <XCircle aria-hidden='true' />
+              {t('Deny')}
+            </Button>
+            <Button
+              type='button'
+              disabled={decision.isPending}
+              onClick={() => decision.mutate(true)}
+            >
+              <CheckCircle2 aria-hidden='true' />
+              {t('Authorize this device')}
+            </Button>
+          </>
+        }
+      />
     </DeviceAuthShell>
   )
 }
@@ -158,7 +201,7 @@ function DeviceAuthShell(props: { children: React.ReactNode }) {
     <SectionPageLayout>
       <SectionPageLayout.Title>{t('Desktop sign-in')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
-        <div className='mx-auto flex w-full max-w-xl flex-col gap-5'>
+        <div className='mx-auto flex w-full max-w-lg flex-col gap-5 py-2 sm:py-6'>
           {props.children}
         </div>
       </SectionPageLayout.Content>

@@ -4,8 +4,11 @@ import {
   ProseAccordion,
   type ProseAccordionEntry,
 } from '@/components/prose-accordion'
-import { SectionHeading } from '@/components/section-heading'
 import type { DesktopDownload } from '@/features/downloads/types'
+import {
+  MarketingSection,
+  SectionIntro,
+} from '@/features/home/components/marketing'
 
 function ChecksumBlock(props: { download: DesktopDownload }) {
   const { t } = useTranslation()
@@ -117,21 +120,23 @@ export function InstallGuide(props: { downloads: DesktopDownload[] }) {
   })
 
   return (
-    <section
-      aria-labelledby='desktop-install'
-      className='border-border/40 relative z-10 border-t px-6 py-20 md:py-28'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <SectionHeading
-          id='desktop-install'
-          eyebrow={t('Getting started')}
-          title={t('A minute from download to your first task')}
-          description={t(
-            'Install, sign in with the BoxAI account you already have, and describe the outcome you want.'
-          )}
-        />
-        <ProseAccordion entries={entries} />
+    <MarketingSection labelledBy='desktop-install' tone='muted'>
+      <div className='grid gap-8 lg:grid-cols-12 lg:gap-12'>
+        <div className='lg:col-span-5'>
+          <SectionIntro
+            className='mb-0 md:mb-0'
+            id='desktop-install'
+            eyebrow={t('Getting started')}
+            title={t('A minute from download to your first task')}
+            description={t(
+              'Install, sign in with the BoxAI account you already have, and describe the outcome you want.'
+            )}
+          />
+        </div>
+        <div className='min-w-0 lg:col-span-7'>
+          <ProseAccordion entries={entries} />
+        </div>
       </div>
-    </section>
+    </MarketingSection>
   )
 }

@@ -4,7 +4,8 @@
  * One submit expands into a list of jobs, each producing exactly one output
  * (one image, one video task, one clip):
  *
- *   prompts  = batch mode ? one prompt per non-empty line : the whole text
+ *   prompts  = explicit prompt list (multi-prompt editor), else
+ *              batch mode ? one prompt per non-empty line : the whole text
  *   variants = every `{a|b|c}` group multiplies its prompt (cartesian)
  *   jobs     = variants × `count` takes, capped at MAX_STUDIO_BATCH_JOBS
  *
@@ -90,10 +91,15 @@ export function planGenerationJobs(input: {
   text: string
   batchMode: boolean
   count: number
+  /** Prompts edited one per row; takes precedence over `text`. */
+  prompts?: string[]
 }): GenerationJobPlan {
-  const basePrompts = input.batchMode
-    ? splitBatchPrompts(input.text)
-    : [input.text.trim()].filter(Boolean)
+  let basePrompts = [input.text.trim()].filter(Boolean)
+  if (input.prompts) {
+    basePrompts = input.prompts.map((prompt) => prompt.trim()).filter(Boolean)
+  } else if (input.batchMode) {
+    basePrompts = splitBatchPrompts(input.text)
+  }
   const count = clampBatchCount(input.count)
   const prompts: string[] = []
   let total = 0

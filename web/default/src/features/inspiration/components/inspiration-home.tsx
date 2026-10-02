@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { FolderOpen, LayoutGrid } from '@/components/icons'
+import { Eyebrow, BrandGlow } from '@/features/home/components/marketing'
 import type { InspirationRecipe } from '@/features/playground/inspiration/types'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
@@ -95,16 +96,20 @@ export function InspirationHome(props: {
     })
 
   return (
-    <div className='mx-auto w-full max-w-7xl px-4 pt-6 pb-10 sm:px-6 sm:pt-8'>
-      <header className='landing-animate-fade-up flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
-        <div className='max-w-xl space-y-1.5'>
-          <p className='text-primary/90 text-2xs font-semibold tracking-[0.2em] uppercase'>
-            {t('Canvas templates')}
-          </p>
-          <h1 className='text-2xl font-semibold tracking-tight text-balance sm:text-3xl'>
+    <div className='relative isolate mx-auto w-full max-w-7xl px-4 pt-8 pb-12 sm:px-6 sm:pt-12'>
+      <div
+        aria-hidden='true'
+        className='pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 overflow-hidden'
+      >
+        <BrandGlow className='opacity-70' />
+      </div>
+      <header className='landing-animate-fade-up flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between'>
+        <div className='max-w-xl min-w-0'>
+          <Eyebrow className='mb-4'>{t('Canvas templates')}</Eyebrow>
+          <h1 className='text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'>
             {t('Inspiration')}
           </h1>
-          <p className='text-muted-foreground text-sm text-pretty'>
+          <p className='text-muted-foreground mt-3 text-sm leading-relaxed text-pretty sm:text-base'>
             {t(
               'Start from a ready-made image or video canvas — pick one, tweak the prompt, run it.'
             )}
@@ -119,7 +124,7 @@ export function InspirationHome(props: {
       </header>
 
       <div
-        className='landing-animate-fade-up mt-6'
+        className='landing-animate-fade-up mt-8'
         style={{ animationDelay: '90ms' }}
       >
         {props.view === 'templates' ? (

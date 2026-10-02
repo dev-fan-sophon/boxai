@@ -13,31 +13,19 @@ import {
 // ----------------------------------------------------------------------------
 
 /**
- * Strip trailing zeros from formatted price string while preserving currency symbols
+ * Strip trailing zeros from the fractional part of a formatted price
+ * ("$1.2500" → "$1.25", "$3.00" → "$3") while keeping the currency symbol
+ * and the thousands grouping ("₫1,962,750" stays readable instead of
+ * collapsing to "₫1962750"). Strings that do not look like a leading-symbol
+ * price (e.g. the Vietnamese "65.425 ₫" form) are returned unchanged.
  */
 export function stripTrailingZeros(formatted: string): string {
-  // Match currency symbol at start, number, and potential 'k' suffix
-  const match = formatted.match(/^([^\d-]*)([-\d,]+\.?\d*)(k?)$/)
+  const match = formatted.match(/^([^\d-]*)(-?[\d,]+)(?:\.(\d+))?(k?)$/)
   if (!match) return formatted
 
-  const [, symbol, number, suffix] = match
-
-  // Remove commas for processing
-  const cleanNumber = number.replaceAll(',', '')
-
-  // Convert to number and back to remove trailing zeros
-  const parsed = Number.parseFloat(cleanNumber)
-  if (Number.isNaN(parsed)) return formatted
-
-  // Convert to string, which automatically removes trailing zeros
-  let result = parsed.toString()
-
-  // If the result is in scientific notation, format it properly
-  if (result.includes('e')) {
-    result = parsed.toFixed(20).replace(/\.?0+$/, '')
-  }
-
-  return `${symbol}${result}${suffix}`
+  const [, symbol, whole, fraction = '', suffix] = match
+  const trimmed = fraction.replace(/0+$/, '')
+  return `${symbol}${whole}${trimmed ? `.${trimmed}` : ''}${suffix}`
 }
 
 /**

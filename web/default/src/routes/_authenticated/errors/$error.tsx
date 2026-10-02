@@ -1,9 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Header } from '@/components/layout'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { ForbiddenError } from '@/features/errors/forbidden'
 import { GeneralError } from '@/features/errors/general-error'
 import { MaintenanceError } from '@/features/errors/maintenance-error'
@@ -14,30 +10,25 @@ export const Route = createFileRoute('/_authenticated/errors/$error')({
   component: RouteComponent,
 })
 
+const ERROR_COMPONENTS: Record<
+  string,
+  React.ComponentType<{ embedded?: boolean }>
+> = {
+  unauthorized: UnauthorisedError,
+  forbidden: ForbiddenError,
+  'not-found': NotFoundError,
+  'internal-server-error': GeneralError,
+  'maintenance-error': MaintenanceError,
+}
+
 function RouteComponent() {
   const { error } = Route.useParams()
+  const ErrorComponent = ERROR_COMPONENTS[error] || NotFoundError
 
-  const errorMap: Record<string, React.ComponentType> = {
-    unauthorized: UnauthorisedError,
-    forbidden: ForbiddenError,
-    'not-found': NotFoundError,
-    'internal-server-error': GeneralError,
-    'maintenance-error': MaintenanceError,
-  }
-  const ErrorComponent = errorMap[error] || NotFoundError
-
+  // The authenticated shell already provides the header and brand chrome.
   return (
-    <>
-      <Header>
-        <Search />
-        <div className='ms-auto flex items-center md:space-x-4'>
-          <ThemeSwitch />
-          <ProfileDropdown />
-        </div>
-      </Header>
-      <div className='flex-1 [&>div]:h-full'>
-        <ErrorComponent />
-      </div>
-    </>
+    <div className='flex flex-1 flex-col'>
+      <ErrorComponent embedded />
+    </div>
   )
 }

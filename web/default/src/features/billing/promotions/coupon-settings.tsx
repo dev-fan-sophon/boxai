@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Switch } from '@/components/ui/switch'
 import { TitledCard } from '@/components/ui/titled-card'
 import { api } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -202,7 +204,7 @@ function CouponForm(props: { coupon: Coupon; onSaved: () => void }) {
       className='space-y-4'
       onSubmit={form.handleSubmit((value) => mutation.mutate(value))}
     >
-      <label className='block space-y-1 text-sm'>
+      <label className='block space-y-1.5 text-sm font-medium'>
         {t('Coupon code')}
         <Input
           readOnly={!!props.coupon.id}
@@ -213,19 +215,20 @@ function CouponForm(props: { coupon: Coupon; onSaved: () => void }) {
           })}
         />
       </label>
-      <label className='block space-y-1 text-sm'>
+      <label className='block space-y-1.5 text-sm font-medium'>
         {t('Discount type')}
-        <select
-          className='bg-background block w-full rounded-md border p-2'
-          {...form.register('discount_type')}
-        >
-          <option value='fixed'>{t('Fixed discount (VND)')}</option>
-          <option value='percent'>{t('Discount percent')}</option>
-        </select>
+        <NativeSelect className='w-full' {...form.register('discount_type')}>
+          <NativeSelectOption value='fixed'>
+            {t('Fixed discount (VND)')}
+          </NativeSelectOption>
+          <NativeSelectOption value='percent'>
+            {t('Discount percent')}
+          </NativeSelectOption>
+        </NativeSelect>
       </label>
       <div className='grid gap-4 sm:grid-cols-2'>
         {fields.map((field) => (
-          <label className='space-y-1 text-sm' key={field.key}>
+          <label className='space-y-1.5 text-sm font-medium' key={field.key}>
             {field.label}
             <Input
               type='number'
@@ -243,13 +246,23 @@ function CouponForm(props: { coupon: Coupon; onSaved: () => void }) {
           }
         />
       </div>
-      <label className='flex items-center gap-2 text-sm'>
-        <input type='checkbox' {...form.register('enabled')} />
-        {t('Enabled')}
+      <label className='bg-card flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-sm font-medium'>
+        <span className='min-w-0'>{t('Enabled')}</span>
+        <Switch
+          checked={Boolean(form.watch('enabled'))}
+          onCheckedChange={(checked) =>
+            form.setValue('enabled', checked, { shouldDirty: true })
+          }
+        />
       </label>
-      <label className='flex items-center gap-2 text-sm'>
-        <input type='checkbox' {...form.register('stackable')} />
-        {t('Allow stacking with promotion')}
+      <label className='bg-card flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-sm font-medium'>
+        <span className='min-w-0'>{t('Allow stacking with promotion')}</span>
+        <Switch
+          checked={Boolean(form.watch('stackable'))}
+          onCheckedChange={(checked) =>
+            form.setValue('stackable', checked, { shouldDirty: true })
+          }
+        />
       </label>
       {Object.keys(form.formState.errors).length > 0 && (
         <p role='alert' className='text-destructive text-sm'>

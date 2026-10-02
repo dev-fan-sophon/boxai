@@ -61,6 +61,12 @@ type CanvasToolbarProps = {
   onBackgroundModeChange: (mode: CanvasBackgroundMode) => void
 }
 
+const BACKGROUND_LABELS: Record<CanvasBackgroundMode, string> = {
+  dots: 'Dots',
+  lines: 'Lines',
+  blank: 'Blank',
+}
+
 const NODE_BUTTONS = [
   { type: CanvasNodeType.Image, icon: ImageIcon, label: 'Image' },
   { type: CanvasNodeType.Video, icon: Video, label: 'Video' },
@@ -79,7 +85,7 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
     <div
       data-canvas-no-zoom
       data-guide='canvas-toolbar'
-      className='landing-animate-scale-in absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border px-2 py-1.5 shadow-xl backdrop-blur-xl'
+      className='landing-animate-scale-in shadow-lifted absolute bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] left-1/2 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 [scrollbar-width:none] items-center gap-0.5 overflow-x-auto rounded-2xl border p-1 backdrop-blur-xl sm:bottom-4 [&::-webkit-scrollbar]:hidden'
       style={{
         background: theme.toolbar.panel,
         borderColor: theme.toolbar.border,
@@ -100,15 +106,16 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
           key={button.type}
           size='icon'
           variant='ghost'
-          className='size-8 rounded-full'
+          className='size-8 shrink-0 rounded-lg'
           title={t(button.label)}
+          aria-label={t(button.label)}
           onClick={() => props.onAddNode(button.type)}
         >
           <button.icon className='size-4' />
         </Button>
       ))}
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation='vertical' className='mx-1 h-5 shrink-0' />
 
       <Select
         value={props.backgroundMode}
@@ -118,26 +125,30 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
       >
         <SelectTrigger
           size='sm'
-          className='w-24'
+          className='shrink-0 gap-1.5 border-transparent bg-transparent pr-2 pl-2 shadow-none dark:bg-transparent'
           aria-label={t('Canvas background')}
+          title={t('Canvas background')}
         >
           <CircleDot />
-          <SelectValue />
+          <SelectValue>
+            {(value: CanvasBackgroundMode) => t(BACKGROUND_LABELS[value])}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value='dots'>{t('Dots')}</SelectItem>
-          <SelectItem value='lines'>{t('Lines')}</SelectItem>
-          <SelectItem value='blank'>{t('Blank')}</SelectItem>
+          <SelectItem value='dots'>{t(BACKGROUND_LABELS.dots)}</SelectItem>
+          <SelectItem value='lines'>{t(BACKGROUND_LABELS.lines)}</SelectItem>
+          <SelectItem value='blank'>{t(BACKGROUND_LABELS.blank)}</SelectItem>
         </SelectContent>
       </Select>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation='vertical' className='mx-1 h-5 shrink-0' />
 
       <Button
         size='icon'
         variant='ghost'
-        className='size-8 rounded-full'
+        className='size-8 shrink-0 rounded-lg'
         title={t('Undo')}
+        aria-label={t('Undo')}
         disabled={!props.canUndo}
         onClick={props.onUndo}
       >
@@ -146,33 +157,36 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
       <Button
         size='icon'
         variant='ghost'
-        className='size-8 rounded-full'
+        className='size-8 shrink-0 rounded-lg'
         title={t('Redo')}
+        aria-label={t('Redo')}
         disabled={!props.canRedo}
         onClick={props.onRedo}
       >
         <Redo2 className='size-4' />
       </Button>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation='vertical' className='mx-1 h-5 shrink-0' />
 
       <Button
         size='icon'
         variant='ghost'
-        className='size-8 rounded-full'
+        className='size-8 shrink-0 rounded-lg'
         title={t('Zoom out')}
+        aria-label={t('Zoom out')}
         onClick={props.onZoomOut}
       >
         <ZoomOut className='size-4' />
       </Button>
-      <span className='w-12 text-center text-xs tabular-nums'>
+      <span className='text-2xs w-11 shrink-0 text-center font-medium tabular-nums'>
         {Math.round(props.scale * 100)}%
       </span>
       <Button
         size='icon'
         variant='ghost'
-        className='size-8 rounded-full'
+        className='size-8 shrink-0 rounded-lg'
         title={t('Zoom in')}
+        aria-label={t('Zoom in')}
         onClick={props.onZoomIn}
       >
         <ZoomIn className='size-4' />
@@ -180,14 +194,15 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
       <Button
         size='icon'
         variant='ghost'
-        className='size-8 rounded-full'
+        className='size-8 shrink-0 rounded-lg'
         title={t('Fit view')}
+        aria-label={t('Fit view')}
         onClick={props.onFitView}
       >
         <Maximize className='size-4' />
       </Button>
 
-      <Separator orientation='vertical' className='mx-1 h-5' />
+      <Separator orientation='vertical' className='mx-1 h-5 shrink-0' />
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -195,7 +210,7 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
             <Button
               size='icon'
               variant='ghost'
-              className='size-8 rounded-full'
+              className='size-8 shrink-0 rounded-lg'
               title={t('Import / export')}
               aria-label={t('Import / export')}
             >

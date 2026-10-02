@@ -155,7 +155,7 @@ export function InspirationTemplates(props: InspirationTemplatesProps) {
           type='button'
           disabled={props.creating}
           onClick={props.onCreateBlank}
-          className='border-border/60 hover:border-primary/50 hover:bg-accent/30 group focus-visible:ring-ring flex min-h-[14rem] flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed p-6 text-center transition-[border-color,background-color] outline-none focus-visible:ring-2 disabled:opacity-60'
+          className='border-border/60 hover:border-primary/50 hover:bg-accent/30 group focus-visible:ring-ring flex min-h-[14rem] flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed p-6 text-center transition-[border-color,background-color] outline-none focus-visible:ring-2 disabled:opacity-60'
         >
           <span className='bg-primary/10 text-primary duration-overlay flex size-10 items-center justify-center rounded-full transition-transform group-hover:scale-110'>
             {props.creating ? (
@@ -203,7 +203,7 @@ export function InspirationTemplates(props: InspirationTemplatesProps) {
             (key) => (
               <div
                 key={key}
-                className='border-border/50 space-y-3 overflow-hidden rounded-xl border p-3'
+                className='border-border/60 space-y-3 overflow-hidden rounded-2xl border p-3'
               >
                 <Skeleton className='aspect-[4/3] w-full rounded-lg' />
                 <Skeleton className='h-4 w-3/4' />

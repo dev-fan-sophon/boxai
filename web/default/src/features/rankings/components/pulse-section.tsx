@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import {
+  Activity,
   ArrowDownRight,
   ArrowUpRight,
   TrendingDown,
@@ -28,7 +29,7 @@ export function PulseSection(props: PulseSectionProps) {
       <PulseCard
         title={t('Trending up')}
         description={t('Models climbing the leaderboard')}
-        icon={<TrendingUp className='size-4 text-emerald-500' />}
+        icon={<TrendingUp className='text-success size-4' />}
       >
         {props.movers.length === 0 ? (
           <PulseEmpty label={t('No notable climbers right now')} />
@@ -44,7 +45,7 @@ export function PulseSection(props: PulseSectionProps) {
       <PulseCard
         title={t('Trending down')}
         description={t('Models losing positions')}
-        icon={<TrendingDown className='size-4 text-rose-500' />}
+        icon={<TrendingDown className='text-destructive size-4' />}
       >
         {props.droppers.length === 0 ? (
           <PulseEmpty label={t('No notable drops right now')} />
@@ -67,8 +68,8 @@ function PulseCard(props: {
   children: React.ReactNode
 }) {
   return (
-    <div className='bg-card overflow-hidden rounded-lg border'>
-      <header className='border-b px-4 py-3'>
+    <div className='bg-card border-border/60 overflow-hidden rounded-2xl border shadow-xs'>
+      <header className='border-border/60 border-b px-5 py-4'>
         <h3 className='text-foreground inline-flex items-center gap-2 text-sm font-semibold'>
           {props.icon}
           {props.title}
@@ -84,7 +85,10 @@ function PulseCard(props: {
 
 function PulseEmpty(props: { label: string }) {
   return (
-    <div className='text-muted-foreground px-4 py-6 text-center text-xs'>
+    <div className='text-muted-foreground flex flex-col items-center gap-2 px-4 py-8 text-center text-sm'>
+      <span className='bg-muted flex size-9 items-center justify-center rounded-xl'>
+        <Activity className='size-4' aria-hidden='true' />
+      </span>
       {props.label}
     </div>
   )
@@ -93,8 +97,8 @@ function PulseEmpty(props: { label: string }) {
 function MoverRow(props: { row: RankingMover; intent: 'up' | 'down' }) {
   return (
     <li className='flex items-center gap-3 px-4 py-2'>
-      <span className='shrink-0'>
-        <LobeIcon name={props.row.vendor_icon} size={20} />
+      <span className='bg-background ring-border/60 flex size-8 shrink-0 items-center justify-center rounded-lg ring-1'>
+        <LobeIcon name={props.row.vendor_icon} size={16} />
       </span>
       <div className='min-w-0 flex-1'>
         <ModelLink
@@ -105,17 +109,13 @@ function MoverRow(props: { row: RankingMover; intent: 'up' | 'down' }) {
         </ModelLink>
         <p className='text-muted-foreground text-2xs truncate'>
           #{props.row.current_rank} ·{' '}
-          <VendorLink vendor={props.row.vendor}>
-            {props.row.vendor.toLowerCase()}
-          </VendorLink>
+          <VendorLink vendor={props.row.vendor}>{props.row.vendor}</VendorLink>
         </p>
       </div>
       <span
         className={cn(
-          'inline-flex shrink-0 items-center gap-0.5 font-mono text-xs font-semibold tabular-nums',
-          props.intent === 'up'
-            ? 'text-emerald-600 dark:text-emerald-400'
-            : 'text-rose-600 dark:text-rose-400'
+          'inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold tabular-nums',
+          props.intent === 'up' ? 'text-success' : 'text-destructive'
         )}
       >
         {props.intent === 'up' ? (

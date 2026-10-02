@@ -73,7 +73,7 @@ function SignalValue(props: { signal: CommandBarSignal }) {
   }
   if (props.signal.numericValue != null) {
     return (
-      <span className='font-mono text-sm font-semibold tabular-nums'>
+      <span className='text-sm font-semibold tabular-nums'>
         {formatNumber(Math.round(animated))}
       </span>
     )

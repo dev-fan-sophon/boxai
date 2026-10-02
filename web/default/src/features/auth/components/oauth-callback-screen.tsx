@@ -90,34 +90,33 @@ export function OAuthCallbackScreen({
       )
 
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='flex flex-col items-center space-y-4 text-center'>
-          <div className='bg-muted flex h-16 w-16 items-center justify-center rounded-2xl'>
-            <Icon className='h-8 w-8' />
-          </div>
-          <div className='space-y-2'>
-            <h2 className='text-center text-2xl font-semibold tracking-tight'>
-              {headline}
-            </h2>
-            <p className='text-muted-foreground text-sm sm:text-base'>
-              {description}
-            </p>
-          </div>
-        </div>
-
-        <div className='space-y-4 text-center'>
-          <div className='flex items-center justify-center gap-2 text-sm font-medium'>
-            <Loader2 className='h-4 w-4 animate-spin' />
-            <span>{t('Processing OAuth response...')}</span>
-          </div>
-          <p className='text-muted-foreground text-sm'>{secondaryNote}</p>
-          <p className='text-muted-foreground text-xs'>
-            {t(
-              'This may take a few moments while we validate the request and update your session.'
-            )}
-          </p>
-        </div>
+    <AuthLayout
+      icon={
+        <span className='bg-card ring-border shadow-panel relative flex size-14 items-center justify-center rounded-2xl ring-1'>
+          <Icon className='size-7' />
+          <span className='bg-background ring-border absolute -right-1.5 -bottom-1.5 flex size-6 items-center justify-center rounded-full ring-1'>
+            <Loader2 className='text-primary size-3.5 animate-spin' />
+          </span>
+        </span>
+      }
+      title={headline}
+      description={<p>{description}</p>}
+    >
+      <div
+        className='bg-surface-subtle ring-border/60 space-y-2 rounded-2xl p-4 ring-1'
+        role='status'
+        aria-live='polite'
+      >
+        <p className='flex items-center gap-2 text-sm font-medium'>
+          <Loader2 className='size-4 shrink-0 animate-spin' aria-hidden />
+          <span className='min-w-0'>{t('Processing OAuth response...')}</span>
+        </p>
+        <p className='text-muted-foreground text-sm'>{secondaryNote}</p>
+        <p className='text-muted-foreground text-xs'>
+          {t(
+            'This may take a few moments while we validate the request and update your session.'
+          )}
+        </p>
       </div>
     </AuthLayout>
   )

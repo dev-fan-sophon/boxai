@@ -119,7 +119,10 @@ const codeMirrorTheme = EditorView.theme({
     lineHeight: '1.5rem',
     minHeight: 'var(--code-editor-min-height)',
     minWidth: 'max-content',
-    padding: '1rem 1rem 1rem 0',
+    padding: '0.875rem 1rem',
+  },
+  '.cm-gutters + .cm-content': {
+    paddingLeft: '0',
   },
   '.cm-editor': {
     background: 'transparent',
@@ -133,16 +136,18 @@ const codeMirrorTheme = EditorView.theme({
     borderRight: '0',
     color: 'var(--muted-foreground)',
     fontFamily: 'var(--font-mono)',
-    fontSize: '13px',
+    fontSize: '12px',
     lineHeight: '1.5rem',
-    padding: '1rem 1rem 1rem 0',
+    // CodeMirror offsets gutter rows by the content's own top padding; any
+    // vertical padding here would push every number one row down.
+    padding: '0 0.75rem 0 0',
   },
   '.cm-gutters:empty': {
     display: 'none',
   },
   '.cm-lineNumbers .cm-gutterElement': {
-    minWidth: '2.5rem',
-    padding: '0 1rem 0 0',
+    minWidth: '2.25rem',
+    padding: '0 0 0 0.75rem',
     textAlign: 'right',
   },
   '.cm-line': {
@@ -387,15 +392,15 @@ export const CodeBlockFrame = ({
 }: CodeBlockFrameProps) => (
   <div
     className={cn(
-      'group/code-block bg-muted/20 text-foreground my-3 w-full max-w-full overflow-hidden rounded-lg border shadow-xs',
+      'group/code-block bg-surface-subtle text-foreground ring-border/80 my-3 w-full max-w-full overflow-hidden rounded-xl ring-1',
       className
     )}
     {...props}
   >
     {showToolbar && (
-      <div className='bg-muted/35 border-border/70 flex min-h-10 items-center gap-2 border-b px-2 py-1.5'>
+      <div className='border-border/70 flex min-h-9 items-center gap-2 border-b py-1 pr-1 pl-3.5'>
         <div className='min-w-0 flex-1'>
-          <div className='text-muted-foreground text-2xs truncate font-mono font-medium tracking-wide uppercase'>
+          <div className='text-muted-foreground text-2xs truncate font-mono font-medium'>
             {title}
           </div>
         </div>
@@ -471,7 +476,7 @@ export const CodeBlock = ({
         bodyOverlay={
           <>
             {isCodeCollapsed && (
-              <div className='from-muted/20 to-background pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-b' />
+              <div className='to-surface-subtle pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-b from-transparent' />
             )}
             {!showToolbar && children && (
               <div className='absolute top-2 right-2 flex items-center gap-1'>
@@ -489,7 +494,7 @@ export const CodeBlock = ({
                   render={
                     <Button
                       aria-label={isCodeCollapsed ? t('Expand') : t('Collapse')}
-                      className='size-8'
+                      className='size-7'
                       onClick={() => setIsCollapsed((value) => !value)}
                       size='icon-sm'
                       type='button'
@@ -514,7 +519,7 @@ export const CodeBlock = ({
                 render={
                   <Button
                     aria-label={t('Download')}
-                    className='size-8'
+                    className='size-7'
                     onClick={downloadCode}
                     size='icon-sm'
                     type='button'
@@ -623,7 +628,7 @@ export const CodeBlockCopyButton = ({
   const button = (
     <Button
       aria-label={isCopied ? t('Copied!') : t('Copy code')}
-      className={cn('size-8 shrink-0', className)}
+      className={cn('size-7 shrink-0', className)}
       onClick={copyToClipboard}
       size='icon-sm'
       type='button'

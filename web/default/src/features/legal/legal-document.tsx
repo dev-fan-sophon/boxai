@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { FileWarning } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { RichContent } from '@/components/rich-content'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Eyebrow } from '@/features/home/components/marketing'
 import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
 
 import type { LegalDocumentResponse } from './types'
@@ -40,7 +42,7 @@ export function LegalDocument({
   if (isLoading) {
     return (
       <PublicLayout>
-        <div className='mx-auto flex max-w-4xl flex-col gap-4 py-12'>
+        <div className='mx-auto flex max-w-3xl flex-col gap-4 py-10 sm:py-16'>
           <Skeleton className='h-8 w-[45%]' />
           <Skeleton className='h-4 w-full' />
           <Skeleton className='h-4 w-[90%]' />
@@ -53,20 +55,17 @@ export function LegalDocument({
   if (!success || !hasContent) {
     return (
       <PublicLayout>
-        <div className='mx-auto max-w-2xl py-12'>
-          <Card className='border-dashed'>
-            <CardHeader className='flex flex-row items-center gap-4'>
-              <div className='bg-muted rounded-lg p-2'>
-                <FileWarning className='text-muted-foreground h-5 w-5' />
-              </div>
-              <div className='space-y-1'>
-                <CardTitle className='text-lg font-semibold'>{title}</CardTitle>
-                <p className='text-muted-foreground text-sm'>
-                  {data?.message || emptyMessage}
-                </p>
-              </div>
-            </CardHeader>
-          </Card>
+        <div className='mx-auto max-w-2xl py-10 sm:py-16'>
+          <Eyebrow className='mb-4'>{t('Legal')}</Eyebrow>
+          <h1 className='text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'>
+            {title}
+          </h1>
+          <EmptyState
+            className='mt-8'
+            icon={FileWarning}
+            title={t('Not published yet')}
+            description={data?.message || emptyMessage}
+          />
         </div>
       </PublicLayout>
     )
@@ -75,7 +74,8 @@ export function LegalDocument({
   if (isUrl) {
     return (
       <PublicLayout>
-        <div className='mx-auto max-w-2xl py-12'>
+        <div className='mx-auto max-w-2xl py-10 sm:py-16'>
+          <Eyebrow className='mb-4'>{t('Legal')}</Eyebrow>
           <Card>
             <CardHeader>
               <CardTitle>{title}</CardTitle>
@@ -109,17 +109,20 @@ export function LegalDocument({
       {contentIsHtml ? (
         <RichContent mode='html' htmlVariant='isolated' content={rawContent} />
       ) : (
-        <div className='mx-auto max-w-4xl space-y-6 py-12'>
-          <div className='space-y-2'>
-            <h1 className='text-3xl font-semibold tracking-tight'>{title}</h1>
-          </div>
+        <article className='mx-auto max-w-3xl py-10 sm:py-16'>
+          <header className='border-border/60 mb-8 border-b pb-8'>
+            <Eyebrow className='mb-4'>{t('Legal')}</Eyebrow>
+            <h1 className='text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'>
+              {title}
+            </h1>
+          </header>
 
           <RichContent
             mode='markdown'
             content={rawContent}
             className='prose-neutral dark:prose-invert max-w-none'
           />
-        </div>
+        </article>
       )}
     </PublicLayout>
   )

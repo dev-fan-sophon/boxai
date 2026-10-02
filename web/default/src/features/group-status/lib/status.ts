@@ -42,7 +42,7 @@ export function summarizeGroups(groups: GroupStatusGroup[]) {
   let observing = 0
   let totalModels = 0
   for (const g of groups) {
-    for (const m of g.models) {
+    for (const m of g.models ?? []) {
       totalModels++
       const tone = normalizeStatus(m.status)
       if (tone === 'healthy') healthy++

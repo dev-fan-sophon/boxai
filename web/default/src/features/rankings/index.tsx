@@ -5,6 +5,7 @@ import { ErrorState } from '@/components/error-state'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-enter'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BrandGlow } from '@/features/home/components/marketing'
 
 import {
   MarketShareSection,
@@ -47,21 +48,12 @@ export function Rankings() {
     <PublicLayout showMainContainer={false}>
       <div className='relative'>
         <div
-          aria-hidden
-          className='pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]'
-          style={{
-            background: [
-              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
-            ].join(', '),
-            maskImage:
-              'linear-gradient(to bottom, black 40%, transparent 100%)',
-            WebkitMaskImage:
-              'linear-gradient(to bottom, black 40%, transparent 100%)',
-          }}
-        />
-        <PageTransition className='relative mx-auto w-full max-w-[1280px] space-y-8 px-3 pt-16 pb-10 sm:px-6 sm:pt-20 sm:pb-12 xl:px-8'>
+          aria-hidden='true'
+          className='pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden'
+        >
+          <BrandGlow className='opacity-70' />
+        </div>
+        <PageTransition className='relative mx-auto w-full max-w-6xl space-y-6 px-4 pt-24 pb-12 sm:space-y-8 sm:px-6 sm:pt-28 sm:pb-16'>
           <RankingsHero period={period} onPeriodChange={handlePeriodChange} />
 
           {rankingsQuery.isLoading && <RankingsLoading />}
@@ -103,9 +95,9 @@ export function Rankings() {
 function RankingsLoading() {
   return (
     <div className='space-y-6'>
-      <Skeleton className='h-[420px] w-full rounded-xl' />
-      <Skeleton className='h-[360px] w-full rounded-xl' />
-      <Skeleton className='h-[180px] w-full rounded-xl' />
+      <Skeleton className='h-[420px] w-full rounded-2xl' />
+      <Skeleton className='h-[360px] w-full rounded-2xl' />
+      <Skeleton className='h-[180px] w-full rounded-2xl' />
     </div>
   )
 }

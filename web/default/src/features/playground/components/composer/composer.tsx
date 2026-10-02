@@ -61,14 +61,14 @@ export function ComposerShell(props: ComposerShellProps) {
       <PromptInput
         className='relative min-w-0'
         groupClassName={cn(
-          'playground-composer-surface bg-background/95 dark:bg-background/85 border-border/70 ring-1 ring-foreground/5 rounded-xl overflow-hidden',
+          'playground-composer-surface bg-card border-border/80 rounded-2xl overflow-hidden',
           // The composer manages its own disabled look; keep the InputGroup
           // from dimming the whole surface (and the Stop button) with it.
-          'has-[[data-slot=input-group-control]:disabled]:opacity-100 has-[[data-slot=input-group-control]:disabled]:bg-background/95 dark:has-[[data-slot=input-group-control]:disabled]:bg-background/85',
-          'shadow-panel transition-[border-color,box-shadow,transform] duration-control',
-          'focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-lifted',
+          'has-[[data-slot=input-group-control]:disabled]:opacity-100 has-[[data-slot=input-group-control]:disabled]:bg-card',
+          'shadow-panel transition-[border-color,box-shadow] duration-control',
+          'focus-within:border-ring focus-within:ring-ring/15 focus-within:ring-3',
           props.dragActive &&
-            'border-primary/70 ring-primary/25 bg-primary/[0.04] border-dashed',
+            'border-primary/70 ring-primary/20 bg-primary/5 border-dashed ring-3',
           props.disabled && 'opacity-90'
         )}
         onSubmit={props.onSubmit}
@@ -78,7 +78,7 @@ export function ComposerShell(props: ComposerShellProps) {
           autoCorrect='off'
           autoCapitalize='off'
           spellCheck={false}
-          className='min-h-[2.75rem] px-3.5 pt-3 pb-2 text-base leading-6 sm:min-h-0 sm:px-4 md:text-base'
+          className='md:text-md min-h-12 px-4 pt-3.5 pb-1 text-base leading-6 sm:min-h-14'
           disabled={props.disabled}
           newlineOnEnter={props.newlineOnEnter}
           onChange={(event) => props.onTextChange(event.target.value)}
@@ -89,16 +89,16 @@ export function ComposerShell(props: ComposerShellProps) {
 
         {props.attachments}
 
-        <PromptInputFooter className='border-border/60 bg-muted/25 dark:bg-muted/15 relative z-10 border-t px-2 py-1.5 backdrop-blur-md sm:px-2.5'>
+        <PromptInputFooter className='relative z-10 px-2 pt-1 pb-2 sm:px-2.5'>
           <div className='flex w-full min-w-0 items-center justify-between gap-1.5 sm:gap-2'>
-            <div className='flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden sm:gap-1'>
+            <div className='flex min-w-0 flex-1 items-center gap-1 overflow-hidden'>
               {props.tools}
             </div>
             <div className='flex shrink-0 items-center gap-1.5 sm:gap-2'>
               {props.trailing}
               {props.showStop ? (
                 <PromptInputButton
-                  className='border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/15 h-9 min-w-9 touch-manipulation font-medium sm:h-8'
+                  className='bg-destructive/10 text-destructive hover:bg-destructive/15 h-9 min-w-9 touch-manipulation rounded-full font-medium sm:h-8 sm:px-3'
                   onClick={props.onStop}
                   variant='secondary'
                 >
@@ -112,11 +112,8 @@ export function ComposerShell(props: ComposerShellProps) {
                     render={
                       <PromptInputButton
                         className={cn(
-                          'bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-9 min-w-9 touch-manipulation px-3 font-medium shadow-sm sm:h-8',
-                          'transition-transform active:scale-[0.97]',
-                          props.canSubmit &&
-                            !props.disabled &&
-                            'shadow-primary/25 shadow-md'
+                          'bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-9 min-w-9 touch-manipulation rounded-full px-0 font-medium disabled:opacity-100 sm:h-8 sm:px-3.5',
+                          'transition-[background-color,color,transform] duration-control active:scale-[0.97]'
                         )}
                         disabled={!props.canSubmit || props.disabled}
                         type='submit'

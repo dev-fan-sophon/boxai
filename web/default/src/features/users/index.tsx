@@ -82,10 +82,14 @@ function UsersContent() {
           {t(SECTION_TITLES[activeSection] ?? SECTION_TITLES.overview)}
         </SectionPageLayout.Title>
         <SectionPageLayout.Actions>
-          {isDirectory && <UsersPrimaryButtons />}
-          {showRangeTabs && (
-            <OpsRangeTabs days={rangeDays} onDaysChange={setRangeDays} />
-          )}
+          {/* Below `sm` the actions take their own full-width row so they
+              wrap instead of being clipped beside the title. */}
+          <div className='flex flex-wrap items-center gap-2 max-sm:w-[calc(100vw-2rem)]'>
+            {isDirectory && <UsersPrimaryButtons />}
+            {showRangeTabs && (
+              <OpsRangeTabs days={rangeDays} onDaysChange={setRangeDays} />
+            )}
+          </div>
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
           <div className={isDirectory ? 'flex h-full flex-col' : 'space-y-3'}>

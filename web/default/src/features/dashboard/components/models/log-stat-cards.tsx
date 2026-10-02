@@ -20,6 +20,7 @@ import { computeTimeRange } from '@/lib/time'
 import { cn } from '@/lib/utils'
 
 import { useDashboardScope } from '../dashboard-scope'
+import { AnimatedQuota } from '../ui/animated-quota'
 
 interface LogStatCardsProps {
   filters?: DashboardFilters
@@ -116,7 +117,12 @@ export function LogStatCards(props: LogStatCardsProps) {
 
     return {
       title: config.title,
-      value: formatted.displayValue,
+      value:
+        config.key === 'quota' ? (
+          <AnimatedQuota quota={rawValue} />
+        ) : (
+          formatted.displayValue
+        ),
       fullValue: formatted.fullValue,
       icon: config.icon,
       iconTone: config.iconTone,
@@ -124,12 +130,12 @@ export function LogStatCards(props: LogStatCardsProps) {
   })
 
   return (
-    <StaggerContainer className='bg-border ring-border grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-xl ring-1 sm:grid-cols-3 lg:grid-cols-5'>
+    <StaggerContainer className='bg-border ring-border grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl ring-1 sm:grid-cols-3 lg:grid-cols-5'>
       {items.map((it, idx) => (
         <StaggerItem
           key={it.title}
           className={cn(
-            'bg-card hover:bg-muted/20 min-w-0 px-3 py-3 transition-colors sm:px-5 sm:py-4',
+            'bg-card min-w-0 px-4 py-3.5 sm:px-5 sm:py-4',
             idx === items.length - 1 &&
               items.length % 2 !== 0 &&
               'col-span-2 sm:col-span-1'
@@ -140,6 +146,7 @@ export function LogStatCards(props: LogStatCardsProps) {
             label={it.title}
             value={it.value}
             valueTitle={it.fullValue}
+            valueClassName='font-sans'
             icon={it.icon}
             iconTone={it.iconTone}
             loading={loading}

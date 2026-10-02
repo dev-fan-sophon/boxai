@@ -27,10 +27,8 @@ import { StreamTpsCell, TimingMetricsCell } from './timing-metrics-cell'
 import { useUsageLogsContext } from './usage-logs-provider'
 
 const logTypeRowTint: Record<number, string> = {
-  [LOG_TYPE_ENUM.ERROR]:
-    'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200/50 dark:border-rose-900/30',
-  [LOG_TYPE_ENUM.REFUND]:
-    'bg-blue-50/30 dark:bg-blue-950/15 border-blue-200/50 dark:border-blue-900/30',
+  [LOG_TYPE_ENUM.ERROR]: 'bg-destructive/5 border-l-destructive/60',
+  [LOG_TYPE_ENUM.REFUND]: 'bg-info/5 border-l-info/60',
 }
 
 interface UsageLogsMobileListProps<TData> {
@@ -43,7 +41,7 @@ interface UsageLogsMobileListProps<TData> {
 
 function UsageLogsMobileSkeleton() {
   return (
-    <div className='border-border/50 bg-card overflow-hidden rounded-lg border'>
+    <div className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
       {[1, 2, 3].map((i) => (
         <div
           key={i}
@@ -144,7 +142,7 @@ function MobileLogTimeStatus({
 
   return (
     <div className='space-y-1'>
-      <div className='font-mono text-xs leading-tight tabular-nums'>
+      <div className='text-xs leading-tight font-medium tabular-nums'>
         {formatTimestampToDate(timestamp)}
       </div>
       <div
@@ -192,7 +190,7 @@ function MobileTokensField({ log }: { log: UsageLog }) {
   return (
     <div className='bg-muted/20 min-w-0 rounded-md px-2 py-1.5'>
       <div className='flex flex-col gap-0.5'>
-        <span className='font-mono text-xs font-medium tabular-nums'>
+        <span className='text-xs font-medium tabular-nums'>
           {promptTokens.toLocaleString()} / {completionTokens.toLocaleString()}
         </span>
         {showCache ? (
@@ -292,6 +290,30 @@ function CommonLogsCard<TData>({
   const modelCell = cells.get('model_name')
   const quotaCell = cells.get('quota')
   const rowData = cells.get('created_at')?.row.original as UsageLog | undefined
+
+  // Login / management / system entries carry no model, tokens or cost: show
+  // just when it happened and what it says instead of a grid of empty tiles.
+  if (rowData && !isDisplayableLogType(rowData.type)) {
+    return (
+      <div className='flex min-w-0 flex-col gap-1.5'>
+        <div className='flex min-w-0 flex-wrap items-start justify-between gap-2'>
+          <MobileLogTimeStatus
+            createdAt={rowData.created_at}
+            type={rowData.type}
+          />
+          {cells.has('user') && (
+            <div className='max-w-[50%] shrink-0'>
+              <MobileUserField log={rowData} />
+            </div>
+          )}
+        </div>
+        <CompactCell
+          cell={cells.get('content')}
+          className='text-muted-foreground text-xs leading-relaxed'
+        />
+      </div>
+    )
+  }
 
   return (
     <div className='space-y-2.5'>
@@ -448,13 +470,13 @@ export function UsageLogsMobileList<TData>({
         title={resolvedEmptyTitle}
         description={resolvedEmptyDescription}
         bordered={false}
-        className='min-h-0 rounded-lg border border-solid p-6'
+        className='bg-card ring-border min-h-0 rounded-2xl p-6 ring-1'
       />
     )
   }
 
   return (
-    <div className='border-border/50 bg-card overflow-hidden rounded-lg border'>
+    <div className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
       {rows.map((row) => {
         const cells = new Map(
           row.getVisibleCells().map((cell) => [cell.column.id, cell])
@@ -469,7 +491,7 @@ export function UsageLogsMobileList<TData>({
           <div
             key={row.id}
             className={cn(
-              'border-border/40 border-b border-l-2 border-l-transparent p-3 transition-colors last:border-b-0',
+              'border-border/60 border-b border-l-2 border-l-transparent px-3.5 py-3 last:border-b-0',
               tintClass
             )}
           >

@@ -12,9 +12,7 @@ export function SectionHeading(props: {
 }) {
   return (
     <AnimateInView className='mb-8 max-w-2xl md:mb-12'>
-      <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-        {props.eyebrow}
-      </p>
+      <p className='text-primary mb-3 text-sm font-semibold'>{props.eyebrow}</p>
       <h2
         id={props.id}
         className='text-2xl font-bold tracking-tight text-balance md:text-3xl'

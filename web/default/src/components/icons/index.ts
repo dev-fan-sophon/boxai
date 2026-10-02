@@ -63,10 +63,7 @@ export { BookIcon } from '@phosphor-icons/react'
 export { BookOpenIcon as BookOpen } from '@phosphor-icons/react'
 export { BooksIcon as Library } from '@phosphor-icons/react'
 export { BracketsCurlyIcon as Braces } from '@phosphor-icons/react'
-export {
-  BrainIcon as Brain,
-  BrainIcon,
-} from '@phosphor-icons/react'
+export { BrainIcon as Brain, BrainIcon } from '@phosphor-icons/react'
 export { BroadcastIcon as RadioTower } from '@phosphor-icons/react'
 export { BuildingsIcon as Building2 } from '@phosphor-icons/react'
 export { CalendarIcon as Calendar } from '@phosphor-icons/react'
@@ -100,10 +97,7 @@ export { ChatIcon as MessageSquare } from '@phosphor-icons/react'
 export { ChatCenteredTextIcon as MessageSquarePlusIcon } from '@phosphor-icons/react'
 export { ChatCircleIcon as MessageCircle } from '@phosphor-icons/react'
 export { ChatCircleDotsIcon as MessageCircleWarning } from '@phosphor-icons/react'
-export {
-  CheckIcon as Check,
-  CheckIcon,
-} from '@phosphor-icons/react'
+export { CheckIcon as Check, CheckIcon } from '@phosphor-icons/react'
 export { CheckCircleIcon as CheckCircle2 } from '@phosphor-icons/react'
 export {
   CheckSquareIcon as CheckSquare,
@@ -196,10 +190,7 @@ export { HeadphonesIcon as Headphones } from '@phosphor-icons/react'
 export { HeartIcon as Heart } from '@phosphor-icons/react'
 export { HeartbeatIcon as HeartPulse } from '@phosphor-icons/react'
 export { HouseIcon as Home } from '@phosphor-icons/react'
-export {
-  ImageIcon as Image,
-  ImageIcon,
-} from '@phosphor-icons/react'
+export { ImageIcon as Image, ImageIcon } from '@phosphor-icons/react'
 export { ImageBrokenIcon as ImageOff } from '@phosphor-icons/react'
 export { ImageSquareIcon as ImagePlus } from '@phosphor-icons/react'
 export { InfoIcon as Info } from '@phosphor-icons/react'
@@ -323,10 +314,7 @@ export { SortAscendingIcon as SortAsc } from '@phosphor-icons/react'
 export { SparkleIcon as Sparkles } from '@phosphor-icons/react'
 export { SpeakerHighIcon as Volume2 } from '@phosphor-icons/react'
 export { SpeakerXIcon as VolumeX } from '@phosphor-icons/react'
-export {
-  SquareIcon as Square,
-  SquareIcon,
-} from '@phosphor-icons/react'
+export { SquareIcon as Square, SquareIcon } from '@phosphor-icons/react'
 export {
   SquaresFourIcon as Blocks,
   SquaresFourIcon as LayoutDashboard,

@@ -6,9 +6,11 @@ import {
   StaticDataTable,
   staticDataTableClassNames as tableStyles,
 } from '@/components/data-table'
+import { EmptyState } from '@/components/empty-state'
 import { GroupBadge } from '@/components/group-badge'
 import { AlertTriangle, HeartPulse, Timer } from '@/components/icons'
 import { StatCard } from '@/components/stat-card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getPerfMetrics } from '@/features/performance-metrics/api'
 import {
   formatLatency,
@@ -145,11 +147,16 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
     return map
   }, [groups])
 
-  if (metricsQuery.isLoading || performances.length === 0) {
+  if (metricsQuery.isLoading) {
+    return <Skeleton className='h-56 w-full rounded-2xl' />
+  }
+
+  if (performances.length === 0) {
     return (
-      <div className='text-muted-foreground rounded-lg border p-6 text-center text-sm'>
-        {t('Performance data is not yet available for this model.')}
-      </div>
+      <EmptyState
+        icon={HeartPulse}
+        title={t('Performance data is not yet available for this model.')}
+      />
     )
   }
 
@@ -288,7 +295,7 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
           }
           accent={
             incidentCount > 0 ? (
-              <span className='inline-flex items-center gap-1 text-amber-600 dark:text-amber-400'>
+              <span className='text-warning inline-flex items-center gap-1'>
                 <AlertTriangle className='size-3.5' />
                 {t('{{count}} incidents', {
                   count: incidentCount,

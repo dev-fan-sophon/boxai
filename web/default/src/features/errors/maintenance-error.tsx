@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'
 
-export function MaintenanceError() {
+export function MaintenanceError(props: { embedded?: boolean }) {
   const { t } = useTranslation()
   return (
     <ErrorPage
+      embedded={props.embedded}
       code='503'
       icon={<Wrench />}
       iconTone='info'

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { Check, Code2, Sparkles } from '@/components/icons'
+import { ArrowRight, Check, Code2, Sparkles } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,8 @@ import {
 } from '@/features/downloads/use-app-release'
 import { cn } from '@/lib/utils'
 
+import { MarketingSection, SectionIntro } from '../marketing'
+
 /**
  * Shared card frame for the three apps. `mt-auto` on the action row is what
  * keeps the download buttons on one baseline: the taglines run to different
@@ -31,6 +33,7 @@ function AppCard(props: {
   highlights: readonly string[]
   badge?: ReactNode
   action: ReactNode
+  learnMore?: ReactNode
   note?: string
   delay: number
   muted?: boolean
@@ -38,10 +41,11 @@ function AppCard(props: {
   return (
     <AnimateInView delay={props.delay} className='h-full'>
       <article
-        data-card-hover={props.muted ? undefined : 'true'}
         className={cn(
-          'border-border/50 bg-card flex h-full flex-col rounded-2xl border p-6 shadow-xs md:p-7',
-          props.muted ? 'border-dashed' : 'hover:border-border'
+          'bg-card flex h-full flex-col rounded-2xl border p-6 md:p-7',
+          props.muted
+            ? 'border-border/70 bg-card/50 border-dashed'
+            : 'border-border/60 hover:border-border hover:shadow-raised transition-ui duration-control shadow-xs'
         )}
       >
         <div className='flex items-start gap-4'>
@@ -65,7 +69,7 @@ function AppCard(props: {
               <Check
                 className={cn(
                   'mt-0.5 size-4 shrink-0',
-                  props.muted ? 'text-muted-foreground/60' : 'text-chart-1'
+                  props.muted ? 'text-muted-foreground/60' : 'text-primary'
                 )}
                 strokeWidth={2}
                 aria-hidden='true'
@@ -84,6 +88,7 @@ function AppCard(props: {
           <div className='flex flex-wrap items-center gap-2'>
             {props.action}
           </div>
+          {props.learnMore && <div className='mt-4'>{props.learnMore}</div>}
         </div>
       </article>
     </AnimateInView>
@@ -113,23 +118,28 @@ function ClientAppShowcase(props: { app: ClientAppId; delay: number }) {
           className='ring-border/40 size-12 shrink-0 rounded-[22%] object-contain shadow-xs ring-1'
         />
       }
-      action={
-        <>
-          <DownloadActions
-            compact
-            downloads={downloads}
-            primary={primary}
-            loading={loading}
-            failed={failed}
-            fallbackUrl={fallbackUrl}
-            productName={appName}
+      learnMore={
+        <Link
+          to={props.app === 'connect' ? '/connect' : '/agents'}
+          className='group text-foreground hover:text-primary transition-ui inline-flex items-center gap-1.5 text-sm font-medium'
+        >
+          {t('Learn More')}
+          <ArrowRight
+            className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5'
+            aria-hidden='true'
           />
-          {props.app === 'connect' && (
-            <Button variant='outline' size='lg' render={<Link to='/connect' />}>
-              {t('Learn More')}
-            </Button>
-          )}
-        </>
+        </Link>
+      }
+      action={
+        <DownloadActions
+          compact
+          downloads={downloads}
+          primary={primary}
+          loading={loading}
+          failed={failed}
+          fallbackUrl={fallbackUrl}
+          productName={appName}
+        />
       }
     />
   )
@@ -162,7 +172,7 @@ function UpcomingAppShowcase(props: { delay: number }) {
       }
       note={t('Announced here the day it ships.')}
       action={
-        <Button size='lg' disabled aria-disabled='true'>
+        <Button variant='secondary' size='lg' disabled aria-disabled='true'>
           {t('In development')}
         </Button>
       }
@@ -178,31 +188,20 @@ export function ClientApps() {
   const { t } = useTranslation()
 
   return (
-    <section
-      aria-label={t('Desktop apps')}
-      className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <AnimateInView className='mb-8 max-w-2xl md:mb-10'>
-          <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-            {t('Desktop apps')}
-          </p>
-          <h2 className='text-2xl font-bold tracking-tight text-balance md:text-3xl'>
-            {t('Three apps that put BoxAI on your own machine')}
-          </h2>
-          <p className='text-muted-foreground mt-4 text-sm leading-relaxed text-pretty md:text-base'>
-            {t(
-              'One for your coding tools, one for the office work, and one for the codebase itself. All of them sign in with the account you already have.'
-            )}
-          </p>
-        </AnimateInView>
+    <MarketingSection label={t('Desktop apps')}>
+      <SectionIntro
+        eyebrow={t('Desktop apps')}
+        title={t('Three apps that put BoxAI on your own machine')}
+        description={t(
+          'One for your coding tools, one for the office work, and one for the codebase itself. All of them sign in with the account you already have.'
+        )}
+      />
 
-        <div className='grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3'>
-          <ClientAppShowcase app='connect' delay={100} />
-          <ClientAppShowcase app='desktop' delay={160} />
-          <UpcomingAppShowcase delay={220} />
-        </div>
+      <div className='grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3'>
+        <ClientAppShowcase app='connect' delay={100} />
+        <ClientAppShowcase app='desktop' delay={160} />
+        <UpcomingAppShowcase delay={220} />
       </div>
-    </section>
+    </MarketingSection>
   )
 }

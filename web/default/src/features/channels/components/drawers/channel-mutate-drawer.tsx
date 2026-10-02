@@ -1441,15 +1441,16 @@ export function ChannelMutateDrawer({
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetContent className={sideDrawerContentClassName('sm:max-w-5xl')}>
           <SheetHeader className={sideDrawerHeaderClassName()}>
-            <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+            {/* `pe-8` keeps the paste action clear of the sheet's close button. */}
+            <div className='flex flex-col gap-3 pe-8 sm:flex-row sm:items-start sm:justify-between'>
               <div className='min-w-0'>
                 <SheetTitle className='flex items-center gap-3'>
                   <IconBadge tone='info' size='title'>
                     <ChannelTypeLogo type={currentType} size={22} />
                   </IconBadge>
-                  <span>
+                  <span className='min-w-0'>
                     {isEditing ? t('Edit Channel') : t('Create Channel')}
-                    <span className='text-muted-foreground ml-2 text-sm font-normal'>
+                    <span className='text-muted-foreground ms-2 text-sm font-normal'>
                       {t(currentTypeLabel)}
                     </span>
                   </span>
@@ -1472,7 +1473,7 @@ export function ChannelMutateDrawer({
                   className='shrink-0'
                   onClick={pasteConnectionInfoFromClipboard}
                 >
-                  <ClipboardPaste className='size-4' />
+                  <ClipboardPaste data-icon='inline-start' />
                   <span>{t('Paste Connection Info')}</span>
                 </Button>
               )}
@@ -1480,7 +1481,7 @@ export function ChannelMutateDrawer({
           </SheetHeader>
 
           {sensitiveLocked && (
-            <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+            <Alert className='border-warning/25 bg-warning-subtle text-warning-subtle-foreground'>
               <AlertDescription>
                 {t(
                   'Sensitive channel settings are read-only for your account.'

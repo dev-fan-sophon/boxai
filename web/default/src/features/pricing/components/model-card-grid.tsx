@@ -84,7 +84,7 @@ export function ModelCardGrid(props: ModelCardGridProps) {
           vendorTotalCounts.get(countKey) ?? group.models.length
         const shownForVendor = group.models.length
         const vendorIcon = group.icon ? (
-          <LobeIcon name={group.icon} size={20} />
+          <LobeIcon name={group.icon} size={16} />
         ) : null
         const initial = group.name.charAt(0).toUpperCase() || '?'
         const countLabel =
@@ -97,23 +97,27 @@ export function ModelCardGrid(props: ModelCardGridProps) {
 
         return (
           <section key={group.key} className='space-y-3 sm:space-y-4'>
-            <header className='flex min-w-0 items-center gap-2 border-b pb-2.5'>
-              <span className='flex size-5 shrink-0 items-center justify-center'>
+            <header className='flex min-w-0 items-center gap-2.5'>
+              <span className='bg-card ring-border/60 flex size-7 shrink-0 items-center justify-center rounded-lg shadow-xs ring-1'>
                 {vendorIcon || (
                   <span className='text-muted-foreground text-xs font-bold'>
                     {initial}
                   </span>
                 )}
               </span>
-              <h2 className='truncate text-sm font-semibold tracking-tight sm:text-base'>
+              <h2 className='truncate text-base font-semibold tracking-tight'>
                 {group.name}
               </h2>
-              <span className='text-muted-foreground shrink-0 text-xs'>
+              <span className='bg-muted text-muted-foreground text-2xs shrink-0 rounded-full px-2 py-0.5 font-medium tabular-nums'>
                 {countLabel}
               </span>
+              <span
+                aria-hidden='true'
+                className='bg-border/70 ml-1 h-px min-w-4 flex-1'
+              />
             </header>
 
-            <div className='grid grid-cols-[repeat(auto-fill,minmax(min(270px,100%),1fr))] gap-3.5 sm:gap-4'>
+            <div className='grid grid-cols-[repeat(auto-fill,minmax(min(17rem,100%),1fr))] gap-3 sm:gap-4'>
               {group.models.map((model) => (
                 <ModelCard
                   key={model.id ?? model.model_name}
@@ -129,7 +133,7 @@ export function ModelCardGrid(props: ModelCardGridProps) {
       })}
 
       {totalPages > 1 && (
-        <div className='text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row'>
+        <div className='text-muted-foreground border-border/60 flex flex-col items-center justify-between gap-3 border-t pt-4 text-sm sm:flex-row'>
           <p className='text-muted-foreground'>
             {t('Page {{current}} of {{total}}', {
               current: currentPage,

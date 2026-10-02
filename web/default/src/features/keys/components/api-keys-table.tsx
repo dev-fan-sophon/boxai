@@ -14,26 +14,22 @@ import {
 } from '@/components/data-table'
 import { EmptyState } from '@/components/empty-state'
 import { Database } from '@/components/icons'
-import { StatusBadge } from '@/components/status-badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { getApiKeys, searchApiKeys } from '../api'
 import {
   API_KEY_STATUS,
   API_KEY_STATUS_OPTIONS,
-  API_KEY_STATUSES,
   ERROR_MESSAGES,
 } from '../constants'
 import type { ApiKey } from '../types'
-import { ApiKeyCell } from './api-keys-cells'
+import { ApiKeyCard } from './api-key-card'
 import { useApiKeysColumns } from './api-keys-columns'
 import { useApiKeys } from './api-keys-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
-import { DataTableRowActions } from './data-table-row-actions'
 
 const route = getRouteApi('/_authenticated/keys/')
 // Bump when default column priorities change so users pick up the new layout.
@@ -49,11 +45,11 @@ function isDisabledApiKeyRow(apiKey: ApiKey) {
 
 function ApiKeysMobileSkeleton() {
   return (
-    <div className='divide-border overflow-hidden rounded-lg border'>
+    <div className='grid grid-cols-1 gap-3'>
       {API_KEYS_MOBILE_SKELETON_IDS.map((id) => (
         <div
           key={id}
-          className='space-y-2 border-b px-3 py-2.5 last:border-b-0'
+          className='bg-card ring-border space-y-3 rounded-2xl p-4 ring-1'
         >
           <div className='flex items-center justify-between'>
             <Skeleton className='h-4 w-32' />
@@ -73,9 +69,11 @@ function ApiKeysMobileSkeleton() {
 function ApiKeysMobileList({
   table,
   isLoading,
+  now,
 }: {
   table: TanstackTable<ApiKey>
   isLoading: boolean
+  now: number
 }) {
   const { t } = useTranslation()
   const rows = table.getRowModel().rows
@@ -99,66 +97,24 @@ function ApiKeysMobileList({
           </a>
         }
         bordered={false}
-        className='min-h-0 rounded-lg border border-solid p-8'
+        className='min-h-0 rounded-2xl p-8'
       />
     )
   }
 
   return (
     <div className='grid grid-cols-1 gap-3'>
-      {rows.map((row) => {
-        const apiKey = row.original
-        const statusConfig = API_KEY_STATUSES[apiKey.status]
-        const total = apiKey.used_quota + apiKey.remain_quota
-
-        return (
-          <div
-            key={row.id}
-            className={cn(
-              'border-border/60 bg-card space-y-2.5 rounded-xl border px-3.5 py-3 shadow-[0_1px_0_0_color-mix(in_oklch,var(--foreground)_3%,transparent)]',
-              isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE
-            )}
-          >
-            <div className='flex items-start justify-between gap-2'>
-              <div className='min-w-0 flex-1'>
-                <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                  <span className='truncate text-sm font-semibold'>
-                    {apiKey.name}
-                  </span>
-                  {statusConfig && (
-                    <StatusBadge
-                      label={t(statusConfig.label)}
-                      variant={statusConfig.variant}
-                      copyable={false}
-                    />
-                  )}
-                </div>
-                <div className='mt-1.5 min-w-0 [&_button:first-child]:max-w-full [&_button:first-child]:truncate [&_button:first-child]:px-0'>
-                  <ApiKeyCell apiKey={apiKey} />
-                </div>
-              </div>
-              <DataTableRowActions row={row} />
-            </div>
-
-            <div className='text-muted-foreground flex items-center justify-between gap-2 text-xs'>
-              <span>{t('Quota')}</span>
-              {apiKey.unlimited_quota ? (
-                <span className='text-foreground font-medium'>
-                  {t('Unlimited')}
-                </span>
-              ) : (
-                <span className='text-foreground font-medium tabular-nums'>
-                  {formatQuota(apiKey.remain_quota)}
-                  <span className='text-muted-foreground font-normal'>
-                    {' / '}
-                    {formatQuota(total)}
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
-        )
-      })}
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className={cn(
+            'bg-card ring-border rounded-2xl p-4 ring-1',
+            isDisabledApiKeyRow(row.original) && DISABLED_ROW_MOBILE
+          )}
+        >
+          <ApiKeyCard row={row} now={now} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -313,7 +269,11 @@ export function ApiKeysTable() {
           },
         ],
       }}
-      mobile={<ApiKeysMobileList table={table} isLoading={isLoading} />}
+      mobile={
+        <ApiKeysMobileList table={table} isLoading={isLoading} now={now} />
+      }
+      renderCard={(row) => <ApiKeyCard row={row} now={now} />}
+      cardGridClassName='grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3'
       getRowClassName={(row) =>
         isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined
       }

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import {
   Clock,
   Layers,
-  ListOrdered,
   Monitor,
   Proportions,
   Volume2,
@@ -138,13 +137,6 @@ export function VideoParamChips(props: { hasImage: boolean }) {
           value: String(count),
           label: t('{{count}} videos', { count }),
         }))}
-      />
-      <TogglePill
-        icon={<ListOrdered />}
-        label={t('Batch')}
-        title={t('Enter several prompts and generate them at once')}
-        active={settings.videoBatchMode}
-        onToggle={() => persist({ videoBatchMode: !settings.videoBatchMode })}
       />
     </>
   )

@@ -135,10 +135,10 @@ const STATUS_ICON = {
 } as const
 
 const STATUS_COLOUR = {
-  operational: 'text-emerald-600 dark:text-emerald-400',
-  minor: 'text-emerald-600 dark:text-emerald-400',
-  degraded: 'text-amber-600 dark:text-amber-400',
-  major: 'text-rose-600 dark:text-rose-400',
+  operational: 'text-success',
+  minor: 'text-success',
+  degraded: 'text-warning',
+  major: 'text-destructive',
 } as const
 
 function getUptimeStatusLabel(

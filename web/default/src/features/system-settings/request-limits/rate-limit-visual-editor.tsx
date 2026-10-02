@@ -106,18 +106,21 @@ export function RateLimitVisualEditor({
 
   return (
     <div className='space-y-4'>
-      <div className='flex items-center gap-4'>
-        <div className='relative flex-1'>
-          <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
+      <div className='flex flex-wrap items-center gap-2'>
+        <div className='relative min-w-48 flex-1'>
+          <Search
+            className='text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2'
+            aria-hidden='true'
+          />
           <Input
             placeholder={t('Search group names...')}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className='pl-9'
+            className='h-8 pl-8'
           />
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className='mr-2 h-4 w-4' />
+        <Button size='sm' onClick={handleAdd}>
+          <Plus data-icon='inline-start' />
           {t('Add group')}
         </Button>
       </div>

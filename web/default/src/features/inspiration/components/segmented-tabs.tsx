@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import type { IconComponent } from '@/components/icons'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
 export type SegmentedTabOption<T extends string> = {
@@ -18,40 +19,25 @@ type SegmentedTabsProps<T extends string> = {
 }
 
 /**
- * Shared segmented control for the inspiration surfaces (landing sections and
- * template series). Single source for the muted track + raised active item.
+ * Inspiration's view and series switchers. A thin adapter over the shared
+ * `SegmentedControl`, so the thumb slides between options like every other
+ * peer-mode switch in the app while callers keep passing i18n keys.
  */
 export function SegmentedTabs<T extends string>(props: SegmentedTabsProps<T>) {
   const { t } = useTranslation()
   return (
-    <div
-      role='tablist'
+    <SegmentedControl
       aria-label={props.ariaLabel}
-      className={cn(
-        'bg-muted/60 inline-flex shrink-0 items-center gap-0.5 rounded-lg p-1',
-        props.className
-      )}
-    >
-      {props.options.map((option) => (
-        <button
-          key={option.value}
-          type='button'
-          role='tab'
-          aria-selected={props.value === option.value}
-          onClick={() => props.onChange(option.value)}
-          className={cn(
-            'focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-control outline-none focus-visible:ring-2',
-            props.value === option.value
-              ? 'bg-background text-foreground shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          {option.icon ? (
-            <option.icon className='size-4' aria-hidden='true' />
-          ) : null}
-          {t(option.label)}
-        </button>
-      ))}
-    </div>
+      value={props.value}
+      onValueChange={props.onChange}
+      className={cn('shrink-0', props.className)}
+      options={props.options.map((option) => ({
+        value: option.value,
+        label: t(option.label),
+        icon: option.icon ? (
+          <option.icon className='size-4' aria-hidden='true' />
+        ) : undefined,
+      }))}
+    />
   )
 }

@@ -1,11 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 
-import {
-  BadgeCell,
-  BadgeListCell,
-  DataTableColumnHeader,
-} from '@/components/data-table'
+import { BadgeListCell, DataTableColumnHeader } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { LobeIcon } from '@/lib/lobe-icon'
@@ -58,9 +54,16 @@ export function usePricingColumns(
         ) : null
 
         return (
-          <div className='flex max-w-full min-w-0 items-center gap-2'>
-            {modelIcon}
-            <span className='truncate font-mono text-sm font-medium'>
+          <div className='flex max-w-full min-w-0 items-center gap-2.5'>
+            {modelIcon && (
+              <span className='bg-background ring-border/60 flex size-6 shrink-0 items-center justify-center rounded-md ring-1'>
+                {modelIcon}
+              </span>
+            )}
+            <span
+              className='truncate font-mono text-sm font-medium'
+              title={model.model_name}
+            >
               {model.model_name}
             </span>
           </div>
@@ -76,7 +79,7 @@ export function usePricingColumns(
       cell: ({ row }) => (
         <ModelBillingModeBadge model={row.original} className='-ml-1.5' />
       ),
-      size: 110,
+      size: 150,
       enableSorting: false,
     },
 
@@ -101,7 +104,7 @@ export function usePricingColumns(
           if (dynamicSummary.isSpecialExpression) {
             return (
               <div className='max-w-full min-w-0'>
-                <div className='text-xs font-medium text-amber-700 dark:text-amber-300'>
+                <div className='text-warning-subtle-foreground text-xs font-medium'>
                   {t('Special billing expression')}
                 </div>
                 <div className='text-muted-foreground text-2xs'>
@@ -125,7 +128,7 @@ export function usePricingColumns(
 
           return (
             <div className='max-w-full min-w-0'>
-              <span className='font-price text-sm tabular-nums'>
+              <span className='text-sm font-medium whitespace-nowrap tabular-nums'>
                 {primaryEntries.map((entry, index) => (
                   <span key={entry.key}>
                     {index > 0 && (
@@ -135,8 +138,8 @@ export function usePricingColumns(
                   </span>
                 ))}
               </span>
-              <div className='text-muted-foreground text-3xs'>
-                / {tokenUnitLabel} tokens
+              <div className='text-muted-foreground text-2xs'>
+                / {tokenUnitLabel} {t('tokens')}
                 {dynamicSummary.tierCount > 1 &&
                   ` · ${t('{{count}} tiers', {
                     count: dynamicSummary.tierCount,
@@ -158,13 +161,13 @@ export function usePricingColumns(
 
           return (
             <div className='max-w-full min-w-0'>
-              <span className='font-price text-sm tabular-nums'>
+              <span className='text-sm font-medium whitespace-nowrap tabular-nums'>
                 {inputPrice}
                 <span className='text-muted-foreground mx-1'>/</span>
                 {outputPrice}
               </span>
-              <div className='text-muted-foreground text-3xs'>
-                / {tokenUnitLabel} tokens
+              <div className='text-muted-foreground text-2xs'>
+                {t('Input')} / {t('Output')} · {tokenUnitLabel} {t('tokens')}
               </div>
             </div>
           )
@@ -176,14 +179,16 @@ export function usePricingColumns(
 
         return (
           <div className='max-w-full min-w-0'>
-            <span className='font-price text-sm tabular-nums'>{price}</span>
-            <div className='text-muted-foreground text-3xs'>
+            <span className='text-sm font-medium whitespace-nowrap tabular-nums'>
+              {price}
+            </span>
+            <div className='text-muted-foreground text-2xs'>
               / {isPerSecondVideoModel(model) ? t('second') : t('request')}
             </div>
           </div>
         )
       },
-      size: 180,
+      size: 230,
       enableSorting: false,
     },
 
@@ -219,10 +224,10 @@ export function usePricingColumns(
 
           return (
             <div className='max-w-full min-w-0'>
-              <span className='font-price text-sm tabular-nums'>
+              <span className='text-sm whitespace-nowrap tabular-nums'>
                 {stripTrailingZeros(cacheEntry.formatted)}
               </span>
-              <div className='text-muted-foreground text-3xs'>
+              <div className='text-muted-foreground text-2xs'>
                 / {tokenUnitLabel}
               </div>
             </div>
@@ -241,10 +246,10 @@ export function usePricingColumns(
 
         return (
           <div className='max-w-full min-w-0'>
-            <span className='font-price text-sm tabular-nums'>
+            <span className='text-sm whitespace-nowrap tabular-nums'>
               {cachedPrice}
             </span>
-            <div className='text-muted-foreground text-3xs'>
+            <div className='text-muted-foreground text-2xs'>
               / {tokenUnitLabel}
             </div>
           </div>
@@ -263,19 +268,15 @@ export function usePricingColumns(
         if (!model.vendor_name) {
           return <span className='text-muted-foreground text-xs'>—</span>
         }
-        const vendorIcon = model.vendor_icon ? (
-          <LobeIcon name={model.vendor_icon} size={12} />
-        ) : null
         return (
-          <BadgeCell className='gap-1.5'>
-            {vendorIcon}
-            <StatusBadge
-              label={model.vendor_name}
-              autoColor={model.vendor_name}
-              size='sm'
-              copyable={false}
-            />
-          </BadgeCell>
+          <div className='flex min-w-0 items-center gap-2'>
+            {model.vendor_icon && (
+              <LobeIcon name={model.vendor_icon} size={14} />
+            )}
+            <span className='truncate text-sm' title={model.vendor_name}>
+              {model.vendor_name}
+            </span>
+          </div>
         )
       },
       size: 130,

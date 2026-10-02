@@ -64,8 +64,8 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
 
   return (
     <div className='space-y-4'>
-      <div className='bg-card flex items-center justify-between rounded-lg border p-4'>
-        <div className='space-y-1'>
+      <div className='bg-surface-subtle ring-border/60 flex items-start justify-between gap-3 rounded-xl p-4 ring-1'>
+        <div className='min-w-0 space-y-1'>
           <p className='text-muted-foreground text-sm font-medium'>
             {t('Detected database')}
           </p>
@@ -82,7 +82,7 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
         <StatusBadge
           label={meta?.label ?? t('Unknown')}
           variant={meta?.variant ?? 'info'}
-          className='cursor-default'
+          className='shrink-0 cursor-default'
           copyable={false}
           icon={Database}
         />

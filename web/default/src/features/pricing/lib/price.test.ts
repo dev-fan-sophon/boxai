@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { PricingModel } from '../types'
 import { isPerSecondVideoModel } from './model-helpers'
-import { requestPriceLabelKey, requestPriceUnitKey } from './price'
+import {
+  requestPriceLabelKey,
+  requestPriceUnitKey,
+  stripTrailingZeros,
+} from './price'
 
 function model(name: string): PricingModel {
   return {
@@ -33,5 +37,19 @@ describe('per-second video catalog labels', () => {
     expect(requestPriceUnitKey(model(name))).toBe(
       expected ? 'second' : 'request'
     )
+  })
+})
+
+describe('stripTrailingZeros', () => {
+  it.each([
+    ['$1.2500', '$1.25'],
+    ['$3.00', '$3'],
+    ['₫1,962,750', '₫1,962,750'],
+    ['₫1,962,750.000', '₫1,962,750'],
+    ['$0.000150', '$0.00015'],
+    ['$2.50k', '$2.5k'],
+    ['65.425 ₫', '65.425 ₫'],
+  ])('%s → %s', (input, expected) => {
+    expect(stripTrailingZeros(input)).toBe(expected)
   })
 })

@@ -53,9 +53,9 @@ function DocsNavigation(props: {
 
   const linkClass = (path: string) =>
     cn(
-      'block rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-      path.split('/').length > 2 && 'ml-3 border-l',
-      path === props.activePath && 'bg-muted text-foreground font-medium'
+      'text-muted-foreground hover:bg-accent hover:text-foreground transition-ui duration-control block rounded-lg px-3 py-1.5 text-sm',
+      path.split('/').length > 2 && 'ml-3 rounded-l-none border-l',
+      path === props.activePath && 'bg-accent text-foreground font-medium'
     )
 
   return (
@@ -63,7 +63,7 @@ function DocsNavigation(props: {
       <DocSearch />
       {sections.map((group) => (
         <div key={group.section}>
-          <p className='text-muted-foreground mb-1 px-3 text-xs font-semibold uppercase'>
+          <p className='text-foreground mb-1.5 px-3 text-xs font-semibold'>
             {t(SECTION_TITLE_KEYS[group.section] ?? group.section)}
           </p>
           {group.pages.map((page) => (
@@ -81,7 +81,7 @@ function DocsNavigation(props: {
           {group.section === 'api' &&
             protocols.map(([protocol, profiles]) => (
               <div key={protocol} className='mt-2 mb-1'>
-                <p className='text-muted-foreground text-2xs px-3 py-1 font-medium tracking-wide uppercase'>
+                <p className='text-muted-foreground text-2xs px-3 py-1 font-medium'>
                   {protocol}
                 </p>
                 {profiles.map((profile) => {
@@ -123,7 +123,7 @@ export function DocsShell(props: {
 
   return (
     <PublicLayout>
-      <div className='mx-auto max-w-7xl px-4 py-6'>
+      <div className='mx-auto max-w-7xl py-4 sm:py-8'>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger
             render={
@@ -150,8 +150,8 @@ export function DocsShell(props: {
             </div>
           </SheetContent>
         </Sheet>
-        <div className='mt-4 grid gap-10 md:mt-0 md:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_200px]'>
-          <aside className='sticky top-20 hidden max-h-[calc(100vh-6rem)] self-start overflow-y-auto md:block'>
+        <div className='mt-4 grid gap-10 md:mt-0 md:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_12.5rem]'>
+          <aside className='no-scrollbar sticky top-20 hidden max-h-[calc(100vh-6rem)] self-start overflow-y-auto pr-2 md:block'>
             <DocsNavigation activePath={activePath} profiles={profiles} />
           </aside>
           <main className='max-w-3xl min-w-0 pb-20'>{props.children}</main>

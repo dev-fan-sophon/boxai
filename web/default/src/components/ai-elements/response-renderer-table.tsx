@@ -45,7 +45,13 @@ function renderTableCell(
   }
 
   return (
-    <td className={cn('px-3 py-2 align-top', alignClass)} key={key}>
+    <td
+      className={cn(
+        'border-border/60 border-t px-3 py-2 align-top',
+        alignClass
+      )}
+      key={key}
+    >
       {options.renderChildren(node.children)}
     </td>
   )
@@ -61,9 +67,9 @@ function ResponseTable(props: {
   return (
     <div className='group/table relative my-4'>
       {options.final && <TableTools data={tableData} />}
-      <div className='border-border/70 w-full overflow-x-auto rounded-lg border'>
+      <div className='ring-border/80 w-full overflow-x-auto rounded-xl ring-1'>
         <table className='my-0 w-full min-w-max border-separate border-spacing-0 text-sm'>
-          <thead className='bg-muted/60'>
+          <thead className='bg-surface-subtle'>
             <tr className='border-border/70'>
               {node.header.cells.map((cell, index) =>
                 renderTableCell(cell, getNodeKey(cell, index), options)

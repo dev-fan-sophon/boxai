@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'
 
-export function NotFoundError() {
+export function NotFoundError(props: { embedded?: boolean }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
   return (
     <ErrorPage
+      embedded={props.embedded}
       code='404'
       icon={<SearchX />}
       title={t('Page not found')}

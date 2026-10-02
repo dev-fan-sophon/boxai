@@ -25,6 +25,22 @@ type ResultImage = { url: string; assetId?: number; prompt?: string }
 /** An inpainting mask belongs to the reference it was painted on. */
 type ImageMask = { referenceId: string; dataUrl: string }
 
+/** One prompt of the multi-prompt editor; the id keeps rows stable while editing. */
+export type PromptRow = { id: string; text: string }
+
+export function newPromptRow(text = ''): PromptRow {
+  return { id: crypto.randomUUID(), text }
+}
+
+/** Splits pasted or reused text into rows: one prompt per non-empty line. */
+export function promptRowsFromText(text: string): PromptRow[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => newPromptRow(line))
+}
+
 /**
  * State and actions of one creation tool: the prompt and references being
  * drafted, the active project's feed (finished runs merged with in-flight
@@ -40,14 +56,23 @@ export function useGenerationController(input: {
   const { t } = useTranslation()
   const { modality, studio } = input
   const { text, setText } = useComposerText()
+  const [promptRows, setPromptRows] = useState<PromptRow[]>(() => [
+    newPromptRow(),
+    newPromptRow(),
+  ])
   const [references, setReferences] = useState<MediaReference[]>([])
   const [referenceVideos, setReferenceVideos] = useState<MediaReference[]>([])
   const [referenceAudios, setReferenceAudios] = useState<MediaReference[]>([])
   const [uploading, setUploading] = useState(false)
   const [mask, setMask] = useState<ImageMask | null>(null)
+  const rowTexts = useMemo(
+    () => promptRows.map((row) => row.text),
+    [promptRows]
+  )
   const draft = useGenerationDraft({
     modality,
     text,
+    promptRows: rowTexts,
     references,
     referenceVideos,
     referenceAudios,
@@ -303,15 +328,42 @@ export function useGenerationController(input: {
     )
   }
 
+  /**
+   * Switches between one prompt and the multi-prompt editor, carrying the
+   * text across so nothing typed is lost: one prompt seeds the first row,
+   * and leaving the list keeps its first prompt.
+   */
+  const setMultiPrompt = (enabled: boolean) => {
+    if (modality === 'audio') return
+    if (enabled && !promptRows.some((row) => row.text.trim())) {
+      // Keep one empty row after the seeded prompts as the obvious next slot.
+      const seeded = promptRowsFromText(text)
+      setPromptRows(
+        seeded.length
+          ? [...seeded, newPromptRow()]
+          : [newPromptRow(), newPromptRow()]
+      )
+    } else if (!enabled && draft.batchMode && !text.trim()) {
+      const first = promptRows.find((row) => row.text.trim())
+      if (first) setText(first.text)
+    }
+    setStudioSettings((prev) =>
+      modality === 'image'
+        ? { ...prev, imageBatchMode: enabled }
+        : { ...prev, videoBatchMode: enabled }
+    )
+  }
+
   const reusePrompt = (prompt: string) => {
-    // A multi-prompt batch comes back as lines, so turn batch mode on for
-    // the modalities that read one prompt per line.
+    // A multi-prompt batch comes back as lines: reopen it as prompt rows.
     if (prompt.includes('\n') && modality !== 'audio') {
+      setPromptRows(promptRowsFromText(prompt))
       setStudioSettings((prev) =>
         modality === 'image'
           ? { ...prev, imageBatchMode: true }
           : { ...prev, videoBatchMode: true }
       )
+      return
     }
     setText(prompt)
   }
@@ -320,6 +372,9 @@ export function useGenerationController(input: {
     modality,
     text,
     setText,
+    promptRows,
+    setPromptRows,
+    setMultiPrompt,
     references,
     setReferences,
     referenceVideos,

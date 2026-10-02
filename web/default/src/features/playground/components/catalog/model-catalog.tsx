@@ -227,7 +227,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('Search models')}
             aria-label={t('Search models')}
-            className='border-border/60 bg-background/60 placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-lg border pr-7 pl-8 text-xs outline-none focus-visible:ring-2 [&::-webkit-search-cancel-button]:hidden'
+            className='border-input bg-card placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/15 text-ui h-8 w-full rounded-lg border pr-7 pl-8 shadow-xs outline-none focus-visible:ring-3 [&::-webkit-search-cancel-button]:hidden'
           />
           {query && (
             <button
@@ -242,22 +242,22 @@ export function ModelCatalog(props: ModelCatalogProps) {
         </div>
       </div>
 
-      <div className='min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2'>
+      <div className='min-h-0 flex-1 space-y-2 overflow-y-auto p-2'>
         {props.onOpenDuo && (
           <button
             type='button'
             onClick={props.onOpenDuo}
             className={cn(
-              'mb-1 flex w-full items-start gap-2.5 rounded-[11px] border border-dashed border-primary/25 bg-primary/[0.06] p-2.5 text-left outline-none transition-colors',
-              'hover:border-primary/40 hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring',
-              props.duoEnabled && 'border-solid border-primary/40 shadow-sm'
+              'bg-card ring-border/70 flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left shadow-xs ring-1 outline-none transition-ui',
+              'hover:ring-primary/30 focus-visible:ring-ring focus-visible:ring-2',
+              props.duoEnabled && 'ring-primary/45 bg-primary/5'
             )}
           >
-            <span className='bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg'>
+            <span className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
               <Layers className='size-4' aria-hidden='true' />
             </span>
             <span className='min-w-0'>
-              <span className='text-primary block text-xs font-semibold'>
+              <span className='text-foreground block text-xs font-semibold'>
                 {t('Multi-model collaboration')}
               </span>
               <span className='text-muted-foreground text-2xs mt-0.5 line-clamp-2'>
@@ -271,7 +271,7 @@ export function ModelCatalog(props: ModelCatalogProps) {
           ['one', 'two', 'three', 'four', 'five', 'six'].map((key) => (
             <Skeleton
               key={key}
-              className='bg-muted/50 h-10 w-full rounded-[11px]'
+              className='bg-muted/50 h-11 w-full rounded-xl'
             />
           ))}
         {props.error && (
@@ -305,13 +305,14 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 />
               }
             />
-            <div className='space-y-1.5 pt-1.5'>
+            <div className='space-y-0.5 pt-1'>
               {groups.pinned.map((model) => (
                 <ModelCard
                   key={model.model_name}
                   model={model}
                   selected={props.selected === model.model_name}
                   pinned
+                  showModality={showFilters}
                   onSelect={props.onSelect}
                   onTogglePin={props.onTogglePin}
                 />
@@ -340,13 +341,14 @@ export function ModelCatalog(props: ModelCatalogProps) {
                 )
               }
             />
-            <div className='space-y-1.5 pt-1.5'>
+            <div className='space-y-0.5 pt-1'>
               {group.models.map((model) => (
                 <ModelCard
                   key={model.model_name}
                   model={model}
                   selected={props.selected === model.model_name}
                   pinned={pinnedSet.has(model.model_name)}
+                  showModality={showFilters}
                   onSelect={props.onSelect}
                   onTogglePin={props.onTogglePin}
                 />
@@ -365,77 +367,24 @@ function GroupHeader(props: {
   icon?: React.ReactNode
 }) {
   return (
-    <div className='bg-sidebar/90 border-border/40 sticky -top-2 z-10 -mx-2 flex items-center gap-1.5 border-b px-3.5 py-1.5 backdrop-blur-md'>
+    <div className='bg-sidebar/90 sticky -top-2 z-10 -mx-2 flex min-w-0 items-center gap-1.5 px-4 pt-2 pb-1 backdrop-blur-md'>
       {props.icon}
-      <span className='text-foreground/80 text-2xs truncate font-semibold tracking-wide'>
+      <span className='text-muted-foreground text-2xs min-w-0 truncate font-medium'>
         {props.label}
       </span>
-      <span className='text-muted-foreground text-3xs font-mono tabular-nums'>
+      <span className='text-muted-foreground/70 text-2xs tabular-nums'>
         {props.count}
       </span>
     </div>
   )
 }
 
-/**
- * Provider card archetypes. Each provider deterministically maps to one of
- * these so different providers read differently at a glance while models of
- * the same provider stay visually consistent. All decorations derive from
- * the brand color exposed as the `--brand` CSS variable.
- */
-const CARD_VARIANT_COUNT = 4
-
-function providerVariant(seed: string): number {
-  let hash = 0
-  for (let index = 0; index < seed.length; index++) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
-  }
-  return hash % CARD_VARIANT_COUNT
-}
-
-function variantTexture(variant: number): React.CSSProperties {
-  switch (variant) {
-    case 0:
-      // Diagonal brand wash from the icon side.
-      return {
-        background:
-          'linear-gradient(115deg, color-mix(in srgb, var(--brand) 16%, transparent), color-mix(in srgb, var(--brand) 5%, transparent) 45%, transparent 70%)',
-      }
-    case 1:
-      // Soft halo glowing from the top-right corner.
-      return {
-        background:
-          'radial-gradient(130px circle at 92% -20%, color-mix(in srgb, var(--brand) 26%, transparent), transparent 72%)',
-      }
-    case 2:
-      // Fine pinstripes plus a solid brand spine on the left edge.
-      return {
-        background:
-          'linear-gradient(to right, color-mix(in srgb, var(--brand) 60%, transparent) 0 3px, transparent 3px), repeating-linear-gradient(135deg, color-mix(in srgb, var(--brand) 7%, transparent) 0 1px, transparent 1px 8px)',
-      }
-    default:
-      // Dot grid fading out toward the text.
-      return {
-        backgroundImage:
-          'radial-gradient(color-mix(in srgb, var(--brand) 30%, transparent) 1px, transparent 1.5px)',
-        backgroundSize: '9px 9px',
-        maskImage: 'linear-gradient(to left, black 25%, transparent 75%)',
-        WebkitMaskImage: 'linear-gradient(to left, black 25%, transparent 75%)',
-      }
-  }
-}
-
-const WATERMARK_CLASSES = [
-  'top-1/2 -right-3 -translate-y-1/2 rotate-12',
-  '-top-4 right-6 -rotate-6',
-  '-bottom-4 right-8 rotate-6',
-  'top-1/2 right-10 -translate-y-1/2 -rotate-12',
-] as const
-
 function ModelCard(props: {
   model: PricingModel
   selected: boolean
   pinned: boolean
+  /** Mixed-modality catalogs label each row; single-modality ones do not. */
+  showModality: boolean
   onSelect: (model: PricingModel) => void
   onTogglePin?: (modelName: string) => void
 }) {
@@ -445,17 +394,14 @@ function ModelCard(props: {
   const ModalityIcon = modalityIcons[modelModality]
   const isNew = isLikelyNewModel(model)
   const brand = getBrandColor(model.icon, model.vendor_icon)
-  const variant = providerVariant(
-    model.vendor_name?.trim() || model.model_name.split(/[-/.]/)[0]
-  )
 
   return (
     <div
       className={cn(
-        'group border-border/50 bg-background/40 relative w-full overflow-hidden rounded-[11px] border transition-ui',
+        'group relative w-full rounded-xl transition-ui',
         selected
-          ? 'border-primary/45 ring-primary/25 shadow-sm ring-1'
-          : 'hover:border-border hover:shadow-sm'
+          ? 'bg-card shadow-xs ring-primary/35 ring-1'
+          : 'hover:bg-accent/70'
       )}
       style={
         {
@@ -463,84 +409,72 @@ function ModelCard(props: {
         } as React.CSSProperties
       }
     >
-      <div
-        aria-hidden='true'
-        className='pointer-events-none absolute inset-0'
-        style={variantTexture(variant)}
-      />
-      <div
-        aria-hidden='true'
-        className={cn(
-          'pointer-events-none absolute opacity-[0.09] saturate-150 transition-opacity duration-control group-hover:opacity-[0.16] dark:opacity-[0.14] dark:group-hover:opacity-[0.22]',
-          WATERMARK_CLASSES[variant]
-        )}
-      >
-        <ModelBrandIcon
-          modelName={model.model_name}
-          icon={model.icon}
-          vendorIcon={model.vendor_icon}
-          size={56}
-        />
-      </div>
-
       <button
         type='button'
         onClick={() => props.onSelect(model)}
         aria-current={selected ? 'true' : undefined}
-        className='focus-visible:ring-ring relative flex w-full items-center gap-2 p-2 pr-9 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset'
+        title={model.model_name}
+        className={cn(
+          'focus-visible:ring-ring relative flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset',
+          props.onTogglePin && 'pr-9'
+        )}
       >
         <span
-          className='flex size-8 shrink-0 items-center justify-center rounded-lg ring-1'
+          className='bg-card ring-border/80 flex size-8 shrink-0 items-center justify-center rounded-lg ring-1'
           style={{
-            backgroundColor:
-              'color-mix(in srgb, var(--brand) 13%, transparent)',
-            boxShadow:
-              'inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent)',
+            backgroundImage:
+              'linear-gradient(color-mix(in srgb, var(--brand) 10%, transparent), color-mix(in srgb, var(--brand) 10%, transparent))',
           }}
         >
           <ModelBrandIcon
             modelName={model.model_name}
             icon={model.icon}
             vendorIcon={model.vendor_icon}
-            size={20}
+            size={18}
           />
         </span>
-        <span className='flex min-w-0 flex-1 items-center gap-1.5'>
+        <span className='flex min-w-0 flex-1 flex-col gap-0.5'>
           <span
             className={cn(
-              'truncate font-mono text-xs font-semibold',
+              'truncate font-mono text-xs leading-4 font-medium',
               selected ? 'text-primary' : 'text-foreground'
             )}
           >
             {model.model_name}
           </span>
-          {isNew && (
-            <span className='bg-chart-4/20 text-chart-4 ring-chart-4/30 text-4xs shrink-0 rounded px-1 py-px font-bold tracking-wide ring-1'>
-              {t('NEW')}
+          {(props.showModality || isNew) && (
+            <span className='text-muted-foreground text-2xs flex min-w-0 items-center gap-1.5 leading-4'>
+              {props.showModality && (
+                <>
+                  <ModalityIcon
+                    className={cn(
+                      'size-3 shrink-0',
+                      MODALITY_COLORS[modelModality].text
+                    )}
+                    aria-hidden='true'
+                  />
+                  <span className='truncate'>
+                    {t(modalityLabelKey(modelModality))}
+                  </span>
+                </>
+              )}
+              {isNew && (
+                <span className='bg-info-subtle text-info-subtle-foreground text-3xs shrink-0 rounded-full px-1.5 py-px font-semibold'>
+                  {t('NEW')}
+                </span>
+              )}
             </span>
           )}
         </span>
-        <ModalityIcon
-          className={cn(
-            'size-3.5 shrink-0',
-            MODALITY_COLORS[modelModality].text,
-            // The pin button occupies the same corner; crossfade so the two
-            // never stack on top of each other.
-            props.onTogglePin &&
-              'transition-opacity duration-control group-focus-within:opacity-0 group-hover:opacity-0',
-            props.onTogglePin && pinned && 'opacity-0'
-          )}
-          aria-label={t(modalityLabelKey(modelModality))}
-        />
       </button>
       {props.onTogglePin && (
         <button
           type='button'
           className={cn(
-            'focus-visible:ring-ring absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md p-1 outline-none focus-visible:opacity-100 focus-visible:ring-2',
+            'focus-visible:ring-ring absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md p-1.5 outline-none transition-opacity duration-control focus-visible:opacity-100 focus-visible:ring-2',
             pinned
               ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+              : 'text-muted-foreground hover:text-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-60'
           )}
           aria-label={pinned ? t('Unpin model') : t('Pin model')}
           aria-pressed={pinned}
@@ -568,12 +502,7 @@ function CatalogState(props: {
   return (
     <div className='grid place-items-center gap-2 px-4 py-12 text-center'>
       <p className='text-muted-foreground text-sm text-pretty'>{props.text}</p>
-      <Button
-        size='sm'
-        variant='outline'
-        className='border-border bg-muted/50 text-foreground hover:bg-muted'
-        onClick={props.onAction}
-      >
+      <Button size='sm' variant='outline' onClick={props.onAction}>
         {props.action}
       </Button>
     </div>

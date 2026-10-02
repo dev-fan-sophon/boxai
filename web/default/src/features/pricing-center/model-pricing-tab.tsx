@@ -18,10 +18,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  SettingsPageActionsPortal,
-  SettingsPageTitleStatusPortal,
-} from '@/features/system-settings/components/settings-page-context'
+import { SettingsPageActionsPortal } from '@/features/system-settings/components/settings-page-context'
 import {
   ModelPricingEditorPanel,
   type ModelPricingEditorPanelHandle,
@@ -268,19 +265,6 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
 
   return (
     <div className='flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:gap-4'>
-      <SettingsPageTitleStatusPortal>
-        <div className='flex flex-wrap items-center gap-1.5'>
-          <Badge variant='secondary'>
-            {t('{{count}} total', { count: summary.total })}
-          </Badge>
-          <Badge variant='outline'>
-            {t('{{count}} configured', { count: summary.configured })}
-          </Badge>
-          <Badge variant='outline'>
-            {t('{{count}} unset', { count: summary.unconfigured })}
-          </Badge>
-        </div>
-      </SettingsPageTitleStatusPortal>
       <SettingsPageActionsPortal>
         <Button variant='outline' onClick={() => setReferenceOpen(true)}>
           <Scale data-icon='inline-start' />
@@ -288,7 +272,7 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
         </Button>
       </SettingsPageActionsPortal>
 
-      <aside className='border-border bg-card flex h-[min(40vh,22rem)] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl border lg:h-auto lg:w-[min(22rem,34%)]'>
+      <aside className='bg-card ring-border flex h-[min(40vh,22rem)] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl ring-1 lg:h-auto lg:w-[min(22rem,34%)]'>
         <div className='space-y-3 border-b p-3'>
           <div>
             <h3 className='text-sm font-medium'>{t('Models')}</h3>
@@ -377,7 +361,7 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
         </div>
       </aside>
 
-      <section className='border-border bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border'>
+      <section className='bg-card ring-border flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl ring-1'>
         {!selectedModel || !editData ? (
           <EmptyState
             title={t('Select a model to edit pricing')}
@@ -737,7 +721,7 @@ function ModelList(props: {
                 className={cn(
                   'shrink-0 rounded-full px-1.5 py-0.5 text-3xs font-medium tracking-wide uppercase',
                   model.configured
-                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                    ? 'bg-success-subtle text-success-subtle-foreground'
                     : 'bg-muted text-muted-foreground'
                 )}
               >

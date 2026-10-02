@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import { useSystemOptions, getOptionValue } from '../hooks/use-system-options'
 import type { SystemOption } from '../types'
@@ -33,7 +34,7 @@ type SettingsPageProps<
 }
 
 type SettingsPageFrameProps = {
-  title: ReactNode
+  title: string
   children: ReactNode
 }
 
@@ -47,6 +48,7 @@ function SettingsPageFrame(props: SettingsPageFrameProps) {
     <SettingsPageProvider
       actionsContainer={actionsContainer}
       titleStatusContainer={titleStatusContainer}
+      pageTitle={props.title}
     >
       <SectionPageLayout>
         <SectionPageLayout.Title>
@@ -59,13 +61,15 @@ function SettingsPageFrame(props: SettingsPageFrameProps) {
           </span>
         </SectionPageLayout.Title>
         <SectionPageLayout.Actions>
+          {/* Below `sm` the actions take their own row so the title never
+              collapses into an ellipsis next to long Vietnamese button labels. */}
           <div
             ref={setActionsContainer}
-            className='flex flex-wrap items-center justify-end gap-2'
+            className='flex flex-wrap items-center justify-end gap-2 empty:hidden max-sm:w-[calc(100vw-2rem)] max-sm:justify-start'
           />
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          <div className='flex h-full min-h-0 w-full flex-col gap-4'>
+          <div className='flex h-full min-h-0 w-full max-w-5xl flex-col gap-4'>
             {props.children}
           </div>
         </SectionPageLayout.Content>
@@ -112,8 +116,13 @@ export function SettingsPage<
   if (isLoading) {
     return (
       <SettingsPageFrame title={t(sectionMeta.titleKey)}>
-        <div className='text-muted-foreground flex min-h-40 items-center justify-center text-sm'>
-          {t(loadingMessage)}
+        <div
+          role='status'
+          aria-label={t(loadingMessage)}
+          className='flex flex-col gap-4'
+        >
+          <Skeleton className='h-48 w-full rounded-2xl' />
+          <Skeleton className='h-32 w-full rounded-2xl' />
         </div>
       </SettingsPageFrame>
     )

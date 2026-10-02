@@ -41,7 +41,7 @@ export function SubHeading(props: {
           {props.icon}
         </IconBadge>
       )}
-      <h4 className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+      <h4 className='text-muted-foreground text-xs font-medium'>
         {props.title}
       </h4>
     </div>
@@ -155,7 +155,7 @@ export function ChannelEditorNav(props: {
                     {item.icon}
                   </span>
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-sm font-medium'>
+                    <span className='block text-sm leading-snug font-medium'>
                       {item.title}
                     </span>
                     {item.description && (

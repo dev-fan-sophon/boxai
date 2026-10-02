@@ -112,7 +112,9 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
         render={<Link to={item.url} onClick={() => setOpenMobile(false)} />}
       >
         {item.icon && <item.icon className='shrink-0' />}
-        <span className='min-w-0 flex-1 truncate'>{item.title}</span>
+        <span className='line-clamp-2 min-w-0 flex-1 leading-snug'>
+          {item.title}
+        </span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -155,7 +157,9 @@ function SidebarMenuCollapsible({
         render={<SidebarMenuButton tooltip={item.title} />}
       >
         {item.icon && <item.icon className='shrink-0' />}
-        <span className='min-w-0 flex-1 truncate'>{item.title}</span>
+        <span className='line-clamp-2 min-w-0 flex-1 leading-snug'>
+          {item.title}
+        </span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
         <ChevronRight className='duration-control ms-auto size-4 shrink-0 transition-transform group-data-[panel-open]/collapsible-trigger:rotate-90' />
       </CollapsibleTrigger>
@@ -170,7 +174,9 @@ function SidebarMenuCollapsible({
                 }
               >
                 {subItem.icon && <subItem.icon className='shrink-0' />}
-                <span className='min-w-0 flex-1 truncate'>{subItem.title}</span>
+                <span className='line-clamp-2 min-w-0 flex-1 leading-snug'>
+                  {subItem.title}
+                </span>
                 {subItem.badge && <NavBadge>{subItem.badge}</NavBadge>}
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
@@ -204,7 +210,9 @@ function SidebarMenuCollapsedDropdown({
           }
         >
           {item.icon && <item.icon className='shrink-0' />}
-          <span className='min-w-0 flex-1 truncate'>{item.title}</span>
+          <span className='line-clamp-2 min-w-0 flex-1 leading-snug'>
+            {item.title}
+          </span>
           {item.badge && <NavBadge>{item.badge}</NavBadge>}
           <ChevronRight className='duration-control ms-auto size-4 shrink-0 transition-transform group-data-[popup-open]/dropdown-trigger:rotate-90' />
         </DropdownMenuTrigger>

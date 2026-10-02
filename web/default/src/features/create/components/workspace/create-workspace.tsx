@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
+  Clapperboard,
   Code2,
   FolderClock,
   Plus,
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SessionHistoryPanel } from '@/features/playground/components/shell/session-history-panel'
+import { defaultSessionTitle } from '@/features/playground/lib/session/session-utils'
 import {
   getAudioKind,
   getModelModality,
@@ -63,7 +65,7 @@ const AUDIO_EXAMPLE_KEYS: Record<AudioKind, string[]> = {
   align: [],
 }
 
-type CreateMode = 'single' | 'batch' | 'storyboard'
+type CreateMode = 'prompts' | 'storyboard'
 
 /**
  * One creation tool. Desktop: control column on the left (model, mode,
@@ -149,28 +151,10 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
     }
   }
 
-  let mode: CreateMode = 'single'
-  if (storyboardMode) mode = 'storyboard'
-  else if (controller.draft.batchMode) mode = 'batch'
-
-  const changeMode = (next: CreateMode) => {
+  // Single vs. several prompts lives with the prompt itself; the top-level
+  // switch only separates free prompting from the scene-by-scene storyboard.
+  const changeMode = (next: CreateMode) =>
     setStoryboardMode(next === 'storyboard')
-    if (next === 'storyboard') return
-    const batch = next === 'batch'
-    setStudioSettings((prev) =>
-      tool === 'image'
-        ? { ...prev, imageBatchMode: batch }
-        : { ...prev, videoBatchMode: batch }
-    )
-  }
-
-  const modeOptions: Array<{ value: CreateMode; label: string }> = [
-    { value: 'single', label: t('Single') },
-    { value: 'batch', label: t('Batch') },
-  ]
-  if (tool === 'video') {
-    modeOptions.push({ value: 'storyboard', label: t('Storyboard') })
-  }
 
   const runnableScenes = storyboard.selected.filter((scene) =>
     scene.prompt.trim()
@@ -188,22 +172,37 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
       }
     />
   )
-  const modeSwitch =
-    tool === 'audio' ? (
+  let modeSwitch: React.ReactNode = null
+  if (tool === 'audio') {
+    modeSwitch = (
       <AudioToolSwitch
         value={audioState.tool}
         availableKinds={audioAvailableKinds}
         onValueChange={changeAudioTool}
       />
-    ) : (
+    )
+  } else if (tool === 'video') {
+    modeSwitch = (
       <SegmentedControl<CreateMode>
         fullWidth
         aria-label={t('Creation mode')}
-        value={mode}
-        options={modeOptions}
+        value={storyboardMode ? 'storyboard' : 'prompts'}
+        options={[
+          {
+            value: 'prompts',
+            label: t('Prompts'),
+            icon: <Sparkles aria-hidden='true' />,
+          },
+          {
+            value: 'storyboard',
+            label: t('Storyboard'),
+            icon: <Clapperboard aria-hidden='true' />,
+          },
+        ]}
         onValueChange={changeMode}
       />
     )
+  }
 
   const controlPanel = (
     <ControlPanel
@@ -327,16 +326,22 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               </TabsTrigger>
               <TabsTrigger value='projects' className='gap-1.5 px-2.5'>
                 <FolderClock aria-hidden='true' />
-                <span className='sr-only sm:not-sr-only'>{t('Projects')}</span>
+                <span className='sr-only whitespace-nowrap sm:not-sr-only'>
+                  {t('Projects')}
+                </span>
               </TabsTrigger>
               <TabsTrigger value='api' className='gap-1.5 px-2.5'>
                 <Code2 aria-hidden='true' />
-                <span className='sr-only sm:not-sr-only'>API</span>
+                <span className='sr-only whitespace-nowrap sm:not-sr-only'>
+                  API
+                </span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <span className='text-muted-foreground hidden min-w-0 flex-1 truncate text-sm md:block'>
-            {controller.studioSession?.title}
+            {controller.studioSession?.title === defaultSessionTitle(tool)
+              ? t(defaultSessionTitle(tool))
+              : controller.studioSession?.title}
           </span>
           <span className='flex-1 md:hidden' />
           <Button
@@ -359,7 +364,9 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               onClick={() => setControlsOpen(true)}
             >
               <Settings2 className='size-4' aria-hidden='true' />
-              <span className='sr-only sm:not-sr-only'>{t('Controls')}</span>
+              <span className='sr-only whitespace-nowrap sm:not-sr-only'>
+                {t('Controls')}
+              </span>
             </Button>
           )}
         </div>

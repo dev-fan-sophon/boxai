@@ -42,10 +42,7 @@ export function RedeemCodeDialog(props: RedeemCodeDialogProps) {
     >
       {props.enabled ? (
         <div className='space-y-2'>
-          <Label
-            htmlFor='redemption-code'
-            className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-          >
+          <Label htmlFor='redemption-code' className='text-sm font-medium'>
             {t('Have a Code?')}
           </Label>
           <Input

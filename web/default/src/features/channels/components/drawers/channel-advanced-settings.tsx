@@ -486,7 +486,7 @@ export function ChannelAdvancedSettings(props: ChannelAdvancedSettingsProps) {
           iconTone='chart-3'
         />
         {props.sensitiveLocked && (
-          <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+          <Alert className='border-warning/25 bg-warning-subtle text-warning-subtle-foreground'>
             <AlertDescription>
               {t('No permission to perform this action')}
             </AlertDescription>

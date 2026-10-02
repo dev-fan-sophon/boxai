@@ -76,7 +76,7 @@ export function ChatToolsSection() {
   const hasPersona = chatTools.systemPrompt.trim().length > 0
 
   return (
-    <div className='space-y-3'>
+    <div className='bg-card ring-border/70 divide-border/70 divide-y rounded-xl shadow-xs ring-1'>
       <ToggleRow
         id='settings-carry-history'
         label={t('Carry history')}
@@ -94,19 +94,18 @@ export function ChatToolsSection() {
         checked={chatTools.longMemory}
         onCheckedChange={(checked) => setChatTools({ longMemory: checked })}
         icon={Brain}
-      />
-      {chatTools.longMemory && (
-        <div className='flex justify-end'>
+      >
+        {chatTools.longMemory && (
           <Button
-            size='sm'
+            size='xs'
             variant='outline'
-            className='h-7 text-xs'
+            className='mt-2'
             onClick={() => setMemoryOpen(true)}
           >
             {t('Manage memory')}
           </Button>
-        </div>
-      )}
+        )}
+      </ToggleRow>
       <ToggleRow
         id='settings-visual-output'
         label={t('Visual output')}
@@ -118,29 +117,30 @@ export function ChatToolsSection() {
         icon={ChartColumn}
       />
 
-      <div className='space-y-1.5'>
-        <div className='flex items-center justify-between gap-2'>
-          <Label className='flex items-center gap-1.5 text-xs'>
-            <Theater className='size-3.5' aria-hidden='true' />
-            {t('Role play')}
-          </Label>
-          <Button
-            size='sm'
-            variant='outline'
-            className='h-7 text-xs'
-            onClick={() => {
-              setDraftPrompt(chatTools.systemPrompt)
-              setRoleOpen(true)
-            }}
-          >
-            {hasPersona ? t('Edit persona') : t('Set persona')}
-          </Button>
+      <div className='flex items-start gap-2.5 p-3'>
+        <SettingIcon icon={Theater} />
+        <div className='min-w-0 flex-1'>
+          <div className='flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5'>
+            <span className='text-foreground text-ui min-w-0 leading-5 font-medium'>
+              {t('Role play')}
+            </span>
+            <Button
+              size='xs'
+              variant='outline'
+              onClick={() => {
+                setDraftPrompt(chatTools.systemPrompt)
+                setRoleOpen(true)
+              }}
+            >
+              {hasPersona ? t('Edit persona') : t('Set persona')}
+            </Button>
+          </div>
+          {hasPersona && (
+            <p className='text-muted-foreground text-2xs mt-1 line-clamp-2 leading-4'>
+              {chatTools.systemPrompt}
+            </p>
+          )}
         </div>
-        {hasPersona && (
-          <p className='text-muted-foreground text-2xs line-clamp-2'>
-            {chatTools.systemPrompt}
-          </p>
-        )}
       </div>
 
       <Dialog
@@ -343,6 +343,15 @@ export function ChatToolsSection() {
   )
 }
 
+function SettingIcon(props: { icon: IconComponent }) {
+  const Icon = props.icon
+  return (
+    <span className='bg-muted text-muted-foreground mt-px flex size-6 shrink-0 items-center justify-center rounded-md'>
+      <Icon className='size-3.5' aria-hidden='true' />
+    </span>
+  )
+}
+
 function ToggleRow(props: {
   id: string
   label: string
@@ -350,25 +359,31 @@ function ToggleRow(props: {
   checked: boolean
   onCheckedChange: (checked: boolean) => void
   icon: IconComponent
+  children?: React.ReactNode
 }) {
-  const Icon = props.icon
   return (
-    <div className='flex items-start justify-between gap-3'>
-      <div className='min-w-0 space-y-0.5'>
-        <Label htmlFor={props.id} className='flex items-center gap-1.5 text-xs'>
-          <Icon className='size-3.5' aria-hidden='true' />
-          {props.label}
-        </Label>
-        <p className='text-muted-foreground text-2xs text-pretty'>
+    <div className='flex items-start gap-2.5 p-3'>
+      <SettingIcon icon={props.icon} />
+      <div className='min-w-0 flex-1'>
+        <div className='flex items-start justify-between gap-3'>
+          <Label
+            htmlFor={props.id}
+            className='text-foreground text-ui min-w-0 leading-5 font-medium'
+          >
+            {props.label}
+          </Label>
+          <Switch
+            id={props.id}
+            checked={props.checked}
+            onCheckedChange={props.onCheckedChange}
+            className='mt-px shrink-0'
+          />
+        </div>
+        <p className='text-muted-foreground text-2xs mt-0.5 leading-4 text-pretty'>
           {props.description}
         </p>
+        {props.children}
       </div>
-      <Switch
-        id={props.id}
-        checked={props.checked}
-        onCheckedChange={props.onCheckedChange}
-        size='sm'
-      />
     </div>
   )
 }

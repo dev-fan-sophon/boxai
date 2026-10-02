@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'
 
-export function ForbiddenError() {
+export function ForbiddenError(props: { embedded?: boolean }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
   return (
     <ErrorPage
+      embedded={props.embedded}
       code='403'
       icon={<ShieldX />}
       iconTone='destructive'

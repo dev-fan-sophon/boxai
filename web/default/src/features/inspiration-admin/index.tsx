@@ -4,7 +4,15 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Archive, History, Plus, RotateCcw, Save } from '@/components/icons'
+import { EmptyState } from '@/components/empty-state'
+import {
+  Archive,
+  History,
+  Plus,
+  RotateCcw,
+  Save,
+  Sparkles,
+} from '@/components/icons'
 // Leaf import: avoid `@/components/layout` barrel (pulls authenticated layout
 // and creates a cycle via system-settings sidebar view → this feature).
 import { SectionPageLayout } from '@/components/layout/components/section-page-layout'
@@ -17,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 
 import {
   activateVersion,
@@ -162,31 +171,48 @@ export function InspirationAdmin(props: { embedded?: boolean } = {}) {
           )}
           <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1fr)]'>
             <div className='grid content-start gap-2'>
-              {visibleTemplates.map((item) => (
-                <button
-                  type='button'
-                  className='hover:bg-muted flex w-full items-center justify-between rounded-lg border p-3 text-left'
-                  key={item.id}
-                  onClick={() => setSelectedId(item.id)}
-                >
-                  <span>
-                    <strong className='block'>{item.title}</strong>
-                    <span className='text-muted-foreground text-xs'>
-                      {item.slug} · {item.category_slug}
+              {visibleTemplates.map((item) => {
+                const active = item.id === selectedId
+                return (
+                  <button
+                    type='button'
+                    className={cn(
+                      'bg-card ring-border hover:bg-accent flex w-full min-w-0 items-center justify-between gap-3 rounded-xl p-3 text-start ring-1 transition-colors duration-control',
+                      active && 'bg-accent ring-primary/40'
+                    )}
+                    aria-current={active ? 'true' : undefined}
+                    key={item.id}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <span className='min-w-0'>
+                      <strong className='block truncate text-sm font-semibold'>
+                        {item.title}
+                      </strong>
+                      <span className='text-muted-foreground block truncate text-xs'>
+                        {item.slug} · {item.category_slug}
+                      </span>
                     </span>
-                  </span>
-                  <span className='flex gap-1'>
-                    <Badge variant='outline'>{item.modality}</Badge>
-                    {item.featured && <Badge>{t('Featured')}</Badge>}
-                  </span>
-                </button>
-              ))}
+                    <span className='flex shrink-0 flex-wrap justify-end gap-1'>
+                      <Badge variant='outline'>{item.modality}</Badge>
+                      {item.featured && <Badge>{t('Featured')}</Badge>}
+                    </span>
+                  </button>
+                )
+              })}
               {!templates.isLoading && visibleTemplates.length === 0 && (
-                <p className='text-muted-foreground py-8 text-center'>
-                  {t('No templates found')}
-                </p>
+                <EmptyState icon={Sparkles} title={t('No templates found')} />
               )}
             </div>
+            {!detail.data && (
+              <EmptyState
+                className='hidden h-fit lg:flex'
+                icon={Sparkles}
+                title={t('Select a template to edit')}
+                description={t(
+                  'Choose a template from the list to edit its details and releases.'
+                )}
+              />
+            )}
             {detail.data && (
               <TemplateDetail
                 key={detail.data.template.id}

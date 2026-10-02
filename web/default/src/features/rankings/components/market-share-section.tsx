@@ -124,7 +124,7 @@ function VendorShareTooltip(props: Partial<TooltipContentProps>) {
                 {item.name}
               </span>
             </span>
-            <span className='text-foreground font-mono tabular-nums'>
+            <span className='text-foreground tabular-nums'>
               {`${(item.share * 100).toFixed(1)}%`}
               {tokensByVendor?.[item.name] != null &&
                 ` · ${formatTokens(tokensByVendor[item.name])}`}
@@ -181,7 +181,7 @@ export function MarketShareSection(props: MarketShareSectionProps) {
   const right = visible.slice(half)
 
   return (
-    <section className='bg-card overflow-hidden rounded-lg border'>
+    <section className='bg-card border-border/60 overflow-hidden rounded-2xl border shadow-xs'>
       {/* Chart block ----------------------------------------------------- */}
       <header className='px-5 py-4'>
         <h2 className='text-foreground inline-flex items-center gap-2 text-base font-semibold'>
@@ -194,7 +194,7 @@ export function MarketShareSection(props: MarketShareSectionProps) {
       </header>
 
       <div className='px-5 pb-5'>
-        <div className='ring-border overflow-hidden rounded-xl p-3 ring-1'>
+        <div className='bg-surface-subtle/60 ring-border/60 overflow-hidden rounded-xl p-3 ring-1'>
           {hasChartData ? (
             <ChartContainer
               config={chart.config}
@@ -247,7 +247,7 @@ export function MarketShareSection(props: MarketShareSectionProps) {
       </div>
 
       {/* Vendor list block ----------------------------------------------- */}
-      <div className='border-t'>
+      <div className='border-border/60 border-t'>
         <header className='px-5 pt-4 pb-2'>
           <h3 className='text-foreground text-sm font-semibold'>
             {t('By model author')}
@@ -281,7 +281,7 @@ function VendorList(props: {
     <ul>
       {props.rows.map((vendor) => (
         <li key={vendor.vendor} className='flex items-center gap-3 py-2.5'>
-          <span className='text-muted-foreground w-6 shrink-0 text-right font-mono text-xs tabular-nums'>
+          <span className='text-muted-foreground w-6 shrink-0 text-right text-xs font-medium tabular-nums'>
             {vendor.rank}.
           </span>
           <span
@@ -298,10 +298,10 @@ function VendorList(props: {
             {vendor.vendor}
           </VendorLink>
           <div className='shrink-0 text-right'>
-            <div className='text-foreground font-mono text-sm font-semibold tabular-nums'>
+            <div className='text-foreground text-sm font-semibold tabular-nums'>
               {formatTokens(vendor.total_tokens)}
             </div>
-            <div className='text-muted-foreground text-2xs font-mono tabular-nums'>
+            <div className='text-muted-foreground text-2xs tabular-nums'>
               {formatShare(vendor.share)}
             </div>
           </div>

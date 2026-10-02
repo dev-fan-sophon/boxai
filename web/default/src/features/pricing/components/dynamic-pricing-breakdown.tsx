@@ -203,7 +203,7 @@ export function DynamicPricingBreakdown({
             </div>
           </div>
         )}
-        <div className='text-muted-foreground text-3xs mb-1 font-medium tracking-wider uppercase'>
+        <div className='text-muted-foreground text-2xs mb-1 font-medium'>
           {t('Raw expression')}
         </div>
         <code className='text-muted-foreground block text-xs break-all'>
@@ -299,12 +299,12 @@ export function DynamicPricingBreakdown({
                       )
                       return (
                         <div key={v.field} className='min-w-0'>
-                          <div className='text-muted-foreground text-3xs truncate font-medium tracking-wider uppercase'>
+                          <div className='text-muted-foreground text-2xs truncate font-medium'>
                             {t(v.shortLabel)}
                           </div>
                           <div
                             className={cn(
-                              'font-price truncate',
+                              ' truncate',
                               compact ? 'text-xs' : 'text-sm font-semibold'
                             )}
                           >
@@ -385,7 +385,7 @@ export function DynamicPricingBreakdown({
                   compact && 'h-8'
                 ),
                 cellClassName: cn(
-                  'font-price text-right align-top',
+                  ' text-right align-top',
                   compact ? 'py-2' : 'py-2.5'
                 ),
                 cell: (tier: ParsedTier) => {

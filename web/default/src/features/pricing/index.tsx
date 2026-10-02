@@ -6,6 +6,7 @@ import { Search } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'
+import { BrandGlow } from '@/features/home/components/marketing'
 import { useSeo } from '@/hooks/use-page-seo'
 
 import {
@@ -89,6 +90,14 @@ export function Pricing() {
     [models, selectedModelName]
   )
 
+  const vendorCount = useMemo(
+    () =>
+      new Set(
+        (models || []).map((model) => model.vendor_name?.trim()).filter(Boolean)
+      ).size,
+    [models]
+  )
+
   const availableGroups = useMemo(
     () =>
       Object.keys(usableGroup || {}).filter(
@@ -153,7 +162,7 @@ export function Pricing() {
   if (isLoading) {
     return (
       <PublicLayout showMainContainer={false}>
-        <div className='mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8'>
+        <div className='mx-auto w-full max-w-[1800px] px-4 pt-24 pb-10 sm:px-6 sm:pt-28 sm:pb-16 xl:px-8'>
           <LoadingSkeleton viewMode={viewMode} />
         </div>
       </PublicLayout>
@@ -164,31 +173,44 @@ export function Pricing() {
     <PublicLayout showMainContainer={false}>
       <div className='relative'>
         <div
-          aria-hidden
-          className='pointer-events-none absolute inset-x-0 top-0 h-[600px] opacity-20 dark:opacity-[0.10]'
-          style={{
-            background: [
-              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
-              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
-            ].join(', '),
-            maskImage:
-              'linear-gradient(to bottom, black 40%, transparent 100%)',
-            WebkitMaskImage:
-              'linear-gradient(to bottom, black 40%, transparent 100%)',
-          }}
-        />
-        <PageTransition className='relative mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8'>
-          <main className='min-w-0 space-y-4'>
-            <header className='space-y-1'>
-              <h1 className='text-foreground text-xl font-semibold tracking-tight sm:text-2xl'>
-                {t('Model Hub')}
-              </h1>
-              <p className='text-muted-foreground max-w-2xl text-sm'>
-                {t(
-                  'Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.'
-                )}
-              </p>
+          aria-hidden='true'
+          className='pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden'
+        >
+          <BrandGlow className='opacity-70' />
+        </div>
+        <PageTransition className='relative mx-auto w-full max-w-[1800px] px-4 pt-24 pb-10 sm:px-6 sm:pt-28 sm:pb-16 xl:px-8'>
+          <main className='min-w-0 space-y-5'>
+            <header className='flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pb-2'>
+              <div className='max-w-2xl min-w-0'>
+                <h1 className='text-foreground text-2xl font-semibold tracking-tight sm:text-3xl'>
+                  {t('Model Hub')}
+                </h1>
+                <p className='text-muted-foreground mt-2 text-sm leading-relaxed text-pretty sm:text-base'>
+                  {t(
+                    'Browse capabilities, pricing, and context length in Model Hub, then copy the model name to call.'
+                  )}
+                </p>
+              </div>
+              {(models?.length ?? 0) > 0 && (
+                <dl className='flex shrink-0 items-center gap-6'>
+                  <div className='flex flex-col-reverse'>
+                    <dt className='text-muted-foreground text-xs'>
+                      {t('Models')}
+                    </dt>
+                    <dd className='text-xl font-semibold tracking-tight tabular-nums'>
+                      {models?.length}
+                    </dd>
+                  </div>
+                  <div className='flex flex-col-reverse'>
+                    <dt className='text-muted-foreground text-xs'>
+                      {t('Providers')}
+                    </dt>
+                    <dd className='text-xl font-semibold tracking-tight tabular-nums'>
+                      {vendorCount}
+                    </dd>
+                  </div>
+                </dl>
+              )}
             </header>
             <PricingToolbar
               filteredCount={filteredModels.length}

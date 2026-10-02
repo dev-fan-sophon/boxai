@@ -24,7 +24,7 @@ function NativeSelect({
       <select
         data-slot='native-select'
         data-size={size}
-        className='border-input selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-foreground/40 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:hover:bg-muted dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 bg-card dark:bg-input/20 hover:border-foreground/25 transition-ui duration-control h-9 w-full min-w-0 appearance-none rounded-lg border py-1 pr-8 pl-3 text-sm shadow-[0_1px_2px_rgb(0_0_0/0.03)] outline-none select-none focus-visible:ring-0 disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:ring-3 data-[size=sm]:h-8 data-[size=sm]:py-0.5'
+        className='border-input selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-foreground/40 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:hover:bg-muted dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 bg-card hover:border-foreground/25 transition-ui duration-control h-9 w-full min-w-0 appearance-none rounded-lg border py-1 pr-8 pl-3 text-sm shadow-[0_1px_2px_rgb(0_0_0/0.03)] outline-none select-none focus-visible:ring-0 disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:ring-3 data-[size=sm]:h-8 data-[size=sm]:py-0.5'
         {...props}
       />
       <ChevronsUpDown

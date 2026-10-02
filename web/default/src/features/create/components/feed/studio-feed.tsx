@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { useReducedMotion } from 'motion/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -551,17 +551,92 @@ function BatchCard(props: {
     )
   }
 
-  const pendingTiles = batch.pending.map((job) => (
+  // A multi-prompt run is laid out prompt by prompt, each group under its
+  // own numbered heading, so takes of the same prompt sit side by side.
+  const groupByPrompt = multiPrompt && props.modality !== 'audio'
+  const showCaption = multiPrompt && !groupByPrompt
+
+  const renderPending = (job: (typeof batch.pending)[number]) => (
     <PendingTile
       key={job.clientId}
       job={job}
       ratio={props.modality === 'audio' ? 6 : ratio}
-      showPrompt={multiPrompt}
+      showPrompt={showCaption}
       onRetry={() => props.onRetry([job.clientId])}
       onCancel={() => props.onCancelQueued([job.clientId])}
       onDismiss={() => props.onDismiss([job.clientId])}
     />
-  ))
+  )
+
+  const renderRun = (run: (typeof batch.runs)[number]) => {
+    if (props.modality === 'image') {
+      if (!run.resultUrl) return null
+      const url = run.resultUrl
+      const index = images.indexOf(run)
+      const filename = `image-run-${Math.abs(run.id) || index + 1}`
+      return (
+        <ImageResultTile
+          key={run.id}
+          url={url}
+          alt={run.prompt || t('Generated image')}
+          caption={showCaption ? run.prompt : undefined}
+          ratio={ratio}
+          index={index}
+          downloading={props.downloading === filename}
+          selectMode={props.selectMode}
+          selected={props.selectMode && props.selectedIds.has(run.id)}
+          onSelect={
+            props.onSelect
+              ? (range) => props.onSelect?.(run.id, range)
+              : undefined
+          }
+          onOpen={() => props.onOpenImage(lightboxItems, index)}
+          onDownload={() => void props.onDownload(url, filename, 'image')}
+          onUseAsReference={
+            props.onUseAsReference
+              ? () => props.onUseAsReference?.({ url, assetId: run.assetId })
+              : undefined
+          }
+          onVary={
+            props.onVary && run.prompt?.trim()
+              ? () =>
+                  props.onVary?.({
+                    url,
+                    assetId: run.assetId,
+                    prompt: run.prompt,
+                  })
+              : undefined
+          }
+        />
+      )
+    }
+    if (props.modality === 'video') {
+      const filename = `video-run-${Math.abs(run.id)}`
+      return (
+        <VideoResultTile
+          key={run.id}
+          run={run}
+          ratio={ratio}
+          caption={showCaption ? run.prompt : undefined}
+          downloading={props.downloading === filename}
+          onDownload={(src) => void props.onDownload(src, filename, 'video')}
+          onContinueFromFrame={props.onContinueFromFrame}
+        />
+      )
+    }
+    const filename = `audio-run-${Math.abs(run.id)}`
+    return (
+      <AudioResultRow
+        key={run.id}
+        run={run}
+        caption={showCaption ? run.prompt : undefined}
+        downloading={props.downloading === filename}
+        onDownload={() =>
+          void props.onDownload(run.resultUrl as string, filename, 'audio')
+        }
+      />
+    )
+  }
 
   return (
     <article className='flex flex-col gap-2.5' aria-busy={inFlight > 0}>
@@ -571,8 +646,10 @@ function BatchCard(props: {
             className='text-foreground/90 line-clamp-2 text-sm text-pretty'
             title={transcript ? title : batch.prompts.join('\n')}
           >
-            {title || t('(no prompt)')}
-            {multiPrompt && (
+            {groupByPrompt
+              ? t('{{count}} prompts', { count: batch.prompts.length })
+              : title || t('(no prompt)')}
+            {multiPrompt && !groupByPrompt && (
               <span className='bg-muted text-muted-foreground text-3xs ml-1.5 inline-flex rounded-full px-1.5 py-0.5 align-middle font-medium'>
                 {t('+{{count}} prompts', { count: batch.prompts.length - 1 })}
               </span>
@@ -651,84 +728,38 @@ function BatchCard(props: {
       )}
 
       <div className={gridClass}>
-        {props.modality === 'image' &&
-          images.map((run, index) => {
-            const url = run.resultUrl as string
-            const filename = `image-run-${Math.abs(run.id) || index + 1}`
-            return (
-              <ImageResultTile
-                key={run.id}
-                url={url}
-                alt={run.prompt || t('Generated image')}
-                caption={multiPrompt ? run.prompt : undefined}
-                ratio={ratio}
-                index={index}
-                downloading={props.downloading === filename}
-                selectMode={props.selectMode}
-                selected={props.selectMode && props.selectedIds.has(run.id)}
-                onSelect={
-                  props.onSelect
-                    ? (range) => props.onSelect?.(run.id, range)
-                    : undefined
-                }
-                onOpen={() => props.onOpenImage(lightboxItems, index)}
-                onDownload={() => void props.onDownload(url, filename, 'image')}
-                onUseAsReference={
-                  props.onUseAsReference
-                    ? () =>
-                        props.onUseAsReference?.({ url, assetId: run.assetId })
-                    : undefined
-                }
-                onVary={
-                  props.onVary && run.prompt?.trim()
-                    ? () =>
-                        props.onVary?.({
-                          url,
-                          assetId: run.assetId,
-                          prompt: run.prompt,
-                        })
-                    : undefined
-                }
-              />
-            )
-          })}
-        {props.modality === 'video' &&
-          batch.runs.map((run) => {
-            const filename = `video-run-${Math.abs(run.id)}`
-            return (
-              <VideoResultTile
-                key={run.id}
-                run={run}
-                ratio={ratio}
-                caption={multiPrompt ? run.prompt : undefined}
-                downloading={props.downloading === filename}
-                onDownload={(src) =>
-                  void props.onDownload(src, filename, 'video')
-                }
-                onContinueFromFrame={props.onContinueFromFrame}
-              />
-            )
-          })}
-        {props.modality === 'audio' &&
-          batch.runs.map((run) => {
-            const filename = `audio-run-${Math.abs(run.id)}`
-            return (
-              <AudioResultRow
-                key={run.id}
-                run={run}
-                caption={multiPrompt ? run.prompt : undefined}
-                downloading={props.downloading === filename}
-                onDownload={() =>
-                  void props.onDownload(
-                    run.resultUrl as string,
-                    filename,
-                    'audio'
-                  )
-                }
-              />
-            )
-          })}
-        {pendingTiles}
+        {groupByPrompt
+          ? batch.prompts.map((prompt, index) => {
+              const runs = batch.runs.filter(
+                (run) => (run.prompt?.trim() ?? '') === prompt
+              )
+              const pending = batch.pending.filter(
+                (job) => job.input.prompt.trim() === prompt
+              )
+              const count = runs.length + pending.length
+              if (count === 0) return null
+              return (
+                <Fragment key={prompt || index}>
+                  <div className='col-span-full flex min-w-0 items-center gap-2 pt-1 first:pt-0'>
+                    <span className='bg-muted text-muted-foreground text-2xs flex size-5 shrink-0 items-center justify-center rounded-md font-semibold tabular-nums'>
+                      {index + 1}
+                    </span>
+                    <p
+                      className='text-foreground/80 min-w-0 truncate text-xs'
+                      title={prompt}
+                    >
+                      {prompt || t('(no prompt)')}
+                    </p>
+                    <span className='text-muted-foreground text-2xs shrink-0 tabular-nums'>
+                      ×{count}
+                    </span>
+                  </div>
+                  {runs.map(renderRun)}
+                  {pending.map(renderPending)}
+                </Fragment>
+              )
+            })
+          : [...batch.runs.map(renderRun), ...batch.pending.map(renderPending)]}
       </div>
 
       {props.modality === 'image' &&

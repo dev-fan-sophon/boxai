@@ -7,6 +7,8 @@ import {
   sideDrawerContentClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import { EmptyState } from '@/components/empty-state'
+import { History } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -77,18 +79,23 @@ export function CanvasVersionHistory(props: CanvasVersionHistoryProps) {
           ) : null}
 
           {!versions.isLoading && !sortedVersions.length ? (
-            <p className='text-muted-foreground py-8 text-center text-sm'>
-              {t('No versions yet')}
-            </p>
+            <EmptyState
+              icon={History}
+              title={t('No versions yet')}
+              className='min-h-48'
+            />
           ) : null}
 
           {sortedVersions.map((version) => (
             <div
               key={version.id}
-              className='border-border flex items-start justify-between gap-3 rounded-lg border p-3'
+              className='bg-card ring-border/70 flex items-center justify-between gap-3 rounded-xl p-3 shadow-xs ring-1'
             >
               <div className='min-w-0 flex-1'>
-                <p className='truncate text-sm font-medium'>
+                <p
+                  className='truncate text-sm font-medium'
+                  title={version.title || undefined}
+                >
                   {version.title || t('Untitled version')}
                 </p>
                 <p className='text-muted-foreground mt-1 text-xs'>
@@ -100,6 +107,7 @@ export function CanvasVersionHistory(props: CanvasVersionHistoryProps) {
               <Button
                 size='sm'
                 variant='outline'
+                className='shrink-0'
                 disabled={restoringId !== null}
                 onClick={() => void handleRestore(version.id)}
               >

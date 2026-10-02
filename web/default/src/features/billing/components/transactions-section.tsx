@@ -73,11 +73,14 @@ function TransactionRow(props: TransactionRowProps) {
     record.payment_method === 'bank_qr' || record.payment_provider === 'bank_qr'
 
   return (
-    <div className='rounded-lg border p-3 sm:p-4'>
+    <div className='bg-card ring-border rounded-xl p-4 ring-1'>
       <div className='flex items-start justify-between gap-2'>
-        <div className='flex-1 space-y-1'>
-          <div className='flex min-w-0 items-center gap-2'>
-            <code className='text-foreground truncate font-mono text-sm'>
+        <div className='min-w-0 flex-1 space-y-1'>
+          <div className='flex min-w-0 flex-wrap items-center gap-2'>
+            <code
+              className='text-foreground min-w-0 truncate font-mono text-sm'
+              title={record.trade_no}
+            >
               {record.trade_no}
             </code>
             <Button

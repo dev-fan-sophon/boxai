@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
   ChevronDown,
-  Layers,
+  Rows3,
   Sparkles,
+  TextCursorInput,
 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +19,6 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
 import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
@@ -29,9 +29,12 @@ import {
   useCostEstimate,
 } from '../../hooks/use-cost-estimate'
 import type { GenerationController } from '../../hooks/use-generation-controller'
+import { useOutputCount } from '../../hooks/use-output-count'
 import { seedanceReferenceVideoIssue } from '../../lib/reference-media-limits'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
+import { PromptListEditor } from '../composer/prompt-list-editor'
+import { OutputCountPicker, RunPlanSummary } from '../composer/run-plan'
 import { AudioInputDropzone } from '../references/audio-input-dropzone'
 import { ImageMaskButton } from '../references/image-mask-button'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
@@ -81,7 +84,7 @@ export function ControlPanel(props: {
         )}
 
         <Collapsible defaultOpen>
-          <CollapsibleTrigger className='text-muted-foreground hover:text-foreground group text-2xs flex w-full items-center justify-between py-1 font-semibold tracking-wide uppercase'>
+          <CollapsibleTrigger className='text-foreground/85 hover:text-foreground group text-ui flex w-full items-center justify-between py-1 font-semibold'>
             {t('Parameters')}
             <ChevronDown
               className='duration-control size-3.5 transition-transform group-data-[panel-open]:rotate-180'
@@ -162,6 +165,9 @@ function PromptAndReferences(props: { controller: GenerationController }) {
   }
   const overLimit =
     draft.charLimit !== null && draft.charCount > draft.charLimit
+  // Several prompts and several takes per prompt apply to images and videos.
+  const canMultiPrompt =
+    controller.modality === 'image' || controller.modality === 'video'
 
   return (
     <>
@@ -176,54 +182,83 @@ function PromptAndReferences(props: { controller: GenerationController }) {
       {draft.usesPromptText && (
         <PanelSection
           title={promptTitle}
+          action={
+            canMultiPrompt ? (
+              <SegmentedControl<'one' | 'many'>
+                size='sm'
+                aria-label={t('Prompt mode')}
+                value={draft.batchMode ? 'many' : 'one'}
+                onValueChange={(mode) =>
+                  controller.setMultiPrompt(mode === 'many')
+                }
+                options={[
+                  {
+                    value: 'one',
+                    label: t('One prompt'),
+                    icon: <TextCursorInput aria-hidden='true' />,
+                  },
+                  {
+                    value: 'many',
+                    label: t('Multiple'),
+                    icon: <Rows3 aria-hidden='true' />,
+                  },
+                ]}
+              />
+            ) : undefined
+          }
           hint={
             draft.batchMode
-              ? t('One prompt per line · use {a|b} for variants')
+              ? t(
+                  'Each card is one prompt. Enter adds the next one; {a|b} tries variants.'
+                )
               : undefined
           }
         >
-          <Textarea
-            value={controller.text}
-            onChange={(event) => controller.setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault()
-                controller.submit()
-              }
-            }}
-            placeholder={draft.placeholder}
-            aria-label={draft.placeholder}
-            className='bg-background min-h-36 resize-y rounded-xl text-sm leading-relaxed'
-          />
-          <div className='text-muted-foreground text-2xs flex items-center justify-between gap-2'>
-            <span className='inline-flex items-center gap-1' aria-live='polite'>
-              {draft.planSummary ? (
-                <>
-                  <Layers className='size-3' aria-hidden='true' />
-                  {draft.planSummary}
-                </>
-              ) : (
-                t('Ctrl/⌘ + Enter to generate')
-              )}
-            </span>
-            <span
-              className={cn('tabular-nums', overLimit && 'text-destructive')}
-            >
-              {draft.charLimit === null
-                ? controller.text.length
-                : `${draft.charCount.toLocaleString()} / ${draft.charLimit.toLocaleString()}`}
-            </span>
-          </div>
-          {draft.plan.truncated > 0 && (
-            <p className='text-warning text-2xs'>
-              {t('{{count}} more skipped (max {{max}} per run)', {
-                count: draft.plan.truncated,
-                max: MAX_STUDIO_BATCH_JOBS,
-              })}
-            </p>
+          {draft.batchMode && canMultiPrompt ? (
+            <PromptListEditor
+              rows={controller.promptRows}
+              onChange={controller.setPromptRows}
+              outputsPerPrompt={draft.outputsPerPrompt}
+              unit={controller.modality === 'video' ? 'video' : 'image'}
+              onSubmit={controller.submit}
+            />
+          ) : (
+            <>
+              <Textarea
+                value={controller.text}
+                onChange={(event) => controller.setText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.metaKey || event.ctrlKey)
+                  ) {
+                    event.preventDefault()
+                    controller.submit()
+                  }
+                }}
+                placeholder={draft.placeholder}
+                aria-label={draft.placeholder}
+                className='min-h-36 resize-y rounded-xl text-sm leading-relaxed'
+              />
+              <div className='text-muted-foreground text-2xs flex items-center justify-between gap-2'>
+                <span>{t('Ctrl/⌘ + Enter to generate')}</span>
+                <span
+                  className={cn(
+                    'tabular-nums',
+                    overLimit && 'text-destructive'
+                  )}
+                >
+                  {draft.charLimit === null
+                    ? controller.text.length
+                    : `${draft.charCount.toLocaleString()} / ${draft.charLimit.toLocaleString()}`}
+                </span>
+              </div>
+            </>
           )}
         </PanelSection>
       )}
+
+      {canMultiPrompt && <OutputsSection controller={controller} />}
 
       {draft.showMediaSlot && (
         <PanelSection title={draft.mediaLabel} hint={mediaHint}>
@@ -325,6 +360,42 @@ function PromptAndReferences(props: { controller: GenerationController }) {
         </PanelSection>
       )}
     </>
+  )
+}
+
+/** Takes per prompt and the resulting run size, right under the prompt. */
+function OutputsSection(props: { controller: GenerationController }) {
+  const { t } = useTranslation()
+  const controller = props.controller
+  const draft = controller.draft
+  const outputs = useOutputCount(controller.modality, draft)
+  const unit = controller.modality === 'video' ? 'video' : 'image'
+
+  return (
+    <PanelSection
+      title={unit === 'video' ? t('Videos per prompt') : t('Images per prompt')}
+      action={
+        <span className='text-muted-foreground text-2xs'>
+          {unit === 'video'
+            ? t('Each video is a separate take')
+            : t('Each image is a separate take')}
+        </span>
+      }
+    >
+      <OutputCountPicker
+        unit={unit}
+        value={outputs.value}
+        options={outputs.options}
+        onChange={outputs.setValue}
+      />
+      <RunPlanSummary
+        unit={unit}
+        promptCount={draft.promptCount}
+        perPrompt={draft.outputsPerPrompt}
+        total={draft.jobCount}
+        truncated={draft.plan.truncated}
+      />
+    </PanelSection>
   )
 }
 

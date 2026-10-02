@@ -8,6 +8,7 @@ import type {
   DesktopDownload,
   DesktopRelease,
 } from '@/features/downloads/types'
+import { BrandGlow } from '@/features/home/components/marketing'
 
 export function DesktopHero(props: {
   release?: DesktopRelease
@@ -33,16 +34,13 @@ export function DesktopHero(props: {
   return (
     <section
       aria-label={t('BoxAI Desktop')}
-      className='relative z-10 overflow-hidden px-6 pt-24 pb-16 md:pt-32'
+      className='relative isolate z-10 overflow-hidden px-4 pt-28 pb-12 sm:px-6 sm:pt-36 sm:pb-16'
     >
-      <div
-        aria-hidden='true'
-        className='from-primary/20 via-primary/5 absolute -top-40 right-0 size-[32rem] rounded-full bg-radial to-transparent blur-3xl'
-      />
+      <BrandGlow />
       <div className='relative mx-auto max-w-6xl'>
-        <div className='max-w-3xl'>
-          <div className='landing-animate-fade-up mb-5 flex flex-wrap items-center gap-2 opacity-0'>
-            <div className='bg-primary/10 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium'>
+        <div className='mx-auto flex max-w-3xl flex-col items-center text-center'>
+          <div className='landing-animate-fade-up mb-6 flex flex-wrap items-center justify-center gap-2 opacity-0'>
+            <div className='bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium'>
               <ShieldCheck className='size-3.5' aria-hidden='true' />
               {t('BoxAI Desktop')}
             </div>
@@ -50,13 +48,13 @@ export function DesktopHero(props: {
           </div>
 
           <h1
-            className='landing-animate-fade-up text-foreground text-3xl font-bold tracking-tight text-balance opacity-0 sm:text-4xl md:text-5xl'
+            className='landing-animate-fade-up text-foreground text-4xl leading-[1.05] font-semibold tracking-tight text-balance opacity-0 sm:text-5xl lg:text-6xl'
             style={{ animationDelay: '60ms' }}
           >
             {t('An AI coworker that finishes the work on your computer')}
           </h1>
           <p
-            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-2xl text-sm leading-7 text-pretty opacity-0 sm:text-base'
+            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-2xl text-base leading-relaxed text-pretty opacity-0 sm:text-lg'
             style={{ animationDelay: '120ms' }}
           >
             {t(
@@ -65,7 +63,7 @@ export function DesktopHero(props: {
           </p>
 
           <div
-            className='landing-animate-fade-up mt-8 opacity-0'
+            className='landing-animate-fade-up mt-8 flex justify-center opacity-0'
             style={{ animationDelay: '180ms' }}
           >
             <DownloadActions
@@ -75,11 +73,12 @@ export function DesktopHero(props: {
               failed={props.failed}
               fallbackUrl={props.fallbackUrl}
               productName={t('BoxAI Desktop')}
+              className='justify-center'
             />
           </div>
 
           <dl
-            className='landing-animate-fade-up text-muted-foreground mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs opacity-0'
+            className='landing-animate-fade-up text-muted-foreground mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs opacity-0'
             style={{ animationDelay: '240ms' }}
           >
             {props.release && (

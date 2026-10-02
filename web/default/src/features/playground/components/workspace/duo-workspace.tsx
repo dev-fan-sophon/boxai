@@ -108,16 +108,16 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
   return (
     <div
       className={cn(
-        'mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 md:p-6',
+        'bg-card ring-border/70 mx-auto flex w-full max-w-3xl flex-col gap-5 rounded-2xl p-4 shadow-xs ring-1 md:p-6',
         props.className
       )}
     >
       <div className='flex items-start justify-between gap-3'>
-        <div className='flex items-start gap-3'>
-          <span className='bg-primary/15 text-primary flex size-10 items-center justify-center rounded-xl'>
+        <div className='flex min-w-0 items-start gap-3'>
+          <span className='bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl'>
             <Layers className='size-5' aria-hidden='true' />
           </span>
-          <div>
+          <div className='min-w-0'>
             <h2 className='text-foreground text-base font-semibold'>
               {t('Multi-model collaboration')}
             </h2>
@@ -131,7 +131,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
         <Button
           variant='ghost'
           size='icon'
-          className='text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+          className='text-muted-foreground hover:text-foreground shrink-0'
           onClick={props.onClose}
           aria-label={t('Close')}
         >
@@ -144,7 +144,7 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
           <button
             key={scenario.id}
             type='button'
-            className='border-border bg-muted/40 text-foreground/80 hover:border-primary/40 hover:text-primary rounded-full border px-3 py-1 text-xs'
+            className='border-border bg-card text-foreground/80 hover:bg-accent hover:text-foreground focus-visible:ring-ring rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2'
             title={t(scenario.hint)}
             onClick={() => {
               const picks = props.chatModels.slice(0, 3).map((m) => m.value)
@@ -172,12 +172,13 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
                 key={model.value}
                 type='button'
                 aria-pressed={active}
+                title={model.label}
                 onClick={() => toggleModel(model.value)}
                 className={cn(
-                  'rounded-lg border px-2 py-1 font-mono text-2xs transition-colors',
+                  'focus-visible:ring-ring max-w-full truncate rounded-full border px-2.5 py-1 font-mono text-2xs outline-none transition-colors focus-visible:ring-2',
                   active
-                    ? 'border-primary/40 bg-primary/15 text-primary'
-                    : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
                 )}
               >
                 {model.label}
@@ -260,7 +261,9 @@ export function DuoWorkspace(props: DuoWorkspaceProps) {
             >
               <p className='text-primary text-2xs font-mono'>{leg.model}</p>
               {leg.error ? (
-                <p className='mt-1 text-sm text-red-300'>{leg.error}</p>
+                <p className='text-destructive mt-1 text-sm break-words'>
+                  {leg.error}
+                </p>
               ) : (
                 <p className='text-foreground mt-1 max-h-40 overflow-y-auto text-sm whitespace-pre-wrap'>
                   {leg.content}

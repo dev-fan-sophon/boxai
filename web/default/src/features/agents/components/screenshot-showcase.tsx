@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { SectionHeading } from '@/components/section-heading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  MarketingSection,
+  SectionIntro,
+} from '@/features/home/components/marketing'
 
 // Captured from the real app by desktop/surfaces/gui `npm run screenshots`, which drives the
 // hermetic e2e mocks — regenerating them after a UI change needs no manual retouching.
@@ -53,59 +56,54 @@ export function ScreenshotShowcase() {
   const [active, setActive] = useState<ShotId>(SHOTS[0].id)
 
   return (
-    <section
-      aria-labelledby='desktop-screenshots'
-      className='border-border/40 relative z-10 border-t px-6 py-20 md:py-28'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <SectionHeading
-          id='desktop-screenshots'
-          eyebrow={t('A look inside')}
-          title={t('The app running a real task, end to end')}
-        />
+    <MarketingSection labelledBy='desktop-screenshots'>
+      <SectionIntro
+        id='desktop-screenshots'
+        eyebrow={t('A look inside')}
+        title={t('The app running a real task, end to end')}
+      />
 
-        <AnimateInView delay={80}>
-          <Tabs
-            value={active}
-            onValueChange={(value) => setActive(value as ShotId)}
-          >
-            <TabsList className='flex-wrap'>
-              {SHOTS.map((shot) => (
-                <TabsTrigger key={shot.id} value={shot.id}>
-                  {t(shot.tab)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
+      <AnimateInView delay={80}>
+        <Tabs
+          value={active}
+          onValueChange={(value) => setActive(value as ShotId)}
+        >
+          <TabsList className='no-scrollbar max-w-full justify-start overflow-x-auto'>
             {SHOTS.map((shot) => (
-              <TabsContent key={shot.id} value={shot.id} className='mt-5'>
-                <figure className='space-y-3'>
-                  <div className='border-border bg-muted overflow-hidden rounded-2xl border shadow-sm'>
-                    <img
-                      src={`/desktop-screenshots/${shot.id}-1536.webp`}
-                      srcSet={[
-                        `/desktop-screenshots/${shot.id}-480.webp 480w`,
-                        `/desktop-screenshots/${shot.id}-960.webp 960w`,
-                        `/desktop-screenshots/${shot.id}-1536.webp 1536w`,
-                      ].join(', ')}
-                      sizes='(min-width: 1024px) 1100px, 100vw'
-                      width={1536}
-                      height={960}
-                      loading='lazy'
-                      decoding='async'
-                      alt={t(shot.caption)}
-                      className='block w-full'
-                    />
-                  </div>
-                  <figcaption className='text-muted-foreground text-sm'>
-                    {t(shot.caption)}
-                  </figcaption>
-                </figure>
-              </TabsContent>
+              <TabsTrigger key={shot.id} value={shot.id}>
+                {t(shot.tab)}
+              </TabsTrigger>
             ))}
-          </Tabs>
-        </AnimateInView>
-      </div>
-    </section>
+          </TabsList>
+
+          {SHOTS.map((shot) => (
+            <TabsContent key={shot.id} value={shot.id} className='mt-5'>
+              <figure className='space-y-3'>
+                <div className='bg-muted ring-border/70 shadow-lifted overflow-hidden rounded-2xl ring-1'>
+                  <img
+                    src={`/desktop-screenshots/${shot.id}-1536.webp`}
+                    srcSet={[
+                      `/desktop-screenshots/${shot.id}-480.webp 480w`,
+                      `/desktop-screenshots/${shot.id}-960.webp 960w`,
+                      `/desktop-screenshots/${shot.id}-1536.webp 1536w`,
+                    ].join(', ')}
+                    sizes='(min-width: 1024px) 1100px, 100vw'
+                    width={1536}
+                    height={960}
+                    loading='lazy'
+                    decoding='async'
+                    alt={t(shot.caption)}
+                    className='block w-full'
+                  />
+                </div>
+                <figcaption className='text-muted-foreground text-center text-sm text-pretty'>
+                  {t(shot.caption)}
+                </figcaption>
+              </figure>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </AnimateInView>
+    </MarketingSection>
   )
 }

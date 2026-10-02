@@ -9,19 +9,18 @@ import {
   NotepadTextIcon,
 } from '@/components/icons'
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 type PlaygroundEmptyStateProps = {
   onSelectPrompt: (prompt: string) => void
 }
 
 const starterPrompts = [
-  { icon: BarChartIcon, text: 'Analyze data', accent: 'text-chart-1' },
-  { icon: NotepadTextIcon, text: 'Summarize text', accent: 'text-chart-2' },
-  { icon: CodeSquareIcon, text: 'Code', accent: 'text-chart-3' },
-  { icon: GraduationCapIcon, text: 'Get advice', accent: 'text-chart-4' },
-]
+  { icon: BarChartIcon, text: 'Analyze data', tone: 'chart-1' },
+  { icon: NotepadTextIcon, text: 'Summarize text', tone: 'chart-2' },
+  { icon: CodeSquareIcon, text: 'Code', tone: 'chart-3' },
+  { icon: GraduationCapIcon, text: 'Get advice', tone: 'chart-4' },
+] as const
 
 export function PlaygroundEmptyState({
   onSelectPrompt,
@@ -33,16 +32,16 @@ export function PlaygroundEmptyState({
       <StaggerContainer className='grid w-full max-w-2xl gap-5 text-center'>
         <StaggerItem className='relative mx-auto'>
           <div
-            className='from-primary/40 via-chart-3/25 to-chart-4/20 generation-glow-pulse pointer-events-none absolute -inset-4 rounded-full bg-gradient-to-br blur-2xl'
+            className='bg-brand-glow pointer-events-none absolute -inset-6 rounded-full opacity-60 blur-2xl'
             aria-hidden='true'
           />
-          <div className='from-primary/20 to-chart-3/15 text-primary ring-primary/25 relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm ring-1'>
-            <MessageSquarePlusIcon className='size-5' aria-hidden='true' />
-          </div>
+          <IconBadge tone='primary' size='lg' className='relative size-12'>
+            <MessageSquarePlusIcon weight='duotone' aria-hidden='true' />
+          </IconBadge>
         </StaggerItem>
 
         <StaggerItem className='grid gap-2'>
-          <h2 className='text-xl font-semibold tracking-tight text-balance md:text-2xl'>
+          <h2 className='text-xl font-semibold tracking-tight text-balance'>
             {t('Start a playground chat')}
           </h2>
           <p className='text-muted-foreground mx-auto max-w-lg text-sm leading-6 text-balance'>
@@ -54,27 +53,29 @@ export function PlaygroundEmptyState({
             <Link
               to='/docs/$'
               params={{ _splat: 'start/first-request' }}
-              className='text-primary text-sm hover:underline'
+              className='text-primary text-ui font-medium underline-offset-4 hover:underline'
             >
               {t('First request guide')}
             </Link>
           </p>
         </StaggerItem>
 
-        <StaggerItem className='grid gap-2 sm:grid-cols-2'>
-          {starterPrompts.map(({ icon: Icon, text, accent }) => {
+        <StaggerItem className='grid gap-2 text-left sm:grid-cols-2'>
+          {starterPrompts.map(({ icon: Icon, text, tone }) => {
             const prompt = t(text)
 
             return (
-              <Button
-                className='hover:border-primary/30 transition-ui h-auto min-h-11 justify-start gap-2 px-3 py-2.5 text-left whitespace-normal hover:-translate-y-0.5 hover:shadow-sm motion-reduce:transition-none motion-reduce:hover:translate-y-0'
+              <button
+                type='button'
+                className='bg-card ring-border/70 hover:ring-border focus-visible:ring-ring transition-ui flex min-h-12 min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium shadow-xs ring-1 outline-none hover:shadow-sm focus-visible:ring-2'
                 key={text}
                 onClick={() => onSelectPrompt(prompt)}
-                variant='outline'
               >
-                <Icon className={cn('size-4', accent)} />
-                <span>{prompt}</span>
-              </Button>
+                <IconBadge tone={tone} size='sm'>
+                  <Icon aria-hidden='true' />
+                </IconBadge>
+                <span className='min-w-0'>{prompt}</span>
+              </button>
             )
           })}
         </StaggerItem>

@@ -70,19 +70,27 @@ function ModelsContent() {
       <SectionPageLayout fixedContent>
         <SectionPageLayout.Title>{t(meta.titleKey)}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>
-          {activeSection === 'metadata' ? (
-            <ModelsPrimaryButtons />
-          ) : (
-            <Button onClick={() => setCreateDeploymentOpen(true)} size='sm'>
-              <Plus className='h-4 w-4' />
-              {t('Create deployment')}
-            </Button>
-          )}
+          {/* Below `sm` the actions take their own row so the title is not
+              squeezed into an ellipsis. */}
+          <div className='flex flex-wrap items-center gap-2 max-sm:w-[calc(100vw-2rem)]'>
+            {activeSection === 'metadata' ? (
+              <ModelsPrimaryButtons />
+            ) : (
+              <Button onClick={() => setCreateDeploymentOpen(true)} size='sm'>
+                <Plus data-icon='inline-start' />
+                {t('Create deployment')}
+              </Button>
+            )}
+          </div>
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
           <div className='flex h-full min-h-0 flex-col gap-4'>
-            <Tabs value={activeSection} onValueChange={handleSectionChange}>
-              <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
+            <Tabs
+              value={activeSection}
+              onValueChange={handleSectionChange}
+              className='shrink-0'
+            >
+              <TabsList>
                 {MODELS_SECTION_IDS.map((section) => (
                   <TabsTrigger key={section} value={section}>
                     {t(SECTION_META[section].titleKey)}

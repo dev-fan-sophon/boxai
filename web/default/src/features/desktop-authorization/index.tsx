@@ -1,13 +1,15 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import {
   AlertCircle,
+  ArrowRight,
   Check,
   Clock,
   Laptop,
   ShieldCheck,
+  UserRound,
   X,
 } from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
@@ -21,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUserDisplay } from '@/hooks/use-user-display'
 import { formatDateTimeObject } from '@/lib/time'
@@ -81,6 +84,14 @@ export function AuthorizationPage(props: {
     stateMessage = t('This authorization request has already been decided')
   }
 
+  const permissions = [
+    ...(props.product === 'connect'
+      ? [t('Create an API key that you can manage in Keys')]
+      : []),
+    t('Read the models available to your account'),
+    t('Call BoxAI models on behalf of your account'),
+  ]
+
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
@@ -88,39 +99,64 @@ export function AuthorizationPage(props: {
       </SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <main
-          className='mx-auto flex w-full max-w-xl flex-col gap-5'
+          className='mx-auto flex w-full max-w-lg flex-col gap-5 py-2 sm:py-6'
           aria-live='polite'
         >
           {requestQuery.isLoading && (
             <Card aria-label={t('Loading authorization request')}>
               <CardHeader>
-                <Skeleton className='h-6 w-48' />
-                <Skeleton className='h-4 w-72' />
+                <Skeleton className='mb-2 h-10 w-28 rounded-xl' />
+                <Skeleton className='h-6 w-56 max-w-full' />
+                <Skeleton className='h-4 w-72 max-w-full' />
               </CardHeader>
               <CardContent className='space-y-3'>
-                <Skeleton className='h-16 w-full' />
-                <Skeleton className='h-24 w-full' />
+                <Skeleton className='h-28 w-full rounded-xl' />
+                <Skeleton className='h-20 w-full rounded-xl' />
               </CardContent>
             </Card>
           )}
           {!requestQuery.isLoading && stateMessage && (
-            <Alert variant='destructive'>
-              <AlertCircle aria-hidden='true' />
-              <AlertTitle>
-                {t('Unable to authorize {{product}}', {
-                  product: productName,
-                })}
-              </AlertTitle>
-              <AlertDescription>{stateMessage}</AlertDescription>
-            </Alert>
+            <Card>
+              <CardContent className='flex flex-col items-center gap-4 py-4 text-center'>
+                <IconBadge
+                  tone='destructive'
+                  size='lg'
+                  className='size-14 rounded-2xl [&>svg]:size-7'
+                >
+                  <AlertCircle />
+                </IconBadge>
+                <div className='space-y-1.5'>
+                  <h2 className='text-lg font-semibold tracking-tight text-balance'>
+                    {t('Unable to authorize {{product}}', {
+                      product: productName,
+                    })}
+                  </h2>
+                  <p className='text-muted-foreground text-sm text-pretty'>
+                    {stateMessage}
+                  </p>
+                </div>
+                <Button variant='outline' render={<Link to='/dashboard' />}>
+                  {t('Back to Dashboard')}
+                </Button>
+              </CardContent>
+            </Card>
           )}
           {!requestQuery.isLoading && !stateMessage && request && (
             <Card>
               <CardHeader>
-                <div className='bg-primary/10 text-primary mb-2 flex size-11 items-center justify-center rounded-xl'>
-                  <Laptop className='size-5' aria-hidden='true' />
+                <div
+                  className='mb-2 flex items-center gap-2'
+                  aria-hidden='true'
+                >
+                  <IconBadge tone='primary' size='lg'>
+                    <Laptop />
+                  </IconBadge>
+                  <ArrowRight className='text-muted-foreground size-4' />
+                  <IconBadge tone='neutral' size='lg'>
+                    <UserRound />
+                  </IconBadge>
                 </div>
-                <CardTitle>
+                <CardTitle className='text-balance'>
                   {t('{{product}} wants to access your account', {
                     product: productName,
                   })}
@@ -132,29 +168,36 @@ export function AuthorizationPage(props: {
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-5'>
-                <dl className='grid gap-3 text-sm'>
-                  <div>
+                <dl className='bg-surface-subtle ring-border/60 divide-border/60 divide-y rounded-xl text-sm ring-1'>
+                  <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3'>
                     <dt className='text-muted-foreground'>
                       {t('Device name')}
                     </dt>
-                    <dd className='font-medium'>{request.client_name}</dd>
-                  </div>
-                  <div>
-                    <dt className='text-muted-foreground'>{t('Expires at')}</dt>
-                    <dd className='flex items-center gap-1.5 font-medium'>
-                      <Clock className='size-4' aria-hidden='true' />
-                      {expiresAt ? formatDateTimeObject(expiresAt) : null}
+                    <dd className='min-w-0 font-medium break-words'>
+                      {request.client_name}
                     </dd>
                   </div>
-                  <div>
+                  <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3'>
                     <dt className='text-muted-foreground'>
                       {t('Current account')}
                     </dt>
-                    <dd className='font-medium'>
+                    <dd className='min-w-0 font-medium break-words'>
                       {userDisplay.displayName}
-                      {userDisplay.secondaryText
-                        ? ` · ${userDisplay.secondaryText}`
-                        : ''}
+                      {userDisplay.secondaryText ? (
+                        <span className='text-muted-foreground font-normal'>
+                          {` · ${userDisplay.secondaryText}`}
+                        </span>
+                      ) : null}
+                    </dd>
+                  </div>
+                  <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3'>
+                    <dt className='text-muted-foreground'>{t('Expires at')}</dt>
+                    <dd className='flex items-center gap-1.5 font-medium tabular-nums'>
+                      <Clock
+                        className='text-muted-foreground size-3.5'
+                        aria-hidden='true'
+                      />
+                      {expiresAt ? formatDateTimeObject(expiresAt) : null}
                     </dd>
                   </div>
                 </dl>
@@ -163,29 +206,24 @@ export function AuthorizationPage(props: {
                     id='desktop-permissions-title'
                     className='mb-2 flex items-center gap-2 text-sm font-semibold'
                   >
-                    <ShieldCheck className='size-4' aria-hidden='true' />
+                    <ShieldCheck
+                      className='text-muted-foreground size-4'
+                      aria-hidden='true'
+                    />
                     {t('Minimum permissions')}
                   </h2>
-                  <ul className='text-muted-foreground space-y-2 text-sm'>
-                    {props.product === 'connect' && (
-                      <li>
-                        {t('Create an API key that you can manage in Keys')}
+                  <ul className='space-y-2 text-sm'>
+                    {permissions.map((permission) => (
+                      <li key={permission} className='flex gap-2.5'>
+                        <Check
+                          className='text-success mt-0.5 size-4 shrink-0'
+                          aria-hidden='true'
+                        />
+                        <span className='text-muted-foreground min-w-0'>
+                          {permission}
+                        </span>
                       </li>
-                    )}
-                    <li className='flex gap-2'>
-                      <Check
-                        className='text-primary mt-0.5 size-4 shrink-0'
-                        aria-hidden='true'
-                      />
-                      {t('Read the models available to your account')}
-                    </li>
-                    <li className='flex gap-2'>
-                      <Check
-                        className='text-primary mt-0.5 size-4 shrink-0'
-                        aria-hidden='true'
-                      />
-                      {t('Call BoxAI models on behalf of your account')}
-                    </li>
+                    ))}
                   </ul>
                 </section>
                 {decision.isError ? (
@@ -200,7 +238,7 @@ export function AuthorizationPage(props: {
                   </Alert>
                 ) : null}
               </CardContent>
-              <CardFooter className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+              <CardFooter className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto'>
                 <Button
                   type='button'
                   variant='outline'
@@ -212,6 +250,7 @@ export function AuthorizationPage(props: {
                 </Button>
                 <Button
                   type='button'
+                  loading={decision.isPending}
                   disabled={decision.isPending}
                   onClick={() => decision.mutate(true)}
                 >

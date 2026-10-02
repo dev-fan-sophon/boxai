@@ -7,6 +7,7 @@ import {
 } from '@/components/ai-elements/prompt-input'
 import {
   Bot,
+  Check,
   FileText,
   Globe,
   Image,
@@ -178,8 +179,8 @@ export function ChatComposer(props: ChatComposerProps) {
                     onClick={props.onOpenModelCatalog}
                     disabled={!props.onOpenModelCatalog}
                     className={cn(
-                      'border-border/60 bg-muted/40 text-foreground/85 flex h-8 max-w-[9.5rem] shrink-0 items-center gap-1.5 rounded-lg border px-2 text-2xs font-medium outline-none sm:max-w-[13rem]',
-                      'hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring transition-colors focus-visible:ring-2',
+                      'bg-muted/70 text-foreground/85 flex h-8 max-w-[9.5rem] min-w-0 shrink items-center gap-1.5 rounded-full pr-2.5 pl-2 text-2xs font-medium outline-none sm:max-w-[13rem]',
+                      'hover:bg-accent hover:text-foreground focus-visible:ring-ring transition-colors focus-visible:ring-2',
                       !props.onOpenModelCatalog && 'pointer-events-none'
                     )}
                   />
@@ -212,7 +213,7 @@ export function ChatComposer(props: ChatComposerProps) {
                   render={
                     <PromptInputButton
                       aria-label={t('Attach images or documents')}
-                      className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
+                      className='text-muted-foreground hover:text-foreground hover:bg-accent size-8 shrink-0 rounded-full font-medium'
                       disabled={
                         props.disabled ||
                         attachments.isAdding ||
@@ -242,14 +243,19 @@ export function ChatComposer(props: ChatComposerProps) {
                         aria-label={t('Tool mode')}
                         aria-pressed={toolMode !== 'auto'}
                         className={cn(
-                          'font-medium transition-colors',
+                          'h-8 shrink-0 rounded-full font-medium transition-colors',
                           toolMode === 'auto'
-                            ? 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
-                            : 'border-primary/40 bg-primary/10 text-primary border'
+                            ? 'text-muted-foreground hover:text-foreground hover:bg-accent w-8'
+                            : 'bg-primary/10 text-primary hover:bg-primary/15 px-2.5'
                         )}
                         variant='ghost'
                       >
                         <currentTool.Icon size={16} />
+                        {toolMode !== 'auto' && (
+                          <span className='text-xs'>
+                            {t(currentTool.labelKey)}
+                          </span>
+                        )}
                       </PromptInputButton>
                     }
                   />
@@ -275,7 +281,10 @@ export function ChatComposer(props: ChatComposerProps) {
                   <mode.Icon className='size-4' />
                   {t(mode.labelKey)}
                   {toolMode === mode.value ? (
-                    <span className='text-primary ml-auto text-xs'>●</span>
+                    <Check
+                      className='text-primary ml-auto size-4'
+                      aria-hidden='true'
+                    />
                   ) : null}
                 </DropdownMenuItem>
               ))}

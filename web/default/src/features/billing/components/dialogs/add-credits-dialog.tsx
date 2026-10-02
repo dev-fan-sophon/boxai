@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { ErrorState } from '@/components/error-state'
-import { ArrowLeft, Loader2 } from '@/components/icons'
+import { ArrowLeft, CheckCircle2, Loader2 } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -15,6 +16,7 @@ import {
   InputGroupText,
 } from '@/components/ui/input-group'
 import { Label } from '@/components/ui/label'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toIntlLocale } from '@/i18n/languages'
 import {
@@ -119,7 +121,7 @@ interface AddCreditsDialogProps {
 function StepHeader(props: { step: string; title: string }) {
   return (
     <div className='flex items-center gap-2.5'>
-      <span className='bg-muted text-muted-foreground text-2xs flex size-6 shrink-0 items-center justify-center rounded-md font-mono font-bold'>
+      <span className='bg-primary/10 text-primary text-2xs flex size-6 shrink-0 items-center justify-center rounded-full font-semibold tabular-nums'>
         {props.step}
       </span>
       <h3 className='text-sm font-semibold'>{props.title}</h3>
@@ -239,6 +241,11 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     Array.isArray(props.creemProducts) &&
     props.creemProducts.length > 0
 
+  // Vietnamese bank transfer (VietQR) is the primary rail: list it first.
+  const sortedPayMethods = [...(props.topupInfo?.pay_methods ?? [])].sort(
+    (a, b) => Number(isBankQRPayment(b.type)) - Number(isBankQRPayment(a.type))
+  )
+
   const effectiveMin = Math.max(
     getMinTopupAmount(props.topupInfo),
     props.selectedPaymentMethod?.min_topup || 0
@@ -277,12 +284,12 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
 
   const configureFooter = hasConfigurableTopup ? (
     <div className='flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-      <div className='flex items-baseline gap-2 text-sm'>
+      <div className='flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm'>
         <span className='text-muted-foreground'>{t('Amount due')}</span>
         {props.calculating ? (
           <Skeleton className='h-5 w-20' />
         ) : (
-          <span className='text-base font-semibold tabular-nums'>
+          <span className='text-lg font-semibold tracking-tight tabular-nums'>
             {isBankQR && (couponDraft !== props.couponCode || !props.quote)
               ? '—'
               : formatAmountDue(props.paymentAmount)}
@@ -290,6 +297,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
         )}
       </div>
       <Button
+        size='lg'
         className='sm:min-w-44'
         disabled={!canContinue}
         onClick={props.onContinueToPay}
@@ -401,77 +409,66 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     const creditLabel = formatPresetCredit(preset.value)
                     const usdLabel = formatPresetUsd(preset.value)
                     return (
-                      <Button
+                      <button
                         key={preset.value}
-                        variant='outline'
+                        type='button'
+                        aria-pressed={selected}
                         className={cn(
-                          'flex min-h-14 flex-col items-stretch justify-center gap-0.5 rounded-lg px-3 py-2 whitespace-normal',
+                          'bg-card relative flex min-h-16 min-w-0 flex-col items-start justify-center gap-0.5 rounded-xl px-3 py-2.5 text-left ring-1 transition-[background-color,box-shadow] duration-control',
+                          'focus-visible:ring-ring/50 outline-none focus-visible:ring-2',
                           selected
-                            ? 'border-foreground bg-foreground/5'
-                            : 'border-muted'
+                            ? 'bg-primary/5 ring-primary ring-2'
+                            : 'ring-border hover:bg-muted/50'
                         )}
                         onClick={() => props.onSelectPreset(preset)}
                       >
-                        <span className='flex items-center justify-between gap-1'>
-                          <span className='text-sm font-semibold tabular-nums'>
-                            {creditLabel}
-                          </span>
-                          {discount < 1.0 && (
-                            <span className='text-xs font-medium text-green-600'>
-                              {getDiscountLabel(discount)}
+                        <span
+                          className='max-w-full truncate text-base font-semibold tabular-nums'
+                          title={creditLabel}
+                        >
+                          {creditLabel}
+                        </span>
+                        <span className='flex max-w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5'>
+                          {showUsdUnit ? (
+                            <span className='text-muted-foreground text-2xs font-medium tabular-nums'>
+                              {usdLabel}
                             </span>
+                          ) : null}
+                          {discount < 1.0 && (
+                            <Badge
+                              variant='success'
+                              className='text-3xs h-4 px-1.5'
+                            >
+                              {getDiscountLabel(discount)}
+                            </Badge>
                           )}
                         </span>
-                        {showUsdUnit ? (
-                          <span className='text-muted-foreground text-2xs text-left font-medium tabular-nums'>
-                            {usdLabel}
-                          </span>
-                        ) : null}
-                      </Button>
+                        {selected && (
+                          <CheckCircle2
+                            weight='fill'
+                            className='text-primary absolute top-2 right-2 size-4'
+                            aria-hidden='true'
+                          />
+                        )}
+                      </button>
                     )
                   })}
                 </div>
               )}
               <div className='space-y-2'>
                 <div className='flex items-center justify-between gap-2'>
-                  <Label
-                    htmlFor='topup-amount'
-                    className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-                  >
-                    {t('Custom amount')}
-                  </Label>
+                  <Label htmlFor='topup-amount'>{t('Custom amount')}</Label>
                   {showUsdUnit ? (
-                    <div
-                      className='bg-muted/50 flex gap-1 rounded-lg p-1'
-                      role='tablist'
+                    <SegmentedControl
+                      size='sm'
                       aria-label={t('Amount unit')}
-                    >
-                      {(
-                        [
-                          { unit: 'local' as const, label: currencyLabel },
-                          { unit: 'usd' as const, label: 'USD' },
-                        ] as const
-                      ).map((option) => {
-                        const active = customUnit === option.unit
-                        return (
-                          <button
-                            key={option.unit}
-                            type='button'
-                            role='tab'
-                            aria-selected={active}
-                            className={cn(
-                              'rounded-md px-2 py-0.5 text-2xs font-medium transition-colors',
-                              active
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                            )}
-                            onClick={() => handleCustomUnitChange(option.unit)}
-                          >
-                            {option.label}
-                          </button>
-                        )
-                      })}
-                    </div>
+                      value={customUnit}
+                      onValueChange={handleCustomUnitChange}
+                      options={[
+                        { value: 'local', label: currencyLabel },
+                        { value: 'usd', label: 'USD' },
+                      ]}
+                    />
                   ) : null}
                 </div>
                 <InputGroup className='h-10'>
@@ -536,39 +533,68 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
               <StepHeader step='02' title={t('Payment method')} />
               {hasStandardMethods && (
                 <div className='grid gap-2 sm:grid-cols-2'>
-                  {props.topupInfo?.pay_methods?.map((method) => {
+                  {sortedPayMethods.map((method) => {
                     const selected =
                       props.selectedPaymentMethod?.type === method.type
+                    const isLocalRail = isBankQRPayment(method.type)
                     return (
                       <button
                         key={method.type}
                         type='button'
+                        aria-pressed={selected}
                         onClick={() => props.onPaymentMethodSelect(method)}
                         className={cn(
-                          'flex min-h-14 flex-col items-start gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                          'bg-card relative flex min-h-16 min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition-[background-color,box-shadow] duration-control',
+                          'focus-visible:ring-ring/50 outline-none focus-visible:ring-2',
                           selected
-                            ? 'border-foreground bg-foreground/5'
-                            : 'hover:bg-muted/40'
+                            ? 'bg-primary/5 ring-primary ring-2'
+                            : 'ring-border hover:bg-muted/50',
+                          isLocalRail && 'sm:col-span-2'
                         )}
                       >
-                        <span className='flex items-center gap-2 text-sm font-medium'>
+                        <span className='bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg [&_img]:size-5 [&_svg]:size-5'>
                           {getPaymentIcon(
                             method.type,
-                            'h-4 w-4',
+                            'h-5 w-5',
                             method.icon,
                             t(method.name)
                           )}
-                          {t(method.name)}
                         </span>
-                        {method.min_topup ? (
-                          <span className='text-muted-foreground text-2xs'>
-                            {t('Minimum top-up {{amount}}', {
-                              amount: showUsdUnit
-                                ? `${formatPresetCredit(method.min_topup)} (${formatPresetUsd(method.min_topup)})`
-                                : formatPresetUsd(method.min_topup),
-                            })}
+                        <span className='flex min-w-0 flex-1 flex-col gap-0.5'>
+                          <span className='flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5'>
+                            <span className='min-w-0 truncate text-sm font-medium'>
+                              {t(method.name)}
+                            </span>
+                            {isLocalRail && (
+                              <Badge variant='success' className='shrink-0'>
+                                {t('Recommended in Vietnam')}
+                              </Badge>
+                            )}
                           </span>
-                        ) : null}
+                          {isLocalRail && (
+                            <span className='text-muted-foreground text-2xs'>
+                              {t(
+                                'VietQR · instant transfer from any Vietnamese bank'
+                              )}
+                            </span>
+                          )}
+                          {method.min_topup ? (
+                            <span className='text-muted-foreground text-2xs'>
+                              {t('Minimum top-up {{amount}}', {
+                                amount: showUsdUnit
+                                  ? `${formatPresetCredit(method.min_topup)} (${formatPresetUsd(method.min_topup)})`
+                                  : formatPresetUsd(method.min_topup),
+                              })}
+                            </span>
+                          ) : null}
+                        </span>
+                        {selected && (
+                          <CheckCircle2
+                            weight='fill'
+                            className='text-primary size-4 shrink-0'
+                            aria-hidden='true'
+                          />
+                        )}
                       </button>
                     )
                   })}
@@ -601,7 +627,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                           props.onWaffoMethodSelect?.(method, index)
                         }
                         disabled={belowMin || !!props.paymentLoading}
-                        className='min-h-12 justify-start gap-2'
+                        className='h-auto min-h-12 justify-start gap-2 rounded-xl'
                       >
                         {props.paymentLoading === loadingKey ? (
                           <Loader2 className='size-4 animate-spin' />
@@ -618,7 +644,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
 
             <section className='space-y-3'>
               <StepHeader step='03' title={t('Confirm order')} />
-              <div className='bg-muted/30 space-y-2.5 rounded-xl border p-4 text-sm'>
+              <div className='bg-surface-subtle ring-border space-y-2.5 rounded-xl p-4 text-sm ring-1'>
                 <div className='flex justify-between gap-3'>
                   <span className='text-muted-foreground'>
                     {t('Top-up quota')}
@@ -628,10 +654,10 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                   </span>
                 </div>
                 <div className='flex justify-between gap-3'>
-                  <span className='text-muted-foreground'>
+                  <span className='text-muted-foreground shrink-0'>
                     {t('Payment method')}
                   </span>
-                  <span className='truncate font-medium'>
+                  <span className='min-w-0 truncate text-right font-medium'>
                     {props.selectedPaymentMethod?.name
                       ? t(props.selectedPaymentMethod.name)
                       : t('Not selected')}
@@ -667,7 +693,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
 
         {hasCreemProducts && props.onCreemProductSelect && (
           <section className='space-y-3 border-t pt-4'>
-            <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+            <Label className='text-sm font-semibold'>
               {t('Creem Payment')}
             </Label>
             <CreemProductsSection

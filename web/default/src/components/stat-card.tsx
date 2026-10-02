@@ -194,7 +194,7 @@ export function StatCard(props: StatCardProps) {
     value = (
       <div
         className={cn(
-          'text-muted-foreground font-mono font-semibold tabular-nums',
+          'text-muted-foreground font-semibold tabular-nums',
           valueSizeClassName
         )}
       >
@@ -205,7 +205,7 @@ export function StatCard(props: StatCardProps) {
     value = (
       <div
         className={cn(
-          'text-foreground max-w-full truncate font-mono font-semibold tabular-nums',
+          'text-foreground max-w-full truncate font-semibold tracking-tight tabular-nums',
           valueSizeClassName,
           props.valueClassName
         )}

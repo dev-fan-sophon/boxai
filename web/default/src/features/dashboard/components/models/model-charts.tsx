@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { PieChart as PieChartIcon } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   DEFAULT_TIME_GRANULARITY,
   MODEL_ANALYTICS_CHART_OPTIONS,
@@ -44,35 +45,31 @@ export function ModelCharts(props: ModelChartsProps) {
   )
 
   return (
-    <div className='bg-card ring-border overflow-hidden rounded-xl ring-1'>
-      <div className='flex w-full flex-col gap-1.5 border-b px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3 lg:flex-row lg:items-center lg:justify-between'>
-        <div className='flex items-center gap-2'>
+    <div className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
+      <div className='flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3 sm:px-5'>
+        <div className='flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5'>
           <IconBadge tone='chart-4' size='sm'>
             <PieChartIcon />
           </IconBadge>
           <div className='text-sm font-semibold'>
             {t('Model Call Analytics')}
           </div>
-          <span className='text-muted-foreground font-mono text-xs tabular-nums'>
+          <span className='text-muted-foreground text-xs whitespace-nowrap tabular-nums'>
             {t('Total:')} {chartData.totalCountDisplay}
           </span>
         </div>
 
-        <div className='bg-muted/60 inline-flex h-7 w-full overflow-x-auto rounded-lg border p-0.5 sm:h-8 sm:w-auto'>
-          {MODEL_ANALYTICS_CHART_OPTIONS.map((tab) => (
-            <button
-              key={tab.value}
-              type='button'
-              onClick={() => setActiveTab(tab.value)}
-              className={`shrink-0 rounded-md px-3 text-xs font-medium transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
+        <div className='-mx-1 max-w-full overflow-x-auto px-1'>
+          <SegmentedControl
+            size='sm'
+            aria-label={t('Chart type')}
+            value={activeTab}
+            onValueChange={setActiveTab}
+            options={MODEL_ANALYTICS_CHART_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t(option.labelKey),
+            }))}
+          />
         </div>
       </div>
 

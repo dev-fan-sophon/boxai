@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 
 import { useHomeStats } from '../../hooks'
 import { ConsolePreview, type ConsoleStep } from '../console-preview'
+import { MarketingSection, SectionIntro } from '../marketing'
 
 /** How long a step stays on screen before the walkthrough moves itself on. */
 const STEP_DWELL_MS = 6000
@@ -94,114 +95,106 @@ export function HowItWorks() {
     typeof window === 'undefined' ? 'you-box.com' : window.location.host
 
   return (
-    <section
-      aria-label={t('Quick start and platform capabilities')}
-      className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'
+    <MarketingSection
+      label={t('Quick start and platform capabilities')}
+      tone='muted'
     >
-      <div className='mx-auto max-w-6xl'>
-        <AnimateInView className='mb-10 max-w-2xl md:mb-14'>
-          <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-            {t('Quick Start')}
-          </p>
-          <h2 className='text-2xl font-bold tracking-tight text-balance md:text-3xl'>
-            {t('One unified API for the models currently available')}
-          </h2>
-          <p className='text-muted-foreground mt-4 text-sm leading-relaxed text-pretty md:text-base'>
-            {t(
-              'Four screens in the console take you from an empty account to a working call.'
-            )}
-          </p>
-        </AnimateInView>
+      <SectionIntro
+        eyebrow={t('Quick Start')}
+        title={t('One unified API for the models currently available')}
+        description={t(
+          'Four screens in the console take you from an empty account to a working call.'
+        )}
+      />
 
-        <div className='grid items-start gap-8 lg:grid-cols-12 lg:gap-10'>
-          <div className='space-y-2 lg:col-span-5'>
-            {steps.map((step, index) => {
-              const isActive = step.id === active
-              return (
-                <AnimateInView key={step.id} delay={100 + index * 70}>
-                  <div
-                    className={cn(
-                      'transition-ui duration-control rounded-2xl border p-4',
-                      isActive
-                        ? 'border-border bg-card shadow-xs'
-                        : 'border-border/40 bg-background/40 hover:border-border/70'
-                    )}
+      <div className='grid items-start gap-8 lg:grid-cols-12 lg:gap-10'>
+        <div className='space-y-2 lg:col-span-5'>
+          {steps.map((step, index) => {
+            const isActive = step.id === active
+            return (
+              <AnimateInView key={step.id} delay={100 + index * 70}>
+                <div
+                  className={cn(
+                    'transition-ui duration-control rounded-2xl border p-4',
+                    isActive
+                      ? 'border-border bg-card shadow-raised'
+                      : 'hover:bg-card/60 border-transparent'
+                  )}
+                >
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setActive(step.id)
+                      setPinned(true)
+                    }}
+                    aria-pressed={isActive}
+                    className='flex w-full items-center gap-3 text-left'
                   >
-                    <button
-                      type='button'
-                      onClick={() => {
-                        setActive(step.id)
-                        setPinned(true)
-                      }}
-                      aria-pressed={isActive}
-                      className='flex w-full items-center gap-3 text-left'
+                    <span
+                      className={cn(
+                        'transition-ui duration-control flex size-10 shrink-0 items-center justify-center rounded-xl border',
+                        isActive
+                          ? 'border-primary/30 bg-primary/10 text-primary'
+                          : 'border-border/60 bg-background text-muted-foreground'
+                      )}
                     >
-                      <span
-                        className={cn(
-                          'transition-ui duration-control flex size-10 shrink-0 items-center justify-center rounded-xl border',
-                          isActive
-                            ? 'border-chart-1/30 bg-chart-1/10 text-chart-1'
-                            : 'border-border/50 bg-muted/40 text-muted-foreground'
-                        )}
-                      >
-                        {step.icon}
-                      </span>
-                      <span className='min-w-0'>
-                        <span className='flex items-center gap-2'>
-                          <span className='text-muted-foreground text-2xs font-mono'>
-                            {step.num}
-                          </span>
-                          <span className='text-sm font-semibold'>
-                            {step.title}
-                          </span>
+                      {step.icon}
+                    </span>
+                    <span className='min-w-0'>
+                      <span className='flex items-center gap-2'>
+                        <span className='text-muted-foreground text-2xs font-mono'>
+                          {step.num}
+                        </span>
+                        <span className='text-sm font-semibold'>
+                          {step.title}
                         </span>
                       </span>
-                    </button>
+                    </span>
+                  </button>
 
-                    <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
-                      {step.desc}
-                    </p>
+                  <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
+                    {step.desc}
+                  </p>
 
-                    {step.external ? (
-                      <a
-                        href={step.href}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
-                      >
-                        {t('Read the docs')}
-                        <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
-                      </a>
-                    ) : (
-                      <Link
-                        to={step.href}
-                        className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
-                      >
-                        {t('Open in console')}
-                        <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
-                      </Link>
-                    )}
-                  </div>
-                </AnimateInView>
-              )
-            })}
-          </div>
-
-          <AnimateInView
-            delay={140}
-            animation='fade-left'
-            className='lg:sticky lg:top-24 lg:col-span-7'
-          >
-            <ConsolePreview
-              step={active}
-              host={host}
-              models={stats?.top_models ?? []}
-              modelCount={stats?.available_models}
-              vendorCount={stats?.active_vendors}
-            />
-          </AnimateInView>
+                  {step.external ? (
+                    <a
+                      href={step.href}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
+                    >
+                      {t('Read the docs')}
+                      <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                    </a>
+                  ) : (
+                    <Link
+                      to={step.href}
+                      className='group text-foreground hover:text-primary transition-ui mt-3 inline-flex items-center gap-1.5 text-sm font-medium'
+                    >
+                      {t('Open in console')}
+                      <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                    </Link>
+                  )}
+                </div>
+              </AnimateInView>
+            )
+          })}
         </div>
+
+        <AnimateInView
+          delay={140}
+          animation='fade-left'
+          className='lg:sticky lg:top-24 lg:col-span-7'
+        >
+          <ConsolePreview
+            step={active}
+            host={host}
+            models={stats?.top_models ?? []}
+            modelCount={stats?.available_models}
+            vendorCount={stats?.active_vendors}
+          />
+        </AnimateInView>
       </div>
-    </section>
+    </MarketingSection>
   )
 }

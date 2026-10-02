@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { Loader2 } from '@/components/icons'
+import { LoadingState } from '@/components/loading-state'
 import { useActiveChatKey } from '@/features/chat/hooks/use-active-chat-key'
 import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
 import { resolveChatUrl } from '@/features/chat/lib/chat-links'
@@ -66,11 +66,9 @@ function Chat2LinkPage() {
   ])
 
   return (
-    <div className='flex h-full flex-col items-center justify-center gap-3'>
-      <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
-      <p className='text-muted-foreground text-sm'>
-        {t('Redirecting to chat page...')}
-      </p>
-    </div>
+    <LoadingState
+      className='h-full'
+      message={t('Redirecting to chat page...')}
+    />
   )
 }

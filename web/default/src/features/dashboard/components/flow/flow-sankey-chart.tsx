@@ -103,7 +103,7 @@ function FlowSankeyTooltipContent(props: {
             className='flex items-center justify-between gap-4 leading-none'
           >
             <span className='text-muted-foreground'>{row.label}</span>
-            <span className='text-foreground font-mono font-medium tabular-nums'>
+            <span className='text-foreground font-medium tabular-nums'>
               {row.value}
             </span>
           </div>

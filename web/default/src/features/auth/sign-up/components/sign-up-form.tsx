@@ -211,7 +211,7 @@ export function SignUpForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        className={cn('grid gap-5', className)}
         {...props}
       >
         {/* Username Field */}
@@ -288,8 +288,10 @@ export function SignUpForm({
 
             {/* Verification Code Field */}
             <div className='flex items-end gap-2'>
-              <div className='flex-1'>
+              <div className='min-w-0 flex-1'>
                 <Input
+                  aria-label={t('Verification code')}
+                  autoComplete='one-time-code'
                   placeholder={t('Verification code')}
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
@@ -318,29 +320,22 @@ export function SignUpForm({
           </>
         )}
 
-        {/* Turnstile */}
         {isTurnstileEnabled && (
-          <div className='mt-2'>
-            <Turnstile
-              siteKey={turnstileSiteKey}
-              onVerify={setTurnstileToken}
-            />
-          </div>
+          <Turnstile siteKey={turnstileSiteKey} onVerify={setTurnstileToken} />
         )}
 
         <LegalConsent
           status={status}
           checked={agreedToLegal}
           onCheckedChange={setAgreedToLegal}
-          className='mt-1'
         />
 
         {/* Submit Button */}
         <Button
           loading={isLoading}
           type='submit'
-          variant='cta'
-          className='mt-2 h-11 w-full justify-center gap-2 shadow-sm'
+          size='lg'
+          className='w-full justify-center gap-2'
           disabled={
             isLoading ||
             (requiresLegalConsent && !agreedToLegal) ||
@@ -353,10 +348,10 @@ export function SignUpForm({
         {oauthRegisterEnabled && (
           <OAuthProviders
             status={status}
+            dividerBefore
             disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
-            className='pt-2'
           />
         )}
       </form>

@@ -10,6 +10,7 @@ import { ErrorPage } from './error-page'
 
 type GeneralErrorProps = {
   minimal?: boolean
+  embedded?: boolean
   error?: unknown
   className?: string
 }
@@ -25,6 +26,7 @@ function getHttpStatus(error: unknown): number | undefined {
 export function GeneralError({
   className,
   minimal = false,
+  embedded = false,
   error,
 }: GeneralErrorProps) {
   const { t } = useTranslation()
@@ -72,6 +74,7 @@ export function GeneralError({
 
   return (
     <ErrorPage
+      embedded={embedded}
       code={String(status ?? 500)}
       icon={isRateLimited ? <Timer /> : <ServerCrash />}
       iconTone={isRateLimited ? 'warning' : 'destructive'}

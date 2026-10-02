@@ -33,7 +33,7 @@ export function FormDirtyIndicator({
           tone('warning')
         )}
       >
-        <span className='size-1.5 rounded-full bg-amber-500 dark:bg-amber-300' />
+        <span className='bg-warning size-1.5 rounded-full' />
         {message ? t(message) : t('Unsaved changes')}
       </span>
     </SettingsPageTitleStatusPortal>
