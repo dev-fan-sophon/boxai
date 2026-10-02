@@ -1,7 +1,6 @@
 WEB_DIR = ./web/default
 API_DIR = .
 DESKTOP_DIR = ./desktop
-DESKTOP_GUI_DIR = ./desktop/surfaces/gui
 CONNECT_DIR = ./connect
 DEV_WEB_DEFAULT_PORT ?= 5173
 DEV_COMPOSE_FILE = docker-compose.dev.yml
@@ -17,7 +16,7 @@ export REDIS_CONN_STRING ?= redis://127.0.0.1:6379/0
 .PHONY: all build-web start-api \
 	dev-infra dev-api dev-web dev-web-local dev \
 	reset-setup deploy deploy-bootstrap deploy-web \
-	desktop-build desktop-stage desktop-publish desktop-screenshots \
+	desktop-build desktop-stage desktop-publish desktop-check \
 	connect-dev connect-check connect-build
 
 all: build-web start-api
@@ -71,22 +70,19 @@ deploy-bootstrap:
 deploy-web:
 	@bash ./scripts/deploy-web.sh
 
-# Desktop release: build on this machine, stage under desktop/release/<version>/, then
-# publish to Cloudflare R2 (https://dl.you-box.com). Windows artifacts are built on the LAN
-# Windows machine with packaging/build_windows.ps1 and copied into the same staging folder
-# before `make desktop-publish`.
+# Electron releases are built and installed on each native OS, never cross-built.
 desktop-build:
-	@cd $(DESKTOP_DIR) && bash packaging/build_dmg.sh
+	@cd $(DESKTOP_DIR) && pnpm dist
 
 desktop-stage:
-	@cd $(DESKTOP_DIR) && bash packaging/stage_release.sh
+	@node scripts/client-release/desktop-native.mjs
 
 desktop-publish:
-	@cd $(DESKTOP_DIR) && bash packaging/publish_release.sh
+	@python3 scripts/client-release/desktop_release.py --publish
 
-# Regenerate the marketing screenshots the download page uses (hermetic, no backend).
-desktop-screenshots:
-	@cd $(DESKTOP_GUI_DIR) && npm run screenshots
+desktop-check:
+	@python3 -m unittest discover -s scripts/client-release -p 'desktop_release_test.py'
+	@cd $(DESKTOP_DIR) && node --test apps/desktop/test/update-preference.test.mjs
 
 # Connect starts from the complete upstream Magpie Go/Wails project.
 connect-dev:
