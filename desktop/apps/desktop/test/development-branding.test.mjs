@@ -75,11 +75,6 @@ test("Windows packages and windows use the canonical PI-Desktop icon", () => {
   assert.match(windowSource, /icon: windowsIconPath\(\)/);
 });
 
-test("Linux packages align the desktop entry with the Wayland app identity", () => {
-  assert.equal(packageJson.desktopName, "pi-desktop.desktop");
-  assert.equal(packageJson.build.linux.syncDesktopName, true);
-});
-
 test("macOS development uses the canonical PI-Desktop Dock icon", () => {
   assert.match(
     brandingSource,

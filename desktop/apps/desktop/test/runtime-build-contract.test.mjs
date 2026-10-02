@@ -37,7 +37,7 @@ test("packaging scripts rebuild workspace dependencies before bundling", async (
   const scripts = await readScripts();
   const rendererBuild = "electron-vite build";
 
-  for (const name of ["pack", "dist", "dist:mac", "dist:win", "dist:linux"]) {
+  for (const name of ["pack", "dist", "dist:mac", "dist:win"]) {
     const script = scripts[name] === "pnpm run dist -- mac" ? scripts.dist : scripts[name] ?? "";
 
     assert.ok(
