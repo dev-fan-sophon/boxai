@@ -121,6 +121,14 @@
     ],
     "extraResources": [
       {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../../UPSTREAM.md",
+        "to": "UPSTREAM.md"
+      },
+      {
         "from": "build/icon.png",
         "to": "tray-icon.png"
       },

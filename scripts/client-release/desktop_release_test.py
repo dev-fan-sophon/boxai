@@ -71,6 +71,23 @@ class DesktopReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "notarization"):
             prepare(self.stage, "0.2.0", "test-commit")
 
+    def test_signed_mac_feed_prefers_verified_zip_not_dmg(self):
+        path = Path(f"{self.artifacts[0]}.assertion.json")
+        report = json.loads(path.read_text())
+        archive = self.artifacts[0].with_suffix(".zip")
+        archive.write_bytes(b"signed application ZIP bytes")
+        report.update(signed=True, notarized=True, zipSha256=hashlib.sha256(archive.read_bytes()).hexdigest())
+        path.write_text(json.dumps(report))
+        objects, feeds = prepare(self.stage, "0.2.0", "test-commit")
+        self.assertIn(archive, objects)
+        mac = yaml.safe_load(feeds["latest-mac.yml"])
+        self.assertTrue(mac["files"][0]["url"].endswith(".zip"))
+        self.assertEqual(mac["files"][0]["sha512"], base64.b64encode(hashlib.sha512(archive.read_bytes()).digest()).decode())
+        self.assertTrue(json.loads(feeds["releases.json"])["downloads"][0]["signed"])
+        archive.write_bytes(b"changed ZIP")
+        with self.assertRaisesRegex(ValueError, "ZIP"):
+            prepare(self.stage, "0.2.0", "test-commit")
+
     def test_all_immutable_objects_verified_before_any_feed(self):
         objects, feeds = prepare(self.stage, "0.2.0", "test-commit")
         events = []
