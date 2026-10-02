@@ -78,15 +78,19 @@ export function DocsArticlePage(props: { docPath: string }) {
 
   return (
     <DocsShell activePath={path} toc={<DocToc headings={page.headings} />}>
-      <h1 className='text-3xl font-bold tracking-tight'>{page.title}</h1>
-      <p className='text-muted-foreground mt-3 text-lg'>{page.summary}</p>
+      <h1 className='text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'>
+        {page.title}
+      </h1>
+      <p className='text-muted-foreground mt-3 text-base leading-relaxed text-pretty sm:text-lg'>
+        {page.summary}
+      </p>
       {page.updated ? (
         <p className='text-muted-foreground mt-2 text-xs'>
           {t('Updated')} {page.updated}
         </p>
       ) : null}
       {fellBackToEn ? (
-        <div className='bg-muted mt-4 rounded-lg border px-3 py-2 text-sm'>
+        <div className='bg-info-subtle text-info-subtle-foreground ring-info/20 mt-4 rounded-xl px-4 py-2.5 text-sm ring-1 ring-inset'>
           {t('This page is not fully translated yet. Showing English.')}
         </div>
       ) : null}
@@ -95,7 +99,7 @@ export function DocsArticlePage(props: { docPath: string }) {
           className={cn(
             'mt-8',
             '[&_table]:[overflow-wrap:normal]',
-            '[&_.doc-callout]:my-4 [&_.doc-callout]:rounded-lg [&_.doc-callout]:border [&_.doc-callout]:px-4 [&_.doc-callout]:py-3',
+            '[&_.doc-callout]:my-4 [&_.doc-callout]:rounded-xl [&_.doc-callout]:border [&_.doc-callout]:px-4 [&_.doc-callout]:py-3',
             '[&_.doc-callout-warning]:border-warning/40 [&_.doc-callout-warning]:bg-warning/10',
             '[&_.doc-callout-danger]:border-destructive/40 [&_.doc-callout-danger]:bg-destructive/10',
             '[&_.doc-callout-info]:bg-muted/40',

@@ -12,19 +12,12 @@ export function getMessageContentStyles() {
     // User bubble: compact surface that stays calm in both light and dark themes.
     'group-[.is-user]:rounded-2xl',
     'group-[.is-user]:rounded-br-md',
-    'group-[.is-user]:border',
-    'group-[.is-user]:border-border/80',
-    'group-[.is-user]:bg-muted/80',
-    'dark:group-[.is-user]:border-border/60',
-    'dark:group-[.is-user]:bg-muted/55',
-    'group-[.is-user]:px-3',
+    'group-[.is-user]:bg-secondary',
+    'group-[.is-user]:px-3.5',
     'group-[.is-user]:py-2',
     'sm:group-[.is-user]:px-4',
     'sm:group-[.is-user]:py-2.5',
     'group-[.is-user]:text-foreground',
-    'group-[.is-user]:shadow-sm',
-    'group-[.is-user]:shadow-black/5',
-    'dark:group-[.is-user]:shadow-black/25',
 
     // Assistant response: flat reading surface using the active UI font axis.
     'group-[.is-assistant]:bg-transparent',
@@ -36,11 +29,10 @@ export function getMessageContentStyles() {
     'dark:group-[.is-assistant]:text-foreground/90',
 
     // Preferred readable widths and wrapping
-    'text-[0.9375rem]',
+    'text-md',
     'leading-6',
     'break-words',
     'whitespace-pre-wrap',
-    'sm:text-[0.975rem]',
     'sm:leading-7',
 
     // Cap user bubble width so it does not look like a banner on phones

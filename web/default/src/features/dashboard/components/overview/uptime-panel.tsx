@@ -1,7 +1,7 @@
-import { Activity, RotateCw } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Activity, RotateCw } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -15,10 +15,10 @@ import { cn } from '@/lib/utils'
 import { PanelWrapper } from '../ui/panel-wrapper'
 
 const STATUS_COLOR_MAP: Record<number, string> = {
-  1: 'bg-emerald-500',
-  0: 'bg-red-500',
-  2: 'bg-amber-500',
-  3: 'bg-blue-500',
+  1: 'bg-success',
+  0: 'bg-destructive',
+  2: 'bg-warning',
+  3: 'bg-info',
 }
 const DEFAULT_STATUS_COLOR = 'bg-muted-foreground/40'
 
@@ -113,10 +113,10 @@ export function UptimePanel() {
             <div key={group.categoryName}>
               <div className='bg-muted/30 border-border/60 border-b px-3 py-2 sm:px-5'>
                 <div className='flex items-center gap-2'>
-                  <h4 className='text-muted-foreground text-xs font-semibold tracking-wider uppercase'>
+                  <h4 className='text-muted-foreground text-xs font-semibold'>
                     {group.categoryName}
                   </h4>
-                  <span className='text-muted-foreground font-mono text-xs tabular-nums'>
+                  <span className='text-muted-foreground text-xs tabular-nums'>
                     {group.monitors?.length || 0}
                   </span>
                 </div>
@@ -144,7 +144,7 @@ export function UptimePanel() {
                         </span>
                       )}
                     </div>
-                    <span className='text-foreground shrink-0 font-mono text-sm font-semibold tabular-nums'>
+                    <span className='text-foreground shrink-0 text-sm font-semibold tabular-nums'>
                       {((monitor.uptime ?? 0) * 100).toFixed(2)}%
                     </span>
                   </div>

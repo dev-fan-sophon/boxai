@@ -1,7 +1,8 @@
-import { History, LayoutGrid } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { History, LayoutGrid } from '@/components/icons'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Sheet,
   SheetContent,
@@ -16,39 +17,39 @@ import { SessionHistoryPanel } from './session-history-panel'
 
 type RailTab = 'models' | 'sessions'
 
-function RailTabs(props: { value: RailTab; onChange: (tab: RailTab) => void }) {
+function RailTabs(props: {
+  value: RailTab
+  onChange: (tab: RailTab) => void
+  className?: string
+}) {
   const { t } = useTranslation()
-  const tabs: { key: RailTab; label: string; Icon: typeof History }[] = [
-    { key: 'models', label: t('Models'), Icon: LayoutGrid },
-    { key: 'sessions', label: t('Chats'), Icon: History },
-  ]
   return (
     <div
-      role='tablist'
-      aria-label={t('Left panel')}
-      className='border-sidebar-border bg-sidebar/60 flex shrink-0 gap-1 border-b p-1.5'
+      className={cn(
+        'border-sidebar-border flex h-12 shrink-0 items-center border-b px-2.5 sm:h-14 sm:px-3',
+        props.className
+      )}
     >
-      {tabs.map(({ key, label, Icon }) => {
-        const active = props.value === key
-        return (
-          <button
-            key={key}
-            type='button'
-            role='tab'
-            aria-selected={active}
-            onClick={() => props.onChange(key)}
-            className={cn(
-              'focus-visible:ring-ring flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors outline-none focus-visible:ring-2',
-              active
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            )}
-          >
-            <Icon className='size-3.5' aria-hidden='true' />
-            {label}
-          </button>
-        )
-      })}
+      <SegmentedControl<RailTab>
+        fullWidth
+        size='md'
+        aria-label={t('Left panel')}
+        value={props.value}
+        onValueChange={props.onChange}
+        options={[
+          {
+            value: 'models',
+            label: t('Models'),
+            icon: <LayoutGrid aria-hidden='true' />,
+          },
+          {
+            value: 'sessions',
+            label: t('Chats'),
+            icon: <History aria-hidden='true' />,
+          },
+        ]}
+        className='w-full'
+      />
     </div>
   )
 }
@@ -98,7 +99,7 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
     >
       <div className='relative flex min-h-0 flex-1'>
         {isDesktop && (
-          <aside className='playground-rail bg-sidebar/95 text-sidebar-foreground border-sidebar-border flex w-[min(300px,28vw)] shrink-0 flex-col border-r backdrop-blur-md'>
+          <aside className='playground-rail bg-sidebar text-sidebar-foreground border-sidebar-border flex w-[min(288px,28vw)] shrink-0 flex-col border-r'>
             <RailTabs value={railTab} onChange={setRailTab} />
             <div
               className={cn('min-h-0 flex-1', railTab !== 'models' && 'hidden')}
@@ -134,7 +135,12 @@ export function PlaygroundShell(props: PlaygroundShellProps) {
           <div className='flex h-full flex-col pt-[env(safe-area-inset-top,0px)]'>
             {catalogOpen && (
               <>
-                <RailTabs value={railTab} onChange={setRailTab} />
+                {/* Leave room for the sheet's close button. */}
+                <RailTabs
+                  value={railTab}
+                  onChange={setRailTab}
+                  className='pr-12 sm:pr-12'
+                />
                 <div
                   className={cn(
                     'min-h-0 flex-1',

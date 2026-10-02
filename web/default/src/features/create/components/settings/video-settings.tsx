@@ -1,6 +1,6 @@
-import { ChevronDown, Dices, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, Dices, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -13,7 +13,6 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'
-import { BATCH_COUNTS } from '@/features/playground/lib/studio/batch-plan'
 import {
   applyResolvedVideoSettings,
   MAX_VIDEO_SEED,
@@ -255,33 +254,6 @@ export function VideoSettings(props: {
           />
         </div>
       ) : null}
-      <SettingRow label={t('Videos per prompt')} htmlFor='gen-video-count'>
-        <NativeSelect
-          id='gen-video-count'
-          size='sm'
-          className='w-full'
-          value={String(options.count)}
-          onChange={(event) =>
-            persistVideo({ videoCount: Number(event.target.value) })
-          }
-        >
-          {BATCH_COUNTS.map((count) => (
-            <NativeSelectOption key={count} value={String(count)}>
-              {count}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </SettingRow>
-      <SettingRow label={t('Batch')} htmlFor='gen-video-batch'>
-        <Switch
-          id='gen-video-batch'
-          size='sm'
-          checked={settings.videoBatchMode}
-          onCheckedChange={(checked) =>
-            persistVideo({ videoBatchMode: checked })
-          }
-        />
-      </SettingRow>
       {showAdvanced ? (
         <VideoAdvancedSettings
           supportsSeed={Boolean(capabilities.supportsSeed)}

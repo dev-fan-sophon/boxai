@@ -1,9 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { AlertTriangle } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableColumnHeader } from '@/components/data-table'
+import { AlertTriangle } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -65,7 +65,7 @@ export function useUpstreamRatioSyncColumns(
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-amber-500' />
+                      <AlertTriangle className='text-warning h-3.5 w-3.5 shrink-0' />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
@@ -343,7 +343,7 @@ function renderUpstreamValue(args: RenderUpstreamValueArgs) {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger>
-              <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-amber-500' />
+              <AlertTriangle className='text-warning h-3.5 w-3.5 shrink-0' />
             </TooltipTrigger>
             <TooltipContent>
               <p>{t('This data may be unreliable, use with caution')}</p>

@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, MonitorSmartphone, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Loader2, MonitorSmartphone, RefreshCw } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,

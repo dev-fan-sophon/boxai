@@ -1,7 +1,7 @@
-import { Monitor, Moon, Sun } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Monitor, Moon, Sun } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

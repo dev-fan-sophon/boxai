@@ -1,35 +1,38 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { ShieldCheck } from '@/components/icons'
+import { IconBadge } from '@/components/ui/icon-badge'
+
 import { AuthLayout } from '../auth-layout'
 import { OtpForm } from './components/otp-form'
 
 export function Otp() {
   const { t } = useTranslation()
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-3'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Two-factor Authentication')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
-            {t('Please enter the authentication code.')}
-          </p>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
+    <AuthLayout
+      icon={
+        <IconBadge tone='primary' size='lg'>
+          <ShieldCheck />
+        </IconBadge>
+      }
+      title={t('Two-factor Authentication')}
+      description={
+        <>
+          <p>{t('Please enter the authentication code.')}</p>
+          <p>
             {t('Session expired?')}{' '}
             <Link
               to='/sign-in'
-              className='hover:text-primary font-medium underline underline-offset-4'
+              className='text-foreground hover:text-primary font-medium underline-offset-4 transition-colors hover:underline'
             >
               {t('Re-login')}
             </Link>
-            .
           </p>
-        </div>
-
-        <OtpForm />
-      </div>
+        </>
+      }
+    >
+      <OtpForm />
     </AuthLayout>
   )
 }

@@ -1,6 +1,6 @@
-import { ChevronDown, Layers, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, Layers, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { useLgUp } from '@/hooks'
 
@@ -33,7 +33,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
   if (props.mode === 'duo') {
     modelInfo = (
       <span className='flex min-w-0 items-center gap-2'>
-        <span className='bg-primary/15 text-primary flex size-7 shrink-0 items-center justify-center rounded-lg'>
+        <span className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
           <Layers className='size-4' aria-hidden='true' />
         </span>
         <span className='text-foreground truncate text-sm font-semibold'>
@@ -44,7 +44,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
   } else {
     modelInfo = (
       <span className='flex min-w-0 items-center gap-2'>
-        <span className='border-border bg-muted/60 flex size-7 shrink-0 items-center justify-center rounded-lg border'>
+        <span className='bg-card ring-border flex size-8 shrink-0 items-center justify-center rounded-lg shadow-xs ring-1'>
           <ModelBrandIcon
             modelName={props.model}
             icon={props.pricingModel?.icon}
@@ -53,10 +53,15 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
           />
         </span>
         <span className='min-w-0'>
-          <span className='text-foreground block truncate text-sm font-semibold'>
-            {props.sessionTitle || t('New chat')}
+          <span
+            className='text-foreground block truncate text-sm leading-5 font-semibold'
+            title={props.sessionTitle}
+          >
+            {props.sessionTitle && props.sessionTitle !== 'New chat'
+              ? props.sessionTitle
+              : t('New chat')}
           </span>
-          <span className='text-muted-foreground text-2xs block truncate font-mono'>
+          <span className='text-muted-foreground text-2xs block truncate font-mono leading-4'>
             {props.model || t('Select a model')}
           </span>
         </span>
@@ -65,7 +70,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
   }
 
   return (
-    <div className='playground-workspace-header border-border/70 flex h-11 shrink-0 items-center justify-between gap-2 border-b px-2 sm:h-12 sm:px-3'>
+    <div className='playground-workspace-header border-border/70 flex h-12 shrink-0 items-center justify-between gap-2 border-b px-2 sm:h-14 sm:px-4'>
       {isDesktop ? (
         <div className='flex min-w-0 items-center gap-1.5 py-1 pr-1.5 pl-0.5'>
           {modelInfo}
@@ -74,7 +79,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
         <button
           type='button'
           onClick={props.onOpenCatalog}
-          className='focus-visible:ring-ring hover:bg-muted/50 active:bg-muted flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl py-1 pr-1.5 pl-0.5 text-left transition-colors outline-none focus-visible:ring-2'
+          className='focus-visible:ring-ring hover:bg-accent active:bg-accent flex min-h-10 min-w-0 items-center gap-1.5 rounded-xl py-1 pr-1.5 pl-0.5 text-left transition-colors outline-none focus-visible:ring-2'
           aria-label={t('Open catalog')}
         >
           {modelInfo}

@@ -26,7 +26,8 @@ export type GroupStatusGroup = {
   group: string
   status: GroupModelStatus
   request_count: number
-  models: GroupStatusModel[]
+  /** Go serialises an empty slice as null. */
+  models: GroupStatusModel[] | null
 }
 
 export type GroupStatusResponse = {

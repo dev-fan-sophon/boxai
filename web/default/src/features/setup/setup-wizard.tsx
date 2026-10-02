@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ErrorState } from '@/components/error-state'
+import { Check } from '@/components/icons'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { LoadingState } from '@/components/loading-state'
 import {
@@ -261,38 +262,42 @@ export function SetupWizard() {
   }
 
   return (
-    <div className='bg-muted/40 relative min-h-svh py-10'>
+    <div className='bg-background relative isolate min-h-svh py-10'>
+      <div
+        aria-hidden
+        className='playground-discover-hero pointer-events-none absolute inset-0 -z-10'
+      />
       <div className='absolute top-4 right-4 sm:top-6 sm:right-6'>
         <LanguageSwitcher />
       </div>
-      <div className='container mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6'>
+      <div className='container mx-auto flex max-w-4xl flex-col gap-8 px-4 sm:px-6'>
         <div className='flex flex-col items-center gap-3'>
           <div className='relative h-12 w-12'>
             {systemConfigLoading ? (
-              <Skeleton className='absolute inset-0 rounded-full' />
+              <Skeleton className='absolute inset-0 rounded-xl' />
             ) : (
               <img
                 src={logo}
                 alt={t('System logo')}
-                className='h-12 w-12 rounded-full object-cover shadow-sm'
+                className='ring-border h-12 w-12 rounded-xl object-cover shadow-sm ring-1'
               />
             )}
           </div>
           {systemConfigLoading ? (
             <Skeleton className='h-7 w-40' />
           ) : (
-            <h1 className='text-2xl font-semibold tracking-tight'>
+            <h1 className='text-center text-2xl font-semibold tracking-tight text-balance'>
               {t('Initialize')} {systemName}
             </h1>
           )}
-          <p className='text-muted-foreground text-center text-sm sm:text-base'>
+          <p className='text-muted-foreground max-w-xl text-center text-sm text-pretty sm:text-base'>
             {t(
               'Follow the guided steps to prepare your workspace before the first login.'
             )}
           </p>
         </div>
 
-        <Card className='shadow-lg'>
+        <Card className='shadow-lifted'>
           <CardHeader className='space-y-2'>
             <CardTitle className='text-xl font-semibold'>
               {t('System setup wizard')}
@@ -303,49 +308,66 @@ export function SetupWizard() {
           </CardHeader>
 
           <CardContent className='space-y-6'>
-            <ol className='grid gap-3 sm:grid-cols-4'>
-              {STEPS.map((step, index) => {
-                const isActive = currentStep === index
-                const isCompleted = currentStep > index
-                let stepCardClass = 'border-muted bg-card'
-                if (isActive) {
-                  stepCardClass = 'border-primary ring-primary/20 ring-2'
-                } else if (isCompleted) {
-                  stepCardClass = 'border-primary/40 bg-primary/5'
-                }
-                let stepBadgeClass =
-                  'border-muted-foreground/40 text-muted-foreground'
-                if (isActive || isCompleted) {
-                  stepBadgeClass =
-                    'border-primary bg-primary text-primary-foreground'
-                }
-                return (
-                  <li
-                    key={step.titleKey}
-                    className={cn('rounded-xl border p-3', stepCardClass)}
-                  >
-                    <div className='flex items-start gap-3'>
+            <div className='space-y-3'>
+              <ol className='grid grid-cols-4 gap-2 sm:gap-3'>
+                {STEPS.map((step, index) => {
+                  const isActive = currentStep === index
+                  const isCompleted = currentStep > index
+                  return (
+                    <li
+                      key={step.titleKey}
+                      aria-current={isActive ? 'step' : undefined}
+                      className='min-w-0 space-y-2'
+                    >
                       <span
+                        aria-hidden
                         className={cn(
-                          'flex size-6 items-center justify-center rounded-md border text-xs font-semibold',
-                          stepBadgeClass
+                          'block h-1 rounded-full transition-colors duration-control',
+                          isActive || isCompleted ? 'bg-primary' : 'bg-muted'
                         )}
-                      >
-                        {index + 1}
-                      </span>
-                      <div className='space-y-1'>
-                        <p className='text-sm font-semibold'>
-                          {t(step.titleKey)}
-                        </p>
-                        <p className='text-muted-foreground text-xs'>
-                          {t(step.descriptionKey)}
-                        </p>
+                      />
+                      <div className='flex min-w-0 items-start gap-2'>
+                        <span
+                          className={cn(
+                            'flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold tabular-nums',
+                            isActive || isCompleted
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {isCompleted ? (
+                            <Check className='size-3' aria-hidden />
+                          ) : (
+                            index + 1
+                          )}
+                        </span>
+                        <div className='hidden min-w-0 space-y-0.5 sm:block'>
+                          <p
+                            className={cn(
+                              'text-sm font-medium',
+                              !isActive && 'text-muted-foreground'
+                            )}
+                          >
+                            {t(step.titleKey)}
+                          </p>
+                          <p className='text-muted-foreground text-xs'>
+                            {t(step.descriptionKey)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
+                    </li>
+                  )
+                })}
+              </ol>
+              <div className='space-y-0.5 sm:hidden'>
+                <p className='text-sm font-semibold'>
+                  {t(STEPS[currentStep].titleKey)}
+                </p>
+                <p className='text-muted-foreground text-xs'>
+                  {t(STEPS[currentStep].descriptionKey)}
+                </p>
+              </div>
+            </div>
 
             {isLoading && <LoadingState message={t('Loading setup status…')} />}
             {!isLoading && isError && (

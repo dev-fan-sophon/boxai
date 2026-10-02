@@ -1,6 +1,6 @@
-import { Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Zap } from '@/components/icons'
 import type { PlaygroundEstimateResult } from '@/features/playground/api'
 import {
   buildPriceHint,
@@ -55,7 +55,7 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
       )}
       title={formatHintTitle(hint, t)}
     >
-      <Zap className='size-3 shrink-0 fill-current' aria-hidden='true' />
+      <Zap weight='fill' className='size-3 shrink-0' aria-hidden='true' />
       <span className='truncate'>{label}</span>
     </span>
   )

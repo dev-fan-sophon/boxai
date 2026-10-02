@@ -1,9 +1,15 @@
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { EmptyState } from '@/components/empty-state'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Search,
+} from '@/components/icons'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -138,23 +144,23 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
     <>
       <div className='flex h-full min-h-0 flex-col gap-4'>
         <form
-          className='flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'
+          className='flex shrink-0 flex-wrap items-center gap-2'
           onSubmit={(event) => {
             event.preventDefault()
             setPage(1)
             setSearch(keyword.trim())
           }}
         >
-          <div className='relative min-w-0 flex-1'>
+          <div className='relative min-w-0 basis-full sm:max-w-sm sm:min-w-48 sm:flex-1 sm:basis-auto'>
             <Search
-              className='text-muted-foreground absolute top-2 left-2.5 size-4'
+              className='text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2'
               aria-hidden='true'
             />
             <Input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder={t('Search user or order number')}
-              className='pl-9'
+              className='h-8 pl-8'
               aria-label={t('Search user or order number')}
             />
           </div>
@@ -171,7 +177,11 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
               setPage(1)
             }}
           >
-            <SelectTrigger className='w-full sm:w-44'>
+            <SelectTrigger
+              size='sm'
+              className='w-auto min-w-36'
+              aria-label={t('Status')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
@@ -181,7 +191,8 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
               <SelectItem value=''>{t('All statuses')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button type='submit' className='w-full sm:w-auto'>
+          <Button type='submit' size='sm' variant='outline'>
+            <Search data-icon='inline-start' aria-hidden='true' />
             {t('Search')}
           </Button>
         </form>
@@ -193,13 +204,17 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
           </div>
         )}
         {!loading && items.length === 0 && (
-          <p className='text-muted-foreground py-16 text-center'>
-            {t('No review submissions found')}
-          </p>
+          <EmptyState
+            icon={ListChecks}
+            title={t('No review submissions found')}
+            description={t(
+              'Bank transfer proofs that need a decision will appear here.'
+            )}
+          />
         )}
         {!loading && items.length > 0 && (
           <div
-            className='min-h-0 flex-1 overflow-auto rounded-md border'
+            className='bg-card ring-border min-h-0 flex-1 overflow-auto rounded-2xl ring-1'
             data-testid='topup-review-scroll'
           >
             <Table>
@@ -360,7 +375,8 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
           <div className='flex items-center justify-end gap-2'>
             <Button
               variant='outline'
-              size='icon'
+              size='icon-sm'
+              aria-label={t('Previous page')}
               onClick={() => setPage((value) => value - 1)}
               disabled={page <= 1}
             >
@@ -371,7 +387,8 @@ export function TopUpReviews(props: { embedded?: boolean } = {}) {
             </span>
             <Button
               variant='outline'
-              size='icon'
+              size='icon-sm'
+              aria-label={t('Next page')}
               onClick={() => setPage((value) => value + 1)}
               disabled={page >= totalPages}
             >

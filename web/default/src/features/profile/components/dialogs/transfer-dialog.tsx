@@ -94,19 +94,16 @@ export function TransferDialog({
     >
       <div className='space-y-4 py-3 sm:space-y-6 sm:py-4'>
         <div className='space-y-2'>
-          <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+          <Label className='text-sm font-medium'>
             {t('Available Rewards')}
           </Label>
-          <div className='text-2xl font-semibold'>
+          <div className='text-2xl font-semibold tracking-tight tabular-nums'>
             {formatQuota(availableQuota)}
           </div>
         </div>
 
         <div className='space-y-3'>
-          <Label
-            htmlFor='transfer-amount'
-            className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-          >
+          <Label htmlFor='transfer-amount' className='text-sm font-medium'>
             {t('Transfer Amount')}
           </Label>
           <Input
@@ -117,7 +114,7 @@ export function TransferDialog({
             min={minimumAmount}
             max={maximumAmount}
             step={minimumAmount}
-            className='font-mono text-lg'
+            className='text-base tabular-nums'
           />
           <p className='text-muted-foreground text-xs'>
             {t('Minimum:')} {formatQuota(minimumQuota)}

@@ -1,9 +1,9 @@
 import type { Table } from '@tanstack/react-table'
-import { Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
+import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import type { AdminUserRow } from '../types'

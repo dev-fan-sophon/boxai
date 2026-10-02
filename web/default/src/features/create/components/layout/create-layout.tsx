@@ -1,8 +1,8 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import { Loader2 } from '@/components/icons'
 import { SignInRequiredDialog } from '@/features/playground/components/shell/sign-in-required-dialog'
 import { useWorkspaceBootstrap } from '@/features/playground/hooks/use-workspace-bootstrap'
 import { MOTION_SPRING } from '@/lib/motion'
@@ -63,22 +63,24 @@ function CreateNav(props: { pathname: string }) {
               title={t(item.descriptionKey)}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'focus-visible:ring-ring relative flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2',
+                'focus-visible:ring-ring relative flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 sm:px-3',
                 active
                   ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
             >
               {active && (
                 <motion.span
                   layoutId='create-nav-active'
                   transition={MOTION_SPRING.snappy}
-                  className='bg-muted ring-border/60 absolute inset-0 rounded-lg ring-1'
+                  className='bg-card shadow-raised ring-border/70 dark:bg-accent absolute inset-0 rounded-lg ring-1 dark:ring-white/5'
                   aria-hidden='true'
                 />
               )}
               <Icon className='relative size-4' aria-hidden='true' />
-              <span className='relative'>{t(item.labelKey)}</span>
+              <span className={cn('relative', !active && 'max-sm:sr-only')}>
+                {t(item.labelKey)}
+              </span>
             </Link>
           )
         })}

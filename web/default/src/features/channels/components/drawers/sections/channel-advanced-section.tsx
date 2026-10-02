@@ -1,7 +1,7 @@
-import { ChevronDown, Settings } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, Settings } from '@/components/icons'
 import {
   Collapsible,
   CollapsibleContent,

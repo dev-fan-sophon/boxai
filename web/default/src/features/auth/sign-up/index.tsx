@@ -8,27 +8,22 @@ export function SignUp() {
   const { t } = useTranslation()
 
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Create an account')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
-            {t('Already have an account?')}{' '}
-            <Link
-              to='/sign-in'
-              className='hover:text-primary font-medium underline underline-offset-4'
-            >
-              {t('Sign in')}
-            </Link>
-            .
-          </p>
-        </div>
-
-        {/* Legal consent checkbox lives in SignUpForm; no duplicate footer. */}
-        <SignUpForm />
-      </div>
+    <AuthLayout
+      title={t('Create an account')}
+      description={
+        <p>
+          {t('Already have an account?')}{' '}
+          <Link
+            to='/sign-in'
+            className='text-foreground hover:text-primary font-medium underline-offset-4 transition-colors hover:underline'
+          >
+            {t('Sign in')}
+          </Link>
+        </p>
+      }
+    >
+      {/* Legal consent checkbox lives in SignUpForm; no duplicate footer. */}
+      <SignUpForm />
     </AuthLayout>
   )
 }

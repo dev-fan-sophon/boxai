@@ -1,9 +1,9 @@
-import { Share2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { ErrorState } from '@/components/error-state'
+import { Share2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -99,7 +99,7 @@ export function ReferralRewardsCard(props: ReferralRewardsCardProps) {
               [t('Invites'), String(props.profile?.aff_count ?? 0)],
             ].map(([label, value]) => (
               <div key={label}>
-                <div className='text-muted-foreground text-3xs truncate font-medium tracking-wider uppercase'>
+                <div className='text-muted-foreground truncate text-xs font-medium'>
                   {label}
                 </div>
                 <div className='mt-0.5 truncate text-sm font-semibold tabular-nums'>

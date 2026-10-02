@@ -1,7 +1,7 @@
-import { ArrowUp, Loader2, Square } from 'lucide-react'
 import React, { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowUp, Loader2, Square } from '@/components/icons'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -177,7 +177,7 @@ export function NodePromptBar(props: {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={props.onCancel}
           >
-            <Square className='size-3 fill-current' />
+            <Square weight='fill' className='size-3' />
           </button>
         ) : (
           <button

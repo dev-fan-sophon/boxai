@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Hash,
   Coins,
@@ -7,10 +9,8 @@ import {
   Flame,
   TrendingUp,
   Activity,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import type { IconBadgeTone } from '@/components/ui/icon-badge'
 import { safeDivide } from '@/features/dashboard/lib'
 
@@ -18,7 +18,7 @@ interface StatCardConfig {
   key: string
   title: string
   description: string
-  icon: LucideIcon
+  icon: IconComponent
   iconTone: IconBadgeTone
   getValue: (stat: Record<string, number>, days?: number) => number
 }

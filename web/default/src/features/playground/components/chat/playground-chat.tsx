@@ -198,9 +198,9 @@ export function PlaygroundChat({
         from='assistant'
         key='assistant-pending'
       >
-        <div className='flex w-full items-center gap-2 py-2 text-sm'>
+        <div className='text-muted-foreground flex w-full items-center gap-2 py-2 text-sm'>
           <Loader />
-          <span className='text-muted-foreground'>{t('Responding...')}</span>
+          <span>{t('Responding...')}</span>
         </div>
       </Message>
     )
@@ -222,7 +222,7 @@ export function PlaygroundChat({
     <Conversation>
       {/* Remove outer padding; apply padding to inner centered container to align with input */}
       <ConversationContent className='p-0'>
-        <div className='mx-auto w-full max-w-4xl px-3 py-3 sm:px-4 sm:py-4'>
+        <div className='mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6'>
           {chatContent}
         </div>
       </ConversationContent>

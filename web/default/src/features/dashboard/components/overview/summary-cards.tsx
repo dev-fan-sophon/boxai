@@ -1,18 +1,19 @@
+import NumberFlow from '@number-flow/react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  Activity,
-  ArrowRight,
-  Flame,
-  ShieldCheck,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react'
 import { useId, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
+import {
+  Activity,
+  Flame,
+  Receipt,
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from '@/components/icons'
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
 import { StatCard } from '@/components/stat-card'
 import { Button } from '@/components/ui/button'
@@ -26,10 +27,13 @@ import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUserQuotaDates } from '@/features/dashboard/api'
 import type { QuotaDataItem } from '@/features/dashboard/types'
+import { getCurrentIntlLocale } from '@/i18n/languages'
 import { formatNumber, formatQuota } from '@/lib/format'
 import { computeTimeRange } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+
+import { AnimatedQuota } from '../ui/animated-quota'
 
 const SUMMARY_BUCKETS = 24
 
@@ -59,8 +63,13 @@ function buildTrendRows(
     requests[index] += Number(item.count) || 0
   }
 
+  const bucketSeconds = (end - start) / SUMMARY_BUCKETS
+  const timeFormat = new Intl.DateTimeFormat(getCurrentIntlLocale(), {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
   return usage.map((value, index) => ({
-    label: `${index}`,
+    label: timeFormat.format(new Date((start + index * bucketSeconds) * 1000)),
     usage: value,
     requests: requests[index],
   }))
@@ -139,6 +148,10 @@ export function SummaryCards() {
     () => trendRows.reduce((total, row) => total + row.usage, 0),
     [trendRows]
   )
+  const recentRequests = useMemo(
+    () => trendRows.reduce((total, row) => total + row.requests, 0),
+    [trendRows]
+  )
 
   const healthLevel = getHealthLevel(remainQuota, recentUsage)
   const healthCfg = HEALTH_CONFIG[healthLevel]
@@ -165,89 +178,15 @@ export function SummaryCards() {
   } satisfies ChartConfig
 
   return (
-    <StaggerContainer className='grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,0.9fr)] lg:gap-4'>
-      <StaggerItem className='min-w-0'>
-        <div className='bg-card ring-border flex h-full flex-col overflow-hidden rounded-xl ring-1'>
-          <div className='flex items-center justify-between gap-3 border-b px-4 py-3'>
-            <div className='flex items-center gap-2'>
-              <IconBadge tone='chart-1' size='sm'>
-                <Flame />
-              </IconBadge>
-              <h3 className='text-sm font-semibold'>{t('Last 24h usage')}</h3>
-            </div>
-            <span className='font-mono text-sm font-semibold tabular-nums'>
-              {formatQuota(recentUsage)}
-            </span>
-          </div>
-          <div className='min-h-52 flex-1 p-3 sm:min-h-64 sm:p-4'>
-            {loading ? (
-              <Skeleton className='h-full w-full' />
-            ) : (
-              <ChartContainer
-                config={chartConfig}
-                className='aspect-auto h-full w-full'
-              >
-                <AreaChart
-                  data={trendRows}
-                  margin={{ left: 4, right: 8, top: 8, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id={gradientId} x1='0' y1='0' x2='0' y2='1'>
-                      <stop
-                        offset='0%'
-                        stopColor='var(--chart-1)'
-                        stopOpacity={0.4}
-                      />
-                      <stop
-                        offset='100%'
-                        stopColor='var(--chart-1)'
-                        stopOpacity={0.02}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray='3 3' />
-                  <XAxis dataKey='label' hide />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={48}
-                    tickFormatter={(value) => formatQuota(Number(value) || 0)}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) => (
-                          <span className='font-mono tabular-nums'>
-                            {formatQuota(Number(value) || 0)}
-                          </span>
-                        )}
-                      />
-                    }
-                  />
-                  <Area
-                    type='monotone'
-                    dataKey='usage'
-                    stroke='var(--chart-1)'
-                    fill={`url(#${gradientId})`}
-                    strokeWidth={2.25}
-                    dot={false}
-                    isAnimationActive
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
-          </div>
-        </div>
-      </StaggerItem>
-
-      <StaggerItem className='flex min-w-0 flex-col gap-3'>
-        <div className='bg-card ring-border flex flex-1 flex-col justify-between gap-4 rounded-xl p-4 ring-1 sm:p-5'>
+    <StaggerContainer className='grid grid-cols-1 gap-3 lg:grid-cols-[minmax(17rem,0.85fr)_minmax(0,1.6fr)] lg:gap-4'>
+      <StaggerItem className='flex min-w-0 flex-col gap-3 lg:gap-4'>
+        <section className='bg-card ring-border relative flex flex-1 flex-col justify-between gap-5 overflow-hidden rounded-2xl p-5 ring-1'>
           <div className='flex flex-col gap-3'>
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-muted-foreground text-xs font-medium'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
+              <span className='text-muted-foreground min-w-0 text-sm font-medium'>
                 {t('Credit remaining')}
               </span>
-              <span className='inline-flex items-center gap-1.5'>
+              <span className='bg-muted/60 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5'>
                 <span
                   className={cn(
                     'size-1.5 rounded-full',
@@ -256,22 +195,29 @@ export function SummaryCards() {
                   )}
                   aria-hidden='true'
                 />
-                <span className='text-muted-foreground text-2xs font-medium'>
+                <span className='text-muted-foreground text-2xs font-medium whitespace-nowrap'>
                   {t(healthCfg.labelKey)}
                 </span>
               </span>
             </div>
-            <div className='font-mono text-3xl font-semibold tracking-tight tabular-nums'>
-              {formatQuota(remainQuota)}
-            </div>
-            <div className='bg-muted/40 flex items-center justify-between gap-2 rounded-lg px-3 py-2.5'>
-              <div className='text-muted-foreground text-2xs flex items-center gap-1.5 font-medium'>
+            <AnimatedQuota
+              quota={remainQuota}
+              className='text-foreground block max-w-full truncate text-3xl leading-tight font-semibold tracking-tight sm:text-4xl'
+            />
+            <div className='bg-muted/50 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-3 py-2'>
+              <div className='text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs font-medium'>
                 {runwayDays !== null && runwayDays < 3 ? (
-                  <TrendingDown className='size-3' aria-hidden='true' />
+                  <TrendingDown
+                    className='size-3.5 shrink-0'
+                    aria-hidden='true'
+                  />
                 ) : (
-                  <ShieldCheck className='size-3' aria-hidden='true' />
+                  <ShieldCheck
+                    className='size-3.5 shrink-0'
+                    aria-hidden='true'
+                  />
                 )}
-                {t('Runway')}
+                <span className='truncate'>{t('Runway')}</span>
               </div>
               <div
                 className={cn(
@@ -284,32 +230,144 @@ export function SummaryCards() {
               </div>
             </div>
           </div>
-          <Button
-            className='w-full justify-between'
-            render={<Link to='/billing' />}
-          >
-            <span className='inline-flex items-center gap-2'>
-              <Wallet className='size-4' aria-hidden='true' />
-              {t('Billing')}
-            </span>
-            <ArrowRight data-icon='inline-end' />
-          </Button>
-        </div>
+          <div className='flex flex-wrap gap-2'>
+            <Button className='flex-1' render={<Link to='/billing' />}>
+              <Wallet data-icon='inline-start' />
+              {t('Add credits')}
+            </Button>
+            <Button
+              variant='outline'
+              className='flex-1'
+              render={
+                <Link
+                  to='/usage-logs/$section'
+                  params={{ section: 'common' }}
+                />
+              }
+            >
+              <Receipt data-icon='inline-start' />
+              {t('Usage Logs')}
+            </Button>
+          </div>
+        </section>
 
-        <div className='grid grid-cols-2 gap-3'>
+        <div className='grid grid-cols-2 gap-3 lg:gap-4'>
           <StatCard
             label={t('Historical Usage')}
-            value={formatQuota(usedQuota)}
+            value={<AnimatedQuota quota={usedQuota} />}
+            valueTitle={formatQuota(usedQuota)}
+            valueClassName='font-sans'
             icon={TrendingUp}
             iconTone='chart-2'
+            className='rounded-2xl'
           />
           <StatCard
             label={t('Request Count')}
-            value={formatNumber(requestCount)}
+            value={
+              <NumberFlow
+                value={requestCount}
+                locales={getCurrentIntlLocale()}
+              />
+            }
+            valueTitle={formatNumber(requestCount)}
+            valueClassName='font-sans'
             icon={Activity}
             iconTone='chart-3'
+            className='rounded-2xl'
           />
         </div>
+      </StaggerItem>
+
+      <StaggerItem className='min-w-0'>
+        <section className='bg-card ring-border flex h-full flex-col overflow-hidden rounded-2xl ring-1'>
+          <div className='flex flex-wrap items-start justify-between gap-x-4 gap-y-1 px-5 pt-5'>
+            <div className='flex min-w-0 items-center gap-2'>
+              <IconBadge tone='chart-1' size='sm'>
+                <Flame />
+              </IconBadge>
+              <h3 className='truncate text-sm font-semibold'>
+                {t('Last 24h usage')}
+              </h3>
+            </div>
+            <div className='flex min-w-0 flex-col items-end'>
+              <AnimatedQuota
+                quota={recentUsage}
+                className='text-foreground text-xl font-semibold tracking-tight'
+              />
+              <span className='text-muted-foreground text-2xs tabular-nums'>
+                {t('{{count}} requests', { count: recentRequests })}
+              </span>
+            </div>
+          </div>
+          <div className='min-h-56 flex-1 px-2 pt-2 pb-3 sm:min-h-64 sm:px-3'>
+            {loading ? (
+              <Skeleton className='h-full w-full' />
+            ) : (
+              <ChartContainer
+                config={chartConfig}
+                className='aspect-auto h-full w-full'
+              >
+                <AreaChart
+                  data={trendRows}
+                  margin={{ left: 4, right: 12, top: 8, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id={gradientId} x1='0' y1='0' x2='0' y2='1'>
+                      <stop
+                        offset='0%'
+                        stopColor='var(--chart-1)'
+                        stopOpacity={0.32}
+                      />
+                      <stop
+                        offset='100%'
+                        stopColor='var(--chart-1)'
+                        stopOpacity={0.02}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray='3 3' />
+                  <XAxis
+                    dataKey='label'
+                    tickLine={false}
+                    axisLine={false}
+                    interval='preserveStartEnd'
+                    minTickGap={24}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width='auto'
+                    tickMargin={6}
+                    allowDecimals
+                    tickFormatter={(value) => formatQuota(Number(value) || 0)}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) => (
+                          <span className='font-sans font-medium tabular-nums'>
+                            {formatQuota(Number(value) || 0)}
+                          </span>
+                        )}
+                      />
+                    }
+                  />
+                  <Area
+                    type='monotoneX'
+                    dataKey='usage'
+                    stroke='var(--chart-1)'
+                    fill={`url(#${gradientId})`}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2 }}
+                    isAnimationActive
+                  />
+                </AreaChart>
+              </ChartContainer>
+            )}
+          </div>
+        </section>
       </StaggerItem>
     </StaggerContainer>
   )

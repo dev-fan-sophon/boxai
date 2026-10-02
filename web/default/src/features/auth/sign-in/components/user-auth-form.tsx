@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from '@tanstack/react-router'
-import { LogIn, KeyRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +7,7 @@ import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { Dialog } from '@/components/dialog'
+import { LogIn, KeyRound } from '@/components/icons'
 import { PasswordInput } from '@/components/password-input'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login, wechatLoginByCode } from '@/features/auth/api'
+import { AuthDivider } from '@/features/auth/components/auth-divider'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { loginFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
@@ -72,6 +73,9 @@ export function UserAuthForm({
   const passkeyButtonDisabled = isPasskeyLoading || !passkeySupported
   const hasWeChatLogin = Boolean(status?.wechat_login)
   const hasOAuthLogin = Boolean(
+    status?.zalo_oauth ||
+    status?.google_oauth ||
+    status?.facebook_oauth ||
     status?.github_oauth ||
     status?.discord_oauth ||
     status?.oidc_enabled ||
@@ -236,18 +240,26 @@ export function UserAuthForm({
   }
 
   const alternativeLoginMethods = (
-    <>
+    <div className='flex flex-col gap-2'>
+      <OAuthProviders
+        status={status}
+        disabled={isLoading}
+        onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
+        isWeChatLoading={isWeChatSubmitting}
+      />
+
       {passkeyLoginEnabled && (
-        <div className='mt-2 space-y-1'>
+        <>
           <Button
             loading={isPasskeyLoading}
             type='button'
             variant='outline'
+            size='lg'
             disabled={passkeyButtonDisabled}
             onClick={handlePasskeyLogin}
-            className='h-11 w-full justify-center gap-2 rounded-lg'
+            className='w-full justify-center gap-2.5'
           >
-            <KeyRound className='h-4 w-4' />
+            <KeyRound />
             {t('Sign in with Passkey')}
           </Button>
           {!passkeySupported && (
@@ -255,31 +267,23 @@ export function UserAuthForm({
               {t('Passkey is not supported on this device.')}
             </p>
           )}
-        </div>
+        </>
       )}
-
-      {/* OAuth Providers */}
-      <OAuthProviders
-        status={status}
-        disabled={isLoading}
-        onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
-        isWeChatLoading={isWeChatSubmitting}
-      />
-    </>
+    </div>
   )
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        className={cn('grid gap-5', className)}
         {...props}
       >
         {hasAlternativeLogin && alternativeLoginMethods}
+        {hasAlternativeLogin && passwordLoginEnabled && <AuthDivider />}
 
         {passwordLoginEnabled && (
           <>
-            {/* Username Field */}
             <FormField
               control={form.control}
               name='username'
@@ -288,6 +292,7 @@ export function UserAuthForm({
                   <FormLabel>{t('Username or Email')}</FormLabel>
                   <FormControl>
                     <Input
+                      autoComplete='username'
                       placeholder={t('Enter your username or email')}
                       {...field}
                     />
@@ -297,54 +302,50 @@ export function UserAuthForm({
               )}
             />
 
-            {/* Password Field */}
             <FormField
               control={form.control}
               name='password'
               render={({ field }) => (
-                <FormItem className='relative'>
-                  <FormLabel>{t('Password')}</FormLabel>
+                <FormItem>
+                  <div className='flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1'>
+                    <FormLabel>{t('Password')}</FormLabel>
+                    <Link
+                      to='/forgot-password'
+                      className='text-muted-foreground hover:text-primary text-xs font-medium transition-colors'
+                    >
+                      {t('Forgot password?')}
+                    </Link>
+                  </div>
                   <FormControl>
                     <PasswordInput
+                      autoComplete='current-password'
                       placeholder={t('Enter password')}
                       {...field}
                     />
                   </FormControl>
                   <FormMessage />
-                  <Link
-                    to='/forgot-password'
-                    className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
-                  >
-                    {t('Forgot password?')}
-                  </Link>
                 </FormItem>
               )}
             />
 
-            {/* Submit Button */}
+            {isTurnstileEnabled && (
+              <Turnstile
+                siteKey={turnstileSiteKey}
+                onVerify={setTurnstileToken}
+              />
+            )}
+
             <Button
               loading={isLoading}
               type='submit'
-              variant='cta'
-              className='mt-2 h-11 w-full justify-center gap-2 shadow-sm'
+              size='lg'
+              className='w-full justify-center gap-2'
             >
               <LogIn />
               {t('Sign in')}
             </Button>
-
-            {/* Turnstile */}
-            {isTurnstileEnabled && (
-              <div className='mt-2'>
-                <Turnstile
-                  siteKey={turnstileSiteKey}
-                  onVerify={setTurnstileToken}
-                />
-              </div>
-            )}
           </>
         )}
-
-        {!hasAlternativeLogin && alternativeLoginMethods}
       </form>
 
       {hasWeChatLogin && (

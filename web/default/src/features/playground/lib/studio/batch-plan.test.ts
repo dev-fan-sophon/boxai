@@ -73,6 +73,24 @@ describe('planGenerationJobs', () => {
     expect(plan.truncated).toBe(24 - MAX_STUDIO_BATCH_JOBS)
   })
 
+  it('runs an explicit prompt list as given, keeping multi-line rows whole', () => {
+    expect(
+      planGenerationJobs({
+        text: 'ignored',
+        batchMode: true,
+        count: 2,
+        prompts: ['wide shot\nslow pan', '  ', 'close-up {day|night}'],
+      }).prompts
+    ).toEqual([
+      'wide shot\nslow pan',
+      'wide shot\nslow pan',
+      'close-up day',
+      'close-up day',
+      'close-up night',
+      'close-up night',
+    ])
+  })
+
   it('returns no jobs for an empty prompt', () => {
     expect(
       planGenerationJobs({ text: '  \n ', batchMode: true, count: 4 })

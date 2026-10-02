@@ -1,6 +1,6 @@
-import { Dices } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Dices } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SegmentedControl } from '@/components/ui/segmented-control'

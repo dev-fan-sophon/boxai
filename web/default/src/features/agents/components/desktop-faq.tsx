@@ -2,7 +2,10 @@ import { Link } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 
 import { ProseAccordion } from '@/components/prose-accordion'
-import { SectionHeading } from '@/components/section-heading'
+import {
+  MarketingSection,
+  SectionIntro,
+} from '@/features/home/components/marketing'
 
 const QUESTIONS = [
   {
@@ -68,18 +71,20 @@ export function DesktopFaq() {
   ]
 
   return (
-    <section
-      aria-labelledby='desktop-faq'
-      className='border-border/40 relative z-10 border-t px-6 py-20 md:py-28'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <SectionHeading
-          id='desktop-faq'
-          eyebrow={t('Questions')}
-          title={t('What people ask before installing')}
-        />
-        <ProseAccordion entries={entries} />
+    <MarketingSection labelledBy='desktop-faq'>
+      <div className='grid gap-8 lg:grid-cols-12 lg:gap-12'>
+        <div className='lg:col-span-5'>
+          <SectionIntro
+            className='mb-0 md:mb-0'
+            id='desktop-faq'
+            eyebrow={t('Questions')}
+            title={t('What people ask before installing')}
+          />
+        </div>
+        <div className='min-w-0 lg:col-span-7'>
+          <ProseAccordion entries={entries} />
+        </div>
       </div>
-    </section>
+    </MarketingSection>
   )
 }

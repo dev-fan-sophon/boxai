@@ -1,6 +1,6 @@
-import { SearchIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { SearchIcon } from '@/components/icons'
 import { useSearch } from '@/context/search-context'
 import { cn } from '@/lib/utils'
 

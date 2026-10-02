@@ -1,11 +1,4 @@
 import { Link } from '@tanstack/react-router'
-import {
-  CheckCircle2,
-  CircleSlash2,
-  ExternalLink,
-  PlugZap,
-  ShieldCheck,
-} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BundledLanguage } from 'shiki/bundle/web'
@@ -15,6 +8,13 @@ import {
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
 import { EmptyState } from '@/components/empty-state'
+import {
+  CheckCircle2,
+  CircleSlash2,
+  ExternalLink,
+  PlugZap,
+  ShieldCheck,
+} from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {

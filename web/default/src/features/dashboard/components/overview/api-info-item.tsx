@@ -1,7 +1,7 @@
-import { Zap, ExternalLink, Gauge } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { Zap, ExternalLink, Gauge } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {

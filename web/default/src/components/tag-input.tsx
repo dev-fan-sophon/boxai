@@ -1,7 +1,7 @@
-import { X } from 'lucide-react'
 import { useState, useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { X } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'

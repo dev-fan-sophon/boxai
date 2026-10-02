@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { KeyRound } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { StudioSettings } from '@/features/playground/types'

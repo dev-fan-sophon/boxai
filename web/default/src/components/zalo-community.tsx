@@ -1,7 +1,7 @@
-import { ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { IconZalo } from '@/assets/brand-icons'
+import { ExternalLink } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Popover,

@@ -1,8 +1,11 @@
 import type { Column } from '@tanstack/react-table'
-import { Check as CheckIcon, PlusCircle as PlusCircledIcon } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  Check as CheckIcon,
+  PlusCircle as PlusCircledIcon,
+} from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

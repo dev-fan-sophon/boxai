@@ -1,8 +1,12 @@
-import { CheckCircle2, FolderLock, LockKeyhole } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
-import { SectionHeading } from '@/components/section-heading'
+import { CheckCircle2, FolderLock, LockKeyhole } from '@/components/icons'
+import { IconBadge } from '@/components/ui/icon-badge'
+import {
+  MarketingSection,
+  SectionIntro,
+} from '@/features/home/components/marketing'
 
 export function TrustPanel() {
   const { t } = useTranslation()
@@ -11,7 +15,7 @@ export function TrustPanel() {
     {
       id: 'approval',
       icon: CheckCircle2,
-      tone: 'text-success',
+      tone: 'success' as const,
       title: t('Approval stays with you'),
       description: t(
         'Review consequential actions before they run. BoxAI shows what it plans to do and waits for your approval when it matters.'
@@ -20,7 +24,7 @@ export function TrustPanel() {
     {
       id: 'local',
       icon: LockKeyhole,
-      tone: 'text-primary',
+      tone: 'primary' as const,
       title: t('Local by design'),
       description: t(
         'Local tools run on your device. You choose the files and connectors BoxAI can access, and you can revoke access at any time.'
@@ -29,7 +33,7 @@ export function TrustPanel() {
     {
       id: 'workspace',
       icon: FolderLock,
-      tone: 'text-primary',
+      tone: 'primary' as const,
       title: t('Folders earn their permissions'),
       description: t(
         'A project only gets its own command allowances once you trust that folder, and you can withdraw that trust from Settings whenever you want.'
@@ -38,41 +42,35 @@ export function TrustPanel() {
   ]
 
   return (
-    <section
-      aria-labelledby='desktop-trust'
-      className='border-border/40 relative z-10 border-t px-6 py-20 md:py-28'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <SectionHeading
-          id='desktop-trust'
-          eyebrow={t('Control')}
-          title={t('An agent with real access needs real brakes')}
-          description={t(
-            'BoxAI Desktop can touch your files, your terminal, and your accounts, so every one of those powers is gated by something you decide.'
-          )}
-        />
-        <div className='grid gap-3 md:grid-cols-3'>
-          {guarantees.map((guarantee, index) => {
-            const Icon = guarantee.icon
-            return (
-              <AnimateInView key={guarantee.id} delay={80 + index * 70}>
-                <article className='border-border bg-card h-full rounded-2xl border p-6 shadow-xs'>
-                  <Icon
-                    className={`${guarantee.tone} size-6`}
-                    aria-hidden='true'
-                  />
-                  <h3 className='text-foreground mt-4 text-base font-semibold'>
-                    {guarantee.title}
-                  </h3>
-                  <p className='text-muted-foreground mt-2 text-sm leading-6'>
-                    {guarantee.description}
-                  </p>
-                </article>
-              </AnimateInView>
-            )
-          })}
-        </div>
+    <MarketingSection labelledBy='desktop-trust'>
+      <SectionIntro
+        id='desktop-trust'
+        eyebrow={t('Control')}
+        title={t('An agent with real access needs real brakes')}
+        description={t(
+          'BoxAI Desktop can touch your files, your terminal, and your accounts, so every one of those powers is gated by something you decide.'
+        )}
+      />
+      <div className='grid gap-3 md:grid-cols-3'>
+        {guarantees.map((guarantee, index) => {
+          const Icon = guarantee.icon
+          return (
+            <AnimateInView key={guarantee.id} delay={80 + index * 70}>
+              <article className='border-border/60 bg-card h-full rounded-2xl border p-6 shadow-xs'>
+                <IconBadge tone={guarantee.tone} size='lg'>
+                  <Icon weight='duotone' />
+                </IconBadge>
+                <h3 className='text-foreground mt-5 text-base font-semibold tracking-tight'>
+                  {guarantee.title}
+                </h3>
+                <p className='text-muted-foreground mt-2 text-sm leading-6'>
+                  {guarantee.description}
+                </p>
+              </article>
+            </AnimateInView>
+          )
+        })}
       </div>
-    </section>
+    </MarketingSection>
   )
 }

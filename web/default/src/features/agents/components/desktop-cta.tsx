@@ -5,6 +5,11 @@ import { AnimateInView } from '@/components/animate-in-view'
 import { Button } from '@/components/ui/button'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import type { DesktopDownload } from '@/features/downloads/types'
+import {
+  BrandGlow,
+  Eyebrow,
+  MarketingSection,
+} from '@/features/home/components/marketing'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function DesktopCta(props: {
@@ -18,41 +23,26 @@ export function DesktopCta(props: {
   const isAuthenticated = !!auth.user
 
   return (
-    <section
-      aria-labelledby='desktop-cta'
-      className='border-border/40 relative z-10 overflow-hidden border-t px-6 py-24 md:py-28'
-    >
-      <div
-        aria-hidden='true'
-        className='absolute inset-0 -z-10 opacity-25 dark:opacity-[0.12]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 55% 55% at 30% 50%, oklch(0.7 0.15 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 45% 45% at 75% 40%, oklch(0.65 0.12 280 / 55%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-
+    <MarketingSection labelledBy='desktop-cta'>
       <AnimateInView
-        className='mx-auto flex max-w-2xl flex-col items-center text-center'
         animation='scale-in'
+        className='border-border/60 bg-card shadow-raised relative isolate flex flex-col items-center overflow-hidden rounded-3xl border px-6 py-14 text-center sm:px-10 sm:py-20'
       >
-        <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-          {t('Get started')}
-        </p>
+        <BrandGlow />
+        <Eyebrow className='mb-4'>{t('Get started')}</Eyebrow>
         <h2
           id='desktop-cta'
-          className='text-2xl leading-tight font-bold tracking-tight text-balance md:text-4xl'
+          className='max-w-2xl text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'
         >
           {t('Put an AI coworker on your desktop')}
         </h2>
-        <p className='text-muted-foreground mt-4 text-sm leading-relaxed text-pretty'>
+        <p className='text-muted-foreground mt-4 max-w-xl text-sm leading-relaxed text-pretty sm:text-base'>
           {t(
             'Model access comes from the BoxAI account you already have, so nothing new to set up and nothing extra to pay for.'
           )}
         </p>
 
-        <div className='mt-8'>
+        <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <DownloadActions
             downloads={[]}
             primary={props.primary}
@@ -60,19 +50,20 @@ export function DesktopCta(props: {
             failed={props.failed}
             fallbackUrl={props.fallbackUrl}
             productName={t('BoxAI Desktop')}
+            className='justify-center'
           />
+          {!isAuthenticated && (
+            <Button
+              variant='outline'
+              size='lg'
+              className='bg-background/70'
+              render={<Link to='/sign-up' />}
+            >
+              {t('Create a BoxAI account')}
+            </Button>
+          )}
         </div>
-
-        {!isAuthenticated && (
-          <Button
-            variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 mt-3'
-            render={<Link to='/sign-up' />}
-          >
-            {t('Create a BoxAI account')}
-          </Button>
-        )}
       </AnimateInView>
-    </section>
+    </MarketingSection>
   )
 }

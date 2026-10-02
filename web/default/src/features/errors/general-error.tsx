@@ -1,8 +1,8 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
-import { ServerCrash, Timer } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ServerCrash, Timer } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { isChunkLoadError } from './chunk-load-error'
@@ -10,6 +10,7 @@ import { ErrorPage } from './error-page'
 
 type GeneralErrorProps = {
   minimal?: boolean
+  embedded?: boolean
   error?: unknown
   className?: string
 }
@@ -25,6 +26,7 @@ function getHttpStatus(error: unknown): number | undefined {
 export function GeneralError({
   className,
   minimal = false,
+  embedded = false,
   error,
 }: GeneralErrorProps) {
   const { t } = useTranslation()
@@ -72,6 +74,7 @@ export function GeneralError({
 
   return (
     <ErrorPage
+      embedded={embedded}
       code={String(status ?? 500)}
       icon={isRateLimited ? <Timer /> : <ServerCrash />}
       iconTone={isRateLimited ? 'warning' : 'destructive'}

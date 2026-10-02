@@ -1,15 +1,16 @@
+import NumberFlow from '@number-flow/react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+
+import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
 import {
   Activity,
   AlertTriangle,
   Eye,
   RefreshCw,
   ShieldCheck,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { EmptyState } from '@/components/empty-state'
-import { ErrorState } from '@/components/error-state'
+} from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
@@ -39,14 +40,14 @@ export function GroupStatusPage() {
           type='button'
           variant='outline'
           size='sm'
-          className='gap-1.5'
           disabled={query.isFetching}
           onClick={() => {
             void query.refetch()
           }}
         >
           <RefreshCw
-            className={query.isFetching ? 'size-3.5 animate-spin' : 'size-3.5'}
+            data-icon='inline-start'
+            className={query.isFetching ? 'animate-spin' : undefined}
           />
           {t('Refresh')}
         </Button>
@@ -58,8 +59,8 @@ export function GroupStatusPage() {
               'Check model availability by group, recent success rates, and performance over time.'
             )}
           </p>
-          <section className='rounded-xl border'>
-            <div className='border-b px-4 py-3 sm:px-5'>
+          <section className='bg-card ring-border overflow-hidden rounded-2xl ring-1'>
+            <div className='border-b px-5 py-4'>
               <h3 className='text-sm font-semibold'>
                 {t('Group model status')}
               </h3>
@@ -72,17 +73,17 @@ export function GroupStatusPage() {
             {query.isLoading ? (
               <SummarySkeleton />
             ) : (
-              <div className='grid grid-cols-2 divide-x divide-y sm:grid-cols-5 sm:divide-y-0'>
+              <div className='bg-border grid grid-cols-2 gap-px sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1'>
                 <SummaryCell
                   label={t('Business groups')}
-                  value={String(summary.groupCount)}
+                  value={summary.groupCount}
                   hint={t('Groups you can view')}
                   icon={Activity}
                   tone='info'
                 />
                 <SummaryCell
                   label={t('Healthy models')}
-                  value={String(summary.healthy)}
+                  value={summary.healthy}
                   hint={t('{{total}} models total', {
                     total: summary.totalModels,
                   })}
@@ -91,21 +92,21 @@ export function GroupStatusPage() {
                 />
                 <SummaryCell
                   label={t('Slow models')}
-                  value={String(summary.slow)}
+                  value={summary.slow}
                   hint={t('Last 30 minutes success window')}
                   icon={AlertTriangle}
                   tone='warning'
                 />
                 <SummaryCell
                   label={t('Faulty models')}
-                  value={String(summary.down)}
+                  value={summary.down}
                   hint={t('Last 30 minutes success window')}
                   icon={AlertTriangle}
                   tone='destructive'
                 />
                 <SummaryCell
                   label={t('Observing models')}
-                  value={String(summary.observing)}
+                  value={summary.observing}
                   hint={t('Not enough request samples')}
                   icon={Eye}
                   tone='chart-4'
@@ -138,32 +139,38 @@ export function GroupStatusPage() {
             />
           )}
 
-          {groups.map((group) => (
-            <section key={group.group} className='space-y-3'>
-              <div className='flex flex-wrap items-center gap-2'>
-                <h3 className='text-base font-semibold tracking-tight'>
-                  {group.group}
-                </h3>
-                <span className='text-muted-foreground text-sm'>
-                  {t('{{count}} models', { count: group.models.length })}
-                </span>
-              </div>
-              {group.models.length === 0 ? (
-                <p className='text-muted-foreground text-sm'>
-                  {t('No model traffic in this group during the window.')}
-                </p>
-              ) : (
-                <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
-                  {group.models.map((model) => (
-                    <ModelStatusCard
-                      key={`${group.group}:${model.model}`}
-                      model={model}
-                    />
-                  ))}
+          {groups.map((group) => {
+            const models = group.models ?? []
+            return (
+              <section key={group.group} className='space-y-3'>
+                <div className='flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1'>
+                  <h3 className='min-w-0 truncate text-base font-semibold tracking-tight'>
+                    {group.group}
+                  </h3>
+                  <span className='text-muted-foreground text-sm tabular-nums'>
+                    {t('{{count}} models', { count: models.length })}
+                  </span>
                 </div>
-              )}
-            </section>
-          ))}
+                {models.length === 0 ? (
+                  <div className='bg-surface-subtle text-muted-foreground flex items-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm'>
+                    <Eye className='size-4 shrink-0' aria-hidden='true' />
+                    <span className='min-w-0'>
+                      {t('No model traffic in this group during the window.')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
+                    {models.map((model) => (
+                      <ModelStatusCard
+                        key={`${group.group}:${model.model}`}
+                        model={model}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )
+          })}
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
@@ -172,25 +179,26 @@ export function GroupStatusPage() {
 
 function SummaryCell(props: {
   label: string
-  value: string
+  value: number
   hint: string
   icon: typeof Activity
   tone: IconBadgeTone
 }) {
   const Icon = props.icon
   return (
-    <div className='min-w-0 px-3 py-3 sm:px-4 sm:py-4'>
-      <div className='flex items-center gap-2'>
-        <IconBadge tone={props.tone} size='stat'>
+    <div className='bg-card min-w-0 px-4 py-4 sm:px-5'>
+      <div className='flex min-w-0 items-start gap-2'>
+        <IconBadge tone={props.tone} size='stat' className='shrink-0'>
           <Icon />
         </IconBadge>
-        <span className='text-muted-foreground text-2xs truncate font-medium tracking-wider uppercase'>
+        <span className='text-muted-foreground line-clamp-2 min-w-0 text-xs font-medium'>
           {props.label}
         </span>
       </div>
-      <div className='mt-2 font-mono text-xl font-bold tabular-nums sm:text-2xl'>
-        {props.value}
-      </div>
+      <NumberFlow
+        className='mt-2 block text-2xl font-semibold tracking-tight tabular-nums'
+        value={props.value}
+      />
       <p className='text-muted-foreground mt-1 hidden text-xs sm:block'>
         {props.hint}
       </p>
@@ -200,9 +208,9 @@ function SummaryCell(props: {
 
 function SummarySkeleton() {
   return (
-    <div className='grid grid-cols-2 gap-0 sm:grid-cols-5'>
+    <div className='bg-border grid grid-cols-2 gap-px sm:grid-cols-3 lg:grid-cols-5'>
       {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className='space-y-2 border-r px-4 py-4 last:border-r-0'>
+        <div key={i} className='bg-card space-y-2 px-4 py-4'>
           <Skeleton className='h-4 w-20' />
           <Skeleton className='h-7 w-12' />
           <Skeleton className='hidden h-3 w-28 sm:block' />

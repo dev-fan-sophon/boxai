@@ -1,9 +1,3 @@
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowDownIcon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import * as React from 'react'
 import {
   DayPicker,
@@ -12,6 +6,7 @@ import {
   type Locale,
 } from 'react-day-picker'
 
+import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/icons'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -150,34 +145,17 @@ function Calendar({
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === 'left') {
             return (
-              <HugeiconsIcon
-                icon={ArrowLeftIcon}
-                strokeWidth={2}
-                className={cn('size-4', className)}
-                {...props}
-              />
+              <ChevronLeft className={cn('size-4', className)} {...props} />
             )
           }
 
           if (orientation === 'right') {
             return (
-              <HugeiconsIcon
-                icon={ArrowRightIcon}
-                strokeWidth={2}
-                className={cn('size-4', className)}
-                {...props}
-              />
+              <ChevronRight className={cn('size-4', className)} {...props} />
             )
           }
 
-          return (
-            <HugeiconsIcon
-              icon={ArrowDownIcon}
-              strokeWidth={2}
-              className={cn('size-4', className)}
-              {...props}
-            />
-          )
+          return <ChevronDown className={cn('size-4', className)} {...props} />
         },
         DayButton: ({ ...props }) => (
           <CalendarDayButton locale={locale} {...props} />

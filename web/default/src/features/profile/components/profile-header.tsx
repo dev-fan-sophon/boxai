@@ -1,4 +1,8 @@
 import { Link } from '@tanstack/react-router'
+import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   Activity,
   BarChart3,
@@ -8,11 +12,7 @@ import {
   Users,
   Wallet,
   WalletCards,
-} from 'lucide-react'
-import { motion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -45,7 +45,7 @@ function AnimatedStatValue(props: {
     delay: props.delay ?? 0,
   })
   return (
-    <span className='font-mono text-xl font-semibold tracking-tight tabular-nums sm:text-2xl'>
+    <span className='text-xl font-semibold tracking-tight tabular-nums sm:text-2xl'>
       {props.format(Math.round(animated))}
     </span>
   )
@@ -244,7 +244,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               delay: 0.08 + index * 0.05,
             }}
             className={cn(
-              'group/stat hover:bg-muted/25 min-w-0 px-4 py-4 transition-colors sm:px-5 sm:py-5',
+              'group/stat min-w-0 px-4 py-4 sm:px-5 sm:py-5',
               index > 0 && 'border-border/40 border-t sm:border-t-0 sm:border-l'
             )}
           >
@@ -256,7 +256,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               >
                 <item.icon />
               </IconBadge>
-              <span className='text-muted-foreground text-2xs truncate font-medium tracking-wider uppercase'>
+              <span className='text-muted-foreground line-clamp-2 min-w-0 text-xs font-medium'>
                 {item.label}
               </span>
             </div>

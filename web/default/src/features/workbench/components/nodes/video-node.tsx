@@ -1,3 +1,6 @@
+import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   Clock,
   ImagePlus,
@@ -9,10 +12,7 @@ import {
   Volume2,
   VolumeX,
   X,
-} from 'lucide-react'
-import { useRef } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   AspectGlyph,
   ParamChip,

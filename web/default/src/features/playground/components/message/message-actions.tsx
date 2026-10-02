@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   Check,
   ChevronLeft,
@@ -8,11 +11,8 @@ import {
   MoreHorizontal,
   RefreshCw,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -91,7 +91,7 @@ function MessageVersionSwitcher({
 type MessageActionItem = {
   className?: string
   disabled?: boolean
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   onClick: () => void
   variant?: 'default' | 'destructive'

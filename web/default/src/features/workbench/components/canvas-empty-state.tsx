@@ -1,19 +1,19 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Film,
   HelpCircle,
   Image as ImageIcon,
   StickyNote,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 export type CanvasStarterKind = 'image' | 'image-to-video' | 'note'
 
 const STARTERS: Array<{
   kind: CanvasStarterKind
-  icon: LucideIcon
+  icon: IconComponent
   title: string
   body: string
   chip: string
@@ -52,11 +52,9 @@ export function CanvasEmptyState(props: {
   const { t } = useTranslation()
 
   return (
-    <div className='pointer-events-none absolute inset-0 flex items-center justify-center p-6 pb-24'>
-      <div className='landing-animate-scale-in border-border/60 bg-background/85 pointer-events-auto w-full max-w-xl rounded-2xl border p-6 shadow-2xl backdrop-blur-2xl sm:p-7'>
-        <p className='text-primary/90 text-2xs font-semibold tracking-[0.2em] uppercase'>
-          {t('Canvas')}
-        </p>
+    <div className='pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-3 pb-20 sm:p-6 sm:pb-24'>
+      <div className='landing-animate-scale-in border-border/60 bg-background/85 shadow-lifted pointer-events-auto my-auto w-full max-w-xl rounded-2xl border p-5 backdrop-blur-2xl sm:p-7'>
+        <p className='text-primary text-xs font-medium'>{t('Canvas')}</p>
         <h2 className='mt-1.5 text-lg font-semibold tracking-tight'>
           {t('Start your first flow')}
         </h2>
@@ -66,20 +64,20 @@ export function CanvasEmptyState(props: {
           )}
         </p>
 
-        <div className='mt-5 grid gap-2.5 sm:grid-cols-3'>
+        <div className='mt-5 grid gap-2 sm:grid-cols-3 sm:gap-2.5'>
           {STARTERS.map((starter) => (
             <button
               key={starter.kind}
               type='button'
               onClick={() => props.onStart(starter.kind)}
-              className='border-border/60 hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-ring group duration-control rounded-xl border p-3.5 text-left transition-[border-color,background-color,transform] outline-none hover:-translate-y-0.5 focus-visible:ring-2'
+              className='border-border/60 hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-ring group duration-control grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 rounded-xl border p-3 text-left transition-[border-color,background-color,transform] outline-none hover:-translate-y-0.5 focus-visible:ring-2 motion-reduce:hover:translate-y-0 sm:block sm:p-3.5'
             >
               <span
-                className={`duration-control text-card flex size-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm transition-transform group-hover:scale-105 ${starter.chip}`}
+                className={`duration-control text-card row-span-2 flex size-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm transition-transform group-hover:scale-105 ${starter.chip}`}
               >
                 <starter.icon className='size-4' />
               </span>
-              <span className='text-ui mt-2.5 block font-semibold'>
+              <span className='text-ui block font-semibold sm:mt-2.5'>
                 {t(starter.title)}
               </span>
               <span className='text-muted-foreground mt-0.5 block text-xs text-pretty'>
@@ -89,8 +87,8 @@ export function CanvasEmptyState(props: {
           ))}
         </div>
 
-        <div className='border-border/60 mt-5 flex items-center justify-between gap-3 border-t pt-4'>
-          <p className='text-muted-foreground text-xs'>
+        <div className='border-border/60 mt-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t pt-4'>
+          <p className='text-muted-foreground min-w-0 flex-1 basis-56 text-xs text-pretty'>
             {t('You can also drop an image or paste a link onto the canvas.')}
           </p>
           <Button

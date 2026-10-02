@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { Table } from '@tanstack/react-table'
-import { Power, PowerOff, Trash2, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
 import { Dialog } from '@/components/dialog'
+import { Power, PowerOff, Trash2, Copy } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

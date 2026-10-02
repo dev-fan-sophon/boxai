@@ -15,6 +15,7 @@ import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { API_KEY_STATUSES } from '../constants'
+import { getQuotaProgressClass } from '../lib/quota-progress'
 import type { ApiKey } from '../types'
 import { ApiKeyTimestampCell } from './api-key-timestamp-cell'
 import {
@@ -23,12 +24,6 @@ import {
   IpRestrictionsCell,
 } from './api-keys-cells'
 import { DataTableRowActions } from './data-table-row-actions'
-
-function getQuotaProgressColor(percentage: number): string {
-  if (percentage <= 10) return '[&_[data-slot=progress-indicator]]:bg-rose-500'
-  if (percentage <= 30) return '[&_[data-slot=progress-indicator]]:bg-amber-500'
-  return '[&_[data-slot=progress-indicator]]:bg-emerald-500'
-}
 
 /**
  * API Keys list columns.
@@ -85,8 +80,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
                 label={t(statusConfig.label)}
                 variant={statusConfig.variant}
                 copyable={false}
-                type='text'
-                className='shrink-0 text-xs'
+                className='shrink-0'
               />
             )}
           </div>
@@ -155,7 +149,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
             <TooltipTrigger
               render={<div className='w-full max-w-[140px] space-y-1' />}
             >
-              <div className='font-mono text-xs font-medium tabular-nums'>
+              <div className='text-xs font-medium whitespace-nowrap tabular-nums'>
                 {formatQuota(remaining)}
                 <span className='text-muted-foreground font-normal'>
                   {' / '}
@@ -164,7 +158,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
               </div>
               <Progress
                 value={percentage}
-                className={cn('h-1', getQuotaProgressColor(percentage))}
+                className={cn('h-1', getQuotaProgressClass(percentage))}
               />
             </TooltipTrigger>
             <TooltipContent>
@@ -189,7 +183,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
       accessorKey: 'used_quota',
       header: t('Used quota'),
       cell: ({ row }) => (
-        <span className='font-mono text-xs tabular-nums'>
+        <span className='text-xs tabular-nums'>
           {formatQuota(row.original.used_quota)}
         </span>
       ),

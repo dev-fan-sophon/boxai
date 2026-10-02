@@ -1,6 +1,5 @@
 'use client'
 
-import { BrainIcon, ChevronDownIcon } from 'lucide-react'
 import {
   type ComponentProps,
   createContext,
@@ -11,6 +10,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BrainIcon, ChevronDownIcon } from '@/components/icons'
 import {
   Collapsible,
   CollapsibleContent,

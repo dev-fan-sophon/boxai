@@ -1,9 +1,11 @@
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
-import { Loader2, MessageCircleWarning } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
+import { MessageCircleWarning } from '@/components/icons'
+import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
 import { useActiveChatKey } from '@/features/chat/hooks/use-active-chat-key'
 import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
@@ -57,51 +59,57 @@ function ChatRouteComponent() {
 
   if (!preset) {
     return (
-      <div className='flex h-full flex-col items-center justify-center gap-4 p-6 text-center'>
-        <MessageCircleWarning className='text-muted-foreground h-12 w-12' />
-        <div className='space-y-1'>
-          <h2 className='text-lg font-semibold'>
-            {t('Chat preset not found')}
-          </h2>
-          <p className='text-muted-foreground'>
-            {t('The requested chat preset does not exist or has been removed.')}
-          </p>
-        </div>
-        <Button variant='outline' render={<Link to='/dashboard' />}>
-          {t('Return to dashboard')}
-        </Button>
+      <div className='flex h-full items-center justify-center p-4 sm:p-6'>
+        <EmptyState
+          icon={MessageCircleWarning}
+          title={t('Chat preset not found')}
+          description={t(
+            'The requested chat preset does not exist or has been removed.'
+          )}
+          action={
+            <Button variant='outline' render={<Link to='/dashboard' />}>
+              {t('Return to dashboard')}
+            </Button>
+          }
+          className='w-full max-w-lg'
+        />
       </div>
     )
   }
 
   if (!isWebLink) {
     return (
-      <div className='flex h-full flex-col items-center justify-center gap-4 p-6 text-center'>
-        <MessageCircleWarning className='text-muted-foreground h-12 w-12' />
-        <div className='space-y-1'>
-          <h2 className='text-lg font-semibold'>{t('Use sidebar shortcut')}</h2>
-          <p className='text-muted-foreground'>
-            {preset.name}{' '}
-            {t(
-              'opens in an external client. Trigger it from the sidebar or API key actions to launch the configured application.'
-            )}
-          </p>
-        </div>
-        <Button variant='outline' render={<Link to='/dashboard' />}>
-          {t('Return to dashboard')}
-        </Button>
+      <div className='flex h-full items-center justify-center p-4 sm:p-6'>
+        <EmptyState
+          icon={MessageCircleWarning}
+          title={t('Use sidebar shortcut')}
+          description={
+            <>
+              <span className='text-foreground font-medium break-words'>
+                {preset.name}
+              </span>{' '}
+              {t(
+                'opens in an external client. Trigger it from the sidebar or API key actions to launch the configured application.'
+              )}
+            </>
+          }
+          action={
+            <Button variant='outline' render={<Link to='/dashboard' />}>
+              {t('Return to dashboard')}
+            </Button>
+          }
+          className='w-full max-w-lg'
+        />
       </div>
     )
   }
 
   if (requiresActiveKey && isPending) {
     return (
-      <div className='flex h-full flex-col items-center justify-center gap-4'>
-        <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
-        <p className='text-muted-foreground text-sm'>
-          {t('Preparing your chat link…')}
-        </p>
-      </div>
+      <LoadingState
+        className='h-full'
+        message={t('Preparing your chat link…')}
+      />
     )
   }
 
@@ -109,28 +117,33 @@ function ChatRouteComponent() {
     const message =
       error instanceof Error
         ? error.message
-        : 'Unable to generate chat link. Please check your API keys.'
+        : t('Unable to generate chat link. Please check your API keys.')
     return (
-      <div className='flex h-full flex-col items-center justify-center p-6'>
-        <Alert variant='destructive' className='max-w-xl'>
-          <AlertTitle>{t('Unable to open chat')}</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
-        </Alert>
+      <div className='flex h-full items-center justify-center p-4 sm:p-6'>
+        <ErrorState
+          title={t('Unable to open chat')}
+          description={message}
+          action={
+            <Button variant='outline' size='sm' render={<Link to='/keys' />}>
+              {t('API Keys')}
+            </Button>
+          }
+          className='w-full max-w-lg'
+        />
       </div>
     )
   }
 
   if (!requiresActiveKey && !iframeSrc) {
     return (
-      <div className='flex h-full flex-col items-center justify-center p-6'>
-        <Alert variant='destructive' className='max-w-xl'>
-          <AlertTitle>{t('Unable to open chat')}</AlertTitle>
-          <AlertDescription>
-            {t(
-              'Unable to generate chat link. Please contact your administrator.'
-            )}
-          </AlertDescription>
-        </Alert>
+      <div className='flex h-full items-center justify-center p-4 sm:p-6'>
+        <ErrorState
+          title={t('Unable to open chat')}
+          description={t(
+            'Unable to generate chat link. Please contact your administrator.'
+          )}
+          className='w-full max-w-lg'
+        />
       </div>
     )
   }

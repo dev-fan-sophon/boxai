@@ -1,9 +1,9 @@
-import { ExternalLinkIcon, RefreshCcwIcon } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { ExternalLinkIcon, RefreshCcwIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { formatTimestamp, formatTimestampToDate } from '@/lib/format'
 

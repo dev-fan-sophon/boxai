@@ -172,25 +172,29 @@ export function Footer(props: FooterProps) {
   const fallbackColumns = useMemo<FooterColumnProps[]>(
     () => [
       {
-        title: t('footer.columns.about.title'),
+        title: t('Product'),
         links: [
-          {
-            text: t('About'),
-            href: '/about',
-          },
-          {
-            text: t('footer.columns.about.links.features'),
-            href: '/pricing',
-          },
+          { text: t('Workspace'), href: '/create' },
+          { text: t('Model Hub'), href: '/pricing' },
+          { text: t('Rankings'), href: '/rankings' },
+          { text: t('Inspiration'), href: '/inspiration' },
         ],
       },
       {
-        title: t('footer.columns.docs.title'),
+        title: t('Apps'),
+        links: [
+          { text: t('BoxAI Desktop'), href: '/agents' },
+          { text: t('BoxAI Connect'), href: '/connect' },
+        ],
+      },
+      {
+        title: t('Resources'),
         links: [
           {
             text: t('footer.columns.docs.links.apiDocs'),
             href: '/docs/start/getting-started',
           },
+          { text: t('About'), href: '/about' },
         ],
       },
     ],
@@ -226,7 +230,10 @@ export function Footer(props: FooterProps) {
 
   return (
     <footer
-      className={cn('border-border/40 relative z-10 border-t', props.className)}
+      className={cn(
+        'border-border/60 bg-surface-subtle relative z-10 border-t',
+        props.className
+      )}
     >
       <div className='mx-auto max-w-6xl px-6 py-12 md:py-16'>
         <div className='flex flex-col justify-between gap-10 md:flex-row md:gap-16'>
@@ -240,7 +247,7 @@ export function Footer(props: FooterProps) {
               />
               <BrandWordmark name={displayName} className='text-sm' />
             </Link>
-            <p className='text-muted-foreground mt-3 max-w-[240px] text-xs leading-relaxed'>
+            <p className='text-muted-foreground mt-3 max-w-64 text-sm leading-relaxed'>
               {t(
                 'BoxAI (you-box.com) — unified AI API gateway for multi-model access, built for developers and teams.'
               )}
@@ -248,10 +255,10 @@ export function Footer(props: FooterProps) {
           </div>
 
           {/* Links columns — About lives here, not in the header strip */}
-          <div className='grid grid-cols-2 gap-8 sm:grid-cols-3 md:gap-16'>
+          <div className='grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 md:gap-x-16'>
             {displayColumns.map((column) => (
               <div key={column.title}>
-                <p className='text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase'>
+                <p className='text-foreground mb-3.5 text-sm font-semibold'>
                   {column.title}
                 </p>
                 <ul className='space-y-2.5'>

@@ -1,15 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Gift } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
+import { Gift, Sparkles } from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TitledCard } from '@/components/ui/titled-card'
+import { AnimatedQuota } from '@/features/dashboard/components/ui/animated-quota'
 import { getSelf } from '@/lib/api'
 import { getCurrencyLabel } from '@/lib/currency'
 import {
@@ -17,6 +20,7 @@ import {
   parseQuotaFromDollars,
   quotaUnitsToDollars,
 } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import { claimSelfReward, getSelfRewards, redeemSelfReward } from './api'
 import type { RewardLedgerEntry } from './types'
@@ -103,11 +107,12 @@ export function RewardsPage() {
     )
   } else {
     pendingSummary = (
-      <div>
-        <p className='text-2xl font-semibold'>
-          {formatQuota(summary?.reward_quota ?? 0)}
-        </p>
-        <p className='text-muted-foreground mt-1 text-xs'>
+      <div className='min-w-0'>
+        <AnimatedQuota
+          quota={summary?.reward_quota ?? 0}
+          className='block max-w-full truncate text-3xl leading-tight font-semibold tracking-tight'
+        />
+        <p className='text-muted-foreground mt-1 text-xs tabular-nums'>
           {t('Lifetime claimed')}: {formatQuota(summary?.reward_history ?? 0)}
         </p>
       </div>
@@ -117,7 +122,7 @@ export function RewardsPage() {
   let ledgerContent
   if (isLoading) {
     ledgerContent = (
-      <div className='overflow-hidden rounded-lg border' aria-busy='true'>
+      <div className='overflow-hidden rounded-xl border' aria-busy='true'>
         <ul className='divide-y sm:hidden'>
           {LEDGER_SKELETON_KEYS.map((key) => (
             <li key={key} className='space-y-2 px-3 py-3'>
@@ -162,19 +167,29 @@ export function RewardsPage() {
     )
   } else if (ledger.length === 0) {
     ledgerContent = (
-      <div className='text-muted-foreground rounded-lg border px-3 py-6 text-sm'>
-        {t('No reward history yet')}
-      </div>
+      <EmptyState
+        icon={Gift}
+        title={t('No reward history yet')}
+        description={t('Claimed and redeemed rewards will appear here.')}
+        bordered={false}
+        className='min-h-0 py-8'
+      />
     )
   } else {
     ledgerContent = (
-      <div className='overflow-hidden rounded-lg border'>
+      <div className='overflow-hidden rounded-xl border'>
         <ul className='divide-y sm:hidden'>
           {ledger.map((entry) => (
             <li key={entry.id} className='space-y-1 px-3 py-3 text-sm'>
               <div className='flex items-baseline justify-between gap-3'>
                 <span className='font-medium'>{entry.type}</span>
-                <span className='font-semibold tabular-nums'>
+                <span
+                  className={cn(
+                    'font-semibold tabular-nums',
+                    entry.delta > 0 && 'text-success'
+                  )}
+                >
+                  {entry.delta > 0 ? '+' : ''}
                   {formatQuota(entry.delta)}
                 </span>
               </div>
@@ -190,25 +205,39 @@ export function RewardsPage() {
           ))}
         </ul>
         <table className='hidden w-full text-sm sm:table'>
-          <thead className='text-muted-foreground text-left text-xs'>
+          <thead className='bg-muted/40 text-muted-foreground text-left text-xs'>
             <tr>
-              <th className='px-3 py-2'>{t('Type')}</th>
-              <th className='px-3 py-2'>{t('Change')}</th>
-              <th className='px-3 py-2'>{t('Balance')}</th>
-              <th className='px-3 py-2'>{t('Time')}</th>
+              <th className='px-3 py-2 font-medium whitespace-nowrap'>
+                {t('Type')}
+              </th>
+              <th className='px-3 py-2 font-medium whitespace-nowrap'>
+                {t('Change')}
+              </th>
+              <th className='px-3 py-2 font-medium whitespace-nowrap'>
+                {t('Balance')}
+              </th>
+              <th className='px-3 py-2 font-medium whitespace-nowrap'>
+                {t('Time')}
+              </th>
             </tr>
           </thead>
           <tbody>
             {ledger.map((entry) => (
               <tr key={entry.id} className='border-t'>
-                <td className='px-3 py-2'>{entry.type}</td>
-                <td className='px-3 py-2 tabular-nums'>
+                <td className='px-3 py-2.5'>{entry.type}</td>
+                <td
+                  className={cn(
+                    'px-3 py-2.5 font-medium tabular-nums',
+                    entry.delta > 0 && 'text-success'
+                  )}
+                >
+                  {entry.delta > 0 ? '+' : ''}
                   {formatQuota(entry.delta)}
                 </td>
-                <td className='px-3 py-2 tabular-nums'>
+                <td className='px-3 py-2.5 tabular-nums'>
                   {formatQuota(entry.balance_after)}
                 </td>
-                <td className='px-3 py-2'>
+                <td className='px-3 py-2.5'>
                   {new Date(entry.created_time * 1000).toLocaleString()}
                 </td>
               </tr>
@@ -236,13 +265,14 @@ export function RewardsPage() {
               <div className='space-y-4'>
                 {pendingSummary}
                 <div className='space-y-2'>
-                  <label className='text-muted-foreground text-xs font-medium'>
+                  <Label htmlFor='reward-redeem-amount'>
                     {t('Redeem amount ({{currency}})', {
                       currency: currencyLabel,
                     })}
-                  </label>
+                  </Label>
                   <div className='flex gap-2'>
                     <Input
+                      id='reward-redeem-amount'
                       type='number'
                       min={0}
                       value={redeemAmount}
@@ -280,10 +310,13 @@ export function RewardsPage() {
             <TitledCard
               title={t('Claim a reward')}
               description={t('Paste a campaign slug or open a reward link')}
-              icon={<Gift />}
+              icon={<Sparkles />}
+              iconTone='primary'
             >
-              <div className='space-y-2'>
+              <div className='space-y-3'>
+                <Label htmlFor='reward-claim-slug'>{t('Campaign code')}</Label>
                 <Input
+                  id='reward-claim-slug'
                   value={slug}
                   onChange={(event) => setSlug(event.target.value)}
                   placeholder={t('e.g. welcome-2026')}

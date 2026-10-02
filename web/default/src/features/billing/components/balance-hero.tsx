@@ -1,13 +1,14 @@
-import { CreditCard, Gift, Crown, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
+import { CreditCard, Gift, Crown, ArrowRight } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AnimatedQuota } from '@/features/dashboard/components/ui/animated-quota'
 import { formatNumber, formatQuota } from '@/lib/format'
 
 import type { ActiveSubscriptionSummary } from '../lib/subscription-summary'
@@ -58,7 +59,7 @@ function SubscriptionPanel(props: BalanceHeroProps) {
           <IconBadge tone='warning' size='stat'>
             <Crown />
           </IconBadge>
-          <div className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
+          <div className='text-muted-foreground text-sm font-medium'>
             {t('Subscription')}
           </div>
         </div>
@@ -100,11 +101,11 @@ function SubscriptionPanel(props: BalanceHeroProps) {
       </div>
 
       <div>
-        <div className='flex items-baseline justify-between gap-2'>
-          <span className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
+        <div className='flex flex-wrap items-baseline justify-between gap-x-2'>
+          <span className='text-muted-foreground min-w-0 text-xs font-medium'>
             {t('Subscription remaining')}
           </span>
-          <span className='font-mono text-lg font-bold tabular-nums'>
+          <span className='shrink-0 text-lg font-semibold tabular-nums'>
             {remainingLabel}
           </span>
         </div>
@@ -168,49 +169,52 @@ export function BalanceHero(props: BalanceHeroProps) {
   } else {
     balanceContent = (
       <>
-        <div className='font-mono text-3xl font-bold tracking-tight break-all tabular-nums sm:text-4xl'>
-          {formatQuota(props.user?.quota ?? 0)}
-        </div>
-        <div className='text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 text-xs'>
-          <span>
-            {t('Total used')}: {formatQuota(props.user?.used_quota ?? 0)}
-          </span>
-          <span>
-            {t('Requests')}: {formatNumber(props.user?.request_count ?? 0)}
-          </span>
-        </div>
+        <AnimatedQuota
+          quota={props.user?.quota ?? 0}
+          className='block max-w-full truncate text-3xl leading-tight font-semibold tracking-tight sm:text-4xl'
+        />
+        <dl className='flex flex-wrap gap-x-6 gap-y-2'>
+          <div className='flex min-w-0 flex-col gap-0.5'>
+            <dt className='text-muted-foreground text-xs'>{t('Total used')}</dt>
+            <dd className='text-sm font-medium tabular-nums'>
+              {formatQuota(props.user?.used_quota ?? 0)}
+            </dd>
+          </div>
+          <div className='flex min-w-0 flex-col gap-0.5'>
+            <dt className='text-muted-foreground text-xs'>{t('Requests')}</dt>
+            <dd className='text-sm font-medium tabular-nums'>
+              {formatNumber(props.user?.request_count ?? 0)}
+            </dd>
+          </div>
+        </dl>
       </>
     )
   }
 
   return (
     <Card data-card-hover='false' className='overflow-hidden py-0'>
-      <CardContent className='grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-8'>
+      <CardContent className='grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-8'>
         <div className='flex flex-col gap-4'>
-          <div className='text-muted-foreground text-2xs font-medium tracking-wider uppercase'>
+          <div className='text-muted-foreground text-sm font-medium'>
             {t('Account balance')}
           </div>
           {balanceContent}
 
           <div className='flex flex-wrap gap-2'>
-            <Button className='gap-2' onClick={props.onAddCredits}>
-              <CreditCard className='size-4' />
+            <Button onClick={props.onAddCredits}>
+              <CreditCard data-icon='inline-start' />
               {t('Add credits')}
             </Button>
             {props.redemptionEnabled && (
-              <Button
-                variant='outline'
-                className='gap-2'
-                onClick={props.onRedeem}
-              >
-                <Gift className='size-4' />
+              <Button variant='outline' onClick={props.onRedeem}>
+                <Gift data-icon='inline-start' />
                 {t('Redeem code')}
               </Button>
             )}
           </div>
         </div>
 
-        <div className='bg-muted/30 rounded-xl border p-4'>
+        <div className='bg-surface-subtle ring-border rounded-xl p-4 ring-1 sm:p-5'>
           <SubscriptionPanel {...props} />
         </div>
       </CardContent>

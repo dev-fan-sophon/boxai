@@ -1,6 +1,6 @@
-import { AlertCircle, CheckCircle2, Circle, Server } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { AlertCircle, CheckCircle2, Circle, Server } from '@/components/icons'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
@@ -41,7 +41,7 @@ export function SubHeading(props: {
           {props.icon}
         </IconBadge>
       )}
-      <h4 className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+      <h4 className='text-muted-foreground text-xs font-medium'>
         {props.title}
       </h4>
     </div>
@@ -155,7 +155,7 @@ export function ChannelEditorNav(props: {
                     {item.icon}
                   </span>
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-sm font-medium'>
+                    <span className='block text-sm leading-snug font-medium'>
                       {item.title}
                     </span>
                     {item.description && (

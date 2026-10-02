@@ -1,8 +1,8 @@
-import { Captions, Check, Copy, FileDown, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Captions, Check, Copy, FileDown, FileText } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { cn } from '@/lib/utils'

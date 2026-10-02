@@ -6,15 +6,15 @@ export function PanelSection(props: {
   children: React.ReactNode
 }) {
   return (
-    <section className='space-y-2'>
-      <div className='flex min-h-5 items-center justify-between gap-2'>
-        <h3 className='text-muted-foreground text-2xs font-semibold tracking-wide uppercase'>
+    <section className='space-y-2.5'>
+      <div className='flex min-h-7 flex-wrap items-center justify-between gap-x-2 gap-y-1'>
+        <h3 className='text-foreground/85 text-ui min-w-0 font-semibold'>
           {props.title}
         </h3>
         {props.action}
       </div>
       {props.hint && (
-        <p className='text-muted-foreground text-2xs -mt-1'>{props.hint}</p>
+        <p className='text-muted-foreground -mt-1 text-xs'>{props.hint}</p>
       )}
       {props.children}
     </section>

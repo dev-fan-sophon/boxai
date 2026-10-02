@@ -1,7 +1,7 @@
-import { ArrowUpRight, Heart, Play, Sparkles } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowUpRight, Heart, Play, Sparkles } from '@/components/icons'
 import { recordInspirationEvents } from '@/features/playground/api'
 import type { InspirationRecipe } from '@/features/playground/inspiration/types'
 import { cn } from '@/lib/utils'
@@ -40,7 +40,7 @@ export function RecipeCard(props: RecipeCardProps) {
     <article
       ref={ref}
       data-card-hover='true'
-      className='group border-border/50 bg-card hover:border-border relative isolate overflow-hidden rounded-xl border shadow-xs'
+      className='group border-border/60 bg-card hover:border-border hover:shadow-raised transition-ui duration-control relative isolate overflow-hidden rounded-2xl border shadow-xs'
     >
       <button
         type='button'
@@ -78,9 +78,12 @@ export function RecipeCard(props: RecipeCardProps) {
             <ArrowUpRight className='size-3.5' aria-hidden='true' />
           </span>
         </div>
-        <div className='space-y-1.5 p-3.5'>
-          <div className='flex items-baseline justify-between gap-3'>
-            <h3 className='text-sm leading-snug font-semibold text-balance'>
+        <div className='space-y-1 p-4'>
+          <div className='flex min-w-0 items-baseline justify-between gap-3'>
+            <h3
+              className='min-w-0 truncate text-sm leading-snug font-semibold'
+              title={props.recipe.title}
+            >
               {props.recipe.title}
             </h3>
             <span className='text-muted-foreground text-2xs shrink-0 tabular-nums'>
@@ -97,12 +100,13 @@ export function RecipeCard(props: RecipeCardProps) {
         aria-label={props.favorite ? t('Remove favorite') : t('Favorite')}
         className={cn(
           'absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-[background-color,transform] duration-control hover:scale-105 hover:bg-black/60',
-          props.favorite && 'text-rose-400'
+          props.favorite && 'text-destructive'
         )}
         onClick={props.onFavorite}
       >
         <Heart
-          className={cn('size-4', props.favorite && 'fill-current')}
+          weight={props.favorite ? 'fill' : undefined}
+          className='size-4'
           aria-hidden='true'
         />
       </button>

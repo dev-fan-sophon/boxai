@@ -1,4 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   BadgeDollarSign,
   CreditCard,
@@ -6,10 +9,7 @@ import {
   UserCheck,
   UserPlus,
   Wallet,
-} from 'lucide-react'
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { StatCard, type StatCardDelta } from '@/components/stat-card'
 import { DashboardSeriesChartView } from '@/features/dashboard/components/ui/dashboard-charts'
 import { PanelWrapper } from '@/features/dashboard/components/ui/panel-wrapper'

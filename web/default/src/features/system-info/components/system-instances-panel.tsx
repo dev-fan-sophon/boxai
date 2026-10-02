@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertTriangle,
-  Loader2,
-  RefreshCw,
-  ServerCog,
-  Trash2,
-} from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ErrorState } from '@/components/error-state'
+import {
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  ServerCog,
+  Trash2,
+} from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -188,9 +188,7 @@ function ResourceCell(props: ResourceCellProps) {
   const content = (
     <div className='flex items-center gap-2'>
       <RingProgress percent={percent} />
-      <span className='text-2xs font-mono tabular-nums'>
-        {formatPercent(props.value)}
-      </span>
+      <span className='text-xs tabular-nums'>{formatPercent(props.value)}</span>
     </div>
   )
 
@@ -394,15 +392,15 @@ function InstanceResourceFields(props: { instance: SystemInstance }) {
               <div className='space-y-1 text-xs'>
                 <div className='grid grid-cols-[auto_1fr] gap-x-3 gap-y-1'>
                   <span className='text-muted-foreground'>{t('Used')}</span>
-                  <span className='font-mono'>
+                  <span className='tabular-nums'>
                     {formatBytes(storage.used_bytes)}
                   </span>
                   <span className='text-muted-foreground'>{t('Free')}</span>
-                  <span className='font-mono'>
+                  <span className='tabular-nums'>
                     {formatBytes(storage.free_bytes)}
                   </span>
                   <span className='text-muted-foreground'>{t('Total')}</span>
-                  <span className='font-mono'>
+                  <span className='tabular-nums'>
                     {formatBytes(storage.total_bytes)}
                   </span>
                 </div>
@@ -503,7 +501,7 @@ function SystemInstancesDesktopTable(props: SystemInstancesTableProps) {
   const { t, i18n } = useTranslation()
 
   return (
-    <div className='overflow-x-auto rounded-md border'>
+    <div className='overflow-x-auto rounded-xl border'>
       <Table className='min-w-[1230px]'>
         <TableHeader>
           <TableRow className='bg-muted/40 hover:bg-muted/40'>
@@ -569,19 +567,19 @@ function SystemInstancesDesktopTable(props: SystemInstancesTableProps) {
                             <span className='text-muted-foreground'>
                               {t('Used')}
                             </span>
-                            <span className='font-mono'>
+                            <span className='tabular-nums'>
                               {formatBytes(storage.used_bytes)}
                             </span>
                             <span className='text-muted-foreground'>
                               {t('Free')}
                             </span>
-                            <span className='font-mono'>
+                            <span className='tabular-nums'>
                               {formatBytes(storage.free_bytes)}
                             </span>
                             <span className='text-muted-foreground'>
                               {t('Total')}
                             </span>
-                            <span className='font-mono'>
+                            <span className='tabular-nums'>
                               {formatBytes(storage.total_bytes)}
                             </span>
                           </div>

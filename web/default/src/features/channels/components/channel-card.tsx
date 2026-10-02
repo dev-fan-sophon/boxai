@@ -74,7 +74,7 @@ function ChannelCardComponent({
     <ChannelRowActionsLayoutContext.Provider value='card'>
       <div
         data-state={isSelected ? 'selected' : undefined}
-        className='flex flex-col gap-3'
+        className='flex h-full flex-col gap-3'
       >
         {/* Row 1: selection + type, with status badge + actions menu */}
         <div className='flex items-center justify-between gap-2'>
@@ -90,56 +90,49 @@ function ChannelCardComponent({
           </div>
         </div>
 
-        {/* Body: left column (id/name + balance) paired with a right-aligned
-          column (priority/weight + response/test time). */}
-        <div className='flex items-start justify-between gap-3'>
-          {/* Left column */}
-          <div className='flex min-w-0 flex-1 flex-col gap-3 overflow-hidden'>
-            <div className='min-w-0 text-sm'>
-              {!isTagRow && (
-                <div className={labelClass}>
-                  #{sensitiveVisible ? row.original.id : SENSITIVE_MASK}
-                </div>
-              )}
-              {nameCell}
+        {/* Identity: id + name/remark (with its warning icons). */}
+        <div className='min-w-0 text-sm'>
+          {!isTagRow && (
+            <div className={cn('tabular-nums', labelClass)}>
+              #{sensitiveVisible ? row.original.id : SENSITIVE_MASK}
             </div>
-            <div className='min-w-0'>
-              <div className={cn('mb-1', labelClass)}>
-                {fieldLabels.balance}
-              </div>
-              <div className='min-w-0 overflow-hidden text-sm'>
-                {balanceCell ?? (
-                  <span className='text-muted-foreground'>-</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right column (sits on the right, content left-aligned). A single
-            grid with content-sized columns keeps Priority/Weight and
-            Response/Last Tested aligned without wasting horizontal space. */}
-          <div className='grid shrink-0 grid-cols-[auto_auto] items-center gap-x-3 gap-y-1'>
-            <span className={labelClass}>{t('Priority')}</span>
-            <span className={labelClass}>{t('Weight')}</span>
-            <div className='flex justify-start'>{priorityCell}</div>
-            <div className='flex justify-start'>{weightCell}</div>
-            <span className={cn('mt-2', labelClass)}>
-              {fieldLabels.response_time}
-            </span>
-            <span className={cn('mt-2', labelClass)}>
-              {fieldLabels.test_time}
-            </span>
-            <div className='overflow-hidden text-sm'>
-              {responseCell ?? <span className='text-muted-foreground'>-</span>}
-            </div>
-            <div className='overflow-hidden text-sm'>
-              {testCell ?? <span className='text-muted-foreground'>-</span>}
-            </div>
-          </div>
+          )}
+          {nameCell}
         </div>
 
+        {/* Routing controls and health, as label-over-value pairs on one
+          hairline-separated grid so every card lines up. */}
+        <dl className='border-border/60 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3'>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <dt className={labelClass}>{t('Priority')}</dt>
+            <dd>{priorityCell}</dd>
+          </div>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <dt className={labelClass}>{t('Weight')}</dt>
+            <dd>{weightCell}</dd>
+          </div>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <dt className={labelClass}>{fieldLabels.response_time}</dt>
+            <dd className='min-w-0 ps-1.5 text-sm'>
+              {responseCell ?? <span className='text-muted-foreground'>-</span>}
+            </dd>
+          </div>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <dt className={labelClass}>{fieldLabels.test_time}</dt>
+            <dd className='min-w-0 ps-1.5 text-sm'>
+              {testCell ?? <span className='text-muted-foreground'>-</span>}
+            </dd>
+          </div>
+          <div className='col-span-2 flex min-w-0 flex-col gap-1'>
+            <dt className={labelClass}>{fieldLabels.balance}</dt>
+            <dd className='min-w-0 ps-1.5 text-sm'>
+              {balanceCell ?? <span className='text-muted-foreground'>-</span>}
+            </dd>
+          </div>
+        </dl>
+
         {/* Last row: groups span the full width, showing every group (no label) */}
-        <div className='min-w-0'>
+        <div className='mt-auto min-w-0'>
           {groups.length > 0 ? (
             <div className='-ml-1.5 flex flex-wrap gap-1'>
               {groups.map((g) => (

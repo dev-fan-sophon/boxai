@@ -1,12 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Layers3,
-  Loader2,
-  Pencil,
-  Plus,
-  RefreshCcw,
-  Trash2,
-} from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -15,6 +7,14 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StaticDataTable } from '@/components/data-table/static/static-data-table'
 import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
 import { Dialog } from '@/components/dialog'
+import {
+  Layers3,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCcw,
+  Trash2,
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'

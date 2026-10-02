@@ -1,9 +1,9 @@
 import type { Table as TanstackTable } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { DISABLED_ROW_MOBILE } from '@/components/data-table'
 import { EmptyState } from '@/components/empty-state'
+import { Database } from '@/components/icons'
 import { MaskedValueDisplay } from '@/components/masked-value-display'
 import { StatusBadge } from '@/components/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'

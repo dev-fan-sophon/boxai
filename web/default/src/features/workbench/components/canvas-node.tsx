@@ -1,3 +1,6 @@
+import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   ClipboardCopy,
   Columns3,
@@ -13,10 +16,7 @@ import {
   RotateCw,
   Trash2,
   Unlock,
-} from 'lucide-react'
-import { memo } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -265,7 +265,7 @@ export const CanvasNode = memo(function CanvasNode(props: CanvasNodeProps) {
       aria-selected={props.selected}
       className={cn(
         'group absolute flex flex-col overflow-hidden text-xs outline-none transition-[box-shadow,border-color,opacity,transform] duration-control ease-out motion-reduce:transition-none',
-        frame ? 'rounded-2xl border' : 'rounded-xl border',
+        'rounded-2xl border',
         generating && 'canvas-node-generating',
         props.dragging && 'scale-[1.01]'
       )}

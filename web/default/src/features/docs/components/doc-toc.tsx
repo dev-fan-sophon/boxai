@@ -37,7 +37,7 @@ export function DocToc(props: { headings: DocsHeading[] }) {
 
   return (
     <nav aria-label={t('On this page')} className='space-y-2'>
-      <p className='text-muted-foreground text-xs font-semibold tracking-wide uppercase'>
+      <p className='text-foreground text-xs font-semibold'>
         {t('On this page')}
       </p>
       <ul className='space-y-1.5'>

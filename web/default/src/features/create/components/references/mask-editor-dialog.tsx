@@ -1,7 +1,7 @@
-import { Brush, Eraser, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Brush, Eraser, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

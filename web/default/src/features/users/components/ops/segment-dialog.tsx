@@ -1,9 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { SlidersHorizontal } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

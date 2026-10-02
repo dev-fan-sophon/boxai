@@ -1,4 +1,3 @@
-import { Loader2, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,6 +6,7 @@ import {
   DataTableView,
   useDataTable,
 } from '@/components/data-table'
+import { Loader2, Search } from '@/components/icons'
 import { Input } from '@/components/ui/input'
 import {
   Select,

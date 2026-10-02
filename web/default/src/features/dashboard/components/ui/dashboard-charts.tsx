@@ -105,7 +105,7 @@ export function DashboardSeriesChartView(props: {
       <YAxis
         tickLine={false}
         axisLine={false}
-        width={52}
+        width='auto'
         tickFormatter={(value) =>
           formatSeriesValue(Number(value) || 0, props.chart.valueKind)
         }
@@ -114,7 +114,7 @@ export function DashboardSeriesChartView(props: {
         content={
           <ChartTooltipContent
             formatter={(value) => (
-              <span className='font-mono tabular-nums'>
+              <span className='tabular-nums'>
                 {formatSeriesValue(Number(value) || 0, props.chart.valueKind)}
               </span>
             )}
@@ -182,6 +182,7 @@ export function DashboardSeriesChartView(props: {
               fill={seriesColor(index, props.colors)}
               radius={stacked ? 0 : 3}
               stackId={stacked ? 'stack' : undefined}
+              maxBarSize={40}
               isAnimationActive
             />
           ))}
@@ -233,7 +234,7 @@ export function DashboardPieChartView(props: {
             <ChartTooltipContent
               nameKey='name'
               formatter={(value) => (
-                <span className='font-mono tabular-nums'>
+                <span className='tabular-nums'>
                   {formatNumber(Number(value) || 0)}
                 </span>
               )}
@@ -329,7 +330,7 @@ export function DashboardRankChartView(props: {
             <YAxis
               tickLine={false}
               axisLine={false}
-              width={48}
+              width='auto'
               tickFormatter={(value) =>
                 formatSeriesValue(Number(value) || 0, props.chart.valueKind)
               }
@@ -340,14 +341,14 @@ export function DashboardRankChartView(props: {
           content={
             <ChartTooltipContent
               formatter={(value) => (
-                <span className='font-mono tabular-nums'>
+                <span className='tabular-nums'>
                   {formatSeriesValue(Number(value) || 0, props.chart.valueKind)}
                 </span>
               )}
             />
           }
         />
-        <Bar dataKey='value' radius={3} isAnimationActive>
+        <Bar dataKey='value' radius={4} maxBarSize={36} isAnimationActive>
           {props.chart.rows.map((row) => (
             <Cell key={row.name} fill={row.fill} />
           ))}

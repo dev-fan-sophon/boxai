@@ -16,9 +16,9 @@ import {
 import type { GroupStatusSeriesPoint } from '../types'
 
 const CELL_CLASS: Record<StatusTone | 'empty', string> = {
-  healthy: 'bg-emerald-500/85 hover:bg-emerald-400',
-  slow: 'bg-amber-500/85 hover:bg-amber-400',
-  down: 'bg-rose-500/85 hover:bg-rose-400',
+  healthy: 'bg-success/85 hover:bg-success',
+  slow: 'bg-warning/85 hover:bg-warning',
+  down: 'bg-destructive/85 hover:bg-destructive',
   observing: 'bg-muted',
   empty: 'bg-muted/60 hover:bg-muted',
 }

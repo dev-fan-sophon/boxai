@@ -7,7 +7,6 @@ import {
   type FileUIPart,
   type UIMessage,
 } from 'ai'
-import { FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,6 +23,7 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai-elements/sources'
+import { FileText } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 import { displaySourceTitle } from '../../lib/message/message-content-utils'

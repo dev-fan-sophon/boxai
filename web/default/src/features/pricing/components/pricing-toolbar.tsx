@@ -1,4 +1,3 @@
-import { ArrowUpDown, Check, Filter, Grid2X2, Table2, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,6 +6,14 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  ArrowUpDown,
+  Check,
+  Filter,
+  Grid2X2,
+  Table2,
+  X,
+} from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Sheet,
   SheetContent,
@@ -27,11 +35,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import {
@@ -49,13 +52,6 @@ import type {
 import { PricingSidebar } from './pricing-sidebar'
 import { SearchBar } from './search-bar'
 import { VendorPills } from './vendor-pills'
-
-type SegmentOption = {
-  value: string
-  label?: string
-  icon?: React.ComponentType<{ className?: string }>
-  tooltip?: string
-}
 
 export interface PricingToolbarProps {
   filteredCount: number
@@ -88,57 +84,6 @@ export interface PricingToolbarProps {
   hasActiveFilters: boolean
   activeFilterCount: number
   onClearFilters: () => void
-}
-
-function SegmentedControl(props: {
-  options: SegmentOption[]
-  value: string
-  onChange: (value: string) => void
-  ariaLabel: string
-}) {
-  return (
-    <div
-      role='group'
-      aria-label={props.ariaLabel}
-      className='bg-muted/60 inline-flex h-8 items-center rounded-lg border p-0.5'
-    >
-      {props.options.map((option) => {
-        const Icon = option.icon
-        const isActive = option.value === props.value
-        const button = (
-          <button
-            key={option.value}
-            type='button'
-            onClick={() => props.onChange(option.value)}
-            aria-pressed={isActive}
-            className={cn(
-              'inline-flex h-full items-center justify-center rounded-md text-xs font-medium transition-ui',
-              Icon && !option.label ? 'w-7' : 'gap-1.5 px-3',
-              isActive
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {Icon && <Icon className='size-3.5' />}
-            {option.label}
-          </button>
-        )
-
-        if (!option.tooltip) {
-          return button
-        }
-
-        return (
-          <Tooltip key={option.value}>
-            <TooltipTrigger render={button} />
-            <TooltipContent side='bottom' className='text-xs'>
-              {option.tooltip}
-            </TooltipContent>
-          </Tooltip>
-        )
-      })}
-    </div>
-  )
 }
 
 export function PricingToolbar(props: PricingToolbarProps) {
@@ -270,21 +215,23 @@ export function PricingToolbar(props: PricingToolbarProps) {
           </Popover>
 
           <SegmentedControl
+            size='md'
             options={[
               {
                 value: VIEW_MODES.CARD,
-                icon: Grid2X2,
-                tooltip: t('Card view'),
+                label: <Grid2X2 className='size-3.5' aria-hidden='true' />,
+                'aria-label': t('Card view'),
               },
               {
                 value: VIEW_MODES.TABLE,
-                icon: Table2,
-                tooltip: t('Table view'),
+                label: <Table2 className='size-3.5' aria-hidden='true' />,
+                'aria-label': t('Table view'),
               },
             ]}
             value={props.viewMode}
-            onChange={handleViewModeChange}
-            ariaLabel={t('View mode')}
+            onValueChange={handleViewModeChange}
+            aria-label={t('View mode')}
+            className='[&_[role=radio]]:px-2'
           />
         </div>
       </div>

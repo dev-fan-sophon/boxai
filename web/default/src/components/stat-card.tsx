@@ -1,6 +1,11 @@
-import { Minus, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react'
 import { useId, type ReactNode } from 'react'
 
+import {
+  Minus,
+  TrendingDown,
+  TrendingUp,
+  type IconComponent,
+} from '@/components/icons'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { tone, type Tone } from '@/lib/tone'
@@ -25,7 +30,7 @@ interface StatCardProps {
   /** Full value for the tooltip when `value` is abbreviated. */
   valueTitle?: string
   valueClassName?: string
-  icon?: LucideIcon
+  icon?: IconComponent
   iconTone?: IconBadgeTone
   /** Period-over-period change, rendered as a status chip. */
   delta?: StatCardDelta
@@ -63,7 +68,7 @@ const SPARKLINE_TEXT: Record<IconBadgeTone, string> = {
 
 const DELTA_ICONS: Record<
   NonNullable<StatCardDelta['direction']>,
-  LucideIcon
+  IconComponent
 > = {
   up: TrendingUp,
   down: TrendingDown,
@@ -189,7 +194,7 @@ export function StatCard(props: StatCardProps) {
     value = (
       <div
         className={cn(
-          'text-muted-foreground font-mono font-semibold tabular-nums',
+          'text-muted-foreground font-semibold tabular-nums',
           valueSizeClassName
         )}
       >
@@ -200,7 +205,7 @@ export function StatCard(props: StatCardProps) {
     value = (
       <div
         className={cn(
-          'text-foreground max-w-full truncate font-mono font-semibold tabular-nums',
+          'text-foreground max-w-full truncate font-semibold tracking-tight tabular-nums',
           valueSizeClassName,
           props.valueClassName
         )}

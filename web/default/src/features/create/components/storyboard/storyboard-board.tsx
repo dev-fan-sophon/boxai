@@ -1,7 +1,7 @@
-import { Link2, LayoutPanelTop, Plus, Square } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import { Link2, LayoutPanelTop, Plus, Square } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'

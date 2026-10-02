@@ -6,6 +6,7 @@ import {
 } from '@/features/playground/hooks/use-video-capabilities'
 import { elevenTtsCharLimit } from '@/features/playground/lib/studio/audio-settings'
 import {
+  clampBatchCount,
   planGenerationJobs,
   type GenerationJobPlan,
 } from '@/features/playground/lib/studio/batch-plan'
@@ -49,6 +50,8 @@ export type GenerationEstimateParams = {
 export function useGenerationDraft(input: {
   modality: CreateTool
   text: string
+  /** Prompts of the multi-prompt editor; used while batch mode is on. */
+  promptRows?: string[]
   references: MediaReference[]
   /** Typed reference media; only sent in references mode. */
   referenceVideos?: MediaReference[]
@@ -149,7 +152,7 @@ export function useGenerationDraft(input: {
     count = normalizeImageCount(settings.imageCount)
   } else if (isVideo) {
     batchMode = settings.videoBatchMode
-    count = videoOptions?.count ?? 1
+    count = videoOptions?.count ?? clampBatchCount(settings.videoCount)
   }
 
   // Audio text is spoken or described verbatim, so it never expands into
@@ -165,17 +168,29 @@ export function useGenerationDraft(input: {
   }
   const plan: GenerationJobPlan = isAudio
     ? { prompts: audioPrompt ? [audioPrompt] : [], truncated: 0 }
-    : planGenerationJobs({ text: input.text, batchMode, count })
+    : planGenerationJobs({
+        text: input.text,
+        batchMode,
+        count,
+        prompts: batchMode ? input.promptRows : undefined,
+      })
   const charLimit =
     isAudio && audio.tool === 'speech' && audio.native
       ? elevenTtsCharLimit(model)
       : null
   const charCount = [...input.text].length
+
   const overCharLimit = charLimit !== null && charCount > charLimit
   const audioModelMismatch =
     isAudio && Boolean(model) && audio.modelKind !== audio.tool
   const jobCount = plan.prompts.length
-  const distinctPrompts = new Set(plan.prompts).size
+  // Prompts as the user wrote them, before `{a|b}` variants expand.
+  let promptCount = trimmed ? 1 : 0
+  if (batchMode && input.promptRows) {
+    promptCount = input.promptRows.filter((row) => row.trim()).length
+  } else if (batchMode) {
+    promptCount = input.text.split(/\r?\n/).filter((line) => line.trim()).length
+  }
   const audioNeedsVisual = Boolean(
     referenceProfile?.audioReferenceRequiresVisual &&
     referenceAudioCount > 0 &&
@@ -267,10 +282,10 @@ export function useGenerationDraft(input: {
   }
 
   let planSummary = ''
-  if (jobCount > 1 && distinctPrompts > 1) {
+  if (jobCount > 1 && promptCount > 1) {
     planSummary = t('{{count}} results from {{prompts}} prompts', {
       count: jobCount,
-      prompts: distinctPrompts,
+      prompts: promptCount,
     })
   } else if (jobCount > 1) {
     planSummary = t('{{count}} results', { count: jobCount })
@@ -324,6 +339,9 @@ export function useGenerationDraft(input: {
     placeholder,
     submitLabel,
     planSummary,
+    /** Outputs each prompt (and each of its variants) produces. */
+    outputsPerPrompt: count,
+    promptCount,
     estimateParams,
     showMediaSlot: input.modality === 'image' || isVideo,
     audio,

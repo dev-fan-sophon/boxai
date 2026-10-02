@@ -2,13 +2,6 @@
 
 import type { ChatStatus } from 'ai'
 import {
-  Loader2Icon,
-  PlusIcon,
-  SendIcon,
-  SquareIcon,
-  XIcon,
-} from 'lucide-react'
-import {
   type ChangeEvent,
   Children,
   type ClipboardEventHandler,
@@ -19,6 +12,13 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  Loader2Icon,
+  PlusIcon,
+  SendIcon,
+  SquareIcon,
+  XIcon,
+} from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,

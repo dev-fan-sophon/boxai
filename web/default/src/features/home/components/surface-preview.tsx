@@ -1,12 +1,12 @@
+import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   Clapperboard,
   ImageIcon,
   MessageSquare,
-  type LucideIcon,
-} from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { CLIENT_APP_LOGO } from '@/features/client-apps/logos'
 import { cn } from '@/lib/utils'
 
@@ -107,7 +107,7 @@ export function GatewayPreview() {
   )
 }
 
-const WORKSPACE_TILES: { id: string; icon: LucideIcon; tone: string }[] = [
+const WORKSPACE_TILES: { id: string; icon: IconComponent; tone: string }[] = [
   { id: 'chat', icon: MessageSquare, tone: 'text-chart-4' },
   { id: 'image', icon: ImageIcon, tone: 'text-chart-5' },
   { id: 'video', icon: Clapperboard, tone: 'text-chart-2' },

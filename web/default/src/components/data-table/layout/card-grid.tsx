@@ -1,10 +1,10 @@
 import type { Row, Table } from '@tanstack/react-table'
-import { Database, type LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { Database, type IconComponent } from '@/components/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CARD_STAGGER, MOTION_SPRING } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -30,7 +30,7 @@ export interface DataTableCardGridProps<TData> {
   isLoading?: boolean
   emptyTitle?: string
   emptyDescription?: string
-  emptyIcon?: LucideIcon
+  emptyIcon?: IconComponent
   getRowKey?: (row: Row<TData>) => string | number
   getRowClassName?: (row: Row<TData>) => string | undefined
   /**

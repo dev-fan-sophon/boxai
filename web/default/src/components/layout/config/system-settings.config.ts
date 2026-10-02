@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next'
+
 import {
   Box,
   CreditCard,
@@ -7,8 +8,7 @@ import {
   Shield,
   ShieldAlert,
   Wrench,
-} from 'lucide-react'
-
+} from '@/components/icons'
 import { getAuthSectionNavItems } from '@/features/system-settings/auth/section-registry.tsx'
 import { getBillingSectionNavItems } from '@/features/system-settings/billing/section-registry.tsx'
 import { getContentSectionNavItems } from '@/features/system-settings/content/section-registry.tsx'

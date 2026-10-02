@@ -126,6 +126,6 @@ export const Route = createRootRouteWithContext<{
     // 如果用户有有效 session 但 localStorage 被清空，会被重定向到登录页重新登录
   },
   component: RootComponent,
-  notFoundComponent: NotFoundError,
+  notFoundComponent: () => <NotFoundError />,
   errorComponent: GeneralError,
 })

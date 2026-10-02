@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 import { wechatLoginByCode } from '@/features/auth/api'
+import { OAuthCallbackScreen } from '@/features/auth/components/oauth-callback-screen'
 import { getSelf } from '@/lib/api'
 import { normalizeReturnTarget } from '@/lib/normalize-return-target'
 import { useAuthStore, type AuthUser } from '@/stores/auth-store'
@@ -38,7 +39,7 @@ function OAuthComponent() {
     })()
   }, [navigate, search])
 
-  return null
+  return <OAuthCallbackScreen provider={search?.provider ?? ''} mode='login' />
 }
 
 export const Route = createFileRoute('/(auth)/oauth')({

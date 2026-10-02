@@ -1,5 +1,6 @@
-import { TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { TriangleAlert } from '@/components/icons'
 
 export function ConnectInstallationNote() {
   const { t } = useTranslation()

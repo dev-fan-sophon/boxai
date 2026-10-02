@@ -1,4 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   Check,
   ChevronsUpDown,
@@ -7,10 +10,7 @@ import {
   Play,
   Search,
   UserRound,
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {

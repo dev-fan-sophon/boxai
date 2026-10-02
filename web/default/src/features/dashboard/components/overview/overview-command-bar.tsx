@@ -1,7 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { FileText, KeyRound, Play, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  FileText,
+  KeyRound,
+  Play,
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,7 +22,7 @@ export interface CommandBarSignal {
   /** Text fallback when numericValue is not provided. */
   value?: string
   numericValue?: number
-  icon: LucideIcon
+  icon: IconComponent
   tone: IconBadgeTone
   loading?: boolean
 }
@@ -68,7 +73,7 @@ function SignalValue(props: { signal: CommandBarSignal }) {
   }
   if (props.signal.numericValue != null) {
     return (
-      <span className='font-mono text-sm font-semibold tabular-nums'>
+      <span className='text-sm font-semibold tabular-nums'>
         {formatNumber(Math.round(animated))}
       </span>
     )

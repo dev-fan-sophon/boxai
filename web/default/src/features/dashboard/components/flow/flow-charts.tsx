@@ -1,4 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { EmptyState } from '@/components/empty-state'
 import {
   Activity,
   ChevronRight,
@@ -10,11 +14,7 @@ import {
   Loader2,
   Route,
   WalletCards,
-} from 'lucide-react'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { EmptyState } from '@/components/empty-state'
+} from '@/components/icons'
 import { MultiSelect } from '@/components/multi-select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { IconBadge } from '@/components/ui/icon-badge'

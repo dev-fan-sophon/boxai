@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, HeartPulse, Timer } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Gauge, HeartPulse, Timer } from '@/components/icons'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
@@ -174,7 +174,7 @@ function InlineMetric(props: {
       <span className='text-muted-foreground text-2xs'>{props.label}</span>
       <span
         className={cn(
-          'font-mono text-xs font-semibold tabular-nums',
+          'text-xs font-semibold tabular-nums',
           props.valueClassName
         )}
       >
@@ -201,7 +201,7 @@ function ModelBadge(props: { model: PerfModelSummary }) {
       />
       <span
         className={cn(
-          'font-mono text-2xs font-semibold tabular-nums',
+          'text-2xs font-semibold tabular-nums',
           getSuccessRateTextClass(model.success_rate)
         )}
       >

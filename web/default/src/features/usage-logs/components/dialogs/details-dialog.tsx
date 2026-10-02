@@ -1,4 +1,7 @@
 import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
+
+import { Dialog } from '@/components/dialog'
 import {
   Copy,
   Check,
@@ -13,10 +16,7 @@ import {
   UserCog,
   Info,
   LogIn,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { Dialog } from '@/components/dialog'
+} from '@/components/icons'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'

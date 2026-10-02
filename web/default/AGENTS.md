@@ -10,19 +10,19 @@
 
 ### 技术栈
 
-| 类别       | 技术                                                              |
-| ---------- | ----------------------------------------------------------------- |
-| 包管理     | Bun                                                               |
-| 框架       | React 19、TypeScript                                              |
-| 数据与请求 | @tanstack/react-query、axios、Zustand                             |
-| 路由       | @tanstack/react-router                                            |
-| 表格与列表 | @tanstack/react-table、@tanstack/react-virtual                    |
-| 国际化     | i18next、react-i18next、i18next-browser-languagedetector          |
-| 日期       | Day.js                                                            |
-| UI 与样式  | Base UI、Hugeicons、Tailwind CSS、clsx / class-variance-authority |
-| 表单       | React Hook Form、Zod                                              |
-| 图表       | @visactor/vchart、@visactor/react-vchart                          |
-| 工具       | qrcode.react、oxfmt、oxlint、vitest（可选）                       |
+| 类别       | 技术                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 包管理     | Bun                                                                                                                           |
+| 框架       | React 19、TypeScript                                                                                                          |
+| 数据与请求 | @tanstack/react-query、axios、Zustand                                                                                         |
+| 路由       | @tanstack/react-router                                                                                                        |
+| 表格与列表 | @tanstack/react-table、@tanstack/react-virtual                                                                                |
+| 国际化     | i18next、react-i18next、i18next-browser-languagedetector                                                                      |
+| 日期       | Day.js                                                                                                                        |
+| UI 与样式  | Base UI、Phosphor Icons（经 `@/components/icons`）、Tailwind CSS、motion、@number-flow/react、clsx / class-variance-authority |
+| 表单       | React Hook Form、Zod                                                                                                          |
+| 图表       | @visactor/vchart、@visactor/react-vchart                                                                                      |
+| 工具       | qrcode.react、oxfmt、oxlint、vitest（可选）                                                                                   |
 
 优先选用成熟、维护良好的开源库；仅在现有库无法满足或需特殊适配时自行实现，并评估可维护性与通用性。
 
@@ -126,6 +126,7 @@
 
 - 以 Tailwind 工具类为主，动态类名用 `cn()` 合并；非动态场景避免内联样式。
 - 响应式采用移动优先与 Tailwind 断点（`sm:`、`md:`、`lg:` 等）；主题与暗色用 CSS 变量与 `dark:`，自定义样式集中在 `src/styles/`，组件内尽量少写自定义 CSS。
+- **设计语言**：所有视觉决策（颜色角色、字号、圆角、阴影、动效、换行规则、页面结构）遵循 [`DESIGN.md`](./DESIGN.md)。图标只从 `@/components/icons` 引入（Phosphor），不要直接引入图标包。
 
 ### 3.11 文件组织
 

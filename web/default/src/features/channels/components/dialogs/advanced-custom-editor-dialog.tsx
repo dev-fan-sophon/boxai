@@ -1,3 +1,8 @@
+import { type ReactNode, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
 import {
   ArrowDown,
   ArrowDownToLine,
@@ -8,13 +13,8 @@ import {
   Plus,
   Shuffle,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react'
-import { type ReactNode, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { Dialog } from '@/components/dialog'
+  type IconComponent,
+} from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -1384,7 +1384,7 @@ function TooltipIconButton({
   onClick,
 }: {
   label: string
-  icon: LucideIcon
+  icon: IconComponent
   disabled?: boolean
   onClick: () => void
 }) {

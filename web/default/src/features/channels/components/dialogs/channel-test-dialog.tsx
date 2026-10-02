@@ -5,16 +5,6 @@ import type {
   Table as TanStackTable,
 } from '@tanstack/react-table'
 import {
-  Check,
-  CheckCircle2,
-  Copy,
-  Gauge,
-  Info,
-  Loader2,
-  Settings,
-  Trash2,
-} from 'lucide-react'
-import {
   type ChangeEvent,
   useCallback,
   useEffect,
@@ -39,6 +29,16 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  Gauge,
+  Info,
+  Loader2,
+  Settings,
+  Trash2,
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'

@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
+import { ArrowRight } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+
+import { BrandGlow, Eyebrow, MarketingSection } from '../marketing'
 
 interface CTAProps {
   className?: string
@@ -14,48 +16,43 @@ export function CTA(props: CTAProps) {
   const { t } = useTranslation()
 
   return (
-    <section className='relative z-10 overflow-hidden px-6 py-24 md:py-28'>
-      <div
-        aria-hidden
-        className='absolute inset-0 -z-10 opacity-25 dark:opacity-[0.12]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 55% 55% at 30% 50%, oklch(0.7 0.15 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 45% 45% at 75% 40%, oklch(0.65 0.12 280 / 55%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-
+    <MarketingSection label={t('Start Building')} className='pt-0 sm:pt-0'>
       <AnimateInView
-        className='mx-auto max-w-2xl text-center'
         animation='scale-in'
+        className='border-border/60 bg-card shadow-raised relative isolate overflow-hidden rounded-3xl border px-6 py-14 text-center sm:px-10 sm:py-20'
       >
-        <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-          {t('Start Building')}
-        </p>
-        <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
+        <BrandGlow />
+        <Eyebrow className='mb-4'>{t('Start Building')}</Eyebrow>
+        <h2 className='mx-auto max-w-2xl text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'>
           {t('Start with the API, the workspace, or the apps')}
         </h2>
-        <div className='mt-8 flex items-center justify-center gap-3'>
+        <p className='text-muted-foreground mx-auto mt-4 max-w-xl text-sm leading-relaxed text-pretty sm:text-base'>
+          {t(
+            'One unified API, a browser workspace, and desktop apps, all on you-box.com.'
+          )}
+        </p>
+        <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <Button
             variant='cta'
-            className='group'
+            size='lg'
+            className='group h-11 px-6'
             render={
               <Link to={props.isAuthenticated ? '/dashboard' : '/sign-up'} />
             }
           >
             {t('Get Started')}
-            <ArrowRight className='duration-control ml-1 size-3.5 transition-transform group-hover:translate-x-0.5' />
+            <ArrowRight className='duration-control size-4 transition-transform group-hover:translate-x-0.5' />
           </Button>
           <Button
             variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50'
+            size='lg'
+            className='bg-background/70 h-11 px-6'
             render={<Link to='/pricing' />}
           >
             {t('Model Hub')}
           </Button>
         </div>
       </AnimateInView>
-    </section>
+    </MarketingSection>
   )
 }

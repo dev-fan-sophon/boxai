@@ -106,7 +106,11 @@ export async function revokeCanvasShare(projectId: number): Promise<void> {
 export async function getPublicCanvas(
   token: string
 ): Promise<{ title: string; doc: string; cover?: string }> {
-  const res = await api.get(`/api/share/canvas/${encodeURIComponent(token)}`)
+  // The share page renders its own unavailable state; skip the global toast.
+  const res = await api.get(`/api/share/canvas/${encodeURIComponent(token)}`, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   if (!res.data?.success) throw new Error(res.data?.message || 'request failed')
   return res.data.data as { title: string; doc: string; cover?: string }
 }

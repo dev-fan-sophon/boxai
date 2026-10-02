@@ -33,7 +33,7 @@ export function AgentsView() {
   )
 
   return (
-    <main className='playground-discover-hero min-h-svh'>
+    <main className='min-h-svh'>
       {/* Entrance comes from `PublicLayout`; sections own their own padding and rhythm. */}
       <DesktopHero
         release={release}

@@ -225,14 +225,6 @@
 }
 
 /* Playground shell: mobile-first polish + ambient stage */
-.playground-page {
-  --playground-composer-glow: color-mix(
-    in oklab,
-    var(--primary) 18%,
-    transparent
-  );
-}
-
 .playground-workbench {
   isolation: isolate;
 }
@@ -248,7 +240,7 @@
   background:
     radial-gradient(
       120% 70% at 50% -10%,
-      color-mix(in oklab, var(--primary) 9%, transparent),
+      color-mix(in oklab, var(--primary) 5%, transparent),
       transparent 55%
     ),
     linear-gradient(
@@ -260,21 +252,6 @@
 
 .playground-composer-dock {
   position: relative;
-}
-
-.playground-composer-dock::before {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  inset-inline: 8%;
-  top: -1.25rem;
-  height: 2.5rem;
-  background: radial-gradient(
-    60% 100% at 50% 100%,
-    var(--playground-composer-glow),
-    transparent 70%
-  );
-  opacity: 0.7;
 }
 
 .playground-composer-surface {
@@ -320,7 +297,7 @@
   background:
     radial-gradient(
       120% 70% at 50% -10%,
-      color-mix(in oklab, var(--primary) 14%, transparent),
+      color-mix(in oklab, var(--primary) 8%, transparent),
       transparent 58%
     ),
     linear-gradient(
@@ -335,19 +312,6 @@
 .dark .playground-modality-switch {
   background: color-mix(in oklab, var(--background) 82%, transparent);
   border-color: color-mix(in oklab, var(--border) 85%, transparent);
-}
-
-.dark .playground-composer-surface {
-  background: color-mix(in oklab, var(--background) 92%, var(--muted) 8%);
-  border-color: color-mix(in oklab, var(--border) 90%, transparent);
-}
-
-.dark .playground-composer-dock {
-  --playground-composer-glow: color-mix(
-    in oklab,
-    var(--primary) 28%,
-    transparent
-  );
 }
 
 @media (prefers-reduced-motion: reduce) {

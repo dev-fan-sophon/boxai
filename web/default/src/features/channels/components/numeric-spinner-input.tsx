@@ -1,7 +1,7 @@
-import { Minus, Plus } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Minus, Plus } from '@/components/icons'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 

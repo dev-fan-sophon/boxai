@@ -1,4 +1,3 @@
-import { BarChart3, Trophy } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,6 +9,7 @@ import {
   type TooltipContentProps,
 } from 'recharts'
 
+import { BarChart3, Trophy } from '@/components/icons'
 import {
   ChartContainer,
   ChartTooltip,
@@ -66,7 +66,7 @@ function ModelsHistoryTooltip(props: Partial<TooltipContentProps>) {
       <div className='grid gap-1'>
         <div className='flex items-center justify-between gap-4 font-medium'>
           <span className='text-muted-foreground'>{t('Total:')}</span>
-          <span className='text-foreground font-mono tabular-nums'>
+          <span className='text-foreground tabular-nums'>
             {formatTokens(total)}
           </span>
         </div>
@@ -85,7 +85,7 @@ function ModelsHistoryTooltip(props: Partial<TooltipContentProps>) {
                 {item.name}
               </span>
             </span>
-            <span className='text-foreground font-mono tabular-nums'>
+            <span className='text-foreground tabular-nums'>
               {formatTokens(item.value)}
             </span>
           </div>
@@ -95,7 +95,7 @@ function ModelsHistoryTooltip(props: Partial<TooltipContentProps>) {
             <span className='text-muted-foreground'>
               {t('+{{count}} more', { count: overflow.length })}
             </span>
-            <span className='text-foreground font-mono tabular-nums'>
+            <span className='text-foreground tabular-nums'>
               {formatTokens(overflowTotal)}
             </span>
           </div>
@@ -170,7 +170,7 @@ export function ModelsSection(props: ModelsSectionProps) {
   const hasChartData = chart.rows.length > 0 && chart.models.length > 0
 
   return (
-    <section className='bg-card overflow-hidden rounded-lg border'>
+    <section className='bg-card border-border/60 overflow-hidden rounded-2xl border shadow-xs'>
       {/* Chart block ----------------------------------------------------- */}
       <header className='flex items-start justify-between gap-4 px-5 py-4'>
         <div className='min-w-0 flex-1'>
@@ -183,17 +183,17 @@ export function ModelsSection(props: ModelsSectionProps) {
           </p>
         </div>
         <div className='shrink-0 text-right'>
-          <div className='text-foreground font-mono text-2xl font-semibold tabular-nums'>
+          <div className='text-foreground text-2xl font-semibold tracking-tight tabular-nums'>
             {formatTokens(totalTokens)}
           </div>
-          <div className='text-muted-foreground text-3xs font-medium tracking-widest uppercase'>
+          <div className='text-muted-foreground text-2xs font-medium'>
             {t('tokens')}
           </div>
         </div>
       </header>
 
       <div className='px-5 pb-5'>
-        <div className='ring-border overflow-hidden rounded-xl p-3 ring-1'>
+        <div className='bg-surface-subtle/60 ring-border/60 overflow-hidden rounded-xl p-3 ring-1'>
           {hasChartData ? (
             <ChartContainer
               config={chart.config}
@@ -246,10 +246,10 @@ export function ModelsSection(props: ModelsSectionProps) {
       </div>
 
       {/* Leaderboard block ----------------------------------------------- */}
-      <div className='border-t'>
+      <div className='border-border/60 border-t'>
         <header className='px-5 pt-4 pb-2'>
           <h3 className='text-foreground inline-flex items-center gap-2 text-sm font-semibold'>
-            <Trophy className='size-3.5 text-amber-500' />
+            <Trophy className='text-warning size-3.5' />
             {t('LLM Leaderboard')}
           </h3>
           <p className='text-muted-foreground mt-0.5 text-xs'>

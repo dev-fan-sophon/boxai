@@ -1,6 +1,6 @@
-import { Check, ChevronDown, Proportions } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
+import { Check, ChevronDown, Proportions } from '@/components/icons'
 import {
   Popover,
   PopoverContent,

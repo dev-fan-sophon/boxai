@@ -1,21 +1,22 @@
 import { Link } from '@tanstack/react-router'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowRight,
   Braces,
   Clapperboard,
   Layers3,
   Sparkles,
-} from 'lucide-react'
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { useStatus } from '@/hooks/use-status'
-import { useSystemConfig } from '@/hooks/use-system-config'
+import { LobeIcon } from '@/lib/lobe-icon'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 
 import { useHomeStats } from '../../hooks'
-import { HeroEcosystem } from '../hero-ecosystem'
+import { HeroGateway } from '../hero-gateway'
+import { BrandGlow } from '../marketing'
 
 interface HeroProps {
   className?: string
@@ -24,11 +25,9 @@ interface HeroProps {
 
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
-  const { systemName } = useSystemConfig()
   const { status } = useStatus()
   const statsQuery = useHomeStats()
   const stats = statsQuery.data?.data
-  const brand = systemName || 'BoxAI'
 
   // The workspace CTA has to follow the same switch as the header link, or the
   // hero sends visitors to a route that redirects them straight back here.
@@ -61,45 +60,45 @@ export function Hero(props: HeroProps) {
         { icon: Clapperboard, label: t('Text, image, and video') },
       ]
 
+  const host =
+    typeof window === 'undefined' ? 'you-box.com' : window.location.host
+  const vendors = stats?.vendors ?? []
+
   return (
     <section
       aria-label={t('Unified AI gateway, workspace, and desktop apps')}
-      className='relative z-10 overflow-hidden px-6 pt-24 pb-16 md:pt-32 md:pb-20 lg:pt-36 lg:pb-24'
+      className='relative isolate z-10 overflow-hidden px-4 pt-28 pb-16 sm:px-6 sm:pt-36 sm:pb-24'
     >
-      <div
-        aria-hidden
-        className='pointer-events-none absolute inset-0 -z-10 opacity-40 dark:opacity-[0.18]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 70% 55% at 15% 20%, oklch(0.78 0.14 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 55% 45% at 85% 15%, oklch(0.72 0.12 280 / 55%) 0%, transparent 72%)',
-            'radial-gradient(ellipse 45% 40% at 55% 85%, oklch(0.80 0.08 220 / 40%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
+      <BrandGlow />
 
-      <div className='mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-12 lg:gap-8'>
-        <div className='flex flex-col items-start text-left lg:col-span-5'>
-          <div
-            className='landing-animate-fade-up text-2xs mb-5 inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 font-medium text-blue-600 opacity-0 shadow-xs dark:border-blue-400/20 dark:bg-blue-400/5 dark:text-blue-400'
-            style={{ animationDelay: '0ms' }}
+      <div className='mx-auto max-w-6xl'>
+        <div className='mx-auto flex max-w-3xl flex-col items-center text-center'>
+          <Link
+            to='/agents'
+            className='landing-animate-fade-up group border-border/70 bg-background/70 text-muted-foreground hover:text-foreground hover:border-border transition-ui duration-control mb-6 inline-flex max-w-full items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-xs font-medium opacity-0 shadow-xs backdrop-blur'
           >
-            <Sparkles className='size-3.5' />
-            <span>{t('Gateway, workspace, and desktop apps')}</span>
-          </div>
+            <span className='bg-primary/10 text-primary inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5'>
+              <Sparkles className='size-3' aria-hidden='true' />
+              {t('New')}
+            </span>
+            <span className='min-w-0 truncate'>
+              {t('Gateway, workspace, and desktop apps')}
+            </span>
+            <ArrowRight
+              className='duration-control size-3 shrink-0 transition-transform group-hover:translate-x-0.5'
+              aria-hidden='true'
+            />
+          </Link>
 
           <h1
-            className='landing-animate-fade-up text-[clamp(2.25rem,4.5vw,3.4rem)] leading-[1.12] font-bold tracking-tight text-balance opacity-0'
+            className='landing-animate-fade-up text-foreground text-4xl leading-[1.05] font-semibold tracking-tight text-balance opacity-0 sm:text-5xl lg:text-6xl'
             style={{ animationDelay: '60ms' }}
           >
-            <span className='bg-gradient-to-r from-blue-500 via-blue-600 to-violet-500 bg-clip-text text-transparent'>
-              {brand}
-            </span>{' '}
             {t('Every model, one account')}
           </h1>
 
           <p
-            className='landing-animate-fade-up text-muted-foreground md:text-md mt-5 max-w-md text-base leading-relaxed text-pretty opacity-0'
+            className='landing-animate-fade-up text-muted-foreground mt-5 max-w-2xl text-base leading-relaxed text-pretty opacity-0 sm:text-lg'
             style={{ animationDelay: '120ms' }}
           >
             {t(
@@ -108,38 +107,24 @@ export function Hero(props: HeroProps) {
           </p>
 
           <div
-            className='landing-animate-fade-up mt-6 flex flex-wrap gap-2 opacity-0'
-            style={{ animationDelay: '160ms' }}
-          >
-            {facts.map((item) => (
-              <span
-                key={item.label}
-                className='border-border/50 bg-background/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-xs backdrop-blur-sm'
-              >
-                <item.icon className='size-3.5 text-blue-500' />
-                {item.label}
-              </span>
-            ))}
-          </div>
-
-          <div
-            className='landing-animate-fade-up mt-8 flex flex-wrap items-center gap-3 opacity-0'
-            style={{ animationDelay: '200ms' }}
+            className='landing-animate-fade-up mt-8 flex flex-wrap items-center justify-center gap-3 opacity-0'
+            style={{ animationDelay: '180ms' }}
           >
             <Button
               variant='cta'
-              className='group h-11 px-6 text-sm font-medium'
+              size='lg'
+              className='group h-11 px-6'
               render={
                 <Link to={props.isAuthenticated ? '/dashboard' : '/sign-up'} />
               }
             >
               {t('Get Started')}
-              <ArrowRight className='duration-control ml-1.5 size-4 transition-transform group-hover:translate-x-0.5' />
+              <ArrowRight className='duration-control size-4 transition-transform group-hover:translate-x-0.5' />
             </Button>
             <Button
               variant='outline'
               size='lg'
-              className='border-border/50 hover:border-border hover:bg-muted/50 h-11 px-6 text-sm font-medium'
+              className='bg-background/70 h-11 px-6 backdrop-blur'
               render={
                 workspaceEnabled ? (
                   <Link to='/playground' />
@@ -151,14 +136,59 @@ export function Hero(props: HeroProps) {
               {workspaceEnabled ? t('Try the Workspace') : t('Model Hub')}
             </Button>
           </div>
+
+          <ul
+            className='landing-animate-fade-up text-muted-foreground mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm opacity-0'
+            style={{ animationDelay: '240ms' }}
+          >
+            {facts.map((item) => (
+              <li key={item.label} className='inline-flex items-center gap-1.5'>
+                <item.icon
+                  className='text-primary size-4 shrink-0'
+                  aria-hidden='true'
+                />
+                {item.label}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div
-          className='landing-animate-fade-up opacity-0 lg:col-span-7'
-          style={{ animationDelay: '280ms' }}
+          className='landing-animate-fade-up relative mx-auto mt-14 max-w-4xl opacity-0 sm:mt-16'
+          style={{ animationDelay: '320ms' }}
         >
-          <HeroEcosystem brand={brand} vendors={stats?.vendors ?? []} />
+          <div
+            aria-hidden='true'
+            className='bg-brand-glow absolute inset-x-8 top-12 -bottom-8 -z-10 rounded-full blur-3xl'
+          />
+          <HeroGateway models={stats?.top_models ?? []} host={host} />
         </div>
+
+        {vendors.length > 0 && (
+          <div
+            className='landing-animate-fade-in mt-12 flex flex-col items-center gap-4 opacity-0'
+            style={{ animationDelay: '480ms' }}
+          >
+            <p className='text-muted-foreground text-xs font-medium'>
+              {t('Routes to {{count}} providers through one key', {
+                count: vendors.length,
+              })}
+            </p>
+            <ul className='flex max-w-3xl flex-wrap items-center justify-center gap-2'>
+              {vendors.map((vendor) => (
+                <li
+                  key={vendor.name}
+                  className='border-border/60 bg-background/60 text-foreground/80 inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-1.5 text-xs font-medium backdrop-blur'
+                >
+                  <span className='bg-background flex size-5 items-center justify-center rounded-full'>
+                    <LobeIcon name={vendor.icon} size={14} />
+                  </span>
+                  {vendor.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
   )

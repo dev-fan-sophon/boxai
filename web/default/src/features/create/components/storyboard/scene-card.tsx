@@ -1,14 +1,14 @@
+import { motion } from 'motion/react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowDown,
   ArrowUp,
   Clapperboard,
   RotateCcw,
   Trash2,
-} from 'lucide-react'
-import { motion } from 'motion/react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'

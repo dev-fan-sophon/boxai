@@ -1,4 +1,4 @@
-import { Shield, User, Users } from 'lucide-react'
+import { Shield, User, Users } from '@/components/icons'
 
 import type { User as UserType } from './types'
 

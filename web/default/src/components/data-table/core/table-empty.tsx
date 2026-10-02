@@ -1,8 +1,8 @@
-import { Database, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { Database, type IconComponent } from '@/components/icons'
 import { TableRow, TableCell } from '@/components/ui/table'
 
 interface TableEmptyProps {
@@ -12,7 +12,7 @@ interface TableEmptyProps {
   /** @default 'No records found. Try adjusting your filters.' */
   description?: string
   /** @default Database */
-  icon?: LucideIcon
+  icon?: IconComponent
   /** Extra content below the message, e.g. a "Create" button. */
   action?: ReactNode
 }

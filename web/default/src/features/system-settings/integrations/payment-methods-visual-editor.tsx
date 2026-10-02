@@ -1,10 +1,10 @@
-import { Lightbulb, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StaticDataTable } from '@/components/data-table/static/static-data-table'
 import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
 import { EmptyState } from '@/components/empty-state'
+import { Lightbulb, Pencil, Plus, Search, Trash2 } from '@/components/icons'
 import { ReactIconByName } from '@/components/react-icon-by-name'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

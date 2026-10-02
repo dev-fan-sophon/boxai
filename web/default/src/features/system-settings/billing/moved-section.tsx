@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowRight, TriangleAlert } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

@@ -1,7 +1,7 @@
-import { Bell } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Bell } from '@/components/icons'
 import type {
   AnnouncementItem,
   NotificationTab,

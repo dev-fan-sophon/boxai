@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ThumbsDown, ThumbsUp } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'

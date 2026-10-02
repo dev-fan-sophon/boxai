@@ -1,6 +1,6 @@
-import { Route } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Route } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import {
   Popover,

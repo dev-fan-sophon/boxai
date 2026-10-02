@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { Power, PowerOff, Pencil, Edit } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
+import { Power, PowerOff, Pencil, Edit } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenuItem,

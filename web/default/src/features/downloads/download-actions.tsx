@@ -1,12 +1,12 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Apple,
   ArrowDownToLine,
   ChevronDown,
   Monitor,
   TriangleAlert,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { downloadLabel, formatSize } from '@/features/downloads/release'
 import type { DesktopDownload } from '@/features/downloads/types'
+import { cn } from '@/lib/utils'
 
 export function DownloadActions(props: {
   downloads: DesktopDownload[]
@@ -31,6 +32,8 @@ export function DownloadActions(props: {
    * leaves the primary button of every card sitting at a different height.
    */
   compact?: boolean
+  /** Extra classes for the action row, e.g. `justify-center` in a centred hero. */
+  className?: string
 }) {
   const { t } = useTranslation()
 
@@ -52,7 +55,7 @@ export function DownloadActions(props: {
     // `items-start` keeps the button at its intrinsic width; a plain flex
     // column stretches it across the whole text measure.
     return (
-      <div className='flex flex-col items-start gap-2'>
+      <div className={cn('flex flex-col items-start gap-2', props.className)}>
         <Button size='lg' disabled aria-disabled='true'>
           <ArrowDownToLine aria-hidden='true' />
           {props.failed
@@ -83,7 +86,7 @@ export function DownloadActions(props: {
   )
 
   return (
-    <div className='flex flex-wrap items-center gap-2'>
+    <div className={cn('flex flex-wrap items-center gap-2', props.className)}>
       <Button
         size='lg'
         render={<a href={primaryUrl} download rel='noopener noreferrer' />}

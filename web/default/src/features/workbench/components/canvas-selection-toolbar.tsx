@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   AlignCenter,
   AlignHorizontalDistributeCenter,
@@ -10,9 +12,7 @@ import {
   Grid2X2,
   Rows3,
   Route,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import type { CanvasLayoutAction } from '../engine/canvas-layout'

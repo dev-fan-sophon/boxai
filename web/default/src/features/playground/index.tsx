@@ -1,5 +1,4 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { SlidersHorizontal } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -10,6 +9,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { SlidersHorizontal } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -387,7 +387,7 @@ export function Playground() {
               />
               <ModelSwitchNotice />
             </div>
-            <div className='playground-composer-dock mx-auto w-full max-w-4xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-3 md:px-3 md:pb-4'>
+            <div className='playground-composer-dock mx-auto w-full max-w-3xl shrink-0 space-y-2 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-3 sm:pb-4'>
               <ChatComposer
                 key={`${scopedUserId ?? 'guest'}:${activeChatId ?? 'draft'}`}
                 allowAttachments

@@ -34,7 +34,7 @@ export function LegalConsent({
   return (
     <div
       className={cn(
-        'border-border/60 bg-muted/40 flex items-start gap-3 rounded-md border p-3',
+        'bg-surface-subtle ring-border/60 flex items-start gap-3 rounded-xl p-3 ring-1',
         className
       )}
     >
@@ -55,18 +55,18 @@ export function LegalConsent({
               href='/user-agreement'
               target='_blank'
               rel='noopener noreferrer'
-              className='text-primary hover:underline'
+              className='text-foreground hover:text-primary font-medium underline-offset-4 hover:underline'
             >
               {t('User Agreement')}
             </a>
           )}
-          {hasUserAgreement && hasPrivacyPolicy && ' and the '}
+          {hasUserAgreement && hasPrivacyPolicy && ` ${t('and')} `}
           {hasPrivacyPolicy && (
             <a
               href='/privacy-policy'
               target='_blank'
               rel='noopener noreferrer'
-              className='text-primary hover:underline'
+              className='text-foreground hover:text-primary font-medium underline-offset-4 hover:underline'
             >
               {t('Privacy Policy')}
             </a>

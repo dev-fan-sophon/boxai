@@ -22,7 +22,7 @@ import {
 function DetailRow(props: { label: string; children: React.ReactNode }) {
   return (
     <div className='grid grid-cols-1 gap-1 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:items-start sm:gap-3'>
-      <div className='text-muted-foreground pt-0.5 text-xs font-medium tracking-wide uppercase'>
+      <div className='text-muted-foreground pt-0.5 text-xs font-medium'>
         {props.label}
       </div>
       <div className='min-w-0 text-sm'>{props.children}</div>

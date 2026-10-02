@@ -18,7 +18,7 @@ export function EdgeProtectionSection() {
   const configured = status?.configured ?? false
 
   return (
-    <SettingsSection title={t('Edge Protection')}>
+    <SettingsSection title={t('Edge Protection')} variant='plain'>
       <p className='text-muted-foreground text-sm'>
         {t(
           'Manages the Cloudflare zone in front of this deployment. Changes here are written straight to Cloudflare and take effect at the edge within seconds.'

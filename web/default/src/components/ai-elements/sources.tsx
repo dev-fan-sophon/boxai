@@ -1,9 +1,9 @@
 'use client'
 
-import { BookIcon, ChevronDownIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BookIcon, ChevronDownIcon } from '@/components/icons'
 import {
   Collapsible,
   CollapsibleContent,

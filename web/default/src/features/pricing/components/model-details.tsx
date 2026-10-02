@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { CopyButton } from '@/components/copy-button'
+import { StaticDataTable } from '@/components/data-table'
+import { sideDrawerContentClassName } from '@/components/drawer-layout'
+import { GroupBadge } from '@/components/group-badge'
 import {
   ArrowLeft,
   CalendarClock,
@@ -11,14 +18,7 @@ import {
   Maximize2,
   Sparkles,
   Timer,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { CopyButton } from '@/components/copy-button'
-import { StaticDataTable } from '@/components/data-table'
-import { sideDrawerContentClassName } from '@/components/drawer-layout'
-import { GroupBadge } from '@/components/group-badge'
+} from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import {
@@ -80,7 +80,7 @@ import { ModelPriceRows, type ModelPriceRowItem } from './model-price-rows'
 
 function SectionTitle(props: { children: React.ReactNode }) {
   return (
-    <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase'>
+    <h2 className='text-foreground mb-3 text-sm font-semibold tracking-tight'>
       {props.children}
     </h2>
   )
@@ -166,7 +166,7 @@ function OverviewMetric(props: {
     <div className='flex min-w-0 items-center gap-2 px-3 py-2'>
       <Icon className='text-muted-foreground size-3.5 shrink-0' />
       <div className='min-w-0 flex-1'>
-        <div className='text-muted-foreground text-3xs truncate font-medium tracking-wider uppercase'>
+        <div className='text-muted-foreground text-2xs truncate font-medium'>
           {props.label}
         </div>
         <div
@@ -264,7 +264,7 @@ function CatalogTextValue(props: { children: React.ReactNode }) {
 function CatalogInfoCell(props: { label: string; children: React.ReactNode }) {
   return (
     <div className='bg-card flex min-w-0 flex-col gap-1 px-3 py-2.5'>
-      <span className='text-muted-foreground text-3xs font-medium tracking-wider uppercase'>
+      <span className='text-muted-foreground text-2xs font-medium'>
         {props.label}
       </span>
       {props.children}
@@ -371,7 +371,7 @@ function ModelBackendQuickStats(props: { model: PricingModel }) {
             key={stat.key}
             className='bg-background flex min-w-0 flex-col gap-0.5 px-3 py-2.5'
           >
-            <span className='text-muted-foreground text-3xs inline-flex min-w-0 items-center gap-1 font-medium tracking-wider uppercase'>
+            <span className='text-muted-foreground text-2xs inline-flex min-w-0 items-center gap-1 font-medium'>
               <Icon className='size-3 shrink-0' />
               <span className='truncate'>{stat.label}</span>
             </span>
@@ -549,7 +549,7 @@ function ModelHeader(props: {
   const model = props.model
   const modelIconKey = model.icon || model.vendor_icon
   const modelIcon = modelIconKey ? (
-    <LobeIcon name={modelIconKey} size={20} />
+    <LobeIcon name={modelIconKey} size={26} />
   ) : null
   const description = model.description || model.vendor_description || null
   const displayName = model.display_name?.trim()
@@ -567,35 +567,57 @@ function ModelHeader(props: {
   )
 
   return (
-    <header className='pb-4'>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-        <div className='min-w-0'>
-          <div className='flex min-w-0 items-center gap-2.5'>
-            {modelIcon}
-            <h1 className='min-w-0 truncate font-mono text-xl font-bold tracking-tight sm:text-2xl'>
-              {model.model_name}
-            </h1>
-            <CopyButton
-              value={model.model_name || ''}
-              className='size-6'
-              iconClassName='size-3'
-              tooltip={t('Copy model name')}
-              successTooltip={t('Copied!')}
-              aria-label={t('Copy model name')}
-            />
-          </div>
-          {displayName && displayName !== model.model_name && (
-            <p className='text-muted-foreground mt-1 text-sm font-medium'>
-              {displayName}
-            </p>
+    <header className='pb-2'>
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='flex min-w-0 items-start gap-4'>
+          {modelIcon && (
+            <span className='bg-card ring-border/60 flex size-12 shrink-0 items-center justify-center rounded-2xl shadow-xs ring-1'>
+              {modelIcon}
+            </span>
           )}
+          <div className='min-w-0'>
+            <div className='flex min-w-0 items-center gap-2'>
+              <h1
+                className='min-w-0 truncate font-mono text-xl font-semibold tracking-tight sm:text-2xl'
+                title={model.model_name}
+              >
+                {model.model_name}
+              </h1>
+              <CopyButton
+                value={model.model_name || ''}
+                className='size-7 shrink-0'
+                iconClassName='size-3.5'
+                tooltip={t('Copy model name')}
+                successTooltip={t('Copied!')}
+                aria-label={t('Copy model name')}
+              />
+            </div>
+            {displayName && displayName !== model.model_name && (
+              <p className='text-muted-foreground mt-0.5 text-sm font-medium'>
+                {displayName}
+              </p>
+            )}
+            <div className='mt-1.5 flex flex-wrap items-center gap-2 text-xs'>
+              {model.vendor_name && (
+                <span className='text-muted-foreground'>
+                  {model.vendor_name}
+                </span>
+              )}
+              {model.vendor_name && (
+                <span aria-hidden='true' className='text-muted-foreground'>
+                  ·
+                </span>
+              )}
+              <ModelBillingModeBadge model={model} />
+            </div>
+          </div>
         </div>
         {agentGuide && (
           <CopyButton
             value={agentGuide}
             variant='outline'
             size='sm'
-            className='border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary w-full justify-center sm:w-auto'
+            className='border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary w-full shrink-0 justify-center sm:w-auto'
             iconClassName='size-3.5'
             tooltip={t(
               'Copy a self-contained guide with the exact model ID, verified endpoints, authentication, and examples.'
@@ -607,15 +629,8 @@ function ModelHeader(props: {
           </CopyButton>
         )}
       </div>
-      <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
-        {model.vendor_name && (
-          <span className='text-muted-foreground'>{model.vendor_name}</span>
-        )}
-        <span className='text-muted-foreground'>·</span>
-        <ModelBillingModeBadge model={model} />
-      </div>
       {description && (
-        <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>
+        <p className='text-muted-foreground mt-4 max-w-3xl text-sm leading-relaxed text-pretty sm:text-base'>
           {description}
         </p>
       )}
@@ -689,7 +704,7 @@ function PriceSection(props: { model: PricingModel; tokenUnit: TokenUnit }) {
               {t('Unable to parse structured pricing')}
             </p>
             <div className='mt-3'>
-              <div className='text-muted-foreground text-3xs mb-1 font-medium tracking-wider uppercase'>
+              <div className='text-muted-foreground text-2xs mb-1 font-medium'>
                 {t('Raw expression')}
               </div>
               <code className='text-muted-foreground bg-background/80 block max-h-28 overflow-auto rounded-md border px-2 py-1.5 font-mono text-xs break-all'>
@@ -714,7 +729,7 @@ function PriceSection(props: { model: PricingModel; tokenUnit: TokenUnit }) {
                 <div className='text-muted-foreground text-xs'>
                   {t(entry.shortLabel)}
                 </div>
-                <div className='text-foreground font-price mt-1 text-base font-semibold tabular-nums'>
+                <div className='text-foreground mt-1 text-base font-semibold tabular-nums'>
                   {entry.formatted}
                   <span className='text-muted-foreground ml-1 text-xs font-normal'>
                     / {tokenUnitLabel}
@@ -739,7 +754,7 @@ function PriceSection(props: { model: PricingModel; tokenUnit: TokenUnit }) {
                   <span className='text-muted-foreground text-sm'>
                     {t(entry.shortLabel)}
                   </span>
-                  <span className='text-muted-foreground font-price text-sm tabular-nums'>
+                  <span className='text-muted-foreground text-sm tabular-nums'>
                     {entry.formatted}
                     <span className='text-muted-foreground ml-1 text-xs font-normal'>
                       / {tokenUnitLabel}
@@ -764,7 +779,7 @@ function PriceSection(props: { model: PricingModel; tokenUnit: TokenUnit }) {
               ? t('Per second')
               : t('Per request')}
           </span>
-          <span className='text-foreground font-price text-sm font-semibold tabular-nums'>
+          <span className='text-foreground text-sm font-semibold tabular-nums'>
             {formatFixedPrice(props.model, baseGroupKey, baseGroupRatioMap)}
           </span>
         </div>
@@ -934,8 +949,7 @@ function GroupPricingSection(props: {
     )
   }
 
-  const thClass =
-    'text-muted-foreground py-2 text-3xs font-medium tracking-wider uppercase'
+  const thClass = 'text-muted-foreground py-2 text-2xs font-medium'
 
   if (isDynamicPricingModel(props.model)) {
     const dynamicTiers = getDynamicPricingTiers(props.model)
@@ -955,7 +969,7 @@ function GroupPricingSection(props: {
               )}
             </p>
             <div className='mt-3'>
-              <div className='text-muted-foreground text-3xs mb-1 font-medium tracking-wider uppercase'>
+              <div className='text-muted-foreground text-2xs mb-1 font-medium'>
                 {t('Raw expression')}
               </div>
               <code className='text-muted-foreground bg-background/80 block max-h-28 overflow-auto rounded-md border px-2 py-1.5 font-mono text-xs break-all'>
@@ -1023,7 +1037,7 @@ function GroupPricingSection(props: {
                       id: fieldEntry.field,
                       header: t(fieldEntry.shortLabel),
                       className: `${thClass} text-right`,
-                      cellClassName: 'py-2.5 text-right font-price',
+                      cellClassName: 'py-2.5 text-right ',
                       cell: (tier: (typeof dynamicTiers)[number]) =>
                         formattedPricesByTier
                           .get(tier)
@@ -1084,21 +1098,21 @@ function GroupPricingSection(props: {
                   id: 'input',
                   header: t('Input'),
                   className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-price',
+                  cellClassName: 'py-2.5 text-right ',
                   cell: (group: string) => renderGroupPrice(group, 'input'),
                 },
                 {
                   id: 'output',
                   header: t('Output'),
                   className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-price',
+                  cellClassName: 'py-2.5 text-right ',
                   cell: (group: string) => renderGroupPrice(group, 'output'),
                 },
                 ...extraPriceTypes.map((ep) => ({
                   id: ep.type,
                   header: ep.label,
                   className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-price',
+                  cellClassName: 'py-2.5 text-right ',
                   cell: (group: string) => renderGroupPrice(group, ep.type),
                 })),
               ]
@@ -1107,7 +1121,7 @@ function GroupPricingSection(props: {
                   id: 'price',
                   header: t('Price'),
                   className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-price',
+                  cellClassName: 'py-2.5 text-right ',
                   cell: renderFixedGroupPrice,
                 },
               ]),
@@ -1360,7 +1374,7 @@ export function ModelDetails() {
 
   return (
     <PublicLayout>
-      <div className='mx-auto max-w-5xl px-4 sm:px-6'>
+      <div className='mx-auto max-w-5xl px-0 pt-6 pb-10 sm:px-6 sm:pt-10'>
         <Button
           variant='ghost'
           size='sm'

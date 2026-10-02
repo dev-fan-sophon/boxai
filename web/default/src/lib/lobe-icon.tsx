@@ -1,4 +1,3 @@
-import { BrainCircuit } from 'lucide-react'
 /**
  * LobeHub Icon Loader
  *
@@ -14,6 +13,8 @@ import { BrainCircuit } from 'lucide-react'
  * arrives in its own chunk.
  */
 import { useEffect, useState } from 'react'
+
+import { BrainCircuit } from '@/components/icons'
 
 import { LOBE_ICON_LOADERS } from './lobe-icon-registry.generated'
 

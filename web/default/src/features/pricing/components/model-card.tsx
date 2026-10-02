@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router'
+import { memo, type KeyboardEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   AudioLines,
   Brain,
@@ -6,11 +9,8 @@ import {
   Film,
   Layers,
   Play,
-  type LucideIcon,
-} from 'lucide-react'
-import { memo, type KeyboardEvent, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { cn } from '@/lib/utils'
@@ -72,7 +72,7 @@ function formatCompactTokenCount(tokens?: number): string {
 
 type MetaChip = {
   key: string
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   title?: string
 }
@@ -184,7 +184,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   if (dynamicSummary) {
     if (dynamicSummary.isSpecialExpression) {
       priceLine = (
-        <span className='text-xs text-amber-700 dark:text-amber-300'>
+        <span className='text-warning-subtle-foreground text-xs'>
           {t('Special billing expression')}
         </span>
       )
@@ -303,13 +303,13 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
       onKeyDown={handleKeyDown}
       data-card-hover='true'
       className={cn(
-        'group bg-card hover:border-primary/40 focus-visible:ring-ring relative flex h-full cursor-pointer flex-col rounded-xl border p-4 text-left',
+        'group bg-card border-border/60 hover:border-border hover:shadow-raised focus-visible:ring-ring transition-ui duration-control relative flex h-full min-w-0 cursor-pointer flex-col rounded-2xl border p-4 text-left shadow-xs sm:p-5',
         'focus-visible:ring-2 focus-visible:outline-none'
       )}
       aria-label={`${t('Details')}: ${title}`}
     >
-      <div className='mb-3 flex items-start gap-2.5'>
-        <div className='bg-muted/40 flex size-9 shrink-0 items-center justify-center rounded-lg'>
+      <div className='mb-3 flex items-start gap-3'>
+        <div className='bg-background ring-border/60 flex size-10 shrink-0 items-center justify-center rounded-xl ring-1'>
           <ModelBrandIcon
             modelName={props.model.model_name}
             icon={props.model.icon}
@@ -332,7 +332,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           {(subtitle || isNew) && (
             <div className='mt-0.5 flex min-w-0 items-center gap-1.5'>
               {isNew && (
-                <span className='bg-primary/10 text-primary text-3xs inline-flex shrink-0 rounded px-1 py-px font-bold tracking-wide uppercase'>
+                <span className='bg-primary/10 text-primary text-3xs inline-flex shrink-0 rounded-full px-1.5 py-px font-semibold'>
                   {t('NEW')}
                 </span>
               )}
@@ -352,7 +352,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         </div>
         {cornerDiscount != null && (
           <span
-            className='text-3xs inline-flex shrink-0 items-center self-start rounded-md bg-rose-500/12 px-1.5 py-0.5 font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300'
+            className='bg-destructive-subtle text-destructive-subtle-foreground ring-destructive/20 text-2xs inline-flex shrink-0 items-center self-start rounded-full px-2 py-0.5 font-semibold tabular-nums ring-1 ring-inset'
             title={cornerDiscountTitle}
           >
             -{formatDiscountPercent(cornerDiscount)}%
@@ -367,7 +367,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
             return (
               <span
                 key={chip.key}
-                className='border-border/60 bg-muted/30 text-muted-foreground text-2xs inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5'
+                className='bg-muted text-muted-foreground text-2xs inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium'
                 title={chip.title}
               >
                 <ChipIcon className='size-3 shrink-0' aria-hidden />
@@ -378,14 +378,14 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         </div>
       )}
 
-      <div className='mt-auto border-t pt-2.5'>
+      <div className='border-border/60 mt-auto border-t pt-3'>
         {priceLine}
         {canTry && (
-          <div className='mt-2.5 flex'>
+          <div className='mt-3 flex'>
             <Link
               {...tryLinkFor(props.model)}
               onClick={(event) => event.stopPropagation()}
-              className='text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors'
+              className='text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-ui duration-control inline-flex h-7 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium'
             >
               <Play className='size-3' />
               {t('Try')}

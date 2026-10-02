@@ -50,7 +50,7 @@ export function PanelWrapper(props: PanelWrapperProps) {
   const resolvedEmptyMessage = props.emptyMessage ?? t('No data available')
   const height = props.height ?? 'h-64'
   const frameClassName = cn(
-    'bg-card text-card-foreground ring-border overflow-hidden rounded-xl ring-1',
+    'bg-card text-card-foreground ring-border overflow-hidden rounded-2xl ring-1',
     props.className
   )
 

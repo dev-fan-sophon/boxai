@@ -1,4 +1,3 @@
-import { AlertCircle, Braces, CheckCircle2, Code2 } from 'lucide-react'
 import {
   useMemo,
   useRef,
@@ -8,6 +7,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AlertCircle, Braces, CheckCircle2, Code2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'

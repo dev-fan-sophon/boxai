@@ -1,11 +1,3 @@
-import {
-  AlertTriangle,
-  ChevronDown,
-  GripVertical,
-  Info,
-  Plus,
-  Trash2,
-} from 'lucide-react'
 import { useState, useMemo, useEffect, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,6 +9,14 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  AlertTriangle,
+  ChevronDown,
+  GripVertical,
+  Info,
+  Plus,
+  Trash2,
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -543,7 +543,7 @@ function GroupPricingTable({
               {
                 id: 'ratio',
                 header: t('Ratio'),
-                className: 'w-28',
+                className: 'w-28 min-w-24',
                 cell: (row) => (
                   <Input
                     type='number'
@@ -559,7 +559,7 @@ function GroupPricingTable({
               {
                 id: 'topup-ratio',
                 header: t('Top-up ratio'),
-                className: 'w-28',
+                className: 'w-28 min-w-24',
                 cell: (row) => (
                   <Input
                     type='number'

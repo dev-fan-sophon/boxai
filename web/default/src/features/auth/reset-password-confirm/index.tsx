@@ -1,11 +1,19 @@
 import { useNavigate } from '@tanstack/react-router'
-import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  CheckIcon,
+  CopyIcon,
+  KeyRound,
+} from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCountdown } from '@/hooks/use-countdown'
@@ -97,93 +105,93 @@ export function ResetPasswordConfirm({
   }
 
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Reset password')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
-            {newPassword
-              ? t('auth.resetPasswordConfirm.success')
-              : t('auth.resetPasswordConfirm.description')}
-          </p>
+    <AuthLayout
+      icon={
+        <IconBadge tone={newPassword ? 'success' : 'primary'} size='lg'>
+          {newPassword ? <CheckCircle2 /> : <KeyRound />}
+        </IconBadge>
+      }
+      title={t('Reset password')}
+      description={
+        <p>
+          {newPassword
+            ? t('auth.resetPasswordConfirm.success')
+            : t('auth.resetPasswordConfirm.description')}
+        </p>
+      }
+    >
+      <div className='grid gap-5'>
+        {!isValidResetLink && (
+          <Alert variant='destructive'>
+            <AlertCircle aria-hidden='true' />
+            <AlertDescription>
+              {t('Invalid reset link, please request a new password reset.')}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className='grid gap-2'>
+          <Label htmlFor='email'>{t('Email')}</Label>
+          <Input
+            id='email'
+            type='email'
+            value={email || ''}
+            disabled
+            placeholder={t('Waiting for email...')}
+          />
         </div>
 
-        <div className='space-y-4'>
-          {!isValidResetLink && (
-            <Alert variant='destructive'>
-              <AlertDescription>
-                {t('Invalid reset link, please request a new password reset.')}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className='space-y-2'>
-            <Label htmlFor='email'>{t('Email')}</Label>
-            <Input
-              id='email'
-              type='email'
-              value={email || ''}
-              disabled
-              placeholder={t('Waiting for email...')}
-            />
-          </div>
-
-          {newPassword && (
-            <div className='space-y-2'>
-              <Label htmlFor='password'>{t('New password')}</Label>
-              <div className='flex gap-2'>
-                <Input
-                  id='password'
-                  value={newPassword}
-                  disabled
-                  className='font-mono'
-                />
-                <Button
-                  type='button'
-                  size='icon'
-                  variant='outline'
-                  onClick={handleCopy}
-                  aria-label={copied ? t('Copied!') : t('Copy password')}
-                >
-                  {copied ? (
-                    <CheckIcon className='h-4 w-4' />
-                  ) : (
-                    <CopyIcon className='h-4 w-4' />
-                  )}
-                </Button>
-              </div>
-              <p className='text-muted-foreground text-xs'>
-                {t('Password has been copied to clipboard')}
-              </p>
+        {newPassword && (
+          <div className='grid gap-2'>
+            <Label htmlFor='password'>{t('New password')}</Label>
+            <div className='flex gap-2'>
+              <Input
+                id='password'
+                value={newPassword}
+                readOnly
+                className='min-w-0 flex-1 font-mono'
+              />
+              <Button
+                type='button'
+                size='icon'
+                variant='outline'
+                onClick={handleCopy}
+                aria-label={copied ? t('Copied!') : t('Copy password')}
+              >
+                {copied ? <CheckIcon /> : <CopyIcon />}
+              </Button>
             </div>
-          )}
+            <p className='text-muted-foreground text-xs'>
+              {t('Password has been copied to clipboard')}
+            </p>
+          </div>
+        )}
 
+        <Button
+          size='lg'
+          className='w-full justify-center'
+          onClick={
+            newPassword
+              ? () => navigate({ to: '/sign-in', replace: true })
+              : handleSubmit
+          }
+          disabled={
+            newPassword ? false : loading || isActive || !isValidResetLink
+          }
+        >
+          {submitLabel}
+        </Button>
+
+        {!newPassword && (
           <Button
-            className='w-full'
-            onClick={
-              newPassword
-                ? () => navigate({ to: '/sign-in', replace: true })
-                : handleSubmit
-            }
-            disabled={
-              newPassword ? false : loading || isActive || !isValidResetLink
-            }
+            variant='ghost'
+            className='w-full justify-center'
+            onClick={() => navigate({ to: '/sign-in', replace: true })}
           >
-            {submitLabel}
+            <ArrowLeft />
+            {t('Back to login')}
           </Button>
-
-          {!newPassword && (
-            <Button
-              variant='link'
-              className='w-full'
-              onClick={() => navigate({ to: '/sign-in', replace: true })}
-            >
-              {t('Back to login')}
-            </Button>
-          )}
-        </div>
+        )}
       </div>
     </AuthLayout>
   )

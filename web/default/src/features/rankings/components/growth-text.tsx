@@ -23,10 +23,7 @@ export function GrowthText(props: GrowthTextProps) {
   if (!Number.isFinite(v) || v === 0) {
     return (
       <span
-        className={cn(
-          'text-muted-foreground font-mono tabular-nums',
-          props.className
-        )}
+        className={cn('text-muted-foreground tabular-nums', props.className)}
       >
         0%
       </span>
@@ -38,7 +35,7 @@ export function GrowthText(props: GrowthTextProps) {
   return (
     <span
       className={cn(
-        'font-mono tabular-nums',
+        'font-medium tabular-nums',
         toneText(isUp ? 'success' : 'danger'),
         props.className
       )}

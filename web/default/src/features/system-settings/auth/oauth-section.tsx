@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
-import { ExternalLink } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +7,7 @@ import { toast } from 'sonner'
 import * as z from 'zod'
 
 import { CopyButton } from '@/components/copy-button'
+import { ExternalLink } from '@/components/icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Form,
@@ -423,18 +423,24 @@ export function OAuthSection(props: OAuthSectionProps) {
             />
             <FormDirtyIndicator isDirty={form.formState.isDirty} />
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className='grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9'>
-                <TabsTrigger value='github'>{t('GitHub')}</TabsTrigger>
-                <TabsTrigger value='google'>{t('Google')}</TabsTrigger>
-                <TabsTrigger value='facebook'>{t('Facebook')}</TabsTrigger>
-                <TabsTrigger value='discord'>{t('Discord')}</TabsTrigger>
-                <TabsTrigger value='zalo'>{t('Zalo')}</TabsTrigger>
-                <TabsTrigger value='oidc'>{t('OIDC')}</TabsTrigger>
-                <TabsTrigger value='telegram'>{t('Telegram')}</TabsTrigger>
-                <TabsTrigger value='linuxdo'>{t('LinuxDO')}</TabsTrigger>
-                <TabsTrigger value='wechat'>{t('WeChat')}</TabsTrigger>
-              </TabsList>
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className='min-w-0'
+            >
+              <div className='-mx-1 overflow-x-auto px-1 pb-1'>
+                <TabsList className='w-max'>
+                  <TabsTrigger value='github'>{t('GitHub')}</TabsTrigger>
+                  <TabsTrigger value='google'>{t('Google')}</TabsTrigger>
+                  <TabsTrigger value='facebook'>{t('Facebook')}</TabsTrigger>
+                  <TabsTrigger value='discord'>{t('Discord')}</TabsTrigger>
+                  <TabsTrigger value='zalo'>{t('Zalo')}</TabsTrigger>
+                  <TabsTrigger value='oidc'>{t('OIDC')}</TabsTrigger>
+                  <TabsTrigger value='telegram'>{t('Telegram')}</TabsTrigger>
+                  <TabsTrigger value='linuxdo'>{t('LinuxDO')}</TabsTrigger>
+                  <TabsTrigger value='wechat'>{t('WeChat')}</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value='github' className={oauthTabContentClassName}>
                 <OAuthSetupGuide

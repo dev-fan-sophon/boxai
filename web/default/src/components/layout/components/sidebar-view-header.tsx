@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronLeft } from '@/components/icons'
 import {
   SidebarHeader,
   SidebarMenu,

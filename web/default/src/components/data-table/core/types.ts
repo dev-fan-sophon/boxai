@@ -1,6 +1,7 @@
 import type { Row, Table as TanstackTable } from '@tanstack/react-table'
-import type { LucideIcon } from 'lucide-react'
 import type * as React from 'react'
+
+import type { IconComponent } from '@/components/icons'
 
 export type DataTableColumnClassName = (
   columnId: string,
@@ -25,7 +26,7 @@ export type DataTableViewProps<TData> = {
   rows?: Row<TData>[]
   emptyTitle?: string
   emptyDescription?: string
-  emptyIcon?: LucideIcon
+  emptyIcon?: IconComponent
   emptyAction?: React.ReactNode
   emptyContent?: React.ReactNode
   emptyCellClassName?: string

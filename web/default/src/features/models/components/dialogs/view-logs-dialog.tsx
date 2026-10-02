@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { Download, Loader2, RefreshCcw, Terminal } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
+import { Download, Loader2, RefreshCcw, Terminal } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { IconBadge } from '@/components/ui/icon-badge'
 import {

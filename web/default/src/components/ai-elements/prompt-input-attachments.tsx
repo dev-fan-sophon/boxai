@@ -1,7 +1,6 @@
 'use client'
 
 import type { FileUIPart } from 'ai'
-import { ImageIcon, PaperclipIcon, XIcon } from 'lucide-react'
 import {
   type ComponentProps,
   Fragment,
@@ -10,6 +9,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ImageIcon, PaperclipIcon, XIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'

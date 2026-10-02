@@ -2,9 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Switch } from '@/components/ui/switch'
 import {
-  IMAGE_COUNTS,
   IMAGE_QUALITIES,
   IMAGE_SIZES,
   imageQualityLabelKey,
@@ -65,31 +63,6 @@ export function ImageSettings() {
             : ''}
         </p>
       )}
-      <SettingRow label={t('Images per prompt')} htmlFor='gen-image-count'>
-        <NativeSelect
-          id='gen-image-count'
-          size='sm'
-          className='w-full'
-          value={String(state.normalized.imageCount)}
-          onChange={(event) =>
-            state.update('imageCount', Number(event.target.value))
-          }
-        >
-          {IMAGE_COUNTS.map((n) => (
-            <NativeSelectOption key={n} value={String(n)}>
-              {n}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </SettingRow>
-      <SettingRow label={t('Batch')} htmlFor='gen-image-batch'>
-        <Switch
-          id='gen-image-batch'
-          size='sm'
-          checked={state.settings.imageBatchMode}
-          onCheckedChange={(checked) => state.update('imageBatchMode', checked)}
-        />
-      </SettingRow>
       {capabilities?.sizeMode === 'aspect' && <AspectControls state={state} />}
       {capabilities?.sizeMode === 'pixels' && <PixelControls state={state} />}
       {!capabilities && allowed && !isGeminiImageModel(state.model) && (

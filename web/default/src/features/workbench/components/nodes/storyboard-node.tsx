@@ -1,9 +1,9 @@
-import { Film, Loader2, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Film, Loader2, Play, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { usePlaygroundStore } from '@/stores/playground-store'

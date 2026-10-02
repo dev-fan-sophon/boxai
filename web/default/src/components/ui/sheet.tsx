@@ -1,8 +1,7 @@
-'use client'
+import { X } from '@/components/icons'
+;('use client')
 
 import { Dialog as SheetPrimitive } from '@base-ui/react/dialog'
-import { Cancel01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -30,7 +29,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot='sheet-overlay'
       className={cn(
-        'fixed inset-0 z-overlay bg-black/40 transition-opacity duration-overlay ease-emphasized data-ending-style:opacity-0 data-ending-style:duration-control data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-[2px] dark:bg-black/60',
+        'fixed inset-0 z-overlay bg-black/25 transition-opacity duration-overlay ease-emphasized data-ending-style:opacity-0 data-ending-style:duration-control data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-[2px] dark:bg-black/60',
         className
       )}
       {...props}
@@ -91,7 +90,7 @@ function SheetContent({
               />
             }
           >
-            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+            <X />
             <span className='sr-only'>{t('Close')}</span>
           </SheetPrimitive.Close>
         )}

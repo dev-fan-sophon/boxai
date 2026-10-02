@@ -1,4 +1,3 @@
-import { Mail, Shield, Send, Link2, Unlink } from 'lucide-react'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SiGithub, SiWechat, SiLinux } from 'react-icons/si'
@@ -11,6 +10,7 @@ import {
   IconZalo,
 } from '@/assets/brand-icons'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Mail, Shield, Send, Link2, Unlink } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'

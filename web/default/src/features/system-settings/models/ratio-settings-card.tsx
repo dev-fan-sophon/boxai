@@ -6,7 +6,6 @@ import * as z from 'zod'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { SettingsPageTitleStatusPortal } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { GroupRatioForm } from './group-ratio-form'
@@ -243,19 +242,21 @@ export function RatioSettingsCard({
 
   if (visibleTabs.length === 1) {
     return (
-      <SettingsSection title={t(titleKey)}>
+      <SettingsSection title={t(titleKey)} variant='plain'>
         {renderTabContent(defaultTab)}
       </SettingsSection>
     )
   }
 
   return (
-    <Tabs defaultValue={defaultTab} className='h-full min-h-0 gap-6'>
-      <SettingsPageTitleStatusPortal>
-        {renderTabSwitcher()}
-      </SettingsPageTitleStatusPortal>
+    <Tabs defaultValue={defaultTab} className='h-full min-h-0 gap-4'>
+      <div className='shrink-0'>{renderTabSwitcher()}</div>
 
-      <SettingsSection title={t(titleKey)} className='min-h-0 flex-1'>
+      <SettingsSection
+        title={t(titleKey)}
+        variant='plain'
+        className='min-h-0 flex-1'
+      >
         {visibleTabs.map((tab) => (
           <TabsContent key={tab} value={tab} className='min-h-0'>
             {renderTabContent(tab)}

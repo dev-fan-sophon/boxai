@@ -1,13 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import {
-  ArrowLeft,
-  HelpCircle,
-  History,
-  Search,
-  Share2,
-  Sparkles,
-} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -16,6 +8,14 @@ import {
   sideDrawerContentClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  ArrowLeft,
+  HelpCircle,
+  History,
+  Search,
+  Share2,
+  Sparkles,
+} from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -282,7 +282,7 @@ export function WorkbenchEditor(props: { projectId: number }) {
   if (project.isError) {
     return (
       <div className='flex h-full flex-col items-center justify-center gap-3'>
-        <p className='text-muted-foreground text-sm'>
+        <p className='text-muted-foreground px-4 text-center text-sm text-pretty'>
           {t('This canvas is not available.')}
         </p>
         <Button
@@ -299,10 +299,11 @@ export function WorkbenchEditor(props: { projectId: number }) {
 
   return (
     <div className='flex h-full flex-col'>
-      <div className='border-border/60 bg-background/80 flex shrink-0 items-center gap-2 border-b px-3 py-1.5 backdrop-blur'>
+      <div className='border-border/60 bg-background/80 flex h-12 shrink-0 items-center gap-1.5 border-b px-2 backdrop-blur sm:gap-2 sm:px-3'>
         <Button
           size='icon-sm'
           variant='ghost'
+          className='shrink-0'
           aria-label={t('Back to canvases')}
           onClick={() =>
             navigate({ to: '/inspiration', search: { view: 'projects' } })
@@ -312,20 +313,24 @@ export function WorkbenchEditor(props: { projectId: number }) {
         </Button>
         <Input
           value={title}
-          className='h-8 w-40 border-transparent bg-transparent font-medium shadow-none sm:w-64'
+          aria-label={t('Canvas title')}
+          title={title}
+          className='hover:border-border h-8 min-w-0 flex-1 truncate border-transparent bg-transparent px-2 font-semibold shadow-none sm:max-w-72 dark:bg-transparent'
           onChange={(event) => setTitle(event.target.value)}
         />
-        <span className='text-muted-foreground hidden text-xs sm:inline'>
+        <span className='text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:inline'>
           {saveState === 'saving' ? t('Saving') : null}
           {saveState === 'saved' ? t('Saved') : null}
           {saveState === 'conflict' ? t('Not saved') : null}
           {saveState === 'error' ? t('Not saved') : null}
         </span>
-        <div className='ml-auto flex items-center gap-1.5'>
+        <div className='ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5'>
           <Button
             size='sm'
             variant='outline'
             title={t('Inspiration')}
+            aria-label={t('Inspiration')}
+            className='max-sm:size-8 max-sm:px-0'
             onClick={() => setInspirationOpen(true)}
           >
             <Sparkles />
@@ -337,6 +342,8 @@ export function WorkbenchEditor(props: { projectId: number }) {
               variant='outline'
               aria-expanded={searchOpen}
               title={t('Search nodes')}
+              aria-label={t('Search nodes')}
+              className='max-sm:size-8 max-sm:px-0'
               onClick={() => setSearchOpen((open) => !open)}
             >
               <Search />
@@ -346,7 +353,7 @@ export function WorkbenchEditor(props: { projectId: number }) {
               </kbd>
             </Button>
             {searchOpen ? (
-              <div className='bg-popover absolute top-10 right-0 z-50 w-80 rounded-md border p-2 shadow-lg'>
+              <div className='bg-popover shadow-lifted ring-border/70 absolute top-10 right-0 z-50 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl p-2 ring-1 max-sm:fixed max-sm:top-24 max-sm:right-3'>
                 <Input
                   autoFocus
                   role='searchbox'
@@ -362,7 +369,7 @@ export function WorkbenchEditor(props: { projectId: number }) {
                       type='button'
                       role='option'
                       aria-selected='false'
-                      className='hover:bg-accent flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm'
+                      className='hover:bg-accent flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm'
                       onClick={() => {
                         window.dispatchEvent(
                           new CustomEvent('canvas:focus-node', {
@@ -373,7 +380,7 @@ export function WorkbenchEditor(props: { projectId: number }) {
                       }}
                     >
                       <span className='truncate'>{node.title}</span>
-                      <span className='text-muted-foreground ml-auto text-xs'>
+                      <span className='text-muted-foreground ml-auto shrink-0 text-xs'>
                         {t(node.type)}
                       </span>
                     </button>
@@ -392,10 +399,14 @@ export function WorkbenchEditor(props: { projectId: number }) {
           >
             <SelectTrigger
               size='sm'
-              className='hidden w-36 md:flex'
+              className='hidden max-w-40 min-w-0 md:flex'
               aria-label={t('Canvas mode')}
             >
-              <SelectValue />
+              <SelectValue>
+                {(value: 'simple' | 'professional') =>
+                  value === 'simple' ? t('Simple') : t('Professional')
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='simple'>{t('Simple')}</SelectItem>
@@ -406,6 +417,8 @@ export function WorkbenchEditor(props: { projectId: number }) {
             size='sm'
             variant='outline'
             title={t('Share')}
+            aria-label={t('Share')}
+            className='max-sm:size-8 max-sm:px-0'
             onClick={() => setShareOpen(true)}
           >
             <Share2 />
@@ -415,6 +428,8 @@ export function WorkbenchEditor(props: { projectId: number }) {
             size='sm'
             variant='outline'
             title={t('History')}
+            aria-label={t('History')}
+            className='max-sm:size-8 max-sm:px-0'
             onClick={() => setHistoryOpen(true)}
           >
             <History />

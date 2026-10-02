@@ -1,8 +1,8 @@
-import { LayoutDashboard } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { LayoutDashboard } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Card,

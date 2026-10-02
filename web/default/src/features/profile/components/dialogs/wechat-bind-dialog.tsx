@@ -1,8 +1,8 @@
-import { QrCode } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { EmptyState } from '@/components/empty-state'
+import { QrCode } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // ============================================================================

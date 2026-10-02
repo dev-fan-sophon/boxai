@@ -2,9 +2,9 @@ import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BookOpen } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConnectClientsCard } from '@/features/client-apps/components/connect-clients-card'
 import { ConnectInstallationNote } from '@/features/client-apps/components/connect-installation-note'
@@ -17,6 +17,11 @@ import {
   primaryDownload,
 } from '@/features/downloads/release'
 import { useAppRelease } from '@/features/downloads/use-app-release'
+import {
+  BrandGlow,
+  MarketingSection,
+  SectionIntro,
+} from '@/features/home/components/marketing'
 import { useSeo } from '@/hooks/use-page-seo'
 
 export function ConnectView() {
@@ -59,78 +64,101 @@ export function ConnectView() {
   return (
     <PublicLayout showMainContainer={false}>
       <main className='relative z-10 min-h-svh'>
-        <section className='px-6 pt-24 pb-14 md:pt-32 md:pb-20'>
-          <div className='mx-auto max-w-5xl'>
-            <div className='border-border/50 from-card to-muted/30 relative overflow-hidden rounded-3xl border bg-gradient-to-br p-6 shadow-sm sm:p-10 md:p-12'>
-              <div
+        <section className='relative isolate overflow-hidden px-4 pt-28 pb-16 sm:px-6 sm:pt-36 sm:pb-24'>
+          <BrandGlow />
+          <div className='mx-auto flex max-w-3xl flex-col items-center text-center'>
+            <div className='landing-animate-fade-up mb-6 flex flex-wrap items-center justify-center gap-3 opacity-0'>
+              <img
+                src={meta.logoSrc}
+                alt=''
                 aria-hidden='true'
-                className='bg-primary/10 absolute -top-24 -right-20 size-72 rounded-full blur-3xl'
+                draggable={false}
+                className='ring-border/50 shadow-raised size-16 rounded-[22%] object-contain ring-1'
               />
-              <div className='relative max-w-3xl'>
-                <div className='mb-5 flex items-center gap-3'>
-                  <img
-                    src={meta.logoSrc}
-                    alt=''
-                    aria-hidden='true'
-                    draggable={false}
-                    className='ring-border/40 size-14 rounded-[22%] object-contain shadow-sm ring-1'
-                  />
-                  {release && (
-                    <Badge variant='outline'>
-                      {t('Version {{version}}', { version: release.version })}
-                    </Badge>
-                  )}
-                </div>
+            </div>
+            <h1
+              className='landing-animate-fade-up text-4xl leading-[1.05] font-semibold tracking-tight text-balance opacity-0 sm:text-5xl lg:text-6xl'
+              style={{ animationDelay: '60ms' }}
+            >
+              {appName}
+            </h1>
+            <p
+              className='landing-animate-fade-up text-foreground/90 mt-5 text-lg font-medium text-pretty opacity-0 sm:text-xl'
+              style={{ animationDelay: '100ms' }}
+            >
+              {t(meta.taglineKey)}
+            </p>
+            <p
+              className='landing-animate-fade-up text-muted-foreground mt-3 max-w-2xl text-base leading-relaxed text-pretty opacity-0'
+              style={{ animationDelay: '140ms' }}
+            >
+              {t(meta.descriptionKey)}
+            </p>
 
-                <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
-                  {appName}
-                </h1>
-                <p className='text-foreground/90 mt-4 text-lg font-medium text-pretty sm:text-xl'>
-                  {t(meta.taglineKey)}
-                </p>
-                <p className='text-muted-foreground mt-3 max-w-2xl leading-relaxed text-pretty'>
-                  {t(meta.descriptionKey)}
-                </p>
+            <div
+              className='landing-animate-fade-up mt-8 flex flex-wrap items-center justify-center gap-2 opacity-0'
+              style={{ animationDelay: '180ms' }}
+            >
+              <DownloadActions
+                downloads={downloads}
+                primary={primary}
+                loading={loading}
+                failed={failed}
+                fallbackUrl={fallbackUrl}
+                productName={appName}
+                className='justify-center'
+              />
+              <Button
+                variant='ghost'
+                size='lg'
+                render={
+                  <Link to='/docs/$' params={{ _splat: 'clients/connect' }} />
+                }
+              >
+                <BookOpen aria-hidden='true' />
+                {t('Documentation')}
+              </Button>
+            </div>
 
-                <div className='mt-7'>
-                  <DownloadActions
-                    downloads={downloads}
-                    primary={primary}
-                    loading={loading}
-                    failed={failed}
-                    fallbackUrl={fallbackUrl}
-                    productName={appName}
-                  />
-                </div>
-
-                <Button
-                  className='mt-3'
-                  variant='outline'
-                  render={
-                    <Link to='/docs/$' params={{ _splat: 'clients/connect' }} />
-                  }
-                >
-                  {t('Documentation')}
-                </Button>
-                <p className='text-muted-foreground mt-4 flex flex-wrap gap-x-3 gap-y-1 text-xs'>
-                  {facts.map((fact) => (
-                    <span key={fact}>{fact}</span>
-                  ))}
-                </p>
-                <div className='mt-3'>
-                  <ConnectInstallationNote />
-                </div>
+            <div
+              className='landing-animate-fade-up mt-5 flex flex-col items-center gap-2 opacity-0'
+              style={{ animationDelay: '240ms' }}
+            >
+              <p className='text-muted-foreground flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs'>
+                {facts.map((fact) => (
+                  <span key={fact}>{fact}</span>
+                ))}
+              </p>
+              <div className='max-w-lg text-left'>
+                <ConnectInstallationNote />
               </div>
             </div>
           </div>
         </section>
 
-        <section className='px-6 pb-20 md:pb-28'>
-          <div className='mx-auto grid max-w-5xl gap-4'>
-            <ConnectWalkthrough />
-            <ConnectClientsCard />
-          </div>
-        </section>
+        <MarketingSection labelledBy='connect-features' tone='muted'>
+          <SectionIntro
+            id='connect-features'
+            eyebrow={t('Features')}
+            title={t('Everything your agents need')}
+            description={t(
+              'Sign in with BoxAI, then keep Connect running while your agents use its local gateway.'
+            )}
+          />
+          <ConnectWalkthrough variant='marketing' />
+        </MarketingSection>
+
+        <MarketingSection labelledBy='connect-clients'>
+          <SectionIntro
+            id='connect-clients'
+            eyebrow={t('Supported Apps')}
+            title={t('Clients it configures')}
+            description={t(
+              'BoxAI Connect configures agents to use its local gateway. Your cloud API key stays in private local storage, not in agent configuration.'
+            )}
+          />
+          <ConnectClientsCard variant='marketing' />
+        </MarketingSection>
 
         <Footer
           copyright={t(

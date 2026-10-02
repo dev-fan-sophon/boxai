@@ -1,4 +1,3 @@
-import { ChevronDown, Copy, Plus, Trash2 } from 'lucide-react'
 import {
   memo,
   useCallback,
@@ -14,6 +13,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { ChevronDown, Copy, Plus, Trash2 } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

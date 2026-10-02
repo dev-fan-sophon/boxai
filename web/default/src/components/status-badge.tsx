@@ -1,7 +1,7 @@
-import type { LucideIcon } from 'lucide-react'
 /* eslint-disable react-refresh/only-export-components */
 import * as React from 'react'
 
+import type { IconComponent } from '@/components/icons'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { stringToColor } from '@/lib/colors'
 import { cn } from '@/lib/utils'
@@ -12,21 +12,21 @@ export const dotColorMap = {
   danger: 'bg-destructive',
   info: 'bg-info',
   neutral: 'bg-neutral',
-  purple: 'bg-chart-4',
+  purple: 'bg-chart-2',
   amber: 'bg-warning',
-  blue: 'bg-chart-1',
-  cyan: 'bg-chart-2',
+  blue: 'bg-chart-10',
+  cyan: 'bg-chart-3',
   green: 'bg-success',
   grey: 'bg-neutral',
-  indigo: 'bg-chart-1',
+  indigo: 'bg-chart-10',
   'light-blue': 'bg-info',
-  'light-green': 'bg-emerald-400',
-  lime: 'bg-chart-3',
+  'light-green': 'bg-chart-7',
+  lime: 'bg-chart-11',
   orange: 'bg-warning',
-  pink: 'bg-chart-5',
+  pink: 'bg-chart-6',
   red: 'bg-destructive',
-  teal: 'bg-chart-2',
-  violet: 'bg-chart-4',
+  teal: 'bg-chart-4',
+  violet: 'bg-chart-2',
   yellow: 'bg-warning',
 } as const
 
@@ -36,21 +36,21 @@ export const textColorMap = {
   danger: 'text-destructive',
   info: 'text-info',
   neutral: 'text-muted-foreground',
-  purple: 'text-chart-4',
+  purple: 'text-chart-2',
   amber: 'text-warning',
-  blue: 'text-chart-1',
-  cyan: 'text-chart-2',
+  blue: 'text-chart-10',
+  cyan: 'text-chart-3',
   green: 'text-success',
   grey: 'text-muted-foreground',
-  indigo: 'text-chart-1',
+  indigo: 'text-chart-10',
   'light-blue': 'text-info',
-  'light-green': 'text-emerald-500 dark:text-emerald-300',
-  lime: 'text-chart-3',
+  'light-green': 'text-chart-7',
+  lime: 'text-chart-11',
   orange: 'text-warning',
-  pink: 'text-chart-5',
+  pink: 'text-chart-6',
   red: 'text-destructive',
-  teal: 'text-chart-2',
-  violet: 'text-chart-4',
+  teal: 'text-chart-4',
+  violet: 'text-chart-2',
   yellow: 'text-warning',
 } as const
 
@@ -69,9 +69,9 @@ export const StatusBadgeTypeContext =
   React.createContext<StatusBadgeType>('badge')
 
 const sizeMap = {
-  sm: 'h-5 gap-1 px-1.5 text-sm leading-none',
-  md: 'h-5 gap-1 px-1.5 text-sm leading-none',
-  lg: 'h-6 gap-1.5 px-2 text-sm leading-none',
+  sm: 'h-5 gap-1 px-2 text-xs leading-none',
+  md: 'h-6 gap-1 px-2 text-xs leading-none',
+  lg: 'h-7 gap-1.5 px-2.5 text-ui leading-none',
 } as const
 
 const textSizeMap = {
@@ -86,7 +86,7 @@ export interface StatusBadgeProps extends Omit<
 > {
   label?: string
   children?: React.ReactNode
-  icon?: LucideIcon
+  icon?: IconComponent
   pulse?: boolean
   /** Kept for compatibility. Badges no longer render leading dots. */
   showDot?: boolean
@@ -148,7 +148,12 @@ export function StatusBadge({
       className={cn(
         'inline-flex w-fit max-w-full min-w-0 shrink items-center font-medium tracking-normal whitespace-nowrap transition-colors',
         isBadge
-          ? cn('rounded-4xl', sizeMap[size ?? 'sm'])
+          ? cn(
+              // Tinted pill from the text colour itself, so every variant
+              // (and autoColor) gets a matching wash and hairline for free.
+              'rounded-full bg-current/10 ring-1 ring-current/15 ring-inset',
+              sizeMap[size ?? 'sm']
+            )
           : cn(
               textSizeMap[size ?? 'sm'],
               type === 'underline' && 'border-b border-current pb-px'

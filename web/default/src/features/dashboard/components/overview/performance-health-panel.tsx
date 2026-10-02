@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, HeartPulse, Timer } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Gauge, HeartPulse, Timer } from '@/components/icons'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
@@ -74,13 +74,13 @@ export function PerformanceHealthPanel() {
   const hasData = models.length > 0
 
   return (
-    <section className='bg-card ring-border h-full overflow-hidden rounded-xl ring-1'>
+    <section className='bg-card ring-border h-full overflow-hidden rounded-2xl ring-1'>
       <div className='flex items-center gap-2 border-b px-4 py-3'>
         <IconBadge tone='success' size='sm'>
           <HeartPulse />
         </IconBadge>
         <h3 className='text-sm font-semibold'>{t('Performance health')}</h3>
-        <span className='text-muted-foreground bg-muted/50 text-2xs ml-auto rounded-md px-1.5 py-0.5 font-mono tabular-nums'>
+        <span className='text-muted-foreground bg-muted/50 text-2xs ml-auto rounded-md px-1.5 py-0.5 tabular-nums'>
           24h
         </span>
       </div>
@@ -139,7 +139,7 @@ export function PerformanceHealthPanel() {
                       />
                       <span
                         className={cn(
-                          'font-mono text-2xs font-semibold tabular-nums',
+                          'text-2xs font-semibold tabular-nums',
                           getSuccessRateTextClass(model.success_rate)
                         )}
                       >
@@ -179,7 +179,7 @@ function MetricCell(props: {
       ) : (
         <div
           className={cn(
-            'mt-1.5 font-mono text-sm font-semibold tabular-nums',
+            'mt-1.5 text-sm font-semibold tabular-nums',
             props.valueClassName
           )}
         >

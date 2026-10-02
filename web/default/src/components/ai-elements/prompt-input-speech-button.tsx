@@ -1,6 +1,5 @@
 'use client'
 
-import { MicIcon } from 'lucide-react'
 import {
   type ComponentProps,
   type RefObject,
@@ -10,6 +9,7 @@ import {
   useState,
 } from 'react'
 
+import { MicIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 import { PromptInputButton } from './prompt-input-controls'

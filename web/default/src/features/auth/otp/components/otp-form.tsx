@@ -126,7 +126,7 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        className={cn('grid gap-5', className)}
         {...props}
       >
         <FormField
@@ -186,13 +186,14 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
         <Button
           loading={isLoading}
           type='submit'
-          className='mt-2 w-full'
+          size='lg'
+          className='w-full justify-center'
           disabled={!isFormValid || isLoading}
         >
           {t('Verify and Sign In')}
         </Button>
 
-        <div className='flex items-center justify-center gap-2 text-sm'>
+        <div className='flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm'>
           <Button
             type='button'
             variant='link'
@@ -202,7 +203,9 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
           >
             {useBackupCode ? t('Use authenticator code') : t('Use backup code')}
           </Button>
-          <span className='text-muted-foreground'>·</span>
+          <span className='text-muted-foreground' aria-hidden='true'>
+            ·
+          </span>
           <Button
             type='button'
             variant='link'

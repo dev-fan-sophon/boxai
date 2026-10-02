@@ -61,11 +61,11 @@ function ModelList(props: {
               : 'flex items-center gap-3 py-2.5'
           }
         >
-          <span className='text-muted-foreground w-6 shrink-0 text-right font-mono text-xs tabular-nums'>
+          <span className='text-muted-foreground w-6 shrink-0 text-right text-xs font-medium tabular-nums'>
             {row.rank}.
           </span>
-          <span className='shrink-0'>
-            <LobeIcon name={row.vendor_icon} size={compact ? 20 : 22} />
+          <span className='bg-background ring-border/60 flex size-8 shrink-0 items-center justify-center rounded-lg ring-1'>
+            <LobeIcon name={row.vendor_icon} size={compact ? 16 : 18} />
           </span>
           <div className='min-w-0 flex-1'>
             <ModelLink
@@ -81,22 +81,19 @@ function ModelList(props: {
             <p
               className={
                 compact
-                  ? 'text-muted-foreground text-2xs truncate italic'
-                  : 'text-muted-foreground truncate text-xs italic'
+                  ? 'text-muted-foreground text-2xs truncate'
+                  : 'text-muted-foreground truncate text-xs'
               }
             >
-              by{' '}
-              <VendorLink vendor={row.vendor}>
-                {row.vendor.toLowerCase()}
-              </VendorLink>
+              <VendorLink vendor={row.vendor}>{row.vendor}</VendorLink>
             </p>
           </div>
           <div className='shrink-0 text-right'>
             <div
               className={
                 compact
-                  ? 'text-foreground font-mono text-xs font-semibold tabular-nums'
-                  : 'text-foreground font-mono text-sm font-semibold tabular-nums'
+                  ? 'text-foreground text-xs font-semibold tabular-nums'
+                  : 'text-foreground text-sm font-semibold tabular-nums'
               }
             >
               {formatTokens(row.total_tokens)}

@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSearch } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +7,7 @@ import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { Dialog } from '@/components/dialog'
+import { Loader2 } from '@/components/icons'
 import { PasswordInput } from '@/components/password-input'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
@@ -211,7 +211,7 @@ export function SignUpForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        className={cn('grid gap-5', className)}
         {...props}
       >
         {/* Username Field */}
@@ -288,8 +288,10 @@ export function SignUpForm({
 
             {/* Verification Code Field */}
             <div className='flex items-end gap-2'>
-              <div className='flex-1'>
+              <div className='min-w-0 flex-1'>
                 <Input
+                  aria-label={t('Verification code')}
+                  autoComplete='one-time-code'
                   placeholder={t('Verification code')}
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
@@ -318,29 +320,22 @@ export function SignUpForm({
           </>
         )}
 
-        {/* Turnstile */}
         {isTurnstileEnabled && (
-          <div className='mt-2'>
-            <Turnstile
-              siteKey={turnstileSiteKey}
-              onVerify={setTurnstileToken}
-            />
-          </div>
+          <Turnstile siteKey={turnstileSiteKey} onVerify={setTurnstileToken} />
         )}
 
         <LegalConsent
           status={status}
           checked={agreedToLegal}
           onCheckedChange={setAgreedToLegal}
-          className='mt-1'
         />
 
         {/* Submit Button */}
         <Button
           loading={isLoading}
           type='submit'
-          variant='cta'
-          className='mt-2 h-11 w-full justify-center gap-2 shadow-sm'
+          size='lg'
+          className='w-full justify-center gap-2'
           disabled={
             isLoading ||
             (requiresLegalConsent && !agreedToLegal) ||
@@ -353,10 +348,10 @@ export function SignUpForm({
         {oauthRegisterEnabled && (
           <OAuthProviders
             status={status}
+            dividerBefore
             disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
-            className='pt-2'
           />
         )}
       </form>

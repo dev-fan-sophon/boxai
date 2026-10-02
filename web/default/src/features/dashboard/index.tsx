@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Eye, EyeOff } from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { FadeIn } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'
@@ -341,10 +341,14 @@ function DashboardContent() {
       <SectionPageLayout.Content>
         <div className='space-y-3 sm:space-y-4'>
           {activeSection !== 'overview' && !isClientAppSection && (
-            <div className='flex flex-wrap items-center justify-between gap-1.5 sm:gap-2'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
               {showSectionTabs ? (
-                <Tabs value={activeSection} onValueChange={handleSectionChange}>
-                  <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
+                <Tabs
+                  value={activeSection}
+                  onValueChange={handleSectionChange}
+                  className='-mx-1 max-w-full min-w-0 overflow-x-auto px-1'
+                >
+                  <TabsList className='w-max justify-start'>
                     {visibleSections.map((section) => (
                       <TabsTrigger key={section} value={section}>
                         {t(SECTION_META[section].titleKey)}
@@ -356,7 +360,7 @@ function DashboardContent() {
                 <div />
               )}
               {sectionActions != null && (
-                <div className='flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2'>
+                <div className='ml-auto flex shrink-0 flex-wrap items-center gap-2'>
                   {sectionActions}
                 </div>
               )}

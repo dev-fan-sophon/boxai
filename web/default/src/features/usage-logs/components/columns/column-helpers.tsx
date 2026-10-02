@@ -1,9 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Zap } from 'lucide-react'
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 
 import { DataTableColumnHeader } from '@/components/data-table'
+import { Zap } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import {
   Tooltip,
@@ -73,7 +73,7 @@ export function createTimestampColumn<T>(config: {
         return <span className='text-muted-foreground text-xs'>-</span>
       }
       return (
-        <span className='font-mono text-xs tabular-nums'>
+        <span className='text-xs tabular-nums'>
           {formatTimestampToDate(timestamp, unit)}
         </span>
       )
@@ -132,7 +132,7 @@ export function createDurationColumn<T>(config: {
           variant={variant}
           size='sm'
           copyable={false}
-          className={cn('rounded-md font-mono', durationBgMap[variant])}
+          className={cn('rounded-md', durationBgMap[variant])}
         />
       )
     },

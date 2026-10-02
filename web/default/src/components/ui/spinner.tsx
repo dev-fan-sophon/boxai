@@ -1,22 +1,13 @@
-import { Loading03Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { useTranslation } from 'react-i18next'
 
+import { Loader2, type IconProps } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
-type SpinnerProps = Omit<
-  React.ComponentProps<typeof HugeiconsIcon>,
-  'icon' | 'strokeWidth'
-> & {
-  strokeWidth?: number
-}
-
-function Spinner({ className, strokeWidth = 2, ...props }: SpinnerProps) {
+function Spinner({ className, ...props }: IconProps) {
   const { t } = useTranslation()
   return (
-    <HugeiconsIcon
-      icon={Loading03Icon}
-      strokeWidth={strokeWidth}
+    <Loader2
+      weight='bold'
       role='status'
       aria-label={t('Loading')}
       className={cn('size-4 animate-spin', className)}

@@ -1,7 +1,7 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
 import type React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, ChevronRight } from '@/components/icons'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'

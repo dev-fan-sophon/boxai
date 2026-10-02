@@ -6,8 +6,8 @@ import {
   StickyNote,
   Table,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
+  type IconComponent,
+} from '@/components/icons'
 
 import { CanvasNodeType } from '../../types'
 
@@ -16,7 +16,7 @@ import { CanvasNodeType } from '../../types'
  * as a composition instead of a wall of identical grey boxes.
  */
 type NodeAccent = {
-  icon: LucideIcon
+  icon: IconComponent
   /** Tailwind gradient (chart/semantic tokens) for the header icon chip. */
   chip: string
   /** Faint wash behind the card header. */

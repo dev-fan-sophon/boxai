@@ -1,14 +1,57 @@
-import { Terminal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { AnimateInView } from '@/components/animate-in-view'
+import { Terminal } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { TitledCard } from '@/components/ui/titled-card'
 import { LobeIcon } from '@/lib/lobe-icon'
 
 import { CONNECT_CLIENTS } from '../constants'
 
-export function ConnectClientsCard() {
+/**
+ * `marketing` drops the titled card chrome for the public /connect page, which
+ * supplies its own section heading.
+ */
+export function ConnectClientsCard(props: { variant?: 'card' | 'marketing' }) {
   const { t } = useTranslation()
+
+  if (props.variant === 'marketing') {
+    return (
+      <ul className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+        {CONNECT_CLIENTS.map((client, index) => (
+          <AnimateInView
+            as='li'
+            key={client.name}
+            delay={40 + index * 50}
+            className='border-border/60 bg-card flex min-w-0 flex-col rounded-2xl border p-5 shadow-xs'
+          >
+            <div className='flex items-center gap-3'>
+              <span className='bg-background ring-border/60 flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1'>
+                <LobeIcon name={client.icon} size={22} />
+              </span>
+              <div className='min-w-0 flex-1'>
+                <p className='truncate text-base font-semibold tracking-tight'>
+                  {client.name}
+                </p>
+                <Badge variant='success' className='mt-1'>
+                  {t('One-click apply')}
+                </Badge>
+              </div>
+            </div>
+            <p className='text-muted-foreground mt-4 flex-1 text-sm leading-relaxed text-pretty'>
+              {t(client.chooseKey)}
+            </p>
+            <code
+              className='bg-surface-sunken text-muted-foreground mt-4 block truncate rounded-lg px-3 py-2 font-mono text-xs'
+              title={client.config}
+            >
+              {client.config}
+            </code>
+          </AnimateInView>
+        ))}
+      </ul>
+    )
+  }
 
   return (
     <TitledCard

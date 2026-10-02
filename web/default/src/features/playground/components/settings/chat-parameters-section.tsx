@@ -56,28 +56,28 @@ export function ChatParametersSection(props: {
         return (
           <div
             className={cn(
-              'border-border/70 bg-background/60 grid gap-2 rounded-lg border p-2.5 transition-opacity',
+              'bg-card ring-border/70 grid gap-2.5 rounded-xl p-3 shadow-xs ring-1 transition-opacity duration-control',
               (!enabled || props.disabled) && 'opacity-55'
             )}
             key={control.key}
           >
             <div className='flex items-start justify-between gap-2'>
               <div className='min-w-0 space-y-0.5'>
-                <div className='flex min-w-0 items-center gap-1.5'>
+                <div className='flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5'>
                   <label
-                    className='truncate text-xs leading-5 font-medium'
+                    className='text-ui min-w-0 leading-5 font-medium'
                     htmlFor={controlId}
                   >
                     {t(control.labelKey)}
                   </label>
                   <Badge
-                    className='text-3xs h-4.5 max-w-24 shrink-0 px-1 font-mono'
-                    variant='outline'
+                    className='text-2xs h-5 max-w-24 shrink-0 px-1.5 tabular-nums'
+                    variant='secondary'
                   >
                     {t(getParameterControlValueText(control.key, value))}
                   </Badge>
                 </div>
-                <p className='text-muted-foreground text-2xs leading-4'>
+                <p className='text-muted-foreground text-2xs leading-4 text-pretty'>
                   {t(control.descriptionKey)}
                 </p>
               </div>
@@ -91,7 +91,7 @@ export function ChatParametersSection(props: {
                 onCheckedChange={(checked) =>
                   setParameterEnabled({ [control.key]: checked })
                 }
-                size='sm'
+                className='mt-px shrink-0'
               />
             </div>
 
@@ -174,15 +174,15 @@ function ReasoningDepthControl(props: { disabled?: boolean }) {
     : 'provider-default'
 
   return (
-    <div className='border-border/70 bg-background/60 grid gap-2 rounded-lg border p-2.5'>
+    <div className='bg-card ring-border/70 grid gap-2.5 rounded-xl p-3 shadow-xs ring-1'>
       <div className='space-y-0.5'>
         <label
-          className='text-xs leading-5 font-medium'
+          className='text-ui leading-5 font-medium'
           htmlFor='playground-settings-reasoning'
         >
           {t('Thinking depth')}
         </label>
-        <p className='text-muted-foreground text-2xs leading-4'>
+        <p className='text-muted-foreground text-2xs leading-4 text-pretty'>
           {t('Available levels are defined by the selected model metadata.')}
         </p>
       </div>

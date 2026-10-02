@@ -1,7 +1,7 @@
-import { ExternalLink, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
+import { ExternalLink, Loader2 } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,10 +42,7 @@ export function RedeemCodeDialog(props: RedeemCodeDialogProps) {
     >
       {props.enabled ? (
         <div className='space-y-2'>
-          <Label
-            htmlFor='redemption-code'
-            className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-          >
+          <Label htmlFor='redemption-code' className='text-sm font-medium'>
             {t('Have a Code?')}
           </Label>
           <Input

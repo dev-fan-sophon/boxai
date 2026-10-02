@@ -1,8 +1,8 @@
-import { Languages, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Languages, Loader2 } from '@/components/icons'
 import {
   Select,
   SelectContent,

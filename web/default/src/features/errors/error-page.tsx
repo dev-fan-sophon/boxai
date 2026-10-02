@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PageTransition } from '@/components/page-enter'
+import { IconBadge } from '@/components/ui/icon-badge'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { cn } from '@/lib/utils'
@@ -16,21 +17,9 @@ export type ErrorPageProps = {
   actions?: ReactNode
   /** Compact variant for in-page errors (no hero chrome). */
   minimal?: boolean
+  /** Rendered inside the app shell: keep the hero, drop the brand chrome. */
+  embedded?: boolean
   className?: string
-}
-
-const ICON_TONE_CLASS: Record<
-  NonNullable<ErrorPageProps['iconTone']>,
-  string
-> = {
-  neutral: 'bg-muted text-muted-foreground ring-border/60',
-  destructive:
-    'bg-destructive/10 text-destructive ring-destructive/20 dark:bg-destructive/15',
-  warning:
-    'bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-300',
-  info: 'bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-300',
-  success:
-    'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300',
 }
 
 /**
@@ -63,77 +52,67 @@ export function ErrorPage(props: ErrorPageProps) {
   return (
     <div
       className={cn(
-        'bg-background relative flex min-h-svh w-full flex-col overflow-hidden',
+        'bg-background relative isolate flex w-full flex-col overflow-hidden',
+        props.embedded ? 'min-h-full' : 'min-h-svh',
         props.className
       )}
     >
-      {/* Soft brand atmosphere — same language as Model Hub / marketing pages */}
       <div
         aria-hidden
-        className='pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-30 dark:opacity-[0.14]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 55% 45% at 18% 12%, oklch(0.72 0.18 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 45% 40% at 82% 8%, oklch(0.65 0.14 200 / 55%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 35% at 50% 55%, oklch(0.70 0.10 280 / 35%) 0%, transparent 70%)',
-          ].join(', '),
-          maskImage: 'linear-gradient(to bottom, black 35%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, black 35%, transparent 100%)',
-        }}
+        className='playground-discover-hero pointer-events-none absolute inset-0 -z-10'
       />
 
-      <header className='relative z-10 flex items-center justify-center px-4 pt-8 sm:pt-10'>
-        <Link
-          to='/'
-          className='text-foreground/90 hover:text-foreground border-border/60 bg-background/70 inline-flex items-center gap-2.5 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm backdrop-blur-md transition-colors'
-          aria-label={t('Back to Home')}
-        >
-          <span className='bg-background ring-border/50 flex size-7 items-center justify-center overflow-hidden rounded-full ring-1'>
+      {!props.embedded && (
+        <header className='flex items-center justify-center px-4 pt-8 sm:pt-10'>
+          <Link
+            to='/'
+            className='text-foreground hover:bg-accent focus-visible:ring-ring/35 inline-flex min-w-0 items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold tracking-tight transition-colors outline-none focus-visible:ring-3'
+            aria-label={t('Back to Home')}
+          >
             <img
               src={logo || '/logo.png'}
               alt=''
-              className='size-full object-cover'
+              className='ring-border size-7 shrink-0 rounded-lg object-cover ring-1'
             />
-          </span>
-          <span className='pr-0.5 tracking-tight'>{brandName}</span>
-        </Link>
-      </header>
+            <span className='truncate'>{brandName}</span>
+          </Link>
+        </header>
+      )}
 
-      <main className='relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16'>
-        <PageTransition className='w-full max-w-lg'>
-          <div className='border-border/60 bg-card/80 rounded-2xl border p-8 text-center shadow-sm backdrop-blur-sm sm:p-10'>
-            <div
-              className={cn(
-                'mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl ring-1 [&_svg]:size-7',
-                ICON_TONE_CLASS[iconTone]
-              )}
-            >
-              {props.icon}
-            </div>
+      <main className='flex flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16'>
+        <PageTransition className='relative w-full max-w-lg text-center'>
+          <p
+            aria-hidden
+            className='text-foreground/[0.04] pointer-events-none absolute inset-x-0 -top-16 -z-10 text-[9rem] leading-none font-bold tracking-tighter tabular-nums select-none sm:-top-24 sm:text-[13rem]'
+          >
+            {props.code}
+          </p>
 
-            <p className='text-muted-foreground mb-3 font-mono text-xs font-semibold tracking-[0.22em] uppercase'>
-              {props.code}
-            </p>
+          <IconBadge
+            tone={iconTone}
+            size='lg'
+            className='ring-border/60 bg-card mx-auto mb-6 size-14 rounded-2xl shadow-sm ring-1 [&>svg]:size-7'
+          >
+            {props.icon}
+          </IconBadge>
 
-            <h1 className='text-foreground text-2xl font-semibold tracking-tight text-balance sm:text-3xl'>
-              {props.title}
-            </h1>
+          <p className='text-muted-foreground mb-2 text-xs font-medium tabular-nums'>
+            {t('Error {{code}}', { code: props.code })}
+          </p>
 
-            <div className='text-muted-foreground sm:text-md mx-auto mt-3 max-w-md text-sm leading-relaxed text-pretty'>
-              {props.description}
-            </div>
+          <h1 className='text-foreground text-2xl font-semibold tracking-tight text-balance sm:text-3xl'>
+            {props.title}
+          </h1>
 
-            {props.actions ? (
-              <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
-                {props.actions}
-              </div>
-            ) : null}
+          <div className='text-muted-foreground sm:text-md mx-auto mt-3 max-w-md text-sm leading-relaxed text-pretty'>
+            {props.description}
           </div>
 
-          <p className='text-muted-foreground mt-6 text-center text-xs tracking-wide'>
-            {brandName}
-          </p>
+          {props.actions ? (
+            <div className='mt-8 flex flex-wrap items-center justify-center gap-2'>
+              {props.actions}
+            </div>
+          ) : null}
         </PageTransition>
       </main>
     </div>

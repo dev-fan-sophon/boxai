@@ -1,9 +1,9 @@
-import { Crown, RefreshCw, Sparkles, Check } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ErrorState } from '@/components/error-state'
+import { Crown, RefreshCw, Sparkles, Check } from '@/components/icons'
 import {
   StatusBadge,
   dotColorMap,

@@ -1,7 +1,7 @@
-import { ChevronRight, Key, Shield, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronRight, Key, Shield, Trash2 } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDialogs } from '@/hooks/use-dialog'

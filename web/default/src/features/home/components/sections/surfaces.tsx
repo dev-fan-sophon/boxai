@@ -1,4 +1,8 @@
 import { Link } from '@tanstack/react-router'
+import { useMemo, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { AnimateInView } from '@/components/animate-in-view'
 import {
   ArrowRight,
   BarChart3,
@@ -7,11 +11,7 @@ import {
   MonitorSmartphone,
   Sparkles,
   WalletCards,
-} from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { AnimateInView } from '@/components/animate-in-view'
+} from '@/components/icons'
 import { useStatus } from '@/hooks/use-status'
 import { formatCompactNumber } from '@/lib/format'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 
 import { useHomeStats } from '../../hooks'
 import type { HomeStatsPoint } from '../../types'
+import { MarketingSection, SectionIntro } from '../marketing'
 import {
   DesktopPreview,
   GatewayPreview,
@@ -213,158 +214,138 @@ export function Surfaces() {
   ]
 
   return (
-    <section
-      aria-label={t('What you get')}
-      className='border-border/40 relative z-10 border-t px-6 py-24 md:py-32'
-    >
-      <div className='mx-auto max-w-6xl'>
-        <div className='mb-10 grid items-end gap-8 md:mb-14 lg:grid-cols-12'>
-          <AnimateInView className='lg:col-span-7'>
-            <p className='text-muted-foreground mb-3 text-xs font-medium tracking-widest uppercase'>
-              {t('What you get')}
-            </p>
-            <h2 className='text-2xl font-bold tracking-tight text-balance md:text-3xl'>
-              {t('Three ways in, one account behind them')}
-            </h2>
-            <p className='text-muted-foreground mt-4 text-sm leading-relaxed text-pretty md:text-base'>
-              {t(
-                'The same balance, keys, and usage history follow you across all three.'
-              )}
-            </p>
-          </AnimateInView>
-
-          <AnimateInView
-            delay={80}
-            className='border-border/40 grid grid-cols-2 gap-x-6 gap-y-5 border-t pt-6 sm:grid-cols-4 lg:col-span-5 lg:border-t-0 lg:pt-0'
-          >
+    <MarketingSection label={t('What you get')}>
+      <SectionIntro
+        eyebrow={t('What you get')}
+        title={t('Three ways in, one account behind them')}
+        description={t(
+          'The same balance, keys, and usage history follow you across all three.'
+        )}
+        aside={
+          <dl className='border-border/60 grid grid-cols-2 gap-x-6 gap-y-5 border-t pt-6 sm:grid-cols-4 lg:border-t-0 lg:pt-0'>
             {metrics.map((metric) => (
-              <div key={metric.label}>
-                <p className='text-xl font-semibold tracking-tight tabular-nums md:text-2xl'>
-                  {metric.value}
-                </p>
-                <p className='text-muted-foreground mt-0.5 text-xs'>
+              <div key={metric.label} className='flex min-w-0 flex-col-reverse'>
+                <dt className='text-muted-foreground mt-1 text-xs'>
                   {metric.label}
-                </p>
+                </dt>
+                <dd className='text-2xl font-semibold tracking-tight tabular-nums md:text-3xl'>
+                  {metric.value}
+                </dd>
               </div>
             ))}
-          </AnimateInView>
-        </div>
+          </dl>
+        }
+      />
 
-        <div className='grid items-stretch gap-4 md:grid-cols-3'>
-          {surfaces.map((surface, index) => (
-            <AnimateInView
-              key={surface.title}
-              delay={100 + index * 60}
-              className='h-full'
-            >
-              <article
-                data-card-hover='true'
-                className='border-border/50 bg-card hover:border-border relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 shadow-xs md:p-7'
-              >
-                <span
-                  aria-hidden
+      <div className='grid items-stretch gap-4 md:grid-cols-3'>
+        {surfaces.map((surface, index) => (
+          <AnimateInView
+            key={surface.title}
+            delay={100 + index * 60}
+            className='h-full'
+          >
+            <article className='border-border/60 bg-card hover:border-border hover:shadow-raised transition-ui duration-control relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 shadow-xs md:p-7'>
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute inset-x-0 top-0 h-px bg-gradient-to-r to-transparent',
+                  surface.rule
+                )}
+              />
+              <div className='mb-5 flex items-center gap-3'>
+                <div
                   className={cn(
-                    'absolute inset-x-0 top-0 h-px bg-gradient-to-r to-transparent',
-                    surface.rule
+                    'flex size-11 items-center justify-center rounded-xl',
+                    surface.accent
                   )}
-                />
-                <div className='mb-5 flex items-center gap-3'>
-                  <div
-                    className={cn(
-                      'flex size-11 items-center justify-center rounded-xl',
-                      surface.accent
-                    )}
-                  >
-                    {surface.icon}
-                  </div>
-                  <h3 className='text-lg font-semibold tracking-tight'>
-                    {surface.title}
-                  </h3>
-                </div>
-
-                {surface.preview}
-
-                <p className='text-foreground/80 mt-5 text-sm font-medium text-pretty'>
-                  {surface.tagline}
-                </p>
-                <ul className='mt-4 flex-1 space-y-2.5'>
-                  {surface.lines.map((line) => (
-                    <li key={line} className='flex items-start gap-2.5'>
-                      <span
-                        aria-hidden
-                        className='bg-border mt-2 size-1 shrink-0 rounded-full'
-                      />
-                      <span className='text-muted-foreground text-sm leading-relaxed'>
-                        {line}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {surface.href && (
-                  <a
-                    href={surface.href}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className={ctaClass}
-                  >
-                    {surface.cta}
-                    <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
-                  </a>
-                )}
-                {surface.to && (
-                  <Link to={surface.to} className={ctaClass}>
-                    {surface.cta}
-                    <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
-                  </Link>
-                )}
-              </article>
-            </AnimateInView>
-          ))}
-        </div>
-
-        <AnimateInView delay={280} className='mt-4'>
-          <div className='border-border/50 bg-muted/20 rounded-2xl border p-6 md:p-8'>
-            <div className='flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2'>
-              <h3 className='text-base font-semibold tracking-tight'>
-                {t('What the three share')}
-              </h3>
-              <p className='text-muted-foreground text-sm'>
-                {t(
-                  'Sign in once — nothing has to be set up a second time per surface.'
-                )}
-              </p>
-            </div>
-
-            <div className='mt-6 grid gap-4 md:grid-cols-3'>
-              {shared.map((item) => (
-                <Link
-                  key={item.title}
-                  to={item.to}
-                  data-card-hover='true'
-                  className='border-border/50 bg-card hover:border-border group transition-ui flex flex-col rounded-xl border p-5 shadow-xs'
                 >
-                  <div className='flex items-center gap-2.5'>
-                    <span className='bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-lg'>
-                      {item.icon}
+                  {surface.icon}
+                </div>
+                <h3 className='text-lg font-semibold tracking-tight'>
+                  {surface.title}
+                </h3>
+              </div>
+
+              {surface.preview}
+
+              <p className='text-foreground/80 mt-5 text-sm font-medium text-pretty'>
+                {surface.tagline}
+              </p>
+              <ul className='mt-4 flex-1 space-y-2.5'>
+                {surface.lines.map((line) => (
+                  <li key={line} className='flex items-start gap-2.5'>
+                    <span
+                      aria-hidden
+                      className='bg-border mt-2 size-1 shrink-0 rounded-full'
+                    />
+                    <span className='text-muted-foreground text-sm leading-relaxed'>
+                      {line}
                     </span>
-                    <p className='text-sm font-semibold'>{item.title}</p>
-                    {item.aside && (
-                      <span className='ml-auto'>{item.aside}</span>
-                    )}
-                  </div>
-                  <p className='text-muted-foreground mt-3 flex-1 text-sm leading-relaxed text-pretty'>
-                    {item.description}
-                  </p>
-                  <span className='text-foreground group-hover:text-primary transition-ui mt-4 inline-flex items-center gap-1.5 text-sm font-medium'>
-                    {item.cta}
-                    <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
-                  </span>
+                  </li>
+                ))}
+              </ul>
+              {surface.href && (
+                <a
+                  href={surface.href}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className={ctaClass}
+                >
+                  {surface.cta}
+                  <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                </a>
+              )}
+              {surface.to && (
+                <Link to={surface.to} className={ctaClass}>
+                  {surface.cta}
+                  <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
                 </Link>
-              ))}
-            </div>
-          </div>
-        </AnimateInView>
+              )}
+            </article>
+          </AnimateInView>
+        ))}
       </div>
-    </section>
+
+      <AnimateInView delay={280} className='mt-4'>
+        <div className='border-border/60 bg-surface-sunken/60 rounded-2xl border p-5 sm:p-6 md:p-8'>
+          <div className='flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2'>
+            <h3 className='text-base font-semibold tracking-tight'>
+              {t('What the three share')}
+            </h3>
+            <p className='text-muted-foreground min-w-0 text-sm text-pretty'>
+              {t(
+                'Sign in once — nothing has to be set up a second time per surface.'
+              )}
+            </p>
+          </div>
+
+          <div className='mt-6 grid gap-4 md:grid-cols-3'>
+            {shared.map((item) => (
+              <Link
+                key={item.title}
+                to={item.to}
+                data-card-hover='true'
+                className='border-border/50 bg-card hover:border-border group transition-ui flex flex-col rounded-xl border p-5 shadow-xs'
+              >
+                <div className='flex items-center gap-2.5'>
+                  <span className='bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-lg'>
+                    {item.icon}
+                  </span>
+                  <p className='text-sm font-semibold'>{item.title}</p>
+                  {item.aside && <span className='ml-auto'>{item.aside}</span>}
+                </div>
+                <p className='text-muted-foreground mt-3 flex-1 text-sm leading-relaxed text-pretty'>
+                  {item.description}
+                </p>
+                <span className='text-foreground group-hover:text-primary transition-ui mt-4 inline-flex items-center gap-1.5 text-sm font-medium'>
+                  {item.cta}
+                  <ArrowRight className='duration-control size-3.5 transition-transform group-hover:translate-x-0.5' />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </AnimateInView>
+    </MarketingSection>
   )
 }

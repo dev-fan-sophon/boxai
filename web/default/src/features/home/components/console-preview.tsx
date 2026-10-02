@@ -1,7 +1,7 @@
-import { Check, Copy, Plus, Search } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Check, Copy, Plus, Search } from '@/components/icons'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'

@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowRight,
   CircleGauge,
@@ -7,10 +9,8 @@ import {
   KeyRound,
   Play,
   RadioTower,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import {
   CardStaggerContainer,
   CardStaggerItem,
@@ -42,14 +42,14 @@ type OverviewPanelKey = 'performance' | 'announcements' | 'api-info'
 interface OverviewSignal {
   label: string
   value: string
-  icon: LucideIcon
+  icon: IconComponent
   loading?: boolean
 }
 
 interface NextAction {
   title: string
   to: DashboardActionPath
-  icon: LucideIcon
+  icon: IconComponent
 }
 
 function OverviewToolbar(props: {
@@ -67,7 +67,7 @@ function OverviewToolbar(props: {
   }
 
   return (
-    <section className='bg-card ring-border flex flex-col gap-3 rounded-xl px-4 py-3 ring-1 sm:px-5 sm:py-3.5'>
+    <section className='bg-card ring-border flex flex-col gap-3 rounded-2xl px-4 py-3 ring-1 sm:px-5 sm:py-3.5'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex min-w-0 items-center gap-2.5'>
           <span
@@ -112,7 +112,7 @@ function OverviewToolbar(props: {
                 <Skeleton className='h-3.5 w-10' />
               ) : (
                 <span
-                  className='text-foreground truncate font-mono font-semibold tabular-nums'
+                  className='text-foreground truncate font-semibold tabular-nums'
                   title={signal.value}
                 >
                   {signal.value}
@@ -133,7 +133,7 @@ function NextActionBar(props: { action: NextAction }) {
   return (
     <Link
       to={props.action.to}
-      className='bg-card ring-border group hover:bg-muted/30 flex items-center gap-3 rounded-xl px-4 py-3 ring-1 transition-colors'
+      className='bg-card ring-border group hover:bg-muted/30 flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 transition-colors'
     >
       <span className='bg-muted/60 text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-lg'>
         <Icon className='size-4' aria-hidden='true' />

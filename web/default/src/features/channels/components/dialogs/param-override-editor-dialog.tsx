@@ -1,13 +1,4 @@
 import {
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  GripVertical,
-  Plus,
-  Search,
-  Trash2,
-} from 'lucide-react'
-import {
   type DragEvent,
   type KeyboardEvent,
   useCallback,
@@ -19,6 +10,15 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  GripVertical,
+  Plus,
+  Search,
+  Trash2,
+} from '@/components/icons'
 import { Reveal } from '@/components/page-transition'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, KeyRound, Settings2, WalletCards } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +15,12 @@ import {
   sideDrawerHeaderClassName,
   sideDrawerSwitchItemClassName,
 } from '@/components/drawer-layout'
+import {
+  ChevronDown,
+  KeyRound,
+  Settings2,
+  WalletCards,
+} from '@/components/icons'
 import { MultiSelect } from '@/components/multi-select'
 import { Button } from '@/components/ui/button'
 import {
@@ -253,15 +258,14 @@ export function ApiKeysMutateDrawer({
                           value={field.value}
                           onChange={field.onChange}
                           placeholder={t('Never expires')}
-                          className='min-w-0 [&_input[type=time]]:w-24 sm:[&_input[type=time]]:w-32'
+                          className='min-w-0 [&_input[type=time]]:w-32'
                         />
                       </FormControl>
-                      <div className='grid grid-cols-4 gap-2 sm:flex'>
+                      <div className='flex flex-wrap gap-1.5'>
                         <Button
                           type='button'
                           variant='outline'
                           size='sm'
-                          className='px-2 text-xs sm:px-3 sm:text-sm'
                           onClick={() => handleSetExpiry(0, 0, 0)}
                         >
                           {t('Never')}
@@ -270,7 +274,6 @@ export function ApiKeysMutateDrawer({
                           type='button'
                           variant='outline'
                           size='sm'
-                          className='px-2 text-xs sm:px-3 sm:text-sm'
                           onClick={() => handleSetExpiry(1, 0, 0)}
                         >
                           {t('1 Month')}
@@ -279,7 +282,6 @@ export function ApiKeysMutateDrawer({
                           type='button'
                           variant='outline'
                           size='sm'
-                          className='px-2 text-xs sm:px-3 sm:text-sm'
                           onClick={() => handleSetExpiry(0, 1, 0)}
                         >
                           {t('1 Day')}
@@ -288,7 +290,6 @@ export function ApiKeysMutateDrawer({
                           type='button'
                           variant='outline'
                           size='sm'
-                          className='px-2 text-xs sm:px-3 sm:text-sm'
                           onClick={() => handleSetExpiry(0, 0, 1)}
                         >
                           {t('1 Hour')}

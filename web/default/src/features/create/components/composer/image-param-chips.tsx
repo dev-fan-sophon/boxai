@@ -1,14 +1,13 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   FileImage,
   Gauge,
   Layers,
-  ListOrdered,
   Proportions,
   Scan,
   SquareDashed,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   AspectGlyph,
   ParamChip,
@@ -111,15 +110,6 @@ export function ImageParamChips() {
           value: String(count),
           label: t('{{count}} images', { count }),
         }))}
-      />
-      <TogglePill
-        icon={<ListOrdered />}
-        label={t('Batch')}
-        title={t('Enter several prompts and generate them at once')}
-        active={state.settings.imageBatchMode}
-        onToggle={() =>
-          state.update('imageBatchMode', !state.settings.imageBatchMode)
-        }
       />
       {qualities.length > 1 && (
         <ParamChip

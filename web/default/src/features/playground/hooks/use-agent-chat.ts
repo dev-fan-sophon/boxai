@@ -46,8 +46,14 @@ type UseAgentChatOptions = {
 function errorText(error: unknown): string {
   if (!(error instanceof Error)) return String(error)
   try {
-    const body = JSON.parse(error.message) as { message?: string }
-    return body.message || error.message
+    const body = JSON.parse(error.message) as {
+      message?: string
+      error?: { message?: string } | string
+    }
+    // OpenAI-style upstream errors nest the readable text under `error`.
+    const nested =
+      typeof body.error === 'string' ? body.error : body.error?.message
+    return body.message || nested || error.message
   } catch {
     return error.message
   }

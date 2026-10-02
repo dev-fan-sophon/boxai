@@ -1,8 +1,8 @@
-import { Download, Repeat2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Download, Repeat2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import type { PlaygroundRun } from '@/features/playground/api'
 import { downloadGeneratedMedia } from '@/features/playground/lib/download-generated-media'

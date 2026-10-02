@@ -1,4 +1,3 @@
-import { FileText } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -21,6 +20,7 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai-elements/sources'
+import { FileText } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 import { MESSAGE_STATUS } from '../../constants'

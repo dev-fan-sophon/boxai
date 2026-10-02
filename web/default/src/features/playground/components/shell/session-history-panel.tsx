@@ -1,6 +1,10 @@
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   AudioLines,
-  History,
   ImageIcon,
   MessageSquare,
   Pin,
@@ -9,13 +13,8 @@ import {
   Search,
   Trash2,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { ConfirmDialog } from '@/components/confirm-dialog'
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -36,6 +35,7 @@ import {
   type PlaygroundSession,
   type SessionModality,
 } from '../../lib'
+import { defaultSessionTitle } from '../../lib/session/session-utils'
 
 function formatRelativeTime(
   timestamp: number,
@@ -62,7 +62,7 @@ function formatRelativeTime(
 
 const MODALITY_META: Record<
   SessionModality,
-  { labelKey: string; Icon: LucideIcon }
+  { labelKey: string; Icon: IconComponent }
 > = {
   chat: { labelKey: 'Chats', Icon: MessageSquare },
   image: { labelKey: 'Image projects', Icon: ImageIcon },
@@ -128,15 +128,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
       className={cn('flex h-full min-h-0 flex-col', props.className)}
       data-session-history=''
     >
-      <div
-        className={cn(
-          'flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2.5',
-          props.embedded && 'bg-sidebar/40'
-        )}
-      >
-        <span className='bg-primary/10 text-primary flex size-7 items-center justify-center rounded-lg'>
-          <History className='size-3.5' aria-hidden='true' />
-        </span>
+      <div className='flex shrink-0 items-center gap-2 px-3 pt-3 pb-2'>
         <div className='min-w-0 flex-1'>
           <p className='text-foreground truncate text-sm font-semibold'>
             {t('History')}
@@ -147,19 +139,19 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
         </div>
         <Button
           size='sm'
-          className='h-8 shrink-0 gap-1 px-2.5'
+          variant='outline'
+          className='shrink-0'
           onClick={() => {
             startNewSession(activeModality)
             props.onSelectSession?.()
           }}
         >
-          <Plus className='size-3.5' aria-hidden='true' />
-          <span className='hidden sm:inline'>{newLabel}</span>
-          <span className='sr-only sm:hidden'>{newLabel}</span>
+          <Plus aria-hidden='true' />
+          <span className='max-w-[9rem] truncate'>{newLabel}</span>
         </Button>
       </div>
 
-      <div className='border-border/60 shrink-0 border-b px-3 py-2'>
+      <div className='border-border/60 shrink-0 border-b px-3 pb-3'>
         <div className='relative'>
           <Search
             className='text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2'
@@ -170,7 +162,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('Search history')}
             aria-label={t('Search history')}
-            className='border-border/60 bg-background/60 focus-visible:ring-ring h-8 w-full rounded-lg border pr-2 pl-8 text-sm outline-none focus-visible:ring-2'
+            className='border-input bg-card placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/15 text-ui h-8 w-full rounded-lg border pr-2 pl-8 shadow-xs outline-none focus-visible:ring-3'
           />
         </div>
       </div>
@@ -184,11 +176,13 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
           )}
           {items.length === 0 && query.trim() === '' && (
             <div className='text-muted-foreground flex flex-col items-center gap-2 px-3 py-10 text-center text-xs'>
-              <span className='bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl'>
-                <Icon className='size-5' aria-hidden='true' />
+              <span className='bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-xl'>
+                <Icon weight='duotone' className='size-5' aria-hidden='true' />
               </span>
-              <p>{t('No saved sessions yet')}</p>
-              <p className='text-2xs opacity-80'>
+              <p className='text-foreground text-sm font-medium'>
+                {t('No saved sessions yet')}
+              </p>
+              <p className='text-2xs text-pretty'>
                 {t('Start chatting or generating to build history here.')}
               </p>
             </div>
@@ -198,15 +192,20 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
             const active = activeSession?.id === session.id
             const subtitle = session.model || t('No model')
             const isRenaming = renamingId === session.id
+            const showActions = hasSessionContent(session) && !isRenaming
+            const title =
+              session.title === defaultSessionTitle(session.modality)
+                ? t(session.title)
+                : session.title
 
             return (
               <div
                 key={session.id}
                 className={cn(
-                  'group relative flex flex-col gap-0.5 rounded-xl border border-transparent px-2.5 py-2 transition-colors',
+                  'group relative flex flex-col gap-0.5 rounded-xl px-2.5 py-2 transition-colors',
                   active
-                    ? 'border-primary/30 bg-primary/10'
-                    : 'hover:bg-muted/60'
+                    ? 'bg-card ring-primary/30 shadow-xs ring-1'
+                    : 'hover:bg-accent/70'
                 )}
               >
                 {isRenaming ? (
@@ -237,12 +236,18 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                       setRenamingId(session.id)
                       setRenameValue(session.title)
                     }}
-                    className='min-w-0 text-left outline-none'
+                    title={title}
+                    className={cn(
+                      'min-w-0 text-left outline-none',
+                      showActions &&
+                        'group-focus-within:pr-14 group-hover:pr-14 pointer-coarse:pr-14',
+                      showActions && active && 'pr-14'
+                    )}
                   >
                     <span
                       className={cn(
-                        'flex items-center gap-1 text-sm font-medium',
-                        active ? 'text-primary' : 'text-foreground'
+                        'text-ui flex min-w-0 items-center gap-1 font-medium',
+                        active ? 'text-foreground' : 'text-foreground/90'
                       )}
                     >
                       {session.pinned && (
@@ -251,9 +256,9 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                           aria-label={t('Pinned')}
                         />
                       )}
-                      <span className='truncate'>{session.title}</span>
+                      <span className='truncate'>{title}</span>
                     </span>
-                    <span className='text-muted-foreground text-2xs mt-0.5 flex items-center gap-1.5'>
+                    <span className='text-muted-foreground text-2xs mt-0.5 flex min-w-0 items-center gap-1.5'>
                       <span className='truncate font-mono'>{subtitle}</span>
                       <span aria-hidden='true'>·</span>
                       <span className='shrink-0'>
@@ -279,10 +284,10 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
                   </button>
                 )}
 
-                {hasSessionContent(session) && !isRenaming && (
+                {showActions && (
                   <div
                     className={cn(
-                      'absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
+                      'absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-control group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-70',
                       active && 'opacity-70'
                     )}
                   >

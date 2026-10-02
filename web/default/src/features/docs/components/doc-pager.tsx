@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { ArrowLeft, ArrowRight } from '@/components/icons'
 
 import type { DocsManifestPage } from '../lib/types'
 
@@ -12,12 +13,12 @@ export function DocPager(props: {
   if (!props.prev && !props.next) return null
 
   return (
-    <div className='mt-12 grid gap-3 border-t pt-8 sm:grid-cols-2'>
+    <div className='border-border/60 mt-12 grid gap-3 border-t pt-8 sm:grid-cols-2'>
       {props.prev ? (
         <Link
           to='/docs/$'
           params={{ _splat: props.prev.path }}
-          className='hover:bg-muted/50 rounded-lg border p-4 transition-colors'
+          className='border-border/60 bg-card hover:border-border hover:shadow-raised transition-ui duration-control min-w-0 rounded-xl border p-4'
         >
           <p className='text-muted-foreground flex items-center gap-1 text-xs'>
             <ArrowLeft className='size-3.5' />
@@ -26,13 +27,13 @@ export function DocPager(props: {
           <p className='mt-1 text-sm font-medium'>{props.prev.title}</p>
         </Link>
       ) : (
-        <div />
+        <div className='hidden sm:block' />
       )}
       {props.next ? (
         <Link
           to='/docs/$'
           params={{ _splat: props.next.path }}
-          className='hover:bg-muted/50 rounded-lg border p-4 text-right transition-colors sm:justify-self-end sm:text-right'
+          className='border-border/60 bg-card hover:border-border hover:shadow-raised transition-ui duration-control min-w-0 rounded-xl border p-4 text-right'
         >
           <p className='text-muted-foreground flex items-center justify-end gap-1 text-xs'>
             {t('Next')}
