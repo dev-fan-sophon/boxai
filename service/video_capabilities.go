@@ -131,7 +131,10 @@ func seedanceVideoProfiles(mappedModel string) map[string]dto.VideoModelCapabili
 		UsesVolcengineMetadata: true,
 		SupportsSeed:           true,
 		SupportsWatermark:      true,
-		ReturnsLastFrame:       true,
+		// Off by default: some Seedance relays reject return_last_frame with a
+		// 400, and the studio sends it on every run when advertised. Channels
+		// that forward it opt in through their video_capabilities override.
+		ReturnsLastFrame: false,
 	}
 	if maxDuration == 30 {
 		base.Durations = append(base.Durations, 20, 25, 30)

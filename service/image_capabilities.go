@@ -41,6 +41,12 @@ func ResolveImageCapabilities(groups []string, publicModel string) (*dto.ImageMo
 			// The Responses image_generation tool returns one image per call.
 			profile.MaxN = 1
 		}
+		if channel.GetSetting().ImageIgnoresSizeOptions {
+			profile.AspectRatios = nil
+			profile.Resolutions = nil
+			profile.Defaults.AspectRatio = ""
+			profile.Defaults.Resolution = ""
+		}
 		if result == nil {
 			result = profile
 			continue

@@ -107,14 +107,16 @@ function AspectControls(props: { state: ImageOptionsState }) {
   if (!capabilities || !options) return null
   return (
     <>
-      <SettingRow label={t('Aspect ratio')} htmlFor='gen-image-ratio'>
-        <ImageAspectRatioGrid
-          id='gen-image-ratio'
-          ratios={capabilities.aspectRatios}
-          value={options.aspectRatio}
-          onChange={(ratio) => props.state.update('imageAspectRatio', ratio)}
-        />
-      </SettingRow>
+      {capabilities.aspectRatios.length > 0 && (
+        <SettingRow label={t('Aspect ratio')} htmlFor='gen-image-ratio'>
+          <ImageAspectRatioGrid
+            id='gen-image-ratio'
+            ratios={capabilities.aspectRatios}
+            value={options.aspectRatio}
+            onChange={(ratio) => props.state.update('imageAspectRatio', ratio)}
+          />
+        </SettingRow>
+      )}
       {capabilities.resolutions.length > 1 && (
         <SettingRow label={t('Resolution')} htmlFor='gen-image-resolution'>
           <SegmentedControl

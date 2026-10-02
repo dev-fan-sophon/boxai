@@ -19,8 +19,12 @@ type ChannelSettings struct {
 	// edits to a Responses image_generation tool call using this upstream host
 	// model. Empty keeps the provider's native Images API routes.
 	ImageGenerationViaResponsesModel string `json:"image_generation_via_responses_model,omitempty"`
-	SystemPrompt                     string `json:"system_prompt,omitempty"`
-	SystemPromptOverride             bool   `json:"system_prompt_override,omitempty"`
+	// ImageIgnoresSizeOptions marks an upstream that renders images at a fixed
+	// size whatever aspect ratio or resolution is requested (e.g. web-session
+	// proxies). The studio then stops offering those controls for its models.
+	ImageIgnoresSizeOptions bool   `json:"image_ignores_size_options,omitempty"`
+	SystemPrompt            string `json:"system_prompt,omitempty"`
+	SystemPromptOverride    bool   `json:"system_prompt_override,omitempty"`
 	// HTTPProtocol controls outbound HTTP version negotiation for this channel.
 	// Accepted values: "", "auto" (default), "http1".
 	HTTPProtocol string `json:"http_protocol,omitempty"`

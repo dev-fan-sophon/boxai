@@ -27,7 +27,9 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 	grokMapping := `{"grok-image":"grok-imagine-image-2.0","gemini-alias":"gemini-3-pro-image"}`
 	grok := &model.Channel{Id: 3, Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Key: "k", ModelMapping: &grokMapping}
 	gemini := &model.Channel{Id: 4, Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Key: "k"}
-	require.NoError(t, db.Create([]*model.Channel{codex, native, grok, gemini}).Error)
+	fixedSize := &model.Channel{Id: 5, Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Key: "k"}
+	fixedSize.SetSetting(dto.ChannelSettings{ImageIgnoresSizeOptions: true})
+	require.NoError(t, db.Create([]*model.Channel{codex, native, grok, gemini, fixedSize}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "gpt-image-2", ChannelId: 1, Enabled: true},
 		{Group: "default", Model: "gpt-image-2", ChannelId: 2, Enabled: true},
@@ -36,6 +38,7 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 		{Group: "default", Model: "gemini-alias", ChannelId: 3, Enabled: true},
 		{Group: "default", Model: "gemini-alias", ChannelId: 4, Enabled: true},
 		{Group: "default", Model: "dall-e-3", ChannelId: 2, Enabled: true},
+		{Group: "default", Model: "gemini-3-pro-image", ChannelId: 5, Enabled: true},
 	}).Error)
 
 	gpt, err := ResolveImageCapabilities([]string{"default"}, "gpt-image-2")
@@ -58,6 +61,15 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 	require.NotNil(t, lite)
 	assert.Equal(t, 14, lite.MaxReferenceImages)
 	assert.Equal(t, []string{"1K"}, lite.Resolutions)
+
+	// A fixed-size upstream keeps references but offers no size controls.
+	fixed, err := ResolveImageCapabilities([]string{"default"}, "gemini-3-pro-image")
+	require.NoError(t, err)
+	require.NotNil(t, fixed)
+	assert.Equal(t, 14, fixed.MaxReferenceImages)
+	assert.Empty(t, fixed.AspectRatios)
+	assert.Empty(t, fixed.Resolutions)
+	assert.Empty(t, fixed.Defaults.AspectRatio)
 
 	// Channel 4 serves the alias unmapped (an unmodeled id), so the merged
 	// contract fails closed.

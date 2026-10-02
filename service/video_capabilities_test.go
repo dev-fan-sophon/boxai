@@ -111,7 +111,8 @@ func TestSeedanceReferenceMediaProfiles(t *testing.T) {
 					p := profiles[mode]
 					assert.Equal(t, dto.VideoDurationRange{Min: 4, Max: tt.max}, p.DurationRange, mode)
 					assert.Equal(t, tt.resolutions, p.Resolutions, mode)
-					assert.True(t, p.SupportsSeed && p.SupportsWatermark && p.ReturnsLastFrame, mode)
+					assert.True(t, p.SupportsSeed && p.SupportsWatermark, mode)
+					assert.False(t, p.ReturnsLastFrame, "relays may reject return_last_frame; channels opt in")
 				}
 				settings := dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{tt.model: profiles}}
 				require.NoError(t, settings.ValidateVideoCapabilities())
@@ -125,6 +126,7 @@ func TestIntersectVideoProfileKeepsStricterReferenceMediaLimits(t *testing.T) {
 	b := seedanceVideoProfiles("seedance-2-0")["references"]
 	b.Family = a.Family
 	b.SupportsSeed = false
+	a.ReturnsLastFrame, b.ReturnsLastFrame = true, true
 	merged, ok := intersectVideoProfile(a, b)
 	require.True(t, ok)
 	assert.Equal(t, 9, merged.MaxReferenceImages)
