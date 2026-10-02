@@ -1,8 +1,9 @@
 /**
- * App auto-update via electron-updater against GitHub Releases.
+ * BoxAI updates via electron-updater against the fixed R2 generic feed.
  *
- * The feed (latest*.yml + installers) is attached to each GitHub Release by
- * .github/workflows/release.yml. Discovery always tracks the latest stable
+ * The feed (latest*.yml + immutable installers) is published to dl.you-box.com.
+ * Unsigned macOS installs check for updates but open the download page.
+ * Discovery always tracks the latest stable
  * release (`allowPrerelease = false`) so RC installs still graduate to newer
  * stables. Delivery mode per install:
  *  - Windows NSIS / Linux AppImage / packaged macOS → full in-app flow: silent
@@ -72,7 +73,7 @@ function createRelocatedUpdater(
   return platform === "win32" ? new RelocatedNsisUpdater(baseCachePath) : null;
 }
 
-export const RELEASES_URL = "https://github.com/vastsa/PI-Desktop/releases/latest";
+export const RELEASES_URL = "https://you-box.com/downloads";
 
 const AUTO_CHECK_INITIAL_DELAY_MS = 15_000;
 const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -141,23 +142,20 @@ export class AppUpdaterController {
   private installRequested = false;
   private readonly autoUpdater: AppUpdater;
   private readonly cacheMaintenance: UpdateCacheMaintenance;
+  private readonly macSigned: boolean;
 
-  private readPackagedDistribution(
+  private readPackagedMetadata(
     isPackaged: boolean,
-  ): WindowsDistribution | undefined {
-    if (!isPackaged) return undefined;
+  ): Record<string, unknown> {
+    if (!isPackaged) return {};
     try {
       const packageJson = JSON.parse(
         readFileSync(join(app.getAppPath(), "package.json"), "utf8"),
       ) as unknown;
       if (typeof packageJson !== "object" || packageJson === null) {
-        return undefined;
+        return {};
       }
-      const distribution = (packageJson as Record<string, unknown>)
-        .piDistribution;
-      return distribution === "installed" || distribution === "zip" || distribution === "portable"
-        ? distribution
-        : undefined;
+      return packageJson as Record<string, unknown>;
     } catch (error) {
       this.logger.app(
         "updater",
@@ -165,7 +163,7 @@ export class AppUpdaterController {
         "packaged distribution metadata unavailable",
         { data: { detail: String(error) } },
       );
-      return undefined;
+      return {};
     }
   }
 
@@ -175,10 +173,13 @@ export class AppUpdaterController {
     this.getLocale = options.getLocale ?? (() => "en");
     const platform = options.platform ?? process.platform;
     const isPackaged = options.isPackaged ?? app.isPackaged;
+    const metadata = this.readPackagedMetadata(isPackaged);
+    this.macSigned = metadata.boxaiMacSigned === true;
+    const packagedDistribution = metadata.piDistribution;
     const distribution =
       options.distribution ??
-      (platform === "win32"
-        ? this.readPackagedDistribution(isPackaged)
+      (platform === "win32" && (packagedDistribution === "installed" || packagedDistribution === "zip" || packagedDistribution === "portable")
+        ? packagedDistribution
         : undefined);
     this.platform = platform;
     this.isPackaged = isPackaged;
@@ -189,12 +190,14 @@ export class AppUpdaterController {
       isPackaged,
       this.env,
       distribution,
+      this.macSigned,
     );
     this.preference = this.defaultPreference;
     this.automaticSupported = supportsAutomaticUpdates(
       platform,
       isPackaged,
       this.env,
+      this.macSigned,
     );
     this.readUpdateSettings = options.readUpdateSettings;
     this.persistLastNotifiedVersion = options.persistLastNotifiedVersion;
@@ -204,6 +207,7 @@ export class AppUpdaterController {
       this.env,
       distribution,
       this.preference,
+      this.macSigned,
     );
     const defaultCacheBasePath = defaultUpdateCacheBasePath({
       platform,
@@ -321,6 +325,7 @@ export class AppUpdaterController {
       this.env,
       this.distribution,
       effectivePreference,
+      this.macSigned,
     );
     const preferenceChanged =
       effectivePreference !== this.preference || mode !== previousMode;

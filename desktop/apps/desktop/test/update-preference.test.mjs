@@ -39,7 +39,8 @@ const { persistUpdatePreference } = settingsPreference;
     resolveDefaultUpdatePreference("win32", true, { PORTABLE_EXECUTABLE_FILE: "PI-Desktop.exe" }),
     "manual",
   );
-  assert.equal(resolveDefaultUpdatePreference("darwin", true), "automatic");
+  assert.equal(resolveDefaultUpdatePreference("darwin", true), "manual");
+  assert.equal(resolveDefaultUpdatePreference("darwin", true, {}, undefined, true), "automatic");
   assert.equal(resolveDefaultUpdatePreference("linux", true, { APPIMAGE: "/tmp/app.AppImage" }), "automatic");
   assert.equal(resolveDefaultUpdatePreference("linux", true, {}), "manual");
 });
@@ -58,7 +59,9 @@ test("manual preference disables in-app delivery and explicit automatic restores
   assert.equal(resolveUpdateMode("win32", true, {}, "portable"), "manual");
   assert.equal(resolveUpdateMode("win32", true, {}, "zip", "automatic"), "in-app");
   assert.equal(resolveUpdateMode("win32", true, {}, "portable", "automatic"), "in-app");
-  assert.equal(resolveUpdateMode("darwin", true, {}, undefined, "automatic"), "in-app");
+  assert.equal(resolveUpdateMode("darwin", true, {}, undefined, "automatic"), "manual");
+  assert.equal(resolveUpdateMode("darwin", true, {}, undefined, "automatic", true), "in-app");
+  assert.equal(resolveUpdateMode("darwin", true, {}, undefined, "manual", true), "manual");
   assert.equal(resolveUpdateMode("linux", true, {}, undefined, "automatic"), "manual");
   assert.equal(resolveUpdateMode("win32", false, {}, undefined, "automatic"), "disabled");
 });
