@@ -82,7 +82,7 @@ export type AppSettings = {
   defaultPermissionMode?: GlobalPermissionMode;
   theme: ThemePreference;
   /** UI language; `auto` (and absent) follows the OS locale. */
-  language?: "auto" | "en" | "zh-CN" | "zh-TW" | "tr" | "de" | "es" | "fr" | "ko" | "pt-BR";
+  language?: "auto" | "en" | "zh-CN" | "zh-TW" | "tr" | "de" | "es" | "fr" | "ko" | "pt-BR" | "vi" | "ja" | "ru";
   /**
    * Global UI font stack (CSS `font-family` value). Absent means the built-in
    * token stack; bundled open-source families and installed system families
@@ -115,9 +115,8 @@ export type AppSettings = {
   /** Unlocks the devtools console (settings button, F12, macOS View menu). */
   developerMode?: boolean;
   /**
-   * Extension marketplace provider. `mirror` targets the cnb.cool copy for
-   * networks that cannot reach `raw.githubusercontent.com`; both serve the
-   * same catalog and packages.
+   * Extension marketplace provider. Legacy `github` and `mirror` selections
+   * resolve to the bundled BoxAI catalog without network access.
    */
   pluginMarketSource?: PluginMarketSource;
   /** Catalog URL used when `pluginMarketSource` is `custom`. */

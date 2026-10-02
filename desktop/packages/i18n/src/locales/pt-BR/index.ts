@@ -1,6 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const ptBR = {
+  ...en,
   app: {
     shellName: "BoxAI Desktop",
     tagline: "Parceiro local de programação com IA",

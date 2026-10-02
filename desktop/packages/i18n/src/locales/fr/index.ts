@@ -1,6 +1,20 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const fr = {
+  "BoxAI account": "Compte BoxAI",
+  "Checking account…": "Vérification du compte…",
+  "Wallet balance (quota)": "Solde du portefeuille (quota)",
+  "Total usage (quota)": "Utilisation totale (quota)",
+  "Requests": "Requêtes",
+  "Top up": "Recharger",
+  "Open console": "Ouvrir la console",
+  "Sign in with your BoxAI account to continue. All models are billed through BoxAI.": "Connectez-vous à votre compte BoxAI pour continuer. Tous les modèles sont facturés par BoxAI.",
+  "Account request failed. Check your connection and try again.": "Impossible de contacter le service de compte. Vérifiez votre connexion et réessayez.",
+  "Waiting for browser authorization…": "En attente de l’autorisation dans le navigateur…",
+  "Sign out": "Se déconnecter",
+  "Sign in with BoxAI": "Se connecter avec BoxAI",
+  "Cancel": "Annuler",
+  "Refresh": "Actualiser",
   "app": {
     "shellName": "BoxAI Desktop",
     "tagline": "Partenaire de codage IA local",

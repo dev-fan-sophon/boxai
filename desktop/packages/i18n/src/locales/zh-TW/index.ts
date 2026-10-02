@@ -1,6 +1,20 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhTW = {
+  "BoxAI account": "BoxAI 帳號",
+  "Checking account…": "正在檢查帳號…",
+  "Wallet balance (quota)": "錢包餘額（額度）",
+  "Total usage (quota)": "累計用量（額度）",
+  "Requests": "請求次數",
+  "Top up": "儲值",
+  "Open console": "開啟控制台",
+  "Sign in with your BoxAI account to continue. All models are billed through BoxAI.": "登入 BoxAI 帳號以繼續。所有模型均透過 BoxAI 計費。",
+  "Account request failed. Check your connection and try again.": "帳號請求失敗，請檢查網路後重試。",
+  "Waiting for browser authorization…": "等待瀏覽器授權…",
+  "Sign out": "登出",
+  "Sign in with BoxAI": "使用 BoxAI 登入",
+  "Cancel": "取消",
+  "Refresh": "重新整理",
   app: {
     shellName: "BoxAI Desktop",
     tagline: "本地 AI 程式設計助手",

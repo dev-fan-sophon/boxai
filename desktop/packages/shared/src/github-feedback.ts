@@ -1,5 +1,5 @@
 export const GITHUB_REPO = "dev-fan-sophon/boxai";
-export const GITHUB_BUG_TEMPLATE = "bug_report.yml";
+export const GITHUB_BUG_TEMPLATE = "bug_report_en.md";
 export const GITHUB_ISSUE_ORIGIN = "https://github.com";
 
 export type FeedbackIssueContext = {

@@ -25,12 +25,10 @@ const [
   stylesSource,
   pkgSource,
   buildReleaseSource,
-  releaseWorkflowSource,
   enSource,
   zhSource,
   changelogSource,
   changelogLoaderSource,
-  englishChangelogSource,
 ] = await Promise.all([
   read("../../../packages/shared/src/protocol.ts"),
   readSharedTypesSource(),
@@ -45,12 +43,10 @@ const [
   loadStyles(),
   read("../package.json"),
   read("../../../scripts/build-desktop-release.mjs"),
-  read("../../../.github/workflows/release.yml"),
   read("../../../packages/i18n/src/locales/en/index.ts"),
   read("../../../packages/i18n/src/locales/zh-CN/index.ts"),
   read("../../../packages/shared/src/changelog.ts"),
   read("../../../packages/shared/src/changelog-loader.ts"),
-  read("../../../packages/shared/src/changelog-en.ts"),
 ]);
 
 test("update IPC channels are declared and whitelisted for the preload bridge", () => {
@@ -139,7 +135,7 @@ test("updater gates delivery mode by platform and delivery policy", () => {
   assert.match(updaterSource, /autoUpdater\.on\("error"/);
   assert.match(
     updaterSource,
-    /github\.com\/vastsa\/PI-Desktop\/releases/,
+    /https:\/\/dl\.you-box\.com\/desktop/,
     "releases fallback URL",
   );
   assert.match(
@@ -196,8 +192,7 @@ test("renderer exposes the updates API, banner and settings row", () => {
   assert.match(settingsSource, /<ReleaseNotesDialog/);
   assert.match(releaseNotesDialogSource, /loadChangelogCatalog\(locale\)/);
   assert.match(releaseNotesDialogSource, /setLoadedCatalog\(\{ locale, entries: catalog \}\)/);
-  assert.match(changelogLoaderSource, /import\("\.\/changelog-en\.js"\)/);
-  assert.match(changelogLoaderSource, /import\("\.\/changelog-zh-CN\.js"\)/);
+  assert.match(changelogLoaderSource, /import\("\.\/changelog\.js"\)/);
   assert.match(releaseNotesDialogSource, /new Intl\.DateTimeFormat\(locale,/);
   assert.match(releaseNotesDialogSource, /role="dialog"/);
   assert.match(releaseNotesDialogSource, /aria-modal="true"/);
@@ -311,12 +306,6 @@ test("packaging publishes an electron-updater feed for GitHub Releases", () => {
     /shell:\s*process\.platform === "win32"/,
     "Windows must launch the pnpm.cmd shim through a shell",
   );
-  // The upload step must carry every updater feed, and the release publishes
-  // all platforms unfiltered (D126/D285).
-  assert.match(releaseWorkflowSource, /release\/\*\.zip/);
-  assert.match(releaseWorkflowSource, /release\/\*\.rpm/);
-  assert.match(releaseWorkflowSource, /release\/latest\*\.yml/);
-  assert.match(releaseWorkflowSource, /files: dist\/\*/);
 });
 
 test("shared shipped-locale changelog is the in-app notes source of truth", () => {
@@ -324,7 +313,7 @@ test("shared shipped-locale changelog is the in-app notes source of truth", () =
   assert.match(changelogSource, /formatChangelogNotes/);
   assert.match(changelogSource, /"zh-CN"/);
   assert.match(changelogSource, /"zh-TW"/);
-  assert.match(englishChangelogSource, /version: "0\.2\.7"/);
+  assert.match(changelogSource, /version: "0\.2\.0"/);
   assert.match(
     mainSource,
     /getLocale:\s*\(\)\s*=>\s*(?:updaterLocale|mainState\.updaterLocale)/,

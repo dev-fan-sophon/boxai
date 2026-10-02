@@ -6,9 +6,6 @@ import test from "node:test";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 const [
-  bugTemplate,
-  featureTemplate,
-  configTemplate,
   protocolSource,
   mainSource,
   apiSource,
@@ -17,9 +14,6 @@ const [
   enSource,
   zhSource,
 ] = await Promise.all([
-  read("../../../.github/ISSUE_TEMPLATE/bug_report.yml"),
-  read("../../../.github/ISSUE_TEMPLATE/feature_request.yml"),
-  read("../../../.github/ISSUE_TEMPLATE/config.yml"),
   read("../../../packages/shared/src/protocol.ts"),
   readMainSource(),
   read("../src/lib/api.ts"),
@@ -28,40 +22,6 @@ const [
   read("../../../packages/i18n/src/locales/en/index.ts"),
   read("../../../packages/i18n/src/locales/zh-CN/index.ts"),
 ]);
-
-function requiredField(source, id) {
-  const start = source.indexOf(`id: ${id}`);
-  assert.ok(start >= 0, `missing field ${id}`);
-  const next = source.indexOf("\n  - type:", start);
-  const block = source.slice(start, next === -1 ? undefined : next);
-  assert.match(block, /required:\s*true/, `${id} must be required`);
-}
-
-test("blank GitHub issues stay disabled", () => {
-  assert.match(configTemplate, /blank_issues_enabled:\s*false/);
-});
-
-test("bug report form requires triage fields", () => {
-  for (const id of [
-    "description",
-    "reproduce",
-    "expected",
-    "actual",
-    "app-version",
-    "os",
-  ]) {
-    requiredField(bugTemplate, id);
-  }
-  assert.match(bugTemplate, /id: environment/);
-  assert.match(bugTemplate, /id: logs/);
-  assert.match(bugTemplate, /labels:\s*\[["']bug["']\]/);
-});
-
-test("feature request form requires a problem and a proposal", () => {
-  requiredField(featureTemplate, "problem");
-  requiredField(featureTemplate, "proposal");
-  assert.match(featureTemplate, /labels:\s*\[["']enhancement["']\]/);
-});
 
 test("Settings Info exposes a Main-owned GitHub feedback action", () => {
   assert.match(protocolSource, /appOpenFeedback:\s*"pi-desktop\/app\/openFeedback"/);

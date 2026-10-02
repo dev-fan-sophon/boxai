@@ -1,4 +1,18 @@
 export const en = {
+  "BoxAI account": "BoxAI account",
+  "Checking account…": "Checking account…",
+  "Wallet balance (quota)": "Wallet balance (quota)",
+  "Total usage (quota)": "Total usage (quota)",
+  "Requests": "Requests",
+  "Top up": "Top up",
+  "Open console": "Open console",
+  "Sign in with your BoxAI account to continue. All models are billed through BoxAI.": "Sign in with your BoxAI account to continue. All models are billed through BoxAI.",
+  "Account request failed. Check your connection and try again.": "Account request failed. Check your connection and try again.",
+  "Waiting for browser authorization…": "Waiting for browser authorization…",
+  "Sign out": "Sign out",
+  "Sign in with BoxAI": "Sign in with BoxAI",
+  "Cancel": "Cancel",
+  "Refresh": "Refresh",
   app: {
     shellName: "BoxAI Desktop",
     tagline: "Local AI coding partner",

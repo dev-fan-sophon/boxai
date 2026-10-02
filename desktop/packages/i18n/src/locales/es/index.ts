@@ -1,6 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const es = {
+  ...en,
   "app": {
     "shellName": "BoxAI Desktop",
     "tagline": "Socio de codificación de IA local",
