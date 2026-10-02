@@ -106,7 +106,7 @@ test("runSkillImport for a dir shape sends rootDir as `path`, not sourcePath", a
   assert.equal(method, "skills.import");
   assert.equal(params.path, "/root", "dir shape forwards rootDir as path");
   assert.equal(params.shape, "dir");
-  assert.equal(params.mode, "link");
+  assert.equal(params.mode, "copy", "legacy link requests must not create writable aliases to external resources");
   assert.equal(params.level, "project");
   assert.equal(params.projectPath, "/proj");
 });

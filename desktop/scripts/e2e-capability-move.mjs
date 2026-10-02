@@ -124,8 +124,8 @@ const projectA = mkdtempSync(join(tmpdir(), "pi-capability-move-a-"));
 const projectB = mkdtempSync(join(tmpdir(), "pi-capability-move-b-"));
 mkdirSync(join(home, ".agents"), { recursive: true });
 
-const serverPath = (levelRoot, id) => join(levelRoot, ".agents", "servers", `${id}.json`);
-const skillsDir = (levelRoot) => join(levelRoot, ".agents", "skills");
+const serverPath = (levelRoot, id) => join(levelRoot === home ? join(dataDir, "agent") : join(levelRoot, ".agents"), "servers", `${id}.json`);
+const skillsDir = (levelRoot) => join(levelRoot === home ? join(dataDir, "agent") : join(levelRoot, ".agents"), "skills");
 
 let host;
 try {

@@ -22,7 +22,7 @@ const ARTIFACT_NAME = `${BUNDLE_DIR}.tar.gz`;
 const ARTIFACT_URL = `https://github.com/dev-fan-sophon/boxai/releases/download/v${VERSION}/${ARTIFACT_NAME}`;
 const DIGEST = "0123456789abcdef".repeat(4);
 /** The sandbox the script's `HOME`/`PATH` point at, outside the real user's. */
-const WORK_SUBDIR = ".pi-desktop/pi-host/.bootstrap";
+const WORK_SUBDIR = ".boxai-desktop/pi-host/.bootstrap";
 
 /** Inputs every scenario starts from; callers override the digest or version. */
 function scriptInput(overrides = {}) {

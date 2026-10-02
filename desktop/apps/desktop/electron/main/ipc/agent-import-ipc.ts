@@ -108,7 +108,9 @@ export async function runSkillImport(
   hostCall: HostCall,
   payload: SkillImportRunPayload,
 ): Promise<SkillImportRunResult> {
-  const mode = payload.mode ?? "copy";
+  // External agent resources are read-only sources, never live links that
+  // later edits in BoxAI could write through into another application's files.
+  const mode = "copy";
   const level = payload.level;
   const projectPath = payload.projectPath;
   const result: SkillImportRunResult = {

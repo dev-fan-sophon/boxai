@@ -247,7 +247,7 @@ try {
       },
     });
 
-    const recordPath = join(home, ".agents", "skills", "pdf.md");
+    const recordPath = join(dataDir, "agent", "skills", "pdf.md");
     const onDisk = existsSync(recordPath) ? readFileSync(recordPath, "utf8") : "";
     const diskOk =
       onDisk.startsWith("---\n") &&

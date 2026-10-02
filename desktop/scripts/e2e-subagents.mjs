@@ -52,7 +52,7 @@ const dataDir = mkdtempSync(join(tmpdir(), "pi-subagent-data-"));
 const homeDir = mkdtempSync(join(tmpdir(), "pi-subagent-home-"));
 const projectA = mkdtempSync(join(tmpdir(), "pi-project-a-"));
 const projectB = mkdtempSync(join(tmpdir(), "pi-project-b-"));
-const agentsDir = join(homeDir, ".agents", "subagents");
+const agentsDir = join(dataDir, "agent", "subagents");
 const previousHome = process.env.HOME;
 const previousUserProfile = process.env.USERPROFILE;
 // host-core's dirs::home_dir and the runtime's homedir() must resolve to the
@@ -153,7 +153,7 @@ try {
 
   const entries = readdirSync(agentsDir).sort();
   check(
-    "the global registry writes ~/.agents/subagents/<id>.md",
+    "the global registry writes <dataDir>/agent/subagents/<id>.md",
     entries.includes("log-reader.md") && !entries.includes("registry.json"),
     entries.join(", "),
   );

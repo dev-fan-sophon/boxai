@@ -191,8 +191,6 @@ const dataRoot = await mkdtemp(join(tmpdir(), "pi-config-sync-multidevice-"));
 const hostBinary = resolveHostBinary();
 const hostA = new Host(hostBinary, join(dataRoot, "device-a"));
 const hostB = new Host(hostBinary, join(dataRoot, "device-b"));
-const previousAgentsDir = process.env.PI_DESKTOP_AGENTS_DIR;
-process.env.PI_DESKTOP_AGENTS_DIR = join(dataRoot, "agents");
 
 try {
   await Promise.all([hostA.start(), hostB.start()]);
@@ -318,6 +316,4 @@ try {
   await Promise.all([hostA.stop(), hostB.stop()]).catch(() => undefined);
   await fixture.close().catch(() => undefined);
   await rm(dataRoot, { recursive: true, force: true });
-  if (previousAgentsDir === undefined) delete process.env.PI_DESKTOP_AGENTS_DIR;
-  else process.env.PI_DESKTOP_AGENTS_DIR = previousAgentsDir;
 }

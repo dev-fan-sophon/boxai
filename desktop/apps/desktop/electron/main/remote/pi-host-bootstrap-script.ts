@@ -103,7 +103,7 @@ need tar
 node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || printf '0')
 [ "$node_major" -ge "$MIN_NODE_MAJOR" ] 2>/dev/null || die "node-too-old"
 
-work="$HOME/.pi-desktop/pi-host/.bootstrap"
+work="$HOME/.boxai-desktop/pi-host/.bootstrap"
 mkdir -p "$work"
 chmod 700 "$work" 2>/dev/null || die "bootstrap-permissions"
 log="$work/pi-host.log"
@@ -170,7 +170,7 @@ if [ -f "$pidfile" ]; then
   fi
 fi
 
-nohup node "$HOME/.pi-desktop/pi-host/current/pi-host.js" \\
+nohup node "$HOME/.boxai-desktop/pi-host/current/pi-host.js" \\
   --port "$PORT" \\
   --pair \\
   --pairing-lifetime-ms "$PAIRING_LIFETIME_MS" \\

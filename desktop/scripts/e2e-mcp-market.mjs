@@ -268,7 +268,7 @@ try {
     const listed = await host.call("mcp.list", { level: "global" });
     const row = (listed.servers ?? []).find((server) => server.id === "memory");
 
-    const recordPath = join(home, ".agents", "servers", "memory.json");
+    const recordPath = join(dataDir, "agent", "servers", "memory.json");
     const onDisk = existsSync(recordPath)
       ? JSON.parse(readFileSync(recordPath, "utf8"))
       : null;
@@ -295,7 +295,7 @@ try {
     } });
     const scopedList = await host.call("mcp.list", { level: "global" });
     const scopedRow = scopedList.servers.find((server) => server.id === scopedEntry.id);
-    const scopedDisk = JSON.parse(readFileSync(join(home, ".agents", "servers", `${scopedEntry.id}.json`), "utf8"));
+    const scopedDisk = JSON.parse(readFileSync(join(dataDir, "agent", "servers", `${scopedEntry.id}.json`), "utf8"));
     record(
       "E2E-MCP-MARKET-HEADER-SCOPE",
       scopedInput.url === scopedUrl && scopedRow?.url === scopedUrl && scopedDisk.url === scopedUrl
@@ -320,7 +320,7 @@ try {
     } });
     const partialList = await host.call("mcp.list", { level: "global" });
     const partialRow = partialList.servers.find((server) => server.id === partialEntry.id);
-    const partialDisk = JSON.parse(readFileSync(join(home, ".agents", "servers", `${partialEntry.id}.json`), "utf8"));
+    const partialDisk = JSON.parse(readFileSync(join(dataDir, "agent", "servers", `${partialEntry.id}.json`), "utf8"));
     const partialScopeOk = [partialInput, partialRow, partialDisk].every((server) =>
       server?.url === scopedUrl
       && server.headers?.Authorization === "Bearer synthetic-header-secret"

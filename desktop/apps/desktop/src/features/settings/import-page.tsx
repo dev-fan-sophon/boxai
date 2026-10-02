@@ -836,7 +836,6 @@ export function SkillsScanImportPanel() {
   const [result, setResult] = useState<ExternalSkillScanResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const disclosure = useGroupDisclosure();
-  const [mode, setMode] = useState<"copy" | "link">("copy");
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -875,7 +874,7 @@ export function SkillsScanImportPanel() {
     try {
       const res = await api.runExternalSkillsImport({
         level: "global",
-        mode,
+        mode: "copy",
         items,
       });
       showToast(
@@ -924,18 +923,6 @@ export function SkillsScanImportPanel() {
             importing={importing}
             onScan={() => void scan()}
             onImport={() => void runImport()}
-            options={
-              <ImportOption
-                label={t("settings.importAgentScanMode")}
-                value={mode}
-                onChange={(id) => setMode(id as "copy" | "link")}
-                hint={t("settings.importAgentScanModeHint")}
-                options={[
-                  { id: "copy", label: t("settings.importAgentScanModeCopy") },
-                  { id: "link", label: t("settings.importAgentScanModeLink") },
-                ]}
-              />
-            }
           />
           <ImportResults
             message={
