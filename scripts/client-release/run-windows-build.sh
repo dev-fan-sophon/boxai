@@ -18,7 +18,7 @@ HOST="${BOXAI_WIN_SSH_HOST:-win-cf}"
 
 case "$PRODUCT" in
   desktop)
-    LOCAL_PS1="$ROOT/desktop/packaging/win_remote_build.ps1"
+    LOCAL_PS1="$ROOT/scripts/client-release/desktop-windows.ps1"
     REMOTE_PS1="C:/Users/win/win_remote_build_desktop.ps1"
     LOG="build_desktop_remote.log"
     DONE="build_desktop_remote.done"

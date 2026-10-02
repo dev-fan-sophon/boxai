@@ -2,11 +2,11 @@ import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
 import {
-  CalendarClock,
-  FileOutput,
-  Files,
-  Link2,
-  Sparkles,
+  Bot,
+  Coins,
+  FileCode2,
+  ListChecks,
+  Plug,
   SquareTerminal,
 } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -17,40 +17,40 @@ import {
 
 const CAPABILITIES = [
   {
-    title: 'Work with local files',
+    title: 'Works inside your project',
     description:
-      'Read, organize, and transform files on your computer without uploading your whole workspace.',
-    icon: Files,
+      'Reads the code and files in the folder you open, edits across them, and keeps every step in the transcript.',
+    icon: FileCode2,
   },
   {
-    title: 'Use the shell',
+    title: 'Runs and tests locally',
     description:
-      'Run commands and development tools locally, with every action visible in the transcript.',
+      'Builds, test suites, and scripts run in your own terminal environment, so the agent checks its work before it hands back.',
     icon: SquareTerminal,
   },
   {
-    title: 'Create real deliverables',
+    title: 'Plans before it acts',
     description:
-      'Documents, spreadsheets, presentations, and code land as files you can open and share.',
-    icon: FileOutput,
+      'Plan mode studies the project and proposes the approach first. Nothing changes until you approve it.',
+    icon: ListChecks,
   },
   {
-    title: 'Connect your tools',
+    title: 'Delegates to subagents',
     description:
-      'Bring Slack, GitHub, Gmail, Notion, Jira and more into one workspace through secure connectors.',
-    icon: Link2,
+      'Large tasks split into subagents and parallel worker sessions, each with the model that suits it.',
+    icon: Bot,
   },
   {
-    title: 'Teach it repeatable work',
+    title: 'Grows with plugins',
     description:
-      'Skills are instruction packs it loads on demand, so the same task comes out the same way.',
-    icon: Sparkles,
+      'Skills, plugins, and MCP servers add tools, panels, and workflows without changing the core app.',
+    icon: Plug,
   },
   {
-    title: 'Run on a schedule',
+    title: 'One account for every model',
     description:
-      'Morning briefs, weekly reports, and standing watches run on their own and report back.',
-    icon: CalendarClock,
+      'Claude, GPT, Gemini, and the rest of your BoxAI catalog share one balance, one bill, and one usage log.',
+    icon: Coins,
   },
 ] as const
 
@@ -62,9 +62,9 @@ export function CapabilityGrid() {
       <SectionIntro
         id='desktop-capabilities'
         eyebrow={t('Capabilities')}
-        title={t('From conversation to completed work')}
+        title={t('From a prompt to a reviewed change')}
         description={t(
-          'Give BoxAI the context and tools it needs, while you stay in control.'
+          'Give the agent your project and the tools it needs, while you stay in control of what lands.'
         )}
       />
       <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>

@@ -18,13 +18,12 @@ USER="${BOXAI_WIN_USER:-win}"
 
 case "$PRODUCT" in
   desktop)
-    REMOTE_STAGE="C:/Users/${USER}/src/boxai-desktop-${VERSION}/desktop/release/${VERSION}"
+    REMOTE_STAGE="C:/Users/${USER}/src/origingame/boxai-desktop-release/desktop/release/${VERSION}"
     LOCAL_STAGE="$ROOT/desktop/release/${VERSION}"
     NEED=(
-      BoxAI-Desktop-windows-setup.exe
-      BoxAI-Desktop-windows-setup.exe.sig
-      BoxAI-Desktop-windows.msi
-      BoxAI-Desktop-windows.msi.sig
+      "BoxAI-Desktop-${VERSION}-windows-x64-setup.exe"
+      "BoxAI-Desktop-${VERSION}-windows-x64-setup.exe.blockmap"
+      "BoxAI-Desktop-${VERSION}-windows-x64-setup.exe.assertion.json"
     )
     ;;
   connect)

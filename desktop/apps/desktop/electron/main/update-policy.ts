@@ -6,9 +6,12 @@ export function supportsAutomaticUpdates(
   platform: NodeJS.Platform,
   isPackaged: boolean,
   env: NodeJS.ProcessEnv = process.env,
+  macSigned = false,
 ): boolean {
   if (!isPackaged) return false;
-  if (platform === "win32" || platform === "darwin") return true;
+  // Unsigned macOS builds cannot use Squirrel's signed replacement flow.
+  if (platform === "darwin") return macSigned;
+  if (platform === "win32") return true;
   return platform === "linux" && Boolean(env.APPIMAGE);
 }
 
@@ -17,8 +20,9 @@ export function resolveDefaultUpdatePreference(
   isPackaged: boolean,
   env: NodeJS.ProcessEnv = process.env,
   distribution?: WindowsDistribution,
+  macSigned = false,
 ): UpdatePreference {
-  if (!supportsAutomaticUpdates(platform, isPackaged, env)) return "manual";
+  if (!supportsAutomaticUpdates(platform, isPackaged, env, macSigned)) return "manual";
   if (
     platform === "win32" &&
     (Boolean(env.PORTABLE_EXECUTABLE_FILE) || distribution === "zip" || distribution === "portable")
@@ -48,11 +52,12 @@ export function resolveUpdateMode(
   env: NodeJS.ProcessEnv = process.env,
   distribution?: WindowsDistribution,
   preference?: UpdatePreference,
+  macSigned = false,
 ): UpdateMode {
   if (!isPackaged) return "disabled";
-  if (!supportsAutomaticUpdates(platform, isPackaged, env)) return "manual";
+  if (!supportsAutomaticUpdates(platform, isPackaged, env, macSigned)) return "manual";
   const selected =
     preference ??
-    resolveDefaultUpdatePreference(platform, isPackaged, env, distribution);
+    resolveDefaultUpdatePreference(platform, isPackaged, env, distribution, macSigned);
   return selected === "automatic" ? "in-app" : "manual";
 }
