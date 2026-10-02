@@ -156,6 +156,46 @@ func validateTaskDurationBounds(req TaskSubmitReq) *dto.TaskError {
 	return nil
 }
 
+// MaxTaskReferenceImages / Videos / Audios cap typed reference media on any
+// task request (the largest documented upstream limit, Seedance 2.5).
+// Per-model limits are enforced by the adaptors and playground capabilities.
+const (
+	MaxTaskReferenceImages = 30
+	MaxTaskReferenceVideos = 10
+	MaxTaskReferenceAudios = 10
+)
+
+// normalizeTaskReferenceMedia trims typed reference media, drops blanks and
+// rejects lists above the global bound before any adaptor reads them.
+func normalizeTaskReferenceMedia(req *TaskSubmitReq) *dto.TaskError {
+	req.ReferenceImages = compactTaskMediaList(req.ReferenceImages)
+	req.ReferenceVideos = compactTaskMediaList(req.ReferenceVideos)
+	req.ReferenceAudios = compactTaskMediaList(req.ReferenceAudios)
+	if len(req.ReferenceImages) > MaxTaskReferenceImages {
+		return createTaskError(fmt.Errorf("at most %d reference images are allowed", MaxTaskReferenceImages), "invalid_request", http.StatusBadRequest, true)
+	}
+	if len(req.ReferenceVideos) > MaxTaskReferenceVideos {
+		return createTaskError(fmt.Errorf("at most %d reference videos are allowed", MaxTaskReferenceVideos), "invalid_request", http.StatusBadRequest, true)
+	}
+	if len(req.ReferenceAudios) > MaxTaskReferenceAudios {
+		return createTaskError(fmt.Errorf("at most %d reference audios are allowed", MaxTaskReferenceAudios), "invalid_request", http.StatusBadRequest, true)
+	}
+	return nil
+}
+
+func compactTaskMediaList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
 func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string) (TaskSubmitReq, error) {
 	var req TaskSubmitReq
 	if _, err := c.MultipartForm(); err != nil {
@@ -181,6 +221,9 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 	if images := formData["images"]; len(images) > 0 {
 		req.Images = images
 	}
+	req.ReferenceImages = formData["reference_images"]
+	req.ReferenceVideos = formData["reference_videos"]
+	req.ReferenceAudios = formData["reference_audios"]
 
 	for key, values := range formData {
 		if len(values) > 0 && !isKnownTaskField(key) {
@@ -242,6 +285,9 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	if taskErr := validateTaskDurationBounds(req); taskErr != nil {
 		return taskErr
 	}
+	if taskErr := normalizeTaskReferenceMedia(&req); taskErr != nil {
+		return taskErr
+	}
 
 	action := constant.TaskActionTextGenerate
 	if hasInputReference {
@@ -273,16 +319,19 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 
 func isKnownTaskField(field string) bool {
 	knownFields := map[string]bool{
-		"prompt":          true,
-		"model":           true,
-		"mode":            true,
-		"image":           true,
-		"images":          true,
-		"size":            true,
-		"duration":        true,
-		"input_reference": true, // Sora 特有字段
-		"first_frame":     true, // playground / i2v alias
-		"last_frame":      true, // playground / i2v alias
+		"prompt":           true,
+		"model":            true,
+		"mode":             true,
+		"image":            true,
+		"images":           true,
+		"size":             true,
+		"duration":         true,
+		"input_reference":  true, // Sora 特有字段
+		"first_frame":      true, // playground / i2v alias
+		"last_frame":       true, // playground / i2v alias
+		"reference_images": true,
+		"reference_videos": true,
+		"reference_audios": true,
 	}
 	return knownFields[field]
 }
@@ -307,6 +356,9 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 	}
 
 	if taskErr := validateTaskDurationBounds(req); taskErr != nil {
+		return taskErr
+	}
+	if taskErr := normalizeTaskReferenceMedia(&req); taskErr != nil {
 		return taskErr
 	}
 

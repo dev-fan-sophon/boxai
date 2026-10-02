@@ -95,40 +95,85 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 		return configured
 	}
 	if (channel.Type == constant.ChannelTypeSora || channel.Type == constant.ChannelTypeDoubaoVideo) && isModeledSeedanceModel(mappedModel) {
-		family, maxDuration, maxReferences := "seedance-2", 15, 9
-		resolutions := []string{"480p", "720p", "1080p"}
-		lower := strings.ToLower(mappedModel)
-		if strings.Contains(lower, "2-5") || strings.Contains(lower, "2.5") {
-			family, maxDuration, maxReferences = "seedance-2.5", 30, 30
-		} else if strings.Contains(lower, "fast") || strings.Contains(lower, "mini") {
-			family, resolutions = "seedance-2-fast", []string{"480p", "720p"}
-		}
-		base := dto.VideoModelCapabilities{Family: family, AspectRatios: []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"}, Resolutions: resolutions, ImageOnlyResolutions: []string{}, Durations: []int{4, 5, 6, 8, 10, 12, 15}, DurationRange: dto.VideoDurationRange{Min: 4, Max: maxDuration}, Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}, SupportsAudioToggle: true, UsesVolcengineMetadata: true}
-		if maxDuration == 30 {
-			base.Durations = append(base.Durations, 20, 25, 30)
-		}
-		frames := base
-		frames.SupportsLastFrame = true
-		references := base
-		references.MaxReferenceImages = maxReferences
-		if family == "seedance-2.5" {
-			frames.AspectRatios = []string{"adaptive"}
-			frames.Defaults.AspectRatio = "adaptive"
-		}
-		return map[string]dto.VideoModelCapabilities{"text": base, "frames": frames, "references": references}
+		return seedanceVideoProfiles(mappedModel)
 	}
 	// Relay dispatch recognizes this exact model on compatibility channels too.
 	if mappedModel != "grok-imagine-video" && mappedModel != "grok-imagine-video-1.5" {
 		return nil
 	}
-	p := dto.VideoModelCapabilities{Family: "xai", AspectRatios: []string{"16:9", "9:16"}, Resolutions: []string{"720p"}, ImageOnlyResolutions: []string{}, Durations: []int{3, 5, 8, 10, 15}, DurationRange: dto.VideoDurationRange{Min: 1, Max: 15}, Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}}
-	if mappedModel == "grok-imagine-video-1.5" {
-		// xAI supports text-to-video, including 1080p, without a supplied image:
-		// https://docs.x.ai/developers/model-capabilities/video/generation
-		p.Resolutions = []string{"720p", "1080p"}
-		p.ResolutionAspectRatios = map[string][]string{"1080p": {"16:9"}}
+	return xaiVideoProfiles(mappedModel)
+}
+
+// seedanceVideoProfiles describes Seedance 2.x on the Ark contents API.
+// Multimodal reference limits (images / videos / audios): 9/3/3 for 2.0,
+// fast and mini; 30/10/10 for 2.5. Reference audio needs a visual reference
+// on 2.0. Fast and mini top out at 720p.
+func seedanceVideoProfiles(mappedModel string) map[string]dto.VideoModelCapabilities {
+	family, maxDuration := "seedance-2", 15
+	maxImages, maxVideos, maxAudios := 9, 3, 3
+	resolutions := []string{"480p", "720p", "1080p"}
+	lower := strings.ToLower(mappedModel)
+	if strings.Contains(lower, "2-5") || strings.Contains(lower, "2.5") {
+		family, maxDuration = "seedance-2.5", 30
+		maxImages, maxVideos, maxAudios = 30, 10, 10
+	} else if strings.Contains(lower, "fast") || strings.Contains(lower, "mini") {
+		family, resolutions = "seedance-2-fast", []string{"480p", "720p"}
 	}
-	return map[string]dto.VideoModelCapabilities{"text": p, "frames": p}
+	base := dto.VideoModelCapabilities{
+		Family:                 family,
+		AspectRatios:           []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"},
+		Resolutions:            resolutions,
+		ImageOnlyResolutions:   []string{},
+		Durations:              []int{4, 5, 6, 8, 10, 12, 15},
+		DurationRange:          dto.VideoDurationRange{Min: 4, Max: maxDuration},
+		Defaults:               dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5},
+		SupportsAudioToggle:    true,
+		UsesVolcengineMetadata: true,
+		SupportsSeed:           true,
+		SupportsWatermark:      true,
+		ReturnsLastFrame:       true,
+	}
+	if maxDuration == 30 {
+		base.Durations = append(base.Durations, 20, 25, 30)
+	}
+	frames := base
+	frames.SupportsLastFrame = true
+	references := base
+	references.MaxReferenceImages = maxImages
+	references.MaxReferenceVideos = maxVideos
+	references.MaxReferenceAudios = maxAudios
+	references.AudioReferenceRequiresVisual = family != "seedance-2.5"
+	if family == "seedance-2.5" {
+		frames.AspectRatios = []string{"adaptive"}
+		frames.Defaults.AspectRatio = "adaptive"
+	}
+	return map[string]dto.VideoModelCapabilities{"text": base, "frames": frames, "references": references}
+}
+
+// xaiVideoProfiles follows https://docs.x.ai/developers/model-capabilities/video/generation:
+// 480p/720p/1080p, seven aspect ratios, 1-15s. Version 1.5 adds last_frame,
+// reference_images (capped at 720p, up to 7) and the generate_audio switch.
+func xaiVideoProfiles(mappedModel string) map[string]dto.VideoModelCapabilities {
+	p := dto.VideoModelCapabilities{
+		Family:               "xai",
+		AspectRatios:         []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"},
+		Resolutions:          []string{"480p", "720p"},
+		ImageOnlyResolutions: []string{},
+		Durations:            []int{3, 5, 8, 10, 15},
+		DurationRange:        dto.VideoDurationRange{Min: 1, Max: 15},
+		Defaults:             dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5},
+	}
+	if mappedModel != "grok-imagine-video-1.5" {
+		return map[string]dto.VideoModelCapabilities{"text": p, "frames": p}
+	}
+	p.SupportsAudioToggle = true
+	text := p
+	text.Resolutions = []string{"480p", "720p", "1080p"}
+	frames := text
+	frames.SupportsLastFrame = true
+	references := p
+	references.MaxReferenceImages = 7
+	return map[string]dto.VideoModelCapabilities{"text": text, "frames": frames, "references": references}
 }
 
 func isModeledSeedanceModel(name string) bool {
@@ -177,8 +222,14 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 	a.DurationRange.Max = min(a.DurationRange.Max, b.DurationRange.Max)
 	a.Durations = filterDurationRange(a.Durations, a.DurationRange)
 	a.MaxReferenceImages = min(a.MaxReferenceImages, b.MaxReferenceImages)
+	a.MaxReferenceVideos = min(a.MaxReferenceVideos, b.MaxReferenceVideos)
+	a.MaxReferenceAudios = min(a.MaxReferenceAudios, b.MaxReferenceAudios)
+	a.AudioReferenceRequiresVisual = a.AudioReferenceRequiresVisual || b.AudioReferenceRequiresVisual
 	a.SupportsLastFrame = a.SupportsLastFrame && b.SupportsLastFrame
 	a.SupportsAudioToggle = a.SupportsAudioToggle && b.SupportsAudioToggle
+	a.SupportsSeed = a.SupportsSeed && b.SupportsSeed
+	a.SupportsWatermark = a.SupportsWatermark && b.SupportsWatermark
+	a.ReturnsLastFrame = a.ReturnsLastFrame && b.ReturnsLastFrame
 	if len(a.AspectRatios) == 0 || len(a.Resolutions) == 0 || a.DurationRange.Min > a.DurationRange.Max {
 		return dto.VideoModelCapabilities{}, false
 	}

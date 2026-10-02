@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -279,10 +280,26 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	}, nil
 }
 
+// playgroundFrameMetadataKeys are injected by first_frame / last_frame
+// normalization; their values must agree with the explicit frames.
+var playgroundFrameMetadataKeys = []string{"first_frame", "first_frame_url", "last_frame", "last_frame_url"}
+
+// playgroundVolcengineMetadataKeys travel only through Volcengine metadata.
+var playgroundVolcengineMetadataKeys = map[string]bool{"resolution": true, "ratio": true, "generate_audio": true, "return_last_frame": true, "seed": true, "watermark": true}
+
+// maxVideoSeed is the Ark seed upper bound ([-1, 2^32-1]).
+const maxVideoSeed = 4294967295
+
 func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	invalid := func(message string) *dto.TaskError {
+		return service.TaskErrorWrapperLocal(errors.New(message), "invalid_request", http.StatusBadRequest)
+	}
+	unsupported := func(message string) *dto.TaskError {
+		return service.TaskErrorWrapperLocal(errors.New(message), "unsupported_video_capability", http.StatusBadRequest)
 	}
 	frameCount := 0
 	if strings.TrimSpace(req.FirstFrame) != "" {
@@ -291,69 +308,86 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	if strings.TrimSpace(req.LastFrame) != "" {
 		frameCount++
 	}
+	referenceMedia := len(req.ReferenceImages) + len(req.ReferenceVideos) + len(req.ReferenceAudios)
 	mode := "text"
 	if frameCount > 0 || req.InputReference != "" {
 		mode = "frames"
-	} else if len(req.Images) > 0 {
+	} else if len(req.Images) > 0 || referenceMedia > 0 {
 		mode = "references"
+	}
+	if mode == "frames" && referenceMedia > 0 {
+		return invalid("reference media cannot be combined with frames")
 	}
 	settingValue, ok := common.GetContextKey(c, constant.ContextKeyChannelSetting)
 	setting, valid := settingValue.(dto.ChannelSettings)
 	if !ok || !valid {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("video capabilities unavailable for selected channel"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("video capabilities unavailable for selected channel")
 	}
 	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, mode)
 	if !ok {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("video mode %s is unavailable", mode), "unsupported_video_capability", http.StatusBadRequest)
-	}
-	if len(req.Metadata) > 0 && !profile.UsesVolcengineMetadata {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("metadata options are unavailable for this video transport"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported(fmt.Sprintf("video mode %s is unavailable", mode))
 	}
 	seconds := req.Duration
 	if seconds == 0 && req.Seconds != "" {
 		seconds, _ = strconv.Atoi(req.Seconds)
 	}
 	if seconds < profile.DurationRange.Min || seconds > profile.DurationRange.Max {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("duration is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("duration is unavailable")
 	}
 	resolution, ratio := "", ""
 	audioPresent := false
-	if req.Metadata != nil {
-		allowed := map[string]bool{"resolution": true, "ratio": true, "generate_audio": true, "first_frame": true, "first_frame_url": true, "last_frame": true, "last_frame_url": true}
-		for key := range req.Metadata {
-			if !allowed[key] {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("metadata field %q is unavailable", key), "invalid_request", http.StatusBadRequest)
+	for key, value := range req.Metadata {
+		if videoStringAllowed(key, playgroundFrameMetadataKeys) {
+			continue
+		}
+		if !playgroundVolcengineMetadataKeys[key] {
+			return invalid(fmt.Sprintf("metadata field %q is unavailable", key))
+		}
+		// xAI reads only the audio switch from metadata; every other option
+		// would be silently ignored by a size-based transport.
+		if !profile.UsesVolcengineMetadata && !(key == "generate_audio" && profile.SupportsAudioToggle) {
+			return unsupported(fmt.Sprintf("metadata field %q is unavailable for this video transport", key))
+		}
+		switch key {
+		case "resolution", "ratio":
+			text, isString := value.(string)
+			if !isString {
+				return invalid(key + " must be a string")
+			}
+			if key == "resolution" {
+				resolution = text
+			} else {
+				ratio = text
+			}
+		case "generate_audio", "return_last_frame", "watermark":
+			if _, isBool := value.(bool); !isBool {
+				return invalid(key + " must be boolean")
+			}
+		case "seed":
+			number, isNumber := value.(float64)
+			if !isNumber || number != math.Trunc(number) || number < -1 || number > maxVideoSeed {
+				return invalid(fmt.Sprintf("seed must be an integer between -1 and %d", maxVideoSeed))
 			}
 		}
-		var valid bool
-		if value, exists := req.Metadata["resolution"]; exists {
-			resolution, valid = value.(string)
-			if !valid {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("resolution must be a string"), "invalid_request", http.StatusBadRequest)
-			}
-		}
-		if value, exists := req.Metadata["ratio"]; exists {
-			ratio, valid = value.(string)
-			if !valid {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("ratio must be a string"), "invalid_request", http.StatusBadRequest)
-			}
-		}
-		if value, exists := req.Metadata["generate_audio"]; exists {
-			_, valid = value.(bool)
+		switch {
+		case key == "generate_audio":
 			audioPresent = true
-			if !valid {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("generate_audio must be boolean"), "invalid_request", http.StatusBadRequest)
-			}
+		case key == "seed" && !profile.SupportsSeed:
+			return unsupported("seed is unavailable")
+		case key == "watermark" && !profile.SupportsWatermark:
+			return unsupported("watermark is unavailable")
+		case key == "return_last_frame" && !profile.ReturnsLastFrame:
+			return unsupported("last frame output is unavailable")
 		}
 	}
 	if req.Duration > 0 && req.Seconds != "" {
 		parsed, err := strconv.Atoi(req.Seconds)
 		if err != nil || parsed != req.Duration {
-			return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting duration aliases"), "invalid_request", http.StatusBadRequest)
+			return invalid("conflicting duration aliases")
 		}
 	}
 	if req.FirstFrame != "" && ((req.Image != "" && req.Image != req.FirstFrame) || (req.InputReference != "" && req.InputReference != req.FirstFrame)) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting frame aliases"), "invalid_request", http.StatusBadRequest)
+		return invalid("conflicting frame aliases")
 	}
 	if mode == "frames" {
 		first := req.FirstFrame
@@ -361,41 +395,44 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 			first = req.InputReference
 		}
 		if first == "" {
-			return service.TaskErrorWrapperLocal(fmt.Errorf("last frame requires a first frame"), "invalid_request", http.StatusBadRequest)
+			return invalid("last frame requires a first frame")
 		}
 		for _, image := range req.Images {
 			if image != first && (req.LastFrame == "" || image != req.LastFrame) {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("reference images cannot be combined with frames"), "invalid_request", http.StatusBadRequest)
+				return invalid("reference images cannot be combined with frames")
 			}
 		}
-		for _, key := range []string{"first_frame", "first_frame_url", "last_frame", "last_frame_url"} {
+		for _, key := range playgroundFrameMetadataKeys {
 			if value, exists := req.Metadata[key]; exists {
 				expected := first
 				if strings.HasPrefix(key, "last") {
 					expected = req.LastFrame
 				}
 				if value != expected {
-					return service.TaskErrorWrapperLocal(fmt.Errorf("conflicting frame metadata"), "invalid_request", http.StatusBadRequest)
+					return invalid("conflicting frame metadata")
 				}
 			}
 		}
 	} else {
-		for _, key := range []string{"first_frame", "first_frame_url", "last_frame", "last_frame_url"} {
+		for _, key := range playgroundFrameMetadataKeys {
 			if _, exists := req.Metadata[key]; exists {
-				return service.TaskErrorWrapperLocal(fmt.Errorf("frame metadata requires explicit frames"), "invalid_request", http.StatusBadRequest)
+				return invalid("frame metadata requires explicit frames")
 			}
 		}
 	}
 	if req.LastFrame != "" && !profile.SupportsLastFrame {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("last frame is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("last frame is unavailable")
 	}
 	if profile.RequiresImage && mode == "text" {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("an image is required"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("an image is required")
 	}
 	if req.Size != "" {
 		sizeResolution, sizeRatio := relaycommon.SeedanceOutputFromSize(req.Size)
+		if profile.Family == "xai" {
+			sizeResolution, sizeRatio = relaycommon.GrokImagineDimensionsFromSize(req.Size)
+		}
 		if sizeResolution == "" || (resolution != "" && resolution != sizeResolution) || (ratio != "" && ratio != "adaptive" && ratio != sizeRatio) {
-			return service.TaskErrorWrapperLocal(fmt.Errorf("size conflicts with video options"), "invalid_request", http.StatusBadRequest)
+			return invalid("size conflicts with video options")
 		}
 		if resolution == "" {
 			resolution = sizeResolution
@@ -405,27 +442,40 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 		}
 	}
 	if resolution != "" && !videoStringAllowed(resolution, profile.Resolutions) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("resolution is unavailable")
 	}
 	if ratio != "" && !videoStringAllowed(ratio, profile.AspectRatios) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("aspect ratio is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("aspect ratio is unavailable")
 	}
 	if permitted, limited := profile.ResolutionAspectRatios[resolution]; limited && !videoStringAllowed(ratio, permitted) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution is unavailable for this aspect ratio"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("resolution is unavailable for this aspect ratio")
 	}
 	if strings.Contains(strings.ToLower(info.UpstreamModelName), "2-5") || strings.Contains(strings.ToLower(info.UpstreamModelName), "2.5") {
 		if mode == "frames" && ratio != "" && ratio != "adaptive" {
-			return service.TaskErrorWrapperLocal(fmt.Errorf("Seedance 2.5 frames require adaptive ratio"), "unsupported_video_capability", http.StatusBadRequest)
+			return unsupported("Seedance 2.5 frames require adaptive ratio")
 		}
 	}
 	if mode == "text" && videoStringAllowed(resolution, profile.ImageOnlyResolutions) {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("resolution requires an image"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("resolution requires an image")
 	}
 	if audioPresent && !profile.SupportsAudioToggle {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("audio toggle is unavailable"), "unsupported_video_capability", http.StatusBadRequest)
+		return unsupported("audio toggle is unavailable")
 	}
-	if mode == "references" && len(req.Images) > profile.MaxReferenceImages {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("too many reference images"), "unsupported_video_capability", http.StatusBadRequest)
+	if mode != "references" {
+		return nil
+	}
+	referenceImages := len(req.Images) + len(req.ReferenceImages)
+	if referenceImages > profile.MaxReferenceImages {
+		return unsupported("too many reference images")
+	}
+	if len(req.ReferenceVideos) > profile.MaxReferenceVideos {
+		return unsupported("too many reference videos")
+	}
+	if len(req.ReferenceAudios) > profile.MaxReferenceAudios {
+		return unsupported("too many reference audios")
+	}
+	if profile.AudioReferenceRequiresVisual && len(req.ReferenceAudios) > 0 && referenceImages+len(req.ReferenceVideos) == 0 {
+		return unsupported("reference audio needs a reference image or video")
 	}
 	return nil
 }
@@ -740,27 +790,45 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		data = nil
 	}
 	return &dto.TaskDto{
-		ID:         task.ID,
-		CreatedAt:  task.CreatedAt,
-		UpdatedAt:  task.UpdatedAt,
-		TaskID:     task.TaskID,
-		Platform:   string(task.Platform),
-		UserId:     task.UserId,
-		Group:      task.Group,
-		ChannelId:  task.ChannelId,
-		Quota:      task.Quota,
-		Action:     task.Action,
-		Status:     string(task.Status),
-		FailReason: task.FailReason,
-		ResultURL:  publicTaskResultURL(task),
-		SubmitTime: task.SubmitTime,
-		StartTime:  task.StartTime,
-		FinishTime: task.FinishTime,
-		Progress:   task.Progress,
-		Properties: task.Properties,
-		Username:   task.Username,
-		Data:       data,
+		ID:           task.ID,
+		CreatedAt:    task.CreatedAt,
+		UpdatedAt:    task.UpdatedAt,
+		TaskID:       task.TaskID,
+		Platform:     string(task.Platform),
+		UserId:       task.UserId,
+		Group:        task.Group,
+		ChannelId:    task.ChannelId,
+		Quota:        task.Quota,
+		Action:       task.Action,
+		Status:       string(task.Status),
+		FailReason:   task.FailReason,
+		ResultURL:    publicTaskResultURL(task),
+		LastFrameURL: taskLastFrameURL(task),
+		SubmitTime:   task.SubmitTime,
+		StartTime:    task.StartTime,
+		FinishTime:   task.FinishTime,
+		Progress:     task.Progress,
+		Properties:   task.Properties,
+		Username:     task.Username,
+		Data:         data,
 	}
+}
+
+// taskLastFrameURL reads content.last_frame_url from a stored Ark contents
+// response (native Doubao or the Volcengine gateway). Other shapes have none.
+func taskLastFrameURL(task *model.Task) string {
+	if task.Status != model.TaskStatusSuccess || len(task.Data) == 0 || task.Platform == constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeXai)) {
+		return ""
+	}
+	var stored struct {
+		Content struct {
+			LastFrameURL string `json:"last_frame_url"`
+		} `json:"content"`
+	}
+	if err := common.Unmarshal(task.Data, &stored); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(stored.Content.LastFrameURL)
 }
 
 func publicTaskResultURL(task *model.Task) string {

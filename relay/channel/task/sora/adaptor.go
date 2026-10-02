@@ -93,6 +93,11 @@ func validateRemixRequest(c *gin.Context) *dto.TaskError {
 
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
 	if info.Action == constant.TaskActionRemix {
+		// The Volcengine gateway speaks the Ark contents API, which has no
+		// remix endpoint; fail before quota is reserved.
+		if isVolcengineGateway(a.baseURL) {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("remix is not supported for Seedance tasks on this channel"), "unsupported_action", http.StatusBadRequest)
+		}
 		return validateRemixRequest(c)
 	}
 	return relaycommon.ValidateMultipartDirect(c, info)

@@ -72,7 +72,8 @@ func TestValidateMappedRequestUsesUpstreamModel(t *testing.T) {
 	info.UpstreamModelName = modelImagine
 	taskErr := (&TaskAdaptor{}).ValidateMappedRequest(c, info)
 	require.NotNil(t, taskErr)
-	assert.Equal(t, "unsupported_resolution", taskErr.Code)
+	assert.Equal(t, "invalid_request", taskErr.Code)
+	assert.Contains(t, taskErr.Message, "1080p is only supported")
 
 	info.UpstreamModelName = "unsupported-video-model"
 	taskErr = (&TaskAdaptor{}).ValidateMappedRequest(c, info)
@@ -141,6 +142,7 @@ func TestBillingRatios(t *testing.T) {
 	}{
 		{modelImagine, "", 1.4}, {modelImagine, "1280x720", 1.4},
 		{modelImagine15, "720x1280", 1.75}, {modelImagine15, "1920x1080", 3.125},
+		{modelImagine15, "720x480", 1}, {modelImagine15, "1620x1080", 3.125},
 	}
 	for _, tt := range tests {
 		c, info := requestContext(t, `{"model":"`+tt.model+`","prompt":"p","duration":8,"size":"`+tt.size+`","image":"https://img.test/a"}`)
@@ -273,4 +275,62 @@ func TestConvertToOpenAIVideoUsesPersistedFailureReason(t *testing.T) {
 	assert.Equal(t, "completed without a URL", got["error"].(map[string]any)["message"])
 	metadata, _ := got["metadata"].(map[string]any)
 	assert.NotContains(t, metadata, "url")
+}
+
+func TestBuildVideo15FramesReferencesAndAudio(t *testing.T) {
+	tests := []struct {
+		name, body string
+		want       map[string]interface{}
+		wantErr    string
+	}{
+		{
+			name: "first and last frame with audio off",
+			body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":6,"size":"720x480","first_frame":"https://f","last_frame":"https://l","metadata":{"generate_audio":false}}`,
+			want: map[string]interface{}{"model": modelImagine15, "prompt": "p", "duration": float64(6), "aspect_ratio": "3:2", "resolution": "480p",
+				"image": map[string]interface{}{"url": "https://f"}, "last_frame": map[string]interface{}{"url": "https://l"}, "generate_audio": false},
+		},
+		{
+			name: "typed reference images",
+			body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":5,"size":"720x960","reference_images":["https://a","https://b"]}`,
+			want: map[string]interface{}{"model": modelImagine15, "prompt": "p", "duration": float64(5), "aspect_ratio": "3:4", "resolution": "720p",
+				"reference_images": []interface{}{map[string]interface{}{"url": "https://a"}, map[string]interface{}{"url": "https://b"}}},
+		},
+		{name: "references capped at 720p", body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":5,"size":"1920x1080","reference_images":["https://a"]}`, wantErr: "720p"},
+		{name: "at most seven references", body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":5,"reference_images":["1","2","3","4","5","6","7","8"]}`, wantErr: "at most 7"},
+		{name: "reference audio is not a typed media upload", body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":5,"reference_audios":["https://a.mp3"]}`, wantErr: "reference videos or audios"},
+		{name: "unsupported ratio", body: `{"model":"grok-imagine-video-1.5","prompt":"p","duration":5,"size":"1680x720"}`, wantErr: "unsupported video size"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, info := requestContext(t, tt.body)
+			a := &TaskAdaptor{}
+			taskErr := a.ValidateRequestAndSetAction(c, info)
+			if tt.wantErr != "" {
+				require.NotNil(t, taskErr)
+				assert.Contains(t, taskErr.Message, tt.wantErr)
+				return
+			}
+			require.Nil(t, taskErr)
+			info.UpstreamModelName = modelImagine15
+			require.Nil(t, a.ValidateMappedRequest(c, info))
+			body, err := a.BuildRequestBody(c, info)
+			require.NoError(t, err)
+			var got map[string]interface{}
+			require.NoError(t, common.DecodeJson(body, &got))
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClassicModelRejectsVersion15Inputs(t *testing.T) {
+	for _, body := range []string{
+		`{"model":"video-alias","prompt":"p","duration":5,"first_frame":"https://f","last_frame":"https://l"}`,
+		`{"model":"video-alias","prompt":"p","duration":5,"reference_images":["https://a"]}`,
+	} {
+		c, info := requestContext(t, body)
+		a := &TaskAdaptor{}
+		require.Nil(t, a.ValidateRequestAndSetAction(c, info))
+		info.UpstreamModelName = modelImagine
+		require.NotNil(t, a.ValidateMappedRequest(c, info), body)
+	}
 }

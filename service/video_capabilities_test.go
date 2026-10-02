@@ -50,24 +50,89 @@ func TestIntersectVideoProfileFailsClosedOnIncompatibleFamily(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestXaiVideoVersionDimensions(t *testing.T) {
+func TestXaiVideoProfilesFollowModelVersion(t *testing.T) {
 	channel := &model.Channel{Type: constant.ChannelTypeXai}
+	allRatios := []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"}
+
 	legacy := profilesForChannel(channel, "grok-imagine-video")
 	require.Contains(t, legacy, "text")
-	assert.Equal(t, []string{"720p"}, legacy["frames"].Resolutions)
+	assert.NotContains(t, legacy, "references")
+	assert.Equal(t, []string{"480p", "720p"}, legacy["frames"].Resolutions)
+	assert.Equal(t, allRatios, legacy["text"].AspectRatios)
+	assert.False(t, legacy["frames"].SupportsLastFrame)
+	assert.False(t, legacy["text"].SupportsAudioToggle)
+
 	current := profilesForChannel(channel, "grok-imagine-video-1.5")
-	require.Contains(t, current, "text")
-	assert.False(t, current["text"].RequiresImage)
-	assert.False(t, current["frames"].RequiresImage)
-	assert.Equal(t, []string{"720p", "1080p"}, current["text"].Resolutions)
-	assert.Empty(t, current["text"].ImageOnlyResolutions)
-	assert.Equal(t, []string{"16:9"}, current["frames"].ResolutionAspectRatios["1080p"])
-	a := current["frames"]
-	b := a
-	b.ResolutionAspectRatios = map[string][]string{"1080p": {"9:16"}}
+	require.Contains(t, current, "references")
+	for _, mode := range []string{"text", "frames"} {
+		assert.Equal(t, []string{"480p", "720p", "1080p"}, current[mode].Resolutions, mode)
+		assert.Equal(t, allRatios, current[mode].AspectRatios, mode)
+		assert.True(t, current[mode].SupportsAudioToggle, mode)
+		assert.False(t, current[mode].RequiresImage, mode)
+	}
+	assert.True(t, current["frames"].SupportsLastFrame)
+	references := current["references"]
+	assert.Equal(t, 7, references.MaxReferenceImages)
+	assert.Equal(t, []string{"480p", "720p"}, references.Resolutions, "reference-to-video is capped at 720p")
+	assert.Zero(t, references.MaxReferenceVideos)
+	assert.Zero(t, references.MaxReferenceAudios)
+	assert.False(t, references.SupportsSeed)
+
+	settings := dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{"grok-imagine-video-1.5": current}}
+	require.NoError(t, settings.ValidateVideoCapabilities(), "built-in xAI profiles must pass admin validation")
+}
+
+func TestSeedanceReferenceMediaProfiles(t *testing.T) {
+	tests := []struct {
+		model                       string
+		images, videos, audios, max int
+		audioNeedsVisual            bool
+		resolutions                 []string
+	}{
+		{"seedance-2-0", 9, 3, 3, 15, true, []string{"480p", "720p", "1080p"}},
+		{"seedance-2-0-fast", 9, 3, 3, 15, true, []string{"480p", "720p"}},
+		{"seedance-2-0-mini", 9, 3, 3, 15, true, []string{"480p", "720p"}},
+		{"dreamina-seedance-2-5", 30, 10, 10, 30, false, []string{"480p", "720p", "1080p"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			for _, channelType := range []int{constant.ChannelTypeSora, constant.ChannelTypeDoubaoVideo} {
+				profiles := profilesForChannel(&model.Channel{Type: channelType}, tt.model)
+				references := profiles["references"]
+				assert.Equal(t, tt.images, references.MaxReferenceImages)
+				assert.Equal(t, tt.videos, references.MaxReferenceVideos)
+				assert.Equal(t, tt.audios, references.MaxReferenceAudios)
+				assert.Equal(t, tt.audioNeedsVisual, references.AudioReferenceRequiresVisual)
+				for _, mode := range []string{"text", "frames"} {
+					assert.Zero(t, profiles[mode].MaxReferenceVideos, mode)
+					assert.Zero(t, profiles[mode].MaxReferenceAudios, mode)
+				}
+				for _, mode := range []string{"text", "frames", "references"} {
+					p := profiles[mode]
+					assert.Equal(t, dto.VideoDurationRange{Min: 4, Max: tt.max}, p.DurationRange, mode)
+					assert.Equal(t, tt.resolutions, p.Resolutions, mode)
+					assert.True(t, p.SupportsSeed && p.SupportsWatermark && p.ReturnsLastFrame, mode)
+				}
+				settings := dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{tt.model: profiles}}
+				require.NoError(t, settings.ValidateVideoCapabilities())
+			}
+		})
+	}
+}
+
+func TestIntersectVideoProfileKeepsStricterReferenceMediaLimits(t *testing.T) {
+	a := seedanceVideoProfiles("seedance-2-5")["references"]
+	b := seedanceVideoProfiles("seedance-2-0")["references"]
+	b.Family = a.Family
+	b.SupportsSeed = false
 	merged, ok := intersectVideoProfile(a, b)
 	require.True(t, ok)
-	assert.Equal(t, []string{"720p"}, merged.Resolutions)
+	assert.Equal(t, 9, merged.MaxReferenceImages)
+	assert.Equal(t, 3, merged.MaxReferenceVideos)
+	assert.Equal(t, 3, merged.MaxReferenceAudios)
+	assert.True(t, merged.AudioReferenceRequiresVisual)
+	assert.False(t, merged.SupportsSeed)
+	assert.True(t, merged.ReturnsLastFrame)
 }
 
 func TestResolveVideoCapabilitiesFromSQLiteRoutingCandidates(t *testing.T) {

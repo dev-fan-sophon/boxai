@@ -75,7 +75,8 @@ type responseTask struct {
 	Model   string `json:"model"`
 	Status  string `json:"status"`
 	Content struct {
-		VideoURL string `json:"video_url"`
+		VideoURL     string `json:"video_url"`
+		LastFrameURL string `json:"last_frame_url"`
 	} `json:"content"`
 	Seed            int    `json:"seed"`
 	Resolution      string `json:"resolution"`
@@ -318,6 +319,16 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		}
 	}
 
+	for _, imgURL := range req.ReferenceImages {
+		r.Content = append(r.Content, ContentItem{Type: "image_url", Role: "reference_image", ImageURL: &MediaURL{URL: imgURL}})
+	}
+	for _, videoURL := range req.ReferenceVideos {
+		r.Content = append(r.Content, ContentItem{Type: "video_url", Role: "reference_video", VideoURL: &MediaURL{URL: videoURL}})
+	}
+	for _, audioURL := range req.ReferenceAudios {
+		r.Content = append(r.Content, ContentItem{Type: "audio_url", Role: "reference_audio", AudioURL: &MediaURL{URL: audioURL}})
+	}
+
 	metadata := req.Metadata
 	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
@@ -334,27 +345,40 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 		return nil, fmt.Errorf("frames must be between 1 and %d", relaycommon.MaxTaskDurationSeconds*24)
 	}
 
-	referenceCount, frameCount := 0, 0
+	referenceCount, videoCount, audioCount, frameCount := 0, 0, 0, 0
 	for _, item := range r.Content {
-		if item.Type != "image_url" {
-			continue
-		}
-		switch item.Role {
-		case "reference_image":
+		switch {
+		case item.Type == "video_url":
+			videoCount++
+		case item.Type == "audio_url":
+			audioCount++
+		case item.Type != "image_url":
+		case item.Role == "reference_image":
 			referenceCount++
-		case "first_frame", "last_frame", "":
+		default:
 			frameCount++
 		}
 	}
-	maxReferences := 9
+	// Ark multimodal reference limits: 9 images / 3 videos / 3 audios on
+	// Seedance 2.0 (fast, mini), 30 / 10 / 10 on 2.5.
+	maxReferences, maxVideos, maxAudios := 9, 3, 3
 	if strings.Contains(modelName, "seedance-2-5") || strings.Contains(modelName, "seedance-2.5") {
-		maxReferences = 30
+		maxReferences, maxVideos, maxAudios = 30, 10, 10
+	}
+	if !seedanceReferences && len(req.ReferenceVideos)+len(req.ReferenceAudios) > 0 {
+		return nil, errors.New("reference videos and audios require Seedance 2.x")
 	}
 	if seedanceReferences && referenceCount > maxReferences {
 		return nil, fmt.Errorf("Seedance supports at most %d reference images", maxReferences)
 	}
-	if seedanceReferences && referenceCount > 0 && frameCount > 0 {
-		return nil, errors.New("reference images cannot be combined with first/last frames")
+	if seedanceReferences && videoCount > maxVideos {
+		return nil, fmt.Errorf("Seedance supports at most %d reference videos", maxVideos)
+	}
+	if seedanceReferences && audioCount > maxAudios {
+		return nil, fmt.Errorf("Seedance supports at most %d reference audios", maxAudios)
+	}
+	if seedanceReferences && referenceCount+len(req.ReferenceVideos)+len(req.ReferenceAudios) > 0 && frameCount > 0 {
+		return nil, errors.New("reference media cannot be combined with first/last frames")
 	}
 
 	resolution, ratio := videoOutputDimensions(req.Size)
@@ -457,6 +481,9 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, erro
 		// Gateways may return content endpoints requiring the upstream key.
 		// The owner-authenticated proxy streams on demand without archiving.
 		openAIVideo.SetMetadata("url", taskcommon.BuildProxyURL(originTask.TaskID))
+		if dResp.Content.LastFrameURL != "" {
+			openAIVideo.SetMetadata("last_frame_url", dResp.Content.LastFrameURL)
+		}
 	}
 	openAIVideo.CreatedAt = originTask.CreatedAt
 	openAIVideo.CompletedAt = originTask.UpdatedAt

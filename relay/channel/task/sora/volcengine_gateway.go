@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -74,6 +75,7 @@ type gatewayCreateRequest struct {
 	Resolution      string               `json:"resolution,omitempty"`
 	Duration        *int                 `json:"duration,omitempty"`
 	Watermark       *bool                `json:"watermark,omitempty"`
+	Seed            *int64               `json:"seed,omitempty"`
 	ReturnLastFrame *bool                `json:"return_last_frame,omitempty"`
 	CallbackURL     string               `json:"callback_url,omitempty"`
 }
@@ -180,6 +182,18 @@ func gatewayCreateFromPassthrough(body map[string]interface{}, modelName string)
 		req.Watermark = &watermark
 	} else if watermark, ok := metadata["watermark"].(bool); ok {
 		req.Watermark = &watermark
+	}
+	if returnLastFrame, ok := metadata["return_last_frame"].(bool); ok {
+		req.ReturnLastFrame = &returnLastFrame
+	}
+	if value, exists := metadata["seed"]; exists {
+		seed, ok := value.(float64)
+		// Ark accepts seeds in [-1, 2^32-1].
+		if !ok || seed != math.Trunc(seed) || seed < -1 || seed > math.MaxUint32 {
+			return nil, errors.New("seed must be an integer between -1 and 4294967295")
+		}
+		seedValue := int64(seed)
+		req.Seed = &seedValue
 	}
 	req.CallbackURL = gatewayCallbackURL()
 	return req, nil

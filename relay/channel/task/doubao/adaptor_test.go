@@ -345,3 +345,94 @@ func TestCompletedVideoUsesProxyWithoutArchive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "/v1/videos/task_public/content", "previously archived outputs remain usable")
 }
+
+func TestTypedReferenceMediaMapsToArkRolesAndVideoPricing(t *testing.T) {
+	const upstream = "doubao-seedance-2-0-260128"
+	tests := []struct {
+		name      string
+		req       relaycommon.TaskSubmitReq
+		wantTypes []string
+		wantRoles []string
+		videoTier bool
+		wantErr   string
+	}{
+		{
+			name:      "image video audio references",
+			req:       relaycommon.TaskSubmitReq{ReferenceImages: []string{"https://m/i.png"}, ReferenceVideos: []string{"https://m/v.mp4"}, ReferenceAudios: []string{"https://m/a.mp3"}, Metadata: map[string]interface{}{"return_last_frame": true, "seed": float64(7), "watermark": false}},
+			wantTypes: []string{"image_url", "video_url", "audio_url", "text"},
+			wantRoles: []string{"reference_image", "reference_video", "reference_audio", ""},
+			videoTier: true,
+		},
+		{
+			name:      "audio with image reference stays on the no-video tier",
+			req:       relaycommon.TaskSubmitReq{ReferenceImages: []string{"https://m/i.png"}, ReferenceAudios: []string{"https://m/a.mp3"}},
+			wantTypes: []string{"image_url", "audio_url", "text"},
+			wantRoles: []string{"reference_image", "reference_audio", ""},
+		},
+		{name: "too many videos", req: relaycommon.TaskSubmitReq{ReferenceVideos: []string{"https://m/1", "https://m/2", "https://m/3", "https://m/4"}}, wantErr: "at most 3 reference videos"},
+		{name: "too many audios", req: relaycommon.TaskSubmitReq{ReferenceImages: []string{"https://m/i"}, ReferenceAudios: []string{"https://m/1", "https://m/2", "https://m/3", "https://m/4"}}, wantErr: "at most 3 reference audios"},
+		{name: "frames with reference video", req: relaycommon.TaskSubmitReq{FirstFrame: "https://m/f.png", Images: []string{"https://m/f.png"}, ReferenceVideos: []string{"https://m/v.mp4"}}, wantErr: "cannot be combined"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := tt.req
+			req.Model, req.Prompt, req.Duration = upstream, "dance", 5
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Set("task_request", req)
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{IsModelMapped: true, UpstreamModelName: upstream}}
+			a := &TaskAdaptor{}
+			taskErr := a.ValidateMappedRequest(c, info)
+			if tt.wantErr != "" {
+				require.NotNil(t, taskErr)
+				assert.Contains(t, taskErr.Message, tt.wantErr)
+				return
+			}
+			require.Nil(t, taskErr)
+			body, err := a.BuildRequestBody(c, info)
+			require.NoError(t, err)
+			var payload requestPayload
+			require.NoError(t, common.DecodeJson(body, &payload))
+			require.Len(t, payload.Content, len(tt.wantTypes))
+			for i, item := range payload.Content {
+				assert.Equal(t, tt.wantTypes[i], item.Type)
+				assert.Equal(t, tt.wantRoles[i], item.Role)
+			}
+			if tt.req.Metadata != nil {
+				require.NotNil(t, payload.ReturnLastFrame)
+				assert.True(t, bool(*payload.ReturnLastFrame))
+				require.NotNil(t, payload.Seed)
+				assert.Equal(t, 7, int(*payload.Seed))
+				require.NotNil(t, payload.Watermark)
+				assert.False(t, bool(*payload.Watermark))
+			}
+			ratios := a.EstimateBilling(c, info)
+			if tt.videoTier {
+				expected, ok := GetVideoInputRatio(upstream, "", true)
+				require.True(t, ok)
+				assert.Equal(t, expected, ratios["video_input"])
+			} else {
+				assert.NotContains(t, ratios, "video_input")
+			}
+		})
+	}
+}
+
+func TestTypedReferenceMediaRequiresSeedance2(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Set("task_request", relaycommon.TaskSubmitReq{Model: "doubao-seedance-1-5-pro-251215", Prompt: "p", ReferenceVideos: []string{"https://m/v.mp4"}})
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{IsModelMapped: true, UpstreamModelName: "doubao-seedance-1-5-pro-251215"}}
+	taskErr := (&TaskAdaptor{}).ValidateMappedRequest(c, info)
+	require.NotNil(t, taskErr)
+	assert.Equal(t, http.StatusBadRequest, taskErr.StatusCode)
+}
+
+func TestParseLastFrameIntoOpenAIVideo(t *testing.T) {
+	task := &model.Task{TaskID: "task_x", Status: model.TaskStatusSuccess, Data: []byte(`{"id":"cgt-1","status":"succeeded","content":{"video_url":"https://v/out.mp4","last_frame_url":"https://v/last.png"}}`)}
+	raw, err := (&TaskAdaptor{}).ConvertToOpenAIVideo(task)
+	require.NoError(t, err)
+	var video map[string]interface{}
+	require.NoError(t, common.Unmarshal(raw, &video))
+	metadata, ok := video["metadata"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "https://v/last.png", metadata["last_frame_url"])
+}

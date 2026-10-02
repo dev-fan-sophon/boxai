@@ -43,11 +43,30 @@ type VideoModelCapabilities struct {
 	DurationRange          VideoDurationRange  `json:"durationRange"`
 	Defaults               VideoDefaults       `json:"defaults"`
 	MaxReferenceImages     int                 `json:"maxReferenceImages"`
-	SupportsLastFrame      bool                `json:"supportsLastFrame"`
-	RequiresImage          bool                `json:"requiresImage"`
-	SupportsAudioToggle    bool                `json:"supportsAudioToggle"`
-	UsesVolcengineMetadata bool                `json:"usesVolcengineMetadata"`
+	// MaxReferenceVideos / MaxReferenceAudios bound typed reference media
+	// (reference_videos / reference_audios) in references mode.
+	MaxReferenceVideos int `json:"maxReferenceVideos"`
+	MaxReferenceAudios int `json:"maxReferenceAudios"`
+	// AudioReferenceRequiresVisual: reference audio needs at least one
+	// reference image or video in the same request.
+	AudioReferenceRequiresVisual bool `json:"audioReferenceRequiresVisual"`
+	SupportsLastFrame            bool `json:"supportsLastFrame"`
+	RequiresImage                bool `json:"requiresImage"`
+	SupportsAudioToggle          bool `json:"supportsAudioToggle"`
+	UsesVolcengineMetadata       bool `json:"usesVolcengineMetadata"`
+	// SupportsSeed / SupportsWatermark / ReturnsLastFrame are Volcengine
+	// metadata options (metadata.seed / watermark / return_last_frame).
+	SupportsSeed      bool `json:"supportsSeed"`
+	SupportsWatermark bool `json:"supportsWatermark"`
+	ReturnsLastFrame  bool `json:"returnsLastFrame"`
 }
+
+// MaxVideoReferenceMediaPerKind bounds typed reference videos/audios in any
+// channel capability profile (the largest documented upstream limit).
+const MaxVideoReferenceMediaPerKind = 10
+
+// VideoAspectRatios lists every aspect ratio a capability profile may declare.
+var VideoAspectRatios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9", "adaptive"}
 
 type VideoDurationRange struct {
 	Min int `json:"min"`
@@ -71,11 +90,16 @@ func (s *ChannelSettings) ValidateVideoCapabilities() error {
 			if p.Family == "" || len(p.AspectRatios) == 0 || len(p.Resolutions) == 0 || p.DurationRange.Min < 1 || p.DurationRange.Max < p.DurationRange.Min || p.DurationRange.Max > 3600 {
 				return fmt.Errorf("invalid video capability profile for %s/%s", model, mode)
 			}
-			if len(p.Durations) == 0 || (p.SupportsAudioToggle && !p.UsesVolcengineMetadata) {
+			// Audio toggles travel as metadata.generate_audio, which only the
+			// Volcengine and xAI transports read.
+			if len(p.Durations) == 0 || (p.SupportsAudioToggle && !p.UsesVolcengineMetadata && p.Family != "xai") {
+				return fmt.Errorf("invalid video options for %s/%s", model, mode)
+			}
+			if (p.SupportsSeed || p.SupportsWatermark || p.ReturnsLastFrame) && !p.UsesVolcengineMetadata {
 				return fmt.Errorf("invalid video options for %s/%s", model, mode)
 			}
 			for _, ratio := range p.AspectRatios {
-				if !containsString([]string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"}, ratio) || (ratio == "adaptive" && !p.UsesVolcengineMetadata) {
+				if !containsString(VideoAspectRatios, ratio) || (ratio == "adaptive" && !p.UsesVolcengineMetadata) {
 					return fmt.Errorf("invalid video aspect ratio for %s/%s", model, mode)
 				}
 			}
@@ -112,6 +136,11 @@ func (s *ChannelSettings) ValidateVideoCapabilities() error {
 			}
 			if !containsString(p.AspectRatios, p.Defaults.AspectRatio) || !containsString(p.Resolutions, p.Defaults.Resolution) || p.Defaults.Duration < p.DurationRange.Min || p.Defaults.Duration > p.DurationRange.Max {
 				return fmt.Errorf("invalid video capability defaults for %s/%s", model, mode)
+			}
+			for _, limit := range []int{p.MaxReferenceVideos, p.MaxReferenceAudios} {
+				if limit < 0 || limit > MaxVideoReferenceMediaPerKind || (mode != "references" && limit != 0) {
+					return fmt.Errorf("invalid reference media limit for %s/%s", model, mode)
+				}
 			}
 			if mode == "references" && p.MaxReferenceImages < 1 {
 				return fmt.Errorf("invalid maxReferenceImages for %s/%s", model, mode)

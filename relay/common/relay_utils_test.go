@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/constant"
+	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -138,5 +140,50 @@ func TestTaskDurationBounds(t *testing.T) {
 				require.Nil(t, taskErr)
 			}
 		})
+	}
+}
+
+// TestTaskReferenceMediaBounds guards the global cap on typed reference media
+// before any adaptor or capability check reads the lists.
+func TestTaskReferenceMediaBounds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	list := func(n int) string {
+		items := make([]string, n)
+		for i := range items {
+			items[i] = `"https://m/` + strconv.Itoa(i) + `"`
+		}
+		return "[" + strings.Join(items, ",") + "]"
+	}
+	tests := []struct {
+		name, field string
+		count       int
+		wantErr     bool
+	}{
+		{"images at bound", "reference_images", MaxTaskReferenceImages, false},
+		{"images above bound", "reference_images", MaxTaskReferenceImages + 1, true},
+		{"videos at bound", "reference_videos", MaxTaskReferenceVideos, false},
+		{"videos above bound", "reference_videos", MaxTaskReferenceVideos + 1, true},
+		{"audios above bound", "reference_audios", MaxTaskReferenceAudios + 1, true},
+	}
+	for _, tt := range tests {
+		for _, validate := range []func(*gin.Context, *RelayInfo) *dto.TaskError{
+			ValidateMultipartDirect,
+			func(c *gin.Context, info *RelayInfo) *dto.TaskError {
+				return ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+			},
+		} {
+			body := `{"model":"seedance-2-5","prompt":"p","duration":5,"` + tt.field + `":` + list(tt.count) + `}`
+			request := httptest.NewRequest(http.MethodPost, "/v1/video/generations", strings.NewReader(body))
+			request.Header.Set("Content-Type", "application/json")
+			context, _ := gin.CreateTestContext(httptest.NewRecorder())
+			context.Request = request
+			taskErr := validate(context, &RelayInfo{TaskRelayInfo: &TaskRelayInfo{}})
+			if tt.wantErr {
+				require.NotNil(t, taskErr, tt.name)
+				assert.Equal(t, http.StatusBadRequest, taskErr.StatusCode)
+				continue
+			}
+			require.Nil(t, taskErr, tt.name)
+		}
 	}
 }
