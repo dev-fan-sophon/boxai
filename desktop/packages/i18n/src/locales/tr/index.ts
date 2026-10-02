@@ -2,16 +2,16 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const tr = {
   app: {
-    shellName: "PI-Desktop",
+    shellName: "BoxAI Desktop",
     tagline: "Yerel AI kodlama ortağı",
-    starting: "PI-Desktop başlatılıyor…",
+    starting: "BoxAI Desktop başlatılıyor…",
     loadingView: "Görünüm yükleniyor…",
     uiCrashed: "Arayüzde bir sorun oluştu",
   },
   startup: {
     slowTitle: "Hâlâ başlatılıyor…",
-    slowBody: "PI-Desktop yerel servise ulaşmakta normalden uzun sürüyor. Kendiliğinden tamamlanabilir — bekleyebilir ya da önce günlükleri toplayabilirsiniz.",
-    stalledTitle: "PI-Desktop başlatmayı tamamlayamadı",
+    slowBody: "BoxAI Desktop yerel servise ulaşmakta normalden uzun sürüyor. Kendiliğinden tamamlanabilir — bekleyebilir ya da önce günlükleri toplayabilirsiniz.",
+    stalledTitle: "BoxAI Desktop başlatmayı tamamlayamadı",
     stalledBody: "Bu pencere sohbetlerinizi ve ayarlarınızı hiç almadı, bu yüzden henüz gösterilecek bir şey yok. Hiçbir şey silinmedi — verileriniz hâlâ diskte.",
     retrying: "Yeniden deneniyor…",
     copyDiagnostics: "Tanılamaları kopyala",
@@ -37,13 +37,13 @@ export const tr = {
     unread: "Okunmamış",
     pinned: "Sabitlenmiş",
     viewMore: "Daha fazla göster…",
-    open: "PI-Desktop’u aç",
-    quit: "PI-Desktop’tan çık",
-    askTitle: "PI-Desktop arka planda çalışmaya devam etsin mi?",
+    open: "BoxAI Desktop’u aç",
+    quit: "BoxAI Desktop’tan çık",
+    askTitle: "BoxAI Desktop arka planda çalışmaya devam etsin mi?",
     askBody:
-      "Pencereyi kapattığınızda PI-Desktop sistem tepsisinde çalışmaya devam edebilir; hiçbir şey kaybolmaz. Bunu Ayarlar’dan dilediğiniz zaman değiştirebilirsiniz.",
+      "Pencereyi kapattığınızda BoxAI Desktop sistem tepsisinde çalışmaya devam edebilir; hiçbir şey kaybolmaz. Bunu Ayarlar’dan dilediğiniz zaman değiştirebilirsiniz.",
     closeToTray: "Tepsiye kapat",
-    confirmQuitTitle: "PI-Desktop'tan çıkılsın mı?",
+    confirmQuitTitle: "BoxAI Desktop'tan çıkılsın mı?",
     confirmQuitBody:
       "Çıkmak istediğinizden emin misiniz? Tüm çalışan oturumlar durdurulur ve kaydedilmemiş değişiklikler kaybolabilir.",
     confirmQuit: "Çık",
@@ -101,7 +101,7 @@ export const tr = {
     zoomOut: "Uzaklaştır",
     toggleFullScreen: "Tam ekranı aç/kapat",
     toggleDevTools: "Geliştirici araçları",
-    appHelp: "PI-Desktop yardımı",
+    appHelp: "BoxAI Desktop yardımı",
     openLogs: "Günlükleri aç",
     checkForUpdates: "Güncellemeleri denetle…",
   },
@@ -258,7 +258,7 @@ export const tr = {
     emptyTitle: "Neyi birlikte oluşturalım?",
     emptyTitleInProject: "{{project}} içinde ne oluşturalım?",
     emptyTitleTemporary: "Geçici olarak neyi keşfetmek istersiniz?",
-    placeholder: "PI-Desktop’tan herhangi bir konuda yardım isteyin",
+    placeholder: "BoxAI Desktop’tan herhangi bir konuda yardım isteyin",
     placeholderHome: "Bir şey sorun",
     placeholderHint: "Komutlar için / · dosyalar için @ yazın",
     placeholderHomeHint: "Komutlar için / · dosyalar için @ yazın",
@@ -664,7 +664,7 @@ export const tr = {
     },
     power: "Güç",
     keepAwakeWhileRunning: "Bilgisayarı uyanık tut",
-    keepAwakeWhileRunningDesc: "PI-Desktop çalışırken boşta kalma nedeniyle uykuya geçmeyi önler. Ekran kapanabilir; elle uyutma ve kapağı kapatma etkilenmez.",
+    keepAwakeWhileRunningDesc: "BoxAI Desktop çalışırken boşta kalma nedeniyle uykuya geçmeyi önler. Ekran kapanabilir; elle uyutma ve kapağı kapatma etkilenmez.",
     "imageModel": "Görsel oluşturma modeli",
     "imageModelUnset": "Yapılandırılmadı",
     "imageModelUnavailable": "Şu anda kullanılamıyor",
@@ -761,7 +761,7 @@ sklm: {
     pluginProviderManaged:
       "Bu servis, uç noktasını ve modellerini sağlayan “{{plugin}}” eklentisinden gelir. “Uzantılar” sayfasından açıp kapatabilirsiniz.",
     pluginProviderKey: "API anahtarı",
-    pluginProviderKeyHint: "PI-Desktop’ta saklanır ve çalışma zamanı tarafından kullanılır. Eklenti bu anahtarı asla almaz.",
+    pluginProviderKeyHint: "BoxAI Desktop’ta saklanır ve çalışma zamanı tarafından kullanılır. Eklenti bu anahtarı asla almaz.",
     pluginProviderKeyRemove: "Anahtarı kaldır",
     pluginProviderKeySaved: "API anahtarı kaydedildi",
     pluginProviderKeyRemoved: "API anahtarı kaldırıldı",
@@ -1728,7 +1728,7 @@ sklm: {
     noProjects: "Henüz proje yok",
   },
   scheduled: {
-    description: "PI-Desktop açıkken yinelenen ajan görevlerini çalıştırın.",
+    description: "BoxAI Desktop açıkken yinelenen ajan görevlerini çalıştırın.",
     edit: "Görevi düzenle",
     hourlyHint: "Kaydetme veya etkinleştirmeden bir saat sonra başlayarak her saat çalışır. Uygulama yeniden başlatılınca süre yeniden başlar.",
     morning: "Sabah",
@@ -1742,7 +1742,7 @@ sklm: {
     legacyHint: "Otomatik çalıştırmayı etkinleştirmek için programı düzenleyip kaydedin.",
     time: "Saat",
     weekday: "Haftanın günü",
-    localTimeHint: "Yerel saat dilimini kullanır. PI-Desktop açık kalmalıdır; kaçırılan çalıştırmalar atlanır.",
+    localTimeHint: "Yerel saat dilimini kullanır. BoxAI Desktop açık kalmalıdır; kaçırılan çalıştırmalar atlanır.",
     projectHint: "Geçerli proje kaydedilir. Varsayılan model kullanılır.",
     autoPermissionHint: "Otomatik mod, kısıtlı işlemleri sormadan çalıştırabilir. Yalnızca güvendiğiniz görevlerde kullanın.",
     unavailableModel: "{{provider}} / {{model}} (kullanılamıyor)",
@@ -2233,11 +2233,11 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       "agent.complete":
         "Model kotanızı tek seferlik bir tamamlatma için harcayabilir. Eklenti API anahtarlarınızı almaz.",
       "agent.extension": "ExtensionAPI modüllerini ajan sürecinde, ajanın kendi araçlarıyla aynı erişimle çalıştırır. Yalnızca güvendiğiniz kodu etkinleştirin.",
-      "renderer.extension": "Bu eklentinin işleyici modülünü uygulama penceresine yükler; mesaj eylem çubukları, yanıt ek alanları, araç kartları, kod bloğu işleyicileri ve besteleyici kontrolleri gibi arayüz yuvası bileşenleri çizer. Modül PI-Desktop ile aynı belgede çalışır. Yalnızca güvendiğiniz kodu etkinleştirin.",
+      "renderer.extension": "Bu eklentinin işleyici modülünü uygulama penceresine yükler; mesaj eylem çubukları, yanıt ek alanları, araç kartları, kod bloğu işleyicileri ve besteleyici kontrolleri gibi arayüz yuvası bileşenleri çizer. Modül BoxAI Desktop ile aynı belgede çalışır. Yalnızca güvendiğiniz kodu etkinleştirin.",
       "provider.register":
-        "Bu eklentinin tanımladığı servisleri Ayarlar’daki servis listesine ekler. Uç noktayı ve modelleri eklenti sağlar; API anahtarınız PI-Desktop’ta kalır.",
+        "Bu eklentinin tanımladığı servisleri Ayarlar’daki servis listesine ekler. Uç noktayı ve modelleri eklenti sağlar; API anahtarınız BoxAI Desktop’ta kalır.",
       "desktop.control":
-        "Eklentinin incelenmiş PI-Desktop denetim kataloğunu çağırmasını sağlar. Yıkıcı işlemler yine confirm=true gerektirir; MCP bearer token eklentiye verilmez.",
+        "Eklentinin incelenmiş BoxAI Desktop denetim kataloğunu çağırmasını sağlar. Yıkıcı işlemler yine confirm=true gerektirir; MCP bearer token eklentiye verilmez.",
       "models.list": "Oturum açtığınız modelleri görebilir. Anahtar almaz.",
       "session.read":
         "Geçerli araç çağrısının üzerinde çalıştığı konuşmayı, araç sonuçları dahil, okuyabilir.",
@@ -2252,7 +2252,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       "audio.capture.background": "Eklenti arka planda çalışırken, hiçbir panel açık olmadan mikrofonu yakalar.",
       "audio.playback.background": "Hiçbir panel açık olmasa bile eklentinin akışa verdiği sesi çalar.",
       "speech.adapter.register": "Mevcut sağlayıcı anahtarlarınızı kullanan bir yazıya dökme veya konuşma protokolü ekleyebilir. Eklenti anahtarı asla görmez.",
-      "keyboard.globalShortcut": "PI-Desktop odakta değilken bu eklentinin kendi komutlarını tetikleyen sistem geneli klavye kısayollarını kaydeder.",
+      "keyboard.globalShortcut": "BoxAI Desktop odakta değilken bu eklentinin kendi komutlarını tetikleyen sistem geneli klavye kısayollarını kaydeder.",
       "net.websocket": "Eklentinin bildirdiği ana makinelere gerçek zamanlı iki yönlü bağlantılar açar.",
       "net.anyHost": "Kullanıcının girdiği kendi sunucuları dahil HTTP(S) veya WebSocket(S) üzerinden herhangi bir sunucuya bağlanabilir. Bulut meta veri uç noktaları her zaman engellenir.",
       "bus.publish": "Bildirdiği konularda ileti gönderebilir.",
@@ -2486,7 +2486,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     unsupportedGlibc:
       "Bu Linux sürümü glibc 2.35 veya daha yenisini gerektirir (Ubuntu 22.04, Debian 12, Fedora 36+).",
     dbSchemaTooNew:
-      "Bu PI-Desktop sürümü yerel verilerinizden daha eski (veri şeması {{found}}, bu sürüm {{supported}} destekliyor). Bu verileri en son açan daha yeni PI-Desktop sürümünü veya sonrasını yükleyin.",
+      "Bu BoxAI Desktop sürümü yerel verilerinizden daha eski (veri şeması {{found}}, bu sürüm {{supported}} destekliyor). Bu verileri en son açan daha yeni BoxAI Desktop sürümünü veya sonrasını yükleyin.",
     archMismatch:
       "Bu, {{machineArch}} makinede çalışan {{buildArch}} sürümü; çeviri üzerinden çalıştığı için daha yavaş. Bunun yerine {{machineArch}} sürümünü yükleyin.",
     dismissArchMismatch: "Kapat",
