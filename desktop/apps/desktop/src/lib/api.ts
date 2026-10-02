@@ -1106,6 +1106,8 @@ export const api = {
     ),
 
   // --- Skill market ----------------------------------------------------------
+  installBoxAICatalogEntry: (kind: "skill" | "mcp", id: string) =>
+    invoke<{ skill?: UserSkillRecord }>(IPC.invoke.boxaiCatalogInstall, { kind, id }),
   searchSkillMarket: (query: string, sources: { id: string; name: string; url: string }[]) =>
     invoke<{
       entries: SkillCatalogEntry[];

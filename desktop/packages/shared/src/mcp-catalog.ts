@@ -25,6 +25,8 @@ export type McpCatalogHeaderBinding = { input: string } | { value: string };
 
 export type McpCatalogEntry = {
   id: string;
+  /** Display/install routing only; never authorizes access to account credentials. */
+  boxaiOfficial?: boolean;
   name: string;
   description?: string;
   author?: string;

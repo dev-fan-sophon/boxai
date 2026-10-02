@@ -311,6 +311,7 @@ export const IPC = {
     skillImportRun: "pi-desktop/skill/importRun",
     skillMarketSearch: "pi-desktop/skill/market/search",
     skillMarketFetch: "pi-desktop/skill/market/fetch",
+    boxaiCatalogInstall: "boxai/catalog/install",
     skillUpdate: "pi-desktop/skill/update",
     skillRemove: "pi-desktop/skill/remove",
     skillSetEnabled: "pi-desktop/skill/setEnabled",

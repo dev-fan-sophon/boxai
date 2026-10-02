@@ -12,8 +12,9 @@ import { registerAppIpc } from "./app-ipc";
 import { registerDiagnosticsIpc } from "./diagnostics-ipc";
 import { registerMarketIpc } from "./market-ipc";
 import { registerMcpIpc } from "./mcp-ipc";
+import { registerBoxAICatalogIpc } from "./boxai-catalog-ipc";
+import type { BoxAICatalog } from "../boxai-catalog";
 import type { McpOAuthManager } from "../mcp-oauth";
-import { searchMcpMarket } from "../mcp-registry-catalog";
 import { registerNotificationIpc } from "./notification-ipc";
 import { registerPluginIpc } from "./plugin-ipc";
 import { registerPluginUiIpc } from "./plugin-ui-ipc";
@@ -26,7 +27,6 @@ import { registerConfigSyncIpc } from "./config-sync-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { registerAgentImportIpc } from "./agent-import-ipc";
 import { registerRemoteHostIpc } from "./remote-host-ipc";
-import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
 import { registerWindowIpc } from "./window-ipc";
 import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-ipc";
 import { registerComposerIpc } from "./composer-ipc";
@@ -40,6 +40,7 @@ import type { createTraySessions } from "../tray-sessions";
 import type { createTaskbarUnreadBadge } from "../taskbar-unread-badge";
 
 export type RegisterIpcDependencies = {
+  boxaiCatalog: BoxAICatalog;
   isQuitting: () => boolean;
   ipcMain: IpcMain;
   getMainWindow: () => BrowserWindow | null;
@@ -420,6 +421,10 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   });
 
 
+  const officialMarket = registerBoxAICatalogIpc(registrar, dependencies.boxaiCatalog, getHost, async (kind) => {
+    if (kind === "mcp") await refreshUserMcp(currentWorkspacePath());
+    sendToRenderer(IPC.event.pluginChanged, { reason: kind });
+  });
   registerMcpIpc({
     registrar,
     getHost,
@@ -429,15 +434,15 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     refreshUserMcp,
     describeError,
     sendToRenderer,
-    searchMcpMarket,
+    searchMcpMarket: officialMarket.searchMcp,
   });
 
 
   registerSkillsIpc({
     registrar,
     getHost,
-    searchSkillMarket,
-    fetchSkillMarketDocument,
+    searchSkillMarket: officialMarket.searchSkills,
+    fetchSkillMarketDocument: officialMarket.fetchSkill,
     optionalWorkspaceRoot,
     activeUserSubagentDocuments,
     disabledBuiltinSubagents,

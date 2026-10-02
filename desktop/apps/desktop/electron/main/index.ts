@@ -3,9 +3,11 @@ import {
   BrowserWindow,
   ipcMain,
   powerMonitor,
+  net,
   session,
 } from "electron";
 import { join } from "node:path";
+import { BoxAICatalog, OFFICIAL_MCP_PREFIX } from "./boxai-catalog";
 import {
   applyNetworkProxyFromAppSettings,
   currentNetworkProxy,
@@ -327,6 +329,14 @@ const {
   announceTurnEnded,
   speech,
 } = pluginServices;
+
+const boxaiCatalog = new BoxAICatalog(vendorOAuth.client, vendorOAuth.origin, () => {
+  for (const record of userMcp.listRecords()) {
+    if (record.id.startsWith(OFFICIAL_MCP_PREFIX)) userMcp.invalidate(record.id);
+  }
+}, (url, init) => net.fetch(url instanceof URL ? url.href : url, init));
+userMcp.setAccountAuthorization((record) => boxaiCatalog.authorization(record));
+app.once("will-quit", () => boxaiCatalog.dispose());
 
 const providerCatalogRuntime = createProviderCatalogRuntime({
   getHost,
@@ -821,6 +831,7 @@ const liveCallService = createLiveCallService({
 
 function registerIpc() {
   return registerIpcHandlers({
+    boxaiCatalog,
     restartForStorage: () => {
       shutdownState.quitConfirmed = true;
       app.relaunch({ args: [...process.argv.slice(1).filter((arg) => arg !== "--pi-managed-storage"), "--pi-managed-storage"] });

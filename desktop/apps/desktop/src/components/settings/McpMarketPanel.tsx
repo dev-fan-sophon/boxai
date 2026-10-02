@@ -3,14 +3,12 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   allowInsecureUserEndpoints,
-  BUILTIN_MCP_CATALOG,
   DEFAULT_MARKET_SOURCE,
   GLOBAL_SCOPE,
   isSafeMarketSourceUrl,
   mergeRegistryEntries,
   resolveCatalogEntry,
   sanitizeMarketSources,
-  validateMcpCatalogFile,
   type MarketSource,
   type McpCatalogCategory,
   type McpCatalogEntry,
@@ -39,7 +37,7 @@ const CATEGORIES: readonly McpCatalogCategory[] = [
   "productivity",
 ];
 
-const { servers } = validateMcpCatalogFile(BUILTIN_MCP_CATALOG).catalog;
+const servers: McpCatalogEntry[] = [];
 
 /** Cards render in a scrolling settings pane, so the list is paginated. */
 const PAGE_SIZE = 24;
@@ -250,15 +248,19 @@ export function McpMarketPanel({
     if (!installFor || saving) return;
     setSaving(true);
     try {
-      const input = resolveCatalogEntry(installFor, values);
-      await api.upsertMcpServer({ ...input, level: "global", scope: GLOBAL_SCOPE });
+      if (installFor.boxaiOfficial) {
+        await api.installBoxAICatalogEntry("mcp", installFor.id);
+      } else {
+        const input = resolveCatalogEntry(installFor, values);
+        await api.upsertMcpServer({ ...input, level: "global", scope: GLOBAL_SCOPE });
+      }
       showToast(t("settings.mcpMarket.installSuccess", { name: installFor.name }), {
         variant: "success",
       });
       onInstalled(installFor.id);
       setInstallFor(null);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+      showToast(installFor.boxaiOfficial ? t("plugins.installFailed", { name: installFor.name }) : error instanceof Error ? error.message : String(error), { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -591,7 +593,7 @@ export function McpMarketPanel({
       ) : null}
       {remote.status === "error" ? (
         <p className="mcpm-status is-error" role="status">
-          {t("settings.mcpMarket.remoteError")}
+          {t(remote.failed.includes("BoxAI") ? "Account request failed. Check your connection and try again." : "settings.mcpMarket.remoteError")}
           {remote.failed.length ? ` (${remote.failed.join(", ")})` : ""}
         </p>
       ) : null}

@@ -344,9 +344,9 @@ export type MarketSource = {
 
 export const DEFAULT_MARKET_SOURCE: MarketSource = {
   id: "official",
-  name: "Official registry",
-  url: "https://registry.modelcontextprotocol.io/v0/servers",
-  kind: "registry",
+  name: "BoxAI",
+  url: "https://you-box.com/api/desktop/catalog",
+  kind: "catalog",
   builtin: true,
 };
 

@@ -505,7 +505,7 @@ export function createMcpMarketAggregator() {
     const insecure = allowInsecureUserEndpointsEnabled();
     const configured = sanitizeMarketSources(sources, {
       allowInsecureHttp: insecure,
-    }).slice(0, MAX_MARKET_SOURCES);
+    }).filter((source) => source.id !== "official").slice(0, MAX_MARKET_SOURCES);
     const safe = configured.filter((source) =>
       isSafeMarketSourceUrl(source.url, { allowInsecureHttp: insecure }),
     );

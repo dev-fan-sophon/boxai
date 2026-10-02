@@ -85,6 +85,13 @@ export class UserMcpRuntime {
   private discoveredTools = new Map<string, McpTool[]>();
   private records: McpServerRecord[] = [];
   private options: UserMcpRuntimeOptions;
+  private accountAuthorization?: (record: McpServerRecord) => Promise<string | undefined>;
+  private connectionRevisions = new Map<string, number>();
+
+  /** Official account servers resolve credentials in Main, never from saved headers. */
+  setAccountAuthorization(handler: (record: McpServerRecord) => Promise<string | undefined>): void {
+    this.accountAuthorization = handler;
+  }
 
   // Spelled out rather than a constructor parameter property, because the test
   // runner loads this file with Node's type-stripping loader, which rejects them.
@@ -306,6 +313,7 @@ export class UserMcpRuntime {
 
   /** Drop a cached connection and tools for a server. */
   invalidate(serverId: string): void {
+    this.connectionRevisions.set(serverId, (this.connectionRevisions.get(serverId) ?? 0) + 1);
     const existing = this.entries.get(serverId);
     if (existing) {
       existing.client.close();
@@ -344,8 +352,13 @@ export class UserMcpRuntime {
   }
 
   private async connect(record: McpServerRecord): Promise<McpTool[]> {
-    let oauthToken: string | null = null;
-    if (record.transport === "http" && this.options.oauth) {
+    // Account failures must not fall back to anonymous or renderer-supplied headers.
+    const revision = this.connectionRevisions.get(record.id);
+    const accountToken = this.accountAuthorization ? await this.accountAuthorization(record) : undefined;
+    if (revision !== this.connectionRevisions.get(record.id)) return [];
+    if (!this.records.some((current) => current.id === record.id && !configurationChanged(current, record))) return [];
+    let oauthToken: string | null = accountToken ?? null;
+    if (accountToken === undefined && record.transport === "http" && this.options.oauth) {
       try {
         oauthToken = await this.options.oauth.getValidAccessToken(record.id);
       } catch {
@@ -367,7 +380,7 @@ export class UserMcpRuntime {
     // the connect timeout again.
     if (existing?.status.state === "failed") return [];
 
-    const entry = existing ?? this.createEntry(record, oauthToken);
+    const entry = existing ?? this.createEntry(record, oauthToken, accountToken !== undefined);
     entry.connecting = this.handshake(record, entry).finally(() => {
       entry.connecting = undefined;
     });
@@ -416,9 +429,9 @@ export class UserMcpRuntime {
     }
   }
 
-  private createEntry(record: McpServerRecord, oauthToken?: string | null): Entry {
+  private createEntry(record: McpServerRecord, oauthToken?: string | null, accountOwned = false): Entry {
     const headers = {
-      ...(record.headers ?? {}),
+      ...(accountOwned ? {} : record.headers ?? {}),
       ...(oauthToken ? { Authorization: `Bearer ${oauthToken}` } : {}),
     };
     const client = this.options.createClient({
@@ -442,6 +455,19 @@ export class UserMcpRuntime {
       connectTimeoutMs: this.options.connectTimeoutMs,
       callTimeoutMs: this.options.callTimeoutMs,
       discoveryTimeoutMs: this.options.discoveryTimeoutMs,
+      ...(accountOwned ? {
+        // Revalidate every protocol request (including ping), not only tools/call.
+        // Official endpoints may not redirect even within the account origin.
+        fetchImpl: async (input: string | URL | Request, init?: RequestInit) => {
+          if (String(input) !== record.url) throw new Error("Invalid BoxAI MCP endpoint");
+          const revision = this.connectionRevisions.get(record.id);
+          const token = await this.accountAuthorization!(record);
+          if (!token || revision !== this.connectionRevisions.get(record.id)) throw new Error("BoxAI account changed");
+          const headers = new Headers(init?.headers);
+          headers.set("Authorization", `Bearer ${token}`);
+          return fetch(input, { ...init, redirect: "error", credentials: "omit", headers });
+        },
+      } : {}),
     });
     const entry: Entry = {
       record,
