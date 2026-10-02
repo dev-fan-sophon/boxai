@@ -10,8 +10,8 @@ import {
   type CanvasImageSource,
 } from '@/features/workbench/engine/canvas-image-document'
 
-import type { StudioRunSummary } from '../lib/session/session-types'
-import { persistedStudioResultUrl } from '../lib/studio/studio-selection'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import { persistedStudioResultUrl } from '@/features/playground/lib/studio/studio-selection'
 
 /** Give up measuring a slow image and let the canvas use its default size. */
 const MEASURE_TIMEOUT_MS = 4000

@@ -10,10 +10,13 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 import {
   MediaReferenceSlot,
   type MediaReference,
-} from './components/composer/attachments/media-reference-slot'
+} from './components/references/media-reference-slot'
 import { GenerationComposer } from './components/composer/generation-composer'
-import { StudioFeed } from './components/workspace/studio-feed'
-import type { StudioRunSummary } from './lib/session/session-types'
+import { StudioFeed } from './components/feed/studio-feed'
+import { useGenerationController } from './hooks/use-generation-controller'
+import { useGenerationDraft } from './hooks/use-generation-draft'
+import { useStudio } from './hooks/use-studio'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 
 // Real components and HTTP calls; only the test's network routes supply data.
 await i18next
@@ -25,6 +28,34 @@ const client = new QueryClient({
 const rootElement = document.querySelector('#root')
 if (!rootElement) throw new Error('Missing lifecycle fixture root')
 const root = createRoot(rootElement)
+
+/** The real composer, wired to a real controller with fixture references. */
+function VideoComposerFixture(props: { references: MediaReference[] }) {
+  const studio = useStudio()
+  const controller = useGenerationController({
+    modality: 'video',
+    studio,
+    canSubmit: () => true,
+  })
+  const draft = useGenerationDraft({
+    modality: 'video',
+    text: controller.text,
+    references: props.references,
+    uploading: false,
+  })
+  return (
+    <GenerationComposer
+      controller={{
+        ...controller,
+        draft,
+        references: props.references,
+        setReferences: (value) => {
+          if (Array.isArray(value)) window.referenceChanges.push(value)
+        },
+      }}
+    />
+  )
+}
 
 export type LifecycleFixture = {
   modality?: 'image' | 'audio' | 'video'
@@ -59,13 +90,7 @@ window.renderLifecycleFixture = (state) => {
   let attachmentContent: React.ReactNode = null
   if (!state.modality && !state.unmount) {
     attachmentContent = state.videoComposer ? (
-      <GenerationComposer
-        modality='video'
-        activeJobs={0}
-        references={state.references ?? []}
-        onReferencesChange={(value) => window.referenceChanges.push(value)}
-        onSubmit={() => {}}
-      />
+      <VideoComposerFixture references={state.references ?? []} />
     ) : (
       <MediaReferenceSlot
         label='References'

@@ -36,7 +36,7 @@ beforeAll(async () => {
           vite.middlewares.use('/lifecycle-fixture', (_req, res) => {
             res.setHeader('Content-Type', 'text/html')
             res.end(
-              '<div id="root"></div><script type="module" src="/src/features/playground/lifecycle.fixture.tsx"></script>'
+              '<div id="root"></div><script type="module" src="/src/features/create/lifecycle.fixture.tsx"></script>'
             )
           })
         },

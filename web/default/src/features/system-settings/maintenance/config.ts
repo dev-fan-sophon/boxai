@@ -7,6 +7,7 @@ export type HeaderNavModulesConfig = {
   home: boolean
   console: boolean
   playground: HeaderNavAccessConfig
+  create: HeaderNavAccessConfig
   agents: HeaderNavAccessConfig
   inspiration: HeaderNavAccessConfig
   pricing: HeaderNavAccessConfig
@@ -29,6 +30,10 @@ export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
   home: true,
   console: true,
   playground: {
+    enabled: true,
+    requireAuth: false,
+  },
+  create: {
     enabled: true,
     requireAuth: false,
   },
@@ -99,6 +104,7 @@ const toBoolean = (value: unknown, fallback: boolean): boolean => {
 const cloneHeaderNavDefault = (): HeaderNavModulesConfig => ({
   ...HEADER_NAV_DEFAULT,
   playground: { ...HEADER_NAV_DEFAULT.playground },
+  create: { ...HEADER_NAV_DEFAULT.create },
   agents: { ...HEADER_NAV_DEFAULT.agents },
   inspiration: { ...HEADER_NAV_DEFAULT.inspiration },
   pricing: { ...HEADER_NAV_DEFAULT.pricing },
@@ -150,6 +156,7 @@ export function parseHeaderNavModules(
     const result: HeaderNavModulesConfig = {
       ...base,
       playground: { ...base.playground },
+      create: { ...base.create },
       agents: { ...base.agents },
       inspiration: { ...base.inspiration },
       pricing: { ...base.pricing },
@@ -157,7 +164,12 @@ export function parseHeaderNavModules(
     }
 
     Object.entries(parsed).forEach(([key, raw]) => {
-      if (key === 'playground' || key === 'agents' || key === 'inspiration') {
+      if (
+        key === 'playground' ||
+        key === 'create' ||
+        key === 'agents' ||
+        key === 'inspiration'
+      ) {
         result[key] = {
           ...parseAccessModule(raw, base[key]),
           requireAuth: false,

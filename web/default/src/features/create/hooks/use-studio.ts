@@ -10,25 +10,25 @@ import {
   generateSpeech,
   getVideoCapabilities,
   submitVideo,
-} from '../api'
-import { persistGeneratedMediaAsset } from '../lib/download-generated-media'
-import type { StudioRunSummary } from '../lib/session/session-types'
-import { studioGenerationLimiters } from '../lib/studio/generation-limiter'
+} from '@/features/playground/api'
+import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
 import {
   createLocalRunId,
   type PendingStudioRun,
   type StudioGenerationInput,
-} from '../lib/studio/studio-feed'
-import { buildPlaygroundVideoSubmitInput } from '../lib/studio/video-submit'
-import type { StudioSettings } from '../types'
+} from '@/features/playground/lib/studio/studio-feed'
+import { buildPlaygroundVideoSubmitInput } from '@/features/playground/lib/studio/video-submit'
+import type { StudioSettings } from '@/features/playground/types'
 import {
   ensureActiveStudioProjectId,
   recordActiveStudioRun,
-} from './use-session-cloud-sync'
+} from '@/features/playground/hooks/use-session-cloud-sync'
 import {
   getVideoCapabilityMode,
   type VideoCapabilities,
-} from './use-video-capabilities'
+} from '@/features/playground/hooks/use-video-capabilities'
 
 /**
  * Batch generation engine for the studio modalities. A submit becomes a batch

@@ -34,6 +34,7 @@ const headerNavSchema = z.object({
   home: z.boolean(),
   console: z.boolean(),
   playgroundEnabled: z.boolean(),
+  createEnabled: z.boolean(),
   agentsEnabled: z.boolean(),
   inspirationEnabled: z.boolean(),
   pricingEnabled: z.boolean(),
@@ -62,6 +63,10 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
     config.playground?.enabled === undefined
       ? HEADER_NAV_DEFAULT.playground.enabled
       : Boolean(config.playground.enabled),
+  createEnabled:
+    config.create?.enabled === undefined
+      ? HEADER_NAV_DEFAULT.create.enabled
+      : Boolean(config.create.enabled),
   agentsEnabled:
     config.agents?.enabled === undefined
       ? HEADER_NAV_DEFAULT.agents.enabled
@@ -122,6 +127,10 @@ export function HeaderNavigationSection({
         enabled: values.playgroundEnabled,
         requireAuth: false,
       },
+      create: {
+        enabled: values.createEnabled,
+        requireAuth: false,
+      },
       agents: {
         enabled: values.agentsEnabled,
         requireAuth: false,
@@ -176,8 +185,13 @@ export function HeaderNavigationSection({
     },
     {
       key: 'playgroundEnabled',
-      title: t('Workspace'),
-      description: t('Experiment with prompts and models in real time.'),
+      title: t('Chat'),
+      description: t('Chat with any text model, compare models side by side.'),
+    },
+    {
+      key: 'createEnabled',
+      title: t('Create'),
+      description: t('Image, video and audio creation studio.'),
     },
     {
       key: 'agentsEnabled',

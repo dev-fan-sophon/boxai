@@ -3,15 +3,20 @@ import { useMemo } from 'react'
 
 import { getPlaygroundCatalog, getPricing } from '../api'
 
-type PricingDataSource = 'pricing' | 'playground'
+/** `create` is the media studio catalog, gated by its own nav module. */
+type PricingDataSource = 'pricing' | 'playground' | 'create'
 
 export function usePricingData(source: PricingDataSource = 'pricing') {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['pricing', source],
-    queryFn: source === 'playground' ? getPlaygroundCatalog : getPricing,
+    queryFn: () => {
+      if (source === 'playground') return getPlaygroundCatalog()
+      if (source === 'create') return getPlaygroundCatalog('/api/create/catalog')
+      return getPricing()
+    },
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: source === 'playground' ? 'always' : true,
-    refetchOnWindowFocus: source === 'playground' ? 'always' : true,
+    refetchOnMount: source === 'pricing' ? true : 'always',
+    refetchOnWindowFocus: source === 'pricing' ? true : 'always',
   })
 
   const models = useMemo(() => {

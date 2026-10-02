@@ -919,15 +919,21 @@ export type PlaygroundRun = {
   created_at: number
 }
 
-export async function listPlaygroundTasks(): Promise<{
+export async function listPlaygroundTasks(params?: {
+  modality?: string
+  p?: number
+  page_size?: number
+}): Promise<{
   tasks: unknown[]
   runs: PlaygroundRun[]
+  runTotal: number
 }> {
-  const res = await api.get(API_ENDPOINTS.PLAYGROUND_TASKS)
-  if (!res.data?.success) return { tasks: [], runs: [] }
+  const res = await api.get(API_ENDPOINTS.PLAYGROUND_TASKS, { params })
+  if (!res.data?.success) return { tasks: [], runs: [], runTotal: 0 }
   return {
     tasks: res.data.data?.tasks ?? [],
     runs: (res.data.data?.runs ?? []) as PlaygroundRun[],
+    runTotal: Number(res.data.data?.run_total ?? 0),
   }
 }
 

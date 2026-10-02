@@ -1,17 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
 import { Zap } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { PricingModel } from '@/features/pricing/types'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
+import type { PlaygroundEstimateResult } from '@/features/playground/api'
 import {
-  estimatePlaygroundCost,
-  type PlaygroundEstimateResult,
-} from '../../api'
-import { buildPriceHint, type PriceHint } from '../../lib/workbench/price-hint'
+  useCostEstimate,
+  type CostEstimateParams,
+} from '../../hooks/use-cost-estimate'
+import { buildPriceHint, type PriceHint } from '@/features/playground/lib/workbench/price-hint'
 
 type PriceHintBadgeProps = {
   model?: PricingModel
@@ -21,46 +20,16 @@ type PriceHintBadgeProps = {
   /** Results in the pending submit; the estimate is the batch total. */
   jobCount?: number
   /** When set, debounced server estimate is preferred over catalog-only hint */
-  estimateParams?: {
-    modality: string
-    n?: number
-    size?: string
-    duration?: number
-    has_reference?: boolean
-    max_tokens?: number
-  }
+  estimateParams?: CostEstimateParams
 }
 
 export function PriceHintBadge(props: PriceHintBadgeProps) {
   const { t } = useTranslation()
   const catalogHint = buildPriceHint(props.model, props.group, props.groupRatio)
-  const [debounced, setDebounced] = useState(props.estimateParams)
-  const modelName = props.model?.model_name
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebounced(props.estimateParams)
-    }, 350)
-    return () => window.clearTimeout(handle)
-  }, [props.estimateParams])
-
-  const estimateQuery = useQuery({
-    queryKey: ['playground', 'estimate', modelName, props.group, debounced],
-    queryFn: () =>
-      estimatePlaygroundCost({
-        modality: debounced?.modality ?? 'chat',
-        model: modelName ?? '',
-        group: props.group,
-        n: debounced?.n,
-        size: debounced?.size,
-        duration: debounced?.duration,
-        has_reference: debounced?.has_reference,
-        max_tokens: debounced?.max_tokens,
-        // Rough display estimate; backend also defaults when omitted
-        prompt_tokens: debounced?.modality === 'chat' ? 500 : undefined,
-      }),
-    enabled: Boolean(modelName && debounced),
-    staleTime: 30_000,
+  const estimateQuery = useCostEstimate({
+    modelName: props.model?.model_name,
+    group: props.group,
+    params: props.estimateParams,
   })
 
   const hint = mergeEstimate(catalogHint, estimateQuery.data)

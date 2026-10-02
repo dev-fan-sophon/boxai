@@ -17,8 +17,8 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 import {
   getVideoCapabilityMode,
   useVideoCapabilities,
-} from '../../hooks/use-video-capabilities'
-import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
+} from '@/features/playground/hooks/use-video-capabilities'
+import { BATCH_COUNTS } from '@/features/playground/lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -27,19 +27,19 @@ import {
   SPEEDS,
   VOICES,
   imageQualityLabelKey,
-} from '../../lib/studio/generation-options'
+} from '@/features/playground/lib/studio/generation-options'
 import {
   normalizeImageGenerationSettings,
   type GptImageSize,
-} from '../../lib/studio/image-request-schema'
+} from '@/features/playground/lib/studio/image-request-schema'
 import {
   applyResolvedVideoSettings,
   resolveVideoOptions,
   videoResolutionsForRatio,
   type VideoAspectRatio,
-} from '../../lib/studio/video-capabilities'
-import type { StudioModality, StudioSettings } from '../../types'
-import { AspectGlyph, ParamChip, TogglePill } from './param-chip'
+} from '@/features/playground/lib/studio/video-capabilities'
+import type { StudioModality, StudioSettings } from '@/features/playground/types'
+import { AspectGlyph, ParamChip, TogglePill } from '@/features/playground/components/composer/param-chip'
 
 function imageSizeChipLabel(
   size: GptImageSize,

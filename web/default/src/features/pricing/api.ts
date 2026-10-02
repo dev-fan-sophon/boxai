@@ -14,9 +14,11 @@ export async function getPricing(): Promise<PricingData> {
   return res.data
 }
 
-export async function getPlaygroundCatalog(): Promise<PricingData> {
+export async function getPlaygroundCatalog(
+  path: '/api/playground/catalog' | '/api/create/catalog' = '/api/playground/catalog'
+): Promise<PricingData> {
   try {
-    const res = await api.get('/api/playground/catalog')
+    const res = await api.get(path)
     return res.data
   } catch (error) {
     if (!isAxiosError(error) || error.response?.status !== 404) throw error

@@ -5,8 +5,8 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import { useVideoCapabilities } from '../../hooks/use-video-capabilities'
-import { BATCH_COUNTS } from '../../lib/studio/batch-plan'
+import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'
+import { BATCH_COUNTS } from '@/features/playground/lib/studio/batch-plan'
 import {
   AUDIO_FORMATS,
   IMAGE_COUNTS,
@@ -16,19 +16,19 @@ import {
   VOICES,
   imageQualityLabelKey,
   imageSizeLabel,
-} from '../../lib/studio/generation-options'
+} from '@/features/playground/lib/studio/generation-options'
 import {
   isPlaygroundImageModel,
   normalizeImageGenerationSettings,
   PLAYGROUND_IMAGE_MODEL,
-} from '../../lib/studio/image-request-schema'
+} from '@/features/playground/lib/studio/image-request-schema'
 import {
   applyResolvedVideoSettings,
   resolveVideoOptions,
   videoResolutionsForRatio,
   type VideoAspectRatio,
-} from '../../lib/studio/video-capabilities'
-import type { StudioModality, StudioSettings } from '../../types'
+} from '@/features/playground/lib/studio/video-capabilities'
+import type { StudioModality, StudioSettings } from '@/features/playground/types'
 
 /**
  * Generation parameters for the active non-chat modality.

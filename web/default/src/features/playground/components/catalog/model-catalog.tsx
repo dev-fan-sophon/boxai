@@ -63,6 +63,8 @@ type ModelCatalogProps = {
   onTogglePin?: (modelName: string) => void
   duoEnabled?: boolean
   onOpenDuo?: () => void
+  /** Restrict the catalog to these modalities; one modality hides the filter row. */
+  modalities?: StudioModality[]
 }
 
 export function ModelCatalog(props: ModelCatalogProps) {
@@ -77,10 +79,20 @@ export function ModelCatalog(props: ModelCatalogProps) {
     () => new Set(props.available.map((item) => item.value)),
     [props.available]
   )
+  const allowed = props.modalities
   const catalog = useMemo(
-    () => props.models.filter((model) => availableNames.has(model.model_name)),
-    [availableNames, props.models]
+    () =>
+      props.models.filter(
+        (model) =>
+          availableNames.has(model.model_name) &&
+          (!allowed || allowed.includes(getModelModality(model)))
+      ),
+    [allowed, availableNames, props.models]
   )
+  const filters = FILTERS.filter(
+    (item) => item.id === 'all' || !allowed || allowed.includes(item.id)
+  )
+  const showFilters = filters.length > 2
 
   const counts = useMemo(() => {
     const next: Record<CatalogFilter, number> = {
@@ -153,12 +165,13 @@ export function ModelCatalog(props: ModelCatalogProps) {
   return (
     <div className='flex h-full min-h-0 flex-col bg-transparent'>
       <div className='border-border/70 shrink-0 border-b px-2.5 py-2.5 sm:px-3'>
+        {showFilters && (
         <div
           className='bg-muted/45 ring-border/60 grid grid-cols-5 gap-0.5 rounded-xl p-0.5 ring-1'
           role='tablist'
           aria-label={t('Filter by modality')}
         >
-          {FILTERS.map((item) => {
+          {filters.map((item) => {
             const Icon = item.Icon
             const active = modality === item.id
             const count = counts[item.id]
@@ -202,7 +215,8 @@ export function ModelCatalog(props: ModelCatalogProps) {
             )
           })}
         </div>
-        <div className='relative mt-2'>
+        )}
+        <div className={cn('relative', showFilters && 'mt-2')}>
           <Search
             className='text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2'
             aria-hidden='true'

@@ -26,25 +26,25 @@ import {
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import { videoTaskQueryOptions } from '../../hooks/use-video-task-result'
+import { videoTaskQueryOptions } from '@/features/playground/hooks/use-video-task-result'
 import {
   downloadGeneratedMedia,
   downloadGeneratedMediaZip,
-} from '../../lib/download-generated-media'
-import type { StudioRunSummary } from '../../lib/session/session-types'
-import type { StudioFeedDensity } from '../../lib/storage/store-migration'
+} from '@/features/playground/lib/download-generated-media'
+import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import type { StudioFeedDensity } from '@/features/playground/lib/storage/store-migration'
 import {
   ratioFromSize,
   type StudioFeedBatch,
-} from '../../lib/studio/studio-feed'
+} from '@/features/playground/lib/studio/studio-feed'
 import {
   EMPTY_STUDIO_SELECTION,
   clickStudioSelection,
   selectableStudioImages,
   toggleStudioSelectionGroup,
   type StudioSelection,
-} from '../../lib/studio/studio-selection'
-import { MediaLightbox, type LightboxItem } from '../media/media-lightbox'
+} from '@/features/playground/lib/studio/studio-selection'
+import { MediaLightbox, type LightboxItem } from '@/features/playground/components/media/media-lightbox'
 import { StudioSelectionBar } from './studio-selection-bar'
 import {
   AudioResultRow,
