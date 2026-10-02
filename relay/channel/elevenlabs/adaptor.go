@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -131,18 +132,25 @@ func (a *Adaptor) GetChannelName() string { return "ElevenLabs" }
 
 func (a *Adaptor) convertSpeechRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.AudioRequest) (io.Reader, error) {
 	if strings.TrimSpace(request.Input) == "" {
-		return nil, errors.New("input is required")
+		return nil, types.NewOpenAIError(errors.New("input is required"), types.ErrorCodeInvalidRequest, http.StatusBadRequest)
 	}
-	a.voiceID = strings.TrimSpace(request.Voice)
-	if a.voiceID == "" {
-		return nil, errors.New("voice is required and must be an ElevenLabs voice_id")
+	voiceID, err := ResolveSpeechVoiceID(request.Voice)
+	if err != nil {
+		return nil, err
 	}
+	a.voiceID = voiceID
 	a.responseFormat = request.ResponseFormat
 	upstreamModel := OpenAIAudioModel(request.Model, true)
 	info.UpstreamModelName = upstreamModel
+	limit := MaxTTSCharacters(upstreamModel)
+	if chars := utf8.RuneCountInString(request.Input); chars > limit {
+		return nil, types.NewOpenAIError(fmt.Errorf("input is %d characters; %s accepts at most %d per request", chars, upstreamModel, limit), types.ErrorCodeInvalidRequest, http.StatusBadRequest)
+	}
 	payload := map[string]any{"text": request.Input, "model_id": upstreamModel}
 	if request.Speed != nil {
-		payload["voice_settings"] = map[string]any{"speed": *request.Speed}
+		// OpenAI accepts 0.25–4.0; ElevenLabs only 0.7–1.2. Clamp instead of
+		// failing so existing OpenAI clients keep working.
+		payload["voice_settings"] = map[string]any{"speed": math.Min(MaxTTSSpeed, math.Max(MinTTSSpeed, *request.Speed))}
 	}
 	jsonData, err := common.Marshal(payload)
 	if err != nil {

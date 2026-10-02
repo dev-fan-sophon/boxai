@@ -84,11 +84,15 @@ func Distribute() func(c *gin.Context) {
 				}
 				var selectGroup string
 				usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
-				// playground routes may specify group in body
+				// playground routes may specify group in body; the native
+				// ElevenLabs passthrough forwards bodies verbatim (often
+				// multipart audio), so it names the group in a header instead
+				// of being parsed a second time here.
 				if strings.HasPrefix(c.Request.URL.Path, "/pg/") {
 					playgroundRequest := &dto.PlayGroundRequest{}
-					err = common.UnmarshalBodyReusable(c, playgroundRequest)
-					if err != nil {
+					if elevenlabs.IsPlaygroundProxyPath(c.Request.URL.Path) {
+						playgroundRequest.Group = strings.TrimSpace(c.GetHeader(elevenlabs.PlaygroundGroupHeader))
+					} else if err = common.UnmarshalBodyReusable(c, playgroundRequest); err != nil {
 						abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidPlayground, map[string]any{"Error": err.Error()}))
 						return
 					}

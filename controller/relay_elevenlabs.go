@@ -53,9 +53,17 @@ func RelayElevenLabs(c *gin.Context) {
 		return
 	}
 
+	validationModel := relayInfo.UpstreamModelName
+	if validationModel == "" {
+		validationModel = relayInfo.OriginModelName
+	}
+	if err := elevenlabs.ValidateNativeRequest(c, endpoint, validationModel); err != nil {
+		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithStatusCode(http.StatusBadRequest), types.ErrOptionWithSkipRetry())
+		return
+	}
 	usage, err := elevenlabs.EstimateNativeUsage(c, endpoint, relayInfo.OriginModelName)
 	if err != nil {
-		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
+		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithStatusCode(http.StatusBadRequest), types.ErrOptionWithSkipRetry())
 		return
 	}
 	if _, err := elevenlabs.NativePriceData(c, relayInfo); err != nil {
