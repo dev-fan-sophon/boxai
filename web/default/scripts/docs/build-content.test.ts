@@ -38,7 +38,7 @@ it('compiles formatted docs without losing metadata or custom blocks', () => {
   const firstPages = fs.readFileSync(pagesPath, 'utf8')
   const pages = JSON.parse(firstPages) as CompiledPages
   const firstRequest = pages.en?.['start/first-request']
-  const desktopVi = pages.vi?.['clients/desktop']
+  const desktopVi = pages.vi?.['clients/desktop/install']
 
   expect(firstRequest?.checklist).toEqual([
     'Open Playground or prepare curl',

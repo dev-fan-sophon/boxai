@@ -16,6 +16,23 @@ This document is the single source of truth for the public docs redesign.
 Engineering notes in this repo’s top-level `docs/` stay internal; only content
 under the product docs pipeline is public.
 
+## Desktop documentation maintenance (2026-10-02)
+
+The current Desktop is based on pi-desktop, replacing the former client. Its
+English/Vietnamese entry page `/docs/clients/desktop` links to eight task guides:
+`install`, `sign-in`, `models-and-billing`, `projects-and-sessions`,
+`tool-approvals`, `extensions`, `updates` and `troubleshooting`. All nine paths
+are required bilingual core pages in the builder and IA metadata, with SEO and
+sitemap entries in `common/seo.go`. Navigation, search, manifest and llms assets
+are generated from Markdown; do not edit generated outputs.
+
+The download entry is `/agents`. Maintainer instructions live in
+`desktop/README.md`; the upstream standalone docs site is removed. See
+`docs/desktop-integration.md` for actual-source release checks and stable
+`desktop-screenshots/docs/*.webp` capture names. Do not reuse retired-client
+screenshots. Comments in guide source reserve capture positions without broken
+public images until real captures are available.
+
 ## Connect documentation maintenance (2026-09-27)
 
 Connect's public documentation now lives at `/docs/clients/connect`, with five

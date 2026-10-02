@@ -50,7 +50,7 @@ Reserve these stable paths under `web/default/public/desktop-screenshots/docs/`:
 | `login.webp` | Actual BoxAI sign-in entry; no real account details |
 | `models.webp` | BoxAI model picker with one selected model |
 | `project-session.webp` | Disposable project and short successful session |
-| `permissions.webp` | Ask-mode request with Allow once, Allow for session and Deny |
+| `permissions.webp` | Ask-mode request with Allow once, Allow for this chat and Deny |
 | `settings.webp` | Real skills/MCP/settings surface |
 | `updates.webp` | Actual update check/result state |
 
@@ -71,6 +71,6 @@ Architecture-budget data remains in `desktop/scripts/architecture-allowlist.json
 Historical ADR references in source comments identify upstream history, not
 active BoxAI documentation. Licensing files remain intact.
 
-The old connector broker source may remain for a separately managed retirement.
-Removing docs does not decommission deployed Workers, revoke OAuth apps, delete
+The old connector broker source is removed independently of deployed services.
+Removing source or docs does not decommission deployed Workers, revoke OAuth apps, delete
 D1 data or authorize production changes.

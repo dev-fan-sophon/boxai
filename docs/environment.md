@@ -287,12 +287,9 @@ authorization files private; never attach them to diagnostics or screenshots.
 See [desktop-integration.md](desktop-integration.md) and
 [desktop/README.md](../desktop/README.md) for ownership and development.
 
-`workers/desktop-broker`, `api-desktop.you-box.com` and its connector OAuth
-secrets belong to the retired client architecture. They are **not prerequisites
-for the current Desktop app**. Retained Worker source documents that legacy
-service; do not provision it for new installations. Retirement of deployed
-Workers, D1 data and OAuth registrations requires a separate operational review
-and authorization. This documentation change does not delete production state.
+Legacy connector OAuth services are not prerequisites for the current app.
+Removing their source does not retire deployed Workers, delete D1 data or revoke
+OAuth registrations. Those operations need a separate review and authorization.
 
 ---
 

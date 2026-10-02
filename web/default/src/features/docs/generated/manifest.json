@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T13:47:00.523Z",
+  "generatedAt": "2026-10-02T17:11:47.020Z",
   "version": 1,
   "pages": [
     {
@@ -61,6 +61,11 @@
         {
           "id": "prerequisites",
           "text": "Prerequisites",
+          "level": 2
+        },
+        {
+          "id": "prefer-a-desktop-agent",
+          "text": "Prefer a desktop agent?",
           "level": 2
         },
         {
@@ -468,38 +473,367 @@
       "path": "clients/desktop",
       "href": "/docs/clients/desktop",
       "locale": "en",
-      "title": "BoxAI Desktop",
-      "summary": "Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.",
+      "title": "Get started with BoxAI Desktop",
+      "summary": "Install the desktop agent, sign in to BoxAI, and work safely with projects, models and tools.",
       "section": "clients",
       "order": 10,
       "audience": [
         "user"
       ],
-      "updated": "2026-08-04",
+      "updated": "2026-10-02",
       "headings": [
         {
-          "id": "download",
-          "text": "Download",
+          "id": "your-first-task",
+          "text": "Your first task",
           "level": 2
         },
         {
-          "id": "macos",
-          "text": "macOS",
+          "id": "before-you-grant-access",
+          "text": "Before you grant access",
           "level": 2
         },
         {
-          "id": "windows",
-          "text": "Windows",
+          "id": "continue-learning",
+          "text": "Continue learning",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/install",
+      "href": "/docs/clients/desktop/install",
+      "locale": "en",
+      "title": "Install and open BoxAI Desktop",
+      "summary": "Download the right installer and handle first-open security warnings safely on macOS and Windows.",
+      "section": "clients",
+      "order": 11,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "before-you-download",
+          "text": "Before you download",
           "level": 2
         },
         {
-          "id": "after-sign-in",
-          "text": "After sign-in",
+          "id": "install-on-macos",
+          "text": "Install on macOS",
           "level": 2
         },
         {
-          "id": "next",
-          "text": "Next",
+          "id": "if-macos-blocks-an-unsigned-build",
+          "text": "If macOS blocks an unsigned build",
+          "level": 3
+        },
+        {
+          "id": "install-on-windows",
+          "text": "Install on Windows",
+          "level": 2
+        },
+        {
+          "id": "if-smartscreen-shows-an-unsigned-app-warning",
+          "text": "If SmartScreen shows an unsigned-app warning",
+          "level": 3
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/sign-in",
+      "href": "/docs/clients/desktop/sign-in",
+      "locale": "en",
+      "title": "Sign in to BoxAI Desktop",
+      "summary": "Authorize the desktop app with your BoxAI account and keep account access private.",
+      "section": "clients",
+      "order": 12,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "before-you-start",
+          "text": "Before you start",
+          "level": 2
+        },
+        {
+          "id": "authorize-the-app",
+          "text": "Authorize the app",
+          "level": 2
+        },
+        {
+          "id": "check-the-account-before-working",
+          "text": "Check the account before working",
+          "level": 2
+        },
+        {
+          "id": "sign-in-does-not-finish",
+          "text": "Sign-in does not finish",
+          "level": 2
+        },
+        {
+          "id": "protect-access",
+          "text": "Protect access",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/models-and-billing",
+      "href": "/docs/clients/desktop/models-and-billing",
+      "locale": "en",
+      "title": "Choose a Desktop model and understand billing",
+      "summary": "Select an available BoxAI model, run a small test and check authoritative usage on the website.",
+      "section": "clients",
+      "order": 13,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "choose-a-model",
+          "text": "Choose a model",
+          "level": 2
+        },
+        {
+          "id": "what-you-pay-for",
+          "text": "What you pay for",
+          "level": 2
+        },
+        {
+          "id": "keep-a-first-task-small",
+          "text": "Keep a first task small",
+          "level": 2
+        },
+        {
+          "id": "if-the-model-fails",
+          "text": "If the model fails",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/projects-and-sessions",
+      "href": "/docs/clients/desktop/projects-and-sessions",
+      "locale": "en",
+      "title": "Work with projects and sessions",
+      "summary": "Open a folder, give the agent a bounded task and review results without losing track of your work.",
+      "section": "clients",
+      "order": 14,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "open-a-project",
+          "text": "Open a project",
+          "level": 2
+        },
+        {
+          "id": "give-a-clear-task",
+          "text": "Give a clear task",
+          "level": 2
+        },
+        {
+          "id": "choose-an-operating-mode",
+          "text": "Choose an operating mode",
+          "level": 2
+        },
+        {
+          "id": "review-and-continue",
+          "text": "Review and continue",
+          "level": 2
+        },
+        {
+          "id": "verify-success",
+          "text": "Verify success",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/tool-approvals",
+      "href": "/docs/clients/desktop/tool-approvals",
+      "locale": "en",
+      "title": "Review tool permissions",
+      "summary": "Understand Ask, Accept edits and Auto before allowing file changes, commands or external tools.",
+      "section": "clients",
+      "order": 15,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "start-with-ask",
+          "text": "Start with Ask",
+          "level": 2
+        },
+        {
+          "id": "decide-on-a-request",
+          "text": "Decide on a request",
+          "level": 2
+        },
+        {
+          "id": "review-a-plan-separately",
+          "text": "Review a plan separately",
+          "level": 2
+        },
+        {
+          "id": "if-work-seems-stuck",
+          "text": "If work seems stuck",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/extensions",
+      "href": "/docs/clients/desktop/extensions",
+      "locale": "en",
+      "title": "Add skills, plugins and MCP tools",
+      "summary": "Extend Desktop carefully, choose global or project scope and verify each capability before relying on it.",
+      "section": "clients",
+      "order": 16,
+      "audience": [
+        "user",
+        "developer"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "choose-the-right-extension",
+          "text": "Choose the right extension",
+          "level": 2
+        },
+        {
+          "id": "add-a-skill",
+          "text": "Add a skill",
+          "level": 2
+        },
+        {
+          "id": "connect-an-mcp-server",
+          "text": "Connect an MCP server",
+          "level": 2
+        },
+        {
+          "id": "install-a-plugin",
+          "text": "Install a plugin",
+          "level": 2
+        },
+        {
+          "id": "undo-a-problematic-change",
+          "text": "Undo a problematic change",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/updates",
+      "href": "/docs/clients/desktop/updates",
+      "locale": "en",
+      "title": "Update BoxAI Desktop",
+      "summary": "Check the current release, install an official update and preserve your projects and local data.",
+      "section": "clients",
+      "order": 17,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "before-updating",
+          "text": "Before updating",
+          "level": 2
+        },
+        {
+          "id": "install-the-current-build",
+          "text": "Install the current build",
+          "level": 2
+        },
+        {
+          "id": "if-an-update-fails",
+          "text": "If an update fails",
+          "level": 2
+        },
+        {
+          "id": "moving-from-the-retired-client",
+          "text": "Moving from the retired client",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "clients/desktop/troubleshooting",
+      "href": "/docs/clients/desktop/troubleshooting",
+      "locale": "en",
+      "title": "Troubleshoot BoxAI Desktop",
+      "summary": "Find safe fixes for startup, authorization, model access and tools, and prepare a useful support report.",
+      "section": "clients",
+      "order": 18,
+      "audience": [
+        "user"
+      ],
+      "updated": "2026-10-02",
+      "headings": [
+        {
+          "id": "start-with-a-small-check",
+          "text": "Start with a small check",
+          "level": 2
+        },
+        {
+          "id": "match-the-symptom",
+          "text": "Match the symptom",
+          "level": 2
+        },
+        {
+          "id": "common-questions",
+          "text": "Common questions",
+          "level": 2
+        },
+        {
+          "id": "is-this-boxai-connect",
+          "text": "Is this BoxAI Connect?",
+          "level": 3
+        },
+        {
+          "id": "can-i-use-a-separate-provider-key",
+          "text": "Can I use a separate provider key?",
+          "level": 3
+        },
+        {
+          "id": "are-projects-completely-offline",
+          "text": "Are projects completely offline?",
+          "level": 3
+        },
+        {
+          "id": "does-stop-undo-changes",
+          "text": "Does Stop undo changes?",
+          "level": 3
+        },
+        {
+          "id": "should-i-delete-the-data-directory",
+          "text": "Should I delete the data directory?",
+          "level": 3
+        },
+        {
+          "id": "ask-for-help-safely",
+          "text": "Ask for help safely",
           "level": 2
         }
       ],
