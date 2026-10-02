@@ -71,6 +71,12 @@ func TestBuildSitemapXML(t *testing.T) {
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect/sign-in</loc>")
 	assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/connect/account-and-troubleshooting</loc>")
+	for _, guide := range []string{
+		"install", "sign-in", "models-and-billing", "projects-and-sessions",
+		"tool-approvals", "extensions", "updates", "troubleshooting",
+	} {
+		assert.Contains(t, xml, "<loc>https://you-box.com/docs/clients/desktop/"+guide+"</loc>")
+	}
 	assert.NotContains(t, xml, "<loc>https://you-box.com/console")
 }
 

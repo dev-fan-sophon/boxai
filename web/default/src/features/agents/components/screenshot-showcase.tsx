@@ -8,51 +8,55 @@ import {
   SectionIntro,
 } from '@/features/home/components/marketing'
 
-// Captured from the real app by desktop/surfaces/gui `npm run screenshots`, which drives the
-// hermetic e2e mocks — regenerating them after a UI change needs no manual retouching.
+// Captured from the real BoxAI Desktop app signed in to a private demo account; regenerate
+// them with the desktop capture scripts after a visible UI change. Shots listed in
+// VIETNAMESE_SHOTS also have a `-vi` capture of the Vietnamese interface.
 const SHOTS = [
   {
-    id: 'session',
-    tab: 'Finished work',
+    id: 'agent',
+    tab: 'Agent mode',
     caption:
-      'Ask for an outcome and BoxAI returns the deliverable, not a list of steps.',
+      'Describe the task and the agent reads the project, edits files, and runs the commands to check its work.',
   },
   {
-    id: 'approval',
-    tab: 'Approvals',
+    id: 'plan',
+    tab: 'Plan mode',
     caption:
-      'Anything consequential stops for your review, with the exact action spelled out.',
+      'Let it study the project first and approve the plan before a single file changes.',
   },
   {
-    id: 'inbox',
-    tab: 'Inbox',
+    id: 'subagents',
+    tab: 'Subagents',
     caption:
-      'Work running unattended parks its questions here instead of deciding on its own.',
+      'Bigger jobs split into subagents and parallel sessions that report back to one place.',
   },
   {
-    id: 'skills',
-    tab: 'Skills',
+    id: 'models',
+    tab: 'Models',
     caption:
-      'Instruction packs teach it repeatable work: reports, minutes, decks, spreadsheets.',
+      'Every model in your BoxAI account is one click away, and you can switch mid-session.',
   },
   {
-    id: 'connectors',
-    tab: 'Connectors',
+    id: 'review',
+    tab: 'Review',
     caption:
-      'Slack, GitHub, Gmail, Notion, Jira and more, plus anything reachable over MCP.',
+      'Each change lands as a diff you can read, keep, or roll back in the work panel.',
   },
   {
-    id: 'automations',
-    tab: 'Automations',
+    id: 'plugins',
+    tab: 'Plugins',
     caption:
-      'Standing work runs on a schedule and lands in the app with a full transcript.',
+      'Skills, plugins, and MCP servers add tools, panels, and workflows to the workspace.',
   },
 ] as const
 
 type ShotId = (typeof SHOTS)[number]['id']
 
+const VIETNAMESE_SHOTS: ReadonlySet<ShotId> = new Set(['agent', 'models'])
+
 export function ScreenshotShowcase() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const vietnamese = i18n.resolvedLanguage?.startsWith('vi') ?? false
   const [active, setActive] = useState<ShotId>(SHOTS[0].id)
 
   return (
@@ -60,7 +64,7 @@ export function ScreenshotShowcase() {
       <SectionIntro
         id='desktop-screenshots'
         eyebrow={t('A look inside')}
-        title={t('The app running a real task, end to end')}
+        title={t('A tour of the workspace')}
       />
 
       <AnimateInView delay={80}>
@@ -76,32 +80,38 @@ export function ScreenshotShowcase() {
             ))}
           </TabsList>
 
-          {SHOTS.map((shot) => (
-            <TabsContent key={shot.id} value={shot.id} className='mt-5'>
-              <figure className='space-y-3'>
-                <div className='bg-muted ring-border/70 shadow-lifted overflow-hidden rounded-2xl ring-1'>
-                  <img
-                    src={`/desktop-screenshots/${shot.id}-1536.webp`}
-                    srcSet={[
-                      `/desktop-screenshots/${shot.id}-480.webp 480w`,
-                      `/desktop-screenshots/${shot.id}-960.webp 960w`,
-                      `/desktop-screenshots/${shot.id}-1536.webp 1536w`,
-                    ].join(', ')}
-                    sizes='(min-width: 1024px) 1100px, 100vw'
-                    width={1536}
-                    height={960}
-                    loading='lazy'
-                    decoding='async'
-                    alt={t(shot.caption)}
-                    className='block w-full'
-                  />
-                </div>
-                <figcaption className='text-muted-foreground text-center text-sm text-pretty'>
-                  {t(shot.caption)}
-                </figcaption>
-              </figure>
-            </TabsContent>
-          ))}
+          {SHOTS.map((shot) => {
+            const file =
+              vietnamese && VIETNAMESE_SHOTS.has(shot.id)
+                ? `${shot.id}-vi`
+                : shot.id
+            return (
+              <TabsContent key={shot.id} value={shot.id} className='mt-5'>
+                <figure className='space-y-3'>
+                  <div className='bg-muted ring-border/70 shadow-lifted overflow-hidden rounded-2xl ring-1'>
+                    <img
+                      src={`/desktop-screenshots/${file}-1536.webp`}
+                      srcSet={[
+                        `/desktop-screenshots/${file}-480.webp 480w`,
+                        `/desktop-screenshots/${file}-960.webp 960w`,
+                        `/desktop-screenshots/${file}-1536.webp 1536w`,
+                      ].join(', ')}
+                      sizes='(min-width: 1024px) 1100px, 100vw'
+                      width={1536}
+                      height={960}
+                      loading='lazy'
+                      decoding='async'
+                      alt={t(shot.caption)}
+                      className='block w-full'
+                    />
+                  </div>
+                  <figcaption className='text-muted-foreground text-center text-sm text-pretty'>
+                    {t(shot.caption)}
+                  </figcaption>
+                </figure>
+              </TabsContent>
+            )
+          })}
         </Tabs>
       </AnimateInView>
     </MarketingSection>

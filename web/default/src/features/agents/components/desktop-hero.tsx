@@ -1,7 +1,9 @@
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { ShieldCheck } from '@/components/icons'
+import { BookOpen, Play, ShieldCheck } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import { formatSize } from '@/features/downloads/release'
 import type {
@@ -51,14 +53,14 @@ export function DesktopHero(props: {
             className='landing-animate-fade-up text-foreground text-4xl leading-[1.05] font-semibold tracking-tight text-balance opacity-0 sm:text-5xl lg:text-6xl'
             style={{ animationDelay: '60ms' }}
           >
-            {t('An AI coworker that finishes the work on your computer')}
+            {t('Give your AI agent a workspace of its own')}
           </h1>
           <p
             className='landing-animate-fade-up text-muted-foreground mt-5 max-w-2xl text-base leading-relaxed text-pretty opacity-0 sm:text-lg'
             style={{ animationDelay: '120ms' }}
           >
             {t(
-              'BoxAI Desktop runs the agent on your own machine, with your files, your terminal, and the apps you already use. You describe the outcome; it comes back with the finished document, spreadsheet, or message.'
+              'Open a project, pick any model in your BoxAI account, and describe the task. BoxAI Desktop plans, edits, runs, and tests on your own machine, and you review every change before it lands.'
             )}
           </p>
 
@@ -75,6 +77,30 @@ export function DesktopHero(props: {
               productName={t('BoxAI Desktop')}
               className='justify-center'
             />
+          </div>
+
+          <div
+            className='landing-animate-fade-up mt-3 flex flex-wrap justify-center gap-2 opacity-0'
+            style={{ animationDelay: '210ms' }}
+          >
+            <Button
+              variant='ghost'
+              size='sm'
+              render={<a href='#desktop-tour' />}
+            >
+              <Play weight='fill' aria-hidden='true' />
+              {t('Watch the tour')}
+            </Button>
+            <Button
+              variant='ghost'
+              size='sm'
+              render={
+                <Link to='/docs/$' params={{ _splat: 'clients/desktop' }} />
+              }
+            >
+              <BookOpen aria-hidden='true' />
+              {t('Read the guide')}
+            </Button>
           </div>
 
           <dl
