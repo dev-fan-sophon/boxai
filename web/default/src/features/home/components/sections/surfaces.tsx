@@ -141,7 +141,7 @@ export function Surfaces() {
       tagline: t('Your own machine, same account'),
       lines: [
         t('Connect repoints your AI coding clients at BoxAI'),
-        t('Desktop turns everyday office work into finished files'),
+        t('Desktop gives an AI agent a workspace for your projects'),
         t('Both sign in from the browser and stay revocable'),
       ],
       cta: t('Learn more'),

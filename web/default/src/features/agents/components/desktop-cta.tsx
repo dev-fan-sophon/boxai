@@ -34,7 +34,7 @@ export function DesktopCta(props: {
           id='desktop-cta'
           className='max-w-2xl text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl'
         >
-          {t('Put an AI coworker on your desktop')}
+          {t('Put an AI agent to work on your projects')}
         </h2>
         <p className='text-muted-foreground mt-4 max-w-xl text-sm leading-relaxed text-pretty sm:text-base'>
           {t(

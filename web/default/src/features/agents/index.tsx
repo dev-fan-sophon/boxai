@@ -9,6 +9,7 @@ import { CapabilityGrid } from './components/capability-grid'
 import { DesktopCta } from './components/desktop-cta'
 import { DesktopFaq } from './components/desktop-faq'
 import { DesktopHero } from './components/desktop-hero'
+import { DesktopTour } from './components/desktop-tour'
 import { InstallGuide } from './components/install-guide'
 import { ScreenshotShowcase } from './components/screenshot-showcase'
 import { TrustPanel } from './components/trust-panel'
@@ -24,7 +25,7 @@ export function AgentsView() {
       () => ({
         title: t('BoxAI Desktop'),
         description: t(
-          'BoxAI Desktop is an AI coworker that runs on your own machine, works with your files, terminal, and connected apps, and returns finished work.'
+          'BoxAI Desktop is an AI agent workspace for your projects. It plans, edits, runs, and tests on your own machine, with every model in your BoxAI account.'
         ),
         path: '/agents',
       }),
@@ -42,6 +43,8 @@ export function AgentsView() {
         failed={failed}
         fallbackUrl={fallbackUrl}
       />
+
+      <DesktopTour />
 
       <ScreenshotShowcase />
 

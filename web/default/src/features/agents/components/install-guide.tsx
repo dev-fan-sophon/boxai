@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowRight } from '@/components/icons'
 import {
   ProseAccordion,
   type ProseAccordionEntry,
@@ -62,7 +64,7 @@ export function InstallGuide(props: { downloads: DesktopDownload[] }) {
                   'The build is signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a security prompt.'
                 )
               : t(
-                  'This build is not notarized yet, so macOS blocks the first launch. Open it from Finder with Control-click, then choose Open to allow it once.'
+                  'This build is not notarized yet, so macOS blocks the first launch. Open System Settings, go to Privacy & Security, and choose Open Anyway next to BoxAI Desktop. You only need to do this once per version.'
                 )}
           </p>
           <ChecksumBlock download={mac} />
@@ -113,7 +115,7 @@ export function InstallGuide(props: { downloads: DesktopDownload[] }) {
     body: (
       <p>
         {t(
-          'The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.'
+          'On Windows, the app downloads new releases in the background and installs them when you choose to restart. On macOS, it tells you when a new version is out; download it from this page and replace the app in Applications. Your projects and settings are kept.'
         )}
       </p>
     ),
@@ -129,9 +131,17 @@ export function InstallGuide(props: { downloads: DesktopDownload[] }) {
             eyebrow={t('Getting started')}
             title={t('A minute from download to your first task')}
             description={t(
-              'Install, sign in with the BoxAI account you already have, and describe the outcome you want.'
+              'Install, sign in with the BoxAI account you already have, open a project folder, and describe the task.'
             )}
           />
+          <Link
+            to='/docs/$'
+            params={{ _splat: 'clients/desktop' }}
+            className='text-primary mt-4 inline-flex items-center gap-1.5 text-sm font-medium hover:underline'
+          >
+            {t('Read the full BoxAI Desktop guide')}
+            <ArrowRight className='size-3.5' aria-hidden='true' />
+          </Link>
         </div>
         <div className='min-w-0 lg:col-span-7'>
           <ProseAccordion entries={entries} />

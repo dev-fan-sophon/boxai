@@ -18,7 +18,7 @@ export function TrustPanel() {
       tone: 'success' as const,
       title: t('Approval stays with you'),
       description: t(
-        'Review consequential actions before they run. BoxAI shows what it plans to do and waits for your approval when it matters.'
+        'Commands, file writes, and MCP tools ask before they run. You see the exact action and decide, or allow it for the session.'
       ),
     },
     {
@@ -27,16 +27,16 @@ export function TrustPanel() {
       tone: 'primary' as const,
       title: t('Local by design'),
       description: t(
-        'Local tools run on your device. You choose the files and connectors BoxAI can access, and you can revoke access at any time.'
+        'Projects, sessions, and settings stay on your device. Only the prompt and context a model needs are sent through your BoxAI account.'
       ),
     },
     {
       id: 'workspace',
       icon: FolderLock,
       tone: 'primary' as const,
-      title: t('Folders earn their permissions'),
+      title: t('Every change is reviewable'),
       description: t(
-        'A project only gets its own command allowances once you trust that folder, and you can withdraw that trust from Settings whenever you want.'
+        'Edits show up as diffs in the work panel, so you can read, keep, or roll back what the agent did before you commit.'
       ),
     },
   ]
@@ -48,7 +48,7 @@ export function TrustPanel() {
         eyebrow={t('Control')}
         title={t('An agent with real access needs real brakes')}
         description={t(
-          'BoxAI Desktop can touch your files, your terminal, and your accounts, so every one of those powers is gated by something you decide.'
+          'BoxAI Desktop can change your files and run your tools, so every one of those powers is gated by something you decide.'
         )}
       />
       <div className='grid gap-3 md:grid-cols-3'>

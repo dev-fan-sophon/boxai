@@ -52,41 +52,24 @@ export const CLIENT_APPS: Record<ClientAppId, ClientAppMeta> = {
   desktop: {
     id: 'desktop',
     nameKey: 'BoxAI Desktop',
-    taglineKey: 'An AI coworker for the office work you do every day',
+    taglineKey: 'An AI agent workspace for your projects, on your own machine',
     descriptionKey:
-      'BoxAI Desktop turns everyday office work into finished files. It reads the folders and documents already on your machine, drafts the report, spreadsheet, or deck, and hands back something you can send.',
+      'BoxAI Desktop gives an AI agent a workspace of its own: open a project, describe the change, review the plan and the diff, and keep every model call on your BoxAI account.',
     icon: BoxAIDesktopIcon,
     logoSrc: CLIENT_APP_LOGO.desktop.src,
     section: 'desktop',
     stepKeys: [
       'Download and install the app for your platform.',
       'Sign in from the app; approve the request in this browser session.',
-      'Describe the deliverable and let the coworker produce it on your machine.',
+      'Open a project folder, pick a model, and describe the task.',
     ],
     highlightKeys: [
-      'Documents, spreadsheets, and decks come back as real files',
-      'Works with the folders, inboxes, and tools the job already lives in',
-      'Standing reports and briefs run on a schedule without you',
+      'Agent and Plan modes that read, edit, run, and test in your project',
+      'Subagents and parallel sessions for bigger jobs',
+      'Every model in your BoxAI account, with one balance and one bill',
     ],
   },
 }
-
-/**
- * Announced products that have no release manifest yet. Deliberately outside
- * `CLIENT_APPS`, because every entry there is expected to resolve to a download.
- */
-export const UPCOMING_CLIENT_APPS = [
-  {
-    id: 'coding',
-    nameKey: 'BoxAI Coding',
-    taglineKey: 'A coding agent that ships changes, not suggestions',
-    highlightKeys: [
-      'Reads the repository, plans the change, and edits across files',
-      'Runs the build and the tests before it hands the work back',
-      'Same balance, keys, and usage history as the rest of BoxAI',
-    ],
-  },
-] as const
 
 /**
  * The clients BoxAI Connect writes a provider into, the file it writes, and how
