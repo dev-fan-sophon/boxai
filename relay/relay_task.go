@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -191,6 +192,8 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		if taskErr := validatePlaygroundVideoCapability(c, info); taskErr != nil {
 			return nil, taskErr
 		}
+	} else if taskErr := validateSeedanceResolution(c, info); taskErr != nil {
+		return nil, taskErr
 	}
 
 	// 3. 预生成公开 task ID（仅首次）
@@ -290,6 +293,56 @@ var playgroundVolcengineMetadataKeys = map[string]bool{"resolution": true, "rati
 // maxVideoSeed is the Ark seed upper bound ([-1, 2^32-1]).
 const maxVideoSeed = 4294967295
 
+// videoRequestMode classifies a video task request as text-to-video, frame
+// guided, or reference guided, the keys of a capability profile.
+func videoRequestMode(req relaycommon.TaskSubmitReq) string {
+	referenceMedia := len(req.ReferenceImages) + len(req.ReferenceVideos) + len(req.ReferenceAudios)
+	switch {
+	case strings.TrimSpace(req.FirstFrame) != "" || strings.TrimSpace(req.LastFrame) != "" || req.InputReference != "":
+		return "frames"
+	case len(req.Images) > 0 || referenceMedia > 0:
+		return "references"
+	default:
+		return "text"
+	}
+}
+
+// validateSeedanceResolution rejects Seedance output tiers the selected
+// channel does not serve. The playground runs the full capability check; API
+// callers get this part so an unsupported tier (480p on BoxAI) fails with a
+// clear 400 before quota is reserved, instead of the relay's misleading 503.
+func validateSeedanceResolution(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	if !relaycommon.IsSeedanceModel(info.UpstreamModelName) {
+		return nil
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	resolution := ""
+	if value, ok := req.Metadata["resolution"].(string); ok {
+		resolution = strings.ToLower(strings.TrimSpace(value))
+	}
+	if resolution == "" {
+		resolution, _ = relaycommon.SeedanceOutputFromSize(req.Size)
+	}
+	if resolution == "" {
+		// The adaptors fill in 720p, which every Seedance profile serves.
+		return nil
+	}
+	settingValue, _ := common.GetContextKey(c, constant.ContextKeyChannelSetting)
+	setting, _ := settingValue.(dto.ChannelSettings)
+	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, videoRequestMode(req))
+	if !ok || slices.Contains(profile.Resolutions, resolution) {
+		return nil
+	}
+	return service.TaskErrorWrapperLocal(
+		fmt.Errorf("%s supports %s output; %s is unavailable", info.OriginModelName, strings.Join(profile.Resolutions, " and "), resolution),
+		"unsupported_video_capability",
+		http.StatusBadRequest,
+	)
+}
+
 func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
@@ -301,20 +354,8 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	unsupported := func(message string) *dto.TaskError {
 		return service.TaskErrorWrapperLocal(errors.New(message), "unsupported_video_capability", http.StatusBadRequest)
 	}
-	frameCount := 0
-	if strings.TrimSpace(req.FirstFrame) != "" {
-		frameCount++
-	}
-	if strings.TrimSpace(req.LastFrame) != "" {
-		frameCount++
-	}
 	referenceMedia := len(req.ReferenceImages) + len(req.ReferenceVideos) + len(req.ReferenceAudios)
-	mode := "text"
-	if frameCount > 0 || req.InputReference != "" {
-		mode = "frames"
-	} else if len(req.Images) > 0 || referenceMedia > 0 {
-		mode = "references"
-	}
+	mode := videoRequestMode(req)
 	if mode == "frames" && referenceMedia > 0 {
 		return invalid("reference media cannot be combined with frames")
 	}

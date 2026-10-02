@@ -2,8 +2,8 @@ import { t } from 'i18next'
 
 /**
  * Pixel-count window Volcengine enforces on Seedance reference videos
- * (InvalidParameter.PixelCountTooSmall / TooLarge): roughly 854×480 up to
- * 4K. Checked before upload so the run does not fail after it was queued.
+ * (InvalidParameter.PixelCountTooSmall / TooLarge): 854×480 up to 4K.
+ * Checked before upload so the run does not fail after it was queued.
  */
 const SEEDANCE_REFERENCE_VIDEO_PIXELS = { min: 407_696, max: 8_295_044 }
 
@@ -36,8 +36,14 @@ export async function seedanceReferenceVideoIssue(
   const pixels = size.width * size.height
   const limits = SEEDANCE_REFERENCE_VIDEO_PIXELS
   if (pixels >= limits.min && pixels <= limits.max) return null
+  if (pixels < limits.min) {
+    return t(
+      'Reference video {{width}}×{{height}} is too small. Seedance needs at least 854×480 (720p or larger recommended).',
+      { width: size.width, height: size.height }
+    )
+  }
   return t(
-    'Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.',
+    'Reference video {{width}}×{{height}} is too large. Seedance accepts up to 4K (3840×2160).',
     { width: size.width, height: size.height }
   )
 }

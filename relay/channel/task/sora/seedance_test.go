@@ -166,7 +166,11 @@ func TestNormalizeSeedancePassthroughBody(t *testing.T) {
 			if tt.wantSeconds != nil {
 				assert.Equal(t, tt.wantSeconds, body["seconds"])
 			}
-			assert.Equal(t, tt.wantMetadata, body["metadata"])
+			want := map[string]interface{}{"resolution": "720p"}
+			for key, value := range tt.wantMetadata {
+				want[key] = value
+			}
+			assert.Equal(t, want, body["metadata"], "metadata gets the 720p default unless a tier is given")
 			for _, key := range tt.removedKeys {
 				assert.NotContains(t, body, key)
 			}

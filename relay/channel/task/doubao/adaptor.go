@@ -385,6 +385,11 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	if r.Resolution == "" {
 		r.Resolution = resolution
 	}
+	if r.Resolution == "" && relaycommon.IsSeedanceModel(modelName) {
+		// Upstream defaults may be 480p, which BoxAI does not serve; pin the
+		// tier billing already assumes (ResolveSeedanceResolution → 720p).
+		r.Resolution = "720p"
+	}
 	if r.Ratio == "" {
 		r.Ratio = ratio
 	}

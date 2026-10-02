@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { useVideoCapabilities } from '@/features/playground/hooks/use-video-capabilities'
@@ -148,28 +149,39 @@ export function VideoSettings(props: {
         ) : null}
       </SettingRow>
       <SettingRow label={t('Resolution')} htmlFor='gen-video-resolution'>
-        <NativeSelect
-          id='gen-video-resolution'
-          size='sm'
-          className='w-full'
-          value={options.resolution}
-          onChange={(event) =>
-            persistVideo({ videoResolution: event.target.value })
-          }
-        >
-          {resolutions.map((resolution) => (
-            <NativeSelectOption
-              key={resolution}
-              value={resolution}
-              disabled={imageOnly.includes(resolution)}
-            >
-              {resolution}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-        {resolutionHint ? (
-          <p className='text-muted-foreground text-2xs'>{resolutionHint}</p>
-        ) : null}
+        {resolutions.length > 1 ? (
+          <SegmentedControl
+            fullWidth
+            size='sm'
+            aria-label={t('Resolution')}
+            value={options.resolution}
+            options={resolutions.map((resolution) => ({
+              value: resolution,
+              label: resolution,
+              disabled: imageOnly.includes(resolution),
+            }))}
+            onValueChange={(resolution) =>
+              persistVideo({ videoResolution: resolution })
+            }
+          />
+        ) : (
+          <p
+            id='gen-video-resolution'
+            className='border-border/70 bg-muted/40 text-foreground rounded-lg border px-2.5 py-1.5 text-sm font-medium'
+          >
+            {options.resolution}
+          </p>
+        )}
+        <p className='text-muted-foreground text-2xs'>
+          {resolutionHint ??
+            (resolutions.length > 1
+              ? t('This model renders {{resolutions}}.', {
+                  resolutions: resolutions.join(' / '),
+                })
+              : t('This model renders {{resolutions}} only.', {
+                  resolutions: options.resolution,
+                }))}
+        </p>
       </SettingRow>
       {continuousDuration ? (
         <div className='space-y-1.5'>

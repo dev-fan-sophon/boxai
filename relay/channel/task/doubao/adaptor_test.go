@@ -152,6 +152,17 @@ func TestConvertToRequestPayloadMapsSharedVideoFields(t *testing.T) {
 	require.Equal(t, "blue square", payload.Content[0].Text)
 }
 
+func TestConvertToRequestPayloadDefaultsSeedanceTo720p(t *testing.T) {
+	payload, err := (&TaskAdaptor{}).convertToRequestPayload(&relaycommon.TaskSubmitReq{
+		Model:    "doubao-seedance-2-0-mini-260615",
+		Prompt:   "blue square",
+		Duration: 4,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "720p", payload.Resolution, "an omitted tier must not fall back to the upstream 480p default")
+}
+
 func TestEstimateBillingDerivesResolutionFromSharedSize(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
