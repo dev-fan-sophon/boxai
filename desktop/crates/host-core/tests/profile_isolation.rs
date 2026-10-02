@@ -89,7 +89,9 @@ fn global_capabilities_install_and_enumerate_only_the_selected_profile() {
         ("mcp.list", "servers"),
         ("agents.list", "subagents"),
     ] {
-        assert_eq!(host.call(method, json!({"level":"global"}))[key], json!([]));
+        let result = host.call(method, json!({"level":"global"}));
+        assert_eq!(result[key], json!([]));
+        assert_eq!(result["directory"], json!(profile.join("agent").join(key)));
     }
     // Import is a read-only copy, even with an identical name in the source.
     let installed = host.call("skills.import", json!({"path": foreign_skill.parent().unwrap(), "skill":{"name":"shared","level":"global","mode":"copy"}}));
@@ -124,6 +126,23 @@ fn global_capabilities_install_and_enumerate_only_the_selected_profile() {
     );
     drop(host);
     let mut other_host = Host::start(home.path(), &other);
+    for (method, leaf) in [
+        ("skills.list", "skills"),
+        ("mcp.list", "servers"),
+        ("agents.list", "subagents"),
+    ] {
+        let result = other_host.call(method, json!({"level":"global"}));
+        assert_eq!(result["directory"], json!(other.join("agent").join(leaf)));
+    }
+    let project = home.path().join("project");
+    fs::create_dir(&project).unwrap();
+    for (method, leaf) in [("skills.list", "skills"), ("mcp.list", "servers")] {
+        let result = other_host.call(method, json!({"level":"project","projectPath":project}));
+        assert_eq!(
+            result["directory"],
+            json!(project.join(".agents").join(leaf))
+        );
+    }
     assert_eq!(
         other_host.call("skills.list", json!({"level":"global"}))["skills"],
         json!([])

@@ -1036,6 +1036,7 @@ sklm: {
     "subagentsGlobalPath": "Chemin global des sous-agents",
     "subagentsOnlyGlobal": "Les sous-agents sont uniquement globaux. Les définitions de projet ne sont pas prises en charge.",
     "capabilityCount": "{{count}} capacités",
+    "capabilityLocation": "Emplacement de stockage : {{path}}",
     "globalLevel": "Global",
     "globalScopeDescription": "Disponible dans chaque projet",
     "projectLevel": "Projet",

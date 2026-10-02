@@ -55,7 +55,7 @@ export function registerMcpIpc({
 
 handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => {
     if (!host) throw new Error("host unavailable");
-    const result = await host.call<{ servers: McpServerRecord[]; statuses?: McpServerStatus[] }>(
+    const result = await host.call<{ servers: McpServerRecord[]; statuses?: McpServerStatus[]; directory?: string }>(
       "mcp.list",
       query,
     );
@@ -68,7 +68,7 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
         hasOauth: oauth ? await oauth.hasOAuth(status.serverId) : false,
       })),
     );
-    return { servers: result.servers ?? [], statuses };
+    return { servers: result.servers ?? [], statuses, directory: result.directory };
   });
 
   handle(IPC.invoke.mcpUpsert, async (server: McpServerInput) => {

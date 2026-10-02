@@ -889,6 +889,7 @@ sklm: {
     subagentsGlobalPath: "Global subagents path",
     subagentsOnlyGlobal: "Subagents are global-only. Project definitions are not supported.",
     capabilityCount: "{{count}} capabilities",
+    capabilityLocation: "Storage location: {{path}}",
     globalLevel: "Global",
     globalScopeDescription: "Available in every project",
     projectLevel: "Project",

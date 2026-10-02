@@ -47,8 +47,6 @@ import {
 } from "../icons";
 import { TooltipButton, cx } from "../ui";
 
-const GLOBAL_MCP_PATH = "~/.agents/servers";
-
 function projectMcpPath(projectPath: string | null): string {
   return projectPath ? `${projectPath}/.agents/servers` : "<project-root>/.agents/servers";
 }
@@ -70,6 +68,7 @@ type McpCollection = {
   global: McpServerRecord[];
   project: McpServerRecord[];
   statuses: McpServerStatus[];
+  globalDirectory?: string;
 };
 
 const EMPTY_MCP_COLLECTION: McpCollection = { global: [], project: [], statuses: [] };
@@ -95,10 +94,11 @@ export function AgentMcpPage() {
       global: global.servers ?? [],
       project: project.servers ?? [],
       statuses: [...(global.statuses ?? []), ...(project.statuses ?? [])],
+      globalDirectory: global.directory,
     };
   }, [selectedProjectPath]);
   const {
-    data: { global: globalServers, project: projectServers, statuses },
+    data: { global: globalServers, project: projectServers, statuses, globalDirectory },
     setData: setServers,
     loading,
     refreshing,
@@ -671,7 +671,7 @@ export function AgentMcpPage() {
               <>
                 <CapabilityGroupHeader
                   label={t("settings.globalLevel")}
-                  path={GLOBAL_MCP_PATH}
+                  path={globalDirectory}
                   count={visible.global.length}
                 />
                 {visible.global.length === 0 ? (

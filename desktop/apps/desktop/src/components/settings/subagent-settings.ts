@@ -17,6 +17,7 @@ export type BuiltinSubagentRow = SubagentDefinition & { enabled: boolean };
 export type SubagentPageData = {
   owned: UserSubagentRecord[];
   builtins: BuiltinSubagentRow[];
+  directory?: string;
 };
 
 export const EMPTY_SUBAGENT_PAGE: SubagentPageData = {
@@ -46,6 +47,7 @@ export async function fetchSubagentPageData(): Promise<SubagentPageData> {
         .map((item) => ({ ...item, enabled: true }));
     return {
       owned,
+      directory: ownedResult.directory,
       builtins: builtins.filter(
         (item) => item.source === "builtin" && !enabledHandles.has(item.name),
       ),
@@ -53,6 +55,7 @@ export async function fetchSubagentPageData(): Promise<SubagentPageData> {
   } catch {
     return {
       owned,
+      directory: ownedResult.directory,
       builtins: fallbackBuiltinDefinitions()
         .map((item) => ({ ...item, enabled: true }))
         .filter((item) => !enabledHandles.has(item.name)),

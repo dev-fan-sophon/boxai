@@ -44,6 +44,7 @@ export const ja: EnglishCatalog = {
     ...en.settings, general: "一般", ai: "AI", providers: "AIプロバイダー", models: "モデル", appearance: "外観", about: "情報", theme: "テーマ", language: "言語", languageAuto: "システムに合わせる",
     languageAutoDesc: "現在: {{state}}", languageSearchPlaceholder: "言語を検索…", themeSearchPlaceholder: "テーマを検索…", application: "アプリケーション", logs: "ログ", openLogs: "ログを開く", feedback: "フィードバック",
     marketProviderOfficial: "BoxAI内蔵", marketProviderCustom: "カスタムソース",
+    capabilityLocation: "保存場所: {{path}}",
     storage: {
       ...en.settings.storage, progressTitle: "ストレージを準備中", progressHint: "データの処理中はこのウィンドウを閉じないでください。", failedTitle: "ストレージ操作に失敗しました",
       failedHint: "既存のデータは安全です。現在の場所を使い続け、設定から再試行してください。", unavailableHint: "データフォルダーにアクセスできません。起動前にドライブを再接続してください。空のデータの作成や別の場所への切り替えは行いません。",

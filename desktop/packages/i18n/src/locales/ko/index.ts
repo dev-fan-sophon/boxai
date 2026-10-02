@@ -1031,6 +1031,7 @@ sklm: {
     subagentsGlobalPath: "전역 서브에이전트 경로",
     subagentsOnlyGlobal: "서브에이전트는 전역 전용입니다. 프로젝트 정의는 지원되지 않습니다.",
     capabilityCount: "기능 {{count}}개",
+    capabilityLocation: "저장 위치: {{path}}",
     globalLevel: "전역",
     globalScopeDescription: "모든 프로젝트에서 사용 가능",
     projectLevel: "프로젝트",

@@ -41,7 +41,6 @@ import {
   IconTrash,
 } from "../icons";
 import { TooltipButton } from "../ui";
-const GLOBAL_SUBAGENTS_PATH = "~/.agents/subagents";
 
 type SubagentEditorState = {
   draft: SubagentDraft;
@@ -62,7 +61,7 @@ export function AgentSubagentsPage() {
   const { t } = useTranslation();
   const showToast = useAppStore((state) => state.showToast);
   const {
-    data: { owned, builtins },
+    data: { owned, builtins, directory },
     setData: setSubagents,
     loading,
     refreshing,
@@ -435,7 +434,7 @@ export function AgentSubagentsPage() {
               <>
                 <CapabilityGroupHeader
                   label={t("settings.globalLevel")}
-                  path={GLOBAL_SUBAGENTS_PATH}
+                  path={directory}
                   count={visibleOwned.length}
                 />
                 {visibleOwned.length === 0 ? (
