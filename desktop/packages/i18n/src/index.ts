@@ -28,6 +28,9 @@ import { fr } from "./locales/fr/index.js";
 import { de } from "./locales/de/index.js";
 import { ko } from "./locales/ko/index.js";
 import { ptBR } from "./locales/pt-BR/index.js";
+import { vi } from "./locales/vi/index.js";
+import { ja } from "./locales/ja/index.js";
+import { ru } from "./locales/ru/index.js";
 
 import type { AppLocale } from "./locale-info.js";
 
@@ -41,4 +44,7 @@ export const catalogs: Record<AppLocale, EnglishCatalog> = {
   fr,
   ko,
   "pt-BR": ptBR,
+  vi,
+  ja,
+  ru,
 };

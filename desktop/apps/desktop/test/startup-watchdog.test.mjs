@@ -155,7 +155,7 @@ test("the diagnostics report states what the renderer already knows", () => {
     downMessage: "HOST_UNAVAILABLE",
   });
 
-  assert.match(report, /^PI-Desktop startup diagnostics\n/);
+  assert.match(report, /^BoxAI Desktop startup diagnostics\n/);
   assert.match(report, /phase: stalled/);
   assert.match(report, /waited: 181s/);
   assert.match(report, /platform: darwin/);
@@ -230,7 +230,8 @@ test("the boot surfaces keep the window controls, so a stuck launch is closable"
     shell,
     /\{\(ready && !showSplash\) \|\| startupPhase !== "starting" \? \(\s*<WindowControls \/>/,
   );
-  assert.equal((shell.match(/<WindowControls\s*\/>/g) ?? []).length, 1);
+  // The signed-out account gate owns controls before the authenticated shell mounts.
+  assert.equal((shell.match(/<WindowControls\s*\/>/g) ?? []).length, 2);
   assert.match(css, /\.app-shell:has\(> \.startup-recovery\) > \.window-controls \{\n\s+z-index: 1500;/);
 });
 
@@ -306,8 +307,8 @@ test("the recovery copy is catalog-backed in every mirrored locale", () => {
       assert.match(catalog, new RegExp(`${key}:`), `${name} is missing startup.${key}`);
     }
   }
-  assert.match(english, /stalledTitle: "PI-Desktop couldn't finish starting"/);
-  assert.match(chinese, /stalledTitle: "PI-Desktop 未能完成启动"/);
+  assert.match(english, /stalledTitle: "BoxAI Desktop couldn't finish starting"/);
+  assert.match(chinese, /stalledTitle: "BoxAI Desktop 未能完成启动"/);
   // User-facing copy: the local service is never called a host or a backend.
   const startupDomain = english.match(/\n  startup: \{[\s\S]*?\n  \},/)?.[0] ?? "";
   assert.ok(startupDomain.length > 0, "the English startup domain was not found");

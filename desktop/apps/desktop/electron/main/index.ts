@@ -37,6 +37,7 @@ import {
   catalogModelConfigFor,
 } from "./models-dev-catalog";
 import { VendorOAuth } from "./oauth";
+import { boxaiOrigin } from "./boxai-session";
 import { AppUpdaterController } from "./updater";
 import {
   WINDOW_MIN_HEIGHT,
@@ -262,9 +263,8 @@ const updater = new AppUpdaterController({
  * resolved request auth.
  */
 const modelsDevCatalog = new ModelsDevCatalog({
-  catalogPath: app.isPackaged
-    ? join(process.resourcesPath, "models.dev", "api.json")
-    : join(app.getAppPath(), "resources", "models.dev", "api.json"),
+  catalogPath: "",
+  providers: [],
 });
 
 const vendorOAuth = new VendorOAuth({
@@ -277,19 +277,8 @@ const vendorOAuth = new VendorOAuth({
   openExternal: async (url) => {
     await safeOpenExternal(url);
   },
-  log: (level, message, data) => logger.app("provider", level, message, { data }),
-  onAccountModels: (id, models) => modelsDevCatalog.setAccountModels(id, models),
-  onAccountRemoved: (id) => modelsDevCatalog.deleteAccount(id),
-  modelConfigFor: async ({ providerId, vendorKey, option }) => {
-    await modelsDevCatalog.ensureLoaded();
-    return catalogModelConfigFor(modelsDevCatalog, {
-      providerId,
-      vendorKey,
-      baseUrl: option.baseUrl,
-      apiStyle: option.apiStyle,
-      modelId: option.modelId,
-    });
-  },
+  origin: boxaiOrigin(app.isPackaged, process.env.BOXAI_DESKTOP_DEV_ORIGIN),
+  onModelConfig: (id, config) => modelsDevCatalog.setBoxAIModelConfig(id, config),
 });
 
 let sessionLaunchRuntime: ReturnType<typeof createSessionLaunchRuntime> | null = null;

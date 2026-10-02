@@ -1,5 +1,23 @@
 use super::super::*;
 
+#[cfg(not(test))]
+pub(crate) fn built_in_catalog_at(_data_dir: &Path) -> MarketCatalogFile {
+    MarketCatalogFile {
+        schema_version: 1,
+        provider_id: "official".into(),
+        name: Some("BoxAI Desktop Extensions".into()),
+        homepage: Some("https://you-box.com".into()),
+        ..Default::default()
+    }
+}
+
+#[cfg(not(test))]
+pub(crate) fn bundled_package_bytes(_plugin_id: &str, _version: &str) -> Option<Vec<u8>> {
+    None
+}
+
+// Sample packages are test fixtures, never advertised or shipped in the app.
+#[cfg(test)]
 pub(crate) fn built_in_catalog_at(data_dir: &Path) -> MarketCatalogFile {
     let package_dir = data_dir.join("plugins/market/packages");
     let hello_path = package_dir.join("demo.hello-0.2.0.piplug");
@@ -95,6 +113,7 @@ pub(crate) fn built_in_catalog_at(data_dir: &Path) -> MarketCatalogFile {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn bundled_package_bytes(plugin_id: &str, version: &str) -> Option<Vec<u8>> {
     match (plugin_id, version) {
         ("demo.hello", "0.2.0") => Some(make_zip(&[

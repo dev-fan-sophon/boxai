@@ -38,10 +38,11 @@ test("runtime rejects an image binding retained by an existing conversation", as
   const runtime = createSessionLaunchRuntime({
     runtimeState: { host: { call: async (method) => {
       if (method === "commandShells.list") return { configuredId: null, effective: shell, fallback: false, choices: [shell] };
-      if (method === "providers.list") return { providers: [{ ...providers[0], authKind: "none" }] };
+      if (method === "providers.list") return { providers: [{ ...providers[0], vendorKey: "boxai", authKind: "oauth" }] };
       if (method === "providers.getSecret") return {};
       throw new Error(`Unexpected host call: ${method}`);
     } } },
+    vendorOAuth: { client: { session: async () => ({}) } },
     modelsDevCatalog: { configureAccount: () => {}, ensureLoaded: async () => {} },
   });
   await assert.rejects(

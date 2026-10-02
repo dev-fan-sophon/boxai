@@ -31,7 +31,6 @@ import type { AppUpdaterController } from "../updater";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { PluginRuntime } from "../plugin-runtime";
-import { runSessionListProbe } from "../session-list-probe";
 import {
   ensureCrashDumpsDirectory,
   reportPreviousCrashDumps,
@@ -395,24 +394,19 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
                    : await api.invoke(api.channels.invoke.windowControl, {
                        action: "getState",
                      });
-               // Project removal channel: a path that cannot have a durable row
-               // still has to survive preload -> main -> host-core and come back
-               // as the documented idempotent no-op.
-               const projectRemove = await api.invoke(
-                 api.channels.invoke.projectRemove,
-                 { path: "pi-desktop-boot-probe-unknown-project" },
-               );
+               // First-run acceptance is read-only and never seeds credentials
+               // or bypasses the real browser authorization gate.
+               const account = await api.invoke(api.channels.invoke.boxaiAccount);
+               const providers = await api.invoke(api.channels.invoke.providersList);
                return {
                  ok: version?.ok === true,
                  version: version?.data?.version,
                  hostProtocol: version?.data?.hostProtocolVersion,
                  platform: api.platform,
                  maximized: windowState?.data?.maximized ?? null,
-                 projectRemove: {
-                   ok: projectRemove?.ok === true,
-                   removed: projectRemove?.data?.removed ?? null,
-                   sessionsRemoved: projectRemove?.data?.sessionsRemoved ?? null,
-                 },
+                 account: account?.ok ? account.data : null,
+                 providerCount: providers?.ok ? providers.data.providers.length : null,
+                 loginGateVisible: !!document.querySelector("[data-boxai-account-gate]"),
                };
              })()`,
             );
@@ -454,13 +448,6 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
             probe.ctrlRBlocked = ctrlRPrevented;
             probe.appName = app.getName();
             probe.menuCount = Menu.getApplicationMenu()?.items.length ?? 0;
-            if (!host || !window) throw new Error("session-list probe requires a healthy desktop");
-            probe.sessionList = await runSessionListProbe({
-              dataDir,
-              host,
-              window,
-              catalog: modelsDevCatalog,
-            });
             console.log("BOOT_PROBE", JSON.stringify(probe));
           } catch (error) {
             console.log(

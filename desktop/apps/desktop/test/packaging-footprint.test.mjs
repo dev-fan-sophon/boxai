@@ -8,12 +8,6 @@ const packageJson = JSON.parse(
 const sharedPackageJson = JSON.parse(
   await readFile(new URL("../../../packages/shared/package.json", import.meta.url), "utf8"),
 );
-const dmgBackground = await readFile(
-  new URL("../build/dmg-background.png", import.meta.url),
-);
-const dmgBackgroundRetina = await readFile(
-  new URL("../build/dmg-background@2x.png", import.meta.url),
-);
 const viteConfigSource = await readFile(
   new URL("../electron.vite.config.ts", import.meta.url),
   "utf8",
@@ -146,6 +140,9 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
     "es",
     "fr",
     "ko",
+    "vi",
+    "ja",
+    "ru",
     "pt-BR",
     "pt_BR",
   ]);
@@ -190,6 +187,8 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
   // sidecar.js loads in packaged installs (issue #507). Contract tests live
   // in agent-runtime-bundle-package.test.mjs.
   assert.deepEqual(packageJson.build.extraResources, [
+    { from: "../../LICENSE", to: "LICENSE" },
+    { from: "../../UPSTREAM.md", to: "UPSTREAM.md" },
     {
       from: "build/icon.png",
       to: "tray-icon.png",
@@ -213,15 +212,15 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
   assert.doesNotMatch(JSON.stringify(packageJson.build), /node-pty/);
 });
 
-test("macOS targets follow the native architecture selected by the runner", () => {
+test("initial macOS release targets Apple Silicon DMG", () => {
   const macTargets = packageJson.build.mac.target;
   assert.deepEqual(
     macTargets.map((entry) => entry.target),
-    ["dmg", "zip"],
+    ["dmg"],
   );
   assert.ok(
-    macTargets.every((entry) => entry.arch === undefined),
-    "macOS targets must not pin the package to Apple Silicon",
+    macTargets.every((entry) => entry.arch.join() === "arm64"),
+    "initial macOS artifacts target the verified Apple Silicon runner",
   );
   assert.doesNotMatch(packageJson.scripts["dist:mac"], /--(?:arm64|x64)/);
 });
@@ -233,7 +232,8 @@ test("macOS DMG remains a two-icon install and artifacts omit first-launch guida
     /PI-Desktop-macOS-open\.command|PI-Desktop-macOS-opening-help\.txt/,
     "macOS package configuration must not ship first-launch guidance assets",
   );
-  assert.equal(packageJson.build.dmg.background, "build/dmg-background.png");
+  assert.equal(packageJson.build.dmg.background, undefined);
+  assert.equal(packageJson.build.dmg.backgroundColor, "#f5f5f5");
   assert.equal(packageJson.build.dmg.icon, "build/icon.icns");
   assert.deepEqual(packageJson.build.dmg.window, { width: 720, height: 440 });
   assert.equal(packageJson.build.dmg.iconSize, 128);
@@ -247,16 +247,6 @@ test("macOS DMG remains a two-icon install and artifacts omit first-launch guida
     /PI-Desktop-macOS-open\.command|Open PI-Desktop\.command|opening-help|If app won't open/,
     "the DMG must not expose first-launch guidance assets",
   );
-  assert.deepEqual([...dmgBackground.subarray(0, 8)], [
-    137, 80, 78, 71, 13, 10, 26, 10,
-  ]);
-  assert.equal(dmgBackground.readUInt32BE(16), 720);
-  assert.equal(dmgBackground.readUInt32BE(20), 440);
-  assert.deepEqual([...dmgBackgroundRetina.subarray(0, 8)], [
-    137, 80, 78, 71, 13, 10, 26, 10,
-  ]);
-  assert.equal(dmgBackgroundRetina.readUInt32BE(16), 1440);
-  assert.equal(dmgBackgroundRetina.readUInt32BE(20), 880);
 });
 
 test("packaging keeps voice native payloads unpacked and excludes removed PTY payloads", () => {

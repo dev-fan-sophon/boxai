@@ -161,39 +161,6 @@ test("thinking levels use a compact accessible grouped control", () => {
   );
 });
 
-test("a configured model keeps its published record when discovery omits it", () => {
-  // The checkboxes read models.dev through this record. The live branch used to
-  // return only what the endpoint listed, so a configured model the service no
-  // longer advertises lost its capabilities and both boxes read as unpublished.
-  assert.match(mainSource, /const withConfiguredBindings =/);
-  const unions = mainSource.match(/withConfiguredBindings\(/g) ?? [];
-  assert.ok(unions.length >= 3, `expected 3+ union sites, saw ${unions.length}`);
-  // Discovery stays the authority on what the service offers: only the rows it
-  // returned are cached as discovered.
-  const liveReturn = mainSource.slice(
-    mainSource.indexOf("await cacheForCurrentProvider(models);"),
-  );
-  assert.match(liveReturn.slice(0, 260), /models: withConfiguredBindings\(models\)/);
-});
-
-test("the published record is not shaped by the stored override", () => {
-  // ModelInfo.modalities is the baseline the panel compares against. Applying
-  // the binding to it would make an override its own justification.
-  assert.match(
-    mainSource,
-    /modalities: operationMetadata\?\.modalities \?\? catalogModelConfig\.modalities \?\? \{ input: \["text"\], output: \["text"\] \}/,
-  );
-  const decorate = mainSource.slice(
-    mainSource.indexOf("const decorate ="),
-    mainSource.indexOf("const withConfiguredBindings"),
-  );
-  assert.doesNotMatch(decorate, /reasoning: capabilities\.supportsReasoning/);
-  assert.doesNotMatch(
-    decorate,
-    /supportedThinkingLevels: \[\.\.\.capabilities\.supportedThinkingLevels\]/,
-  );
-});
-
 test("every image gate reads the override-shaped model config", () => {
   // Five independent reads used to answer "can this model see an image": the two
   // enrichment helpers, the sidecar launch params, the prompt transport gate and
