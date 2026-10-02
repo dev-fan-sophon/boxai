@@ -114,6 +114,7 @@ func SetApiRouter(router *gin.Engine) {
 			desktopRoute.POST("/refresh", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.RefreshDesktopToken)
 			desktopRoute.POST("/revoke", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.RevokeDesktopToken)
 			desktopRoute.GET("/session-status", controller.GetDesktopSessionStatus)
+			desktopRoute.GET("/catalog", controller.GetDesktopCatalog)
 			desktopRoute.GET("/sessions", middleware.UserSessionAuth(), controller.ListDesktopSessions)
 			desktopRoute.DELETE("/sessions/:id", middleware.UserSessionAuth(), controller.DeleteDesktopSession)
 		}
