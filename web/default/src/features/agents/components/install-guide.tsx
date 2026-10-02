@@ -114,9 +114,13 @@ export function InstallGuide(props: { downloads: DesktopDownload[] }) {
     label: t('Updates'),
     body: (
       <p>
-        {t(
-          'On Windows, the app downloads new releases in the background and installs them when you choose to restart. On macOS, it tells you when a new version is out; download it from this page and replace the app in Applications. Your projects and settings are kept.'
-        )}
+        {mac?.signed
+          ? t(
+              'The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.'
+            )
+          : t(
+              'On Windows, the app downloads new releases in the background and installs them when you choose to restart. On macOS, it tells you when a new version is out; download it from this page and replace the app in Applications. Your projects and settings are kept.'
+            )}
       </p>
     ),
   })

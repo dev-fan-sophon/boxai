@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "实付金额必须大于0，请调整金额或优惠码。",
     "The API key used for the requests": "请求所使用的 API 密钥",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "应用会在后台检查新版本，并以可关闭的卡片提示你。更新包带有加密签名，只有你选择重启后才会安装。",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "应用会在后台下载新版本，并在你选择重启时安装。你的项目和设置会被保留。",
     "The app running a real task, end to end": "完整看一遍它做真实任务的全过程",
     "The app running a real task, end to end.": "一次完整任务在应用中的真实过程。",
     "The authorization request could not be loaded": "无法加载授权请求",
