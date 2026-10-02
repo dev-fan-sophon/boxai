@@ -384,24 +384,9 @@ export class AppUpdaterController {
     this.autoUpdater.allowPrerelease = false;
     // Only automatic mode may install on quit; manual mode never hands an
     // installer a no-install/portable directory.
-    this.autoUpdater.logger = {
-      info: (m: unknown) =>
-        this.logger.app("updater", "info", "updater diagnostic", {
-          data: { detail: String(m) },
-        }),
-      warn: (m: unknown) =>
-        this.logger.app("updater", "warn", "updater diagnostic", {
-          data: { detail: String(m) },
-        }),
-      error: (m: unknown) =>
-        this.logger.app("updater", "error", "updater diagnostic", {
-          data: { detail: String(m) },
-        }),
-      debug: (m: unknown) =>
-        this.logger.app("updater", "debug", "updater diagnostic", {
-          data: { detail: String(m) },
-        }),
-    };
+    // Upstream diagnostics include complete URLs, response headers and bodies.
+    // Keep those out of both local logs and renderer-visible IPC errors.
+    this.autoUpdater.logger = null;
 
     this.autoUpdater.on("checking-for-update", () => {
       this.setState({ status: "checking", error: undefined });
@@ -455,11 +440,11 @@ export class AppUpdaterController {
           : this.manualReminderFor(info.version),
       });
     });
-    this.autoUpdater.on("error", (error: Error) => {
+    this.autoUpdater.on("error", () => {
       // Auto checks fail quietly (offline, private repo, rate limits);
       // the renderer only surfaces errors when `manual` is set.
-      this.logger.app("updater", "warn", "updater error", { data: String(error) });
-      this.setState({ status: "error", error: error.message });
+      this.logger.app("updater", "warn", "update service unavailable");
+      this.setState({ status: "error", error: "UPDATE_UNAVAILABLE" });
     });
   }
 
@@ -528,9 +513,10 @@ export class AppUpdaterController {
         }
         return this.state;
       }
-      // The 'error' listener already recorded state; rethrow for manual
-      // callers so the invoke rejects and the UI can toast it.
-      if (options.manual) throw error;
+      // A rejected check may not emit an error event. Never forward its raw
+      // message (including HTTP headers) through the invoke response either.
+      this.setState({ status: "error", error: "UPDATE_UNAVAILABLE" });
+      if (options.manual) throw new Error("UPDATE_UNAVAILABLE");
     }
     return this.state;
   }
@@ -543,7 +529,12 @@ export class AppUpdaterController {
     if (this.state.status === "downloading" || this.state.status === "downloaded") {
       return this.state;
     }
-    await this.autoUpdater.downloadUpdate();
+    try {
+      await this.autoUpdater.downloadUpdate();
+    } catch {
+      this.setState({ status: "error", error: "UPDATE_UNAVAILABLE" });
+      throw new Error("UPDATE_UNAVAILABLE");
+    }
     return this.state;
   }
 
