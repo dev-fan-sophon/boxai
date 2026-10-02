@@ -48,6 +48,7 @@ import {
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { parseTranscript } from '../../lib/transcript'
 import { StudioSelectionBar } from './studio-selection-bar'
 import {
   AudioResultRow,
@@ -511,6 +512,13 @@ function BatchCard(props: {
     ...batch.pending.map((job) => job.input.prompt),
   ].filter(Boolean)
   const timeLabel = formatBatchTime(batch.createdAt)
+  // Transcription runs store the transcript as their text; the card title
+  // names the file instead of repeating the whole transcript.
+  const transcript =
+    props.modality === 'audio' ? parseTranscript(batch.prompt) : null
+  const title = transcript
+    ? `${t('Transcript')} · ${transcript.source}`
+    : batch.prompt
   const downloadable = batch.runs.filter(
     (run) =>
       run.resultUrl ||
@@ -557,9 +565,9 @@ function BatchCard(props: {
         <div className='min-w-0'>
           <p
             className='text-foreground/90 line-clamp-2 text-sm text-pretty'
-            title={batch.prompts.join('\n')}
+            title={transcript ? title : batch.prompts.join('\n')}
           >
-            {batch.prompt || t('(no prompt)')}
+            {title || t('(no prompt)')}
             {multiPrompt && (
               <span className='bg-muted text-muted-foreground text-3xs ml-1.5 inline-flex rounded-full px-1.5 py-0.5 align-middle font-medium'>
                 {t('+{{count}} prompts', { count: batch.prompts.length - 1 })}
@@ -589,7 +597,7 @@ function BatchCard(props: {
               {batchFullySelected ? t('Deselect batch') : t('Select batch')}
             </Button>
           )}
-          {jobPrompts.length > 0 && (
+          {jobPrompts.length > 0 && !transcript && (
             <BatchAction
               label={t('Edit prompt in composer')}
               onClick={() => props.onReusePrompt(batch.prompts.join('\n'))}
@@ -597,7 +605,7 @@ function BatchCard(props: {
               <PenLine className='size-3.5' />
             </BatchAction>
           )}
-          {jobPrompts.length > 0 && (
+          {jobPrompts.length > 0 && !transcript && (
             <BatchAction
               label={
                 jobPrompts.length > 1

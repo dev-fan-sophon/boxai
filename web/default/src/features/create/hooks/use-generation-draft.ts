@@ -4,6 +4,7 @@ import {
   getVideoCapabilityMode,
   useVideoCapabilities,
 } from '@/features/playground/hooks/use-video-capabilities'
+import { elevenTtsCharLimit } from '@/features/playground/lib/studio/audio-settings'
 import {
   planGenerationJobs,
   type GenerationJobPlan,
@@ -20,6 +21,7 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { MediaReference } from '../components/references/media-reference-slot'
 import type { CreateTool } from '../constants'
+import { useAudioTool } from './use-audio-tool'
 
 export type GenerationEstimateParams = {
   modality: CreateTool
@@ -48,6 +50,8 @@ export function useGenerationDraft(input: {
   const groups = usePlaygroundStore((state) => state.groups)
   const settings = usePlaygroundStore((state) => state.studioSettings)
   const isVideo = input.modality === 'video'
+  const isAudio = input.modality === 'audio'
+  const audio = useAudioTool()
   const signedIn = useAuthStore((state) => Boolean(state.auth.user))
   const hasImage = input.references.length > 0
 
@@ -90,7 +94,7 @@ export function useGenerationDraft(input: {
       referenceMode: uploadProfile.mode,
       disableLastFrame: settings.videoDisableLastFrame,
     })
-  } else if (isVideo) {
+  } else if (isVideo || isAudio) {
     maxFiles = 1
   }
 
@@ -109,12 +113,28 @@ export function useGenerationDraft(input: {
     count = videoOptions?.count ?? 1
   }
 
-  // Speech text is spoken verbatim, so it never expands into variants.
+  // Audio text is spoken or described verbatim, so it never expands into
+  // variants. File tools (transcribe, voice changer, isolate) run on the
+  // attached file; their run is labelled with the tool and the file name.
   const trimmed = input.text.trim()
-  const plan: GenerationJobPlan =
-    input.modality === 'audio'
-      ? { prompts: trimmed ? [trimmed] : [], truncated: 0 }
-      : planGenerationJobs({ text: input.text, batchMode, count })
+  const audioInput = isAudio && audio.usesFile ? input.references[0] : undefined
+  let audioPrompt = trimmed
+  if (isAudio && audio.usesFile && audio.tool !== 'align') {
+    audioPrompt = audioInput ? `${audio.label} · ${audioInput.name}` : ''
+  } else if (isAudio && audio.tool === 'align' && !audioInput) {
+    audioPrompt = ''
+  }
+  const plan: GenerationJobPlan = isAudio
+    ? { prompts: audioPrompt ? [audioPrompt] : [], truncated: 0 }
+    : planGenerationJobs({ text: input.text, batchMode, count })
+  const charLimit =
+    isAudio && audio.tool === 'speech' && audio.native
+      ? elevenTtsCharLimit(model)
+      : null
+  const charCount = [...input.text].length
+  const overCharLimit = charLimit !== null && charCount > charLimit
+  const audioModelMismatch =
+    isAudio && Boolean(model) && audio.modelKind !== audio.tool
   const jobCount = plan.prompts.length
   const distinctPrompts = new Set(plan.prompts).size
   const referencesValid = Boolean(
@@ -127,7 +147,12 @@ export function useGenerationDraft(input: {
     !signedIn ||
     Boolean(videoOptions && videoCapabilities && referencesValid)
   const canSubmit =
-    !input.uploading && Boolean(model) && jobCount > 0 && videoReady
+    !input.uploading &&
+    Boolean(model) &&
+    jobCount > 0 &&
+    videoReady &&
+    !overCharLimit &&
+    !audioModelMismatch
 
   let videoIssue: string | null = null
   if (isVideo && !signedIn) {
@@ -149,9 +174,20 @@ export function useGenerationDraft(input: {
     videoIssue = t('Remove extra reference images before generating.')
   }
 
+  let audioIssue: string | null = null
+  if (audioModelMismatch) {
+    audioIssue = t('Select a model for {{tool}}.', { tool: audio.label })
+  } else if (overCharLimit) {
+    audioIssue = t('The script is over the {{limit}}-character limit.', {
+      limit: charLimit,
+    })
+  } else if (isAudio && audio.usesFile && !audioInput) {
+    audioIssue = t('Attach an audio or video file to continue.')
+  }
+
   let placeholder = t('Describe what you want to create…')
-  if (input.modality === 'audio') {
-    placeholder = t('Enter the text to speak…')
+  if (isAudio) {
+    placeholder = audioPlaceholder(audio.tool, t)
   } else if (batchMode) {
     placeholder = t('One prompt per line · use {a|b} for variants')
   } else if (isVideo) {
@@ -209,6 +245,14 @@ export function useGenerationDraft(input: {
     planSummary,
     estimateParams,
     showMediaSlot: input.modality === 'image' || isVideo,
+    audio,
+    audioIssue,
+    charLimit,
+    charCount,
+    /** Audio tool that runs on an attached file instead of a prompt. */
+    usesAudioInput: isAudio && audio.usesFile,
+    /** Whether the prompt box is used by the current audio tool. */
+    usesPromptText: !isAudio || !audio.usesFile || audio.tool === 'align',
     canSwitchReferenceMode: Boolean(
       isVideo && capabilityQuery.data?.frames && capabilityQuery.data.references
     ),
@@ -222,3 +266,23 @@ export function useGenerationDraft(input: {
 }
 
 export type GenerationDraft = ReturnType<typeof useGenerationDraft>
+
+function audioPlaceholder(
+  tool: ReturnType<typeof useAudioTool>['tool'],
+  t: (key: string) => string
+): string {
+  switch (tool) {
+    case 'sfx':
+      return t('Describe a sound, e.g. rain on a tin roof at night…')
+    case 'music':
+      return t('Describe the song: genre, mood, instruments, lyrics…')
+    case 'align':
+      return t('Paste the exact script spoken in the audio…')
+    case 'transcribe':
+    case 'voice-changer':
+    case 'isolate':
+      return t('Attach an audio or video file, then press Generate.')
+    default:
+      return t('Enter the text to speak…')
+  }
+}

@@ -36,7 +36,7 @@ export const CREATE_NAV: Array<{
   {
     id: 'audio',
     labelKey: 'Audio',
-    descriptionKey: 'Turn text into natural speech',
+    descriptionKey: 'Speech, sound effects, music, transcripts and voice tools',
     Icon: AudioLines,
   },
   {

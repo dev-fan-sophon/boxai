@@ -67,9 +67,10 @@ const MEDIA_HERO: Record<
   },
   audio: {
     titleKey: 'Audio generation',
-    descriptionKey: 'Enter text to generate speech audio.',
+    descriptionKey:
+      'Create speech, sound effects and music, or transcribe, re-voice and clean up recordings.',
     tipKeys: [
-      'Tip: write natural sentences for clearer speech',
+      'Tip: pick a tool — Speech, Sound effects, Music, Transcribe, Voice changer or Isolate',
       'Tip: adjust voice and speed in settings',
     ],
     exampleKeys: ['Hello! Welcome to BoxAI. How can I help you today?'],

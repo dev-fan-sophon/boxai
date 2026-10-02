@@ -1,4 +1,4 @@
-import { AudioLines, Download, Repeat2 } from 'lucide-react'
+import { Download, Repeat2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +10,10 @@ import type { StudioRunSummary } from '@/features/playground/lib/session/session
 import { persistedStudioResultUrl } from '@/features/playground/lib/studio/studio-selection'
 import { MOTION_SPRING, MOTION_VARIANTS } from '@/lib/motion'
 
+import { parseTranscript } from '../../lib/transcript'
+import { AudioPlayer } from '../feed/audio-player'
 import { VideoResultTile } from '../feed/studio-tiles'
+import { TranscriptCard } from '../feed/transcript-card'
 
 function formatDate(seconds: number): string {
   if (!seconds) return ''
@@ -33,6 +36,8 @@ export function LibraryTile(props: {
   const [downloading, setDownloading] = useState(false)
   const run = props.run
   const persistedUrl = persistedStudioResultUrl(props.summary)
+  const transcript =
+    run.modality === 'audio' ? parseTranscript(run.prompt) : null
 
   const download = (src: string, kind: 'image' | 'video' | 'audio') => {
     const extension = { image: 'png', video: 'mp4', audio: 'mp3' }[kind]
@@ -72,13 +77,15 @@ export function LibraryTile(props: {
         onDownload={(src) => download(src, 'video')}
       />
     )
+  } else if (transcript) {
+    media = <TranscriptCard transcript={transcript} preview />
   } else if (persistedUrl) {
     media = (
-      <div className='bg-muted/40 flex aspect-video flex-col justify-center gap-3 rounded-xl p-3'>
-        <AudioLines className='text-primary size-6' aria-hidden='true' />
-        {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- generated speech has no caption track */}
-        <audio src={persistedUrl} controls className='w-full' preload='none' />
-      </div>
+      <AudioPlayer
+        src={persistedUrl}
+        downloading={downloading}
+        onDownload={() => download(persistedUrl, 'audio')}
+      />
     )
   } else {
     media = <ExpiredResult />
@@ -94,7 +101,9 @@ export function LibraryTile(props: {
       {media}
       <div className='flex min-h-0 flex-1 flex-col gap-1.5 px-1'>
         <p className='text-foreground line-clamp-2 text-xs leading-relaxed'>
-          {run.prompt || t('No prompt')}
+          {transcript
+            ? `${t('Transcript')} · ${transcript.source}`
+            : run.prompt || t('No prompt')}
         </p>
         <div className='text-muted-foreground text-2xs mt-auto flex items-center gap-1'>
           <span className='min-w-0 flex-1 truncate font-mono'>{run.model}</span>
@@ -110,19 +119,14 @@ export function LibraryTile(props: {
             <Repeat2 className='size-3.5' aria-hidden='true' />
             {t('Reuse prompt')}
           </Button>
-          {persistedUrl && run.modality !== 'video' && (
+          {persistedUrl && run.modality === 'image' && (
             <Button
               variant='ghost'
               size='icon'
               className='size-7'
               disabled={downloading}
               aria-label={t('Download')}
-              onClick={() =>
-                download(
-                  persistedUrl,
-                  run.modality === 'audio' ? 'audio' : 'image'
-                )
-              }
+              onClick={() => download(persistedUrl, 'image')}
             >
               <Download className='size-3.5' />
             </Button>

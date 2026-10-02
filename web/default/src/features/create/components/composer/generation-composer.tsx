@@ -10,6 +10,7 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { GenerationController } from '../../hooks/use-generation-controller'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
+import { AudioInputDropzone } from '../references/audio-input-dropzone'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationParamChips } from './generation-param-chips'
 import { PriceHintBadge } from './price-hint'
@@ -89,6 +90,13 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 roleForIndex={referenceRoleLabeler(draft, t)}
               />
             )}
+            {draft.usesAudioInput && (
+              <AudioInputDropzone
+                compact
+                value={controller.references}
+                onChange={controller.setReferences}
+              />
+            )}
             {draft.canSwitchReferenceMode ? (
               <div
                 className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
@@ -141,12 +149,12 @@ export function GenerationComposer(props: GenerationComposerProps) {
               modality={modality}
               hasImage={controller.references.length > 0}
             />
-            {draft.videoIssue ? (
+            {draft.videoIssue || draft.audioIssue ? (
               <span
                 className='text-warning shrink-0 text-xs'
                 aria-live='polite'
               >
-                {draft.videoIssue}
+                {draft.videoIssue ?? draft.audioIssue}
               </span>
             ) : null}
           </div>

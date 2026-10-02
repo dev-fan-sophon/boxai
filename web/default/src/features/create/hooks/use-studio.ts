@@ -17,7 +17,10 @@ import {
   getVideoCapabilityMode,
   type VideoCapabilities,
 } from '@/features/playground/hooks/use-video-capabilities'
-import { persistGeneratedMediaAsset } from '@/features/playground/lib/download-generated-media'
+import {
+  generatedMediaExtension,
+  persistGeneratedMediaAsset,
+} from '@/features/playground/lib/download-generated-media'
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
 import {
@@ -28,6 +31,18 @@ import {
 import { buildPlaygroundVideoSubmitInput } from '@/features/playground/lib/studio/video-submit'
 import type { StudioSettings } from '@/features/playground/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
+
+import {
+  alignAudio,
+  changeVoice,
+  composeMusic,
+  generateSoundEffect,
+  isolateAudio,
+  synthesizeSpeech,
+  transcribeAudio,
+} from '../lib/audio-api'
+import { resolveAudioInput } from '../lib/audio-inputs'
+import { encodeTranscript, transcriptFromElevenLabs } from '../lib/transcript'
 
 /**
  * Batch generation engine for the studio modalities. A submit becomes a batch
@@ -245,23 +260,98 @@ export function useStudio() {
     [finalizeRun, queryClient]
   )
 
+  /**
+   * One audio job, routed by the sub-tool resolved at submit. Transcripts
+   * are stored as the run text; every audio output is archived as a private
+   * playground asset so the run keeps a durable URL after a reload.
+   */
   const executeAudioRun = useCallback(
     async (generation: StudioGenerationInput, snapshot: StudioSettings) => {
-      const blob = await generateSpeech({
-        model: generation.model,
-        group: generation.group,
-        text: generation.prompt,
-        settings: snapshot,
-      })
+      const audio = generation.audio ?? { tool: 'speech', native: false }
+      const call = { model: generation.model, group: generation.group }
+      const inputUrl = generation.references[0]
+
+      if (audio.tool === 'transcribe' || audio.tool === 'align') {
+        if (!inputUrl) throw new Error('Attach an audio or video file.')
+        const file = await resolveAudioInput(inputUrl)
+        const response =
+          audio.tool === 'align'
+            ? await alignAudio({ ...call, file, text: generation.prompt })
+            : await transcribeAudio({ ...call, file, settings: snapshot })
+        const transcript = transcriptFromElevenLabs(response, file.name)
+        if (transcript.segments.length === 0) {
+          throw new Error('No speech was detected in this file.')
+        }
+        const projectId = await ensureActiveStudioProjectId(
+          generation.sessionId
+        )
+        await finalizeRun({
+          generation: { ...generation, prompt: encodeTranscript(transcript) },
+          projectId,
+        })
+        await queryClient.invalidateQueries({
+          queryKey: ['playground', 'runs'],
+        })
+        return
+      }
+
+      let blob: Blob
+      if (!audio.native) {
+        blob = await generateSpeech({
+          ...call,
+          text: generation.prompt,
+          settings: snapshot,
+        })
+      } else if (audio.tool === 'sfx') {
+        blob = await generateSoundEffect({
+          ...call,
+          text: generation.prompt,
+          settings: snapshot,
+        })
+      } else if (audio.tool === 'music') {
+        blob = await composeMusic({
+          ...call,
+          prompt: generation.prompt,
+          settings: snapshot,
+        })
+      } else if (audio.tool === 'voice-changer' || audio.tool === 'isolate') {
+        if (!inputUrl) throw new Error('Attach an audio or video file.')
+        const file = await resolveAudioInput(inputUrl)
+        blob =
+          audio.tool === 'isolate'
+            ? await isolateAudio({ ...call, file })
+            : await changeVoice({ ...call, file, settings: snapshot })
+      } else {
+        blob = await synthesizeSpeech({
+          ...call,
+          text: generation.prompt,
+          settings: snapshot,
+        })
+      }
+      if (blob.size === 0) throw new Error('The provider returned no audio.')
+
       const resultUrl = URL.createObjectURL(blob)
       if (unmountedRef.current) {
         URL.revokeObjectURL(resultUrl)
         return
       }
       blobUrlsRef.current.push(resultUrl)
+      let assetId: number | undefined
+      try {
+        const extension = generatedMediaExtension(blob.type, 'audio')
+        const asset = await persistGeneratedMediaAsset(
+          resultUrl,
+          `studio-${audio.tool}-${Date.now()}.${extension}`,
+          'audio'
+        )
+        assetId = asset.id
+      } catch {
+        // The in-tab blob still plays; history falls back to it.
+      }
       const projectId = await ensureActiveStudioProjectId(generation.sessionId)
       await finalizeRun({
         generation,
+        assetId,
         fallbackUrl: resultUrl,
         projectId,
       })
@@ -323,6 +413,7 @@ export function useStudio() {
           model: request.model,
           group: request.group,
           references: request.references,
+          audio: request.audio,
           batchId,
           prompt,
         },
