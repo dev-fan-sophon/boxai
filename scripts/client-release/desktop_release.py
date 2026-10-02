@@ -93,7 +93,10 @@ def prepare(stage, version, commit):
 
 
 def verify_live(url, path=None, expected=None):
-    with urllib.request.urlopen(url, timeout=120) as response:
+    # The public CDN rejects urllib's default Python User-Agent. Identify this
+    # verifier explicitly without changing global openers or authenticated APIs.
+    request = urllib.request.Request(url, headers={"User-Agent": "BoxAI-Desktop-Publisher/1.0"})
+    with urllib.request.urlopen(request, timeout=120) as response:
         digest = hashlib.sha256()
         size = 0
         for chunk in iter(lambda: response.read(1024 * 1024), b""):
