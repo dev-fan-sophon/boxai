@@ -324,17 +324,23 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
                 <Sparkles aria-hidden='true' />
                 {storyboardMode ? t('Storyboard') : t('Results')}
               </TabsTrigger>
-              <TabsTrigger value='projects' className='gap-1.5 px-2.5'>
+              <TabsTrigger
+                value='projects'
+                aria-label={t('Projects')}
+                className='gap-1.5 px-2.5'
+              >
                 <FolderClock aria-hidden='true' />
-                <span className='sr-only whitespace-nowrap sm:not-sr-only'>
+                <span className='hidden whitespace-nowrap sm:inline'>
                   {t('Projects')}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value='api' className='gap-1.5 px-2.5'>
+              <TabsTrigger
+                value='api'
+                aria-label='API'
+                className='gap-1.5 px-2.5'
+              >
                 <Code2 aria-hidden='true' />
-                <span className='sr-only whitespace-nowrap sm:not-sr-only'>
-                  API
-                </span>
+                <span className='hidden whitespace-nowrap sm:inline'>API</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -361,10 +367,11 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               variant='outline'
               size='sm'
               className='gap-1.5'
+              aria-label={t('Controls')}
               onClick={() => setControlsOpen(true)}
             >
               <Settings2 className='size-4' aria-hidden='true' />
-              <span className='sr-only whitespace-nowrap sm:not-sr-only'>
+              <span className='hidden whitespace-nowrap sm:inline'>
                 {t('Controls')}
               </span>
             </Button>

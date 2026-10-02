@@ -399,7 +399,7 @@ export function SignUpForm({
               <img
                 src={wechatQrCodeUrl}
                 alt={t('WeChat login QR code')}
-                className='h-40 w-40 rounded-md border object-contain'
+                className='ring-border size-40 rounded-xl object-contain ring-1'
               />
             </div>
           ) : (
