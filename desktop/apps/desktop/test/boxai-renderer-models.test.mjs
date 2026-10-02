@@ -43,7 +43,12 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
     [IPC.invoke.appHealth, { ok: true }],
     [IPC.invoke.sessionList, { sessions: [] }],
     [IPC.invoke.projectGet, { workspace: null }],
-    [IPC.invoke.appGetOnboarding, {}],
+    [IPC.invoke.appGetOnboarding, { showChecklist: true, steps: [
+      { id: "provider", title: "Add an AI provider", action: "settings.providers", done: false },
+      { id: "secret", title: "Save your API key", action: "saveKey", done: false },
+      { id: "project", title: "Open a project folder", action: "project.open", done: false },
+      { id: "prompt", title: "Send your first message", action: "chat.focus", done: false },
+    ] }],
     [IPC.invoke.pluginList, { plugins: [] }],
     [IPC.invoke.notificationList, { notifications: [], unreadCount: 0 }],
     [IPC.invoke.plansPending, { plans: [] }],
@@ -84,6 +89,25 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
   }));
   assert.equal((html.match(/role="menuitemradio"/g) ?? []).length, 4);
   assert.match(html, /title="grok-4.6"[^>]*aria-checked="true"/);
+  // A fresh authorized account must not inherit the upstream provider/key CTA,
+  // even when the host's legacy onboarding flags are still incomplete.
+  const { OnboardingChecklist } = await server.ssrLoadModule("/src/components/OnboardingChecklist.tsx");
+  // SSR subscriptions read getInitialState rather than the client snapshot.
+  const initialSnapshot = useAppStore.getInitialState();
+  const initialOnboarding = initialSnapshot.onboarding;
+  initialSnapshot.onboarding = state.onboarding;
+  t.after(() => { initialSnapshot.onboarding = initialOnboarding; });
+  const checklist = renderToStaticMarkup(createElement(OnboardingChecklist));
+  assert.doesNotMatch(checklist, /Add an AI provider|Save your API key|onboarding\.(addProvider|saveKey)/);
+  assert.match(checklist, /Open a project folder/);
+  assert.match(checklist, /Send your first message/);
+  assert.equal((checklist.match(/<li>/g) ?? []).length, 2);
+  useAppStore.setState({ onboarding: { ...state.onboarding, steps: state.onboarding.steps.map(step => ({
+    ...step, done: step.id === "project" || step.id === "prompt",
+  })) } });
+  initialSnapshot.onboarding = useAppStore.getState().onboarding;
+  assert.equal(renderToStaticMarkup(createElement(OnboardingChecklist)), "",
+    "hidden provider/key steps must not keep completed onboarding visible");
   settings.defaultModelId = "claude-sonnet-4-6";
   await useAppStore.getState().refreshProviders();
   assert.equal(useAppStore.getState().settings.defaultModelId, "claude-sonnet-4-6");

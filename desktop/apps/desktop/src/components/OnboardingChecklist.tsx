@@ -5,8 +5,6 @@ import { IconCheck } from "./icons";
 
 /** Host step ids (app.getOnboarding) mapped to locale keys under `onboarding.`. */
 const STEP_LOCALE_KEY: Record<string, string> = {
-  provider: "addProvider",
-  secret: "saveKey",
   project: "openProject",
   prompt: "firstPrompt",
   plugin: "loadPlugin",
@@ -19,11 +17,14 @@ export function OnboardingChecklist() {
   const { t } = useTranslation();
   const onboarding = useAppStore((s) => s.onboarding);
   const setPage = useAppStore((s) => s.setPage);
-  const setSettingsTab = useAppStore((s) => s.setSettingsTab);
   const openProject = useAppStore((s) => s.openProject);
 
   if (!onboarding?.showChecklist) return null;
-  const steps = onboarding.steps ?? [];
+  // BoxAI authorization owns provider/key setup. Legacy host checklist steps
+  // can remain incomplete (OAuth secrets are not provider API-key records).
+  const steps = (onboarding.steps ?? []).filter(
+    (step) => step.id !== "provider" && step.id !== "secret",
+  );
   if (steps.length === 0 || steps.every((s) => s.done)) return null;
 
   const stepLabel = (id: string, fallback: string) => {
@@ -34,12 +35,6 @@ export function OnboardingChecklist() {
 
   const runAction = (id: string) => {
     switch (id) {
-      case "settings.providers":
-      case "addProvider":
-      case "saveKey":
-        setSettingsTab("agent");
-        setPage("settings");
-        break;
       case "project.open":
       case "openProject":
         void openProject();
