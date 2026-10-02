@@ -201,10 +201,11 @@ test("project records shadow global records before disabled records are filtered
   assert.match(hostCapabilitySources, /record\.name\.eq_ignore_ascii_case/);
 });
 
-test("subagents are global-only and use the agents root", () => {
+test("subagents are global-only and show the host-reported directory", () => {
   const page = settingsComponents.get("AgentSubagentsPage.tsx");
   const helper = readFileSync(join(settingsDir, "subagent-settings.ts"), "utf8");
-  assert.match(page, /GLOBAL_SUBAGENTS_PATH = "~\/\.agents\/subagents"/);
+  assert.match(page, /path=\{directory\}/);
+  assert.match(helper, /directory: ownedResult\.directory/);
   // Global-only means no level to pick and no project to resolve against. It no
   // longer means read-only: authoring lives here now (D257).
   assert.doesNotMatch(page, /AgentProjectPicker|projectPath/);
@@ -212,10 +213,10 @@ test("subagents are global-only and use the agents root", () => {
   assert.match(helper, /level: "global"/);
   assert.match(page, /api\.subagentCatalog|fetchSubagentPageData/);
   assert.match(electronMainSrc, /IPC\.invoke\.subagentList/);
-  assert.match(hostCapabilitySources, /capability_dir\(CapabilityLevel::Global, None, "subagents"\)/);
+  assert.match(hostCapabilitySources, /capability_dir\(&self\.data_dir, CapabilityLevel::Global, None, "subagents"\)/);
 });
 
-test("capability implementation does not use legacy .pi capability roots", () => {
+test("capability UI does not advertise shared home capability roots", () => {
   const implementation = [
     ...settingsComponents.values(),
     pageSrc,
@@ -224,9 +225,11 @@ test("capability implementation does not use legacy .pi capability roots", () =>
     hostCapabilitySources,
   ].join("\n");
   assert.doesNotMatch(implementation, /\.pi\/(?:agents|skills|mcp)/);
-  assert.match(implementation, /~\/\.agents\/skills/);
-  assert.match(implementation, /~\/\.agents\/servers/);
-  assert.match(implementation, /~\/\.agents\/subagents/);
+  assert.doesNotMatch([...settingsComponents.values()].join("\n"), /~\/\.(?:agents|pi)\//);
+  for (const page of ["AgentSkillsPage.tsx", "AgentMcpPage.tsx"]) {
+    assert.match(settingsComponents.get(page), /path=\{globalDirectory\}/);
+    assert.match(settingsComponents.get(page), /globalDirectory: global\.directory/);
+  }
 });
 
 test("agent capability styling uses design tokens and supports reduced motion", () => {

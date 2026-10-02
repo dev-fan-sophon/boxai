@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 
-use crate::agent_capabilities::CapabilityLevel;
+use crate::agent_capabilities::{capability_dir, CapabilityLevel};
 use crate::artifacts;
 use crate::audit;
 use crate::notifications;
@@ -4529,11 +4529,13 @@ async fn handle_request(
         "mcp.list" => {
             let (level, project_path) = parse_capability_query(&params)?;
             let mut st = state.lock().await;
+            let directory = capability_dir(&st.data_dir, level, project_path.as_deref(), "servers")
+                .map_err(scope_err)?;
             let servers = st
                 .mcp_servers
                 .list(level, project_path.as_deref())
                 .map_err(scope_err)?;
-            Ok(json!({ "servers": servers, "statuses": [] }))
+            Ok(json!({ "servers": servers, "statuses": [], "directory": directory }))
         }
         "mcp.active" => {
             let project_path = params.get("projectPath").and_then(Value::as_str);
@@ -4595,11 +4597,13 @@ async fn handle_request(
         "skills.list" => {
             let (level, project_path) = parse_capability_query(&params)?;
             let mut st = state.lock().await;
+            let directory = capability_dir(&st.data_dir, level, project_path.as_deref(), "skills")
+                .map_err(skill_err)?;
             let skills = st
                 .user_skills
                 .list(level, project_path.as_deref())
                 .map_err(skill_err)?;
-            Ok(json!({ "skills": skills }))
+            Ok(json!({ "skills": skills, "directory": directory }))
         }
         "skills.active" => {
             let project_path = params.get("projectPath").and_then(Value::as_str);
@@ -4701,7 +4705,12 @@ async fn handle_request(
 
         "agents.list" => {
             let mut st = state.lock().await;
-            Ok(json!({ "subagents": st.user_subagents.list().map_err(subagent_err)? }))
+            let directory =
+                capability_dir(&st.data_dir, CapabilityLevel::Global, None, "subagents")
+                    .map_err(subagent_err)?;
+            Ok(
+                json!({ "subagents": st.user_subagents.list().map_err(subagent_err)?, "directory": directory }),
+            )
         }
         "agents.active" => {
             let project_path = params.get("projectPath").and_then(Value::as_str);

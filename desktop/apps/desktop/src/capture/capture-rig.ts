@@ -766,7 +766,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: true,
           scope: { mode: "global", projects: [] },
           source: "created",
-          path: "/Users/pi/.agents/skills/release-notes/SKILL.md",
+          path: "/Users/pi/.boxai-desktop/agent/skills/release-notes/SKILL.md",
           sizeBytes: 2_412,
           createdAt: "2026-07-30T10:00:00.000Z",
           updatedAt: "2026-08-04T09:12:00.000Z",
@@ -781,7 +781,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: true,
           scope: { mode: "projects", projects: ["/Users/pi/work/api"] },
           source: "created",
-          path: "/Users/pi/.agents/skills/api-review/SKILL.md",
+          path: "/Users/pi/work/api/.agents/skills/api-review/SKILL.md",
           sizeBytes: 7_940,
           createdAt: "2026-07-12T10:00:00.000Z",
           updatedAt: "2026-08-01T16:30:00.000Z",
@@ -794,7 +794,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: false,
           scope: { mode: "global", projects: [] },
           source: "imported",
-          path: "/Users/pi/.agents/skills/incident-writeup/SKILL.md",
+          path: "/Users/pi/.boxai-desktop/agent/skills/incident-writeup/SKILL.md",
           sizeBytes: 118_400,
           createdAt: "2026-06-02T10:00:00.000Z",
           updatedAt: "2026-06-02T10:00:00.000Z",
@@ -812,7 +812,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: true,
           scope: { mode: "global", projects: [] },
           tools: ["Read", "Grep", "Bash"],
-          path: "/Users/pi/.agents/subagents/log-reader.md",
+          path: "/Users/pi/.boxai-desktop/agent/subagents/log-reader.md",
           sizeBytes: 1_840,
           createdAt: "2026-08-05T09:00:00.000Z",
           updatedAt: "2026-08-06T11:20:00.000Z",
@@ -828,7 +828,7 @@ export function installCaptureRig(): CaptureRig {
           tools: ["Read", "Glob", "Grep"],
           model: "anthropic/claude-haiku-4-5",
           thinkingLevel: "low",
-          path: "/Users/pi/.agents/subagents/schema-diff.md",
+          path: "/Users/pi/.boxai-desktop/agent/subagents/schema-diff.md",
           sizeBytes: 3_120,
           createdAt: "2026-07-28T09:00:00.000Z",
           updatedAt: "2026-08-02T14:05:00.000Z",
@@ -841,7 +841,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: true,
           scope: { mode: "global", projects: [] },
           tools: ["Read", "Glob", "Grep"],
-          path: "/Users/pi/.agents/subagents/explorer.md",
+          path: "/Users/pi/.boxai-desktop/agent/subagents/explorer.md",
           sizeBytes: 2_260,
           createdAt: "2026-08-01T09:00:00.000Z",
           updatedAt: "2026-08-01T09:00:00.000Z",
@@ -854,7 +854,7 @@ export function installCaptureRig(): CaptureRig {
           enabled: false,
           scope: { mode: "global", projects: [] },
           tools: ["Read", "Grep"],
-          path: "/Users/pi/.agents/subagents/release-drafter.md",
+          path: "/Users/pi/.boxai-desktop/agent/subagents/release-drafter.md",
           sizeBytes: 980,
           createdAt: "2026-06-20T09:00:00.000Z",
           updatedAt: "2026-06-20T09:00:00.000Z",
@@ -869,7 +869,7 @@ export function installCaptureRig(): CaptureRig {
           prompt: "You are log-reader.\n",
           tools: ["Read", "Grep"],
           source: "user",
-          filePath: "/Users/pi/.agents/subagents/log-reader.md",
+          filePath: "/Users/pi/.boxai-desktop/agent/subagents/log-reader.md",
         },
         {
           name: "explorer",
@@ -877,7 +877,7 @@ export function installCaptureRig(): CaptureRig {
           prompt: "You are explorer.\n",
           tools: ["Read", "Glob", "Grep"],
           source: "user",
-          filePath: "/Users/pi/.agents/subagents/explorer.md",
+          filePath: "/Users/pi/.boxai-desktop/agent/subagents/explorer.md",
         },
         {
           name: "code-reviewer",
@@ -915,13 +915,15 @@ export function installCaptureRig(): CaptureRig {
         const filtered = rowsForQuery(servers, query);
         return {
           servers: filtered,
+          directory: query.level === "project" ? `${query.projectPath}/.agents/servers` : "/Users/pi/.boxai-desktop/agent/servers",
           statuses: statuses.filter((status) => filtered.some((server) => server.id === status.serverId)),
         };
       };
       (api as any).listUserSkills = async (query: { level?: string; projectPath?: string } = {}) => ({
         skills: rowsForQuery(skills, query).slice(0, count),
+        directory: query.level === "project" ? `${query.projectPath}/.agents/skills` : "/Users/pi/.boxai-desktop/agent/skills",
       });
-      (api as any).listUserSubagents = async () => ({ subagents });
+      (api as any).listUserSubagents = async () => ({ subagents, directory: "/Users/pi/.boxai-desktop/agent/subagents" });
       (api as any).subagentCatalog = async () => ({
         subagents: catalog,
         builtins: builtinRows,

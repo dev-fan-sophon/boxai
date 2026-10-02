@@ -43,6 +43,7 @@ export const ru: EnglishCatalog = {
   settings: {
     ...en.settings, general: "Общие", ai: "ИИ", providers: "Провайдеры ИИ", models: "Модели", appearance: "Оформление", about: "Информация", theme: "Тема", language: "Язык", languageAuto: "Как в системе", languageAutoDesc: "Сейчас: {{state}}",
     languageSearchPlaceholder: "Поиск языка…", themeSearchPlaceholder: "Поиск темы…", application: "Приложение", logs: "Журнал", openLogs: "Открыть журнал", feedback: "Обратная связь", marketProviderOfficial: "Встроенный каталог BoxAI", marketProviderCustom: "Свой источник",
+    capabilityLocation: "Расположение хранилища: {{path}}",
     storage: {
       ...en.settings.storage, progressTitle: "Подготовка хранилища", progressHint: "Не закрывайте окно, пока идёт обработка данных.", failedTitle: "Ошибка операции с хранилищем",
       failedHint: "Ваши данные сохранены. Продолжайте использовать текущее расположение и повторите попытку в настройках.", unavailableHint: "Папка данных недоступна. Подключите диск перед запуском. Приложение не создаст пустые данные и не переключится на другую папку.",

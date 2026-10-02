@@ -45,7 +45,6 @@ import {
 import { SkillMarketPanel } from "./SkillMarketPanel";
 
 import { TooltipButton } from "../ui";
-const GLOBAL_SKILLS_PATH = "~/.agents/skills";
 
 function projectSkillsPath(projectPath: string | null): string {
   return projectPath ? `${projectPath}/.agents/skills` : "<project-root>/.agents/skills";
@@ -60,6 +59,7 @@ type SkillEditorState = {
 type SkillCollection = {
   global: UserSkillRecord[];
   project: UserSkillRecord[];
+  globalDirectory?: string;
 };
 
 const EMPTY_SKILL_COLLECTION: SkillCollection = { global: [], project: [] };
@@ -78,10 +78,10 @@ export function AgentSkillsPage() {
         ? api.listUserSkills({ level: "project", projectPath: selectedProjectPath })
         : Promise.resolve({ skills: [] as UserSkillRecord[] }),
     ]);
-    return { global: global.skills ?? [], project: project.skills ?? [] };
+    return { global: global.skills ?? [], project: project.skills ?? [], globalDirectory: global.directory };
   }, [selectedProjectPath]);
   const {
-    data: { global: globalSkills, project: projectSkills },
+    data: { global: globalSkills, project: projectSkills, globalDirectory },
     setData: setSkills,
     loading,
     refreshing,
@@ -567,7 +567,7 @@ export function AgentSkillsPage() {
               <>
                 <CapabilityGroupHeader
                   label={t("settings.globalLevel")}
-                  path={GLOBAL_SKILLS_PATH}
+                  path={globalDirectory}
                   count={visible.global.length}
                   action={importButton("global")}
                 />

@@ -327,7 +327,7 @@ export function CapabilityGroupHeader({
   action,
 }: {
   label: string;
-  /** Resolved `.agents` path; omit for shipped sources that have no file. */
+  /** Host-reported storage path; omit when unavailable or for shipped sources. */
   path?: string;
   count: number;
   action?: ReactNode;
@@ -337,7 +337,7 @@ export function CapabilityGroupHeader({
     <div className="agent-capability-group" role="presentation">
       <span className="agent-capability-group-label">{label}</span>
       {path ? (
-        <code className="agent-capability-group-path" title={path}>
+        <code className="agent-capability-group-path" title={t("settings.capabilityLocation", { path })}>
           {path}
         </code>
       ) : (

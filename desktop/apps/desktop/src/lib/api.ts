@@ -1045,7 +1045,7 @@ export const api = {
 
   // --- MCP servers the user owns -------------------------------------------
   listMcpServers: (query?: AgentCapabilityQuery) =>
-    invoke<{ servers: McpServerRecord[]; statuses: McpServerStatus[] }>(
+    invoke<{ servers: McpServerRecord[]; statuses: McpServerStatus[]; directory?: string }>(
       IPC.invoke.mcpList,
       query,
     ),
@@ -1139,7 +1139,7 @@ export const api = {
 
   // --- Skills the user owns -------------------------------------------------
   listUserSkills: (query?: AgentCapabilityQuery) =>
-    invoke<{ skills: UserSkillRecord[] }>(IPC.invoke.skillList, query),
+    invoke<{ skills: UserSkillRecord[]; directory?: string }>(IPC.invoke.skillList, query),
   createUserSkill: (skill: UserSkillInput) =>
     invoke<{ skill: UserSkillRecord }>(IPC.invoke.skillCreate, skill),
   /**
@@ -1203,7 +1203,7 @@ export const api = {
 
   // --- Subagents the user owns ----------------------------------------------
   listUserSubagents: (query?: Pick<AgentCapabilityQuery, "level">) =>
-    invoke<{ subagents: UserSubagentRecord[] }>(IPC.invoke.subagentList, query),
+    invoke<{ subagents: UserSubagentRecord[]; directory?: string }>(IPC.invoke.subagentList, query),
   /**
    * What `Task` would offer right now, merged across the shipped builtins and
    * the registry. `builtins` keeps a switched-off default in the list, flagged

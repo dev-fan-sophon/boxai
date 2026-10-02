@@ -932,6 +932,7 @@ export const vi: EnglishCatalog = {
     subagentsOnlyGlobal:
       "Agent phụ chỉ hỗ trợ phạm vi chung, không hỗ trợ định nghĩa riêng trong dự án.",
     capabilityCount: "{{count}} khả năng",
+    capabilityLocation: "Vị trí lưu trữ: {{path}}",
     globalLevel: "Chung",
     globalScopeDescription: "Dùng trong mọi dự án",
     projectLevel: "Dự án",

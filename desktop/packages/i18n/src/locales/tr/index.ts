@@ -1021,6 +1021,7 @@ sklm: {
     subagentsGlobalPath: "Genel alt ajan yolu",
     subagentsOnlyGlobal: "Alt ajanlar yalnızca geneldir. Proje tanımları desteklenmez.",
     capabilityCount: "{{count}} yetenek",
+    capabilityLocation: "Depolama konumu: {{path}}",
     globalLevel: "Genel",
     globalScopeDescription: "Her projede kullanılabilir",
     projectLevel: "Proje",

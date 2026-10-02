@@ -849,6 +849,7 @@ export const ptBR = {
     subagentsGlobalPath: "Caminho global de subagentes",
     subagentsOnlyGlobal: "Subagentes só podem ser configurados globalmente. Definições por projeto não são compatíveis.",
     capabilityCount: "{{count}} capacidades",
+    capabilityLocation: "Local de armazenamento: {{path}}",
     globalLevel: "Global",
     globalScopeDescription: "Disponível em todos os projetos",
     projectLevel: "Projeto",

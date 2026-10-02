@@ -1021,6 +1021,7 @@ sklm: {
     subagentsGlobalPath: "全局子智能体路径",
     subagentsOnlyGlobal: "子智能体仅支持全局级，暂不支持项目级定义。",
     capabilityCount: "{{count}} 项能力",
+    capabilityLocation: "存储位置：{{path}}",
     globalLevel: "全局级",
     globalScopeDescription: "所有项目均可用",
     projectLevel: "项目级",

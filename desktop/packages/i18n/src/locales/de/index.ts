@@ -1023,6 +1023,7 @@ sklm: {
     "subagentsGlobalPath": "Globaler Subagentenpfad",
     "subagentsOnlyGlobal": "Subagenten sind nur global. Projektdefinitionen werden nicht unterstützt.",
     "capabilityCount": "{{count}} Funktionen",
+    "capabilityLocation": "Speicherort: {{path}}",
     "globalLevel": "Global",
     "globalScopeDescription": "Verfügbar in jedem Projekt",
     "projectLevel": "Projekt",

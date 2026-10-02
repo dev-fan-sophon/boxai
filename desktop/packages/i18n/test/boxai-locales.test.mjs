@@ -41,3 +41,15 @@ test("every locale presents BoxAI branding", () => {
     }
   }
 });
+
+test("resource location labels preserve host paths in every locale", () => {
+  const path = "D:\\BoxAI profiles\\Lotus\\agent\\skills";
+  for (const [locale, catalog] of Object.entries(catalogs)) {
+    const label = catalog.settings.capabilityLocation;
+    assert.equal(label.match(/\{\{path\}\}/g)?.length, 1, locale);
+    assert.ok(label.replace("{{path}}", path).endsWith(path), locale);
+    if (locale !== "en") assert.notEqual(label, en.settings.capabilityLocation, locale);
+    assert.doesNotMatch(label, /~\/\.(?:agents|pi)\//, locale);
+  }
+  assert.equal(catalogs.vi.settings.capabilityLocation, "Vị trí lưu trữ: {{path}}");
+});
