@@ -107,7 +107,7 @@ describe("loadInstructionChain", () => {
 
     await expect(loadInstructionChain(root, undefined, globalPath)).resolves.toEqual({
       entries: [
-        { source: "~/.pi/agent/AGENTS.md", content: "Use global conventions." },
+        { source: globalPath, content: "Use global conventions." },
         { source: "AGENTS.md", content: "Use project conventions." },
       ],
     });
@@ -120,7 +120,7 @@ describe("loadInstructionChain", () => {
     await writeFile(join(root, "AGENTS.md"), "Use project conventions.");
 
     await expect(loadInstructionChain(root, undefined, globalPath)).resolves.toEqual({
-      entries: [{ source: "~/.pi/agent/AGENTS.md", content: "a".repeat(32 * 1024) }],
+      entries: [{ source: globalPath, content: "a".repeat(32 * 1024) }],
     });
   });
 });

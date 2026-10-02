@@ -4,12 +4,13 @@
  * `.pi/prompts` assets behave identically in pi CLI and PI-Desktop.
  *
  * Discovery: `<workspace>/.pi/prompts/*.md` (project) and
- * `~/.pi/agent/prompts/*.md` (user-global); project wins name conflicts.
+ * `<BoxAI data>/agent/prompts/*.md` (user-global); project wins name conflicts.
  */
 
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { agentDataDir } from "./agent-data-dir.js";
 import {
   BACKGROUND_CONTEXT,
   loadSourcedPromptTemplates,
@@ -50,7 +51,7 @@ export function composerTemplateDirs(
 ): ComposerTemplateDirs {
   return {
     ...(workspaceRoot ? { project: join(workspaceRoot, ".pi", "prompts") } : {}),
-    user: join(homedir(), ".pi", "agent", "prompts"),
+    user: join(agentDataDir(), "prompts"),
   };
 }
 

@@ -392,7 +392,7 @@ fn apply_entity(
     if entity.domain == domains::DOMAIN_INSTRUCTIONS {
         if let Some(scope) = entity.payload.get("scope").and_then(Value::as_str) {
             if scope == "global" {
-                let path = domains::global_instruction_path_for_sync()?;
+                let path = domains::global_instruction_path_for_sync(&st.data_dir);
                 if entity.deleted {
                     domains::remove_instruction_file(&path)?;
                 } else {
