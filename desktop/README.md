@@ -1,125 +1,764 @@
-# BoxAI Desktop
+<div align="center">
 
-**[you-box.com](https://you-box.com)** · [Releases](https://github.com/dev-fan-sophon/boxai/releases) · [Issues](https://github.com/dev-fan-sophon/boxai/issues)
+<img src="docs/image/readme/logo.png" alt="PI-Desktop" width="108" />
 
-> **Beta** — BoxAI Desktop is in beta. Automatic updates are disabled until BoxAI provisions its own Tauri updater signing key; install updates from this repository's Releases page.
+# PI-Desktop
 
-**AI that gets your everyday tasks done.** BoxAI Desktop is an AI coworker that lives on your desktop and delivers **finished work**, not just chat: a polished document, a Slack reply with the numbers, an updated calendar, a triaged inbox.
+### A modular desktop workspace for AI agents
 
-The agent runtime and tools run on your machine. Model access is provided by your BoxAI account, while local files and connector credentials remain in the desktop app's local secret store.
+**Bring projects, agents, models, plugins, and workflows into one persistent desktop environment.**
 
-[![How BoxAI Desktop works](docs/assets/how-it-works.png)](https://you-box.com)
+Local-first · Model-agnostic · Plugin-powered · macOS / Windows / Linux
 
-## Download
+<br />
 
-[**Download BoxAI Desktop releases**](https://github.com/dev-fan-sophon/boxai/releases)
+[![Release](https://img.shields.io/github/v/release/vastsa/PI-Desktop?label=release)](https://github.com/vastsa/PI-Desktop/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/vastsa/PI-Desktop/total?label=downloads)](https://github.com/vastsa/PI-Desktop/releases)
+[![Stars](https://img.shields.io/github/stars/vastsa/PI-Desktop?style=flat\&label=stars)](https://github.com/vastsa/PI-Desktop/stargazers)
+[![CI](https://github.com/vastsa/PI-Desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/vastsa/PI-Desktop/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/vastsa/PI-Desktop)](LICENSE)
+[![Reddit](https://img.shields.io/badge/Reddit-r%2FAIUO-FF4500?logo=reddit\&logoColor=white)](https://www.reddit.com/r/AIUO/)
 
-Release assets use stable `BoxAI-Desktop-*` names. macOS requires version 12 or newer; unsigned Windows builds may trigger SmartScreen.
+<br />
 
-Open the app, sign in with your BoxAI account in the system browser, and ask for something real.
+**[Download](https://github.com/vastsa/PI-Desktop/releases/latest)** ·
+[Documentation](https://pi-docs.aiuo.net/) ·
+[Build a Plugin](docs/plugin-development.md) ·
+[Screenshots](docs/guide/screenshots.md) ·
+[简体中文](README.zh-CN.md)
 
-## How it works
+<br />
 
-1. Tell BoxAI Desktop the outcome you want - "prepare a customer brief," "untangle my calendar," "draft a report," "check where the release stands across Jira and GitHub."
-2. It breaks the task into steps and works across your desktop, files, and connected apps.
-3. Before anything consequential - sending a message, changing a calendar, running a command - it checks in and you approve or redirect.
-4. You get the finished deliverable, not a to-do list.
+<img src="docs/image/readme/home.webp" alt="PI-Desktop" width="94%" />
 
-Under the hood:
+<br />
+
+**Your projects stay local · Your models stay replaceable · Your workspace stays yours**
+
+</div>
+
+> **Current release line: 0.16.x (Early Preview).**
+
+---
+
+## Why PI-Desktop?
+
+Terminal agents are great at execution. IDE agents are great at living inside an editor.
+
+PI-Desktop goes one step further:
+
+> **Give AI agents a persistent, independent, and extensible desktop workspace of their own.**
+
+<table>
+<tr>
+
+<td width="25%" valign="top">
+
+### Independent Workspace
+
+No dependency on a specific IDE or terminal.
+
+Projects, sessions, reviews, previews, and agents all live in their own workspace.
+
+</td>
+
+<td width="25%" valign="top">
+
+### Plugin-Powered
+
+Plugins extend more than the agent.
+
+Add panels, views, widgets, tools, MCP servers, themes, and background services.
+
+</td>
+
+<td width="25%" valign="top">
+
+### Agent Orchestration
+
+One agent is not always enough.
+
+Delegate to Subagents or coordinate full Worker Sessions in parallel.
+
+</td>
+
+<td width="25%" valign="top">
+
+### Model Freedom
+
+Cloud models, local models, custom gateways, compatible APIs.
+
+Switch models without rebuilding your workflow.
+
+</td>
+
+</tr>
+</table>
+
+<div align="center">
+
+**It is not a wrapper around one model. It is not another IDE extension.**
+
+### It is a desktop platform for agent workflows.
+
+</div>
+
+---
+
+## Plugins are part of the workspace, not an afterthought
+
+PI-Desktop keeps the Core focused.
+
+**Your actual workflow is assembled through extensions.**
+
+<table>
+<tr>
+
+<td width="33%" valign="top">
+
+### Agent
+
+Extend what the agent can do
+
+**Agent Tools**
+**Skills**
+**Completion**
+**pi Extensions**
+
+</td>
+
+<td width="33%" valign="top">
+
+### Workspace
+
+Extend the desktop itself
+
+**Commands**
+**Panels**
+**Work Panel Views**
+**Floating Widgets**
+**Themes**
+
+</td>
+
+<td width="33%" valign="top">
+
+### Platform
+
+Extend the runtime
+
+**MCP Servers**
+**Resident Services**
+**Plugin Message Bus**
+
+</td>
+
+</tr>
+</table>
+
+A plugin does not have to be “just another tool.”
+
+It can be an entire product:
 
 ```text
-┌────────────────────────────────────────────────┐
-│              BoxAI Desktop app                 │  native shell + GUI
-├────────────────────────────────────────────────┤
-│           local agent server (Python)          │  engine · tools · connectors - built on aisuite
-├───────────────┬────────────────┬───────────────┤
-│  your files   │   your tools   │ BoxAI models  │  local tools run on your machine;
-│  & terminal   │ 25+ connectors │  your account │  model calls use your BoxAI account
-└───────────────┴────────────────┴───────────────┘
+Voice Agent
+├── Floating Widget
+├── Speech Service
+├── Agent Tool
+└── Commands
+
+GitHub Workspace
+├── Work Panel
+├── MCP Server
+├── Agent Tools
+└── Background Service
+
+Session Analytics
+├── Dashboard
+├── Commands
+└── Workspace View
 ```
 
-## What it can do
+### What can a plugin add?
 
-- **Produce real deliverables** - documents, spreadsheets, reports, and web pages land as files you can open and share.
-- **Work from Slack** - mention `@OpenWorker` in a channel; a session opens on your desktop, the work happens with your tools, and the answer comes back as a thread reply.
-- **Use your everyday tools** - 25+ integrations including GitHub, Slack, Jira, Notion, Linear, HubSpot, Outlook, monday.com, Gmail, and Google Calendar, plus your **terminal and local files**. Any tool reachable over [MCP](https://modelcontextprotocol.io/) plugs in too, with per-tool control.
-- **Teach it repeatable work with Skills** - SKILL.md instruction packs the coworker loads on demand, reachable from the **Skills** row in the sidebar. Office packs (Word, Excel, PowerPoint, PDF, meeting notes, weekly reports) ship built in, a short recommended list installs with one click, and anything else comes from a folder, a GitHub repo, or the in-app marketplace.
-- **Run on a schedule** - automations for recurring work: a morning brief, a weekly report, a standing watch over a channel. Runs land in the app with full transcripts.
-- **Ask before acting** - writes, sends, and shell commands are approval-gated. Unattended runs park their asks in an inbox instead of acting on their own.
+| Capability          | What it enables                                                |
+| ------------------- | -------------------------------------------------------------- |
+| **Command**         | Add actions to the global command system                       |
+| **Panel**           | Open a standalone plugin interface                             |
+| **Floating Widget** | Build voice orbs, status lights, timers, and other floating UI |
+| **Work Panel View** | Add new views to the right-side workspace                      |
+| **Agent Tool**      | Register tools callable by the agent                           |
+| **Completion**      | Use the models already configured by the user                  |
+| **Skill**           | Add reusable agent capabilities and workflows                  |
+| **Theme**           | Customize workspace appearance                                 |
+| **MCP Server**      | Connect local or remote MCP servers                            |
+| **Service**         | Run persistent background work                                 |
+| **Message Bus**     | Let plugins communicate with each other                        |
 
-## BoxAI model access
+Plugins can be distributed as `.piplug` packages or installed through the marketplace.
 
-BoxAI Desktop uses the models available to your signed-in BoxAI account. The app fetches the current account model list from BoxAI and sends all model requests through the BoxAI API gateway.
+<div align="center">
 
-Direct third-party provider keys, custom model endpoints, and Ollama are disabled in the BoxAI distribution. This prevents a local setting or environment variable from bypassing account authentication, billing, and revocation.
+### [Build your first plugin →](docs/plugin-development.md)
 
-## Privacy
+</div>
 
-BoxAI Desktop is local-first: the agent loop, conversations, local tool execution, connector tokens, and workspace state stay on your machine. Prompts and model inputs are sent to BoxAI when you invoke a model. A separate BoxAI connector broker handles managed OAuth handshakes; connector access tokens are delivered to and stored by the local app rather than retained by the broker.
+---
 
-## Run from source
+## One foundation, many workflows
 
-Prerequisites: Python 3.10+, Node 20+, and (for the desktop shell) the Rust toolchain via [rustup](https://rustup.rs/).
-
-The desktop project lives under `desktop/` in this monorepo. The commands below are run from the monorepo root; enter the desktop directory first:
-
-```shell
-cd desktop
-
-# 1. One-time bootstrap - creates the Python venv at .venv
-#    (on Windows, run from Git Bash or WSL)
-bash packaging/setup_dev_env.sh
-
-# 2. Start the local agent server
-.venv/bin/openworker-server --cwd ~/some/project --port 8765
-#    (Windows: .venv\Scripts\openworker-server.exe)
-
-# 3. In a second terminal, start the UI
-cd surfaces/gui
-npm install
-npm run dev        # browser UI on the Vite dev port
+```text
+                         PI-Desktop
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+        Agent            Workspace           Platform
+          │                  │                  │
+     Agent Tools           Panels              MCP
+       Skills             Widgets            Services
+     Subagents             Views            Message Bus
+   pi Extensions          Themes
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             │
+                       Your Workflow
 ```
 
-The standalone server creates a per-launch token at
-`<state-dir>/sidecar-8765.token`; Vite reads that user-only file when it starts.
-For direct API calls, send its value in the `X-OpenWorker-Token` header. The
-desktop app uses an in-memory launch token instead and never writes it to disk.
+PI-Desktop can simply be your coding agent.
 
-To run the full desktop app instead of the browser UI, replace step 3 with `npm run tauri dev` (from `surfaces/gui/`) - the Tauri shell launches the window and supervises the server itself.
+Or you can turn it into:
 
-The UI ships in English, 中文, and Tiếng Việt: it follows the system language and can be changed under Settings > General > Language. Locale files are `surfaces/gui/src/i18n/locales/{zh,vi}.json` (flat JSON, English source strings as keys); `npm run i18n:check` verifies they match the strings used in the code.
+**AI Development Workspace · Voice Agent · DevOps Console · GitHub Workspace · Data Assistant · Multi-Agent Control Center · Automation Platform**
 
-Tests: `.venv/bin/pytest` (server), `npm test` and `npm run e2e` in `surfaces/gui` (GUI unit + hermetic end-to-end). Desktop bundles are built with `packaging/build_dmg.sh` / `packaging/build_windows.ps1`.
+> **The Core provides the foundation. Plugins decide what your workspace becomes.**
 
-Desktop releases use `desktop-v<version>` tags (for example, `desktop-v0.2.0`); the tag version must match `surfaces/gui/src-tauri/tauri.conf.json`.
+---
 
-## Repository layout
+## Three ways to work
 
-| Directory | What's in it |
-|---|---|
-| `coworker/` | Python backend - agent engine, model providers, connectors, MCP client, skills, memory, automations |
-| `surfaces/gui/` | Desktop app - React UI + Tauri shell that supervises the server |
-| `stt/` | Speech-to-text sidecar (Rust) for voice input |
-| `packaging/` | Installer builds (macOS DMG, Windows), auto-update manifest, dev bootstrap |
-| `docs/` | Design specs and decision logs |
-| `tests/` | Backend test suite |
+<table>
+<tr>
 
-## Upstream attribution and license
+<td width="33%" valign="top">
 
-BoxAI Desktop is based on **OpenWorker**. The upstream OpenWorker MIT license, copyright notices, NOTICE, and attribution are retained. See [LICENSE](LICENSE) and the repository's notice files. Product branding and release artifacts are BoxAI-specific; internal `coworker` modules, `openworker-*` CLI/server entrypoints, and the existing state directory remain unchanged to avoid a risky user-data migration.
+### Agent
 
-## Built on aisuite
+**Give it a task. Let it work.**
 
-The upstream OpenWorker engine is built on [**aisuite**](https://github.com/andrewyng/aisuite), a lightweight Python library providing a unified chat-completions API across LLM providers and an agents layer with tools, toolkits, and MCP support. If you want to build your own agent harness rather than use ours, start there; this repo is a working reference for what aisuite can carry.
+Read code, edit files, run commands, test, and iterate.
 
-OpenWorker was originally developed inside the aisuite repository before moving to its own home here; thanks to the aisuite contributors whose work it builds on.
+Best for day-to-day development.
+
+</td>
+
+<td width="33%" valign="top">
+
+### Plan
+
+**Review the approach before execution.**
+
+The agent studies the project first and produces an implementation plan.
+
+Best for refactors and high-risk changes.
+
+</td>
+
+<td width="33%" valign="top">
+
+### Goal
+
+**Define the outcome. Let the agent choose the path.**
+
+Lock the objective and acceptance criteria, then let the agent drive execution.
+
+Best for complex and long-running tasks.
+
+</td>
+
+</tr>
+</table>
+
+Privileged operations still pass through PI-Desktop's permission layer.
+
+---
+
+## When one agent is not enough
+
+Complex work should not be forced into one context window.
+
+PI-Desktop provides two levels of delegation.
+
+### Subagents
+
+Delegate independent work to background agents:
+
+**Code exploration · Implementation · Test analysis · Research · Review**
+
+Each Subagent gets its own context and reports the result back to the parent agent.
+
+### Session Orchestrator
+
+For longer-lived work, delegate to full Worker Sessions.
+
+```text
+Main Session
+│
+├── Worker A
+│   └── Frontend
+│
+├── Worker B
+│   └── Backend
+│
+├── Worker C
+│   └── Tests
+│
+└── Worker D
+    └── Review
+```
+
+Workers are full PI-Desktop sessions:
+
+**Independent context · Independent execution · Directly inspectable · Reusable · Full transcript**
+
+<table>
+<tr>
+
+<td width="50%">
+
+<img src="docs/image/readme/session-orchestrator-overview.png" alt="Session Orchestrator" />
+
+<p align="center"><sub>Coordinate multiple Worker Sessions from one parent Session</sub></p>
+
+</td>
+
+<td width="50%">
+
+<img src="docs/image/readme/session-orchestrator-worker.png" alt="Worker Session" />
+
+<p align="center"><sub>Each Worker remains a full, inspectable Session</sub></p>
+
+</td>
+
+</tr>
+</table>
+
+<div align="center">
+
+**Move from “one agent helps me code” to “multiple agents divide and complete the work.”**
+
+</div>
+
+---
+
+## Built for work that lasts
+
+PI-Desktop is organized around:
+
+<div align="center">
+
+### Project → Session → Agent → Work
+
+</div>
+
+—not around disposable chat threads.
+
+You can:
+
+* Manage multiple projects and sessions
+* Pin, archive, branch, and search sessions
+* Queue prompts while an agent is already running
+* Reference project files with `@`
+* Use slash commands
+* Review diffs
+* Inspect command output
+* Work with the right-side Work Panel
+* Keep streaming checkpoints
+* Recover interrupted work whenever possible
+
+**A Session can continue across multiple app launches.**
+
+---
+
+## See what the agent is doing
+
+<table>
+<tr>
+
+<td width="50%">
+
+<img src="docs/image/readme/chat_en.png" alt="PI-Desktop Session" />
+
+<p align="center"><sub>Persistent Sessions instead of disposable chats</sub></p>
+
+</td>
+
+<td width="50%">
+
+<img src="docs/image/readme/model_en.png" alt="PI-Desktop Model" />
+
+<p align="center"><sub>Switch models and reasoning levels inside the Session</sub></p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td width="50%">
+
+<img src="docs/image/readme/plugins_en.png" alt="PI-Desktop Plugins" />
+
+<p align="center"><sub>A plugin marketplace that extends both the agent and the desktop</sub></p>
+
+</td>
+
+<td width="50%">
+
+<img src="docs/image/readme/addmodel_en.png" alt="PI-Desktop Providers" />
+
+<p align="center"><sub>Connect your own provider, gateway, or local model</sub></p>
+
+</td>
+
+</tr>
+</table>
+
+<div align="center">
+
+**[Explore more screenshots →](docs/guide/screenshots.md)**
+
+</div>
+
+---
+
+## Swap the model, keep the workflow
+
+PI-Desktop does not tie your workflow to a single model vendor.
+
+Use:
+
+**OpenAI · Anthropic · OpenAI-Compatible APIs · Custom Gateways · Ollama · LM Studio · Local Models**
+
+Configure each model independently:
+
+**Provider · Model ID · Context Window · Output Limit · Reasoning / Thinking · Temperature · OAuth · API Key · Endpoint**
+
+Different Sessions can use different models.
+
+The same Session can switch models at any time.
+
+```text
+Planning     → Model A
+Coding       → Model B
+Review       → Model C
+Private Task → Local Model
+```
+
+> **The model is a replaceable component of the workflow — not the workflow itself.**
+
+---
+
+## Already using another coding agent?
+
+Keep your existing work.
+
+PI-Desktop can import local sessions from:
+
+**Claude Code · Codex · OpenCode · Pi**
+
+---
+
+## Local-first
+
+PI-Desktop does not require you to move your development environment into our cloud.
+
+| Data                 | Default behavior                          |
+| -------------------- | ----------------------------------------- |
+| Projects             | Local                                     |
+| Sessions             | Local                                     |
+| Settings             | Local                                     |
+| Logs                 | Local                                     |
+| API credentials      | OS Keychain                               |
+| PI-Desktop telemetry | None                                      |
+| Model requests       | Sent directly to your configured provider |
+
+**No mandatory PI-Desktop account.**
+
+**No mandatory PI-Desktop relay.**
+
+When using a remote model, the context required for the request is sent directly to that provider.
+
+---
+
+## You control the permissions
+
+Agents can read files, edit code, run commands, call tools, use extensions, and delegate work.
+
+Privileged operations still pass through the permission layer:
+
+```text
+Agent
+  ↓
+Tool Request
+  ↓
+Permission Layer
+  ↓
+Allow / Ask / Deny
+  ↓
+Execution
+```
+
+**You decide how much autonomy each Session gets.**
+
+---
+
+## Get started
+
+<table>
+<tr>
+
+<td width="25%" valign="top">
+
+### 01
+
+**Download**
+
+Install PI-Desktop
+
+</td>
+
+<td width="25%" valign="top">
+
+### 02
+
+**Connect a model**
+
+Configure a Provider
+
+</td>
+
+<td width="25%" valign="top">
+
+### 03
+
+**Open a project**
+
+Choose a local repository
+
+</td>
+
+<td width="25%" valign="top">
+
+### 04
+
+**Start working**
+
+Agent / Plan / Goal
+
+</td>
+
+</tr>
+</table>
+
+<div align="center">
+
+### [Download PI-Desktop →](https://github.com/vastsa/PI-Desktop/releases/latest)
+
+**macOS · Windows · Linux**
+
+</div>
+
+### Packages
+
+| Platform | Architecture  | Package                                 |
+| -------- | ------------- | --------------------------------------- |
+| macOS    | Apple Silicon | `.dmg` / `.zip`                         |
+| macOS    | Intel         | `.dmg` / `.zip`                         |
+| Windows  | x64           | Installer / `.zip`                      |
+| Linux    | x64 / ARM64   | `.AppImage` / `.deb` / `.rpm` / `.asar` |
+
+macOS releases are signed with a Developer ID certificate and notarized by Apple.
+
+<details>
+<summary><strong>Linux Compatibility</strong></summary>
+
+<br />
+
+Linux packages require **glibc 2.35+**.
+
+Common supported distributions include:
+
+* Ubuntu 22.04+
+* Debian 12+
+* Fedora 36+
+
+Check your current version with:
+
+```bash
+ldd --version
+```
+
+</details>
+
+---
+
+## Built on Pi
+
+PI-Desktop is built on the [pi](https://github.com/badlogic/pi-mono) ecosystem.
+
+The Agent Runtime uses:
+
+* `pi-ai`
+* `pi-agent-core`
+
+> **Pi provides the Agent Engine. PI-Desktop builds the persistent desktop workspace, sessions, permissions, plugins, and agent orchestration around it.**
+
+---
+
+## For Developers
+
+PI-Desktop can also serve as a host platform for building agent products.
+
+You can build:
+
+**Plugins · MCP Servers · Skills · Agent Tools · pi Extensions · Themes · Panels · Floating Widgets · Background Services**
+
+### Plugin quick start
+
+Built-in templates include:
+
+* `panel-basic`
+* `agent-tool-basic`
+* `skill-pack`
+* `full-demo`
+
+Plugins can be created and loaded directly as Development Plugins.
+
+**[Plugin Development Guide →](docs/plugin-development.md)**
+
+### Run from source
+
+<details>
+<summary><strong>Development Setup</strong></summary>
+
+<br />
+
+#### Requirements
+
+* Node.js `>=22.19`
+* pnpm `>=10`
+* Stable Rust Toolchain
+
+#### Start
+
+```bash
+git clone https://github.com/vastsa/PI-Desktop.git
+cd PI-Desktop
+
+pnpm install
+
+cargo build -p host-core
+pnpm build:js
+
+pnpm dev
+```
+
+#### Validate
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+</details>
+
+### Documentation
+
+[Documentation](https://pi-docs.aiuo.net/) ·
+[Architecture](docs/spec/02-architecture/01-architecture.md) ·
+[Specification](docs/spec/README.md) ·
+[Plugin Development](docs/plugin-development.md) ·
+[E2E Test Plan](docs/spec/06-delivery/04-e2e-test-plan.md) ·
+[Release Runbook](docs/spec/06-delivery/06-release-runbook.md) ·
+[AGENTS.md](AGENTS.md)
+
+---
 
 ## Contributing
 
-Contributions and bug reports are welcome - open an [issue](https://github.com/dev-fan-sophon/boxai/issues) or a pull request.
-For any PR, please attach screenshots of what was broken and how it is fixed now. We will shortly add features that you can contribute to.
-Please note that we are actively developing based off a internal list and goal, so we may not approve PRs that add features that are already under-development or deviates from our vision.
+Contributions are welcome:
+
+**Issues · Pull Requests · Plugins · Skills · MCP Integrations · Documentation · Translations**
+
+For standalone capabilities, consider one question first:
+
+> **Would this be better as a Plugin?**
+
+Keep the Core focused. Let the ecosystem grow.
+
+**[Report an Issue](https://github.com/vastsa/PI-Desktop/issues/new/choose)** ·
+[Open Issues](https://github.com/vastsa/PI-Desktop/issues) ·
+[Build a Plugin](docs/plugin-development.md)
+
+---
+
+## Project Trend
+
+<div align="center">
+
+<a href="https://trendshift.io/repositories/178787?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-178787">
+<img src="https://trendshift.io/api/badge/repositories/178787" alt="PI-Desktop on Trendshift" width="230" height="51" />
+</a>
+
+</div>
+
+---
+
+## Friends
+
+[Linux.Do](https://linux.do/) — A new ideal community
+
+---
+
+## Model Acknowledgements
+
+> **Not by a lone genius, but by a token-powered construction crew.**
+
+PI-Desktop has been built with the help of models from multiple providers.
+
+More than **27 billion tokens** have been used across development, refactoring, review, design, and debugging.
+
+Thanks to every human contributor — and every model that helped us build it.
+
+---
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+PI-Desktop is licensed under the **GNU Lesser General Public License v3.0**.
+
+See [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+<img src="docs/image/readme/logo.png" alt="PI-Desktop" width="72" />
+
+## PI-Desktop
+
+### Build your own Agent workspace.
+
+**Your models · Your agents · Your plugins · Your workspace**
+
+<br />
+
+**[Download](https://github.com/vastsa/PI-Desktop/releases/latest)** ·
+[Documentation](https://pi-docs.aiuo.net/) ·
+[Build a Plugin](docs/plugin-development.md)
+
+<br /><br />
+
+<sub>Local-first · Model-agnostic · Plugin-powered</sub>
+
+</div>
