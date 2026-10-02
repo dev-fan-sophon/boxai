@@ -15,15 +15,24 @@ const STEP_LOCALE_KEY: Record<string, string> = {
 export function OnboardingChecklist() {
   const { t } = useTranslation();
   const onboarding = useAppStore((s) => s.onboarding);
+  const dismissed = useAppStore((s) => s.settings?.onboardingDismissed === true);
+  const hasProject = useAppStore((s) => Boolean(s.workspace?.path));
+  const hasPrompt = useAppStore((s) => s.sessions.some((session) => session.messageCount > 0));
   const setPage = useAppStore((s) => s.setPage);
   const openProject = useAppStore((s) => s.openProject);
 
-  if (!onboarding?.showChecklist) return null;
+  if (!onboarding || dismissed) return null;
   // BoxAI onboarding is project + first message only. Account setup is handled
   // by authorization, and development plugins are not a user onboarding step.
+  // Ignore the legacy host showChecklist (which also counts API-key setup).
+  // Subscribe to live project/session state so completion needs no reload of
+  // the bootstrap onboarding snapshot when returning from the first chat.
   const steps = (onboarding.steps ?? []).filter(
     (step) => step.id === "project" || step.id === "prompt",
-  );
+  ).map((step) => ({
+    ...step,
+    done: step.done || (step.id === "project" ? hasProject : hasPrompt),
+  }));
   if (steps.length === 0 || steps.every((s) => s.done)) return null;
 
   const stepLabel = (id: string, fallback: string) => {
@@ -56,10 +65,10 @@ export function OnboardingChecklist() {
       .dismissOnboarding()
       .catch(() => undefined)
       .finally(() => {
-        const current = useAppStore.getState().onboarding;
+        const current = useAppStore.getState().settings;
         if (current) {
           useAppStore.setState({
-            onboarding: { ...current, showChecklist: false },
+            settings: { ...current, onboardingDismissed: true },
           });
         }
       });

@@ -13,6 +13,17 @@ const { ModelsDevCatalog } = await import("../electron/main/models-dev-catalog.t
 const { createProviderCatalogRuntime } = await import("../electron/main/runtime/provider-catalog.ts");
 
 test("login and cold bootstrap expose BoxAI models with a usable default; refresh preserves explicit choices", async t => {
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const storage = new Map();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: key => storage.delete(key),
+  } });
+  t.after(() => {
+    if (previousStorage) Object.defineProperty(globalThis, "localStorage", previousStorage);
+    else delete globalThis.localStorage;
+  });
   let settings = { defaultProviderId: null, defaultModelId: null, defaultMode: "agent", locale: "vi" };
   const providers = [];
   const modelIds = ["gpt-5.4-mini", "claude-fable-5", "grok-4.6", "claude-sonnet-4-6"];
@@ -43,6 +54,7 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
     [IPC.invoke.appHealth, { ok: true }],
     [IPC.invoke.sessionList, { sessions: [] }],
     [IPC.invoke.projectGet, { workspace: null }],
+    [IPC.invoke.projectSet, { workspace: { path: "/review-project", name: "Review" } }],
     [IPC.invoke.appGetOnboarding, { showChecklist: true, steps: [
       { id: "provider", title: "Add an AI provider", action: "settings.providers", done: false },
       { id: "secret", title: "Save your API key", action: "saveKey", done: false },
@@ -103,6 +115,34 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
   assert.match(checklist, /Open a project folder/);
   assert.match(checklist, /Send your first message/);
   assert.equal((checklist.match(/<li>/g) ?? []).length, 2);
+  // Exercise real project/session actions with the original stale onboarding
+  // snapshot, exactly as the app does when returning home after its first chat.
+  await useAppStore.getState().openProjectPath("/review-project");
+  initialSnapshot.workspace = useAppStore.getState().workspace;
+  assert.match(renderToStaticMarkup(createElement(OnboardingChecklist)), /Send your first message/);
+  const firstSession = { id: "first-chat", title: "First chat", projectPath: "/review-project",
+    createdAt: "2026-10-02T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z", messageCount: 0 };
+  fixed.set(IPC.invoke.sessionList, { sessions: [firstSession] });
+  await useAppStore.getState().refreshSessions();
+  initialSnapshot.sessions = useAppStore.getState().sessions;
+  assert.match(renderToStaticMarkup(createElement(OnboardingChecklist)), /Send your first message/,
+    "creating an empty session is not sending the first message");
+  fixed.set(IPC.invoke.sessionList, { sessions: [{ ...firstSession, messageCount: 2 }] });
+  await useAppStore.getState().refreshSessions();
+  initialSnapshot.sessions = useAppStore.getState().sessions;
+  assert.equal(useAppStore.getState().onboarding.showChecklist, true);
+  assert.equal(useAppStore.getState().onboarding.steps.find(step => step.id === "prompt").done, false);
+  assert.equal(renderToStaticMarkup(createElement(OnboardingChecklist)), "",
+    "live project and first chat completion hide stale host onboarding without restarting");
+  initialSnapshot.workspace = null;
+  initialSnapshot.sessions = [];
+  initialSnapshot.onboarding = { ...state.onboarding, showChecklist: false };
+  assert.match(renderToStaticMarkup(createElement(OnboardingChecklist)), /Send your first message/,
+    "the legacy host visibility flag does not control BoxAI steps");
+  initialSnapshot.settings = { ...settings, onboardingDismissed: true };
+  assert.equal(renderToStaticMarkup(createElement(OnboardingChecklist)), "",
+    "explicit user dismissal still hides incomplete onboarding");
+  initialSnapshot.settings = settings;
   useAppStore.setState({ onboarding: { ...state.onboarding, steps: state.onboarding.steps.map(step => ({
     ...step, done: step.id === "project" || step.id === "prompt",
   })) } });
