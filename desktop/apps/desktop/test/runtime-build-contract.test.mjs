@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const desktopPackageUrl = new URL("../package.json", import.meta.url);
-const dependencyBuild = "pnpm --filter '@pi-desktop/desktop^...' build";
+const dependencyBuild = 'pnpm --filter "@pi-desktop/desktop^..." --fail-if-no-match build';
 const depsScript = "pnpm run build:deps";
 
 const readScripts = async () => {
@@ -38,7 +38,7 @@ test("packaging scripts rebuild workspace dependencies before bundling", async (
   const rendererBuild = "electron-vite build";
 
   for (const name of ["pack", "dist", "dist:mac", "dist:win", "dist:linux"]) {
-    const script = scripts[name] ?? "";
+    const script = scripts[name] === "pnpm run dist -- mac" ? scripts.dist : scripts[name] ?? "";
 
     assert.ok(
       script.includes(depsScript),

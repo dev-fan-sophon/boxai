@@ -387,7 +387,8 @@ test("desktop packaging builds the native host before every local target", () =>
     /cargo build --release .* -p host-core/,
   );
   for (const name of ["pack", "dist", "dist:mac", "dist:win", "dist:linux"]) {
-    const script = packageJson.scripts[name];
+    const script = packageJson.scripts[name] === "pnpm run dist -- mac"
+      ? packageJson.scripts.dist : packageJson.scripts[name];
     assert.match(script, /pnpm run build:host-release/);
     const packagingCommand = script.includes("build-desktop-release.mjs")
       ? "build-desktop-release.mjs"
