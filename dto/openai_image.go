@@ -16,11 +16,17 @@ import (
 const MaxImageN = 128
 
 type ImageRequest struct {
-	Model             string          `json:"model"`
-	Prompt            string          `json:"prompt" binding:"required"`
-	N                 *uint           `json:"n,omitempty"`
-	Size              string          `json:"size,omitempty"`
-	Quality           string          `json:"quality,omitempty"`
+	Model   string `json:"model"`
+	Prompt  string `json:"prompt" binding:"required"`
+	N       *uint  `json:"n,omitempty"`
+	Size    string `json:"size,omitempty"`
+	Quality string `json:"quality,omitempty"`
+	// AspectRatio and Resolution are the xAI / Gemini output controls,
+	// validated per model family (relay/common/image_capabilities.go). An empty
+	// string is never a meaningful explicit value, so plain strings with
+	// omitempty keep "absent" and "set" distinct without a pointer.
+	AspectRatio       string          `json:"aspect_ratio,omitempty"`
+	Resolution        string          `json:"resolution,omitempty"`
 	ResponseFormat    string          `json:"response_format,omitempty"`
 	Style             json.RawMessage `json:"style,omitempty"`
 	User              json.RawMessage `json:"user,omitempty"`
