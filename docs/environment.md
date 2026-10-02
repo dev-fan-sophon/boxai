@@ -287,6 +287,10 @@ authorization files private; never attach them to diagnostics or screenshots.
 See [desktop-integration.md](desktop-integration.md) and
 [desktop/README.md](../desktop/README.md) for ownership and development.
 
+`BOXAI_DESKTOP_DEV_ORIGIN` optionally selects an HTTP loopback backend for
+unpackaged development builds only. Packaged apps always use `https://you-box.com`;
+the override does not bypass authorization. See [desktop-account.md](desktop-account.md).
+
 Legacy connector OAuth services are not prerequisites for the current app.
 Removing their source does not retire deployed Workers, delete D1 data or revoke
 OAuth registrations. Those operations need a separate review and authorization.

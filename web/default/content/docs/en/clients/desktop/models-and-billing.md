@@ -19,6 +19,8 @@ status: published
 
 Available models come from BoxAI and depend on account access and compatibility with the desktop agent. The website catalog is not a promise that every image, video or audio model appears in the conversation picker. Do not copy a model ID from an unrelated provider tutorial or add a separate provider to work around a missing model.
 
+Desktop shows only models present in both the gateway's model list and your account's permitted chat models. Claude models use the Messages API; other model families use Chat Completions, all through BoxAI. You do not choose an endpoint or provide a separate provider key. Standalone image generation and third-party live voice are not available in this integration.
+
 ## What you pay for
 
 Model requests use your BoxAI account's applicable pricing, group and allowance. Read [Model Hub](/pricing) for current prices and [Billing](/billing) for balance and subscriptions. Do not treat an app-side token or cost estimate as an invoice: the website's [usage logs](/docs/console/usage-logs) are the place to check actual gateway consumption.

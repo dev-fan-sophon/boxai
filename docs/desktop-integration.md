@@ -12,6 +12,7 @@ Desktop work.
 - Download entry: `/agents`; release artifacts are delivered through
   `dl.you-box.com`. Do not pin guide links to a versioned installer.
 - Engineering: `desktop/README.md`, `desktop/AGENTS.md` and executable tests.
+- Account, credential and model invariants: [desktop-account.md](desktop-account.md).
 - Website documentation pipeline: [product-docs-system.md](product-docs-system.md).
 - Operational variables: [environment.md](environment.md).
 

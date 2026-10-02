@@ -1,5 +1,8 @@
 # BoxAI account and gateway contract
 
+See [Desktop integration](desktop-integration.md) for ownership and the public
+English/Vietnamese guides. Source paths below are relative to `desktop/`.
+
 Main integrations use `vendorOAuth.client.session()` for current credentials and
 `onSessionChanged(listener)` for credential-free invalidation notifications.
 Listeners run after persistence, must not throw, and must unsubscribe on disposal.

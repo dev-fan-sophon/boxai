@@ -14,10 +14,10 @@ status: published
 
 ## Authorize the app
 
-1. Open BoxAI Desktop and start the BoxAI sign-in flow.
+1. Open BoxAI Desktop and choose **Sign in with BoxAI** on the **BoxAI account** screen.
 2. In the browser, check that the account page is on **you-box.com**, then sign in using your normal BoxAI method.
 3. Review and approve the Desktop authorization request. Do not approve a request you did not start.
-4. Return to the app and wait for the signed-in state before selecting a model.
+4. The browser returns through a temporary `127.0.0.1` callback on your computer. Keep Desktop open; when the browser says to return to Desktop, switch back and wait for the workspace.
 
 <!-- Screenshot: /desktop-screenshots/docs/login.webp — real BoxAI authorization entry, with safe fictional identity. -->
 
@@ -26,6 +26,8 @@ You do not need to create an OpenAI, Anthropic or Google provider account, paste
 ## Check the account before working
 
 Confirm the displayed account is the one you intended. Then [choose a model](/docs/clients/desktop/models-and-billing) and send a short test request. A website session alone does not prove the desktop authorization completed.
+
+The **BoxAI account** settings page is read-only: it shows wallet balance and total usage in quota units, plus request count. These are account-wide figures, not the cost of the current session or a currency amount. Use **Refresh**, **Top up** or **Open console** to check or manage the account.
 
 ## Sign-in does not finish
 
@@ -39,6 +41,6 @@ Confirm the displayed account is the one you intended. Then [choose a model](/do
 
 Use the app's sign-out action before handing the computer to someone else. Treat local authorization data as a credential: do not send it to support or include it in backups shared publicly. Signing out of the website and signing out of Desktop are separate actions.
 
-For suspected credential exposure, review and revoke the affected authorization or key on the BoxAI website; do not assume a local sign-out revokes server-side access. See [API key security](/docs/console/api-keys).
+**Sign out** revokes the Desktop session and its relay key on the server before clearing local credentials. If the network request fails, sign-out has not completed: reconnect and retry before handing over the computer. The app stores credentials in its encrypted host-side secret store, not in the visible account page. For suspected exposure, also review affected authorizations or keys on the website. See [API key security](/docs/console/api-keys).
 
 Next: [Models and billing](/docs/clients/desktop/models-and-billing) · [Troubleshooting](/docs/clients/desktop/troubleshooting).

@@ -19,6 +19,8 @@ status: published
 
 Danh sách mô hình do BoxAI cung cấp, tùy thuộc quyền truy cập của tài khoản và khả năng tương thích với trợ lý trên Desktop. Không phải mọi mô hình tạo ảnh, video hoặc âm thanh trong danh mục website đều xuất hiện ở bộ chọn hội thoại. Đừng sao chép mã mô hình từ hướng dẫn của nhà cung cấp khác hoặc thêm nhà cung cấp riêng để xử lý việc thiếu mô hình.
 
+Desktop chỉ hiển thị mô hình có trong cả danh sách của gateway lẫn danh sách mô hình hội thoại mà tài khoản được phép dùng. Mô hình Claude dùng API Messages; các họ mô hình khác dùng Chat Completions, tất cả đều qua BoxAI. Bạn không cần chọn địa chỉ API hay nhập khóa của nhà cung cấp riêng. Bản tích hợp này chưa hỗ trợ tạo ảnh độc lập hoặc hội thoại giọng nói trực tiếp qua nhà cung cấp bên thứ ba.
+
 ## Những gì được tính phí
 
 Yêu cầu tới mô hình áp dụng giá, nhóm truy cập và hạn mức của tài khoản BoxAI. Xem [Danh mục mô hình](/pricing) để biết giá hiện tại và [Thanh toán](/billing) để kiểm tra số dư, gói đăng ký. Số token hoặc chi phí ước tính trong ứng dụng không phải hóa đơn: hãy đối chiếu mức tiêu thụ thực tế tại [nhật ký sử dụng](/docs/console/usage-logs) trên website.
