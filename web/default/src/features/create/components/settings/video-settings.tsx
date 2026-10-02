@@ -23,6 +23,7 @@ import {
   type VideoResolution,
 } from '@/features/playground/lib/studio/video-capabilities'
 import type { StudioSettings } from '@/features/playground/types'
+import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { SettingRow } from './setting-row'
@@ -44,6 +45,7 @@ export function VideoSettings(props: {
   const group = usePlaygroundStore((state) => state.config.group)
   const videoCapabilityQuery = useVideoCapabilities(group, model, true)
 
+  const signedIn = useAuthStore((state) => Boolean(state.auth.user))
   const mode = props.videoMode ?? 'text'
   // The mode is derived from attached media, so a non-text mode has some.
   const hasImage = mode !== 'text'
@@ -51,8 +53,11 @@ export function VideoSettings(props: {
   const capabilities = profiles?.[mode]
   if (!capabilities) {
     let message = t('This video mode is unavailable for the selected model.')
-    if (videoCapabilityQuery.isLoading) message = t('Loading video options…')
-    else if (videoCapabilityQuery.isError) {
+    if (!signedIn) {
+      message = t('Sign in to load the options of this video model.')
+    } else if (videoCapabilityQuery.isLoading) {
+      message = t('Loading video options…')
+    } else if (videoCapabilityQuery.isError) {
       message = t('Could not load video options. Retry to continue.')
     }
     return <p className='text-muted-foreground text-xs'>{message}</p>

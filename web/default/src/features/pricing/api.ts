@@ -20,7 +20,10 @@ export async function getPlaygroundCatalog(
     | '/api/create/catalog' = '/api/playground/catalog'
 ): Promise<PricingData> {
   try {
-    const res = await api.get(path)
+    // A 404 means an older backend without this route; fall back quietly.
+    const res = await api.get(path, {
+      skipErrorHandler: true,
+    } as Record<string, unknown>)
     return res.data
   } catch (error) {
     if (!isAxiosError(error) || error.response?.status !== 404) throw error

@@ -37,6 +37,26 @@ import { StoryboardBoard } from '../storyboard/storyboard-board'
 import { StoryboardScriptPanel } from '../storyboard/storyboard-script-panel'
 import { AudioToolSwitch } from './audio-tool-switch'
 
+/** Starter prompts per audio tool; file-based tools start from an upload. */
+const AUDIO_EXAMPLE_KEYS: Record<AudioKind, string[]> = {
+  speech: [
+    'Welcome to BoxAI. This voice was generated in seconds.',
+    'Hello! Welcome to BoxAI. How can I help you today?',
+  ],
+  sfx: [
+    'Heavy rain on a tin roof at night, distant thunder',
+    'Motorbikes passing on a busy Saigon street',
+  ],
+  music: [
+    'Upbeat lo-fi beat with soft piano, 90 BPM, for studying',
+    'Cinematic orchestral intro with rising strings and drums',
+  ],
+  transcribe: [],
+  'voice-changer': [],
+  isolate: [],
+  align: [],
+}
+
 type CreateMode = 'single' | 'batch' | 'storyboard'
 
 /**
@@ -213,6 +233,11 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
         modelName={model}
         modality={tool}
         onPickExample={controller.setText}
+        exampleKeys={
+          tool === 'audio'
+            ? AUDIO_EXAMPLE_KEYS[controller.draft.settings.audioTool]
+            : undefined
+        }
       />
     )
   } else {

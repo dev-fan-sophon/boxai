@@ -22,6 +22,8 @@ type ModelHeroProps = {
   compact?: boolean
   /** Fills the composer with a starter prompt. */
   onPickExample?: (prompt: string) => void
+  /** Starter prompts (i18n keys) replacing the modality defaults. */
+  exampleKeys?: string[]
 }
 
 const MEDIA_HERO: Record<
@@ -162,7 +164,7 @@ export function ModelHero(props: ModelHeroProps) {
 
       {media && props.onPickExample && !props.compact && (
         <div className='flex max-w-xl flex-wrap justify-center gap-2'>
-          {media.exampleKeys.map((key) => (
+          {(props.exampleKeys ?? media.exampleKeys).map((key) => (
             <button
               key={key}
               type='button'
