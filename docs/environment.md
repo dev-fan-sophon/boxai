@@ -278,40 +278,21 @@ POST /api/playground/assets/backfill-r2?dry_run=true   # report candidates only
 POST /api/playground/assets/backfill-r2?limit=100      # migrate a batch
 ```
 
-### Desktop connector broker (Worker + D1)
+### BoxAI Desktop
 
-`workers/desktop-broker` runs at **`api-desktop.you-box.com`** and holds the connector OAuth
-client secrets so the desktop app does not ship them. Connector access/refresh tokens are
-form-POSTed straight to the desktop's loopback listener and are **never** stored at the edge;
-D1 (`boxai-desktop-broker`) keeps only connection/routing metadata and short-lived OAuth state.
+The current client in `desktop/` is based on pi-desktop (Electron/React and Rust),
+uses BoxAI account authorization and sends built-in model calls through BoxAI.
+Packaged users do not need provider keys or server environment files. Keep local
+authorization files private; never attach them to diagnostics or screenshots.
+See [desktop-integration.md](desktop-integration.md) and
+[desktop/README.md](../desktop/README.md) for ownership and development.
 
-```bash
-set -a; source .env.cloudflare; set +a
-cd workers/desktop-broker
-npm test                                   # 41 tests, real workerd + D1
-npx wrangler d1 execute boxai-desktop-broker --remote --file=schema.sql
-npx wrangler deploy
-```
-
-Per-provider secrets (`npx wrangler secret put <NAME>`), none of which live in the repo:
-
-| Provider | Secrets | Redirect URI to register |
-|--|--|--|
-| Google (Gmail / Calendar / Drive) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `https://api-desktop.you-box.com/v1/oauth/google/callback` |
-| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | `https://api-desktop.you-box.com/v1/oauth/slack/callback` |
-| Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | `https://api-desktop.you-box.com/v1/oauth/notion/callback` |
-| GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `https://api-desktop.you-box.com/v1/oauth/github/callback` |
-
-`GITHUB_APP_PRIVATE_KEY` must be PKCS#8; GitHub issues PKCS#1, which WebCrypto cannot import:
-
-```bash
-openssl pkcs8 -topk8 -nocrypt -in boxai-agent.private-key.pem -out boxai-agent.pkcs8.pem
-```
-
-The broker verifies desktop sessions against `https://you-box.com/.well-known/jwks.json`, so it
-returns `503 signing keys unreadable` until the hub's device-authorization build is deployed.
-
----
+`workers/desktop-broker`, `api-desktop.you-box.com` and its connector OAuth
+secrets belong to the retired client architecture. They are **not prerequisites
+for the current Desktop app**. Retained Worker source documents that legacy
+service; do not provision it for new installations. Retirement of deployed
+Workers, D1 data and OAuth registrations requires a separate operational review
+and authorization. This documentation change does not delete production state.
 
 ---
 

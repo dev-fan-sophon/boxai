@@ -19,6 +19,16 @@ Product decisions (payments, login, SMS, copy, compliance) should default to Vie
 - Frontend: React 19 + TypeScript + Rsbuild (`web/default/`, Bun)
 - Deploy: host binary + systemd; Docker only for Postgres/Redis — see [`deploy/README.md`](deploy/README.md)
 
+## Desktop clients
+
+- **BoxAI Desktop**: the pi-desktop-based agent workspace (Electron/React + Rust,
+  pnpm). [Download](https://you-box.com/agents) ·
+  [User guides](https://you-box.com/docs/clients/desktop) ·
+  [Development](desktop/README.md).
+- **BoxAI Connect**: the separate Go/Wails companion for existing coding agents.
+  [User guides](https://you-box.com/docs/clients/connect) ·
+  [Development](connect/README.md).
+
 ## Docs for contributors / agents
 
 - Project conventions: [`AGENTS.md`](AGENTS.md)
