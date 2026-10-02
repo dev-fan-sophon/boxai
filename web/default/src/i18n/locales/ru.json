@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "Сумма к оплате должна быть больше нуля. Измените сумму или промокод.",
     "The API key used for the requests": "API-ключ, использованный для запросов",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "Приложение проверяет новые выпуски в фоне и предлагает их карточкой, которую можно закрыть. Обновления криптографически подписаны и устанавливаются только после вашего перезапуска.",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "Приложение скачивает новые версии в фоне и устанавливает их, когда вы выбираете перезапуск. Проекты и настройки сохраняются.",
     "The app running a real task, end to end": "Приложение выполняет реальную задачу от начала до конца",
     "The app running a real task, end to end.": "Приложение на реальной задаче — от начала до конца.",
     "The authorization request could not be loaded": "Не удалось загрузить запрос авторизации",

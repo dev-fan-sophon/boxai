@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "The amount due must be positive. Change the amount or coupon.",
     "The API key used for the requests": "The API key used for the requests",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.",
     "The app running a real task, end to end": "The app running a real task, end to end",
     "The app running a real task, end to end.": "The app running a real task, end to end.",
     "The authorization request could not be loaded": "The authorization request could not be loaded",

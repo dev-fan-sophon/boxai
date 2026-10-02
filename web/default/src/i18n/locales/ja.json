@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "支払額は0より大きい必要があります。金額またはクーポンを変更してください。",
     "The API key used for the requests": "リクエストに使用された API キー",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "アプリはバックグラウンドで新しいリリースを確認し、閉じられるカードで知らせます。更新パッケージは暗号署名されており、再起動を選んだときにだけインストールされます。",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "アプリは新しいリリースをバックグラウンドでダウンロードし、再起動を選んだときにインストールします。プロジェクトと設定は保持されます。",
     "The app running a real task, end to end": "実際のタスクを最初から最後まで実行する様子",
     "The app running a real task, end to end.": "実際のタスクを最初から最後まで動かした様子です。",
     "The authorization request could not be loaded": "認可リクエストを読み込めませんでした",

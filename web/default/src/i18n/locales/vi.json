@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "Số tiền thanh toán phải lớn hơn 0. Hãy đổi số tiền hoặc mã ưu đãi.",
     "The API key used for the requests": "Khóa API được dùng cho các yêu cầu",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "Ứng dụng kiểm tra bản phát hành mới ở chế độ nền và hiển thị bằng thẻ bạn có thể đóng. Bản cập nhật được ký mã hóa và chỉ cài khi bạn chọn khởi động lại.",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "Ứng dụng tải bản mới ở chế độ nền và cài khi bạn chọn khởi động lại. Dự án và cài đặt của bạn được giữ nguyên.",
     "The app running a real task, end to end": "Ứng dụng chạy một tác vụ thật, từ đầu đến cuối",
     "The app running a real task, end to end.": "Ứng dụng chạy một tác vụ thật, từ đầu đến cuối.",
     "The authorization request could not be loaded": "Không thể tải yêu cầu ủy quyền",

@@ -6617,6 +6617,7 @@
     "The amount due must be positive. Change the amount or coupon.": "Le montant dû doit être positif. Modifiez le montant ou le code.",
     "The API key used for the requests": "La clé API utilisée pour les requêtes",
     "The app checks for new releases in the background and offers them in a card you can dismiss. Updates are cryptographically signed and are only installed after you choose to restart.": "L’application recherche les nouvelles versions en arrière-plan et les propose dans une carte que vous pouvez fermer. Les mises à jour sont signées cryptographiquement et ne s’installent qu’après votre redémarrage.",
+    "The app downloads new releases in the background and installs them when you choose to restart. Your projects and settings are kept.": "L’app télécharge les nouvelles versions en arrière-plan et les installe quand vous choisissez de redémarrer. Vos projets et réglages sont conservés.",
     "The app running a real task, end to end": "L'application exécutant une vraie tâche, de bout en bout",
     "The app running a real task, end to end.": "L’application sur une vraie tâche, du début à la fin.",
     "The authorization request could not be loaded": "Impossible de charger la demande d’autorisation",
