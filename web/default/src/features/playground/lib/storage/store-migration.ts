@@ -26,6 +26,10 @@ import {
   getInitialParameterEnabled,
   getInitialPlaygroundConfig,
 } from '../state/playground-state-utils'
+import {
+  DEFAULT_AUDIO_STUDIO_SETTINGS,
+  normalizeAudioStudioSettings,
+} from '../studio/audio-settings'
 import { MAX_BATCH_COUNT } from '../studio/batch-plan'
 import { normalizeImageGenerationSettings } from '../studio/image-request-schema'
 import {
@@ -258,6 +262,7 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   voice: 'alloy',
   speed: 1,
   audioFormat: 'mp3',
+  ...DEFAULT_AUDIO_STUDIO_SETTINGS,
 }
 
 export const MAX_DUO_ANSWER_MODELS = 5
@@ -354,6 +359,7 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
       typeof merged.audioFormat === 'string'
         ? merged.audioFormat
         : DEFAULT_STUDIO_SETTINGS.audioFormat,
+    ...normalizeAudioStudioSettings(merged),
   }
 }
 

@@ -1,5 +1,6 @@
 import type { StudioSettings } from '../../types'
 import type { StudioRunSummary } from '../session/session-types'
+import type { AudioKind } from './model-modality'
 
 /**
  * A card on the studio feed: one submit (a batch of jobs) with its finished
@@ -164,6 +165,12 @@ export type StudioGenerationInput = {
   referenceVideos?: string[]
   /** Typed audio references (references mode); asset or https URLs. */
   referenceAudios?: string[]
+  /**
+   * Audio jobs: the sub-tool and route resolved from the model's catalog
+   * metadata at submit (`native` = ElevenLabs passthrough). Audio inputs of
+   * file-based tools travel in `references`.
+   */
+  audio?: { tool: AudioKind; native: boolean; inputName?: string }
 }
 
 export type StudioJobStatus = 'queued' | 'running' | 'error'

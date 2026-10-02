@@ -35,6 +35,7 @@ func TestElevenLabsNativeRoutesSelectCapabilityModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
 		name        string
+		method      string
 		path        string
 		contentType string
 		body        string
@@ -54,11 +55,28 @@ func TestElevenLabsNativeRoutesSelectCapabilityModel(t *testing.T) {
 			body:        `{"prompt":"rain"}`,
 			wantModel:   "eleven_text_to_sound_v2",
 		},
+		{
+			name:        "playground route reads the JSON model",
+			path:        "/pg/elevenlabs/v1/music",
+			contentType: "application/json",
+			body:        `{"model_id":"music_v2","prompt":"lofi"}`,
+			wantModel:   "music_v2",
+		},
+		{
+			name:      "playground voice library is free and model-less",
+			method:    http.MethodGet,
+			path:      "/pg/elevenlabs/v2/voices",
+			wantModel: "eleven_v3",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-			ctx.Request = httptest.NewRequest(http.MethodPost, test.path, bytes.NewBufferString(test.body))
+			method := test.method
+			if method == "" {
+				method = http.MethodPost
+			}
+			ctx.Request = httptest.NewRequest(method, test.path, bytes.NewBufferString(test.body))
 			ctx.Request.Header.Set("Content-Type", test.contentType)
 			t.Cleanup(func() { common.CleanupBodyStorage(ctx) })
 

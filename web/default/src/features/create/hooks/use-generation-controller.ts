@@ -152,12 +152,31 @@ export function useGenerationController(input: {
     }
     const sessionId = ensureSessionId()
     if (!sessionId) return null
+    if (modality === 'audio') {
+      // A file tool always runs on the attached file, so "generate again"
+      // re-labels the run from the current draft instead of reusing text.
+      const audioPrompts = draft.usesAudioInput ? draft.plan.prompts : prompts
+      if (audioPrompts.length === 0) return null
+      return studio.startBatch({
+        modality,
+        sessionId,
+        model,
+        group: draft.group,
+        references: draft.usesAudioInput ? batchReferences.slice(0, 1) : [],
+        prompts: audioPrompts.slice(0, MAX_STUDIO_BATCH_JOBS),
+        audio: {
+          tool: draft.audio.tool,
+          native: draft.audio.native,
+          inputName: draft.usesAudioInput ? references[0]?.name : undefined,
+        },
+      })
+    }
     return studio.startBatch({
       modality,
       sessionId,
       model,
       group: draft.group,
-      references: modality === 'audio' ? [] : batchReferences,
+      references: batchReferences,
       referenceVideos: batchVideos.length ? batchVideos : undefined,
       referenceAudios: batchAudios.length ? batchAudios : undefined,
       prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),

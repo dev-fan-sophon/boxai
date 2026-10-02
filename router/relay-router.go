@@ -85,6 +85,9 @@ func SetRelayRouter(router *gin.Engine) {
 		playgroundRouter.POST("/images/edits", middleware.Distribute(), controller.PlaygroundImageEdit)
 		playgroundRouter.POST("/audio/speech", middleware.Distribute(), controller.PlaygroundAudio)
 		playgroundRouter.POST("/video/generations", middleware.Distribute(), controller.PlaygroundVideo)
+		// Native ElevenLabs tools for the audio studio; same allow-list and
+		// billing as /elevenlabs/*path, authenticated by the user session.
+		playgroundRouter.Any("/elevenlabs/*path", middleware.Distribute(), controller.PlaygroundElevenLabs)
 	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))

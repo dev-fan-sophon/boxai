@@ -72,5 +72,69 @@ export function getModelModality(model: ModelModalityMetadata): StudioModality {
     return 'image'
   }
   if (/tts|speech|audio|voice/.test(name)) return 'audio'
+  if (ELEVENLABS_MODEL_KINDS[model.model_name]) return 'audio'
   return 'chat'
+}
+
+/**
+ * Audio sub-tool a model serves. ElevenLabs models advertise it through
+ * their gateway endpoint type (`audio-tts`, `audio-sfx`, …); other audio
+ * models (OpenAI-compatible TTS) are speech models.
+ */
+export type AudioKind =
+  | 'speech'
+  | 'sfx'
+  | 'music'
+  | 'transcribe'
+  | 'voice-changer'
+  | 'isolate'
+  | 'align'
+
+const AUDIO_ENDPOINT_KINDS: Record<string, AudioKind> = {
+  'audio-tts': 'speech',
+  'audio-sfx': 'sfx',
+  'audio-music': 'music',
+  'audio-stt': 'transcribe',
+  'audio-speech-to-speech': 'voice-changer',
+  'audio-isolation': 'isolate',
+  'audio-alignment': 'align',
+}
+
+/** Known ElevenLabs model ids, for catalogs without endpoint metadata. */
+const ELEVENLABS_MODEL_KINDS: Record<string, AudioKind> = {
+  eleven_v3: 'speech',
+  eleven_multilingual_v2: 'speech',
+  eleven_flash_v2_5: 'speech',
+  eleven_turbo_v2_5: 'speech',
+  eleven_text_to_sound_v2: 'sfx',
+  music_v1: 'music',
+  music_v2: 'music',
+  scribe_v1: 'transcribe',
+  scribe_v2: 'transcribe',
+  eleven_multilingual_sts_v2: 'voice-changer',
+  eleven_english_sts_v2: 'voice-changer',
+  'elevenlabs-audio-isolation': 'isolate',
+  'elevenlabs-forced-alignment': 'align',
+}
+
+function elevenLabsKind(model: ModelModalityMetadata): AudioKind | null {
+  for (const endpoint of model.supported_endpoint_types ?? []) {
+    const kind = AUDIO_ENDPOINT_KINDS[endpoint]
+    if (kind) return kind
+  }
+  return ELEVENLABS_MODEL_KINDS[model.model_name] ?? null
+}
+
+/** Audio sub-tool of a model; null when the model is not an audio model. */
+export function getAudioKind(model: ModelModalityMetadata): AudioKind | null {
+  if (getModelModality(model) !== 'audio') return null
+  return elevenLabsKind(model) ?? 'speech'
+}
+
+/**
+ * Whether the model runs on the native ElevenLabs passthrough
+ * (`/pg/elevenlabs/...`) rather than the OpenAI-compatible speech route.
+ */
+export function isElevenLabsAudioModel(model: ModelModalityMetadata): boolean {
+  return elevenLabsKind(model) !== null
 }

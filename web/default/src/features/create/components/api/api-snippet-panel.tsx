@@ -9,7 +9,11 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { StudioSettings } from '@/features/playground/types'
 
 import type { CreateTool } from '../../constants'
-import { buildApiRequest, type ApiRequestDraft } from '../../lib/api-request'
+import {
+  buildApiRequest,
+  type ApiRequest,
+  type ApiRequestDraft,
+} from '../../lib/api-request'
 
 type SnippetLanguage = 'curl' | 'python' | 'node'
 
@@ -24,12 +28,76 @@ function serverAddress(): string {
   return window.location.origin
 }
 
+/** Multipart upload snippet for the file-based audio tools. */
+function renderMultipartSnippet(
+  language: SnippetLanguage,
+  url: string,
+  request: ApiRequest & { file: { field: string; example: string } }
+): string {
+  const fields = Object.entries(request.body).map(
+    ([key, value]) => [key, String(value)] as const
+  )
+  const output = request.binaryOutput ? 'output.mp3' : ''
+  if (language === 'curl') {
+    return [
+      `curl ${url} \\`,
+      `  -H "Authorization: Bearer $BOXAI_API_KEY" \\`,
+      `  -F "${request.file.field}=@${request.file.example}"${fields.length || output ? ' \\' : ''}`,
+      ...fields.map(
+        ([key, value], index) =>
+          `  -F "${key}=${value.replaceAll('"', '\\"')}"${index < fields.length - 1 || output ? ' \\' : ''}`
+      ),
+      ...(output ? [`  --output ${output}`] : []),
+    ].join('\n')
+  }
+  if (language === 'python') {
+    return [
+      'import os',
+      'import requests',
+      '',
+      'response = requests.post(',
+      `    "${url}",`,
+      '    headers={"Authorization": f"Bearer {os.environ[\'BOXAI_API_KEY\']}"},',
+      `    files={"${request.file.field}": open("${request.file.example}", "rb")},`,
+      `    data=${JSON.stringify(Object.fromEntries(fields))},`,
+      ')',
+      output
+        ? `open("${output}", "wb").write(response.content)`
+        : 'print(response.json())',
+    ].join('\n')
+  }
+  return [
+    "import fs from 'node:fs'",
+    '',
+    'const form = new FormData()',
+    `form.append('${request.file.field}', new Blob([fs.readFileSync('${request.file.example}')]), '${request.file.example}')`,
+    ...fields.map(
+      ([key, value]) => `form.append('${key}', ${JSON.stringify(value)})`
+    ),
+    `const response = await fetch('${url}', {`,
+    "  method: 'POST',",
+    '  headers: { Authorization: `Bearer ${process.env.BOXAI_API_KEY}` },',
+    '  body: form,',
+    '})',
+    output
+      ? `await fs.promises.writeFile('${output}', Buffer.from(await response.arrayBuffer()))`
+      : 'console.log(await response.json())',
+  ].join('\n')
+}
+
 function renderSnippet(
   language: SnippetLanguage,
   url: string,
-  body: Record<string, unknown>,
-  binaryOutput: boolean
+  request: ApiRequest
 ): string {
+  if (request.file) {
+    return renderMultipartSnippet(language, url, {
+      ...request,
+      file: request.file,
+    })
+  }
+  const body = request.body
+  const binaryOutput = request.binaryOutput === true
   const json = JSON.stringify(body, null, 2)
   if (language === 'curl') {
     return [
@@ -84,12 +152,7 @@ export function ApiSnippetPanel(props: {
   const [language, setLanguage] = useState<SnippetLanguage>('curl')
   const request = buildApiRequest(props)
   const url = `${serverAddress()}${request.path}`
-  const snippet = renderSnippet(
-    language,
-    url,
-    request.body,
-    props.modality === 'audio'
-  )
+  const snippet = renderSnippet(language, url, request)
 
   return (
     <div className='mx-auto w-full max-w-3xl space-y-4 px-4 py-6 sm:px-6'>
@@ -127,7 +190,7 @@ export function ApiSnippetPanel(props: {
       />
       <div className='border-border/70 bg-muted/30 relative overflow-hidden rounded-xl border'>
         <div className='border-border/60 text-muted-foreground flex items-center justify-between border-b px-3 py-1.5 font-mono text-xs'>
-          <span className='truncate'>POST {request.path}</span>
+          <span className='truncate'>POST {request.path.split('?')[0]}</span>
           <CopyButton value={snippet} className='size-7' />
         </div>
         <pre className='overflow-x-auto p-4 font-mono text-xs leading-relaxed'>

@@ -24,7 +24,10 @@ import type { StudioRunSummary } from '@/features/playground/lib/session/session
 import type { PendingStudioRun } from '@/features/playground/lib/studio/studio-feed'
 import { cn } from '@/lib/utils'
 
+import { parseTranscript } from '../../lib/transcript'
 import { resolveVideoLastFrame } from '../../lib/video-last-frame'
+import { AudioPlayer } from './audio-player'
+import { TranscriptCard } from './transcript-card'
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000))
@@ -528,6 +531,8 @@ export function AudioResultRow(props: {
   onDownload: () => void
 }) {
   const { t } = useTranslation()
+  const transcript = parseTranscript(props.run.prompt)
+  if (transcript) return <TranscriptCard transcript={transcript} />
   if (!props.run.resultUrl) {
     return (
       <p className='text-muted-foreground border-border/70 bg-muted/30 rounded-xl border border-dashed px-3 py-3 text-center text-xs'>
@@ -536,29 +541,11 @@ export function AudioResultRow(props: {
     )
   }
   return (
-    <div className='border-border/70 bg-muted/30 flex items-center gap-2 rounded-xl border p-2'>
-      <div className='min-w-0 flex-1'>
-        {props.caption && (
-          <p className='text-muted-foreground text-2xs mb-1 line-clamp-1 px-1'>
-            {props.caption}
-          </p>
-        )}
-        <audio controls className='h-9 w-full' src={props.run.resultUrl}>
-          {t('Your browser does not support audio playback.')}
-        </audio>
-      </div>
-      <Button
-        type='button'
-        size='icon-sm'
-        variant='ghost'
-        className='text-muted-foreground hover:text-foreground shrink-0'
-        aria-label={t('Download audio')}
-        title={t('Download audio')}
-        disabled={props.downloading}
-        onClick={props.onDownload}
-      >
-        <TileActionIcon downloading={props.downloading} done={false} />
-      </Button>
-    </div>
+    <AudioPlayer
+      src={props.run.resultUrl}
+      caption={props.caption}
+      downloading={props.downloading}
+      onDownload={props.onDownload}
+    />
   )
 }

@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
 import type { PricingModel } from '@/features/pricing/types'
+import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import {
@@ -25,6 +26,7 @@ import {
 import type { GenerationController } from '../../hooks/use-generation-controller'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
+import { AudioInputDropzone } from '../references/audio-input-dropzone'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationSettingsSection } from '../settings/generation-settings-section'
 import { PanelSection } from './panel-section'
@@ -109,7 +111,7 @@ export function ControlPanel(props: {
           pricingModel={props.pricingModel}
           label={draft.submitLabel}
           disabled={!draft.canSubmit}
-          issue={draft.videoIssue}
+          issue={draft.videoIssue ?? draft.audioIssue}
           onGenerate={() => {
             controller.submit()
             props.onGenerated?.()
@@ -143,51 +145,78 @@ function PromptAndReferences(props: { controller: GenerationController }) {
     mediaHint = t('The image becomes the opening frame of the clip.')
   }
 
+  let promptTitle = t('Prompt')
+  if (draft.audio.tool === 'sfx' && controller.modality === 'audio') {
+    promptTitle = t('Sound description')
+  } else if (draft.audio.tool === 'music' && controller.modality === 'audio') {
+    promptTitle = t('Music prompt')
+  } else if (controller.modality === 'audio') {
+    promptTitle = t('Script')
+  }
+  const overLimit =
+    draft.charLimit !== null && draft.charCount > draft.charLimit
+
   return (
     <>
-      <PanelSection
-        title={controller.modality === 'audio' ? t('Script') : t('Prompt')}
-        hint={
-          draft.batchMode
-            ? t('One prompt per line · use {a|b} for variants')
-            : undefined
-        }
-      >
-        <Textarea
-          value={controller.text}
-          onChange={(event) => controller.setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault()
-              controller.submit()
-            }
-          }}
-          placeholder={draft.placeholder}
-          aria-label={draft.placeholder}
-          className='bg-background min-h-36 resize-y rounded-xl text-sm leading-relaxed'
-        />
-        <div className='text-muted-foreground text-2xs flex items-center justify-between gap-2'>
-          <span className='inline-flex items-center gap-1' aria-live='polite'>
-            {draft.planSummary ? (
-              <>
-                <Layers className='size-3' aria-hidden='true' />
-                {draft.planSummary}
-              </>
-            ) : (
-              t('Ctrl/⌘ + Enter to generate')
-            )}
-          </span>
-          <span className='tabular-nums'>{controller.text.length}</span>
-        </div>
-        {draft.plan.truncated > 0 && (
-          <p className='text-warning text-2xs'>
-            {t('{{count}} more skipped (max {{max}} per run)', {
-              count: draft.plan.truncated,
-              max: MAX_STUDIO_BATCH_JOBS,
-            })}
-          </p>
-        )}
-      </PanelSection>
+      {draft.usesAudioInput && (
+        <PanelSection title={t('Input audio')}>
+          <AudioInputDropzone
+            value={controller.references}
+            onChange={controller.setReferences}
+          />
+        </PanelSection>
+      )}
+      {draft.usesPromptText && (
+        <PanelSection
+          title={promptTitle}
+          hint={
+            draft.batchMode
+              ? t('One prompt per line · use {a|b} for variants')
+              : undefined
+          }
+        >
+          <Textarea
+            value={controller.text}
+            onChange={(event) => controller.setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault()
+                controller.submit()
+              }
+            }}
+            placeholder={draft.placeholder}
+            aria-label={draft.placeholder}
+            className='bg-background min-h-36 resize-y rounded-xl text-sm leading-relaxed'
+          />
+          <div className='text-muted-foreground text-2xs flex items-center justify-between gap-2'>
+            <span className='inline-flex items-center gap-1' aria-live='polite'>
+              {draft.planSummary ? (
+                <>
+                  <Layers className='size-3' aria-hidden='true' />
+                  {draft.planSummary}
+                </>
+              ) : (
+                t('Ctrl/⌘ + Enter to generate')
+              )}
+            </span>
+            <span
+              className={cn('tabular-nums', overLimit && 'text-destructive')}
+            >
+              {draft.charLimit === null
+                ? controller.text.length
+                : `${draft.charCount.toLocaleString()} / ${draft.charLimit.toLocaleString()}`}
+            </span>
+          </div>
+          {draft.plan.truncated > 0 && (
+            <p className='text-warning text-2xs'>
+              {t('{{count}} more skipped (max {{max}} per run)', {
+                count: draft.plan.truncated,
+                max: MAX_STUDIO_BATCH_JOBS,
+              })}
+            </p>
+          )}
+        </PanelSection>
+      )}
 
       {draft.showMediaSlot && (
         <PanelSection title={draft.mediaLabel} hint={mediaHint}>

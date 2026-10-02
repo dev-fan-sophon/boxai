@@ -1,6 +1,7 @@
 import type { UIMessage } from 'ai'
 
 import type { ReasoningEffort, ReasoningLevel } from '../pricing/types'
+import type { AudioStudioSettings } from './lib/studio/audio-settings'
 
 export type PlaygroundReasoningLevel = ReasoningLevel | ReasoningEffort
 
@@ -320,10 +321,11 @@ export type StudioSettings = {
   videoSeed?: number | null
   /** Ask the provider for a visible watermark (Seedance). */
   videoWatermark?: boolean
+  /** OpenAI-compatible speech (non-ElevenLabs TTS models, canvas). */
   voice: string
   speed: number
   audioFormat: string
-}
+} & AudioStudioSettings
 
 export type GeneratedImage = {
   url: string

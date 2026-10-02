@@ -17,7 +17,11 @@ import {
 } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
-import { getModelModality } from '@/features/playground/lib/studio/model-modality'
+import {
+  getAudioKind,
+  getModelModality,
+  type AudioKind,
+} from '@/features/playground/lib/studio/model-modality'
 import { compareVendorNames } from '@/features/pricing/lib/model-helpers'
 import type { PricingModel } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
@@ -27,6 +31,8 @@ import type { CreateTool } from '../../constants'
 
 type ModelPickerProps = {
   modality: CreateTool
+  /** Audio tool: list only the models of this audio sub-tool. */
+  audioKind?: AudioKind
   catalogModels: PricingModel[]
   loading: boolean
   value: string
@@ -49,6 +55,7 @@ export function ModelPicker(props: ModelPickerProps) {
     for (const model of props.catalogModels) {
       if (!availableNames.has(model.model_name)) continue
       if (getModelModality(model) !== props.modality) continue
+      if (props.audioKind && getAudioKind(model) !== props.audioKind) continue
       const vendor = model.vendor_name?.trim() ?? ''
       byVendor.set(vendor, [...(byVendor.get(vendor) ?? []), model])
     }
@@ -58,7 +65,7 @@ export function ModelPicker(props: ModelPickerProps) {
         models: models.sort((a, b) => a.model_name.localeCompare(b.model_name)),
       }))
       .sort((a, b) => compareVendorNames(a.vendor, b.vendor))
-  }, [available, props.catalogModels, props.modality])
+  }, [available, props.catalogModels, props.modality, props.audioKind])
 
   const selected = props.catalogModels.find(
     (model) => model.model_name === props.value

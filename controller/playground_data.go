@@ -1337,7 +1337,14 @@ func CreatePlaygroundRun(c *gin.Context) {
 		common.ApiErrorMsg(c, "invalid modality")
 		return
 	}
-	prompt := truncateRunes(body.Prompt, 4000)
+	promptLimit := 4000
+	if mod == "audio" {
+		// Transcription runs keep their transcript (with timestamps) as the
+		// run text; 16k runes stays inside a MySQL TEXT column (64 KiB) even
+		// at 4 bytes per rune.
+		promptLimit = 16000
+	}
+	prompt := truncateRunes(body.Prompt, promptLimit)
 	resultURL := allowlistedResultURL(body.ResultURL)
 	assetId := body.AssetId
 	if assetId < 0 {

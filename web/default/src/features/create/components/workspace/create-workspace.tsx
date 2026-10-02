@@ -1,5 +1,5 @@
 import { Code2, FolderClock, Plus, Settings2, Sparkles } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,11 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SessionHistoryPanel } from '@/features/playground/components/shell/session-history-panel'
-import { getModelModality } from '@/features/playground/lib/studio/model-modality'
+import {
+  getAudioKind,
+  getModelModality,
+  type AudioKind,
+} from '@/features/playground/lib/studio/model-modality'
 import { useLgUp } from '@/hooks'
 import { useCreateStore, type CreateMainTab } from '@/stores/create-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
@@ -31,6 +35,7 @@ import { ControlPanel } from '../panel/control-panel'
 import { ModelPicker } from '../panel/model-picker'
 import { StoryboardBoard } from '../storyboard/storyboard-board'
 import { StoryboardScriptPanel } from '../storyboard/storyboard-script-panel'
+import { AudioToolSwitch } from './audio-tool-switch'
 
 type CreateMode = 'single' | 'batch' | 'storyboard'
 
@@ -80,6 +85,44 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
     [models, workspace]
   )
 
+  // Audio: the first callable model of every audio sub-tool, so switching
+  // tools can move to a model that serves it.
+  const audioModelByKind = useMemo(() => {
+    const byKind = new Map<AudioKind, string>()
+    if (tool !== 'audio') return byKind
+    const callable = new Set(models.map((option) => option.value))
+    const sorted = [...workspace.catalogModels].sort((a, b) =>
+      a.model_name.localeCompare(b.model_name)
+    )
+    for (const catalog of sorted) {
+      if (!callable.has(catalog.model_name)) continue
+      const kind = getAudioKind(catalog)
+      if (kind && !byKind.has(kind)) byKind.set(kind, catalog.model_name)
+    }
+    return byKind
+  }, [tool, models, workspace.catalogModels])
+  const audioAvailableKinds = useMemo(
+    () => new Set(audioModelByKind.keys()),
+    [audioModelByKind]
+  )
+  const audioState = controller.draft.audio
+
+  // A model picked elsewhere (Model Hub link, another tab) decides the tool.
+  useEffect(() => {
+    if (tool !== 'audio' || !audioState.modelKind) return
+    if (audioState.modelKind === audioState.tool) return
+    const modelKind = audioState.modelKind
+    setStudioSettings((prev) => ({ ...prev, audioTool: modelKind }))
+  }, [tool, audioState.modelKind, audioState.tool, setStudioSettings])
+
+  const changeAudioTool = (next: AudioKind) => {
+    setStudioSettings((prev) => ({ ...prev, audioTool: next }))
+    const nextModel = audioModelByKind.get(next)
+    if (audioState.modelKind !== next && nextModel) {
+      selectModel(nextModel, undefined, { switchModality: 'audio' })
+    }
+  }
+
   let mode: CreateMode = 'single'
   if (storyboardMode) mode = 'storyboard'
   else if (controller.draft.batchMode) mode = 'batch'
@@ -110,6 +153,7 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
   const modelPicker = (
     <ModelPicker
       modality={tool}
+      audioKind={tool === 'audio' ? audioState.tool : undefined}
       catalogModels={workspace.catalogModels}
       loading={workspace.pricing.isLoading || workspace.isLoadingModels}
       value={model}
@@ -119,7 +163,13 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
     />
   )
   const modeSwitch =
-    tool === 'audio' ? null : (
+    tool === 'audio' ? (
+      <AudioToolSwitch
+        value={audioState.tool}
+        availableKinds={audioAvailableKinds}
+        onValueChange={changeAudioTool}
+      />
+    ) : (
       <SegmentedControl<CreateMode>
         fullWidth
         aria-label={t('Creation mode')}

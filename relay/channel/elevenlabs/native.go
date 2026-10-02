@@ -48,6 +48,24 @@ const (
 
 const defaultMusicDurationSeconds = 30
 
+// Upstream request bounds (https://elevenlabs.io/docs/api-reference). They are
+// enforced before pre-consume so a malformed request is rejected with 400
+// instead of being billed and failing upstream.
+const (
+	MaxTTSCharactersV3           = 5000
+	MaxTTSCharactersMultilingual = 10000
+	MaxTTSCharactersDefault      = 40000
+	MinTTSSpeed                  = 0.7
+	MaxTTSSpeed                  = 1.2
+	MaxSeed                      = 4294967295
+	MinSoundDurationSeconds      = 0.5
+	MaxSoundDurationSeconds      = 30
+	MinMusicLengthMs             = 3000
+	MaxMusicLengthMs             = 600000
+	MinMusicSectionMs            = 3000
+	MaxMusicSectionMs            = 120000
+)
+
 type NativeEndpoint struct {
 	Name         string
 	BillingKind  int
@@ -73,8 +91,22 @@ var DefaultModelList = []string{
 	NativeForcedAlignmentModel,
 }
 
+// PlaygroundProxyPrefix is the session-authenticated mirror of the native
+// /elevenlabs/* passthrough used by the /create/audio studio.
+const PlaygroundProxyPrefix = "/pg/elevenlabs"
+
+// PlaygroundGroupHeader carries the playground group selection for the native
+// passthrough; it is consumed by the distributor and never sent upstream.
+const PlaygroundGroupHeader = "X-Playground-Group"
+
 func IsNativeProxyPath(path string) bool {
-	return strings.HasPrefix(path, "/elevenlabs/") || IsBareNativeAliasPath(path)
+	return strings.HasPrefix(path, "/elevenlabs/") || IsPlaygroundProxyPath(path) || IsBareNativeAliasPath(path)
+}
+
+// IsPlaygroundProxyPath reports whether path is the playground (session-auth)
+// form of the native ElevenLabs passthrough.
+func IsPlaygroundProxyPath(path string) bool {
+	return strings.HasPrefix(path, PlaygroundProxyPrefix+"/")
 }
 
 func IsBareNativeAliasPath(path string) bool {
@@ -89,6 +121,9 @@ func IsBareNativeAliasPath(path string) bool {
 }
 
 func UpstreamPathFromProxyPath(path string) string {
+	if IsPlaygroundProxyPath(path) || path == PlaygroundProxyPrefix {
+		path = strings.TrimPrefix(path, "/pg")
+	}
 	if strings.HasPrefix(path, "/elevenlabs") {
 		path = strings.TrimPrefix(path, "/elevenlabs")
 		if path == "" {
@@ -515,18 +550,59 @@ func estimateMusicDuration(c *gin.Context) (float64, error) {
 	if len(bytes.TrimSpace(body)) == 0 {
 		return 0, errors.New("request body is required")
 	}
+	durationMs, err := requestedMusicLengthMs(body)
+	if err != nil {
+		return 0, err
+	}
+	if durationMs == 0 {
+		return defaultMusicDurationSeconds, nil
+	}
+	return durationMs / 1000, nil
+}
+
+// requestedMusicLengthMs returns the duration a music request asks for: the
+// sum of the composition plan's section/chunk durations when a plan is sent,
+// otherwise music_length_ms. Zero means "let the model choose". Every value is
+// bounded to the upstream limits so it can never inflate or wrap the charge.
+func requestedMusicLengthMs(body []byte) (float64, error) {
+	plan := gjson.GetBytes(body, "composition_plan")
+	if plan.Exists() && plan.Type != gjson.Null {
+		parts := plan.Get("sections")
+		if !parts.Exists() || parts.Type == gjson.Null {
+			parts = plan.Get("chunks")
+		}
+		if !parts.IsArray() || len(parts.Array()) == 0 {
+			return 0, errors.New("composition_plan must contain sections or chunks")
+		}
+		total := 0.0
+		for _, part := range parts.Array() {
+			duration := part.Get("duration_ms")
+			if duration.Type != gjson.Number {
+				return 0, errors.New("every composition_plan section must have a numeric duration_ms")
+			}
+			value := duration.Float()
+			if math.IsNaN(value) || value < MinMusicSectionMs || value > MaxMusicSectionMs {
+				return 0, fmt.Errorf("composition_plan duration_ms must be between %d and %d", MinMusicSectionMs, MaxMusicSectionMs)
+			}
+			total += value
+		}
+		if total > MaxMusicLengthMs {
+			return 0, fmt.Errorf("composition_plan total duration must not exceed %d ms", MaxMusicLengthMs)
+		}
+		return total, nil
+	}
 	lengthMs := gjson.GetBytes(body, "music_length_ms")
 	if !lengthMs.Exists() || lengthMs.Type == gjson.Null {
-		return defaultMusicDurationSeconds, nil
+		return 0, nil
 	}
 	if lengthMs.Type != gjson.Number {
 		return 0, errors.New("music_length_ms must be a number")
 	}
-	duration := lengthMs.Float() / 1000
-	if duration <= 0 || duration > relaycommon.MaxTaskDurationSeconds {
-		return 0, fmt.Errorf("music_length_ms must be between 1 and %d seconds", relaycommon.MaxTaskDurationSeconds)
+	value := lengthMs.Float()
+	if math.IsNaN(value) || value < MinMusicLengthMs || value > MaxMusicLengthMs {
+		return 0, fmt.Errorf("music_length_ms must be between %d and %d", MinMusicLengthMs, MaxMusicLengthMs)
 	}
-	return duration, nil
+	return value, nil
 }
 
 func durationToAudioUnits(duration float64) (int, error) {
@@ -658,7 +734,8 @@ func copyNativeRequestHeaders(c *gin.Context, req *http.Request) {
 
 func shouldSkipNativeRequestHeader(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "", "host", "content-length", "accept-encoding", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "authorization", "x-api-key", "xi-api-key", "cookie":
+	case "", "host", "content-length", "accept-encoding", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "authorization", "x-api-key", "xi-api-key", "cookie",
+		"new-api-user", "x-playground-group", "origin", "referer":
 		return true
 	default:
 		return false
