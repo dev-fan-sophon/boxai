@@ -7,7 +7,6 @@ import { IconCheck } from "./icons";
 const STEP_LOCALE_KEY: Record<string, string> = {
   project: "openProject",
   prompt: "firstPrompt",
-  plugin: "loadPlugin",
 };
 
 /** First-run inline checklist (D021): rendered on the empty chat home until
@@ -20,10 +19,10 @@ export function OnboardingChecklist() {
   const openProject = useAppStore((s) => s.openProject);
 
   if (!onboarding?.showChecklist) return null;
-  // BoxAI authorization owns provider/key setup. Legacy host checklist steps
-  // can remain incomplete (OAuth secrets are not provider API-key records).
+  // BoxAI onboarding is project + first message only. Account setup is handled
+  // by authorization, and development plugins are not a user onboarding step.
   const steps = (onboarding.steps ?? []).filter(
-    (step) => step.id !== "provider" && step.id !== "secret",
+    (step) => step.id === "project" || step.id === "prompt",
   );
   if (steps.length === 0 || steps.every((s) => s.done)) return null;
 
@@ -46,10 +45,6 @@ export function OnboardingChecklist() {
             .querySelector<HTMLTextAreaElement>(".composer-input")
             ?.focus();
         });
-        break;
-      case "plugins.open":
-      case "loadPlugin":
-        setPage("plugins");
         break;
       default:
         break;

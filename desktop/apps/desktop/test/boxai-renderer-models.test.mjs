@@ -48,6 +48,7 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
       { id: "secret", title: "Save your API key", action: "saveKey", done: false },
       { id: "project", title: "Open a project folder", action: "project.open", done: false },
       { id: "prompt", title: "Send your first message", action: "chat.focus", done: false },
+      { id: "plugin", title: "Load a development plugin (optional)", action: "plugins.open", done: false },
     ] }],
     [IPC.invoke.pluginList, { plugins: [] }],
     [IPC.invoke.notificationList, { notifications: [], unreadCount: 0 }],
@@ -98,7 +99,7 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
   initialSnapshot.onboarding = state.onboarding;
   t.after(() => { initialSnapshot.onboarding = initialOnboarding; });
   const checklist = renderToStaticMarkup(createElement(OnboardingChecklist));
-  assert.doesNotMatch(checklist, /Add an AI provider|Save your API key|onboarding\.(addProvider|saveKey)/);
+  assert.doesNotMatch(checklist, /Add an AI provider|Save your API key|Load a development plugin|onboarding\.(addProvider|saveKey|loadPlugin)/);
   assert.match(checklist, /Open a project folder/);
   assert.match(checklist, /Send your first message/);
   assert.equal((checklist.match(/<li>/g) ?? []).length, 2);
@@ -107,7 +108,7 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
   })) } });
   initialSnapshot.onboarding = useAppStore.getState().onboarding;
   assert.equal(renderToStaticMarkup(createElement(OnboardingChecklist)), "",
-    "hidden provider/key steps must not keep completed onboarding visible");
+    "hidden provider/key/plugin steps must not keep completed onboarding visible");
   settings.defaultModelId = "claude-sonnet-4-6";
   await useAppStore.getState().refreshProviders();
   assert.equal(useAppStore.getState().settings.defaultModelId, "claude-sonnet-4-6");
