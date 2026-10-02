@@ -23,6 +23,8 @@ const stage = join(root, "desktop/release", version);
 const scratch = mkdtempSync(join(tmpdir(), "boxai-native-"));
 const install = join(scratch, "installed");
 const digest = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+// The session-list probe only seeds an unconfigured direct child of tmpdir.
+const profile = mkdtempSync(join(tmpdir(), "pi-desktop-boot-"));
 let signed = false;
 let zipSha256;
 let mounted = false;
@@ -81,7 +83,7 @@ try {
   const updateConfig = readFileSync(join(resources, "app-update.yml"), "utf8");
   assert.match(updateConfig, /provider: generic/);
   assert.match(updateConfig, /url: https:\/\/dl\.you-box\.com\/desktop\//);
-  const env = { ...process.env, PI_DESKTOP_DATA_DIR: join(scratch, "profile"), PI_DESKTOP_BOOT_PROBE: "1", ELECTRON_RENDERER_URL: "" };
+  const env = { ...process.env, PI_DESKTOP_DATA_DIR: profile, PI_DESKTOP_BOOT_PROBE: "1", ELECTRON_RENDERER_URL: "" };
   delete env.ELECTRON_RUN_AS_NODE;
   const probe = await new Promise((resolve, reject) => {
     const child = spawn(executable, [], { env, stdio: ["ignore", "pipe", "pipe"] });
@@ -101,7 +103,9 @@ try {
   assert.equal(probe.version, version);
   assert.equal(probe.appName, "BoxAI Desktop");
   assert.equal(probe.platform, platform);
-  assert.equal(probe.projectRemove?.ok, true, "host-core IPC round trip");
+  assert.equal(probe.account?.connected, false, "fresh install must not inherit an account");
+  assert.equal(probe.providerCount, 0, "fresh install must not expose upstream providers");
+  assert.equal(probe.loginGateVisible, true, "renderer must require BoxAI browser login");
   assert.equal(probe.ctrlRBlocked, true);
   mkdirSync(stage, { recursive: true });
   copyFileSync(artifact, join(stage, filename));
@@ -123,4 +127,5 @@ try {
     execFileSync(join(install, "Uninstall BoxAI Desktop.exe"), ["/S", `_?=${install}`]);
   }
   rmSync(scratch, { recursive: true, force: true });
+  rmSync(profile, { recursive: true, force: true });
 }

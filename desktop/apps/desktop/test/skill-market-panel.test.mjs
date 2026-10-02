@@ -83,7 +83,7 @@ test("a failed preview is reported instead of silently disabling install", () =>
   // stays — what changes is that a failure is now legible and recoverable.
   assert.match(panel, /setPreviewFailure\(\{/);
   assert.match(panel, /const kind = classifySkillMarketFailure\(error\)/);
-  assert.match(panel, /detail: skillMarketFailureDetail\(error\)/);
+  assert.match(panel, /detail: entry\.boxaiOfficial \? t\("settings\.sklm\.previewError"\) : skillMarketFailureDetail\(error\)/);
   assert.match(panel, /settings\.sklm\.previewError/);
   assert.match(panel, /settings\.sklm\.previewPolicyError/);
   assert.match(panel, /settings\.sklm\.proxyHint/);

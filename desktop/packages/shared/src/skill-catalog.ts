@@ -15,6 +15,8 @@ export type SkillCatalogCategory = "workflow" | "writing" | "coding" | "data" | 
 
 export type SkillCatalogEntry = {
   id: string;
+  /** Display/install routing only; Main revalidates against the authenticated catalog. */
+  boxaiOfficial?: boolean;
   name: string;
   description?: string;
   author?: string;

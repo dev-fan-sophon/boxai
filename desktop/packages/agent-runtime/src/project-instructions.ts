@@ -1,5 +1,5 @@
 import { readFile, realpath } from "node:fs/promises";
-import { homedir } from "node:os";
+import { agentDataDir } from "./agent-data-dir.js";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 const INSTRUCTION_FILE_NAMES = [
@@ -9,7 +9,6 @@ const INSTRUCTION_FILE_NAMES = [
   join(".claude", "CLAUDE.md"),
 ];
 const MAX_INSTRUCTION_BYTES = 32 * 1024;
-const GLOBAL_INSTRUCTION_PATH = join(homedir(), ".pi", "agent", "AGENTS.md");
 
 export type ProjectInstruction = {
   source: string;
@@ -21,7 +20,7 @@ export type ProjectInstructions = {
 };
 
 export function globalInstructionPath(): string {
-  return GLOBAL_INSTRUCTION_PATH;
+  return join(agentDataDir(), "AGENTS.md");
 }
 
 function isWithinRoot(root: string, path: string): boolean {
@@ -113,7 +112,7 @@ export async function loadProjectInstructions(
 export async function loadInstructionChain(
   workspaceRoot: string | null | undefined,
   workspacePath?: string,
-  globalPath = GLOBAL_INSTRUCTION_PATH,
+  globalPath = globalInstructionPath(),
 ): Promise<ProjectInstructions | undefined> {
   const entries: ProjectInstruction[] = [];
   let remaining = MAX_INSTRUCTION_BYTES;
@@ -121,7 +120,7 @@ export async function loadInstructionChain(
     const content = (await readFile(globalPath, "utf8")).trim();
     if (content) {
       const limited = limitUtf8(content, remaining);
-      entries.push({ source: "~/.pi/agent/AGENTS.md", content: limited });
+      entries.push({ source: globalPath, content: limited });
       remaining -= Buffer.byteLength(limited, "utf8");
     }
   } catch {

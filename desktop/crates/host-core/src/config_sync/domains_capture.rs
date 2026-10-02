@@ -429,7 +429,8 @@ pub(crate) fn capture_instructions(
     identities: &ProjectIdentityOverrides,
 ) -> Result<Vec<PortableEntity>> {
     let mut result = Vec::new();
-    if let Some(path) = global_instruction_path() {
+    {
+        let path = global_instruction_path_for_sync(&st.data_dir);
         if let Some(content) = read_instruction_file(&path)? {
             result.push(entity(
                 DOMAIN_INSTRUCTIONS,
@@ -504,10 +505,6 @@ pub(crate) fn capture_instructions(
     Ok(result)
 }
 
-fn global_instruction_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| home.join(".pi").join("agent").join("AGENTS.md"))
-}
-
 fn read_instruction_file(path: &Path) -> Result<Option<String>> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(None);
@@ -529,9 +526,8 @@ fn read_instruction_file(path: &Path) -> Result<Option<String>> {
     Ok(Some(content))
 }
 
-pub(crate) fn global_instruction_path_for_sync() -> Result<PathBuf> {
-    global_instruction_path()
-        .ok_or_else(|| anyhow::anyhow!("CONFIG_SYNC_INVALID: home directory is unavailable"))
+pub(crate) fn global_instruction_path_for_sync(data_dir: &Path) -> PathBuf {
+    data_dir.join("agent").join("AGENTS.md")
 }
 
 pub(crate) fn write_instruction_file(path: &Path, content: &str) -> Result<()> {

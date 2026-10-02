@@ -51,4 +51,4 @@ in three or more files. The new component must:
 3. Include proper ARIA attributes
 4. Be exported from `components/ui.tsx` (or `components/settings/` for
    Settings-specific primitives)
-5. Be documented in `docs/spec/04-ux/07-ui-design-system.md` §11
+5. Include usage guidance alongside the shared primitive and tests for its contract

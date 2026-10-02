@@ -493,8 +493,8 @@ describe("sanitizeMarketSources", () => {
     ]);
     expect(sources[0]).toMatchObject({
       id: "official",
-      url: "https://registry.modelcontextprotocol.io/v0/servers",
-      kind: "registry",
+      url: "https://you-box.com/api/desktop/catalog",
+      kind: "catalog",
       builtin: true,
     });
     expect(sources).toHaveLength(16);

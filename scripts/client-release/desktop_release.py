@@ -58,7 +58,9 @@ def prepare(stage, version, commit):
             raise ValueError("Signed metadata requires native macOS notarization evidence")
         if not (boot.get("ok") is True and boot.get("version") == version
                 and boot.get("appName") == "BoxAI Desktop" and boot.get("platform") == platform
-                and boot.get("projectRemove", {}).get("ok") is True and boot.get("ctrlRBlocked") is True):
+                and boot.get("account", {}).get("connected") is False
+                and boot.get("providerCount") == 0 and boot.get("loginGateVisible") is True
+                and boot.get("ctrlRBlocked") is True):
             raise ValueError(f"Installed boot assertion missing: {filename}")
         url = f"{BASE}/{version}/{filename}"
         downloads.append(dict(platform=website_os, arch=website_arch, kind=kind, signed=signed,

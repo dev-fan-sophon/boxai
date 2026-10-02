@@ -11,7 +11,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
-const [apiSource, appSource, composerSource, settingsSource, commandsSource, storeSource, surfaceSource, transcriptSource, barSource, topbarSource, componentSpec, englishSource, chineseSource, planStateSource, composerCss] =
+const [apiSource, appSource, composerSource, settingsSource, commandsSource, storeSource, surfaceSource, transcriptSource, barSource, topbarSource, englishSource, chineseSource, planStateSource, composerCss] =
   await Promise.all([
     read("../src/lib/api.ts"),
     readAppSource(),
@@ -23,7 +23,6 @@ const [apiSource, appSource, composerSource, settingsSource, commandsSource, sto
     readTranscriptSource(),
     read("../src/components/PlanApprovalBar.tsx"),
     read("../src/components/ConversationTopbar.tsx"),
-    read("../../../docs/spec/04-ux/08-component-spec.md"),
     read("../../../packages/i18n/src/locales/en/index.ts"),
     read("../../../packages/i18n/src/locales/zh-CN/index.ts"),
     read("../src/lib/plan-mode-state.ts"),
@@ -125,23 +124,6 @@ test("host ordering uses a fresh monotonic token-checked read", () => {
   const hostBlock = eventsSource.slice(eventsSource.indexOf("handlePlansChanged: (event) =>"));
   assert.match(hostBlock, /runtime\.nextPlanSyncGeneration\(event\.sessionId\)/);
   assert.match(hostBlock, /withoutRecordKey\(state\.pendingPlans, event\.sessionId\)/);
-});
-
-test("the component spec assigns mode ownership to Composer", () => {
-  const topbarSpec = componentSpec.slice(
-    componentSpec.indexOf("## 2. Topbar"),
-    componentSpec.indexOf("## 3. Sidebar"),
-  );
-  const composerSpec = componentSpec.slice(
-    componentSpec.indexOf("## 11. Composer"),
-    componentSpec.indexOf("## 12.", componentSpec.indexOf("## 11. Composer")),
-  );
-  assert.match(topbarSpec, /Project\s+scope/);
-  assert.doesNotMatch(topbarSpec, /model picker/);
-  assert.doesNotMatch(topbarSpec, /Agent \| Plan|mode toggle|mode indicator/);
-  assert.match(composerSpec, /combined model ×\s+reasoning-level control/);
-  assert.match(composerSpec, /Composer-left Agent\/Plan\/Goal chip is the sole mode/);
-  assert.match(composerSpec, /--ds-bg-composer/);
 });
 
 test("plan approval sends exact identities and waits for host confirmation", () => {

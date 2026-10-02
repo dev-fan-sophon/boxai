@@ -14,7 +14,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { agentDataDir } from "./agent-data-dir.js";
 import { isAbsolute, join, relative, resolve, dirname } from "node:path";
 import {
   CURRENT_SESSION_VERSION,
@@ -308,7 +308,7 @@ const NATIVE_FORK_ERROR_CODES = new Set([
 const nativeServices = new Map<string, NativePiSessionService>();
 
 export function nativePiService(options: { agentDir?: string; sessionRoot?: string } = {}): NativePiSessionService {
-  const agentDir = resolve(options.agentDir ?? join(homedir(), ".pi", "agent"));
+  const agentDir = resolve(options.agentDir ?? agentDataDir());
   const sessionRoot = resolve(options.sessionRoot ?? join(agentDir, "sessions"));
   const key = `${agentDir}\0${sessionRoot}`;
   let service = nativeServices.get(key);
@@ -472,7 +472,7 @@ export class NativePiSessionService {
     sessionRoot?: string;
     modelRuntimeFactory?: () => Promise<ModelRuntime>;
   } = {}) {
-    this.agentDir = resolve(options.agentDir ?? join(homedir(), ".pi", "agent"));
+    this.agentDir = resolve(options.agentDir ?? agentDataDir());
     this.root = resolve(options.sessionRoot ?? join(this.agentDir, "sessions"));
     this.modelRuntimeFactory =
       options.modelRuntimeFactory ??

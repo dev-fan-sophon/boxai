@@ -63,8 +63,17 @@ describe('docs path helpers', () => {
     ).toBe('Install BoxAI Connect')
   })
 
-  it('publishes the complete bilingual Connect journey with valid guide links', () => {
+  it('publishes the complete bilingual client journeys with valid guide links', () => {
     const paths = [
+      'clients/desktop',
+      'clients/desktop/install',
+      'clients/desktop/sign-in',
+      'clients/desktop/models-and-billing',
+      'clients/desktop/projects-and-sessions',
+      'clients/desktop/tool-approvals',
+      'clients/desktop/extensions',
+      'clients/desktop/updates',
+      'clients/desktop/troubleshooting',
       'clients/connect',
       'clients/connect/install',
       'clients/connect/sign-in',

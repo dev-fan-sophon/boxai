@@ -241,13 +241,13 @@ export function ComposerToolbar({
           <TooltipButton
             type="button"
             className="send-btn"
-            ariaLabel={modelReady ? t("chat.send") : t("settings.addProvider")}
+            ariaLabel={modelReady ? t("chat.send") : t("settings.noModelsChosen")}
             tooltip={
               runActive
                 ? t("chat.sendWhileRunning", { shortcut: steeringShortcut })
                 : modelReady
                   ? t("chat.send")
-                  : t("settings.addProvider")
+                  : t("settings.noModelsChosen")
             }
             disabled={
               !hasDraftContent ||

@@ -57,10 +57,13 @@ test("renderer cannot configure keys, endpoints, third-party accounts or secret 
 
 test("concurrent account hydration creates one host-assigned BoxAI provider", async () => {
   const providers = [];
+  let settings = {};
   const account = new VendorOAuth({
     call: async (method, input) => {
       if (method === "secrets.getForRuntime") return { value: JSON.stringify({ access_token: "session", refresh_token: "refresh", api_key: "relay", expiresAt: Date.now() + 3600000 }) };
       if (method === "providers.list") return { providers };
+      if (method === "settings.get") return structuredClone(settings);
+      if (method === "settings.set") { settings = input; return settings; }
       if (method === "providers.create") {
         const provider = { ...input, id: `host-${providers.length}` };
         providers.push(provider);
@@ -82,4 +85,5 @@ test("concurrent account hydration creates one host-assigned BoxAI provider", as
   assert.equal(providers[0].id, "host-0");
   assert.equal(providers[0].authKind, "oauth");
   assert.deepEqual(providers[0].models.map(row => row.id), ["grok-4.6"]);
+  assert.deepEqual(settings, { defaultProviderId: "host-0", defaultModelId: "grok-4.6" });
 });

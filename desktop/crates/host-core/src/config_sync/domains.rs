@@ -685,6 +685,30 @@ mod tests {
     }
 
     #[test]
+    fn global_instructions_stay_in_the_selected_boxai_profile() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let path = global_instruction_path_for_sync(first.path());
+        assert_eq!(path, first.path().join("agent").join("AGENTS.md"));
+        write_instruction_file(&path, "BoxAI profile instructions").unwrap();
+        let mut state = AppState::open(first.path()).unwrap();
+        let entities =
+            capture_instructions(&mut state, &ProjectIdentityOverrides::default()).unwrap();
+        let global = entities
+            .iter()
+            .find(|entity| entity.payload["scope"] == "global")
+            .unwrap();
+        assert_eq!(global.payload["content"], "BoxAI profile instructions");
+        let mut isolated = AppState::open(second.path()).unwrap();
+        assert!(
+            capture_instructions(&mut isolated, &ProjectIdentityOverrides::default())
+                .unwrap()
+                .iter()
+                .all(|entity| entity.payload["scope"] != "global")
+        );
+    }
+
+    #[test]
     fn captures_only_the_app_managed_project_instruction_file() {
         let data_dir = tempfile::tempdir().unwrap();
         let project = data_dir.path().join("project");

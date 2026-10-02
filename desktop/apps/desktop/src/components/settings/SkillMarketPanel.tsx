@@ -4,12 +4,10 @@ import { useTranslation } from "react-i18next";
 import {
   allowInsecureUserEndpoints,
   assembleSkillInstall,
-  BUILTIN_SKILL_CATALOG,
   GLOBAL_SCOPE,
   isSafeSkillSourceUrl,
   mergeSkillEntries,
   sanitizeSkillSources,
-  validateSkillCatalogFile,
   type SkillCatalogCategory,
   type SkillCatalogEntry,
   type SkillMarketSource,
@@ -48,7 +46,7 @@ const CATEGORIES: readonly SkillCatalogCategory[] = [
 /** Cards render in a scrolling settings pane, so the list is paginated. */
 const PAGE_SIZE = 24;
 
-const { skills } = validateSkillCatalogFile(BUILTIN_SKILL_CATALOG).catalog;
+const skills: SkillCatalogEntry[] = [];
 
 const CATEGORY_ICONS: Record<SkillCatalogCategory, typeof IconListChecks> = {
   workflow: IconListChecks,
@@ -115,17 +113,10 @@ function loadSources(allowInsecureHttp = false): SkillMarketSource[] {
   }
 }
 
-// Curated defaults: each repo is auto-scanned, so every SKILL.md on its
-// default branch becomes an installable entry and the catalogs grow with the
-// repos. All seven were verified to publish SKILL.md files at scan time.
+// The authenticated BoxAI catalog is always added by Main. Custom sources
+// remain user-controlled and are never sent account credentials.
 const DEFAULT_SKILL_SOURCES: SkillMarketSource[] = [
-  { id: "anthropics-skills", name: "anthropics/skills", url: "https://github.com/anthropics/skills" },
-  { id: "anthropics-plugins", name: "anthropics/claude-plugins-official", url: "https://github.com/anthropics/claude-plugins-official" },
-  { id: "obra-superpowers", name: "obra/superpowers", url: "https://github.com/obra/superpowers" },
-  { id: "wshobson-agents", name: "wshobson/agents", url: "https://github.com/wshobson/agents" },
-  { id: "mattpocock-skills", name: "mattpocock/skills", url: "https://github.com/mattpocock/skills" },
-  { id: "alirezarezvani-skills", name: "alirezarezvani/claude-skills", url: "https://github.com/alirezarezvani/claude-skills" },
-  { id: "composio-awesome", name: "ComposioHQ/awesome-claude-skills", url: "https://github.com/ComposioHQ/awesome-claude-skills" },
+  { id: "boxai", name: "BoxAI", url: "https://you-box.com/api/desktop/catalog" },
 ];
 
 function saveSources(sources: SkillMarketSource[]): void {
@@ -304,7 +295,7 @@ export function SkillMarketPanel({
         const kind = classifySkillMarketFailure(error);
         setPreviewFailure({
           kind,
-          detail: skillMarketFailureDetail(error),
+          detail: entry.boxaiOfficial ? t("settings.sklm.previewError") : skillMarketFailureDetail(error),
         });
         // The reason belongs to one attempt of opening the sheet, or of asking
         // it to try again, so it is announced once as a toast. What the sheet
@@ -338,6 +329,13 @@ export function SkillMarketPanel({
     if (!installFor || installing) return;
     setInstalling(true);
     try {
+      if (installFor.boxaiOfficial) {
+        const created = await api.installBoxAICatalogEntry("skill", installFor.id);
+        showToast(t("settings.sklm.installSuccess", { name: installFor.name }), { variant: "success" });
+        onInstalled(created.skill?.id ?? installFor.id);
+        setInstallFor(null);
+        return;
+      }
       const document = await api.fetchSkillMarketDocument(installFor);
       const assembled = assembleSkillInstall(document, installFor);
       if (assembled.tooLarge) {
@@ -360,7 +358,7 @@ export function SkillMarketPanel({
       onInstalled(created.skill?.id ?? installFor.id);
       setInstallFor(null);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+      showToast(installFor.boxaiOfficial ? t("plugins.installFailed", { name: installFor.name }) : error instanceof Error ? error.message : String(error), { variant: "error" });
     } finally {
       setInstalling(false);
     }
@@ -389,6 +387,7 @@ export function SkillMarketPanel({
   // placeholder a local proxy invents for it. The four now carry different copy,
   // and each failure names the host it is about.
   const remoteErrorText = () => {
+    if (remote.failed.includes("BoxAI")) return t("Account request failed. Check your connection and try again.");
     if (remote.queryError) return t("settings.sklm.remoteErrorQuery");
     if (hasPolicyFailure(remote.failureKinds)) return t("settings.sklm.remoteErrorPolicy");
     if (hasFakeIpFailure(remote.failureKinds)) return t("settings.sklm.remoteErrorFakeIp");
@@ -607,7 +606,7 @@ export function SkillMarketPanel({
         </div>
 
         <div className="ext-sheet-actions">
-          <span className="ext-sheet-note">{t("settings.sklm.sheetNote")}</span>
+          <span className="ext-sheet-note">{installFor.boxaiOfficial ? null : t("settings.sklm.sheetNote")}</span>
           <div className="ext-sheet-actions-end">
             <button
               type="button"
@@ -767,7 +766,7 @@ export function SkillMarketPanel({
                       </span>
                     ))}
                   </div>
-                  <code className="sklm-cmd">{entry.author ?? entry.id}</code>
+                  <code className="sklm-cmd">{entry.boxaiOfficial ? entry.version : entry.author ?? entry.id}</code>
                   <p className="sklm-desc">{entry.description || ""}</p>
                 </div>
                 <div className="sklm-card-actions">
