@@ -6606,6 +6606,7 @@
     "Text-to-image, image-to-image, editing, and more": "Texte→image, image→image, édition…",
     "Text, image, and video": "Texte, image et vidéo",
     "Thanks for the feedback": "Merci pour votre retour",
+    "The {{platform}} version is temporarily unavailable while we publish a fix. Please check back soon.": "La version {{platform}} est temporairement indisponible le temps de publier un correctif. Revenez bientôt.",
     "The /about page always shows the built-in BoxAI brand content. Leave empty for the default page only. Optional HTML, Markdown, or a full URL adds an extra section underneath (URL becomes an external link, not a full-page iframe).": "La page /about affiche toujours le contenu de marque BoxAI intégré. Laissez vide pour la page par défaut seule. HTML, Markdown ou URL complète optionnels ajoutent une section (l’URL est un lien externe, pas un iframe plein écran).",
     "The admin configured three groups and one special ratio rule:": "L’administrateur a configuré trois groupes et une règle de taux spécial :",
     "The admin wants vip users to pay even less when they use premium. That needs an override rule: in the override matrix, set the cell at row vip, column premium to 0.3.": "L’administrateur veut que les utilisateurs vip paient encore moins lorsqu’ils utilisent premium. Il faut une règle de remplacement : dans la matrice, définissez la cellule ligne vip, colonne premium à 0,3.",

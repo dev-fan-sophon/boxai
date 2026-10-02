@@ -14,7 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { downloadLabel, formatSize } from '@/features/downloads/release'
+import {
+  detectPlatform,
+  downloadLabel,
+  formatSize,
+} from '@/features/downloads/release'
 import type { DesktopDownload } from '@/features/downloads/types'
 import { cn } from '@/lib/utils'
 
@@ -85,49 +89,72 @@ export function DownloadActions(props: {
     (download) => download.url !== primaryUrl
   )
 
-  return (
-    <div className={cn('flex flex-wrap items-center gap-2', props.className)}>
-      <Button
-        size='lg'
-        render={<a href={primaryUrl} download rel='noopener noreferrer' />}
-      >
-        <ArrowDownToLine aria-hidden='true' />
-        {primaryLabel}
-      </Button>
+  // A release can temporarily ship without the visitor's platform (for example while a
+  // broken build is pulled). Say so instead of letting the other OS's button speak alone.
+  const visitorPlatform = detectPlatform()
+  const missingPlatform =
+    props.primary &&
+    (visitorPlatform === 'macos' || visitorPlatform === 'windows') &&
+    props.primary.platform !== visitorPlatform
+      ? visitorPlatform
+      : null
 
-      {alternatives.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                size={props.compact ? 'icon-lg' : 'lg'}
-                variant='outline'
-                aria-label={t('Other platforms')}
-              />
+  return (
+    <div className={cn('flex flex-col gap-2', props.className)}>
+      <div className={cn('flex flex-wrap items-center gap-2', props.className)}>
+        <Button
+          size='lg'
+          render={<a href={primaryUrl} download rel='noopener noreferrer' />}
+        >
+          <ArrowDownToLine aria-hidden='true' />
+          {primaryLabel}
+        </Button>
+
+        {alternatives.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size={props.compact ? 'icon-lg' : 'lg'}
+                  variant='outline'
+                  aria-label={t('Other platforms')}
+                />
+              }
+            >
+              {!props.compact && t('Other platforms')}
+              <ChevronDown className='size-4' aria-hidden='true' />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='start' className='w-72'>
+              {alternatives.map((download) => (
+                <DropdownMenuItem
+                  key={download.url}
+                  render={<a href={download.url} download />}
+                >
+                  {download.platform === 'macos' ? (
+                    <Apple className='size-4' aria-hidden='true' />
+                  ) : (
+                    <Monitor className='size-4' aria-hidden='true' />
+                  )}
+                  <span className='flex-1'>{downloadLabel(download)}</span>
+                  <span className='text-muted-foreground text-xs'>
+                    {formatSize(download.size)}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+      {missingPlatform && (
+        <p className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+          <TriangleAlert className='size-3.5 shrink-0' aria-hidden='true' />
+          {t(
+            'The {{platform}} version is temporarily unavailable while we publish a fix. Please check back soon.',
+            {
+              platform: missingPlatform === 'macos' ? t('macOS') : t('Windows'),
             }
-          >
-            {!props.compact && t('Other platforms')}
-            <ChevronDown className='size-4' aria-hidden='true' />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='start' className='w-72'>
-            {alternatives.map((download) => (
-              <DropdownMenuItem
-                key={download.url}
-                render={<a href={download.url} download />}
-              >
-                {download.platform === 'macos' ? (
-                  <Apple className='size-4' aria-hidden='true' />
-                ) : (
-                  <Monitor className='size-4' aria-hidden='true' />
-                )}
-                <span className='flex-1'>{downloadLabel(download)}</span>
-                <span className='text-muted-foreground text-xs'>
-                  {formatSize(download.size)}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </p>
       )}
     </div>
   )

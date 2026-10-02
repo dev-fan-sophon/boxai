@@ -6606,6 +6606,7 @@
     "Text-to-image, image-to-image, editing, and more": "文生図、図生図、編集など",
     "Text, image, and video": "テキスト・画像・動画",
     "Thanks for the feedback": "フィードバックありがとうございます",
+    "The {{platform}} version is temporarily unavailable while we publish a fix. Please check back soon.": "{{platform}} 版は修正版の公開準備中のため、一時的にダウンロードできません。しばらくしてから再度お試しください。",
     "The /about page always shows the built-in BoxAI brand content. Leave empty for the default page only. Optional HTML, Markdown, or a full URL adds an extra section underneath (URL becomes an external link, not a full-page iframe).": "/about は常に組み込みの BoxAI ブランド内容を表示します。空なら既定ページのみ。任意の HTML / Markdown / 完全な URL は下に追記（URL は外部リンクで、全画面 iframe ではありません）。",
     "The admin configured three groups and one special ratio rule:": "管理者は3つのグループと1つの特別倍率ルールを設定しました：",
     "The admin wants vip users to pay even less when they use premium. That needs an override rule: in the override matrix, set the cell at row vip, column premium to 0.3.": "管理者は vip ユーザーが premium を使うときにさらに安くしたいと考えています。それには上書きルールが必要です：上書きマトリクスで「行 vip、列 premium」のセルに 0.3 を設定します。",

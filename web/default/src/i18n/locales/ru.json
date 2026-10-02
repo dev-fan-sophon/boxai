@@ -6606,6 +6606,7 @@
     "Text-to-image, image-to-image, editing, and more": "Текст→изображение, image-to-image, редактирование…",
     "Text, image, and video": "Текст, изображения и видео",
     "Thanks for the feedback": "Спасибо за отзыв",
+    "The {{platform}} version is temporarily unavailable while we publish a fix. Please check back soon.": "Версия для {{platform}} временно недоступна, пока мы публикуем исправление. Загляните немного позже.",
     "The /about page always shows the built-in BoxAI brand content. Leave empty for the default page only. Optional HTML, Markdown, or a full URL adds an extra section underneath (URL becomes an external link, not a full-page iframe).": "Страница /about всегда показывает встроенный брендовый контент BoxAI. Оставьте пустым для только страницы по умолчанию. HTML, Markdown или полный URL добавляют блок ниже (URL — внешняя ссылка, не полноэкранный iframe).",
     "The admin configured three groups and one special ratio rule:": "Администратор настроил три группы и одно правило особого коэффициента:",
     "The admin wants vip users to pay even less when they use premium. That needs an override rule: in the override matrix, set the cell at row vip, column premium to 0.3.": "Администратор хочет, чтобы пользователи vip платили ещё меньше при использовании premium. Для этого нужно правило переопределения: в матрице задайте ячейку на пересечении строки vip и столбца premium равной 0,3.",
