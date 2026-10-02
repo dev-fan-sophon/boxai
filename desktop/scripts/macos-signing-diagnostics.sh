@@ -2,7 +2,7 @@
 # Record a non-sensitive snapshot of the macOS code-signing environment before
 # electron-builder starts packaging.
 #
-# Why this exists: @electron/osx-sign walks the whole `PI-Desktop.app` and runs
+# Why this exists: @electron/osx-sign walks the whole `BoxAI Desktop.app` and runs
 # one `codesign --sign <identity> --force --timestamp --entitlements ...` per
 # Mach-O file and per nested bundle, strictly serially. When a release signing
 # step stalls, every interesting question is environmental: is a usable
@@ -14,9 +14,9 @@
 # Usage: scripts/macos-signing-diagnostics.sh [--require-identity]
 #
 # Environment:
-#   MAC_SIGNING_IDENTITY   bare common name ("XingYu Liu (DUV63RKYTW)") or the
+#   MAC_SIGNING_IDENTITY   bare common name ("fan Z (9UUWCMKMDH)") or the
 #                          full certificate label
-#                          ("Developer ID Application: XingYu Liu (DUV63RKYTW)").
+#                          ("Developer ID Application: fan Z (9UUWCMKMDH)").
 #
 # Exit status:
 #   0  snapshot printed. A missing certificate is only a warning by default:
@@ -48,7 +48,7 @@ done
 
 # Accepts either the bare common name or the full certificate label, matching
 # scripts/verify-macos-release.sh.
-IDENTITY_NAME="${MAC_SIGNING_IDENTITY:-XingYu Liu (DUV63RKYTW)}"
+IDENTITY_NAME="${MAC_SIGNING_IDENTITY:-fan Z (9UUWCMKMDH)}"
 IDENTITY_NAME="${IDENTITY_NAME#Developer ID Application: }"
 EXPECTED_IDENTITY="Developer ID Application: ${IDENTITY_NAME}"
 

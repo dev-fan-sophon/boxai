@@ -14,17 +14,17 @@ const notarizeScript = new URL(
   import.meta.url,
 );
 
-const SIGNING_IDENTITY = "Developer ID Application: XingYu Liu (DUV63RKYTW)";
-const SIGNING_IDENTITY_NAME = "XingYu Liu (DUV63RKYTW)";
+const SIGNING_IDENTITY = "Developer ID Application: fan Z (9UUWCMKMDH)";
+const SIGNING_IDENTITY_NAME = "fan Z (9UUWCMKMDH)";
 const SUBMISSION_ID = "11111111-2222-3333-4444-555555555555";
 const NOTARY_ENV = {
   APPLE_ID: "release@example.com",
   APPLE_APP_SPECIFIC_PASSWORD: "app-specific-password",
-  APPLE_TEAM_ID: "DUV63RKYTW",
+  APPLE_TEAM_ID: "9UUWCMKMDH",
 };
 
 async function writeSignedAppFixture(release) {
-  const app = join(release, "mac-arm64", "PI-Desktop.app");
+  const app = join(release, "mac-arm64", "BoxAI Desktop.app");
   const hostCore = join(app, "Contents", "Resources", "bin", "pi-desktop-host-core");
   const dmg = join(release, "PI-Desktop-0.14.2-arm64.dmg");
   await mkdir(join(app, "Contents", "Resources", "bin"), { recursive: true });
@@ -205,7 +205,7 @@ test("the notarization step fails closed without team-scoped credentials", async
     APPLE_TEAM_ID: "WRONGTEAMID",
   });
   assert.equal(wrongTeam.status, 1);
-  assert.match(wrongTeam.stderr, /APPLE_TEAM_ID must be DUV63RKYTW/);
+  assert.match(wrongTeam.stderr, /APPLE_TEAM_ID must be 9UUWCMKMDH/);
 
   assert.equal(
     await readFile(log, "utf8").catch(() => ""),

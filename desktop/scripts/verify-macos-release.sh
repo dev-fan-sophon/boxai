@@ -5,10 +5,10 @@
 set -euo pipefail
 
 RELEASE_DIR="${1:-apps/desktop/release}"
-PRODUCT_NAME="PI-Desktop"
-# Accepts either the bare common name ("XingYu Liu (DUV63RKYTW)") or the full
-# certificate label ("Developer ID Application: XingYu Liu (DUV63RKYTW)").
-IDENTITY_NAME="${MAC_SIGNING_IDENTITY:-XingYu Liu (DUV63RKYTW)}"
+PRODUCT_NAME="BoxAI Desktop"
+# Accepts either the bare common name ("fan Z (9UUWCMKMDH)") or the full
+# certificate label ("Developer ID Application: fan Z (9UUWCMKMDH)").
+IDENTITY_NAME="${MAC_SIGNING_IDENTITY:-fan Z (9UUWCMKMDH)}"
 IDENTITY_NAME="${IDENTITY_NAME#Developer ID Application: }"
 EXPECTED_IDENTITY="Developer ID Application: ${IDENTITY_NAME}"
 

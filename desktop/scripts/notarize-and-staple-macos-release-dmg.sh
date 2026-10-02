@@ -3,7 +3,7 @@
 # ticket. Run after electron-builder produced the DMG.
 #
 # Why this exists: electron-builder's `mac.notarize=true` notarizes the built
-# `PI-Desktop.app` (so the app and the ZIP that carries it pass Gatekeeper and
+# `BoxAI Desktop.app` (so the app and the ZIP that carries it pass Gatekeeper and
 # in-app updates work). The DMG is a separate artifact with its own signature,
 # so it needs its own notarytool submission before it can be stapled. Stapling a
 # DMG that was never submitted fails with:
@@ -13,16 +13,16 @@
 #   The staple and validate action failed! Error 65.
 #
 # Required environment (never echoed, never written to the repo):
-#   APPLE_ID                      Apple ID email in team DUV63RKYTW
+#   APPLE_ID                      Apple ID email in team 9UUWCMKMDH
 #   APPLE_APP_SPECIFIC_PASSWORD   app-specific password for that Apple ID
-#   APPLE_TEAM_ID                 must be DUV63RKYTW
+#   APPLE_TEAM_ID                 must be 9UUWCMKMDH
 #
 # Usage: scripts/notarize-and-staple-macos-release-dmg.sh [release-dir]
 
 set -euo pipefail
 
 RELEASE_DIR="${1:-apps/desktop/release}"
-EXPECTED_TEAM_ID="DUV63RKYTW"
+EXPECTED_TEAM_ID="9UUWCMKMDH"
 # The ticket can take a moment to reach the stapler after Apple accepts, but a
 # retry is only legal once the submission returned Accepted. Overridable so
 # tests do not sleep for real.

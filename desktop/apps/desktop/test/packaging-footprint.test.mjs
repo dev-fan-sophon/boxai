@@ -187,6 +187,8 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
   // sidecar.js loads in packaged installs (issue #507). Contract tests live
   // in agent-runtime-bundle-package.test.mjs.
   assert.deepEqual(packageJson.build.extraResources, [
+    { from: "../../LICENSE", to: "LICENSE" },
+    { from: "../../UPSTREAM.md", to: "UPSTREAM.md" },
     {
       from: "build/icon.png",
       to: "tray-icon.png",

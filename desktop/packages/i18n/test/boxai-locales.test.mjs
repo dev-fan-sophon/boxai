@@ -17,9 +17,16 @@ test("Vietnamese key coverage is complete and translated coverage cannot regress
   const vietnamese = flattenCatalog(catalogs.vi);
   assert.deepEqual(Object.keys(vietnamese).sort(), Object.keys(english).sort());
   const translated = Object.keys(english).filter((key) => vietnamese[key] !== english[key]);
-  // Baseline while the separately owned full Vietnamese catalog is integrated.
-  // A copied English catalog must fail even though its key coverage is 100%.
-  assert.ok(translated.length >= 200, `Only ${translated.length}/${Object.keys(english).length} Vietnamese strings are translated`);
+  // Product names, technical identifiers, URLs and pure placeholders remain unchanged.
+  assert.ok(translated.length >= 2389, `Only ${translated.length}/${Object.keys(english).length} Vietnamese strings are translated`);
+  for (const key of Object.keys(english)) {
+    assert.ok(vietnamese[key].trim(), key);
+    assert.deepEqual(
+      (vietnamese[key].match(/\{\{[^}]+\}\}/g) ?? []).sort(),
+      (english[key].match(/\{\{[^}]+\}\}/g) ?? []).sort(),
+      `Vietnamese interpolation parameters: ${key}`,
+    );
+  }
   for (const key of ["chat.send", "chat.toolCompleted", "chat.permissionAsk", "settings.language", "tray.quit", "nav.projects"]) {
     assert.notEqual(vietnamese[key], english[key], key);
     assert.ok(vietnamese[key].trim(), key);
