@@ -15,7 +15,7 @@ status: published
 3. Where supported, choose a reasoning level appropriate to the task. More reasoning can take longer and consume more tokens.
 4. Send a short request and confirm that a reply arrives before starting a large task.
 
-![Open BoxAI model picker in the Lotus Travel demo session](/desktop-screenshots/docs/models.webp "Choose a model available to your account. The list can change; these captured model names are not a guarantee of availability.")
+![Open BoxAI model picker in the Lotus Travel demo session](/desktop-screenshots/docs/models.webp 'Choose a model available to your account. The list can change; these captured model names are not a guarantee of availability.')
 
 Available models come from BoxAI and depend on account access and compatibility with the desktop agent. The website catalog is not a promise that every image, video or audio model appears in the conversation picker. Do not copy a model ID from an unrelated provider tutorial or add a separate provider to work around a missing model.
 

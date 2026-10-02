@@ -28,7 +28,7 @@ Open the [Desktop video tour](/agents#desktop-tour) and select **Getting started
 
 Use **Settings → General** for appearance, language and the app's data location. The screenshot uses an isolated demonstration profile, not a required storage path.
 
-![General settings with theme, language, font, network and storage controls](/desktop-screenshots/docs/settings.webp "General settings are separate from the Skills and MCP pages.")
+![General settings with theme, language, font, network and storage controls](/desktop-screenshots/docs/settings.webp 'General settings are separate from the Skills and MCP pages.')
 
 ## Before you grant access
 

@@ -28,7 +28,7 @@ Mở [video giới thiệu Desktop](/agents#desktop-tour), chọn **Getting star
 
 Vào **Settings → General** để chỉnh giao diện, ngôn ngữ và xem vị trí dữ liệu ứng dụng. Ảnh dùng hồ sơ minh họa riêng; đường dẫn trong ảnh không phải vị trí bắt buộc.
 
-![Cài đặt General với giao diện, ngôn ngữ, phông chữ, mạng và lưu trữ](/desktop-screenshots/docs/settings.webp "Cài đặt General tách biệt với các trang Skills và MCP.")
+![Cài đặt General với giao diện, ngôn ngữ, phông chữ, mạng và lưu trữ](/desktop-screenshots/docs/settings.webp 'Cài đặt General tách biệt với các trang Skills và MCP.')
 
 ## Trước khi cấp quyền truy cập
 
