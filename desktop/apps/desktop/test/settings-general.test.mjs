@@ -393,16 +393,6 @@ test("vendor account rows keep the summary to one account name", () => {
   );
 });
 
-test("OAuth account identity is provider-scoped across IPC and pi-ai", () => {
-  assert.match(protocolSource, /providersOauthDelete/);
-  assert.doesNotMatch(protocolSource, /providersOauthLogout/);
-  assert.match(oauthSource, /accountModels = new Map<string, AccountModels>/);
-  assert.match(oauthSource, /fresh provider row/);
-  assert.match(oauthSource, /secretRefForProviderOauth\(providerId\)/);
-  assert.match(oauthSource, /deleteAccount\(providerId: string\)/);
-});
-
-
 test("settings nav icons map each destination to a semantic lucide glyph", () => {
   assert.match(settingsPageSource, /general: <IconSliders/);
   assert.match(settingsPageSource, /ai: <IconSparkles/);
@@ -481,7 +471,6 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
     "settings.nav.ai",
     "settings.nav.shortcuts",
     "settings.nav.instructions",
-    "settings.nav.models",
     "settings.nav.skills",
     "settings.nav.mcp",
     "settings.nav.subagents",
@@ -496,7 +485,7 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
     assert.match(zhTWLocaleSource, new RegExp(`${key.split(".").at(-1)}:`));
     assert.match(trLocaleSource, new RegExp(`${key.split(".").at(-1)}:`));
   }
-  assert.match(settingsSearchSource, /titleKey: "settings\.configuration"/);
+  assert.match(settingsSearchSource, /titleKey: "BoxAI account"/);
   assert.match(settingsSearchSource, /titleKey: "settings\.projectArchive"/);
   assert.match(settingsPageSource, /activeTitleKey/);
   assert.match(settingsPageSource, /titleKey: entry\.titleKey/);

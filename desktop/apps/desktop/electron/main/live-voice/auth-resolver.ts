@@ -77,6 +77,9 @@ export class LiveAuthResolver {
       throw Object.assign(new Error("The selected Provider is unavailable"), { errorCode: "LIVE_PROVIDER_NOT_FOUND" });
     }
     const provider = initial.provider;
+    if (!["boxai"].includes(provider.vendorKey)) {
+      throw new Error("Live voice is not available through BoxAI");
+    }
     if (binding.adapterId === "codex-live") {
       if (provider.authKind !== OAUTH_AUTH_KIND || provider.vendorKey !== "openai-codex") {
         throw Object.assign(new Error("Codex Live requires a signed-in Codex account"), { errorCode: "LIVE_AUTH_KIND_UNSUPPORTED" });

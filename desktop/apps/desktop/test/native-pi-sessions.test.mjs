@@ -138,7 +138,7 @@ test("queue remove/prioritize preserve the Desktop opaque host turnId contract",
   assert.deepEqual(calls, [["remove", "host-turn"], ["prioritize", "host-turn"]]);
 });
 
-test("native prompt only dispatches sidecar and cannot create a host queue entry", async () => {
+test("native prompt cannot bypass BoxAI authorization through imported Pi credentials", async () => {
   const handlers = new Map();
   const forbidden = () => assert.fail("native prompt reached Desktop host/queue");
   const backend = new Proxy({}, { get: () => forbidden });
@@ -148,10 +148,8 @@ test("native prompt only dispatches sidecar and cannot create a host queue entry
     getHost: () => backend, getAgentHostBridge: () => backend, setNotificationViewingSessionId() {},
     getSidecar: () => ({ call: async (...args) => { calls.push(args); return { accepted: true, turnId: "native-turn" }; } }),
   });
-  await handlers.get(IPC.invoke.agentPrompt)({ sessionId: "native-pi:fixture", content: "prompt", messageId: "optimistic" });
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0][0], "agent.prompt");
-  assert.equal(calls[0][1].userMessageId, "optimistic");
+  await assert.rejects(handlers.get(IPC.invoke.agentPrompt)({ sessionId: "native-pi:fixture", content: "prompt", messageId: "optimistic" }));
+  assert.deepEqual(calls, []);
 });
 
 

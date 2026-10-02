@@ -22,6 +22,7 @@ import { workPanelLayout } from "../../lib/work-panel-resize";
 import { LiveVoiceStatusHost } from "../voice/live/LiveVoiceStatusHost";
 import { CollapsedTitlebarActions, RoutePending } from "./chrome";
 import { useAppShellRuntime } from "./useAppShellRuntime";
+import { BoxAIAccount } from "./BoxAIAccount";
 
 const SettingsPage = lazy(() =>
   import("../../pages/SettingsPage").then((module) => ({
@@ -50,6 +51,10 @@ const WorkPanel = lazy(() =>
 );
 
 export function AppShell() {
+  return <BoxAIAccount><AuthenticatedAppShell /></BoxAIAccount>;
+}
+
+function AuthenticatedAppShell() {
   const {
     t,
     ready,

@@ -56,7 +56,7 @@ function speechHarness({ transcribeProtocol = "openai_audio", synthesizeProtocol
         };
       }
       if (method === "providers.get") {
-        return { provider: { id: "p", baseUrl: "https://api.openai.com/v1", enabled: true } };
+        return { provider: { id: "p", vendorKey: "boxai", baseUrl: "https://you-box.com/v1", enabled: true } };
       }
       if (method === "providers.getSecret") return { value: "sk" };
       if (method === "session.getScratchPath") return { path: scratch };

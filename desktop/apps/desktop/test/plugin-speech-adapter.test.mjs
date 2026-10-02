@@ -168,7 +168,7 @@ test("http plans must stay on the provider origin", async (t) => {
         };
       }
       if (method === "providers.get") {
-        return { provider: { id: "p", baseUrl: "https://api.example.com/v1", enabled: true } };
+        return { provider: { id: "p", vendorKey: "boxai", baseUrl: "https://api.example.com/v1", enabled: true } };
       }
       if (method === "providers.getSecret") return { value: "sk" };
       if (method === "session.getScratchPath") return { path: scratch };
@@ -206,4 +206,3 @@ test("http plans must stay on the provider origin", async (t) => {
   assert.equal(result.mimeType, "audio/wav");
   assert.match(result.path, /speech-/);
 });
-

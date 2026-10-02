@@ -316,6 +316,7 @@ export function registerAgentIpc({
 
   handle(IPC.invoke.agentPrompt, async (req: AgentPromptRequest) => {
     if (!sidecar) throw new Error("sidecar unavailable");
+    rejectNativeAgentOperation(req.sessionId);
     const voiceOrigin = parseVoiceOrigin(req.voiceOrigin);
     if (req.sessionId.startsWith("native-pi:")) {
       if (voiceOrigin) {
