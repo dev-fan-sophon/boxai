@@ -19,7 +19,7 @@ status: published
 3. Review and approve the Desktop authorization request. Do not approve a request you did not start.
 4. The browser returns through a temporary `127.0.0.1` callback on your computer. Keep Desktop open; when the browser says to return to Desktop, switch back and wait for the workspace.
 
-![BoxAI account screen with Sign in with BoxAI and Refresh buttons](/desktop-screenshots/docs/login.webp "Start browser authorization from Sign in with BoxAI.")
+![BoxAI account screen with Sign in with BoxAI and Refresh buttons](/desktop-screenshots/docs/login.webp 'Start browser authorization from Sign in with BoxAI.')
 
 You do not need to create an OpenAI, Anthropic or Google provider account, paste their API keys, or configure a custom model endpoint. Built-in model requests use BoxAI.
 

@@ -26,7 +26,7 @@ Finish or stop active tasks, review unfinished file changes and back up importan
 4. Quit Desktop. On macOS, copy the new app into Applications and replace the old app bundle. On Windows, run the new setup installer and follow its prompts.
 5. Open the app and verify the version, account state and a familiar project/session before starting more work.
 
-![Info settings showing Couldn't check for updates and UPDATE_UNAVAILABLE](/desktop-screenshots/docs/updates.webp "The captured candidate could not access a published update feed. This is an unavailable-update state, not a successful check or installation.")
+![Info settings showing Couldn't check for updates and UPDATE_UNAVAILABLE](/desktop-screenshots/docs/updates.webp 'The captured candidate could not access a published update feed. This is an unavailable-update state, not a successful check or installation.')
 
 If the app offers an update check or download action, follow its displayed result. Do not assume a background check means the update has been installed; verify after restarting. The official installer is the fallback when in-app updating cannot complete.
 

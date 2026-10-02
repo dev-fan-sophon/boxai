@@ -12,7 +12,7 @@ status: published
 
 Chọn **Ask** trong phần quyền của phiên khi làm việc với dự án chưa quen hoặc tác vụ mới. Ứng dụng sẽ dừng để xin phép đối với thao tác cần phê duyệt. Đọc tên công cụ, tham số, đường dẫn bị ảnh hưởng và câu lệnh trước khi quyết định. Không phải mọi thao tác chỉ đọc đều cần hỏi lại.
 
-![Hộp thoại xin quyền chạy npm test bằng bash, với Deny, Allow for this chat và Allow once](/desktop-screenshots/docs/permissions.webp "Đọc câu lệnh và thư mục làm việc trước khi quyết định cho phép.")
+![Hộp thoại xin quyền chạy npm test bằng bash, với Deny, Allow for this chat và Allow once](/desktop-screenshots/docs/permissions.webp 'Đọc câu lệnh và thư mục làm việc trước khi quyết định cho phép.')
 
 | Chế độ quyền | Ý nghĩa                                                                                                           |
 | ------------ | ----------------------------------------------------------------------------------------------------------------- |

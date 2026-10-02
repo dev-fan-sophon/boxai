@@ -15,7 +15,7 @@ status: published
 3. Confirm the project name and selected paths. The Git option can clone a repository into a destination you choose; it still requires your own repository access.
 4. Select the project and start a new session.
 
-![Lotus Travel demo project with a completed quote-discount task and test results](/desktop-screenshots/docs/project-session.webp "Example of a completed editing task. Review the changed files and verification results; this is not the read-only first-task example below.")
+![Lotus Travel demo project with a completed quote-discount task and test results](/desktop-screenshots/docs/project-session.webp 'Example of a completed editing task. Review the changed files and verification results; this is not the read-only first-task example below.')
 
 ## Give a clear task
 
