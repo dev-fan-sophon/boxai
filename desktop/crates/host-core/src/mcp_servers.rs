@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const MAX_SERVERS: usize = 128;
 const MAX_ARGS: usize = 64;
@@ -91,6 +91,7 @@ pub struct McpServerInput {
 }
 
 pub struct McpServerRegistry {
+    data_dir: PathBuf,
     state: CapabilityState,
 }
 
@@ -195,6 +196,7 @@ fn merge_active_records(
 impl McpServerRegistry {
     pub fn new(data_dir: &Path) -> Self {
         Self {
+            data_dir: data_dir.to_path_buf(),
             state: CapabilityState::new(data_dir, MCP_KIND),
         }
     }
@@ -205,7 +207,7 @@ impl McpServerRegistry {
         project_path: Option<&str>,
         effective_project: Option<&str>,
     ) -> Result<Vec<McpServerRecord>> {
-        let directory = capability_dir(level, project_path, "servers")?;
+        let directory = capability_dir(&self.data_dir, level, project_path, "servers")?;
         let owner_project_path = if level == CapabilityLevel::Project {
             project_path.map(normalize_project_path)
         } else {
@@ -448,7 +450,7 @@ impl McpServerRegistry {
         if same_level.len() >= MAX_SERVERS && existing.is_none() {
             bail!("MCP_INVALID: at most {MAX_SERVERS} MCP servers");
         }
-        let directory = capability_dir(level, project_path.as_deref(), "servers")?;
+        let directory = capability_dir(&self.data_dir, level, project_path.as_deref(), "servers")?;
         fs::create_dir_all(&directory)?;
         let path = directory.join(format!("{}.json", config.id));
         fs::write(&path, serde_json::to_string_pretty(&config)?)
@@ -579,7 +581,12 @@ impl McpServerRegistry {
             config.label = target_label;
             check_len("label", &config.label)?;
         }
-        let directory = capability_dir(to.level, to.project_path.as_deref(), "servers")?;
+        let directory = capability_dir(
+            &self.data_dir,
+            to.level,
+            to.project_path.as_deref(),
+            "servers",
+        )?;
         let target_path = directory.join(format!("{target_id}.json"));
         if rename {
             // Never replace what is already at the destination. On a

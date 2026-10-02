@@ -189,9 +189,9 @@ fn global_targets_share_one_directory_whatever_project_context_they_carry() {
 fn global_root_follows_the_environment_override() {
     let dir = tempdir().unwrap();
     test_support::with_global_agents(dir.path(), || {
-        assert_eq!(global_agents_dir(), dir.path());
+        assert_eq!(global_agents_dir(dir.path()), dir.path());
         assert_eq!(
-            capability_dir(CapabilityLevel::Global, None, "skills").unwrap(),
+            capability_dir(dir.path(), CapabilityLevel::Global, None, "skills").unwrap(),
             dir.path().join("skills")
         );
     });

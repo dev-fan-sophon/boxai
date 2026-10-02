@@ -253,33 +253,29 @@ impl CapabilityState {
     }
 }
 
-/// Repoints the global capability root, the way `PI_DESKTOP_DATA_DIR` repoints
-/// the app-local data directory.
-///
-/// The global `.agents` root is otherwise the real home directory, which leaves
-/// the global half of a level switch untestable and makes an isolated install
-/// impossible. An empty value falls back to the home directory.
+/// Legacy fixture override. Production never inherits a shared capability root.
+#[cfg(test)]
 pub const AGENTS_DIR_ENV: &str = "PI_DESKTOP_AGENTS_DIR";
 
-pub fn global_agents_dir() -> PathBuf {
+pub fn global_agents_dir(data_dir: &Path) -> PathBuf {
+    #[cfg(test)]
     if let Ok(configured) = std::env::var(AGENTS_DIR_ENV) {
         let trimmed = configured.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
         }
     }
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(AGENTS_DIR)
+    data_dir.join("agent")
 }
 
 pub fn capability_dir(
+    data_dir: &Path,
     level: CapabilityLevel,
     project_path: Option<&str>,
     leaf: &str,
 ) -> Result<PathBuf> {
     match level {
-        CapabilityLevel::Global => Ok(global_agents_dir().join(leaf)),
+        CapabilityLevel::Global => Ok(global_agents_dir(data_dir).join(leaf)),
         CapabilityLevel::Project => {
             let path = project_path
                 .map(str::trim)

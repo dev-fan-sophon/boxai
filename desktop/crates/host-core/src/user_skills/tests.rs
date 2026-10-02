@@ -31,6 +31,7 @@ fn imports_one_file_into_the_selected_agents_directory() {
     let normalized_project =
         crate::agent_capabilities::normalize_project_path(app.path().to_str().unwrap());
     let expected = crate::agent_capabilities::capability_dir(
+        app.path(),
         CapabilityLevel::Project,
         Some(&normalized_project),
         "skills",
@@ -694,6 +695,7 @@ fn imports_a_directory_with_skill_md_in_copy_mode() {
     let normalized_project =
         crate::agent_capabilities::normalize_project_path(app.path().to_str().unwrap());
     let expected_root = crate::agent_capabilities::capability_dir(
+        app.path(),
         CapabilityLevel::Project,
         Some(&normalized_project),
         "skills",
@@ -742,6 +744,7 @@ fn imports_a_directory_with_skill_md_in_link_mode() {
     let normalized_project =
         crate::agent_capabilities::normalize_project_path(app.path().to_str().unwrap());
     let expected_root = crate::agent_capabilities::capability_dir(
+        app.path(),
         CapabilityLevel::Project,
         Some(&normalized_project),
         "skills",
@@ -784,6 +787,7 @@ fn imports_a_file_in_link_mode() {
     let normalized_project =
         crate::agent_capabilities::normalize_project_path(app.path().to_str().unwrap());
     let expected = crate::agent_capabilities::capability_dir(
+        app.path(),
         CapabilityLevel::Project,
         Some(&normalized_project),
         "skills",

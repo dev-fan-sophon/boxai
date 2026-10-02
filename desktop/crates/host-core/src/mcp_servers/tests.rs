@@ -91,6 +91,7 @@ fn project_server_is_copied_and_state_is_pruned_after_removal() {
     let record = registry.upsert(first).unwrap();
     let normalized_project = crate::agent_capabilities::normalize_project_path(&project_path);
     let target = crate::agent_capabilities::capability_dir(
+        dir.path(),
         CapabilityLevel::Project,
         Some(&normalized_project),
         "servers",

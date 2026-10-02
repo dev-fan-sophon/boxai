@@ -7,6 +7,7 @@ import { NativePiSessionService, nativePiService } from "./native-pi-session.js"
 import { globalInstructionPath, loadInstructionChain } from "./project-instructions.js";
 import { customSystemPromptDirs } from "./custom-system-prompt.js";
 import { composerTemplateDirs } from "./prompt-templates.js";
+import { loadSubagentDefinitions } from "./subagent-definitions.js";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -57,4 +58,21 @@ it("an isolated profile lists only its own native sessions and instructions, lea
   expect((await loadInstructionChain(null))?.entries.map((entry) => entry.content)).toEqual(["owned"]);
   expect(customSystemPromptDirs(null).global).toBe(join(profile, "agent"));
   expect(composerTemplateDirs(null).user).toBe(join(profile, "agent", "prompts"));
+});
+
+it("subagent fallback discovery ignores shared agent tools and inherited roots", async () => {
+  const home = mkdtempSync(join(tmpdir(), "boxai-capabilities-"));
+  roots.push(home);
+  const profile = join(home, "boxai-profile");
+  vi.stubEnv("HOME", home);
+  vi.stubEnv("USERPROFILE", home);
+  vi.stubEnv("PI_DESKTOP_DATA_DIR", profile);
+  vi.stubEnv("PI_DESKTOP_AGENTS_DIR", join(home, ".agents"));
+  for (const [folder, text] of [[join(home, ".agents/subagents"), "Foreign"], [join(profile, "agent/subagents"), "Owned"]]) {
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "explorer.md"), `---\nname: explorer\ndescription: ${text}\ntools: [Read]\n---\n${text} instructions\n`);
+  }
+  const result = await loadSubagentDefinitions(home);
+  expect(result.definitions.find((entry) => entry.name === "explorer")?.description).toBe("Owned");
+  expect(JSON.stringify(result)).not.toContain("Foreign");
 });

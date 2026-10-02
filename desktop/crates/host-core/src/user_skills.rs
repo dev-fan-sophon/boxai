@@ -108,6 +108,7 @@ impl ImportShape {
 }
 
 pub struct UserSkillRegistry {
+    data_dir: PathBuf,
     state: CapabilityState,
 }
 
@@ -454,11 +455,12 @@ fn same_document(record_path: &str, planned: &Path) -> bool {
 }
 
 fn package_root(
+    data_dir: &Path,
     record: &UserSkillRecord,
     level: CapabilityLevel,
     project_path: Option<&str>,
 ) -> Result<Option<PathBuf>> {
-    let skills_dir = capability_dir(level, project_path, SKILL_KIND)?;
+    let skills_dir = capability_dir(data_dir, level, project_path, SKILL_KIND)?;
     let path = PathBuf::from(&record.path);
     if !path
         .file_name()
@@ -639,8 +641,18 @@ impl UserSkillRegistry {
             bail!("SKILL_INVALID: at most {MAX_SKILLS} skills");
         }
 
-        let source_dir = capability_dir(from.level, from.project_path.as_deref(), "skills")?;
-        let directory = capability_dir(to.level, to.project_path.as_deref(), "skills")?;
+        let source_dir = capability_dir(
+            &self.data_dir,
+            from.level,
+            from.project_path.as_deref(),
+            "skills",
+        )?;
+        let directory = capability_dir(
+            &self.data_dir,
+            to.level,
+            to.project_path.as_deref(),
+            "skills",
+        )?;
         let owned_dir = directory_skill_root(&source_path, &source_dir);
         let shared_directory = owned_dir.is_some();
         let placement = plan_skill_placement(&source, &directory, shared_directory, &existing)
@@ -737,6 +749,7 @@ impl UserSkillRegistry {
 impl UserSkillRegistry {
     pub fn new(data_dir: &Path) -> Self {
         Self {
+            data_dir: data_dir.to_path_buf(),
             state: CapabilityState::new(data_dir, SKILL_KIND),
         }
     }
@@ -747,7 +760,7 @@ impl UserSkillRegistry {
         project_path: Option<&str>,
         effective_project: Option<&str>,
     ) -> Result<Vec<UserSkillRecord>> {
-        let directory = capability_dir(level, project_path, "skills")?;
+        let directory = capability_dir(&self.data_dir, level, project_path, "skills")?;
         let mut paths = sorted_files(&directory, "md");
         // Support the conventional `<skill>/SKILL.md` shape without making a
         // directory import necessary. Direct markdown files remain the shape
@@ -879,7 +892,7 @@ impl UserSkillRegistry {
 
     pub fn create(&mut self, input: UserSkillInput) -> Result<UserSkillRecord> {
         let (level, project_path) = level_and_project(&input)?;
-        let directory = capability_dir(level, project_path.as_deref(), "skills")?;
+        let directory = capability_dir(&self.data_dir, level, project_path.as_deref(), "skills")?;
         let name = clip(input.name.as_deref().unwrap_or_default(), MAX_NAME_CHARS);
         if name.is_empty() {
             bail!("SKILL_INVALID: name is required");
@@ -967,7 +980,7 @@ impl UserSkillRegistry {
         if existing.len() >= MAX_SKILLS {
             bail!("SKILL_INVALID: at most {MAX_SKILLS} skills");
         }
-        let directory = capability_dir(level, project_path.as_deref(), "skills")?;
+        let directory = capability_dir(&self.data_dir, level, project_path.as_deref(), "skills")?;
         fs::create_dir_all(&directory)?;
 
         match shape {
@@ -1206,7 +1219,7 @@ impl UserSkillRegistry {
         let Some(record) = self.find(id, Some(level), project_path)? else {
             return Ok(Vec::new());
         };
-        let Some(root) = package_root(&record, level, project_path)? else {
+        let Some(root) = package_root(&self.data_dir, &record, level, project_path)? else {
             return Ok(Vec::new());
         };
         let mut result = Vec::new();
@@ -1244,7 +1257,7 @@ impl UserSkillRegistry {
         let Some(record) = self.find(id, Some(level), project_path)? else {
             bail!("SKILL_INVALID: skill package target was not found");
         };
-        let Some(root) = package_root(&record, level, project_path)? else {
+        let Some(root) = package_root(&self.data_dir, &record, level, project_path)? else {
             bail!("SKILL_INVALID: package resources require a directory-shaped skill");
         };
         let root_metadata = fs::symlink_metadata(&root)?;

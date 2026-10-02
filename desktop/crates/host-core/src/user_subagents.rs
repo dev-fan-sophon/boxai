@@ -10,7 +10,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const MAX_USER_SUBAGENTS: usize = 64;
 pub const MAX_SUBAGENT_BYTES: usize = 32 * 1024;
@@ -93,6 +93,7 @@ pub struct UserSubagentInput {
 }
 
 pub struct UserSubagentRegistry {
+    data_dir: PathBuf,
     state: CapabilityState,
     builtins: CapabilityState,
 }
@@ -268,13 +269,14 @@ fn default_body(name: &str) -> String {
 impl UserSubagentRegistry {
     pub fn new(data_dir: &Path) -> Self {
         Self {
+            data_dir: data_dir.to_path_buf(),
             state: CapabilityState::new(data_dir, SUBAGENT_KIND),
             builtins: CapabilityState::new(data_dir, SUBAGENT_BUILTIN_KIND),
         }
     }
 
     fn scan(&mut self) -> Result<Vec<UserSubagentRecord>> {
-        let directory = capability_dir(CapabilityLevel::Global, None, "subagents")?;
+        let directory = capability_dir(&self.data_dir, CapabilityLevel::Global, None, "subagents")?;
         let mut records = Vec::new();
         let mut seen = HashSet::new();
         for path in sorted_files(&directory, "md") {
@@ -363,7 +365,7 @@ impl UserSubagentRegistry {
             created_at: Utc::now().to_rfc3339(),
             updated_at: Utc::now().to_rfc3339(),
         };
-        let directory = capability_dir(CapabilityLevel::Global, None, "subagents")?;
+        let directory = capability_dir(&self.data_dir, CapabilityLevel::Global, None, "subagents")?;
         fs::create_dir_all(&directory)?;
         let path = directory.join(format!("{}.md", record.id));
         let default_body = default_body(&record.name);
@@ -444,7 +446,7 @@ impl UserSubagentRegistry {
         next.enabled = input.enabled.unwrap_or(current.enabled);
         next.path = current.path.clone();
         if next.id != current.id {
-            next.path = capability_dir(CapabilityLevel::Global, None, "subagents")?
+            next.path = capability_dir(&self.data_dir, CapabilityLevel::Global, None, "subagents")?
                 .join(format!("{}.md", next.id))
                 .to_string_lossy()
                 .to_string();

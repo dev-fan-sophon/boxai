@@ -1,5 +1,6 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
+import { agentDataDir } from "./agent-data-dir.js";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -165,7 +166,7 @@ describe("loadSubagentDefinitions", () => {
     );
     const { definitions, diagnostics } = await loadSubagentDefinitions(null);
 
-    expect(subagentDefinitionDir(dir)).toBe(join(homedir(), ".agents", "subagents"));
+    expect(subagentDefinitionDir(dir)).toBe(join(agentDataDir(), "subagents"));
     expect(definitions.every((d) => d.source === "builtin")).toBe(true);
     expect(definitions.map((d) => d.name)).not.toContain("project-only");
     expect(diagnostics).toEqual([]);

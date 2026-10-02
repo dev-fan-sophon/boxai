@@ -3,7 +3,7 @@
  * into a usable provider binding (ADR 0062).
  *
  * Discovery has two sources, in shadowing order: the user's global
- * `~/.agents/subagents/*.md` documents handed in by Electron main (D202), and
+ * `<BoxAI data>/agent/subagents/*.md` documents handed in by Electron main, and
  * the definitions PI-Desktop ships. Project workspaces never provide subagents;
  * a repository cannot silently add a delegate to a user's agent catalog.
  *
@@ -14,7 +14,7 @@
  */
 
 import { readdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { agentDataDir } from "./agent-data-dir.js";
 import { join } from "node:path";
 import {
   mergeSubagentDefinitions,
@@ -46,7 +46,7 @@ export type VendorModelBinding = ThinkingCapabilitySet & {
 
 /** Global directory for user-owned definitions; project roots are not consulted. */
 export function subagentDefinitionDir(_workspaceRoot: string): string {
-  return join(homedir(), ".agents", "subagents");
+  return join(agentDataDir(), "subagents");
 }
 
 /**
@@ -234,7 +234,7 @@ async function loadGlobalSubagents(
   try {
     names = (await readdir(dir)).filter((name) => /\.md$/i.test(name)).sort();
   } catch {
-    // No `~/.agents/subagents` directory is the common case, not an error.
+    // No user subagent directory is the common case, not an error.
     return { definitions, diagnostics };
   }
   for (const name of names) {
@@ -277,7 +277,7 @@ export type UserSubagentDocument = {
 export type LoadSubagentOptions = {
   /** Global directory override, primarily for isolated tests. */
   overrideDir?: string;
-  /** Documents already scanned by host-core from `~/.agents/subagents`. */
+  /** Documents already scanned by host-core from the selected BoxAI profile. */
   userDocuments?: readonly UserSubagentDocument[];
   /**
    * Handles whose shipped definition the user turned off (D202 activation for
