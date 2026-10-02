@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { LayoutDashboard } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -15,11 +16,13 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { useTopNavLinks } from '@/hooks/use-top-nav-links'
+import { MOTION_SPRING } from '@/lib/motion'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { defaultTopNavLinks } from '../config/top-nav.config'
+import { isTopNavLinkActive } from '../lib/url-utils'
 import type { TopNavLink } from '../types'
 import { BrandWordmark } from './brand-wordmark'
 import { HeaderLogo } from './header-logo'
@@ -29,12 +32,6 @@ const AUTH_PROMPT_SECONDS = 5
 type AuthPromptTarget = {
   title: string
   href: string
-}
-
-// Detail routes (`/pricing/gpt-5`, `/docs/streaming`) keep their section lit.
-function isNavLinkActive(pathname: string, href: string): boolean {
-  if (href === '/') return pathname === '/'
-  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
 export interface PublicHeaderProps {
@@ -72,7 +69,7 @@ export function PublicHeader(props: PublicHeaderProps) {
     useState<AuthPromptTarget | null>(null)
   const [authPromptSecondsLeft, setAuthPromptSecondsLeft] =
     useState(AUTH_PROMPT_SECONDS)
-  const { auth } = useAuthStore()
+  const user = useAuthStore((state) => state.auth.user)
   const { status } = useStatus()
   const {
     systemName,
@@ -82,10 +79,10 @@ export function PublicHeader(props: PublicHeaderProps) {
   } = useSystemConfig()
   const dynamicLinks = useTopNavLinks()
   const notifications = useNotifications()
-  const routerState = useRouterState()
-  const pathname = routerState.location.pathname
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
-  const user = auth.user
   const isAuthenticated = !!user
   const displaySiteName = customSiteName || systemName
   const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks
@@ -241,14 +238,26 @@ export function PublicHeader(props: PublicHeaderProps) {
                 wider locales. */}
             <div className='hidden items-center gap-0.5 xl:flex'>
               {links.map((link) => {
-                const isActive = isNavLinkActive(pathname, link.href)
+                const isActive = isTopNavLinkActive(pathname, link.href)
                 const linkClassName = cn(
-                  'transition-ui duration-control rounded-lg px-3 py-1.5 text-ui font-medium whitespace-nowrap',
+                  'transition-ui duration-control relative isolate rounded-lg px-3 py-1.5 text-ui font-medium whitespace-nowrap',
                   isActive
-                    ? 'bg-foreground/[0.06] text-foreground'
+                    ? 'text-foreground'
                     : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
                   link.disabled && 'pointer-events-none opacity-50'
                 )
+                // One pill shared by every link through `layoutId`, so it
+                // slides to the new section instead of blinking between two.
+                // `MotionConfig reducedMotion='user'` turns the slide into a
+                // cut for reduced-motion users.
+                const activePill = isActive ? (
+                  <motion.span
+                    layoutId='public-header-active-link'
+                    aria-hidden='true'
+                    className='bg-foreground/[0.06] absolute inset-0 -z-10 rounded-lg'
+                    transition={MOTION_SPRING.snappy}
+                  />
+                ) : null
                 if (link.external) {
                   return (
                     <a
@@ -261,6 +270,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                       onClick={(event) => handleNavLinkClick(event, link)}
                       className={linkClassName}
                     >
+                      {activePill}
                       {t(link.title)}
                     </a>
                   )
@@ -274,6 +284,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                     className={linkClassName}
                     aria-current={isActive ? 'page' : undefined}
                   >
+                    {activePill}
                     {t(link.title)}
                   </Link>
                 )
@@ -390,7 +401,7 @@ export function PublicHeader(props: PublicHeaderProps) {
         <div className='flex h-full flex-col justify-between px-8 pt-20 pb-10'>
           <nav className='flex flex-col gap-1'>
             {links.map((link, i) => {
-              const isActive = isNavLinkActive(pathname, link.href)
+              const isActive = isTopNavLinkActive(pathname, link.href)
               const linkClassName = cn(
                 'flex items-center gap-3 py-3 text-base font-medium tracking-tight transition-[transform,opacity] duration-expressive ease-emphasized motion-reduce:transition-none',
                 mobileOpen

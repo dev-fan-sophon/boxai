@@ -12,13 +12,42 @@ import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
 import { useTheme } from '@/context/theme-provider'
 
+/*
+ * App-wide toast defaults. Everything here can still be overridden per mount.
+ *
+ * - offset: 16px from the edge on desktop, 12px on phones, plus the safe-area
+ *   inset so a toast never sits under the notch or the home indicator.
+ * - visibleToasts: four stacked at most; older ones collapse behind them
+ *   rather than marching down the page during a burst of failures.
+ * - swipe: dismiss toward the edge the stack is anchored to, or sideways —
+ *   the natural flick on a phone whichever way it is held.
+ */
+const EDGE_OFFSET = {
+  top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+  left: 16,
+  right: 16,
+}
+const MOBILE_EDGE_OFFSET = {
+  top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+  left: 12,
+  right: 12,
+}
+
 const Toaster = (props: ToasterProps) => {
   const { resolvedTheme } = useTheme()
+  const anchoredEdge = props.position?.startsWith('bottom') ? 'bottom' : 'top'
 
   return (
     <Sonner
       theme={resolvedTheme}
       className='toaster group'
+      offset={EDGE_OFFSET}
+      mobileOffset={MOBILE_EDGE_OFFSET}
+      visibleToasts={4}
+      gap={8}
+      swipeDirections={[anchoredEdge, 'left', 'right']}
       icons={{
         success: (
           <HugeiconsIcon

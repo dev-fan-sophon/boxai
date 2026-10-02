@@ -68,18 +68,32 @@
   --card-hover-lift: -2px;
 }
 
-/* Vercel Geist-style skeleton shimmer */
-.skeleton-shimmer {
-  background: linear-gradient(
+/* Vercel Geist-style skeleton shimmer — the one loading placeholder look,
+ * used by `ui/Skeleton` and by bespoke placeholders that need the same sweep.
+ * A utility (not a bare rule) so it lives in the utilities layer: a caller's
+ * `bg-*` or `rounded-*` on a Skeleton still wins. The sweep is a highlight band
+ * over the base colour, so tinting the base keeps the shimmer.
+ *
+ * Reduced motion keeps the solid placeholder and drops the sweep. */
+@utility skeleton-shimmer {
+  background-color: var(--skeleton-base);
+  background-image: linear-gradient(
     90deg,
-    var(--skeleton-base) 0%,
-    var(--skeleton-base) 33%,
+    transparent 0%,
+    transparent 33%,
     var(--skeleton-highlight) 50%,
-    var(--skeleton-base) 67%,
-    var(--skeleton-base) 100%
+    transparent 67%,
+    transparent 100%
   );
   background-size: 300% 100%;
-  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer calc(var(--motion-duration-ambient) * 1.5)
+    ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background-image: none;
+  }
 }
 
 @keyframes skeleton-shimmer {
@@ -88,13 +102,6 @@
   }
   100% {
     background-position: -100% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-shimmer {
-    animation: none !important;
-    background: var(--skeleton-base) !important;
   }
 }
 
@@ -623,16 +630,15 @@
     }
   }
 
-  button:not(:disabled):active,
-  [role='button']:not(:disabled):active {
-    transform: scale(0.98);
-  }
-
   [data-slot='table'] tr {
-    transition: background-color 120ms ease;
+    transition: background-color var(--motion-duration-control)
+      var(--motion-ease-out);
   }
 
-  /* Table row stagger-in animation */
+  /* Table row entrance. The one table stagger in the app: CSS rather than a
+   * `motion.tbody`, so every data table gets it without opting in and without
+   * the animation runtime. Rows past the tenth share one delay so a long page
+   * never trails behind the first screen. */
   [data-slot='table'] tbody tr {
     animation: tableRowEnter var(--motion-duration-control)
       var(--motion-ease-out) both;

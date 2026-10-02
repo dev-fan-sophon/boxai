@@ -1,4 +1,4 @@
-import { RefreshCw, Loader2 } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -54,16 +54,12 @@ export function AccessTokenDialog({
             {t('Close')}
           </Button>
           <Button
+            loading={generating}
             type='button'
             onClick={generate}
-            disabled={generating}
             className='gap-2'
           >
-            {generating ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
-              <RefreshCw className='h-4 w-4' />
-            )}
+            <RefreshCw className='h-4 w-4' />
             {generating ? t('Generating...') : t('Regenerate')}
           </Button>
         </>

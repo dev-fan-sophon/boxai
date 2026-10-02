@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -100,11 +100,11 @@ export function TwoFADisableDialog({
             {t('Cancel')}
           </Button>
           <Button
+            loading={loading}
             variant='destructive'
             onClick={handleDisable}
             disabled={loading || !code || !confirmed}
           >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {loading ? t('Disabling...') : t('Disable 2FA')}
           </Button>
         </>

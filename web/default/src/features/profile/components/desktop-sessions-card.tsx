@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Laptop, Loader2, RefreshCw } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Laptop, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { AsyncState } from '@/components/async-state'
+import { EmptyState } from '@/components/empty-state'
+import { AnimatedList, AnimatedListItem } from '@/components/page-transition'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,80 +70,6 @@ export function DesktopSessionsCard() {
     ).format(date)
   }
 
-  let content: ReactNode = (
-    <ul className='space-y-3' aria-label={t('Active desktop sessions')}>
-      {sessionsQuery.data?.map((session) => (
-        <li
-          key={session.id}
-          className='bg-muted/40 rounded-lg border p-3 sm:p-4'
-        >
-          <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-            <div className='min-w-0'>
-              <p className='truncate font-medium'>{session.client_name}</p>
-              <dl className='mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2'>
-                <div>
-                  <dt className='text-muted-foreground'>{t('Created')}</dt>
-                  <dd>{formatDate(session.created_at)}</dd>
-                </div>
-                <div>
-                  <dt className='text-muted-foreground'>
-                    {t('Last refreshed')}
-                  </dt>
-                  <dd>{formatDate(session.last_refreshed_at)}</dd>
-                </div>
-                <div>
-                  <dt className='text-muted-foreground'>{t('Expires')}</dt>
-                  <dd>{formatDate(session.expires_at)}</dd>
-                </div>
-              </dl>
-            </div>
-            <Button
-              variant='destructive'
-              size='sm'
-              className='w-full shrink-0 sm:w-auto'
-              onClick={() => setSessionToRevoke(session)}
-            >
-              {t('Revoke')}
-            </Button>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-
-  if (sessionsQuery.isPending) {
-    content = (
-      <div className='space-y-3' aria-busy='true'>
-        <Skeleton className='h-28 w-full' />
-        <Skeleton className='h-28 w-full' />
-      </div>
-    )
-  } else if (sessionsQuery.isError) {
-    content = (
-      <div className='flex flex-col items-center gap-3 py-6 text-center'>
-        <p className='text-muted-foreground text-sm'>
-          {t('Unable to load desktop sessions.')}
-        </p>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => sessionsQuery.refetch()}
-        >
-          {t('Retry')}
-        </Button>
-      </div>
-    )
-  } else if (sessionsQuery.data.length === 0) {
-    content = (
-      <div className='py-6 text-center'>
-        <p className='font-medium'>{t('No active desktop sessions')}</p>
-        <p className='text-muted-foreground mt-1 text-sm'>
-          {t('Devices signed in to BoxAI Desktop will appear here.')}
-        </p>
-      </div>
-    )
-  }
-
   return (
     <>
       <TitledCard
@@ -165,7 +94,81 @@ export function DesktopSessionsCard() {
           </Button>
         }
       >
-        {content}
+        <AsyncState
+          query={sessionsQuery}
+          skeleton={
+            <div className='space-y-3' aria-busy='true'>
+              <Skeleton className='h-28 w-full' />
+              <Skeleton className='h-28 w-full' />
+            </div>
+          }
+          errorTitle={t('Unable to load desktop sessions.')}
+          empty={
+            <EmptyState
+              bordered={false}
+              className='min-h-0 py-6'
+              icon={Laptop}
+              title={t('No active desktop sessions')}
+              description={t(
+                'Devices signed in to BoxAI Desktop will appear here.'
+              )}
+            />
+          }
+        >
+          {(sessions) => (
+            // Revoking a session animates it out and closes the gap, rather
+            // than the list jumping when the refetch lands.
+            <AnimatedList
+              role='list'
+              aria-label={t('Active desktop sessions')}
+              className='space-y-3'
+            >
+              {sessions.map((session) => (
+                <AnimatedListItem
+                  key={session.id}
+                  role='listitem'
+                  className='bg-muted/40 rounded-lg border p-3 sm:p-4'
+                >
+                  <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                    <div className='min-w-0'>
+                      <p className='truncate font-medium'>
+                        {session.client_name}
+                      </p>
+                      <dl className='mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2'>
+                        <div>
+                          <dt className='text-muted-foreground'>
+                            {t('Created')}
+                          </dt>
+                          <dd>{formatDate(session.created_at)}</dd>
+                        </div>
+                        <div>
+                          <dt className='text-muted-foreground'>
+                            {t('Last refreshed')}
+                          </dt>
+                          <dd>{formatDate(session.last_refreshed_at)}</dd>
+                        </div>
+                        <div>
+                          <dt className='text-muted-foreground'>
+                            {t('Expires')}
+                          </dt>
+                          <dd>{formatDate(session.expires_at)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                    <Button
+                      variant='destructive'
+                      size='sm'
+                      className='w-full shrink-0 sm:w-auto'
+                      onClick={() => setSessionToRevoke(session)}
+                    >
+                      {t('Revoke')}
+                    </Button>
+                  </div>
+                </AnimatedListItem>
+              ))}
+            </AnimatedList>
+          )}
+        </AsyncState>
       </TitledCard>
 
       <AlertDialog
@@ -185,15 +188,12 @@ export function DesktopSessionsCard() {
             </AlertDialogCancel>
             <AlertDialogAction
               variant='destructive'
-              disabled={revokeMutation.isPending}
+              loading={revokeMutation.isPending}
               onClick={(event) => {
                 event.preventDefault()
                 if (sessionToRevoke) revokeMutation.mutate(sessionToRevoke.id)
               }}
             >
-              {revokeMutation.isPending && (
-                <Loader2 aria-hidden='true' className='animate-spin' />
-              )}
               {t('Revoke')}
             </AlertDialogAction>
           </AlertDialogFooter>

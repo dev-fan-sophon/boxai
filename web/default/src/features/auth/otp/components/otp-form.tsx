@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -185,11 +184,11 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
         />
 
         <Button
+          loading={isLoading}
           type='submit'
           className='mt-2 w-full'
           disabled={!isFormValid || isLoading}
         >
-          {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
           {t('Verify and Sign In')}
         </Button>
 

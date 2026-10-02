@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -84,10 +83,10 @@ export function TransferDialog({
             {t('Cancel')}
           </Button>
           <Button
+            loading={transferring}
             onClick={handleConfirm}
             disabled={transferring || !canTransfer}
           >
-            {transferring && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {t('Transfer')}
           </Button>
         </>

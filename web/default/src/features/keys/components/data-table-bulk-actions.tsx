@@ -1,5 +1,5 @@
 import type { Table } from '@tanstack/react-table'
-import { Copy, Trash2, Loader2 } from 'lucide-react'
+import { Copy, Trash2 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -69,6 +69,7 @@ export function DataTableBulkActions<TData>({
           <TooltipTrigger
             render={
               <Button
+                loading={isCopying}
                 variant='outline'
                 size='icon'
                 className='size-8'
@@ -78,11 +79,7 @@ export function DataTableBulkActions<TData>({
               />
             }
           >
-            {isCopying ? (
-              <Loader2 className='size-4 animate-spin' />
-            ) : (
-              <Copy className='size-4' />
-            )}
+            <Copy className='size-4' />
           </TooltipTrigger>
           <TooltipContent>
             <p>{t('Copy selected keys')}</p>

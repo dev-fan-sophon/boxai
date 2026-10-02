@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { ListChecks, RefreshCw } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AsyncState } from '@/components/async-state'
 import { EmptyState } from '@/components/empty-state'
-import { ErrorState } from '@/components/error-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -318,95 +317,81 @@ export function SystemTasksPanel() {
   })
 
   const tasks = tasksQuery.data ?? []
-  const loading = tasksQuery.isLoading
   const refreshing = tasksQuery.isFetching && !tasksQuery.isLoading
   const hasActiveTasks = tasks.some((task) => isActiveStatus(task.status))
   const activeTasks = tasks.filter((task) => isActiveStatus(task.status))
   const historyTasks = tasks.filter((task) => !isActiveStatus(task.status))
 
-  let tasksBody: ReactNode
-  if (loading) {
-    tasksBody = (
-      <div className='space-y-2 p-4 sm:p-5'>
-        {SYSTEM_TASK_SKELETON_IDS.map((id) => (
-          <Skeleton key={id} className='h-9 w-full rounded-md' />
-        ))}
-      </div>
-    )
-  } else if (tasksQuery.isError) {
-    tasksBody = (
-      <ErrorState
-        title={t('We could not load system tasks.')}
-        description={
-          tasksQuery.error instanceof Error
-            ? tasksQuery.error.message
-            : undefined
-        }
-        onRetry={() => {
-          void tasksQuery.refetch()
-        }}
-        className='min-h-[260px]'
-      />
-    )
-  } else if (tasks.length === 0) {
-    tasksBody = (
-      <div className='px-4 py-10 text-center sm:px-5'>
-        <div className='bg-muted mx-auto mb-3 flex size-10 items-center justify-center rounded-lg'>
-          <ListChecks
-            className='text-muted-foreground size-5'
-            aria-hidden='true'
-          />
+  const tasksBody = (
+    <AsyncState
+      query={tasksQuery}
+      skeleton={
+        <div className='space-y-2 p-4 sm:p-5'>
+          {SYSTEM_TASK_SKELETON_IDS.map((id) => (
+            <Skeleton key={id} className='h-9 w-full rounded-md' />
+          ))}
         </div>
-        <p className='text-muted-foreground text-sm'>
-          {t('No system tasks yet.')}
-        </p>
-      </div>
-    )
-  } else {
-    tasksBody = (
-      <div className='space-y-4 p-4 sm:p-5'>
-        <div>
-          <div className='mb-2 flex items-center justify-between gap-3'>
-            <div>
-              <h4 className='text-sm font-medium'>{t('Active Tasks')}</h4>
-              <p className='text-muted-foreground mt-0.5 text-xs'>
-                {t('Tasks currently pending or running.')}
-              </p>
-            </div>
-            <Badge variant='outline'>{activeTasks.length}</Badge>
-          </div>
-          {activeTasks.length > 0 ? (
-            <SystemTasksTable tasks={activeTasks} />
-          ) : (
-            <EmptyState
-              className='min-h-0 px-4 py-6'
-              title={t('No active system tasks.')}
+      }
+      errorTitle={t('We could not load system tasks.')}
+      empty={
+        <div className='px-4 py-10 text-center sm:px-5'>
+          <div className='bg-muted mx-auto mb-3 flex size-10 items-center justify-center rounded-lg'>
+            <ListChecks
+              className='text-muted-foreground size-5'
+              aria-hidden='true'
             />
-          )}
+          </div>
+          <p className='text-muted-foreground text-sm'>
+            {t('No system tasks yet.')}
+          </p>
         </div>
+      }
+    >
+      {() => (
+        <div className='space-y-4 p-4 sm:p-5'>
+          <div>
+            <div className='mb-2 flex items-center justify-between gap-3'>
+              <div>
+                <h4 className='text-sm font-medium'>{t('Active Tasks')}</h4>
+                <p className='text-muted-foreground mt-0.5 text-xs'>
+                  {t('Tasks currently pending or running.')}
+                </p>
+              </div>
+              <Badge variant='outline'>{activeTasks.length}</Badge>
+            </div>
+            {activeTasks.length > 0 ? (
+              <SystemTasksTable tasks={activeTasks} />
+            ) : (
+              <EmptyState
+                className='min-h-0 px-4 py-6'
+                title={t('No active system tasks.')}
+              />
+            )}
+          </div>
 
-        <div>
-          <div className='mb-2 flex items-center justify-between gap-3'>
-            <div>
-              <h4 className='text-sm font-medium'>{t('Task History')}</h4>
-              <p className='text-muted-foreground mt-0.5 text-xs'>
-                {t('Recently completed or failed system task runs.')}
-              </p>
+          <div>
+            <div className='mb-2 flex items-center justify-between gap-3'>
+              <div>
+                <h4 className='text-sm font-medium'>{t('Task History')}</h4>
+                <p className='text-muted-foreground mt-0.5 text-xs'>
+                  {t('Recently completed or failed system task runs.')}
+                </p>
+              </div>
+              <Badge variant='outline'>{historyTasks.length}</Badge>
             </div>
-            <Badge variant='outline'>{historyTasks.length}</Badge>
+            {historyTasks.length > 0 ? (
+              <SystemTasksTable tasks={historyTasks} />
+            ) : (
+              <EmptyState
+                className='min-h-0 px-4 py-6'
+                title={t('No historical system tasks.')}
+              />
+            )}
           </div>
-          {historyTasks.length > 0 ? (
-            <SystemTasksTable tasks={historyTasks} />
-          ) : (
-            <EmptyState
-              className='min-h-0 px-4 py-6'
-              title={t('No historical system tasks.')}
-            />
-          )}
         </div>
-      </div>
-    )
-  }
+      )}
+    </AsyncState>
+  )
 
   return (
     <section className='bg-card overflow-hidden rounded-lg border shadow-xs'>

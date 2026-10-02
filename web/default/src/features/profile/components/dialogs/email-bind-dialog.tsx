@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -138,11 +137,11 @@ export function EmailBindDialog({
             {t('Cancel')}
           </Button>
           <Button
+            loading={loading}
             type='button'
             onClick={handleBind}
             disabled={loading || !email || !code}
           >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {loading ? t('Binding...') : t('Bind Email')}
           </Button>
         </>

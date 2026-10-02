@@ -30,7 +30,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot='sheet-overlay'
       className={cn(
-        'fixed inset-0 z-50 bg-black/10 transition-opacity duration-control data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs',
+        'fixed inset-0 z-overlay bg-black/40 transition-opacity duration-overlay ease-emphasized data-ending-style:opacity-0 data-ending-style:duration-control data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-[2px] dark:bg-black/60',
         className
       )}
       {...props}
@@ -61,15 +61,20 @@ function SheetContent({
         data-slot='sheet-content'
         data-side={side}
         className={cn(
-          'bg-background text-foreground fixed z-50 flex flex-col gap-4 overflow-hidden bg-clip-padding text-sm shadow-none transition duration-control ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0',
+          // A drawer slides in from fully off-screen along its edge — a short
+          // nudge plus a fade reads as a popover, not a panel. Entrances run
+          // on the overlay tier with the emphasized curve; the exit drops to
+          // the control tier so dismissing never feels like waiting. Reduced
+          // motion keeps a fade and drops the travel.
+          'bg-background text-foreground shadow-lifted fixed z-overlay flex flex-col gap-4 overflow-hidden bg-clip-padding text-sm transition-[translate,opacity] duration-overlay ease-emphasized will-change-transform data-ending-style:duration-control motion-reduce:transition-opacity motion-reduce:data-ending-style:opacity-0 motion-reduce:data-starting-style:opacity-0',
           side === 'right' &&
-            'inset-y-0 right-0 h-full w-3/4 border-l data-ending-style:translate-x-[2.5rem] data-starting-style:translate-x-[2.5rem] sm:max-w-sm',
+            'inset-y-0 right-0 h-full w-3/4 border-l data-ending-style:translate-x-full data-starting-style:translate-x-full sm:max-w-sm',
           side === 'left' &&
-            'inset-y-0 left-0 h-full w-3/4 border-r data-ending-style:translate-x-[-2.5rem] data-starting-style:translate-x-[-2.5rem] sm:max-w-sm',
+            'inset-y-0 left-0 h-full w-3/4 border-r data-ending-style:-translate-x-full data-starting-style:-translate-x-full sm:max-w-sm',
           side === 'top' &&
-            'inset-x-0 top-0 h-auto border-b data-ending-style:translate-y-[-2.5rem] data-starting-style:translate-y-[-2.5rem]',
+            'inset-x-0 top-0 h-auto border-b data-ending-style:-translate-y-full data-starting-style:-translate-y-full',
           side === 'bottom' &&
-            'inset-x-0 bottom-0 h-auto border-t data-ending-style:translate-y-[2.5rem] data-starting-style:translate-y-[2.5rem]',
+            'inset-x-0 bottom-0 h-auto border-t data-ending-style:translate-y-full data-starting-style:translate-y-full',
           className
         )}
         {...props}

@@ -3,6 +3,7 @@ import { Bell, Megaphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { AnimatedList, AnimatedListItem } from '@/components/page-transition'
 import { RichContent } from '@/components/rich-content'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -196,7 +197,7 @@ function AnnouncementsContent({
 
   return (
     <ScrollArea className='h-[min(52vh,28rem)] pr-3'>
-      <div className='flex flex-col'>
+      <AnimatedList animateInitial className='flex flex-col'>
         {announcements.map((item, idx) => {
           const announcementKey = getAnnouncementRenderKey(item)
           const publishDate = item.publishDate
@@ -210,7 +211,7 @@ function AnnouncementsContent({
             : ''
 
           return (
-            <div key={announcementKey}>
+            <AnimatedListItem key={announcementKey} index={idx}>
               <div className='py-3'>
                 <div className='flex items-start gap-3'>
                   <AnnouncementDot type={item.type} />
@@ -235,10 +236,10 @@ function AnnouncementsContent({
                 </div>
               </div>
               {idx < announcements.length - 1 ? <Separator /> : null}
-            </div>
+            </AnimatedListItem>
           )
         })}
-      </div>
+      </AnimatedList>
     </ScrollArea>
   )
 }
