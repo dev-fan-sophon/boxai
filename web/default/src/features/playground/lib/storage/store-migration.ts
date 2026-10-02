@@ -242,6 +242,10 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   imageCount: 1,
   imageSize: '1024x1024',
   imageQuality: 'auto',
+  imageAspectRatio: '',
+  imageResolution: '',
+  imageBackground: 'auto',
+  imageOutputFormat: 'png',
   imageBatchMode: false,
   videoDuration: 5,
   videoSize: '1280x720',
@@ -267,6 +271,13 @@ function clampNumber(
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, value))
+}
+
+/** Short option tokens like `16:9`, `2K`, `webp`; anything else resets. */
+function imageOptionToken(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback
+  const trimmed = value.trim()
+  return /^[\w.:-]{0,16}$/.test(trimmed) ? trimmed : fallback
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -307,6 +318,23 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     imageCount: image.imageCount,
     imageSize: image.imageSize,
     imageQuality: image.imageQuality,
+    // Free-form option tokens; each model clamps them to its capabilities.
+    imageAspectRatio: imageOptionToken(
+      merged.imageAspectRatio,
+      DEFAULT_STUDIO_SETTINGS.imageAspectRatio
+    ),
+    imageResolution: imageOptionToken(
+      merged.imageResolution,
+      DEFAULT_STUDIO_SETTINGS.imageResolution
+    ),
+    imageBackground: imageOptionToken(
+      merged.imageBackground,
+      DEFAULT_STUDIO_SETTINGS.imageBackground
+    ),
+    imageOutputFormat: imageOptionToken(
+      merged.imageOutputFormat,
+      DEFAULT_STUDIO_SETTINGS.imageOutputFormat
+    ),
     imageBatchMode: merged.imageBatchMode === true,
     videoDuration: clampNumber(
       merged.videoDuration,

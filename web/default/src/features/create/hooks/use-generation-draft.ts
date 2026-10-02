@@ -8,7 +8,11 @@ import {
   planGenerationJobs,
   type GenerationJobPlan,
 } from '@/features/playground/lib/studio/batch-plan'
-import { normalizeImageCount } from '@/features/playground/lib/studio/image-request-schema'
+import { resolveImageOptions } from '@/features/playground/lib/studio/image-capabilities'
+import {
+  isPlaygroundImageModel,
+  normalizeImageCount,
+} from '@/features/playground/lib/studio/image-request-schema'
 import {
   getActiveVideoReferenceLimit,
   getVideoUploadProfile,
@@ -20,6 +24,10 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { MediaReference } from '../components/references/media-reference-slot'
 import type { CreateTool } from '../constants'
+import { useImageCapabilities } from './use-image-capabilities'
+
+/** Reference cap while the image capabilities are unknown (guest/loading). */
+const DEFAULT_IMAGE_REFERENCE_LIMIT = 4
 
 export type GenerationEstimateParams = {
   modality: CreateTool
@@ -51,7 +59,13 @@ export function useGenerationDraft(input: {
   const signedIn = useAuthStore((state) => Boolean(state.auth.user))
   const hasImage = input.references.length > 0
 
+  const isImage = input.modality === 'image'
   const capabilityQuery = useVideoCapabilities(group, model, isVideo)
+  const imageCapabilityQuery = useImageCapabilities(group, model, isImage)
+  const imageCapabilities = isImage ? (imageCapabilityQuery.data ?? null) : null
+  const imageOptions = imageCapabilities
+    ? resolveImageOptions(imageCapabilities, settings)
+    : undefined
   const capabilityMode = getVideoCapabilityMode(
     hasImage,
     settings.videoReferenceMode
@@ -83,8 +97,10 @@ export function useGenerationDraft(input: {
     !settings.videoDisableLastFrame
   )
 
-  let maxFiles = 4
-  if (isVideo && uploadProfile) {
+  let maxFiles = DEFAULT_IMAGE_REFERENCE_LIMIT
+  if (isImage && imageCapabilities) {
+    maxFiles = imageCapabilities.maxReferenceImages
+  } else if (isVideo && uploadProfile) {
     maxFiles = getActiveVideoReferenceLimit({
       capabilities: uploadProfile.capabilities,
       referenceMode: uploadProfile.mode,
@@ -126,8 +142,15 @@ export function useGenerationDraft(input: {
     !isVideo ||
     !signedIn ||
     Boolean(videoOptions && videoCapabilities && referencesValid)
+  const imageReady =
+    !isImage ||
+    (isPlaygroundImageModel(model) && input.references.length <= maxFiles)
   const canSubmit =
-    !input.uploading && Boolean(model) && jobCount > 0 && videoReady
+    !input.uploading &&
+    Boolean(model) &&
+    jobCount > 0 &&
+    videoReady &&
+    imageReady
 
   let videoIssue: string | null = null
   if (isVideo && !signedIn) {
@@ -147,6 +170,15 @@ export function useGenerationDraft(input: {
     }
   } else if (isVideo && !referencesValid) {
     videoIssue = t('Remove extra reference images before generating.')
+  }
+
+  let imageIssue: string | null = null
+  if (isImage && model && !isPlaygroundImageModel(model)) {
+    imageIssue = t(
+      'Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.'
+    )
+  } else if (isImage && input.references.length > maxFiles) {
+    imageIssue = t('Remove extra reference images before generating.')
   }
 
   let placeholder = t('Describe what you want to create…')
@@ -183,7 +215,7 @@ export function useGenerationDraft(input: {
           videoOptions?.aspectRatio ?? 'adaptive',
           videoOptions?.resolution ?? '720p'
         )
-      : settings.imageSize,
+      : (imageOptions?.size ?? settings.imageSize),
     duration: isVideo ? videoOptions?.duration : undefined,
     has_reference: hasImage,
   }
@@ -204,6 +236,10 @@ export function useGenerationDraft(input: {
     jobCount,
     canSubmit,
     videoIssue,
+    imageCapabilities,
+    imageCapabilityQuery,
+    imageOptions,
+    imageIssue,
     placeholder,
     submitLabel,
     planSummary,

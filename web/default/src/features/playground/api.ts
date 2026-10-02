@@ -11,6 +11,10 @@ import type {
   InspirationRecipe,
 } from './inspiration/types'
 import { parseRequestErrorDetails } from './lib/streaming/request-error-utils'
+import {
+  imageMimeFromBase64,
+  type ImageModelCapabilities,
+} from './lib/studio/image-capabilities'
 import { buildImageGenerationRequestBody } from './lib/studio/image-request-schema'
 import {
   resolveVideoOptions,
@@ -148,6 +152,10 @@ export type ImageGenerateInput = {
   referenceImages?: Array<string | null | undefined>
   /** when true with reference, use /pg/images/edits */
   editMode?: boolean
+  /** Model contract: decides which option fields are sent. */
+  capabilities?: ImageModelCapabilities | null
+  /** PNG inpainting mask (data URL) for the first reference. */
+  mask?: string | null
 }
 
 export async function generateImages(
@@ -164,6 +172,8 @@ export async function generateImages(
     settings: input.settings,
     referenceImage: ref,
     referenceImages: extraRefs,
+    capabilities: input.capabilities,
+    mask: input.mask,
   })
   const endpoint =
     input.editMode && ref
@@ -182,7 +192,9 @@ export async function generateImages(
       .map((item) => ({
         url:
           item.url ||
-          (item.b64_json ? `data:image/png;base64,${item.b64_json}` : ''),
+          (item.b64_json
+            ? `data:${imageMimeFromBase64(item.b64_json, body.output_format)};base64,${item.b64_json}`
+            : ''),
         revisedPrompt: item.revised_prompt,
       }))
       .filter((item) => item.url)

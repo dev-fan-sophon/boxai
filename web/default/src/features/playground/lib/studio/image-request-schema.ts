@@ -1,15 +1,20 @@
 import { BATCH_COUNTS, MAX_BATCH_COUNT } from './batch-plan'
+import {
+  resolveImageOptions,
+  type ImageModelCapabilities,
+  type ImageOptionSettings,
+} from './image-capabilities'
 
 /**
  * Playground image generation uses one OpenAI Images API request shape for
- * every allowed model (GPT Image 2 and Grok Imagine image):
+ * every allowed model (GPT Image, Grok Imagine and Gemini image models):
  *
- *   { model, prompt, n, size, quality, group?, image?, images? }
+ *   { model, prompt, n, group, image?, images?, mask?, …family options }
  *
- * Official GPT Image quality values (OpenAI docs): auto | low | medium | high.
- * Size presets used in the UI: 1024x1024 | 1536x1024 | 1024x1536 | auto.
- * Channel adaptors may drop fields their upstream does not support; the
- * playground always speaks GPT format.
+ * The family options come from the model's capabilities: GPT Image sends
+ * size/quality/background/output_format, Grok sends aspect_ratio/resolution/
+ * quality, Gemini sends aspect_ratio/resolution. The gateway translates the
+ * body for each provider (xAI Images, Gemini generateContent / chat).
  */
 
 /** Canonical default model id when auto-picking. */
@@ -61,6 +66,10 @@ export type ImageGenerationSettingsInput = {
   imageCount?: unknown
   imageSize?: unknown
   imageQuality?: unknown
+  imageAspectRatio?: unknown
+  imageResolution?: unknown
+  imageBackground?: unknown
+  imageOutputFormat?: unknown
 }
 
 export type NormalizedImageGenerationSettings = {
@@ -75,10 +84,15 @@ export type ImageGenerationRequestBody = {
   group: string
   prompt: string
   n: number
-  size: GptImageSize
-  quality: GptImageQuality
+  size?: string
+  quality?: string
+  aspect_ratio?: string
+  resolution?: string
+  background?: string
+  output_format?: string
   image?: string
   images?: string[]
+  mask?: string
 }
 
 export function bareModelId(model: string): string {
@@ -100,15 +114,34 @@ function isGrokImagineImageId(bare: string): boolean {
   )
 }
 
+/** Gemini native image models (gemini-3-pro-image, nano-banana, …). */
+export function isGeminiImageModel(model: string): boolean {
+  const bare = bareModelId(model)
+  return (
+    (bare.startsWith('gemini-') && bare.includes('-image')) ||
+    bare.startsWith('nano-banana')
+  )
+}
+
 /**
  * Models allowed on the playground image path. All of them are invoked with
- * the same OpenAI Images request shape.
+ * the same OpenAI Images request shape; the gateway adapts it per provider.
  */
 export function isPlaygroundImageModel(model: string): boolean {
   const bare = bareModelId(model)
   if (!bare) return false
-  return isGptImage2Id(bare) || isGrokImagineImageId(bare)
+  return (
+    isGptImage2Id(bare) ||
+    isGrokImagineImageId(bare) ||
+    isGeminiImageModel(bare)
+  )
 }
+
+/** Shown when a non-image model is selected on the image path. */
+export const UNSUPPORTED_IMAGE_MODEL_MESSAGE =
+  'Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.'
+
+const PIXEL_SIZE_PATTERN = /^\d{3,4}x\d{3,4}$/
 
 export function normalizeImageSize(value: unknown): GptImageSize {
   if (typeof value !== 'string') return DEFAULT_IMAGE_SIZE
@@ -119,7 +152,8 @@ export function normalizeImageSize(value: unknown): GptImageSize {
   if (mapped) return mapped
   const ascii = trimmed.replaceAll('×', 'x').toLowerCase()
   if (GPT_IMAGE_SIZE_SET.has(ascii)) return ascii as GptImageSize
-  if (GPT_IMAGE_SIZE_SET.has(trimmed)) return trimmed as GptImageSize
+  // Larger GPT Image 2 presets (2K/4K) come from the model capabilities.
+  if (PIXEL_SIZE_PATTERN.test(ascii)) return ascii as GptImageSize
   return DEFAULT_IMAGE_SIZE
 }
 
@@ -164,15 +198,17 @@ export function buildImageGenerationRequestBody(input: {
   settings: ImageGenerationSettingsInput
   referenceImage?: string | null
   referenceImages?: Array<string | null | undefined>
+  /** Model contract; when absent only the legacy GPT fields are sent. */
+  capabilities?: ImageModelCapabilities | null
+  /** PNG mask (data URL) for GPT Image inpainting of the first reference. */
+  mask?: string | null
 }): ImageGenerationRequestBody {
   const model = input.model.trim()
   if (!model) {
     throw new Error('model is required')
   }
   if (!isPlaygroundImageModel(model)) {
-    throw new Error(
-      'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
-    )
+    throw new Error(UNSUPPORTED_IMAGE_MODEL_MESSAGE)
   }
   const prompt = input.prompt.trim()
   if (!prompt) {
@@ -187,8 +223,18 @@ export function buildImageGenerationRequestBody(input: {
     group: input.group,
     prompt,
     n: normalized.imageCount,
-    size: normalized.imageSize,
-    quality: normalized.imageQuality,
+  }
+  if (input.capabilities) {
+    Object.assign(
+      body,
+      familyRequestFields(
+        input.capabilities,
+        imageOptionSettings(input.settings, normalized)
+      )
+    )
+  } else if (!isGeminiImageModel(model)) {
+    body.size = normalized.imageSize
+    body.quality = normalized.imageQuality
   }
 
   const references = [input.referenceImage, ...(input.referenceImages ?? [])]
@@ -199,8 +245,53 @@ export function buildImageGenerationRequestBody(input: {
     body.image = uniqueReferences[0]
     body.images = uniqueReferences
   }
+  const mask = input.mask?.trim()
+  if (mask && uniqueReferences.length > 0 && input.capabilities?.supportsMask) {
+    body.mask = mask
+  }
 
   return body
+}
+
+function imageOptionSettings(
+  settings: ImageGenerationSettingsInput,
+  normalized: NormalizedImageGenerationSettings
+): ImageOptionSettings {
+  const text = (value: unknown) => (typeof value === 'string' ? value : '')
+  return {
+    imageSize: normalized.imageSize,
+    imageQuality: normalized.imageQuality,
+    imageAspectRatio: text(settings.imageAspectRatio),
+    imageResolution: text(settings.imageResolution),
+    imageBackground: text(settings.imageBackground),
+    imageOutputFormat: text(settings.imageOutputFormat),
+  }
+}
+
+/**
+ * Only the fields the model family understands. Provider defaults (`auto`
+ * quality, `auto` background) are omitted to keep requests minimal.
+ */
+function familyRequestFields(
+  capabilities: ImageModelCapabilities,
+  settings: ImageOptionSettings
+): Partial<ImageGenerationRequestBody> {
+  const options = resolveImageOptions(capabilities, settings)
+  const fields: Partial<ImageGenerationRequestBody> = {}
+  if (options.quality && options.quality !== 'auto') {
+    fields.quality = options.quality
+  }
+  if (capabilities.sizeMode === 'pixels') {
+    if (options.size) fields.size = options.size
+    if (options.background && options.background !== 'auto') {
+      fields.background = options.background
+    }
+    if (options.outputFormat) fields.output_format = options.outputFormat
+    return fields
+  }
+  if (options.aspectRatio) fields.aspect_ratio = options.aspectRatio
+  if (options.resolution) fields.resolution = options.resolution
+  return fields
 }
 
 export function imageQualityLabelKey(quality: GptImageQuality): string {

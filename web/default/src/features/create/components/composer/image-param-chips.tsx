@@ -1,4 +1,12 @@
-import { Gauge, Layers, ListOrdered, Proportions } from 'lucide-react'
+import {
+  FileImage,
+  Gauge,
+  Layers,
+  ListOrdered,
+  Proportions,
+  Scan,
+  SquareDashed,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -13,60 +21,92 @@ import {
   imageQualityLabelKey,
 } from '@/features/playground/lib/studio/generation-options'
 import {
-  normalizeImageGenerationSettings,
-  type GptImageSize,
+  imagePixelSizeLabel,
+  imageResolutionLabel,
+} from '@/features/playground/lib/studio/image-capabilities'
+import {
+  isGeminiImageModel,
+  type GptImageQuality,
 } from '@/features/playground/lib/studio/image-request-schema'
-import type { StudioSettings } from '@/features/playground/types'
-import { usePlaygroundStore } from '@/stores/playground-store'
 
-function imageSizeChipLabel(
-  size: GptImageSize,
-  t: (key: string) => string
-): string {
+import { useImageOptions } from '../../hooks/use-image-options'
+
+function sizeChipLabel(size: string, t: (key: string) => string): string {
   if (size === 'auto') return t('Auto')
-  if (size === '1024x1024') return '1:1'
-  if (size === '1536x1024') return '3:2'
-  if (size === '1024x1536') return '2:3'
-  return size
+  return imagePixelSizeLabel(size).split(' · ')[0] ?? size
 }
 
-/** Inline image parameters for the composer. */
+/** Inline image parameters for the composer, per the model capabilities. */
 export function ImageParamChips() {
   const { t } = useTranslation()
-  const settings = usePlaygroundStore((state) => state.studioSettings)
-  const setStudioSettings = usePlaygroundStore(
-    (state) => state.setStudioSettings
-  )
+  const state = useImageOptions()
+  const capabilities = state.capabilities
+  const options = state.options
+  const aspectMode = capabilities?.sizeMode === 'aspect'
+  const pixelMode = capabilities?.sizeMode === 'pixels'
+  const legacy = !capabilities && !isGeminiImageModel(state.model)
 
-  const update = <K extends keyof StudioSettings>(
-    key: K,
-    value: StudioSettings[K]
-  ) => setStudioSettings((prev) => ({ ...prev, [key]: value }))
+  let sizes: string[] = []
+  if (pixelMode) sizes = capabilities.sizes
+  else if (legacy) sizes = [...IMAGE_SIZES]
+  const currentSize = options?.size ?? state.normalized.imageSize
 
-  const normalized = normalizeImageGenerationSettings(settings)
+  let qualities: string[] = []
+  if (capabilities) qualities = capabilities.qualities
+  else if (legacy) qualities = [...IMAGE_QUALITIES]
+  const currentQuality = options?.quality ?? state.normalized.imageQuality
+
   return (
     <>
-      <ParamChip
-        icon={<Proportions />}
-        ariaLabel={t('Image size')}
-        valueLabel={imageSizeChipLabel(normalized.imageSize, t)}
-        value={normalized.imageSize}
-        onChange={(value) => update('imageSize', value)}
-        options={IMAGE_SIZES.map((size) => ({
-          value: size,
-          label:
-            size === 'auto'
-              ? t('Auto')
-              : `${imageSizeChipLabel(size, t)} · ${size.replace('x', '×')}`,
-          glyph: <AspectGlyph size={size} />,
-        }))}
-      />
+      {aspectMode && options?.aspectRatio && (
+        <ParamChip
+          icon={<Proportions />}
+          ariaLabel={t('Aspect ratio')}
+          valueLabel={
+            options.aspectRatio === 'auto' ? t('Auto') : options.aspectRatio
+          }
+          value={options.aspectRatio}
+          onChange={(value) => state.update('imageAspectRatio', value)}
+          options={capabilities.aspectRatios.map((ratio) => ({
+            value: ratio,
+            label: ratio === 'auto' ? t('Auto') : ratio,
+            glyph: <AspectGlyph size={ratio} />,
+          }))}
+        />
+      )}
+      {aspectMode && capabilities.resolutions.length > 1 && (
+        <ParamChip
+          icon={<Scan />}
+          ariaLabel={t('Resolution')}
+          valueLabel={imageResolutionLabel(options?.resolution ?? '')}
+          value={options?.resolution ?? ''}
+          onChange={(value) => state.update('imageResolution', value)}
+          options={capabilities.resolutions.map((resolution) => ({
+            value: resolution,
+            label: imageResolutionLabel(resolution),
+          }))}
+        />
+      )}
+      {sizes.length > 0 && (
+        <ParamChip
+          icon={<Proportions />}
+          ariaLabel={t('Image size')}
+          valueLabel={sizeChipLabel(currentSize, t)}
+          value={currentSize}
+          onChange={(value) => state.update('imageSize', value)}
+          options={sizes.map((size) => ({
+            value: size,
+            label: size === 'auto' ? t('Auto') : imagePixelSizeLabel(size),
+            glyph: <AspectGlyph size={size} />,
+          }))}
+        />
+      )}
       <ParamChip
         icon={<Layers />}
         ariaLabel={t('Images per prompt')}
-        valueLabel={`×${normalized.imageCount}`}
-        value={String(normalized.imageCount)}
-        onChange={(value) => update('imageCount', Number(value))}
+        valueLabel={`×${state.normalized.imageCount}`}
+        value={String(state.normalized.imageCount)}
+        onChange={(value) => state.update('imageCount', Number(value))}
         options={IMAGE_COUNTS.map((count) => ({
           value: String(count),
           label: t('{{count}} images', { count }),
@@ -76,20 +116,59 @@ export function ImageParamChips() {
         icon={<ListOrdered />}
         label={t('Batch')}
         title={t('Enter several prompts and generate them at once')}
-        active={settings.imageBatchMode}
-        onToggle={() => update('imageBatchMode', !settings.imageBatchMode)}
+        active={state.settings.imageBatchMode}
+        onToggle={() =>
+          state.update('imageBatchMode', !state.settings.imageBatchMode)
+        }
       />
-      <ParamChip
-        icon={<Gauge />}
-        ariaLabel={t('Image quality')}
-        valueLabel={t(imageQualityLabelKey(normalized.imageQuality))}
-        value={normalized.imageQuality}
-        onChange={(value) => update('imageQuality', value)}
-        options={IMAGE_QUALITIES.map((quality) => ({
-          value: quality,
-          label: t(imageQualityLabelKey(quality)),
-        }))}
-      />
+      {qualities.length > 1 && (
+        <ParamChip
+          icon={<Gauge />}
+          ariaLabel={t('Image quality')}
+          valueLabel={t(
+            imageQualityLabelKey(currentQuality as GptImageQuality)
+          )}
+          value={currentQuality}
+          onChange={(value) => state.update('imageQuality', value)}
+          options={qualities.map((quality) => ({
+            value: quality,
+            label: t(imageQualityLabelKey(quality as GptImageQuality)),
+          }))}
+        />
+      )}
+      {pixelMode && capabilities.backgrounds.includes('transparent') && (
+        <TogglePill
+          icon={<SquareDashed />}
+          label={t('Transparent')}
+          title={t('Transparent background (PNG or WebP)')}
+          active={options?.background === 'transparent'}
+          onToggle={() =>
+            state.update(
+              'imageBackground',
+              options?.background === 'transparent' ? 'auto' : 'transparent'
+            )
+          }
+        />
+      )}
+      {pixelMode && capabilities.outputFormats.length > 1 && (
+        <ParamChip
+          icon={<FileImage />}
+          ariaLabel={t('Output format')}
+          valueLabel={(options?.outputFormat ?? 'png').toUpperCase()}
+          value={options?.outputFormat ?? 'png'}
+          onChange={(value) => state.update('imageOutputFormat', value)}
+          options={capabilities.outputFormats.map((format) => ({
+            value: format,
+            label: format.toUpperCase(),
+            disabled:
+              options?.background === 'transparent' && format === 'jpeg',
+            hint:
+              options?.background === 'transparent' && format === 'jpeg'
+                ? t('JPEG has no transparency')
+                : undefined,
+          }))}
+        />
+      )}
     </>
   )
 }

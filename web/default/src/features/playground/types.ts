@@ -304,6 +304,14 @@ export type StudioSettings = {
   imageCount: number
   imageSize: string
   imageQuality: string
+  /** xAI / Gemini aspect ratio; '' = the model default. */
+  imageAspectRatio: string
+  /** xAI (1k/2k) / Gemini (1K/2K/4K) resolution; '' = the model default. */
+  imageResolution: string
+  /** GPT Image background: auto | opaque | transparent. */
+  imageBackground: string
+  /** GPT Image output format: png | jpeg | webp. */
+  imageOutputFormat: string
   /** Composer holds one prompt per line and generates each. */
   imageBatchMode: boolean
   videoDuration: number

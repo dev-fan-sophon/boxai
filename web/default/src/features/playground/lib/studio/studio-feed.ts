@@ -160,6 +160,8 @@ export type StudioGenerationInput = {
   group: string
   /** Data URLs for image/video references. Video roles are assigned at submit. */
   references: string[]
+  /** Image inpainting mask (PNG data URL) applied to the first reference. */
+  mask?: string
 }
 
 export type StudioJobStatus = 'queued' | 'running' | 'error'

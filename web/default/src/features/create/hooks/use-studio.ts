@@ -29,6 +29,11 @@ import { buildPlaygroundVideoSubmitInput } from '@/features/playground/lib/studi
 import type { StudioSettings } from '@/features/playground/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import {
+  getImageCapabilities,
+  imageCapabilitiesQueryKey,
+} from '../lib/image-capabilities-api'
+
 /**
  * Batch generation engine for the studio modalities. A submit becomes a batch
  * of single-output jobs that share a batch id; each job waits for a slot in
@@ -164,6 +169,18 @@ export function useStudio() {
 
   const executeImageRun = useCallback(
     async (generation: StudioGenerationInput, snapshot: StudioSettings) => {
+      // Unmodeled or unreachable capabilities fall back to the legacy body.
+      const capabilities = await queryClient
+        .fetchQuery({
+          queryKey: imageCapabilitiesQueryKey(
+            generation.group,
+            generation.model
+          ),
+          queryFn: () =>
+            getImageCapabilities(generation.group, generation.model),
+          staleTime: 5 * 60_000,
+        })
+        .catch(() => null)
       const generated = await generateImages({
         model: generation.model,
         group: generation.group,
@@ -173,6 +190,8 @@ export function useStudio() {
         referenceImage: generation.references[0] ?? null,
         referenceImages: generation.references.slice(1),
         editMode: generation.references.length > 0,
+        capabilities,
+        mask: generation.mask,
       })
       if (generated.length === 0) {
         throw new Error('The model returned no images.')
@@ -184,9 +203,11 @@ export function useStudio() {
         let assetId = image.assetId
         if (!assetId) {
           try {
+            const extension =
+              /^data:image\/(png|jpeg|webp)/.exec(image.url)?.[1] ?? 'png'
             const asset = await persistGeneratedMediaAsset(
               image.url,
-              `studio-image-${Date.now()}-${index}.png`,
+              `studio-image-${Date.now()}-${index}.${extension === 'jpeg' ? 'jpg' : extension}`,
               'image'
             )
             assetId = asset.id
@@ -323,6 +344,7 @@ export function useStudio() {
           model: request.model,
           group: request.group,
           references: request.references,
+          mask: request.mask,
           batchId,
           prompt,
         },

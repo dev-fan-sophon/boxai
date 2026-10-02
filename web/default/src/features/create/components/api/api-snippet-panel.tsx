@@ -79,7 +79,10 @@ export function ApiSnippetPanel(props: {
   model: string
   prompt: string
   settings: StudioSettings
-  draft: Pick<GenerationDraft, 'videoOptions' | 'estimateParams'>
+  draft: Pick<
+    GenerationDraft,
+    'videoOptions' | 'estimateParams' | 'imageCapabilities'
+  >
 }) {
   const { t } = useTranslation()
   const [language, setLanguage] = useState<SnippetLanguage>('curl')

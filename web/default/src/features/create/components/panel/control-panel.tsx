@@ -25,6 +25,7 @@ import {
 import type { GenerationController } from '../../hooks/use-generation-controller'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
+import { ImageMaskButton } from '../references/image-mask-button'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationSettingsSection } from '../settings/generation-settings-section'
 import { PanelSection } from './panel-section'
@@ -110,7 +111,7 @@ export function ControlPanel(props: {
           pricingModel={props.pricingModel}
           label={draft.submitLabel}
           disabled={!draft.canSubmit}
-          issue={draft.videoIssue}
+          issue={draft.videoIssue ?? draft.imageIssue}
           onGenerate={() => {
             controller.submit()
             props.onGenerated?.()
@@ -188,6 +189,7 @@ function PromptAndReferences(props: { controller: GenerationController }) {
             maxFiles={draft.maxFiles}
             roleForIndex={referenceRoleLabeler(draft, t)}
           />
+          <ImageMaskButton controller={controller} />
           {draft.canSwitchReferenceMode && (
             <SegmentedControl<VideoReferenceMode>
               fullWidth

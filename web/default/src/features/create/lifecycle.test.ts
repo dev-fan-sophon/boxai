@@ -415,3 +415,132 @@ describe('video capability lifecycle', () => {
     expect(await page.getByText('9:16').count()).toBeGreaterThan(0)
   })
 })
+
+describe('image capability lifecycle', () => {
+  const imageProfile = (overrides: Record<string, unknown>) => ({
+    family: 'xai',
+    modes: ['generate', 'edit'],
+    maxReferenceImages: 5,
+    sizeMode: 'aspect',
+    sizes: [],
+    aspectRatios: ['auto', '1:1', '16:9', '9:16'],
+    resolutions: ['1k', '2k'],
+    qualities: ['auto', 'low', 'medium'],
+    maxN: 10,
+    supportsMask: false,
+    backgrounds: [],
+    outputFormats: [],
+    moderation: [],
+    defaults: { aspectRatio: 'auto', resolution: '1k', quality: 'auto' },
+    ...overrides,
+  })
+  const references = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `ref-${index}`,
+      name: `ref-${index}`,
+      dataUrl: `/media/ref-${index}`,
+    }))
+
+  it('shows Grok aspect and resolution controls with a 5-image counter', async () => {
+    await page.route('**/api/playground/image-capabilities?*', (route) =>
+      route.fulfill({ json: { success: true, data: imageProfile({}) } })
+    )
+    await render({
+      imageComposerModel: 'grok-imagine-image-2.0',
+      group: 'grok',
+      references: references(3),
+    })
+    await page.getByText('3/5').waitFor()
+    await page.getByRole('button', { name: 'Resolution' }).waitFor()
+    expect(await page.getByRole('button', { name: 'Image size' }).count()).toBe(
+      0
+    )
+    expect(await page.getByRole('button', { name: 'Paint mask' }).count()).toBe(
+      0
+    )
+  })
+
+  it('accepts 14 Gemini references and blocks a fifteenth', async () => {
+    await page.route('**/api/playground/image-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: imageProfile({
+            family: 'gemini',
+            maxReferenceImages: 14,
+            aspectRatios: ['1:1', '16:9', '21:9'],
+            resolutions: ['1K'],
+            qualities: [],
+            maxN: 1,
+            defaults: { aspectRatio: '1:1', resolution: '1K' },
+          }),
+        },
+      })
+    )
+    await render({
+      imageComposerModel: 'gemini-3.1-flash-lite-image',
+      group: 'gemini',
+      references: references(14),
+    })
+    await page.getByText('14/14').waitFor()
+    await page.getByRole('textbox').fill('Blend these products')
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Generate' }).isEnabled())
+      .toBe(true)
+    expect(
+      await page.getByRole('button', { name: 'Image quality' }).count()
+    ).toBe(0)
+
+    await render({
+      imageComposerModel: 'gemini-3.1-flash-lite-image',
+      group: 'gemini',
+      references: references(15),
+    })
+    await page
+      .getByText('Remove extra reference images before generating.')
+      .waitFor()
+    expect(
+      await page.getByRole('button', { name: 'Generate' }).isDisabled()
+    ).toBe(true)
+  })
+
+  it('offers transparency, output format and the mask editor for GPT Image', async () => {
+    await page.route('**/api/playground/image-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: imageProfile({
+            family: 'gpt-image',
+            maxReferenceImages: 16,
+            sizeMode: 'pixels',
+            sizes: ['auto', '1024x1024', '3840x2160'],
+            aspectRatios: [],
+            resolutions: [],
+            qualities: ['auto', 'low', 'medium', 'high'],
+            maxN: 1,
+            supportsMask: true,
+            backgrounds: ['auto', 'opaque', 'transparent'],
+            outputFormats: ['png', 'jpeg', 'webp'],
+            moderation: ['auto', 'low'],
+            defaults: {
+              size: '1024x1024',
+              quality: 'auto',
+              background: 'auto',
+              outputFormat: 'png',
+            },
+          }),
+        },
+      })
+    )
+    await render({
+      imageComposerModel: 'gpt-image-2',
+      group: 'gpt',
+      references: references(1),
+    })
+    await page.getByText('1/16').waitFor()
+    await page.getByRole('button', { name: 'Transparent' }).waitFor()
+    await page.getByRole('button', { name: 'Output format' }).waitFor()
+    await page.getByRole('button', { name: 'Paint mask' }).click()
+    await page.getByRole('dialog').getByText('Edit mask').waitFor()
+  })
+})
