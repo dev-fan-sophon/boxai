@@ -31,6 +31,9 @@ class DesktopReleaseTest(unittest.TestCase):
                 boot=dict(ok=True, version="0.2.0", appName="BoxAI Desktop", platform=platform,
                           account=dict(connected=False), providerCount=0, loginGateVisible=True,
                           ctrlRBlocked=True))
+            if platform == "darwin":
+                report["macVerification"] = dict(codesignStrict=True,
+                    spctl=dict(status=3, stdout="", stderr="rejected\nsource=no usable signature"))
             Path(f"{artifact}.assertion.json").write_text(json.dumps(report))
         Path(f"{self.artifacts[1]}.blockmap").write_bytes(b"block map")
 
@@ -102,12 +105,28 @@ class DesktopReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "notarization"):
             prepare(self.stage, "0.2.0", "test-commit")
 
+    def test_mac_integrity_and_assessment_required_even_without_developer_id(self):
+        path = Path(f"{self.artifacts[0]}.assertion.json")
+        original = json.loads(path.read_text())
+        for evidence in [{}, dict(codesignStrict=False, spctl=original["macVerification"]["spctl"]),
+                         dict(codesignStrict=True, spctl=dict(status=1, stdout="", stderr="assessment error")),
+                         dict(codesignStrict=True, spctl=dict(status=False, stdout="", stderr=""))]:
+            with self.subTest(evidence=evidence):
+                path.write_text(json.dumps({**original, "macVerification": evidence}))
+                with self.assertRaisesRegex(ValueError, "signature integrity"):
+                    prepare(self.stage, "0.2.0", "test-commit")
+        report = {**original, "signed": True, "notarized": True}
+        path.write_text(json.dumps(report))
+        with self.assertRaisesRegex(ValueError, "signature integrity"):
+            prepare(self.stage, "0.2.0", "test-commit")
+
     def test_signed_mac_feed_prefers_verified_zip_not_dmg(self):
         path = Path(f"{self.artifacts[0]}.assertion.json")
         report = json.loads(path.read_text())
         archive = self.artifacts[0].with_suffix(".zip")
         archive.write_bytes(b"signed application ZIP bytes")
         report.update(signed=True, notarized=True, zipSha256=hashlib.sha256(archive.read_bytes()).hexdigest())
+        report["macVerification"]["spctl"] = dict(status=0, stdout="", stderr="accepted")
         path.write_text(json.dumps(report))
         objects, feeds = prepare(self.stage, "0.2.0", "test-commit")
         self.assertIn(archive, objects)

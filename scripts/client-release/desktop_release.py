@@ -56,6 +56,15 @@ def prepare(stage, version, commit):
         signed = report.get("signed")
         if type(signed) is not bool or (signed and (platform != "darwin" or report.get("notarized") is not True)):
             raise ValueError("Signed metadata requires native macOS notarization evidence")
+        if platform == "darwin":
+            verification = report.get("macVerification", {})
+            assessment = verification.get("spctl", {})
+            if (verification.get("codesignStrict") is not True
+                    or type(assessment.get("status")) is not int
+                    or assessment["status"] not in ((0,) if signed else (0, 3))
+                    or not isinstance(assessment.get("stdout"), str)
+                    or not isinstance(assessment.get("stderr"), str)):
+                raise ValueError("macOS signature integrity and Gatekeeper assessment evidence required")
         if not (boot.get("ok") is True and boot.get("version") == version
                 and boot.get("appName") == "BoxAI Desktop" and boot.get("platform") == platform
                 and boot.get("account", {}).get("connected") is False

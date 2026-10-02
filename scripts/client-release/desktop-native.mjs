@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Native installer acceptance. Reports are emitted only after installed bytes boot.
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +27,7 @@ const digest = createHash("sha256").update(readFileSync(artifact)).digest("hex")
 const profile = mkdtempSync(join(tmpdir(), "pi-desktop-boot-"));
 let signed = false;
 let zipSha256;
+let macVerification;
 let mounted = false;
 try {
   let executable;
@@ -43,12 +44,24 @@ try {
     executable = join(contents, "MacOS", plist.CFBundleExecutable);
     assert.equal(execFileSync("lipo", ["-archs", executable], { encoding: "utf8" }).trim(), "arm64");
     assert.ok(existsSync(join(contents, "Resources/bin/pi-desktop-host-core")));
+    const bundle = join(install, "BoxAI Desktop.app");
+    // Ad-hoc builds must seal the entire bundle too. A linker signature alone
+    // can boot locally yet fail as damaged after a quarantined browser download.
+    assert.ok(existsSync(join(contents, "_CodeSignature/CodeResources")), "Bundle resource seal missing");
+    execFileSync("codesign", ["--verify", "--deep", "--strict", bundle]);
+    execFileSync("codesign", ["--verify", "-R=identifier \"com.youbox.desktop\"", bundle]);
+    const assessment = spawnSync("spctl", ["--assess", "--type", "execute", "--verbose=2", bundle], { encoding: "utf8" });
+    if (assessment.error) throw assessment.error;
+    assert.equal(assessment.signal, null, "Gatekeeper assessment interrupted");
+    assert.ok([0, 3].includes(assessment.status), "Gatekeeper assessment failed rather than accepted/rejected");
+    macVerification = {
+      codesignStrict: true,
+      spctl: { status: assessment.status, stdout: assessment.stdout, stderr: assessment.stderr },
+    };
     if (process.env.BOXAI_MAC_SIGN === "1") {
-      const bundle = join(install, "BoxAI Desktop.app");
-      execFileSync("codesign", ["--verify", "--deep", "--strict", bundle]);
       // codesign writes identity to stderr; verify the designated requirement directly.
       execFileSync("codesign", ["--verify", "-R=anchor apple generic and certificate leaf[subject.OU] = \"9UUWCMKMDH\"", bundle]);
-      execFileSync("spctl", ["--assess", "--type", "execute", bundle]);
+      assert.equal(assessment.status, 0, "Signed release must pass Gatekeeper");
       execFileSync("xcrun", ["stapler", "validate", bundle]);
       execFileSync("xcrun", ["stapler", "validate", artifact]);
       const zip = artifact.replace(/\.dmg$/, ".zip");
@@ -117,7 +130,7 @@ try {
   }
   const report = { schema: 1, version, platform, arch: process.arch, filename, sha256: digest,
     commit,
-    signed, notarized: signed, zipSha256, installed: true, boot: probe, checked_at: new Date().toISOString() };
+    signed, notarized: signed, zipSha256, macVerification, installed: true, boot: probe, checked_at: new Date().toISOString() };
   writeFileSync(join(stage, `${filename}.assertion.json`), `${JSON.stringify(report, null, 2)}\n`);
   console.log(`NATIVE_OK ${filename} SHA256 ${digest}`);
 } finally {

@@ -1,4 +1,5 @@
-// Signing is opt-in and pinned to the team verified on existing BoxAI installs.
+// Full-bundle ad-hoc signing is the default. Developer ID/notarization is opt-in
+// and pinned to the team verified on existing BoxAI installs.
 const config = structuredClone(require("../apps/desktop/package.json").build);
 config.extraMetadata.boxaiBuildCommit = require("node:child_process").execFileSync(
   "git", ["rev-parse", "HEAD"], { cwd: require("node:path").resolve(__dirname, "../.."), encoding: "utf8" },

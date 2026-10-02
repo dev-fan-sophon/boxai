@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "BoxAI Desktop agent workspace",
   "homepage": "https://you-box.com",
@@ -160,7 +160,7 @@
       ],
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.icns",
-      "identity": null,
+      "identity": "-",
       "notarize": false,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,

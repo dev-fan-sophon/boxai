@@ -14,9 +14,9 @@ describe("BoxAI release notes", () => {
 
   it("keeps the same release set in every shipped locale", () => {
     for (const entries of Object.values(CHANGELOG)) {
-      expect(entries.map((entry) => entry.version)).toEqual(["0.2.0"]);
-      expect(entries[0].highlights).toHaveLength(1);
-      expect(entries[0].highlights[0]).toContain("BoxAI");
+      expect(entries.map((entry) => entry.version)).toEqual(["0.2.1", "0.2.0"]);
+      expect(entries[0].highlights).toHaveLength(2);
+      expect(entries[0].highlights[0]).toContain("macOS");
     }
   });
 
@@ -25,7 +25,7 @@ describe("BoxAI release notes", () => {
     expect(resolveChangelogLocale("ja-JP")).toBe("ja");
     expect(resolveChangelogLocale("ru-RU")).toBe("ru");
     expect(resolveChangelogLocale("zh-Hant-HK")).toBe("zh-TW");
-    expect((await loadChangelogCatalog("vi-VN"))[0].highlights[0]).toContain("đăng nhập");
+    expect((await loadChangelogCatalog("vi-VN"))[0].highlights[0]).toContain("chữ ký");
     expect(await loadChangelogCatalog("unknown")).toEqual(CHANGELOG.en);
   });
 
