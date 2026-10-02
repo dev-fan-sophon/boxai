@@ -107,7 +107,7 @@ export function DesktopTour() {
           value={active}
           onValueChange={(value) => setActive(value as VideoId)}
         >
-          <TabsList className='mx-auto'>
+          <TabsList>
             {VIDEOS.map((video) => (
               <TabsTrigger key={video.id} value={video.id}>
                 {t(video.tab)}
