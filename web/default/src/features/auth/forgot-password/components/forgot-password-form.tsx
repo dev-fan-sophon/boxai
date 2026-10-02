@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -94,6 +94,7 @@ export function ForgotPasswordForm({
         />
 
         <Button
+          loading={isLoading}
           type='submit'
           className='mt-2'
           disabled={isLoading || isActive || !turnstileReady}
@@ -101,7 +102,7 @@ export function ForgotPasswordForm({
           {isActive
             ? t('Resend ({{seconds}}s)', { seconds: secondsLeft })
             : t('Send reset email')}
-          {isLoading ? <Loader2 className='animate-spin' /> : <ArrowRight />}
+          <ArrowRight />
         </Button>
 
         {isTurnstileEnabled && (

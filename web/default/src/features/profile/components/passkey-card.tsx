@@ -1,4 +1,4 @@
-import { AlertTriangle, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, KeyRound, ShieldAlert } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -254,13 +254,11 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
 
               {!enabled && (
                 <Button
+                  loading={registering}
                   className='w-full sm:w-auto xl:w-full 2xl:w-auto'
                   onClick={handleRegister}
                   disabled={!supported || registering}
                 >
-                  {registering && (
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  )}
                   {t('Enable Passkey')}
                 </Button>
               )}
@@ -272,17 +270,13 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
                   <AlertDialogTrigger
                     render={
                       <Button
+                        loading={removing}
                         variant='destructive'
                         className='flex-1'
-                        disabled={removing}
                       />
                     }
                   >
-                    {removing ? (
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    ) : (
-                      <AlertTriangle className='mr-2 h-4 w-4' />
-                    )}
+                    <AlertTriangle className='mr-2 h-4 w-4' />
                     {t('Remove Passkey')}
                   </AlertDialogTrigger>
                   <AlertDialogContent>

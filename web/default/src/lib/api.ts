@@ -2,6 +2,7 @@ import axios, { type AxiosRequestConfig } from 'axios'
 import { t } from 'i18next'
 import { toast } from 'sonner'
 
+import { markErrorReported } from '@/lib/toast'
 import { useAuthStore } from '@/stores/auth-store'
 
 declare module 'axios' {
@@ -76,6 +77,7 @@ api.interceptors.response.use(
         // Show error toast for business failures
         const msg = response.data.message || t('Request failed')
         toast.error(msg)
+        markErrorReported(response.data)
       }
     }
     return response
@@ -93,12 +95,14 @@ api.interceptors.response.use(
 
       if (!skip) {
         toast.error(t('Session expired!'))
+        markErrorReported(error)
       }
     } else if (!skip) {
       // Other errors: show error message from response or default
       const msg =
         error?.response?.data?.message || error?.message || t('Request failed')
       toast.error(msg)
+      markErrorReported(error)
     }
     return Promise.reject(error)
   }

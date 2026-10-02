@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -116,8 +115,7 @@ export function ChangePasswordDialog({
           >
             {t('Cancel')}
           </Button>
-          <Button type='submit' form={formId} disabled={loading}>
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+          <Button loading={loading} type='submit' form={formId}>
             {loading ? t('Changing...') : t('Change Password')}
           </Button>
         </>

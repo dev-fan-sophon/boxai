@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from '@tanstack/react-router'
-import { Loader2, LogIn, KeyRound } from 'lucide-react'
+import { LogIn, KeyRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -240,17 +240,14 @@ export function UserAuthForm({
       {passkeyLoginEnabled && (
         <div className='mt-2 space-y-1'>
           <Button
+            loading={isPasskeyLoading}
             type='button'
             variant='outline'
             disabled={passkeyButtonDisabled}
             onClick={handlePasskeyLogin}
             className='h-11 w-full justify-center gap-2 rounded-lg'
           >
-            {isPasskeyLoading ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
-              <KeyRound className='h-4 w-4' />
-            )}
+            <KeyRound className='h-4 w-4' />
             {t('Sign in with Passkey')}
           </Button>
           {!passkeySupported && (
@@ -326,12 +323,12 @@ export function UserAuthForm({
 
             {/* Submit Button */}
             <Button
+              loading={isLoading}
               type='submit'
               variant='cta'
               className='mt-2 h-11 w-full justify-center gap-2 shadow-sm'
-              disabled={isLoading}
             >
-              {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
+              <LogIn />
               {t('Sign in')}
             </Button>
 
@@ -373,14 +370,12 @@ export function UserAuthForm({
                 {t('Cancel')}
               </Button>
               <Button
+                loading={isWeChatSubmitting}
                 type='button'
                 onClick={handleWeChatLogin}
                 disabled={isWeChatSubmitting || !wechatCode.trim()}
                 className='gap-2'
               >
-                {isWeChatSubmitting ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : null}
                 {t('Confirm')}
               </Button>
             </>

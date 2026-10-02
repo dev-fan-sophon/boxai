@@ -1,12 +1,15 @@
-import { AxiosError } from 'axios'
 import i18next from 'i18next'
 import { toast } from 'sonner'
+
+import { getServerErrorMessage, isErrorReported } from '@/lib/toast'
 
 export function handleServerError(error: unknown) {
   // eslint-disable-next-line no-console
   console.log(error)
 
-  let errMsg = i18next.t('Something went wrong!')
+  // The axios interceptor already toasted this failure with the server's
+  // message; a second toast for the same request is noise.
+  if (isErrorReported(error)) return
 
   if (
     error &&
@@ -14,12 +17,9 @@ export function handleServerError(error: unknown) {
     'status' in error &&
     Number(error.status) === 204
   ) {
-    errMsg = i18next.t('Content not found.')
+    toast.error(i18next.t('Content not found.'))
+    return
   }
 
-  if (error instanceof AxiosError) {
-    errMsg = error.response?.data.title
-  }
-
-  toast.error(errMsg)
+  toast.error(getServerErrorMessage(error))
 }

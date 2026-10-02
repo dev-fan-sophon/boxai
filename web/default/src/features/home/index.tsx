@@ -35,8 +35,7 @@ export function Home() {
   const { i18n, t } = useTranslation()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { resolvedTheme } = useTheme()
-  const { auth } = useAuthStore()
-  const isAuthenticated = !!auth.user
+  const isAuthenticated = useAuthStore((state) => Boolean(state.auth.user))
   const { content, isLoaded, isUrl } = useHomePageContent()
   const systemName = useSystemConfigStore((s) => s.config.systemName)
   const logo = useSystemConfigStore((s) => s.config.logo)

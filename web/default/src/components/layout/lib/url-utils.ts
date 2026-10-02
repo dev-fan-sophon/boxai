@@ -103,3 +103,14 @@ export function checkIsActive(
 
   return false
 }
+
+/**
+ * Whether a top-level header link owns the current page. Detail routes
+ * (`/pricing/gpt-5`, `/docs/streaming`) keep their section lit; `/` only
+ * matches the home page itself.
+ */
+export function isTopNavLinkActive(pathname: string, href: string): boolean {
+  const target = normalizeHref(href)
+  if (target === '/') return pathname === '/'
+  return pathname === target || pathname.startsWith(`${target}/`)
+}

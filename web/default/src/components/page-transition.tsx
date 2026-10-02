@@ -5,15 +5,16 @@ import {
   motion,
   type Variants,
 } from 'motion/react'
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import {
   CARD_STAGGER,
+  MOTION_SPRING,
   MOTION_TRANSITION,
   MOTION_VARIANTS,
   STAGGER,
-  TABLE_STAGGER,
 } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 
 /*
  * Motion-backed transitions for the console. Everything here needs the runtime
@@ -52,11 +53,17 @@ export function AnimatedOutlet() {
     select: (s) => s.matches.at(-1)?.routeId ?? s.location.pathname,
   })
 
+  // Opacity only, and enter only. A transform — even for the 180ms of the
+  // entrance — makes this wrapper the containing block for `position: fixed`
+  // descendants, so full-viewport pages (playground, canvas, studio) would
+  // briefly anchor their overlays to the content pane and jump. There is no
+  // exit animation either: the next route renders immediately and fades up,
+  // so navigation is never held back by the page that is leaving.
   return (
     <motion.div
       key={routeKey}
-      initial={MOTION_VARIANTS.pageEnter.initial}
-      animate={MOTION_VARIANTS.pageEnter.animate}
+      initial={MOTION_VARIANTS.fadeIn.initial}
+      animate={MOTION_VARIANTS.fadeIn.animate}
       transition={MOTION_TRANSITION.fast}
       className='flex min-h-0 flex-1 flex-col'
     >
@@ -98,27 +105,6 @@ export function StaggerItem(props: StaggerItemProps) {
     >
       {props.children}
     </motion.div>
-  )
-}
-
-export function TableStaggerContainer(props: StaggerContainerProps) {
-  return (
-    <motion.tbody
-      variants={TABLE_STAGGER.container}
-      initial='initial'
-      animate='animate'
-      className={props.className}
-    >
-      {props.children}
-    </motion.tbody>
-  )
-}
-
-export function TableStaggerRow(props: StaggerItemProps) {
-  return (
-    <motion.tr variants={TABLE_STAGGER.item} className={props.className}>
-      {props.children}
-    </motion.tr>
   )
 }
 
@@ -171,5 +157,83 @@ export function Reveal(props: RevealProps) {
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+interface AnimatedListProps {
+  /** `AnimatedListItem`s, each with a stable `key`. */
+  children: ReactNode
+  className?: string
+  /**
+   * Animate the items present on first mount too. Off by default so a list
+   * that is already on screen when its page opens does not replay; turn it on
+   * for lists that mount together with their data (a popover body, a panel).
+   */
+  animateInitial?: boolean
+  role?: string
+  'aria-label'?: string
+}
+
+/**
+ * Presence-aware list for collections that gain and lose items while on screen
+ * — notifications, queued jobs, uploaded files, generated results.
+ *
+ * `popLayout` takes a leaving item out of flow at once, so its siblings glide
+ * into the gap on a spring while it fades out on top, instead of the whole
+ * list waiting for the exit to finish before reflowing. The container is
+ * `relative` because that popped item is positioned against it.
+ */
+export function AnimatedList(props: AnimatedListProps) {
+  return (
+    <div
+      className={cn('relative', props.className)}
+      role={props.role}
+      aria-label={props['aria-label']}
+    >
+      <AnimatePresence initial={props.animateInitial ?? false} mode='popLayout'>
+        {props.children}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** Cap on the entrance stagger, so item 40 does not arrive a second late. */
+const LIST_STAGGER_MAX_INDEX = 8
+const LIST_STAGGER_STEP = 0.03
+
+interface AnimatedListItemProps {
+  children: ReactNode
+  className?: string
+  /**
+   * Position in the list, used only to stagger a batch that enters together.
+   * Omit it for items added one at a time.
+   */
+  index?: number
+  role?: string
+  /** Forwarded by `AnimatePresence` in `popLayout` mode; do not pass it. */
+  ref?: Ref<HTMLDivElement>
+}
+
+export function AnimatedListItem(props: AnimatedListItemProps) {
+  const delay =
+    Math.min(props.index ?? 0, LIST_STAGGER_MAX_INDEX) * LIST_STAGGER_STEP
+
+  return (
+    <motion.div
+      ref={props.ref}
+      layout
+      role={props.role}
+      initial={MOTION_VARIANTS.cardItem.initial}
+      animate={MOTION_VARIANTS.cardItem.animate}
+      exit={MOTION_VARIANTS.scaleIn.exit}
+      transition={{
+        ...MOTION_SPRING.smooth,
+        delay,
+        opacity: { ...MOTION_TRANSITION.fast, delay },
+      }}
+      className={props.className}
+    >
+      {props.children}
+    </motion.div>
   )
 }

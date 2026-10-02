@@ -1,12 +1,11 @@
 import type { Table } from '@tanstack/react-table'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toastPromise } from '@/lib/toast'
 
 import { batchDeleteApiKeys } from '../api'
-import { ERROR_MESSAGES } from '../constants'
 import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
@@ -30,19 +29,18 @@ export function ApiKeysMultiDeleteDialog<TData>({
     setIsDeleting(true)
     try {
       const ids = selectedRows.map((row) => (row.original as ApiKey).id)
-      const result = await batchDeleteApiKeys(ids)
-
-      if (result.success) {
-        const count = result.data || ids.length
-        toast.success(t('Successfully deleted {{count}} API key(s)', { count }))
-        table.resetRowSelection()
-        triggerRefresh()
-        onOpenChange(false)
-      } else {
-        toast.error(result.message || t(ERROR_MESSAGES.BATCH_DELETE_FAILED))
-      }
+      const result = await toastPromise(batchDeleteApiKeys(ids), {
+        success: (res) =>
+          t('Successfully deleted {{count}} API key(s)', {
+            count: res.data || ids.length,
+          }),
+      })
+      if (!result.success) return
+      table.resetRowSelection()
+      triggerRefresh()
+      onOpenChange(false)
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      /* already toasted by toastPromise */
     } finally {
       setIsDeleting(false)
     }

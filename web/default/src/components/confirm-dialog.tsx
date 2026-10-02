@@ -22,6 +22,7 @@ type ConfirmDialogProps = {
   confirmText?: React.ReactNode
   destructive?: boolean
   handleConfirm: () => void
+  /** Shows a spinner on the confirm button and locks both actions. */
   isLoading?: boolean
   className?: string
   children?: React.ReactNode
@@ -59,7 +60,8 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           <Button
             variant={destructive ? 'destructive' : 'default'}
             onClick={handleConfirm}
-            disabled={disabled || isLoading}
+            disabled={disabled}
+            loading={isLoading}
           >
             {confirmText ?? t('Continue')}
           </Button>
