@@ -18,8 +18,6 @@ status: published
 
 A catalog entry is not a security endorsement. All built-in model traffic uses BoxAI, but extensions may run local programs or contact other services. Do not assume their data stays on BoxAI.
 
-<!-- Screenshot: /desktop-screenshots/docs/settings.webp — real Skills/MCP settings with project scope visible. -->
-
 ## Use the BoxAI catalog
 
 After signing in, the Skill and MCP markets include a fixed, read-only **BoxAI** source. You cannot remove this official source, but you can add your own catalog sources and GitHub skill sources. Official skills/MCP are separate from the plugin marketplace; the former upstream private plugin market is not provided.
@@ -37,7 +35,7 @@ If **BoxAI** is shown as an unavailable source, check connectivity and retry lat
 3. Create, import or edit the skill using the available action. Review the content before enabling it.
 4. Test in a disposable session with a small request that needs the skill.
 
-Skills use `.agents/skills` in a project or `~/.agents/skills` globally. A global resource can affect more than one project; avoid putting private project instructions there accidentally.
+Project skills use `.agents/skills`. Global skills live in `agent/skills` under the selected BoxAI data directory, not the shared `~/.agents/skills` directory. A global resource can affect more than one project in that BoxAI profile; avoid putting private project instructions there accidentally.
 
 ## Connect an MCP server
 
@@ -46,7 +44,7 @@ Skills use `.agents/skills` in a project or `~/.agents/skills` globally. A globa
 3. Supply any required credentials privately. Local servers may require tools that are not bundled with Desktop; follow that server's installation instructions.
 4. Use the connection test, enable the server and try one harmless operation. A saved configuration alone does not prove the server is reachable.
 
-MCP configuration uses `.agents/servers` in a project or `~/.agents/servers` globally. Do not commit secret-bearing configuration into a shared repository. Review each tool request using [Ask permissions](/docs/clients/desktop/tool-approvals).
+Project MCP configuration uses `.agents/servers`; global configuration uses `agent/servers` under the selected BoxAI data directory. Do not commit secret-bearing configuration into a shared repository. Review each tool request using [Ask permissions](/docs/clients/desktop/tool-approvals).
 
 ## Install a plugin
 

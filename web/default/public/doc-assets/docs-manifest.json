@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T19:00:38.158Z",
+  "generatedAt": "2026-10-02T20:15:34.442Z",
   "version": 1,
   "pages": [
     {
@@ -485,6 +485,16 @@
         {
           "id": "your-first-task",
           "text": "Your first task",
+          "level": 2
+        },
+        {
+          "id": "watch-the-walkthrough",
+          "text": "Watch the walkthrough",
+          "level": 2
+        },
+        {
+          "id": "find-basic-settings",
+          "text": "Find basic settings",
           "level": 2
         },
         {

@@ -26,7 +26,7 @@ Hoàn thành hoặc dừng các tác vụ đang chạy, kiểm tra thay đổi c
 4. Thoát Desktop. Trên macOS, chép ứng dụng mới vào Applications để thay thế ứng dụng cũ. Trên Windows, chạy bộ cài mới và làm theo hướng dẫn.
 5. Mở lại ứng dụng, kiểm tra phiên bản, tài khoản và một dự án/phiên quen thuộc trước khi tiếp tục công việc.
 
-<!-- Screenshot: /desktop-screenshots/docs/updates.webp — trạng thái phiên bản/cập nhật thực tế, không mô phỏng cài đặt thành công. -->
+![Trang Info báo Couldn't check for updates và UPDATE_UNAVAILABLE](/desktop-screenshots/docs/updates.webp "Bản thử nghiệm trong ảnh chưa truy cập được nguồn cập nhật đã phát hành. Đây là trạng thái cập nhật không khả dụng, không phải kiểm tra hay cài đặt thành công.")
 
 Nếu ứng dụng có chức năng kiểm tra hoặc tải bản cập nhật, làm theo kết quả hiển thị. Kiểm tra ngầm không đồng nghĩa với đã cài xong; hãy xác nhận sau khi khởi động lại. Bộ cài chính thức là phương án thay thế khi không cập nhật được trong ứng dụng.
 

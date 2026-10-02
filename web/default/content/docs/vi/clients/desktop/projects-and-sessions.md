@@ -15,7 +15,7 @@ status: published
 3. Kiểm tra tên dự án và các đường dẫn đã chọn. Tùy chọn Git cho phép sao chép kho mã vào nơi bạn chọn; bạn vẫn cần có quyền truy cập kho mã đó.
 4. Chọn dự án rồi bắt đầu phiên làm việc mới.
 
-<!-- Screenshot: /desktop-screenshots/docs/project-session.webp — thư mục dự án được chọn và tác vụ đầu tiên. -->
+![Dự án minh họa Lotus Travel với tác vụ sửa giảm giá đã hoàn tất và kết quả kiểm thử](/desktop-screenshots/docs/project-session.webp "Ví dụ tác vụ có sửa tệp đã hoàn thành. Kiểm tra tệp thay đổi và kết quả kiểm thử; đây không phải ví dụ tác vụ chỉ đọc bên dưới.")
 
 ## Giao tác vụ rõ ràng
 
