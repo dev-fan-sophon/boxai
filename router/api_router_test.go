@@ -35,6 +35,7 @@ func TestUserOperationsRoutesRegister(t *testing.T) {
 
 	for _, path := range []string{
 		"GET /api/playground/video-capabilities",
+		"GET /api/playground/image-capabilities",
 		"GET /api/v1/connector/manifest",
 		"GET /api/v1/connector/authorize",
 		"POST /api/v1/connector/token",

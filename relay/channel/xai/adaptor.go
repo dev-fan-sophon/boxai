@@ -38,16 +38,8 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
-	// Keep the OpenAI Images request shape end-to-end (playground → relay → xAI).
-	xaiRequest := ImageRequest{
-		Model:          request.Model,
-		Prompt:         request.Prompt,
-		N:              int(lo.FromPtrOr(request.N, uint(1))),
-		Size:           request.Size,
-		Quality:        request.Quality,
-		ResponseFormat: request.ResponseFormat,
-	}
-	return xaiRequest, nil
+	request.Model = info.UpstreamModelName
+	return relaycommon.BuildXAIImageRequest(c, request, info.RelayMode == constant.RelayModeImagesEdits)
 }
 
 func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
@@ -59,6 +51,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, req)
+	if info.RelayMode == constant.RelayModeImagesGenerations || info.RelayMode == constant.RelayModeImagesEdits {
+		// xAI image endpoints are JSON-only, even for multipart client edits.
+		req.Set("Content-Type", "application/json")
+	}
 	req.Set("Authorization", "Bearer "+info.ApiKey)
 	return nil
 }

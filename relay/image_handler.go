@@ -143,6 +143,12 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	if len(request.Size) > 0 {
 		logContent = append(logContent, fmt.Sprintf("大小 %s", request.Size))
 	}
+	if request.AspectRatio != "" {
+		logContent = append(logContent, fmt.Sprintf("比例 %s", request.AspectRatio))
+	}
+	if request.Resolution != "" {
+		logContent = append(logContent, fmt.Sprintf("分辨率 %s", request.Resolution))
+	}
 	if len(quality) > 0 {
 		logContent = append(logContent, fmt.Sprintf("品质 %s", quality))
 	}

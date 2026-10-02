@@ -171,6 +171,8 @@ export type StudioGenerationInput = {
    * file-based tools travel in `references`.
    */
   audio?: { tool: AudioKind; native: boolean; inputName?: string }
+  /** Image inpainting mask (PNG data URL) applied to the first reference. */
+  mask?: string
 }
 
 export type StudioJobStatus = 'queued' | 'running' | 'error'

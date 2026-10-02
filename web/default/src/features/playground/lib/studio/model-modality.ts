@@ -1,7 +1,10 @@
 import type { PricingModel } from '@/features/pricing/types'
 
 import type { StudioModality } from '../../types'
-import { isPlaygroundImageModel } from './image-request-schema'
+import {
+  isGeminiImageModel,
+  isPlaygroundImageModel,
+} from './image-request-schema'
 
 type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
   Partial<
@@ -12,6 +15,9 @@ type ModelModalityMetadata = Pick<PricingModel, 'model_name'> &
   >
 
 export function getModelModality(model: ModelModalityMetadata): StudioModality {
+  // Gemini image models also answer chat, but image output is their purpose;
+  // they live in the image studio where aspect/resolution/references apply.
+  if (isGeminiImageModel(model.model_name)) return 'image'
   const endpoints = model.supported_endpoint_types ?? []
   const output = model.output_modalities ?? []
   const tags = model.tags?.toLowerCase() ?? ''

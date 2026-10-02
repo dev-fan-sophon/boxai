@@ -32,15 +32,18 @@ if (!rootElement) throw new Error('Missing lifecycle fixture root')
 const root = createRoot(rootElement)
 
 /** The real composer, wired to a real controller with fixture references. */
-function VideoComposerFixture(props: { references: MediaReference[] }) {
+function ComposerFixture(props: {
+  modality: 'image' | 'video'
+  references: MediaReference[]
+}) {
   const studio = useStudio()
   const controller = useGenerationController({
-    modality: 'video',
+    modality: props.modality,
     studio,
     canSubmit: () => true,
   })
   const draft = useGenerationDraft({
-    modality: 'video',
+    modality: props.modality,
     text: controller.text,
     references: props.references,
     uploading: false,
@@ -68,6 +71,8 @@ export type LifecycleFixture = {
   attachable?: boolean
   unmount?: boolean
   videoComposer?: boolean
+  /** Renders the image composer for this model instead. */
+  imageComposerModel?: string
   group?: string
 }
 
@@ -82,19 +87,23 @@ window.referenceChanges = []
 // Video capabilities are a signed-in endpoint; the fixture plays a user.
 useAuthStore.getState().auth.setUser({ id: 1, username: 'fixture', role: 1 })
 window.renderLifecycleFixture = (state) => {
-  if (state.videoComposer) {
+  if (state.videoComposer || state.imageComposerModel) {
     usePlaygroundStore.setState((current) => ({
       config: {
         ...current.config,
-        model: 'video-model',
+        model: state.imageComposerModel ?? 'video-model',
         group: state.group ?? 'g',
       },
     }))
   }
   let attachmentContent: React.ReactNode = null
-  if (!state.modality && !state.unmount) {
+  if (!state.modality && !state.unmount && state.imageComposerModel) {
+    attachmentContent = (
+      <ComposerFixture modality='image' references={state.references ?? []} />
+    )
+  } else if (!state.modality && !state.unmount) {
     attachmentContent = state.videoComposer ? (
-      <VideoComposerFixture references={state.references ?? []} />
+      <ComposerFixture modality='video' references={state.references ?? []} />
     ) : (
       <MediaReferenceSlot
         label='References'

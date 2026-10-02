@@ -9,6 +9,7 @@ import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-pl
 import {
   isPlaygroundImageModel,
   normalizeImageCount,
+  UNSUPPORTED_IMAGE_MODEL_MESSAGE,
 } from '@/features/playground/lib/studio/image-request-schema'
 import { buildStudioFeed } from '@/features/playground/lib/studio/studio-feed'
 import { usePlaygroundStore } from '@/stores/playground-store'
@@ -20,6 +21,9 @@ import { useGenerationDraft } from './use-generation-draft'
 import type { UseStudioResult } from './use-studio'
 
 type ResultImage = { url: string; assetId?: number; prompt?: string }
+
+/** An inpainting mask belongs to the reference it was painted on. */
+type ImageMask = { referenceId: string; dataUrl: string }
 
 /**
  * State and actions of one creation tool: the prompt and references being
@@ -40,6 +44,7 @@ export function useGenerationController(input: {
   const [referenceVideos, setReferenceVideos] = useState<MediaReference[]>([])
   const [referenceAudios, setReferenceAudios] = useState<MediaReference[]>([])
   const [uploading, setUploading] = useState(false)
+  const [mask, setMask] = useState<ImageMask | null>(null)
   const draft = useGenerationDraft({
     modality,
     text,
@@ -48,6 +53,14 @@ export function useGenerationController(input: {
     referenceAudios,
     uploading,
   })
+  // Replacing or removing the first reference silently drops its mask.
+  const activeMask =
+    mask &&
+    modality === 'image' &&
+    draft.imageCapabilities?.supportsMask &&
+    references[0]?.id === mask.referenceId
+      ? mask.dataUrl
+      : null
   const setStudioSettings = usePlaygroundStore(
     (state) => state.setStudioSettings
   )
@@ -126,11 +139,7 @@ export function useGenerationController(input: {
       return null
     }
     if (modality === 'image' && !isPlaygroundImageModel(model)) {
-      toast.error(
-        t(
-          'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
-        )
-      )
+      toast.error(t(UNSUPPORTED_IMAGE_MODEL_MESSAGE))
       return null
     }
     if (
@@ -179,6 +188,8 @@ export function useGenerationController(input: {
       references: batchReferences,
       referenceVideos: batchVideos.length ? batchVideos : undefined,
       referenceAudios: batchAudios.length ? batchAudios : undefined,
+      // The mask only fits the drafted first reference, not variations.
+      mask: referenceUrls ? undefined : (activeMask ?? undefined),
       prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),
     })
   }
@@ -315,6 +326,8 @@ export function useGenerationController(input: {
     setReferenceVideos,
     referenceAudios,
     setReferenceAudios,
+    mask: activeMask,
+    setMask,
     uploading,
     setUploading,
     draft,

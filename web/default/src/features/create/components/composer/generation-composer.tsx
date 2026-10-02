@@ -11,6 +11,7 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 import type { GenerationController } from '../../hooks/use-generation-controller'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { AudioInputDropzone } from '../references/audio-input-dropzone'
+import { ImageMaskButton } from '../references/image-mask-button'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationParamChips } from './generation-param-chips'
 import { PriceHintBadge } from './price-hint'
@@ -119,6 +120,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 onChange={controller.setReferences}
               />
             )}
+            <ImageMaskButton controller={controller} />
             {draft.canSwitchReferenceMode ? (
               <div
                 className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
@@ -171,12 +173,12 @@ export function GenerationComposer(props: GenerationComposerProps) {
               modality={modality}
               hasImage={draft.capabilityMode !== 'text'}
             />
-            {draft.videoIssue || draft.audioIssue ? (
+            {draft.videoIssue || draft.audioIssue || draft.imageIssue ? (
               <span
                 className='text-warning shrink-0 text-xs'
                 aria-live='polite'
               >
-                {draft.videoIssue ?? draft.audioIssue}
+                {draft.videoIssue ?? draft.audioIssue ?? draft.imageIssue}
               </span>
             ) : null}
           </div>

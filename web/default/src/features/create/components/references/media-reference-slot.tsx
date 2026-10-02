@@ -248,7 +248,18 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
       >
         <SlotIcon className='size-3.5' aria-hidden='true' />
         <span className='max-w-24 truncate'>{props.label}</span>
-        {props.value.length > 0 && (
+        {maxFiles > 1 && (
+          <span
+            className='tabular-nums'
+            aria-label={t('{{count}} of {{max}} reference images', {
+              count: props.value.length,
+              max: maxFiles,
+            })}
+          >
+            {props.value.length}/{maxFiles}
+          </span>
+        )}
+        {maxFiles <= 1 && props.value.length > 0 && (
           <span className='tabular-nums'>({props.value.length})</span>
         )}
       </button>

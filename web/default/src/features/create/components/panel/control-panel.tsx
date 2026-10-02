@@ -27,6 +27,7 @@ import type { GenerationController } from '../../hooks/use-generation-controller
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { PriceHintBadge } from '../composer/price-hint'
 import { AudioInputDropzone } from '../references/audio-input-dropzone'
+import { ImageMaskButton } from '../references/image-mask-button'
 import { MediaReferenceSlot } from '../references/media-reference-slot'
 import { GenerationSettingsSection } from '../settings/generation-settings-section'
 import { PanelSection } from './panel-section'
@@ -111,7 +112,7 @@ export function ControlPanel(props: {
           pricingModel={props.pricingModel}
           label={draft.submitLabel}
           disabled={!draft.canSubmit}
-          issue={draft.videoIssue ?? draft.audioIssue}
+          issue={draft.videoIssue ?? draft.audioIssue ?? draft.imageIssue}
           onGenerate={() => {
             controller.submit()
             props.onGenerated?.()
@@ -248,6 +249,7 @@ function PromptAndReferences(props: { controller: GenerationController }) {
             maxFiles={draft.maxFiles}
             roleForIndex={referenceRoleLabeler(draft, t)}
           />
+          <ImageMaskButton controller={controller} />
           {draft.canToggleLastFrame && (
             <label className='text-muted-foreground flex items-center justify-between gap-2 text-xs'>
               {t('Use the second image as the last frame')}

@@ -1,4 +1,8 @@
-import { bareModelId } from '@/features/playground/lib/studio/image-request-schema'
+import {
+  bareModelId,
+  buildImageGenerationRequestBody,
+  isPlaygroundImageModel,
+} from '@/features/playground/lib/studio/image-request-schema'
 import type { StudioSettings } from '@/features/playground/types'
 
 import type { CreateTool } from '../constants'
@@ -17,6 +21,7 @@ export type ApiRequestDraft = Pick<
       | 'referenceCounts'
       | 'usesLastFrame'
       | 'audio'
+      | 'imageCapabilities'
     >
   >
 
@@ -152,6 +157,21 @@ export function buildApiRequest(input: {
   draft: ApiRequestDraft
 }): ApiRequest {
   const prompt = input.prompt.trim() || 'A lighthouse on a cliff at sunrise'
+  if (input.modality === 'image' && isPlaygroundImageModel(input.model)) {
+    // Same family-specific fields the studio sends, minus the playground
+    // routing group (API keys carry their own group).
+    const body: Record<string, unknown> = {
+      ...buildImageGenerationRequestBody({
+        model: input.model,
+        group: '',
+        prompt,
+        settings: input.settings,
+        capabilities: input.draft.imageCapabilities,
+      }),
+    }
+    delete body.group
+    return { path: '/v1/images/generations', body }
+  }
   if (input.modality === 'image') {
     return {
       path: '/v1/images/generations',
