@@ -103,7 +103,9 @@ try {
   assert.equal(probe.version, version);
   assert.equal(probe.appName, "BoxAI Desktop");
   assert.equal(probe.platform, platform);
-  assert.equal(probe.projectRemove?.ok, true, "host-core IPC round trip");
+  assert.equal(probe.account?.connected, false, "fresh install must not inherit an account");
+  assert.equal(probe.providerCount, 0, "fresh install must not expose upstream providers");
+  assert.equal(probe.loginGateVisible, true, "renderer must require BoxAI browser login");
   assert.equal(probe.ctrlRBlocked, true);
   mkdirSync(stage, { recursive: true });
   copyFileSync(artifact, join(stage, filename));
