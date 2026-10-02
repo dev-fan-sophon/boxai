@@ -1,6 +1,6 @@
-import { ChevronDown, Layers, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, Layers, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { useLgUp } from '@/hooks'
 

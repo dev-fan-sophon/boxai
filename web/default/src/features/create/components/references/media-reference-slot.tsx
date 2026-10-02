@@ -1,8 +1,8 @@
-import { Film, ImagePlus, Library, Music2, QrCode, X } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Film, ImagePlus, Library, Music2, QrCode, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   createUploadSession,

@@ -1,4 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   Blend,
   FileText,
@@ -15,11 +18,8 @@ import {
   Video,
   WandSparkles,
   ZoomIn,
-  type LucideIcon,
-} from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { formatTimestampToDate } from '@/lib/format'
 
@@ -39,7 +39,7 @@ import {
   createFailReasonColumn,
 } from './column-helpers'
 
-const drawingTypeIconMap: Record<string, LucideIcon> = {
+const drawingTypeIconMap: Record<string, IconComponent> = {
   [MJ_TASK_TYPES.IMAGINE]: ImageIcon,
   [MJ_TASK_TYPES.UPSCALE]: Maximize2,
   [MJ_TASK_TYPES.VIDEO]: Video,
@@ -59,7 +59,7 @@ const drawingTypeIconMap: Record<string, LucideIcon> = {
   [MJ_TASK_TYPES.CUSTOM_ZOOM]: ZoomIn,
 }
 
-function getDrawingTypeIcon(action: string): LucideIcon {
+function getDrawingTypeIcon(action: string): IconComponent {
   return drawingTypeIconMap[action] ?? HelpCircle
 }
 

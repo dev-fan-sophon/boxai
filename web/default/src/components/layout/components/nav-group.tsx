@@ -1,7 +1,7 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
 import { type ReactNode, useState, useEffect } from 'react'
 
+import { ChevronRight } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
@@ -47,8 +47,8 @@ export function NavGroup({ title, items }: NavGroupProps) {
   const href = useLocation({ select: (location) => location.href })
 
   return (
-    <SidebarGroup className='px-2 py-0.5'>
-      <SidebarGroupLabel className='text-muted-foreground text-3xs px-2 font-medium tracking-wider uppercase'>
+    <SidebarGroup className='px-2.5 py-1'>
+      <SidebarGroupLabel className='text-muted-foreground/80 text-2xs h-7 px-2.5 font-medium tracking-wide'>
         {title}
       </SidebarGroupLabel>
       <SidebarMenu>

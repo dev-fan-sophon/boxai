@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Eye, EyeOff } from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { FadeIn } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'

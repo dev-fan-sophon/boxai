@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Search } from '@/components/icons'
 import { Input } from '@/components/ui/input'
 
 import { listManifestPages, resolveDocsLocale } from '../lib/load-doc'

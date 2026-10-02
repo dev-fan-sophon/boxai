@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowDownToLine, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowDownToLine, ArrowRight } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { detectPlatform, primaryDownload } from '@/features/downloads/release'
 import { useAppRelease } from '@/features/downloads/use-app-release'

@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { Image as ImageIcon, Loader2, Plus, Search, Video } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
+import {
+  Image as ImageIcon,
+  Loader2,
+  Plus,
+  Search,
+  Video,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'

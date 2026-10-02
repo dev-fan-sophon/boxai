@@ -1,8 +1,8 @@
-import { Tag as TagIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StaticDataTable } from '@/components/data-table'
+import { Tag as TagIcon } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { tone } from '@/lib/tone'
 import { cn } from '@/lib/utils'

@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Laptop, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { AsyncState } from '@/components/async-state'
 import { EmptyState } from '@/components/empty-state'
+import { Laptop, RefreshCw } from '@/components/icons'
 import { AnimatedList, AnimatedListItem } from '@/components/page-transition'
 import {
   AlertDialog,

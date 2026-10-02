@@ -1,7 +1,12 @@
-import { AlertCircle, AlertTriangle, Settings, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  AlertCircle,
+  AlertTriangle,
+  Settings,
+  Wallet,
+} from '@/components/icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'

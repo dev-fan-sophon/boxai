@@ -1,4 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   AlertCircle,
   CheckCircle2,
@@ -7,10 +10,7 @@ import {
   Server,
   Settings,
   WifiOff,
-} from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'

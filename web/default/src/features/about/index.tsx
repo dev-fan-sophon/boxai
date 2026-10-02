@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useMemo, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   BookOpen,
   Braces,
@@ -8,10 +11,7 @@ import {
   MonitorSmartphone,
   Sparkles,
   WalletCards,
-} from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
 import { RichContent } from '@/components/rich-content'

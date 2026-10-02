@@ -1,7 +1,7 @@
-import { AreaChart, BarChart3, WalletCards } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AreaChart, BarChart3, WalletCards } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
 import {
   CONSUMPTION_DISTRIBUTION_CHART_OPTIONS,

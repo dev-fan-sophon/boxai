@@ -1,3 +1,12 @@
+import { useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import {
+  CodeBlock,
+  CodeBlockCopyButton,
+} from '@/components/ai-elements/code-block'
+import { Loader } from '@/components/ai-elements/loader'
 import {
   Check,
   CircleSlash2,
@@ -8,17 +17,8 @@ import {
   ImageIcon,
   Sparkles,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
-import { useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import {
-  CodeBlock,
-  CodeBlockCopyButton,
-} from '@/components/ai-elements/code-block'
-import { Loader } from '@/components/ai-elements/loader'
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -34,7 +34,7 @@ import { ManagedDocumentArtifacts } from './managed-document-artifacts'
 
 const MANAGED_TOOL_META: Record<
   string,
-  { titleKey: string; Icon: LucideIcon; tile: string }
+  { titleKey: string; Icon: IconComponent; tile: string }
 > = {
   generate_image: {
     titleKey: 'Image generation',

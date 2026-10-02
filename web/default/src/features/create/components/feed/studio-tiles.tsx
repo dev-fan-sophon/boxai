@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   AlertCircle,
   Check,
@@ -12,11 +16,7 @@ import {
   StepForward,
   Video,
   X,
-} from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { useVideoTaskResult } from '@/features/playground/hooks/use-video-task-result'
 import { retryGeneratedImage } from '@/features/playground/lib/download-generated-media'

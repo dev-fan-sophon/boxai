@@ -1,7 +1,7 @@
-import { Check, Copy } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Check, Copy } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

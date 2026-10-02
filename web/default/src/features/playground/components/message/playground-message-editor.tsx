@@ -1,8 +1,8 @@
-import { Check, Paperclip, RotateCcw, Send, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CodeBlockEditor } from '@/components/ai-elements/code-block'
+import { Check, Paperclip, RotateCcw, Send, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { getMessageEditorState } from '../../lib'

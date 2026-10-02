@@ -1,5 +1,6 @@
-import { Edit, RefreshCw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { Edit, RefreshCw, Trash2 } from '@/components/icons'
 
 import { MessageActionButton } from './message-action-button'
 

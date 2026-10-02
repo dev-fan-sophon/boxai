@@ -1,5 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
-
+import type { IconComponent } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -10,7 +9,7 @@ import {
 import { MESSAGE_ACTION_BUTTON_STYLES } from '../../constants'
 
 interface MessageActionButtonProps {
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   onClick: () => void
   disabled?: boolean

@@ -1,7 +1,7 @@
-import { AlertTriangle, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { AlertTriangle, type IconComponent } from '@/components/icons'
 import { FadeIn } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 
 interface ErrorStateProps {
-  icon?: LucideIcon
+  icon?: IconComponent
   title?: string
   description?: string
   onRetry?: () => void

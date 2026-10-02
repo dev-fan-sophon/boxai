@@ -3,7 +3,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: 'Public Sans', sans-serif;
+  --font-sans:
+    'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular,
+    Menlo, Consolas, monospace;
   /* Marketplace price face. Arial leads because it carries currency glyphs
    * (e.g. ₫) that the monospace stack lacks — without it the browser falls
    * back to a mismatched font mid-price. Exposed as the `font-price`
@@ -98,6 +103,7 @@
    * Elevation. One shadow per intent, resolved per scheme below, so surfaces
    * stop pairing a hand-tuned light rgba with a `dark:` override.
    */
+  --color-brand-glow: var(--brand-glow);
   --shadow-raised: var(--elevation-raised);
   --shadow-panel: var(--elevation-panel);
   --shadow-lifted: var(--elevation-lifted);
@@ -120,191 +126,196 @@
 }
 
 /*
- * Light scheme. Airy cool-white work surfaces with matching light chrome.
+ * BoxAI design language — "Studio" (2026).
+ *
+ * Quiet warm-neutral surfaces carry the content; the brand coral is the only
+ * saturated colour in the chrome and is reserved for primary actions, focus and
+ * the active place in navigation. Status colours stay semantic. Surfaces step
+ * from the page ground (`background`) to the work panel (`card`) to floating
+ * layers (`popover`), each with its own elevation, so depth is read from tone
+ * and shadow rather than from heavy borders.
  *
  * `--brand-primary` is injected on the root at runtime from the configured
- * brand color; the literal that follows is the shipped default used before
- * JS boots and whenever no brand color is configured. `--primary-foreground`
- * is derived alongside it so a dark brand color keeps legible label text.
+ * brand colour; the literal that follows is the shipped default used before JS
+ * boots and whenever no brand colour is configured. `--primary-foreground` is
+ * derived alongside it so a dark brand colour keeps legible label text.
  */
 :root {
-  --radius: 0.375rem;
-  --app-header-height: 3rem;
+  --radius: 0.625rem;
+  --app-header-height: 3.25rem;
   /* Static build-channel fallback consumed when JS hasn't booted yet. */
   --app-rev: '2k6e8r7p';
   --font-body: var(--font-sans);
-  --background: #f7f9fd;
-  --foreground: #0b1633;
+  --background: #fafaf8;
+  --foreground: #121214;
   --card: #ffffff;
-  --card-foreground: #0b1633;
+  --card-foreground: #121214;
   --popover: #ffffff;
-  --popover-foreground: #0b1633;
+  --popover-foreground: #121214;
   /* Brand seed for light scheme. Dark scheme rebinds to --brand-primary-dark. */
   --primary: var(--brand-primary, #e05a3a);
   --primary-foreground: var(--brand-primary-foreground, #ffffff);
-  --secondary: #eef2ff;
-  --secondary-foreground: #172554;
-  --muted: #eef3f9;
-  --muted-foreground: #52627a;
-  --accent: #ede9fe;
-  --accent-foreground: #5b21b6;
-  --destructive: #dc2626;
+  --secondary: #f1f1ee;
+  --secondary-foreground: #1d1d20;
+  --muted: #f1f1ee;
+  --muted-foreground: #646469;
+  --accent: #eeeeeb;
+  --accent-foreground: #121214;
+  --destructive: #d92d20;
   --destructive-foreground: #ffffff;
-  --success: #047857;
+  --success: #12804a;
   --success-foreground: #ffffff;
-  --warning: #b45309;
+  --warning: #b54708;
   --warning-foreground: #ffffff;
-  --info: #0e7490;
+  --info: #1d6fd8;
   --info-foreground: #ffffff;
-  --neutral: #64748b;
+  --neutral: #6b6b70;
   --neutral-foreground: #ffffff;
-  --success-subtle: color-mix(in oklab, var(--success) 12%, var(--background));
-  --success-subtle-foreground: #065f46;
-  --warning-subtle: color-mix(in oklab, var(--warning) 12%, var(--background));
-  --warning-subtle-foreground: #92400e;
-  --info-subtle: color-mix(in oklab, var(--info) 12%, var(--background));
-  --info-subtle-foreground: #155e75;
-  --destructive-subtle: color-mix(
-    in oklab,
-    var(--destructive) 12%,
-    var(--background)
-  );
-  --destructive-subtle-foreground: #b91c1c;
-  /* Soft gray borders — avoid heavy outline chrome. */
-  --border: #e8eaef;
-  --input: #c8ced8;
+  --success-subtle: color-mix(in oklab, var(--success) 10%, var(--card));
+  --success-subtle-foreground: #0b6138;
+  --warning-subtle: color-mix(in oklab, var(--warning) 10%, var(--card));
+  --warning-subtle-foreground: #93370d;
+  --info-subtle: color-mix(in oklab, var(--info) 10%, var(--card));
+  --info-subtle-foreground: #1849a9;
+  --destructive-subtle: color-mix(in oklab, var(--destructive) 9%, var(--card));
+  --destructive-subtle-foreground: #b42318;
+  /* Hairlines: borders separate, they do not outline. */
+  --border: #e6e5e1;
+  --input: #d9d8d3;
   --ring: var(--brand-primary, #e05a3a);
   /* Categorical series. Hues are spread around the wheel and held at a
    * lightness that stays legible on the light canvas. */
   --chart-1: var(--brand-primary, #e05a3a);
-  --chart-2: #7c3aed;
-  --chart-3: #0891b2;
-  --chart-4: #0f766e;
-  --chart-5: #b45309;
-  --chart-6: #be123c;
-  --chart-7: #15803d;
-  --chart-8: #a21caf;
-  --chart-9: #c2410c;
-  --chart-10: #4338ca;
-  --chart-11: #4d7c0f;
-  --chart-12: #57534e;
+  --chart-2: #6d5dfc;
+  --chart-3: #0e9fc9;
+  --chart-4: #109e83;
+  --chart-5: #d48806;
+  --chart-6: #e03e6b;
+  --chart-7: #3f9c35;
+  --chart-8: #b84fd6;
+  --chart-9: #e8743b;
+  --chart-10: #3f63e0;
+  --chart-11: #7a9a12;
+  --chart-12: #77736c;
   --overview-accent-1: var(--brand-primary, #e05a3a);
-  --overview-accent-2: #7c3aed;
-  --overview-accent-3: #0891b2;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0b1633;
+  --overview-accent-2: #6d5dfc;
+  --overview-accent-3: #0e9fc9;
+  /* The app frame: navigation sits on the page ground, the work area is a
+   * lifted card panel inset into it. */
+  --sidebar: #f1f1ee;
+  --sidebar-foreground: #3a3a3e;
   --sidebar-primary: var(--brand-primary, #e05a3a);
   --sidebar-primary-foreground: var(--brand-primary-foreground, #ffffff);
-  --sidebar-accent: #e8f0ff;
-  --sidebar-accent-foreground: #1d4ed8;
-  --sidebar-border: #e8eaef;
+  --sidebar-accent: #e6e6e2;
+  --sidebar-accent-foreground: #121214;
+  --sidebar-border: #e2e1dc;
   --sidebar-ring: var(--brand-primary, #e05a3a);
-  --surface-sunken: color-mix(in oklab, var(--muted) 55%, var(--background));
-  --surface-subtle: color-mix(in oklab, var(--muted) 30%, var(--background));
-  --surface-overlay: color-mix(in oklab, var(--background) 86%, transparent);
-  --skeleton-base: #e7edf6;
-  --skeleton-highlight: #f8fbff;
+  --surface-sunken: #f3f3f0;
+  --surface-subtle: #fafaf8;
+  --surface-overlay: color-mix(in oklab, var(--card) 82%, transparent);
+  --skeleton-base: #efefec;
+  --skeleton-highlight: #fbfbf9;
   --table-row: #ffffff;
-  --table-header: #edf3fa;
-  --table-header-hover: #e3ebf6;
+  --table-header: #fafaf8;
+  --table-header-hover: #f3f3f0;
   /* Disabled rows: kept subtle so they read as "quiet", not as a colored
      alert state. */
-  --table-disabled: #f1f4f8;
-  --table-disabled-hover: #ebeff5;
-  --table-disabled-border: #dfe6ef;
-  /* Light elevation tints toward the navy foreground rather than pure black,
-     so lifted surfaces stay in the same color family as the page. */
+  --table-disabled: #f6f6f3;
+  --table-disabled-hover: #f0f0ed;
+  --table-disabled-border: #e6e5e1;
+  /* Layered neutral shadows: a tight contact shadow plus a soft ambient one. */
   --elevation-raised:
-    0 2px 16px -6px rgb(15 23 42 / 0.1), 0 0 0 0.5px rgb(15 23 42 / 0.03);
-  --elevation-panel: 0 20px 50px -28px rgb(15 23 42 / 0.22);
-  --elevation-lifted: 0 22px 60px -32px rgb(15 23 42 / 0.45);
+    0 1px 2px rgb(18 18 20 / 0.04), 0 4px 16px -6px rgb(18 18 20 / 0.08);
+  --elevation-panel:
+    0 1px 2px rgb(18 18 20 / 0.04), 0 18px 44px -24px rgb(18 18 20 / 0.22);
+  --elevation-lifted:
+    0 2px 6px rgb(18 18 20 / 0.06), 0 28px 64px -28px rgb(18 18 20 / 0.36);
+  /* Signature brand wash for heroes, empty states and the primary CTA glow. */
+  --brand-glow: color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
-/* Dark scheme. Navy foundations with electric blue, violet, and cyan accents.
- * Status fills follow the light-fill/dark-label pattern so each pair clears
- * AA against its own foreground. */
+/* Dark scheme. Near-black neutral ground (no navy cast), panels step up in
+ * lightness, the brand fill softens so it does not vibrate on black. Status
+ * fills follow the light-fill/dark-label pattern so each pair clears AA. */
 .dark {
-  --background: #071126;
-  --foreground: #eaf1ff;
-  --card: #0d1a35;
-  --card-foreground: #eef4ff;
-  --popover: #101f3d;
-  --popover-foreground: #eef4ff;
-  /*
-   * Dark brand fill: softer derived coral by default (#ff9072 from #e05a3a).
-   * Runtime may set --brand-primary-dark from status / admin override.
-   */
+  --background: #0e0e10;
+  --foreground: #ededef;
+  --card: #151517;
+  --card-foreground: #ededef;
+  --popover: #1a1a1d;
+  --popover-foreground: #ededef;
   --primary: var(--brand-primary-dark, #ff9072);
-  --primary-foreground: var(--brand-primary-dark-foreground, #0b1633);
-  --secondary: #172a50;
-  --secondary-foreground: #dce8ff;
-  --muted: #132440;
-  --muted-foreground: #9aabc5;
-  --accent: #30235f;
-  --accent-foreground: #ddd6fe;
-  --destructive: #ef4444;
-  --destructive-foreground: #240505;
-  --success: #10b981;
-  --success-foreground: #041b14;
-  --warning: #f59e0b;
-  --warning-foreground: #251400;
-  --info: #22d3ee;
-  --info-foreground: #06202a;
-  --neutral: #8091ab;
-  --neutral-foreground: #071126;
-  --success-subtle: color-mix(in oklab, var(--success) 18%, var(--background));
-  --success-subtle-foreground: #6ee7b7;
-  --warning-subtle: color-mix(in oklab, var(--warning) 18%, var(--background));
-  --warning-subtle-foreground: #fcd34d;
-  --info-subtle: color-mix(in oklab, var(--info) 18%, var(--background));
-  --info-subtle-foreground: #67e8f9;
+  --primary-foreground: var(--brand-primary-dark-foreground, #1c0a04);
+  --secondary: #1f1f22;
+  --secondary-foreground: #e4e4e7;
+  --muted: #1d1d20;
+  --muted-foreground: #9f9fa7;
+  --accent: #26262a;
+  --accent-foreground: #ededef;
+  --destructive: #f2564b;
+  --destructive-foreground: #1f0503;
+  --success: #3ccb7f;
+  --success-foreground: #04170d;
+  --warning: #f5a524;
+  --warning-foreground: #1f1200;
+  --info: #5aa7ff;
+  --info-foreground: #04162d;
+  --neutral: #8b8b93;
+  --neutral-foreground: #09090b;
+  --success-subtle: color-mix(in oklab, var(--success) 14%, var(--card));
+  --success-subtle-foreground: #75e0a7;
+  --warning-subtle: color-mix(in oklab, var(--warning) 14%, var(--card));
+  --warning-subtle-foreground: #fdc76a;
+  --info-subtle: color-mix(in oklab, var(--info) 14%, var(--card));
+  --info-subtle-foreground: #9ccaff;
   --destructive-subtle: color-mix(
     in oklab,
-    var(--destructive) 18%,
-    var(--background)
+    var(--destructive) 14%,
+    var(--card)
   );
-  --destructive-subtle-foreground: #fca5a5;
-  /* Soft dark edges — subtle separation without harsh boxes. */
+  --destructive-subtle-foreground: #fda29b;
   --border: rgb(255 255 255 / 8%);
-  --input: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 13%);
   --ring: var(--brand-primary-dark, #ff9072);
-  --chart-1: #60a5fa;
-  --chart-2: #a78bfa;
-  --chart-3: #22d3ee;
-  --chart-4: #34d399;
-  --chart-5: #fbbf24;
-  --chart-6: #fb7185;
-  --chart-7: #4ade80;
-  --chart-8: #e879f9;
-  --chart-9: #fb923c;
-  --chart-10: #818cf8;
-  --chart-11: #a3e635;
-  --chart-12: #cbd5e1;
-  --overview-accent-1: #60a5fa;
-  --overview-accent-2: #a78bfa;
-  --overview-accent-3: #22d3ee;
-  --sidebar: #050d20;
-  --sidebar-foreground: #eaf1ff;
+  --chart-1: var(--brand-primary-dark, #ff9072);
+  --chart-2: #9b8cff;
+  --chart-3: #38c6f4;
+  --chart-4: #34d3a6;
+  --chart-5: #fbbf3c;
+  --chart-6: #ff6b93;
+  --chart-7: #6ee36a;
+  --chart-8: #e07cf6;
+  --chart-9: #ffa36b;
+  --chart-10: #7c95ff;
+  --chart-11: #b5d94b;
+  --chart-12: #c4c0b8;
+  --overview-accent-1: var(--brand-primary-dark, #ff9072);
+  --overview-accent-2: #9b8cff;
+  --overview-accent-3: #38c6f4;
+  --sidebar: #09090b;
+  --sidebar-foreground: #c9c9cf;
   --sidebar-primary: var(--brand-primary-dark, #ff9072);
-  --sidebar-primary-foreground: var(--brand-primary-dark-foreground, #0b1633);
-  --sidebar-accent: #172b52;
+  --sidebar-primary-foreground: var(--brand-primary-dark-foreground, #1c0a04);
+  --sidebar-accent: #1a1a1d;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgb(255 255 255 / 8%);
-  --sidebar-ring: #60a5fa;
-  --surface-sunken: color-mix(in oklab, var(--muted) 60%, var(--background));
-  --surface-subtle: color-mix(in oklab, var(--muted) 35%, var(--background));
-  --surface-overlay: color-mix(in oklab, var(--background) 82%, transparent);
-  --skeleton-base: #162844;
-  --skeleton-highlight: #263d62;
-  --table-row: #0d1a35;
-  --table-header: #142746;
-  --table-header-hover: #1a3053;
-  --table-disabled: #101d33;
-  --table-disabled-hover: #14223a;
-  --table-disabled-border: #223451;
-  /* Dark elevation leans on deeper, wider falloff since a tinted shadow reads
-     as haze against a navy background. */
-  --elevation-raised: 0 2px 16px -6px rgb(0 0 0 / 0.45);
-  --elevation-panel: 0 20px 60px -26px rgb(0 0 0 / 0.65);
-  --elevation-lifted: 0 22px 70px -34px rgb(0 0 0 / 0.7);
+  --sidebar-border: rgb(255 255 255 / 7%);
+  --sidebar-ring: var(--brand-primary-dark, #ff9072);
+  --surface-sunken: #0d0d0f;
+  --surface-subtle: #151517;
+  --surface-overlay: color-mix(in oklab, var(--popover) 80%, transparent);
+  --skeleton-base: #1c1c1f;
+  --skeleton-highlight: #2a2a2e;
+  --table-row: #151517;
+  --table-header: #19191b;
+  --table-header-hover: #1c1c1f;
+  --table-disabled: #0f0f11;
+  --table-disabled-hover: #151517;
+  --table-disabled-border: rgb(255 255 255 / 7%);
+  --elevation-raised:
+    0 1px 2px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --elevation-panel:
+    0 0 0 1px rgb(255 255 255 / 0.05), 0 24px 56px -24px rgb(0 0 0 / 0.8);
+  --elevation-lifted:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 32px 72px -28px rgb(0 0 0 / 0.85);
+  --brand-glow: color-mix(in oklab, var(--primary) 26%, transparent);
 }

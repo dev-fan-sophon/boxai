@@ -24,7 +24,7 @@ import process from 'node:process'
 
 import { globSync } from 'tinyglobby'
 
-const PALETTE_BUDGET = 282
+const PALETTE_BUDGET = 279
 const HEX_BUDGET = 97
 
 const EXEMPT = [

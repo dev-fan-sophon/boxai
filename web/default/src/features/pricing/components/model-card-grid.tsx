@@ -1,7 +1,7 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronLeft, ChevronRight } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { LobeIcon } from '@/lib/lobe-icon'
 

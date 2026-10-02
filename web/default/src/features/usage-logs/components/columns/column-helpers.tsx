@@ -1,9 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Zap } from 'lucide-react'
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 
 import { DataTableColumnHeader } from '@/components/data-table'
+import { Zap } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import {
   Tooltip,

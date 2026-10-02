@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+
+import { EmptyState } from '@/components/empty-state'
+import { ErrorState } from '@/components/error-state'
 import {
   Activity,
   AlertTriangle,
   Eye,
   RefreshCw,
   ShieldCheck,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { EmptyState } from '@/components/empty-state'
-import { ErrorState } from '@/components/error-state'
+} from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'

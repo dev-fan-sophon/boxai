@@ -1,8 +1,15 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { AlertCircle, Check, Clock, Laptop, ShieldCheck, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  Laptop,
+  ShieldCheck,
+  X,
+} from '@/components/icons'
 import { SectionPageLayout } from '@/components/layout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

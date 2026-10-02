@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowRight,
   CircleGauge,
@@ -7,10 +9,8 @@ import {
   KeyRound,
   Play,
   RadioTower,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import {
   CardStaggerContainer,
   CardStaggerItem,
@@ -42,14 +42,14 @@ type OverviewPanelKey = 'performance' | 'announcements' | 'api-info'
 interface OverviewSignal {
   label: string
   value: string
-  icon: LucideIcon
+  icon: IconComponent
   loading?: boolean
 }
 
 interface NextAction {
   title: string
   to: DashboardActionPath
-  icon: LucideIcon
+  icon: IconComponent
 }
 
 function OverviewToolbar(props: {

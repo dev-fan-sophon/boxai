@@ -1,19 +1,19 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Film,
   HelpCircle,
   Image as ImageIcon,
   StickyNote,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 export type CanvasStarterKind = 'image' | 'image-to-video' | 'note'
 
 const STARTERS: Array<{
   kind: CanvasStarterKind
-  icon: LucideIcon
+  icon: IconComponent
   title: string
   body: string
   chip: string

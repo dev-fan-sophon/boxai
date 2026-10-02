@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router'
+import { memo, type KeyboardEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   AudioLines,
   Brain,
@@ -6,11 +9,8 @@ import {
   Film,
   Layers,
   Play,
-  type LucideIcon,
-} from 'lucide-react'
-import { memo, type KeyboardEvent, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { cn } from '@/lib/utils'
@@ -72,7 +72,7 @@ function formatCompactTokenCount(tokens?: number): string {
 
 type MetaChip = {
   key: string
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   title?: string
 }

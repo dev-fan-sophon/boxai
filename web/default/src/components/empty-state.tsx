@@ -1,6 +1,6 @@
-import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import type { IconComponent } from '@/components/icons'
 import {
   Empty,
   EmptyContent,
@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
-  icon?: LucideIcon
+  icon?: IconComponent
   title: string
   description?: ReactNode
   action?: ReactNode
@@ -35,14 +35,15 @@ export function EmptyState(props: EmptyStateProps) {
     <Empty
       className={cn(
         'fade-enter min-h-[220px]',
-        props.bordered !== false && 'border border-dashed',
+        props.bordered !== false &&
+          'border-border/80 bg-surface-subtle/60 border border-dashed',
         props.className
       )}
     >
       <EmptyHeader>
         {Icon && (
           <EmptyMedia variant='icon'>
-            <Icon className='size-4' />
+            <Icon className='size-5' />
           </EmptyMedia>
         )}
         <EmptyTitle>{props.title}</EmptyTitle>

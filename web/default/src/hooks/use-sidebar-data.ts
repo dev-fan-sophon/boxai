@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Activity,
   Box,
@@ -11,9 +13,7 @@ import {
   User,
   Users,
   Wallet,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import type { SidebarData } from '@/components/layout/types'
 import {
   BoxAIConnectIcon,

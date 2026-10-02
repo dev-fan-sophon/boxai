@@ -1,7 +1,7 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
-import { SearchX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { SearchX } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'

@@ -1,7 +1,7 @@
-import { Check, ChevronsUpDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Check, ChevronsUpDown } from '@/components/icons'
 import {
   Command,
   CommandEmpty,

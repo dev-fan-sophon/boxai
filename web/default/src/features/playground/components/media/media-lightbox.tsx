@@ -1,3 +1,7 @@
+import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   Check,
   ChevronLeft,
@@ -6,11 +10,7 @@ import {
   ExternalLink,
   Loader2,
   X,
-} from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'

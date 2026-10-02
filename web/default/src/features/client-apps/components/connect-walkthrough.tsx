@@ -1,6 +1,13 @@
-import { Blocks, Terminal, Route, Network, UserRound, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  Blocks,
+  Terminal,
+  Route,
+  Network,
+  UserRound,
+  Zap,
+} from '@/components/icons'
 import { TitledCard } from '@/components/ui/titled-card'
 
 export function ConnectWalkthrough() {

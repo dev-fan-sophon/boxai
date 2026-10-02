@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { Wallet } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Wallet } from '@/components/icons'
 import {
   SidebarFooter,
   SidebarMenu,

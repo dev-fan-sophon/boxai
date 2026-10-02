@@ -1,4 +1,3 @@
-import { Server } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,6 +5,7 @@ import {
   SideDrawerSection,
   SideDrawerSectionHeader,
 } from '@/components/drawer-layout'
+import { Server } from '@/components/icons'
 
 type ChannelBasicSectionProps = {
   children: ReactNode

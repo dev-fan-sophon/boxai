@@ -1,5 +1,4 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { SlidersHorizontal } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -10,6 +9,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { SlidersHorizontal } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,

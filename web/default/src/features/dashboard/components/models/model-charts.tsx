@@ -1,7 +1,7 @@
-import { PieChart as PieChartIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { PieChart as PieChartIcon } from '@/components/icons'
 import { IconBadge } from '@/components/ui/icon-badge'
 import {
   DEFAULT_TIME_GRANULARITY,

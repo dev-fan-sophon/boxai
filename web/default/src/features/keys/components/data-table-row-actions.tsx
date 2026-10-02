@@ -1,5 +1,10 @@
 import { useNavigate } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
+import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
 import {
   Trash2,
   Edit,
@@ -12,12 +17,7 @@ import {
   Loader2,
   Info,
   Plug,
-} from 'lucide-react'
-import { useCallback, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
+} from '@/components/icons'
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,

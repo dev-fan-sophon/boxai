@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
 import {
   Brain,
   ChartColumn,
   History,
   Theater,
   Trash2,
-  type LucideIcon,
-} from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { Dialog } from '@/components/dialog'
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -349,7 +349,7 @@ function ToggleRow(props: {
   description: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
-  icon: LucideIcon
+  icon: IconComponent
 }) {
   const Icon = props.icon
   return (

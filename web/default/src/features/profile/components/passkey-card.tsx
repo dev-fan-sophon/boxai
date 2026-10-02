@@ -1,8 +1,8 @@
-import { AlertTriangle, KeyRound, ShieldAlert } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { AlertTriangle, KeyRound, ShieldAlert } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import {
   AlertDialog,

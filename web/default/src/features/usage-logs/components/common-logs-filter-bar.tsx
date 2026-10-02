@@ -1,9 +1,9 @@
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import type { Table } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Eye, EyeOff } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Select,

@@ -1,7 +1,7 @@
-import { ArrowUpRight, Heart, Play, Sparkles } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowUpRight, Heart, Play, Sparkles } from '@/components/icons'
 import { recordInspirationEvents } from '@/features/playground/api'
 import type { InspirationRecipe } from '@/features/playground/inspiration/types'
 import { cn } from '@/lib/utils'
@@ -102,7 +102,8 @@ export function RecipeCard(props: RecipeCardProps) {
         onClick={props.onFavorite}
       >
         <Heart
-          className={cn('size-4', props.favorite && 'fill-current')}
+          weight={props.favorite ? 'fill' : undefined}
+          className='size-4'
           aria-hidden='true'
         />
       </button>

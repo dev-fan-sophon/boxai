@@ -1,4 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
 import {
   CalendarDays,
   ChevronDown,
@@ -6,12 +11,7 @@ import {
   ChevronRight,
   ChevronUp,
   Sparkles,
-} from 'lucide-react'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { Dialog } from '@/components/dialog'
+} from '@/components/icons'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

@@ -1,7 +1,7 @@
-import { CreditCard, Gift, Crown, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
+import { CreditCard, Gift, Crown, ArrowRight } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'

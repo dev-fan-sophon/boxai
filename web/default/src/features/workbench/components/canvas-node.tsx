@@ -1,3 +1,6 @@
+import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   ClipboardCopy,
   Columns3,
@@ -13,10 +16,7 @@ import {
   RotateCw,
   Trash2,
   Unlock,
-} from 'lucide-react'
-import { memo } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,6 +1,6 @@
-import { ChevronDown, Dices, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ChevronDown, Dices, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,

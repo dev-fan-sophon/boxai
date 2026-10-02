@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, HeartPulse, Timer } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -8,6 +7,7 @@ import {
   staticDataTableClassNames as tableStyles,
 } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
+import { AlertTriangle, HeartPulse, Timer } from '@/components/icons'
 import { StatCard } from '@/components/stat-card'
 import { getPerfMetrics } from '@/features/performance-metrics/api'
 import {

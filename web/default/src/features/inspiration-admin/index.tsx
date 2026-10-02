@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, History, Plus, RotateCcw, Save } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Archive, History, Plus, RotateCcw, Save } from '@/components/icons'
 // Leaf import: avoid `@/components/layout` barrel (pulls authenticated layout
 // and creates a cycle via system-settings sidebar view → this feature).
 import { SectionPageLayout } from '@/components/layout/components/section-page-layout'

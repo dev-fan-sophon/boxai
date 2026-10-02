@@ -1,9 +1,8 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
-import { Cancel01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -31,7 +30,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot='dialog-overlay'
       className={cn(
-        'data-open:animate-in data-open:fade-in-0 data-open:duration-overlay data-closed:animate-out data-closed:fade-out-0 data-closed:duration-control ease-emphasized fixed inset-0 isolate z-overlay bg-black/40 supports-backdrop-filter:backdrop-blur-[2px] dark:bg-black/60',
+        'data-open:animate-in data-open:fade-in-0 data-open:duration-overlay data-closed:animate-out data-closed:fade-out-0 data-closed:duration-control ease-emphasized fixed inset-0 isolate z-overlay bg-black/25 supports-backdrop-filter:backdrop-blur-[3px] dark:bg-black/60',
         className
       )}
       {...props}
@@ -54,7 +53,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot='dialog-content'
         className={cn(
-          'bg-popover text-popover-foreground ring-border data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-open:duration-overlay data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-98 data-closed:duration-control ease-emphasized shadow-lifted fixed top-1/2 left-1/2 z-overlay grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 text-sm ring-1 outline-none sm:max-w-sm',
+          'bg-popover text-popover-foreground ring-border data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-open:duration-overlay data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-98 data-closed:duration-control ease-emphasized shadow-lifted fixed top-1/2 left-1/2 z-overlay grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl p-5 text-sm ring-1 outline-none sm:max-w-sm',
           className
         )}
         {...props}
@@ -71,7 +70,7 @@ function DialogContent({
               />
             }
           >
-            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+            <X />
             <span className='sr-only'>{t('Close')}</span>
           </DialogPrimitive.Close>
         )}
@@ -102,7 +101,7 @@ function DialogFooter({
     <div
       data-slot='dialog-footer'
       className={cn(
-        'bg-muted/50 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t p-4 sm:flex-row sm:justify-end',
+        'bg-surface-subtle -mx-5 -mb-5 flex flex-col-reverse gap-2 rounded-b-2xl border-t px-5 py-4 sm:flex-row sm:justify-end',
         className
       )}
       {...props}

@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
+import { ArrowRight } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 interface CTAProps {

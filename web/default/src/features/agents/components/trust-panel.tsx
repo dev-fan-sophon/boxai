@@ -1,7 +1,7 @@
-import { CheckCircle2, FolderLock, LockKeyhole } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
+import { CheckCircle2, FolderLock, LockKeyhole } from '@/components/icons'
 import { SectionHeading } from '@/components/section-heading'
 
 export function TrustPanel() {

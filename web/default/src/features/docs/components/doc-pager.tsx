@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { ArrowLeft, ArrowRight } from '@/components/icons'
 
 import type { DocsManifestPage } from '../lib/types'
 

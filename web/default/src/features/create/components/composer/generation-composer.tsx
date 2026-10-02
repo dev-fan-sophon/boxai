@@ -1,6 +1,6 @@
-import { Layers } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Layers } from '@/components/icons'
 import { ComposerShell } from '@/features/playground/components/composer/composer'
 import { MAX_STUDIO_BATCH_JOBS } from '@/features/playground/lib/studio/batch-plan'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'

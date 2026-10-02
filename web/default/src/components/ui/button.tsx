@@ -1,41 +1,42 @@
 import { Button as ButtonPrimitive } from '@base-ui/react/button'
-import { Loading03Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { isValidElement } from 'react'
 
+import { Loader2 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-ui duration-control ease-emphasized outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 motion-safe:active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 data-loading:cursor-progress data-loading:disabled:opacity-80 data-loading:[&>svg:not([data-slot=button-spinner])]:hidden aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button relative inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-ui duration-control ease-emphasized outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-safe:active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 data-loading:cursor-progress data-loading:disabled:opacity-80 data-loading:[&>svg:not([data-slot=button-spinner])]:hidden aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        // Solid brand fill with a top highlight and a contact shadow, so the
+        // primary action reads as a physical key rather than a flat swatch.
+        default:
+          'bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(0_0_0/0.14)] hover:bg-primary/92 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_1px_2px_rgb(0_0_0/0.4)]',
         outline:
-          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:hover:bg-muted',
+          'border-border bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.04)] hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:border-input dark:bg-input/20 dark:hover:bg-input/40',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+          'bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent aria-expanded:text-accent-foreground',
         ghost:
-          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
+          'text-foreground/80 hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground',
         destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+          'bg-destructive-subtle text-destructive-subtle-foreground hover:bg-destructive hover:text-destructive-foreground focus-visible:ring-destructive/25',
         link: 'text-primary underline-offset-4 hover:underline',
-        // Marketing call to action. Same radius as default (rounded-lg); gradient
-        // tracks brand tokens so it stays legible with light brand colors.
-        cta: 'bg-gradient-to-r from-primary to-chart-2 text-primary-foreground shadow-md hover:from-primary/90 hover:to-chart-2/90',
+        // Marketing call to action: brand fill with a warm glow underneath.
+        cta: 'bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_8px_24px_-8px_var(--brand-glow),0_1px_2px_rgb(0_0_0/0.15)] hover:bg-primary/92 hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_12px_32px_-8px_var(--brand-glow),0_1px_2px_rgb(0_0_0/0.15)]',
       },
       size: {
         default:
-          'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        xs: "h-6 gap-1 rounded-md px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-md px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: 'h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        icon: 'size-8',
+          'h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3',
+        xs: "h-7 gap-1 rounded-md px-2.5 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-8 gap-1.5 rounded-lg px-3 text-ui in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: 'h-10 gap-2 rounded-xl px-4 has-data-[icon=inline-end]:pr-3.5 has-data-[icon=inline-start]:pl-3.5',
+        icon: 'size-9',
         'icon-xs':
-          "size-6 rounded-md in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        'icon-sm': 'size-7 rounded-md in-data-[slot=button-group]:rounded-lg',
-        'icon-lg': 'size-9',
+          "size-7 rounded-md in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3.5",
+        'icon-sm': 'size-8 rounded-lg in-data-[slot=button-group]:rounded-lg',
+        'icon-lg': 'size-10 rounded-xl',
       },
     },
     defaultVariants: {
@@ -93,9 +94,8 @@ function Button({
       {...props}
     >
       {loading && (
-        <HugeiconsIcon
-          icon={Loading03Icon}
-          strokeWidth={2}
+        <Loader2
+          weight='bold'
           aria-hidden='true'
           data-slot='button-spinner'
           data-icon='inline-start'

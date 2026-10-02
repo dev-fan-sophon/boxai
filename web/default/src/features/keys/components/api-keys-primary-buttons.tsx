@@ -1,6 +1,6 @@
-import { Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { useApiKeys } from './api-keys-provider'

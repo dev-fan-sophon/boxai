@@ -1,4 +1,10 @@
 import type { Row } from '@tanstack/react-table'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
 import {
   Pencil,
   Trash2,
@@ -11,13 +17,7 @@ import {
   Link2,
   CreditCard,
   UserSearch,
-} from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenuItem,

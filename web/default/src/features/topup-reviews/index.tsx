@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { ChevronLeft, ChevronRight, Search } from '@/components/icons'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'

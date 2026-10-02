@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/public-sans';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
 
 @import './theme.css';
 @import './motion.css';
@@ -39,6 +40,44 @@
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
     font-family: var(--font-body);
+    /* Inter: open digits, single-storey a off, disambiguated l/I. */
+    font-feature-settings: 'cv11', 'ss03', 'cv05';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Long unbroken strings (keys, URLs, model ids) wrap instead of pushing
+       their container wider than the viewport. Only kicks in on overflow. */
+    overflow-wrap: break-word;
+  }
+
+  /* Headings balance their lines and tighten as they grow; body copy avoids
+     orphans. Vietnamese diacritics need the default line-height on headings,
+     so only tracking is tightened. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.018em;
+  }
+  h1 {
+    letter-spacing: -0.026em;
+  }
+  p,
+  li,
+  dd {
+    text-wrap: pretty;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-feature-settings: normal;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
   }
 
   /* Keep sticky headers stable while primitives lock body scrolling. */
@@ -606,14 +645,13 @@
 
 /* Micro-interactions — Vercel-style subtle hover/active feedback */
 @media (prefers-reduced-motion: no-preference) {
-  /* The one card-hover spec for the whole app. `ui/Card` opts in by default and
-   * opts out with `data-card-hover='false'`; any other clickable surface that
-   * should feel like a card (gallery tiles, stat tiles, canvas list rows) opts
-   * in with `data-card-hover='true'` rather than hand-rolling its own lift. */
+  /* The one card-hover spec for the whole app. Only surfaces that are
+   * themselves clickable lift (gallery tiles, stat tiles, link cards): they opt
+   * in with `data-card-hover='true'` rather than hand-rolling their own lift.
+   * Static cards stay still — movement under the pointer implies an action. */
   /* This rule sits outside `@layer utilities`, so it wins over a
    * `transition-colors` utility on the same element — hence colour properties
    * are part of the list rather than left to the utility. */
-  [data-slot='card']:not([data-card-hover='false']),
   [data-card-hover='true'] {
     transition:
       transform var(--motion-duration-control) var(--motion-ease-out),
@@ -623,7 +661,6 @@
   }
 
   @media (min-width: 641px) {
-    [data-slot='card']:not([data-card-hover='false']):hover,
     [data-card-hover='true']:hover {
       transform: translateY(var(--card-hover-lift));
       box-shadow: var(--elevation-raised);

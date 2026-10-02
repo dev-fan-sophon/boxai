@@ -1,5 +1,6 @@
-import { FileText, Loader2, RotateCcw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { FileText, Loader2, RotateCcw, X } from '@/components/icons'
 
 import { attachmentPreviewSrc } from '../../../lib/attachments/attachment-utils'
 import type { ChatAttachment, ChatDocumentAttachment } from '../../../types'

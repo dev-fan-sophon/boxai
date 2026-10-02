@@ -1,6 +1,6 @@
-import { Wrench } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Wrench } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'

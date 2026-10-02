@@ -1,10 +1,10 @@
-import { AlertTriangle, Download, Landmark } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
+import { AlertTriangle, Download, Landmark } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { toIntlLocale } from '@/i18n/languages'
 

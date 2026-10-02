@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Clock,
   Layers,
@@ -6,9 +8,7 @@ import {
   Proportions,
   Volume2,
   VolumeX,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   AspectGlyph,
   ParamChip,

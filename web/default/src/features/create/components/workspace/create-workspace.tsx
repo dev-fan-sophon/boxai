@@ -1,7 +1,13 @@
-import { Code2, FolderClock, Plus, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  Code2,
+  FolderClock,
+  Plus,
+  Settings2,
+  Sparkles,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import {

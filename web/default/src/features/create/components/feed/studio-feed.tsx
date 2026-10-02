@@ -1,4 +1,9 @@
 import { useQueries } from '@tanstack/react-query'
+import { useReducedMotion } from 'motion/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   FolderDown,
   Grid2x2,
@@ -11,12 +16,7 @@ import {
   Square,
   SquareCheck,
   X,
-} from 'lucide-react'
-import { useReducedMotion } from 'motion/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

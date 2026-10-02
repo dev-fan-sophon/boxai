@@ -1,4 +1,3 @@
-import { RotateCcw, Save } from 'lucide-react'
 import {
   createContext,
   useContext,
@@ -9,6 +8,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
+import { RotateCcw, Save } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 type SettingsPageContextValue = {

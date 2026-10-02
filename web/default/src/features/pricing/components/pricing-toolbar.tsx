@@ -1,4 +1,3 @@
-import { ArrowUpDown, Check, Filter, Grid2X2, Table2, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,6 +6,14 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  ArrowUpDown,
+  Check,
+  Filter,
+  Grid2X2,
+  Table2,
+  X,
+} from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

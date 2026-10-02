@@ -1,12 +1,12 @@
-import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import type { IconComponent } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 export type SegmentedTabOption<T extends string> = {
   value: T
   label: string
-  icon?: LucideIcon
+  icon?: IconComponent
 }
 
 type SegmentedTabsProps<T extends string> = {

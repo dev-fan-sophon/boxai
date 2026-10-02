@@ -1,10 +1,10 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { LayoutDashboard } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
+import { LayoutDashboard } from '@/components/icons'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'

@@ -1,8 +1,8 @@
-import { Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { Search } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-enter'
 import { Button } from '@/components/ui/button'

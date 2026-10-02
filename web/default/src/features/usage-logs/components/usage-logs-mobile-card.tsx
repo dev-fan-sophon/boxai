@@ -1,8 +1,8 @@
 import { flexRender, type Cell, type Table } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { Database } from '@/components/icons'
 import {
   dotColorMap,
   textColorMap,

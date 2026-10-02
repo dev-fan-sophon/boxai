@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   AudioLines,
   Captions,
@@ -9,9 +11,7 @@ import {
   Repeat,
   Users,
   VolumeX,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { ParamChip } from '@/features/playground/components/composer/param-chip'
 import { AUDIO_LANGUAGES } from '@/features/playground/lib/studio/audio-settings'
 import {

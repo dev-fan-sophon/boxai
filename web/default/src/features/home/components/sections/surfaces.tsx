@@ -1,4 +1,8 @@
 import { Link } from '@tanstack/react-router'
+import { useMemo, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { AnimateInView } from '@/components/animate-in-view'
 import {
   ArrowRight,
   BarChart3,
@@ -7,11 +11,7 @@ import {
   MonitorSmartphone,
   Sparkles,
   WalletCards,
-} from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { AnimateInView } from '@/components/animate-in-view'
+} from '@/components/icons'
 import { useStatus } from '@/hooks/use-status'
 import { formatCompactNumber } from '@/lib/format'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'

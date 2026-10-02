@@ -1,3 +1,6 @@
+import { useFormContext } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowRight,
   Copy,
@@ -6,10 +9,7 @@ import {
   HelpCircle,
   Plus,
   Sparkles,
-} from 'lucide-react'
-import { useFormContext } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { MultiSelect } from '@/components/multi-select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'

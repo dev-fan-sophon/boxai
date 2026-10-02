@@ -1,13 +1,13 @@
+import { motion, useReducedMotion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
+
 import {
   ImageIcon,
   Music2,
   Sparkles,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import type { StudioModality } from '@/features/playground/types'
 import type { PricingModel } from '@/features/pricing/types'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
@@ -34,7 +34,7 @@ const MEDIA_HERO: Record<
     tipKeys: string[]
     /** Starter prompts; one shows off `{a|b}` variants for batch runs. */
     exampleKeys: string[]
-    Icon: LucideIcon
+    Icon: IconComponent
     accent: string
   }
 > = {

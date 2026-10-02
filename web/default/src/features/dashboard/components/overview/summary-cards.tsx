@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useId, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+
 import {
   Activity,
   ArrowRight,
@@ -8,11 +12,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
-} from 'lucide-react'
-import { useId, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
-
+} from '@/components/icons'
 import { StaggerContainer, StaggerItem } from '@/components/page-transition'
 import { StatCard } from '@/components/stat-card'
 import { Button } from '@/components/ui/button'

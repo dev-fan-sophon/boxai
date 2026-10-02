@@ -1,7 +1,7 @@
-import { Activity, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Activity, AlertCircle, CheckCircle2 } from '@/components/icons'
 import {
   Tooltip,
   TooltipContent,

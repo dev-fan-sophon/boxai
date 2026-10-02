@@ -1,12 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
-import {
-  Search,
-  Info,
-  MousePointerClick,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,6 +7,13 @@ import { toast } from 'sonner'
 import { DataTableView, useDataTable } from '@/components/data-table'
 import { Dialog } from '@/components/dialog'
 import { EmptyState } from '@/components/empty-state'
+import {
+  Search,
+  Info,
+  MousePointerClick,
+  ChevronLeft,
+  ChevronRight,
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'

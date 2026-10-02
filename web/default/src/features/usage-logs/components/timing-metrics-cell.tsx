@@ -1,6 +1,6 @@
-import { CircleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { CircleAlert } from '@/components/icons'
 import {
   dotColorMap,
   textColorMap,

@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { FolderOpen, LayoutGrid } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { FolderOpen, LayoutGrid } from '@/components/icons'
 import type { InspirationRecipe } from '@/features/playground/inspiration/types'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'

@@ -1,3 +1,8 @@
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   AudioLines,
   History,
@@ -9,13 +14,8 @@ import {
   Search,
   Trash2,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
-import { ConfirmDialog } from '@/components/confirm-dialog'
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -62,7 +62,7 @@ function formatRelativeTime(
 
 const MODALITY_META: Record<
   SessionModality,
-  { labelKey: string; Icon: LucideIcon }
+  { labelKey: string; Icon: IconComponent }
 > = {
   chat: { labelKey: 'Chats', Icon: MessageSquare },
   image: { labelKey: 'Image projects', Icon: ImageIcon },

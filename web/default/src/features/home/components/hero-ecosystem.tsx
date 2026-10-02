@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   BarChart3,
   Bot,
@@ -7,9 +9,7 @@ import {
   MessageSquare,
   MonitorSmartphone,
   Sparkles,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 

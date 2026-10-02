@@ -1,13 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Boxes,
-  ClipboardPaste,
-  KeyRound,
-  Loader2,
-  Server,
-  Settings,
-} from 'lucide-react'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { type SubmitErrorHandler, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +11,14 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  Boxes,
+  ClipboardPaste,
+  KeyRound,
+  Loader2,
+  Server,
+  Settings,
+} from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'

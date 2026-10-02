@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { FileWarning } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { FileWarning } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { RichContent } from '@/components/rich-content'
 import { Button } from '@/components/ui/button'

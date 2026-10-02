@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Camera,
   CircleDot,
@@ -16,9 +18,7 @@ import {
   Video,
   ZoomIn,
   ZoomOut,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

@@ -7,13 +7,6 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, lineNumbers } from '@codemirror/view'
 import { tags as highlightTags } from '@lezer/highlight'
 import {
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CopyIcon,
-  DownloadIcon,
-} from 'lucide-react'
-import {
   type ComponentProps,
   createContext,
   type CSSProperties,
@@ -28,6 +21,13 @@ import {
 import { useTranslation } from 'react-i18next'
 import type { BundledLanguage } from 'shiki'
 
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  DownloadIcon,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

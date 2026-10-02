@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   FileImage,
   Gauge,
@@ -6,9 +8,7 @@ import {
   Proportions,
   Scan,
   SquareDashed,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import {
   AspectGlyph,
   ParamChip,

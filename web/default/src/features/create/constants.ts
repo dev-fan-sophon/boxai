@@ -3,8 +3,8 @@ import {
   FolderOpen,
   ImageIcon,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
+  type IconComponent,
+} from '@/components/icons'
 
 export type CreateTool = 'image' | 'video' | 'audio'
 
@@ -19,7 +19,7 @@ export const CREATE_NAV: Array<{
   id: CreateTool | 'library'
   labelKey: string
   descriptionKey: string
-  Icon: LucideIcon
+  Icon: IconComponent
 }> = [
   {
     id: 'image',

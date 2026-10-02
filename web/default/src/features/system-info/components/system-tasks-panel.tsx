@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { ListChecks, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AsyncState } from '@/components/async-state'
 import { EmptyState } from '@/components/empty-state'
+import { ListChecks, RefreshCw } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'

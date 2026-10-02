@@ -1,6 +1,6 @@
-import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { CheckCircle2, Loader2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 interface StepNavigationProps {

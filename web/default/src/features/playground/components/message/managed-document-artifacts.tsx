@@ -1,3 +1,6 @@
+import type { ComponentType } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   AlertTriangle,
   Download,
@@ -6,10 +9,7 @@ import {
   FileText,
   ImageIcon,
   Presentation,
-} from 'lucide-react'
-import type { ComponentType } from 'react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { useArtifactPreviewStore } from '../../lib/artifact-preview-store'

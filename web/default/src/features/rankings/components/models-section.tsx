@@ -1,4 +1,3 @@
-import { BarChart3, Trophy } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,6 +9,7 @@ import {
   type TooltipContentProps,
 } from 'recharts'
 
+import { BarChart3, Trophy } from '@/components/icons'
 import {
   ChartContainer,
   ChartTooltip,

@@ -1,9 +1,9 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Menu } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -95,28 +95,25 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
 
       {/* 桌面端水平导航 */}
       <nav
-        className={cn(
-          'hidden items-center space-x-4 lg:flex lg:space-x-4 xl:space-x-6',
-          className
-        )}
+        className={cn('hidden items-center gap-0.5 lg:flex', className)}
         {...props}
       >
         {normalizedLinks.map(
           ({ title, href, isActive, disabled, external }) => {
             const linkClassName = cn(
-              'hover:text-sidebar-foreground relative text-sm font-medium transition-colors duration-control',
+              'relative isolate inline-flex h-8 items-center rounded-lg px-2.5 text-ui font-medium whitespace-nowrap transition-ui duration-control',
               isActive
-                ? 'text-sidebar-foreground'
-                : 'text-sidebar-foreground/70'
+                ? 'text-foreground'
+                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-foreground'
             )
-            // Shared `layoutId`: the underline slides between sections rather
+            // Shared `layoutId`: the raised pill slides between sections rather
             // than blinking. Reduced motion turns the slide into a cut through
             // the root `MotionConfig`.
             const indicator = isActive ? (
               <motion.span
                 layoutId='top-nav-active-indicator'
                 aria-hidden='true'
-                className='bg-primary absolute inset-x-0 -bottom-1.5 h-0.5 rounded-full'
+                className='bg-card shadow-raised ring-border/70 dark:bg-sidebar-accent absolute inset-0 -z-10 rounded-lg ring-1 dark:ring-white/5'
                 transition={MOTION_SPRING.snappy}
               />
             ) : null

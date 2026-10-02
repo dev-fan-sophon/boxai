@@ -1,3 +1,11 @@
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { SiGithub, SiDiscord } from 'react-icons/si'
+import { toast } from 'sonner'
+
+import { IconFacebook, IconGoogle, IconZalo } from '@/assets/brand-icons'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Dialog } from '@/components/dialog'
 import {
   Mail,
   Globe,
@@ -8,15 +16,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
-} from 'lucide-react'
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { SiGithub, SiDiscord } from 'react-icons/si'
-import { toast } from 'sonner'
-
-import { IconFacebook, IconGoogle, IconZalo } from '@/assets/brand-icons'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Dialog } from '@/components/dialog'
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'

@@ -1,7 +1,7 @@
-import { Eye, EyeOff } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Eye, EyeOff } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 import { Button } from './ui/button'

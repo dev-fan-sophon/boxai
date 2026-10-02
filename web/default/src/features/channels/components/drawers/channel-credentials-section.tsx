@@ -1,9 +1,16 @@
-import { Copy, Eye, Loader2, RefreshCw, Route, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import {
+  Copy,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Route,
+  Trash2,
+} from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

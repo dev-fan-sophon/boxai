@@ -1,12 +1,12 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   Apple,
   ArrowDownToLine,
   ChevronDown,
   Monitor,
   TriangleAlert,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

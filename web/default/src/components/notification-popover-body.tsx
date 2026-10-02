@@ -1,8 +1,8 @@
 import type { TFunction } from 'i18next'
-import { Bell, Megaphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
+import { Bell, Megaphone } from '@/components/icons'
 import { AnimatedList, AnimatedListItem } from '@/components/page-transition'
 import { RichContent } from '@/components/rich-content'
 import { Button } from '@/components/ui/button'

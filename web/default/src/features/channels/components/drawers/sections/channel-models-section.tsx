@@ -1,4 +1,3 @@
-import { Boxes } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,6 +5,7 @@ import {
   SideDrawerSection,
   SideDrawerSectionHeader,
 } from '@/components/drawer-layout'
+import { Boxes } from '@/components/icons'
 
 type ChannelModelsSectionProps = {
   children: ReactNode

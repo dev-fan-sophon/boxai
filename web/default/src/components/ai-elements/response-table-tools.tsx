@@ -1,11 +1,16 @@
 'use client'
 
-import { BarChart3, ClipboardCopy, Download, FileText } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import {
+  BarChart3,
+  ClipboardCopy,
+  Download,
+  FileText,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

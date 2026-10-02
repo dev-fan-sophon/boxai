@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Menu } from '@/components/icons'
 import { PublicLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import {

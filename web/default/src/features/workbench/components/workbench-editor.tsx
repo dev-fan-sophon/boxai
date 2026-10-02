@@ -1,13 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import {
-  ArrowLeft,
-  HelpCircle,
-  History,
-  Search,
-  Share2,
-  Sparkles,
-} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -16,6 +8,14 @@ import {
   sideDrawerContentClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  ArrowLeft,
+  HelpCircle,
+  History,
+  Search,
+  Share2,
+  Sparkles,
+} from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogContent,

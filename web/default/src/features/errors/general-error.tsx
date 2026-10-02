@@ -1,8 +1,8 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
-import { ServerCrash, Timer } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ServerCrash, Timer } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { isChunkLoadError } from './chunk-load-error'

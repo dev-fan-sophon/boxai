@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FileQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
+import { FileQuestion } from '@/components/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getIntegrationProfiles } from '@/features/pricing/api'
 

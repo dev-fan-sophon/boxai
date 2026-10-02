@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next'
+
+import { AnimateInView } from '@/components/animate-in-view'
 import {
   CalendarClock,
   FileOutput,
@@ -5,10 +8,7 @@ import {
   Link2,
   Sparkles,
   SquareTerminal,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { AnimateInView } from '@/components/animate-in-view'
+} from '@/components/icons'
 import { SectionHeading } from '@/components/section-heading'
 
 const CAPABILITIES = [

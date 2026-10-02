@@ -1,8 +1,8 @@
-import { ImageIcon, Video } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 import { Shimmer } from '@/components/ai-elements/shimmer'
+import { ImageIcon, Video } from '@/components/icons'
 import { MOTION_TRANSITION } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 

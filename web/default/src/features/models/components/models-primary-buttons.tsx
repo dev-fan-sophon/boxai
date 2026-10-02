@@ -1,7 +1,13 @@
 import { Link } from '@tanstack/react-router'
-import { Plus, MoreHorizontal, RefreshCw, List, Building2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  Plus,
+  MoreHorizontal,
+  RefreshCw,
+  List,
+  Building2,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

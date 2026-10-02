@@ -1,7 +1,7 @@
-import { Brush } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Brush } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 import type { GenerationController } from '../../hooks/use-generation-controller'

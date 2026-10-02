@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Copy, Heart, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -9,6 +8,7 @@ import {
   sideDrawerFooterClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import { ChevronDown, Copy, Heart, Sparkles } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -530,7 +530,7 @@ export function RecipeDetail(props: RecipeDetailProps) {
                 )
               }}
             >
-              <Heart className={favorite ? 'fill-current' : ''} />
+              <Heart weight={favorite ? 'fill' : undefined} />
             </Button>
             <Button
               className='flex-1'

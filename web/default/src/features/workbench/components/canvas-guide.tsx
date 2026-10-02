@@ -1,7 +1,13 @@
-import { ArrowUp, MousePointerClick, Plus, Sparkles, Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  ArrowUp,
+  MousePointerClick,
+  Plus,
+  Sparkles,
+  Wand2,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 const GUIDE_STEPS = [

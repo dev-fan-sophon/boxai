@@ -1,4 +1,3 @@
-import { SendIcon, SquareIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -8,6 +7,7 @@ import {
   PromptInputTextarea,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
+import { SendIcon, SquareIcon } from '@/components/icons'
 import {
   Tooltip,
   TooltipContent,
@@ -102,7 +102,7 @@ export function ComposerShell(props: ComposerShellProps) {
                   onClick={props.onStop}
                   variant='secondary'
                 >
-                  <SquareIcon className='fill-current' size={16} />
+                  <SquareIcon weight='fill' size={16} />
                   <span className='hidden sm:inline'>{t('Stop')}</span>
                   <span className='sr-only sm:hidden'>{t('Stop')}</span>
                 </PromptInputButton>

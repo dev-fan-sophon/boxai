@@ -1,6 +1,7 @@
-import { KeyRound } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { KeyRound } from '@/components/icons'
 
 type ChannelAuthSectionProps = {
   children: ReactNode

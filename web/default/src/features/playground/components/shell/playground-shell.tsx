@@ -1,7 +1,7 @@
-import { History, LayoutGrid } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { History, LayoutGrid } from '@/components/icons'
 import {
   Sheet,
   SheetContent,

@@ -1,6 +1,6 @@
-import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Loader2 } from '@/components/icons'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { OPS_RANGE_PRESETS } from '../../lib/ops'

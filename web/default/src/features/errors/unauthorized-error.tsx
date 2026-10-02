@@ -1,7 +1,7 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
-import { KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { KeyRound } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { ErrorPage } from './error-page'

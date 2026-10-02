@@ -1,12 +1,12 @@
 import type { Column } from '@tanstack/react-table'
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
   ChevronsUpDown as CaretSortIcon,
   EyeOff as EyeNoneIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

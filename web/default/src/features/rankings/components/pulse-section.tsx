@@ -1,11 +1,11 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   ArrowDownRight,
   ArrowUpRight,
   TrendingDown,
   TrendingUp,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 

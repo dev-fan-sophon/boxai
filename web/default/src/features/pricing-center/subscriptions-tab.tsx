@@ -1,6 +1,6 @@
-import { Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Info } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SubscriptionsDialogs } from '@/features/subscriptions/components/subscriptions-dialogs'
 import { SubscriptionsPrimaryButtons } from '@/features/subscriptions/components/subscriptions-primary-buttons'

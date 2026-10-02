@@ -1,7 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, ChevronDown, Layers, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  AlertTriangle,
+  ChevronDown,
+  Layers,
+  Sparkles,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,

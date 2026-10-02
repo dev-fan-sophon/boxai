@@ -1,6 +1,6 @@
-import { Terminal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Terminal } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { TitledCard } from '@/components/ui/titled-card'
 import { LobeIcon } from '@/lib/lobe-icon'

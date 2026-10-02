@@ -1,12 +1,12 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   FolderDown,
   ImagePlus,
   LayoutDashboard,
   Loader2,
   X,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 

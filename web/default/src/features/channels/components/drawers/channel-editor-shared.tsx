@@ -1,6 +1,6 @@
-import { AlertCircle, CheckCircle2, Circle, Server } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { AlertCircle, CheckCircle2, Circle, Server } from '@/components/icons'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { LobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'

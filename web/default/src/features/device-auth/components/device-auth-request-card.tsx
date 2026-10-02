@@ -1,5 +1,6 @@
-import { Laptop } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { Laptop } from '@/components/icons'
 
 import type { DeviceAuthInfo } from '../types'
 

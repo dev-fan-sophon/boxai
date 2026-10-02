@@ -1,8 +1,8 @@
-import { Search } from 'lucide-react'
 import type { UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Search } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 import { useDiscoverEndpoints } from '../hooks/use-custom-oauth-mutations'

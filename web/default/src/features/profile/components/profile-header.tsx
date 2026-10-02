@@ -1,4 +1,8 @@
 import { Link } from '@tanstack/react-router'
+import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
 import {
   Activity,
   BarChart3,
@@ -8,11 +12,7 @@ import {
   Users,
   Wallet,
   WalletCards,
-} from 'lucide-react'
-import { motion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'

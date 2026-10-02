@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, ListChecks } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ArrowRight, ListChecks } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TitledCard } from '@/components/ui/titled-card'

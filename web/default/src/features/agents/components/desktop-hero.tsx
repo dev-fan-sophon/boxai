@@ -1,6 +1,6 @@
-import { ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { ShieldCheck } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { DownloadActions } from '@/features/downloads/download-actions'
 import { formatSize } from '@/features/downloads/release'

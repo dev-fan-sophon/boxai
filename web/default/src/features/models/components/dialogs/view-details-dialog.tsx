@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Copy, ExternalLink, Loader2, RefreshCcw } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { Copy, ExternalLink, Loader2, RefreshCcw } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,

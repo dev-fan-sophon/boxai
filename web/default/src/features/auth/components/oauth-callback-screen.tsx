@@ -1,4 +1,3 @@
-import { Loader2, Send, Shield, UserRound, type LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SiGithub, SiLinux, SiWechat } from 'react-icons/si'
@@ -9,6 +8,13 @@ import {
   IconGoogle,
   IconZalo,
 } from '@/assets/brand-icons'
+import {
+  Loader2,
+  Send,
+  Shield,
+  UserRound,
+  type IconComponent,
+} from '@/components/icons'
 
 import { AuthLayout } from '../auth-layout'
 
@@ -19,7 +25,7 @@ type OAuthCallbackScreenProps = {
 
 type ProviderMeta = {
   label: string
-  Icon: LucideIcon | ((props: { className?: string }) => React.JSX.Element)
+  Icon: IconComponent | ((props: { className?: string }) => React.JSX.Element)
 }
 
 const providerDictionary: Record<string, ProviderMeta> = {

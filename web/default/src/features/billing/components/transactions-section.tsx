@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { ErrorState } from '@/components/error-state'
 import {
   Search,
   Copy,
@@ -5,11 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
-} from 'lucide-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { ErrorState } from '@/components/error-state'
+} from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import {
   AlertDialog,

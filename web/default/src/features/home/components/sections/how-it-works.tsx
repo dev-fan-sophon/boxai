@@ -1,15 +1,15 @@
 import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { AnimateInView } from '@/components/animate-in-view'
 import {
   ArrowRight,
   KeyRound,
   Layers3,
   PlugZap,
   WalletCards,
-} from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { AnimateInView } from '@/components/animate-in-view'
+} from '@/components/icons'
 import { useStatus } from '@/hooks/use-status'
 import { cn } from '@/lib/utils'
 

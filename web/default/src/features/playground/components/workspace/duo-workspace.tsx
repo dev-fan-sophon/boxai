@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { Layers, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Layers, Loader2, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'

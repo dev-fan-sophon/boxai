@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
+
 import {
   Gauge,
   Image as ImageIcon,
@@ -6,10 +9,7 @@ import {
   Music,
   Proportions,
   RotateCcw,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { useShallow } from 'zustand/react/shallow'
-
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NativeSelect } from '@/components/ui/native-select'

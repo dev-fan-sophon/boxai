@@ -1,3 +1,6 @@
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import {
   AudioLines,
   Image,
@@ -8,11 +11,8 @@ import {
   Search,
   Video,
   X,
-  type LucideIcon,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { compareVendorNames } from '@/features/pricing/lib/model-helpers'
@@ -35,7 +35,7 @@ type CatalogFilter = 'all' | StudioModality
 const FILTERS: Array<{
   id: CatalogFilter
   labelKey: string
-  Icon: LucideIcon
+  Icon: IconComponent
 }> = [
   { id: 'all', labelKey: 'All', Icon: LayoutGrid },
   { id: 'chat', labelKey: 'Chat', Icon: MessageSquare },
@@ -299,7 +299,8 @@ export function ModelCatalog(props: ModelCatalogProps) {
               count={groups.pinned.length}
               icon={
                 <Pin
-                  className='text-primary size-3 fill-current'
+                  weight='fill'
+                  className='text-primary size-3'
                   aria-hidden='true'
                 />
               }
@@ -549,7 +550,8 @@ function ModelCard(props: {
           }}
         >
           <Pin
-            className={cn('size-3.5', pinned && 'fill-current')}
+            weight={pinned ? 'fill' : undefined}
+            className='size-3.5'
             aria-hidden='true'
           />
         </button>

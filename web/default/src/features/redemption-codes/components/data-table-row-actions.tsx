@@ -1,9 +1,9 @@
 import type { Row } from '@tanstack/react-table'
-import { Trash2, Edit, Power, PowerOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
+import { Trash2, Edit, Power, PowerOff } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenuItem,

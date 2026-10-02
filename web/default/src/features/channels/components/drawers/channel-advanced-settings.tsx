@@ -1,3 +1,8 @@
+import type { ReactNode } from 'react'
+import { useFormContext } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+
+import { sideDrawerSectionClassName } from '@/components/drawer-layout'
 import {
   Code,
   FileText,
@@ -6,12 +11,7 @@ import {
   Settings,
   SlidersHorizontal,
   Wand2,
-} from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useFormContext } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
-
-import { sideDrawerSectionClassName } from '@/components/drawer-layout'
+} from '@/components/icons'
 import { JsonEditor } from '@/components/json-editor'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

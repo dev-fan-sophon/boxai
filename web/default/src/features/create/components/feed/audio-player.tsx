@@ -1,7 +1,7 @@
-import { Download, Loader2, Pause, Play } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Download, Loader2, Pause, Play } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { fetchGeneratedMedia } from '@/features/playground/lib/download-generated-media'
 import { cn } from '@/lib/utils'

@@ -1,12 +1,3 @@
-import {
-  Bot,
-  FileText,
-  Globe,
-  Image,
-  Paperclip,
-  Video,
-  type LucideIcon,
-} from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -14,6 +5,15 @@ import {
   PromptInputButton,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
+import {
+  Bot,
+  FileText,
+  Globe,
+  Image,
+  Paperclip,
+  Video,
+  type IconComponent,
+} from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +42,7 @@ type ToolMode = 'auto' | 'image' | 'video' | 'search' | 'document'
 const TOOL_MODES: Array<{
   value: ToolMode
   labelKey: string
-  Icon: LucideIcon
+  Icon: IconComponent
 }> = [
   { value: 'auto', labelKey: 'Auto', Icon: Bot },
   { value: 'image', labelKey: 'Image', Icon: Image },

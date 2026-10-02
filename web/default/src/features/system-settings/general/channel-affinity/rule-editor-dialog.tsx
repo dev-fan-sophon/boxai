@@ -1,10 +1,10 @@
-import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { Plus, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,

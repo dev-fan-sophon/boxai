@@ -1,4 +1,3 @@
-import { KeyRound } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,6 +5,7 @@ import {
   SideDrawerSection,
   SideDrawerSectionHeader,
 } from '@/components/drawer-layout'
+import { KeyRound } from '@/components/icons'
 
 type ChannelApiAccessSectionProps = {
   children: ReactNode

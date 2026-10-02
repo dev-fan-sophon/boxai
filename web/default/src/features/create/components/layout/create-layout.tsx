@@ -1,8 +1,8 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
+import { Loader2 } from '@/components/icons'
 import { SignInRequiredDialog } from '@/features/playground/components/shell/sign-in-required-dialog'
 import { useWorkspaceBootstrap } from '@/features/playground/hooks/use-workspace-bootstrap'
 import { MOTION_SPRING } from '@/lib/motion'

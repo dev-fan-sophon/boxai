@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import {
   AudioLines,
   AudioWaveform,
@@ -6,16 +8,14 @@ import {
   Speech,
   TextCursorInput,
   Wand2,
-  type LucideIcon,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
+  type IconComponent,
+} from '@/components/icons'
 import type { AudioKind } from '@/features/playground/lib/studio/model-modality'
 import { cn } from '@/lib/utils'
 
 import { AUDIO_TOOL_LABEL_KEYS } from '../../hooks/use-audio-tool'
 
-const PRIMARY_TOOLS: Array<{ value: AudioKind; Icon: LucideIcon }> = [
+const PRIMARY_TOOLS: Array<{ value: AudioKind; Icon: IconComponent }> = [
   { value: 'speech', Icon: Speech },
   { value: 'sfx', Icon: Wand2 },
   { value: 'music', Icon: Music },

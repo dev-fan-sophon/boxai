@@ -10,6 +10,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { toast } from 'sonner'
 
+import { IconContext } from '@/components/icons'
 import { mapStatusDataToConfig } from '@/hooks/use-system-config'
 import { getStatus } from '@/lib/api'
 import { captureAttribution } from '@/lib/attribution'
@@ -155,6 +156,9 @@ const rootElement = document.querySelector<HTMLElement>('#root')
     /* empty */
   }
 })()
+/** One stroke weight for every glyph; individual icons may still override. */
+const ICON_DEFAULTS = { weight: 'bold', mirrored: false } as const
+
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   // Non-English locale bundles are fetched on demand, so wait for the active
@@ -165,13 +169,15 @@ if (rootElement && !rootElement.innerHTML) {
       root.render(
         <StrictMode>
           <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-              <DirectionProvider>
-                <MotionPreferences>
-                  <RouterProvider router={router} />
-                </MotionPreferences>
-              </DirectionProvider>
-            </ThemeProvider>
+            <IconContext.Provider value={ICON_DEFAULTS}>
+              <ThemeProvider>
+                <DirectionProvider>
+                  <MotionPreferences>
+                    <RouterProvider router={router} />
+                  </MotionPreferences>
+                </DirectionProvider>
+              </ThemeProvider>
+            </IconContext.Provider>
           </QueryClientProvider>
         </StrictMode>
       )

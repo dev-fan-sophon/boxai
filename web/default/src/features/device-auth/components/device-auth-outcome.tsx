@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { CheckCircle2, XCircle } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 
 export function DeviceAuthOutcome(props: { outcome: 'approved' | 'denied' }) {
