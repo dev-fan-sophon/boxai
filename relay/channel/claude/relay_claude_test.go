@@ -1,14 +1,67 @@
 package claude
 
 import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service/relayconvert"
+	"github.com/dev-fan-sophon/boxai/types"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClaudeStreamHandlerCompletesAtMessageStopWithoutEOF(t *testing.T) {
+	previousTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 30
+	t.Cleanup(func() { constant.StreamingTimeout = previousTimeout })
+	for _, format := range []types.RelayFormat{types.RelayFormatClaude, types.RelayFormatOpenAI} {
+		t.Run(string(format), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(ctx)
+			reader, writer := io.Pipe()
+			defer writer.Close()
+			defer reader.Close()
+			written := make(chan error, 1)
+			go func() {
+				_, err := io.WriteString(writer, "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_test\",\"model\":\"claude-test\",\"usage\":{\"input_tokens\":17,\"output_tokens\":1}}}\n\n"+
+					"data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"tool_1\",\"name\":\"report\",\"input\":{}}}\n\n"+
+					"data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"value\\\":37}\"}}\n\n"+
+					"data: {\"type\":\"content_block_stop\",\"index\":0}\n\n"+
+					"data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":23}}\n\n"+
+					"data: {\"type\":\"message_stop\"}\n\n")
+				written <- err
+				// Keep the upstream body open after the protocol terminal event.
+			}()
+			info := &relaycommon.RelayInfo{RelayFormat: format, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-test"}, DisablePing: true}
+			usage, apiErr := ClaudeStreamHandler(c, &http.Response{Body: reader, Header: make(http.Header)}, info)
+			require.Nil(t, apiErr)
+			require.NoError(t, <-written)
+			require.NotNil(t, info.StreamStatus)
+			assert.Equal(t, relaycommon.StreamEndReasonDone, info.StreamStatus.EndReason)
+			assert.Equal(t, 17, usage.PromptTokens)
+			assert.Equal(t, 23, usage.CompletionTokens)
+			assert.Contains(t, recorder.Body.String(), "report")
+			assert.Contains(t, recorder.Body.String(), "37")
+			if format == types.RelayFormatClaude {
+				assert.Contains(t, recorder.Body.String(), "message_stop")
+			} else {
+				assert.Contains(t, recorder.Body.String(), "[DONE]")
+			}
+		})
+	}
+}
 
 func commonPointer[T any](value T) *T {
 	return &value
