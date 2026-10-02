@@ -1,10 +1,10 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.16.0",
+  "version": "0.2.0",
   "desktopName": "pi-desktop.desktop",
   "private": true,
-  "description": "PI-Desktop Electron application",
-  "homepage": "https://github.com/vastsa/PI-Desktop",
+  "description": "BoxAI Desktop agent workspace",
+  "homepage": "https://you-box.com",
   "author": {
     "name": "vastsa",
     "email": "hhxk666@gmail.com"
@@ -26,7 +26,7 @@
     "bundle:runtime": "pnpm -C ../../packages/agent-runtime bundle",
     "pack": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && electron-builder --dir",
     "dist": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && node ../../scripts/build-desktop-release.mjs",
-    "dist:mac": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && electron-builder --mac --publish never",
+    "dist:mac": "pnpm run dist -- mac",
     "dist:win": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && node ../../scripts/build-desktop-release.mjs win",
     "dist:linux": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && electron-builder --linux --publish never"
   },
@@ -80,16 +80,16 @@
     "zustand": "^5.0.15"
   },
   "build": {
-    "appId": "net.aiuo.pi-desktop",
-    "productName": "PI-Desktop",
+    "appId": "com.youbox.desktop",
+    "productName": "BoxAI Desktop",
     "directories": {
       "output": "release"
     },
     "publish": [
       {
-        "provider": "github",
-        "owner": "vastsa",
-        "repo": "PI-Desktop"
+        "provider": "generic",
+        "url": "https://dl.you-box.com/desktop/",
+        "channel": "latest"
       }
     ],
     "extraMetadata": {
@@ -138,18 +138,18 @@
       }
     ],
     "mac": {
-      "artifactName": "PI-Desktop-${version}-${arch}-mac.${ext}",
+      "artifactName": "BoxAI-Desktop-${version}-macos-${arch}.${ext}",
       "target": [
         {
-          "target": "dmg"
-        },
-        {
-          "target": "zip"
+          "target": "dmg",
+          "arch": ["arm64"]
         }
       ],
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.icns",
-      "hardenedRuntime": true,
+      "identity": null,
+      "notarize": false,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
@@ -173,8 +173,8 @@
       ]
     },
     "dmg": {
-      "artifactName": "PI-Desktop-${version}-${arch}.${ext}",
-      "background": "build/dmg-background.png",
+      "artifactName": "BoxAI-Desktop-${version}-macos-${arch}.${ext}",
+      "backgroundColor": "#f5f5f5",
       "icon": "build/icon.icns",
       "window": {
         "width": 720,
@@ -196,23 +196,12 @@
       ]
     },
     "win": {
-      "executableName": "PI-Desktop",
-      "artifactName": "PI-Desktop-Portable-${version}.${ext}",
+      "executableName": "BoxAI Desktop",
+      "artifactName": "BoxAI-Desktop-${version}-windows-${arch}-setup.${ext}",
+      "verifyUpdateCodeSignature": false,
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
           "arch": [
             "x64"
           ]
@@ -233,8 +222,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "PI-Desktop",
-      "artifactName": "PI-Desktop-Setup-${version}.${ext}"
+      "shortcutName": "BoxAI Desktop",
+      "artifactName": "BoxAI-Desktop-${version}-windows-${arch}-setup.${ext}"
     },
     "portable": {
       "artifactName": "PI-Desktop-Portable-${version}.${ext}"
