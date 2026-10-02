@@ -1311,13 +1311,61 @@ impl UserSkillRegistry {
         let Some(record) = self.find(id, level, project_path)? else {
             return Ok(false);
         };
-        fs::remove_file(&record.path).ok();
         let level = record
             .level
             .as_deref()
             .map(|value| CapabilityLevel::parse(Some(value)))
             .transpose()?
             .unwrap_or(CapabilityLevel::Global);
+        let directory = capability_dir(
+            &self.data_dir,
+            level,
+            record.project_path.as_deref(),
+            SKILL_KIND,
+        )?;
+        let document = Path::new(&record.path);
+        // Only the two scanned shapes belong to this registry: <id>.md and
+        // <id>/SKILL.md. Never infer ownership from an arbitrary parent path.
+        let relative = document
+            .strip_prefix(&directory)
+            .context("SKILL_INVALID: skill is outside its managed directory")?;
+        let components: Vec<_> = relative.components().collect();
+        let package =
+            components.len() == 2 && document.file_name().is_some_and(|name| name == "SKILL.md");
+        if !package && components.len() != 1 {
+            bail!("SKILL_INVALID: unrecognized managed skill shape");
+        }
+        // Check agent/skills (or the explicit project's .agents/skills) too:
+        // a redirected registry root must not make foreign files look owned.
+        let owner = directory
+            .parent()
+            .and_then(Path::parent)
+            .context("SKILL_INVALID: invalid managed skill root")?;
+        ensure_no_symlink_path(owner, document)?;
+        let root = fs::canonicalize(&directory)?;
+        let resolved = fs::canonicalize(document)?;
+        if !root.starts_with(fs::canonicalize(owner)?) || !resolved.starts_with(&root) {
+            bail!("SKILL_INVALID: skill resolves outside its managed directory");
+        }
+        let target = if package {
+            document.parent().unwrap()
+        } else {
+            document
+        };
+        // remove_dir_all does not follow symlinks contained inside the package.
+        // A linked package/document itself is rejected above, leaving its
+        // external source intact. Report filesystem errors instead of success.
+        if package {
+            fs::remove_dir_all(target)
+        } else {
+            fs::remove_file(target)
+        }
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "SKILL_INVALID: could not remove {}: {error}",
+                target.display()
+            )
+        })?;
         let _ = self.find(id, Some(level), record.project_path.as_deref())?;
         Ok(true)
     }
