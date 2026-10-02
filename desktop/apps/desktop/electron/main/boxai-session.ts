@@ -41,8 +41,20 @@ export class BoxAIHTTPError extends Error {
 export class BoxAISessionClient {
   private queue: Promise<unknown> = Promise.resolve();
   private login?: AbortController;
+  private readonly listeners = new Set<() => void>();
   private readonly deps: BoxAISessionDependencies;
   constructor(deps: BoxAISessionDependencies) { this.deps = deps; }
+
+  /** Main-process invalidation only: credentials never appear in events. */
+  onSessionChanged(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private async persist(session: BoxAISession | undefined): Promise<void> {
+    await this.deps.write(session);
+    for (const listener of this.listeners) listener();
+  }
 
   async request<T>(path: string, body?: unknown, bearer?: string, signal?: AbortSignal): Promise<T> {
     const response = await (this.deps.fetch ?? fetch)(`${this.deps.origin}${path}`, {
@@ -116,7 +128,7 @@ export class BoxAISessionClient {
         if (!tokens.access_token || !tokens.refresh_token || !tokens.api_key || !(tokens.expires_in > 0)) {
           throw new Error("Invalid BoxAI token response");
         }
-        await this.deps.write({ access_token: tokens.access_token, refresh_token: tokens.refresh_token,
+        await this.persist({ access_token: tokens.access_token, refresh_token: tokens.refresh_token,
           api_key: tokens.api_key, expiresAt: Date.now() + tokens.expires_in * 1000 });
       });
     } finally {
@@ -137,12 +149,12 @@ export class BoxAISessionClient {
             "/api/desktop/refresh", { grant_type: "refresh_token", refresh_token: session.refresh_token });
           if (!tokens.access_token || !tokens.refresh_token || !(tokens.expires_in > 0)) throw new Error("Invalid BoxAI refresh response");
           session = { ...session, ...tokens, expiresAt: Date.now() + tokens.expires_in * 1000 };
-          await this.deps.write(session);
+          await this.persist(session);
         }
         await this.request("/api/desktop/session-status", undefined, session.access_token);
         return session;
       } catch (error) {
-        if (error instanceof BoxAIHTTPError && (error.status === 401 || error.status === 403)) await this.deps.write(undefined);
+        if (error instanceof BoxAIHTTPError && (error.status === 401 || error.status === 403)) await this.persist(undefined);
         throw error;
       }
     });
@@ -161,7 +173,7 @@ export class BoxAISessionClient {
       const session = await this.deps.read();
       // Do not claim revocation succeeded while offline; retain credentials for retry.
       if (session) await this.request("/api/desktop/revoke", { refresh_token: session.refresh_token });
-      await this.deps.write(undefined);
+      await this.persist(undefined);
     });
   }
 }

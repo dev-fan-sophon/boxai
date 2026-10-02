@@ -54,7 +54,7 @@ export function BoxAIAccount({ children }: { children?: ReactNode }) {
       }
     } catch { setFailed(true); setBusy(false); }
   };
-  return <div className="settings-page-content" style={{ maxWidth: 640, margin: "auto", padding: 32, minHeight: children ? "100vh" : undefined, display: "grid", alignContent: "center" }}>
+  return <div data-boxai-account-gate={children ? "" : undefined} className="settings-page-content" style={{ maxWidth: 640, margin: "auto", padding: 32, minHeight: children ? "100vh" : undefined, display: "grid", alignContent: "center" }}>
     {children && <WindowControls />}
     <Panel className="space-y-4">
       <h1>{t("BoxAI account")}</h1>

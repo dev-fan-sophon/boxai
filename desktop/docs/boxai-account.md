@@ -1,5 +1,9 @@
 # BoxAI account and gateway contract
 
+Main integrations use `vendorOAuth.client.session()` for current credentials and
+`onSessionChanged(listener)` for credential-free invalidation notifications.
+Listeners run after persistence, must not throw, and must unsubscribe on disposal.
+
 This fork replaces upstream provider configuration and third-party provider OAuth.
 The renderer must show the account gate before opening the workspace. Credentials
 remain in host-core's encrypted secret store, never in renderer state or IPC replies.

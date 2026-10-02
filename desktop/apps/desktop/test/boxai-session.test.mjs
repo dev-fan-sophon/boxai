@@ -56,14 +56,22 @@ test("browser PKCE login rejects wrong state, exchanges code, refreshes once, an
       throw new Error("Unexpected request");
     },
   });
+  let changes = 0;
+  const unsubscribe = client.onSessionChanged(() => { changes++; });
   await client.authorize();
+  assert.equal(changes, 1);
   const sessions = await Promise.all([client.session(), client.session()]);
   assert.equal(refreshes, 1);
+  assert.equal(changes, 2);
   assert.equal(sessions[0].api_key, "relay-only");
   assert.equal(sessions[1].refresh_token, "refresh-two");
   await client.logout();
   assert.equal(revoked, "refresh-two");
   assert.equal(stored, undefined);
+  assert.equal(changes, 3);
+  unsubscribe();
+  await client.logout();
+  assert.equal(changes, 3);
   await assert.rejects(client.session(), /Sign in/);
 });
 
