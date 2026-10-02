@@ -263,14 +263,19 @@ export function createSessionLaunchRuntime({
     } = {},
   ) {
     if (!runtimeState.host) throw new Error("host unavailable");
+    await vendorOAuth.client.session();
     await modelsDevCatalog.ensureLoaded();
     const commandShell = (await resolveEffectiveCommandShell()).effective!;
     const providers = await runtimeState.host!.call<{ providers: RuntimeProvider[] }>(
       "providers.list",
       { includeDisabled: false },
     );
+    providers.providers = providers.providers.filter(row => row.vendorKey === "boxai" && row.authKind === OAUTH_AUTH_KIND);
     for (const row of providers.providers) modelsDevCatalog.configureAccount(row);
     const requestedProviderId = overrides.providerId ?? session.providerId;
+    if (requestedProviderId && !providers.providers.some(row => row.id === requestedProviderId)) {
+      throw new Error("Only BoxAI models are supported");
+    }
     const extensionAgentKey = requestedProviderId
       ? trustedExtensionAgentKeyFromProviderId(requestedProviderId)
       : undefined;

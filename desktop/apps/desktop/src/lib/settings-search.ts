@@ -173,8 +173,8 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
   },
   {
     id: "agent",
-    labelKey: "settings.nav.models",
-    titleKey: "settings.configuration",
+    labelKey: "BoxAI account",
+    titleKey: "BoxAI account",
     group: "agent",
     keywordKeys: [
       "settings.providers",
@@ -346,6 +346,7 @@ export function visibleSettingsNav(
 ): SettingsNavEntry[] {
   return SETTINGS_NAV.filter(
     (entry) =>
+      entry.id !== "voice" &&
       (entry.developerOnly !== true || developerMode) &&
       (entry.developmentOnly !== true || includeDevelopmentOnly),
   );

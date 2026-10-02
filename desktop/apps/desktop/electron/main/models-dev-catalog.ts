@@ -1270,6 +1270,12 @@ function borrowedModel(entries: readonly ModelsDevModel[]): ModelsDevModel | und
 }
 
 export class ModelsDevCatalog {
+  private readonly boxaiModels = new Map<string, ModelConfig>();
+
+  setBoxAIModelConfig(modelId: string, config: ModelConfig): void {
+    this.boxaiModels.set(modelId, config);
+  }
+
   private providers = new Map<string, ModelsDevProvider>();
   private lookupIndex: ModelsDevLookupIndex | undefined;
   /** Host → publishers, derived from the current provider map. */
@@ -1355,7 +1361,8 @@ export class ModelsDevCatalog {
 
   /** Ensure the release snapshot is available without contacting the network. */
   async ensureLoaded(): Promise<boolean> {
-    return this.loadLocal();
+    // BoxAI account provisioning is the only production model authority.
+    return this.catalogPath ? this.loadLocal() : false;
   }
 
   /** Refresh the in-memory snapshot for the current process; never writes user data. */
@@ -1411,6 +1418,8 @@ export class ModelsDevCatalog {
   }
 
   modelConfigFor(input: CatalogTarget, unpublishedConfig?: ModelConfig): ModelConfig {
+    const boxai = this.boxaiModels.get(input.modelId);
+    if (boxai) return boxai;
     const model = this.findModel(input);
     const binding = input.providerId
       ? this.accountRows.get(input.providerId)?.models?.find(

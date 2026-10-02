@@ -260,7 +260,8 @@ export function createProviderCatalogRuntime({
     );
     await modelsDevCatalog.ensureLoaded();
     for (const provider of result.providers) modelsDevCatalog.configureAccount(provider);
-    return result.providers;
+    return result.providers.filter(provider => provider.vendorKey === "boxai")
+      .map(provider => ({ ...provider, hasSecret: true, hasOauth: true }));
   };
 
   const enrichProviderList = async <T extends RuntimeProvider>(result: {
