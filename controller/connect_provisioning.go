@@ -445,49 +445,10 @@ func GetConnectorProvisioning(c *gin.Context) {
 		})
 		walletFallbackAllowed = walletFallbackAllowed && sub.WalletFallback
 	}
-	mcpRows, err := model.ListConnectorMCPServers(true)
+	mcpServers, skills, err := readConnectorCatalog(publicOrigin(c))
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get connector MCP catalog failed"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector catalog unavailable"})
 		return
-	}
-	if len(mcpRows) > MaxConnectorCatalogEntries {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector MCP catalog exceeds supported limit"})
-		return
-	}
-	bearerOrigins := []string{publicOrigin(c)}
-	mcpServers := make([]connectorMCPServer, 0, len(mcpRows))
-	for _, row := range mcpRows {
-		if message := validateConnectorMCPServer(&row, bearerOrigins); message != "" {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector MCP catalog contains an invalid descriptor"})
-			return
-		}
-		mcpServers = append(mcpServers, connectorMCPServer{
-			ID: row.ID, Name: row.Name, URL: row.URL,
-			Authorization: row.Authorization, Description: row.Description,
-		})
-	}
-	skillRows, err := model.ListConnectorSkillReleases(true)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "get connector Skill catalog failed"})
-		return
-	}
-	if len(skillRows) > MaxConnectorCatalogEntries {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector Skill catalog exceeds supported limit"})
-		return
-	}
-	skills := make([]connectorSkill, 0, len(skillRows))
-	for _, row := range skillRows {
-		if message := validateConnectorSkillRelease(&row, bearerOrigins); message != "" {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": "connector Skill catalog contains an invalid descriptor"})
-			return
-		}
-		skills = append(skills, connectorSkill{
-			ID: row.ID, Name: row.Name, Version: row.Version,
-			Archive: connectorSkillArchive{
-				URL: row.ArchiveURL, SHA256: row.ArchiveSHA256, SizeBytes: row.ArchiveSizeBytes,
-				Format: row.ArchiveFormat, Authorization: row.ArchiveAuthorization,
-			},
-		})
 	}
 
 	remaining := int64(max(user.Quota, 0))
