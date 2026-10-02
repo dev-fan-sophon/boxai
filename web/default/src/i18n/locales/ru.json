@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "Справочные цены можно применить только из центра ценообразования",
     "Reference saved locally": "Референс сохранён локально",
     "Reference Video": "Эталонное видео",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "Референсное видео {{width}}×{{height}} вне допустимого размера (примерно от 480p до 4K). Используйте клип большего или меньшего размера.",
     "Reference videos": "Референсные видео",
     "References": "Референсы",
     "Referral link:": "Реферальная ссылка:",

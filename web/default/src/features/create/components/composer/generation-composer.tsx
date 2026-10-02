@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { GenerationController } from '../../hooks/use-generation-controller'
+import { seedanceReferenceVideoIssue } from '../../lib/reference-media-limits'
 import { referenceRoleLabeler } from '../../lib/reference-roles'
 import { AudioInputDropzone } from '../references/audio-input-dropzone'
 import { ImageMaskButton } from '../references/image-mask-button'
@@ -98,6 +99,11 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 onChange={controller.setReferenceVideos}
                 onUploadingChange={controller.setUploading}
                 kind='video'
+                validateFile={
+                  draft.videoCapabilities?.family.startsWith('seedance')
+                    ? seedanceReferenceVideoIssue
+                    : undefined
+                }
                 accept='video/*'
                 maxFiles={draft.maxReferenceVideos}
               />

@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "参考価格は料金センターからのみ適用できます",
     "Reference saved locally": "参照をローカルに保存しました",
     "Reference Video": "参照動画",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "参照動画 {{width}}×{{height}} は対応サイズ（約 480p〜4K）の範囲外です。より大きいまたは小さいクリップを使ってください。",
     "Reference videos": "参照動画",
     "References": "参照画像",
     "Referral link:": "紹介リンク:",

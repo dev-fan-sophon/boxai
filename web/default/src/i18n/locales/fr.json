@@ -5343,6 +5343,7 @@
     "Reference prices can only be applied from Pricing Center": "Les prix de référence ne peuvent être appliqués que depuis le centre de tarification",
     "Reference saved locally": "Référence enregistrée localement",
     "Reference Video": "Vidéo de référence",
+    "Reference video {{width}}×{{height}} is outside the supported size (about 480p to 4K). Use a larger or smaller clip.": "La vidéo de référence {{width}}×{{height}} est hors de la taille prise en charge (environ 480p à 4K). Utilisez un clip plus grand ou plus petit.",
     "Reference videos": "Vidéos de référence",
     "References": "Références",
     "Referral link:": "Lien de parrainage :",
