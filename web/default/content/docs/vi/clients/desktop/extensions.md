@@ -20,6 +20,16 @@ Có mặt trong danh mục không đồng nghĩa với được chứng nhận a
 
 <!-- Screenshot: /desktop-screenshots/docs/settings.webp — phần cài đặt Skills/MCP thực tế với phạm vi dự án. -->
 
+## Dùng danh mục BoxAI
+
+Sau khi đăng nhập, chợ Skill và MCP có sẵn nguồn **BoxAI** cố định, chỉ đọc. Bạn không thể xóa nguồn chính thức này, nhưng vẫn có thể thêm nguồn danh mục riêng và nguồn skill từ GitHub. Danh mục skill/MCP chính thức tách biệt với chợ plugin; chợ plugin riêng của dự án gốc không được cung cấp.
+
+Với skill chính thức, chọn **Install** (Cài đặt), đọc bản xem trước `SKILL.md` rồi xác nhận. Desktop tải và kiểm tra lại gói, sau đó chép đầy đủ tài nguyên vào thư viện skill toàn cục. Quá trình cài kiểm tra kích thước đã khai báo và SHA-256, giới hạn tệp nén cùng dữ liệu giải nén ở 64 MiB và tối đa 4.096 mục trong gói, đồng thời từ chối đường dẫn không an toàn và liên kết. Nếu kiểm tra thất bại, không bỏ qua bước này hoặc dùng gói thay thế chưa được xác minh.
+
+Cài MCP chính thức sẽ tạo máy chủ ở phạm vi toàn cục. Bạn không cần dán khóa BoxAI: với mỗi yêu cầu, tiến trình nền kiểm tra lại tài khoản hiện tại và địa chỉ máy chủ chính thức, rồi bổ sung thông tin xác thực gateway mà không đưa khóa vào giao diện. Ứng dụng từ chối chuyển hướng. Đăng nhập, làm mới thông tin xác thực và đăng xuất đều làm mất hiệu lực kết nối cũ. Đăng xuất không xóa tệp skill hay bản ghi MCP đã cài, nhưng MCP chính thức không thể tiếp tục cấp quyền cho yêu cầu cho tới khi bạn đăng nhập lại.
+
+Nếu nguồn **BoxAI** báo không khả dụng, kiểm tra kết nối và thử lại sau. API danh mục cũng cần được triển khai trên máy chủ BoxAI; chỉ cài ứng dụng Desktop chưa đủ để nguồn này hoạt động. Lỗi tải danh mục tự nó không đăng xuất tài khoản; các nguồn tùy chỉnh đã cấu hình vẫn hoạt động độc lập.
+
 ## Thêm skill
 
 1. Mở trang **Skills** trong cài đặt.

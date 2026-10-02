@@ -20,6 +20,16 @@ A catalog entry is not a security endorsement. All built-in model traffic uses B
 
 <!-- Screenshot: /desktop-screenshots/docs/settings.webp — real Skills/MCP settings with project scope visible. -->
 
+## Use the BoxAI catalog
+
+After signing in, the Skill and MCP markets include a fixed, read-only **BoxAI** source. You cannot remove this official source, but you can add your own catalog sources and GitHub skill sources. Official skills/MCP are separate from the plugin marketplace; the former upstream private plugin market is not provided.
+
+For an official skill, choose **Install**, review the `SKILL.md` preview and confirm. Desktop downloads and verifies the package again, then copies the complete resource bundle into your global skills. Installation checks the declared size and SHA-256, limits the archive and extracted data to 64 MiB and the archive to 4,096 entries, and rejects unsafe paths and links. If verification fails, do not bypass it or install an unverified replacement.
+
+An official MCP installation creates a global server. You do not paste a BoxAI key: the background process checks the current account and official server address for every request, then adds the gateway credential privately. Redirects are rejected. Account sign-in, credential refresh and sign-out invalidate old connections. Signing out keeps installed skill files and MCP records, but the official MCP can no longer authorize requests until you sign in again.
+
+If **BoxAI** is shown as an unavailable source, check connectivity and retry later. The catalog endpoint must also be deployed on the BoxAI server; installing the Desktop client alone does not make it available. A catalog-load failure does not itself sign you out, and configured custom sources remain available independently.
+
 ## Add a skill
 
 1. Open the **Skills** settings page.
