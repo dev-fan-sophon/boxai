@@ -1,0 +1,49 @@
+{
+  "platform": "macOS arm64",
+  "applicationVersion": "0.2.0",
+  "captureDate": "2026-10-02",
+  "method": "Native window screenshots and real screen recording; no injected application state",
+  "project": "Lotus Travel (fictional isolated demo repository)",
+  "taskEvidence": "Grok 4.5 performed 13 tool actions; npm test passed 6/6, independently rerun on the capture runner",
+  "builds": {
+    "fed6f8f72c0f7b467e293fe59586620f8ab9ef30": {
+      "dmgSha256": "ff0d27b7dd11946445a83edb53d236c113ab7e563066d61f738df9671fc3daec",
+      "assets": ["review-{480,960,1536}.webp"],
+      "retentionReason": "Full-screen Review contains no model selector, composer, provider prompt or onboarding checklist"
+    },
+    "cc55358c469a7c273a7760cc5911825435ae5ac4": {
+      "dmgSha256": "a2effee5192913a77897451d3a3130a41a5d400e8ed745b0639b29102e7a2609",
+      "assets": [
+        "agent-{480,960,1536}.webp",
+        "plan-{480,960,1536}.webp",
+        "subagents-{480,960,1536}.webp",
+        "models-{480,960,1536}.webp",
+        "plugins-{480,960,1536}.webp",
+        "agent-vi-{480,960,1536}.webp",
+        "models-vi-{480,960,1536}.webp",
+        "docs/models.webp",
+        "docs/settings.webp",
+        "docs/project-session.webp",
+        "overview.mp4",
+        "overview.webm",
+        "overview-poster.webp"
+      ],
+      "retentionReason": "No home onboarding checklist appears; historical sessions correctly retain their original Grok 4.5 model",
+      "overviewSourceSha256": "bf0dad182366bcabb7a02a157354a2b43c1c85d227ed49ffd9d10dd0bacad766"
+    }
+  },
+  "pending": [
+    "docs/login.webp",
+    "docs/permissions.webp",
+    "docs/updates.webp",
+    "getting-started.mp4",
+    "getting-started.webm",
+    "getting-started-poster.webp"
+  ],
+  "notes": [
+    "Both source builds were unsigned and not notarized; these assets do not claim otherwise.",
+    "The official Skill Market shows real BoxAI catalog entries; no extension was installed for the capture.",
+    "Vietnamese UI is the actual application locale; existing English task prose is not rewritten.",
+    "An update-feed error screenshot with a raw stack and Cloudflare reporting headers was excluded and not transferred; inspection on the capture runner did not establish an account-token leak."
+  ]
+}
