@@ -19,6 +19,8 @@ const stage = join(root, "desktop/release", version);
 const scratch = mkdtempSync(join(tmpdir(), "boxai-native-"));
 const install = join(scratch, "installed");
 const digest = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+let signed = false;
+let zipSha256;
 let mounted = false;
 try {
   let executable;
@@ -35,6 +37,26 @@ try {
     executable = join(contents, "MacOS", plist.CFBundleExecutable);
     assert.equal(execFileSync("lipo", ["-archs", executable], { encoding: "utf8" }).trim(), "arm64");
     assert.ok(existsSync(join(contents, "Resources/bin/pi-desktop-host-core")));
+    if (process.env.BOXAI_MAC_SIGN === "1") {
+      const bundle = join(install, "BoxAI Desktop.app");
+      execFileSync("codesign", ["--verify", "--deep", "--strict", bundle]);
+      // codesign writes identity to stderr; verify the designated requirement directly.
+      execFileSync("codesign", ["--verify", "-R=anchor apple generic and certificate leaf[subject.OU] = \"9UUWCMKMDH\"", bundle]);
+      execFileSync("spctl", ["--assess", "--type", "execute", bundle]);
+      execFileSync("xcrun", ["stapler", "validate", bundle]);
+      execFileSync("xcrun", ["stapler", "validate", artifact]);
+      const zip = artifact.replace(/\.dmg$/, ".zip");
+      const unpacked = join(scratch, "zip");
+      execFileSync("ditto", ["-x", "-k", zip, unpacked]);
+      const zipContents = join(unpacked, "BoxAI Desktop.app/Contents");
+      for (const relative of ["Resources/app.asar", `MacOS/${plist.CFBundleExecutable}`]) {
+        assert.deepEqual(readFileSync(join(zipContents, relative)), readFileSync(join(contents, relative)), "ZIP and DMG payloads differ");
+      }
+      execFileSync("codesign", ["--verify", "--deep", "--strict", join(unpacked, "BoxAI Desktop.app")]);
+      execFileSync("xcrun", ["stapler", "validate", join(unpacked, "BoxAI Desktop.app")]);
+      zipSha256 = createHash("sha256").update(readFileSync(zip)).digest("hex");
+      signed = true;
+    }
   } else {
     // NSIS /D must be the final argument. Install into an isolated directory.
     await new Promise((resolve, reject) => {
@@ -72,9 +94,14 @@ try {
   mkdirSync(stage, { recursive: true });
   copyFileSync(artifact, join(stage, filename));
   if (existsSync(`${artifact}.blockmap`)) copyFileSync(`${artifact}.blockmap`, join(stage, `${filename}.blockmap`));
+  if (signed) {
+    const zip = artifact.replace(/\.dmg$/, ".zip");
+    copyFileSync(zip, join(stage, filename.replace(/\.dmg$/, ".zip")));
+    if (existsSync(`${zip}.blockmap`)) copyFileSync(`${zip}.blockmap`, join(stage, filename.replace(/\.dmg$/, ".zip.blockmap")));
+  }
   const report = { schema: 1, version, platform, arch: process.arch, filename, sha256: digest,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
-    signed: false, installed: true, boot: probe, checked_at: new Date().toISOString() };
+    signed, notarized: signed, zipSha256, installed: true, boot: probe, checked_at: new Date().toISOString() };
   writeFileSync(join(stage, `${filename}.assertion.json`), `${JSON.stringify(report, null, 2)}\n`);
   console.log(`NATIVE_OK ${filename} SHA256 ${digest}`);
 } finally {

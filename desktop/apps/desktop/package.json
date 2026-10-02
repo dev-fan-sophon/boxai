@@ -6,13 +6,13 @@
   "description": "BoxAI Desktop agent workspace",
   "homepage": "https://you-box.com",
   "author": {
-    "name": "vastsa",
-    "email": "hhxk666@gmail.com"
+    "name": "BoxAI",
+    "url": "https://you-box.com"
   },
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
-    "build:deps": "pnpm --filter '@pi-desktop/desktop^...' build",
+    "build:deps": "pnpm --filter \"@pi-desktop/desktop^...\" --fail-if-no-match build",
     "predev": "pnpm run build:deps && cargo build --manifest-path ../../Cargo.toml -p host-core",
     "dev": "node ../../scripts/dev-electron.mjs",
     "build": "electron-vite build",

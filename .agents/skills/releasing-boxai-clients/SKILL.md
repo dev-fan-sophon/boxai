@@ -1,201 +1,129 @@
 ---
 name: releasing-boxai-clients
-description: Builds, natively asserts, stages, and publishes BoxAI Desktop and BoxAI Connect for macOS and Windows. Use for client releases, installer rebuilds, R2 publication, or Studio Windows release work.
+description: Builds, natively verifies, stages, and publishes BoxAI Desktop Electron installers to R2. Use for Desktop releases, installer rebuilds, automatic update feeds, or Studio Windows release work; consult Connect's own build guidance for that independent client.
 ---
 
 # Releasing BoxAI Clients
 
-Release BoxAI Desktop and the Magpie-derived Go/Wails BoxAI Connect to the
-`boxai-desktop` Cloudflare R2 bucket served at `https://dl.you-box.com`.
+BoxAI Desktop is the LGPL-3.0 PI-Desktop fork in `desktop/`: Electron, Rust
+host-core, and pnpm. It is not OpenWorker/Tauri. Connect is an independent
+product; do not rebuild or publish it as a side effect of a Desktop release.
 
-## Products
+## Distribution contracts
 
-| Product | Version source | Stage | Public feeds |
-| --- | --- | --- | --- |
-| Desktop | `desktop/surfaces/gui/src-tauri/tauri.conf.json` | `desktop/release/<version>/` | `desktop/latest.json`, `desktop/releases.json` |
-| Connect | `connect/release-metadata.json` | `connect/release/<version>/` | `connect/native-latest.json`, `connect/releases.json` |
+- Version: `desktop/apps/desktop/package.json`, starting at `0.2.0` (> Tauri `0.1.7`).
+- Bump: `cd desktop && node scripts/release.mjs <version>` updates the app/root
+  package versions and shared `APP_VERSION`. Review and commit before tagging.
+- macOS arm64: `BoxAI-Desktop-<version>-macos-arm64.dmg`.
+- Windows x64: `BoxAI-Desktop-<version>-windows-x64-setup.exe` plus `.blockmap`.
+- Native stage: `desktop/release/<version>/`, including each installer's
+  `.assertion.json`. Reports must come from actual native install and boot.
+- R2: canonical account `4379d21a3d3eadc0e37d63abff091f31`, bucket `boxai-desktop`.
+- Immutable objects: `https://dl.you-box.com/desktop/<version>/<filename>`.
+- Electron generic feeds: `desktop/latest.yml`, `desktop/latest-mac.yml`.
+- Website feed: `desktop/releases.json`; preserves platform/arch/kind/signed/
+  minimum_os/url/filename/size/sha256 schema. Windows arch remains `x86_64`.
 
-Desktop remains Tauri and uses the minisign key at
-`~/.config/boxai/desktop-updater.key`. Connect is not Tauri: it uses the Go
-toolchain pinned by `connect/go.mod`, Wails native webviews, and the Ed25519 PEM key at
-`~/.config/boxai/connect-update-signing.pem`.
+## Tauri migration is a manual reinstall, not an updater payload swap
 
-Connect's metadata public key must match the private PEM before anything can
-publish. Never print either private key.
+Never overwrite `desktop/latest.json`: it is frozen for the old Tauri updater.
+That updater expects minisign signatures and platform-specific Tauri payloads;
+an Electron DMG or NSIS executable is not a compatible macOS app archive or
+guaranteed compatible installer/argument contract. A signature alone cannot
+make it compatible. Do not sign Electron packages with the old updater key.
 
-## Build ownership
+The website advertises the newer comparable version and manual migration.
+Existing Tauri users download/install Electron, sign in again, and retain their
+old local data. There is no automatic data or credential migration. An in-app
+bridge for old users would require a separately built, signed Tauri maintenance
+release with an explicit migration UI; this pipeline does not fabricate one.
 
-```text
-macOS arm64 host ──native build/assert──┐
-                                       ├── release/<version> ──publisher── R2
-Studio Windows x64 ─native build/assert┘
-```
+## Build and native acceptance
 
-Do not cross-build or fabricate native assertion reports. Connect publication
-requires both exact artifacts and their assertion JSON:
-
-- `BoxAI-Connect-<version>-macos-arm64.dmg`
-- `BoxAI-Connect-<version>-macos-arm64.dmg.assertion.json`
-- `BoxAI-Connect-<version>-windows-x64-setup.exe`
-- `BoxAI-Connect-<version>-windows-x64-setup.exe.assertion.json`
-
-The OS packages are currently unsigned and the macOS app is not notarized.
-The in-app update feed is still signed over the exact installer bytes with the
-Connect Ed25519 key. Do not claim Authenticode, Developer ID, or notarization.
-
-Connect requires BoxAI browser authentication before proxying or changing Agent
-configuration. New credentials live in private plaintext `auth.json` beside
-settings (Unix `0600`, current-user-only Windows ACL), not the system vault.
-Never print or capture that file. Native vault access is read-only legacy
-migration support. Native acceptance must exercise the login gate, auth-file
-persistence/deletion, configuration restore and installer handoff. A Linux build or Windows
-cross-compile is not native acceptance. The updater downloads and verifies an
-installer, then opens its native UI; it does not silently replace the executable.
-
-## Full release
-
-Run from a Mac after the release commit is pushed to `origin/main`, because the
-Windows driver clones the pushed ref:
+Use separate clean checkouts of the same pushed commit on macOS arm64 and
+Windows x64. Do not cross-compile or hand-write/patch assertion JSON.
 
 ```bash
-bash scripts/client-release/full-release.sh
+cd desktop
+pnpm install --frozen-lockfile
+pnpm dist
+cd ..
+node scripts/client-release/desktop-native.mjs
 ```
 
-Optional environment:
+`desktop-native.mjs` mounts/copies the DMG or installs NSIS into a temporary
+directory, verifies architecture/identity, launches that installed executable
+with an isolated profile, and requires the renderer/preload/host IPC boot probe.
+It records artifact hash, exact commit and boot evidence only after success.
+Windows uses a real NSIS install and removes that temporary installation after
+the probe; run in a release account without an existing Electron BoxAI install.
+Mac copies to a temporary directory and never replaces `/Applications`.
 
-- `BOXAI_RELEASE_REF=main`
-- `BOXAI_WIN_SSH_HOST=win-cf` (default) or `win-lan`
-- `SKIP_MAC=1` when valid macOS stages already exist
-- `SKIP_WIN=1` when valid Windows stages already exist
+On Studio Windows prepend `$env:USERPROFILE\.cargo\bin` to PATH if needed.
+Native runners: `macos-builder` under `/Volumes/app`; `studio-win` under
+`C:\Users\win\src\origingame`. Preserve other worktrees and running apps.
 
-The script stages both products, publishes both product feeds, then publishes
-the BoxAI Media MCP and official Skill catalog.
-
-## Connect manual flow
-
-### 1. Validate
-
-```bash
-make connect-check
-python3 connect/packaging/build_catalog.py
-```
-
-### 2. Build/assert macOS arm64
-
-On a native arm64 Mac:
+Existing SSH helpers (when configured):
 
 ```bash
-make connect-stage
-```
-
-`connect/packaging/macos/stage-release.sh` builds the release binary, creates
-the DMG, inspects its bundle, architecture, icon, volume, and metadata, then
-stages the artifact and assertion report.
-
-### 3. Build/assert Windows x64
-
-The helper uploads `connect/packaging/win_remote_build.ps1`, clones the pushed
-ref on the Studio Windows host, installs the pinned Go toolchain, builds NSIS, reads the PE
-resources and installer payload back, and stages the exact setup + report.
-
-```bash
-bash scripts/client-release/run-windows-build.sh connect main
-bash scripts/client-release/wait-windows-build.sh connect
-VERSION=$(python3 -c 'import json; print(json.load(open("connect/release-metadata.json"))["version"])')
-bash scripts/client-release/pull-windows-artifacts.sh connect "$VERSION"
-```
-
-Tail failures with:
-
-```bash
-ssh win-cf 'cmd /c type C:\Users\win\build_connect_remote.log'
-```
-
-### 4. Publish Connect
-
-Preflight without revealing secrets:
-
-```bash
-test -f ~/.config/boxai/connect-update-signing.pem
-test -f .env.cloudflare
-find "connect/release/$VERSION" -maxdepth 1 -type f -print
-```
-
-Then:
-
-```bash
-make connect-publish
-```
-
-`connect/packaging/publish_release.sh` fails closed unless both native targets
-and matching assertions exist. It verifies the key, signs both exact artifact
-bytes, uploads immutable versioned objects first, publishes both feeds, purges
-their cache, and verifies live schemas, sizes, and SHA-256 hashes.
-
-### 5. Publish Media MCP and Skills
-
-After the backend containing `/api/admin/connector/catalog` is deployed:
-
-```bash
-make connect-catalog-publish
-```
-
-This deterministically rebuilds three official Skill ZIPs, uploads immutable
-archives, verifies their live bytes, then atomically activates the complete
-catalog through the root-only management API.
-
-## Desktop manual flow
-
-Desktop release behavior is unchanged:
-
-```bash
-export TAURI_SIGNING_PRIVATE_KEY="$HOME/.config/boxai/desktop-updater.key"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-make desktop-build
-make desktop-stage
-
-bash scripts/client-release/run-windows-build.sh desktop main
+bash scripts/client-release/run-windows-build.sh desktop <commit>
 bash scripts/client-release/wait-windows-build.sh desktop
-DESKTOP_VERSION=$(python3 -c 'import json; print(json.load(open("desktop/surfaces/gui/src-tauri/tauri.conf.json"))["version"])')
-bash scripts/client-release/pull-windows-artifacts.sh desktop "$DESKTOP_VERSION"
-
-make desktop-publish
+bash scripts/client-release/pull-windows-artifacts.sh desktop <version>
 ```
 
-## Windows hosts
+`full-release.sh` prepares Desktop's two stages only. It does not publish.
+`make desktop-build`, `desktop-stage`, `desktop-check`, `desktop-publish` map to
+the Electron commands, never deleted Tauri paths.
 
-- `win-lan`: office LAN Studio host
-- `win-cf`: remote Studio host through Cloudflare Access
+## Signing is explicit and verified
 
-Prefer `win-lan` when reachable. Never disable SSH host-key checking.
+Default local and CI builds are unsigned. macOS has no Developer ID/notarization
+claim and uses notify-and-download updates. Windows has no Authenticode claim
+and uses NSIS automatic updates with SHA-512 from the HTTPS generic feed.
 
-## CI release
+An optional `BOXAI_MAC_SIGN=1` lane selects only the verified existing BoxAI team
+`9UUWCMKMDH`. Supply Apple credentials through the existing private environment
+(APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID); never print them. It
+builds notarized DMG + ZIP, sets packaged `boxaiMacSigned`, and enables in-app
+updates. Use the same `BOXAI_MAC_SIGN=1` for native stage. Stage requires strict
+codesign, team requirement, spctl, app+DMG stapler validation, and matching ZIP
+payloads before recording `signed=true`. Failed notarization must not fall back
+to a falsely signed release. Legal agreement/403 errors require the account
+holder to accept Apple's agreements; do not bypass them.
 
-- `desktop-v*` tags run `.github/workflows/desktop-release.yml`.
-- `connect-v*` tags run `.github/workflows/connect-release.yml`.
+## Prepare and publish
 
-The Connect workflow requires `BOXAI_CONNECT_UPDATE_SIGNING_KEY` and R2
-production secrets. It does not silently downgrade to an unsigned update feed.
-
-## Verification
+Combine both stages from the exact release commit. Install Python dependencies
+in an isolated venv: `python -m pip install -r scripts/client-release/requirements.txt`.
 
 ```bash
-curl -fsS https://dl.you-box.com/connect/releases.json | jq '.version, .downloads'
-curl -fsS https://dl.you-box.com/connect/native-latest.json | jq '.version, (.platforms | keys)'
-curl -fsS https://dl.you-box.com/desktop/releases.json | jq '.version'
+python scripts/client-release/desktop_release.py             # local validation
+python scripts/client-release/desktop_release.py --publish   # explicit production write
 ```
 
-Verify every advertised artifact returns HTTP 200 and matches its manifest
-size/hash. For Connect, verify both `darwin-arm64` and `win32-x64` are present;
-the publisher must never advance a partial feed.
+Publish only after final integrated native validation and main integration.
+The publisher requires a clean checkout of current `origin/main`, matching
+native reports, and dedicated R2_DESKTOP_ACCESS_KEY_ID / R2_DESKTOP_SECRET_ACCESS_KEY
+plus BOXAI_CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_TOKEN) for cache purge.
+Never use the playground bucket token or print secrets.
 
-## Common failures
+The publisher creates immutable objects conditionally and verifies public bytes
+before advancing any feed. Existing objects with different bytes stop the release.
+It generates SHA-512 YAML and SHA-256 website metadata from the final bytes
+(after stapling), updates feeds, purges their cache, and verifies live content.
+If only a feed update fails, rerun with the same staged bytes; do not rebuild and
+overwrite the version. A rebuilt installer requires a new version.
 
-| Symptom | Action |
-| --- | --- |
-| Connect key mismatch | Use `connect-update-signing.pem`; do not use the Desktop minisign key |
-| Missing native assertion | Rebuild on that target OS; never hand-write a report |
-| Windows build cannot find NSIS/7-Zip | Install NSIS and 7-Zip on the Studio host |
-| `win-lan` unreachable | Set `BOXAI_WIN_SSH_HOST=win-cf` |
-| R2 feed points at missing bytes | Stop; upload immutable artifacts before feeds and republish |
-| macOS or SmartScreen warning | Expected until OS signing/notarization is introduced; report it truthfully |
+## CI
+
+`desktop-ci.yml` checks PRs and builds packages on native macOS and Windows hosts.
+`desktop-release.yml` accepts `desktop-v*` tags on main, validates tag/version,
+builds both native lanes, uploads their reports, then publishes through the
+`desktop-production` environment using dedicated R2 and Cloudflare secrets.
+Default CI is unsigned; signed releases currently use the explicit Mac lane.
+Do not push a release tag to publish a second, rebuilt copy of a version already
+published manually. Never publish an unvalidated integration branch.
+
+After release, report immutable download URLs, SHA-256, tested commit, native
+evidence and signing status. A build is not an install/boot check, and boot is
+not proof of authenticated model requests or successful upgrade handoff.
