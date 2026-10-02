@@ -1,0 +1,15 @@
+{
+  "adHocServices": {
+    "web-dev": {
+      "name": "web-dev",
+      "command": "cd /home/user/workspace/repo/web/default && bun run dev --port 5173",
+      "env": {},
+      "portals": [],
+      "health": null,
+      "review": true,
+      "agent": "off",
+      "cwd": "/home/user/workspace/repo/web/default",
+      "port": 32128
+    }
+  }
+}

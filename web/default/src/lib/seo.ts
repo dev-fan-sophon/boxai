@@ -285,7 +285,6 @@ const PRIVATE_PREFIXES = [
   '/playground',
   '/create',
   '/inspiration',
-  '/agents',
   '/dashboard',
   '/mj',
   '/pg',
