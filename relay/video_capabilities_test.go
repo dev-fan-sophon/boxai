@@ -147,3 +147,37 @@ func TestTaskDtoExposesArkLastFrameOnlyOnSuccess(t *testing.T) {
 	assert.Empty(t, TaskModel2Dto(&model.Task{Platform: doubao, Status: model.TaskStatusInProgress, Data: data}).LastFrameURL)
 	assert.Empty(t, TaskModel2Dto(&model.Task{Platform: doubao, Status: model.TaskStatusSuccess, Data: []byte(`{"content":[{"type":"text"}]}`)}).LastFrameURL)
 }
+
+func TestSeedanceResolutionCheckForAPICallers(t *testing.T) {
+	tests := []struct {
+		name    string
+		model   string
+		req     relaycommon.TaskSubmitReq
+		wantErr bool
+	}{
+		{"480p metadata", "doubao-seedance-2-0-260128", relaycommon.TaskSubmitReq{Metadata: map[string]interface{}{"resolution": "480p"}}, true},
+		{"480p size", "doubao-seedance-2-0-260128", relaycommon.TaskSubmitReq{Size: "864x480"}, true},
+		{"1080p on fast", "doubao-seedance-2-0-fast-260128", relaycommon.TaskSubmitReq{Metadata: map[string]interface{}{"resolution": "1080p"}}, true},
+		{"720p", "doubao-seedance-2-0-260128", relaycommon.TaskSubmitReq{Metadata: map[string]interface{}{"resolution": "720p"}}, false},
+		{"1080p size", "doubao-seedance-2-0-260128", relaycommon.TaskSubmitReq{Size: "1920x1080"}, false},
+		{"omitted tier defaults upstream", "doubao-seedance-2-0-mini-260615", relaycommon.TaskSubmitReq{}, false},
+		{"not seedance", "grok-imagine-video-1.5", relaycommon.TaskSubmitReq{Size: "864x480"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/video/generations", nil)
+			common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{})
+			c.Set("task_request", tt.req)
+			info := &relaycommon.RelayInfo{OriginModelName: "public", ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeDoubaoVideo, UpstreamModelName: tt.model}}
+			err := validateSeedanceResolution(c, info)
+			if !tt.wantErr {
+				assert.Nil(t, err)
+				return
+			}
+			require.NotNil(t, err)
+			assert.Equal(t, 400, err.StatusCode)
+			assert.Equal(t, "unsupported_video_capability", err.Code)
+		})
+	}
+}

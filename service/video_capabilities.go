@@ -107,17 +107,18 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 // seedanceVideoProfiles describes Seedance 2.x on the Ark contents API.
 // Multimodal reference limits (images / videos / audios): 9/3/3 for 2.0,
 // fast and mini; 30/10/10 for 2.5. Reference audio needs a visual reference
-// on 2.0. Fast and mini top out at 720p.
+// on 2.0. BoxAI serves Seedance at 720p and 1080p only (fast and mini at
+// 720p): the production relay rejects 480p, so it is not offered anywhere.
 func seedanceVideoProfiles(mappedModel string) map[string]dto.VideoModelCapabilities {
 	family, maxDuration := "seedance-2", 15
 	maxImages, maxVideos, maxAudios := 9, 3, 3
-	resolutions := []string{"480p", "720p", "1080p"}
+	resolutions := []string{"720p", "1080p"}
 	lower := strings.ToLower(mappedModel)
 	if strings.Contains(lower, "2-5") || strings.Contains(lower, "2.5") {
 		family, maxDuration = "seedance-2.5", 30
 		maxImages, maxVideos, maxAudios = 30, 10, 10
 	} else if strings.Contains(lower, "fast") || strings.Contains(lower, "mini") {
-		family, resolutions = "seedance-2-fast", []string{"480p", "720p"}
+		family, resolutions = "seedance-2-fast", []string{"720p"}
 	}
 	base := dto.VideoModelCapabilities{
 		Family:                 family,

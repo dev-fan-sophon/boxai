@@ -122,6 +122,10 @@ func normalizeSeedancePassthroughBody(body map[string]interface{}, upstreamModel
 			metadata["ratio"] = ratio
 		}
 	}
+	if value, _ := metadata["resolution"].(string); strings.TrimSpace(value) == "" {
+		// Same 720p default as billing; BoxAI does not serve 480p Seedance.
+		metadata["resolution"] = "720p"
+	}
 
 	content, _ := metadata["content"].([]interface{})
 	if len(content) == 0 {

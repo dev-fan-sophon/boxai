@@ -30,7 +30,7 @@ func TestSeedanceModeProfiles(t *testing.T) {
 	assert.Equal(t, 30, profiles["text"].DurationRange.Max)
 
 	mini := profilesForChannel(&model.Channel{Type: constant.ChannelTypeSora}, "seedance-2-0-mini")
-	assert.Equal(t, []string{"480p", "720p"}, mini["text"].Resolutions)
+	assert.Equal(t, []string{"720p"}, mini["text"].Resolutions, "BoxAI serves Seedance without 480p")
 	assert.Equal(t, 15, mini["text"].DurationRange.Max)
 }
 
@@ -89,10 +89,10 @@ func TestSeedanceReferenceMediaProfiles(t *testing.T) {
 		audioNeedsVisual            bool
 		resolutions                 []string
 	}{
-		{"seedance-2-0", 9, 3, 3, 15, true, []string{"480p", "720p", "1080p"}},
-		{"seedance-2-0-fast", 9, 3, 3, 15, true, []string{"480p", "720p"}},
-		{"seedance-2-0-mini", 9, 3, 3, 15, true, []string{"480p", "720p"}},
-		{"dreamina-seedance-2-5", 30, 10, 10, 30, false, []string{"480p", "720p", "1080p"}},
+		{"seedance-2-0", 9, 3, 3, 15, true, []string{"720p", "1080p"}},
+		{"seedance-2-0-fast", 9, 3, 3, 15, true, []string{"720p"}},
+		{"seedance-2-0-mini", 9, 3, 3, 15, true, []string{"720p"}},
+		{"dreamina-seedance-2-5", 30, 10, 10, 30, false, []string{"720p", "1080p"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
