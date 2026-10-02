@@ -1,7 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
   "version": "0.2.0",
-  "desktopName": "pi-desktop.desktop",
   "private": true,
   "description": "BoxAI Desktop agent workspace",
   "homepage": "https://you-box.com",
@@ -27,8 +26,7 @@
     "pack": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && electron-builder --dir",
     "dist": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && node ../../scripts/build-desktop-release.mjs",
     "dist:mac": "pnpm run dist -- mac",
-    "dist:win": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && node ../../scripts/build-desktop-release.mjs win",
-    "dist:linux": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && electron-builder --linux --publish never"
+    "dist:win": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && electron-vite build && node ../../scripts/build-desktop-release.mjs win"
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",
@@ -232,45 +230,6 @@
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "BoxAI Desktop",
       "artifactName": "BoxAI-Desktop-${version}-windows-${arch}-setup.${ext}"
-    },
-    "portable": {
-      "artifactName": "PI-Desktop-Portable-${version}.${ext}"
-    },
-    "deb": {
-      "packageName": "pi-desktop",
-      "artifactName": "pi-desktop_${version}_${arch}.${ext}"
-    },
-    "rpm": {
-      "packageName": "pi-desktop",
-      "artifactName": "pi-desktop-${version}-${arch}.${ext}",
-      "fpm": [
-        "--rpm-rpmbuild-define",
-        "_build_id_links none"
-      ]
-    },
-    "linux": {
-      "executableName": "pi-desktop",
-      "syncDesktopName": true,
-      "artifactName": "PI-Desktop-${version}-linux-${arch}.${ext}",
-      "target": [
-        {
-          "target": "AppImage"
-        },
-        {
-          "target": "deb"
-        },
-        {
-          "target": "rpm"
-        }
-      ],
-      "category": "Development",
-      "icon": "build/icon.png",
-      "extraResources": [
-        {
-          "from": "../../target/release/pi-desktop-host-core",
-          "to": "bin/pi-desktop-host-core"
-        }
-      ]
     },
     "asarUnpack": [
       "node_modules/transcribe-cpp/**/*.node",
