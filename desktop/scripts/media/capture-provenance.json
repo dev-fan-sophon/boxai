@@ -30,18 +30,26 @@
       ],
       "retentionReason": "No home onboarding checklist appears; historical sessions correctly retain their original Grok 4.5 model",
       "overviewSourceSha256": "bf0dad182366bcabb7a02a157354a2b43c1c85d227ed49ffd9d10dd0bacad766"
+    },
+    "85e3bd86101fd3a0b45dd493ed0f6b1e19b5b9c0": {
+      "dmgSha256": "9a6b3599eb9069fdc2cf6d52eafea3454d66f66e80b074a1a975cd20e9c14f09",
+      "assets": [
+        "docs/login.webp",
+        "docs/permissions.webp",
+        "docs/updates.webp",
+        "getting-started.mp4",
+        "getting-started.webm",
+        "getting-started-poster.webp"
+      ],
+      "gettingStartedSourceSha256": "d565d4800afe817b4ca0e463a10cb1a6c786fdab6b6ef82a5e03cb78d0d9bedb",
+      "taskEvidence": "Fresh profile, real browser authorization, automatic Grok 4.6 selection, Ask-mode Allow once, npm test 6/6",
+      "installationScope": "Finder copy/paste from the mounted DMG into an isolated application directory; no public website download is shown because this candidate was unpublished",
+      "updatesState": "UPDATE_UNAVAILABLE is shown honestly, without raw URLs, headers, response bodies or stacks"
     }
   },
-  "pending": [
-    "docs/login.webp",
-    "docs/permissions.webp",
-    "docs/updates.webp",
-    "getting-started.mp4",
-    "getting-started.webm",
-    "getting-started-poster.webp"
-  ],
+  "pending": [],
   "notes": [
-    "Both source builds were unsigned and not notarized; these assets do not claim otherwise.",
+    "All source builds were unsigned and not notarized; these assets do not claim otherwise.",
     "The official Skill Market shows real BoxAI catalog entries; no extension was installed for the capture.",
     "Vietnamese UI is the actual application locale; existing English task prose is not rewritten.",
     "An update-feed error screenshot with a raw stack and Cloudflare reporting headers was excluded and not transferred; inspection on the capture runner did not establish an account-token leak."
