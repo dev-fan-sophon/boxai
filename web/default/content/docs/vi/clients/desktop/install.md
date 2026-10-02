@@ -14,6 +14,8 @@ Mở [trang BoxAI Desktop](/agents) trên `you-box.com`. Tệp chính thức đ�
 
 Chọn **macOS Apple silicon (arm64)** cho máy Mac dùng chip dòng M, hoặc **Windows x64** cho máy tính Intel/AMD 64 bit. Đây là hai bộ cài khác nhau. Kiểm tra yêu cầu hệ thống của bản phát hành trước khi tải; Mac dùng chip Intel và thiết bị Windows ARM không phải cùng nền tảng này. Người dùng bộ cài không cần cài thêm Python, Node.js hay Rust.
 
+Bản phát hành hiện tại yêu cầu **macOS 12 trở lên** hoặc **Windows 10 trở lên**. Yêu cầu phiên bản hệ điều hành này không có nghĩa là đã có bộ cài cho các kiến trúc CPU khác.
+
 Bạn cần kết nối internet, tài khoản BoxAI và số dư hoặc hạn mức gói đăng ký đủ cho các yêu cầu tới mô hình. Cài ứng dụng không đồng nghĩa với việc được sử dụng mô hình không giới hạn.
 
 ## Cài trên macOS

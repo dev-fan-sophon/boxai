@@ -12,6 +12,12 @@ status: published
 
 Hoàn thành hoặc dừng các tác vụ đang chạy, kiểm tra thay đổi chưa hoàn tất và sao lưu dự án quan trọng. Ghi lại phiên bản hiện tại nếu đang tìm nguyên nhân sự cố. Giữ nguyên dữ liệu Desktop và thư mục dự án; cập nhật thông thường không yêu cầu xóa chúng.
 
+## Cách cập nhật trên từng nền tảng
+
+- **Bản macOS chưa được ký:** cập nhật thủ công. Tải DMG mới và thay thế ứng dụng theo hướng dẫn bên dưới; thông báo có bản mới không tự cài bản cập nhật.
+- **Bản Windows được cài bằng trình cài đặt:** hỗ trợ cập nhật tự động trong ứng dụng và bật mặc định. Làm theo trạng thái cập nhật cùng lời nhắc khởi động lại. Nếu chọn cập nhật thủ công, bạn cần tự chạy bộ cài mới.
+- **Bản chạy trong môi trường phát triển:** chức năng cập nhật dành cho ứng dụng đã đóng gói bị tắt.
+
 ## Cài phiên bản hiện tại
 
 1. Mở [trang tải Desktop chính thức](/agents), so sánh phiên bản đang phát hành với bản đã cài.

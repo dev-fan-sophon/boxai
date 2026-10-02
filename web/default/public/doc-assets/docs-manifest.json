@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T17:11:47.020Z",
+  "generatedAt": "2026-10-02T17:24:36.089Z",
   "version": 1,
   "pages": [
     {
@@ -758,6 +758,11 @@
         {
           "id": "before-updating",
           "text": "Before updating",
+          "level": 2
+        },
+        {
+          "id": "how-updates-differ-by-platform",
+          "text": "How updates differ by platform",
           "level": 2
         },
         {

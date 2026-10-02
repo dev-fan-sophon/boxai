@@ -12,6 +12,12 @@ status: published
 
 Finish or stop active tasks, review unfinished file changes and back up important projects. Record your current app version if you are investigating a problem. Keep Desktop's local data and project folders; deleting them is not part of a normal update.
 
+## How updates differ by platform
+
+- **Unsigned macOS builds:** updates are manual. Download the new DMG and replace the application as described below; an update notice does not install it for you.
+- **Windows setup installations:** automatic in-app updates are supported and enabled by default. Follow the app's update status and restart prompt. If you choose manual updates, install the new setup file yourself.
+- **Development builds:** the packaged-app updater is disabled.
+
 ## Install the current build
 
 1. Open the [official Desktop download page](/agents) and compare its current version with your installed version.

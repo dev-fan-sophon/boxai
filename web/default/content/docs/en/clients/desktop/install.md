@@ -14,6 +14,8 @@ Use the [BoxAI Desktop page](/agents) on `you-box.com`. Official files are serve
 
 Choose **macOS Apple silicon (arm64)** for an M-series Mac, or **Windows x64** for a 64-bit Intel/AMD PC. These are different installers. Check the release's system requirements before downloading; an Intel Mac or Windows ARM device is not the same target. Packaged users do not need Python, Node.js or Rust.
 
+The current release targets **macOS 12 or later** and **Windows 10 or later**. These minimums do not imply an installer is available for other CPU architectures.
+
 You need an internet connection, a BoxAI account and enough account balance or subscription allowance for model requests. Installing the app does not include unlimited model usage.
 
 ## Install on macOS
