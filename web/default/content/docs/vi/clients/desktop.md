@@ -20,7 +20,15 @@ Hướng dẫn này dành cho ứng dụng hiện tại dựa trên pi-desktop. 
 4. [Mở một dự án nhỏ và tạo phiên làm việc](/docs/clients/desktop/projects-and-sessions). Bắt đầu bằng yêu cầu chỉ đọc, chẳng hạn: “Tóm tắt README của dự án này, không sửa tệp.”
 5. [Xem xét yêu cầu dùng công cụ](/docs/clients/desktop/tool-approvals), rồi kiểm tra câu trả lời và mọi thay đổi trong tệp trước khi tiếp tục.
 
-<!-- Screenshot: /desktop-screenshots/docs/project-session.webp — dự án thử nghiệm và một phiên làm việc thực tế đã hoàn thành. -->
+## Xem video hướng dẫn
+
+Mở [video giới thiệu Desktop](/agents#desktop-tour), chọn **Getting started** (Bắt đầu). Bản ghi thực tế trên macOS minh họa chép ứng dụng từ DMG đã mở vào thư mục riêng, cấp quyền trên trình duyệt và thực hiện tác vụ đầu tiên. Video không minh họa tải bộ cài đã phát hành công khai.
+
+## Tìm cài đặt cơ bản
+
+Vào **Settings → General** để chỉnh giao diện, ngôn ngữ và xem vị trí dữ liệu ứng dụng. Ảnh dùng hồ sơ minh họa riêng; đường dẫn trong ảnh không phải vị trí bắt buộc.
+
+![Cài đặt General với giao diện, ngôn ngữ, phông chữ, mạng và lưu trữ](/desktop-screenshots/docs/settings.webp "Cài đặt General tách biệt với các trang Skills và MCP.")
 
 ## Trước khi cấp quyền truy cập
 

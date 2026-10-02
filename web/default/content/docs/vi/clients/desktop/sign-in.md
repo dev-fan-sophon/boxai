@@ -19,7 +19,7 @@ status: published
 3. Đọc và chấp thuận yêu cầu cấp quyền cho Desktop. Không chấp thuận yêu cầu mà bạn không chủ động bắt đầu.
 4. Trình duyệt chuyển về địa chỉ nhận kết quả tạm thời `127.0.0.1` trên máy của bạn. Giữ Desktop mở; khi trình duyệt nhắc quay lại Desktop, chuyển sang ứng dụng và chờ không gian làm việc xuất hiện.
 
-<!-- Screenshot: /desktop-screenshots/docs/login.webp — màn hình đăng nhập BoxAI thực tế, không có thông tin cá nhân thật. -->
+![Màn hình tài khoản BoxAI với nút Sign in with BoxAI và Refresh](/desktop-screenshots/docs/login.webp "Chọn Sign in with BoxAI để bắt đầu cấp quyền trên trình duyệt.")
 
 Bạn không cần tạo tài khoản nhà cung cấp OpenAI, Anthropic hay Google, dán API key của họ hoặc cấu hình địa chỉ mô hình riêng. Các yêu cầu tới mô hình tích hợp đều đi qua BoxAI.
 

@@ -44,7 +44,7 @@ owns sidebar entries, search, manifest and `llms.txt`.
 
 ## Screenshot handoff
 
-Reserve these stable paths under `web/default/public/desktop-screenshots/docs/`:
+Real macOS captures use these stable paths under `web/default/public/desktop-screenshots/docs/`:
 
 | File | Required state |
 | --- | --- |
@@ -52,12 +52,15 @@ Reserve these stable paths under `web/default/public/desktop-screenshots/docs/`:
 | `models.webp` | BoxAI model picker with one selected model |
 | `project-session.webp` | Disposable project and short successful session |
 | `permissions.webp` | Ask-mode request with Allow once, Allow for this chat and Deny |
-| `settings.webp` | Real skills/MCP/settings surface |
-| `updates.webp` | Actual update check/result state |
+| `settings.webp` | General settings; placed in the entry guide, not presented as Skills/MCP |
+| `updates.webp` | UPDATE_UNAVAILABLE; not a successful update check or install |
 
-Guide source comments reserve positions until captures exist; do not publish
-broken image URLs or reuse retired-client screenshots. Capture English UI with
-Vietnamese explanatory text; add separate locale variants only when needed.
+Both guide locales include all six captures with localized alt text/captions.
+The entry guide links to `/agents#desktop-tour` for the Getting started video.
+Capture provenance and build IDs live in `desktop/scripts/media/capture-provenance.json`;
+the video shows a Finder copy into an isolated folder, not a public installer download.
+Do not publish broken image URLs or reuse retired-client screenshots. Capture English UI
+with Vietnamese explanatory text; add separate locale variants only when needed.
 Use real rendered output, fictional safe project content and no credentials.
 Concept art must be labelled as illustration, never as a product screenshot.
 Demonstration videos supplement, rather than replace, written steps.

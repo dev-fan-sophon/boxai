@@ -18,8 +18,6 @@ status: published
 
 Có mặt trong danh mục không đồng nghĩa với được chứng nhận an toàn. Mọi yêu cầu mô hình tích hợp đều qua BoxAI, nhưng phần mở rộng có thể chạy chương trình trên máy hoặc liên hệ dịch vụ khác. Đừng mặc định dữ liệu của chúng chỉ được xử lý tại BoxAI.
 
-<!-- Screenshot: /desktop-screenshots/docs/settings.webp — phần cài đặt Skills/MCP thực tế với phạm vi dự án. -->
-
 ## Dùng danh mục BoxAI
 
 Sau khi đăng nhập, chợ Skill và MCP có sẵn nguồn **BoxAI** cố định, chỉ đọc. Bạn không thể xóa nguồn chính thức này, nhưng vẫn có thể thêm nguồn danh mục riêng và nguồn skill từ GitHub. Danh mục skill/MCP chính thức tách biệt với chợ plugin; chợ plugin riêng của dự án gốc không được cung cấp.
@@ -37,7 +35,7 @@ Nếu nguồn **BoxAI** báo không khả dụng, kiểm tra kết nối và th�
 3. Tạo, nhập hoặc chỉnh sửa skill bằng chức năng có sẵn. Đọc nội dung trước khi bật.
 4. Thử trong phiên dùng dữ liệu mẫu, với yêu cầu nhỏ thực sự cần skill đó.
 
-Skill nằm trong `.agents/skills` của dự án hoặc `~/.agents/skills` ở phạm vi toàn cục. Tài nguyên toàn cục có thể ảnh hưởng nhiều dự án; tránh vô tình đặt hướng dẫn riêng tư của một dự án vào đó.
+Skill theo dự án nằm trong `.agents/skills`. Skill toàn cục nằm trong `agent/skills` bên dưới thư mục dữ liệu BoxAI đang chọn, không dùng chung `~/.agents/skills`. Tài nguyên toàn cục có thể ảnh hưởng nhiều dự án trong hồ sơ BoxAI đó; tránh vô tình đặt hướng dẫn riêng tư của một dự án vào đó.
 
 ## Kết nối máy chủ MCP
 
@@ -46,7 +44,7 @@ Skill nằm trong `.agents/skills` của dự án hoặc `~/.agents/skills` ở 
 3. Cung cấp thông tin xác thực cần thiết một cách riêng tư. Máy chủ cục bộ có thể cần công cụ không đi kèm Desktop; làm theo hướng dẫn cài đặt của máy chủ đó.
 4. Chạy kiểm tra kết nối, bật máy chủ rồi thử một thao tác không gây thay đổi quan trọng. Lưu được cấu hình chưa có nghĩa là kết nối hoạt động.
 
-Cấu hình MCP nằm trong `.agents/servers` của dự án hoặc `~/.agents/servers` ở phạm vi toàn cục. Không commit cấu hình chứa thông tin bí mật vào kho dùng chung. Xem xét từng yêu cầu công cụ bằng [quyền Ask](/docs/clients/desktop/tool-approvals).
+Cấu hình MCP theo dự án nằm trong `.agents/servers`; cấu hình toàn cục nằm trong `agent/servers` bên dưới thư mục dữ liệu BoxAI đang chọn. Không commit cấu hình chứa thông tin bí mật vào kho dùng chung. Xem xét từng yêu cầu công cụ bằng [quyền Ask](/docs/clients/desktop/tool-approvals).
 
 ## Cài plugin
 

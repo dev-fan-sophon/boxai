@@ -30,8 +30,10 @@ The download entry is `/agents`. Maintainer instructions live in
 `desktop/README.md`; the upstream standalone docs site is removed. See
 `docs/desktop-integration.md` for actual-source release checks and stable
 `desktop-screenshots/docs/*.webp` capture names. Do not reuse retired-client
-screenshots. Comments in guide source reserve capture positions without broken
-public images until real captures are available.
+screenshots. Six real macOS captures are embedded in both guide locales, with
+localized alt text/captions. The entry page links to `/agents#desktop-tour` for
+the real Getting started video; the update screenshot explicitly shows an
+unavailable update feed, not update success.
 
 ## Connect documentation maintenance (2026-09-27)
 

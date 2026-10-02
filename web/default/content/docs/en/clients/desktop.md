@@ -20,7 +20,15 @@ This guide covers the current pi-desktop-based app. Instructions for the retired
 4. [Open a small project and start a session](/docs/clients/desktop/projects-and-sessions). Begin with a read-only request such as “Summarize this project's README without changing files.”
 5. [Review tool requests](/docs/clients/desktop/tool-approvals) and inspect the answer and any file changes before continuing.
 
-<!-- Screenshot: /desktop-screenshots/docs/project-session.webp — a real disposable project and successful short session. -->
+## Watch the walkthrough
+
+Open the [Desktop video tour](/agents#desktop-tour) and select **Getting started**. The real macOS recording shows copying the app from a mounted DMG into an isolated folder, browser authorization and a first task. It does not demonstrate downloading a publicly released installer.
+
+## Find basic settings
+
+Use **Settings → General** for appearance, language and the app's data location. The screenshot uses an isolated demonstration profile, not a required storage path.
+
+![General settings with theme, language, font, network and storage controls](/desktop-screenshots/docs/settings.webp "General settings are separate from the Skills and MCP pages.")
 
 ## Before you grant access
 

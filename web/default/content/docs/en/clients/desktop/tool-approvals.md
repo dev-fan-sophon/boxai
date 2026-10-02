@@ -12,7 +12,7 @@ status: published
 
 Choose **Ask** in the session's permission control for unfamiliar projects and first-time tasks. The app pauses for actions that require approval. Read the tool name, arguments, affected paths and any command before deciding. Not every read-only tool call necessarily prompts.
 
-<!-- Screenshot: /desktop-screenshots/docs/permissions.webp — pending tool card showing its arguments and approval choices. -->
+![Permission needed dialog for bash running npm test, with Deny, Allow for this chat and Allow once](/desktop-screenshots/docs/permissions.webp "Read the command and working directory before choosing whether to allow it.")
 
 | Permission mode | Meaning                                                                                                             |
 | --------------- | ------------------------------------------------------------------------------------------------------------------- |

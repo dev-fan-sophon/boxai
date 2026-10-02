@@ -15,7 +15,7 @@ status: published
 3. Nếu mô hình hỗ trợ, chọn mức suy luận phù hợp với tác vụ. Suy luận nhiều hơn có thể mất thêm thời gian và dùng thêm token.
 4. Gửi một yêu cầu ngắn, xác nhận đã nhận được câu trả lời rồi mới bắt đầu tác vụ lớn.
 
-<!-- Screenshot: /desktop-screenshots/docs/models.webp — danh sách mô hình BoxAI thực tế và mô hình đang được chọn. -->
+![Bộ chọn mô hình BoxAI đang mở trong phiên minh họa Lotus Travel](/desktop-screenshots/docs/models.webp "Chọn mô hình mà tài khoản được phép dùng. Danh sách có thể thay đổi; tên mô hình trong ảnh không bảo đảm luôn khả dụng.")
 
 Danh sách mô hình do BoxAI cung cấp, tùy thuộc quyền truy cập của tài khoản và khả năng tương thích với trợ lý trên Desktop. Không phải mọi mô hình tạo ảnh, video hoặc âm thanh trong danh mục website đều xuất hiện ở bộ chọn hội thoại. Đừng sao chép mã mô hình từ hướng dẫn của nhà cung cấp khác hoặc thêm nhà cung cấp riêng để xử lý việc thiếu mô hình.
 
