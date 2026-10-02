@@ -1,8 +1,8 @@
 export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
-export const APP_ID = "net.aiuo.pi-desktop";
-export const APP_NAME = "PI-Desktop";
-export const APP_VERSION = "0.16.0";
+export const APP_ID = "com.youbox.desktop";
+export const APP_NAME = "BoxAI Desktop";
+export const APP_VERSION = "0.2.0";
 
 export const APP_MENU_COMMANDS = [
   "newTask",
@@ -220,6 +220,7 @@ export const IPC = {
      * crosses this channel.
      */
     remoteHostBootstrap: "pi-desktop/remoteHost/bootstrap",
+    boxaiAccount: "boxai-desktop/account/status",
     providersList: "pi-desktop/providers/list",
     providersReorder: "pi-desktop/providers/reorder",
     providersCreate: "pi-desktop/providers/create",

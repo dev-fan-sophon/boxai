@@ -16,6 +16,9 @@ export const supportedLocales = [
   { id: "fr", nativeName: "Français", englishName: "French" },
   { id: "ko", nativeName: "한국어", englishName: "Korean" },
   { id: "pt-BR", nativeName: "Português (Brasil)", englishName: "Portuguese (Brazil)" },
+  { id: "vi", nativeName: "Tiếng Việt", englishName: "Vietnamese" },
+  { id: "ja", nativeName: "日本語", englishName: "Japanese" },
+  { id: "ru", nativeName: "Русский", englishName: "Russian" },
 ] as const;
 
 export type AppLocale = (typeof supportedLocales)[number]["id"];

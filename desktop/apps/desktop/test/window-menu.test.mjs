@@ -194,7 +194,8 @@ test("Windows and Linux use menu-free frameless chrome with window controls", ()
   assert.match(controlsSource, /windowControl\("getState"\)/);
   assert.match(controlsSource, /ariaLabel=\{t\("window\.minimize"/);
   assert.match(controlsSource, /ariaLabel=\{t\("window\.close"/);
-  assert.equal((appSource.match(/<WindowControls\s*\/>/g) ?? []).length, 1);
+  // Account gate and authenticated shell each own one mutually exclusive control strip.
+  assert.equal((appSource.match(/<WindowControls\s*\/>/g) ?? []).length, 2);
   // The controls are rendered under the recovery surface too, so a window that
   // never reaches the shell is still closable (issue #831).
   assert.match(
@@ -386,8 +387,9 @@ test("desktop packaging builds the native host before every local target", () =>
     packageJson.scripts["build:host-release"],
     /cargo build --release .* -p host-core/,
   );
-  for (const name of ["pack", "dist", "dist:mac", "dist:win", "dist:linux"]) {
-    const script = packageJson.scripts[name];
+  for (const name of ["pack", "dist", "dist:mac", "dist:win"]) {
+    const script = packageJson.scripts[name] === "pnpm run dist -- mac"
+      ? packageJson.scripts.dist : packageJson.scripts[name];
     assert.match(script, /pnpm run build:host-release/);
     const packagingCommand = script.includes("build-desktop-release.mjs")
       ? "build-desktop-release.mjs"
@@ -398,7 +400,6 @@ test("desktop packaging builds the native host before every local target", () =>
     );
   }
   assert.equal(packageJson.build.win.extraResources[0].to, "bin/pi-desktop-host-core.exe");
-  assert.equal(packageJson.build.linux.extraResources[0].to, "bin/pi-desktop-host-core");
   assert.equal(packageJson.build.mac.extraResources[0].to, "bin/pi-desktop-host-core");
   assert.match(iconScriptSource, /package_icon = BUILD \/ "icon\.png"/);
   assert.match(iconScriptSource, /shutil\.which\("iconutil"\)/);

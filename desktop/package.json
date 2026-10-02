@@ -1,7 +1,7 @@
 {
   "name": "pi-desktop",
   "private": true,
-  "version": "0.16.0",
+  "version": "0.2.0",
   "description": "Local-first AI coding agent desktop client",
   "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45",
   "engines": {
@@ -44,7 +44,7 @@
     "test:e2e:project-edit": "node scripts/e2e-project-edit.mjs",
     "test:e2e:provider-api-style": "node scripts/e2e-provider-api-style.mjs",
     "test:e2e:hosted-search": "node scripts/e2e-hosted-search.mjs",
-    "test:e2e:oauth-retry": "node --test apps/desktop/test/anthropic-oauth-retry.test.mjs",
+    "test:e2e:boxai-account": "node --test apps/desktop/test/boxai-session.test.mjs apps/desktop/test/boxai-models.test.mjs",
     "test:e2e:boot": "node scripts/e2e-electron-boot.mjs",
     "test:e2e:todos": "node scripts/e2e-todo-checklist.mjs",
     "test:e2e:settings-scroll": "node scripts/e2e-settings-scroll.mjs",

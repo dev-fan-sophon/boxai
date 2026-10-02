@@ -151,15 +151,12 @@ export function DesktopPreview() {
       name: 'BoxAI Connect',
       logo: CLIENT_APP_LOGO.connect.src,
       status: t('Signed in'),
-      live: true,
     },
     {
       name: 'BoxAI Desktop',
       logo: CLIENT_APP_LOGO.desktop.src,
       status: t('Signed in'),
-      live: true,
     },
-    { name: 'BoxAI Coding', logo: null, status: t('Coming soon'), live: false },
   ]
 
   return (
@@ -170,24 +167,18 @@ export function DesktopPreview() {
           className='border-border/50 bg-background/60 flex items-center gap-2 rounded-lg border px-2.5 py-1.5'
           style={{ '--loop-delay': `${index * 500}ms` } as React.CSSProperties}
         >
-          {row.logo ? (
-            <img
-              src={row.logo}
-              alt=''
-              aria-hidden='true'
-              draggable={false}
-              className='size-4 shrink-0 rounded-[22%] object-contain'
-            />
-          ) : (
-            <span className='border-border size-4 shrink-0 rounded-[22%] border border-dashed' />
-          )}
+          <img
+            src={row.logo}
+            alt=''
+            aria-hidden='true'
+            draggable={false}
+            className='size-4 shrink-0 rounded-[22%] object-contain'
+          />
           <span className='text-foreground/80 text-2xs truncate font-medium'>
             {row.name}
           </span>
           <span className='ml-auto flex shrink-0 items-center gap-1'>
-            {row.live && (
-              <span className='bg-success surface-pulse size-1.5 rounded-full' />
-            )}
+            <span className='bg-success surface-pulse size-1.5 rounded-full' />
             <span className='text-muted-foreground text-3xs'>{row.status}</span>
           </span>
         </div>

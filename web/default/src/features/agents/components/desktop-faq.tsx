@@ -12,25 +12,31 @@ const QUESTIONS = [
     id: 'data',
     question: 'What leaves my computer?',
     answer:
-      'Only what a model needs to answer: your prompt and the context you attach. Conversations, files, connector tokens, and workspace state stay in local storage on your machine.',
+      'Only what a model needs to answer: your prompt and the context the agent attaches, sent through the BoxAI gateway. Projects, sessions, plugins, and settings stay in local storage on your machine.',
   },
   {
     id: 'keys',
     question: 'Can I plug in my own provider keys?',
     answer:
-      'No. The desktop build routes every model call through your BoxAI account so billing and revocation always apply. Direct provider keys and custom endpoints are disabled.',
+      'No. BoxAI Desktop routes every model call through your BoxAI account so billing, limits, and revocation always apply. Direct provider keys, custom endpoints, and third-party sign-ins are not available.',
   },
   {
     id: 'safety',
     question: 'It can run shell commands. How is that safe?',
     answer:
-      'Writes, sends, and shell commands are approval-gated by default: the app shows the exact action and waits. A folder also has to be trusted before its own command allowances count, and unattended runs park their questions in an inbox instead of deciding on their own.',
+      'Commands, file writes, and MCP tools ask for approval by default and show the exact action first. Plan mode lets you approve the approach before anything changes, and every edit stays reviewable as a diff.',
   },
   {
     id: 'usage',
     question: 'How do I know what a session costs?',
     answer:
-      'The composer tracks the tokens a session has spent, and long conversations are compacted automatically so context stays affordable. Every call is metered against your BoxAI account, so it also shows up in your usage logs.',
+      'Every call is metered against your BoxAI account and appears in your usage logs with the model and token counts. The app shows your balance, and you can switch to a cheaper model at any point in a session.',
+  },
+  {
+    id: 'previous',
+    question: 'I used the previous BoxAI Desktop. What changes?',
+    answer:
+      'The new BoxAI Desktop is a separate app built for project work. The previous version no longer receives updates: download the new one from this page and sign in again. Conversations from the previous app are not imported.',
   },
   {
     id: 'platforms',

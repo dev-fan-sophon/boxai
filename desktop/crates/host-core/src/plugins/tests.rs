@@ -464,13 +464,13 @@ fn high_risk_permissions_roundtrip_on_notes_plugin() {
 #[test]
 fn resolve_relative_package_urls_against_catalog() {
     let resolved = PluginManager::resolve_package_url(
-        GITHUB_BACKUP_CHANNEL_CATALOG_URL,
+        "https://example.com/extensions/catalog.json",
         None,
         "packages/demo.hello-0.2.0.piplug",
     );
     assert_eq!(
         resolved,
-        "https://raw.githubusercontent.com/AIUO-Net/pi-desktop-plugins/main/packages/demo.hello-0.2.0.piplug"
+        "https://example.com/extensions/packages/demo.hello-0.2.0.piplug"
     );
 }
 
@@ -1791,28 +1791,19 @@ fn relative_package_urls_resolve_against_the_declared_artifact_base() {
 /// channel does not use this path at all: an install asks the plugin center
 /// where the package is.
 #[test]
-fn backup_channels_each_resolve_their_own_packages() {
-    let relative = "packages/acme.todo-1.0.0.piplug";
-
-    let github =
-        PluginManager::resolve_package_url(GITHUB_BACKUP_CHANNEL_CATALOG_URL, None, relative);
-    assert_eq!(
-        github,
-        "https://raw.githubusercontent.com/AIUO-Net/pi-desktop-plugins/main/packages/acme.todo-1.0.0.piplug"
-    );
-
-    let mirror = PluginManager::resolve_package_url(MIRROR_MARKET_CATALOG_URL, None, relative);
-    assert_eq!(
-        mirror,
-        "https://cnb.cool/aixk/pi-desktop-plugins/-/git/raw/main/packages/acme.todo-1.0.0.piplug"
-    );
-
-    // Neither resolution leaves the source the user picked, and both hosts
-    // are ones the download boundary already accepts.
-    package_host_allowed(&github, GITHUB_BACKUP_CHANNEL_CATALOG_URL).unwrap();
-    package_host_allowed(&mirror, MIRROR_MARKET_CATALOG_URL).unwrap();
-    assert!(github.starts_with("https://raw.githubusercontent.com/AIUO-Net/"));
-    assert!(mirror.starts_with("https://cnb.cool/"));
+fn boxai_and_legacy_channels_are_offline_and_ignore_upstream_cached_packages() {
+    let _guard = lock_market_env();
+    for channel in [MarketChannel::Official, MarketChannel::Github, MarketChannel::Mirror] {
+        let dir = tempdir().unwrap();
+        let mgr = PluginManager::new(dir.path(), channel, None);
+        // Even a persisted upstream snapshot must not revive its package URLs.
+        fs::write(mgr.catalog_path(), serde_json::to_string(&built_in_catalog_at(dir.path())).unwrap()).unwrap();
+        let meta = mgr.refresh_market(true).unwrap();
+        assert_eq!(meta["pluginCount"], 0);
+        assert_eq!(meta["name"], "BoxAI Desktop Extensions");
+        assert!(mgr.market_search(None, None).unwrap().is_empty());
+        assert!(!mgr.uses_download_resolve());
+    }
 }
 
 #[test]
@@ -2218,6 +2209,7 @@ fn market_cards_and_details_read_the_catalog_i18n_block() {
     let _env = lock_market_env();
     let dir = tempdir().unwrap();
     let mut mgr = offline_manager(dir.path());
+    mgr.set_market_channel(MarketChannel::Custom, Some("https://example.com/catalog.json".into()));
     let mut entry = v2_entry();
     entry.safety_notes = Some("Reads nothing else".into());
     entry.i18n = Some(

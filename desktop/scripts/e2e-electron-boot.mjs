@@ -2,8 +2,8 @@
 /**
  * Electron boot smoke: launches the built desktop app with a throwaway
  * profile and asserts the sandboxed preload bridge, IPC round-trips, and
- * E2E-SESSION-list-refresh-keeps-desktop-responsive against 800 synthetic
- * sessions (BOOT_PROBE emitted by electron/main/bootstrap/startup.ts).
+ * the signed-out BoxAI gate without seeding any provider or session
+ * (BOOT_PROBE emitted by electron/main/bootstrap/startup.ts).
  *
  * Prereqs: `pnpm --filter @pi-desktop/desktop build` and a host-core binary
  * (target/debug or target/release, or PI_DESKTOP_HOST_BIN).
@@ -97,40 +97,17 @@ for (const stream of [child.stdout, child.stderr]) {
 child.on("close", (code) => {
   const menuContractOk =
     process.platform === "darwin" ? probe?.menuCount >= 6 : probe?.menuCount === 0;
-  const sessions = probe?.sessionList;
-  // Each condition is able to fail. The probe's own construction guarantees the
-  // seeded count, fixture-model count, refresh rounds and main-loop ticks, so
-  // those are not asserted; the per-read list duration and the Main-thread
-  // heartbeat gap are the live responsiveness observations that can fail.
-  const listDurations = Array.isArray(sessions?.listDurationsMs)
-    ? sessions.listDurationsMs
-    : [];
-  const sessionListOk =
-    sessions !== undefined &&
-    sessions.returnedCount >= 800 &&
-    sessions.complete === true &&
-    sessions.capabilitiesConsistent === true &&
-    listDurations.length === 8 &&
-    Math.max(...listDurations) < 1000 &&
-    sessions.maxMainGapMs < 1000 &&
-    Array.isArray(sessions.heartbeatDurationsMs) &&
-    sessions.heartbeatDurationsMs.length > 0 &&
-    sessions.heartbeatDurationsMs.every((duration) => duration < 1000);
-  const projectRemove = probe?.projectRemove;
-  const projectRemoveOk =
-    projectRemove?.ok === true &&
-    projectRemove.removed === false &&
-    projectRemove.sessionsRemoved === 0;
+  const accountGateOk = probe?.account?.connected === false &&
+    probe?.providerCount === 0 && probe?.loginGateVisible === true;
   const ctrlRBlocked = probe?.ctrlRBlocked === true;
   if (
     code === 0 &&
     probe?.ok &&
-    probe.appName === "PI-Desktop" &&
+    probe.appName === "BoxAI Desktop" &&
     probe.platform === process.platform &&
     (process.platform === "darwin" || probe.maximized === true) &&
     menuContractOk &&
-    sessionListOk &&
-    projectRemoveOk &&
+    accountGateOk &&
     ctrlRBlocked
   ) {
     const menuDetail =
@@ -141,14 +118,7 @@ child.on("close", (code) => {
       `PASS boot-probe — app v${probe.version}, host protocol ${probe.hostProtocol}, ` +
         `${menuDetail} on ${probe.platform}`,
     );
-    console.log(
-      "PASS E2E-SESSION-list-refresh-keeps-desktop-responsive — " + JSON.stringify(sessions),
-    );
-    console.log(
-      "PASS E2E-PROJECT-delete-removes-project-and-owned-sessions — " +
-        "projectRemove IPC round-trip through the sandboxed preload " +
-        `{removed:${probe.projectRemove.removed}, sessionsRemoved:${probe.projectRemove.sessionsRemoved}}`,
-    );
+    console.log("PASS BoxAI signed-out gate — no provider, session, or credential seeded");
     console.log("PASS E2E-072-main-window-ctrl-r-blocked");
     cleanup(0);
   } else {

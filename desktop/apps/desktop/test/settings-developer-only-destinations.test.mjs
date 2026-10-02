@@ -45,12 +45,12 @@ const settingsPrimitives = readFileSync(
 const identity = (key) => key;
 const experimentalIds = ["sync", "remoteHosts"];
 
-test("Live Voice is reachable in every build without developer mode", () => {
+test("unsupported Live Voice is hidden in every BoxAI build", () => {
   for (const developerMode of [false, true]) {
     for (const includeDevelopmentOnly of [false, true]) {
-      assert.ok(visibleSettingsNav(developerMode, includeDevelopmentOnly)
+      assert.ok(!visibleSettingsNav(developerMode, includeDevelopmentOnly)
         .some((entry) => entry.id === "voice"));
-      assert.equal(isSettingsDestinationHidden("voice", developerMode, includeDevelopmentOnly), false);
+      assert.equal(isSettingsDestinationHidden("voice", developerMode, includeDevelopmentOnly), true);
       for (const query of [
         "liveVoice.title",
         "liveVoice.enable",
@@ -59,7 +59,7 @@ test("Live Voice is reachable in every build without developer mode", () => {
         "liveVoice.adapters.gemini-live.title",
         "liveVoice.adapters.openai-realtime.title",
       ]) {
-        assert.ok(searchSettings(query, identity, { developerMode, includeDevelopmentOnly })
+        assert.ok(!searchSettings(query, identity, { developerMode, includeDevelopmentOnly })
           .some((hit) => hit.tab === "voice"));
       }
     }

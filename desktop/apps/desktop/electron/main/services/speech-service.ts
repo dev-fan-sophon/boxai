@@ -106,12 +106,13 @@ export function createSpeechService(options: {
 
   const resolveEndpoint = async (binding: SpeechBinding): Promise<SpeechEndpoint & { providerId: string }> => {
     const host = hostOrThrow();
-    const result = await host.call<{ provider?: { id: string; baseUrl?: string; enabled?: boolean } }>(
+    const result = await host.call<{ provider?: { id: string; baseUrl?: string; enabled?: boolean; vendorKey?: string } }>(
       "providers.get",
       { id: binding.providerId },
     );
     const provider = result.provider;
     if (!provider || provider.enabled === false) fail(ErrorCodes.NOT_FOUND, "speech provider is missing");
+    if (provider.vendorKey !== "boxai") fail(ErrorCodes.SPEECH_NOT_CONFIGURED, "Speech is not available through BoxAI");
     const secret = await host.call<{ value?: string }>("providers.getSecret", { id: provider.id });
     return {
       providerId: provider.id,

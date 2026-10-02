@@ -137,7 +137,7 @@ export function createLiveVoiceWidget(input: {
     const promise = (async () => {
       const created = new BrowserWindow({
         ...initialBounds(),
-        title: "PI-Desktop Live Voice",
+        title: "BoxAI Desktop Live Voice",
         show: false,
         frame: false,
         transparent: true,

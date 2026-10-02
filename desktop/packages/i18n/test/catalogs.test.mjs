@@ -219,11 +219,11 @@ test("locale resolution maps variants onto shipped catalogs and falls back to En
 test("the locale registry lists English first, then other locales by English name", () => {
   assert.deepEqual(
     supportedLocales.map((locale) => locale.id),
-    ["en", "zh-CN", "zh-TW", "de", "es", "tr", "fr", "ko", "pt-BR"],
+    ["en", "zh-CN", "zh-TW", "de", "es", "tr", "fr", "ko", "pt-BR", "vi", "ja", "ru"],
   );
   assert.deepEqual(
     listedLocales().map((locale) => locale.id),
-    ["en", "zh-CN", "zh-TW", "fr", "de", "ko", "pt-BR", "es", "tr"],
+    ["en", "zh-CN", "zh-TW", "fr", "de", "ja", "ko", "pt-BR", "ru", "es", "tr", "vi"],
   );
   assert.equal(localeInfoNative("de"), "Deutsch");
   assert.equal(localeInfoNative("es"), "Español");

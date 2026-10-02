@@ -51,9 +51,9 @@ test("Windows runtime registers the canonical native application identity", () =
   );
 });
 
-test("Windows packages pin PI-Desktop executable and shortcut names", () => {
-  assert.equal(packageJson.build.win.executableName, "PI-Desktop");
-  assert.equal(packageJson.build.nsis.shortcutName, "PI-Desktop");
+test("Windows packages pin BoxAI Desktop executable and shortcut names", () => {
+  assert.equal(packageJson.build.win.executableName, "BoxAI Desktop");
+  assert.equal(packageJson.build.nsis.shortcutName, "BoxAI Desktop");
 });
 
 test("Windows packages and windows use the canonical PI-Desktop icon", () => {
@@ -73,11 +73,6 @@ test("Windows packages and windows use the canonical PI-Desktop icon", () => {
   assert.match(windowSource, /app\.isPackaged\s*\n?\s*\?\s*process\.resourcesPath/);
   assert.match(windowSource, /app-icon\.ico/);
   assert.match(windowSource, /icon: windowsIconPath\(\)/);
-});
-
-test("Linux packages align the desktop entry with the Wayland app identity", () => {
-  assert.equal(packageJson.desktopName, "pi-desktop.desktop");
-  assert.equal(packageJson.build.linux.syncDesktopName, true);
 });
 
 test("macOS development uses the canonical PI-Desktop Dock icon", () => {
@@ -226,8 +221,8 @@ test(
         ),
         "macOS-tray-icon",
       );
-      assert.match(plist, /<string>PI-Desktop<\/string>/);
-      assert.match(plist, /<string>net\.aiuo\.pi-desktop\.dev<\/string>/);
+      assert.match(plist, /<string>BoxAI Desktop<\/string>/);
+      assert.match(plist, /<string>com\.youbox\.desktop\.dev<\/string>/);
       assert.equal(prepareMacDevelopmentBundle(options), brandedExecutable);
 
       await writeFile(trayIconMacPath, "updated-macOS-tray-icon");

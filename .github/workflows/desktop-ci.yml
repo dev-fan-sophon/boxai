@@ -1,0 +1,49 @@
+name: Desktop checks
+on:
+  pull_request:
+    branches: [main, feat/pi-desktop]
+    paths: ['desktop/**', 'scripts/client-release/**', '.github/workflows/desktop-*.yml', 'makefile']
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/client-release/requirements.txt
+      - run: make desktop-check
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: desktop/package.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - run: pnpm install --frozen-lockfile
+        working-directory: desktop
+      - run: pnpm dist
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-package-${{ matrix.os }}
+          path: |
+            desktop/apps/desktop/release/*.dmg
+            desktop/apps/desktop/release/*.exe
+          if-no-files-found: error

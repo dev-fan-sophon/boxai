@@ -34,7 +34,7 @@ import {
   IconMic,
 } from "../../components/icons";
 import { Badge, Button, cx, SegmentedControl, SettingsToggle } from "../../components/ui";
-import { ModelConfigPage } from "../../components/settings/ModelConfigPage";
+import { BoxAIAccount } from "../app/BoxAIAccount";
 import { KeyboardShortcutsSection } from "../../components/settings/KeyboardShortcutsSection";
 import { FontFamilyRow } from "../../components/settings/FontFamilyRow";
 import { ThinkingDisplayModeRow } from "../../components/settings/ThinkingDisplayModeRow";
@@ -562,7 +562,7 @@ export function SettingsPage() {
             </div>
           )}
 
-          {tab === "agent" && <ModelConfigPage />}
+          {tab === "agent" && <BoxAIAccount />}
 
           {tab === "skills" && <AgentSkillsPage />}
 
@@ -586,7 +586,7 @@ export function SettingsPage() {
                 <SettingsRow title={t("settings.application")}>
                   <div className="settings-about-meta">
                     <div className="font-medium">
-                      {version?.name || "PI-Desktop"} {version?.version}
+                      {version?.name || "BoxAI Desktop"} {version?.version}
                     </div>
                     <div className="font-mono text-xs-plus text-text-muted">
                       protocol {version?.protocolVersion} · host {version?.hostVersion}

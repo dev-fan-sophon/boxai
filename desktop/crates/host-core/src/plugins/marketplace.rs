@@ -3,24 +3,13 @@ use super::*;
 pub mod catalog;
 pub(crate) use catalog::{built_in_catalog_at, bundled_package_bytes};
 
-/// Official channel: the plugin center.
-///
-/// The catalog it serves is the client's listing contract, and an install asks
-/// the same host where the package is (`plugins::resolve`) instead of resolving
-/// a relative package URL against a git host.
-pub const OFFICIAL_CHANNEL_CATALOG_URL: &str = "https://plugins.aiuo.net/catalog.json";
+/// BoxAI's offline catalog. No upstream registry is contacted by default.
+pub const OFFICIAL_CHANNEL_CATALOG_URL: &str = "builtin:boxai";
 
-/// Backup channel: the GitHub copy of the distribution repository.
-///
-/// Catalog and packages live in one tree, so a relative package URL resolves
-/// against whichever host served the catalog and a switch can never cross
-/// providers.
-pub const GITHUB_BACKUP_CHANNEL_CATALOG_URL: &str =
-    "https://raw.githubusercontent.com/AIUO-Net/pi-desktop-plugins/main/catalog.json";
+/// Legacy channel identifiers remain readable, but are offline aliases.
+pub const GITHUB_BACKUP_CHANNEL_CATALOG_URL: &str = "builtin:boxai/github";
 
-/// Backup channel: the CNB copy, for networks that cannot reach GitHub.
-pub const MIRROR_MARKET_CATALOG_URL: &str =
-    "https://cnb.cool/aixk/pi-desktop-plugins/-/git/raw/main/catalog.json";
+pub const MIRROR_MARKET_CATALOG_URL: &str = "builtin:boxai/mirror";
 
 /// The catalog source a user chose.
 ///
@@ -147,7 +136,7 @@ impl PluginManager {
     /// somewhere, and such a catalog lists packages the way a git host serves
     /// them, so it keeps the relative-URL path.
     pub(crate) fn uses_download_resolve(&self) -> bool {
-        self.market_channel == MarketChannel::Official && market_source_env_override().is_none()
+        false
     }
 
     /// Make the install that is about to run cancellable.
@@ -286,6 +275,24 @@ impl PluginManager {
         let catalog_url = self.market_source_url();
         let cache_path = self.catalog_path();
         let meta_path = self.market_cache_meta_path();
+        if catalog_url.starts_with("builtin:boxai") {
+            // BoxAI ships an offline catalog. Legacy backup selections also
+            // resolve here, never to upstream infrastructure or cached URLs.
+            let mut catalog = built_in_catalog_at(&self.data_dir);
+            catalog.name = Some("BoxAI Desktop Extensions".into());
+            catalog.homepage = Some("https://you-box.com".into());
+            catalog.plugins.clear();
+            if let Some(parent) = cache_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&cache_path, serde_json::to_string_pretty(&catalog)?)?;
+            fs::write(&meta_path, serde_json::to_string_pretty(&json!({
+                "sourceUrl": catalog_url,
+                "providerId": "official",
+                "pluginCount": 0,
+            }))?)?;
+            return Ok(catalog);
+        }
         if !force && cache_path.exists() && self.cached_catalog_matches_source(&catalog_url) {
             if let Ok(meta_raw) = fs::read_to_string(&meta_path) {
                 if let Ok(meta) = serde_json::from_str::<Value>(&meta_raw) {
@@ -357,6 +364,9 @@ impl PluginManager {
     /// so switching back to a previously used provider recovers its catalog
     /// without a round trip.
     fn load_cached_catalog(&self) -> Result<MarketCatalogFile> {
+        if self.market_source_url().starts_with("builtin:boxai") {
+            return self.refresh_catalog_from_remote(false);
+        }
         if self.cached_catalog_matches_source(&self.market_source_url()) {
             if let Ok(raw) = fs::read_to_string(self.catalog_path()) {
                 if let Ok(catalog) = serde_json::from_str::<MarketCatalogFile>(&raw) {

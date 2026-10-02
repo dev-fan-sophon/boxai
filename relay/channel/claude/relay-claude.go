@@ -18,6 +18,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 func stopReasonClaude2OpenAI(reason string) string {
@@ -218,6 +219,11 @@ func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 		err = HandleStreamResponseData(c, info, claudeInfo, data)
 		if err != nil {
 			sr.Stop(err)
+			return
+		}
+		// message_stop completes the protocol even if upstream keeps HTTP open.
+		if gjson.Get(data, "type").String() == "message_stop" {
+			sr.Done()
 		}
 	})
 	if err != nil {
