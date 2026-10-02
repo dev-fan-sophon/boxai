@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T18:11:56.086Z",
+  "generatedAt": "2026-10-02T19:00:38.158Z",
   "version": 1,
   "pages": [
     {
@@ -717,6 +717,11 @@
         {
           "id": "choose-the-right-extension",
           "text": "Choose the right extension",
+          "level": 2
+        },
+        {
+          "id": "use-the-boxai-catalog",
+          "text": "Use the BoxAI catalog",
           "level": 2
         },
         {
