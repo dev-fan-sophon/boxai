@@ -82,7 +82,7 @@ desktop-publish:
 
 desktop-check:
 	@python3 -m unittest discover -s scripts/client-release -p 'desktop_release_test.py'
-	@cd $(DESKTOP_DIR) && node --test apps/desktop/test/update-preference.test.mjs
+	@cd $(DESKTOP_DIR) && node --test apps/desktop/test/update-preference.test.mjs apps/desktop/test/update-error-privacy.test.mjs
 
 # Connect starts from the complete upstream Magpie Go/Wails project.
 connect-dev:
