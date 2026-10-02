@@ -20,6 +20,9 @@ describe('isPlaygroundImageModel', () => {
     'grok-imagine-image-pro',
     'grok-2-image-1212',
     'xai/grok-imagine-image',
+    'gemini-3-pro-image',
+    'gemini-3.1-flash-lite-image',
+    'google/gemini-3.1-flash-image',
   ])('accepts %s', (model) => {
     expect(isPlaygroundImageModel(model)).toBe(true)
   })
@@ -33,6 +36,7 @@ describe('isPlaygroundImageModel', () => {
     'flux-pro',
     'imagen-3',
     'grok-imagine-video',
+    'gemini-2.5-flash',
     '',
   ])('rejects %s', (model) => {
     expect(isPlaygroundImageModel(model)).toBe(false)
@@ -166,7 +170,7 @@ describe('buildImageGenerationRequestBody', () => {
     expect(body.quality).toBe('medium')
   })
 
-  it('rejects models outside the GPT-format allowlist', () => {
+  it('rejects models outside the image allowlist', () => {
     for (const model of ['gpt-image-1', 'dall-e-3', 'flux-pro', 'imagen-3']) {
       expect(() =>
         buildImageGenerationRequestBody({
@@ -175,7 +179,7 @@ describe('buildImageGenerationRequestBody', () => {
           prompt: 'a cat',
           settings: {},
         })
-      ).toThrow(/GPT-format/)
+      ).toThrow(/Gemini image models/)
     }
   })
 

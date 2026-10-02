@@ -36,12 +36,14 @@ import { Route as authOtpRouteImport } from './routes/(auth)/otp'
 import { Route as authOauthRouteImport } from './routes/(auth)/oauth'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as PublicInspirationRouteRouteImport } from './routes/_public/inspiration/route'
+import { Route as PublicCreateRouteRouteImport } from './routes/_public/create/route'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as PublicRankingsIndexRouteImport } from './routes/_public/rankings/index'
 import { Route as PublicPricingIndexRouteImport } from './routes/_public/pricing/index'
 import { Route as PublicPlaygroundIndexRouteImport } from './routes/_public/playground/index'
 import { Route as PublicInspirationIndexRouteImport } from './routes/_public/inspiration/index'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
+import { Route as PublicCreateIndexRouteImport } from './routes/_public/create/index'
 import { Route as PublicConnectIndexRouteImport } from './routes/_public/connect/index'
 import { Route as PublicAgentsIndexRouteImport } from './routes/_public/agents/index'
 import { Route as PublicAboutIndexRouteImport } from './routes/_public/about/index'
@@ -65,6 +67,8 @@ import { Route as ShareCanvasTokenRouteImport } from './routes/share/canvas/$tok
 import { Route as PublicRSlugRouteImport } from './routes/_public/r/$slug'
 import { Route as PublicInspirationProjectIdRouteImport } from './routes/_public/inspiration/$projectId'
 import { Route as PublicDocsSplatRouteImport } from './routes/_public/docs/$'
+import { Route as PublicCreateLibraryRouteImport } from './routes/_public/create/library'
+import { Route as PublicCreateToolRouteImport } from './routes/_public/create/$tool'
 import { Route as AuthenticatedUsersSectionRouteImport } from './routes/_authenticated/users/$section'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedPricingCenterTabRouteImport } from './routes/_authenticated/pricing-center/$tab'
@@ -228,6 +232,11 @@ const PublicInspirationRouteRoute = PublicInspirationRouteRouteImport.update({
   path: '/inspiration',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const PublicCreateRouteRoute = PublicCreateRouteRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => PublicRouteRoute,
+} as any)
 const AuthenticatedSystemSettingsRouteRoute =
   AuthenticatedSystemSettingsRouteRouteImport.update({
     id: '/system-settings',
@@ -258,6 +267,11 @@ const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
   id: '/docs/',
   path: '/docs/',
   getParentRoute: () => PublicRouteRoute,
+} as any)
+const PublicCreateIndexRoute = PublicCreateIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PublicCreateRouteRoute,
 } as any)
 const PublicConnectIndexRoute = PublicConnectIndexRouteImport.update({
   id: '/connect/',
@@ -388,6 +402,16 @@ const PublicDocsSplatRoute = PublicDocsSplatRouteImport.update({
   id: '/docs/$',
   path: '/docs/$',
   getParentRoute: () => PublicRouteRoute,
+} as any)
+const PublicCreateLibraryRoute = PublicCreateLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => PublicCreateRouteRoute,
+} as any)
+const PublicCreateToolRoute = PublicCreateToolRouteImport.update({
+  id: '/$tool',
+  path: '/$tool',
+  getParentRoute: () => PublicCreateRouteRoute,
 } as any)
 const AuthenticatedUsersSectionRoute =
   AuthenticatedUsersSectionRouteImport.update({
@@ -565,6 +589,7 @@ const AuthenticatedAdminAnalyticsSectionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
   '/system-settings': typeof AuthenticatedSystemSettingsRouteRouteWithChildren
+  '/create': typeof PublicCreateRouteRouteWithChildren
   '/inspiration': typeof PublicInspirationRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/oauth': typeof authOauthRoute
@@ -598,6 +623,8 @@ export interface FileRoutesByFullPath {
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/users/$section': typeof AuthenticatedUsersSectionRoute
+  '/create/$tool': typeof PublicCreateToolRoute
+  '/create/library': typeof PublicCreateLibraryRoute
   '/docs/$': typeof PublicDocsSplatRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/r/$slug': typeof PublicRSlugRoute
@@ -621,6 +648,7 @@ export interface FileRoutesByFullPath {
   '/about/': typeof PublicAboutIndexRoute
   '/agents/': typeof PublicAgentsIndexRoute
   '/connect/': typeof PublicConnectIndexRoute
+  '/create/': typeof PublicCreateIndexRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/inspiration/': typeof PublicInspirationIndexRoute
   '/playground/': typeof PublicPlaygroundIndexRoute
@@ -680,6 +708,8 @@ export interface FileRoutesByTo {
   '/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/users/$section': typeof AuthenticatedUsersSectionRoute
+  '/create/$tool': typeof PublicCreateToolRoute
+  '/create/library': typeof PublicCreateLibraryRoute
   '/docs/$': typeof PublicDocsSplatRoute
   '/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/r/$slug': typeof PublicRSlugRoute
@@ -703,6 +733,7 @@ export interface FileRoutesByTo {
   '/about': typeof PublicAboutIndexRoute
   '/agents': typeof PublicAgentsIndexRoute
   '/connect': typeof PublicConnectIndexRoute
+  '/create': typeof PublicCreateIndexRoute
   '/docs': typeof PublicDocsIndexRoute
   '/inspiration': typeof PublicInspirationIndexRoute
   '/playground': typeof PublicPlaygroundIndexRoute
@@ -734,6 +765,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_public': typeof PublicRouteRouteWithChildren
   '/_authenticated/system-settings': typeof AuthenticatedSystemSettingsRouteRouteWithChildren
+  '/_public/create': typeof PublicCreateRouteRouteWithChildren
   '/_public/inspiration': typeof PublicInspirationRouteRouteWithChildren
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
   '/(auth)/oauth': typeof authOauthRoute
@@ -768,6 +800,8 @@ export interface FileRoutesById {
   '/_authenticated/pricing-center/$tab': typeof AuthenticatedPricingCenterTabRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/users/$section': typeof AuthenticatedUsersSectionRoute
+  '/_public/create/$tool': typeof PublicCreateToolRoute
+  '/_public/create/library': typeof PublicCreateLibraryRoute
   '/_public/docs/$': typeof PublicDocsSplatRoute
   '/_public/inspiration/$projectId': typeof PublicInspirationProjectIdRoute
   '/_public/r/$slug': typeof PublicRSlugRoute
@@ -791,6 +825,7 @@ export interface FileRoutesById {
   '/_public/about/': typeof PublicAboutIndexRoute
   '/_public/agents/': typeof PublicAgentsIndexRoute
   '/_public/connect/': typeof PublicConnectIndexRoute
+  '/_public/create/': typeof PublicCreateIndexRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/inspiration/': typeof PublicInspirationIndexRoute
   '/_public/playground/': typeof PublicPlaygroundIndexRoute
@@ -821,6 +856,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/system-settings'
+    | '/create'
     | '/inspiration'
     | '/forgot-password'
     | '/oauth'
@@ -854,6 +890,8 @@ export interface FileRouteTypes {
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/users/$section'
+    | '/create/$tool'
+    | '/create/library'
     | '/docs/$'
     | '/inspiration/$projectId'
     | '/r/$slug'
@@ -877,6 +915,7 @@ export interface FileRouteTypes {
     | '/about/'
     | '/agents/'
     | '/connect/'
+    | '/create/'
     | '/docs/'
     | '/inspiration/'
     | '/playground/'
@@ -936,6 +975,8 @@ export interface FileRouteTypes {
     | '/pricing-center/$tab'
     | '/usage-logs/$section'
     | '/users/$section'
+    | '/create/$tool'
+    | '/create/library'
     | '/docs/$'
     | '/inspiration/$projectId'
     | '/r/$slug'
@@ -959,6 +1000,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/agents'
     | '/connect'
+    | '/create'
     | '/docs'
     | '/inspiration'
     | '/playground'
@@ -989,6 +1031,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_public'
     | '/_authenticated/system-settings'
+    | '/_public/create'
     | '/_public/inspiration'
     | '/(auth)/forgot-password'
     | '/(auth)/oauth'
@@ -1023,6 +1066,8 @@ export interface FileRouteTypes {
     | '/_authenticated/pricing-center/$tab'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/users/$section'
+    | '/_public/create/$tool'
+    | '/_public/create/library'
     | '/_public/docs/$'
     | '/_public/inspiration/$projectId'
     | '/_public/r/$slug'
@@ -1046,6 +1091,7 @@ export interface FileRouteTypes {
     | '/_public/about/'
     | '/_public/agents/'
     | '/_public/connect/'
+    | '/_public/create/'
     | '/_public/docs/'
     | '/_public/inspiration/'
     | '/_public/playground/'
@@ -1279,6 +1325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicInspirationRouteRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    '/_public/create': {
+      id: '/_public/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof PublicCreateRouteRouteImport
+      parentRoute: typeof PublicRouteRoute
+    }
     '/_authenticated/system-settings': {
       id: '/_authenticated/system-settings'
       path: '/system-settings'
@@ -1320,6 +1373,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/'
       preLoaderRoute: typeof PublicDocsIndexRouteImport
       parentRoute: typeof PublicRouteRoute
+    }
+    '/_public/create/': {
+      id: '/_public/create/'
+      path: '/'
+      fullPath: '/create/'
+      preLoaderRoute: typeof PublicCreateIndexRouteImport
+      parentRoute: typeof PublicCreateRouteRoute
     }
     '/_public/connect/': {
       id: '/_public/connect/'
@@ -1481,6 +1541,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/$'
       preLoaderRoute: typeof PublicDocsSplatRouteImport
       parentRoute: typeof PublicRouteRoute
+    }
+    '/_public/create/library': {
+      id: '/_public/create/library'
+      path: '/library'
+      fullPath: '/create/library'
+      preLoaderRoute: typeof PublicCreateLibraryRouteImport
+      parentRoute: typeof PublicCreateRouteRoute
+    }
+    '/_public/create/$tool': {
+      id: '/_public/create/$tool'
+      path: '/$tool'
+      fullPath: '/create/$tool'
+      preLoaderRoute: typeof PublicCreateToolRouteImport
+      parentRoute: typeof PublicCreateRouteRoute
     }
     '/_authenticated/users/$section': {
       id: '/_authenticated/users/$section'
@@ -1848,6 +1922,21 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface PublicCreateRouteRouteChildren {
+  PublicCreateToolRoute: typeof PublicCreateToolRoute
+  PublicCreateLibraryRoute: typeof PublicCreateLibraryRoute
+  PublicCreateIndexRoute: typeof PublicCreateIndexRoute
+}
+
+const PublicCreateRouteRouteChildren: PublicCreateRouteRouteChildren = {
+  PublicCreateToolRoute: PublicCreateToolRoute,
+  PublicCreateLibraryRoute: PublicCreateLibraryRoute,
+  PublicCreateIndexRoute: PublicCreateIndexRoute,
+}
+
+const PublicCreateRouteRouteWithChildren =
+  PublicCreateRouteRoute._addFileChildren(PublicCreateRouteRouteChildren)
+
 interface PublicInspirationRouteRouteChildren {
   PublicInspirationProjectIdRoute: typeof PublicInspirationProjectIdRoute
   PublicInspirationIndexRoute: typeof PublicInspirationIndexRoute
@@ -1865,6 +1954,7 @@ const PublicInspirationRouteRouteWithChildren =
   )
 
 interface PublicRouteRouteChildren {
+  PublicCreateRouteRoute: typeof PublicCreateRouteRouteWithChildren
   PublicInspirationRouteRoute: typeof PublicInspirationRouteRouteWithChildren
   PublicDocRoute: typeof PublicDocRoute
   PublicPrivacyPolicyRoute: typeof PublicPrivacyPolicyRoute
@@ -1883,6 +1973,7 @@ interface PublicRouteRouteChildren {
 }
 
 const PublicRouteRouteChildren: PublicRouteRouteChildren = {
+  PublicCreateRouteRoute: PublicCreateRouteRouteWithChildren,
   PublicInspirationRouteRoute: PublicInspirationRouteRouteWithChildren,
   PublicDocRoute: PublicDocRoute,
   PublicPrivacyPolicyRoute: PublicPrivacyPolicyRoute,

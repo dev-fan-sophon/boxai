@@ -3,6 +3,7 @@ package sora
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -24,11 +25,13 @@ func isSeedanceModel(name string) bool {
 	return relaycommon.IsSeedanceModel(name)
 }
 
-func seedanceReferenceLimit(name string) int {
+// seedanceReferenceLimits returns the Ark multimodal reference limits
+// (images, videos, audios): 30/10/10 on 2.5, 9/3/3 on 2.0, fast and mini.
+func seedanceReferenceLimits(name string) (int, int, int) {
 	if seedance25Pattern.MatchString(name) {
-		return 30
+		return 30, 10, 10
 	}
-	return 9
+	return 9, 3, 3
 }
 
 func seedanceOutputFromSize(size string) (resolution string, ratio string) {
@@ -67,9 +70,15 @@ func bodyStringSlice(body map[string]interface{}, key string) []string {
 }
 
 func seedanceImageContent(url, role string) map[string]interface{} {
+	return seedanceMediaContent("image_url", url, role)
+}
+
+// seedanceMediaContent builds one Ark content item of mediaType
+// (image_url / video_url / audio_url).
+func seedanceMediaContent(mediaType, url, role string) map[string]interface{} {
 	item := map[string]interface{}{
-		"type":      "image_url",
-		"image_url": map[string]interface{}{"url": url},
+		"type":    mediaType,
+		mediaType: map[string]interface{}{"url": url},
 	}
 	if role != "" {
 		item["role"] = role
@@ -124,13 +133,15 @@ func normalizeSeedancePassthroughBody(body map[string]interface{}, upstreamModel
 			firstFrame = bodyString(body, "image")
 		}
 		lastFrame := bodyString(body, "last_frame")
-		references := make([]string, 0)
+		references := bodyStringSlice(body, "reference_images")
 		for _, image := range bodyStringSlice(body, "images") {
-			if image == firstFrame || image == lastFrame {
+			if image == firstFrame || image == lastFrame || slices.Contains(references, image) {
 				continue
 			}
 			references = append(references, image)
 		}
+		referenceVideos := bodyStringSlice(body, "reference_videos")
+		referenceAudios := bodyStringSlice(body, "reference_audios")
 		usesFrames := firstFrame != "" || lastFrame != ""
 		if usesFrames && seedance25Pattern.MatchString(upstreamModel) {
 			if ratio, _ := metadata["ratio"].(string); strings.TrimSpace(ratio) != "" && ratio != "adaptive" {
@@ -144,8 +155,8 @@ func normalizeSeedancePassthroughBody(body map[string]interface{}, upstreamModel
 			references = nil
 			usesFrames = true
 		}
-		if usesFrames && len(references) > 0 {
-			return fmt.Errorf("reference images cannot be combined with first/last frames")
+		if usesFrames && len(references)+len(referenceVideos)+len(referenceAudios) > 0 {
+			return fmt.Errorf("reference media cannot be combined with first/last frames")
 		}
 		if lastFrame != "" && firstFrame == "" {
 			return fmt.Errorf("last_frame requires first_frame")
@@ -163,25 +174,43 @@ func normalizeSeedancePassthroughBody(body map[string]interface{}, upstreamModel
 		for _, reference := range references {
 			content = append(content, seedanceImageContent(reference, "reference_image"))
 		}
+		for _, video := range referenceVideos {
+			content = append(content, seedanceMediaContent("video_url", video, "reference_video"))
+		}
+		for _, audio := range referenceAudios {
+			content = append(content, seedanceMediaContent("audio_url", audio, "reference_audio"))
+		}
 	}
 
-	referenceCount := 0
+	referenceCount, videoCount, audioCount := 0, 0, 0
 	for _, item := range content {
 		entry, ok := item.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		if entry["type"] == "image_url" && entry["role"] == "reference_image" {
+		switch {
+		case entry["type"] == "image_url" && entry["role"] == "reference_image":
 			referenceCount++
+		case entry["type"] == "video_url":
+			videoCount++
+		case entry["type"] == "audio_url":
+			audioCount++
 		}
 	}
-	if limit := seedanceReferenceLimit(upstreamModel); referenceCount > limit {
-		return fmt.Errorf("this model supports at most %d reference images", limit)
+	maxImages, maxVideos, maxAudios := seedanceReferenceLimits(upstreamModel)
+	if referenceCount > maxImages {
+		return fmt.Errorf("this model supports at most %d reference images", maxImages)
+	}
+	if videoCount > maxVideos {
+		return fmt.Errorf("this model supports at most %d reference videos", maxVideos)
+	}
+	if audioCount > maxAudios {
+		return fmt.Errorf("this model supports at most %d reference audios", maxAudios)
 	}
 
 	if len(content) > 0 {
 		metadata["content"] = content
-		for _, alias := range []string{"images", "image", "input_reference", "first_frame", "last_frame"} {
+		for _, alias := range []string{"images", "image", "input_reference", "first_frame", "last_frame", "reference_images", "reference_videos", "reference_audios"} {
 			delete(body, alias)
 		}
 	}

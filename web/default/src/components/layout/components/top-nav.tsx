@@ -1,5 +1,6 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,8 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MOTION_SPRING } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
+import { isTopNavLinkActive } from '../lib/url-utils'
 import type { TopNavLink } from '../types'
 
 type TopNavProps = React.HTMLAttributes<HTMLElement> & {
@@ -24,16 +27,21 @@ type TopNavProps = React.HTMLAttributes<HTMLElement> & {
  */
 export function TopNav({ className, links, ...props }: TopNavProps) {
   const { t } = useTranslation()
-  // 规范化链接，确保所有可选属性都有默认值
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  // 规范化链接，确保所有可选属性都有默认值；未显式给出 isActive 时按当前路径推断
   const normalizedLinks = useMemo(
     () =>
       links.map((link) => ({
-        isActive: false,
         disabled: false,
         external: false,
         ...link,
+        isActive:
+          link.isActive ??
+          (!link.external && isTopNavLinkActive(pathname, link.href)),
       })),
-    [links]
+    [links, pathname]
   )
 
   return (
@@ -93,27 +101,52 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
         )}
         {...props}
       >
-        {normalizedLinks.map(({ title, href, isActive, disabled, external }) =>
-          external ? (
-            <a
-              key={`${title}-${href}`}
-              href={href}
-              target='_blank'
-              rel='noopener noreferrer'
-              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
-            >
-              {t(title)}
-            </a>
-          ) : (
-            <Link
-              key={`${title}-${href}`}
-              to={href}
-              disabled={disabled}
-              className={`hover:text-sidebar-foreground text-sm font-medium transition-colors ${isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70'}`}
-            >
-              {t(title)}
-            </Link>
-          )
+        {normalizedLinks.map(
+          ({ title, href, isActive, disabled, external }) => {
+            const linkClassName = cn(
+              'hover:text-sidebar-foreground relative text-sm font-medium transition-colors duration-control',
+              isActive
+                ? 'text-sidebar-foreground'
+                : 'text-sidebar-foreground/70'
+            )
+            // Shared `layoutId`: the underline slides between sections rather
+            // than blinking. Reduced motion turns the slide into a cut through
+            // the root `MotionConfig`.
+            const indicator = isActive ? (
+              <motion.span
+                layoutId='top-nav-active-indicator'
+                aria-hidden='true'
+                className='bg-primary absolute inset-x-0 -bottom-1.5 h-0.5 rounded-full'
+                transition={MOTION_SPRING.snappy}
+              />
+            ) : null
+            if (external) {
+              return (
+                <a
+                  key={`${title}-${href}`}
+                  href={href}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className={linkClassName}
+                >
+                  {t(title)}
+                  {indicator}
+                </a>
+              )
+            }
+            return (
+              <Link
+                key={`${title}-${href}`}
+                to={href}
+                disabled={disabled}
+                className={linkClassName}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {t(title)}
+                {indicator}
+              </Link>
+            )
+          }
         )}
       </nav>
     </>

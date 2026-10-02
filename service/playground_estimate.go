@@ -159,6 +159,18 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 	}
 
 	tokens := float64(promptTokens + maxTokens)
+	if req.Modality == "image" {
+		// Gemini image output is billed per generated image (settlement
+		// floors it at Google's published per-image token cost), so the
+		// prompt alone would quote a small fraction of the real charge.
+		if caps := relaycommon.DefaultImageCapabilities(modelName); caps != nil && caps.Family == "gemini" {
+			perImage := relaycommon.GeminiImageOutputTokens(modelName, req.Size)
+			tokens += float64(perImage*n) * ratio_setting.GetCompletionRatio(modelName)
+			// The per-image output dominates, so this is a usable quote even
+			// though the prompt size is assumed.
+			assumedPrompt = false
+		}
+	}
 	if req.Modality == "video" && duration > 0 {
 		tokens = tokens * math.Max(1, duration/5)
 	}

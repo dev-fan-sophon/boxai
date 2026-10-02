@@ -337,6 +337,7 @@ export function SignUpForm({
 
         {/* Submit Button */}
         <Button
+          loading={isLoading}
           type='submit'
           variant='cta'
           className='mt-2 h-11 w-full justify-center gap-2 shadow-sm'
@@ -346,7 +347,6 @@ export function SignUpForm({
             !turnstileReady
           }
         >
-          {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
           {t('Create account')}
         </Button>
 
@@ -384,6 +384,7 @@ export function SignUpForm({
                 {t('Cancel')}
               </Button>
               <Button
+                loading={isWeChatSubmitting}
                 type='button'
                 onClick={handleWeChatLogin}
                 disabled={
@@ -393,9 +394,6 @@ export function SignUpForm({
                 }
                 className='gap-2'
               >
-                {isWeChatSubmitting ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : null}
                 {t('Confirm')}
               </Button>
             </>

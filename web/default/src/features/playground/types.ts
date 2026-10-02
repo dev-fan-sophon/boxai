@@ -1,6 +1,7 @@
 import type { UIMessage } from 'ai'
 
 import type { ReasoningEffort, ReasoningLevel } from '../pricing/types'
+import type { AudioStudioSettings } from './lib/studio/audio-settings'
 
 export type PlaygroundReasoningLevel = ReasoningLevel | ReasoningEffort
 
@@ -304,6 +305,14 @@ export type StudioSettings = {
   imageCount: number
   imageSize: string
   imageQuality: string
+  /** xAI / Gemini aspect ratio; '' = the model default. */
+  imageAspectRatio: string
+  /** xAI (1k/2k) / Gemini (1K/2K/4K) resolution; '' = the model default. */
+  imageResolution: string
+  /** GPT Image background: auto | opaque | transparent. */
+  imageBackground: string
+  /** GPT Image output format: png | jpeg | webp. */
+  imageOutputFormat: string
   /** Composer holds one prompt per line and generates each. */
   imageBatchMode: boolean
   videoDuration: number
@@ -316,10 +325,15 @@ export type StudioSettings = {
   videoCount: number
   videoBatchMode: boolean
   videoDisableLastFrame: boolean
+  /** Fixed video seed; null means a random seed per run. */
+  videoSeed?: number | null
+  /** Ask the provider for a visible watermark (Seedance). */
+  videoWatermark?: boolean
+  /** OpenAI-compatible speech (non-ElevenLabs TTS models, canvas). */
   voice: string
   speed: number
   audioFormat: string
-}
+} & AudioStudioSettings
 
 export type GeneratedImage = {
   url: string

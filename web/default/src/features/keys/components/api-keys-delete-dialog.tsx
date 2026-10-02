@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import {
   AlertDialog,
@@ -12,9 +11,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { toastPromise } from '@/lib/toast'
 
 import { deleteApiKey } from '../api'
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
+import { SUCCESS_MESSAGES } from '../constants'
 import { useApiKeys } from './api-keys-provider'
 
 export function ApiKeysDeleteDialog() {
@@ -27,16 +27,15 @@ export function ApiKeysDeleteDialog() {
 
     setIsDeleting(true)
     try {
-      const result = await deleteApiKey(currentRow.id)
-      if (result.success) {
-        toast.success(t(SUCCESS_MESSAGES.API_KEY_DELETED))
-        setOpen(null)
-        triggerRefresh()
-      } else {
-        toast.error(result.message || t(ERROR_MESSAGES.DELETE_FAILED))
-      }
+      // The button carries the pending state, so no loading toast.
+      const result = await toastPromise(deleteApiKey(currentRow.id), {
+        success: t(SUCCESS_MESSAGES.API_KEY_DELETED),
+      })
+      if (!result.success) return
+      setOpen(null)
+      triggerRefresh()
     } catch {
-      toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+      /* already toasted by toastPromise */
     } finally {
       setIsDeleting(false)
     }
@@ -62,10 +61,10 @@ export function ApiKeysDeleteDialog() {
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
-            disabled={isDeleting}
+            loading={isDeleting}
             variant='destructive'
           >
-            {isDeleting ? t('Deleting...') : t('Delete')}
+            {t('Delete')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

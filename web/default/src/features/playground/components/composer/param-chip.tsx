@@ -148,7 +148,7 @@ export function TogglePill(props: {
  * Falls back to a generic icon for `auto` / `adaptive`.
  */
 export function AspectGlyph(props: { size: string }) {
-  const match = /^(\d+)\s*[x:]\s*(\d+)$/i.exec(props.size)
+  const match = /^(\d+(?:\.\d+)?)\s*[x:]\s*(\d+(?:\.\d+)?)$/i.exec(props.size)
   if (!match) {
     return <Proportions className='size-4' aria-hidden='true' />
   }

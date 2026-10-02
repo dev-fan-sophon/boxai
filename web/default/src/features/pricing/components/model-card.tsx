@@ -12,6 +12,7 @@ import { memo, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
+import { getModelModality } from '@/features/playground/lib/studio/model-modality'
 import { cn } from '@/lib/utils'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
@@ -24,7 +25,7 @@ import {
   isPerSecondVideoModel,
   isTokenBasedModel,
 } from '../lib/model-helpers'
-import { canTryInPlayground } from '../lib/playground-eligibility'
+import { canTryModel } from '../lib/playground-eligibility'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
 import { ModelPriceRows, type ModelPriceRowItem } from './model-price-rows'
@@ -114,6 +115,19 @@ function collectMetaChips(
   return chips.slice(0, MAX_META_CHIPS)
 }
 
+/** Chat models open in the playground; media models in their creation tool. */
+function tryLinkFor(model: PricingModel) {
+  const modality = getModelModality(model)
+  if (modality === 'chat') {
+    return { to: '/playground', search: { model: model.model_name } } as const
+  }
+  return {
+    to: '/create/$tool',
+    params: { tool: modality },
+    search: { model: model.model_name },
+  } as const
+}
+
 /**
  * Compact Model Hub card: identity, metadata chips, price footer.
  * Tags, description, groups, availability, and integration live in details.
@@ -124,7 +138,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   const isTokenBased = isTokenBasedModel(props.model)
   const isNew = isRecentlyReleased(props.model)
   const title = props.model.display_name || props.model.model_name
-  const canTry = canTryInPlayground(props.model)
+  const canTry = canTryModel(props.model)
   const metaChips = collectMetaChips(props.model, t)
 
   const modelId = props.model.model_name
@@ -369,8 +383,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         {canTry && (
           <div className='mt-2.5 flex'>
             <Link
-              to='/playground'
-              search={{ model: props.model.model_name }}
+              {...tryLinkFor(props.model)}
               onClick={(event) => event.stopPropagation()}
               className='text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors'
             >

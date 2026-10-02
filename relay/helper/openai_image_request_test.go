@@ -104,8 +104,9 @@ func TestGetAndValidOpenAIImageRequestNBounds(t *testing.T) {
 			wantErr: boundErr,
 		},
 		{
-			name:  "n at max is accepted",
-			body:  fmt.Sprintf(`{"model":"gpt-image-1","prompt":"a cat","n":%d}`, dto.MaxImageN),
+			name: "n at max is accepted",
+			// gpt-image caps n at 10; the generic bound applies to unmodeled models.
+			body:  fmt.Sprintf(`{"model":"flux-pro","prompt":"a cat","n":%d}`, dto.MaxImageN),
 			wantN: dto.MaxImageN,
 		},
 		{

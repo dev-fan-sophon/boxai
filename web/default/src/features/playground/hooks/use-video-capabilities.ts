@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { useAuthStore } from '@/stores/auth-store'
+
 import { getVideoCapabilities } from '../api'
 import type {
   VideoModelCapabilities,
@@ -31,9 +33,12 @@ export function useVideoCapabilities(
   model: string,
   enabled = true
 ) {
+  // The endpoint needs a session; guests browsing a studio must not trip
+  // the global 401 handler and get bounced to sign-in.
+  const signedIn = useAuthStore((state) => Boolean(state.auth.user))
   return useQuery({
     queryKey: videoCapabilitiesQueryKey(group, model),
     queryFn: () => getVideoCapabilities(group, model),
-    enabled: enabled && Boolean(group && model),
+    enabled: enabled && signedIn && Boolean(group && model),
   })
 }

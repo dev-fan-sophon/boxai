@@ -192,7 +192,7 @@ func TestOpenAIAudioModelAndSpeechConversionPreserveExplicitModels(t *testing.T)
 	c := newElevenLabsTestContext(http.MethodPost, "/v1/audio/speech", "application/json", nil)
 	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelBaseUrl: "https://api.elevenlabs.io"}}
 	adaptor := &Adaptor{}
-	body, err := adaptor.convertSpeechRequest(c, info, dto.AudioRequest{Model: DefaultTTSModel, Input: "xin chào", Voice: "voice-id", ResponseFormat: "wav"})
+	body, err := adaptor.convertSpeechRequest(c, info, dto.AudioRequest{Model: DefaultTTSModel, Input: "xin chào", Voice: "voiceId0123456789abc", ResponseFormat: "wav"})
 	require.NoError(t, err)
 	encoded, err := io.ReadAll(body)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestOpenAIAudioModelAndSpeechConversionPreserveExplicitModels(t *testing.T)
 	info.RelayMode = relayconstant.RelayModeAudioSpeech
 	requestURL, err := adaptor.GetRequestURL(info)
 	require.NoError(t, err)
-	assert.Contains(t, requestURL, "/v1/text-to-speech/voice-id")
+	assert.Contains(t, requestURL, "/v1/text-to-speech/voiceId0123456789abc")
 	assert.Contains(t, requestURL, "output_format=wav_44100")
 }
 

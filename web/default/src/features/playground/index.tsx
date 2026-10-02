@@ -9,9 +9,7 @@ import {
   useState,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
-import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -19,10 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
-import { canTryInPlayground } from '@/features/pricing/lib/playground-eligibility'
 import { useLgUp, useXlUp } from '@/hooks'
-import { useAuthStore } from '@/stores/auth-store'
 import {
   selectActiveSession,
   usePlaygroundStore,
@@ -36,48 +31,33 @@ import {
   SettingsPanel,
   SettingsSections,
 } from './components/settings/settings-panel'
-import { ModalityQuickSwitch } from './components/shell/modality-quick-switch'
 import { PlaygroundShell } from './components/shell/playground-shell'
+import { SignInRequiredDialog } from './components/shell/sign-in-required-dialog'
 import { WorkspaceHeader } from './components/shell/workspace-header'
 import { ArtifactPreviewPanel } from './components/workspace/artifact-preview-panel'
 import { DuoWorkspace } from './components/workspace/duo-workspace'
-import { GenerationWorkspace } from './components/workspace/generation-workspace'
-import { STORAGE_KEYS } from './constants'
-import {
-  patchSessionById,
-  usePlaygroundConversation,
-  usePlaygroundOptions,
-  useSessionCloudSync,
-} from './hooks'
+import { patchSessionById, usePlaygroundConversation } from './hooks'
 import { useAgentChat } from './hooks/use-agent-chat'
-import { useStudio } from './hooks/use-studio'
+import { useWorkspaceBootstrap } from './hooks/use-workspace-bootstrap'
 import { useArtifactPreviewStore } from './lib/artifact-preview-store'
 import { isChatSession } from './lib/session/session-utils'
-import { isPlaygroundImageModel } from './lib/studio/image-request-schema'
 import { getModelModality } from './lib/studio/model-modality'
 import type {
   ChatAttachment,
   Message,
-  PlaygroundConfig,
   PlaygroundReasoningLevel,
   StudioModality,
 } from './types'
 
 import './styles/playground.css'
 
+const CHAT_MODALITIES: StudioModality[] = ['chat']
+
 export function Playground() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const search = useSearch({ from: '/_public/playground/' })
   const appliedDeepLink = useRef<string | undefined>(undefined)
-  const user = useAuthStore((state) => state.auth.user)
-  const isAuthenticated = Boolean(user)
-  const currentUserId = user?.id ?? null
-  const previousUserIdRef = useRef<number | null | undefined>(undefined)
-  const [scopedUserId, setScopedUserId] = useState<number | null | undefined>(
-    undefined
-  )
-  const [signInDialogOpen, setSignInDialogOpen] = useState(false)
   const [catalogDrawerOpen, setCatalogDrawerOpen] = useState(false)
   // Settings panel: persisted open state on wide desktop, ephemeral overlay
   // between 1024–1279px, bottom sheet below 1024px.
@@ -96,14 +76,16 @@ export function Playground() {
   const selectStoreModel = usePlaygroundStore((state) => state.selectModel)
   const selectDuo = usePlaygroundStore((state) => state.selectDuo)
   const startNewSession = usePlaygroundStore((state) => state.startNewSession)
-  const resetAccountData = usePlaygroundStore((state) => state.resetAccountData)
-  const setPrefill = usePlaygroundStore((state) => state.setPrefill)
   const settingsPanelOpen = usePlaygroundStore(
     (state) => state.ui.settingsPanelOpen
   )
   const setSettingsPanelOpen = usePlaygroundStore(
     (state) => state.setSettingsPanelOpen
   )
+  // This page is chat only; media sessions live under /create.
+  useLayoutEffect(() => {
+    if (activeModality !== 'chat') setActiveModality('chat')
+  }, [activeModality, setActiveModality])
   useEffect(() => {
     if (!previewArtifact || !isDesktop) return
     setSettingsPanelOpen(false)
@@ -117,88 +99,16 @@ export function Playground() {
   const config = usePlaygroundStore((state) => state.config)
   const activeSession = usePlaygroundStore(selectActiveSession)
   const models = usePlaygroundStore((state) => state.models)
-  const setModels = usePlaygroundStore((state) => state.setModels)
-  const setGroups = usePlaygroundStore((state) => state.setGroups)
-  const patchConfig = usePlaygroundStore((state) => state.updateConfig)
-  const accountScopeReady = scopedUserId === currentUserId
-  useLayoutEffect(() => {
-    let previousOwner: string | null = null
-    try {
-      previousOwner = window.localStorage.getItem(STORAGE_KEYS.ACCOUNT_OWNER)
-    } catch {
-      // Storage may be unavailable; the in-memory identity still scopes data.
-    }
-    const currentOwner = currentUserId === null ? null : String(currentUserId)
-    const identityChanged =
-      previousUserIdRef.current !== undefined &&
-      previousUserIdRef.current !== currentUserId
-    const persistedOwnerChanged =
-      currentOwner === null
-        ? previousOwner !== null
-        : previousOwner !== currentOwner
-    if (identityChanged || persistedOwnerChanged) {
-      resetAccountData()
-      useArtifactPreviewStore.getState().close()
-    }
-    if (currentOwner !== null) {
-      try {
-        window.localStorage.setItem(STORAGE_KEYS.ACCOUNT_OWNER, currentOwner)
-      } catch {
-        // Storage may be unavailable.
-      }
-    } else if (previousOwner !== null) {
-      try {
-        window.localStorage.removeItem(STORAGE_KEYS.ACCOUNT_OWNER)
-      } catch {
-        // Storage may be unavailable.
-      }
-    }
-    previousUserIdRef.current = currentUserId
-    setScopedUserId(currentUserId)
-  }, [currentUserId, resetAccountData])
-  useSessionCloudSync(accountScopeReady ? user?.id : undefined)
-  const updateConfig = useCallback(
-    <K extends keyof PlaygroundConfig>(key: K, value: PlaygroundConfig[K]) => {
-      patchConfig({ [key]: value })
-    },
-    [patchConfig]
-  )
-
-  const pricing = usePricingData('playground')
-  const playgroundModels = useMemo(() => {
-    // Strict mode only when at least one model has an explicit playground
-    // integration. Otherwise fall back to the full catalog so production
-    // sites that have not configured integrations yet still work.
-    if (pricing.isLegacyPlaygroundCatalog) return pricing.models
-    const eligible = pricing.models.filter(canTryInPlayground)
-    return eligible.length > 0 ? eligible : pricing.models
-  }, [pricing.isLegacyPlaygroundCatalog, pricing.models])
-  const studio = useStudio()
-  const publicModels = useMemo(
-    () =>
-      playgroundModels.map((model) => ({
-        label: model.model_name,
-        value: model.model_name,
-        reasoningEfforts: model.reasoning_efforts,
-      })),
-    [playgroundModels]
-  )
-  const publicGroups = useMemo(
-    () =>
-      Object.entries(pricing.usableGroup).map(([value, group]) => ({
-        value,
-        label: value,
-        desc: typeof group === 'string' ? group : group.desc,
-        ratio:
-          typeof group === 'string' ? pricing.groupRatio[value] : group.ratio,
-      })),
-    [pricing.groupRatio, pricing.usableGroup]
-  )
-  const requireAuthentication = useCallback((): boolean => {
-    if (user) return true
-    setSignInDialogOpen(true)
-    return false
-  }, [user])
+  const workspace = useWorkspaceBootstrap({ surface: 'playground' })
+  const {
+    isAuthenticated,
+    accountScopeReady,
+    scopedUserId,
+    pricing,
+    catalogModels: playgroundModels,
+    requireAuthentication,
+    isLoadingModels,
+  } = workspace
 
   const activeChat =
     isChatSession(activeSession) && activeSession.kind !== 'duo'
@@ -313,19 +223,10 @@ export function Playground() {
 
   const handleNewSession = useCallback(() => {
     handleEditOpenChange(false)
-    startNewSession(activeModality)
-  }, [activeModality, handleEditOpenChange, startNewSession])
+    startNewSession('chat')
+  }, [handleEditOpenChange, startNewSession])
 
-  const { isLoadingModels } = usePlaygroundOptions({
-    isAuthenticated,
-    publicGroups,
-    publicModels,
-    currentGroup: config.group,
-    currentModel: config.model,
-    setGroups,
-    setModels,
-    updateConfig,
-  })
+  // Media models moved to the creation studio; old links keep working.
   useEffect(() => {
     if (!search.model || appliedDeepLink.current === search.model) return
     if (!models.some((model) => model.value === search.model)) return
@@ -336,8 +237,17 @@ export function Playground() {
     const modality = getModelModality(
       pricingModel ?? { model_name: search.model }
     )
-    selectStoreModel(search.model, undefined, { switchModality: modality })
-  }, [models, playgroundModels, search.model, selectStoreModel])
+    if (modality !== 'chat') {
+      void navigate({
+        to: '/create/$tool',
+        params: { tool: modality },
+        search: { model: search.model },
+        replace: true,
+      })
+      return
+    }
+    selectStoreModel(search.model, undefined, { switchModality: 'chat' })
+  }, [models, navigate, playgroundModels, search.model, selectStoreModel])
 
   const chatModels = useMemo(
     () =>
@@ -353,80 +263,6 @@ export function Playground() {
     [models, playgroundModels]
   )
 
-  const availableModalities = useMemo(() => {
-    const found = new Set<StudioModality>()
-    for (const option of models) {
-      const pricingModel = playgroundModels.find(
-        (model) => model.model_name === option.value
-      )
-      const modality = getModelModality(
-        pricingModel ?? { model_name: option.value }
-      )
-      // Image modality only appears for GPT-format image models.
-      if (modality === 'image' && !isPlaygroundImageModel(option.value)) {
-        continue
-      }
-      found.add(modality)
-    }
-    return [...found]
-  }, [models, playgroundModels])
-
-  const selectModelByModality = useCallback(
-    (modality: StudioModality, preferredPrompt?: string) => {
-      // Prefer restoring the last session for this modality (and its model).
-      setActiveModality(modality)
-
-      const current = playgroundModels.find(
-        (model) => model.model_name === config.model
-      )
-      const currentMatches =
-        current != null && getModelModality(current) === modality
-      if (!currentMatches) {
-        const match = playgroundModels.find((model) => {
-          if (!models.some((item) => item.value === model.model_name)) {
-            return false
-          }
-          if (getModelModality(model) !== modality) return false
-          if (
-            modality === 'image' &&
-            !isPlaygroundImageModel(model.model_name)
-          ) {
-            return false
-          }
-          return true
-        })
-        if (!match) {
-          toast.error(t('No model available for this modality'), {
-            description: t(
-              'Try another template or wait until matching models load.'
-            ),
-          })
-          return false
-        }
-        selectStoreModel(match.model_name, undefined, {
-          switchModality: modality,
-          hasActiveChatMessages:
-            modality === 'chat' && agentMessages.length > 0,
-        })
-      }
-
-      if (preferredPrompt != null) {
-        setPrefill(preferredPrompt)
-      }
-      return true
-    },
-    [
-      config.model,
-      agentMessages.length,
-      models,
-      playgroundModels,
-      selectStoreModel,
-      setActiveModality,
-      setPrefill,
-      t,
-    ]
-  )
-
   const catalog = (
     <ModelCatalog
       available={models}
@@ -435,12 +271,11 @@ export function Playground() {
       loading={pricing.isLoading || isLoadingModels}
       error={Boolean(pricing.error)}
       onRetry={() => pricing.refetch()}
+      modalities={CHAT_MODALITIES}
       onSelect={(model) => {
-        const modality = getModelModality(model)
         selectStoreModel(model.model_name, undefined, {
-          switchModality: modality,
-          hasActiveChatMessages:
-            modality === 'chat' && agentMessages.length > 0,
+          switchModality: 'chat',
+          hasActiveChatMessages: agentMessages.length > 0,
         })
         setCatalogDrawerOpen(false)
       }}
@@ -455,10 +290,6 @@ export function Playground() {
   )
 
   const duoActive = workspaceMode === 'duo'
-  const [videoContext, setVideoContext] = useState<{
-    mode: 'text' | 'frames' | 'references'
-    referenceCount: number
-  }>({ mode: 'text', referenceCount: 0 })
   const desktopSettingsOpen = isWideDesktop
     ? settingsPanelOpen
     : narrowSettingsOpen
@@ -482,6 +313,9 @@ export function Playground() {
     setNarrowSettingsOpen(false)
   }
 
+  // One frame while the layout effect above switches back from a media tool.
+  if (activeModality !== 'chat') return null
+
   return (
     <PlaygroundShell
       catalog={catalog}
@@ -489,12 +323,9 @@ export function Playground() {
       onCatalogOpenChange={setCatalogDrawerOpen}
       settings={
         <SettingsPanel
-          modality={activeModality}
           duoActive={duoActive}
           open={desktopSettingsOpen}
           onClose={closeDesktopSettings}
-          videoMode={videoContext.mode}
-          videoReferenceCount={videoContext.referenceCount}
         />
       }
     >
@@ -503,7 +334,6 @@ export function Playground() {
         pricingModel={selectedCatalogModel}
         group={config.group}
         mode={workspaceMode}
-        modality={activeModality}
         sessionTitle={activeSession?.title}
         onOpenCatalog={() => {
           // Desktop keeps the catalog in the left rail; mobile uses a sheet.
@@ -524,16 +354,6 @@ export function Playground() {
         }
       />
 
-      {!duoActive && (
-        <ModalityQuickSwitch
-          active={activeModality}
-          available={availableModalities}
-          onSelect={(modality) => {
-            selectModelByModality(modality)
-          }}
-        />
-      )}
-
       {duoActive && (
         <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-8'>
           <DuoWorkspace
@@ -543,7 +363,7 @@ export function Playground() {
         </div>
       )}
 
-      {!duoActive && activeModality === 'chat' && (
+      {!duoActive && (
         <div className='flex min-h-0 flex-1'>
           <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
             <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
@@ -584,18 +404,6 @@ export function Playground() {
         </div>
       )}
 
-      {!duoActive && activeModality !== 'chat' && (
-        <div className='flex min-h-0 flex-1 flex-col'>
-          <GenerationWorkspace
-            modality={activeModality}
-            pricingModel={selectedCatalogModel}
-            canSubmit={requireAuthentication}
-            studio={studio}
-            onVideoContextChange={setVideoContext}
-          />
-        </div>
-      )}
-
       <Sheet open={settingsSheetOpen} onOpenChange={setSettingsSheetOpen}>
         <SheetContent
           side='bottom'
@@ -606,45 +414,16 @@ export function Playground() {
             <SheetTitle>{t('Settings')}</SheetTitle>
           </SheetHeader>
           <div className='px-4 pb-5'>
-            <SettingsSections
-              modality={activeModality}
-              duoActive={duoActive}
-              videoMode={videoContext.mode}
-              videoReferenceCount={videoContext.referenceCount}
-            />
+            <SettingsSections duoActive={duoActive} />
           </div>
         </SheetContent>
       </Sheet>
 
-      <Dialog
-        open={signInDialogOpen}
-        onOpenChange={setSignInDialogOpen}
-        title={t('Sign in required')}
-        description={t('Please sign in to send requests with AI models.')}
-        contentClassName='sm:max-w-md'
-        footer={
-          <>
-            <Button
-              variant='outline'
-              onClick={() => setSignInDialogOpen(false)}
-            >
-              {t('Cancel')}
-            </Button>
-            <Button
-              onClick={() =>
-                navigate({
-                  to: '/sign-in',
-                  search: { redirect: '/playground' },
-                })
-              }
-            >
-              {t('Sign in now')}
-            </Button>
-          </>
-        }
-      >
-        <span />
-      </Dialog>
+      <SignInRequiredDialog
+        open={workspace.signInDialogOpen}
+        onOpenChange={workspace.setSignInDialogOpen}
+        redirect='/playground'
+      />
     </PlaygroundShell>
   )
 }

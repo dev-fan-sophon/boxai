@@ -8,7 +8,8 @@ import type { TopNavLink } from '../types'
  */
 export const defaultTopNavLinks: TopNavLink[] = [
   { title: 'Home', href: '/' },
-  { title: 'Workspace', href: '/playground' },
+  { title: 'Chat', href: '/playground' },
+  { title: 'Create', href: '/create' },
   { title: 'Agents', href: '/agents' },
   { title: 'Inspiration', href: '/inspiration' },
   { title: 'Model Hub', href: '/pricing' },

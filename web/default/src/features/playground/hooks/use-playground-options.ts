@@ -25,6 +25,12 @@ type UsePlaygroundOptionsParams = {
     key: K,
     value: PlaygroundConfig[K]
   ) => void
+  /**
+   * Models the current surface may fall back to. Chat and the media studio
+   * share one model list; without this a chat page whose saved model
+   * disappeared would fall back to whatever model sorts first, video included.
+   */
+  modelFilter?: (modelName: string) => boolean
 }
 
 export function usePlaygroundOptions({
@@ -36,6 +42,7 @@ export function usePlaygroundOptions({
   setGroups,
   setModels,
   updateConfig,
+  modelFilter,
 }: UsePlaygroundOptionsParams) {
   const { t } = useTranslation()
 
@@ -86,12 +93,15 @@ export function usePlaygroundOptions({
     if (isAuthenticated) return
 
     setModels(publicModels)
-    const modelFallback = getModelFallback(publicModels, currentModel)
+    const candidates = modelFilter
+      ? publicModels.filter((model) => modelFilter(model.value))
+      : publicModels
+    const modelFallback = getModelFallback(candidates, currentModel)
     if (modelFallback) {
       updateConfig('model', modelFallback)
     } else if (
-      publicModels.length > 0 &&
-      shouldClearModelForGroup(publicModels, currentModel)
+      candidates.length > 0 &&
+      shouldClearModelForGroup(candidates, currentModel)
     ) {
       updateConfig('model', '')
     }
@@ -103,6 +113,7 @@ export function usePlaygroundOptions({
     currentGroup,
     currentModel,
     isAuthenticated,
+    modelFilter,
     publicGroups,
     publicModels,
     setGroups,
@@ -116,20 +127,24 @@ export function usePlaygroundOptions({
 
     const availableModels = applyModelMetadata(modelsData, publicModels)
     setModels(availableModels)
-    const fallback = getModelFallback(availableModels, currentModel)
+    const candidates = modelFilter
+      ? availableModels.filter((model) => modelFilter(model.value))
+      : availableModels
+    const fallback = getModelFallback(candidates, currentModel)
 
     if (fallback) {
       updateConfig('model', fallback)
       return
     }
 
-    if (shouldClearModelForGroup(availableModels, currentModel)) {
+    if (shouldClearModelForGroup(candidates, currentModel)) {
       updateConfig('model', '')
     }
   }, [
     isAuthenticated,
     modelsData,
     currentModel,
+    modelFilter,
     publicModels,
     setModels,
     updateConfig,

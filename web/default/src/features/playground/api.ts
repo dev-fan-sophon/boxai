@@ -11,6 +11,10 @@ import type {
   InspirationRecipe,
 } from './inspiration/types'
 import { parseRequestErrorDetails } from './lib/streaming/request-error-utils'
+import {
+  imageMimeFromBase64,
+  type ImageModelCapabilities,
+} from './lib/studio/image-capabilities'
 import { buildImageGenerationRequestBody } from './lib/studio/image-request-schema'
 import {
   resolveVideoOptions,
@@ -108,7 +112,16 @@ export async function getVideoCapabilities(
     ) {
       continue
     }
-    result[mode] = value as VideoModelCapabilities
+    // Older servers omit the multimodal fields; absent means unsupported.
+    result[mode] = {
+      ...(value as VideoModelCapabilities),
+      maxReferenceVideos: value.maxReferenceVideos ?? 0,
+      maxReferenceAudios: value.maxReferenceAudios ?? 0,
+      audioReferenceRequiresVisual: value.audioReferenceRequiresVisual ?? false,
+      supportsSeed: value.supportsSeed ?? false,
+      supportsWatermark: value.supportsWatermark ?? false,
+      returnsLastFrame: value.returnsLastFrame ?? false,
+    }
   }
   return result
 }
@@ -148,6 +161,10 @@ export type ImageGenerateInput = {
   referenceImages?: Array<string | null | undefined>
   /** when true with reference, use /pg/images/edits */
   editMode?: boolean
+  /** Model contract: decides which option fields are sent. */
+  capabilities?: ImageModelCapabilities | null
+  /** PNG inpainting mask (data URL) for the first reference. */
+  mask?: string | null
 }
 
 export async function generateImages(
@@ -164,6 +181,8 @@ export async function generateImages(
     settings: input.settings,
     referenceImage: ref,
     referenceImages: extraRefs,
+    capabilities: input.capabilities,
+    mask: input.mask,
   })
   const endpoint =
     input.editMode && ref
@@ -182,7 +201,9 @@ export async function generateImages(
       .map((item) => ({
         url:
           item.url ||
-          (item.b64_json ? `data:image/png;base64,${item.b64_json}` : ''),
+          (item.b64_json
+            ? `data:${imageMimeFromBase64(item.b64_json, body.output_format)};base64,${item.b64_json}`
+            : ''),
         revisedPrompt: item.revised_prompt,
       }))
       .filter((item) => item.url)
@@ -201,6 +222,12 @@ export type VideoSubmitInput = {
   lastFrame?: string | null
   inputReference?: string | null
   referenceImages?: string[]
+  /** Typed multimodal references (references mode only). */
+  referenceVideos?: string[]
+  referenceAudios?: string[]
+  /** Fixed seed; omitted for a random seed. Volcengine metadata only. */
+  seed?: number
+  watermark?: boolean
   /**
    * Explicit output options. When present they override `settings.videoSize`
    * / `settings.videoDuration` and are also sent as Volcengine metadata for
@@ -216,9 +243,11 @@ export type VideoSubmitInput = {
 /**
  * Builds the uniform OpenAI-style video request understood by every BoxAI
  * video channel: `size`/`duration` for native adaptors, string `seconds` plus
- * `metadata.{resolution,ratio,generate_audio}` for the Seedance passthrough,
- * and `first_frame`/`last_frame` (frames) or `images` (references), which the
- * backend maps to provider roles.
+ * `metadata.{resolution,ratio,generate_audio,seed,watermark,return_last_frame}`
+ * for Seedance (xAI reads only `metadata.generate_audio`), and
+ * `first_frame`/`last_frame` (frames) or `images` / `reference_images` plus
+ * `reference_videos` / `reference_audios` (references), which the backend
+ * maps to provider roles.
  */
 export async function buildVideoRequestBody(
   input: VideoSubmitInput
@@ -226,12 +255,37 @@ export async function buildVideoRequestBody(
   const capabilities = input.capabilities
   if (!capabilities) throw new Error(t('Video capabilities are unavailable.'))
   const references = input.referenceImages ?? []
+  const referenceVideos = input.referenceVideos ?? []
+  const referenceAudios = input.referenceAudios ?? []
   if (references.length > capabilities.maxReferenceImages) {
     throw new Error(
       t('You can attach up to {{count}} images.', {
         count: capabilities.maxReferenceImages,
       })
     )
+  }
+  const maxVideos = capabilities.maxReferenceVideos ?? 0
+  const maxAudios = capabilities.maxReferenceAudios ?? 0
+  if (referenceVideos.length > maxVideos) {
+    throw new Error(
+      t('You can attach up to {{count}} reference videos.', {
+        count: maxVideos,
+      })
+    )
+  }
+  if (referenceAudios.length > maxAudios) {
+    throw new Error(
+      t('You can attach up to {{count}} reference audios.', {
+        count: maxAudios,
+      })
+    )
+  }
+  if (
+    capabilities.audioReferenceRequiresVisual &&
+    referenceAudios.length > 0 &&
+    references.length + referenceVideos.length === 0
+  ) {
+    throw new Error(t('Add a reference image or video to use reference audio.'))
   }
   const duration = input.duration ?? input.settings.videoDuration
   const size =
@@ -246,15 +300,23 @@ export async function buildVideoRequestBody(
     seconds: String(duration),
   }
   if (size) body.size = size
+  const metadata: Record<string, unknown> = {}
+  if (capabilities.supportsAudioToggle && input.generateAudio !== undefined) {
+    metadata.generate_audio = input.generateAudio
+  }
   if (capabilities.usesVolcengineMetadata) {
-    const metadata: Record<string, unknown> = {}
     if (input.resolution) metadata.resolution = input.resolution
     if (input.aspectRatio) metadata.ratio = input.aspectRatio
-    if (capabilities.supportsAudioToggle && input.generateAudio !== undefined) {
-      metadata.generate_audio = input.generateAudio
+    if (capabilities.supportsSeed && input.seed !== undefined) {
+      metadata.seed = input.seed
     }
-    if (Object.keys(metadata).length) body.metadata = metadata
+    if (capabilities.supportsWatermark && input.watermark !== undefined) {
+      metadata.watermark = input.watermark
+    }
+    // Free with the run; lets the studio continue from the final frame.
+    if (capabilities.returnsLastFrame) metadata.return_last_frame = true
   }
+  if (Object.keys(metadata).length) body.metadata = metadata
 
   const first = await resolveMediaForUpstream(
     input.firstFrame || input.inputReference
@@ -273,13 +335,29 @@ export async function buildVideoRequestBody(
       body.images = [...images, last]
     }
   }
+  const referenceMedia =
+    references.length + referenceVideos.length + referenceAudios.length
+  if (referenceMedia > 0 && (first || last)) {
+    throw new Error(
+      t('Reference images cannot be combined with first/last frames.')
+    )
+  }
   if (references.length > 0) {
-    if (first || last) {
-      throw new Error(
-        t('Reference images cannot be combined with first/last frames.')
-      )
-    }
-    body.images = await Promise.all(references.map(resolveMediaForUpstream))
+    const resolved = await Promise.all(references.map(resolveMediaForUpstream))
+    // xAI reads untyped `images` as the first frame; Seedance and other
+    // channels read them as references.
+    if (capabilities.family === 'xai') body.reference_images = resolved
+    else body.images = resolved
+  }
+  if (referenceVideos.length > 0) {
+    body.reference_videos = await Promise.all(
+      referenceVideos.map(resolveMediaForUpstream)
+    )
+  }
+  if (referenceAudios.length > 0) {
+    body.reference_audios = await Promise.all(
+      referenceAudios.map(resolveMediaForUpstream)
+    )
   }
   return body
 }
@@ -291,7 +369,11 @@ export async function submitVideo(
   // uploading media or creating a billable task.
   const profiles = await getVideoCapabilities(input.group, input.model)
   let mode: 'text' | 'frames' | 'references' = 'text'
-  if (input.referenceImages?.length) mode = 'references'
+  const referenceCount =
+    (input.referenceImages?.length ?? 0) +
+    (input.referenceVideos?.length ?? 0) +
+    (input.referenceAudios?.length ?? 0)
+  if (referenceCount > 0) mode = 'references'
   else if (input.firstFrame || input.lastFrame || input.inputReference) {
     mode = 'frames'
   }
@@ -919,15 +1001,21 @@ export type PlaygroundRun = {
   created_at: number
 }
 
-export async function listPlaygroundTasks(): Promise<{
+export async function listPlaygroundTasks(params?: {
+  modality?: string
+  p?: number
+  page_size?: number
+}): Promise<{
   tasks: unknown[]
   runs: PlaygroundRun[]
+  runTotal: number
 }> {
-  const res = await api.get(API_ENDPOINTS.PLAYGROUND_TASKS)
-  if (!res.data?.success) return { tasks: [], runs: [] }
+  const res = await api.get(API_ENDPOINTS.PLAYGROUND_TASKS, { params })
+  if (!res.data?.success) return { tasks: [], runs: [], runTotal: 0 }
   return {
     tasks: res.data.data?.tasks ?? [],
     runs: (res.data.data?.runs ?? []) as PlaygroundRun[],
+    runTotal: Number(res.data.data?.run_total ?? 0),
   }
 }
 

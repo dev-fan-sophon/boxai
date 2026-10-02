@@ -1,6 +1,8 @@
 package common
 
 import (
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -21,14 +23,50 @@ func IsGrokImagineVideoModel(name string) bool {
 // GrokImagineResolutionFromSize maps an OpenAI-style WxH size onto the xAI
 // Imagine resolution tier. Empty size uses the playground/API default 720p.
 func GrokImagineResolutionFromSize(size string) string {
-	switch strings.ToLower(strings.TrimSpace(size)) {
-	case "", GrokImagineDefaultSize, "720x1280":
-		return "720p"
-	case "1920x1080", "1080x1920":
-		return "1080p"
-	default:
-		return ""
+	resolution, _ := GrokImagineDimensionsFromSize(size)
+	return resolution
+}
+
+// grokImagineAspectRatios are the ratios documented for xAI video generation.
+var grokImagineAspectRatios = []struct {
+	label string
+	value float64
+}{
+	{"16:9", 16.0 / 9.0}, {"9:16", 9.0 / 16.0}, {"1:1", 1}, {"4:3", 4.0 / 3.0},
+	{"3:4", 3.0 / 4.0}, {"3:2", 3.0 / 2.0}, {"2:3", 2.0 / 3.0},
+}
+
+// GrokImagineDimensionsFromSize maps a WxH size onto the xAI resolution tier
+// (shorter side 480/720/1080) and aspect ratio (within 2%). Empty size uses
+// the 1280x720 default. Unsupported sizes return empty strings.
+func GrokImagineDimensionsFromSize(size string) (resolution string, ratio string) {
+	size = strings.ToLower(strings.TrimSpace(size))
+	if size == "" {
+		size = GrokImagineDefaultSize
 	}
+	widthText, heightText, found := strings.Cut(size, "x")
+	width, errW := strconv.Atoi(strings.TrimSpace(widthText))
+	height, errH := strconv.Atoi(strings.TrimSpace(heightText))
+	if !found || errW != nil || errH != nil || width <= 0 || height <= 0 {
+		return "", ""
+	}
+	switch min(width, height) {
+	case 480:
+		resolution = "480p"
+	case 720:
+		resolution = "720p"
+	case 1080:
+		resolution = "1080p"
+	default:
+		return "", ""
+	}
+	aspect := float64(width) / float64(height)
+	for _, candidate := range grokImagineAspectRatios {
+		if math.Abs(aspect/candidate.value-1) <= 0.02 {
+			return resolution, candidate.label
+		}
+	}
+	return "", ""
 }
 
 // GrokImagineResolutionRatio is the OtherRatio that scales the 480p/sec

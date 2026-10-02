@@ -1,4 +1,4 @@
-import { ShieldCheck, KeyRound, Loader2 } from 'lucide-react'
+import { ShieldCheck, KeyRound } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -97,11 +97,11 @@ export function SecureVerificationDialog({
             {t('Cancel')}
           </Button>
           <Button
+            loading={state.loading}
             type='button'
             onClick={handleVerify}
             disabled={availableTabs.length === 0 || verifyDisabled}
           >
-            {state.loading && <Loader2 className='h-4 w-4 animate-spin' />}
             {t('Verify')}
           </Button>
         </>

@@ -63,6 +63,8 @@ type ModelCatalogProps = {
   onTogglePin?: (modelName: string) => void
   duoEnabled?: boolean
   onOpenDuo?: () => void
+  /** Restrict the catalog to these modalities; one modality hides the filter row. */
+  modalities?: StudioModality[]
 }
 
 export function ModelCatalog(props: ModelCatalogProps) {
@@ -77,10 +79,20 @@ export function ModelCatalog(props: ModelCatalogProps) {
     () => new Set(props.available.map((item) => item.value)),
     [props.available]
   )
+  const allowed = props.modalities
   const catalog = useMemo(
-    () => props.models.filter((model) => availableNames.has(model.model_name)),
-    [availableNames, props.models]
+    () =>
+      props.models.filter(
+        (model) =>
+          availableNames.has(model.model_name) &&
+          (!allowed || allowed.includes(getModelModality(model)))
+      ),
+    [allowed, availableNames, props.models]
   )
+  const filters = FILTERS.filter(
+    (item) => item.id === 'all' || !allowed || allowed.includes(item.id)
+  )
+  const showFilters = filters.length > 2
 
   const counts = useMemo(() => {
     const next: Record<CatalogFilter, number> = {
@@ -153,56 +165,58 @@ export function ModelCatalog(props: ModelCatalogProps) {
   return (
     <div className='flex h-full min-h-0 flex-col bg-transparent'>
       <div className='border-border/70 shrink-0 border-b px-2.5 py-2.5 sm:px-3'>
-        <div
-          className='bg-muted/45 ring-border/60 grid grid-cols-5 gap-0.5 rounded-xl p-0.5 ring-1'
-          role='tablist'
-          aria-label={t('Filter by modality')}
-        >
-          {FILTERS.map((item) => {
-            const Icon = item.Icon
-            const active = modality === item.id
-            const count = counts[item.id]
-            const disabled = item.id !== 'all' && count === 0
-            return (
-              <button
-                key={item.id}
-                type='button'
-                role='tab'
-                aria-selected={active}
-                aria-disabled={disabled || undefined}
-                disabled={disabled}
-                onClick={() => setModality(item.id)}
-                className={cn(
-                  'focus-visible:ring-ring flex min-h-9 flex-col items-center justify-center gap-0.5 rounded-[0.65rem] px-0.5 py-1.5 text-center outline-none transition-[color,background-color,box-shadow,transform] focus-visible:ring-2 active:scale-[0.98] sm:min-h-10',
-                  active
-                    ? 'bg-background text-primary shadow-xs ring-border/70 ring-1'
-                    : 'text-muted-foreground hover:text-foreground',
-                  disabled && 'pointer-events-none opacity-35'
-                )}
-              >
-                <Icon
+        {showFilters && (
+          <div
+            className='bg-muted/45 ring-border/60 grid grid-cols-5 gap-0.5 rounded-xl p-0.5 ring-1'
+            role='tablist'
+            aria-label={t('Filter by modality')}
+          >
+            {filters.map((item) => {
+              const Icon = item.Icon
+              const active = modality === item.id
+              const count = counts[item.id]
+              const disabled = item.id !== 'all' && count === 0
+              return (
+                <button
+                  key={item.id}
+                  type='button'
+                  role='tab'
+                  aria-selected={active}
+                  aria-disabled={disabled || undefined}
+                  disabled={disabled}
+                  onClick={() => setModality(item.id)}
                   className={cn(
-                    'size-3.5 shrink-0',
-                    active ? 'text-primary' : 'opacity-80'
-                  )}
-                  aria-hidden='true'
-                />
-                <span className='text-3xs leading-none font-semibold tracking-wide'>
-                  {t(item.labelKey)}
-                </span>
-                <span
-                  className={cn(
-                    'font-mono text-4xs leading-none tabular-nums',
-                    active ? 'text-primary/80' : 'text-muted-foreground'
+                    'focus-visible:ring-ring flex min-h-9 flex-col items-center justify-center gap-0.5 rounded-[0.65rem] px-0.5 py-1.5 text-center outline-none transition-[color,background-color,box-shadow,transform] focus-visible:ring-2 active:scale-[0.98] sm:min-h-10',
+                    active
+                      ? 'bg-background text-primary shadow-xs ring-border/70 ring-1'
+                      : 'text-muted-foreground hover:text-foreground',
+                    disabled && 'pointer-events-none opacity-35'
                   )}
                 >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <div className='relative mt-2'>
+                  <Icon
+                    className={cn(
+                      'size-3.5 shrink-0',
+                      active ? 'text-primary' : 'opacity-80'
+                    )}
+                    aria-hidden='true'
+                  />
+                  <span className='text-3xs leading-none font-semibold tracking-wide'>
+                    {t(item.labelKey)}
+                  </span>
+                  <span
+                    className={cn(
+                      'font-mono text-4xs leading-none tabular-nums',
+                      active ? 'text-primary/80' : 'text-muted-foreground'
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <div className={cn('relative', showFilters && 'mt-2')}>
           <Search
             className='text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2'
             aria-hidden='true'

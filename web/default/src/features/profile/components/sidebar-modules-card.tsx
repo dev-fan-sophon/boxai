@@ -14,6 +14,7 @@ import {
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
+import { toastPromise } from '@/lib/toast'
 import { useAuthStore } from '@/stores/auth-store'
 
 type SidebarModuleConfig = {
@@ -148,21 +149,22 @@ export function SidebarModulesCard() {
     setLoading(true)
     try {
       const serialized = JSON.stringify(config)
-      const res = await api.put('/api/user/self', {
-        sidebar_modules: serialized,
-      })
-      if (res.data.success) {
-        // Sync to auth-store so useSidebarConfig re-runs and the sidebar
-        // updates immediately without needing a page refresh.
-        if (currentUser) {
-          setUser({ ...currentUser, sidebar_modules: serialized })
+      const res = await toastPromise(
+        api
+          .put('/api/user/self', { sidebar_modules: serialized })
+          .then((response) => response.data),
+        {
+          success: t('Saved successfully'),
+          error: t('Save failed, please retry'),
         }
-        toast.success(t('Saved successfully'))
-      } else {
-        toast.error(res.data.message || t('Save failed'))
+      )
+      // Sync to auth-store so useSidebarConfig re-runs and the sidebar
+      // updates immediately without needing a page refresh.
+      if (res.success && currentUser) {
+        setUser({ ...currentUser, sidebar_modules: serialized })
       }
     } catch {
-      toast.error(t('Save failed, please retry'))
+      /* already toasted by toastPromise */
     } finally {
       setLoading(false)
     }
@@ -249,8 +251,8 @@ export function SidebarModulesCard() {
           <Button variant='outline' onClick={handleReset}>
             {t('Reset to Default')}
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? t('Saving...') : t('Save Changes')}
+          <Button onClick={handleSave} loading={loading}>
+            {t('Save Changes')}
           </Button>
         </div>
       </CardContent>

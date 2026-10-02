@@ -151,3 +151,53 @@ func TestConvertVolcengineGatewayToOpenAIVideo(t *testing.T) {
 	assert.Equal(t, "task_public", decoded["id"])
 	assert.Equal(t, "seedance-2-0", decoded["model"])
 }
+
+func TestGatewayMapsTypedReferenceMediaAndAdvancedOptions(t *testing.T) {
+	body := decodeBody(t, `{"prompt":"dance","seconds":"6","reference_images":["https://m/i.png"],"reference_videos":["https://m/v.mp4"],"reference_audios":["https://m/a.mp3"],"metadata":{"ratio":"9:16","resolution":"720p","seed":4294967295,"return_last_frame":true,"watermark":false}}`)
+	require.NoError(t, normalizeSeedancePassthroughBody(body, "cdance2.0-0611"))
+	for _, alias := range []string{"reference_images", "reference_videos", "reference_audios"} {
+		assert.NotContains(t, body, alias, "gateways would duplicate typed media")
+	}
+	payload, err := gatewayCreateFromPassthrough(body, "cdance2.0-0611")
+	require.NoError(t, err)
+	require.Len(t, payload.Content, 4)
+	assert.Equal(t, gatewayContentItem{Type: "image_url", Role: "reference_image", ImageURL: &gatewayMedia{URL: "https://m/i.png"}}, payload.Content[1])
+	assert.Equal(t, gatewayContentItem{Type: "video_url", Role: "reference_video", VideoURL: &gatewayMedia{URL: "https://m/v.mp4"}}, payload.Content[2])
+	assert.Equal(t, gatewayContentItem{Type: "audio_url", Role: "reference_audio", AudioURL: &gatewayMedia{URL: "https://m/a.mp3"}}, payload.Content[3])
+	require.NotNil(t, payload.Seed)
+	assert.Equal(t, int64(4294967295), *payload.Seed)
+	require.NotNil(t, payload.ReturnLastFrame)
+	assert.True(t, *payload.ReturnLastFrame)
+	require.NotNil(t, payload.Watermark)
+	assert.False(t, *payload.Watermark)
+}
+
+func TestGatewayReferenceMediaLimitsAndSeedBounds(t *testing.T) {
+	tests := []struct {
+		name, model, body, wantErr string
+	}{
+		{"2.0 videos", "cdance2.0-0611", `{"prompt":"p","reference_videos":["a","b","c","d"]}`, "at most 3 reference videos"},
+		{"2.0 audios", "cdance2.0-fast-0611", `{"prompt":"p","reference_images":["i"],"reference_audios":["a","b","c","d"]}`, "at most 3 reference audios"},
+		{"2.5 accepts ten videos", "cdance2.5-0807", `{"prompt":"p","reference_videos":["1","2","3","4","5","6","7","8","9","10"]}`, ""},
+		{"frames with audio", "cdance2.0-0611", `{"prompt":"p","first_frame":"https://f","reference_audios":["a"]}`, "cannot be combined"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := normalizeSeedancePassthroughBody(decodeBody(t, tt.body), tt.model)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+	_, err := gatewayCreateFromPassthrough(decodeBody(t, `{"prompt":"p","metadata":{"seed":4294967296}}`), "cdance2.0-0611")
+	require.Error(t, err)
+}
+
+func TestGatewayParseExposesLastFrameURL(t *testing.T) {
+	task := &model.Task{TaskID: "task_g", Status: model.TaskStatusSuccess, Data: []byte(`{"id":"cgt-9","status":"succeeded","content":{"video_url":"https://v/o.mp4","last_frame_url":"https://v/l.png"}}`)}
+	raw, err := convertVolcengineGatewayToOpenAIVideo(task)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"last_frame_url":"https://v/l.png"`)
+}

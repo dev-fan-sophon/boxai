@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -11,6 +12,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/samber/lo"
@@ -210,6 +212,11 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 			}
 			imageRequest.Quality = formData.Get("quality")
 			imageRequest.Size = formData.Get("size")
+			imageRequest.AspectRatio = formData.Get("aspect_ratio")
+			imageRequest.Resolution = formData.Get("resolution")
+			imageRequest.Background = multipartJSONString(formData.Get("background"))
+			imageRequest.OutputFormat = multipartJSONString(formData.Get("output_format"))
+			imageRequest.Moderation = multipartJSONString(formData.Get("moderation"))
 			if streamValue := strings.TrimSpace(formData.Get("stream")); streamValue != "" {
 				stream, err := strconv.ParseBool(streamValue)
 				if err != nil {
@@ -234,6 +241,10 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 			if hasWatermark {
 				watermark := formData.Get("watermark") == "true"
 				imageRequest.Watermark = &watermark
+			}
+			referenceCount := len(relaycommon.MultipartImageHeaders(form))
+			if err := validateImageFamilyOptions(imageRequest, relayMode, referenceCount, len(form.File["mask"]) > 0); err != nil {
+				return nil, err
 			}
 			break
 		}
@@ -288,9 +299,44 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 		if imageRequest.N == nil || *imageRequest.N == 0 {
 			imageRequest.N = common.GetPointer(uint(1))
 		}
+
+		references, err := relaycommon.JSONImageReferences(*imageRequest)
+		if err != nil {
+			return nil, err
+		}
+		maskJSON := strings.TrimSpace(string(imageRequest.Mask))
+		hasMask := maskJSON != "" && maskJSON != "null" && maskJSON != `""`
+		if err := validateImageFamilyOptions(imageRequest, relayMode, len(references), hasMask); err != nil {
+			return nil, err
+		}
 	}
 
 	return imageRequest, nil
+}
+
+// multipartJSONString carries a multipart string field in the JSON-typed
+// ImageRequest slot so validation sees one representation for both paths.
+func multipartJSONString(value string) json.RawMessage {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	encoded, err := common.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return encoded
+}
+
+// validateImageFamilyOptions applies the modeled per-family contract (n,
+// reference count, aspect_ratio/resolution allow-lists, mask) shared by the
+// JSON and multipart paths; violations surface as 400s.
+func validateImageFamilyOptions(request *dto.ImageRequest, relayMode int, referenceCount int, hasMask bool) error {
+	if relayMode == relayconstant.RelayModeImagesEdits && referenceCount == 0 &&
+		relaycommon.ImageModelFamily(request.Model) != "" {
+		return errors.New("image is required for image edits")
+	}
+	return relaycommon.ValidateImageRequestOptions(request, referenceCount, hasMask)
 }
 
 func GetAndValidateClaudeRequest(c *gin.Context) (textRequest *dto.ClaudeRequest, err error) {

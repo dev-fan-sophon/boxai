@@ -790,9 +790,16 @@ type TaskSubmitReq struct {
 	InputReference string   `json:"input_reference,omitempty"`
 	// FirstFrame / LastFrame are playground-friendly aliases for image-to-video.
 	// Normalized into Images / InputReference before adaptors run.
-	FirstFrame string                 `json:"first_frame,omitempty"`
-	LastFrame  string                 `json:"last_frame,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	FirstFrame string `json:"first_frame,omitempty"`
+	LastFrame  string `json:"last_frame,omitempty"`
+	// ReferenceImages / ReferenceVideos / ReferenceAudios are typed
+	// multimodal references (reference_image / reference_video /
+	// reference_audio roles). They never pin a frame. Bounded at validation
+	// by MaxTaskReferenceImages / Videos / Audios.
+	ReferenceImages []string               `json:"reference_images,omitempty"`
+	ReferenceVideos []string               `json:"reference_videos,omitempty"`
+	ReferenceAudios []string               `json:"reference_audios,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {

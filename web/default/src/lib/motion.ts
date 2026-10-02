@@ -94,7 +94,7 @@ interface Stagger {
 
 /**
  * A stagger is always the same shape: a container that carries only timing and
- * a child that carries the movement. The three presets below differ solely in
+ * a child that carries the movement. The presets below differ solely in
  * how far apart and how far their children travel — denser lists need a
  * shorter step so the last row does not lag visibly behind the first.
  */
@@ -119,13 +119,10 @@ export const STAGGER = createStagger({
   transition: MOTION_TRANSITION.default,
 })
 
-/** Table bodies. Shortest step and travel: rows are dense and numerous. */
-export const TABLE_STAGGER = createStagger({
-  step: 0.03,
-  from: { opacity: 0, y: 4 },
-  to: { opacity: 1, y: 0 },
-  transition: MOTION_TRANSITION.fast,
-})
+/* Table bodies have no preset here on purpose: every `[data-slot='table']`
+ * row already enters through the CSS `tableRowEnter` stagger in
+ * `src/styles/index.css`, and a second, runtime stagger on top of it played
+ * the same entrance twice. */
 
 /** Card grids. Longest travel plus a scale, because cards are large targets. */
 export const CARD_STAGGER = createStagger({

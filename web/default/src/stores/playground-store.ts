@@ -58,11 +58,6 @@ export type PlaygroundPrefill = {
   nonce: number
 }
 
-export type PlaygroundGenerationStatus = {
-  activeModality: StudioModality | null
-  pendingCount: number
-}
-
 /** Transient mid-thread model switch tip (not a chat message). */
 export type ModelSwitchNotice = {
   id: number
@@ -75,7 +70,6 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   models: ModelOption[]
   groups: GroupOption[]
   prefill: PlaygroundPrefill | null
-  generation: PlaygroundGenerationStatus
   modelSwitchNotice: ModelSwitchNotice | null
 
   setWorkspaceMode: (mode: PlaygroundWorkspaceMode) => void
@@ -125,9 +119,6 @@ interface PlaygroundStoreState extends PersistedPlaygroundState {
   consumePrefill: () => void
   setSettingsPanelOpen: (open: boolean) => void
   setFeedDensity: (density: StudioFeedDensity) => void
-  beginGeneration: (modality: StudioModality) => void
-  endGeneration: () => void
-  resetWorkbenchPrefs: () => void
 }
 
 function withActiveSessionUpdate(
@@ -267,7 +258,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
       models: [],
       groups: [],
       prefill: null,
-      generation: { activeModality: null, pendingCount: 0 },
       modelSwitchNotice: null,
 
       setWorkspaceMode: (workspaceMode) => set({ workspaceMode }),
@@ -459,7 +449,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
               summaryModel: state.duo.summaryModel,
             },
             prefill: null,
-            generation: { activeModality: null, pendingCount: 0 },
             modelSwitchNotice: null,
           }
         }),
@@ -553,30 +542,6 @@ export const usePlaygroundStore = create<PlaygroundStoreState>()(
         set((state) => ({ ui: { ...state.ui, settingsPanelOpen: open } })),
       setFeedDensity: (feedDensity) =>
         set((state) => ({ ui: { ...state.ui, feedDensity } })),
-      beginGeneration: (modality) =>
-        set((state) => ({
-          generation: {
-            activeModality: modality,
-            pendingCount: state.generation.pendingCount + 1,
-          },
-        })),
-      endGeneration: () =>
-        set((state) => {
-          const pendingCount = Math.max(0, state.generation.pendingCount - 1)
-          return {
-            generation: {
-              activeModality:
-                pendingCount === 0 ? null : state.generation.activeModality,
-              pendingCount,
-            },
-          }
-        }),
-      resetWorkbenchPrefs: () =>
-        set({
-          pinnedModels: [],
-          chatTools: { ...DEFAULT_CHAT_TOOLS },
-          duo: { answerModels: [], summaryModel: '' },
-        }),
     }),
     {
       name: PLAYGROUND_STORE_STORAGE_KEY,

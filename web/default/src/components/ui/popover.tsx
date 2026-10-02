@@ -42,12 +42,12 @@ function PopoverContent({
         collisionPadding={collisionPadding}
         collisionBoundary={collisionBoundary}
         collisionAvoidance={collisionAvoidance}
-        className='isolate z-50'
+        className='z-overlay isolate'
       >
         <PopoverPrimitive.Popup
           data-slot='popover-content'
           className={cn(
-            'bg-popover/95 text-popover-foreground ring-border/70 shadow-lifted data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-xl p-2.5 text-sm ring-1 backdrop-blur-xl outline-hidden duration-control',
+            'bg-popover/95 text-popover-foreground ring-border/70 shadow-lifted data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 z-overlay flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-xl p-2.5 text-sm ring-1 backdrop-blur-xl outline-hidden duration-control',
             className
           )}
           {...props}

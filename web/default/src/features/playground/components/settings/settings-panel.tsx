@@ -13,49 +13,25 @@ import { useXlUp } from '@/hooks'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
-import type { StudioModality } from '../../types'
 import { ChatParametersSection } from './chat-parameters-section'
 import { ChatToolsSection } from './chat-tools-section'
-import { GenerationSettingsSection } from './generation-settings-section'
 
 /**
- * Settings sections for the active mode: chat parameters + tools for chat
- * and duo, generation parameters otherwise. Shared by the desktop column
- * and the mobile bottom sheet.
+ * Chat settings: tools up front, channel and sampling parameters folded
+ * away. Shared by the desktop column and the mobile bottom sheet.
  */
-export function SettingsSections(props: {
-  modality: StudioModality
-  duoActive: boolean
-  videoMode?: 'text' | 'frames' | 'references'
-  videoReferenceCount?: number
-}) {
+export function SettingsSections(props: { duoActive: boolean }) {
   const { t } = useTranslation()
-  const chatMode = props.duoActive || props.modality === 'chat'
 
   return (
     <div className='space-y-5'>
-      {chatMode ? (
-        <>
-          <Section title={t('Chat tools')}>
-            <ChatToolsSection />
-          </Section>
-          <AdvancedSection>
-            <GroupSection />
-            <ChatParametersSection showReasoning={!props.duoActive} />
-          </AdvancedSection>
-        </>
-      ) : (
-        <>
-          <GroupSection />
-          <Section title={t('Generation parameters')}>
-            <GenerationSettingsSection
-              modality={props.modality as Exclude<StudioModality, 'chat'>}
-              videoMode={props.videoMode}
-              videoReferenceCount={props.videoReferenceCount}
-            />
-          </Section>
-        </>
-      )}
+      <Section title={t('Chat tools')}>
+        <ChatToolsSection />
+      </Section>
+      <AdvancedSection>
+        <GroupSection />
+        <ChatParametersSection showReasoning={!props.duoActive} />
+      </AdvancedSection>
     </div>
   )
 }
@@ -90,12 +66,9 @@ function AdvancedSection(props: { children: React.ReactNode }) {
  * (persisted at ≥1280px, ephemeral below).
  */
 export function SettingsPanel(props: {
-  modality: StudioModality
   duoActive: boolean
   open: boolean
   onClose: () => void
-  videoMode?: 'text' | 'frames' | 'references'
-  videoReferenceCount?: number
 }) {
   const { t } = useTranslation()
   const isWide = useXlUp()
@@ -125,12 +98,7 @@ export function SettingsPanel(props: {
         </Button>
       </div>
       <div className='min-h-0 flex-1 overflow-y-auto p-3'>
-        <SettingsSections
-          modality={props.modality}
-          duoActive={props.duoActive}
-          videoMode={props.videoMode}
-          videoReferenceCount={props.videoReferenceCount}
-        />
+        <SettingsSections duoActive={props.duoActive} />
       </div>
     </aside>
   )

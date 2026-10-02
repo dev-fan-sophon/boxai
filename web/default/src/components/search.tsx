@@ -5,6 +5,7 @@ import { useSearch } from '@/context/search-context'
 import { cn } from '@/lib/utils'
 
 import { Button } from './ui/button'
+import { Kbd } from './ui/kbd'
 
 type SearchProps = {
   className?: string
@@ -32,10 +33,10 @@ export function Search({ className = '', placeholder }: SearchProps) {
         size={16}
       />
       <span className='ms-4'>{resolvedPlaceholder}</span>
-      <kbd className='border-sidebar-border bg-sidebar-accent group-hover:bg-sidebar-accent text-3xs pointer-events-none absolute end-[0.3rem] top-[0.3rem] hidden h-5 items-center gap-1 rounded border px-1.5 font-mono font-medium opacity-100 select-none sm:flex'>
+      <Kbd className='border-sidebar-border bg-sidebar-accent absolute end-[0.3rem] top-[0.3rem] hidden px-1.5 text-inherit sm:flex'>
         <span className='text-xs'>⌘</span>
         {t('K')}
-      </kbd>
+      </Kbd>
     </Button>
   )
 }

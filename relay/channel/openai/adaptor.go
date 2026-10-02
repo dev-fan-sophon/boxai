@@ -158,7 +158,7 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		if info.ChannelCreateTime < constant.AzureNoRemoveDotTime {
 			model_ = strings.Replace(model_, ".", "", -1)
 		}
-				requestURL = fmt.Sprintf("/openai/deployments/%s/%s", model_, task)
+		requestURL = fmt.Sprintf("/openai/deployments/%s/%s", model_, task)
 		if info.RelayMode == relayconstant.RelayModeRealtime {
 			requestURL = fmt.Sprintf("/openai/realtime?deployment=%s&api-version=%s", model_, apiVersion)
 		}
@@ -170,6 +170,9 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		url = strings.Replace(url, "{model}", info.UpstreamModelName, -1)
 		return url, nil
 	default:
+		if imageFamilyConversion(info) == relaycommon.ImageFamilyGemini {
+			return fmt.Sprintf("%s/v1/chat/completions", info.ChannelBaseUrl), nil
+		}
 		if (info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini) &&
 			info.RelayMode != relayconstant.RelayModeResponses &&
 			info.RelayMode != relayconstant.RelayModeResponsesCompact {
@@ -181,6 +184,11 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, header *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, header)
+	if imageFamilyConversion(info) != "" {
+		// Converted xAI / Gemini image bodies are JSON even when the client
+		// uploaded a multipart edit form.
+		header.Set("Content-Type", "application/json")
+	}
 	if info.ChannelType == constant.ChannelTypeAzure {
 		header.Set("api-key", info.ApiKey)
 		return nil
@@ -440,6 +448,13 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
+	switch imageFamilyConversion(info) {
+	case relaycommon.ImageFamilyXAI:
+		request.Model = info.UpstreamModelName
+		return relaycommon.BuildXAIImageRequest(c, request, info.RelayMode == relayconstant.RelayModeImagesEdits)
+	case relaycommon.ImageFamilyGemini:
+		return convertGeminiImageToChat(c, info, request)
+	}
 	switch info.RelayMode {
 	case relayconstant.RelayModeImagesEdits:
 		if isJSONRequest(c) {
@@ -588,6 +603,16 @@ func isJSONRequest(c *gin.Context) bool {
 // entries pass through untouched. A singular `image` value is folded into
 // `images` when no usable array entry was provided.
 func normalizeJSONImageEditReferences(request *dto.ImageRequest) {
+	// The JSON edits contract takes the mask as an `{"image_url": ...}`
+	// object too; clients speaking the flat shape send a plain string.
+	if common.GetJsonType(request.Mask) == "string" {
+		var mask string
+		if err := common.Unmarshal(request.Mask, &mask); err == nil && strings.TrimSpace(mask) != "" {
+			if wrapped, err := common.Marshal(map[string]string{"image_url": mask}); err == nil {
+				request.Mask = wrapped
+			}
+		}
+	}
 	entries := make([]json.RawMessage, 0, 2)
 	if common.GetJsonType(request.Images) == "array" {
 		var rawEntries []json.RawMessage
@@ -674,7 +699,7 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
 	if info.RelayMode == relayconstant.RelayModeAudioTranscription ||
 		info.RelayMode == relayconstant.RelayModeAudioTranslation ||
-		(info.RelayMode == relayconstant.RelayModeImagesEdits && !isJSONRequest(c)) {
+		(info.RelayMode == relayconstant.RelayModeImagesEdits && !isJSONRequest(c) && imageFamilyConversion(info) == "") {
 		return channel.DoFormRequest(a, c, info, requestBody)
 	} else if info.RelayMode == relayconstant.RelayModeRealtime {
 		return channel.DoWssRequest(a, c, info, requestBody)
@@ -694,7 +719,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 	case relayconstant.RelayModeAudioTranscription:
 		err, usage = OpenaiSTTHandler(c, resp, info, a.ResponseFormat)
 	case relayconstant.RelayModeImagesGenerations, relayconstant.RelayModeImagesEdits:
-		if info.IsStream {
+		if imageFamilyConversion(info) == relaycommon.ImageFamilyGemini {
+			usage, err = GeminiChatImageHandler(c, info, resp)
+		} else if info.IsStream {
 			usage, err = OpenaiImageStreamHandler(c, info, resp)
 		} else {
 			usage, err = OpenaiImageHandler(c, info, resp)

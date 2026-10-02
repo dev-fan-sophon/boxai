@@ -1,4 +1,4 @@
-import { Bell, Loader2, Mail, Server, Webhook } from 'lucide-react'
+import { Bell, Mail, Server, Webhook } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -378,8 +378,7 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
 
       {/* Save Button */}
       <div className='flex justify-end'>
-        <Button onClick={handleSave} disabled={loading}>
-          {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+        <Button loading={loading} onClick={handleSave}>
           {loading ? t('Saving...') : t('Save Settings')}
         </Button>
       </div>

@@ -4,6 +4,7 @@ export type ModuleAccess = { enabled: boolean; requireAuth: boolean }
 
 export type HeaderNavModule =
   | 'playground'
+  | 'create'
   | 'agents'
   | 'inspiration'
   | 'rankings'
@@ -13,6 +14,7 @@ export type HeaderNavModules = {
   home: boolean
   console: boolean
   playground: ModuleAccess
+  create: ModuleAccess
   agents: ModuleAccess
   inspiration: ModuleAccess
   pricing: ModuleAccess
@@ -23,13 +25,14 @@ export type HeaderNavModules = {
 }
 
 // Public strip defaults:
-// Home · Workspace · Agents · Inspiration · Model Hub · Docs · Rankings
+// Home · Chat · Create · Agents · Inspiration · Model Hub · Docs · Rankings
 // (+ Dashboard CTA via console flag).
 // About is intentionally off by default — keep it in admin/footer paths only.
 const DEFAULT_HEADER_NAV_MODULES: HeaderNavModules = {
   home: true,
   console: true,
   playground: { enabled: true, requireAuth: false },
+  create: { enabled: true, requireAuth: false },
   agents: { enabled: true, requireAuth: false },
   inspiration: { enabled: true, requireAuth: false },
   pricing: { enabled: true, requireAuth: false },
@@ -40,6 +43,7 @@ const DEFAULT_HEADER_NAV_MODULES: HeaderNavModules = {
 
 const DEFAULTS: Record<HeaderNavModule, ModuleAccess> = {
   playground: DEFAULT_HEADER_NAV_MODULES.playground,
+  create: DEFAULT_HEADER_NAV_MODULES.create,
   agents: DEFAULT_HEADER_NAV_MODULES.agents,
   inspiration: DEFAULT_HEADER_NAV_MODULES.inspiration,
   pricing: DEFAULT_HEADER_NAV_MODULES.pricing,
@@ -50,6 +54,7 @@ function cloneHeaderNavDefaults(): HeaderNavModules {
   return {
     ...DEFAULT_HEADER_NAV_MODULES,
     playground: { ...DEFAULT_HEADER_NAV_MODULES.playground },
+    create: { ...DEFAULT_HEADER_NAV_MODULES.create },
     agents: { ...DEFAULT_HEADER_NAV_MODULES.agents },
     inspiration: { ...DEFAULT_HEADER_NAV_MODULES.inspiration },
     pricing: { ...DEFAULT_HEADER_NAV_MODULES.pricing },
@@ -113,7 +118,12 @@ export function parseHeaderNavModules(raw: unknown): HeaderNavModules {
   if (!parsed) return result
 
   Object.entries(parsed).forEach(([key, value]) => {
-    if (key === 'playground' || key === 'agents' || key === 'inspiration') {
+    if (
+      key === 'playground' ||
+      key === 'create' ||
+      key === 'agents' ||
+      key === 'inspiration'
+    ) {
       result[key] = {
         ...parseAccess(value, result[key]),
         requireAuth: false,

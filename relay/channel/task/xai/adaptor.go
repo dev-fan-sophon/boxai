@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	taskcommon "github.com/dev-fan-sophon/boxai/relay/channel/task/taskcommon"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,13 +29,22 @@ const (
 	defaultVideoSize = "1280x720"
 )
 
+// maxReferenceImages is the documented reference-to-video limit of
+// grok-imagine-video-1.5 (https://x.ai/news/grok-imagine-video-1-5-references).
+const maxReferenceImages = 7
+
+// videoRequest follows POST /v1/videos/generations:
+// https://docs.x.ai/developers/model-capabilities/video/generation
 type videoRequest struct {
-	Model       string      `json:"model"`
-	Prompt      string      `json:"prompt"`
-	Duration    int         `json:"duration"`
-	AspectRatio string      `json:"aspect_ratio"`
-	Resolution  string      `json:"resolution"`
-	Image       *videoImage `json:"image,omitempty"`
+	Model           string       `json:"model"`
+	Prompt          string       `json:"prompt"`
+	Duration        int          `json:"duration"`
+	AspectRatio     string       `json:"aspect_ratio"`
+	Resolution      string       `json:"resolution"`
+	Image           *videoImage  `json:"image,omitempty"`
+	LastFrame       *videoImage  `json:"last_frame,omitempty"`
+	ReferenceImages []videoImage `json:"reference_images,omitempty"`
+	GenerateAudio   *bool        `json:"generate_audio,omitempty"`
 }
 
 type videoImage struct {
@@ -101,12 +112,8 @@ func (a *TaskAdaptor) validateRequest(c *gin.Context, info *relaycommon.RelayInf
 	if requireKnownModel && modelName != modelImagine && modelName != modelImagine15 {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported xAI video model %q", modelName), "unsupported_model", http.StatusBadRequest)
 	}
-	_, resolution, err := videoDimensions(req.Size)
-	if err != nil {
-		return service.TaskErrorWrapperLocal(err, "invalid_size", http.StatusBadRequest)
-	}
-	if modelName == modelImagine && resolution == "1080p" {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("1080p is only supported by %s", modelImagine15), "unsupported_resolution", http.StatusBadRequest)
+	if _, err := buildVideoRequest(&req, modelName); err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
 	}
 	return nil
 }
@@ -115,16 +122,86 @@ func videoDimensions(size string) (string, string, error) {
 	if size == "" {
 		size = defaultVideoSize
 	}
-	switch size {
-	case "1280x720":
-		return "16:9", "720p", nil
-	case "720x1280":
-		return "9:16", "720p", nil
-	case "1920x1080":
-		return "16:9", "1080p", nil
-	default:
+	resolution, aspect := relaycommon.GrokImagineDimensionsFromSize(size)
+	if resolution == "" {
 		return "", "", fmt.Errorf("unsupported video size %q", size)
 	}
+	return aspect, resolution, nil
+}
+
+// buildVideoRequest maps the unified task request onto the xAI body:
+// first_frame / input_reference / image pin the opening frame, last_frame the
+// closing one (1.5 only), and reference_images guide reference-to-video
+// (1.5 only, at most 7, capped at 720p). Model-specific rules only apply once
+// modelName is a known xAI video model.
+func buildVideoRequest(req *relaycommon.TaskSubmitReq, modelName string) (*videoRequest, error) {
+	aspect, resolution, err := videoDimensions(req.Size)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.ReferenceVideos) > 0 || len(req.ReferenceAudios) > 0 {
+		return nil, fmt.Errorf("xAI video does not accept reference videos or audios")
+	}
+	body := &videoRequest{Model: modelName, Prompt: req.Prompt, Duration: req.Duration, AspectRatio: aspect, Resolution: resolution}
+	if value, exists := req.Metadata["generate_audio"]; exists {
+		audio, ok := value.(bool)
+		if !ok {
+			return nil, fmt.Errorf("generate_audio must be boolean")
+		}
+		body.GenerateAudio = &audio
+	}
+	first := strings.TrimSpace(req.FirstFrame)
+	for _, alias := range []string{req.InputReference, req.Image} {
+		if first == "" {
+			first = strings.TrimSpace(alias)
+		}
+	}
+	last := strings.TrimSpace(req.LastFrame)
+	references := []videoImage{}
+	for _, image := range req.ReferenceImages {
+		references = append(references, videoImage{URL: image})
+	}
+	// Untyped images keep their historical meaning: without an explicit
+	// first frame, images[0] is the image-to-video frame; any further
+	// untyped images are references.
+	for _, image := range req.Images {
+		image = strings.TrimSpace(image)
+		if image == "" || image == first || image == last || slices.Contains(req.ReferenceImages, image) {
+			continue
+		}
+		if first == "" {
+			first = image
+			continue
+		}
+		references = append(references, videoImage{URL: image})
+	}
+	if modelName == modelImagine {
+		if resolution == "1080p" {
+			return nil, fmt.Errorf("1080p is only supported by %s", modelImagine15)
+		}
+		if last != "" {
+			return nil, fmt.Errorf("last frame is only supported by %s", modelImagine15)
+		}
+		if len(references) > 0 {
+			return nil, fmt.Errorf("reference images are only supported by %s", modelImagine15)
+		}
+	}
+	if len(references) > maxReferenceImages {
+		return nil, fmt.Errorf("at most %d reference images are supported", maxReferenceImages)
+	}
+	if len(references) > 0 && resolution == "1080p" {
+		return nil, fmt.Errorf("reference-to-video is limited to 720p")
+	}
+	if first != "" {
+		body.Image = &videoImage{URL: first}
+	}
+	if last != "" {
+		body.LastFrame = &videoImage{URL: last}
+	}
+	if len(references) > 0 {
+		body.ReferenceImages = references
+	}
+	return body, nil
 }
 
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
@@ -160,16 +237,26 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	aspect, resolution, err := videoDimensions(req.Size)
+	if info.UpstreamModelName != modelImagine && info.UpstreamModelName != modelImagine15 {
+		return nil, fmt.Errorf("unsupported xAI video model %q", info.UpstreamModelName)
+	}
+	body, err := buildVideoRequest(&req, info.UpstreamModelName)
 	if err != nil {
 		return nil, err
 	}
-	if resolution == "1080p" && info.UpstreamModelName != modelImagine15 {
-		return nil, fmt.Errorf("1080p is only supported by %s", modelImagine15)
+	// Private studio assets become short-lived provider-readable URLs.
+	images := []*videoImage{body.Image, body.LastFrame}
+	for index := range body.ReferenceImages {
+		images = append(images, &body.ReferenceImages[index])
 	}
-	body := videoRequest{Model: info.UpstreamModelName, Prompt: req.Prompt, Duration: req.Duration, AspectRatio: aspect, Resolution: resolution}
-	if len(req.Images) > 0 {
-		body.Image = &videoImage{URL: req.Images[0]}
+	for _, image := range images {
+		if image == nil {
+			continue
+		}
+		image.URL, err = service.PrivateReferenceMediaURL(image.URL, system_setting.ServerAddress, info.UserId)
+		if err != nil {
+			return nil, err
+		}
 	}
 	b, err := common.Marshal(body)
 	if err != nil {

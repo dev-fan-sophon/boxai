@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -10,17 +11,19 @@ interface SignOutDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
+export function SignOutDialog(props: SignOutDialogProps) {
   const { t } = useTranslation()
-  const { auth } = useAuthStore()
+  const resetAuth = useAuthStore((state) => state.auth.reset)
+  const [signingOut, setSigningOut] = useState(false)
 
   const handleSignOut = async () => {
+    setSigningOut(true)
     try {
       await logout()
     } catch {
       /* empty */
     }
-    auth.reset()
+    resetAuth()
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem('uid')
@@ -37,8 +40,9 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
 
   return (
     <ConfirmDialog
-      open={open}
-      onOpenChange={onOpenChange}
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      isLoading={signingOut}
       title={t('Sign out')}
       desc={t(
         'Are you sure you want to sign out? You will need to sign in again to access your account.'

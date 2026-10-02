@@ -26,9 +26,14 @@ import {
   getInitialParameterEnabled,
   getInitialPlaygroundConfig,
 } from '../state/playground-state-utils'
+import {
+  DEFAULT_AUDIO_STUDIO_SETTINGS,
+  normalizeAudioStudioSettings,
+} from '../studio/audio-settings'
 import { MAX_BATCH_COUNT } from '../studio/batch-plan'
 import { normalizeImageGenerationSettings } from '../studio/image-request-schema'
 import {
+  MAX_VIDEO_SEED,
   videoOptionsFromSize,
   videoSizeForOptions,
   type VideoAspectRatio,
@@ -242,6 +247,10 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   imageCount: 1,
   imageSize: '1024x1024',
   imageQuality: 'auto',
+  imageAspectRatio: '',
+  imageResolution: '',
+  imageBackground: 'auto',
+  imageOutputFormat: 'png',
   imageBatchMode: false,
   videoDuration: 5,
   videoSize: '1280x720',
@@ -252,9 +261,12 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   videoCount: 1,
   videoBatchMode: false,
   videoDisableLastFrame: false,
+  videoSeed: null,
+  videoWatermark: false,
   voice: 'alloy',
   speed: 1,
   audioFormat: 'mp3',
+  ...DEFAULT_AUDIO_STUDIO_SETTINGS,
 }
 
 export const MAX_DUO_ANSWER_MODELS = 5
@@ -267,6 +279,13 @@ function clampNumber(
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, value))
+}
+
+/** Short option tokens like `16:9`, `2K`, `webp`; anything else resets. */
+function imageOptionToken(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback
+  const trimmed = value.trim()
+  return /^[\w.:-]{0,16}$/.test(trimmed) ? trimmed : fallback
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -307,6 +326,23 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     imageCount: image.imageCount,
     imageSize: image.imageSize,
     imageQuality: image.imageQuality,
+    // Free-form option tokens; each model clamps them to its capabilities.
+    imageAspectRatio: imageOptionToken(
+      merged.imageAspectRatio,
+      DEFAULT_STUDIO_SETTINGS.imageAspectRatio
+    ),
+    imageResolution: imageOptionToken(
+      merged.imageResolution,
+      DEFAULT_STUDIO_SETTINGS.imageResolution
+    ),
+    imageBackground: imageOptionToken(
+      merged.imageBackground,
+      DEFAULT_STUDIO_SETTINGS.imageBackground
+    ),
+    imageOutputFormat: imageOptionToken(
+      merged.imageOutputFormat,
+      DEFAULT_STUDIO_SETTINGS.imageOutputFormat
+    ),
     imageBatchMode: merged.imageBatchMode === true,
     videoDuration: clampNumber(
       merged.videoDuration,
@@ -334,6 +370,14 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     ),
     videoBatchMode: merged.videoBatchMode === true,
     videoDisableLastFrame: merged.videoDisableLastFrame === true,
+    videoSeed:
+      typeof merged.videoSeed === 'number' &&
+      Number.isInteger(merged.videoSeed) &&
+      merged.videoSeed >= -1 &&
+      merged.videoSeed <= MAX_VIDEO_SEED
+        ? merged.videoSeed
+        : null,
+    videoWatermark: merged.videoWatermark === true,
     voice:
       typeof merged.voice === 'string'
         ? merged.voice
@@ -343,6 +387,7 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
       typeof merged.audioFormat === 'string'
         ? merged.audioFormat
         : DEFAULT_STUDIO_SETTINGS.audioFormat,
+    ...normalizeAudioStudioSettings(merged),
   }
 }
 

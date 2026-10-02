@@ -174,4 +174,114 @@ describe('server-authoritative video submission', () => {
     ).rejects.toBeInstanceOf(Error)
     expect(api.post).not.toHaveBeenCalled()
   })
+
+  it('sends typed Seedance references with seed, watermark and last-frame output', async () => {
+    const seedance: VideoModelCapabilities = {
+      ...adaptive,
+      family: 'seedance-2',
+      aspectRatios: ['16:9'],
+      defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
+      maxReferenceImages: 9,
+      maxReferenceVideos: 3,
+      maxReferenceAudios: 3,
+      audioReferenceRequiresVisual: true,
+      supportsLastFrame: false,
+      supportsAudioToggle: true,
+      supportsSeed: true,
+      supportsWatermark: true,
+      returnsLastFrame: true,
+    }
+    const body = await buildVideoRequestBody({
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'dance',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      capabilities: seedance,
+      aspectRatio: '16:9',
+      resolution: '720p',
+      duration: 7,
+      generateAudio: false,
+      seed: 42,
+      watermark: false,
+      referenceImages: ['https://m/i.png'],
+      referenceVideos: ['https://m/v.mp4'],
+      referenceAudios: ['https://m/a.mp3'],
+    })
+    expect(body).toEqual({
+      model: 'seedance-2-0',
+      group: 'default',
+      prompt: 'dance',
+      duration: 7,
+      seconds: '7',
+      size: '1280x720',
+      images: ['https://m/i.png'],
+      reference_videos: ['https://m/v.mp4'],
+      reference_audios: ['https://m/a.mp3'],
+      metadata: {
+        generate_audio: false,
+        resolution: '720p',
+        ratio: '16:9',
+        seed: 42,
+        watermark: false,
+        return_last_frame: true,
+      },
+    })
+    await expect(
+      buildVideoRequestBody({
+        model: 'seedance-2-0',
+        group: 'default',
+        prompt: 'dance',
+        settings: DEFAULT_STUDIO_SETTINGS,
+        capabilities: seedance,
+        referenceAudios: ['https://m/a.mp3'],
+      })
+    ).rejects.toThrow()
+    await expect(
+      buildVideoRequestBody({
+        model: 'seedance-2-0',
+        group: 'default',
+        prompt: 'dance',
+        settings: DEFAULT_STUDIO_SETTINGS,
+        capabilities: seedance,
+        referenceVideos: ['1', '2', '3', '4'],
+      })
+    ).rejects.toThrow()
+  })
+
+  it('sends xAI references as reference_images and audio as metadata only', async () => {
+    const xai: VideoModelCapabilities = {
+      ...adaptive,
+      family: 'xai',
+      aspectRatios: ['3:2'],
+      resolutions: ['480p', '720p'],
+      defaults: { aspectRatio: '3:2', resolution: '720p', duration: 5 },
+      maxReferenceImages: 7,
+      supportsLastFrame: false,
+      supportsAudioToggle: true,
+      usesVolcengineMetadata: false,
+    }
+    const body = await buildVideoRequestBody({
+      model: 'grok-imagine-video-1.5',
+      group: 'default',
+      prompt: 'a product spin',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      capabilities: xai,
+      aspectRatio: '3:2',
+      resolution: '480p',
+      duration: 6,
+      generateAudio: true,
+      seed: 9,
+      referenceImages: ['https://m/a.png', 'https://m/b.png'],
+    })
+    expect(body).toEqual({
+      model: 'grok-imagine-video-1.5',
+      group: 'default',
+      prompt: 'a product spin',
+      duration: 6,
+      seconds: '6',
+      size: '720x480',
+      reference_images: ['https://m/a.png', 'https://m/b.png'],
+      metadata: { generate_audio: true },
+    })
+  })
 })

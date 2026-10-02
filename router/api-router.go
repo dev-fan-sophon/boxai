@@ -66,7 +66,10 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/home/stats", middleware.HeaderNavModuleAuth("pricing"), middleware.HeaderNavModuleAuth("rankings"), controller.GetHomeStats)
 		apiRouter.GET("/pricing", middleware.HeaderNavModuleAuth("pricing"), controller.GetPricing)
 		apiRouter.GET("/playground/catalog", middleware.HeaderNavModuleAuth("playground"), controller.GetPricing)
+		// Media creation pages have their own nav switch, so their catalog is gated separately.
+		apiRouter.GET("/create/catalog", middleware.HeaderNavModuleAuth("create"), controller.GetPricing)
 		apiRouter.GET("/playground/video-capabilities", middleware.UserAuth(), controller.GetPlaygroundVideoCapabilities)
+		apiRouter.GET("/playground/image-capabilities", middleware.UserAuth(), controller.GetPlaygroundImageCapabilities)
 		apiRouter.GET("/share/canvas/:token", controller.GetPublicPlaygroundCanvas)
 		apiRouter.GET("/share/canvas/:token/assets/:assetId", controller.GetPublicPlaygroundCanvasAsset)
 		perfMetricsRoute := apiRouter.Group("/perf-metrics")

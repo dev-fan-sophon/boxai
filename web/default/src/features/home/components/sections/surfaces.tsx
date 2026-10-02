@@ -67,6 +67,16 @@ function TrendSparkline(props: { points: HomeStatsPoint[] }) {
  * platform actually carries across them: one balance, one set of keys, one
  * usage history.
  */
+/** Media creation lives in the studio; fall back to chat when it is off. */
+function workspaceTarget(modules: {
+  playground: { enabled: boolean }
+  create: { enabled: boolean }
+}): '/create' | '/playground' | undefined {
+  if (modules.create.enabled) return '/create'
+  if (modules.playground.enabled) return '/playground'
+  return undefined
+}
+
 export function Surfaces() {
   const { t } = useTranslation()
   const { status } = useStatus()
@@ -74,10 +84,9 @@ export function Surfaces() {
   const stats = statsQuery.data?.data
   const docsUrl =
     (status?.docs_link as string | undefined) || 'https://you-box.com'
-  const workspaceEnabled = useMemo(
+  const navModules = useMemo(
     () =>
-      parseHeaderNavModulesFromStatus(status as Record<string, unknown> | null)
-        .playground.enabled,
+      parseHeaderNavModulesFromStatus(status as Record<string, unknown> | null),
     [status]
   )
 
@@ -111,8 +120,10 @@ export function Surfaces() {
         t('Generate and edit images and video in a continuous feed'),
         t('Start from the inspiration gallery instead of a blank box'),
       ],
-      cta: t('Try the Workspace'),
-      to: workspaceEnabled ? ('/playground' as const) : undefined,
+      cta: navModules.create.enabled
+        ? t('Open the studio')
+        : t('Try the Workspace'),
+      to: workspaceTarget(navModules),
     },
     {
       icon: (

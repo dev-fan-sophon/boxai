@@ -494,3 +494,37 @@ func TestAdvancedCustomValidateAlphaSearchConverterPath(t *testing.T) {
 	}}}
 	require.ErrorContains(t, invalid.Validate(), "converter does not match incoming_path")
 }
+
+func TestValidateVideoCapabilitiesReferenceMediaAndMetadataOptions(t *testing.T) {
+	references := VideoModelCapabilities{Family: "custom", AspectRatios: []string{"16:9"}, Resolutions: []string{"720p"}, Durations: []int{5}, DurationRange: VideoDurationRange{Min: 4, Max: 15}, Defaults: VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}, UsesVolcengineMetadata: true, MaxReferenceImages: 9}
+	tests := []struct {
+		name    string
+		mode    string
+		mutate  func(*VideoModelCapabilities)
+		wantErr bool
+	}{
+		{"reference media in references mode", "references", func(p *VideoModelCapabilities) { p.MaxReferenceVideos, p.MaxReferenceAudios = 3, 3 }, false},
+		{"reference videos outside references mode", "text", func(p *VideoModelCapabilities) { p.MaxReferenceImages, p.MaxReferenceVideos = 0, 1 }, true},
+		{"reference audios above global bound", "references", func(p *VideoModelCapabilities) { p.MaxReferenceAudios = MaxVideoReferenceMediaPerKind + 1 }, true},
+		{"negative reference videos", "references", func(p *VideoModelCapabilities) { p.MaxReferenceVideos = -1 }, true},
+		{"seed needs Volcengine metadata", "references", func(p *VideoModelCapabilities) { p.UsesVolcengineMetadata, p.SupportsSeed = false, true }, true},
+		{"xAI audio toggle without Volcengine metadata", "references", func(p *VideoModelCapabilities) {
+			p.Family, p.UsesVolcengineMetadata, p.SupportsAudioToggle = "xai", false, true
+		}, false},
+		{"generic audio toggle without Volcengine metadata", "references", func(p *VideoModelCapabilities) { p.UsesVolcengineMetadata, p.SupportsAudioToggle = false, true }, true},
+		{"3:2 ratio", "references", func(p *VideoModelCapabilities) { p.AspectRatios = []string{"16:9", "3:2"} }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := references
+			tt.mutate(&profile)
+			settings := ChannelSettings{VideoCapabilities: map[string]map[string]VideoModelCapabilities{"m": {tt.mode: profile}}}
+			err := settings.ValidateVideoCapabilities()
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

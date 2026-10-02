@@ -12,6 +12,8 @@ export type VideoAspectRatio =
   | '1:1'
   | '4:3'
   | '3:4'
+  | '3:2'
+  | '2:3'
   | '21:9'
   | 'adaptive'
 export type VideoResolution = '480p' | '720p' | '1080p'
@@ -33,11 +35,34 @@ export type VideoModelCapabilities = {
   }
   /** Maximum images in `references` mode; 1 means the model has no reference mode. */
   maxReferenceImages: number
+  /** Maximum typed reference videos / audios in `references` mode (absent: 0). */
+  maxReferenceVideos?: number
+  maxReferenceAudios?: number
+  /** Reference audio needs at least one reference image or video. */
+  audioReferenceRequiresVisual?: boolean
   supportsLastFrame: boolean
   requiresImage: boolean
+  /** Sends `metadata.generate_audio` (Seedance and xAI Imagine 1.5). */
   supportsAudioToggle: boolean
   /** Emits Volcengine `metadata.{resolution,ratio,generate_audio}` alongside `size`. */
   usesVolcengineMetadata: boolean
+  /** Volcengine-only `metadata.seed` / `metadata.watermark`. */
+  supportsSeed?: boolean
+  supportsWatermark?: boolean
+  /** The provider can return the final frame (`metadata.return_last_frame`). */
+  returnsLastFrame?: boolean
+}
+
+/** Ark seed bounds: -1 (random) to 2^32 - 1. */
+export const MAX_VIDEO_SEED = 4294967295
+
+/** Every whole-second duration the model accepts, or its presets when the range is wide. */
+export function videoDurationOptions(
+  capabilities: VideoModelCapabilities
+): number[] {
+  const { min, max } = capabilities.durationRange
+  if (max - min > 30) return capabilities.durations
+  return Array.from({ length: max - min + 1 }, (_, index) => min + index)
 }
 
 /** How many attached images the current server profile accepts. */
@@ -69,6 +94,8 @@ const SIZE_TABLE: Record<
     '1:1': '480x480',
     '4:3': '640x480',
     '3:4': '480x640',
+    '3:2': '720x480',
+    '2:3': '480x720',
     '21:9': '1120x480',
   },
   '720p': {
@@ -77,6 +104,8 @@ const SIZE_TABLE: Record<
     '1:1': '720x720',
     '4:3': '960x720',
     '3:4': '720x960',
+    '3:2': '1080x720',
+    '2:3': '720x1080',
     '21:9': '1680x720',
   },
   '1080p': {
@@ -85,6 +114,8 @@ const SIZE_TABLE: Record<
     '1:1': '1080x1080',
     '4:3': '1440x1080',
     '3:4': '1080x1440',
+    '3:2': '1620x1080',
+    '2:3': '1080x1620',
     '21:9': '2520x1080',
   },
 }

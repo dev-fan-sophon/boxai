@@ -8,6 +8,9 @@
  *  2. Global stacking literals (`z-[70]`, `z-100`, `z-999`) are banned. Use the
  *     named tiers (`z-raised`, `z-sticky`, `z-overlay`, `z-guide`,
  *     `z-floating`, `z-skip-link`); z-1…z-10 stay fine for local stacking.
+ *     The shared primitives in `src/components/ui/` go one step further and
+ *     may not use the stock `z-20`…`z-50` steps either: an overlay there sets
+ *     the stacking order for every feature, so it names its tier.
  *  3. Raw Tailwind palette colors (`text-emerald-600`) and hex literals in
  *     TS/TSX bypass the theme and break dark mode and the runtime brand color.
  *     Existing uses carry a budget that may only ever go down: reach for the
@@ -32,6 +35,7 @@ const EXEMPT = [
 
 const PX_FONT = /\btext-\[\d+(?:\.\d+)?px\]/
 const Z_LITERAL = /(?:^|[\s'"`:])-?z-(?:\[\d{2,}\]|[1-9]\d{2,})(?=[\s'"`]|$)/
+const Z_STOCK_STEP = /(?:^|[\s'"`:])-?z-[2-5]0(?=[\s'"`]|$)/
 const PALETTE =
   /\b(?:bg|text|border|ring|outline|fill|stroke|from|via|to|decoration|divide|accent|caret|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
 const HEX = /['"`]#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})['"`]/g
@@ -56,6 +60,11 @@ for (const file of files) {
     if (Z_LITERAL.test(line)) {
       hardErrors.push(
         `${rel}:${index + 1} global z-index literal — use a z-* tier`
+      )
+    }
+    if (rel.startsWith('src/components/ui/') && Z_STOCK_STEP.test(line)) {
+      hardErrors.push(
+        `${rel}:${index + 1} stock z-index step in a shared primitive — use a z-* tier`
       )
     }
   })

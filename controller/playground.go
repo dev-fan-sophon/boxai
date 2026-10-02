@@ -32,6 +32,18 @@ func PlaygroundAudio(c *gin.Context) {
 	playgroundRelay(c, types.RelayFormatOpenAIAudio, false)
 }
 
+// PlaygroundElevenLabs serves the native ElevenLabs passthrough
+// (/pg/elevenlabs/*path) with the signed-in user's session instead of an API
+// key, so the audio studio can use every ElevenLabs tool (speech, sound
+// effects, music, transcription, voice changer, isolation, voice library)
+// with the same endpoint allow-list, validation and billing as /elevenlabs.
+func PlaygroundElevenLabs(c *gin.Context) {
+	if !preparePlaygroundRelay(c) {
+		return
+	}
+	RelayElevenLabs(c)
+}
+
 func PlaygroundVideo(c *gin.Context) {
 	_ = playgroundNormalizeVideoBody(c)
 	playgroundRelay(c, types.RelayFormatTask, true)
@@ -42,28 +54,35 @@ func playgroundExecutionError(c *gin.Context, status int, message string) {
 }
 
 func playgroundRelay(c *gin.Context, relayFormat types.RelayFormat, task bool) {
-	var newAPIError *types.NewAPIError
-
-	defer func() {
-		if newAPIError != nil {
-			c.JSON(newAPIError.StatusCode, gin.H{
-				"error": newAPIError.ToOpenAIError(),
-			})
-		}
-	}()
-
-	useAccessToken := c.GetBool("use_access_token")
-	if useAccessToken {
-		newAPIError = types.NewError(errors.New("暂不支持使用 access token"), types.ErrorCodeAccessDenied, types.ErrOptionWithSkipRetry())
+	if !preparePlaygroundRelay(c) {
 		return
+	}
+	if task {
+		RelayTask(c)
+		return
+	}
+	Relay(c, relayFormat)
+}
+
+// preparePlaygroundRelay turns a signed-in session into the relay identity the
+// relay handlers expect: the user's cached profile plus a temporary,
+// unlimited token bound to the selected group, so billing and logs attribute
+// the request to the user. It writes the error response and returns false
+// when the session cannot relay.
+func preparePlaygroundRelay(c *gin.Context) bool {
+	if c.GetBool("use_access_token") {
+		newAPIError := types.NewError(errors.New("暂不支持使用 access token"), types.ErrorCodeAccessDenied, types.ErrOptionWithSkipRetry())
+		c.JSON(newAPIError.StatusCode, gin.H{"error": newAPIError.ToOpenAIError()})
+		return false
 	}
 
 	userId := c.GetInt("id")
 
 	userCache, err := model.GetUserCache(userId)
 	if err != nil {
-		newAPIError = types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
-		return
+		newAPIError := types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+		c.JSON(newAPIError.StatusCode, gin.H{"error": newAPIError.ToOpenAIError()})
+		return false
 	}
 	userCache.WriteContext(c)
 
@@ -74,12 +93,7 @@ func playgroundRelay(c *gin.Context, relayFormat types.RelayFormat, task bool) {
 		Group:  usingGroup,
 	}
 	_ = middleware.SetupContextForToken(c, tempToken)
-
-	if task {
-		RelayTask(c)
-		return
-	}
-	Relay(c, relayFormat)
+	return true
 }
 
 func playgroundNormalizeVideoBody(c *gin.Context) error {
