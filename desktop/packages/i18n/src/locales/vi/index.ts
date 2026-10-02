@@ -11,7 +11,7 @@ export const vi: EnglishCatalog = {
   "Sign in with your BoxAI account to continue. All models are billed through BoxAI.":
     "Đăng nhập bằng tài khoản BoxAI để tiếp tục. Mọi mô hình đều được tính phí qua BoxAI.",
   "Account request failed. Check your connection and try again.":
-    "Không thể tải thông tin tài khoản. Kiểm tra kết nối rồi thử lại.",
+    "Không thể xử lý yêu cầu tài khoản. Kiểm tra kết nối rồi thử lại.",
   "Waiting for browser authorization…": "Đang chờ ủy quyền trong trình duyệt…",
   "Sign out": "Đăng xuất",
   "Sign in with BoxAI": "Đăng nhập bằng BoxAI",
