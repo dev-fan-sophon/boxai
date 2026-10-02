@@ -160,6 +160,10 @@ export type StudioGenerationInput = {
   group: string
   /** Data URLs for image/video references. Video roles are assigned at submit. */
   references: string[]
+  /** Typed video references (references mode); asset or https URLs. */
+  referenceVideos?: string[]
+  /** Typed audio references (references mode); asset or https URLs. */
+  referenceAudios?: string[]
 }
 
 export type StudioJobStatus = 'queued' | 'running' | 'error'

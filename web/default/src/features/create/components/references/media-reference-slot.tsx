@@ -1,4 +1,4 @@
-import { ImagePlus, Library, QrCode, X } from 'lucide-react'
+import { Film, ImagePlus, Library, Music2, QrCode, X } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -66,24 +66,38 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
     }
   }, [props.kind, attachable])
 
+  const kind = props.kind ?? 'image'
+  const limitMessage = (count: number) => {
+    if (kind === 'video') {
+      return t('You can attach up to {{count}} reference videos.', { count })
+    }
+    if (kind === 'audio') {
+      return t('You can attach up to {{count}} reference audios.', { count })
+    }
+    return t('You can attach up to {{count}} images.', { count })
+  }
+  let SlotIcon = ImagePlus
+  if (kind === 'video') SlotIcon = Film
+  else if (kind === 'audio') SlotIcon = Music2
+
   const handleFiles = async (files: File[]) => {
     if (uploadingRef.current || !attachable) return
     const startedGeneration = generation.current
     const remaining = maxFiles - props.value.length
     if (remaining <= 0) {
-      toast.error(
-        t('You can attach up to {{count}} images.', { count: maxFiles })
-      )
+      toast.error(limitMessage(maxFiles))
       return
     }
 
     const validFiles = files.filter((file) => {
-      if (
-        !file.type.startsWith('image/') &&
-        props.kind !== 'audio' &&
-        props.kind !== 'video'
-      ) {
-        toast.error(t('Please choose an image file.'))
+      // Some browsers leave the MIME type of audio/video files empty.
+      const typeMatches =
+        file.type.startsWith(`${kind}/`) || (kind !== 'image' && !file.type)
+      if (!typeMatches) {
+        let message = t('Please choose an image file.')
+        if (kind === 'video') message = t('Please choose a video file.')
+        else if (kind === 'audio') message = t('Please choose an audio file.')
+        toast.error(message)
         return false
       }
       // Align with backend PlaygroundAssetMaxImageBytes (10MB)
@@ -95,9 +109,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
     })
     const acceptedFiles = validFiles.slice(0, remaining)
     if (validFiles.length > remaining) {
-      toast.error(
-        t('You can attach up to {{count}} images.', { count: maxFiles })
-      )
+      toast.error(limitMessage(maxFiles))
     }
 
     if (acceptedFiles.length === 0) return
@@ -146,11 +158,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
     const current = currentProps.current
     if (current.attachable === false) return false
     if (current.value.length >= (current.maxFiles ?? 1)) {
-      toast.error(
-        t('You can attach up to {{count}} images.', {
-          count: current.maxFiles ?? 1,
-        })
-      )
+      toast.error(limitMessage(current.maxFiles ?? 1))
       return false
     }
     current.onChange([
@@ -238,7 +246,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         )}
         aria-label={props.label}
       >
-        <ImagePlus className='size-3.5' aria-hidden='true' />
+        <SlotIcon className='size-3.5' aria-hidden='true' />
         <span className='max-w-24 truncate'>{props.label}</span>
         {props.value.length > 0 && (
           <span className='tabular-nums'>({props.value.length})</span>
@@ -249,11 +257,7 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
           key={reference.id}
           className='group/reference relative size-8 shrink-0'
         >
-          <img
-            src={reference.dataUrl}
-            alt={reference.name}
-            className='border-border size-8 rounded-md border object-cover'
-          />
+          <ReferenceThumbnail kind={kind} reference={reference} />
           {props.roleForIndex ? (
             <span className='bg-background/85 text-foreground/90 text-4xs pointer-events-none absolute bottom-0 left-0 rounded px-0.5 font-semibold'>
               {props.roleForIndex(index)}
@@ -315,5 +319,43 @@ export function MediaReferenceSlot(props: MediaReferenceSlotProps) {
         onSelect={selectAsset}
       />
     </div>
+  )
+}
+
+/** Image preview, first video frame, or an audio badge for one reference. */
+function ReferenceThumbnail(props: {
+  kind: 'image' | 'video' | 'audio'
+  reference: MediaReference
+}) {
+  if (props.kind === 'video') {
+    return (
+      <video
+        src={props.reference.dataUrl}
+        muted
+        playsInline
+        preload='metadata'
+        aria-label={props.reference.name}
+        className='border-border size-8 rounded-md border bg-black object-cover'
+      />
+    )
+  }
+  if (props.kind === 'audio') {
+    return (
+      <span
+        role='img'
+        aria-label={props.reference.name}
+        title={props.reference.name}
+        className='border-border bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-md border'
+      >
+        <Music2 className='size-3.5' aria-hidden='true' />
+      </span>
+    )
+  }
+  return (
+    <img
+      src={props.reference.dataUrl}
+      alt={props.reference.name}
+      className='border-border size-8 rounded-md border object-cover'
+    />
   )
 }

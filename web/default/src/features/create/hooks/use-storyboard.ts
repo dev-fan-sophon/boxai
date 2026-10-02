@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -17,8 +17,13 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { MAX_STORYBOARD_SCENES } from '../constants'
 import { blobToDataUrl } from '../lib/media'
+import { fetchVideoTask, resolveVideoLastFrame } from '../lib/video-last-frame'
 import type { GenerationController } from './use-generation-controller'
 import type { UseStudioResult } from './use-studio'
+
+/** Poll interval and patience while a chained scene waits for its predecessor. */
+const CHAIN_POLL_MS = 5000
+const CHAIN_TIMEOUT_MS = 45 * 60 * 1000
 
 export type SceneProgress = {
   pending: PendingStudioRun[]
@@ -53,6 +58,25 @@ export function useStoryboard(input: {
   const setScenesInStore = useCreateStore((state) => state.setScenes)
   const storyboardModel = useCreateStore((state) => state.storyboardModel)
   const group = usePlaygroundStore((state) => state.config.group)
+  const [chain, setChain] = useState<{ done: number; total: number } | null>(
+    null
+  )
+  // A chain runs for minutes; it reads the latest runs and jobs through refs
+  // and stops when asked or when the workspace unmounts.
+  const runsRef = useRef<StudioRunSummary[]>([])
+  const pendingRef = useRef<PendingStudioRun[]>([])
+  // Each chain owns a token; stopping or unmounting invalidates it.
+  const chainToken = useRef(0)
+  useEffect(() => {
+    runsRef.current = controller.studioSession?.runs ?? []
+    pendingRef.current = studio.pendingRuns
+  })
+  useEffect(
+    () => () => {
+      chainToken.current += 1
+    },
+    []
+  )
 
   /** Storyboards belong to a project; the first edit creates one. */
   const ensureSession = (): string | undefined =>
@@ -127,11 +151,87 @@ export function useStoryboard(input: {
     return blobToDataUrl(blob)
   }
 
+  /** Waits for a scene's video, then returns its last frame as a reference. */
+  const waitForLastFrame = async (
+    batchId: string,
+    token: number
+  ): Promise<string> => {
+    const deadline = Date.now() + CHAIN_TIMEOUT_MS
+    while (chainToken.current === token && Date.now() < deadline) {
+      const failed = pendingRef.current.some(
+        (job) => job.input.batchId === batchId && job.status === 'error'
+      )
+      if (failed) throw new Error('scene failed')
+      const taskId = runsRef.current.find(
+        (run) => run.batchId === batchId && run.taskId
+      )?.taskId
+      if (taskId) {
+        const task = await fetchVideoTask(taskId)
+        if (task?.status === 'FAILURE') throw new Error('scene failed')
+        if (task?.status === 'SUCCESS') return resolveVideoLastFrame({ taskId })
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, CHAIN_POLL_MS))
+    }
+    throw new Error('chain stopped')
+  }
+
+  /**
+   * Chained generation: scene N+1 starts once scene N finished, from its
+   * last frame, so the clips cut together. Scenes with their own first
+   * frame keep it.
+   */
+  const generateChained = async (runnable: StoryboardScene[]) => {
+    chainToken.current += 1
+    const token = chainToken.current
+    setChain({ done: 0, total: runnable.length })
+    toast.info(
+      t('Scenes will start one after another, each from the last frame.')
+    )
+    let previousBatch: string | null = null
+    try {
+      for (const [index, scene] of runnable.entries()) {
+        let frame = await frameDataUrl(scene)
+        if (!frame && previousBatch) {
+          frame = await waitForLastFrame(previousBatch, token)
+        }
+        if (chainToken.current !== token) return
+        const batchId = controller.startJobs(
+          [scene.prompt.trim()],
+          frame ? [frame] : []
+        )
+        if (!batchId) return
+        previousBatch = batchId
+        setScenes((current) =>
+          current.map((item) =>
+            item.id === scene.id ? { ...item, batchId } : item
+          )
+        )
+        setChain({ done: index + 1, total: runnable.length })
+      }
+    } catch {
+      if (chainToken.current === token) {
+        toast.error(
+          t('The scene chain stopped because a scene could not continue.')
+        )
+      }
+    } finally {
+      if (chainToken.current === token) setChain(null)
+    }
+  }
+
   /** Queues one video job per scene and remembers each scene's batch. */
   const generate = async (scenes: StoryboardScene[]) => {
     const runnable = scenes.filter((scene) => scene.prompt.trim())
     if (runnable.length === 0) {
       toast.error(t('Add a prompt to at least one scene.'))
+      return
+    }
+    if (chain) {
+      toast.info(t('A scene chain is already running.'))
+      return
+    }
+    if (draft.chainScenes && runnable.length > 1) {
+      await generateChained(runnable)
       return
     }
     const started = new Map<string, string>()
@@ -170,6 +270,14 @@ export function useStoryboard(input: {
     setScript: (script: string) => patch({ script }),
     setStyle: (style: string) => patch({ style }),
     setShotCount: (shotCount: number) => patch({ shotCount }),
+    setChainScenes: (chainScenes: boolean) => patch({ chainScenes }),
+    /** Chaining needs a model that accepts a first frame. */
+    canChain: Boolean(controller.draft.capabilityQuery.data?.frames),
+    chain,
+    stopChain: () => {
+      chainToken.current += 1
+      setChain(null)
+    },
     split,
     addScene: () => setScenes((scenes) => [...scenes, newStoryboardScene()]),
     updateScene: (id: string, value: Partial<StoryboardScene>) =>

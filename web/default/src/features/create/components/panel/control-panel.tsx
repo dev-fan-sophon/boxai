@@ -82,8 +82,7 @@ export function ControlPanel(props: {
           <CollapsibleContent className='space-y-4 pt-2'>
             <GenerationSettingsSection
               modality={modality}
-              videoMode={draft.videoOptions?.referenceMode ?? 'text'}
-              videoReferenceCount={controller.references.length}
+              videoMode={draft.capabilityMode}
             />
             <ChannelSelect />
           </CollapsibleContent>
@@ -129,6 +128,20 @@ function PromptAndReferences(props: { controller: GenerationController }) {
   const setStudioSettings = usePlaygroundStore(
     (state) => state.setStudioSettings
   )
+  // What the attached images do in the current video mode.
+  let mediaHint: string | undefined
+  if (draft.referencesModeSelected) {
+    mediaHint = t('Up to {{count}} images for characters, products or style.', {
+      count: draft.maxFiles,
+    })
+  } else if (
+    draft.capabilityQuery.data?.frames?.supportsLastFrame &&
+    !draft.settings.videoDisableLastFrame
+  ) {
+    mediaHint = t('The first image opens the clip; a second one ends it.')
+  } else if (controller.modality === 'video') {
+    mediaHint = t('The image becomes the opening frame of the clip.')
+  }
 
   return (
     <>
@@ -177,23 +190,13 @@ function PromptAndReferences(props: { controller: GenerationController }) {
       </PanelSection>
 
       {draft.showMediaSlot && (
-        <PanelSection title={draft.mediaLabel}>
-          <MediaReferenceSlot
-            label={draft.mediaLabel}
-            value={controller.references}
-            onChange={controller.setReferences}
-            onUploadingChange={controller.setUploading}
-            attachable
-            kind='image'
-            maxFiles={draft.maxFiles}
-            roleForIndex={referenceRoleLabeler(draft, t)}
-          />
+        <PanelSection title={draft.mediaLabel} hint={mediaHint}>
           {draft.canSwitchReferenceMode && (
             <SegmentedControl<VideoReferenceMode>
               fullWidth
               size='sm'
               aria-label={t('Reference mode')}
-              value={draft.videoOptions?.referenceMode ?? 'frames'}
+              value={draft.settings.videoReferenceMode}
               options={[
                 { value: 'frames', label: t('Frames') },
                 { value: 'references', label: t('References') },
@@ -206,6 +209,16 @@ function PromptAndReferences(props: { controller: GenerationController }) {
               }
             />
           )}
+          <MediaReferenceSlot
+            label={draft.mediaLabel}
+            value={controller.references}
+            onChange={controller.setReferences}
+            onUploadingChange={controller.setUploading}
+            attachable
+            kind='image'
+            maxFiles={draft.maxFiles}
+            roleForIndex={referenceRoleLabeler(draft, t)}
+          />
           {draft.canToggleLastFrame && (
             <label className='text-muted-foreground flex items-center justify-between gap-2 text-xs'>
               {t('Use the second image as the last frame')}
@@ -220,6 +233,53 @@ function PromptAndReferences(props: { controller: GenerationController }) {
               />
             </label>
           )}
+        </PanelSection>
+      )}
+
+      {draft.maxReferenceVideos > 0 && (
+        <PanelSection
+          title={t('Reference videos')}
+          hint={t('Up to {{count}} clips for motion, camera or style.', {
+            count: draft.maxReferenceVideos,
+          })}
+        >
+          <MediaReferenceSlot
+            label={t('Add video')}
+            value={controller.referenceVideos}
+            onChange={controller.setReferenceVideos}
+            onUploadingChange={controller.setUploading}
+            kind='video'
+            accept='video/*'
+            maxFiles={draft.maxReferenceVideos}
+            roleForIndex={(index) => `${index + 1}`}
+          />
+        </PanelSection>
+      )}
+
+      {draft.maxReferenceAudios > 0 && (
+        <PanelSection
+          title={t('Reference audio')}
+          hint={
+            draft.audioReferenceRequiresVisual
+              ? t(
+                  'Up to {{count}} tracks for voice, music or rhythm. Needs a reference image or video.',
+                  { count: draft.maxReferenceAudios }
+                )
+              : t('Up to {{count}} tracks for voice, music or rhythm.', {
+                  count: draft.maxReferenceAudios,
+                })
+          }
+        >
+          <MediaReferenceSlot
+            label={t('Add audio')}
+            value={controller.referenceAudios}
+            onChange={controller.setReferenceAudios}
+            onUploadingChange={controller.setUploading}
+            kind='audio'
+            accept='audio/*'
+            maxFiles={draft.maxReferenceAudios}
+            roleForIndex={(index) => `${index + 1}`}
+          />
         </PanelSection>
       )}
     </>

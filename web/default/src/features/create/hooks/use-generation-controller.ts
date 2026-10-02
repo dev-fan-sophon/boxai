@@ -37,8 +37,17 @@ export function useGenerationController(input: {
   const { modality, studio } = input
   const { text, setText } = useComposerText()
   const [references, setReferences] = useState<MediaReference[]>([])
+  const [referenceVideos, setReferenceVideos] = useState<MediaReference[]>([])
+  const [referenceAudios, setReferenceAudios] = useState<MediaReference[]>([])
   const [uploading, setUploading] = useState(false)
-  const draft = useGenerationDraft({ modality, text, references, uploading })
+  const draft = useGenerationDraft({
+    modality,
+    text,
+    references,
+    referenceVideos,
+    referenceAudios,
+    uploading,
+  })
   const setStudioSettings = usePlaygroundStore(
     (state) => state.setStudioSettings
   )
@@ -101,6 +110,15 @@ export function useGenerationController(input: {
     if (!input.canSubmit()) return null
     const batchReferences =
       referenceUrls ?? references.map((reference) => reference.dataUrl)
+    // Typed media belongs to the drafted references-mode run only; a run
+    // seeded with explicit images (variations, storyboard scenes) omits it.
+    const typedMedia = !referenceUrls && draft.referencesModeSelected
+    const batchVideos = typedMedia
+      ? referenceVideos.map((reference) => reference.dataUrl)
+      : []
+    const batchAudios = typedMedia
+      ? referenceAudios.map((reference) => reference.dataUrl)
+      : []
     if (batchReferences.length > draft.maxFiles) {
       toast.error(
         t('You can attach up to {{count}} images.', { count: draft.maxFiles })
@@ -112,6 +130,15 @@ export function useGenerationController(input: {
         t(
           'Playground image generation uses GPT-format models only (gpt-image-2 or grok-imagine-image). Select one and try again.'
         )
+      )
+      return null
+    }
+    if (
+      batchVideos.length > draft.maxReferenceVideos ||
+      batchAudios.length > draft.maxReferenceAudios
+    ) {
+      toast.error(
+        t('Remove extra reference videos or audios before generating.')
       )
       return null
     }
@@ -131,8 +158,26 @@ export function useGenerationController(input: {
       model,
       group: draft.group,
       references: modality === 'audio' ? [] : batchReferences,
+      referenceVideos: batchVideos.length ? batchVideos : undefined,
+      referenceAudios: batchAudios.length ? batchAudios : undefined,
       prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),
     })
+  }
+
+  /**
+   * Seeds the next run with a finished video's final frame as its first
+   * frame, so the new clip continues where the previous one ended.
+   */
+  const continueFromFrame = (frameUrl: string) => {
+    setReferences([
+      { id: crypto.randomUUID(), name: t('Last frame'), dataUrl: frameUrl },
+    ])
+    setReferenceVideos([])
+    setReferenceAudios([])
+    setStudioSettings((prev) => ({ ...prev, videoReferenceMode: 'frames' }))
+    toast.success(
+      t('Last frame set as the first frame. Describe what happens next.')
+    )
   }
 
   const submit = () => {
@@ -247,6 +292,10 @@ export function useGenerationController(input: {
     setText,
     references,
     setReferences,
+    referenceVideos,
+    setReferenceVideos,
+    referenceAudios,
+    setReferenceAudios,
     uploading,
     setUploading,
     draft,
@@ -260,6 +309,7 @@ export function useGenerationController(input: {
     varyResult,
     reusePrompt,
     loadResultReference,
+    continueFromFrame,
   }
 }
 

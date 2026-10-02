@@ -22,6 +22,7 @@ import { BATCH_COUNTS } from '@/features/playground/lib/studio/batch-plan'
 import {
   applyResolvedVideoSettings,
   resolveVideoOptions,
+  videoDurationOptions,
   videoResolutionsForRatio,
   type VideoAspectRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
@@ -111,7 +112,7 @@ export function VideoParamChips(props: { hasImage: boolean }) {
         valueLabel={`${options.duration}s`}
         value={String(options.duration)}
         onChange={(seconds) => persist({ videoDuration: Number(seconds) })}
-        options={capabilities.durations.map((duration) => ({
+        options={videoDurationOptions(capabilities).map((duration) => ({
           value: String(duration),
           label: t('{{count}}s', { count: duration }),
         }))}

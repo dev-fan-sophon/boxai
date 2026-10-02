@@ -29,6 +29,7 @@ import {
 import { MAX_BATCH_COUNT } from '../studio/batch-plan'
 import { normalizeImageGenerationSettings } from '../studio/image-request-schema'
 import {
+  MAX_VIDEO_SEED,
   videoOptionsFromSize,
   videoSizeForOptions,
   type VideoAspectRatio,
@@ -252,6 +253,8 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   videoCount: 1,
   videoBatchMode: false,
   videoDisableLastFrame: false,
+  videoSeed: null,
+  videoWatermark: false,
   voice: 'alloy',
   speed: 1,
   audioFormat: 'mp3',
@@ -334,6 +337,14 @@ export function normalizeStudioSettings(value: unknown): StudioSettings {
     ),
     videoBatchMode: merged.videoBatchMode === true,
     videoDisableLastFrame: merged.videoDisableLastFrame === true,
+    videoSeed:
+      typeof merged.videoSeed === 'number' &&
+      Number.isInteger(merged.videoSeed) &&
+      merged.videoSeed >= -1 &&
+      merged.videoSeed <= MAX_VIDEO_SEED
+        ? merged.videoSeed
+        : null,
+    videoWatermark: merged.videoWatermark === true,
     voice:
       typeof merged.voice === 'string'
         ? merged.voice

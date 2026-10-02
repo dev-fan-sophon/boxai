@@ -1,9 +1,10 @@
-import { LayoutPanelTop, Plus } from 'lucide-react'
+import { Link2, LayoutPanelTop, Plus, Square } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { MOTION_VARIANTS, MOTION_TRANSITION } from '@/lib/motion'
 
 import { MAX_STORYBOARD_SCENES } from '../../constants'
@@ -72,6 +73,42 @@ export function StoryboardBoard(props: {
           })}
         </span>
         <span className='ml-auto' />
+        {storyboard.chain ? (
+          <span
+            className='text-muted-foreground flex items-center gap-2 text-sm'
+            aria-live='polite'
+          >
+            <Link2 className='size-3.5' aria-hidden='true' />
+            {t('Chaining scenes: {{done}} of {{total}} started', {
+              done: storyboard.chain.done,
+              total: storyboard.chain.total,
+            })}
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-7 gap-1 px-2'
+              onClick={storyboard.stopChain}
+            >
+              <Square className='size-3' aria-hidden='true' />
+              {t('Stop')}
+            </Button>
+          </span>
+        ) : null}
+        {storyboard.canChain && !storyboard.chain ? (
+          <label
+            className='text-foreground flex items-center gap-2 text-sm'
+            title={t(
+              'Each scene waits for the previous one and starts from its last frame. Scenes with their own first frame keep it.'
+            )}
+          >
+            <Switch
+              size='sm'
+              checked={storyboard.draft.chainScenes === true}
+              onCheckedChange={storyboard.setChainScenes}
+            />
+            {t('Chain scenes')}
+          </label>
+        ) : null}
         <Button
           variant='outline'
           size='sm'

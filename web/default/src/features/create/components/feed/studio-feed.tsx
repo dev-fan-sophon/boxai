@@ -72,6 +72,8 @@ type StudioFeedProps = {
   onUseAsReferences?: (images: ResultImage[]) => void
   /** New batch of the result's prompt, editing from that image. */
   onVary?: (image: ResultImage & { prompt?: string }) => void
+  /** Seeds the next video run with a finished video's last frame. */
+  onContinueFromFrame?: (frameUrl: string) => void
   onSendToCanvas: (runs: StudioRunSummary[]) => void
   sendingToCanvas: boolean
   onRetry: (clientIds: string[]) => void
@@ -374,6 +376,7 @@ export function StudioFeed(props: StudioFeedProps) {
           onRerun={props.onRerun}
           onUseAsReference={props.onUseAsReference}
           onVary={props.onVary}
+          onContinueFromFrame={props.onContinueFromFrame}
           onRetry={props.onRetry}
           onCancelQueued={props.onCancelQueued}
           onDismiss={props.onDismiss}
@@ -494,6 +497,7 @@ function BatchCard(props: {
   onRerun: (prompts: string[]) => void
   onUseAsReference?: (image: ResultImage) => void
   onVary?: (image: ResultImage & { prompt?: string }) => void
+  onContinueFromFrame?: (frameUrl: string) => void
   onRetry: (clientIds: string[]) => void
   onCancelQueued: (clientIds: string[]) => void
   onDismiss: (clientIds: string[]) => void
@@ -693,6 +697,7 @@ function BatchCard(props: {
                 onDownload={(src) =>
                   void props.onDownload(src, filename, 'video')
                 }
+                onContinueFromFrame={props.onContinueFromFrame}
               />
             )
           })}

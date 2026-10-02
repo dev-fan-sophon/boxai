@@ -9,11 +9,13 @@ import {
   Music2,
   RefreshCcw,
   Sparkles,
+  StepForward,
   Video,
   X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { useVideoTaskResult } from '@/features/playground/hooks/use-video-task-result'
@@ -21,6 +23,8 @@ import { retryGeneratedImage } from '@/features/playground/lib/download-generate
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import type { PendingStudioRun } from '@/features/playground/lib/studio/studio-feed'
 import { cn } from '@/lib/utils'
+
+import { resolveVideoLastFrame } from '../../lib/video-last-frame'
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000))
@@ -376,10 +380,31 @@ export function VideoResultTile(props: {
   caption?: string
   downloading: boolean
   onDownload: (src: string) => void
+  /** Starts a new draft whose first frame is this video's last frame. */
+  onContinueFromFrame?: (frameUrl: string) => void
 }) {
   const { t } = useTranslation()
   const video = useVideoRunSource(props.run)
   const [natural, setNatural] = useState<number | null>(null)
+  const [readingFrame, setReadingFrame] = useState(false)
+
+  const continueFromFrame = async () => {
+    const onContinue = props.onContinueFromFrame
+    if (!onContinue || readingFrame) return
+    setReadingFrame(true)
+    try {
+      onContinue(
+        await resolveVideoLastFrame({
+          taskId: props.run.taskId,
+          videoSrc: video.src,
+        })
+      )
+    } catch {
+      toast.error(t('Could not read the last frame of this video.'))
+    } finally {
+      setReadingFrame(false)
+    }
+  }
 
   if (video.failed) {
     return (
@@ -463,6 +488,22 @@ export function VideoResultTile(props: {
         ) : (
           <span className='flex-1' />
         )}
+        {props.onContinueFromFrame ? (
+          <Button
+            type='button'
+            size='sm'
+            variant='ghost'
+            className='text-muted-foreground hover:text-foreground h-7 gap-1 px-2 text-xs'
+            title={t(
+              'Use the last frame of this video as the first frame of a new one'
+            )}
+            loading={readingFrame}
+            onClick={() => void continueFromFrame()}
+          >
+            {readingFrame ? null : <StepForward aria-hidden='true' />}
+            {t('Continue')}
+          </Button>
+        ) : null}
         <Button
           type='button'
           size='icon-sm'

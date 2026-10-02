@@ -9,8 +9,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { StudioSettings } from '@/features/playground/types'
 
 import type { CreateTool } from '../../constants'
-import type { GenerationDraft } from '../../hooks/use-generation-draft'
-import { buildApiRequest } from '../../lib/api-request'
+import { buildApiRequest, type ApiRequestDraft } from '../../lib/api-request'
 
 type SnippetLanguage = 'curl' | 'python' | 'node'
 
@@ -79,7 +78,7 @@ export function ApiSnippetPanel(props: {
   model: string
   prompt: string
   settings: StudioSettings
-  draft: Pick<GenerationDraft, 'videoOptions' | 'estimateParams'>
+  draft: ApiRequestDraft
 }) {
   const { t } = useTranslation()
   const [language, setLanguage] = useState<SnippetLanguage>('curl')

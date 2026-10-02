@@ -316,6 +316,10 @@ export type StudioSettings = {
   videoCount: number
   videoBatchMode: boolean
   videoDisableLastFrame: boolean
+  /** Fixed video seed; null means a random seed per run. */
+  videoSeed?: number | null
+  /** Ask the provider for a visible watermark (Seedance). */
+  videoWatermark?: boolean
   voice: string
   speed: number
   audioFormat: string

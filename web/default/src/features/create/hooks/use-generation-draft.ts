@@ -40,6 +40,9 @@ export function useGenerationDraft(input: {
   modality: CreateTool
   text: string
   references: MediaReference[]
+  /** Typed reference media; only sent in references mode. */
+  referenceVideos?: MediaReference[]
+  referenceAudios?: MediaReference[]
   uploading: boolean
 }) {
   const { t } = useTranslation()
@@ -49,9 +52,26 @@ export function useGenerationDraft(input: {
   const settings = usePlaygroundStore((state) => state.studioSettings)
   const isVideo = input.modality === 'video'
   const signedIn = useAuthStore((state) => Boolean(state.auth.user))
-  const hasImage = input.references.length > 0
-
   const capabilityQuery = useVideoCapabilities(group, model, isVideo)
+  const referenceProfile = capabilityQuery.data?.references
+  // Typed video/audio slots exist only while references mode is selected.
+  const referencesModeSelected = Boolean(
+    isVideo && settings.videoReferenceMode === 'references' && referenceProfile
+  )
+  const maxReferenceVideos = referencesModeSelected
+    ? (referenceProfile?.maxReferenceVideos ?? 0)
+    : 0
+  const maxReferenceAudios = referencesModeSelected
+    ? (referenceProfile?.maxReferenceAudios ?? 0)
+    : 0
+  const referenceVideoCount = referencesModeSelected
+    ? (input.referenceVideos?.length ?? 0)
+    : 0
+  const referenceAudioCount = referencesModeSelected
+    ? (input.referenceAudios?.length ?? 0)
+    : 0
+  const hasImage =
+    input.references.length + referenceVideoCount + referenceAudioCount > 0
   const capabilityMode = getVideoCapabilityMode(
     hasImage,
     settings.videoReferenceMode
@@ -95,7 +115,9 @@ export function useGenerationDraft(input: {
   }
 
   let mediaLabel = t('Reference image')
-  if (isVideo && videoOptions?.referenceMode === 'frames') {
+  if (referencesModeSelected) {
+    mediaLabel = t('Reference images')
+  } else if (isVideo && videoOptions?.referenceMode === 'frames') {
     mediaLabel = usesLastFrame ? t('First and last frame') : t('First frame')
   }
 
@@ -117,8 +139,17 @@ export function useGenerationDraft(input: {
       : planGenerationJobs({ text: input.text, batchMode, count })
   const jobCount = plan.prompts.length
   const distinctPrompts = new Set(plan.prompts).size
+  const audioNeedsVisual = Boolean(
+    referenceProfile?.audioReferenceRequiresVisual &&
+    referenceAudioCount > 0 &&
+    input.references.length + referenceVideoCount === 0
+  )
+  const typedMediaValid =
+    referenceVideoCount <= maxReferenceVideos &&
+    referenceAudioCount <= maxReferenceAudios &&
+    !audioNeedsVisual
   const referencesValid = Boolean(
-    videoCapabilities && input.references.length <= maxFiles
+    videoCapabilities && input.references.length <= maxFiles && typedMediaValid
   )
   // Guests cannot load video options; Generate stays live so the click can
   // open the sign-in prompt instead of looking broken.
@@ -145,6 +176,10 @@ export function useGenerationDraft(input: {
     ) {
       videoIssue = t('This model needs a reference image')
     }
+  } else if (isVideo && audioNeedsVisual) {
+    videoIssue = t('Add a reference image or video to use reference audio.')
+  } else if (isVideo && !typedMediaValid) {
+    videoIssue = t('Remove extra reference videos or audios before generating.')
   } else if (isVideo && !referencesValid) {
     videoIssue = t('Remove extra reference images before generating.')
   }
@@ -195,9 +230,21 @@ export function useGenerationDraft(input: {
     settings,
     capabilityQuery,
     videoCapabilities,
+    capabilityMode,
     videoOptions,
     usesLastFrame,
     maxFiles,
+    referencesModeSelected,
+    referenceCounts: {
+      images: input.references.length,
+      videos: referenceVideoCount,
+      audios: referenceAudioCount,
+    },
+    maxReferenceVideos,
+    maxReferenceAudios,
+    audioReferenceRequiresVisual: Boolean(
+      referenceProfile?.audioReferenceRequiresVisual
+    ),
     mediaLabel,
     batchMode,
     plan,

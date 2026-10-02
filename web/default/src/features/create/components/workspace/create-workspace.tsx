@@ -188,6 +188,9 @@ export function CreateWorkspace(props: { tool: CreateTool }) {
               ? (image) => void controller.varyResult(image)
               : undefined
           }
+          onContinueFromFrame={
+            tool === 'video' ? controller.continueFromFrame : undefined
+          }
           sendingToCanvas={canvas.sending}
           onSendToCanvas={(runs) => {
             if (workspace.requireAuthentication()) canvas.sendToCanvas(runs)

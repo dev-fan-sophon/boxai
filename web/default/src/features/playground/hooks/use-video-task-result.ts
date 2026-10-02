@@ -36,6 +36,8 @@ export type VideoTaskResult = {
   failed: boolean
   failReason?: string
   resultUrl: string
+  /** Provider-returned final frame, when the model supports it. */
+  lastFrameUrl?: string
   percent: number | null
 }
 
@@ -64,6 +66,7 @@ export function useVideoTaskResult(
     failed,
     failReason: task?.fail_reason,
     resultUrl: ready && taskId ? `/v1/videos/${taskId}/content` : '',
+    lastFrameUrl: ready ? task?.last_frame_url || undefined : undefined,
     percent,
   }
 }

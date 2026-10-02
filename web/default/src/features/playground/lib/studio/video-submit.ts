@@ -18,16 +18,24 @@ export function buildPlaygroundVideoSubmitInput(input: {
   prompt: string
   settings: StudioSettings
   references: string[]
+  referenceVideos?: string[]
+  referenceAudios?: string[]
   capabilities?: VideoModelCapabilities
 }): VideoSubmitInput {
   const capabilities = input.capabilities
   if (!capabilities) throw new Error('Video capabilities are unavailable.')
+  const referenceMode = input.settings.videoReferenceMode
+  // Video and audio references only exist in references mode.
+  const referenceVideos =
+    referenceMode === 'references' ? (input.referenceVideos ?? []) : []
+  const referenceAudios =
+    referenceMode === 'references' ? (input.referenceAudios ?? []) : []
+  const hasMedia =
+    input.references.length + referenceVideos.length + referenceAudios.length >
+    0
   let mode: 'text' | 'frames' | 'references' = 'text'
-  if (input.references.length > 0) {
-    mode =
-      input.settings.videoReferenceMode === 'references'
-        ? 'references'
-        : 'frames'
+  if (hasMedia) {
+    mode = referenceMode === 'references' ? 'references' : 'frames'
   }
   const options = resolveVideoOptions(
     capabilities,
@@ -41,7 +49,7 @@ export function buildPlaygroundVideoSubmitInput(input: {
       count: input.settings.videoCount,
     },
     {
-      hasImage: input.references.length > 0,
+      hasImage: hasMedia,
       mode,
     }
   )
@@ -62,7 +70,16 @@ export function buildPlaygroundVideoSubmitInput(input: {
     generateAudio: capabilities.supportsAudioToggle
       ? options.generateAudio
       : undefined,
+    seed:
+      capabilities.supportsSeed && typeof input.settings.videoSeed === 'number'
+        ? input.settings.videoSeed
+        : undefined,
+    watermark: capabilities.supportsWatermark
+      ? input.settings.videoWatermark === true
+      : undefined,
     capabilities,
     ...assigned,
+    referenceVideos: referenceVideos.length ? referenceVideos : undefined,
+    referenceAudios: referenceAudios.length ? referenceAudios : undefined,
   }
 }

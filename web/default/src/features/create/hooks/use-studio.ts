@@ -212,8 +212,13 @@ export function useStudio() {
         generation.group,
         generation.model
       )
+      const typedMedia =
+        snapshot.videoReferenceMode === 'references'
+          ? (generation.referenceVideos?.length ?? 0) +
+            (generation.referenceAudios?.length ?? 0)
+          : 0
       const mode = getVideoCapabilityMode(
-        generation.references.length > 0,
+        generation.references.length + typedMedia > 0,
         snapshot.videoReferenceMode
       )
       const capabilities = profiles[mode]
@@ -229,6 +234,8 @@ export function useStudio() {
           prompt: generation.prompt,
           settings: snapshot,
           references: generation.references,
+          referenceVideos: generation.referenceVideos,
+          referenceAudios: generation.referenceAudios,
           capabilities,
         })
       )
@@ -323,6 +330,8 @@ export function useStudio() {
           model: request.model,
           group: request.group,
           references: request.references,
+          referenceVideos: request.referenceVideos,
+          referenceAudios: request.referenceAudios,
           batchId,
           prompt,
         },

@@ -37,6 +37,11 @@ export type StoryboardDraft = {
   style: string
   shotCount: number
   scenes: StoryboardScene[]
+  /**
+   * Generate scenes one after another, each starting from the previous
+   * scene's last frame (unless the scene has its own first frame).
+   */
+  chainScenes?: boolean
 }
 
 const EMPTY_STORYBOARD: StoryboardDraft = {

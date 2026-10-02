@@ -89,6 +89,28 @@ export function GenerationComposer(props: GenerationComposerProps) {
                 roleForIndex={referenceRoleLabeler(draft, t)}
               />
             )}
+            {draft.maxReferenceVideos > 0 && (
+              <MediaReferenceSlot
+                label={t('Reference videos')}
+                value={controller.referenceVideos}
+                onChange={controller.setReferenceVideos}
+                onUploadingChange={controller.setUploading}
+                kind='video'
+                accept='video/*'
+                maxFiles={draft.maxReferenceVideos}
+              />
+            )}
+            {draft.maxReferenceAudios > 0 && (
+              <MediaReferenceSlot
+                label={t('Reference audio')}
+                value={controller.referenceAudios}
+                onChange={controller.setReferenceAudios}
+                onUploadingChange={controller.setUploading}
+                kind='audio'
+                accept='audio/*'
+                maxFiles={draft.maxReferenceAudios}
+              />
+            )}
             {draft.canSwitchReferenceMode ? (
               <div
                 className='bg-foreground/5 text-3xs flex shrink-0 rounded-full p-0.5 font-medium'
@@ -101,10 +123,10 @@ export function GenerationComposer(props: GenerationComposerProps) {
                       key={mode}
                       type='button'
                       role='radio'
-                      aria-checked={draft.videoOptions?.referenceMode === mode}
+                      aria-checked={draft.settings.videoReferenceMode === mode}
                       className={cn(
                         'rounded-full px-2 py-0.5 transition-colors',
-                        draft.videoOptions?.referenceMode === mode
+                        draft.settings.videoReferenceMode === mode
                           ? 'bg-background text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
                       )}
@@ -139,7 +161,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
             ) : null}
             <GenerationParamChips
               modality={modality}
-              hasImage={controller.references.length > 0}
+              hasImage={draft.capabilityMode !== 'text'}
             />
             {draft.videoIssue ? (
               <span

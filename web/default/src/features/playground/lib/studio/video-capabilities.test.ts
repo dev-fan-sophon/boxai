@@ -6,6 +6,7 @@ import {
   assignVideoReferences,
   resolveVideoOptions,
   videoResolutionsForRatio,
+  videoDurationOptions,
   videoOptionsFromSize,
   videoSizeForOptions,
   type VideoModelCapabilities,
@@ -81,5 +82,33 @@ describe('server video capability resolution', () => {
       aspectRatio: '16:9',
       resolution: '1080p',
     })
+  })
+
+  it('offers every whole second of a short range and presets for a wide one', () => {
+    expect(
+      videoDurationOptions({
+        ...capabilities,
+        durations: [4, 5, 8],
+        durationRange: { min: 4, max: 15 },
+      })
+    ).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    expect(
+      videoDurationOptions({
+        ...capabilities,
+        durations: [5, 60],
+        durationRange: { min: 1, max: 120 },
+      })
+    ).toEqual([5, 60])
+  })
+
+  it('round-trips the xAI 3:2 and 2:3 sizes at every resolution', () => {
+    for (const resolution of ['480p', '720p', '1080p'] as const) {
+      for (const aspectRatio of ['3:2', '2:3'] as const) {
+        const size = videoSizeForOptions(aspectRatio, resolution)
+        expect(size).toBeDefined()
+        expect(videoOptionsFromSize(size)).toEqual({ aspectRatio, resolution })
+      }
+    }
+    expect(videoSizeForOptions('3:2', '480p')).toBe('720x480')
   })
 })
