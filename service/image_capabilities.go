@@ -42,8 +42,8 @@ func ResolveImageCapabilities(groups []string, publicModel string) (*dto.ImageMo
 			profile.MaxN = 1
 		}
 		if channel.GetSetting().ImageIgnoresSizeOptions {
-			profile.AspectRatios = nil
-			profile.Resolutions = nil
+			profile.AspectRatios = []string{}
+			profile.Resolutions = []string{}
 			profile.Defaults.AspectRatio = ""
 			profile.Defaults.Resolution = ""
 		}
