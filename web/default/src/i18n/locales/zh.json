@@ -6606,6 +6606,7 @@
     "Text-to-image, image-to-image, editing, and more": "文生图、图生图、编辑等",
     "Text, image, and video": "文本、图片与视频",
     "Thanks for the feedback": "感谢反馈",
+    "The {{platform}} version is temporarily unavailable while we publish a fix. Please check back soon.": "{{platform}} 版本正在发布修复，暂时无法下载，请稍后再来。",
     "The /about page always shows the built-in BoxAI brand content. Leave empty for the default page only. Optional HTML, Markdown, or a full URL adds an extra section underneath (URL becomes an external link, not a full-page iframe).": "/about 页面始终展示内建 BoxAI 品牌内容。留空则仅显示默认页面。可选 HTML、Markdown 或完整 URL 会在下方追加区块（URL 作为外链，而非整页 iframe）。",
     "The admin configured three groups and one special ratio rule:": "管理员配置了三个分组和一条特殊倍率规则：",
     "The admin wants vip users to pay even less when they use premium. That needs an override rule: in the override matrix, set the cell at row vip, column premium to 0.3.": "管理员希望 vip 用户使用 premium 时价格更低。这就需要一条覆盖规则：在覆盖矩阵中，把「行 vip、列 premium」的单元格填成 0.3。",
