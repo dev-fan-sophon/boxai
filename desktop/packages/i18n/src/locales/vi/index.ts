@@ -1,6 +1,22 @@
 import type { EnglishCatalog } from "../en/index.js";
 
 export const vi: EnglishCatalog = {
+  "BoxAI account": "Tài khoản BoxAI",
+  "Checking account…": "Đang kiểm tra tài khoản…",
+  "Wallet balance (quota)": "Số dư ví (hạn mức)",
+  "Total usage (quota)": "Tổng mức sử dụng (hạn mức)",
+  Requests: "Lượt yêu cầu",
+  "Top up": "Nạp tiền",
+  "Open console": "Mở bảng điều khiển",
+  "Sign in with your BoxAI account to continue. All models are billed through BoxAI.":
+    "Đăng nhập bằng tài khoản BoxAI để tiếp tục. Mọi mô hình đều được tính phí qua BoxAI.",
+  "Account request failed. Check your connection and try again.":
+    "Không thể tải thông tin tài khoản. Kiểm tra kết nối rồi thử lại.",
+  "Waiting for browser authorization…": "Đang chờ ủy quyền trong trình duyệt…",
+  "Sign out": "Đăng xuất",
+  "Sign in with BoxAI": "Đăng nhập bằng BoxAI",
+  Cancel: "Hủy",
+  Refresh: "Làm mới",
   app: {
     shellName: "BoxAI Desktop",
     tagline: "Trợ lý lập trình AI trên máy tính",
