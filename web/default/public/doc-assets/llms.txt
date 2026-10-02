@@ -15,7 +15,15 @@
 - [API authentication](https://you-box.com/docs/api/auth): Authenticate gateway calls with Bearer keys or profile-specific headers and keep secrets server-side.
 - [Streaming](https://you-box.com/docs/api/streaming): Process incremental server-sent events and cancel interrupted requests safely.
 - [Errors, retries, and rate limits](https://you-box.com/docs/api/errors): Classify failures, retry transient requests safely, and respect gateway limits.
-- [BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install BoxAI Desktop on macOS or Windows and sign in with your BoxAI account.
+- [Get started with BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install the desktop agent, sign in to BoxAI, and work safely with projects, models and tools.
+- [Install and open BoxAI Desktop](https://you-box.com/docs/clients/desktop/install): Download the right installer and handle first-open security warnings safely on macOS and Windows.
+- [Sign in to BoxAI Desktop](https://you-box.com/docs/clients/desktop/sign-in): Authorize the desktop app with your BoxAI account and keep account access private.
+- [Choose a Desktop model and understand billing](https://you-box.com/docs/clients/desktop/models-and-billing): Select an available BoxAI model, run a small test and check authoritative usage on the website.
+- [Work with projects and sessions](https://you-box.com/docs/clients/desktop/projects-and-sessions): Open a folder, give the agent a bounded task and review results without losing track of your work.
+- [Review tool permissions](https://you-box.com/docs/clients/desktop/tool-approvals): Understand Ask, Accept edits and Auto before allowing file changes, commands or external tools.
+- [Add skills, plugins and MCP tools](https://you-box.com/docs/clients/desktop/extensions): Extend Desktop carefully, choose global or project scope and verify each capability before relying on it.
+- [Update BoxAI Desktop](https://you-box.com/docs/clients/desktop/updates): Check the current release, install an official update and preserve your projects and local data.
+- [Troubleshoot BoxAI Desktop](https://you-box.com/docs/clients/desktop/troubleshooting): Find safe fixes for startup, authorization, model access and tools, and prepare a useful support report.
 - [Codex desktop with a custom BoxAI API](https://you-box.com/docs/clients/codex-desktop): Configure the current Codex desktop client with config.toml and auth.json, use BoxAI Responses models, and verify which provider is billed.
 - [BoxAI Connect](https://you-box.com/docs/clients/connect): Connect your local coding agents to BoxAI through a desktop gateway.
 - [Install BoxAI Connect](https://you-box.com/docs/clients/connect/install): Install the macOS Apple silicon or Windows x64 release safely.

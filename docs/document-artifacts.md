@@ -360,7 +360,7 @@ maintain. The generated script is stored on `playground_document_builds` so § 5
 ## 8. Deployment
 
 The build service is a **separate wrangler-deployed Worker plus container image**, versioned in
-this repo alongside `workers/desktop-broker/` but deployed on its own pipeline. It does not touch
+this repo under `workers/doc-builder/` and deployed on its own pipeline. It does not touch
 the Go binary, systemd unit, or nginx configuration.
 
 This does not conflict with the rule that the BoxAI application is never deployed as a Docker

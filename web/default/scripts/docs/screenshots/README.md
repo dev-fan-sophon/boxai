@@ -38,9 +38,16 @@ public/doc-assets/screenshots/
   start/docs-home.en.webp
   start/getting-started.en.webp
   clients/downloads.en.webp
-  clients/desktop-session.en.webp   # reused from desktop marketing set
   capture-manifest.json
 ```
+
+Desktop application captures are maintained separately under
+`public/desktop-screenshots/docs/`: `login.webp`, `models.webp`,
+`project-session.webp`, `permissions.webp`, `settings.webp`, `updates.webp`.
+Use real current-app captures; do not reuse the retired client's marketing
+images. See the screenshot handoff in `docs/desktop-integration.md` at the
+repository root. This browser script captures the `/agents` download page,
+not the native application or operating-system security dialogs.
 
 ## Safety
 

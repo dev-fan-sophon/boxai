@@ -44,7 +44,7 @@ npx wrangler deploy
 npx wrangler containers list
 ```
 
-Deployment is manual, matching `workers/desktop-broker`. The Go application deploy pipeline is
+Deployment is manual and independent. The Go application deploy pipeline is
 untouched by this Worker.
 
 ## Contract
