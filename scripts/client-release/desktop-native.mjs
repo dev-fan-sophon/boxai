@@ -5,11 +5,15 @@ import { spawn, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const pkg = JSON.parse(readFileSync(join(root, "desktop/apps/desktop/package.json")));
+const require = createRequire(join(root, "desktop/apps/desktop/package.json"));
+const { extractFile } = require("@electron/asar");
+const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const platform = process.platform;
 assert.ok((platform === "darwin" && process.arch === "arm64") || (platform === "win32" && process.arch === "x64"), "native macOS arm64 / Windows x64 required");
 const version = pkg.version;
@@ -69,6 +73,14 @@ try {
     assert.equal(pe.readUInt16LE(pe.readUInt32LE(0x3c) + 4), 0x8664, "PE must be x64");
     assert.ok(existsSync(join(install, "resources/bin/pi-desktop-host-core.exe")));
   }
+  const resources = platform === "darwin" ? join(install, "BoxAI Desktop.app/Contents/Resources") : join(install, "resources");
+  const installedMetadata = JSON.parse(extractFile(join(resources, "app.asar"), "package.json").toString());
+  assert.equal(installedMetadata.boxaiBuildCommit, commit, "Stale installer: rebuild from this commit before staging");
+  assert.equal(installedMetadata.version, version);
+  assert.equal(installedMetadata.boxaiMacSigned === true, signed, "Signing lane differs from installed metadata");
+  const updateConfig = readFileSync(join(resources, "app-update.yml"), "utf8");
+  assert.match(updateConfig, /provider: generic/);
+  assert.match(updateConfig, /url: https:\/\/dl\.you-box\.com\/desktop\//);
   const env = { ...process.env, PI_DESKTOP_DATA_DIR: join(scratch, "profile"), PI_DESKTOP_BOOT_PROBE: "1", ELECTRON_RENDERER_URL: "" };
   delete env.ELECTRON_RUN_AS_NODE;
   const probe = await new Promise((resolve, reject) => {
@@ -100,7 +112,7 @@ try {
     if (existsSync(`${zip}.blockmap`)) copyFileSync(`${zip}.blockmap`, join(stage, filename.replace(/\.dmg$/, ".zip.blockmap")));
   }
   const report = { schema: 1, version, platform, arch: process.arch, filename, sha256: digest,
-    commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    commit,
     signed, notarized: signed, zipSha256, installed: true, boot: probe, checked_at: new Date().toISOString() };
   writeFileSync(join(stage, `${filename}.assertion.json`), `${JSON.stringify(report, null, 2)}\n`);
   console.log(`NATIVE_OK ${filename} SHA256 ${digest}`);

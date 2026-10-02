@@ -1,5 +1,8 @@
 // Signing is opt-in and pinned to the team verified on existing BoxAI installs.
 const config = structuredClone(require("../apps/desktop/package.json").build);
+config.extraMetadata.boxaiBuildCommit = require("node:child_process").execFileSync(
+  "git", ["rev-parse", "HEAD"], { cwd: require("node:path").resolve(__dirname, "../.."), encoding: "utf8" },
+).trim();
 if (process.env.BOXAI_MAC_SIGN === "1") {
   if (process.platform !== "darwin" || process.env.APPLE_TEAM_ID !== "9UUWCMKMDH") {
     throw new Error("BoxAI signing requires native macOS and the verified BoxAI team");
