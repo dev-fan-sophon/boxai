@@ -64,7 +64,7 @@ export function useComposerModelMenu({
   const loadProviderModels = useAppStore((s) => s.loadProviderModels);
   const showToast = useAppStore((s) => s.showToast);
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<ComposerMenuView>("root");
+  const [view, setView] = useState<ComposerMenuView>("model");
   const [query, setQuery] = useState("");
   const [modelHighlight, setModelHighlight] = useState(-1);
   const rootMenuRef = useRef<HTMLDivElement>(null);
@@ -197,7 +197,7 @@ export function useComposerModelMenu({
 
   useEffect(() => {
     if (open) return;
-    setView("root");
+    setView("model");
     setQuery("");
     setModelHighlight(-1);
   }, [open]);
@@ -282,7 +282,7 @@ export function useComposerModelMenu({
         thinkingLevel: nextThinkingLevel,
       });
       setQuery("");
-      setView("root");
+      setOpen(false);
       setModelHighlight(-1);
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), {
@@ -308,11 +308,6 @@ export function useComposerModelMenu({
     if (event.key === "Escape") {
       event.preventDefault();
       setOpen(false);
-      return;
-    }
-    if (event.key === "ArrowLeft" && view !== "root") {
-      event.preventDefault();
-      showView("root");
       return;
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {

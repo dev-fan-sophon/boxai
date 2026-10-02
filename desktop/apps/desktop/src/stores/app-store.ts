@@ -255,7 +255,10 @@ export const useAppStore = create<AppState>((set, get) => {
     const generation = ++bootstrapGeneration;
     let recoveredSettings: AppSettings | undefined;
     try {
-      const settingsRequest = api.getSettings().then(async (settingsRaw) => {
+      // Account discovery initializes missing/revoked default model bindings.
+      // Read settings afterwards so first login and restored sessions see them.
+      const providersRequest = api.listProviders();
+      const settingsRequest = providersRequest.catch(() => undefined).then(() => api.getSettings()).then(async (settingsRaw) => {
         let settings = settingsRaw
           ? {
               ...settingsRaw,
@@ -285,7 +288,7 @@ export const useAppStore = create<AppState>((set, get) => {
         api.getVersion(),
         api.health(),
         api.listSessions(),
-        api.listProviders(),
+        providersRequest,
         api.getProject(),
         api.getOnboarding(),
         api.listPlugins(),
