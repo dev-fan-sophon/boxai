@@ -63,7 +63,19 @@ try {
       execFileSync("codesign", ["--verify", "-R=anchor apple generic and certificate leaf[subject.OU] = \"9UUWCMKMDH\"", bundle]);
       assert.equal(assessment.status, 0, "Signed release must pass Gatekeeper");
       execFileSync("xcrun", ["stapler", "validate", bundle]);
+      execFileSync("codesign", ["--verify", "--strict", artifact]);
+      execFileSync("codesign", ["--verify", "-R=anchor apple generic and certificate leaf[subject.OU] = \"9UUWCMKMDH\"", artifact]);
       execFileSync("xcrun", ["stapler", "validate", artifact]);
+      const dmgAssessment = spawnSync("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=2", artifact], { encoding: "utf8" });
+      if (dmgAssessment.error) throw dmgAssessment.error;
+      assert.equal(dmgAssessment.signal, null, "DMG Gatekeeper assessment interrupted");
+      assert.equal(dmgAssessment.status, 0, "Signed DMG must pass Gatekeeper");
+      macVerification.dmg = {
+        codesignStrict: true,
+        teamId: "9UUWCMKMDH",
+        stapled: true,
+        spctl: { status: dmgAssessment.status, stdout: dmgAssessment.stdout, stderr: dmgAssessment.stderr },
+      };
       const zip = artifact.replace(/\.dmg$/, ".zip");
       const unpacked = join(scratch, "zip");
       execFileSync("ditto", ["-x", "-k", zip, unpacked]);

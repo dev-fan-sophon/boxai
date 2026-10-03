@@ -12,6 +12,7 @@ if (process.env.BOXAI_MAC_SIGN === "1") {
   config.mac.hardenedRuntime = true;
   config.mac.notarize = true;
   config.mac.target = [{ target: "dmg", arch: ["arm64"] }, { target: "zip", arch: ["arm64"] }];
+  config.dmg.sign = true;
   config.extraMetadata.boxaiMacSigned = true;
 }
 module.exports = config;

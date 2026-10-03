@@ -127,6 +127,18 @@ class DesktopReleaseTest(unittest.TestCase):
         archive.write_bytes(b"signed application ZIP bytes")
         report.update(signed=True, notarized=True, zipSha256=hashlib.sha256(archive.read_bytes()).hexdigest())
         report["macVerification"]["spctl"] = dict(status=0, stdout="", stderr="accepted")
+        dmg = dict(codesignStrict=True, teamId="9UUWCMKMDH", stapled=True,
+                   spctl=dict(status=0, stdout="", stderr="accepted\nsource=Notarized Developer ID"))
+        for evidence in [{}, {**dmg, "codesignStrict": False}, {**dmg, "teamId": "WRONGTEAM"},
+                         {**dmg, "stapled": False},
+                         {**dmg, "spctl": dict(status=3, stdout="", stderr="no usable signature")},
+                         {**dmg, "spctl": dict(status=False, stdout="", stderr="accepted")}]:
+            with self.subTest(dmg=evidence):
+                report["macVerification"]["dmg"] = evidence
+                path.write_text(json.dumps(report))
+                with self.assertRaisesRegex(ValueError, "Signed DMG"):
+                    prepare(self.stage, "0.2.0", "test-commit")
+        report["macVerification"]["dmg"] = dmg
         path.write_text(json.dumps(report))
         objects, feeds = prepare(self.stage, "0.2.0", "test-commit")
         self.assertIn(archive, objects)

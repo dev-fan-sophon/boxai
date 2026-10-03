@@ -65,6 +65,17 @@ def prepare(stage, version, commit):
                     or not isinstance(assessment.get("stdout"), str)
                     or not isinstance(assessment.get("stderr"), str)):
                 raise ValueError("macOS signature integrity and Gatekeeper assessment evidence required")
+            if signed:
+                dmg = verification.get("dmg", {})
+                dmg_assessment = dmg.get("spctl", {})
+                if (dmg.get("codesignStrict") is not True
+                        or dmg.get("teamId") != "9UUWCMKMDH"
+                        or dmg.get("stapled") is not True
+                        or type(dmg_assessment.get("status")) is not int
+                        or dmg_assessment["status"] != 0
+                        or not isinstance(dmg_assessment.get("stdout"), str)
+                        or not isinstance(dmg_assessment.get("stderr"), str)):
+                    raise ValueError("Signed DMG requires Developer ID, notarization ticket and Gatekeeper evidence")
         if not (boot.get("ok") is True and boot.get("version") == version
                 and boot.get("appName") == "BoxAI Desktop" and boot.get("platform") == platform
                 and boot.get("account", {}).get("connected") is False
