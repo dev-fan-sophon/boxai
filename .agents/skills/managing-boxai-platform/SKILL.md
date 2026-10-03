@@ -94,10 +94,15 @@ The script logs in, handles an optional interactive 2FA challenge, rotates the t
 
 Canonical path: **host binary + systemd**; **Docker only for Postgres/Redis**.
 
-**Preferred release path:** merge/push to `main` → GitHub Actions workflow `Deploy production` (`.github/workflows/deploy-prod.yml`).
+**Preferred release path:** push to `main` runs validation only. After the user
+authorizes a release, manually dispatch `Deploy production`
+(`.github/workflows/deploy-prod.yml`) from `main` with a full commit SHA, then
+wait for a human to approve the `production` Environment. Required reviewers
+and disabled administrator bypass are mandatory; missing rules block release.
+Never approve the deployment yourself or bypass this gate via SSH scripts.
 
 ```bash
-# Emergency / local from a machine with BOXAI_SSH_* configured
+# Emergency / local only after separate explicit production approval
 make deploy
 # or
 ./scripts/deploy-prod.sh

@@ -184,8 +184,9 @@ and zone below; a personal `CLOUDFLARE_ACCOUNT_ID` may refer to another project.
 **Commands agents must prefer:**
 
 ```bash
-# Production deploy: push/merge to main → GitHub Actions "Deploy production"
-# Emergency / local: upload source → server build → systemctl restart
+# Push to main validates only; it never authorizes production release.
+# Release: manually dispatch "Deploy production" with a full SHA → human approves production Environment.
+# Emergency / local: requires separate explicit approval before upload/build/restart.
 make deploy
 # First-time host bootstrap only
 make deploy-bootstrap
@@ -196,6 +197,10 @@ make dev-web
 # Local frontend against local API
 make dev-web-local
 ```
+
+Agents must not approve GitHub deployment requests themselves or use manual SSH
+deploy scripts to bypass the human release gate. See `deploy/README.md` for the
+required production reviewers and no-admin-bypass policy.
 
 **Do not:**
 

@@ -157,10 +157,33 @@ Use **boxai** everywhere. Do not introduce `boxai2` for new work.
 
 ### Everyday
 
-**Preferred (API + web):** merge/push to `main` → GitHub Actions workflow **Deploy production**  
-(`.github/workflows/deploy-prod.yml`) SSHes to the host and runs `scripts/deploy-prod.sh`.
+**Push is not permission to release.** The **Deploy production** workflow
+(`.github/workflows/deploy-prod.yml`) runs validation on pushes to `main`, without
+production secrets, SSH, migrations, restarts, or live symlink changes.
 
-Manual / emergency from a trusted machine:
+The normal release flow is:
+
+1. Push to `main` and review the validation result and exact commit.
+2. In Actions → **Deploy production** → **Run workflow**, select branch `main`
+   and enter the full 40-character commit SHA in `ref`. Branch names, tags, and
+   commits outside `main` history are rejected. Leave `bootstrap` off normally.
+3. Validation runs for that immutable commit. A summary links the candidate and
+   identifies whether bootstrap was requested.
+4. A configured reviewer uses **Review deployments** → `production` →
+   **Approve and deploy**. Only then may the release job access production
+   secrets and run `scripts/deploy-prod.sh`.
+5. Verify the public gateway and Chat readiness checks. New pushes do not change
+   the approved candidate or automatically deploy another commit.
+
+Missing required reviewers, enabled administrator bypass, or an unreadable
+environment policy blocks manual release. Cancelling or rejecting a release
+while it awaits approval leaves the live version unchanged. This gate is not
+a staging environment or a guarantee that migrations can be rolled back.
+
+Manual / emergency from a trusted machine requires separate explicit human
+approval for the exact commit and production target. These SSH scripts bypass
+GitHub's environment gate; agents must not run them merely because code was
+pushed or checks passed:
 
 ```bash
 git push origin main
@@ -194,9 +217,25 @@ Repository secrets used by **Deploy production** (Settings → Secrets and varia
 | `BOXAI_SSH_HOST_KEY` | Single `known_hosts` line for the host |
 | `BOXAI_BASE_URL` | Public origin, e.g. `https://you-box.com` |
 
-Also create a GitHub **Environment** named `production` (workflow references it). Optional protection rules / required reviewers can be added there.
+Configure Settings → Environments → **production** before the first manual
+release:
 
-Manual workflow dispatch supports an optional ref and first-time `--bootstrap`.
+- Enable **Required reviewers**, selecting the responsible release owner
+  (currently proposed: `fran0220`) or release team.
+- Disable **Allow administrators to bypass configured protection rules**.
+- For a solo maintainer, leave **Prevent self-review** off so the person who
+  requested the release can explicitly approve it. Enable it only when a
+  different reviewer is available.
+- Agents must never approve their own deployment through the API or browser.
+  Approval must come from the human release owner.
+
+Environment rules are GitHub settings, not created by this YAML. The workflow
+checks them before requesting approval and again before deploying, and fails
+closed if they are absent. Do not rerun historical push-deploy workflows; use
+the current manual workflow for releases and rollbacks.
+
+Manual workflow dispatch requires a full commit SHA and optionally supports
+first-time `--bootstrap`. Approval explicitly includes that bootstrap operation.
 
 ### First-time host only
 
@@ -224,6 +263,8 @@ make deploy-bootstrap
 
 | Mechanism | Status |
 |-----------|--------|
+| Push to `main` | validation only; production job skipped |
+| Production approval | manual dispatch of a SHA + required Environment reviewer; fails closed until configured |
 | Unit / contract tests (Go `go test`, web vitest where present) | yes, local / ad hoc |
 | PR template / anti-slop check | yes (`.github/workflows/pr-check.yml`) — **not** a product test suite |
 | Main web app Playwright / Cypress E2E | **no** |
@@ -232,7 +273,11 @@ make deploy-bootstrap
 | Production cutover (web) | atomic symlink `/opt/boxai/web` → `web-releases/<id>` (no API restart) |
 | Desktop GUI e2e | yes (`desktop/surfaces/gui` Playwright) — separate product |
 
-There is **no** automated “run E2E then promote to prod” gate today. Cutover is: build on host → health checks (`/api/status`, chat `readyz`) → restart. For UI-only, cutover is symlink flip + public HTTP smoke in `deploy-web.sh`.
+There is **no** staging or automated “run E2E then promote the same artifact”
+pipeline today. Human approval precedes host access; after approval the host
+build, service readiness checks, restart and cutover still run automatically.
+For UI-only emergency releases, cutover is symlink flip + public HTTP smoke in
+`deploy-web.sh`, and requires separate human approval.
 
 ### Async media rollout and capacity
 
