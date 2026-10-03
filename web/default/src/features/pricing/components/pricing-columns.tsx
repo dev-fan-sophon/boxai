@@ -5,6 +5,7 @@ import { BadgeListCell, DataTableColumnHeader } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { LobeIcon } from '@/lib/lobe-icon'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
 import {
@@ -307,23 +308,27 @@ export function usePricingColumns(
       enableSorting: false,
     },
 
-    // Enable Groups column
-    {
-      accessorKey: 'enable_groups',
-      header: t('Groups'),
-      cell: ({ row }) => {
-        const groups = row.original.enable_groups || []
-        return (
-          <BadgeListCell
-            items={groups.map((group) => (
-              <GroupBadge key={group} group={group} size='sm' />
-            ))}
-            tooltipClassName='max-w-[280px] p-2'
-          />
-        )
-      },
-      size: 130,
-      enableSorting: false,
-    },
+    // Enable Groups column (only when multiple groups are offered)
+    ...(MULTI_GROUP_ENABLED
+      ? ([
+          {
+            accessorKey: 'enable_groups',
+            header: t('Groups'),
+            cell: ({ row }) => {
+              const groups = row.original.enable_groups || []
+              return (
+                <BadgeListCell
+                  items={groups.map((group) => (
+                    <GroupBadge key={group} group={group} size='sm' />
+                  ))}
+                  tooltipClassName='max-w-[280px] p-2'
+                />
+              )
+            },
+            size: 130,
+            enableSorting: false,
+          },
+        ] satisfies ColumnDef<PricingModel>[])
+      : []),
   ]
 }

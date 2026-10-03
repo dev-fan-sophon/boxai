@@ -40,6 +40,7 @@ import {
 import { useSeo } from '@/hooks/use-page-seo'
 import { useStatus } from '@/hooks/use-status'
 import { LobeIcon } from '@/lib/lobe-icon'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
@@ -473,7 +474,7 @@ function ModelBackendProviderSection(props: { model: PricingModel }) {
     </CatalogInfoCell>
   )
 
-  if (groups.length > 0) {
+  if (MULTI_GROUP_ENABLED && groups.length > 0) {
     cells.push(
       <CatalogInfoCell key='groups' label={t('Groups')}>
         <CatalogPillList items={groups} />
@@ -1226,13 +1227,15 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
             {isDynamic && (
               <DynamicPricingBreakdown billingExpr={props.model.billing_expr} />
             )}
-            <GroupPricingSection
-              model={props.model}
-              groupRatio={props.groupRatio}
-              usableGroup={props.usableGroup}
-              autoGroups={props.autoGroups}
-              tokenUnit={props.tokenUnit}
-            />
+            {MULTI_GROUP_ENABLED && (
+              <GroupPricingSection
+                model={props.model}
+                groupRatio={props.groupRatio}
+                usableGroup={props.usableGroup}
+                autoGroups={props.autoGroups}
+                tokenUnit={props.tokenUnit}
+              />
+            )}
           </section>
         </TabsContent>
 

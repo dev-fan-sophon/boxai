@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
 import type { PricingModel } from '@/features/pricing/types'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
@@ -96,7 +97,7 @@ export function ControlPanel(props: {
               modality={modality}
               videoMode={draft.capabilityMode}
             />
-            <ChannelSelect />
+            {MULTI_GROUP_ENABLED && <ChannelSelect />}
           </CollapsibleContent>
         </Collapsible>
       </div>

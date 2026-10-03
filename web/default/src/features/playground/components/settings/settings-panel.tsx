@@ -10,6 +10,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { useXlUp } from '@/hooks'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
@@ -29,7 +30,7 @@ export function SettingsSections(props: { duoActive: boolean }) {
         <ChatToolsSection />
       </Section>
       <AdvancedSection>
-        <GroupSection />
+        {MULTI_GROUP_ENABLED && <GroupSection />}
         <ChatParametersSection showReasoning={!props.duoActive} />
       </AdvancedSection>
     </div>

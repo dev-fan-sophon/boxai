@@ -13,6 +13,7 @@ import {
 } from '@/components/icons'
 import { ModelBrandIcon } from '@/features/playground/components/catalog/model-brand-icon'
 import { getModelModality } from '@/features/playground/lib/studio/model-modality'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
@@ -168,13 +169,14 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
     props.model.official_discount < 100
       ? Number(props.model.official_discount.toFixed(2))
       : null
-  const cornerDiscount = officialDiscount ?? savingsPercent
+  const cornerDiscount =
+    officialDiscount ?? (MULTI_GROUP_ENABLED ? savingsPercent : null)
   let cornerDiscountTitle: string | undefined
   if (officialDiscount != null) {
     cornerDiscountTitle = t('{{percent}}% below official price', {
       percent: formatDiscountPercent(officialDiscount),
     })
-  } else if (savingsPercent != null) {
+  } else if (MULTI_GROUP_ENABLED && savingsPercent != null) {
     cornerDiscountTitle = t('Group {{percent}}% off', {
       percent: savingsPercent,
     })
