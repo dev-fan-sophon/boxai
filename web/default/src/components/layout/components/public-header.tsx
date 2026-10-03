@@ -1,6 +1,12 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
@@ -65,6 +71,10 @@ export function PublicHeader(props: PublicHeaderProps) {
     () => typeof window !== 'undefined' && window.scrollY > 20
   )
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [compact, setCompact] = useState(true)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const brandRef = useRef<HTMLAnchorElement>(null)
+  const desktopRef = useRef<HTMLDivElement>(null)
   const [authPromptTarget, setAuthPromptTarget] =
     useState<AuthPromptTarget | null>(null)
   const [authPromptSecondsLeft, setAuthPromptSecondsLeft] =
@@ -91,6 +101,34 @@ export function PublicHeader(props: PublicHeaderProps) {
   const showConsoleCta =
     parseHeaderNavModulesFromStatus(status as Record<string, unknown> | null)
       .console !== false
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const brand = brandRef.current
+    const desktop = desktopRef.current
+    if (!container || !brand || !desktop) return
+
+    // Measure the actual translated strip, including account actions. Keep it
+    // measurable while collapsed so fonts, locale and sign-in changes refit it.
+    const measure = () => {
+      const style = getComputedStyle(container)
+      const available =
+        container.clientWidth -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight)
+      // Reserve the pill's 24px gap and up to 24px of inner padding.
+      const required = brand.offsetWidth + desktop.offsetWidth + 24 + 24
+      const nextCompact = required > available
+      setCompact(nextCompact)
+      if (!nextCompact) setMobileOpen(false)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    observer.observe(brand)
+    observer.observe(desktop)
+    measure()
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -191,23 +229,23 @@ export function PublicHeader(props: PublicHeaderProps) {
           inside the pill.
         */}
         <div
+          ref={containerRef}
           className={cn(
-            'pointer-events-auto mx-auto transition-[max-width,padding] duration-expressive ease-emphasized motion-reduce:transition-none',
-            scrolled
-              ? 'w-fit max-w-full px-3 pt-3'
-              : 'max-w-7xl px-4 pt-0 md:px-6'
+            'mx-auto w-full max-w-7xl transition-[max-width,padding] duration-expressive ease-emphasized motion-reduce:transition-none',
+            scrolled ? 'px-3 pt-3' : 'px-4 pt-0 md:px-6'
           )}
         >
           <nav
             className={cn(
-              'flex items-center transition-[height,padding,border-radius,background-color,box-shadow] duration-expressive ease-emphasized motion-reduce:transition-none',
+              'pointer-events-auto flex items-center transition-[height,padding,border-radius,background-color,box-shadow] duration-expressive ease-emphasized motion-reduce:transition-none',
               scrolled
-                ? 'bg-background/60 ring-border/50 shadow-raised h-12 gap-6 rounded-2xl pr-1.5 pl-4 ring-[0.5px] backdrop-blur-2xl'
+                ? 'bg-background/60 ring-border/50 shadow-raised mx-auto h-12 w-fit max-w-full gap-6 rounded-2xl pr-1.5 pl-4 ring-[0.5px] backdrop-blur-2xl'
                 : 'h-16 justify-between px-2'
             )}
           >
             {/* Logo */}
             <Link
+              ref={brandRef}
               to={homeUrl}
               className='group flex shrink-0 items-center gap-2.5'
             >
@@ -233,10 +271,15 @@ export function PublicHeader(props: PublicHeaderProps) {
               )}
             </Link>
 
-            {/* Desktop nav — `xl` rather than `lg`, because the translated
-                strip plus the actions does not fit a 1024px viewport in the
-                wider locales. */}
-            <div className='hidden items-center gap-0.5 xl:flex'>
+            <div
+              ref={desktopRef}
+              inert={compact}
+              aria-hidden={compact}
+              className={cn(
+                'flex w-max shrink-0 items-center gap-0.5',
+                compact && 'pointer-events-none invisible fixed top-0 left-0'
+              )}
+            >
               {links.map((link) => {
                 const isActive = isTopNavLinkActive(pathname, link.href)
                 const linkClassName = cn(
@@ -349,7 +392,12 @@ export function PublicHeader(props: PublicHeaderProps) {
             </div>
 
             {/* Mobile: compact actions + hamburger */}
-            <div className='ml-auto flex items-center gap-2 xl:hidden'>
+            <div
+              className={cn(
+                'ml-auto items-center gap-2',
+                compact ? 'flex' : 'hidden'
+              )}
+            >
               {showThemeSwitch && <ThemeSwitch />}
               <ZaloCommunityPopover />
               {showAuthButtons && !loading && isAuthenticated && (
@@ -362,6 +410,8 @@ export function PublicHeader(props: PublicHeaderProps) {
                 className='text-muted-foreground hover:text-foreground rounded-full'
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label={t('Toggle navigation menu')}
+                aria-expanded={mobileOpen}
+                aria-controls='public-navigation-menu'
               >
                 <div className='relative size-4'>
                   <span
@@ -391,9 +441,12 @@ export function PublicHeader(props: PublicHeaderProps) {
 
       {/* Mobile full-screen overlay */}
       <div
+        id='public-navigation-menu'
+        inert={!mobileOpen || !compact}
+        aria-hidden={!mobileOpen || !compact}
         className={cn(
-          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-expressive ease-emphasized xl:pointer-events-none xl:hidden',
-          mobileOpen
+          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-opacity duration-expressive ease-emphasized',
+          mobileOpen && compact
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
         )}
