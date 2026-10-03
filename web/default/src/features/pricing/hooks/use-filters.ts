@@ -1,6 +1,8 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useMemo, useCallback } from 'react'
 
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
+
 import {
   FILTER_ALL,
   SORT_OPTIONS,
@@ -43,7 +45,10 @@ export function useFilters(
   const searchInput = filterState.search || ''
   const sortBy = filterState.sort || SORT_OPTIONS.NAME
   const vendorFilter = filterState.vendor || FILTER_ALL
-  const groupFilter = filterState.group || FILTER_ALL
+  // A stale `?group=` link must not apply a filter the UI no longer shows.
+  const groupFilter = MULTI_GROUP_ENABLED
+    ? filterState.group || FILTER_ALL
+    : FILTER_ALL
   const quotaTypeFilter = filterState.quotaType || QUOTA_TYPES.ALL
   const endpointTypeFilter = filterState.endpointType || ENDPOINT_TYPES.ALL
   const tagFilter = filterState.tag || FILTER_ALL

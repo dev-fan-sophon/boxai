@@ -23,6 +23,7 @@ import {
   type SampleLanguage,
 } from '@/features/integrations/sample-builder'
 import { useStatus } from '@/hooks/use-status'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 
 import {
   getModelEndpointIntegrations,
@@ -150,14 +151,16 @@ export function ModelDetailsApi(props: {
               <dt className='text-muted-foreground'>{t('Streaming')}</dt>
               <dd>{profile.streaming ? t('Supported') : t('Not supported')}</dd>
             </div>
-            <div className='sm:col-span-2'>
-              <dt className='text-muted-foreground'>{t('Group scope')}</dt>
-              <dd>
-                {selected.integration.groups.length > 0
-                  ? selected.integration.groups.join(', ')
-                  : t('All available groups')}
-              </dd>
-            </div>
+            {MULTI_GROUP_ENABLED && (
+              <div className='sm:col-span-2'>
+                <dt className='text-muted-foreground'>{t('Group scope')}</dt>
+                <dd>
+                  {selected.integration.groups.length > 0
+                    ? selected.integration.groups.join(', ')
+                    : t('All available groups')}
+                </dd>
+              </div>
+            )}
           </dl>
 
           <div className='flex flex-wrap items-center justify-between gap-2'>

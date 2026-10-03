@@ -20,6 +20,7 @@ import {
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
@@ -560,25 +561,26 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               )}
             </Tooltip>
           </TooltipProvider>
-          {(group || groupRatio != null) && (
-            <span className='block max-w-full truncate text-xs leading-none'>
-              {group ? (
-                <GroupBadge
-                  group={group}
-                  label={sensitiveVisible ? undefined : '••••'}
-                  type='text'
-                  size='sm'
-                  className='inline align-baseline text-xs leading-none [&>span]:leading-none'
-                />
-              ) : null}
-              {group && groupRatio != null ? ' ' : null}
-              {groupRatio != null ? (
-                <span className='text-muted-foreground relative top-px align-baseline tabular-nums'>
-                  {formatRatioCompact(groupRatio)}x
-                </span>
-              ) : null}
-            </span>
-          )}
+          {(MULTI_GROUP_ENABLED || isAdmin) &&
+            (group || groupRatio != null) && (
+              <span className='block max-w-full truncate text-xs leading-none'>
+                {group ? (
+                  <GroupBadge
+                    group={group}
+                    label={sensitiveVisible ? undefined : '••••'}
+                    type='text'
+                    size='sm'
+                    className='inline align-baseline text-xs leading-none [&>span]:leading-none'
+                  />
+                ) : null}
+                {group && groupRatio != null ? ' ' : null}
+                {groupRatio != null ? (
+                  <span className='text-muted-foreground relative top-px align-baseline tabular-nums'>
+                    {formatRatioCompact(groupRatio)}x
+                  </span>
+                ) : null}
+              </span>
+            )}
         </div>
       )
     },

@@ -18,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
 import { buildSearchParams } from '../lib/filter'
@@ -394,7 +395,7 @@ export function CommonLogsFilterBar<TData>(
         <>
           {dateRangeFilter}
           {modelFilter}
-          {groupFilter}
+          {(MULTI_GROUP_ENABLED || isAdmin) && groupFilter}
           {typeFilter}
         </>
       }
@@ -403,7 +404,7 @@ export function CommonLogsFilterBar<TData>(
       mobileFilters={
         <>
           {modelFilter}
-          {groupFilter}
+          {(MULTI_GROUP_ENABLED || isAdmin) && groupFilter}
           {typeFilter}
           {advancedFilters}
         </>

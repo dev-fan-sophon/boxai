@@ -25,6 +25,7 @@ import { DynamicPricingBreakdown } from '@/features/pricing/components/dynamic-p
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
+import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { toneText } from '@/lib/tone'
 import { cn } from '@/lib/utils'
 
@@ -642,13 +643,14 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <DetailRow label={t('Token')} value={props.log.token_name} mono />
           )}
 
-          {(props.log.group || other?.group) && (
-            <DetailRow
-              label={t('Group')}
-              value={props.log.group || other?.group || ''}
-              mono
-            />
-          )}
+          {(MULTI_GROUP_ENABLED || props.isAdmin) &&
+            (props.log.group || other?.group) && (
+              <DetailRow
+                label={t('Group')}
+                value={props.log.group || other?.group || ''}
+                mono
+              />
+            )}
 
           {showAdminIp && (
             <DetailRow

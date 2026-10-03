@@ -114,7 +114,7 @@ function formatHintLabel(hint: PriceHint, t: (key: string) => string): string {
 
 function formatHintTitle(hint: PriceHint, t: (key: string) => string): string {
   if (hint.kind === 'per_request') {
-    return t('Estimated per-request price from catalog (group-adjusted)')
+    return t('Estimated price per run')
   }
-  return t('Billed by tokens or group ratio from catalog')
+  return t('Billed by tokens used')
 }
