@@ -19,12 +19,14 @@ import type {
 
 // User login with username and password
 export async function login(payload: LoginPayload) {
-  const turnstile = payload.turnstile ?? ''
   const res = await api.post<LoginResponse>(
-    `/api/user/login?turnstile=${turnstile}`,
+    '/api/user/login',
     {
       username: payload.username,
       password: payload.password,
+    },
+    {
+      headers: { 'X-Turnstile-Token': payload.turnstile ?? '' },
     }
   )
   return res.data
@@ -52,7 +54,8 @@ export async function sendPasswordResetEmail(
   turnstile?: string
 ): Promise<ApiResponse> {
   const res = await api.get('/api/reset_password', {
-    params: { email, turnstile },
+    params: { email },
+    headers: { 'X-Turnstile-Token': turnstile ?? '' },
   })
   return res.data
 }
@@ -89,7 +92,7 @@ export async function wechatLoginByCode(code: string): Promise<ApiResponse> {
 // User registration
 export async function register(payload: RegisterPayload): Promise<ApiResponse> {
   const res = await api.post(`/api/user/register`, payload, {
-    params: { turnstile: payload.turnstile ?? '' },
+    headers: { 'X-Turnstile-Token': payload.turnstile ?? '' },
   })
   return res.data
 }
@@ -100,7 +103,8 @@ export async function sendEmailVerification(
   turnstile?: string
 ): Promise<ApiResponse> {
   const res = await api.get('/api/verification', {
-    params: { email, turnstile },
+    params: { email },
+    headers: { 'X-Turnstile-Token': turnstile ?? '' },
   })
   return res.data
 }

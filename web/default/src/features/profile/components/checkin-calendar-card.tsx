@@ -115,7 +115,10 @@ export function CheckinCalendarCard({
     (message?: string) => {
       if (!turnstileEnabled) return false
       if (typeof message !== 'string') return true
-      return message.includes('Turnstile')
+      return (
+        message.includes('Turnstile') ||
+        message === 'Human verification failed. Please try again.'
+      )
     },
     [turnstileEnabled]
   )

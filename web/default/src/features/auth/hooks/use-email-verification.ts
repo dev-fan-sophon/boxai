@@ -10,6 +10,7 @@ import { EMAIL_VERIFICATION_COUNTDOWN } from '../constants'
 interface UseEmailVerificationOptions {
   turnstileToken?: string
   validateTurnstile?: () => boolean
+  resetTurnstile?: () => void
 }
 
 /**
@@ -54,6 +55,7 @@ export function useEmailVerification(options?: UseEmailVerificationOptions) {
       return false
     } finally {
       setIsSending(false)
+      options?.resetTurnstile?.()
     }
   }
 

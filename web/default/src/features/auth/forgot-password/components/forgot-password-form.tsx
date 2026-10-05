@@ -37,7 +37,9 @@ export function ForgotPasswordForm({
     isTurnstileEnabled,
     turnstileSiteKey,
     turnstileToken,
+    turnstileWidgetKey,
     setTurnstileToken,
+    resetTurnstile,
     validateTurnstile,
   } = useTurnstile()
   const {
@@ -68,6 +70,7 @@ export function ForgotPasswordForm({
     } catch {
       // Errors are handled by global interceptor
     } finally {
+      resetTurnstile()
       setIsLoading(false)
     }
   }
@@ -99,7 +102,12 @@ export function ForgotPasswordForm({
         />
 
         {isTurnstileEnabled && (
-          <Turnstile siteKey={turnstileSiteKey} onVerify={setTurnstileToken} />
+          <Turnstile
+            key={turnstileWidgetKey}
+            siteKey={turnstileSiteKey}
+            onVerify={setTurnstileToken}
+            onExpire={resetTurnstile}
+          />
         )}
 
         <Button
