@@ -83,6 +83,81 @@ func TestUpdateChannelValidatesEffectiveMultiprotocolType(t *testing.T) {
 	assert.Equal(t, baseURL, *persisted.BaseURL)
 }
 
+func TestUpdateChannelAppendPreservesExistingKeys(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		keys     string
+		info     model.ChannelInfo
+		mode     string
+		wantKeys string
+		wantMode constant.MultiKeyMode
+		wantSize int
+	}{
+		{
+			name:     "single key becomes polling pool",
+			keys:     "old-key",
+			wantKeys: "old-key\nnew-key",
+			wantMode: constant.MultiKeyModePolling,
+			wantSize: 2,
+		},
+		{
+			name:     "explicit random mode",
+			keys:     "old-key",
+			mode:     string(constant.MultiKeyModeRandom),
+			wantKeys: "old-key\nnew-key",
+			wantMode: constant.MultiKeyModeRandom,
+			wantSize: 2,
+		},
+		{
+			name:     "existing pool retains disabled key",
+			keys:     "old-key\nsecond-key",
+			info:     model.ChannelInfo{IsMultiKey: true, MultiKeySize: 2, MultiKeyMode: constant.MultiKeyModeRandom, MultiKeyStatusList: map[int]int{0: 2}},
+			wantKeys: "old-key\nsecond-key\nnew-key",
+			wantMode: constant.MultiKeyModeRandom,
+			wantSize: 3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupModelListControllerTestDB(t)
+			channel := &model.Channel{
+				Type: constant.ChannelTypeOllama, Name: "Ollama", Key: tc.keys,
+				Models: "deepseek-v4.1-flash", Group: "default", Status: common.ChannelStatusEnabled,
+				ChannelInfo: tc.info,
+			}
+			require.NoError(t, db.Create(channel).Error)
+			payload := map[string]any{
+				"id": channel.Id, "key_mode": "append", "key": " old-key \n new-key\nnew-key\n",
+			}
+			if tc.mode != "" {
+				payload["multi_key_mode"] = tc.mode
+			}
+			body, err := common.Marshal(payload)
+			require.NoError(t, err)
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPut, "/api/channel/", bytes.NewReader(body))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			ctx.Set("id", 1)
+			ctx.Set("role", common.RoleRootUser)
+			UpdateChannel(ctx)
+			var response struct {
+				Success bool `json:"success"`
+			}
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+			require.True(t, response.Success, recorder.Body.String())
+			var persisted model.Channel
+			require.NoError(t, db.First(&persisted, channel.Id).Error)
+			assert.Equal(t, tc.wantKeys, persisted.Key)
+			assert.True(t, persisted.ChannelInfo.IsMultiKey)
+			assert.Equal(t, tc.wantMode, persisted.ChannelInfo.MultiKeyMode)
+			assert.Equal(t, tc.wantSize, persisted.ChannelInfo.MultiKeySize)
+			assert.Equal(t, tc.info.MultiKeyStatusList, persisted.ChannelInfo.MultiKeyStatusList)
+			assert.Equal(t, "deepseek-v4.1-flash", persisted.Models)
+			assert.Equal(t, common.ChannelStatusEnabled, persisted.Status)
+		})
+	}
+}
+
 func TestCopyChannelRejectsMultiprotocolChannelWithoutBaseURL(t *testing.T) {
 	db := setupModelListControllerTestDB(t)
 	channel := &model.Channel{

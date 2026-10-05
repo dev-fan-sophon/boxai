@@ -1018,6 +1018,15 @@ func UpdateChannel(c *gin.Context) {
 		channel.ChannelInfo.MultiKeyMode = constant.MultiKeyMode(*channel.MultiKeyMode)
 	}
 
+	// Appending to a single-key channel must retain its existing credential.
+	// Enable multi-key parsing before the shared append/deduplication path.
+	if channel.KeyMode != nil && *channel.KeyMode == "append" && strings.TrimSpace(channel.Key) != "" {
+		channel.ChannelInfo.IsMultiKey = true
+		if channel.ChannelInfo.MultiKeyMode == "" {
+			channel.ChannelInfo.MultiKeyMode = constant.MultiKeyModePolling
+		}
+	}
+
 	// 处理多key模式下的密钥追加/覆盖逻辑
 	if channel.KeyMode != nil && channel.ChannelInfo.IsMultiKey {
 		switch *channel.KeyMode {
