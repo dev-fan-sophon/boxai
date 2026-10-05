@@ -3,8 +3,9 @@
 Signup credit is automatically added to the normal wallet through the existing
 `QuotaForNewUser` option. There is no claim form, manual approval, separate trial
 ledger, model allowlist, expiry, daily credit budget or trial-specific output cap.
-All models keep their existing prices and normal billing. Existing balances and
-subscription accounting are unchanged.
+All models keep their existing prices and normal billing. No new model-call
+concurrency or rate limits are added. Existing balances and subscription
+accounting are unchanged.
 
 When `RegistrationRiskPolicy.enabled` is true:
 
@@ -15,13 +16,6 @@ When `RegistrationRiskPolicy.enabled` is true:
   delivery addresses are not changed; IPv6 addresses share a /64 budget.
 - Optional blocked domains also cover subdomains. Maintain the list from
   reviewed evidence, not assumptions about one shared IP or mailbox provider.
-- Relay requests share **two concurrent HTTP requests per account**, across API
-  keys and models, including the authenticated playground. A third request gets
-  HTTP 429. A completed or failed request frees its slot immediately. Streaming
-  requests hold their slot until the handler ends. Redis leases are renewed;
-  store failures fail closed. Without Redis the limit is process-local.
-- Asynchronous media submissions occupy a slot during their HTTP request, not
-  until the upstream background job completes. There is no background-job cap.
 
 Turnstile is independently controlled by `TurnstileCheckEnabled`. Protected
 actions verify a fresh `X-Turnstile-Token` server-side; session success is not a
@@ -53,8 +47,8 @@ authorizes a production deployment or policy change.
    signup-credit amount, model prices and normal quota validation. Do not
    re-enable unrelated legacy model rate limits as part of this rollout.
 5. Verify health, fresh challenge rejection, registration email verification,
-   ordinary wallet billing, and the two-in-flight/third-rejected boundary.
+   registration/mail throttles, and unchanged ordinary wallet billing.
 
 Setting the risk option's `enabled` to false disables its signup/mail thresholds
-and concurrency check, without touching balances. Turnstile has its own switch.
+without touching model calls or balances. Turnstile has its own switch.
 Neither control alone establishes that an IP or email belongs to an attacker.
