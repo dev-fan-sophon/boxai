@@ -190,7 +190,7 @@ export function HeaderNavigationSection({
     },
     {
       key: 'createEnabled',
-      title: t('Create'),
+      title: t('Studio'),
       description: t('Image, video and audio creation studio.'),
     },
     {

@@ -4,7 +4,7 @@ import { PublicLayout } from '@/components/layout'
 import { CreateLayout } from '@/features/create'
 import { getFreshModuleAccess } from '@/lib/nav-modules'
 
-export const Route = createFileRoute('/_public/create')({
+export const Route = createFileRoute('/_public/studio')({
   beforeLoad: async () => {
     const access = await getFreshModuleAccess('create')
     if (!access.enabled) throw redirect({ to: '/' })

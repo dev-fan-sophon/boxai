@@ -25,7 +25,7 @@ const PRIMARY_TOOLS: Array<{ value: AudioKind; Icon: IconComponent }> = [
 ]
 
 /**
- * Audio sub-tool picker of /create/audio: a radio grid of the six everyday
+ * Audio sub-tool picker of /studio/audio: a radio grid of the six everyday
  * tools plus forced alignment as an advanced extra. Tools without a model
  * the user can call are disabled rather than hidden, so the layout is stable.
  */

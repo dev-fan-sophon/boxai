@@ -24,7 +24,7 @@ type WorkspaceSurface = 'playground' | 'create'
  * scope (local sessions belong to one signed-in identity), cloud sync, the
  * model catalog for the surface, and the user's model/group options.
  *
- * Chat (`/playground`) and the media studio (`/create/*`) are separate pages
+ * Chat (`/playground`) and the media studio (`/studio/*`) are separate pages
  * that share the session store, so both mount this once. The automatic model
  * fallback only picks models of the active modality, so opening chat never
  * lands on a video engine and vice versa. The modality is read from the

@@ -284,6 +284,7 @@ const PRIVATE_PREFIXES = [
   '/share',
   '/playground',
   '/create',
+  '/studio',
   '/inspiration',
   '/dashboard',
   '/mj',

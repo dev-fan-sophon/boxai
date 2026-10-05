@@ -24,7 +24,7 @@ export type TopNavLink = {
  *   about: false
  * }
  *
- * Default strip: Home · Chat · Create · Agents · Inspiration · Model Hub · Docs · Rankings.
+ * Default strip: Home · Chat · Studio · Agents · Inspiration · Model Hub · Docs · Rankings.
  * About stays in the footer only (not the header strip).
  * Console/Dashboard is a CTA in PublicHeader, not a strip text link.
  * Titles stay English i18n source keys; consumers translate them.
@@ -45,7 +45,7 @@ export function useTopNavLinks(): TopNavLink[] {
   const links: TopNavLink[] = []
 
   // Public navigation order:
-  // Home · Chat · Create · Agents · Inspiration · Model Hub · Docs · Rankings.
+  // Home · Chat · Studio · Agents · Inspiration · Model Hub · Docs · Rankings.
   // About is footer-only. Dashboard is a primary CTA in PublicHeader.
 
   if (modules?.home !== false) {
@@ -57,7 +57,7 @@ export function useTopNavLinks(): TopNavLink[] {
   }
 
   if (modules.create.enabled) {
-    links.push({ title: 'Create', href: '/create' })
+    links.push({ title: 'Studio', href: '/studio' })
   }
 
   if (modules.agents.enabled) {

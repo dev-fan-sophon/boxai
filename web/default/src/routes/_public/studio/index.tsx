@@ -2,12 +2,14 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { useCreateStore } from '@/stores/create-store'
 
-// /create opens the tool the user worked in last.
-export const Route = createFileRoute('/_public/create/')({
-  beforeLoad: () => {
+// /studio opens the tool the user worked in last.
+export const Route = createFileRoute('/_public/studio/')({
+  beforeLoad: ({ location }) => {
     throw redirect({
-      to: '/create/$tool',
+      to: '/studio/$tool',
       params: { tool: useCreateStore.getState().lastTool },
+      search: true,
+      hash: location.hash,
       replace: true,
     })
   },

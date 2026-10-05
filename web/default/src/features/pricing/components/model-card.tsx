@@ -123,7 +123,7 @@ function tryLinkFor(model: PricingModel) {
     return { to: '/playground', search: { model: model.model_name } } as const
   }
   return {
-    to: '/create/$tool',
+    to: '/studio/$tool',
     params: { tool: modality },
     search: { model: model.model_name },
   } as const

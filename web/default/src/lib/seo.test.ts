@@ -31,6 +31,9 @@ describe('isPrivateSeoPath', () => {
     expect(isPrivateSeoPath('/console/token')).toBe(true)
     expect(isPrivateSeoPath('/sign-in')).toBe(true)
     expect(isPrivateSeoPath('/playground/')).toBe(true)
+    expect(isPrivateSeoPath('/studio')).toBe(true)
+    expect(isPrivateSeoPath('/studio/image?model=test')).toBe(true)
+    expect(isPrivateSeoPath('/create/video')).toBe(true)
   })
 
   it('keeps marketing routes public', () => {
@@ -39,6 +42,7 @@ describe('isPrivateSeoPath', () => {
     expect(isPrivateSeoPath('/docs/getting-started')).toBe(false)
     expect(isPrivateSeoPath('/docs/start/getting-started')).toBe(false)
     expect(isPrivateSeoPath('/connect')).toBe(false)
+    expect(isPrivateSeoPath('/studio-news')).toBe(false)
   })
 })
 

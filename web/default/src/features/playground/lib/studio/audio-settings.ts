@@ -6,7 +6,7 @@ import type { AudioKind } from './model-modality'
  * enforced again by the gateway before billing.
  */
 export type AudioStudioSettings = {
-  /** Active audio sub-tool of /create/audio. */
+  /** Active audio sub-tool of /studio/audio. */
   audioTool: AudioKind
   elevenVoiceId: string
   elevenVoiceName: string

@@ -72,8 +72,8 @@ function TrendSparkline(props: { points: HomeStatsPoint[] }) {
 function workspaceTarget(modules: {
   playground: { enabled: boolean }
   create: { enabled: boolean }
-}): '/create' | '/playground' | undefined {
-  if (modules.create.enabled) return '/create'
+}): '/studio' | '/playground' | undefined {
+  if (modules.create.enabled) return '/studio'
   if (modules.playground.enabled) return '/playground'
   return undefined
 }

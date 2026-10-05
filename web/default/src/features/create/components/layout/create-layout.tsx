@@ -53,7 +53,7 @@ function CreateNav(props: { pathname: string }) {
       >
         {CREATE_NAV.map((item) => {
           const href =
-            item.id === 'library' ? '/create/library' : `/create/${item.id}`
+            item.id === 'library' ? '/studio/library' : `/studio/${item.id}`
           const active = props.pathname.startsWith(href)
           const Icon = item.Icon
           return (

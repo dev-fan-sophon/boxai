@@ -5,7 +5,7 @@ import { useStudio, type UseStudioResult } from '../hooks/use-studio'
 const StudioContext = createContext<UseStudioResult | null>(null)
 
 /**
- * Owns the generation queue for the whole studio. Mounted on the `/create`
+ * Owns the generation queue for the whole studio. Mounted on the `/studio`
  * layout so switching between Image, Video, Audio and Library keeps queued
  * and running jobs; leaving the studio drops jobs still waiting for a slot.
  */

@@ -174,7 +174,7 @@ export function Footer(props: FooterProps) {
       {
         title: t('Product'),
         links: [
-          { text: t('Workspace'), href: '/create' },
+          { text: t('Studio'), href: '/studio' },
           { text: t('Model Hub'), href: '/pricing' },
           { text: t('Rankings'), href: '/rankings' },
           { text: t('Inspiration'), href: '/inspiration' },

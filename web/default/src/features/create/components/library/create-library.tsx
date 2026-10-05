@@ -106,7 +106,7 @@ export function CreateLibrary() {
   const reuse = (run: PlaygroundRun) => {
     if (!isCreateTool(run.modality)) return
     setPrefill(run.prompt)
-    void navigate({ to: '/create/$tool', params: { tool: run.modality } })
+    void navigate({ to: '/studio/$tool', params: { tool: run.modality } })
   }
 
   let body: React.ReactNode
@@ -142,7 +142,7 @@ export function CreateLibrary() {
         action={
           <Button
             onClick={() =>
-              navigate({ to: '/create/$tool', params: { tool: 'image' } })
+              navigate({ to: '/studio/$tool', params: { tool: 'image' } })
             }
           >
             {t('Start creating')}

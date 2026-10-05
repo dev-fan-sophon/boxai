@@ -82,7 +82,7 @@ export function Playground() {
   const setSettingsPanelOpen = usePlaygroundStore(
     (state) => state.setSettingsPanelOpen
   )
-  // This page is chat only; media sessions live under /create.
+  // This page is chat only; media sessions live under /studio.
   useLayoutEffect(() => {
     if (activeModality !== 'chat') setActiveModality('chat')
   }, [activeModality, setActiveModality])
@@ -239,7 +239,7 @@ export function Playground() {
     )
     if (modality !== 'chat') {
       void navigate({
-        to: '/create/$tool',
+        to: '/studio/$tool',
         params: { tool: modality },
         search: { model: search.model },
         replace: true,
