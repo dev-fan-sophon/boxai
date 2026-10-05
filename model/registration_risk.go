@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -86,11 +85,4 @@ func applyRegistrationRisk(tx *gorm.DB, user *User) error {
 		return err
 	}
 	return TakeRegistrationRiskSlot(tx, "register-ip", RegistrationRiskNetwork(user.RegisterIp), p.RegistrationIPDaily, 86400)
-}
-
-func registrationWalletGift() int {
-	if operation_setting.GetRegistrationRiskPolicy().TrialEnabled {
-		return 0
-	}
-	return common.QuotaForNewUser
 }

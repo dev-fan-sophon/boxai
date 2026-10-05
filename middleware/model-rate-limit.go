@@ -12,6 +12,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common/limiter"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/setting"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -35,7 +36,8 @@ func modelRequestSucceeded(c *gin.Context) bool {
 	return !strings.HasPrefix(c.Writer.Header().Get("Content-Type"), "text/event-stream")
 }
 
-// Redis限流处理器
+// A zero duration uses pending leases only: an account concurrency limit,
+// with no completed-request rate window. It has a separate key namespace.
 func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userId := strconv.Itoa(c.GetInt("id"))
@@ -45,6 +47,9 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		success := false
 		if successMaxCount > 0 {
 			successKey := fmt.Sprintf("rateLimit:%s:v2:%s", ModelRequestRateLimitSuccessCountMark, userId)
+			if duration == 0 {
+				successKey = "concurrency:user:" + userId
+			}
 			id := uuid.NewString()
 			window := time.Duration(duration) * time.Second
 			reserveCtx, cancelReserve := context.WithTimeout(ctx, 5*time.Second)
@@ -56,6 +61,10 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 				return
 			}
 			if !allowed {
+				if duration == 0 {
+					abortWithOpenAiMessage(c, http.StatusTooManyRequests, "Maximum 2 concurrent requests per account. Please retry when a request completes.")
+					return
+				}
 				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到请求数限制：%d分钟内最多请求%d次", setting.ModelRequestRateLimitDurationMinutes, successMaxCount))
 				return
 			}
@@ -129,7 +138,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		// 4. 处理请求
 		c.Next()
 
-		success = modelRequestSucceeded(c)
+		success = duration > 0 && modelRequestSucceeded(c)
 	}
 }
 
@@ -141,6 +150,9 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		userId := strconv.Itoa(c.GetInt("id"))
 		totalKey := ModelRequestRateLimitCountMark + userId
 		successKey := ModelRequestRateLimitSuccessCountMark + userId
+		if duration == 0 {
+			successKey = "concurrency:user:" + userId
+		}
 
 		// 1. 检查总请求数限制（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
@@ -151,6 +163,10 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 
 		complete, allowed := modelSuccessLimiter.Reserve(successKey, successMaxCount, time.Duration(duration)*time.Second)
 		if !allowed {
+			if duration == 0 {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, "Maximum 2 concurrent requests per account. Please retry when a request completes.")
+				return
+			}
 			c.Status(http.StatusTooManyRequests)
 			c.Abort()
 			return
@@ -161,7 +177,23 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		// 3. 处理请求
 		c.Next()
 
-		success = modelRequestSucceeded(c)
+		success = duration > 0 && modelRequestSucceeded(c)
+	}
+}
+
+// UserConcurrencyLimit shares two in-flight slots across models and API keys.
+// Completion (including errors/disconnects) releases the slot, not a time window.
+func UserConcurrencyLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !operation_setting.GetRegistrationRiskPolicy().Enabled {
+			c.Next()
+			return
+		}
+		if common.RedisEnabled {
+			redisRateLimitHandler(0, 0, 2)(c)
+		} else {
+			memoryRateLimitHandler(0, 0, 2)(c)
+		}
 	}
 }
 

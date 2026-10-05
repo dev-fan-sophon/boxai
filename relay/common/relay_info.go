@@ -132,10 +132,7 @@ type RelayInfo struct {
 	Billing BillingSettler
 	// BillingSource indicates whether this request is billed from wallet quota or subscription.
 	// "" or "wallet" => wallet; "subscription" => subscription
-	BillingSource        string
-	TrialReservationID   string
-	TrialFundedQuota     int
-	TrialSubsidizedQuota int
+	BillingSource string
 	// SubscriptionId is the user_subscriptions.id used when BillingSource == "subscription"
 	SubscriptionId int
 	// SubscriptionUsageGeneration identifies the quota period reserved by this request.

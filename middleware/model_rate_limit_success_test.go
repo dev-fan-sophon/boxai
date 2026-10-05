@@ -8,6 +8,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/common/limiter"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
@@ -68,5 +69,58 @@ func TestModelSuccessQuotaOutcomes(t *testing.T) {
 				assert.Equal(t, 429, w.Code, "successful SSE must consume quota")
 			})
 		}
+	}
+}
+
+func TestAccountConcurrencyTwoAcrossModelsAndImmediateRelease(t *testing.T) {
+	for _, backend := range []string{"memory", "redis"} {
+		t.Run(backend, func(t *testing.T) {
+			oldMemory, oldRedis, oldEnabled := modelSuccessLimiter, common.RDB, common.RedisEnabled
+			oldPolicy, err := common.Marshal(operation_setting.GetRegistrationRiskPolicy())
+			require.NoError(t, err)
+			modelSuccessLimiter = limiter.NewSuccessMemory()
+			common.RedisEnabled = backend == "redis"
+			t.Cleanup(func() {
+				modelSuccessLimiter, common.RDB, common.RedisEnabled = oldMemory, oldRedis, oldEnabled
+				require.NoError(t, operation_setting.SetRegistrationRiskPolicy(string(oldPolicy)))
+			})
+			require.NoError(t, operation_setting.SetRegistrationRiskPolicy(`{"enabled":true,"registration_ip_daily":20,"email_ip_hourly":10,"email_identity_hourly":3}`))
+			if common.RedisEnabled {
+				server := miniredis.RunT(t)
+				client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+				t.Cleanup(func() { require.NoError(t, client.Close()) })
+				common.RDB = client
+			}
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				id := 101
+				if c.Query("other") != "" {
+					id = 102
+				}
+				c.Set("id", id)
+			}, UserConcurrencyLimit())
+			router.GET("/:model", func(c *gin.Context) {
+				switch c.Query("depth") {
+				case "first":
+					// Nested handlers keep both leases active without sleeps.
+					second := httptest.NewRecorder()
+					router.ServeHTTP(second, httptest.NewRequest("GET", "/expensive-model?depth=second", nil))
+					assert.Equal(t, 200, second.Code)
+				case "second":
+					third := httptest.NewRecorder()
+					router.ServeHTTP(third, httptest.NewRequest("GET", "/another-model", nil))
+					assert.Equal(t, 429, third.Code)
+					other := httptest.NewRecorder()
+					router.ServeHTTP(other, httptest.NewRequest("GET", "/another-model?other=1", nil))
+					assert.Equal(t, 200, other.Code, "another account has its own slots")
+				}
+				c.Status(200)
+			})
+			for _, path := range []string{"/cheap-model?depth=first", "/cheap-model?depth=first", "/expensive-model"} {
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+				assert.Equal(t, 200, w.Code, "completed requests must not consume a rate window")
+			}
+		})
 	}
 }

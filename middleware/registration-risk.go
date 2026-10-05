@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// EmailRiskLimit shares budgets across public verification, password reset
-// and authenticated trial mail. Changing endpoints does not reset a budget.
-func EmailRiskLimit(boundEmail bool) gin.HandlerFunc {
+// EmailRiskLimit shares budgets across public verification and password reset.
+// Changing endpoints does not reset a budget.
+func EmailRiskLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		p := operation_setting.GetRegistrationRiskPolicy()
 		if !p.Enabled {
@@ -19,14 +19,6 @@ func EmailRiskLimit(boundEmail bool) gin.HandlerFunc {
 			return
 		}
 		email := model.NormalizeEmail(c.Query("email"))
-		if boundEmail {
-			user, err := model.GetUserById(c.GetInt("id"), true)
-			if err != nil {
-				c.AbortWithStatus(http.StatusServiceUnavailable)
-				return
-			}
-			email = user.Email
-		}
 		if common.Validate.Var(email, "required,email") != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid email address."})
 			return

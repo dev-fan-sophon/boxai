@@ -11,7 +11,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
-	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/bytedance/gopkg/util/gopool"
@@ -28,7 +27,6 @@ import (
 type BillingSession struct {
 	relayInfo        *relaycommon.RelayInfo
 	funding          FundingSource
-	trialRequestID   string
 	preConsumedQuota int  // 实际预扣额度（信任用户可能为 0）
 	tokenConsumed    int  // 令牌额度实际扣减量
 	extraReserved    int  // 发送前补充预扣的额度（订阅退款时需要单独回滚）
@@ -46,20 +44,6 @@ func (s *BillingSession) Settle(actualQuota int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.settled {
-		return nil
-	}
-	if s.trialRequestID != "" {
-		reservation, err := model.FinishTrialReservation(s.trialRequestID, actualQuota, false)
-		if err != nil {
-			return err
-		}
-		s.settled = true
-		s.relayInfo.TrialFundedQuota = reservation.Funded
-		s.relayInfo.TrialSubsidizedQuota = reservation.Subsidized
-		if reservation.Subsidized > 0 {
-			common.SysError(fmt.Sprintf("trial overrun: request=%s user=%d actual=%d funded=%d; grant suspended", s.trialRequestID, s.relayInfo.UserId, reservation.Actual, reservation.Funded))
-		}
-		_ = model.InvalidateUserTokensCache(s.relayInfo.UserId)
 		return nil
 	}
 	delta := actualQuota - s.preConsumedQuota
@@ -120,17 +104,6 @@ func (s *BillingSession) Settle(actualQuota int) error {
 func (s *BillingSession) Refund(c *gin.Context) {
 	s.mu.Lock()
 	if s.settled || s.refunded || !s.needsRefundLocked() {
-		s.mu.Unlock()
-		return
-	}
-	if s.trialRequestID != "" {
-		_, err := model.FinishTrialReservation(s.trialRequestID, 0, true)
-		if err == nil {
-			s.refunded = true
-			_ = model.InvalidateUserTokensCache(s.relayInfo.UserId)
-		} else {
-			common.SysError(fmt.Sprintf("trial refund pending: request=%s error=%v", s.trialRequestID, err))
-		}
 		s.mu.Unlock()
 		return
 	}
@@ -224,15 +197,6 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 
 	delta := targetQuota - s.preConsumedQuota
 	if delta <= 0 {
-		return nil
-	}
-	if s.trialRequestID != "" {
-		if err := model.ResizeTrialReservation(s.trialRequestID, targetQuota); err != nil {
-			return err
-		}
-		s.preConsumedQuota, s.tokenConsumed = targetQuota, targetQuota
-		s.relayInfo.FinalPreConsumedQuota = targetQuota
-		_ = model.InvalidateUserTokensCache(s.relayInfo.UserId)
 		return nil
 	}
 	if s.relayInfo.ForcePreConsume {
@@ -593,43 +557,6 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		return nil, types.NewError(subCheckErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	if !hasSub {
-		policy := operation_setting.GetRegistrationRiskPolicy()
-		if policy.Enabled && policy.TrialEnabled && !relayInfo.ForcePreConsume {
-			wallet, err := model.GetUserQuota(relayInfo.UserId, true)
-			if err != nil {
-				return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
-			}
-			// Paid balances retain existing accounting. Only a wallet-empty user
-			// may spend isolated trial credit; tasks require paid funding.
-			if wallet == 0 {
-				if relayInfo.Request == nil || relayInfo.RequestId == "" {
-					return nil, types.NewError(fmt.Errorf("trial requires a bounded text request"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
-				}
-				if err := validateTrialRequest(relayInfo.Request, policy.TrialMaxOutputTokens); err != nil {
-					return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-				}
-				if preConsumedQuota < 1 {
-					preConsumedQuota = 1
-				}
-				tokenID := relayInfo.TokenId
-				if relayInfo.IsPlayground {
-					tokenID = 0
-				}
-				if err := model.FlushBillingQuotaBatches(relayInfo.UserId, tokenID); err != nil {
-					return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
-				}
-				requestID := "trial:" + relayInfo.RequestId
-				_, err := model.ReserveTrial(relayInfo.UserId, tokenID, requestID, relayInfo.OriginModelName, preConsumedQuota)
-				if err != nil {
-					return nil, types.NewErrorWithStatusCode(fmt.Errorf("trial credit unavailable or request exceeds its limits"), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-				}
-				_ = model.InvalidateUserTokensCache(relayInfo.UserId)
-				relayInfo.BillingSource = "trial"
-				relayInfo.TrialReservationID = requestID
-				relayInfo.FinalPreConsumedQuota = preConsumedQuota
-				return &BillingSession{relayInfo: relayInfo, trialRequestID: requestID, preConsumedQuota: preConsumedQuota, tokenConsumed: preConsumedQuota}, nil
-			}
-		}
 		return tryWallet(0, 0)
 	}
 

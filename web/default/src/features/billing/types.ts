@@ -11,26 +11,6 @@ export interface ApiResponse<T = unknown> {
   data?: T
 }
 
-export type TrialGrantStatus = 'pending' | 'approved' | 'rejected' | 'suspended'
-
-export interface TrialGrant {
-  status: TrialGrantStatus
-  total: number
-  remaining: number
-  reserved: number
-  used: number
-  expires_at: number
-  models: string[]
-}
-
-export interface TrialCreditData {
-  enabled: boolean
-  eligible: boolean
-  email: string
-  grant: TrialGrant | null
-  max_output_tokens: number
-}
-
 /**
  * Standard API response types
  */
