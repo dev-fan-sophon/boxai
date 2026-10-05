@@ -80,8 +80,8 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		apiRouter.GET("/rankings", middleware.HeaderNavModuleAuth("rankings"), controller.GetRankings)
 		apiRouter.POST("/docs/feedback", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.SubmitDocsFeedback)
-		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
-		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
+		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), middleware.EmailRiskLimit(false), controller.SendEmailVerification)
+		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), middleware.EmailRiskLimit(false), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), controller.GenerateOAuthCode)
@@ -186,6 +186,9 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/self/group-status", controller.GetUserGroupStatus)
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)
+				selfRoute.GET("/trial", middleware.UserSessionAuth(), controller.GetSelfTrial)
+				selfRoute.POST("/trial/verification", middleware.UserSessionAuth(), middleware.UserCriticalRateLimit("trial-email"), middleware.TurnstileCheck(), middleware.EmailRiskLimit(true), controller.SendTrialVerification)
+				selfRoute.POST("/trial", middleware.UserSessionAuth(), middleware.UserCriticalRateLimit("trial-claim"), anonymousRequestBodyLimit, middleware.TurnstileCheck(), controller.RequestSelfTrial)
 				selfRoute.PUT("/self", middleware.CriticalRateLimit(), controller.UpdateSelf)
 				selfRoute.DELETE("/self", controller.DeleteSelf)
 				// POST is the canonical state-changing route. GET remains for
@@ -248,6 +251,10 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/topup", controller.GetAllTopUps)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.GET("/topup/reviews", controller.ListTopUpReviews)
+				adminRoute.GET("/trial/reviews", middleware.RootAuth(), controller.ListTrialReviews)
+				adminRoute.POST("/:id/trial/review", middleware.RootAuth(), anonymousRequestBodyLimit, controller.ReviewTrial)
+				adminRoute.GET("/trial/reservations", middleware.RootAuth(), controller.ListTrialReservations)
+				adminRoute.POST("/trial/reservations/:request/reconcile", middleware.RootAuth(), anonymousRequestBodyLimit, controller.ReconcileTrialReservation)
 				adminRoute.GET("/topup/reviews/:id", controller.GetTopUpReview)
 				adminRoute.GET("/topup/reviews/:id/proof", controller.GetAdminTopUpProof)
 				adminRoute.POST("/topup/reviews/:id/approve", controller.ApproveTopUpReview)

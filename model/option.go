@@ -69,6 +69,8 @@ func InitOptionMap() {
 	common.OptionMap["SMTPInsecureSkipVerify"] = strconv.FormatBool(common.SMTPInsecureSkipVerify)
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
 	common.OptionMap[operation_setting.TopUpReviewNotificationOptionKey] = `{"enabled":false,"recipients":[]}`
+	riskPolicy, _ := common.Marshal(operation_setting.GetRegistrationRiskPolicy())
+	common.OptionMap[operation_setting.RegistrationRiskOptionKey] = string(riskPolicy)
 	common.OptionMap["Notice"] = ""
 	common.OptionMap["About"] = ""
 	common.OptionMap["HomePageContent"] = ""
@@ -236,6 +238,10 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if key == operation_setting.RegistrationRiskOptionKey {
+		_, err := operation_setting.ParseRegistrationRiskPolicy(value)
+		return err
+	}
 	if key == operation_setting.TopUpReviewNotificationOptionKey {
 		_, err := operation_setting.ParseTopUpReviewNotificationSetting(value)
 		return err
@@ -345,6 +351,11 @@ func UpdateOptionsBulk(values map[string]string) error {
 func updateOptionMap(key string, value string) (err error) {
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
+	if key == operation_setting.RegistrationRiskOptionKey {
+		if err := operation_setting.SetRegistrationRiskPolicy(value); err != nil {
+			return err
+		}
+	}
 	common.OptionMap[key] = value
 
 	// 检查是否是模型配置 - 使用更规范的方式处理

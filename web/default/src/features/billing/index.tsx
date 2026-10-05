@@ -16,6 +16,7 @@ import {
 import { RedeemCodeDialog } from './components/dialogs/redeem-code-dialog'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { TransactionsSection } from './components/transactions-section'
+import { TrialCreditCard } from './components/trial-credit-card'
 import { ZaloCommunityCard } from './components/zalo-community-card'
 import { BILLING_QUERY_KEYS, DEFAULT_DISCOUNT_RATE } from './constants'
 import {
@@ -344,6 +345,8 @@ export function Billing(props: BillingProps) {
                 }
               />
             </section>
+
+            <TrialCreditCard />
 
             <ZaloCommunityCard />
 

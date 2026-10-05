@@ -26,6 +26,8 @@ import type {
   BankQRPaymentResponse,
   TopUpSubmission,
   TopUpReviewsData,
+  TrialCreditData,
+  TrialGrant,
 } from './types'
 
 // ============================================================================
@@ -37,6 +39,40 @@ import type {
  */
 export function isApiSuccess(response: ApiResponse): boolean {
   return response.success === true || response.message === 'success'
+}
+
+export async function getTrialCredit(): Promise<ApiResponse<TrialCreditData>> {
+  const res = await api.get('/api/user/trial', { skipBusinessError: true })
+  return res.data
+}
+
+export async function sendTrialVerification(
+  turnstileToken: string
+): Promise<ApiResponse> {
+  const res = await api.post(
+    '/api/user/trial/verification',
+    {},
+    {
+      headers: { 'X-Turnstile-Token': turnstileToken },
+      skipBusinessError: true,
+    }
+  )
+  return res.data
+}
+
+export async function requestTrialCredit(
+  code: string,
+  turnstileToken: string
+): Promise<ApiResponse<TrialGrant>> {
+  const res = await api.post(
+    '/api/user/trial',
+    { code },
+    {
+      headers: { 'X-Turnstile-Token': turnstileToken },
+      skipBusinessError: true,
+    }
+  )
+  return res.data
 }
 
 /**

@@ -159,6 +159,19 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interf
 	if relayInfo.BillingSource != "" {
 		other["billing_source"] = relayInfo.BillingSource
 	}
+	if relayInfo.BillingSource == "trial" {
+		other["trial_reservation_id"] = relayInfo.TrialReservationID
+		other["trial_funded_quota"] = relayInfo.TrialFundedQuota
+		other["wallet_quota_deducted"] = 0
+		if relayInfo.TrialSubsidizedQuota > 0 {
+			admin, _ := other["admin_info"].(map[string]interface{})
+			if admin == nil {
+				admin = map[string]interface{}{}
+				other["admin_info"] = admin
+			}
+			admin["trial_subsidized_quota"] = relayInfo.TrialSubsidizedQuota
+		}
+	}
 	if relayInfo.OverageSubscriptionId != 0 {
 		other["overage_subscription_id"] = relayInfo.OverageSubscriptionId
 	}

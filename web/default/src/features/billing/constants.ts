@@ -60,4 +60,5 @@ export const BILLING_QUERY_KEYS = {
   affiliateCode: ['billing', 'affiliate-code'],
   subscriptionPlans: ['billing', 'subscription', 'plans'],
   subscriptionSelf: ['billing', 'subscription', 'self'],
+  trial: ['billing', 'trial'],
 } as const
