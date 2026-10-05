@@ -55,18 +55,6 @@ func codex(home string) *Agent {
 		}
 		return nil
 	}
-	// A selected profile overrides the top-level route. Let it inherit the
-	// route just chosen, without discarding its sandbox, approval or MCP settings.
-	inheritRoute := func() error {
-		if profile := get("profile"); profile != "" {
-			for _, key := range []string{"model", "model_provider", "openai_base_url", "model_catalog_json"} {
-				if err := edit.DelTOMLKey(path, "profiles."+profile, key); err != nil {
-					return err
-				}
-			}
-		}
-		return settle()
-	}
 	// dropProvider takes magpie out as a provider of Codex's.
 	dropProvider := func() error {
 		if !asProvider() {
@@ -176,7 +164,7 @@ func codex(home string) *Agent {
 				); err != nil {
 					return err
 				}
-				return inheritRoute()
+				return settle()
 			}
 			if err := dropBase(); err != nil {
 				return err
@@ -199,7 +187,7 @@ func codex(home string) *Agent {
 			); err != nil {
 				return err
 			}
-			return inheritRoute()
+			return settle()
 		}
 		if routed() {
 			if err := dropSubagent(); err != nil {

@@ -1,15 +1,11 @@
 package agent
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/provider"
 )
 
@@ -216,49 +212,6 @@ func TestCodexSubagentReadErrorStopsChanges(t *testing.T) {
 			if string(got) != input {
 				t.Fatalf("changed config after a subagent read error:\n%s", got)
 			}
-		})
-	}
-}
-
-func TestCodexSelectionOverridesActiveProfileRoute(t *testing.T) {
-	for _, auth := range []string{"", `{"OPENAI_API_KEY":"sk-test"}`} {
-		t.Run("signed-in="+fmt.Sprint(auth != ""), func(t *testing.T) {
-			home, read := codexHome(t, auth, `model = "gpt-5.6-sol"
-model_provider = "boxai"
-profile = "work"
-
-[model_providers.boxai]
-base_url = "https://you-box.com/v1"
-wire_api = "responses"
-
-[profiles.work]
-model_provider = "boxai"
-model_catalog_json = "/old/models.json"
-openai_base_url = "https://you-box.com/v1"
-sandbox_mode = "workspace-write"
-
-[profiles.other]
-model = "other-model"
-model_provider = "other-provider"
-`)
-			require.NoError(t, provider.Save(provider.Provider{ID: "boxai", Name: "BoxAI", Key: "test", Responses: "https://you-box.com/v1", Models: []string{"gpt-5.6-sol"}}))
-			cx := codex(home)
-			for _, profileModel := range []string{"", "old-model"} {
-				if profileModel != "" {
-					require.NoError(t, edit.SetTOMLKey(cx.Path, "profiles.work", "model", profileModel))
-				}
-				require.NoError(t, cx.Field("model").Set("boxai/gpt-5.6-sol"))
-				assert.Empty(t, cx.Check())
-				profile, err := edit.GetTOMLTable(cx.Path, "profiles.work")
-				require.NoError(t, err)
-				assert.Equal(t, map[string]string{"sandbox_mode": "workspace-write"}, profile)
-				assert.Equal(t, "boxai/gpt-5.6-sol", cx.Field("model").Get())
-			}
-			other, err := edit.GetTOMLTable(cx.Path, "profiles.other")
-			require.NoError(t, err)
-			assert.Equal(t, "other-provider", other["model_provider"])
-			assert.Equal(t, "other-model", other["model"])
-			assert.Contains(t, read(), `base_url = "https://you-box.com/v1"`, "preserve the user's direct provider for later use")
 		})
 	}
 }

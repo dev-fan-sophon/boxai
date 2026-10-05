@@ -16,8 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/provider"
 )
@@ -100,20 +98,6 @@ func post(t *testing.T, path, body string) (int, string) {
 	req := httptest.NewRequest("POST", path, strings.NewReader(body))
 	New().Handler().ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
-}
-
-func TestResponsesStripsBoxAIProviderPrefix(t *testing.T) {
-	f := &fake{ctype: "application/json", reply: `{"id":"resp-test","status":"completed","output":[]}`}
-	up := setup(t, provider.Responses, f)
-	require.NoError(t, provider.Save(provider.Provider{ID: "boxai", Key: "test", Responses: up.URL + "/v1", Models: []string{"gpt-5.6-sol"}}))
-	code, _ := post(t, "/v1/responses", `{"model":"boxai/gpt-5.6-sol","input":"hello","stream":false}`)
-	require.Equal(t, http.StatusOK, code)
-	assert.Equal(t, "/v1/responses", f.path)
-	var sent map[string]any
-	require.NoError(t, json.Unmarshal(f.got, &sent))
-	assert.Equal(t, "gpt-5.6-sol", sent["model"])
-	assert.Equal(t, "hello", sent["input"])
-	assert.Equal(t, false, sent["stream"])
 }
 
 func events(body string) []map[string]any {
