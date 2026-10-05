@@ -1,0 +1,42 @@
+name: Validate main
+
+# Code checks only. Deployment requires the user's confirmation in conversation.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate code (no deployment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Verify deployment and monitoring contracts
+        run: |
+          bash -n scripts/deploy-prod.sh scripts/deploy-web.sh scripts/server/start-infra.sh
+          python3 scripts/server/start-infra_test.py
+          node --test workers/health-monitor/index.test.mjs
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Verify frontend quality
+        working-directory: web/default
+        run: |
+          set -euo pipefail
+          bun run format:check
+          bun run lint
+          bun run typecheck
+          bun x vitest run scripts/docs/build-content.test.ts
+          git diff --exit-code -- public/doc-assets src/features/docs/generated

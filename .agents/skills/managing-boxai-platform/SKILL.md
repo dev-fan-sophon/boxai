@@ -94,22 +94,20 @@ The script logs in, handles an optional interactive 2FA challenge, rotates the t
 
 Canonical path: **host binary + systemd**; **Docker only for Postgres/Redis**.
 
-**Preferred release path:** push to `main` runs validation only. After the user
-authorizes a release, manually dispatch `Deploy production`
-(`.github/workflows/deploy-prod.yml`) from `main` with a full commit SHA, then
-wait for a human to approve the `production` Environment. Required reviewers
-and disabled administrator bypass are mandatory; missing rules block release.
-Never approve the deployment yourself or bypass this gate via SSH scripts.
+**Preferred release path:** push to `main`, report changes and checks, then stop.
+Only after the user confirms going live in conversation, run the existing
+deployment scripts and verify production health. No GitHub Actions dispatch or
+Environment approval is required; pushing code alone never authorizes deployment.
 
 ```bash
-# Emergency / local only after separate explicit production approval
+# Only after the user confirms going live
 make deploy
 # or
 ./scripts/deploy-prod.sh
 ./scripts/deploy-prod.sh --bootstrap   # first-time host only
 ```
 
-Docs: [deploy/README.md](../../../deploy/README.md). GitHub secrets: `BOXAI_SSH_HOST`, `BOXAI_SSH_USER`, `BOXAI_SSH_PORT` (optional), `BOXAI_SSH_PRIVATE_KEY`, `BOXAI_SSH_HOST_KEY`, `BOXAI_BASE_URL`.
+Docs: [deploy/README.md](../../../deploy/README.md). Deployment environment: `BOXAI_SSH_HOST`, `BOXAI_SSH_USER`, `BOXAI_SSH_PORT` (optional), `BOXAI_SSH_PRIVATE_KEY`, `BOXAI_SSH_HOST_KEY`, `BOXAI_BASE_URL`.
 
 Use `scripts/boxai-server` instead of hand-built SSH flags:
 

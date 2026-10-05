@@ -185,8 +185,7 @@ and zone below; a personal `CLOUDFLARE_ACCOUNT_ID` may refer to another project.
 
 ```bash
 # Push to main validates only; it never authorizes production release.
-# Release: manually dispatch "Deploy production" with a full SHA → human approves production Environment.
-# Emergency / local: requires separate explicit approval before upload/build/restart.
+# Stop after pushing; deploy only after the user confirms going live in conversation.
 make deploy
 # First-time host bootstrap only
 make deploy-bootstrap
@@ -198,9 +197,9 @@ make dev-web
 make dev-web-local
 ```
 
-Agents must not approve GitHub deployment requests themselves or use manual SSH
-deploy scripts to bypass the human release gate. See `deploy/README.md` for the
-required production reviewers and no-admin-bypass policy.
+Deployment confirmation happens in conversation, not GitHub Actions or
+Environment settings. After pushing, report the changes and checks and wait
+for the user's explicit go-live confirmation before running deployment scripts.
 
 **Do not:**
 
