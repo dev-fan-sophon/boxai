@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -194,7 +193,7 @@ func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
 
-	updateOpenAIImageCount(info, countOpenAIImagePayloads(responseBody))
+	updateOpenAIImageCount(info, countOpenAIImagePayloads(responseBody, requestedOpenAIImageCount(info)))
 
 	// 写入新的 response body
 	service.IOCopyBytesGracefully(c, resp, responseBody)
@@ -247,26 +246,65 @@ func normalizeOpenAIUsage(info *relaycommon.RelayInfo, usage *dto.Usage, respons
 	}
 }
 
-// Count results, not placeholders or metadata-only entries. Leave the existing
-// requested-n fallback intact when upstream supplies no usable payloads.
-func countOpenAIImagePayloads(body []byte) int64 {
-	var count int64
-	for _, image := range gjson.GetBytes(body, "data").Array() {
-		if hasOpenAIImagePayload(image) {
-			count++
+// countOpenAIImagePayloads counts billable images in an OpenAI Images response.
+// Placeholders and metadata-only entries never count, and a zero result keeps
+// the requested-n fallback. An object-shaped data is one image. In an array
+// each payload-bearing entry is one image (the spec puts url and/or b64_json
+// for one image in one entry), except for the known non-standard split where
+// an upstream emits one image as a url-only entry plus a b64_json-only entry.
+// That split is only assumed when the array mixes url-only and b64_json-only
+// entries and the per-entry count exceeds the requested n: within the request
+// the entries may be distinct images, so they are not undercounted.
+func countOpenAIImagePayloads(body []byte, requestedN float64) int64 {
+	data := gjson.GetBytes(body, "data")
+	if data.IsObject() {
+		if hasOpenAIImagePayload(data) {
+			return 1
+		}
+		return 0
+	}
+	if !data.IsArray() {
+		return 0
+	}
+	var entries, urlOnly, b64Only, both int64
+	for _, image := range data.Array() {
+		hasURL := hasOpenAIImageField(image, "url")
+		hasB64 := hasOpenAIImageField(image, "b64_json")
+		switch {
+		case hasURL && hasB64:
+			both++
+		case hasURL:
+			urlOnly++
+		case hasB64:
+			b64Only++
+		default:
+			continue
+		}
+		entries++
+	}
+	if urlOnly == 0 || b64Only == 0 || float64(entries) <= requestedN {
+		return entries
+	}
+	return both + max(urlOnly, b64Only)
+}
+
+// requestedOpenAIImageCount is the image quantity pre-consumed for the request.
+func requestedOpenAIImageCount(info *relaycommon.RelayInfo) float64 {
+	if info != nil {
+		if n, ok := info.PriceData.OtherRatios()["n"]; ok {
+			return n
 		}
 	}
-	return count
+	return 1
 }
 
 func hasOpenAIImagePayload(image gjson.Result) bool {
-	for _, field := range []string{"url", "b64_json"} {
-		value := image.Get(field)
-		if value.Type == gjson.String && strings.TrimSpace(value.String()) != "" {
-			return true
-		}
-	}
-	return false
+	return hasOpenAIImageField(image, "url") || hasOpenAIImageField(image, "b64_json")
+}
+
+func hasOpenAIImageField(image gjson.Result, field string) bool {
+	value := image.Get(field)
+	return value.Type == gjson.String && strings.TrimSpace(value.String()) != ""
 }
 
 func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
@@ -335,10 +373,7 @@ func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 	if info.StreamStatus != nil {
 		upstreamFinished := info.StreamStatus.EndReason == relaycommon.StreamEndReasonDone ||
 			info.StreamStatus.EndReason == relaycommon.StreamEndReasonEOF
-		requestedN := 1.0
-		if n, ok := info.PriceData.OtherRatios()["n"]; ok {
-			requestedN = n
-		}
+		requestedN := requestedOpenAIImageCount(info)
 		if upstreamFinished || float64(completedImages) > requestedN {
 			updateOpenAIImageCount(info, completedImages)
 		}
@@ -431,9 +466,7 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 	normalizeOpenAIUsage(info, &usageResp.Usage, responseBody)
 	applyUsagePostProcessing(info, &usageResp.Usage, responseBody)
 
-	imageCount := gjson.GetBytes(responseBody, "data.#").Int()
-	actualImageCount := countOpenAIImagePayloads(responseBody)
-	updateOpenAIImageCount(info, actualImageCount)
+	updateOpenAIImageCount(info, countOpenAIImagePayloads(responseBody, requestedOpenAIImageCount(info)))
 
 	helper.SetEventStreamHeaders(c)
 	c.Status(http.StatusOK)
@@ -455,8 +488,12 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 		}
 	}
 
-	for i := int64(0); i < imageCount; i++ {
-		image := gjson.GetBytes(responseBody, "data."+strconv.FormatInt(i, 10))
+	// gjson Array returns the elements of an array and the single result for
+	// an object-shaped data, keeping document-relative indexes for zero-copy
+	// field forwarding. Every payload-bearing entry is forwarded, including
+	// both halves of a split image, so the client receives all delivered data.
+	emitted := 0
+	for _, image := range gjson.GetBytes(responseBody, "data").Array() {
 		if !hasOpenAIImagePayload(image) {
 			continue
 		}
@@ -494,6 +531,7 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 			}
 			return &usageResp.Usage, nil
 		}
+		emitted++
 	}
 	if err := writeOpenaiImageStreamDone(c); err != nil {
 		if info != nil && info.StreamStatus != nil {
@@ -502,7 +540,7 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 		return &usageResp.Usage, nil
 	}
 	if info != nil {
-		info.ReceivedResponseCount += int(actualImageCount)
+		info.ReceivedResponseCount += emitted
 		if info.StreamStatus == nil {
 			info.StreamStatus = relaycommon.NewStreamStatus()
 		}
