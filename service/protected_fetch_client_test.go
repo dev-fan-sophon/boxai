@@ -315,3 +315,23 @@ func TestProtectedFetchRoundTripperReusesTransportPerProxy(t *testing.T) {
 	require.True(t, direct.ForceAttemptHTTP2)
 	require.False(t, direct.DisableKeepAlives)
 }
+
+func TestProtectedFetchInsecureTransportsDoNotShareTLSConfig(t *testing.T) {
+	oldInsecure := common.TLSInsecureSkipVerify
+	common.TLSInsecureSkipVerify = true
+	t.Cleanup(func() { common.TLSInsecureSkipVerify = oldInsecure })
+
+	client := newProtectedFetchHTTPClientWithDialer(nil, nil, nil)
+	roundTripper, ok := client.Transport.(*ssrfProtectedRoundTripper)
+	require.True(t, ok)
+
+	direct := roundTripper.transportFor(nil)
+	proxied := roundTripper.transportFor(mustParseURL(t, "http://127.0.0.1:3128"))
+
+	require.NotNil(t, direct.TLSClientConfig)
+	require.NotNil(t, proxied.TLSClientConfig)
+	require.True(t, direct.TLSClientConfig.InsecureSkipVerify)
+	require.NotSame(t, common.InsecureTLSConfig, direct.TLSClientConfig)
+	require.NotSame(t, common.InsecureTLSConfig, proxied.TLSClientConfig)
+	require.NotSame(t, direct.TLSClientConfig, proxied.TLSClientConfig)
+}

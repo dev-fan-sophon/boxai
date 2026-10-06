@@ -263,3 +263,32 @@ func TestHTTP2ShardsCreateAndReuseBoundedConnections(t *testing.T) {
 	assert.Zero(t, nonHTTP2.Load())
 	assert.Equal(t, 4, connectionCount)
 }
+
+func TestInsecureRelayTransportsDoNotShareTLSConfig(t *testing.T) {
+	oldInsecure := common.TLSInsecureSkipVerify
+	common.TLSInsecureSkipVerify = true
+	t.Cleanup(func() { common.TLSInsecureSkipVerify = oldInsecure })
+	sharedNextProtos := append([]string(nil), common.InsecureTLSConfig.NextProtos...)
+
+	server := testHTTP2Server(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	}))
+	first := newRelayHTTPTransport()
+	second := newRelayHTTPTransport()
+	t.Cleanup(first.CloseIdleConnections)
+
+	require.NotNil(t, first.TLSClientConfig)
+	assert.True(t, first.TLSClientConfig.InsecureSkipVerify)
+	assert.NotSame(t, common.InsecureTLSConfig, first.TLSClientConfig)
+	assert.NotSame(t, first.TLSClientConfig, second.TLSClientConfig)
+
+	// HTTP/2 negotiation mutates the transport's TLS config (NextProtos); the
+	// shared insecure template must stay untouched for other transports.
+	response, err := (&http.Client{Transport: first}).Get(server.URL)
+	require.NoError(t, err)
+	assert.Equal(t, 2, response.ProtoMajor)
+	closeResponse(t, response)
+	assert.Contains(t, first.TLSClientConfig.NextProtos, "h2")
+	assert.Equal(t, sharedNextProtos, common.InsecureTLSConfig.NextProtos)
+	assert.Equal(t, sharedNextProtos, second.TLSClientConfig.NextProtos)
+}
