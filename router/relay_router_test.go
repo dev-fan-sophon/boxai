@@ -11,6 +11,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,18 @@ func TestModelRoutesSupportOpenAIAndGeminiAuthentication(t *testing.T) {
 			if test.wantValue != "" {
 				assert.Equal(t, test.wantValue, payload[test.wantField])
 			}
+			if test.wantField == "models" || test.wantField == "object" {
+				listField, nameField := "models", "name"
+				if test.wantField == "object" {
+					listField, nameField = "data", "id"
+				}
+				items, ok := payload[listField].([]any)
+				require.True(t, ok)
+				require.Len(t, items, 1)
+				item, ok := items[0].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, "gemini-2.0-flash", item[nameField])
+			}
 		})
 	}
 }
@@ -130,10 +143,20 @@ func setupRelayRouterTestDB(t *testing.T) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
+	// Catalog visibility requires an explicit price, not just an enabled ability.
+	// Keep this authentication fixture independent of the bundled model catalog.
+	originalRatios := ratio_setting.ModelRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(originalRatios))
+		model.InvalidatePricingCache()
+	})
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"gemini-2.0-flash":1}`))
+	model.InvalidatePricingCache()
 	originalDB := model.DB
 	originalLogDB := model.LOG_DB
 	originalIsMasterNode := common.IsMasterNode
 	originalRedisEnabled := common.RedisEnabled
+	originalMemoryCacheEnabled := common.MemoryCacheEnabled
 	originalSQLitePath := common.SQLitePath
 	originalMainDatabaseType := common.MainDatabaseType()
 	originalLogDatabaseType := common.LogDatabaseType()
@@ -141,12 +164,13 @@ func setupRelayRouterTestDB(t *testing.T) {
 
 	common.IsMasterNode = false
 	common.RedisEnabled = false
+	common.MemoryCacheEnabled = false
 	common.SQLitePath = fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
 	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	require.NoError(t, os.Setenv("SQL_DSN", "local"))
 	require.NoError(t, model.InitDB())
 	model.LOG_DB = model.DB
-	require.NoError(t, model.DB.AutoMigrate(&model.User{}, &model.Token{}, &model.Channel{}, &model.Ability{}))
+	require.NoError(t, model.DB.AutoMigrate(&model.User{}, &model.Token{}, &model.Channel{}, &model.Ability{}, &model.Model{}, &model.Vendor{}))
 
 	user := model.User{
 		Username: "models-user",
@@ -188,6 +212,7 @@ func setupRelayRouterTestDB(t *testing.T) {
 		model.LOG_DB = originalLogDB
 		common.IsMasterNode = originalIsMasterNode
 		common.RedisEnabled = originalRedisEnabled
+		common.MemoryCacheEnabled = originalMemoryCacheEnabled
 		common.SQLitePath = originalSQLitePath
 		common.SetDatabaseTypes(originalMainDatabaseType, originalLogDatabaseType)
 		if hadSQLDSN {
