@@ -80,7 +80,14 @@ func ImageModelFamily(model string) string {
 }
 
 func isFlexibleGPTImageModel(model string) bool {
-	return strings.HasPrefix(BareImageModel(model), "gpt-image-2")
+	return strings.HasPrefix(BareImageModel(model), "gpt-image-2") && !IsGPTImage25Model(model)
+}
+
+// IsGPTImage25Model identifies the native Rolldek Image 2.5 contract, not
+// OpenAI's flexible-size GPT Image 2 contract.
+func IsGPTImage25Model(model string) bool {
+	bare := BareImageModel(model)
+	return bare == "gpt-image-2.5-sunburst" || bare == "gpt-image-2.5-flare"
 }
 
 func geminiImageResolutions(model string) []string {
@@ -101,8 +108,21 @@ func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 	switch ImageModelFamily(model) {
 	case ImageFamilyGPT:
 		sizes := gptImageClassicSizes
+		qualities := gptImageQualities
+		maxN := GPTImageMaxN
 		if isFlexibleGPTImageModel(model) {
 			sizes = gptImage2Sizes
+		}
+		if IsGPTImage25Model(model) {
+			// https://www.rolldek.com/docs/img25.md: native (non-official)
+			// groups accept these fixed sizes and one image per request.
+			sizes = []string{
+				"1536x512", "1344x576", "1280x720", "1152x768", "1024x768", "1024x1024", "768x1024", "768x1152", "720x1280", "512x1536",
+				"3072x1024", "2688x1152", "2048x1152", "2304x1536", "2048x1536", "2048x2048", "1536x2048", "1536x2304", "1152x2048", "1024x3072",
+				"3840x1280", "3840x1648", "3840x2160", "3520x2352", "3312x2480", "2880x2880", "2480x3312", "2352x3520", "2160x3840", "1280x3840",
+			}
+			qualities = []string{"auto", "low", "medium", "high", "xhigh", "max"}
+			maxN = 1
 		}
 		return &dto.ImageModelCapabilities{
 			Family:             ImageFamilyGPT,
@@ -112,8 +132,8 @@ func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 			Sizes:              append([]string{}, sizes...),
 			AspectRatios:       []string{},
 			Resolutions:        []string{},
-			Qualities:          append([]string{}, gptImageQualities...),
-			MaxN:               GPTImageMaxN,
+			Qualities:          append([]string{}, qualities...),
+			MaxN:               maxN,
 			SupportsMask:       true,
 			Backgrounds:        append([]string{}, gptImageBackgrounds...),
 			OutputFormats:      append([]string{}, gptImageFormats...),
@@ -231,11 +251,19 @@ func ValidateImageRequestOptions(request *dto.ImageRequest, referenceCount int, 
 	if referenceCount > capabilities.MaxReferenceImages {
 		return fmt.Errorf("%s accepts at most %d reference images", request.Model, capabilities.MaxReferenceImages)
 	}
-	if capabilities.Family != ImageFamilyGPT && request.Stream != nil && *request.Stream {
+	if (capabilities.Family != ImageFamilyGPT || IsGPTImage25Model(request.Model)) && request.Stream != nil && *request.Stream {
 		return fmt.Errorf("stream is not supported for %s", request.Model)
 	}
 	if hasMask && !capabilities.SupportsMask {
 		return fmt.Errorf("mask is not supported for %s", request.Model)
+	}
+	if IsGPTImage25Model(request.Model) {
+		if request.Size != "" && !common.StringsContains(capabilities.Sizes, request.Size) {
+			return fmt.Errorf("size must be one of %s for %s", strings.Join(capabilities.Sizes, ", "), request.Model)
+		}
+		if request.Quality != "" && !common.StringsContains(capabilities.Qualities, request.Quality) {
+			return fmt.Errorf("quality must be one of %s for %s", strings.Join(capabilities.Qualities, ", "), request.Model)
+		}
 	}
 
 	if capabilities.SizeMode == "pixels" {

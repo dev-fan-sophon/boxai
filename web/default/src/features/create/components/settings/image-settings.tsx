@@ -15,7 +15,7 @@ import {
 import {
   isGeminiImageModel,
   isPlaygroundImageModel,
-  type GptImageQuality,
+  legacyGptImageQuality,
 } from '@/features/playground/lib/studio/image-request-schema'
 
 import { useImageOptions } from '../../hooks/use-image-options'
@@ -120,7 +120,7 @@ function AspectControls(props: { state: ImageOptionsState }) {
           >
             {capabilities.qualities.map((quality) => (
               <NativeSelectOption key={quality} value={quality}>
-                {t(imageQualityLabelKey(quality as GptImageQuality))}
+                {t(imageQualityLabelKey(quality))}
               </NativeSelectOption>
             ))}
           </NativeSelect>
@@ -168,7 +168,7 @@ function PixelControls(props: { state: ImageOptionsState }) {
         >
           {capabilities.qualities.map((quality) => (
             <NativeSelectOption key={quality} value={quality}>
-              {t(imageQualityLabelKey(quality as GptImageQuality))}
+              {t(imageQualityLabelKey(quality))}
             </NativeSelectOption>
           ))}
         </NativeSelect>
@@ -244,7 +244,7 @@ function LegacyGptControls(props: { state: ImageOptionsState }) {
           id='gen-image-quality'
           size='sm'
           className='w-full'
-          value={props.state.normalized.imageQuality}
+          value={legacyGptImageQuality(props.state.normalized.imageQuality)}
           onChange={(event) =>
             props.state.update('imageQuality', event.target.value)
           }

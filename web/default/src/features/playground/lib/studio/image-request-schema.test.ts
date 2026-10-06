@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildImageGenerationRequestBody,
+  imageQualityLabelKey,
   isPlaygroundImageModel,
   normalizeImageCount,
   normalizeImageGenerationSettings,
@@ -16,6 +17,9 @@ describe('isPlaygroundImageModel', () => {
     'GPT-IMAGE-2',
     'openai/gpt-image-2',
     'gpt-image-2-mini',
+    'gpt-image-2.5-sunburst',
+    'gpt-image-2.5-flare',
+    'openai/gpt-image-2.5-flare',
     'grok-imagine-image',
     'grok-imagine-image-pro',
     'grok-2-image-1212',
@@ -30,6 +34,8 @@ describe('isPlaygroundImageModel', () => {
   it.each([
     'gpt-image-1',
     'gpt-image-1.5',
+    'gpt-image-25',
+    'gpt-image-2.6-flare',
     'chatgpt-image-latest',
     'dall-e-3',
     'dall-e-2',
@@ -49,6 +55,11 @@ describe('normalizeImageQuality', () => {
     expect(normalizeImageQuality('low')).toBe('low')
     expect(normalizeImageQuality('medium')).toBe('medium')
     expect(normalizeImageQuality('high')).toBe('high')
+  })
+
+  it('keeps the GPT Image 2.5 xhigh and max tiers', () => {
+    expect(normalizeImageQuality('xhigh')).toBe('xhigh')
+    expect(normalizeImageQuality('MAX')).toBe('max')
   })
 
   it('clamps obsolete localStorage values onto GPT Image enums', () => {
@@ -170,6 +181,16 @@ describe('buildImageGenerationRequestBody', () => {
     expect(body.quality).toBe('medium')
   })
 
+  it('sends xhigh/max only through a capability contract', () => {
+    const body = buildImageGenerationRequestBody({
+      model: 'gpt-image-2',
+      group: 'auto',
+      prompt: 'sunset',
+      settings: { imageCount: 1, imageSize: '1024x1024', imageQuality: 'max' },
+    })
+    expect(body.quality).toBe('auto')
+  })
+
   it('rejects models outside the image allowlist', () => {
     for (const model of ['gpt-image-1', 'dall-e-3', 'flux-pro', 'imagen-3']) {
       expect(() =>
@@ -200,5 +221,19 @@ describe('buildImageGenerationRequestBody', () => {
       'data:image/png;base64,abc',
       'data:image/png;base64,def',
     ])
+  })
+})
+
+describe('imageQualityLabelKey', () => {
+  it.each([
+    ['auto', 'Auto'],
+    ['low', 'Low'],
+    ['medium', 'Medium'],
+    ['high', 'High'],
+    ['xhigh', 'Extra high'],
+    ['max', 'Max'],
+    ['ultra', 'ultra'],
+  ])('labels %s as %s', (quality, key) => {
+    expect(imageQualityLabelKey(quality)).toBe(key)
   })
 })

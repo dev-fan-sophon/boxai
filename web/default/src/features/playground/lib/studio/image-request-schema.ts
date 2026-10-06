@@ -27,14 +27,27 @@ export const GPT_IMAGE_SIZES = [
   'auto',
 ] as const
 
-/** Official GPT Image / gpt-image-2 quality enum (not DALL·E standard/hd). */
+/**
+ * Official GPT Image / gpt-image-2 quality enum (not DALL·E standard/hd).
+ * Offered when the model's capabilities are unknown.
+ */
 export const GPT_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high'] as const
+
+/**
+ * Every quality a stored setting may keep. Higher tiers (GPT Image 2.5) are
+ * only offered and sent when the model's capabilities list them.
+ */
+export const IMAGE_QUALITY_VALUES = [
+  ...GPT_IMAGE_QUALITIES,
+  'xhigh',
+  'max',
+] as const
 
 /** Images per prompt. The studio fans these out as one request per image. */
 export const GPT_IMAGE_COUNTS = BATCH_COUNTS
 
 export type GptImageSize = (typeof GPT_IMAGE_SIZES)[number]
-export type GptImageQuality = (typeof GPT_IMAGE_QUALITIES)[number]
+export type GptImageQuality = (typeof IMAGE_QUALITY_VALUES)[number]
 
 export const DEFAULT_IMAGE_SIZE: GptImageSize = '1024x1024'
 export const DEFAULT_IMAGE_QUALITY: GptImageQuality = 'auto'
@@ -43,6 +56,7 @@ export const MAX_IMAGE_COUNT = MAX_BATCH_COUNT
 
 const GPT_IMAGE_SIZE_SET = new Set<string>(GPT_IMAGE_SIZES)
 const GPT_IMAGE_QUALITY_SET = new Set<string>(GPT_IMAGE_QUALITIES)
+const IMAGE_QUALITY_SET = new Set<string>(IMAGE_QUALITY_VALUES)
 
 /** Older localStorage values → GPT Image enums (silent clamp only). */
 const LEGACY_QUALITY_MAP: Record<string, GptImageQuality> = {
@@ -101,8 +115,14 @@ export function bareModelId(model: string): string {
   return name.includes('/') ? (name.split('/').pop() ?? name) : name
 }
 
+/** gpt-image-2, gpt-image-2-mini, gpt-image-2.5-sunburst, … */
 function isGptImage2Id(bare: string): boolean {
-  return bare === 'gpt-image-2' || bare.startsWith('gpt-image-2-')
+  return (
+    bare === 'gpt-image-2' ||
+    bare.startsWith('gpt-image-2-') ||
+    bare === 'gpt-image-2.5' ||
+    bare.startsWith('gpt-image-2.5-')
+  )
 }
 
 function isGrokImagineImageId(bare: string): boolean {
@@ -162,8 +182,18 @@ export function normalizeImageQuality(value: unknown): GptImageQuality {
   const key = value.trim().toLowerCase()
   if (!key) return DEFAULT_IMAGE_QUALITY
   if (LEGACY_QUALITY_MAP[key]) return LEGACY_QUALITY_MAP[key]
-  if (GPT_IMAGE_QUALITY_SET.has(key)) return key as GptImageQuality
+  if (IMAGE_QUALITY_SET.has(key)) return key as GptImageQuality
   return DEFAULT_IMAGE_QUALITY
+}
+
+/**
+ * Quality sent without a capability contract: higher tiers (xhigh, max) are
+ * only sent when the model's capabilities list them.
+ */
+export function legacyGptImageQuality(
+  quality: GptImageQuality
+): GptImageQuality {
+  return GPT_IMAGE_QUALITY_SET.has(quality) ? quality : DEFAULT_IMAGE_QUALITY
 }
 
 export function normalizeImageCount(value: unknown): number {
@@ -222,7 +252,8 @@ export function buildImageGenerationRequestBody(input: {
     model: wireModel,
     group: input.group,
     prompt,
-    n: normalized.imageCount,
+    // Never ask for more images per call than the model returns.
+    n: Math.min(normalized.imageCount, input.capabilities?.maxN ?? Infinity),
   }
   if (input.capabilities) {
     Object.assign(
@@ -234,7 +265,7 @@ export function buildImageGenerationRequestBody(input: {
     )
   } else if (!isGeminiImageModel(model)) {
     body.size = normalized.imageSize
-    body.quality = normalized.imageQuality
+    body.quality = legacyGptImageQuality(normalized.imageQuality)
   }
 
   const references = [input.referenceImage, ...(input.referenceImages ?? [])]
@@ -294,7 +325,8 @@ function familyRequestFields(
   return fields
 }
 
-export function imageQualityLabelKey(quality: GptImageQuality): string {
+/** i18n key for a quality value; other capability values show as sent. */
+export function imageQualityLabelKey(quality: string): string {
   switch (quality) {
     case 'low':
       return 'Low'
@@ -302,8 +334,15 @@ export function imageQualityLabelKey(quality: GptImageQuality): string {
       return 'Medium'
     case 'high':
       return 'High'
-    default:
+    case 'xhigh':
+      return 'Extra high'
+    case 'max':
+      return 'Max'
+    case 'auto':
+    case '':
       return 'Auto'
+    default:
+      return quality
   }
 }
 

@@ -84,6 +84,14 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		{name: "gpt rejects unknown background", request: dto.ImageRequest{Model: "gpt-image-2", Background: jsonString("glass")}, wantErr: "background must be one of"},
 		{name: "gpt bounds references", request: dto.ImageRequest{Model: "gpt-image-2"}, references: 17, wantErr: "at most 16 reference images"},
 		{name: "gpt accepts mask", request: dto.ImageRequest{Model: "gpt-image-2"}, references: 1, mask: true},
+		{name: "image25 accepts documented non-GPT2 size and max quality", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Size: "1280x720", Quality: "max"}, references: 16, mask: true},
+		{name: "image25 accepts asymmetric 4K preset", request: dto.ImageRequest{Model: "openai/gpt-image-2.5-sunburst", Size: "2352x3520", Quality: "xhigh"}},
+		{name: "image25 rejects GPT2 preset", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Size: "1536x1024"}, wantErr: "size must be one of"},
+		{name: "image25 rejects auto size", request: dto.ImageRequest{Model: "gpt-image-2.5-sunburst", Size: "auto"}, wantErr: "size must be one of"},
+		{name: "image25 rejects unknown quality", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Quality: "standard"}, wantErr: "quality must be one of"},
+		{name: "image25 bounds batch before supplier", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", N: common.GetPointer(uint(2))}, wantErr: "between 1 and 1"},
+		{name: "image25 rejects streaming", request: dto.ImageRequest{Model: "gpt-image-2.5-sunburst", Stream: common.GetPointer(true)}, wantErr: "stream is not supported"},
+		{name: "image25 rejects excess references", request: dto.ImageRequest{Model: "gpt-image-2.5-flare"}, references: 17, wantErr: "at most 16"},
 		{name: "unmodeled model passes through", request: dto.ImageRequest{Model: "seedream-4", AspectRatio: "anything"}, references: 40, wantAspect: "anything"},
 	}
 	for _, tt := range tests {

@@ -133,6 +133,59 @@ describe('buildImageGenerationRequestBody with capabilities', () => {
     })
   })
 
+  it('sends GPT Image 2.5 xhigh/max qualities, one image per call and the mask', () => {
+    // Server-reported contract; sizes come from the capability endpoint.
+    const gpt25: ImageModelCapabilities = {
+      ...gpt,
+      sizes: ['auto', '1024x1024', '2048x1152'],
+      qualities: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+      maxN: 1,
+    }
+    for (const quality of ['xhigh', 'max']) {
+      expect(
+        buildImageGenerationRequestBody({
+          model: 'gpt-image-2.5-sunburst',
+          group: 'default',
+          prompt: 'p',
+          settings: {
+            ...settings,
+            imageCount: 4,
+            imageSize: '2048x1152',
+            imageQuality: quality,
+            imageBackground: 'opaque',
+            imageOutputFormat: 'webp',
+          },
+          capabilities: gpt25,
+          mask: 'data:image/png;base64,m',
+          ...references,
+        })
+      ).toEqual({
+        model: 'gpt-image-2.5-sunburst',
+        group: 'default',
+        prompt: 'p',
+        n: 1,
+        size: '2048x1152',
+        quality,
+        background: 'opaque',
+        output_format: 'webp',
+        image: 'data:image/png;base64,a',
+        images: ['data:image/png;base64,a', 'data:image/png;base64,b'],
+        mask: 'data:image/png;base64,m',
+      })
+    }
+  })
+
+  it('clamps xhigh to the model default when the contract lacks it', () => {
+    const body = buildImageGenerationRequestBody({
+      model: 'gpt-image-2',
+      group: 'default',
+      prompt: 'p',
+      settings: { ...settings, imageQuality: 'xhigh' },
+      capabilities: gpt,
+    })
+    expect(body.quality).toBeUndefined()
+  })
+
   it('sends aspect ratio and resolution for Grok and never a mask', () => {
     expect(
       buildImageGenerationRequestBody({

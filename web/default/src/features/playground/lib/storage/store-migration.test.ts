@@ -7,6 +7,7 @@ import { MAX_PERSISTED_ATTACHMENT_CHARS } from './storage-schema'
 import {
   DEFAULT_STUDIO_SETTINGS,
   loadPersistedPlaygroundState,
+  normalizeStudioSettings,
   preparePersistedPlaygroundState,
   type PersistedPlaygroundState,
 } from './store-migration'
@@ -558,5 +559,16 @@ describe('preparePersistedPlaygroundState', () => {
     ])
 
     expect(result.persistedChat.messages).toEqual([userMessage])
+  })
+})
+
+describe('normalizeStudioSettings', () => {
+  it('persists the GPT Image 2.5 xhigh and max qualities', () => {
+    expect(
+      normalizeStudioSettings({ imageQuality: 'xhigh' }).imageQuality
+    ).toBe('xhigh')
+    expect(normalizeStudioSettings({ imageQuality: 'max' }).imageQuality).toBe(
+      'max'
+    )
   })
 })

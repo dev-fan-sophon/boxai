@@ -455,10 +455,20 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 	case relaycommon.ImageFamilyGemini:
 		return convertGeminiImageToChat(c, info, request)
 	}
+	if relaycommon.IsGPTImage25Model(request.Model) {
+		// Keep n=1 on the original request for reservation/settlement, but
+		// the native supplier rejects n (even 1) and response_format.
+		request.N = nil
+		request.ResponseFormat = ""
+		request.Stream = nil
+	}
 	switch info.RelayMode {
 	case relayconstant.RelayModeImagesEdits:
 		if isJSONRequest(c) {
 			normalizeJSONImageEditReferences(&request)
+			if relaycommon.IsGPTImage25Model(request.Model) {
+				request.Image = nil
+			}
 			return request, nil
 		}
 
@@ -482,6 +492,9 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		if mf != nil {
 			for key, values := range mf.Value {
 				if key == "model" {
+					continue
+				}
+				if relaycommon.IsGPTImage25Model(request.Model) && (key == "n" || key == "response_format" || key == "stream") {
 					continue
 				}
 				for _, value := range values {

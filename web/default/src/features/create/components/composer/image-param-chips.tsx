@@ -25,7 +25,7 @@ import {
 } from '@/features/playground/lib/studio/image-capabilities'
 import {
   isGeminiImageModel,
-  type GptImageQuality,
+  legacyGptImageQuality,
 } from '@/features/playground/lib/studio/image-request-schema'
 
 import { useImageOptions } from '../../hooks/use-image-options'
@@ -53,7 +53,8 @@ export function ImageParamChips() {
   let qualities: string[] = []
   if (capabilities) qualities = capabilities.qualities
   else if (legacy) qualities = [...IMAGE_QUALITIES]
-  const currentQuality = options?.quality ?? state.normalized.imageQuality
+  const currentQuality =
+    options?.quality ?? legacyGptImageQuality(state.normalized.imageQuality)
 
   return (
     <>
@@ -115,14 +116,12 @@ export function ImageParamChips() {
         <ParamChip
           icon={<Gauge />}
           ariaLabel={t('Image quality')}
-          valueLabel={t(
-            imageQualityLabelKey(currentQuality as GptImageQuality)
-          )}
+          valueLabel={t(imageQualityLabelKey(currentQuality))}
           value={currentQuality}
           onChange={(value) => state.update('imageQuality', value)}
           options={qualities.map((quality) => ({
             value: quality,
-            label: t(imageQualityLabelKey(quality as GptImageQuality)),
+            label: t(imageQualityLabelKey(quality)),
           }))}
         />
       )}

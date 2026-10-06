@@ -3,6 +3,7 @@ package openai
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -14,8 +15,82 @@ import (
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGPTImage25OutboundContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, model := range []string{"gpt-image-2.5-flare", "gpt-image-2.5-sunburst"} {
+		for _, mode := range []int{relayconstant.RelayModeImagesGenerations, relayconstant.RelayModeImagesEdits} {
+			t.Run(fmt.Sprintf("%s/%d", model, mode), func(t *testing.T) {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", nil)
+				c.Request.Header.Set("Content-Type", "application/json")
+				request := dto.ImageRequest{Model: model, Prompt: "edit", N: common.GetPointer(uint(1)), ResponseFormat: "b64_json", Quality: "max", Size: "1280x720", OutputCompression: json.RawMessage(`0`)}
+				if mode == relayconstant.RelayModeImagesEdits {
+					request.Image = json.RawMessage(`"https://example.com/a.png"`)
+					request.Mask = json.RawMessage(`"https://example.com/mask.png"`)
+				}
+				converted, err := (&Adaptor{}).ConvertImageRequest(c, &relaycommon.RelayInfo{RelayMode: mode}, request)
+				require.NoError(t, err)
+				body, err := common.Marshal(converted)
+				require.NoError(t, err)
+				var wire map[string]json.RawMessage
+				require.NoError(t, common.Unmarshal(body, &wire))
+				assert.NotContains(t, wire, "n")
+				assert.NotContains(t, wire, "response_format")
+				assert.NotContains(t, wire, "stream")
+				assert.Equal(t, `"max"`, string(wire["quality"]))
+				assert.Equal(t, `"1280x720"`, string(wire["size"]))
+				assert.Equal(t, `0`, string(wire["output_compression"]))
+				assert.Equal(t, uint(1), *request.N, "billing input must not be mutated")
+				if mode == relayconstant.RelayModeImagesEdits {
+					assert.NotContains(t, wire, "image")
+					assert.JSONEq(t, `[{"image_url":"https://example.com/a.png"}]`, string(wire["images"]))
+					assert.JSONEq(t, `{"image_url":"https://example.com/mask.png"}`, string(wire["mask"]))
+				}
+			})
+		}
+		t.Run(model+"/multipart", func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			for key, value := range map[string]string{"model": model, "prompt": "edit", "n": "1", "response_format": "b64_json", "quality": "xhigh", "size": "720x1280", "output_compression": "0", "stream": "false"} {
+				require.NoError(t, writer.WriteField(key, value))
+			}
+			for _, field := range []string{"image[]", "image[]", "mask"} {
+				part, err := writer.CreateFormFile(field, "input.png")
+				require.NoError(t, err)
+				_, err = part.Write([]byte("reference bytes"))
+				require.NoError(t, err)
+			}
+			require.NoError(t, writer.Close())
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", &body)
+			c.Request.Header.Set("Content-Type", writer.FormDataContentType())
+			require.NoError(t, c.Request.ParseMultipartForm(1<<20))
+			converted, err := (&Adaptor{}).ConvertImageRequest(c, &relaycommon.RelayInfo{RelayMode: relayconstant.RelayModeImagesEdits}, dto.ImageRequest{Model: model, N: common.GetPointer(uint(1))})
+			require.NoError(t, err)
+			upstream := httptest.NewRequest(http.MethodPost, "/v1/images/edits", converted.(*bytes.Buffer))
+			upstream.Header.Set("Content-Type", c.Request.Header.Get("Content-Type"))
+			require.NoError(t, upstream.ParseMultipartForm(1<<20))
+			assert.NotContains(t, upstream.PostForm, "n")
+			assert.NotContains(t, upstream.PostForm, "response_format")
+			assert.NotContains(t, upstream.PostForm, "stream")
+			assert.Equal(t, "xhigh", upstream.PostForm.Get("quality"))
+			assert.Equal(t, "720x1280", upstream.PostForm.Get("size"))
+			assert.Equal(t, "0", upstream.PostForm.Get("output_compression"))
+			assert.Len(t, upstream.MultipartForm.File["image[]"], 2)
+			require.Len(t, upstream.MultipartForm.File["mask"], 1)
+			file, err := upstream.MultipartForm.File["mask"][0].Open()
+			require.NoError(t, err)
+			defer file.Close()
+			data, err := io.ReadAll(file)
+			require.NoError(t, err)
+			assert.Equal(t, "reference bytes", string(data))
+		})
+	}
+}
 
 // TestConvertImageEditRequestMultipart verifies that ConvertImageRequest
 // re-serializes multipart image edit requests with all fields (including
