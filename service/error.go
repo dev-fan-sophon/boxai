@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -86,12 +85,12 @@ func ClaudeErrorWrapperLocal(err error, code string, statusCode int) *dto.Claude
 
 func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFail bool) (newApiErr *types.NewAPIError) {
 	newApiErr = types.InitOpenAIError(types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+	defer CloseResponseBodyGracefully(resp)
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
-	CloseResponseBodyGracefully(resp)
 	var errResponse dto.GeneralErrorResponse
 	responseBodyText := string(responseBody)
 	responseBodyPreview := common.LocalLogPreview(responseBodyText)
@@ -128,7 +127,11 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 	if message == "" {
 		logger.LogError(ctx, fmt.Sprintf("bad response status code %d with empty error message, body: %s", resp.StatusCode, responseBodyPreview))
 	}
-	newApiErr = types.NewOpenAIError(errors.New(message), types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+	code := any(types.ErrorCodeBadResponseStatusCode)
+	if errResponse.Code != nil {
+		code = errResponse.Code
+	}
+	newApiErr = types.WithOpenAIError(types.OpenAIError{Message: message, Code: code}, resp.StatusCode)
 	if showBodyWhenFail {
 		newApiErr.Err = buildErrWithBody(newApiErr.Error())
 	}
@@ -164,7 +167,10 @@ func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) 
 // BoxAI-facing errors. Original details stay attached for administrator-only
 // diagnostics and must never be returned to a user.
 func NormalizeRelayServiceFault(err *types.NewAPIError) {
-	if err == nil || err.GetErrorType() != types.ErrorTypeOpenAIError && err.GetErrorType() != types.ErrorTypeClaudeError {
+	if err == nil || err.Diagnostic() != nil {
+		return
+	}
+	if err.GetErrorType() != types.ErrorTypeOpenAIError && err.GetErrorType() != types.ErrorTypeClaudeError && err.GetErrorCode() != types.ErrorCodeDoRequestFailed {
 		return
 	}
 	if _, local := relaycommon.AsParamOverrideReturnError(err); local {
@@ -177,8 +183,28 @@ func NormalizeRelayServiceFault(err *types.NewAPIError) {
 	}
 	err.SetDiagnostic(diagnostic)
 
+	message := strings.ToLower(err.Error())
+	if err.GetErrorCode() == "imagine:content-moderated" || err.GetErrorCode() == "content_policy_violation" ||
+		err.GetErrorCode() == types.ErrorCodePromptBlocked || IsViolationFeeCode(err.GetErrorCode()) ||
+		((err.StatusCode == 400 || err.StatusCode == 403) && (strings.Contains(message, "content moderation") || strings.Contains(message, "moderation policy"))) {
+		types.ErrOptionWithSkipRetry()(err)
+		err.SetPublicFault("content_policy_violation", "This request was rejected by the content safety policy. Please revise the content.", http.StatusBadRequest)
+		return
+	}
 	if err.GetErrorCode() == "401008" || err.StatusCode == http.StatusPaymentRequired {
 		err.SetPublicFault("model_temporarily_unavailable", "The selected model is temporarily unavailable. Please try again later.", http.StatusServiceUnavailable)
+		return
+	}
+	if err.StatusCode == http.StatusRequestEntityTooLarge ||
+		(err.StatusCode == http.StatusBadRequest && strings.Contains(message, "failed to read request body: length limit exceeded")) {
+		types.ErrOptionWithSkipRetry()(err)
+		err.SetPublicFault("request_too_large", "The request exceeds the supported size limit. Please reduce its size.", http.StatusRequestEntityTooLarge)
+		return
+	}
+	switch err.StatusCode {
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		types.ErrOptionWithSkipRetry()(err)
+		err.SetPublicFault("invalid_request_error", "The request contains invalid or unsupported parameters. Please check the request format and model capabilities.", err.StatusCode)
 		return
 	}
 	if err.StatusCode == http.StatusTooManyRequests {

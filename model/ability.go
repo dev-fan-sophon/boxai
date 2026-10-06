@@ -118,23 +118,41 @@ func getChannelQuery(group string, model string, retry int) (*gorm.DB, error) {
 	return channelQuery, nil
 }
 
-func GetChannel(group string, model string, retry int, requestPath string) (*Channel, error) {
+// GetChannel is the database (non-memory-cache) counterpart of
+// GetRandomSatisfiedChannel. When excludedChannelIds is non-empty, those
+// channels are removed before the priority level is chosen and the highest
+// remaining priority level is used regardless of retry.
+func GetChannel(group string, model string, retry int, requestPath string, excludedChannelIds ...int) (*Channel, error) {
 	var abilities []Ability
 
 	var err error = nil
-	channelQuery, err := getChannelQuery(group, model, retry)
-	if err != nil {
-		return nil, err
-	}
-	if common.UsingMainDatabase(common.DatabaseTypeSQLite) || common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
-		err = channelQuery.Order("weight DESC").Find(&abilities).Error
+	if len(excludedChannelIds) > 0 {
+		err = DB.Where(commonGroupCol+" = ? and model = ? and enabled = ? and channel_id NOT IN ?", group, model, true, excludedChannelIds).
+			Order("weight DESC").Find(&abilities).Error
+		if err != nil {
+			return nil, err
+		}
+		// Path filtering happens before choosing the priority level, matching the memory cache path.
+		abilities = filterAbilitiesByRequestPathAndModel(abilities, requestPath, model)
+		if len(abilities) > 0 {
+			topPriority := lo.MaxBy(abilities, func(a Ability, b Ability) bool {
+				return lo.FromPtr(a.Priority) > lo.FromPtr(b.Priority)
+			}).Priority
+			abilities = lo.Filter(abilities, func(ability Ability, _ int) bool {
+				return lo.FromPtr(ability.Priority) == lo.FromPtr(topPriority)
+			})
+		}
 	} else {
+		channelQuery, err := getChannelQuery(group, model, retry)
+		if err != nil {
+			return nil, err
+		}
 		err = channelQuery.Order("weight DESC").Find(&abilities).Error
+		if err != nil {
+			return nil, err
+		}
+		abilities = filterAbilitiesByRequestPathAndModel(abilities, requestPath, model)
 	}
-	if err != nil {
-		return nil, err
-	}
-	abilities = filterAbilitiesByRequestPathAndModel(abilities, requestPath, model)
 	channel := Channel{}
 	if len(abilities) > 0 {
 		// Randomly choose one

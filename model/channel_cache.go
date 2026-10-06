@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -111,10 +112,21 @@ func SyncChannelCache(frequency int) {
 	}
 }
 
-func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string) (*Channel, error) {
+// GetRandomSatisfiedChannel selects a weighted random channel for group/model.
+//
+// Without excluded channels, retry selects the retry-th highest priority level
+// (clamped to the lowest one). When excludedChannelIds is non-empty (channels
+// already attempted by the current request), those channels are removed from
+// the candidates and the highest remaining priority level is used regardless
+// of retry, so untried same-priority channels are preferred over lower ones.
+// It returns (nil, nil) when no candidate remains.
+func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string, excludedChannelIds ...int) (*Channel, error) {
+	if len(excludedChannelIds) > 0 {
+		retry = 0
+	}
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry, requestPath)
+		return GetChannel(group, model, retry, requestPath, excludedChannelIds...)
 	}
 
 	channelSyncLock.RLock()
@@ -127,6 +139,16 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 	if len(channels) == 0 {
 		normalizedModel := ratio_setting.FormatMatchingModelName(model)
 		channels = filterChannelsByRequestPathAndModel(group2model2channels[group][normalizedModel], requestPath, model)
+	}
+
+	if len(excludedChannelIds) > 0 && len(channels) > 0 {
+		remaining := make([]int, 0, len(channels))
+		for _, channelId := range channels {
+			if !slices.Contains(excludedChannelIds, channelId) {
+				remaining = append(remaining, channelId)
+			}
+		}
+		channels = remaining
 	}
 
 	if len(channels) == 0 {

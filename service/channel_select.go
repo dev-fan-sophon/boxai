@@ -2,6 +2,9 @@ package service
 
 import (
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -80,11 +83,20 @@ func (p *RetryParam) ResetRetryNextTry() {
 //
 //	Retry=3: GroupB, priority1 (startRetryIndex=2, priorityRetry=1)
 //	         分组B, 优先级1
+//
+// Channels already attempted by this request (recorded as IDs in the "use_channel"
+// context slice) are never selected again. With exclusions, each group picks from
+// its highest remaining priority level, so untried same-priority channels come
+// before lower ones. When a group runs out of untried channels after a group has
+// already been selected for the request, selection moves to the next auto group
+// only if cross-group retry is enabled; otherwise it returns a nil channel.
+// 本次请求已尝试过的渠道（记录在 "use_channel" 上下文中）不会被再次选择。
 func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, error) {
 	var channel *model.Channel
 	var err error
 	selectGroup := param.TokenGroup
 	userGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyUserGroup)
+	excludedChannelIds := attemptedChannelIds(param.Ctx)
 
 	if param.TokenGroup == "auto" {
 		autoGroups := GetRequestAutoGroups(param.Ctx, userGroup)
@@ -97,9 +109,19 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 		startGroupIndex := 0
 		crossGroupRetry := common.GetContextKeyBool(param.Ctx, constant.ContextKeyTokenCrossGroupRetry)
 
+		// groupSelected reports whether a group already served this request
+		// (normal selection or channel affinity). Without cross-group retry the
+		// request must then stay in that group.
+		groupSelected := false
 		if lastGroupIndex, exists := common.GetContextKey(param.Ctx, constant.ContextKeyAutoGroupIndex); exists {
 			if idx, ok := lastGroupIndex.(int); ok {
 				startGroupIndex = idx
+				groupSelected = true
+			}
+		} else if selectedAutoGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyAutoGroup); selectedAutoGroup != "" {
+			if idx := slices.Index(autoGroups, selectedAutoGroup); idx >= 0 {
+				startGroupIndex = idx
+				groupSelected = true
 			}
 		}
 
@@ -115,8 +137,14 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			logger.LogDebug(param.Ctx, "Auto selecting group: %s, priorityRetry: %d", autoGroup, priorityRetry)
 
-			channel, _ = model.GetRandomSatisfiedChannel(autoGroup, param.ModelName, priorityRetry, param.RequestPath)
+			channel, _ = model.GetRandomSatisfiedChannel(autoGroup, param.ModelName, priorityRetry, param.RequestPath, excludedChannelIds...)
 			if channel == nil {
+				if groupSelected && !crossGroupRetry {
+					// The selected group has no untried channel left and cross-group retry is off.
+					// 已选分组没有未尝试的渠道，且未开启跨分组重试。
+					logger.LogDebug(param.Ctx, "No untried channel left in group %s for model %s and cross-group retry is disabled", autoGroup, param.ModelName)
+					break
+				}
 				// Current group has no available channel for this model, try next group
 				// 当前分组没有该模型的可用渠道，尝试下一个分组
 				logger.LogDebug(param.Ctx, "No available channel in group %s for model %s at priorityRetry %d, trying next group", autoGroup, param.ModelName, priorityRetry)
@@ -153,10 +181,26 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			break
 		}
 	} else {
-		channel, err = model.GetRandomSatisfiedChannel(param.TokenGroup, param.ModelName, param.GetRetry(), param.RequestPath)
+		channel, err = model.GetRandomSatisfiedChannel(param.TokenGroup, param.ModelName, param.GetRetry(), param.RequestPath, excludedChannelIds...)
 		if err != nil {
 			return nil, param.TokenGroup, err
 		}
 	}
 	return channel, selectGroup, nil
+}
+
+// attemptedChannelIds returns the channel IDs this request has already been sent to.
+func attemptedChannelIds(c *gin.Context) []int {
+	if c == nil {
+		return nil
+	}
+	var ids []int
+	for _, raw := range c.GetStringSlice("use_channel") {
+		id, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err != nil || id <= 0 {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
 }

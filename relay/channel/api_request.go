@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -309,7 +310,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", common.SanitizeURLForLog(fullRequestURL))
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -339,7 +340,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", common.SanitizeURLForLog(fullRequestURL))
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -385,7 +386,8 @@ func DoWssRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		targetHeader.Set(key, value)
 	}
 	targetHeader.Set("Content-Type", c.Request.Header.Get("Content-Type"))
-	targetConn, _, err := websocket.DefaultDialer.Dial(fullRequestURL, targetHeader)
+	applyGatewayRequestId(c, targetHeader)
+	targetConn, _, err := websocket.DefaultDialer.DialContext(c.Request.Context(), fullRequestURL, targetHeader)
 	if err != nil {
 		return nil, fmt.Errorf("dial failed to %s: %w", common.SanitizeURLForLog(fullRequestURL), err)
 	}
@@ -470,6 +472,108 @@ func sendPingData(c *gin.Context, mutex *sync.Mutex) error {
 	return nil
 }
 
+const (
+	// UpstreamRetryAfterKey stores the last upstream attempt's Retry-After as
+	// non-negative whole seconds (int). It is absent when the attempt did not
+	// return a valid value.
+	UpstreamRetryAfterKey = "upstream_retry_after"
+	// MaxUpstreamRetryAfterSeconds bounds Retry-After so a hostile or broken
+	// upstream cannot ask callers to wait indefinitely, while preserving
+	// legitimate multi-day quota reset intervals.
+	MaxUpstreamRetryAfterSeconds = 7 * 24 * 60 * 60
+
+	// upstreamGatewayRequestIdHeader carries the gateway-generated request ID
+	// to upstreams; it is the de facto standard correlation header.
+	upstreamGatewayRequestIdHeader = "X-Request-Id"
+	maxCorrelationIdLength         = 128
+)
+
+// upstreamRequestIdHeaders lists response headers that carry the upstream's
+// own correlation ID, in preference order: CPA trace first, then the legacy
+// one-api header, then common provider headers.
+var upstreamRequestIdHeaders = []string{
+	"X-CPA-Trace-Id",
+	common2.RequestIdKey,
+	"X-Request-Id",
+	"OpenAI-Request-ID",
+}
+
+// isSafeCorrelationId reports whether v is short and restricted to token-like
+// characters, so it can be logged and forwarded without injection risk.
+func isSafeCorrelationId(v string) bool {
+	if v == "" || len(v) > maxCorrelationIdLength {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		ch := v[i]
+		switch {
+		case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z', ch >= '0' && ch <= '9':
+		case ch == '-', ch == '_', ch == '.', ch == ':', ch == '/', ch == '+', ch == '=':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// applyGatewayRequestId sends the gateway-generated request ID upstream and
+// never forwards a caller-supplied X-Request-Id (which header passthrough or a
+// client_header placeholder may have copied).
+func applyGatewayRequestId(c *gin.Context, header http.Header) {
+	gatewayId := c.GetString(common2.RequestIdKey)
+	if isSafeCorrelationId(gatewayId) {
+		header.Set(upstreamGatewayRequestIdHeader, gatewayId)
+		return
+	}
+	if c.Request == nil {
+		return
+	}
+	callerValue := strings.TrimSpace(c.Request.Header.Get(upstreamGatewayRequestIdHeader))
+	if callerValue != "" && strings.TrimSpace(header.Get(upstreamGatewayRequestIdHeader)) == callerValue {
+		header.Del(upstreamGatewayRequestIdHeader)
+	}
+}
+
+// parseUpstreamRetryAfter converts a Retry-After header (delta-seconds or
+// HTTP-date) to bounded non-negative seconds. Dates are measured against the
+// response Date header when valid, avoiding local clock skew.
+func parseUpstreamRetryAfter(header http.Header) (int, bool) {
+	raw := strings.TrimSpace(header.Get("Retry-After"))
+	if raw == "" || len(raw) > 64 {
+		return 0, false
+	}
+	if raw[0] >= '0' && raw[0] <= '9' {
+		for i := 0; i < len(raw); i++ {
+			if raw[i] < '0' || raw[i] > '9' {
+				return 0, false
+			}
+		}
+		seconds, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || seconds > MaxUpstreamRetryAfterSeconds {
+			// All digits but overflowing int64 is still a "very long" wait.
+			return MaxUpstreamRetryAfterSeconds, true
+		}
+		return int(seconds), true
+	}
+	retryAt, err := http.ParseTime(raw)
+	if err != nil {
+		return 0, false
+	}
+	now := time.Now()
+	if responseDate, err := http.ParseTime(header.Get("Date")); err == nil {
+		now = responseDate
+	}
+	wait := retryAt.Sub(now)
+	if wait <= 0 {
+		return 0, true
+	}
+	seconds := int64((wait + time.Second - 1) / time.Second)
+	if seconds > MaxUpstreamRetryAfterSeconds {
+		return MaxUpstreamRetryAfterSeconds, true
+	}
+	return int(seconds), true
+}
+
 func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
 	return doRequest(c, req, info)
 }
@@ -487,6 +591,13 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	// copy while retaining the shared transport and connection pools.
 	relayClient := *client
 	relayClient.CheckRedirect = keepUpstreamRedirectResponse
+
+	// Each attempt starts without the previous attempt's upstream metadata.
+	// gin v1.9 has no Delete; doRequest runs on the handler goroutine before
+	// this attempt's pinger starts.
+	delete(c.Keys, common2.UpstreamRequestIdKey)
+	delete(c.Keys, UpstreamRetryAfterKey)
+	applyGatewayRequestId(c, req.Header)
 
 	var stopPinger context.CancelFunc
 	var pingerDone <-chan struct{}
@@ -517,8 +628,18 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 		return nil, errors.New("resp is nil")
 	}
 
-	if upID := resp.Header.Get(common2.RequestIdKey); upID != "" {
-		c.Set(common2.UpstreamRequestIdKey, upID)
+	gatewayId := c.GetString(common2.RequestIdKey)
+	for _, name := range upstreamRequestIdHeaders {
+		upstreamId := strings.TrimSpace(resp.Header.Get(name))
+		// Skip unsafe values and upstreams merely echoing our own ID back.
+		if !isSafeCorrelationId(upstreamId) || upstreamId == gatewayId {
+			continue
+		}
+		c.Set(common2.UpstreamRequestIdKey, upstreamId)
+		break
+	}
+	if retryAfter, ok := parseUpstreamRetryAfter(resp.Header); ok {
+		c.Set(UpstreamRetryAfterKey, retryAfter)
 	}
 
 	_ = req.Body.Close()
@@ -531,7 +652,7 @@ func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, req
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}

@@ -22,6 +22,7 @@ type OpenAIErrorWithStatusCode struct {
 
 type GeneralErrorResponse struct {
 	Error    json.RawMessage `json:"error"`
+	Code     any             `json:"code"`
 	Message  string          `json:"message"`
 	Msg      string          `json:"msg"`
 	Err      string          `json:"err"`

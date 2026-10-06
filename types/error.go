@@ -93,6 +93,7 @@ type NewAPIError struct {
 	publicMessage  string
 	publicCode     ErrorCode
 	diagnostic     map[string]any
+	originalStatus int
 	skipRetry      bool
 	recordErrorLog *bool
 	errorType      ErrorType
@@ -140,11 +141,23 @@ func (e *NewAPIError) SetPublicFault(code ErrorCode, message string, statusCode 
 	if e == nil {
 		return
 	}
+	if e.originalStatus == 0 {
+		e.originalStatus = e.StatusCode
+	}
 	e.publicCode = code
 	e.publicMessage = message
 	if statusCode != 0 {
 		e.StatusCode = statusCode
 	}
+}
+
+// OriginalStatusCode is the status before public sanitization. Routing and
+// channel health must not treat a sanitized credential error as an HTTP 502.
+func (e *NewAPIError) OriginalStatusCode() int {
+	if e.originalStatus != 0 {
+		return e.originalStatus
+	}
+	return e.StatusCode
 }
 
 func (e *NewAPIError) PublicMessage() string {
@@ -248,6 +261,8 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 		result.Message = e.publicMessage
 		result.Type = "boxai_error"
 		result.Code = e.publicCode
+		result.Param = ""
+		result.Metadata = nil
 	} else if e.errorCode != ErrorCodeCountTokenFailed {
 		result.Message = common.MaskSensitiveInfo(result.Message)
 	}

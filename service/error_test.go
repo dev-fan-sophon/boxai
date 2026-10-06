@@ -32,9 +32,45 @@ func TestNormalizeRelayFaultPreservesOnlyLocalParamRejections(t *testing.T) {
 	// An upstream cannot bypass sanitization by returning the same public code.
 	upstream := types.WithOpenAIError(want, 400)
 	NormalizeRelayServiceFault(upstream)
-	assert.Equal(t, 502, upstream.StatusCode)
-	assert.Equal(t, types.ErrorCode("service_unavailable"), upstream.PublicCode())
+	assert.Equal(t, 400, upstream.StatusCode)
+	assert.Equal(t, types.ErrorCode("invalid_request_error"), upstream.PublicCode())
 	assert.NotEqual(t, want.Message, upstream.ToOpenAIError().Message)
+}
+
+func TestRelayFaultClassificationPreservesRoutingAndPrivacy(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, code     string
+		status, publicStatus int
+		skip                 bool
+	}{
+		{"moderated image", `{"code":"imagine:content-moderated","error":"private moderation details"}`, "content_policy_violation", 400, 400, true},
+		{"bad schema", `{"error":{"code":"invalid_json_schema","message":"private schema details"}}`, "invalid_request_error", 400, 400, true},
+		{"body limit reported as 400", `{"error":"Failed to read request body: length limit exceeded; private details"}`, "request_too_large", 400, 413, true},
+		{"private metadata", `{"error":{"message":"private details","param":"private parameter","metadata":{"account":"private account"}}}`, "invalid_request_error", 400, 400, true},
+		{"unsupported parameter", `{"error":{"code":"unknown_parameter","message":"private parameter details"}}`, "invalid_request_error", 422, 422, true},
+		{"oversized body", `{"error":"private body details"}`, "request_too_large", 413, 413, true},
+		{"exhausted supplier", `{"error":{"code":"401008","message":"private account details"}}`, "model_temporarily_unavailable", 402, 503, false},
+		{"rate limited", `{"error":"private quota details"}`, "model_temporarily_busy", 429, 429, false},
+		{"bad credential", `{"error":"private token details"}`, "service_unavailable", 401, 502, false},
+		{"gateway timeout", `{"code":504,"error":"private network details"}`, "service_unavailable", 504, 502, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fault := RelayErrorHandler(context.Background(), &http.Response{StatusCode: tc.status, Body: io.NopCloser(strings.NewReader(tc.body))}, false)
+			require.NotNil(t, fault)
+			NormalizeRelayServiceFault(fault)
+			NormalizeRelayServiceFault(fault) // Idempotent; never overwrite the original diagnostic.
+			assert.Equal(t, tc.status, fault.OriginalStatusCode())
+			assert.Equal(t, tc.publicStatus, fault.StatusCode)
+			assert.Equal(t, tc.code, string(fault.PublicCode()))
+			assert.Equal(t, tc.skip, types.IsSkipRetryError(fault))
+			assert.Equal(t, tc.status, fault.Diagnostic()["status_code"])
+			assert.Contains(t, fault.Diagnostic()["message"], "private")
+			assert.NotContains(t, fault.ToOpenAIError().Message, "private")
+			assert.Empty(t, fault.ToOpenAIError().Param)
+			assert.Empty(t, fault.ToOpenAIError().Metadata)
+			assert.NotContains(t, fault.ToClaudeError().Message, "private")
+		})
+	}
 }
 
 func TestResetStatusCode(t *testing.T) {

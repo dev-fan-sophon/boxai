@@ -58,13 +58,12 @@ func NormalizeViolationFeeError(err *types.NewAPIError) *types.NewAPIError {
 		return nil
 	}
 
+	if IsViolationFeeCode(err.GetErrorCode()) {
+		types.ErrOptionWithSkipRetry()(err)
+		return err
+	}
 	if HasCSAMViolationMarker(err) {
 		return WrapAsViolationFeeGrokCSAM(err)
-	}
-
-	if IsViolationFeeCode(err.GetErrorCode()) {
-		oai := err.ToOpenAIError()
-		return types.WithOpenAIError(oai, err.StatusCode, types.ErrOptionWithSkipRetry())
 	}
 
 	return err
