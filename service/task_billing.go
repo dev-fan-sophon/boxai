@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -146,17 +148,101 @@ func taskInitialBillingOperation(task *model.Task) (*model.BillingOperation, err
 	return operation, err
 }
 
-func settleTaskBillingOperation(task *model.Task, actualQuota int) (bool, error) {
+// taskBillingNow is the settlement retry clock; tests replace it so retry
+// schedules are deterministic.
+var taskBillingNow = func() int64 { return time.Now().Unix() }
+
+// Settlement retry reasons persisted on Task.BillingRetryReason.
+const (
+	TaskBillingRetryWalletInsufficient       = "wallet_quota_insufficient"
+	TaskBillingRetryTokenInsufficient        = "token_quota_insufficient"
+	TaskBillingRetrySubscriptionInsufficient = "subscription_quota_insufficient"
+	TaskBillingRetryError                    = "settlement_error"
+)
+
+// Funding shortfalls only clear when the user tops up, so they back off to a
+// slow cadence; other failures (database, lock contention) retry sooner.
+const (
+	taskBillingFundingRetryBase int64 = 60
+	taskBillingFundingRetryMax  int64 = 30 * 60
+	taskBillingErrorRetryBase   int64 = 15
+	taskBillingErrorRetryMax    int64 = 5 * 60
+)
+
+func taskBillingRetryReason(err error) string {
+	switch {
+	case errors.Is(err, model.ErrWalletQuotaInsufficient):
+		return TaskBillingRetryWalletInsufficient
+	case errors.Is(err, model.ErrTokenQuotaInsufficient):
+		return TaskBillingRetryTokenInsufficient
+	case errors.Is(err, model.ErrSubscriptionQuotaInsufficient):
+		return TaskBillingRetrySubscriptionInsufficient
+	default:
+		return TaskBillingRetryError
+	}
+}
+
+// taskBillingRetryDelay is the exponential backoff after the given number of
+// failed settlement attempts.
+func taskBillingRetryDelay(attempts int, reason string) int64 {
+	base, maxDelay := taskBillingErrorRetryBase, taskBillingErrorRetryMax
+	if reason != TaskBillingRetryError && reason != "" {
+		base, maxDelay = taskBillingFundingRetryBase, taskBillingFundingRetryMax
+	}
+	delay := base
+	for i := 1; i < attempts && delay < maxDelay; i++ {
+		delay *= 2
+	}
+	return min(delay, maxDelay)
+}
+
+// scheduleTaskSettlementRetry persists why a terminal task's settlement is
+// still pending and when to try again. The precharge, CompletionBilling and
+// billing_settled=false are left intact so the debt is settled once funds
+// allow. Logging is bounded: the first failure, reason changes and
+// power-of-two attempt counts are logged, keeping a stuck task at a handful
+// of lines per day instead of one per reconcile pass.
+func scheduleTaskSettlementRetry(ctx context.Context, task *model.Task, cause error) {
+	previousReason := task.BillingRetryReason
+	attempts := task.BillingAttempts + 1
+	reason := taskBillingRetryReason(cause)
+	next := taskBillingNow() + taskBillingRetryDelay(attempts, reason)
+	if err := task.ScheduleBillingRetry(attempts, next, reason); err != nil {
+		logger.LogError(ctx, fmt.Sprintf("persist task settlement retry failed task %s: %v (settlement error: %v)", task.TaskID, err, cause))
+		return
+	}
+	if reason != previousReason || attempts&(attempts-1) == 0 {
+		logger.LogWarn(ctx, fmt.Sprintf("task %s settlement pending (%s, attempt %d, precharge %s retained, next retry at %d): %v",
+			task.TaskID, reason, attempts, logger.LogQuota(task.Quota), next, cause))
+	}
+}
+
+// settleTaskBillingOperation sets the task's committed charge to actualQuota
+// exactly once. Failures are recorded as a scheduled retry instead of being
+// retried by every reconcile pass.
+func settleTaskBillingOperation(ctx context.Context, task *model.Task, actualQuota int) (applied bool, err error) {
+	defer func() {
+		if err != nil {
+			scheduleTaskSettlementRetry(ctx, task, err)
+			return
+		}
+		if task.BillingAttempts > 0 {
+			logger.LogInfo(ctx, fmt.Sprintf("task %s settlement recovered after %d failed attempts", task.TaskID, task.BillingAttempts))
+		}
+	}()
+	settled := map[string]any{"billing_settled": true, "billing_next_at": 0, "billing_retry_reason": ""}
 	if task.Quota == 0 && task.PrivateData.BillingOperationKey == "" {
-		err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Update("billing_settled", true).Error
-		task.BillingSettled = err == nil
-		return false, err
+		if err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Updates(settled).Error; err != nil {
+			return false, err
+		}
+		task.BillingSettled, task.BillingNextAt, task.BillingRetryReason = true, 0, ""
+		return false, nil
 	}
 	initial, err := taskInitialBillingOperation(task)
 	if err != nil {
 		return false, err
 	}
-	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+	_, applied, err = model.ApplyBillingOperation(model.BillingOperationInput{
 		IdempotencyKey: fmt.Sprintf("%s:settle:%d", initial.IdempotencyKey, actualQuota), Kind: model.BillingOperationSettle,
 		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
 		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
@@ -166,11 +252,12 @@ func settleTaskBillingOperation(task *model.Task, actualQuota int) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	if err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Updates(map[string]any{"quota": actualQuota, "billing_settled": true}).Error; err != nil {
+	settled["quota"] = actualQuota
+	if err := model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Updates(settled).Error; err != nil {
 		return false, err
 	}
 	task.Quota = actualQuota
-	task.BillingSettled = true
+	task.BillingSettled, task.BillingNextAt, task.BillingRetryReason = true, 0, ""
 	return applied, nil
 }
 
@@ -279,14 +366,20 @@ func ReconcileTaskRefunds(ctx context.Context) {
 	for _, task := range model.GetPendingTerminalTaskRefunds(100) {
 		RefundTaskQuota(ctx, task, task.FailReason)
 	}
-	for _, task := range model.GetPendingTerminalTaskSettlements(100) {
+	now := taskBillingNow()
+	for _, task := range model.GetPendingTerminalTaskSettlements(now, 100) {
+		// Lease the attempt for its would-be backoff so concurrent reconcilers
+		// and crashes mid-attempt cannot turn a stuck task into a hot loop.
+		lease := now + taskBillingRetryDelay(task.BillingAttempts+1, task.BillingRetryReason)
+		claimed, err := task.ClaimBillingRetry(now, lease)
+		if err != nil || !claimed {
+			continue
+		}
 		if task.PrivateData.CompletionBilling != nil {
 			settleTaskBillingOnComplete(ctx, nil, task, nil)
 			continue
 		}
-		if _, err := settleTaskBillingOperation(task, task.Quota); err != nil {
-			logger.LogWarn(ctx, fmt.Sprintf("durable task settlement recovery failed task %s: %v", task.TaskID, err))
-		}
+		_, _ = settleTaskBillingOperation(ctx, task, task.Quota)
 	}
 }
 
@@ -355,7 +448,7 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	}
 	preConsumedQuota := task.Quota
 	if preConsumedQuota < 0 {
-		logger.LogError(ctx, fmt.Sprintf("拒绝负数 task quota 差额结算 task %s: %d", task.TaskID, preConsumedQuota))
+		scheduleTaskSettlementRetry(ctx, task, fmt.Errorf("拒绝负数 task quota 差额结算: %d", preConsumedQuota))
 		return
 	}
 	quotaDelta := actualQuota - preConsumedQuota
@@ -366,13 +459,19 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		}
 	}
 
+	// Failures are logged (bounded) and scheduled by settleTaskBillingOperation.
 	if quotaDelta == 0 {
-		_, _ = settleTaskBillingOperation(task, actualQuota)
-		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 预扣费准确（%s，%s）",
-			task.TaskID, logger.LogQuota(actualQuota), reason))
+		if _, err := settleTaskBillingOperation(ctx, task, actualQuota); err == nil {
+			logger.LogInfo(ctx, fmt.Sprintf("任务 %s 预扣费准确（%s，%s）",
+				task.TaskID, logger.LogQuota(actualQuota), reason))
+		}
 		return
 	}
 
+	applied, err := settleTaskBillingOperation(ctx, task, actualQuota)
+	if err != nil || !applied {
+		return
+	}
 	logger.LogInfo(ctx, fmt.Sprintf("任务 %s 差额结算：delta=%s（实际：%s，预扣：%s，%s）",
 		task.TaskID,
 		logger.LogQuota(quotaDelta),
@@ -380,15 +479,6 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		logger.LogQuota(preConsumedQuota),
 		reason,
 	))
-
-	applied, err := settleTaskBillingOperation(task, actualQuota)
-	if err != nil {
-		logger.LogError(ctx, fmt.Sprintf("durable task settlement failed task %s: %s", task.TaskID, err.Error()))
-		return
-	}
-	if !applied {
-		return
-	}
 
 	var logType int
 	var logQuota int

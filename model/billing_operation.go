@@ -20,6 +20,14 @@ const (
 	UnknownSubscriptionUsageGeneration int64 = -1
 )
 
+// Funding shortfalls are deterministic until the user's balance changes;
+// callers use errors.Is to back off instead of retrying them hot.
+var (
+	ErrWalletQuotaInsufficient       = errors.New("wallet quota insufficient")
+	ErrTokenQuotaInsufficient        = errors.New("token quota insufficient")
+	ErrSubscriptionQuotaInsufficient = errors.New("subscription quota insufficient")
+)
+
 // BillingOperation is the single durable authority for asynchronous billing.
 // The journal row, funding mutation, and token mutation commit together.
 type BillingOperation struct {
@@ -169,7 +177,7 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 					Where("user_id = ? AND status = ? AND end_time > ?", in.UserID, "active", dbNow).
 					Where("amount_total = 0 OR amount_used <= amount_total - ?", in.Delta).
 					Order("end_time asc, id asc").First(&sub).Error; err != nil {
-					return fmt.Errorf("subscription quota insufficient, need=%d", in.Delta)
+					return fmt.Errorf("%w, need=%d", ErrSubscriptionQuotaInsufficient, in.Delta)
 				}
 			}
 			generation := in.SubscriptionUsageGeneration
@@ -181,7 +189,7 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 			if in.Delta != 0 && sub.UsageGeneration == generation {
 				newUsed := sub.AmountUsed + int64(in.Delta)
 				if newUsed < 0 || (sub.AmountTotal > 0 && newUsed > sub.AmountTotal) {
-					return fmt.Errorf("subscription quota insufficient, need=%d", in.Delta)
+					return fmt.Errorf("%w, need=%d", ErrSubscriptionQuotaInsufficient, in.Delta)
 				}
 				if err := tx.Model(&sub).Update("amount_used", newUsed).Error; err != nil {
 					return err
@@ -221,7 +229,7 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 					if result.Error != nil {
 						return result.Error
 					}
-					return errors.New("wallet quota insufficient")
+					return ErrWalletQuotaInsufficient
 				}
 			}
 			if in.TokenID > 0 {
@@ -239,7 +247,7 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 						if result.Error != nil {
 							return result.Error
 						}
-						return errors.New("token quota insufficient")
+						return ErrTokenQuotaInsufficient
 					}
 				}
 			}

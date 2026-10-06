@@ -72,8 +72,14 @@ type Task struct {
 	OutputAssetID  int                   `json:"-" gorm:"not null;default:0"`
 	OutputNextAt   int64                 `json:"-" gorm:"index;not null;default:0"`
 	OutputAttempts int                   `json:"-" gorm:"not null;default:0"`
-	Properties     Properties            `json:"properties" gorm:"type:json"`
-	Username       string                `json:"username,omitempty" gorm:"-"`
+	// Settlement retry state for terminal tasks whose final charge could not be
+	// committed yet. The precharge and CompletionBilling stay authoritative;
+	// these columns only schedule recovery and record why it is waiting.
+	BillingNextAt      int64      `json:"-" gorm:"index;not null;default:0"`
+	BillingAttempts    int        `json:"-" gorm:"not null;default:0"`
+	BillingRetryReason string     `json:"-" gorm:"type:varchar(40);not null;default:''"`
+	Properties         Properties `json:"properties" gorm:"type:json"`
+	Username           string     `json:"username,omitempty" gorm:"-"`
 	// 禁止返回给用户，内部可能包含key等隐私信息
 	PrivateData TaskPrivateData `json:"-" gorm:"column:private_data;type:json"`
 	Data        json.RawMessage `json:"data" gorm:"type:json"`
@@ -90,15 +96,53 @@ func HasPendingTerminalTaskRefunds() bool {
 	return DB.Model(&Task{}).Where("quota != 0 AND status = ?", TaskStatusFailure).Limit(1).Count(&count).Error == nil && count > 0
 }
 
-func GetPendingTerminalTaskSettlements(limit int) []*Task {
+// GetPendingTerminalTaskSettlements returns unsettled successful tasks whose
+// settlement retry is due. Ordering by due time keeps a backlog of waiting
+// tasks from hiding newly due work; NULL handles rows predating the column.
+func GetPendingTerminalTaskSettlements(now int64, limit int) []*Task {
 	var tasks []*Task
-	_ = DB.Where("status = ? AND billing_settled = ?", TaskStatusSuccess, false).Order("id").Limit(limit).Find(&tasks).Error
+	_ = DB.Where("status = ? AND billing_settled = ?", TaskStatusSuccess, false).
+		Where("billing_next_at IS NULL OR billing_next_at <= ?", now).
+		Order("billing_next_at").Order("id").Limit(limit).Find(&tasks).Error
 	return tasks
 }
 
+// HasPendingTerminalTaskSettlements reports due settlement work only, so
+// reconcilers stay idle while every unsettled task is waiting on backoff.
 func HasPendingTerminalTaskSettlements() bool {
 	var count int64
-	return DB.Model(&Task{}).Where("status = ? AND billing_settled = ?", TaskStatusSuccess, false).Limit(1).Count(&count).Error == nil && count > 0
+	return DB.Model(&Task{}).Where("status = ? AND billing_settled = ?", TaskStatusSuccess, false).
+		Where("billing_next_at IS NULL OR billing_next_at <= ?", time.Now().Unix()).
+		Limit(1).Count(&count).Error == nil && count > 0
+}
+
+// ClaimBillingRetry leases one due settlement attempt until leaseUntil. The
+// guard on the observed attempt count and due time lets only one reconciler
+// attempt it, and a crash mid-attempt still waits for the lease to expire.
+func (t *Task) ClaimBillingRetry(now, leaseUntil int64) (bool, error) {
+	result := DB.Model(&Task{}).
+		Where("id = ? AND billing_settled = ? AND billing_attempts = ?", t.ID, false, t.BillingAttempts).
+		Where("billing_next_at IS NULL OR billing_next_at <= ?", now).
+		Update("billing_next_at", leaseUntil)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return false, nil
+	}
+	t.BillingNextAt = leaseUntil
+	return true, nil
+}
+
+// ScheduleBillingRetry records a failed settlement attempt. It never touches
+// quota or billing_settled, so the outstanding charge stays pending.
+func (t *Task) ScheduleBillingRetry(attempts int, next int64, reason string) error {
+	err := DB.Model(&Task{}).Where("id = ? AND billing_settled = ?", t.ID, false).
+		Updates(map[string]any{"billing_attempts": attempts, "billing_next_at": next, "billing_retry_reason": reason}).Error
+	if err == nil {
+		t.BillingAttempts, t.BillingNextAt, t.BillingRetryReason = attempts, next, reason
+	}
+	return err
 }
 
 func (t *Task) SetData(data any) {
@@ -498,6 +542,11 @@ func (Task *Task) Insert() error {
 	return err
 }
 
+// taskSchedulingColumns are owned by polling, output and settlement retry
+// workers; lifecycle writes must not overwrite them with stale values.
+var taskSchedulingColumns = []string{"next_poll_at", "poll_failures", "output_asset_id", "output_next_at", "output_attempts",
+	"billing_next_at", "billing_attempts", "billing_retry_reason"}
+
 type taskSnapshot struct {
 	Status     TaskStatus
 	Progress   string
@@ -551,7 +600,7 @@ func (t *Task) UpdateQuota() error {
 // falls back to INSERT ON CONFLICT when the WHERE-guarded UPDATE matches
 // zero rows, which silently bypasses the CAS guard.
 func (t *Task) UpdateWithStatus(fromStatus TaskStatus) (bool, error) {
-	result := DB.Model(t).Where("status = ?", fromStatus).Select("*").Omit("next_poll_at", "poll_failures", "output_asset_id", "output_next_at", "output_attempts").Updates(t)
+	result := DB.Model(t).Where("status = ?", fromStatus).Select("*").Omit(taskSchedulingColumns...).Updates(t)
 	if result.Error != nil {
 		return false, result.Error
 	}
@@ -572,7 +621,7 @@ func (t *Task) UpdateIfUnchanged(from taskSnapshot) (bool, error) {
 		if !current.Snapshot().Equal(from) {
 			return nil
 		}
-		result := tx.Model(t).Select("*").Omit("next_poll_at", "poll_failures", "output_asset_id", "output_next_at", "output_attempts").Updates(t)
+		result := tx.Model(t).Select("*").Omit(taskSchedulingColumns...).Updates(t)
 		if result.Error != nil {
 			return result.Error
 		}

@@ -213,7 +213,7 @@ func TestTaskSettlementDoesNotMutateNewerSubscriptionGeneration(t *testing.T) {
 	require.NoError(t, model.DB.Model(&model.UserSubscription{}).Where("id = ?", subscriptionID).
 		Updates(map[string]any{"amount_used": 60, "usage_generation": 2}).Error)
 
-	applied, err := settleTaskBillingOperation(task, 150)
+	applied, err := settleTaskBillingOperation(context.Background(), task, 150)
 	require.NoError(t, err)
 	require.True(t, applied)
 	assert.EqualValues(t, 60, getSubscriptionUsed(t, subscriptionID))
@@ -1141,4 +1141,132 @@ func TestSettle_NonPerCallBilling_AppliesAdaptorAdjustment(t *testing.T) {
 	log := getLastLog(t)
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeRefund, log.Type)
+}
+
+func TestTaskSettlementRetryDelayBacksOffAndCaps(t *testing.T) {
+	for _, tc := range []struct {
+		reason   string
+		attempts int
+		want     int64
+	}{
+		{TaskBillingRetryWalletInsufficient, 1, 60},
+		{TaskBillingRetryWalletInsufficient, 2, 120},
+		{TaskBillingRetryWalletInsufficient, 5, 960},
+		{TaskBillingRetryWalletInsufficient, 6, 1800},
+		{TaskBillingRetryTokenInsufficient, 100, 1800},
+		{TaskBillingRetryError, 1, 15},
+		{TaskBillingRetryError, 5, 240},
+		{TaskBillingRetryError, 100, 300},
+		{"", 1, 15},
+	} {
+		assert.Equal(t, tc.want, taskBillingRetryDelay(tc.attempts, tc.reason), "%s attempt %d", tc.reason, tc.attempts)
+	}
+}
+
+func TestTaskSettlementInsufficientWalletBacksOffThenRecoversOnce(t *testing.T) {
+	truncate(t)
+	const userID = 960
+	now := time.Now().Unix()
+	previousNow := taskBillingNow
+	taskBillingNow = func() int64 { return now }
+	t.Cleanup(func() { taskBillingNow = previousNow })
+
+	seedUser(t, userID, 100)
+	task := makeTask(userID, 0, 1000, 0, BillingSourceWallet, 0)
+	task.PrivateData.BillingOperationKey = "insufficient-wallet-settlement"
+	_, err := taskInitialBillingOperation(task)
+	require.NoError(t, err)
+	task.Status = model.TaskStatusSuccess
+	task.Progress = "100%"
+	task.PrivateData.CompletionBilling = &model.TaskCompletionBilling{Quota: 1600}
+	require.NoError(t, model.DB.Save(task).Error)
+
+	persisted := func() model.Task {
+		var row model.Task
+		require.NoError(t, model.DB.First(&row, task.ID).Error)
+		return row
+	}
+	countOps := func(kind string) int64 {
+		var count int64
+		require.NoError(t, model.DB.Model(&model.BillingOperation{}).Where("kind = ?", kind).Count(&count).Error)
+		return count
+	}
+
+	// Inline settlement after the terminal CAS cannot cover the +600 delta.
+	settleTaskBillingOnComplete(context.Background(), nil, task, nil)
+	row := persisted()
+	assert.False(t, row.BillingSettled, "debt must stay pending")
+	assert.Equal(t, 1000, row.Quota, "precharge retained")
+	require.NotNil(t, row.PrivateData.CompletionBilling)
+	assert.Equal(t, 1600, row.PrivateData.CompletionBilling.Quota, "final usage retained for recovery")
+	assert.Equal(t, 1, row.BillingAttempts)
+	assert.Equal(t, TaskBillingRetryWalletInsufficient, row.BillingRetryReason)
+	assert.Equal(t, now+60, row.BillingNextAt)
+	assert.Equal(t, 100, getUserQuota(t, userID))
+	assert.Zero(t, countOps(model.BillingOperationSettle))
+	assert.Zero(t, countLogs(t))
+
+	// Reconcile passes before the retry is due do not attempt again.
+	assert.False(t, model.HasPendingTerminalTaskSettlements())
+	for range 5 {
+		ReconcileTaskRefunds(context.Background())
+	}
+	assert.Equal(t, 1, persisted().BillingAttempts, "no hot retry while backing off")
+
+	// A due retry that still lacks funds doubles the backoff.
+	now += 60
+	ReconcileTaskRefunds(context.Background())
+	ReconcileTaskRefunds(context.Background())
+	row = persisted()
+	assert.Equal(t, 2, row.BillingAttempts)
+	assert.Equal(t, now+120, row.BillingNextAt)
+	assert.False(t, row.BillingSettled)
+	assert.Equal(t, 100, getUserQuota(t, userID))
+
+	// Funds arrive; recovery waits for the scheduled retry, then settles once.
+	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", userID).Update("quota", 1000).Error)
+	now += 60
+	ReconcileTaskRefunds(context.Background())
+	assert.False(t, persisted().BillingSettled)
+	now += 60
+	ReconcileTaskRefunds(context.Background())
+	row = persisted()
+	assert.True(t, row.BillingSettled)
+	assert.Equal(t, 1600, row.Quota)
+	assert.Zero(t, row.BillingNextAt)
+	assert.Empty(t, row.BillingRetryReason)
+	assert.Equal(t, 2, row.BillingAttempts, "failed attempt history is kept for audit")
+	assert.Equal(t, 400, getUserQuota(t, userID))
+	assert.EqualValues(t, 1, countLogs(t))
+	log := getLastLog(t)
+	require.NotNil(t, log)
+	assert.Equal(t, 600, log.Quota)
+
+	// Later passes and a replayed inline settlement never charge again.
+	now += 3600
+	ReconcileTaskRefunds(context.Background())
+	settleTaskBillingOnComplete(context.Background(), nil, task, nil)
+	assert.Equal(t, 400, getUserQuota(t, userID))
+	assert.EqualValues(t, 1, countLogs(t))
+	assert.EqualValues(t, 1, countOps(model.BillingOperationSettle))
+}
+
+func TestTaskSettlementRetryClaimIsExclusive(t *testing.T) {
+	truncate(t)
+	seedUser(t, 961, 0)
+	task := makeTask(961, 0, 100, 0, BillingSourceWallet, 0)
+	task.Status = model.TaskStatusSuccess
+	require.NoError(t, model.DB.Create(task).Error)
+	stale := *task
+	const now = int64(1_800_000_000)
+
+	claimed, err := task.ClaimBillingRetry(now, now+15)
+	require.NoError(t, err)
+	assert.True(t, claimed)
+	claimed, err = stale.ClaimBillingRetry(now, now+15)
+	require.NoError(t, err)
+	assert.False(t, claimed, "a concurrent reconciler must not attempt the same retry")
+	claimed, err = stale.ClaimBillingRetry(now+15, now+30)
+	require.NoError(t, err)
+	assert.True(t, claimed, "an expired lease is reclaimable after a crash")
 }

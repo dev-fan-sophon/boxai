@@ -1104,7 +1104,7 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	// 0. 按次计费的任务不做差额结算
 	if bc := task.PrivateData.BillingContext; bc != nil && bc.PerCallBilling {
 		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 按次计费，跳过差额结算", task.TaskID))
-		_, _ = settleTaskBillingOperation(task, task.Quota)
+		_, _ = settleTaskBillingOperation(ctx, task, task.Quota)
 		return
 	}
 	completion := task.PrivateData.CompletionBilling
@@ -1126,8 +1126,6 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	if completion.TotalTokens > 0 && RecalculateTaskQuotaByTokens(ctx, task, completion.TotalTokens) {
 		return
 	}
-	// 3. 无调整，保持预扣额度
-	if _, err := settleTaskBillingOperation(task, task.Quota); err != nil {
-		logger.LogWarn(ctx, fmt.Sprintf("settle task %s: %v", task.TaskID, err))
-	}
+	// 3. 无调整，保持预扣额度（失败由 settleTaskBillingOperation 记录重试计划）
+	_, _ = settleTaskBillingOperation(ctx, task, task.Quota)
 }
