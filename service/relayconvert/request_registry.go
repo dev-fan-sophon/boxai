@@ -10,6 +10,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	claudemessages "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/claude_messages"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 	geminichat "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/gemini_chat"
 	oaichat "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/oai_chat"
 	oairesponses "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/oai_responses"
@@ -236,6 +237,22 @@ func executeRequestSpec(c *gin.Context, info *relaycommon.RelayInfo, from types.
 }
 
 func executeRequestSteps(c *gin.Context, info *relaycommon.RelayInfo, from types.RelayFormat, target types.RelayFormat, request any, converter string, quality RequestConverterQuality, specs []RequestConverterSpec) (*RequestResult, error) {
+	var customToolNames map[string]struct{}
+	if from == types.RelayFormatOpenAIResponses {
+		// Every conversion replaces the record, so a retry on another channel
+		// never restores custom tool calls from a previous attempt.
+		info.SetResponsesCustomToolNames(nil)
+		responsesRequest, err := oairesponses.OpenAIResponsesRequestFromAny(request)
+		if err != nil {
+			return nil, err
+		}
+		_, customTools, err := customtool.SelectRaw(responsesRequest.Tools)
+		if err != nil {
+			return nil, err
+		}
+		customToolNames = customtool.Names(customTools)
+	}
+
 	current := request
 	steps := make([]RequestStep, 0, len(specs))
 	for _, spec := range specs {
@@ -251,6 +268,10 @@ func executeRequestSteps(c *gin.Context, info *relaycommon.RelayInfo, from types
 			return nil, err
 		}
 		steps = append(steps, step)
+	}
+
+	if from == types.RelayFormatOpenAIResponses {
+		info.SetResponsesCustomToolNames(customToolNames)
 	}
 
 	converters := make([]string, 0, len(steps))

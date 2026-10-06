@@ -5,31 +5,19 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 )
 
-const (
-	geminiResponsesInputTypeCustomToolCall       = "custom_tool_call"
-	geminiResponsesInputTypeCustomToolCallOutput = "custom_tool_call_output"
-	geminiResponsesInputTypeFunctionCallOutput   = "function_call_output"
-)
-
-const (
-	ResponsesInputTypeCustomToolCallOutput = geminiResponsesInputTypeCustomToolCallOutput
-)
-
+// PrepareOpenAIResponsesRequest keeps only the tools Gemini can receive:
+// function tools and custom tools, which are sent as functions taking one
+// string input. custom_tool_call history and its outputs are kept so they can
+// be replayed as function calls and responses.
 func PrepareOpenAIResponsesRequest(request dto.OpenAIResponsesRequest) (dto.OpenAIResponsesRequest, error) {
 	tools, err := filterGeminiResponsesTools(request.Tools)
 	if err != nil {
 		return request, err
 	}
 	request.Tools = tools
-
-	input, err := filterGeminiResponsesInput(request.Input)
-	if err != nil {
-		return request, err
-	}
-	request.Input = input
-
 	return request, nil
 }
 
@@ -45,51 +33,14 @@ func filterGeminiResponsesTools(raw []byte) ([]byte, error) {
 
 	filtered := make([]map[string]any, 0, len(tools))
 	for _, tool := range tools {
-		if strings.TrimSpace(common.Interface2String(tool["type"])) != "function" {
-			continue
+		switch strings.TrimSpace(common.Interface2String(tool["type"])) {
+		case "function", customtool.ToolType:
+			filtered = append(filtered, tool)
 		}
-		filtered = append(filtered, tool)
 	}
 	if len(filtered) == 0 {
 		return nil, nil
 	}
-	return common.Marshal(filtered)
-}
-
-func filterGeminiResponsesInput(raw []byte) ([]byte, error) {
-	if !geminiRawJSONPresent(raw) || common.GetJsonType(raw) != "array" {
-		return raw, nil
-	}
-
-	var items []map[string]any
-	if err := common.Unmarshal(raw, &items); err != nil {
-		return nil, err
-	}
-
-	skippedCustomCallIDs := make(map[string]struct{})
-	for _, item := range items {
-		if strings.TrimSpace(common.Interface2String(item["type"])) != geminiResponsesInputTypeCustomToolCall {
-			continue
-		}
-		if callID := strings.TrimSpace(common.Interface2String(item["call_id"])); callID != "" {
-			skippedCustomCallIDs[callID] = struct{}{}
-		}
-	}
-
-	filtered := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		itemType := strings.TrimSpace(common.Interface2String(item["type"]))
-		switch itemType {
-		case geminiResponsesInputTypeCustomToolCall, geminiResponsesInputTypeCustomToolCallOutput:
-			continue
-		case geminiResponsesInputTypeFunctionCallOutput:
-			if _, ok := skippedCustomCallIDs[strings.TrimSpace(common.Interface2String(item["call_id"]))]; ok {
-				continue
-			}
-		}
-		filtered = append(filtered, item)
-	}
-
 	return common.Marshal(filtered)
 }
 

@@ -387,6 +387,29 @@ type ResponsesOutput struct {
 	CallId        string                   `json:"call_id,omitempty"`
 	Name          string                   `json:"name,omitempty"`
 	Arguments     json.RawMessage          `json:"arguments,omitempty"`
+	Input         json.RawMessage          `json:"input,omitempty"`
+}
+
+// MarshalJSON keeps custom_tool_call items within their Responses schema:
+// call_id, name and the raw string input are required, and message or
+// function-call fields must not leak into them.
+func (r ResponsesOutput) MarshalJSON() ([]byte, error) {
+	if r.Type == "custom_tool_call" {
+		input := r.Input
+		if len(input) == 0 {
+			input = json.RawMessage(`""`)
+		}
+		return common.Marshal(struct {
+			Type   string          `json:"type"`
+			ID     string          `json:"id,omitempty"`
+			Status string          `json:"status,omitempty"`
+			CallID string          `json:"call_id"`
+			Name   string          `json:"name"`
+			Input  json.RawMessage `json:"input"`
+		}{Type: r.Type, ID: r.ID, Status: r.Status, CallID: r.CallId, Name: r.Name, Input: input})
+	}
+	type responsesOutputAlias ResponsesOutput
+	return common.Marshal(responsesOutputAlias(r))
 }
 
 // ArgumentsString returns function call arguments in the string form expected by Chat Completions.
@@ -442,9 +465,15 @@ type ResponsesStreamResponse struct {
 	Type     string                   `json:"type"`
 	Response *OpenAIResponsesResponse `json:"response,omitempty"`
 	Delta    string                   `json:"delta,omitempty"`
-	Item     *ResponsesOutput         `json:"item,omitempty"`
+	// Arguments is the complete payload of response.function_call_arguments.done.
+	Arguments *string `json:"arguments,omitempty"`
+	// Input is the complete payload of response.custom_tool_call_input.done.
+	Input *string          `json:"input,omitempty"`
+	Item  *ResponsesOutput `json:"item,omitempty"`
 	// - response.function_call_arguments.delta
 	// - response.function_call_arguments.done
+	// - response.custom_tool_call_input.delta
+	// - response.custom_tool_call_input.done
 	OutputIndex  *int                           `json:"output_index,omitempty"`
 	ContentIndex *int                           `json:"content_index,omitempty"`
 	SummaryIndex *int                           `json:"summary_index,omitempty"`

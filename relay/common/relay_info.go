@@ -187,6 +187,12 @@ type RelayInfo struct {
 
 	StreamStatus *StreamStatus
 
+	// responsesCustomToolNames lists the Responses custom (freeform) tools that
+	// the current attempt's request conversion sent upstream as functions.
+	// Response conversion restores calls to these functions as custom_tool_call
+	// items. It is reset for every attempt so retries never inherit it.
+	responsesCustomToolNames map[string]struct{}
+
 	ThinkingContentInfo
 	TokenCountMeta
 	*ClaudeConvertInfo
@@ -241,6 +247,7 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	}
 
 	info.ChannelMeta = channelMeta
+	info.SetResponsesCustomToolNames(nil)
 	info.normalizeOpenCodeSession(c)
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelMeta.ChannelSetting.PassThroughBodyEnabled {
 		info.SetReasoningEffort("")
@@ -711,6 +718,25 @@ func (info *RelayInfo) GetFinalRequestRelayFormat() types.RelayFormat {
 		return info.RequestConversionChain[n-1]
 	}
 	return info.RelayFormat
+}
+
+// SetResponsesCustomToolNames records the Responses custom tools sent upstream
+// as functions by the current request conversion; nil clears the record.
+func (info *RelayInfo) SetResponsesCustomToolNames(names map[string]struct{}) {
+	if info == nil {
+		return
+	}
+	info.responsesCustomToolNames = names
+}
+
+// IsResponsesCustomTool reports whether an upstream function call named name
+// encodes a Responses custom tool call.
+func (info *RelayInfo) IsResponsesCustomTool(name string) bool {
+	if info == nil {
+		return false
+	}
+	_, ok := info.responsesCustomToolNames[name]
+	return ok
 }
 
 func (info *RelayInfo) SetReasoningEffort(effort string) {

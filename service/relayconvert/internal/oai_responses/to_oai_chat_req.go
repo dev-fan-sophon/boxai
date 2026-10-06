@@ -8,6 +8,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/toolresult"
 )
 
@@ -41,12 +42,12 @@ func ResponsesRequestToChatCompletionsRequest(req *dto.OpenAIResponsesRequest) (
 		return nil, err
 	}
 
-	tools, err := responsesRequestToolsToChat(req.Tools)
+	tools, customNames, err := responsesRequestToolsToChat(req.Tools)
 	if err != nil {
 		return nil, err
 	}
 
-	toolChoice, err := responsesRequestToolChoiceToChat(req.ToolChoice)
+	toolChoice, err := responsesRequestToolChoiceToChat(req.ToolChoice, customNames)
 	if err != nil {
 		return nil, err
 	}
@@ -296,18 +297,24 @@ func responsesFunctionCallItemToChatToolCall(item map[string]any) (dto.ToolCallR
 	}, nil
 }
 
+// responsesCustomToolCallItemToChatToolCall replays a custom tool call the same
+// way its definition reaches Chat Completions: a function call whose arguments
+// carry the raw input under the single "input" key.
 func responsesCustomToolCallItemToChatToolCall(item map[string]any) (dto.ToolCallRequest, error) {
-	raw, err := common.Marshal(item)
+	name := strings.TrimSpace(common.Interface2String(item["name"]))
+	if name == "" {
+		return dto.ToolCallRequest{}, errors.New("custom_tool_call item is missing name")
+	}
+	arguments, err := customtool.EncodeArguments(customtool.InputValue(item["input"]))
 	if err != nil {
 		return dto.ToolCallRequest{}, err
 	}
 	return dto.ToolCallRequest{
-		ID:     responsesCallID(item),
-		Type:   dto.CustomType,
-		Custom: raw,
+		ID:   responsesCallID(item),
+		Type: "function",
 		Function: dto.FunctionRequest{
-			Name:      strings.TrimSpace(common.Interface2String(item["name"])),
-			Arguments: responsesArgumentsString(item["input"]),
+			Name:      name,
+			Arguments: arguments,
 		},
 	}, nil
 }
@@ -325,18 +332,21 @@ func appendToolCallToLastAssistant(messages []dto.Message, toolCall dto.ToolCall
 	return messages
 }
 
-func responsesRequestToolsToChat(raw json.RawMessage) ([]dto.ToolCallRequest, error) {
+// responsesRequestToolsToChat also returns the custom tools it sent as
+// functions, so a forced custom tool_choice can name the matching function.
+func responsesRequestToolsToChat(raw json.RawMessage) ([]dto.ToolCallRequest, map[string]struct{}, error) {
 	if !rawJSONPresent(raw) {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var tools []map[string]any
 	if err := common.Unmarshal(raw, &tools); err != nil {
-		return nil, fmt.Errorf("invalid tools: %w", err)
+		return nil, nil, fmt.Errorf("invalid tools: %w", err)
 	}
+	customTools := customtool.Select(tools)
 
 	out := make([]dto.ToolCallRequest, 0, len(tools))
-	for _, tool := range tools {
+	for index, tool := range tools {
 		toolType := strings.TrimSpace(common.Interface2String(tool["type"]))
 		if toolType == "function" {
 			out = append(out, dto.ToolCallRequest{
@@ -349,20 +359,29 @@ func responsesRequestToolsToChat(raw json.RawMessage) ([]dto.ToolCallRequest, er
 			})
 			continue
 		}
+		if toolType == customtool.ToolType {
+			if customTool, ok := customTools[index]; ok {
+				out = append(out, dto.ToolCallRequest{Type: "function", Function: customTool.Function()})
+			}
+			continue
+		}
 
 		rawTool, err := common.Marshal(tool)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		out = append(out, dto.ToolCallRequest{
 			Type:   toolType,
 			Custom: rawTool,
 		})
 	}
-	return out, nil
+	return out, customtool.Names(customTools), nil
 }
 
-func responsesRequestToolChoiceToChat(raw json.RawMessage) (any, error) {
+// responsesRequestToolChoiceToChat maps a forced custom tool choice to the
+// function that carries that custom tool. A custom choice naming a tool that
+// was not sent cannot be represented and is dropped.
+func responsesRequestToolChoiceToChat(raw json.RawMessage, customNames map[string]struct{}) (any, error) {
 	if !rawJSONPresent(raw) {
 		return nil, nil
 	}
@@ -378,22 +397,28 @@ func responsesRequestToolChoiceToChat(raw json.RawMessage) (any, error) {
 	if err := common.Unmarshal(raw, &choice); err != nil {
 		return nil, fmt.Errorf("invalid tool_choice: %w", err)
 	}
-	if common.Interface2String(choice["type"]) == "function" {
-		name := strings.TrimSpace(common.Interface2String(choice["name"]))
-		if name != "" {
-			return map[string]any{
-				"type": "function",
-				"function": map[string]any{
-					"name": name,
-				},
-			}, nil
+	name := strings.TrimSpace(common.Interface2String(choice["name"]))
+	if customName, ok := customtool.ForcedName(choice); ok {
+		if _, sent := customNames[customName]; !sent {
+			return nil, nil
 		}
+		name = customName
+	} else if common.Interface2String(choice["type"]) != "function" {
+		return choice, nil
 	}
-	return choice, nil
+	if name == "" {
+		return choice, nil
+	}
+	return map[string]any{
+		"type": "function",
+		"function": map[string]any{
+			"name": name,
+		},
+	}, nil
 }
 
-func RequestToolChoiceToChat(raw json.RawMessage) (any, error) {
-	return responsesRequestToolChoiceToChat(raw)
+func RequestToolChoiceToChat(raw json.RawMessage, customNames map[string]struct{}) (any, error) {
+	return responsesRequestToolChoiceToChat(raw, customNames)
 }
 
 func responsesRequestTextToChatResponseFormat(raw json.RawMessage) (*dto.ResponseFormat, error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 	relaymedia "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/media"
 	relaymeta "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/meta"
 	sharedgemini "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/gemini"
@@ -75,7 +76,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	}
 	geminiRequest.SafetySettings = safetySettings
 
-	functions, err := RequestFunctionDeclarations(req.Tools)
+	functions, customNames, err := RequestFunctionDeclarations(req.Tools)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 		})
 	}
 
-	toolChoice, err := RequestToolChoiceToChat(req.ToolChoice)
+	toolChoice, err := RequestToolChoiceToChat(req.ToolChoice, customNames)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	for _, item := range inputItems {
 		itemType := strings.TrimSpace(common.Interface2String(item["type"]))
 		switch itemType {
-		case ResponsesInputTypeFunctionCall:
+		case ResponsesInputTypeFunctionCall, ResponsesInputTypeCustomToolCall:
 			part, callID, err := responsesFunctionCallItemToGeminiPart(item)
 			if err != nil {
 				return nil, err
@@ -131,7 +132,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 				callNames[callID] = part.FunctionCall.FunctionName
 			}
 			appendGeminiContentPart(geminiRequest, "model", part)
-		case ResponsesInputTypeFunctionCallOutput:
+		case ResponsesInputTypeFunctionCallOutput, ResponsesInputTypeCustomToolOutput:
 			part := responsesFunctionOutputItemToGeminiPart(item, callNames)
 			appendGeminiContentPart(geminiRequest, "user", part)
 		default:
@@ -240,17 +241,25 @@ func responsesContentPartToGeminiParts(c *gin.Context, part map[string]any) ([]d
 }
 
 func responsesFunctionCallItemToGeminiPart(item map[string]any) (dto.GeminiPart, string, error) {
+	itemType := strings.TrimSpace(common.Interface2String(item["type"]))
 	name := strings.TrimSpace(common.Interface2String(item["name"]))
 	if name == "" {
-		return dto.GeminiPart{}, "", fmt.Errorf("function_call item is missing name")
+		return dto.GeminiPart{}, "", fmt.Errorf("%s item is missing name", itemType)
 	}
-	callID := CallID(item)
+	var arguments map[string]any
+	if itemType == ResponsesInputTypeCustomToolCall {
+		// The custom tool is declared as a function taking one string
+		// argument, so its raw input is replayed verbatim in that shape.
+		arguments = map[string]any{customtool.InputArgument: customtool.InputValue(item["input"])}
+	} else {
+		arguments = ObjectValue(item["arguments"], "arguments")
+	}
 	return dto.GeminiPart{
 		FunctionCall: &dto.FunctionCall{
 			FunctionName: name,
-			Arguments:    ObjectValue(item["arguments"], "arguments"),
+			Arguments:    arguments,
 		},
-	}, callID, nil
+	}, CallID(item), nil
 }
 
 func responsesFunctionOutputItemToGeminiPart(item map[string]any, callNames map[string]string) dto.GeminiPart {

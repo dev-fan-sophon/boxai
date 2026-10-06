@@ -7,6 +7,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 	relaymedia "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/media"
 	sharedclaude "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/claude"
 	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/toolresult"
@@ -47,7 +48,7 @@ func OpenAIResponsesRequestToClaudeMessages(c *gin.Context, req *dto.OpenAIRespo
 		claudeRequest.MaxTokens = &defaultMaxTokens
 	}
 
-	functions, err := RequestFunctionDeclarations(req.Tools)
+	functions, customNames, err := RequestFunctionDeclarations(req.Tools)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func OpenAIResponsesRequestToClaudeMessages(c *gin.Context, req *dto.OpenAIRespo
 		claudeRequest.Tools = responsesFunctionDeclarationsToClaudeTools(functions)
 	}
 
-	toolChoice, err := RequestToolChoiceToChat(req.ToolChoice)
+	toolChoice, err := RequestToolChoiceToChat(req.ToolChoice, customNames)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +87,25 @@ func OpenAIResponsesRequestToClaudeMessages(c *gin.Context, req *dto.OpenAIRespo
 		itemType := strings.TrimSpace(common.Interface2String(item["type"]))
 		switch itemType {
 		case ResponsesInputTypeFunctionCall:
-			claudeRequest.Messages = appendClaudeToolUse(claudeRequest.Messages, responsesFunctionCallItemToClaudeToolUse(item, "arguments"))
+			claudeRequest.Messages = appendClaudeToolUse(claudeRequest.Messages, dto.ClaudeMediaMessage{
+				Type:  "tool_use",
+				Id:    CallID(item),
+				Name:  strings.TrimSpace(common.Interface2String(item["name"])),
+				Input: ObjectValue(item["arguments"], "arguments"),
+			})
 		case ResponsesInputTypeCustomToolCall:
-			claudeRequest.Messages = appendClaudeToolUse(claudeRequest.Messages, responsesFunctionCallItemToClaudeToolUse(item, "input"))
+			name := strings.TrimSpace(common.Interface2String(item["name"]))
+			if name == "" {
+				return nil, fmt.Errorf("custom_tool_call item is missing name")
+			}
+			// The custom tool is declared as a function taking one string
+			// argument, so its raw input is replayed verbatim in that shape.
+			claudeRequest.Messages = appendClaudeToolUse(claudeRequest.Messages, dto.ClaudeMediaMessage{
+				Type:  "tool_use",
+				Id:    CallID(item),
+				Name:  name,
+				Input: map[string]any{customtool.InputArgument: customtool.InputValue(item["input"])},
+			})
 		case ResponsesInputTypeFunctionCallOutput, ResponsesInputTypeCustomToolOutput:
 			parts, err := toolresult.Content(item["output"], true)
 			if err != nil {
@@ -229,15 +246,6 @@ func responsesInputContentToClaudeMediaMessages(c *gin.Context, content any) ([]
 		}
 	}
 	return parts, nil
-}
-
-func responsesFunctionCallItemToClaudeToolUse(item map[string]any, inputKey string) dto.ClaudeMediaMessage {
-	return dto.ClaudeMediaMessage{
-		Type:  "tool_use",
-		Id:    CallID(item),
-		Name:  strings.TrimSpace(common.Interface2String(item["name"])),
-		Input: ObjectValue(item[inputKey], inputKey),
-	}
 }
 
 func appendClaudeToolUse(messages []dto.ClaudeMessage, toolUse dto.ClaudeMediaMessage) []dto.ClaudeMessage {

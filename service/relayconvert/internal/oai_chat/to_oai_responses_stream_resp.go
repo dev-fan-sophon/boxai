@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 )
 
 type ChatToResponsesStreamEvent struct {
@@ -19,6 +20,9 @@ type ChatToResponsesStreamState struct {
 	Model   string
 	Created int64
 	Usage   *dto.Usage
+	// CustomTools recognizes the Chat function calls that encode Responses
+	// custom tools; they are streamed back as custom_tool_call items.
+	CustomTools customtool.Recognizer
 
 	status            string
 	incompleteDetails *dto.IncompleteDetails
@@ -43,7 +47,12 @@ type chatToResponsesStreamTool struct {
 	ID          string
 	Name        string
 	Arguments   strings.Builder
-	Done        bool
+	// Announced records that output_item.added was sent; the item ID is fixed
+	// from then on. Custom reports whether the call restores a Responses
+	// custom tool and is decided at announcement.
+	Announced bool
+	Custom    bool
+	Done      bool
 }
 
 type chatToResponsesOutputRef struct {
@@ -197,48 +206,72 @@ func (s *ChatToResponsesStreamState) appendToolCallDelta(toolCall dto.ToolCallRe
 		chatIndex = *toolCall.Index
 	}
 	tool := s.toolsByIndex[chatIndex]
-	events := make([]ChatToResponsesStreamEvent, 0, 2)
 	if tool == nil {
-		tool = &chatToResponsesStreamTool{
-			ChatIndex:   chatIndex,
-			OutputIndex: s.nextIndex("tool", chatIndex),
-			ID:          strings.TrimSpace(toolCall.ID),
-			Name:        strings.TrimSpace(toolCall.Function.Name),
-		}
-		if tool.ID == "" {
-			tool.ID = fmt.Sprintf("%s_call_%d", s.ID, chatIndex)
-		}
+		tool = &chatToResponsesStreamTool{ChatIndex: chatIndex}
 		s.toolsByIndex[chatIndex] = tool
-		events = append(events, responsesStreamEvent(responsesEventOutputItemAdded, dto.ResponsesStreamResponse{
-			Type:        responsesEventOutputItemAdded,
-			OutputIndex: intPtr(tool.OutputIndex),
-			ItemID:      tool.ID,
-			Item: &dto.ResponsesOutput{
-				Type:      responsesOutputTypeFunctionCall,
-				ID:        tool.ID,
-				Status:    "in_progress",
-				CallId:    tool.ID,
-				Name:      tool.Name,
-				Arguments: []byte(`""`),
-			},
-		}))
 	}
-	if strings.TrimSpace(toolCall.ID) != "" {
-		tool.ID = strings.TrimSpace(toolCall.ID)
+	if tool.Done {
+		return nil, nil
 	}
-	if strings.TrimSpace(toolCall.Function.Name) != "" {
-		tool.Name = strings.TrimSpace(toolCall.Function.Name)
+	if incomingID := strings.TrimSpace(toolCall.ID); incomingID != "" && !tool.Announced {
+		tool.ID = incomingID
 	}
-	if toolCall.Function.Arguments != "" {
-		tool.Arguments.WriteString(toolCall.Function.Arguments)
+	if incomingName := strings.TrimSpace(toolCall.Function.Name); incomingName != "" && !tool.Announced {
+		tool.Name = incomingName
+	}
+	delta := toolCall.Function.Arguments
+	tool.Arguments.WriteString(delta)
+
+	events := make([]ChatToResponsesStreamEvent, 0, 2)
+	// A nameless call is not a valid Responses item, and the name decides
+	// whether it is a custom tool call, so it is held until a name arrives.
+	if !tool.Announced {
+		if tool.Name == "" {
+			return nil, nil
+		}
+		events = append(events, s.announceTool(tool))
+		delta = tool.Arguments.String()
+	}
+	// Custom tool input is unwrapped from the complete arguments at the end.
+	if !tool.Custom && delta != "" {
 		events = append(events, responsesStreamEvent(responsesEventFunctionArgsDelta, dto.ResponsesStreamResponse{
 			Type:        responsesEventFunctionArgsDelta,
 			OutputIndex: intPtr(tool.OutputIndex),
 			ItemID:      tool.ID,
-			Delta:       toolCall.Function.Arguments,
+			Delta:       delta,
 		}))
 	}
 	return events, nil
+}
+
+// announceTool also allocates the output index, so a held tool never ends up
+// behind items that were added to the stream before it.
+func (s *ChatToResponsesStreamState) announceTool(tool *chatToResponsesStreamTool) ChatToResponsesStreamEvent {
+	tool.Announced = true
+	if tool.ID == "" {
+		tool.ID = fmt.Sprintf("%s_call_%d", s.ID, tool.ChatIndex)
+	}
+	tool.OutputIndex = s.nextIndex("tool", tool.ChatIndex)
+	tool.Custom = customtool.IsCustom(s.CustomTools, tool.Name)
+	item := &dto.ResponsesOutput{
+		Type:      responsesOutputTypeFunctionCall,
+		ID:        tool.ID,
+		Status:    "in_progress",
+		CallId:    tool.ID,
+		Name:      tool.Name,
+		Arguments: []byte(`""`),
+	}
+	if tool.Custom {
+		item.Type = responsesOutputTypeCustomToolCall
+		item.Arguments = nil
+		item.Input = []byte(`""`)
+	}
+	return responsesStreamEvent(responsesEventOutputItemAdded, dto.ResponsesStreamResponse{
+		Type:        responsesEventOutputItemAdded,
+		OutputIndex: intPtr(tool.OutputIndex),
+		ItemID:      tool.ID,
+		Item:        item,
+	})
 }
 
 func (s *ChatToResponsesStreamState) doneDeltaEvents() []ChatToResponsesStreamEvent {
@@ -281,11 +314,46 @@ func (s *ChatToResponsesStreamState) doneDeltaEvents() []ChatToResponsesStreamEv
 			continue
 		}
 		tool.Done = true
-		events = append(events, responsesStreamEvent(responsesEventFunctionArgsDone, dto.ResponsesStreamResponse{
-			Type:        responsesEventFunctionArgsDone,
-			OutputIndex: intPtr(tool.OutputIndex),
-			ItemID:      tool.ID,
-		}))
+		if !tool.Announced {
+			// A call whose name never arrived leaves nothing in the stream.
+			if tool.Name == "" {
+				continue
+			}
+			events = append(events, s.announceTool(tool))
+			if !tool.Custom && tool.Arguments.Len() > 0 {
+				events = append(events, responsesStreamEvent(responsesEventFunctionArgsDelta, dto.ResponsesStreamResponse{
+					Type:        responsesEventFunctionArgsDelta,
+					OutputIndex: intPtr(tool.OutputIndex),
+					ItemID:      tool.ID,
+					Delta:       tool.Arguments.String(),
+				}))
+			}
+		}
+		if tool.Custom {
+			input := customtool.InputFromArguments(tool.Arguments.String())
+			if input != "" {
+				events = append(events, responsesStreamEvent(responsesEventCustomToolInputDelta, dto.ResponsesStreamResponse{
+					Type:        responsesEventCustomToolInputDelta,
+					OutputIndex: intPtr(tool.OutputIndex),
+					ItemID:      tool.ID,
+					Delta:       input,
+				}))
+			}
+			events = append(events, responsesStreamEvent(responsesEventCustomToolInputDone, dto.ResponsesStreamResponse{
+				Type:        responsesEventCustomToolInputDone,
+				OutputIndex: intPtr(tool.OutputIndex),
+				ItemID:      tool.ID,
+				Input:       &input,
+			}))
+		} else {
+			arguments := tool.Arguments.String()
+			events = append(events, responsesStreamEvent(responsesEventFunctionArgsDone, dto.ResponsesStreamResponse{
+				Type:        responsesEventFunctionArgsDone,
+				OutputIndex: intPtr(tool.OutputIndex),
+				ItemID:      tool.ID,
+				Arguments:   &arguments,
+			}))
+		}
 		events = append(events, responsesStreamEvent(responsesEventOutputItemDone, dto.ResponsesStreamResponse{
 			Type:        responsesEventOutputItemDone,
 			OutputIndex: intPtr(tool.OutputIndex),
@@ -312,7 +380,7 @@ func (s *ChatToResponsesStreamState) finalResponse() *dto.OpenAIResponsesRespons
 		case "reasoning":
 			output = append(output, *s.reasoningOutput(status))
 		case "tool":
-			if tool := s.toolsByIndex[ref.ToolIndex]; tool != nil {
+			if tool := s.toolsByIndex[ref.ToolIndex]; tool != nil && tool.Announced {
 				output = append(output, *s.toolOutput(tool, status))
 			}
 		}
@@ -406,6 +474,16 @@ func (s *ChatToResponsesStreamState) reasoningOutput(status string) *dto.Respons
 }
 
 func (s *ChatToResponsesStreamState) toolOutput(tool *chatToResponsesStreamTool, status string) *dto.ResponsesOutput {
+	if tool.Custom {
+		return &dto.ResponsesOutput{
+			Type:   responsesOutputTypeCustomToolCall,
+			ID:     tool.ID,
+			Status: status,
+			CallId: tool.ID,
+			Name:   tool.Name,
+			Input:  chatArgumentsRawMessage(customtool.InputFromArguments(tool.Arguments.String())),
+		}
+	}
 	return &dto.ResponsesOutput{
 		Type:      responsesOutputTypeFunctionCall,
 		ID:        tool.ID,

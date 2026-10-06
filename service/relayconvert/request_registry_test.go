@@ -239,11 +239,29 @@ func TestConvertRequestResponsesToGeminiAppliesResponsesPreprocess(t *testing.T)
 	require.NoError(t, err)
 	geminiReq, ok := result.Value.(*dto.GeminiChatRequest)
 	require.True(t, ok)
-	assert.Empty(t, geminiReq.GetTools())
-	require.Len(t, geminiReq.Contents, 1)
+	assert.JSONEq(t, `[{"functionDeclarations":[{
+		"name":"apply_patch",
+		"description":"This tool takes freeform text. Put the complete raw text in the \"input\" argument.",
+		"parameters":{"type":"OBJECT","properties":{"input":{"type":"STRING","description":"Raw input for the tool."}},"required":["input"]}
+	}]}]`, string(geminiReq.Tools))
+	require.Len(t, geminiReq.Contents, 3)
 	assert.Equal(t, "user", geminiReq.Contents[0].Role)
 	require.Len(t, geminiReq.Contents[0].Parts, 1)
 	assert.Equal(t, "next turn", geminiReq.Contents[0].Parts[0].Text)
+	assert.Equal(t, "model", geminiReq.Contents[1].Role)
+	require.Len(t, geminiReq.Contents[1].Parts, 1)
+	require.NotNil(t, geminiReq.Contents[1].Parts[0].FunctionCall)
+	assert.Equal(t, "apply_patch", geminiReq.Contents[1].Parts[0].FunctionCall.FunctionName)
+	assert.Equal(t, map[string]any{"input": "patch body"}, geminiReq.Contents[1].Parts[0].FunctionCall.Arguments)
+	assert.Equal(t, "user", geminiReq.Contents[2].Role)
+	require.Len(t, geminiReq.Contents[2].Parts, 2)
+	for i, output := range []string{"ok", "legacy custom output"} {
+		response := geminiReq.Contents[2].Parts[i].FunctionResponse
+		require.NotNil(t, response)
+		assert.Equal(t, "apply_patch", response.Name)
+		assert.Equal(t, map[string]any{"content": output}, response.Response)
+	}
+	assert.True(t, info.IsResponsesCustomTool("apply_patch"))
 	assert.Equal(t, ConverterOpenAIResponsesToGemini, result.Converter)
 	assert.Equal(t, RequestConverterQualityFair, result.Quality)
 	assert.Equal(t, []RequestStep{

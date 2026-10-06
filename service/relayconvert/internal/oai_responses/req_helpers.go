@@ -6,6 +6,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/customtool"
 	"github.com/dev-fan-sophon/boxai/types"
 )
 
@@ -96,18 +97,30 @@ func ContentParts(content any) ([]map[string]any, error) {
 	return responsesContentParts(content)
 }
 
-func responsesRequestFunctionDeclarations(raw []byte) ([]dto.FunctionRequest, error) {
+// responsesRequestFunctionDeclarations returns the function tools in order,
+// with each selected custom tool encoded as a function taking one string
+// input. It also returns the names of those custom tools.
+func responsesRequestFunctionDeclarations(raw []byte) ([]dto.FunctionRequest, map[string]struct{}, error) {
 	if !rawJSONPresent(raw) {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	var tools []map[string]any
-	if err := common.Unmarshal(raw, &tools); err != nil {
-		return nil, fmt.Errorf("invalid tools: %w", err)
+	tools, customTools, err := customtool.SelectRaw(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	if tools == nil {
+		if err := common.Unmarshal(raw, &tools); err != nil {
+			return nil, nil, fmt.Errorf("invalid tools: %w", err)
+		}
 	}
 
 	functions := make([]dto.FunctionRequest, 0, len(tools))
-	for _, tool := range tools {
+	for index, tool := range tools {
+		if customTool, ok := customTools[index]; ok {
+			functions = append(functions, customTool.Function())
+			continue
+		}
 		if strings.TrimSpace(common.Interface2String(tool["type"])) != "function" {
 			continue
 		}
@@ -121,10 +134,10 @@ func responsesRequestFunctionDeclarations(raw []byte) ([]dto.FunctionRequest, er
 			Parameters:  tool["parameters"],
 		})
 	}
-	return functions, nil
+	return functions, customtool.Names(customTools), nil
 }
 
-func RequestFunctionDeclarations(raw []byte) ([]dto.FunctionRequest, error) {
+func RequestFunctionDeclarations(raw []byte) ([]dto.FunctionRequest, map[string]struct{}, error) {
 	return responsesRequestFunctionDeclarations(raw)
 }
 

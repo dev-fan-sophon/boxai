@@ -243,15 +243,17 @@ func TestResponsesRequestToChatCompletionsRequestToolsToolChoiceAndTextFormat(t 
 	assert.True(t, gjson.GetBytes(got.ResponseFormat.JsonSchema, "strict").Bool())
 }
 
-func TestResponsesRequestToChatCompletionsRequestCustomToolCallPreservesRawShape(t *testing.T) {
+func TestResponsesRequestToChatCompletionsRequestReplaysCustomToolCallAsFunction(t *testing.T) {
+	// The raw input looks like JSON but must reach the upstream verbatim as a string.
+	rawInput := `{"cmd":["ls","-la"]}`
 	got, err := ResponsesRequestToChatCompletionsRequest(&dto.OpenAIResponsesRequest{
 		Model: "gpt-test",
 		Input: mustRawMessage(t, []map[string]any{
 			{
 				"type":    "custom_tool_call",
 				"call_id": "call_custom",
-				"name":    "apply_patch",
-				"input":   "patch body",
+				"name":    "exec",
+				"input":   rawInput,
 			},
 		}),
 	})
@@ -260,12 +262,12 @@ func TestResponsesRequestToChatCompletionsRequestCustomToolCallPreservesRawShape
 	require.Len(t, got.Messages, 1)
 	toolCalls := got.Messages[0].ParseToolCalls()
 	require.Len(t, toolCalls, 1)
-	assert.Equal(t, dto.CustomType, toolCalls[0].Type)
+	assert.Equal(t, "function", toolCalls[0].Type)
 	assert.Equal(t, "call_custom", toolCalls[0].ID)
-	assert.Equal(t, "apply_patch", toolCalls[0].Function.Name)
-	assert.Equal(t, "patch body", toolCalls[0].Function.Arguments)
-	assert.Equal(t, "custom_tool_call", gjson.GetBytes(toolCalls[0].Custom, "type").String())
-	assert.Equal(t, "patch body", gjson.GetBytes(toolCalls[0].Custom, "input").String())
+	assert.Equal(t, "exec", toolCalls[0].Function.Name)
+	assert.Empty(t, toolCalls[0].Custom)
+	assert.Equal(t, rawInput, gjson.Get(toolCalls[0].Function.Arguments, "input").String())
+	assert.Equal(t, gjson.String, gjson.Get(toolCalls[0].Function.Arguments, "input").Type)
 }
 
 func TestResponsesRequestToChatCompletionsRequestRejectsStatefulFields(t *testing.T) {

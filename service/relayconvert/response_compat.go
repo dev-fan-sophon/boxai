@@ -89,6 +89,12 @@ func ChatCompletionsResponseToResponsesResponse(resp *dto.OpenAITextResponse, id
 	return oaichat.ChatCompletionsResponseToResponsesResponse(resp, id)
 }
 
+// ChatCompletionsResponseToResponsesResponseWithCustomTools restores function
+// calls to Responses custom tools recorded on info as custom_tool_call items.
+func ChatCompletionsResponseToResponsesResponseWithCustomTools(resp *dto.OpenAITextResponse, id string, info *relaycommon.RelayInfo) (*dto.OpenAIResponsesResponse, *dto.Usage, error) {
+	return oaichat.ChatCompletionsResponseToResponsesResponseWithCustomTools(resp, id, info)
+}
+
 func ResponsesStatusFromChatFinishReason(finishReason string) (string, *dto.IncompleteDetails) {
 	return oaichat.ResponsesStatusFromChatFinishReason(finishReason)
 }
