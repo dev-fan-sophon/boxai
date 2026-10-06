@@ -174,6 +174,9 @@ func GetAndValidateResponsesRequest(c *gin.Context) (*dto.OpenAIResponsesRequest
 	if invalidThinkingBudget(request.ThinkingBudget) {
 		return nil, errors.New("thinking_budget is invalid")
 	}
+	if err := validateResponsesTextFormat(request.Text); err != nil {
+		return nil, err
+	}
 	return request, nil
 }
 
@@ -385,6 +388,9 @@ func GetAndValidateTextRequest(c *gin.Context, relayMode int) (*dto.GeneralOpenA
 	if textRequest.Model == "" {
 		return nil, errors.New("model is required")
 	}
+	if err := validateChatResponseFormat(textRequest.ResponseFormat); err != nil {
+		return nil, err
+	}
 	if textRequest.WebSearchOptions != nil {
 		if textRequest.WebSearchOptions.SearchContextSize != "" {
 			validSizes := map[string]bool{
@@ -432,8 +438,8 @@ func GetAndValidateGeminiRequest(c *gin.Context) (*dto.GeminiChatRequest, error)
 	if len(request.Contents) == 0 && len(request.Requests) == 0 {
 		return nil, errors.New("contents is required")
 	}
-	if exceedsMaxTokensLimit(request.GenerationConfig.MaxOutputTokens) {
-		return nil, errors.New("maxOutputTokens is invalid")
+	if err := validateGeminiChatRequestContent(request, ""); err != nil {
+		return nil, err
 	}
 
 	//if c.Query("alt") == "sse" {
@@ -441,6 +447,64 @@ func GetAndValidateGeminiRequest(c *gin.Context) (*dto.GeminiChatRequest, error)
 	//}
 
 	return request, nil
+}
+
+// validateGeminiChatRequestContent rejects payloads Gemini itself would reject
+// for an invalid Part `data` oneof (e.g. "required oneof field 'data'"), so
+// they fail locally with a precise path instead of reaching an upstream.
+// Valid native-only content (audio, video, code execution, file references)
+// is accepted here; format conversion decides what it can represent.
+func validateGeminiChatRequestContent(request *dto.GeminiChatRequest, path string) error {
+	if exceedsMaxTokensLimit(request.GenerationConfig.MaxOutputTokens) {
+		return errors.New("maxOutputTokens is invalid")
+	}
+	for i := range request.Requests {
+		if err := validateGeminiChatRequestContent(&request.Requests[i], fmt.Sprintf("%srequests[%d].", path, i)); err != nil {
+			return err
+		}
+	}
+	for i, content := range request.Contents {
+		contentPath := fmt.Sprintf("%scontents[%d]", path, i)
+		if len(content.Parts) == 0 {
+			return fmt.Errorf("%s.parts must not be empty", contentPath)
+		}
+		if err := validateGeminiParts(content.Parts, contentPath); err != nil {
+			return err
+		}
+	}
+	if request.SystemInstructions != nil {
+		if err := validateGeminiParts(request.SystemInstructions.Parts, path+"systemInstruction"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateGeminiParts(parts []dto.GeminiPart, contentPath string) error {
+	for i := range parts {
+		part := &parts[i]
+		partPath := fmt.Sprintf("%s.parts[%d]", contentPath, i)
+		switch part.DataFieldCount() {
+		case 0:
+			return fmt.Errorf("%s must set exactly one of text, inlineData, fileData, functionCall, functionResponse, executableCode or codeExecutionResult", partPath)
+		case 1:
+		default:
+			return fmt.Errorf("%s sets more than one of text, inlineData, fileData, functionCall, functionResponse, executableCode or codeExecutionResult", partPath)
+		}
+		if part.InlineData != nil && (strings.TrimSpace(part.InlineData.Data) == "" || strings.TrimSpace(part.InlineData.MimeType) == "") {
+			return fmt.Errorf("%s.inlineData requires non-empty mimeType and data", partPath)
+		}
+		if part.FileData != nil && strings.TrimSpace(part.FileData.FileUri) == "" {
+			return fmt.Errorf("%s.fileData.fileUri is required", partPath)
+		}
+		if part.FunctionCall != nil && strings.TrimSpace(part.FunctionCall.FunctionName) == "" {
+			return fmt.Errorf("%s.functionCall.name is required", partPath)
+		}
+		if part.FunctionResponse != nil && strings.TrimSpace(part.FunctionResponse.Name) == "" {
+			return fmt.Errorf("%s.functionResponse.name is required", partPath)
+		}
+	}
+	return nil
 }
 
 func GetAndValidateGeminiEmbeddingRequest(c *gin.Context) (*dto.GeminiEmbeddingRequest, error) {

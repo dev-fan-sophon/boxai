@@ -240,6 +240,8 @@ func (g *GeminiInlineData) UnmarshalJSON(data []byte) error {
 type FunctionCall struct {
 	FunctionName string `json:"name"`
 	Arguments    any    `json:"args"`
+	// ID correlates a native Gemini functionCall with its functionResponse.
+	ID json.RawMessage `json:"id,omitempty"`
 }
 
 type GeminiFunctionResponse struct {
@@ -279,6 +281,52 @@ type GeminiPart struct {
 	FileData            *GeminiFileData                `json:"fileData,omitempty"`
 	ExecutableCode      *GeminiPartExecutableCode      `json:"executableCode,omitempty"`
 	CodeExecutionResult *GeminiPartCodeExecutionResult `json:"codeExecutionResult,omitempty"`
+
+	// explicitEmptyText records a client-sent `"text": ""`. Gemini returns such
+	// parts (typically carrying only a thoughtSignature) and accepts them back,
+	// but Text's omitempty would otherwise re-marshal them as a data-less part.
+	explicitEmptyText bool
+}
+
+// DataFieldCount returns how many members of Gemini's Part `data` oneof are
+// set. A valid part has exactly one; explicit empty text is still a set field.
+func (p *GeminiPart) DataFieldCount() int {
+	count := 0
+	if p.InlineData != nil {
+		count++
+	}
+	if p.FileData != nil {
+		count++
+	}
+	if p.FunctionCall != nil {
+		count++
+	}
+	if p.FunctionResponse != nil {
+		count++
+	}
+	if p.ExecutableCode != nil {
+		count++
+	}
+	if p.CodeExecutionResult != nil {
+		count++
+	}
+	if p.Text != "" || p.explicitEmptyText {
+		count++
+	}
+	return count
+}
+
+// MarshalJSON keeps explicit empty text so a round-trip neither loses data
+// presence nor silently repairs an invalid part with two data fields.
+func (p GeminiPart) MarshalJSON() ([]byte, error) {
+	type Alias GeminiPart
+	if p.Text != "" || !p.explicitEmptyText {
+		return common.Marshal(Alias(p))
+	}
+	return common.Marshal(struct {
+		Text string `json:"text"`
+		Alias
+	}{Alias: Alias(p)})
 }
 
 // UnmarshalJSON custom unmarshaler for GeminiPart to support snake_case and camelCase for InlineData
@@ -287,6 +335,7 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	type Alias GeminiPart
 	var aux struct {
 		Alias
+		Text            *string           `json:"text,omitempty"`
 		InlineDataSnake *GeminiInlineData `json:"inline_data,omitempty"` // snake_case variant
 	}
 
@@ -296,6 +345,10 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 
 	// Assign fields from alias
 	*p = GeminiPart(aux.Alias)
+	if aux.Text != nil {
+		p.Text = *aux.Text
+		p.explicitEmptyText = *aux.Text == ""
+	}
 
 	// Prioritize snake_case for InlineData if present
 	if aux.InlineDataSnake != nil {
