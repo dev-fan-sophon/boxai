@@ -14,12 +14,16 @@ import (
 )
 
 type RetryParam struct {
-	Ctx          *gin.Context
-	TokenGroup   string
-	ModelName    string
-	RequestPath  string
-	Retry        *int
-	resetNextTry bool
+	Ctx         *gin.Context
+	TokenGroup  string
+	ModelName   string
+	RequestPath string
+	Retry       *int
+	// ChannelFilter, when set, narrows selection to channels it accepts.
+	// Rejected channels are skipped like attempted ones, so selection moves to
+	// the remaining channels of the same group before changing groups.
+	ChannelFilter func(*model.Channel) bool
+	resetNextTry  bool
 }
 
 func (p *RetryParam) GetRetry() int {
@@ -137,7 +141,7 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			logger.LogDebug(param.Ctx, "Auto selecting group: %s, priorityRetry: %d", autoGroup, priorityRetry)
 
-			channel, _ = model.GetRandomSatisfiedChannel(autoGroup, param.ModelName, priorityRetry, param.RequestPath, excludedChannelIds...)
+			channel, excludedChannelIds, _ = getFilteredRandomSatisfiedChannel(param, autoGroup, priorityRetry, excludedChannelIds)
 			if channel == nil {
 				if groupSelected && !crossGroupRetry {
 					// The selected group has no untried channel left and cross-group retry is off.
@@ -181,12 +185,30 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			break
 		}
 	} else {
-		channel, err = model.GetRandomSatisfiedChannel(param.TokenGroup, param.ModelName, param.GetRetry(), param.RequestPath, excludedChannelIds...)
+		channel, _, err = getFilteredRandomSatisfiedChannel(param, param.TokenGroup, param.GetRetry(), excludedChannelIds)
 		if err != nil {
 			return nil, param.TokenGroup, err
 		}
 	}
 	return channel, selectGroup, nil
+}
+
+// maxFilteredChannelSkips bounds how many filter-rejected channels one
+// selection may skip, so a misconfigured filter cannot spin indefinitely.
+const maxFilteredChannelSkips = 256
+
+// getFilteredRandomSatisfiedChannel selects from group while skipping channels
+// rejected by param.ChannelFilter. It returns the exclusions it accumulated so
+// an auto-group scan keeps skipping them in later groups.
+func getFilteredRandomSatisfiedChannel(param *RetryParam, group string, retry int, excludedChannelIds []int) (*model.Channel, []int, error) {
+	for range maxFilteredChannelSkips {
+		channel, err := model.GetRandomSatisfiedChannel(group, param.ModelName, retry, param.RequestPath, excludedChannelIds...)
+		if err != nil || channel == nil || param.ChannelFilter == nil || param.ChannelFilter(channel) {
+			return channel, excludedChannelIds, err
+		}
+		excludedChannelIds = append(slices.Clone(excludedChannelIds), channel.Id)
+	}
+	return nil, excludedChannelIds, nil
 }
 
 // attemptedChannelIds returns the channel IDs this request has already been sent to.

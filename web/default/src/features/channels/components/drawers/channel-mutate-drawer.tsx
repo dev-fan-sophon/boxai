@@ -155,6 +155,7 @@ const SENSITIVE_FORM_FIELDS = [
   'thinking_to_content',
   'proxy',
   'pass_through_body_enabled',
+  'responses_websocket_enabled',
   'image_generation_via_responses_model',
   'system_prompt',
   'system_prompt_override',
@@ -314,6 +315,9 @@ export function ChannelMutateDrawer({
   const currentForceFormat = form.watch('force_format')
   const currentThinkingToContent = form.watch('thinking_to_content')
   const currentPassThroughBodyEnabled = form.watch('pass_through_body_enabled')
+  const currentResponsesWebSocketEnabled = form.watch(
+    'responses_websocket_enabled'
+  )
   const currentDisableTaskPollingSleep = form.watch(
     'disable_task_polling_sleep'
   )
@@ -587,6 +591,7 @@ export function ChannelMutateDrawer({
     currentForceFormat ||
     currentThinkingToContent ||
     currentPassThroughBodyEnabled ||
+    currentResponsesWebSocketEnabled ||
     currentDisableTaskPollingSleep ||
     currentProxy?.trim() ||
     currentSystemPrompt?.trim() ||

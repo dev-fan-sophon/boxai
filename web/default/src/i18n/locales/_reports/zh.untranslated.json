@@ -42,6 +42,7 @@
   "Prompt": "Prompt",
   "Prompt (EN)": "Prompt (EN)",
   "Responses": "Responses",
+  "Responses WebSocket": "Responses WebSocket",
   "Source Endpoint": "Source Endpoint",
   "Sync Endpoint": "Sync Endpoint",
   "Sync Endpoints": "Sync Endpoints",

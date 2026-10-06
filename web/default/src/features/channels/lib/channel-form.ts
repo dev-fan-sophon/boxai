@@ -4,6 +4,7 @@ import {
   CHANNEL_STATUS,
   ERROR_MESSAGES,
   MODEL_FETCHABLE_TYPES,
+  RESPONSES_WEBSOCKET_TYPES,
 } from '../constants'
 import type { Channel } from '../types'
 import {
@@ -172,6 +173,7 @@ export const channelFormSchema = z
     thinking_to_content: z.boolean().optional(),
     proxy: z.string().optional(),
     pass_through_body_enabled: z.boolean().optional(),
+    responses_websocket_enabled: z.boolean().optional(),
     image_generation_via_responses_model: z.string().optional(),
     system_prompt: z.string().optional(),
     system_prompt_override: z.boolean().optional(),
@@ -368,6 +370,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   thinking_to_content: false,
   proxy: '',
   pass_through_body_enabled: false,
+  responses_websocket_enabled: false,
   image_generation_via_responses_model: '',
   system_prompt: '',
   system_prompt_override: false,
@@ -407,6 +410,7 @@ export function transformChannelToFormDefaults(
     thinking_to_content: false,
     proxy: '',
     pass_through_body_enabled: false,
+    responses_websocket_enabled: false,
     image_generation_via_responses_model: '',
     system_prompt: '',
     system_prompt_override: false,
@@ -420,6 +424,8 @@ export function transformChannelToFormDefaults(
         thinking_to_content: parsed.thinking_to_content || false,
         proxy: parsed.proxy || '',
         pass_through_body_enabled: parsed.pass_through_body_enabled || false,
+        responses_websocket_enabled:
+          parsed.responses_websocket_enabled || false,
         image_generation_via_responses_model:
           parsed.image_generation_via_responses_model || '',
         system_prompt: parsed.system_prompt || '',
@@ -540,6 +546,9 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     thinking_to_content: formData.thinking_to_content || false,
     proxy: formData.proxy || '',
     pass_through_body_enabled: formData.pass_through_body_enabled || false,
+    responses_websocket_enabled:
+      RESPONSES_WEBSOCKET_TYPES.has(formData.type) &&
+      (formData.responses_websocket_enabled || false),
     image_generation_via_responses_model:
       formData.type === 61
         ? formData.image_generation_via_responses_model?.trim() || ''

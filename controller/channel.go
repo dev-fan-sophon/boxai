@@ -731,6 +731,7 @@ func DeleteChannel(c *gin.Context) {
 		return
 	}
 	model.InitChannelCache()
+	service.CloseActiveWebSocketsForChannels([]int{id}, service.ChannelDisabledCloseReason)
 	if channelLookupFailed {
 		service.ResetProxyClientCache()
 	} else {
@@ -915,6 +916,7 @@ func DeleteChannelBatch(c *gin.Context) {
 	model.InitChannelCache()
 	if deletedCount > 0 {
 		service.ResetProxyClientCache()
+		service.CloseActiveWebSocketsForChannels(channelBatch.Ids, service.ChannelDisabledCloseReason)
 	}
 	recordManageAudit(c, "channel.delete_batch", map[string]interface{}{
 		"count": deletedCount,
@@ -1162,6 +1164,9 @@ func UpdateChannelStatus(c *gin.Context) {
 	changed := model.UpdateChannelStatus(id, "", req.Status, "manual operation")
 	if changed {
 		model.InitChannelCache()
+		if req.Status != common.ChannelStatusEnabled {
+			service.CloseActiveWebSocketsForChannels([]int{id}, service.ChannelDisabledCloseReason)
+		}
 	}
 	recordManageAudit(c, "channel.status_update", map[string]interface{}{
 		"id":      id,
@@ -1182,13 +1187,18 @@ func BatchUpdateChannelStatus(c *gin.Context) {
 		return
 	}
 	changedCount := 0
+	var changedIDs []int
 	for _, id := range req.Ids {
 		if model.UpdateChannelStatus(id, "", req.Status, "manual batch operation") {
 			changedCount++
+			changedIDs = append(changedIDs, id)
 		}
 	}
 	if changedCount > 0 {
 		model.InitChannelCache()
+		if req.Status != common.ChannelStatusEnabled {
+			service.CloseActiveWebSocketsForChannels(changedIDs, service.ChannelDisabledCloseReason)
+		}
 	}
 	recordManageAudit(c, "channel.status_update_batch", map[string]interface{}{
 		"count":  changedCount,

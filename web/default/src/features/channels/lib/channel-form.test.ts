@@ -108,3 +108,28 @@ describe('ElevenLabs channel form', () => {
     })
   })
 })
+
+describe('Responses WebSocket channel setting', () => {
+  it('serializes the opt-in only for native Responses channel types', () => {
+    const base = {
+      ...CHANNEL_FORM_DEFAULT_VALUES,
+      name: 'Responses',
+      key: 'secret',
+      models: 'gpt-5.5',
+      responses_websocket_enabled: true,
+    }
+    const openai = transformFormDataToCreatePayload(
+      channelFormSchema.parse({ ...base, type: 1 })
+    )
+    expect(JSON.parse(openai.channel.setting || '{}')).toMatchObject({
+      responses_websocket_enabled: true,
+    })
+
+    const claude = transformFormDataToCreatePayload(
+      channelFormSchema.parse({ ...base, type: 14 })
+    )
+    expect(JSON.parse(claude.channel.setting || '{}')).toMatchObject({
+      responses_websocket_enabled: false,
+    })
+  })
+})

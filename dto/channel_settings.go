@@ -15,6 +15,9 @@ type ChannelSettings struct {
 	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
 	Proxy                  string `json:"proxy"`
 	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
+	// ResponsesWebSocketEnabled opts a native Responses channel into the
+	// persistent GET /v1/responses WebSocket relay.
+	ResponsesWebSocketEnabled bool `json:"responses_websocket_enabled,omitempty"`
 	// ImageGenerationViaResponsesModel adapts OpenAI Images generations and
 	// edits to a Responses image_generation tool call using this upstream host
 	// model. Empty keeps the provider's native Images API routes.
@@ -285,6 +288,14 @@ const (
 
 // AdvancedCustomModelListPath identifies the optional OpenAI Models discovery route.
 const AdvancedCustomModelListPath = "/v1/models"
+
+// IsNative reports whether the route forwards requests without protocol
+// conversion. Validate normalizes an empty converter to none, but callers may
+// see configurations that were never saved.
+func (r AdvancedCustomRoute) IsNative() bool {
+	converter := strings.TrimSpace(r.Converter)
+	return converter == "" || converter == advancedCustomConverterNone
+}
 
 // MatchPath returns the first route whose IncomingPath matches requestPath.
 // Matching mirrors the relay adaptor: exact match, {model} placeholder, and

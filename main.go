@@ -24,6 +24,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/oauth"
 	perfmetrics "github.com/dev-fan-sophon/boxai/pkg/perf_metrics"
+	"github.com/dev-fan-sophon/boxai/pkg/wsmanager"
 	"github.com/dev-fan-sophon/boxai/relay"
 	"github.com/dev-fan-sophon/boxai/router"
 	"github.com/dev-fan-sophon/boxai/service"
@@ -102,6 +103,9 @@ func main() {
 
 	// 热更新配置
 	go model.SyncOptions(common.SyncFrequency)
+
+	// Close persistent WebSocket sessions when another node disables a channel.
+	wsmanager.StartSubscriber(context.Background())
 
 	// 周期性重载授权策略，保证多节点/多 master 部署下权限变更能传播到每个实例
 	go authz.StartPolicySync(common.SyncFrequency)

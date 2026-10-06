@@ -31,6 +31,7 @@ import {
   FIELD_DESCRIPTIONS,
   FIELD_PLACEHOLDERS,
   MODEL_FETCHABLE_TYPES,
+  RESPONSES_WEBSOCKET_TYPES,
 } from '../../constants'
 import type { ChannelFormValues } from '../../lib'
 import { CardHeading, SubHeading } from './channel-editor-shared'
@@ -563,6 +564,31 @@ export function ChannelAdvancedSettings(props: ChannelAdvancedSettingsProps) {
                 </FormItem>
               )}
             />
+
+            {RESPONSES_WEBSOCKET_TYPES.has(currentType) && (
+              <FormField
+                control={form.control}
+                name='responses_websocket_enabled'
+                render={({ field }) => (
+                  <FormItem className='flex items-center justify-between px-4 py-3'>
+                    <div className='space-y-0.5'>
+                      <FormLabel>{t('Responses WebSocket')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Allow persistent WebSocket connections on /v1/responses. Enable only when the upstream supports native Responses WebSocket mode.'
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

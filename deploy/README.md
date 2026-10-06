@@ -148,6 +148,28 @@ Use **boxai** everywhere. Do not introduce `boxai2` for new work.
 
 `scripts/deploy-prod.sh` may still clean leftover historical `boxai2*` container/image names once; that is not a supported target.
 
+### Responses WebSocket rollout
+
+`GET /v1/responses` accepts authenticated native Responses WebSocket sessions.
+Each `response.create` rechecks token permissions and reserves/settles its own
+usage. HTTP SSE and WebSocket use the same Responses usage accumulator, including
+interrupted output and authoritative terminal usage (explicit zeros included).
+
+The channel editor's **Responses WebSocket** switch maps to
+`setting.responses_websocket_enabled` and defaults to false. Enable only after
+testing the upstream's native protocol. Supported types are OpenAI, Codex,
+Sub2API, New API, Codex Proxy and converter-free Advanced Custom Responses routes.
+Deployment does not automatically enable existing channels or change CPA types.
+
+One generation may run per connection. The first accepted request pins the
+model, channel, credential and route; changing those requires reconnecting.
+Only rejected handshakes can fail over: a submitted generation is never replayed.
+Channel disable/delete closes tracked sessions across nodes through Redis;
+configuration changes are also revalidated on the next turn. Clients should
+reconnect after credential refresh and handle idle proxy disconnects.
+Production nginx/edge must preserve WebSocket Upgrade headers. Local contract
+tests do not establish that every external provider supports WebSocket mode.
+
 ## Production deploy
 
 ### Prerequisites (local)
