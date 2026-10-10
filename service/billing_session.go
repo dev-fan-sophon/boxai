@@ -3,8 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -207,7 +205,7 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 			targetQuota,
 		))
 		if err != nil {
-			return err
+			return billingReservationError(err)
 		}
 		s.applyOperation(operation)
 		s.preConsumedQuota = targetQuota
@@ -250,7 +248,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 			effectiveQuota,
 		))
 		if err != nil {
-			return types.NewErrorWithStatusCode(err, types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			return billingReservationError(err)
 		}
 		s.applyOperation(operation)
 		s.preConsumedQuota = effectiveQuota
@@ -272,7 +270,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	// ---- 1) 预扣令牌额度 ----
 	if effectiveQuota > 0 {
 		if err := PreConsumeTokenQuota(s.relayInfo, effectiveQuota); err != nil {
-			return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			return billingReservationError(err)
 		}
 		s.tokenConsumed = effectiveQuota
 	}
@@ -287,22 +285,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 			}
 			s.tokenConsumed = 0
 		}
-		if errors.Is(err, ErrInsufficientWalletQuota) {
-			userQuota, quotaErr := model.GetUserQuota(s.relayInfo.UserId, false)
-			if quotaErr != nil {
-				userQuota = 0
-			}
-			return types.NewErrorWithStatusCode(
-				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-		}
-		// TODO: model 层应定义哨兵错误（如 ErrNoActiveSubscription），用 errors.Is 替代字符串匹配
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "no active subscription") || strings.Contains(errMsg, "subscription quota insufficient") {
-			return types.NewErrorWithStatusCode(fmt.Errorf("订阅额度不足或未配置订阅: %s", errMsg), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-		}
-		return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
+		return billingReservationError(err)
 	}
 
 	s.preConsumedQuota = effectiveQuota
@@ -384,13 +367,7 @@ func (s *BillingSession) reserveFunding(delta int) error {
 		return nil
 	case *SubscriptionFunding:
 		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, funding.usageGeneration, int64(delta)); err != nil {
-			return types.NewErrorWithStatusCode(
-				fmt.Errorf("订阅额度不足或未配置订阅: %s", err.Error()),
-				types.ErrorCodeInsufficientUserQuota,
-				http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(),
-				types.ErrOptionWithNoRecordErrorLog(),
-			)
+			return billingReservationError(err)
 		}
 		return nil
 	default:
@@ -419,7 +396,7 @@ func (s *BillingSession) reserveToken(delta int) error {
 		return nil
 	}
 	if err := PreConsumeTokenQuota(s.relayInfo, delta); err != nil {
-		return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		return billingReservationError(err)
 	}
 	return nil
 }
@@ -503,19 +480,13 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 	tryWallet := func(overageSubscriptionId int, overageUsageGeneration int64) (*BillingSession, *types.NewAPIError) {
 		userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+			return nil, billingDataError(err, types.ErrorCodeQueryDataError)
 		}
 		if userQuota <= 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			return nil, types.NewFundingError(ErrInsufficientWalletQuota, types.ErrorCodeInsufficientUserQuota)
 		}
 		if userQuota-preConsumedQuota < 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("预扣费额度失败, 用户剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(preConsumedQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			return nil, types.NewFundingError(ErrInsufficientWalletQuota, types.ErrorCodeInsufficientUserQuota)
 		}
 		relayInfo.UserQuota = userQuota
 
@@ -554,7 +525,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 
 	hasSub, subCheckErr := model.HasActiveUserSubscription(relayInfo.UserId)
 	if subCheckErr != nil {
-		return nil, types.NewError(subCheckErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+		return nil, billingDataError(subCheckErr, types.ErrorCodeQueryDataError)
 	}
 	if !hasSub {
 		return tryWallet(0, 0)
@@ -564,7 +535,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 	if apiErr == nil {
 		return session, nil
 	}
-	if apiErr.GetErrorCode() != types.ErrorCodeInsufficientUserQuota {
+	if apiErr.GetErrorCode() != types.ErrorCodeInsufficientSubscriptionQuota {
 		return nil, apiErr
 	}
 
@@ -572,20 +543,17 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 	// 用户必须显式开启，且不超过用户设定的每周期上限。
 	allowOverflow, overflowErr := model.UserActiveSubscriptionsAllowWalletOverflow(relayInfo.UserId)
 	if overflowErr != nil {
-		return nil, types.NewError(overflowErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+		return nil, billingDataError(overflowErr, types.ErrorCodeQueryDataError)
 	}
 	if !allowOverflow {
 		return nil, apiErr
 	}
 	if !relayInfo.UserSetting.OverageEnabled {
-		return nil, types.NewErrorWithStatusCode(
-			fmt.Errorf("订阅额度已用完。可在控制台钱包页开启\"额外用量\"后使用余额继续，或等待额度重置"),
-			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		return nil, types.NewFundingError(apiErr, types.ErrorCodeSubscriptionOverageDisabled)
 	}
 	primarySub, primaryErr := model.GetPrimaryActiveSubscriptionForOverage(relayInfo.UserId)
 	if primaryErr != nil {
-		return nil, types.NewError(primaryErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+		return nil, billingDataError(primaryErr, types.ErrorCodeQueryDataError)
 	}
 	overageSubscriptionId := 0
 	var overageUsageGeneration int64
@@ -598,13 +566,30 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 				Mul(decimal.NewFromFloat(common.QuotaPerUnit)).
 				IntPart()
 			if primarySub.OverageUsed+int64(preConsumedQuota) > limitQuota {
-				return nil, types.NewErrorWithStatusCode(
-					fmt.Errorf("额外用量已达本周期上限，可在控制台钱包页调整上限或等待额度重置"),
-					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+				return nil, types.NewFundingError(apiErr, types.ErrorCodeSubscriptionOverageLimitExceeded)
 			}
 		}
 	}
 	session, apiErr = tryWallet(overageSubscriptionId, overageUsageGeneration)
 	return session, apiErr
+}
+
+// Only typed, locally verified quota failures are actionable funding errors.
+func billingReservationError(err error) *types.NewAPIError {
+	switch {
+	case errors.Is(err, ErrInsufficientWalletQuota), errors.Is(err, model.ErrWalletQuotaInsufficient):
+		return types.NewFundingError(err, types.ErrorCodeInsufficientUserQuota)
+	case errors.Is(err, model.ErrSubscriptionQuotaInsufficient):
+		return types.NewFundingError(err, types.ErrorCodeInsufficientSubscriptionQuota)
+	case errors.Is(err, model.ErrTokenQuotaInsufficient):
+		return types.NewFundingError(err, types.ErrorCodePreConsumeTokenQuotaFailed)
+	default:
+		return billingDataError(err, types.ErrorCodeUpdateDataError)
+	}
+}
+
+func billingDataError(err error, code types.ErrorCode) *types.NewAPIError {
+	fault := types.NewError(err, code, types.ErrOptionWithSkipRetry())
+	fault.SetPublicFault(code, "BoxAI could not process billing. Please try again later.", 500)
+	return fault
 }

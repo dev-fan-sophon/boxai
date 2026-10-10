@@ -1541,10 +1541,10 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 			Where("user_id = ? AND status = ? AND end_time > ?", userId, "active", now).
 			Order("end_time asc, id asc").
 			Find(&subs).Error; err != nil {
-			return errors.New("no active subscription")
+			return err
 		}
 		if len(subs) == 0 {
-			return errors.New("no active subscription")
+			return ErrSubscriptionQuotaInsufficient
 		}
 		for _, candidate := range subs {
 			sub := candidate
@@ -1598,7 +1598,7 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 			returnValue.AmountUsedAfter = sub.AmountUsed
 			return nil
 		}
-		return fmt.Errorf("subscription quota insufficient, need=%d", amount)
+		return fmt.Errorf("%w, need=%d", ErrSubscriptionQuotaInsufficient, amount)
 	})
 	if err != nil {
 		return nil, err
@@ -1853,7 +1853,7 @@ func postConsumeUserSubscriptionDeltaTx(tx *gorm.DB, userSubscriptionId int, usa
 		newUsed = 0
 	}
 	if sub.AmountTotal > 0 && newUsed > sub.AmountTotal {
-		return fmt.Errorf("subscription used exceeds total, used=%d total=%d", newUsed, sub.AmountTotal)
+		return fmt.Errorf("%w: subscription used exceeds total, used=%d total=%d", ErrSubscriptionQuotaInsufficient, newUsed, sub.AmountTotal)
 	}
 	sub.AmountUsed = newUsed
 	return tx.Save(&sub).Error

@@ -273,10 +273,23 @@ func TaskErrorFromAPIError(apiErr *types.NewAPIError) *dto.TaskError {
 	if apiErr == nil {
 		return nil
 	}
+	// Keep upstream origin and original status if this adapter is reused outside
+	// billing. Task response normalization and channel diagnostics own sanitization.
+	if apiErr.GetErrorType() != types.ErrorTypeNewAPIError || apiErr.GetErrorCode() == types.ErrorCodeDoRequestFailed {
+		return &dto.TaskError{
+			Code: string(apiErr.GetErrorCode()), Message: apiErr.Error(),
+			StatusCode: apiErr.OriginalStatusCode(), Error: apiErr.Err,
+		}
+	}
+	message := apiErr.PublicMessage()
+	if apiErr.StatusCode >= http.StatusInternalServerError {
+		message = "BoxAI could not process billing. Please try again later."
+	}
 	return &dto.TaskError{
-		Code:       string(apiErr.GetErrorCode()),
-		Message:    apiErr.Err.Error(),
+		Code:       string(apiErr.PublicCode()),
+		Message:    message,
 		StatusCode: apiErr.StatusCode,
 		Error:      apiErr.Err,
+		LocalError: true,
 	}
 }

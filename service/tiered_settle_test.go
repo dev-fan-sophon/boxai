@@ -534,7 +534,7 @@ func TestPrepareTieredBillingForSelectedGroupSubscriptionReserve(t *testing.T) {
 			apiErr := PrepareTieredBillingForSelectedGroup(nil, relayInfo)
 			if tt.wantError {
 				require.NotNil(t, apiErr)
-				assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+				assert.Equal(t, types.ErrorCodeInsufficientSubscriptionQuota, apiErr.GetErrorCode())
 			} else {
 				require.Nil(t, apiErr)
 			}

@@ -222,9 +222,10 @@ func ValidateUserToken(key string) (token *Token, err error) {
 	}
 	token, err = GetTokenByKey(key, false)
 	if err == nil {
-		if token.Status == common.TokenStatusExhausted ||
-			token.Status == common.TokenStatusExpired ||
-			token.Status != common.TokenStatusEnabled {
+		if token.Status == common.TokenStatusExhausted {
+			return token, ErrTokenQuotaInsufficient
+		}
+		if token.Status != common.TokenStatusEnabled {
 			return token, ErrTokenInvalid
 		}
 		if token.ExpiredTime != -1 && token.ExpiredTime < common.GetTimestamp() {
@@ -245,7 +246,7 @@ func ValidateUserToken(key string) (token *Token, err error) {
 					common.SysLog("failed to update token status" + err.Error())
 				}
 			}
-			return token, ErrTokenInvalid
+			return token, ErrTokenQuotaInsufficient
 		}
 		return token, nil
 	}

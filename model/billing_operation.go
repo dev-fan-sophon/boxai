@@ -177,6 +177,9 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 					Where("user_id = ? AND status = ? AND end_time > ?", in.UserID, "active", dbNow).
 					Where("amount_total = 0 OR amount_used <= amount_total - ?", in.Delta).
 					Order("end_time asc, id asc").First(&sub).Error; err != nil {
+					if !errors.Is(err, gorm.ErrRecordNotFound) {
+						return err
+					}
 					return fmt.Errorf("%w, need=%d", ErrSubscriptionQuotaInsufficient, in.Delta)
 				}
 			}

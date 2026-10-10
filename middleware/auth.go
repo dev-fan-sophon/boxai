@@ -477,7 +477,10 @@ func TokenAuth() func(c *gin.Context) {
 			}
 		}
 		if err != nil {
-			if errors.Is(err, model.ErrDatabase) {
+			if errors.Is(err, model.ErrTokenQuotaInsufficient) {
+				fault := types.NewFundingError(err, types.ErrorCodePreConsumeTokenQuotaFailed)
+				c.AbortWithStatusJSON(fault.StatusCode, gin.H{"error": fault.ToOpenAIError()})
+			} else if errors.Is(err, model.ErrDatabase) {
 				common.SysLog("TokenAuth ValidateUserToken database error: " + err.Error())
 				abortWithOpenAiMessage(c, http.StatusInternalServerError,
 					common.TranslateMessage(c, i18n.MsgDatabaseError))

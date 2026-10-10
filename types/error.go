@@ -83,9 +83,34 @@ const (
 	ErrorCodeUpdateDataError ErrorCode = "update_data_error"
 
 	// quota error
-	ErrorCodeInsufficientUserQuota      ErrorCode = "insufficient_user_quota"
-	ErrorCodePreConsumeTokenQuotaFailed ErrorCode = "pre_consume_token_quota_failed"
+	ErrorCodeInsufficientUserQuota            ErrorCode = "insufficient_user_quota"
+	ErrorCodePreConsumeTokenQuotaFailed       ErrorCode = "pre_consume_token_quota_failed"
+	ErrorCodeInsufficientSubscriptionQuota    ErrorCode = "insufficient_subscription_quota"
+	ErrorCodeSubscriptionOverageDisabled      ErrorCode = "subscription_overage_disabled"
+	ErrorCodeSubscriptionOverageLimitExceeded ErrorCode = "subscription_overage_limit_exceeded"
 )
+
+// NewFundingError is for locally verified funding failures, never upstream errors.
+func NewFundingError(err error, code ErrorCode) *NewAPIError {
+	message := ""
+	switch code {
+	case ErrorCodeInsufficientUserQuota:
+		message = "Insufficient wallet balance. Open BoxAI Web at https://you-box.com, go to Wallet, and top up to continue."
+	case ErrorCodeInsufficientSubscriptionQuota:
+		message = "Insufficient subscription quota. Review your plan in BoxAI Web billing settings or wait for your quota to reset."
+	case ErrorCodeSubscriptionOverageDisabled:
+		message = "Subscription quota is exhausted and extra usage is disabled. Enable extra usage in BoxAI Web Wallet settings or wait for your quota to reset."
+	case ErrorCodeSubscriptionOverageLimitExceeded:
+		message = "Your extra usage limit has been reached. Adjust the limit in BoxAI Web Wallet settings or wait for your quota to reset."
+	case ErrorCodePreConsumeTokenQuotaFailed:
+		message = "Insufficient API token quota. Increase this token's quota in BoxAI Web API token settings or use another token."
+	default:
+		panic("unsupported funding error code")
+	}
+	fault := NewErrorWithStatusCode(err, code, http.StatusForbidden, ErrOptionWithSkipRetry(), ErrOptionWithNoRecordErrorLog())
+	fault.SetPublicFault(code, message, http.StatusForbidden)
+	return fault
+}
 
 type NewAPIError struct {
 	Err            error

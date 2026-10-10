@@ -39,6 +39,55 @@ func setupSessionAuthTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func TestTokenAuthDistinguishesQuotaFromInvalidCredentials(t *testing.T) {
+	previousDB, previousPath := model.DB, common.SQLitePath
+	previousMaster, previousRedis := common.IsMasterNode, common.RedisEnabled
+	previousMainType, previousLogType := common.MainDatabaseType(), common.LogDatabaseType()
+	t.Setenv("SQL_DSN", "local")
+	common.SQLitePath = ":memory:"
+	common.IsMasterNode = false
+	common.RedisEnabled = false
+	require.NoError(t, model.InitDB())
+	db := model.DB
+	t.Cleanup(func() {
+		model.DB, common.SQLitePath = previousDB, previousPath
+		common.IsMasterNode, common.RedisEnabled = previousMaster, previousRedis
+		common.SetDatabaseTypes(previousMainType, previousLogType)
+		sqlDB, err := db.DB()
+		require.NoError(t, err)
+		require.NoError(t, sqlDB.Close())
+	})
+	require.NoError(t, db.AutoMigrate(&model.Token{}))
+	for i, tc := range []struct {
+		name                      string
+		status, quota, wantStatus int
+	}{
+		{"empty", common.TokenStatusEnabled, 0, 403},
+		{"exhausted", common.TokenStatusExhausted, 0, 403},
+		{"disabled", common.TokenStatusDisabled, 0, 401},
+		{"expired", common.TokenStatusExpired, 0, 401},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			key := fmt.Sprintf("fundingauth%d", i)
+			require.NoError(t, db.Create(&model.Token{UserId: 1, Key: key, Status: tc.status, RemainQuota: tc.quota, ExpiredTime: -1}).Error)
+			router := gin.New()
+			router.GET("/v1/models", TokenAuth(), func(c *gin.Context) { t.Error("rejected token reached handler") })
+			request := httptest.NewRequest("GET", "/v1/models", nil)
+			request.Header.Set("Authorization", "Bearer sk-"+key)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, request)
+			assert.Equal(t, tc.wantStatus, w.Code)
+			if tc.wantStatus == 403 {
+				assert.Contains(t, w.Body.String(), `"code":"pre_consume_token_quota_failed"`)
+				assert.Contains(t, w.Body.String(), "API token settings")
+			} else {
+				assert.NotContains(t, w.Body.String(), "pre_consume_token_quota_failed")
+			}
+			assert.NotContains(t, w.Body.String(), "top up")
+		})
+	}
+}
+
 func performStaleRoleRequest(t *testing.T, dbRole int, status int) (*httptest.ResponseRecorder, bool) {
 	t.Helper()
 

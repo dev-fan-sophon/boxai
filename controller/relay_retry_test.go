@@ -153,6 +153,57 @@ func TestTaskErrorResponseIsSanitizedAndPreservesRetryAfter(t *testing.T) {
 	assert.Equal(t, "private credential details", fault.Message, "diagnostic source must not be mutated")
 }
 
+func TestTaskFundingErrorsRemainLocalAndActionable(t *testing.T) {
+	for _, code := range []types.ErrorCode{
+		types.ErrorCodeInsufficientUserQuota, types.ErrorCodeInsufficientSubscriptionQuota,
+		types.ErrorCodeSubscriptionOverageDisabled, types.ErrorCodeSubscriptionOverageLimitExceeded,
+		types.ErrorCodePreConsumeTokenQuotaFailed,
+	} {
+		t.Run(string(code), func(t *testing.T) {
+			apiErr := types.NewFundingError(errors.New("private billing details"), code)
+			fault := service.TaskErrorFromAPIError(apiErr)
+			require.NotNil(t, fault)
+			assert.True(t, fault.LocalError)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("POST", "/v1/videos", nil)
+			assert.False(t, shouldRetryTaskRelay(c, 7, fault, 3))
+			assert.False(t, shouldRetry(c, apiErr, 3))
+			respondTaskError(c, fault)
+			assert.Equal(t, 403, w.Code)
+			var body dto.TaskError
+			require.NoError(t, common.Unmarshal(w.Body.Bytes(), &body))
+			assert.Equal(t, string(code), body.Code)
+			assert.Equal(t, apiErr.ToOpenAIError().Message, body.Message)
+			assert.Contains(t, body.Message, "BoxAI Web")
+			assert.NotContains(t, w.Body.String(), "private")
+			assert.Empty(t, w.Header().Get("Retry-After"))
+		})
+	}
+	for _, tc := range []struct {
+		status int
+		code   string
+	}{{402, "insufficient_user_quota"}, {403, "401008"}} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		upstream := types.NewOpenAIError(errors.New("private upstream balance"), types.ErrorCode(tc.code), tc.status)
+		service.NormalizeRelayServiceFault(upstream)
+		fault := service.TaskErrorFromAPIError(upstream)
+		assert.False(t, fault.LocalError)
+		assert.Equal(t, tc.status, fault.StatusCode)
+		respondTaskError(c, fault)
+		assert.Equal(t, 503, w.Code)
+		assert.Contains(t, w.Body.String(), "model_temporarily_unavailable")
+		assert.NotContains(t, w.Body.String(), "top up")
+		assert.NotContains(t, w.Body.String(), "private")
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	respondTaskError(c, service.TaskErrorFromAPIError(types.NewError(errors.New("private database details"), types.ErrorCodeQueryDataError)))
+	assert.Equal(t, 500, w.Code)
+	assert.NotContains(t, w.Body.String(), "private")
+}
+
 func TestRelayAttemptLogsProduceOneFinalError(t *testing.T) {
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousLogging, previousRedis := constant.ErrorLogEnabled, common.RedisEnabled
