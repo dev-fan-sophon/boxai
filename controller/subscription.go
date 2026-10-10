@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -129,6 +131,11 @@ func SubscriptionRequestBalancePay(c *gin.Context) {
 	}
 
 	if err := model.PurchaseSubscriptionWithBalance(userId, req.PlanId); err != nil {
+		if errors.Is(err, model.ErrWalletQuotaInsufficient) {
+			fault := types.NewFundingError(err, types.ErrorCodeInsufficientUserQuota)
+			c.JSON(200, gin.H{"success": false, "code": fault.PublicCode(), "message": fault.PublicMessage()})
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}

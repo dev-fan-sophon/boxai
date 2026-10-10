@@ -204,6 +204,47 @@ func TestTaskFundingErrorsRemainLocalAndActionable(t *testing.T) {
 	assert.NotContains(t, w.Body.String(), "private")
 }
 
+func TestSubscriptionBalanceFailureHasFundingCode(t *testing.T) {
+	confirmPaymentComplianceForTest(t)
+	previousDB := model.DB
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	model.DB = db
+	t.Cleanup(func() {
+		model.DB = previousDB
+		sqlDB, err := db.DB()
+		require.NoError(t, err)
+		require.NoError(t, sqlDB.Close())
+	})
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.SubscriptionPlan{}))
+	user := model.User{Username: "funding-purchase", Quota: 1}
+	require.NoError(t, db.Create(&user).Error)
+	plan := model.SubscriptionPlan{Title: "funding-purchase", PriceAmount: 10, Enabled: true}
+	require.NoError(t, db.Create(&plan).Error)
+	model.InvalidateSubscriptionPlanCache(plan.Id)
+	t.Cleanup(func() { model.InvalidateSubscriptionPlanCache(plan.Id) })
+	body, err := common.Marshal(SubscriptionBalancePayRequest{PlanId: plan.Id})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("id", user.Id)
+	c.Request = httptest.NewRequest("POST", "/api/subscription/balance/pay", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	SubscriptionRequestBalancePay(c)
+	assert.Equal(t, 200, w.Code)
+	var response struct {
+		Success bool   `json:"success"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+	assert.False(t, response.Success)
+	assert.Equal(t, "insufficient_user_quota", response.Code)
+	assert.Contains(t, response.Message, "top up")
+	require.NoError(t, db.First(&user, user.Id).Error)
+	assert.Equal(t, 1, user.Quota)
+}
+
 func TestRelayAttemptLogsProduceOneFinalError(t *testing.T) {
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousLogging, previousRedis := constant.ErrorLogEnabled, common.RedisEnabled

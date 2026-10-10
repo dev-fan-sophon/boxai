@@ -908,7 +908,7 @@ func PurchaseSubscriptionWithBalance(userId int, planId int) error {
 			return err
 		}
 		if requiredQuota > 0 && user.Quota < requiredQuota {
-			return errors.New("余额不足")
+			return ErrWalletQuotaInsufficient
 		}
 		if requiredQuota > 0 {
 			if err := tx.Model(&User{}).Where("id = ?", userId).
