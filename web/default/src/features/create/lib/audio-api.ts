@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios'
 
 import type { AudioStudioSettings } from '@/features/playground/lib/studio/audio-settings'
 import { api } from '@/lib/api'
+import { getServerErrorCode } from '@/lib/funding-error'
 
 import type { ElevenLabsTranscriptResponse } from './transcript'
 
@@ -61,7 +62,11 @@ async function audioRequestError(error: unknown): Promise<Error> {
     const detail =
       typeof record.detail === 'string' ? record.detail : record.detail?.message
     const message = record.error?.message || detail || record.message
-    if (message) return new Error(message)
+    if (message) {
+      return Object.assign(new Error(message), {
+        code: getServerErrorCode(payload),
+      })
+    }
   }
   return new Error(error.message || 'Request failed')
 }

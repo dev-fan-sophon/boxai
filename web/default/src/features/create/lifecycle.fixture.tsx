@@ -12,6 +12,7 @@ import { usePlaygroundStore } from '@/stores/playground-store'
 
 import { GenerationComposer } from './components/composer/generation-composer'
 import { StudioFeed } from './components/feed/studio-feed'
+import { PendingTile } from './components/feed/studio-tiles'
 import {
   MediaReferenceSlot,
   type MediaReference,
@@ -62,7 +63,42 @@ function ComposerFixture(props: {
   )
 }
 
+function FundingSubmissionFixture() {
+  const studio = useStudio()
+  return (
+    <>
+      <button
+        type='button'
+        onClick={() =>
+          studio.startBatch({
+            modality: 'video',
+            sessionId: 'funding-test',
+            model: 'dreamina-seedance-2-5',
+            group: 'g',
+            prompts: ['A landscape video'],
+            references: [],
+          })
+        }
+      >
+        Generate test video
+      </button>
+      {studio.pendingRuns.map((job) => (
+        <PendingTile
+          key={job.clientId}
+          job={job}
+          ratio={16 / 9}
+          showPrompt={false}
+          onRetry={() => studio.retryRuns([job.clientId])}
+          onDismiss={() => studio.dismissRuns([job.clientId])}
+          onCancel={() => studio.cancelQueued([job.clientId])}
+        />
+      ))}
+    </>
+  )
+}
+
 export type LifecycleFixture = {
+  fundingSubmission?: boolean
   modality?: 'image' | 'audio' | 'video'
   runs?: StudioRunSummary[]
   references?: Omit<MediaReference, 'file'>[]
@@ -119,6 +155,7 @@ window.renderLifecycleFixture = (state) => {
     root.render(
       <QueryClientProvider client={client}>
         <TooltipProvider>
+          {state.fundingSubmission && <FundingSubmissionFixture />}
           {state.modality ? (
             <StudioFeed
               modality={state.modality}

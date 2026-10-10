@@ -209,7 +209,9 @@ export async function generateImages(
       .filter((item) => item.url)
   } catch (error) {
     const details = parseRequestErrorDetails(error)
-    throw new Error(details.errorMessage)
+    throw Object.assign(new Error(details.errorMessage), {
+      code: details.errorCode,
+    })
   }
 }
 
@@ -428,7 +430,9 @@ export async function submitVideo(
     }
   } catch (error) {
     const details = parseRequestErrorDetails(error)
-    throw new Error(details.errorMessage)
+    throw Object.assign(new Error(details.errorMessage), {
+      code: details.errorCode,
+    })
   }
 }
 

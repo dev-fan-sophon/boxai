@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { FundingErrorNotice } from '@/components/funding-error-notice'
 import {
   AlertCircle,
   Check,
@@ -22,6 +23,7 @@ import { useVideoTaskResult } from '@/features/playground/hooks/use-video-task-r
 import { retryGeneratedImage } from '@/features/playground/lib/download-generated-media'
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import type { PendingStudioRun } from '@/features/playground/lib/studio/studio-feed'
+import { getFundingError } from '@/lib/funding-error'
 import { cn } from '@/lib/utils'
 
 import { parseTranscript } from '../../lib/transcript'
@@ -71,6 +73,19 @@ export function PendingTile(props: {
     job.status === 'running' ? job.startedAt : undefined
   )
   const Icon = MODALITY_ICON[job.input.modality]
+
+  if (job.status === 'error' && getFundingError(job.errorCode)) {
+    return (
+      <FundingErrorNotice code={job.errorCode} className='self-start'>
+        <Button size='sm' variant='outline' onClick={props.onRetry}>
+          {t('Retry')}
+        </Button>
+        <Button size='sm' variant='ghost' onClick={props.onDismiss}>
+          {t('Dismiss')}
+        </Button>
+      </FundingErrorNotice>
+    )
+  }
 
   if (job.status === 'error') {
     return (

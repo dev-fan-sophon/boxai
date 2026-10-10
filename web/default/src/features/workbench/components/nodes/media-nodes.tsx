@@ -82,6 +82,7 @@ export function ImageNodeBody(props: CanvasNodeBodyProps) {
         <NodeStatusOverlay
           status={metadata.status}
           errorDetails={metadata.errorDetails}
+          errorCode={metadata.errorCode}
         />
         {metadata.content && hasNatural ? (
           <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono shadow-sm backdrop-blur-sm'>
@@ -342,6 +343,7 @@ export function AudioNodeBody(props: CanvasNodeBodyProps) {
         <NodeStatusOverlay
           status={metadata.status}
           errorDetails={metadata.errorDetails}
+          errorCode={metadata.errorCode}
         />
       </div>
 

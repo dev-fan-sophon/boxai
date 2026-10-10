@@ -73,6 +73,74 @@ async function render(state: LifecycleFixture) {
   await page.evaluate((value) => window.renderLifecycleFixture(value), state)
 }
 
+describe('funding failure recovery', () => {
+  it.each([
+    ['insufficient_user_quota', 'Top up', '/billing?topup=true'],
+    [
+      'insufficient_subscription_quota',
+      'Manage subscription',
+      '/billing#billing-subscription',
+    ],
+    ['subscription_overage_disabled', 'Manage extra usage', '/billing'],
+    ['subscription_overage_limit_exceeded', 'Manage extra usage', '/billing'],
+    ['pre_consume_token_quota_failed', 'Manage API keys', '/keys'],
+  ])(
+    'preserves %s through video submission and opens the right recovery destination',
+    async (code, action, href) => {
+      await page.route('**/api/playground/video-capabilities?*', (route) =>
+        route.fulfill({
+          json: {
+            success: true,
+            data: {
+              text: {
+                family: 'seedance-2.5',
+                aspectRatios: ['16:9'],
+                resolutions: ['720p'],
+                imageOnlyResolutions: [],
+                durations: [5],
+                durationRange: { min: 5, max: 5 },
+                defaults: {
+                  aspectRatio: '16:9',
+                  resolution: '720p',
+                  duration: 5,
+                },
+                maxReferenceImages: 0,
+                supportsLastFrame: false,
+                requiresImage: false,
+                usesVolcengineMetadata: true,
+                supportsAudioToggle: true,
+              },
+            },
+          },
+        })
+      )
+      let submissions = 0
+      await page.route('**/pg/video/generations', (route) => {
+        submissions++
+        return route.fulfill({
+          status: 403,
+          json: { code, message: 'Backend funding detail' },
+        })
+      })
+      await render({ fundingSubmission: true, unmount: true })
+      await page.getByRole('button', { name: 'Generate test video' }).click()
+      const link = page.getByRole('link', { name: action, exact: true })
+      await link.waitFor()
+      expect(await link.getAttribute('href')).toBe(href)
+      expect(await link.getAttribute('target')).toBe('_blank')
+      expect(await page.getByRole('alert').textContent()).not.toContain(
+        'Backend funding detail'
+      )
+      expect(submissions).toBe(1)
+      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+      await link.waitFor()
+      expect(submissions).toBe(2)
+      await page.getByRole('button', { name: 'Dismiss', exact: true }).click()
+      expect(await page.getByRole('alert').count()).toBe(0)
+    }
+  )
+})
+
 describe('restored video tasks and batch downloads', () => {
   it('finds old tasks beyond the first history page, polls missing/pending IDs independently, and gates ZIP entries by success', async () => {
     await page.clock.install()

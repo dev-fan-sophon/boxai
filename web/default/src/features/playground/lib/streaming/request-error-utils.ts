@@ -1,6 +1,7 @@
 import { ERROR_MESSAGES } from '../../constants'
 
 type RequestErrorLike = {
+  code?: string
   message?: string
   response?: {
     data?: {
@@ -45,7 +46,8 @@ export function parseRequestErrorDetails(error: unknown): RequestErrorDetails {
   const openAIMessage = formatOpenAIErrorMessage(data?.error)
 
   return {
-    errorCode: data?.error?.code || data?.code || undefined,
+    errorCode:
+      data?.error?.code || data?.code || requestError?.code || undefined,
     errorMessage:
       openAIMessage ||
       (typeof data?.message === 'string' ? data.message : undefined) ||

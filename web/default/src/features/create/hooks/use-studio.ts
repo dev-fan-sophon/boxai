@@ -22,6 +22,7 @@ import {
   persistGeneratedMediaAsset,
 } from '@/features/playground/lib/download-generated-media'
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
+import { parseRequestErrorDetails } from '@/features/playground/lib/streaming/request-error-utils'
 import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
 import {
   createLocalRunId,
@@ -408,9 +409,11 @@ export function useStudio() {
           removePending([entry.clientId])
         })
         .catch((error: unknown) => {
+          const details = parseRequestErrorDetails(error)
           patchPending(entry.clientId, {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: details.errorMessage,
+            errorCode: details.errorCode,
           })
         })
         .finally(() => {
@@ -469,6 +472,7 @@ export function useStudio() {
             ...entry,
             status: 'queued',
             error: undefined,
+            errorCode: undefined,
             startedAt: undefined,
           })
         )

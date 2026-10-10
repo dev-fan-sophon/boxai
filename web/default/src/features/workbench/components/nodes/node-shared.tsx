@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { FundingErrorNotice } from '@/components/funding-error-notice'
 import { ArrowUp, Loader2, Square } from '@/components/icons'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { getFundingError } from '@/lib/funding-error'
 import { cn } from '@/lib/utils'
 
 import {
@@ -260,6 +262,7 @@ export function NodeStatusOverlay(props: {
   taskStatus?: string
   progress?: number
   errorDetails?: string
+  errorCode?: string
 }) {
   const { t } = useTranslation()
   const theme = useCanvasTheme()
@@ -304,6 +307,16 @@ export function NodeStatusOverlay(props: {
     )
   }
   if (props.status === 'error') {
+    if (getFundingError(props.errorCode)) {
+      return (
+        <div
+          className='absolute inset-0 overflow-auto p-2'
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <FundingErrorNotice code={props.errorCode} />
+        </div>
+      )
+    }
     return (
       <div
         className='text-2xs absolute inset-0 flex items-center justify-center rounded-xl p-3 text-center backdrop-blur-sm'

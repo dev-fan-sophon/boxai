@@ -70,6 +70,7 @@ export type CanvasNodeMetadata = {
   status?: CanvasNodeStatus
   locked?: boolean
   errorDetails?: string
+  errorCode?: string
   fontSize?: number
   generationMode?: CanvasGenerationMode
   model?: string

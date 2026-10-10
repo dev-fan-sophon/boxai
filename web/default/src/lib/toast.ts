@@ -2,6 +2,8 @@ import { isAxiosError } from 'axios'
 import i18next from 'i18next'
 import { toast } from 'sonner'
 
+import { getFundingError, getServerErrorCode } from './funding-error'
+
 /*
  * Toast feedback for async actions.
  *
@@ -36,16 +38,45 @@ export function isErrorReported(target: unknown): boolean {
  * then its `title`, then the transport error, then a generic fallback.
  */
 export function getServerErrorMessage(error: unknown): string {
+  const funding = getFundingError(getServerErrorCode(error))
+  if (funding) return funding.description
   if (isAxiosError(error)) {
     const data = error.response?.data as
-      | { message?: unknown; title?: unknown }
+      | { error?: { message?: unknown }; message?: unknown; title?: unknown }
       | undefined
+    if (typeof data?.error?.message === 'string' && data.error.message) {
+      return data.error.message
+    }
     if (typeof data?.message === 'string' && data.message) return data.message
     if (typeof data?.title === 'string' && data.title) return data.title
   }
   if (error instanceof Error && error.message) return error.message
   if (typeof error === 'string' && error) return error
   return i18next.t('Something went wrong!')
+}
+
+export function showServerError(
+  error: unknown,
+  options: { id?: string | number; fallback?: string } = {}
+) {
+  const funding = getFundingError(getServerErrorCode(error))
+  if (funding) {
+    toast.error(funding.title, {
+      id: options.id ?? 'funding-error',
+      description: funding.description,
+      duration: Infinity,
+      closeButton: true,
+      action: {
+        label: funding.action,
+        onClick: () =>
+          window.open(funding.href, '_blank', 'noopener,noreferrer'),
+      },
+    })
+    return
+  }
+  toast.error(options.fallback ?? getServerErrorMessage(error), {
+    id: options.id,
+  })
 }
 
 type ApiEnvelope = { success: boolean; message?: string }
@@ -115,7 +146,7 @@ export async function toastPromise<T>(
       messages.error === undefined
         ? fallback
         : resolveMessage(messages.error, error)
-    toast.error(text, { id })
+    showServerError(error, { id, fallback: text })
   }
 
   try {

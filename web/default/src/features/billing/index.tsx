@@ -46,6 +46,7 @@ import type {
 
 interface BillingProps {
   initialShowHistory?: boolean
+  initialTopup?: boolean
   paymentResult?: 'success' | 'fail' | 'pending'
 }
 
@@ -64,7 +65,9 @@ export function Billing(props: BillingProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>()
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
-  const [addCreditsOpen, setAddCreditsOpen] = useState(false)
+  const [addCreditsOpen, setAddCreditsOpen] = useState(
+    props.initialTopup ?? false
+  )
   const [topUpStep, setTopUpStep] = useState<TopUpStep>('configure')
   const [redeemDialogOpen, setRedeemDialogOpen] = useState(false)
   const [redemptionCode, setRedemptionCode] = useState('')

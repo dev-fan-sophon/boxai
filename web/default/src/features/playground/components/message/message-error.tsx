@@ -1,12 +1,8 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  AlertCircle,
-  AlertTriangle,
-  Settings,
-  Wallet,
-} from '@/components/icons'
+import { FundingErrorNotice } from '@/components/funding-error-notice'
+import { AlertCircle, AlertTriangle, Settings } from '@/components/icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
@@ -16,7 +12,6 @@ import {
   getMessageErrorState,
   isAdminRole,
   MODEL_PRICING_SETTINGS_PATH,
-  TOPUP_PATH,
 } from '../../lib'
 import type { Message } from '../../types'
 
@@ -73,25 +68,12 @@ export function MessageError({
 
   if (errorState.kind === 'quota') {
     return (
-      <Alert variant='default' className={className}>
-        <Wallet className='text-orange-500' />
-        <AlertTitle>{t('Insufficient balance')}</AlertTitle>
-        <AlertDescription className='space-y-2'>
-          <p>
-            {t(
-              'Your balance is not enough to run this model. Top up to continue the conversation.'
-            )}
-          </p>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => window.open(TOPUP_PATH, '_blank')}
-          >
-            {t('Top up')}
-          </Button>
-          {actions}
-        </AlertDescription>
-      </Alert>
+      <FundingErrorNotice
+        code={message.errorCode ?? undefined}
+        className={className}
+      >
+        {actions}
+      </FundingErrorNotice>
     )
   }
 

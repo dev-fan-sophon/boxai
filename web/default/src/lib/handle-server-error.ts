@@ -1,7 +1,7 @@
 import i18next from 'i18next'
 import { toast } from 'sonner'
 
-import { getServerErrorMessage, isErrorReported } from '@/lib/toast'
+import { isErrorReported, showServerError } from '@/lib/toast'
 
 export function handleServerError(error: unknown) {
   // eslint-disable-next-line no-console
@@ -21,5 +21,5 @@ export function handleServerError(error: unknown) {
     return
   }
 
-  toast.error(getServerErrorMessage(error))
+  showServerError(error)
 }

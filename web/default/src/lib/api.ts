@@ -2,7 +2,7 @@ import axios, { type AxiosRequestConfig } from 'axios'
 import { t } from 'i18next'
 import { toast } from 'sonner'
 
-import { markErrorReported } from '@/lib/toast'
+import { markErrorReported, showServerError } from '@/lib/toast'
 import { useAuthStore } from '@/stores/auth-store'
 
 declare module 'axios' {
@@ -76,13 +76,21 @@ api.interceptors.response.use(
       if (!response.data.success) {
         // Show error toast for business failures
         const msg = response.data.message || t('Request failed')
-        toast.error(msg)
+        showServerError(response.data, { fallback: msg })
         markErrorReported(response.data)
       }
     }
     return response
   },
-  (error) => {
+  async (error) => {
+    // Audio endpoints request blobs, including JSON error responses.
+    if (error?.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text())
+      } catch {
+        // Leave non-JSON transport/provider failures unchanged.
+      }
+    }
     const skip = error?.config?.skipErrorHandler
     const status = error?.response?.status
 
@@ -98,13 +106,10 @@ api.interceptors.response.use(
         markErrorReported(error)
       }
     } else if (!skip) {
-      // Other errors: show error message from response or default
-      const msg =
-        error?.response?.data?.message || error?.message || t('Request failed')
-      toast.error(msg)
+      showServerError(error)
       markErrorReported(error)
     }
-    return Promise.reject(error)
+    throw error
   }
 )
 

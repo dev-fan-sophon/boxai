@@ -226,6 +226,7 @@ export function VideoNodeBody(props: CanvasNodeBodyProps) {
           taskStatus={metadata.taskStatus}
           progress={metadata.taskProgress}
           errorDetails={metadata.errorDetails}
+          errorCode={metadata.errorCode}
         />
         {metadata.content && hasNatural ? (
           <span className='bg-background/85 text-foreground/90 text-3xs pointer-events-none absolute top-2 left-2 rounded-full px-2 py-0.5 font-mono shadow-sm backdrop-blur-sm'>

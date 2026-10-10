@@ -7,6 +7,8 @@ import {
   clampBatchCount,
 } from '@/features/playground/lib/studio/batch-plan'
 import { studioGenerationLimiters } from '@/features/playground/lib/studio/generation-limiter'
+import { getServerErrorCode } from '@/lib/funding-error'
+import { getServerErrorMessage } from '@/lib/toast'
 
 import { MISSING_MODEL_ERROR } from '../components/nodes/node-shared'
 import { buildNodeGenerationContext } from '../engine/canvas-generation-context'
@@ -42,11 +44,6 @@ export type GenerateNodeOptions = {
    * expansion, so the node keeps its template for the next run.
    */
   promptOverride?: string
-}
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message
-  return String(error)
 }
 
 function isAbortError(error: unknown): boolean {
@@ -196,7 +193,8 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
           stoppedObservationIdsRef.current.add(node.id)
           useCanvasStore.getState().updateNodeMetadata(node.id, {
             status: 'error',
-            errorDetails: errorMessage(error),
+            errorDetails: getServerErrorMessage(error),
+            errorCode: getServerErrorCode(error),
           })
         })
         .finally(() => {
@@ -306,7 +304,8 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
               if (controller.signal.aborted) return
               useCanvasStore.getState().updateNodeMetadata(slotId, {
                 status: 'error',
-                errorDetails: errorMessage(error),
+                errorDetails: getServerErrorMessage(error),
+                errorCode: getServerErrorCode(error),
               })
             }
           })
@@ -519,7 +518,8 @@ export function useCanvasGeneration(options: { enabled?: boolean } = {}): {
         }
         useCanvasStore.getState().updateNodeMetadata(nodeId, {
           status: 'error',
-          errorDetails: errorMessage(error),
+          errorDetails: getServerErrorMessage(error),
+          errorCode: getServerErrorCode(error),
         })
       } finally {
         if (controllersRef.current.get(nodeId) === controller) {

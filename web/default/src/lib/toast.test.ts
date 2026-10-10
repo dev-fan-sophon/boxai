@@ -1,8 +1,16 @@
 import { AxiosError, AxiosHeaders } from 'axios'
+import i18next from 'i18next'
 import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getServerErrorMessage, markErrorReported, toastPromise } from './toast'
+import { api } from './api'
+import { getServerErrorCode } from './funding-error'
+import {
+  getServerErrorMessage,
+  markErrorReported,
+  showServerError,
+  toastPromise,
+} from './toast'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -114,5 +122,69 @@ describe('getServerErrorMessage', () => {
     expect(getServerErrorMessage(axiosErrorWith({}))).toBe(
       'Request failed with status code 500'
     )
+  })
+})
+
+describe('actionable funding errors', () => {
+  it('preserves JSON funding codes in audio Blob failures, even with global toasts disabled', async () => {
+    const fault = axiosErrorWith(
+      new Blob(
+        [
+          JSON.stringify({
+            error: {
+              code: 'insufficient_user_quota',
+              message: 'Not enough funds',
+            },
+          }),
+        ],
+        { type: 'application/json' }
+      )
+    )
+    await expect(
+      api.get('/pg/audio/speech', {
+        skipErrorHandler: true,
+        adapter: async (config) => {
+          fault.config = config
+          throw fault
+        },
+      })
+    ).rejects.toBe(fault)
+    expect(getServerErrorCode(fault)).toBe('insufficient_user_quota')
+  })
+
+  it('uses the same localized recovery for task, OpenAI, and business envelopes', async () => {
+    await i18next.init({ lng: 'en', resources: {}, fallbackLng: 'en' })
+    for (const payload of [
+      { code: 'insufficient_user_quota', message: 'wallet short' },
+      { error: { code: 'insufficient_user_quota', message: 'wallet short' } },
+      {
+        success: false,
+        code: 'insufficient_user_quota',
+        message: 'wallet short',
+      },
+    ]) {
+      showServerError(axiosErrorWith(payload))
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Insufficient balance',
+        expect.objectContaining({
+          description:
+            'Your wallet balance cannot cover this request. Top up, then retry.',
+          action: expect.objectContaining({ label: 'Top up' }),
+          duration: Infinity,
+        })
+      )
+    }
+    for (const code of [
+      'model_temporarily_unavailable',
+      'insufficient_quota',
+      'service_unavailable',
+    ]) {
+      showServerError(
+        axiosErrorWith({ error: { code, message: 'Upstream quota exhausted' } })
+      )
+      expect(toast.error).toHaveBeenLastCalledWith('Upstream quota exhausted', {
+        id: undefined,
+      })
+    }
   })
 })

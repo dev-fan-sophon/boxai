@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { FundingErrorNotice } from '@/components/funding-error-notice'
 import { GroupBadge } from '@/components/group-badge'
 import { Crown, CalendarClock, Package } from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -21,6 +22,7 @@ import type { BankQRPaymentData } from '@/features/billing/types'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
+import { handleServerError } from '@/lib/handle-server-error'
 import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import {
@@ -235,14 +237,10 @@ export function SubscriptionPurchaseDialog(props: Props) {
         void props.onPurchaseSuccess?.()
         props.onOpenChange(false)
       } else {
-        toast.error(
-          res.message && res.message !== 'success'
-            ? res.message
-            : t('Payment request failed')
-        )
+        handleServerError(res)
       }
-    } catch {
-      toast.error(t('Payment request failed'))
+    } catch (error) {
+      handleServerError(error)
     } finally {
       setPaying(false)
     }
@@ -362,11 +360,7 @@ export function SubscriptionPurchaseDialog(props: Props) {
               </Alert>
             ) : (
               insufficientBalance && (
-                <Alert variant='destructive'>
-                  <AlertDescription>
-                    {t('Insufficient balance')}
-                  </AlertDescription>
-                </Alert>
+                <FundingErrorNotice code='insufficient_user_quota' />
               )
             )}
             <Button

@@ -8,6 +8,7 @@ import { Billing } from '@/features/billing'
 const billingSearchSchema = z.object({
   show_history: z.boolean().optional(),
   pay: z.enum(['success', 'fail', 'pending']).optional(),
+  topup: z.boolean().optional(),
 })
 
 export const Route = createFileRoute('/_authenticated/billing/')({
@@ -16,6 +17,12 @@ export const Route = createFileRoute('/_authenticated/billing/')({
 })
 
 function RouteComponent() {
-  const { show_history, pay } = Route.useSearch()
-  return <Billing initialShowHistory={show_history} paymentResult={pay} />
+  const { show_history, pay, topup } = Route.useSearch()
+  return (
+    <Billing
+      initialShowHistory={show_history}
+      paymentResult={pay}
+      initialTopup={topup}
+    />
+  )
 }

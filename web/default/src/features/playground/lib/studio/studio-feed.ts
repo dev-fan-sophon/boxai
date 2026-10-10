@@ -188,4 +188,5 @@ export type PendingStudioRun = {
   startedAt?: number
   status: StudioJobStatus
   error?: string
+  errorCode?: string
 }
