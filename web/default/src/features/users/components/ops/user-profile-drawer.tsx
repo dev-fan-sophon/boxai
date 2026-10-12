@@ -22,6 +22,7 @@ import { formatNumber, formatQuota, formatTimestamp } from '@/lib/format'
 
 import { getAdminUserProfile } from '../../api'
 import { buildDaySeriesChart } from '../../lib/ops'
+import { UserBalanceSourcesSection } from './user-balance-sources'
 
 function KeyValueRow(props: { label: string; value: React.ReactNode }) {
   return (
@@ -157,6 +158,10 @@ export function UserProfileDrawer(props: {
                   />
                 </div>
               </SideDrawerSection>
+
+              {data.balance_sources && (
+                <UserBalanceSourcesSection data={data.balance_sources} />
+              )}
 
               <SideDrawerSection>
                 <h3 className='text-sm font-medium'>{t('Lifecycle')}</h3>

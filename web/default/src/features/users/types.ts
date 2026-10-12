@@ -385,6 +385,34 @@ export interface UserProfileLogEvent {
   ip: string
 }
 
+export interface UserBalanceSources {
+  sources: {
+    source: string
+    quota: number
+    count: number
+    last_at: number
+  }[]
+  paid_order_count: number
+  last_paid_at: number
+  adjustments: {
+    id: number
+    operator_id: number
+    mode: string
+    delta: number
+    balance_before: number
+    balance_after: number
+    created_at: number
+  }[]
+  historical_evidence: {
+    id: number
+    created_at: number
+    content: string
+    operator_id?: number
+  }[]
+  evidence_unavailable: boolean
+  unconverted_orders: number
+}
+
 export interface UserProfile {
   user: AdminUserRow
   lifecycle: UserLifecycle | null
@@ -400,6 +428,7 @@ export interface UserProfile {
   checkin_count: number
   login_events: UserProfileLogEvent[] | null
   audit_events: UserProfileLogEvent[] | null
+  balance_sources?: UserBalanceSources
 }
 
 export interface UserSegment {

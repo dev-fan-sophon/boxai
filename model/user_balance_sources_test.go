@@ -76,6 +76,15 @@ func TestBalanceSourcesSeparatePaymentsGiftsAndRefunds(t *testing.T) {
 	assert.Equal(t, "Administrator credit", result.HistoricalEvidence[0].Content)
 	assert.Equal(t, 1, result.HistoricalEvidence[0].OperatorID)
 	assert.False(t, result.EvidenceUnavailable)
+	empty, err := GetUserBalanceSources(999)
+	require.NoError(t, err)
+	assert.Zero(t, empty.PaidOrderCount)
+	assert.Empty(t, empty.Adjustments)
+	assert.Empty(t, empty.HistoricalEvidence)
+	for _, source := range empty.Sources {
+		assert.Zero(t, source.Quota)
+		assert.Zero(t, source.Count)
+	}
 	// Missing log storage cannot turn missing evidence into a zero paid balance.
 	require.NoError(t, DB.Migrator().DropTable(&Log{}))
 	result, err = GetUserBalanceSources(27)
