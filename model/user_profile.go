@@ -24,20 +24,21 @@ type UserProfileRef struct {
 // UserProfile is the aggregated 360-degree view of a single customer that the
 // operations console renders in the detail drawer.
 type UserProfile struct {
-	User          *User                   `json:"user"`
-	Lifecycle     *UserLifecycle          `json:"lifecycle"`
-	Tags          []string                `json:"tags"`
-	Inviter       *UserProfileRef         `json:"inviter"`
-	Invitees      []UserProfileRef        `json:"invitees"`
-	InviteeCount  int64                   `json:"invitee_count"`
-	DailyMetrics  []UserDailyMetric       `json:"daily_metrics"`
-	TopUps        []TopUp                 `json:"top_ups"`
-	Subscriptions []UserSubscription      `json:"subscriptions"`
-	TopModels     []UserProfileModelUsage `json:"top_models"`
-	TokenCount    int64                   `json:"token_count"`
-	CheckinCount  int64                   `json:"checkin_count"`
-	LoginEvents   []*Log                  `json:"login_events"`
-	AuditEvents   []*Log                  `json:"audit_events"`
+	User           *User                   `json:"user"`
+	Lifecycle      *UserLifecycle          `json:"lifecycle"`
+	Tags           []string                `json:"tags"`
+	Inviter        *UserProfileRef         `json:"inviter"`
+	Invitees       []UserProfileRef        `json:"invitees"`
+	InviteeCount   int64                   `json:"invitee_count"`
+	DailyMetrics   []UserDailyMetric       `json:"daily_metrics"`
+	TopUps         []TopUp                 `json:"top_ups"`
+	Subscriptions  []UserSubscription      `json:"subscriptions"`
+	TopModels      []UserProfileModelUsage `json:"top_models"`
+	TokenCount     int64                   `json:"token_count"`
+	CheckinCount   int64                   `json:"checkin_count"`
+	LoginEvents    []*Log                  `json:"login_events"`
+	AuditEvents    []*Log                  `json:"audit_events"`
+	BalanceSources *UserBalanceSources     `json:"balance_sources"`
 }
 
 const (
@@ -130,6 +131,10 @@ func GetUserProfile(userID int) (*UserProfile, error) {
 
 	profile.LoginEvents = recentUserLogEvents(userID, LogTypeLogin)
 	profile.AuditEvents = recentUserLogEvents(userID, LogTypeManage)
+	profile.BalanceSources, err = GetUserBalanceSources(userID)
+	if err != nil {
+		return nil, err
+	}
 	return profile, nil
 }
 

@@ -153,7 +153,7 @@ func BulkUserAction(c *gin.Context) {
 			return
 		}
 		for _, userID := range targets {
-			if err := model.IncreaseUserQuota(userID, req.Quota, true); err != nil {
+			if _, err := model.AdjustUserQuota(userID, operatorID, "add", req.Quota); err != nil {
 				common.ApiError(c, err)
 				return
 			}
