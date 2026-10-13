@@ -12,8 +12,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// playgroundKeepaliveInterval stays well below Cloudflare's 125 second idle cut.
-const playgroundKeepaliveInterval = 20 * time.Second
+// Cloudflare Free closes an origin connection after 125 seconds without a
+// byte. Non-streaming JSON relays start keepalive pings once they have been
+// silent for relayKeepaliveIdle, which nearly every request finishes within.
+const (
+	relayKeepaliveIdle     = 90 * time.Second
+	relayKeepaliveInterval = 20 * time.Second
+)
 
 func SetRelayRouter(router *gin.Engine) {
 	router.Use(middleware.CORS())
@@ -86,9 +91,10 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter.Use(middleware.UserOrInternalServiceAuth())
 	{
 		playgroundRouter.POST("/chat/completions", middleware.Distribute(), controller.Playground)
-		// Image jobs can outlast Cloudflare's 125 second origin idle timeout.
-		playgroundRouter.POST("/images/generations", middleware.ResponseKeepalive(playgroundKeepaliveInterval), middleware.Distribute(), controller.PlaygroundImage)
-		playgroundRouter.POST("/images/edits", middleware.ResponseKeepalive(playgroundKeepaliveInterval), middleware.Distribute(), controller.PlaygroundImageEdit)
+		// Studio opts in to early pings; internal callers keep plain responses.
+		studioKeepalive := middleware.ResponseKeepalive(0, relayKeepaliveInterval)
+		playgroundRouter.POST("/images/generations", studioKeepalive, middleware.Distribute(), controller.PlaygroundImage)
+		playgroundRouter.POST("/images/edits", studioKeepalive, middleware.Distribute(), controller.PlaygroundImageEdit)
 		playgroundRouter.POST("/audio/speech", middleware.Distribute(), controller.PlaygroundAudio)
 		playgroundRouter.POST("/video/generations", middleware.Distribute(), controller.PlaygroundVideo)
 		// Native ElevenLabs tools for the audio studio; same allow-list and
@@ -118,25 +124,26 @@ func SetRelayRouter(router *gin.Engine) {
 		//http router
 		httpRouter := relayV1Router.Group("")
 		httpRouter.Use(middleware.Distribute())
+		keepalive := middleware.ResponseKeepalive(relayKeepaliveIdle, relayKeepaliveInterval)
 
 		// claude related routes
-		httpRouter.POST("/messages", func(c *gin.Context) {
+		httpRouter.POST("/messages", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatClaude)
 		})
 
 		// chat related routes
-		httpRouter.POST("/completions", func(c *gin.Context) {
+		httpRouter.POST("/completions", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
-		httpRouter.POST("/chat/completions", func(c *gin.Context) {
+		httpRouter.POST("/chat/completions", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
 
 		// response related routes
-		httpRouter.POST("/responses", func(c *gin.Context) {
+		httpRouter.POST("/responses", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIResponses)
 		})
-		httpRouter.POST("/responses/compact", func(c *gin.Context) {
+		httpRouter.POST("/responses/compact", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIResponsesCompaction)
 		})
 		httpRouter.POST("/alpha/search", func(c *gin.Context) {
@@ -144,13 +151,13 @@ func SetRelayRouter(router *gin.Engine) {
 		})
 
 		// image related routes
-		httpRouter.POST("/edits", func(c *gin.Context) {
+		httpRouter.POST("/edits", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
-		httpRouter.POST("/images/generations", func(c *gin.Context) {
+		httpRouter.POST("/images/generations", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
-		httpRouter.POST("/images/edits", func(c *gin.Context) {
+		httpRouter.POST("/images/edits", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 
@@ -189,7 +196,7 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/engines/:model/embeddings", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
-		httpRouter.POST("/models/*path", func(c *gin.Context) {
+		httpRouter.POST("/models/*path", keepalive, func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
 
@@ -252,7 +259,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayGeminiRouter.Use(middleware.Distribute())
 	{
 		// Gemini API 路径格式: /v1beta/models/{model_name}:{action}
-		relayGeminiRouter.POST("/models/*path", func(c *gin.Context) {
+		relayGeminiRouter.POST("/models/*path", middleware.ResponseKeepalive(relayKeepaliveIdle, relayKeepaliveInterval), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
 	}
