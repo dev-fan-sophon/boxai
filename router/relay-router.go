@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/controller"
 	"github.com/dev-fan-sophon/boxai/middleware"
@@ -9,6 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// playgroundKeepaliveInterval stays well below Cloudflare's 125 second idle cut.
+const playgroundKeepaliveInterval = 20 * time.Second
 
 func SetRelayRouter(router *gin.Engine) {
 	router.Use(middleware.CORS())
@@ -81,8 +86,9 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter.Use(middleware.UserOrInternalServiceAuth())
 	{
 		playgroundRouter.POST("/chat/completions", middleware.Distribute(), controller.Playground)
-		playgroundRouter.POST("/images/generations", middleware.Distribute(), controller.PlaygroundImage)
-		playgroundRouter.POST("/images/edits", middleware.Distribute(), controller.PlaygroundImageEdit)
+		// Image jobs can outlast Cloudflare's 125 second origin idle timeout.
+		playgroundRouter.POST("/images/generations", middleware.ResponseKeepalive(playgroundKeepaliveInterval), middleware.Distribute(), controller.PlaygroundImage)
+		playgroundRouter.POST("/images/edits", middleware.ResponseKeepalive(playgroundKeepaliveInterval), middleware.Distribute(), controller.PlaygroundImageEdit)
 		playgroundRouter.POST("/audio/speech", middleware.Distribute(), controller.PlaygroundAudio)
 		playgroundRouter.POST("/video/generations", middleware.Distribute(), controller.PlaygroundVideo)
 		// Native ElevenLabs tools for the audio studio; same allow-list and

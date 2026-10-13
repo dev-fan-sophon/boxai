@@ -191,7 +191,13 @@ export async function generateImages(
   try {
     const response = await api.post(endpoint, body, {
       skipErrorHandler: true,
+      // Slow jobs get keepalive bytes past Cloudflare's 125s idle cut; the
+      // status is then always 200 and errors arrive in the body.
+      headers: { 'X-BoxAI-Keepalive': '1' },
     } as Record<string, unknown>)
+    if (typeof response.data !== 'object' || response.data?.error) {
+      throw Object.assign(new Error(), { response })
+    }
     const items = (response.data?.data ?? []) as Array<{
       url?: string
       b64_json?: string
