@@ -40,7 +40,7 @@ Complete one successful model call so you know billing, keys, and routing work e
 3. Run:
 
 ```bash
-curl "https://you-box.com/v1/chat/completions" \
+curl "https://api-direct.you-box.com/v1/chat/completions" \
   -H "Authorization: Bearer $BOXAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"YOUR_MODEL_ID","messages":[{"role":"user","content":"Hello"}]}'

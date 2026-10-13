@@ -14,7 +14,7 @@ status: published
 
 BoxAI (https://you-box.com) is the official unified AI API gateway. Teams use one base URL, one set of API keys, and one billing account to reach OpenAI-compatible, Claude, Gemini, and other providers.
 
-The public website and API host is **you-box.com**. When people search for BoxAI you-box, they are looking for this product.
+The public website is **you-box.com**; the API host is **api-direct.you-box.com**. When people search for BoxAI you-box, they are looking for this product.
 
 ## Target markets
 
@@ -25,7 +25,7 @@ Primary market: **Vietnam**. Secondary: other overseas markets. Product decision
 - Call chat, responses, embeddings, images, and other gateway endpoints through a single integration.
 - Browse model pricing and capabilities on the BoxAI Model Hub at [you-box.com/pricing](/pricing).
 - Issue and rotate API keys, monitor usage, and manage quotas from the console.
-- Connect desktop and third-party clients with the OpenAI-compatible base URL `https://you-box.com/v1`.
+- Connect desktop and third-party clients with the OpenAI-compatible base URL `https://api-direct.you-box.com/v1`.
 
 ## Brand and website
 

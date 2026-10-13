@@ -89,6 +89,8 @@ export function resolveGatewayBaseUrl(
       ? (statusRecord.data as Record<string, unknown>)
       : null
   const candidates = [
+    statusRecord?.api_base_url,
+    dataRecord?.api_base_url,
     statusRecord?.server_address,
     statusRecord?.serverAddress,
     dataRecord?.server_address,

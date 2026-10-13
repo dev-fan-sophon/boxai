@@ -109,6 +109,7 @@ export type SiteSettings = {
   About: string
   HomePageContent: string
   ServerAddress: string
+  ApiBaseAddress: string
   'legal.user_agreement': string
   'legal.privacy_policy': string
   HeaderNavModules: string
