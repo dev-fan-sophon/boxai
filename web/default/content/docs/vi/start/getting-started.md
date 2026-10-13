@@ -31,10 +31,10 @@ Làm theo hướng dẫn [BoxAI Desktop](/docs/clients/desktop) để cài ứng
 
 ## Gửi request đầu tiên
 
-Trên BoxAI, dùng base URL API production `https://api-direct.you-box.com`. Tạo key trong dashboard, rồi sao chép đúng model ID từ Model Hub.
+Trên BoxAI, dùng base URL production `https://you-box.com`. Tạo key trong dashboard, rồi sao chép đúng model ID từ Model Hub.
 
 ```bash
-curl "https://api-direct.you-box.com/v1/chat/completions" \
+curl "https://you-box.com/v1/chat/completions" \
   -H "Authorization: Bearer $BOXAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"YOUR_MODEL_ID","messages":[{"role":"user","content":"Hello"}]}'

@@ -16,12 +16,10 @@ func BoxAIOnly() bool { return boxAIOnly.Load() }
 
 var errBoxAIOnly = errors.New("BoxAI is the only supported provider")
 
-// Model traffic uses the direct API host, which skips the Cloudflare edge so
-// long requests are not cut by its timeout; sign-in stays on the website.
 var boxAIPreset = PresetDef{
 	ID: "boxai", Name: "BoxAI", Icon: "magpie", Kind: KindRelay,
-	Chat: "https://api-direct.you-box.com/v1", Responses: "https://api-direct.you-box.com/v1",
-	Anthropic: "https://api-direct.you-box.com", Website: "https://you-box.com",
+	Chat: "https://you-box.com/v1", Responses: "https://you-box.com/v1",
+	Anthropic: "https://you-box.com", Website: "https://you-box.com",
 	KeysURL: "https://you-box.com/keys",
 }
 

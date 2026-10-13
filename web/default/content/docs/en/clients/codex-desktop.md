@@ -48,7 +48,7 @@ cli_auth_credentials_store = "file"
 
 [model_providers.boxai]
 name = "BoxAI"
-base_url = "https://api-direct.you-box.com/v1"
+base_url = "https://you-box.com/v1"
 wire_api = "responses"
 requires_openai_auth = true
 supports_websockets = false
@@ -59,7 +59,7 @@ supports_websockets = false
 | Setting                               | Why it is here                                                                                                                                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `model_provider = "boxai"`            | Must exactly match the suffix of `[model_providers.boxai]`. Do not redefine the reserved `openai` provider.                                                                                       |
-| `base_url`                            | Use `https://api-direct.you-box.com/v1`, not `/v1/responses`. Codex appends `/responses`.                                                                                                         |
+| `base_url`                            | Use `https://you-box.com/v1`, not `/v1/responses`. Codex appends `/responses`.                                                                                                                    |
 | `wire_api = "responses"`              | Current Codex uses the Responses protocol. Old `wire_api = "chat"` examples are not supported.                                                                                                    |
 | `requires_openai_auth = true`         | Uses Codex's cached API-login credential from `auth.json` for this recipe. It does **not** change the destination to OpenAI; `base_url` selects BoxAI. Do not combine this recipe with `env_key`. |
 | `supports_websockets = false`         | Uses HTTP/SSE instead of assuming the gateway supports Responses WebSockets. Streaming still works over SSE.                                                                                      |
@@ -110,7 +110,7 @@ model_reasoning_effort = "high"
 
 [model_providers.boxai]
 name = "BoxAI"
-base_url = "https://api-direct.you-box.com/v1"
+base_url = "https://you-box.com/v1"
 wire_api = "responses"
 env_key = "BOXAI_API_KEY"
 requires_openai_auth = false

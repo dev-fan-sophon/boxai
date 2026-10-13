@@ -38,7 +38,7 @@ Hoàn thành một lần gọi mô hình thành công để biết billing, key 
 3. Chạy:
 
 ```bash
-curl "https://api-direct.you-box.com/v1/chat/completions" \
+curl "https://you-box.com/v1/chat/completions" \
   -H "Authorization: Bearer $BOXAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"YOUR_MODEL_ID","messages":[{"role":"user","content":"Hello"}]}'

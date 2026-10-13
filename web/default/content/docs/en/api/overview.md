@@ -12,16 +12,16 @@ status: published
 
 ![Sign-in to BoxAI](/doc-assets/screenshots/auth/sign-in.en.webp 'Create an account or sign in before issuing API keys')
 
-Production API host (connects directly, so long requests are not cut by the CDN timeout):
+Production host:
 
 ```text
-https://api-direct.you-box.com
+https://you-box.com
 ```
 
 OpenAI-compatible chat example path:
 
 ```text
-https://api-direct.you-box.com/v1/chat/completions
+https://you-box.com/v1/chat/completions
 ```
 
 Always call **BoxAI**, not an upstream provider URL, when you intend to use BoxAI keys and billing.

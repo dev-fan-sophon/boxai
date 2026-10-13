@@ -36,7 +36,7 @@ const providerUsage = `usage:
        magpie provider set boxai context=272k context.gpt-6=1m
                                    (context: how long a request agents are told the models take, over what the
                                     vendor or models.dev says; context.<model> for one of them; empty clears)
-  BoxAI is the only provider. Endpoints are fixed at https://api-direct.you-box.com.
+  BoxAI is the only provider. Endpoints are fixed at https://you-box.com.
   Keys remain in ~/.config/magpie/providers.json.`
 
 // providers: `magpie providers`

@@ -7,7 +7,6 @@ import { KeyRound } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { StudioSettings } from '@/features/playground/types'
-import { resolveApiBaseUrl } from '@/lib/api-base-url'
 
 import type { CreateTool } from '../../constants'
 import {
@@ -17,6 +16,17 @@ import {
 } from '../../lib/api-request'
 
 type SnippetLanguage = 'curl' | 'python' | 'node'
+
+function serverAddress(): string {
+  try {
+    const raw = localStorage.getItem('status')
+    const status = raw ? (JSON.parse(raw) as { server_address?: string }) : null
+    if (status?.server_address) return status.server_address.replace(/\/$/, '')
+  } catch {
+    // Fall back to the current origin.
+  }
+  return window.location.origin
+}
 
 /** Multipart upload snippet for the file-based audio tools. */
 function renderMultipartSnippet(
@@ -141,7 +151,7 @@ export function ApiSnippetPanel(props: {
   const { t } = useTranslation()
   const [language, setLanguage] = useState<SnippetLanguage>('curl')
   const request = buildApiRequest(props)
-  const url = `${resolveApiBaseUrl()}${request.path}`
+  const url = `${serverAddress()}${request.path}`
   const snippet = renderSnippet(language, url, request)
 
   return (

@@ -16,7 +16,6 @@ import {
 import type { IntegrationProfile } from '@/features/pricing/types'
 import { useSeo } from '@/hooks/use-page-seo'
 import { useStatus } from '@/hooks/use-status'
-import { resolveApiBaseUrl } from '@/lib/api-base-url'
 
 import { DocsShell } from './docs-shell'
 import { REPRESENTATIVE_MODEL } from './lib/load-doc'
@@ -45,7 +44,11 @@ export function DocsProtocolPage(props: {
     label: 'cURL',
     syntax: 'bash' as const,
   }
-  const baseUrl = resolveApiBaseUrl(status as Record<string, unknown> | null)
+  const statusRecord = status as Record<string, unknown> | null
+  const baseUrl =
+    (typeof statusRecord?.server_address === 'string' &&
+      statusRecord.server_address.replace(/\/$/, '')) ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
   const sample = buildIntegrationSample(
     props.profile,
     REPRESENTATIVE_MODEL,

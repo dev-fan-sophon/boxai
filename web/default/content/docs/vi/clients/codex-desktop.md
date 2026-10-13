@@ -48,7 +48,7 @@ cli_auth_credentials_store = "file"
 
 [model_providers.boxai]
 name = "BoxAI"
-base_url = "https://api-direct.you-box.com/v1"
+base_url = "https://you-box.com/v1"
 wire_api = "responses"
 requires_openai_auth = true
 supports_websockets = false
@@ -59,7 +59,7 @@ supports_websockets = false
 | Thiết lập                             | Ý nghĩa                                                                                                                                                |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `model_provider = "boxai"`            | Phải khớp chính xác với phần sau của `[model_providers.boxai]`. Không định nghĩa lại nhà cung cấp dành riêng `openai`.                                 |
-| `base_url`                            | Dùng `https://api-direct.you-box.com/v1`, không dùng `/v1/responses`. Codex tự nối `/responses`.                                                       |
+| `base_url`                            | Dùng `https://you-box.com/v1`, không dùng `/v1/responses`. Codex tự nối `/responses`.                                                                  |
 | `wire_api = "responses"`              | Codex hiện dùng giao thức Responses. Ví dụ cũ có `wire_api = "chat"` không còn được hỗ trợ.                                                            |
 | `requires_openai_auth = true`         | Dùng thông tin đăng nhập API của Codex từ `auth.json`. Không chuyển đích gọi sang OpenAI; `base_url` chọn BoxAI. Không kết hợp cách này với `env_key`. |
 | `supports_websockets = false`         | Dùng HTTP/SSE thay vì mặc định gateway hỗ trợ Responses WebSocket. Vẫn có thể nhận luồng qua SSE.                                                      |
@@ -110,7 +110,7 @@ model_reasoning_effort = "high"
 
 [model_providers.boxai]
 name = "BoxAI"
-base_url = "https://api-direct.you-box.com/v1"
+base_url = "https://you-box.com/v1"
 wire_api = "responses"
 env_key = "BOXAI_API_KEY"
 requires_openai_auth = false

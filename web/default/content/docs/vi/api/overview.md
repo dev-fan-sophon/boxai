@@ -12,16 +12,16 @@ status: published
 
 ![Sign-in to BoxAI](/doc-assets/screenshots/auth/sign-in.en.webp 'Create an account or sign in before issuing API keys')
 
-Host API production (kết nối trực tiếp nên request dài không bị CDN cắt do hết thời gian chờ):
+Host production:
 
 ```text
-https://api-direct.you-box.com
+https://you-box.com
 ```
 
 Ví dụ path chat OpenAI-compatible:
 
 ```text
-https://api-direct.you-box.com/v1/chat/completions
+https://you-box.com/v1/chat/completions
 ```
 
 Luôn gọi **BoxAI**, không gọi URL upstream, khi bạn muốn dùng key và billing của BoxAI.

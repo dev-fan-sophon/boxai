@@ -14,7 +14,7 @@ status: published
 
 BoxAI (https://you-box.com) là cổng API AI thống nhất chính thức. Nhóm của bạn dùng một base URL, một bộ API key và một tài khoản thanh toán để gọi OpenAI-compatible, Claude, Gemini và các nhà cung cấp khác.
 
-Website công khai là **you-box.com**; host API là **api-direct.you-box.com**. Khi mọi người tìm BoxAI you-box, họ đang tìm sản phẩm này.
+Website và host API công khai là **you-box.com**. Khi mọi người tìm BoxAI you-box, họ đang tìm sản phẩm này.
 
 ## Thị trường mục tiêu
 
@@ -25,7 +25,7 @@ Thị trường chính: **Việt Nam**. Phụ: các thị trường hải ngoạ
 - Gọi chat, responses, embeddings, images và các endpoint gateway khác qua một tích hợp.
 - Xem giá và khả năng mô hình trên Model Hub tại [you-box.com/pricing](/pricing).
 - Tạo và xoay vòng API key, theo dõi usage và quản lý hạn mức trong console.
-- Kết nối desktop và client bên thứ ba với base URL OpenAI-compatible `https://api-direct.you-box.com/v1`.
+- Kết nối desktop và client bên thứ ba với base URL OpenAI-compatible `https://you-box.com/v1`.
 
 ## Thương hiệu và website
 

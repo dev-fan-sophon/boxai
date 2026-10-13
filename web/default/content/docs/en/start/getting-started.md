@@ -32,10 +32,10 @@ Follow [BoxAI Desktop](/docs/clients/desktop) to install the app, authorize your
 
 ## Make your first request
 
-On BoxAI, use the production API base URL `https://api-direct.you-box.com`. Create a key in the dashboard, then copy an exact model ID from Model Hub.
+On BoxAI, use the production base URL `https://you-box.com`. Create a key in the dashboard, then copy an exact model ID from Model Hub.
 
 ```bash
-curl "https://api-direct.you-box.com/v1/chat/completions" \
+curl "https://you-box.com/v1/chat/completions" \
   -H "Authorization: Bearer $BOXAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"YOUR_MODEL_ID","messages":[{"role":"user","content":"Hello"}]}'
