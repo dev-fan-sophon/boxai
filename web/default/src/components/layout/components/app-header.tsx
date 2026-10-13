@@ -1,7 +1,9 @@
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { LowBalanceAlert } from '@/components/low-balance-alert'
 import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
+import { UnreadNoticeDialog } from '@/components/unread-notice-dialog'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useTopNavLinks } from '@/hooks/use-top-nav-links'
 
@@ -88,6 +90,11 @@ export function AppHeader({
   return (
     <Header>
       <SystemBrand variant='inline' />
+      <UnreadNoticeDialog
+        unreadNotices={notifications.unreadNotices}
+        onAcknowledge={notifications.markAllNoticesRead}
+      />
+      <LowBalanceAlert />
 
       {leftContent ? (
         <div className='ms-2 flex items-center'>{leftContent}</div>
@@ -108,7 +115,7 @@ export function AppHeader({
               unreadCount={notifications.unreadCount}
               activeTab={notifications.activeTab}
               onTabChange={notifications.setActiveTab}
-              notice={notifications.notice}
+              notices={notifications.notices}
               announcements={notifications.announcements}
               loading={notifications.loading}
             />

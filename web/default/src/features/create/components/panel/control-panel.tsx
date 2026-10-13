@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
 import type { PricingModel } from '@/features/pricing/types'
+import { useQuotaForecast } from '@/hooks/use-quota-forecast'
 import { MULTI_GROUP_ENABLED } from '@/lib/multi-group'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
@@ -426,6 +427,13 @@ export function GenerateFooter(props: {
   })
   const shortfall = useBalanceShortfall(estimate.data?.quota)
   const activeJobs = props.controller.activeJobs
+  const forecast = useQuotaForecast().data
+  const runQuota = estimate.data?.quota
+  // How many more runs like this one the balance pays for.
+  const runsLeft =
+    forecast && runQuota && runQuota > 0 && shortfall === null
+      ? Math.floor(Math.max(forecast.quota, 0) / runQuota)
+      : null
 
   return (
     <div className='border-border/60 bg-background/90 supports-backdrop-filter:bg-background/75 shrink-0 space-y-2.5 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] backdrop-blur-xl'>
@@ -462,6 +470,19 @@ export function GenerateFooter(props: {
         {activeJobs > 0 && (
           <span className='text-muted-foreground text-2xs' aria-live='polite'>
             {t('{{count}} in progress', { count: activeJobs })}
+          </span>
+        )}
+        {activeJobs === 0 && runsLeft !== null && (
+          <span
+            className={cn(
+              'text-2xs tabular-nums',
+              forecast?.low ? 'text-warning' : 'text-muted-foreground'
+            )}
+            title={t('Estimated from your current balance')}
+          >
+            {runsLeft > 9999
+              ? t('Balance covers 9,999+ runs')
+              : t('Balance covers ≈{{count}} runs', { count: runsLeft })}
           </span>
         )}
       </div>

@@ -2,20 +2,28 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 interface NotificationState {
-  // Last read Notice content signature (full trimmed message)
+  // Legacy: last read single Notice content, from before notices had ids
   lastReadNotice: string
+  // Ids of published notices the user has seen
+  readNoticeIds: number[]
   // Array of read announcement keys (id or content hash)
   readAnnouncementKeys: string[]
   // Timestamp of last "Close Today" action
   closedUntilDate: string | null
+  // Day (toDateString) the low-balance warning was last shown
+  lowBalanceWarnedOn: string | null
 
   // Actions
-  markNoticeRead: (noticeContent: string) => void
+  markNoticesRead: (ids: number[]) => void
   markAnnouncementsRead: (keys: string[]) => void
   setClosedUntilDate: (date: string | null) => void
+  setLowBalanceWarnedOn: (date: string) => void
   isAnnouncementRead: (key: string) => boolean
   isNoticeClosed: () => boolean
 }
+
+// Keep the read list bounded; the server only ever returns the newest notices.
+const MAX_READ_NOTICE_IDS = 200
 
 /**
  * Notification store for tracking read status of Notice and Announcements
@@ -25,13 +33,17 @@ export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
       lastReadNotice: '',
+      readNoticeIds: [],
       readAnnouncementKeys: [],
       closedUntilDate: null,
+      lowBalanceWarnedOn: null,
 
-      markNoticeRead: (noticeContent: string) => {
-        // Persist the full trimmed content so edits beyond 100 chars register
-        const normalizedContent = noticeContent.trim()
-        set({ lastReadNotice: normalizedContent })
+      markNoticesRead: (ids: number[]) => {
+        set((state) => ({
+          readNoticeIds: [...new Set([...state.readNoticeIds, ...ids])].slice(
+            -MAX_READ_NOTICE_IDS
+          ),
+        }))
       },
 
       markAnnouncementsRead: (keys: string[]) => {
@@ -44,6 +56,10 @@ export const useNotificationStore = create<NotificationState>()(
 
       setClosedUntilDate: (date: string | null) => {
         set({ closedUntilDate: date })
+      },
+
+      setLowBalanceWarnedOn: (date: string) => {
+        set({ lowBalanceWarnedOn: date })
       },
 
       isAnnouncementRead: (key: string) => {
@@ -62,8 +78,10 @@ export const useNotificationStore = create<NotificationState>()(
       name: 'notification-storage',
       partialize: (state) => ({
         lastReadNotice: state.lastReadNotice,
+        readNoticeIds: state.readNoticeIds,
         readAnnouncementKeys: state.readAnnouncementKeys,
         closedUntilDate: state.closedUntilDate,
+        lowBalanceWarnedOn: state.lowBalanceWarnedOn,
       }),
     }
   )

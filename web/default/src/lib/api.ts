@@ -208,14 +208,43 @@ export async function getStatus() {
   return res.data?.data as Record<string, unknown>
 }
 
-// Get system notice
-export async function getNotice(): Promise<{
+export interface SystemNotice {
+  id: number
+  content: string
+  created_at: number
+}
+
+// Get published system notices, newest first
+export async function getNotices(): Promise<{
   success: boolean
   message?: string
-  data?: string
+  data?: SystemNotice[]
 }> {
-  const res = await api.get('/api/notice')
+  const res = await api.get('/api/notices', {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   return res.data
+}
+
+export interface QuotaForecast {
+  quota: number
+  spent_24h: number
+  spent_7d: number
+  daily_spend: number
+  /** -1 when there is no recent spend to project from */
+  days_left: number
+  warning_threshold: number
+  low: boolean
+}
+
+// Balance runway at the user's recent spending pace
+export async function getQuotaForecast(): Promise<QuotaForecast | null> {
+  const res = await api.get('/api/user/self/quota-forecast', {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  return res.data?.success ? (res.data.data as QuotaForecast) : null
 }
 
 // ----------------------------------------------------------------------------

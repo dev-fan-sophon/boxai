@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
 import { useStatus } from '@/hooks/use-status'
-import { getNotice } from '@/lib/api'
+import { getNotices, type SystemNotice } from '@/lib/api'
 import { useNotificationStore } from '@/stores/notification-store'
 
 function hashString(input: string): string {
@@ -50,15 +50,16 @@ export function useNotifications() {
     'notice'
   )
 
-  // Fetch Notice from API
+  // Fetch published notices from API
   const {
-    data: noticeResponse,
+    data: noticesResponse,
     isLoading: noticeLoading,
     refetch: refetchNotice,
   } = useQuery({
-    queryKey: ['notice'],
-    queryFn: getNotice,
+    queryKey: ['notices'],
+    queryFn: getNotices,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5,
   })
 
   // Fetch Announcements from status
@@ -78,21 +79,30 @@ export function useNotifications() {
   // Notification store
   const {
     lastReadNotice,
-    markNoticeRead,
+    readNoticeIds,
+    markNoticesRead,
     markAnnouncementsRead,
     isAnnouncementRead,
   } = useNotificationStore()
 
-  // Extract notice content
-  const noticeContent = noticeResponse?.success
-    ? (noticeResponse.data || '').trim()
-    : ''
+  const notices: SystemNotice[] = useMemo(
+    () => (noticesResponse?.success ? (noticesResponse.data ?? []) : []),
+    [noticesResponse]
+  )
+
+  // A notice read before notices had ids is matched by its content once.
+  const unreadNotices = useMemo(
+    () =>
+      notices.filter(
+        (notice) =>
+          !readNoticeIds.includes(notice.id) &&
+          notice.content.trim() !== lastReadNotice
+      ),
+    [notices, readNoticeIds, lastReadNotice]
+  )
 
   // Calculate unread counts
   const unreadCounts = useMemo(() => {
-    const noticeUnread =
-      noticeContent && noticeContent !== lastReadNotice ? 1 : 0
-
     const announcementsUnread = announcements.filter(
       (item: Record<string, unknown>) => {
         const key = getAnnouncementKey(item)
@@ -101,11 +111,17 @@ export function useNotifications() {
     ).length
 
     return {
-      notice: noticeUnread,
+      notice: unreadNotices.length,
       announcements: announcementsUnread,
-      total: noticeUnread + announcementsUnread,
+      total: unreadNotices.length + announcementsUnread,
     }
-  }, [noticeContent, lastReadNotice, announcements, isAnnouncementRead])
+  }, [unreadNotices, announcements, isAnnouncementRead])
+
+  const markAllNoticesRead = () => {
+    if (notices.length > 0) {
+      markNoticesRead(notices.map((notice) => notice.id))
+    }
+  }
 
   const markAnnouncementsAsRead = () => {
     if (announcements.length > 0) {
@@ -121,9 +137,7 @@ export function useNotifications() {
     const nextTab = tab || activeTab
 
     // Mark currently visible content as read when opening the notification center
-    if (noticeContent) {
-      markNoticeRead(noticeContent)
-    }
+    markAllNoticesRead()
     if (nextTab === 'announcements') {
       markAnnouncementsAsRead()
     }
@@ -152,7 +166,8 @@ export function useNotifications() {
 
   return {
     // Data
-    notice: noticeContent,
+    notices,
+    unreadNotices,
     announcements,
     loading: noticeLoading || statusLoading,
 
@@ -170,6 +185,7 @@ export function useNotifications() {
     // Actions
     openPopover: handleOpenPopover,
     closePopover: () => setPopoverOpen(false),
+    markAllNoticesRead,
     refetchNotice,
   }
 }

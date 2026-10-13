@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { CREATE_NAV } from '../../constants'
 import { StudioProvider, useStudioContext } from '../../context/studio-context'
 import { CreateWorkspaceContext } from '../../context/workspace-context'
+import { BalanceForecast } from './balance-forecast'
 
 import '@/features/playground/styles/playground.css'
 
@@ -87,6 +88,7 @@ function CreateNav(props: { pathname: string }) {
       </nav>
       <span className='flex-1' />
       <QueueIndicator />
+      <BalanceForecast />
     </div>
   )
 }

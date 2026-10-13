@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { SystemNotice } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 interface NotificationPopoverProps {
@@ -24,7 +25,7 @@ interface NotificationPopoverProps {
   unreadCount: number
   activeTab: NotificationTab
   onTabChange: (tab: NotificationTab) => void
-  notice: string
+  notices: SystemNotice[]
   announcements: AnnouncementItem[]
   loading: boolean
   className?: string
@@ -98,7 +99,7 @@ export function NotificationPopover(props: NotificationPopoverProps) {
           <NotificationPopoverBody
             activeTab={props.activeTab}
             onTabChange={props.onTabChange}
-            notice={props.notice}
+            notices={props.notices}
             announcements={props.announcements}
             loading={props.loading}
             onClose={() => props.onOpenChange(false)}

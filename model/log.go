@@ -776,3 +776,19 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 
 	return total, nil
 }
+
+// UserConsumeSince is a user's consumption since a timestamp and the time of
+// the earliest consume log in that window (0 when there is none).
+type UserConsumeSince struct {
+	Quota   int64 `json:"quota"`
+	FirstAt int64 `json:"first_at"`
+}
+
+func SumUserConsumeSince(userId int, since int64) (UserConsumeSince, error) {
+	var result UserConsumeSince
+	err := LOG_DB.Table("logs").
+		Select("COALESCE(SUM(quota), 0) AS quota, COALESCE(MIN(created_at), 0) AS first_at").
+		Where("user_id = ? AND type = ? AND created_at >= ?", userId, LogTypeConsume, since).
+		Scan(&result).Error
+	return result, err
+}

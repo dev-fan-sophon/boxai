@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { SystemNotice } from '@/lib/api'
 import { getAnnouncementColorClass } from '@/lib/colors'
 import { formatDateTimeObject } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,7 @@ export type NotificationTab = 'notice' | 'announcements'
 export interface NotificationPopoverBodyProps {
   activeTab: NotificationTab
   onTabChange: (tab: NotificationTab) => void
-  notice: string
+  notices: SystemNotice[]
   announcements: AnnouncementItem[]
   loading: boolean
   onClose: () => void
@@ -119,14 +120,43 @@ function getAnnouncementRenderKey(announcement: AnnouncementItem): string {
 }
 
 /**
+ * Published notices, newest first, each with its publish time. Shared by the
+ * notice tab and the unread-notice dialog shown on arrival.
+ */
+export function NoticeList(props: { notices: SystemNotice[] }) {
+  const { t } = useTranslation()
+  return (
+    <div className='flex flex-col'>
+      {props.notices.map((notice, idx) => {
+        const publishDate = new Date(notice.created_at * 1000)
+        return (
+          <div key={notice.id}>
+            <div className='flex flex-col gap-2 py-3'>
+              <div className='text-sm'>
+                <RichContent breaks content={notice.content} />
+              </div>
+              <div className='text-muted-foreground text-xs'>
+                {getRelativeTime(publishDate, t)} •{' '}
+                {formatDateTimeObject(publishDate)}
+              </div>
+            </div>
+            {idx < props.notices.length - 1 ? <Separator /> : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
  * Notice tab content
  */
 function NoticeContent({
-  notice,
+  notices,
   loading,
   t,
 }: {
-  notice: string
+  notices: SystemNotice[]
   loading: boolean
   t: TFunction
 }) {
@@ -142,7 +172,7 @@ function NoticeContent({
     )
   }
 
-  if (!notice) {
+  if (notices.length === 0) {
     return (
       <EmptyState
         bordered={false}
@@ -155,7 +185,7 @@ function NoticeContent({
 
   return (
     <ScrollArea className='h-[min(52vh,28rem)] pr-3'>
-      <RichContent breaks content={notice} />
+      <NoticeList notices={notices} />
     </ScrollArea>
   )
 }
@@ -269,7 +299,11 @@ export function NotificationPopoverBody(props: NotificationPopoverBodyProps) {
         </TabsList>
 
         <TabsContent value='notice' className='mt-2'>
-          <NoticeContent notice={props.notice} loading={props.loading} t={t} />
+          <NoticeContent
+            notices={props.notices}
+            loading={props.loading}
+            t={t}
+          />
         </TabsContent>
 
         <TabsContent value='announcements' className='mt-2'>

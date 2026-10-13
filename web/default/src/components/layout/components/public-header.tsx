@@ -12,11 +12,13 @@ import { useTranslation } from 'react-i18next'
 import { Dialog } from '@/components/dialog'
 import { LayoutDashboard } from '@/components/icons'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { LowBalanceAlert } from '@/components/low-balance-alert'
 import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UnreadNoticeDialog } from '@/components/unread-notice-dialog'
 import { ZaloCommunityPopover } from '@/components/zalo-community'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useStatus } from '@/hooks/use-status'
@@ -221,6 +223,11 @@ export function PublicHeader(props: PublicHeaderProps) {
 
   return (
     <>
+      <UnreadNoticeDialog
+        unreadNotices={notifications.unreadNotices}
+        onAcknowledge={notifications.markAllNoticesRead}
+      />
+      <LowBalanceAlert />
       <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
         {/*
           The condensed pill hugs its content instead of snapping to a fixed
@@ -348,7 +355,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                   unreadCount={notifications.unreadCount}
                   activeTab={notifications.activeTab}
                   onTabChange={notifications.setActiveTab}
-                  notice={notifications.notice}
+                  notices={notifications.notices}
                   announcements={notifications.announcements}
                   loading={notifications.loading}
                 />

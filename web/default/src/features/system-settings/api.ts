@@ -111,3 +111,18 @@ export async function fetchUpstreamRatios(request: FetchUpstreamRatiosRequest) {
   )
   return res.data
 }
+
+export async function publishSystemNotice(content: string) {
+  const res = await api.post<{ success: boolean; message: string }>(
+    '/api/option/notices',
+    { content }
+  )
+  return res.data
+}
+
+export async function deleteSystemNotice(id: number) {
+  const res = await api.delete<{ success: boolean; message: string }>(
+    `/api/option/notices/${id}`
+  )
+  return res.data
+}

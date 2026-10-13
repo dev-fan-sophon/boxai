@@ -270,6 +270,7 @@ func migrateDB() error {
 		&User{},
 		&PasskeyCredential{},
 		&Option{},
+		&SystemNotice{},
 		&Redemption{},
 		&Ability{},
 		&Log{},
@@ -352,6 +353,9 @@ func migrateDB() error {
 	if err := SyncInspirationCatalog(); err != nil {
 		common.SysLog("sync inspiration catalog failed: " + err.Error())
 	}
+	if err := seedSystemNoticesFromOption(); err != nil {
+		common.SysLog("seed system notices failed: " + err.Error())
+	}
 	if err := SeedPlaygroundAgentsIfEmpty(); err != nil {
 		common.SysLog("seed playground agents failed: " + err.Error())
 	}
@@ -371,6 +375,7 @@ func migrateDBFast() error {
 		{&User{}, "User"},
 		{&PasskeyCredential{}, "PasskeyCredential"},
 		{&Option{}, "Option"},
+		{&SystemNotice{}, "SystemNotice"},
 		{&Redemption{}, "Redemption"},
 		{&Ability{}, "Ability"},
 		{&Log{}, "Log"},
@@ -466,6 +471,9 @@ func migrateDBFast() error {
 	}
 	if err := SyncInspirationCatalog(); err != nil {
 		common.SysLog("sync inspiration catalog failed: " + err.Error())
+	}
+	if err := seedSystemNoticesFromOption(); err != nil {
+		common.SysLog("seed system notices failed: " + err.Error())
 	}
 	if err := SeedPlaygroundAgentsIfEmpty(); err != nil {
 		common.SysLog("seed playground agents failed: " + err.Error())
