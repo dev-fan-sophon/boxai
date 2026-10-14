@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/gin-gonic/gin"
@@ -264,6 +265,26 @@ func TestCompletedVideoUsesPublicAuthenticatedURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(body), "/v1/videos/task_public/content")
 	assert.NotContains(t, string(body), "upstream.test")
+}
+
+func TestFailedVideoPreservesUpstreamReason(t *testing.T) {
+	const reason = "task_failed: Reference material @Image4 could not be prepared: InternalError: upstream marked asset failed"
+	data := []byte(`{"status":"failed","error":{"code":"task_failed","message":"` + reason + `"}}`)
+	adaptor := &TaskAdaptor{}
+	result, err := adaptor.ParseTaskResult(data)
+	require.NoError(t, err)
+	assert.Equal(t, string(model.TaskStatusFailure), result.Status)
+	assert.Equal(t, reason, result.Reason)
+
+	body, err := adaptor.ConvertToOpenAIVideo(&model.Task{
+		TaskID: "task_public", Status: model.TaskStatusFailure, FailReason: result.Reason, Data: data,
+	})
+	require.NoError(t, err)
+	var video dto.OpenAIVideo
+	require.NoError(t, common.Unmarshal(body, &video))
+	require.NotNil(t, video.Error)
+	assert.Equal(t, "task_failed", video.Error.Code)
+	assert.Equal(t, reason, video.Error.Message)
 }
 
 func TestSeedance25ReferenceLimit(t *testing.T) {
