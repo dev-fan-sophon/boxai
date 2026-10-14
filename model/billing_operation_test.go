@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
@@ -251,7 +252,7 @@ func TestBillingOperationUnlimitedTokenDoesNotChangeTokenCounters(t *testing.T) 
 func TestBillingOperationSetsLineageChargeToTargetIdempotently(t *testing.T) {
 	truncateTables(t)
 	require.NoError(t, DB.AutoMigrate(&BillingOperation{}))
-	user := User{Username: "billing-target", Quota: 100}
+	user := User{Username: "billing-target", Quota: 100, UsedQuota: 20, RequestCount: 3}
 	require.NoError(t, DB.Create(&user).Error)
 	initial, _, err := ApplyBillingOperation(BillingOperationInput{
 		IdempotencyKey: "target-initial", Kind: BillingOperationInitial, UserID: user.Id,
@@ -273,6 +274,8 @@ func TestBillingOperationSetsLineageChargeToTargetIdempotently(t *testing.T) {
 	require.False(t, applied)
 	require.NoError(t, DB.First(&user, user.Id).Error)
 	require.Equal(t, 55, user.Quota)
+	assert.Equal(t, 20, user.UsedQuota, "other callers retain separate usage accounting")
+	assert.Equal(t, 3, user.RequestCount)
 }
 
 func TestBillingOperationRejectsWrongOwnerWithoutTreatingSubscriptionAsDeleted(t *testing.T) {

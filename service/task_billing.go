@@ -247,7 +247,7 @@ func settleTaskBillingOperation(ctx context.Context, task *model.Task, actualQuo
 		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
 		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
 		BillingSource:               initial.BillingSource, ChargedQuota: actualQuota, ReferenceKey: initial.IdempotencyKey,
-		SetChargeToTarget: true,
+		SetChargeToTarget: true, AdjustTaskUsage: true, ChannelID: task.ChannelId,
 	})
 	if err != nil {
 		return false, err
@@ -326,7 +326,7 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
 		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
 		BillingSource:               initial.BillingSource, ChargedQuota: 0, ReferenceKey: initial.IdempotencyKey,
-		SetChargeToTarget: true,
+		SetChargeToTarget: true, AdjustTaskUsage: true, ChannelID: task.ChannelId,
 	})
 	if err != nil {
 		logger.LogWarn(ctx, fmt.Sprintf("durable task refund failed task %s: %s", task.TaskID, err.Error()))
@@ -485,8 +485,6 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	if quotaDelta > 0 {
 		logType = model.LogTypeConsume
 		logQuota = quotaDelta
-		model.UpdateUserUsedQuotaAndRequestCount(task.UserId, quotaDelta)
-		model.UpdateChannelUsedQuota(task.ChannelId, quotaDelta)
 	} else {
 		logType = model.LogTypeRefund
 		logQuota = -quotaDelta

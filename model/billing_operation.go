@@ -66,11 +66,19 @@ type BillingOperationInput struct {
 	// SetChargeToTarget derives Delta from the latest committed operation in
 	// ReferenceKey's lineage while holding the lineage rows locked.
 	SetChargeToTarget bool
+	// AdjustTaskUsage applies the signed settlement/refund delta to lifetime
+	// user/channel usage in the journal transaction, without counting a request.
+	// Initial task usage is recorded separately; other billing callers opt out.
+	AdjustTaskUsage bool
+	ChannelID       int
 }
 
 func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, error) {
 	if in.IdempotencyKey == "" || in.UserID <= 0 {
 		return nil, false, errors.New("billing operation requires key and user")
+	}
+	if in.AdjustTaskUsage && (!in.SetChargeToTarget || (in.Kind != BillingOperationSettle && in.Kind != BillingOperationRefund)) {
+		return nil, false, errors.New("task usage adjustment requires target settlement or refund")
 	}
 	if in.SetChargeToTarget {
 		if in.ReferenceKey == "" {
@@ -252,6 +260,21 @@ func ApplyBillingOperation(in BillingOperationInput) (*BillingOperation, bool, e
 						}
 						return ErrTokenQuotaInsufficient
 					}
+				}
+			}
+		}
+		if in.AdjustTaskUsage && in.Delta != 0 {
+			// Keep this additive: an initial usage batch may still be pending.
+			// Clamping at zero would lose a refund applied before that batch.
+			if err := tx.Model(&User{}).Where("id = ?", in.UserID).
+				Update("used_quota", gorm.Expr("used_quota + ?", in.Delta)).Error; err != nil {
+				return err
+			}
+			// A deleted channel must not prevent a task's funding refund.
+			if in.ChannelID > 0 {
+				if err := tx.Model(&Channel{}).Where("id = ?", in.ChannelID).
+					Update("used_quota", gorm.Expr("used_quota + ?", in.Delta)).Error; err != nil {
+					return err
 				}
 			}
 		}

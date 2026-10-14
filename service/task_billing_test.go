@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -603,6 +605,10 @@ func TestReconcileTaskRefundsConcurrentAttemptsRefundOnce(t *testing.T) {
 
 	const userID, initialQuota, taskQuota = 8, 5000, 1300
 	seedUser(t, userID, initialQuota)
+	seedChannel(t, userID)
+	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", userID).
+		Updates(map[string]any{"used_quota": taskQuota, "request_count": 1}).Error)
+	require.NoError(t, model.DB.Model(&model.Channel{}).Where("id = ?", userID).Update("used_quota", taskQuota).Error)
 	operationKey := "async:concurrent-refund-recovery:initial"
 	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
 		IdempotencyKey: operationKey,
@@ -616,7 +622,7 @@ func TestReconcileTaskRefundsConcurrentAttemptsRefundOnce(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, applied)
 
-	task := makeTask(userID, 0, taskQuota, 0, BillingSourceWallet, 0)
+	task := makeTask(userID, userID, taskQuota, 0, BillingSourceWallet, 0)
 	task.TaskID = "concurrent_refund_recovery"
 	task.Status = model.TaskStatusFailure
 	task.Progress = "100%"
@@ -637,6 +643,13 @@ func TestReconcileTaskRefundsConcurrentAttemptsRefundOnce(t *testing.T) {
 	close(start)
 	wg.Wait()
 
+	var user model.User
+	var channel model.Channel
+	require.NoError(t, model.DB.First(&user, userID).Error)
+	require.NoError(t, model.DB.First(&channel, userID).Error)
+	assert.Zero(t, user.UsedQuota)
+	assert.Zero(t, channel.UsedQuota)
+	assert.Equal(t, 1, user.RequestCount)
 	assert.Equal(t, initialQuota, getUserQuota(t, userID))
 	assert.Zero(t, getTaskQuota(t, task.ID))
 	assert.Equal(t, int64(1), countLogs(t))
@@ -1249,6 +1262,114 @@ func TestTaskSettlementInsufficientWalletBacksOffThenRecoversOnce(t *testing.T) 
 	assert.Equal(t, 400, getUserQuota(t, userID))
 	assert.EqualValues(t, 1, countLogs(t))
 	assert.EqualValues(t, 1, countOps(model.BillingOperationSettle))
+}
+
+func TestTaskUsageAdjustmentsAreNetAndIdempotent(t *testing.T) {
+	for _, source := range []string{BillingSourceWallet, BillingSourceSubscription} {
+		for _, target := range []int{150, 60, 100, 0} {
+			t.Run(fmt.Sprintf("%s/%d", source, target), func(t *testing.T) {
+				truncate(t)
+				seedUser(t, 970, 900)
+				seedChannel(t, 970)
+				seedToken(t, 970, 970, "task-usage-token", 900)
+				seedSubscription(t, 970, 970, 1000, 100)
+				require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", 970).
+					Updates(map[string]any{"used_quota": 140, "request_count": 7}).Error)
+				require.NoError(t, model.DB.Model(&model.Channel{}).Where("id = ?", 970).Update("used_quota", 160).Error)
+				task := makeTask(970, 970, 100, 970, source, 970)
+				require.NoError(t, model.DB.Create(task).Error)
+				stale := *task
+				for _, attempt := range []*model.Task{task, &stale} {
+					if target == 0 {
+						require.True(t, RefundTaskQuota(context.Background(), attempt, "usage refund"))
+					} else {
+						RecalculateTaskQuota(context.Background(), attempt, target, "usage settlement")
+					}
+				}
+				var user model.User
+				var channel model.Channel
+				require.NoError(t, model.DB.First(&user, 970).Error)
+				require.NoError(t, model.DB.First(&channel, 970).Error)
+				assert.Equal(t, 40+target, user.UsedQuota)
+				assert.EqualValues(t, 60+target, channel.UsedQuota)
+				assert.Equal(t, 7, user.RequestCount)
+				assert.Equal(t, target, getTaskQuota(t, task.ID))
+				assert.Equal(t, 1000-target, getTokenRemainQuota(t, 970))
+				if source == BillingSourceWallet {
+					assert.Equal(t, 1000-target, user.Quota)
+					assert.EqualValues(t, 100, getSubscriptionUsed(t, 970))
+				} else {
+					assert.Equal(t, 900, user.Quota)
+					assert.EqualValues(t, target, getSubscriptionUsed(t, 970))
+				}
+				// Refund the committed charge, not a stale task's original quota.
+				stale.Quota = 100
+				require.True(t, RefundTaskQuota(context.Background(), &stale, "refund after settlement"))
+				require.NoError(t, model.DB.First(&user, 970).Error)
+				require.NoError(t, model.DB.First(&channel, 970).Error)
+				assert.Equal(t, 40, user.UsedQuota)
+				assert.EqualValues(t, 60, channel.UsedQuota)
+				assert.Equal(t, 7, user.RequestCount)
+			})
+		}
+	}
+}
+
+func TestTaskUsageAdjustmentFailureAndRecovery(t *testing.T) {
+	for _, target := range []int{150, 0} {
+		for _, failingTable := range []string{"channels", "tasks"} {
+			t.Run(fmt.Sprintf("%d/%s", target, failingTable), func(t *testing.T) {
+				truncate(t)
+				seedUser(t, 971, 900)
+				seedChannel(t, 971)
+				require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", 971).
+					Updates(map[string]any{"used_quota": 100, "request_count": 1}).Error)
+				require.NoError(t, model.DB.Model(&model.Channel{}).Where("id = ?", 971).Update("used_quota", 100).Error)
+				task := makeTask(971, 971, 100, 0, BillingSourceWallet, 0)
+				require.NoError(t, model.DB.Create(task).Error)
+				const callback = "test:task_usage_failure"
+				require.NoError(t, model.DB.Callback().Update().Before("gorm:update").Register(callback, func(tx *gorm.DB) {
+					if tx.Statement.Table == failingTable {
+						tx.AddError(errors.New("injected write failure"))
+					}
+				}))
+				t.Cleanup(func() { model.DB.Callback().Update().Remove(callback) })
+				if target == 0 {
+					assert.False(t, RefundTaskQuota(context.Background(), task, "failed write"))
+				} else {
+					RecalculateTaskQuota(context.Background(), task, target, "failed write")
+				}
+				// Channel failure rolls back funding and user usage. Task projection
+				// failure happens after the journal and usage transaction commits.
+				want := target
+				if failingTable == "channels" {
+					want = 100
+				}
+				var user model.User
+				var channel model.Channel
+				require.NoError(t, model.DB.First(&user, 971).Error)
+				require.NoError(t, model.DB.First(&channel, 971).Error)
+				assert.Equal(t, want, user.UsedQuota)
+				assert.EqualValues(t, want, channel.UsedQuota)
+				assert.Equal(t, 1000-want, user.Quota)
+				require.NoError(t, model.DB.Callback().Update().Remove(callback))
+				for range 2 {
+					if target == 0 {
+						require.True(t, RefundTaskQuota(context.Background(), task, "retry"))
+					} else {
+						RecalculateTaskQuota(context.Background(), task, target, "retry")
+					}
+				}
+				require.NoError(t, model.DB.First(&user, 971).Error)
+				require.NoError(t, model.DB.First(&channel, 971).Error)
+				assert.Equal(t, target, user.UsedQuota)
+				assert.EqualValues(t, target, channel.UsedQuota)
+				assert.Equal(t, 1000-target, user.Quota)
+				assert.Equal(t, 1, user.RequestCount)
+				assert.Equal(t, target, getTaskQuota(t, task.ID))
+			})
+		}
+	}
 }
 
 func TestTaskSettlementRetryClaimIsExclusive(t *testing.T) {
