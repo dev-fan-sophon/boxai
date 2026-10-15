@@ -344,12 +344,6 @@ export function SignUpForm({
               />
             )}
 
-            <LegalConsent
-              status={status}
-              checked={agreedToLegal}
-              onCheckedChange={setAgreedToLegal}
-            />
-
             {/* Submit Button */}
             <Button
               loading={isLoading}
@@ -366,6 +360,12 @@ export function SignUpForm({
             </Button>
           </>
         )}
+
+        <LegalConsent
+          status={status}
+          checked={agreedToLegal}
+          onCheckedChange={setAgreedToLegal}
+        />
 
         {oauthRegisterEnabled && (
           <OAuthProviders
