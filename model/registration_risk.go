@@ -59,7 +59,43 @@ func RegistrationRiskNetwork(ip string) string {
 	return parsed.Mask(net.CIDRMask(64, 128)).String() + "/64"
 }
 
-func CheckRegistrationEmail(email string) error {
+// EmailDomainReputation classifies a registration email domain under the
+// current policy: blocked, a trusted mailbox provider, or an untrusted custom
+// domain. Blocked is the zero value so an unset classification fails closed.
+type EmailDomainReputation int
+
+const (
+	EmailDomainBlocked EmailDomainReputation = iota
+	EmailDomainUntrusted
+	EmailDomainTrusted
+)
+
+// EmailDomainReputationFor classifies a normalized email domain. Blocked
+// domains win over trusted ones, and a subdomain follows its parent domain.
+func EmailDomainReputationFor(domain string) EmailDomainReputation {
+	p := operation_setting.GetRegistrationRiskPolicy()
+	for _, blocked := range p.BlockedEmailDomains {
+		if emailDomainMatches(blocked, domain) {
+			return EmailDomainBlocked
+		}
+	}
+	for _, trusted := range p.TrustedEmailDomains {
+		if emailDomainMatches(trusted, domain) {
+			return EmailDomainTrusted
+		}
+	}
+	return EmailDomainUntrusted
+}
+
+func emailDomainMatches(rule string, domain string) bool {
+	return domain == rule || strings.HasSuffix(domain, "."+rule)
+}
+
+// CheckRegistrationEmail verifies that an address may register from the given
+// source. Blocked and trusted domains apply to every source; the
+// untrusted-domain rules are per source, because an OAuth identity on a
+// self-owned domain is weaker evidence than a mailbox-verified password signup.
+func CheckRegistrationEmail(email string, registerSource string) error {
 	p := operation_setting.GetRegistrationRiskPolicy()
 	if !p.Enabled || email == "" {
 		return nil
@@ -68,10 +104,17 @@ func CheckRegistrationEmail(email string) error {
 	if !ok || domain == "" {
 		return errors.New("Invalid email address.")
 	}
-	for _, blocked := range p.BlockedEmailDomains {
-		if domain == blocked || strings.HasSuffix(domain, "."+blocked) {
-			return errors.New("This email domain cannot be used for registration. Please contact support.")
-		}
+	switch EmailDomainReputationFor(domain) {
+	case EmailDomainBlocked:
+		return errors.New("This email domain cannot be used for registration. Please contact support.")
+	case EmailDomainTrusted:
+		return nil
+	}
+	if p.RejectUntrustedOAuthEmail && strings.HasPrefix(registerSource, RegisterSourceOAuth) {
+		return errors.New("Please sign up with an email address from a well-known mailbox provider, or contact support.")
+	}
+	if p.RejectUntrustedPasswordEmail && registerSource == RegisterSourcePassword {
+		return errors.New("Please sign up with an email address from a well-known mailbox provider, or contact support.")
 	}
 	return nil
 }
@@ -81,7 +124,7 @@ func applyRegistrationRisk(tx *gorm.DB, user *User) error {
 	if !p.Enabled || user.RegisterSource == "" || user.RegisterSource == RegisterSourceAdmin {
 		return nil
 	}
-	if err := CheckRegistrationEmail(user.Email); err != nil {
+	if err := CheckRegistrationEmail(user.Email, user.RegisterSource); err != nil {
 		return err
 	}
 	return TakeRegistrationRiskSlot(tx, "register-ip", RegistrationRiskNetwork(user.RegisterIp), p.RegistrationIPDaily, 86400)

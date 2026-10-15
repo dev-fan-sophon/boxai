@@ -283,7 +283,7 @@ func SendEmailVerification(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	if err := model.CheckRegistrationEmail(email); err != nil {
+	if err := model.CheckRegistrationEmail(email, model.RegisterSourcePassword); err != nil {
 		common.ApiError(c, err)
 		return
 	}
