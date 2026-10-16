@@ -20,6 +20,15 @@
       "body": "Nhóm mã HTTP | Status | Ý nghĩa | Hành động | | | | | | 400, 422 | Input không hợp lệ | Sửa request; không retry nguyên trạng | | 401, 403 | Auth hoặc quyền | Kiểm tra key và quyền model | | 429 | Rate limit | Tôn trọng nếu có; giảm concurrency | | 500, 502, 503, 504 | Lỗi tạm thời | Chỉ retry nếu thao tác an toàn khi lặp lại | Chính sách retry an toàn Chỉ retry request idempotent hoặc có cơ chế idempotency. Không tự động retry lỗi xác thực, quyền hoặc validation. Dùng exponential backoff có giới hạn kèm jitter, tôn trọng , và giới hạn số lần thử. Hủy retry khi hết deadline hoặc . Rate limit Khi nhận 429 : 1. Back off theo hoặc chính sách client. 2. Giảm số request song song. 3. Kiểm tra để tìm key nóng hoặc vòng lặp. Tiếp theo"
     },
     {
+      "id": "api/files",
+      "path": "/docs/api/files",
+      "title": "Tệp và tham chiếu media",
+      "summary": "Tải ảnh, video và audio của bạn lên một lần, rồi tham chiếu bằng file id trong mọi yêu cầu tạo nội dung.",
+      "section": "api",
+      "headings": "Vì sao nên tải lên thay vì nhúng trực tiếp Tải tệp lên Dùng tệp trong yêu cầu Truy vấn, liệt kê, tải về, xoá Lưu trữ và thời hạn",
+      "body": "Vì sao nên tải lên thay vì nhúng trực tiếp Yêu cầu tạo nội dung nhận media dưới dạng URL HTTPS công khai hoặc handle của API này. Gửi bytes bên trong JSON (URL base64) chính là nguyên nhân làm request vượt giới hạn body của upstream: nhà cung cấp video từ chối body lớn hơn 64 MB bằng lỗi , và bên bán lại có thể báo thành lỗi gateway chung. Hãy tải lên một lần, rồi truyền handle. Handle thuộc sở hữu của tài khoản: chỉ user của API key mới đọc, tải hoặc xoá được. Tải tệp lên Bắt buộc dùng với field . được nhận để tương thích OpenAI; purpose trả về suy ra từ kiểu nội dung đã nhận diện ( cho ảnh, , , cho tài liệu). MIME khai báo chỉ là gợi ý — nội dung được nhận diện thực tế, kiểu không hỗ trợ sẽ bị trả . Giới hạn dung lượng theo loại: | Loại | Giới hạn | | | | | ảnh | 10 MB | | video | 200 MB | | audio | 20 MB | | tài liệu | 20 MB | Dùng tệp trong yêu cầu Truyền handle ở bất kỳ chỗ nào nhận URL media — gateway sẽ tự thay bằng URL ngắn hạn mà nhà cung cấp đọc được: Hỗ trợ trên yêu cầu video ( , , , ) cho / , , , , , , , và trên yêu cầu ảnh ( , ) cho , , . Handle không tồn tại hoặc thuộc tài khoản khác sẽ trả trước khi trừ quota. Truy vấn, liệt kê, tải về, xoá Xoá tệp sẽ xoá cả bản ghi và object đã lưu; phản hồi là . Lưu trữ và thời hạn Tệp nằm trong object storage của BoxAI chừng nào tài khoản còn giữ, không phải 24 giờ: handle luôn hợp lệ, và gateway tạo URL mới cho nhà cung cấp ở mỗi yêu cầu. Tham chiếu được gửi dưới dạng liên kết có chữ ký, nên tệp của bạn không bị công khai."
+    },
+    {
       "id": "api/overview",
       "path": "/docs/api/overview",
       "title": "Tổng quan API",
@@ -36,6 +45,15 @@
       "section": "api",
       "headings": "Server-sent events Hủy và dọn dẹp Tiếp theo",
       "body": "Server sent events Với endpoint HTTP OpenAI compatible, bật streaming trong payload và đọc từng khung SSE khi tới. Khung data chứa kết thúc stream. Đừng giả định mọi protocol dùng cùng hình dạng sự kiện. OpenAI compatible, Claude và Gemini có chunk và sự kiện kết thúc riêng. Xem trang protocol tương ứng trong sidebar. Hủy và dọn dẹp Dùng để hủy fetch khi người dùng rời trang, dừng sinh, hoặc hết hạn. Ngừng parse, nhả reader, và phân biệt abort chủ động với lỗi mạng. Tiếp theo"
+    },
+    {
+      "id": "api/video-generation",
+      "path": "/docs/api/video-generation",
+      "title": "Tạo video (Seedance)",
+      "summary": "Gửi, theo dõi và tải tác vụ video Seedance, gồm ảnh/video/audio tham chiếu và khung đầu–cuối.",
+      "section": "api",
+      "headings": "Model Gửi tác vụ Tham số Theo dõi và tải về Lỗi",
+      "body": "Model | Model ID | Thời lượng | Độ phân giải | Ảnh / video / audio tham chiếu | | | | | | | | 4–30 s | 720p, 1080p | 30 / 10 / 10 | | | 4–15 s | 720p, 1080p | 9 / 3 / 3 | | | 4–15 s | 720p | 9 / 3 / 3 | | | 4–15 s | 720p | 9 / 3 / 3 | Với Seedance 2.5, audio có thể được tham chiếu độc lập; với dòng 2.0, audio tham chiếu cần đi kèm ảnh hoặc video. Gửi tác vụ nghĩa là tác vụ đã được nhận, chưa có video. Hãy giữ lại . Tham số | Field | Kiểu | Ghi chú | | | | | | | string | Một trong các model ID ở trên | | | string | Bắt buộc. Mô tả bối cảnh, chuyển động, góc máy, ánh sáng | | / | integer | Số giây đầu ra; theo khoảng của từng model | | | string | , , , hoặc dùng | | | string | , , , , , | | | string | hoặc ; mặc định theo | | | boolean | Âm thanh đồng bộ gốc (mặc định bật) | | | integer | Tạo lại kết quả ổn định | | | boolean | Watermark của nhà cung cấp | | / | string \\| array | Ảnh thành video: khung đầu (tối đa 9 ảnh với 2.0, 30 với 2.5) | | / | string | Sinh theo khung; với Seedance 2.5 phải dùng | | | array | Ảnh tham chiếu, gọi bằng , , … | | | array | Video tham chiếu, gọi bằng , … | | | array | Audio tham chiếu, gọi bằng , … | Media có thể là URL HTTPS công khai hoặc handle từ . Media tham chiếu và khung đầu/cuối loại trừ nhau. Không nhúng base64: body vượt 64 MB sẽ bị trả trước khi gọi nhà cung cấp. Theo dõi và tải về Nên hỏi trạng thái mỗi 5–15 giây. Clip 720p dài 5 giây thường mất 3–7 phút; trạng thái đi từ → → , tác vụ lỗi trả . Luôn tải tệp hoàn thành về và kiểm tra lại thời lượng, độ phân giải thực tế. Sau khi timeout, hãy hỏi lại đúng đó — không gửi lại tác vụ đã có. Lỗi | Mã | Ý nghĩa | Cách xử lý | | | | | | | Tham số sai, tổ hợp không hỗ trợ, hoặc không tồn tại | Sửa yêu cầu; chưa bị trừ phí | | / | Thiếu key, tài khoản bị khoá, hoặc hết quota | Kiểm tra key và số dư | | | Body quá lớn | Gửi media dạng URL hoặc file handle, không base64 | | | Bị giới hạn tần suất | Chờ và thử lại với backoff | | | Nhà cung cấp từ chối nhận tác vụ | Thử lại với backoff; gateway đã tự thử lại trước khi trả lỗi | Tính phí theo token video đã tạo và quyết toán khi tác vụ xong; tác vụ lỗi được hoàn tiền. Xem thêm ."
     },
     {
       "id": "clients/codex-desktop",

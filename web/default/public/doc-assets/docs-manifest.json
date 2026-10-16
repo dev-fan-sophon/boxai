@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T20:15:34.442Z",
+  "generatedAt": "2026-10-16T15:58:28.773Z",
   "version": 1,
   "pages": [
     {
@@ -464,6 +464,88 @@
         {
           "id": "next",
           "text": "Next",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/files",
+      "href": "/docs/api/files",
+      "locale": "en",
+      "title": "Files and media references",
+      "summary": "Upload your own images, videos, and audio once, then reference them by file id in any generation request.",
+      "section": "api",
+      "order": 50,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "headings": [
+        {
+          "id": "why-upload-instead-of-inlining",
+          "text": "Why upload instead of inlining",
+          "level": 2
+        },
+        {
+          "id": "upload-a-file",
+          "text": "Upload a file",
+          "level": 2
+        },
+        {
+          "id": "use-a-file-in-a-request",
+          "text": "Use a file in a request",
+          "level": 2
+        },
+        {
+          "id": "retrieve-list-download-delete",
+          "text": "Retrieve, list, download, delete",
+          "level": 2
+        },
+        {
+          "id": "storage-and-lifetime",
+          "text": "Storage and lifetime",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/video-generation",
+      "href": "/docs/api/video-generation",
+      "locale": "en",
+      "title": "Video generation (Seedance)",
+      "summary": "Submit, poll, and download Seedance video tasks, including reference images, videos, audio, and first/last frames.",
+      "section": "api",
+      "order": 60,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "headings": [
+        {
+          "id": "models",
+          "text": "Models",
+          "level": 2
+        },
+        {
+          "id": "submit-a-task",
+          "text": "Submit a task",
+          "level": 2
+        },
+        {
+          "id": "parameters",
+          "text": "Parameters",
+          "level": 3
+        },
+        {
+          "id": "poll-and-download",
+          "text": "Poll and download",
+          "level": 2
+        },
+        {
+          "id": "errors",
+          "text": "Errors",
           "level": 2
         }
       ],
