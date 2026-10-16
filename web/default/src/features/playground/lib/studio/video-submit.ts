@@ -70,7 +70,10 @@ export function buildPlaygroundVideoSubmitInput(input: {
     model: input.model,
     group: input.group,
     prompt: input.prompt,
-    settings: { ...(input.settings ?? DEFAULT_STUDIO_SETTINGS), videoReferenceMode: referenceMode },
+    settings: {
+      ...(input.settings ?? DEFAULT_STUDIO_SETTINGS),
+      videoReferenceMode: referenceMode,
+    },
     aspectRatio: options.aspectRatio,
     resolution: options.resolution,
     duration: options.duration,

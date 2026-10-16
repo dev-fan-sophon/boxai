@@ -91,8 +91,7 @@ export function VideoParamChips(props: {
         onChange={(aspectRatio) => persist({ videoAspectRatio: aspectRatio })}
         options={capabilities.aspectRatios.map((ratio) => ({
           value: ratio,
-          label:
-            ratio === 'adaptive' ? adaptiveLabel : ratioLabel(ratio),
+          label: ratio === 'adaptive' ? adaptiveLabel : ratioLabel(ratio),
           glyph: <AspectGlyph size={ratio} />,
         }))}
       />
