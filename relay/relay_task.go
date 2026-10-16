@@ -147,6 +147,10 @@ func ResolveOriginTask(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskErr
 func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitResult, *dto.TaskError) {
 	info.InitChannelMeta(c)
 
+	if taskErr := resolveTaskFileReferences(c); taskErr != nil {
+		return nil, taskErr
+	}
+
 	// 1. 确定 platform → 创建适配器 → 验证请求
 	platform := constant.TaskPlatform(c.GetString("platform"))
 	if platform == "" {
@@ -281,6 +285,36 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		Platform:       platform,
 		Quota:          finalQuota,
 	}, nil
+}
+
+// resolveTaskFileReferences swaps `file-<id>` handles uploaded through
+// POST /v1/files for URLs the upstream provider can fetch. It runs before the
+// adaptor validates or serialises the request, so every video platform accepts
+// handles exactly where it accepts a media URL.
+func resolveTaskFileReferences(c *gin.Context) *dto.TaskError {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		// The request is parsed again later, with its own error.
+		return nil
+	}
+	userID := c.GetInt("id")
+	lists := []*[]string{&req.Images, &req.ReferenceImages, &req.ReferenceVideos, &req.ReferenceAudios}
+	for _, list := range lists {
+		resolved, resolveErr := service.ResolveFileReferences(userID, *list)
+		if resolveErr != nil {
+			return service.TaskErrorWrapperLocal(resolveErr, "invalid_request", http.StatusBadRequest)
+		}
+		*list = resolved
+	}
+	for _, field := range []*string{&req.FirstFrame, &req.LastFrame, &req.InputReference} {
+		resolved, resolveErr := service.ResolveFileReference(userID, *field)
+		if resolveErr != nil {
+			return service.TaskErrorWrapperLocal(resolveErr, "invalid_request", http.StatusBadRequest)
+		}
+		*field = resolved
+	}
+	c.Set("task_request", req)
+	return nil
 }
 
 // playgroundFrameMetadataKeys are injected by first_frame / last_frame

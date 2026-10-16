@@ -554,6 +554,11 @@ func RelayTaskFetch(c *gin.Context) {
 	}
 }
 
+// maxTaskRequestBodyBytes mirrors Ark's create-task body limit (64 MB). Media
+// must travel as URLs or file ids, never inlined: the upstream answers a larger
+// body with 413, and a reseller may report that as a retryable gateway error.
+const maxTaskRequestBodyBytes = 64 << 20
+
 func RelayTask(c *gin.Context) {
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
@@ -620,6 +625,17 @@ func RelayTask(c *gin.Context) {
 			} else {
 				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusBadRequest)
 			}
+			break
+		}
+		// Ark rejects a create-task body over 64 MB with 413, which its resellers
+		// may surface as a retryable gateway error. Fail here instead: the size is
+		// a property of the request, so every attempt would fail the same way.
+		if size := bodyStorage.Size(); size > maxTaskRequestBodyBytes {
+			taskErr = service.TaskErrorWrapperLocal(
+				fmt.Errorf("request body is %d bytes; media references must be URLs or file ids (limit %d bytes)", size, maxTaskRequestBodyBytes),
+				"request_too_large",
+				http.StatusRequestEntityTooLarge,
+			)
 			break
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)

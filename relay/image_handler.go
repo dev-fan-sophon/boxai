@@ -2,6 +2,7 @@ package relay
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,6 +33,14 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	request, err := common.DeepCopy(imageReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to ImageRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
+	}
+	// `file-<id>` handles from POST /v1/files stand in for reference media.
+	for _, field := range []*json.RawMessage{&request.Image, &request.Images, &request.Mask} {
+		resolved, resolveErr := service.ResolveFileReferencesInJSON(c.GetInt("id"), *field)
+		if resolveErr != nil {
+			return types.NewErrorWithStatusCode(resolveErr, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+		}
+		*field = resolved
 	}
 
 	err = helper.ModelMappedHelper(c, info, request)

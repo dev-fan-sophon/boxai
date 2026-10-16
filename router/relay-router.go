@@ -111,6 +111,17 @@ func SetRelayRouter(router *gin.Engine) {
 		// so a long-lived connection never holds a rate-limit lease.
 		relayV1Router.GET("/responses", controller.ResponsesWebSocket)
 	}
+	{
+		// Files API: client-supplied media for generation requests. No channel
+		// selection and no model rate limit — uploads are bounded by their own
+		// limit and the per-kind size caps.
+		filesRouter := relayV1Router.Group("/files")
+		filesRouter.POST("", middleware.UploadRateLimit(), controller.UploadFile)
+		filesRouter.GET("", controller.ListFiles)
+		filesRouter.GET("/:id", controller.GetFile)
+		filesRouter.DELETE("/:id", controller.DeleteFile)
+		filesRouter.GET("/:id/content", controller.DownloadFile)
+	}
 	relayV1Router.Use(middleware.ModelRequestRateLimit())
 	{
 		// WebSocket 路由（统一到 Relay）
@@ -207,11 +218,6 @@ func SetRelayRouter(router *gin.Engine) {
 
 		// not implemented
 		httpRouter.POST("/images/variations", controller.RelayNotImplemented)
-		httpRouter.GET("/files", controller.RelayNotImplemented)
-		httpRouter.POST("/files", controller.RelayNotImplemented)
-		httpRouter.DELETE("/files/:id", controller.RelayNotImplemented)
-		httpRouter.GET("/files/:id", controller.RelayNotImplemented)
-		httpRouter.GET("/files/:id/content", controller.RelayNotImplemented)
 		httpRouter.POST("/fine-tunes", controller.RelayNotImplemented)
 		httpRouter.GET("/fine-tunes", controller.RelayNotImplemented)
 		httpRouter.GET("/fine-tunes/:id", controller.RelayNotImplemented)
