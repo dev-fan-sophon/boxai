@@ -311,7 +311,7 @@ func CountTokenRealtime(info *relaycommon.RelayInfo, request dto.RealtimeEvent, 
 		}
 	case dto.RealtimeEventResponseAudioDelta:
 		// count audio token
-		atk, err := CountAudioTokenOutput(request.Delta, info.OutputAudioFormat)
+		atk, err := CountAudioTokenOutput(request.Delta, info.OutputAudioFormat, &info.OutputAudioTokenRemainder)
 		if err != nil {
 			return 0, 0, fmt.Errorf("error counting audio token: %v", err)
 		}
@@ -322,7 +322,7 @@ func CountTokenRealtime(info *relaycommon.RelayInfo, request dto.RealtimeEvent, 
 		textToken += tkm
 	case dto.RealtimeEventInputAudioBufferAppend:
 		// count audio token
-		atk, err := CountAudioTokenInput(request.Audio, info.InputAudioFormat)
+		atk, err := CountAudioTokenInput(request.Audio, info.InputAudioFormat, &info.InputAudioTokenRemainder)
 		if err != nil {
 			return 0, 0, fmt.Errorf("error counting audio token: %v", err)
 		}
@@ -374,7 +374,7 @@ func CountTokenInput(input any, model string) int {
 	return CountTokenInput(fmt.Sprintf("%v", input), model)
 }
 
-func CountAudioTokenInput(audioBase64 string, audioFormat string) (int, error) {
+func CountAudioTokenInput(audioBase64 string, audioFormat string, remainder *float64) (int, error) {
 	if audioBase64 == "" {
 		return 0, nil
 	}
@@ -383,10 +383,10 @@ func CountAudioTokenInput(audioBase64 string, audioFormat string) (int, error) {
 		return 0, err
 	}
 	// duration 来自用户提供的音频元数据，饱和转换防止 int 回绕
-	return common.QuotaFromFloat(duration / 60 * 100 / 0.06), nil
+	return audioTokens(duration/60*100/0.06, remainder), nil
 }
 
-func CountAudioTokenOutput(audioBase64 string, audioFormat string) (int, error) {
+func CountAudioTokenOutput(audioBase64 string, audioFormat string, remainder *float64) (int, error) {
 	if audioBase64 == "" {
 		return 0, nil
 	}
@@ -395,7 +395,21 @@ func CountAudioTokenOutput(audioBase64 string, audioFormat string) (int, error) 
 		return 0, err
 	}
 	// duration 来自上游返回的音频元数据，饱和转换防止 int 回绕
-	return common.QuotaFromFloat(duration / 60 * 200 / 0.24), nil
+	return audioTokens(duration/60*200/0.24, remainder), nil
+}
+
+// audioTokens turns an exact token count into whole tokens. The fractional part is
+// handed to the next chunk through remainder, so a stream cut into many chunks bills
+// the same as the same audio sent in one piece instead of losing the fraction of
+// every chunk to truncation.
+func audioTokens(exact float64, remainder *float64) int {
+	if remainder == nil {
+		return common.QuotaFromFloat(exact)
+	}
+	total := exact + *remainder
+	whole := math.Floor(total)
+	*remainder = total - whole
+	return common.QuotaFromFloat(whole)
 }
 
 // CountTextToken 统计文本的token数量，仅OpenAI模型使用tokenizer，其余模型使用估算
