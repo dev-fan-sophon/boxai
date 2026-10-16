@@ -18,6 +18,7 @@
 - [Files and media references](https://you-box.com/docs/api/files): Upload your own images, videos, and audio once, then reference them by file id in any generation request.
 - [Video generation (Seedance)](https://you-box.com/docs/api/video-generation): Submit, poll, and download Seedance video tasks, including reference images, videos, audio, and first/last frames.
 - [Live transcription](https://you-box.com/docs/api/live-transcription): Stream PCM audio over a WebSocket and receive incremental transcripts from gpt-live-transcribe.
+- [Realtime voice](https://you-box.com/docs/api/realtime-voice): Speak with gpt-realtime-2.1 over a WebSocket and get spoken answers back.
 - [Get started with BoxAI Desktop](https://you-box.com/docs/clients/desktop): Install the desktop agent, sign in to BoxAI, and work safely with projects, models and tools.
 - [Install and open BoxAI Desktop](https://you-box.com/docs/clients/desktop/install): Download the right installer and handle first-open security warnings safely on macOS and Windows.
 - [Sign in to BoxAI Desktop](https://you-box.com/docs/clients/desktop/sign-in): Authorize the desktop app with your BoxAI account and keep account access private.

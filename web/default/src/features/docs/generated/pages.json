@@ -215,6 +215,50 @@
       ],
       "body": "## Base URL\n\n\n\n<figure class=\"doc-figure\"><img src=\"/doc-assets/screenshots/auth/sign-in.en.webp\" alt=\"Sign-in to BoxAI\" loading=\"lazy\" /><figcaption>Create an account or sign in before issuing API keys</figcaption></figure>\n\n\n\nProduction host:\n\n```text\nhttps://you-box.com\n```\n\nOpenAI-compatible chat example path:\n\n```text\nhttps://you-box.com/v1/chat/completions\n```\n\nAlways call **BoxAI**, not an upstream provider URL, when you intend to use BoxAI keys and billing.\n\n## Protocol profiles\n\nBoxAI exposes multiple integration profiles (OpenAI Chat, Responses, Claude Messages, Gemini, embeddings, images, audio, and more). Each profile documents:\n\n- HTTP method and gateway path template\n- Auth header scheme\n- Streaming support\n- Ready-to-copy samples (cURL, Python, TypeScript, JavaScript)\n\nBrowse protocol pages in the **API** section of the sidebar. They are generated from the live integration catalog.\n\n## Model IDs\n\nUse exact IDs from [Model Hub](/pricing). Availability can depend on your group.\n\n## Related guides\n\n- [Authentication](/docs/api/auth)\n- [Streaming](/docs/api/streaming)\n- [Errors and rate limits](/docs/api/errors)\n- [Getting started](/docs/start/getting-started)\n"
     },
+    "api/realtime-voice": {
+      "path": "api/realtime-voice",
+      "locale": "en",
+      "title": "Realtime voice",
+      "summary": "Speak with gpt-realtime-2.1 over a WebSocket and get spoken answers back.",
+      "section": "api",
+      "order": 72,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "session",
+          "text": "Session",
+          "level": 2
+        },
+        {
+          "id": "audio-and-turns",
+          "text": "Audio and turns",
+          "level": 2
+        },
+        {
+          "id": "conversation-state",
+          "text": "Conversation state",
+          "level": 2
+        },
+        {
+          "id": "billing",
+          "text": "Billing",
+          "level": 2
+        },
+        {
+          "id": "notes",
+          "text": "Notes",
+          "level": 2
+        }
+      ],
+      "body": "## Session\n\nRealtime voice is a duplex WebSocket session: audio flows both ways on one socket.\n\n```text\nwss://you-box.com/v1/realtime?model=gpt-realtime-2.1\nAuthorization: Bearer <BOXAI_API_KEY>\n```\n\nClients that prefer the OpenAI convention can send the key as a subprotocol instead:\n`Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<BOXAI_API_KEY>`.\n\nThe gateway answers with `session.created`. Configure the session once with `session.update`:\n\n```json\n{\n  \"type\": \"session.update\",\n  \"session\": {\n    \"type\": \"realtime\",\n    \"instructions\": \"You are a helpful voice assistant.\",\n    \"output_modalities\": [\"audio\"],\n    \"audio\": {\n      \"input\": { \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 } },\n      \"output\": { \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 }, \"voice\": \"alloy\" }\n    }\n  }\n}\n```\n\nSet `output_modalities` to `[\"text\"]` for a text-only assistant. Anything the session\ndoes not accept is reported as an `error` event on the same socket.\n\n## Audio and turns\n\nAudio is **PCM16 mono at 24 kHz**, base64-encoded, appended in chunks:\n\n| Event                       | Meaning                                                       |\n| --------------------------- | ------------------------------------------------------------- |\n| `input_audio_buffer.append` | `audio` — base64 PCM16 chunk of the current turn              |\n| `input_audio_buffer.commit` | Ends the turn so the model can answer                         |\n| `response.create`           | Asks for a response (omit it to let server VAD drive turns)   |\n| `response.cancel`           | Interrupts the response that is being generated               |\n\nWith `turn_detection` left at its default, the server detects the end of speech itself and\nstarts a response; commit manually when your client does its own voice detection. Model\noutput arrives as `response.output_audio.delta` (base64 PCM16) plus\n`response.output_audio_transcript.delta` text, and each turn closes with `response.done`.\n\n## Conversation state\n\nThe server keeps the conversation, so follow-up turns only send new audio:\n\n| Event                    | Meaning                                                                 |\n| ------------------------ | ----------------------------------------------------------------------- |\n| `conversation.item.create` | Adds a text message or a tool result to the conversation              |\n| `conversation.item.truncate` | Cuts a played answer short so the model's state matches what was heard |\n| `session.update`         | Changes instructions, voice, tools, or formats mid-session             |\n\nTool calls arrive as `response.function_call_arguments.done`; answer them with a\n`conversation.item.create` of type `function_call_output` followed by `response.create`.\n\n## Billing\n\nA realtime turn is billed from the token usage the upstream reports for it, split into\ntext and audio: audio is 1666.67 input tokens per minute and 833.33 output tokens per\nminute, charged at the model's audio ratio. The usage is settled when `response.done`\narrives, and the `usage` object in that event shows the tokens charged for the turn.\n\n## Notes\n\n- Keep one socket per conversation; reconnect only to start a new one.\n- Realtime sessions are stateful — re-send `session.update` after a reconnect.\n- For speech-to-text only, use [Live transcription](/docs/api/live-transcription); for\n  one-shot answers use `POST /v1/chat/completions`.\n"
+    },
     "api/streaming": {
       "path": "api/streaming",
       "locale": "en",
@@ -1674,6 +1718,50 @@
         }
       ],
       "body": "## Base URL\n\n\n\n<figure class=\"doc-figure\"><img src=\"/doc-assets/screenshots/auth/sign-in.en.webp\" alt=\"Sign-in to BoxAI\" loading=\"lazy\" /><figcaption>Create an account or sign in before issuing API keys</figcaption></figure>\n\n\n\nHost production:\n\n```text\nhttps://you-box.com\n```\n\nVí dụ path chat OpenAI-compatible:\n\n```text\nhttps://you-box.com/v1/chat/completions\n```\n\nLuôn gọi **BoxAI**, không gọi URL upstream, khi bạn muốn dùng key và billing của BoxAI.\n\n## Protocol profile\n\nBoxAI cung cấp nhiều profile tích hợp (OpenAI Chat, Responses, Claude Messages, Gemini, embeddings, images, audio, …). Mỗi profile mô tả:\n\n- Method HTTP và path template trên gateway\n- Scheme header xác thực\n- Hỗ trợ streaming\n- Mẫu sao chép sẵn (cURL, Python, TypeScript, JavaScript)\n\nDuyệt các trang protocol trong mục **API** ở sidebar. Chúng được tạo từ catalog tích hợp thực tế.\n\n## Model ID\n\nDùng đúng ID từ [Model Hub](/pricing). Khả dụng có thể phụ thuộc group.\n\n## Tài liệu liên quan\n\n- [Xác thực](/docs/api/auth)\n- [Streaming](/docs/api/streaming)\n- [Lỗi và rate limit](/docs/api/errors)\n- [Bắt đầu](/docs/start/getting-started)\n"
+    },
+    "api/realtime-voice": {
+      "path": "api/realtime-voice",
+      "locale": "vi",
+      "title": "Giọng nói thời gian thực",
+      "summary": "Nói chuyện với gpt-realtime-2.1 qua WebSocket và nhận câu trả lời dạng giọng nói.",
+      "section": "api",
+      "order": 72,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "phien",
+          "text": "Phiên",
+          "level": 2
+        },
+        {
+          "id": "audio-va-luot",
+          "text": "Audio và lượt",
+          "level": 2
+        },
+        {
+          "id": "trang-thai-hoi-thoai",
+          "text": "Trạng thái hội thoại",
+          "level": 2
+        },
+        {
+          "id": "tinh-phi",
+          "text": "Tính phí",
+          "level": 2
+        },
+        {
+          "id": "luu-y",
+          "text": "Lưu ý",
+          "level": 2
+        }
+      ],
+      "body": "## Phiên\n\nGiọng nói thời gian thực là một phiên WebSocket hai chiều: audio đi cả hai hướng trên cùng một socket.\n\n```text\nwss://you-box.com/v1/realtime?model=gpt-realtime-2.1\nAuthorization: Bearer <BOXAI_API_KEY>\n```\n\nClient theo chuẩn OpenAI có thể gửi key qua subprotocol:\n`Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<BOXAI_API_KEY>`.\n\nGateway trả `session.created`. Cấu hình phiên một lần bằng `session.update`:\n\n```json\n{\n  \"type\": \"session.update\",\n  \"session\": {\n    \"type\": \"realtime\",\n    \"instructions\": \"Bạn là trợ lý giọng nói hữu ích.\",\n    \"output_modalities\": [\"audio\"],\n    \"audio\": {\n      \"input\": { \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 } },\n      \"output\": { \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 }, \"voice\": \"alloy\" }\n    }\n  }\n}\n```\n\nĐặt `output_modalities` thành `[\"text\"]` nếu chỉ cần trợ lý trả lời bằng văn bản. Mọi cấu\nhình không được chấp nhận sẽ trả về event `error` trên chính socket đó.\n\n## Audio và lượt\n\nAudio là **PCM16 mono 24 kHz**, mã hoá base64, gửi theo từng khối:\n\n| Event                       | Ý nghĩa                                                        |\n| --------------------------- | -------------------------------------------------------------- |\n| `input_audio_buffer.append` | `audio` — khối PCM16 base64 của lượt hiện tại                  |\n| `input_audio_buffer.commit` | Kết thúc lượt để model trả lời                                 |\n| `response.create`           | Yêu cầu một câu trả lời (bỏ qua nếu để server VAD điều khiển) |\n| `response.cancel`           | Ngắt câu trả lời đang được tạo                                 |\n\nKhi để `turn_detection` ở mặc định, server tự phát hiện kết thúc giọng nói và bắt đầu trả\nlời; hãy commit thủ công nếu client tự phát hiện giọng nói. Kết quả của model đến dưới dạng\n`response.output_audio.delta` (PCM16 base64) kèm văn bản\n`response.output_audio_transcript.delta`, và mỗi lượt kết thúc bằng `response.done`.\n\n## Trạng thái hội thoại\n\nServer giữ hội thoại, nên các lượt tiếp theo chỉ cần gửi audio mới:\n\n| Event                       | Ý nghĩa                                                                     |\n| --------------------------- | --------------------------------------------------------------------------- |\n| `conversation.item.create`  | Thêm tin nhắn văn bản hoặc kết quả tool vào hội thoại                       |\n| `conversation.item.truncate` | Cắt ngắn câu trả lời đã phát để trạng thái của model khớp với phần đã nghe |\n| `session.update`            | Đổi instructions, voice, tools hoặc format giữa phiên                       |\n\nTool call đến dưới dạng `response.function_call_arguments.done`; trả lời bằng\n`conversation.item.create` kiểu `function_call_output` rồi gửi `response.create`.\n\n## Tính phí\n\nMỗi lượt được tính theo token usage mà upstream báo về, tách thành văn bản và audio: audio là\n1666,67 token đầu vào mỗi phút và 833,33 token đầu ra mỗi phút, tính theo tỷ lệ audio của\nmodel. Phí được quyết toán khi `response.done` đến, và object `usage` trong event đó cho biết\nsố token đã tính cho lượt.\n\n## Lưu ý\n\n- Giữ một socket cho mỗi hội thoại; chỉ kết nối lại khi bắt đầu hội thoại mới.\n- Phiên realtime có trạng thái — gửi lại `session.update` sau khi kết nối lại.\n- Nếu chỉ cần chuyển giọng nói thành văn bản, dùng [Phiên âm trực tiếp](/docs/api/live-transcription);\n  nếu cần trả lời một lần, dùng `POST /v1/chat/completions`.\n"
     },
     "api/streaming": {
       "path": "api/streaming",

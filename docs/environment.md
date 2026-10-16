@@ -164,36 +164,54 @@ curl -fsS -H "Authorization: Bearer $ROLLDEK_ACCESS_TOKEN" -H "New-Api-User: $RO
 
 ---
 
-## 3. Origin AI relay (upstream for OpenAI-native models)
+## 3. OpenAI native realtime (direct channel)
 
-OriginGame's AI gateway is an upstream for models BoxAI does not reach through its other
-channels. BoxAI channel **43 `origin-openai-native`** points at it:
+The OpenAI-native realtime models are served by a channel that calls OpenAI directly with the
+same key the embedding channel uses:
 
 | | |
 |--|--|
-| Base | `https://api.origingame.dev` (`OG_AI_GATEWAY`) |
-| Key | `OG_PLATFORM_DEVELOPMENT_KEY` (also the Origin MCP credential) |
-| Model | `gpt-live-transcribe` (realtime transcription, `ModelRatio` 6.12) |
-| Origin side | provider **8 `openai-embeddings`** (type OpenAI) is the OpenAI-native channel behind it |
+| Channel | **44 `openai-native-realtime`** (type OpenAI, priority 30) |
+| Base | `https://api.openai.com` |
+| Key | the `sk-proj-…` key of channel 23 `openai-embeddings` (never printed; read it from the production database if a channel needs it again) |
+| Models | `gpt-realtime-2.1` (duplex voice), `gpt-live-transcribe` (live transcription) |
+| Fallback | channel **43 `origin-openai-native`** (`OG_AI_GATEWAY`) serves `gpt-live-transcribe` at lower priority |
 
-Live transcription is a WebSocket relay, not a REST call:
+Channel **43 `origin-openai-native`** stays as the lower-priority fallback for live
+transcription; it points at OriginGame's AI gateway (`https://api.origingame.dev`,
+`OG_PLATFORM_DEVELOPMENT_KEY`).
+
+Both models are sold at OpenAI list price (no markup):
+
+| Model | Text in | Text out | Audio in | Audio out |
+|-------|---------|----------|----------|-----------|
+| `gpt-realtime-2.1` (`ModelRatio` 2, `CompletionRatio` 6, `AudioRatio` 8, `AudioCompletionRatio` 2) | $4 / 1M | $24 / 1M | $32 / 1M | $64 / 1M |
+| `gpt-live-transcribe` (`ModelRatio` 5.1) | – | – | $0.017 / minute | – |
+
+Duplex voice is a WebSocket session that takes the model in the query:
+
+```text
+wss://you-box.com/v1/realtime?model=gpt-realtime-2.1
+Authorization: Bearer <BoxAI key>
+```
+
+Live transcription is a WebSocket session whose model only routes and bills the request:
 
 ```text
 wss://you-box.com/v1/realtime?intent=transcription&model=gpt-live-transcribe
 Authorization: Bearer <BoxAI key>        # or Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<key>
 ```
 
-Origin requires exactly `intent=transcription&model=gpt-live-transcribe`, PCM16/24kHz mono, one
-manual-commit turn at a time, at most 60 seconds of audio per turn; it settles each turn on the
-upstream `usage.duration`. BoxAI bills the same audio as tokens (1666.67 tokens per minute,
-ratio 6.12 ≈ $0.0204/min against Origin's $0.017/min).
+The Realtime API rejects a `model` query parameter for transcription sessions
+("You must not provide a model parameter for transcription sessions"), so the gateway drops it
+from the upstream URL (`GenRelayInfoWs` in `relay/common/relay_info.go`) while keeping it for
+routing and billing. Audio is **PCM16/24 kHz mono**, committed one turn at a time (at most 60
+seconds per turn upstream); the model comes from the session configuration
+(`audio.input.transcription.model`), not from the URL.
 
-`gpt-realtime-2.1` (duplex voice realtime) is catalogued on Origin (catalog id 145) and listed on
-provider 8, but Origin's relay only implements the transcription intent
-(`ai-gateway/internal/relay/transcription_live.go` hardcodes it, and there is no
-`/v1/realtime/sessions` route), so BoxAI cannot serve it yet. BoxAI's own realtime relay already
-speaks the OpenAI Realtime protocol, so once Origin adds a duplex realtime route the model only
-needs to be added to channel 43.
+Audio is billed from tokens: 1666.67 input tokens and 833.33 output tokens per minute, with the
+fraction of a chunk carried into the next one (`audioTokens` in `service/token_counter.go`), so
+the charge tracks the audio duration no matter how small the client's chunks are.
 
 ---
 

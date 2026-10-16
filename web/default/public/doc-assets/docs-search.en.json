@@ -47,6 +47,15 @@
       "body": "Base URL Production host: OpenAI compatible chat example path: Always call BoxAI , not an upstream provider URL, when you intend to use BoxAI keys and billing. Protocol profiles BoxAI exposes multiple integration profiles (OpenAI Chat, Responses, Claude Messages, Gemini, embeddings, images, audio, and more). Each profile documents: HTTP method and gateway path template Auth header scheme Streaming support Ready to copy samples (cURL, Python, TypeScript, JavaScript) Browse protocol pages in the API section of the sidebar. They are generated from the live integration catalog. Model IDs Use exact IDs from . Availability can depend on your group. Related guides"
     },
     {
+      "id": "api/realtime-voice",
+      "path": "/docs/api/realtime-voice",
+      "title": "Realtime voice",
+      "summary": "Speak with gpt-realtime-2.1 over a WebSocket and get spoken answers back.",
+      "section": "api",
+      "headings": "Session Audio and turns Conversation state Billing Notes",
+      "body": "Session Realtime voice is a duplex WebSocket session: audio flows both ways on one socket. Clients that prefer the OpenAI convention can send the key as a subprotocol instead: . The gateway answers with . Configure the session once with : Set to for a text only assistant. Anything the session does not accept is reported as an event on the same socket. Audio and turns Audio is PCM16 mono at 24 kHz , base64 encoded, appended in chunks: | Event | Meaning | | | | | | — base64 PCM16 chunk of the current turn | | | Ends the turn so the model can answer | | | Asks for a response (omit it to let server VAD drive turns) | | | Interrupts the response that is being generated | With left at its default, the server detects the end of speech itself and starts a response; commit manually when your client does its own voice detection. Model output arrives as (base64 PCM16) plus text, and each turn closes with . Conversation state The server keeps the conversation, so follow up turns only send new audio: | Event | Meaning | | | | | | Adds a text message or a tool result to the conversation | | | Cuts a played answer short so the model's state matches what was heard | | | Changes instructions, voice, tools, or formats mid session | Tool calls arrive as ; answer them with a of type followed by . Billing A realtime turn is billed from the token usage the upstream reports for it, split into text and audio: audio is 1666.67 input tokens per minute and 833.33 output tokens per minute, charged at the model's audio ratio. The usage is settled when arrives, and the object in that event shows the tokens charged for the turn. Notes Keep one socket per conversation; reconnect only to start a new one. Realtime sessions are stateful — re send after a reconnect. For speech to text only, use ; for one shot answers use ."
+    },
+    {
       "id": "api/streaming",
       "path": "/docs/api/streaming",
       "title": "Streaming",

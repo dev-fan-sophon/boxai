@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T16:37:58.056Z",
+  "generatedAt": "2026-10-16T17:02:34.087Z",
   "version": 1,
   "pages": [
     {
@@ -577,6 +577,47 @@
         {
           "id": "transcript-events",
           "text": "Transcript events",
+          "level": 2
+        },
+        {
+          "id": "billing",
+          "text": "Billing",
+          "level": 2
+        },
+        {
+          "id": "notes",
+          "text": "Notes",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/realtime-voice",
+      "href": "/docs/api/realtime-voice",
+      "locale": "en",
+      "title": "Realtime voice",
+      "summary": "Speak with gpt-realtime-2.1 over a WebSocket and get spoken answers back.",
+      "section": "api",
+      "order": 72,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "headings": [
+        {
+          "id": "session",
+          "text": "Session",
+          "level": 2
+        },
+        {
+          "id": "audio-and-turns",
+          "text": "Audio and turns",
+          "level": 2
+        },
+        {
+          "id": "conversation-state",
+          "text": "Conversation state",
           "level": 2
         },
         {
