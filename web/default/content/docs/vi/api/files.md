@@ -38,12 +38,12 @@ Bắt buộc dùng `multipart/form-data` với field `file`. `purpose` được 
 
 Giới hạn dung lượng theo loại:
 
-| Loại | Giới hạn |
-|------|----------|
-| ảnh | 10 MB |
-| video | 200 MB |
-| audio | 20 MB |
-| tài liệu | 20 MB |
+| Loại     | Giới hạn |
+| -------- | -------- |
+| ảnh      | 10 MB    |
+| video    | 200 MB   |
+| audio    | 20 MB    |
+| tài liệu | 20 MB    |
 
 ## Dùng tệp trong yêu cầu
 

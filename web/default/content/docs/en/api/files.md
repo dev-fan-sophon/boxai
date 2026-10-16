@@ -38,12 +38,12 @@ curl https://you-box.com/v1/files \
 
 Size caps per kind:
 
-| Kind | Cap |
-|------|-----|
-| image | 10 MB |
-| video | 200 MB |
-| audio | 20 MB |
-| document | 20 MB |
+| Kind     | Cap    |
+| -------- | ------ |
+| image    | 10 MB  |
+| video    | 200 MB |
+| audio    | 20 MB  |
+| document | 20 MB  |
 
 ## Use a file in a request
 
