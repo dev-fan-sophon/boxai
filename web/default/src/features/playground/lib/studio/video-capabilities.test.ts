@@ -9,6 +9,7 @@ import {
   videoDurationOptions,
   videoOptionsFromSize,
   videoSizeForOptions,
+  withReferenceVideoRatio,
   type VideoModelCapabilities,
 } from './video-capabilities'
 
@@ -110,5 +111,34 @@ describe('server video capability resolution', () => {
       }
     }
     expect(videoSizeForOptions('3:2', '480p')).toBe('720x480')
+  })
+})
+
+describe('withReferenceVideoRatio', () => {
+  const seedance25: VideoModelCapabilities = {
+    ...capabilities,
+    aspectRatios: ['16:9', '9:16', 'adaptive'],
+    defaults: { aspectRatio: '16:9', resolution: '720p', duration: 5 },
+    maxReferenceVideos: 10,
+  }
+
+  it('pins Seedance 2.5 to the reference video ratio', () => {
+    const pinned = withReferenceVideoRatio(seedance25, true)
+    expect(pinned?.aspectRatios).toEqual(['adaptive'])
+    expect(pinned?.defaults.aspectRatio).toBe('adaptive')
+    if (!pinned) throw new Error('expected a pinned profile')
+    expect(
+      resolveVideoOptions(pinned, { aspectRatio: '16:9', seconds: 5 })
+        .aspectRatio
+    ).toBe('adaptive')
+  })
+
+  it('keeps every ratio without a reference video and on other families', () => {
+    expect(withReferenceVideoRatio(seedance25, false)).toBe(seedance25)
+    const seedance20: VideoModelCapabilities = {
+      ...seedance25,
+      family: 'seedance-2',
+    }
+    expect(withReferenceVideoRatio(seedance20, true)).toBe(seedance20)
   })
 })

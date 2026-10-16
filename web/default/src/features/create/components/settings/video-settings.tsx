@@ -19,6 +19,7 @@ import {
   resolveVideoOptions,
   videoDurationOptions,
   videoResolutionsForRatio,
+  withReferenceVideoRatio,
   type VideoAspectRatio,
   type VideoResolution,
 } from '@/features/playground/lib/studio/video-capabilities'
@@ -35,6 +36,8 @@ import { SettingRow } from './setting-row'
  */
 export function VideoSettings(props: {
   videoMode?: 'text' | 'frames' | 'references'
+  /** Seedance 2.5 pins the ratio once a reference video is attached. */
+  hasReferenceVideo?: boolean
 }) {
   const { t } = useTranslation()
   const settings = usePlaygroundStore((state) => state.studioSettings)
@@ -50,7 +53,10 @@ export function VideoSettings(props: {
   // The mode is derived from attached media, so a non-text mode has some.
   const hasImage = mode !== 'text'
   const profiles = videoCapabilityQuery.data
-  const capabilities = profiles?.[mode]
+  const capabilities = withReferenceVideoRatio(
+    profiles?.[mode],
+    props.hasReferenceVideo === true
+  )
   if (!capabilities) {
     let message = t('This video mode is unavailable for the selected model.')
     if (!signedIn) {
@@ -120,7 +126,9 @@ export function VideoSettings(props: {
     capabilities.supportsSeed || capabilities.supportsWatermark
   )
   const ratioLabel = (ratio: VideoAspectRatio) =>
-    ratio === 'adaptive' ? t('Auto (match image)') : ratio
+    ratio === 'adaptive'
+      ? t(props.hasReferenceVideo ? 'Auto (match video)' : 'Auto (match image)')
+      : ratio
 
   return (
     <div className='space-y-3'>
@@ -143,7 +151,11 @@ export function VideoSettings(props: {
         {capabilities.aspectRatios.length === 1 &&
         capabilities.aspectRatios[0] === 'adaptive' ? (
           <p className='text-muted-foreground text-2xs'>
-            {t('This mode follows the shape of your frames.')}
+            {t(
+              props.hasReferenceVideo
+                ? 'This mode follows the shape of your reference video.'
+                : 'This mode follows the shape of your frames.'
+            )}
           </p>
         ) : null}
       </SettingRow>

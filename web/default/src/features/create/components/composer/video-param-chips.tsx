@@ -23,13 +23,18 @@ import {
   resolveVideoOptions,
   videoDurationOptions,
   videoResolutionsForRatio,
+  withReferenceVideoRatio,
   type VideoAspectRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
 import type { StudioSettings } from '@/features/playground/types'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 /** Inline video parameters, resolved from the model capability profile. */
-export function VideoParamChips(props: { hasImage: boolean }) {
+export function VideoParamChips(props: {
+  hasImage: boolean
+  /** Seedance 2.5 pins the ratio once a reference video is attached. */
+  hasReferenceVideo?: boolean
+}) {
   const { t } = useTranslation()
   const model = usePlaygroundStore((state) => state.config.model)
   const group = usePlaygroundStore((state) => state.config.group)
@@ -42,7 +47,10 @@ export function VideoParamChips(props: { hasImage: boolean }) {
     props.hasImage,
     settings.videoReferenceMode
   )
-  const capabilities = query.data?.[mode]
+  const capabilities = withReferenceVideoRatio(
+    query.data?.[mode],
+    props.hasReferenceVideo === true
+  )
   if (!capabilities) return null
   const options = resolveVideoOptions(
     capabilities,
@@ -68,6 +76,10 @@ export function VideoParamChips(props: { hasImage: boolean }) {
 
   const ratioLabel = (ratio: VideoAspectRatio) =>
     ratio === 'adaptive' ? t('Auto') : ratio
+  // A pinned ratio follows the attached reference video, not a frame image.
+  const adaptiveLabel = t(
+    props.hasReferenceVideo ? 'Auto (match video)' : 'Auto (match image)'
+  )
 
   return (
     <>
@@ -80,7 +92,7 @@ export function VideoParamChips(props: { hasImage: boolean }) {
         options={capabilities.aspectRatios.map((ratio) => ({
           value: ratio,
           label:
-            ratio === 'adaptive' ? t('Auto (match image)') : ratioLabel(ratio),
+            ratio === 'adaptive' ? adaptiveLabel : ratioLabel(ratio),
           glyph: <AspectGlyph size={ratio} />,
         }))}
       />

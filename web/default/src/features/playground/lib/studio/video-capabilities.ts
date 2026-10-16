@@ -80,6 +80,26 @@ export function getActiveVideoReferenceLimit(input: {
 }
 
 /**
+ * Seedance 2.5 derives the task type from the prompt intent once a reference
+ * video is attached, and its edit and extend paths both require adaptive ratio
+ * (Volcengine also recommends adaptive for every omni-reference task). A
+ * reference video therefore pins the aspect ratio to the reference's own.
+ */
+export function withReferenceVideoRatio(
+  capabilities: VideoModelCapabilities | undefined,
+  hasReferenceVideo: boolean
+): VideoModelCapabilities | undefined {
+  if (!capabilities || !hasReferenceVideo) return capabilities
+  if (capabilities.family !== 'seedance-2.5') return capabilities
+  if (!capabilities.aspectRatios.includes('adaptive')) return capabilities
+  return {
+    ...capabilities,
+    aspectRatios: ['adaptive'],
+    defaults: { ...capabilities.defaults, aspectRatio: 'adaptive' },
+  }
+}
+
+/**
  * Nominal `WxH` for a ratio/resolution pair. The Seedance passthrough ignores
  * this in favour of `metadata.{resolution,ratio}`; native adaptors (xAI, Kling,
  * Veo) read it directly, so the 16:9 / 9:16 values match their fixed sizes.

@@ -4,7 +4,9 @@ import { DEFAULT_STUDIO_SETTINGS } from '../storage/store-migration'
 import {
   assignVideoReferences,
   resolveVideoOptions,
+  withReferenceVideoRatio,
   type VideoModelCapabilities,
+  type VideoReferenceMode,
 } from './video-capabilities'
 
 /**
@@ -20,14 +22,19 @@ export function buildPlaygroundVideoSubmitInput(input: {
   references: string[]
   referenceVideos?: string[]
   referenceAudios?: string[]
+  /** Overrides the drafted mode for batches whose intent is fixed. */
+  referenceMode?: VideoReferenceMode
   capabilities?: VideoModelCapabilities
 }): VideoSubmitInput {
-  const capabilities = input.capabilities
-  if (!capabilities) throw new Error('Video capabilities are unavailable.')
-  const referenceMode = input.settings.videoReferenceMode
+  const referenceMode = input.referenceMode ?? input.settings.videoReferenceMode
   // Video and audio references only exist in references mode.
   const referenceVideos =
     referenceMode === 'references' ? (input.referenceVideos ?? []) : []
+  const capabilities = withReferenceVideoRatio(
+    input.capabilities,
+    referenceVideos.length > 0
+  )
+  if (!capabilities) throw new Error('Video capabilities are unavailable.')
   const referenceAudios =
     referenceMode === 'references' ? (input.referenceAudios ?? []) : []
   const hasMedia =
@@ -63,7 +70,7 @@ export function buildPlaygroundVideoSubmitInput(input: {
     model: input.model,
     group: input.group,
     prompt: input.prompt,
-    settings: input.settings ?? DEFAULT_STUDIO_SETTINGS,
+    settings: { ...(input.settings ?? DEFAULT_STUDIO_SETTINGS), videoReferenceMode: referenceMode },
     aspectRatio: options.aspectRatio,
     resolution: options.resolution,
     duration: options.duration,

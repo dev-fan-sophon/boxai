@@ -482,6 +482,57 @@ describe('video capability lifecycle', () => {
     await page.getByRole('button', { name: 'Aspect ratio' }).click()
     expect(await page.getByText('9:16').count()).toBeGreaterThan(0)
   })
+
+  it('offers Seedance 2.5 reference videos and pins the ratio to the reference video', async () => {
+    await page.route('**/api/playground/video-capabilities?*', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: {
+            text: profile(),
+            frames: profile({ aspectRatios: ['adaptive'] }),
+            references: profile({
+              family: 'seedance-2.5',
+              aspectRatios: ['16:9', 'adaptive'],
+              maxReferenceImages: 30,
+              maxReferenceVideos: 10,
+              maxReferenceAudios: 10,
+            }),
+          },
+        },
+      })
+    )
+    const references = [{ id: 'one', name: 'one', dataUrl: '/media/one' }]
+    await render({ videoComposer: true, group: 'references', references })
+    await page.getByRole('radio', { name: 'References' }).click()
+    expect(
+      await page.locator('input[type=file][accept="video/*"]').count()
+    ).toBe(1)
+    expect(
+      await page.locator('input[type=file][accept="audio/*"]').count()
+    ).toBe(1)
+    // Without a reference video the model keeps every ratio.
+    await page.getByRole('button', { name: 'Aspect ratio' }).click()
+    expect(
+      await page.getByText('16:9', { exact: true }).count()
+    ).toBeGreaterThan(0)
+    await page.keyboard.press('Escape')
+    // 2.5 derives the edit/extend task type from the prompt once a reference
+    // video is attached; both require adaptive ratio.
+    await render({
+      videoComposer: true,
+      group: 'references',
+      references,
+      referenceVideos: [{ id: 'clip', name: 'clip', dataUrl: '/media/clip' }],
+    })
+    await expect
+      .poll(() =>
+        page.getByRole('button', { name: 'Aspect ratio' }).textContent()
+      )
+      .toContain('Auto')
+    await page.getByRole('button', { name: 'Aspect ratio' }).click()
+    expect(await page.getByText('16:9', { exact: true }).count()).toBe(0)
+  })
 })
 
 describe('image capability lifecycle', () => {

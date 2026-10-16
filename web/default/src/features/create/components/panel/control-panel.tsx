@@ -97,6 +97,7 @@ export function ControlPanel(props: {
             <GenerationSettingsSection
               modality={modality}
               videoMode={draft.capabilityMode}
+              hasReferenceVideo={draft.referenceCounts.videos > 0}
             />
             {MULTI_GROUP_ENABLED && <ChannelSelect />}
           </CollapsibleContent>

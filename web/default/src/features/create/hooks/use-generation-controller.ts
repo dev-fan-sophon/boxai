@@ -12,6 +12,7 @@ import {
   UNSUPPORTED_IMAGE_MODEL_MESSAGE,
 } from '@/features/playground/lib/studio/image-request-schema'
 import { buildStudioFeed } from '@/features/playground/lib/studio/studio-feed'
+import type { VideoReferenceMode } from '@/features/playground/lib/studio/video-capabilities'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
 import type { MediaReference } from '../components/references/media-reference-slot'
@@ -137,11 +138,15 @@ export function useGenerationController(input: {
   /**
    * Queues one batch. `referenceUrls` replaces the drafted references for
    * this batch only (variations of a result), leaving the draft untouched.
+   * `options.referenceMode` overrides how those references are read, for
+   * batches whose intent is fixed regardless of the drafted mode (a scene
+   * seeded from the previous scene's last frame is always a first frame).
    * Returns the batch id, or null when the run was refused.
    */
   const startJobs = (
     prompts: string[],
-    referenceUrls?: string[]
+    referenceUrls?: string[],
+    options?: { referenceMode?: VideoReferenceMode }
   ): string | null => {
     const model = draft.model
     if (prompts.length === 0 || !model) return null
@@ -213,6 +218,7 @@ export function useGenerationController(input: {
       references: batchReferences,
       referenceVideos: batchVideos.length ? batchVideos : undefined,
       referenceAudios: batchAudios.length ? batchAudios : undefined,
+      referenceMode: options?.referenceMode,
       // The mask only fits the drafted first reference, not variations.
       mask: referenceUrls ? undefined : (activeMask ?? undefined),
       prompts: prompts.slice(0, MAX_STUDIO_BATCH_JOBS),

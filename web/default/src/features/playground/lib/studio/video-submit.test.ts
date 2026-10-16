@@ -75,3 +75,54 @@ describe('buildPlaygroundVideoSubmitInput', () => {
     expect(input.generateAudio).toBeUndefined()
   })
 })
+
+describe('buildPlaygroundVideoSubmitInput reference mode', () => {
+  it('seeds a chained scene as a first frame while the draft is in references mode', () => {
+    const input = buildPlaygroundVideoSubmitInput({
+      model: 'dreamina-seedance-2-5',
+      group: 'default',
+      prompt: 'next scene',
+      settings: {
+        ...DEFAULT_STUDIO_SETTINGS,
+        videoReferenceMode: 'references',
+      },
+      referenceMode: 'frames',
+      references: ['data:last-frame'],
+      capabilities: {
+        ...capabilities,
+        family: 'seedance-2.5',
+        aspectRatios: ['16:9', 'adaptive'],
+        maxReferenceImages: 30,
+        maxReferenceVideos: 10,
+      },
+    })
+    expect(input.firstFrame).toBe('data:last-frame')
+    expect(input.lastFrame).toBeUndefined()
+    expect(input.referenceImages).toBeUndefined()
+    expect(input.settings.videoReferenceMode).toBe('frames')
+  })
+
+  it('pins Seedance 2.5 to the reference video ratio', () => {
+    const input = buildPlaygroundVideoSubmitInput({
+      model: 'dreamina-seedance-2-5',
+      group: 'default',
+      prompt: 'keep the motion',
+      settings: {
+        ...DEFAULT_STUDIO_SETTINGS,
+        videoAspectRatio: '16:9',
+        videoReferenceMode: 'references',
+      },
+      references: [],
+      referenceVideos: ['https://media.test/clip.mp4'],
+      capabilities: {
+        ...capabilities,
+        family: 'seedance-2.5',
+        aspectRatios: ['16:9', 'adaptive'],
+        maxReferenceImages: 30,
+        maxReferenceVideos: 10,
+      },
+    })
+    expect(input.aspectRatio).toBe('adaptive')
+    expect(input.referenceVideos).toEqual(['https://media.test/clip.mp4'])
+  })
+})

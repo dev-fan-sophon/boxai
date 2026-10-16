@@ -20,6 +20,7 @@ import {
   getVideoUploadProfile,
   resolveVideoOptions,
   videoSizeForOptions,
+  withReferenceVideoRatio,
 } from '@/features/playground/lib/studio/video-capabilities'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePlaygroundStore } from '@/stores/playground-store'
@@ -98,7 +99,10 @@ export function useGenerationDraft(input: {
     hasImage,
     settings.videoReferenceMode
   )
-  const videoCapabilities = capabilityQuery.data?.[capabilityMode]
+  const videoCapabilities = withReferenceVideoRatio(
+    capabilityQuery.data?.[capabilityMode],
+    referenceVideoCount > 0
+  )
   const videoOptions = videoCapabilities
     ? resolveVideoOptions(
         videoCapabilities,

@@ -36,6 +36,7 @@ const root = createRoot(rootElement)
 function ComposerFixture(props: {
   modality: 'image' | 'video'
   references: MediaReference[]
+  referenceVideos?: MediaReference[]
 }) {
   const studio = useStudio()
   const controller = useGenerationController({
@@ -47,6 +48,7 @@ function ComposerFixture(props: {
     modality: props.modality,
     text: controller.text,
     references: props.references,
+    referenceVideos: props.referenceVideos,
     uploading: false,
   })
   return (
@@ -55,8 +57,12 @@ function ComposerFixture(props: {
         ...controller,
         draft,
         references: props.references,
+        referenceVideos: props.referenceVideos ?? [],
         setReferences: (value) => {
           if (Array.isArray(value)) window.referenceChanges.push(value)
+        },
+        setReferenceVideos: (value) => {
+          if (Array.isArray(value)) window.referenceVideoChanges.push(value)
         },
       }}
     />
@@ -102,6 +108,7 @@ export type LifecycleFixture = {
   modality?: 'image' | 'audio' | 'video'
   runs?: StudioRunSummary[]
   references?: Omit<MediaReference, 'file'>[]
+  referenceVideos?: Omit<MediaReference, 'file'>[]
   maxFiles?: number
   kind?: 'image' | 'video' | 'audio'
   attachable?: boolean
@@ -116,10 +123,12 @@ declare global {
   interface Window {
     renderLifecycleFixture: (state: LifecycleFixture) => void
     referenceChanges: MediaReference[][]
+    referenceVideoChanges: MediaReference[][]
   }
 }
 
 window.referenceChanges = []
+window.referenceVideoChanges = []
 // Video capabilities are a signed-in endpoint; the fixture plays a user.
 useAuthStore.getState().auth.setUser({ id: 1, username: 'fixture', role: 1 })
 window.renderLifecycleFixture = (state) => {
@@ -139,7 +148,11 @@ window.renderLifecycleFixture = (state) => {
     )
   } else if (!state.modality && !state.unmount) {
     attachmentContent = state.videoComposer ? (
-      <ComposerFixture modality='video' references={state.references ?? []} />
+      <ComposerFixture
+        modality='video'
+        references={state.references ?? []}
+        referenceVideos={state.referenceVideos ?? []}
+      />
     ) : (
       <MediaReferenceSlot
         label='References'

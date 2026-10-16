@@ -11,10 +11,16 @@ import { VideoParamChips } from './video-param-chips'
 export function GenerationParamChips(props: {
   modality: Exclude<StudioModality, 'chat'>
   hasImage?: boolean
+  hasReferenceVideo?: boolean
 }) {
   if (props.modality === 'image') return <ImageParamChips />
   if (props.modality === 'video') {
-    return <VideoParamChips hasImage={props.hasImage === true} />
+    return (
+      <VideoParamChips
+        hasImage={props.hasImage === true}
+        hasReferenceVideo={props.hasReferenceVideo === true}
+      />
+    )
   }
   return <AudioParamChips />
 }

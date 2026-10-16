@@ -8,10 +8,16 @@ import { VideoSettings } from './video-settings'
 export function GenerationSettingsSection(props: {
   modality: Exclude<StudioModality, 'chat'>
   videoMode?: 'text' | 'frames' | 'references'
+  hasReferenceVideo?: boolean
 }) {
   if (props.modality === 'image') return <ImageSettings />
   if (props.modality === 'video') {
-    return <VideoSettings videoMode={props.videoMode} />
+    return (
+      <VideoSettings
+        videoMode={props.videoMode}
+        hasReferenceVideo={props.hasReferenceVideo}
+      />
+    )
   }
   return <AudioSettings />
 }

@@ -197,7 +197,10 @@ export function useStoryboard(input: {
         if (chainToken.current !== token) return
         const batchId = controller.startJobs(
           [scene.prompt.trim()],
-          frame ? [frame] : []
+          frame ? [frame] : [],
+          // The chained frame continues the previous clip: a first frame, not
+          // a style reference, whatever reference mode the draft is in.
+          frame ? { referenceMode: 'frames' } : undefined
         )
         if (!batchId) return
         previousBatch = batchId
@@ -245,7 +248,9 @@ export function useStoryboard(input: {
       }
       const batchId = controller.startJobs(
         [scene.prompt.trim()],
-        frame ? [frame] : []
+        frame ? [frame] : [],
+        // A scene's own frame is its first frame, not a style reference.
+        frame ? { referenceMode: 'frames' } : undefined
       )
       // A refusal (sign-in, limits) applies to every scene alike.
       if (!batchId) break

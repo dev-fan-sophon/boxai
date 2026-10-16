@@ -1,6 +1,7 @@
 import type { StudioSettings } from '../../types'
 import type { StudioRunSummary } from '../session/session-types'
 import type { AudioKind } from './model-modality'
+import type { VideoReferenceMode } from './video-capabilities'
 
 /**
  * A card on the studio feed: one submit (a batch of jobs) with its finished
@@ -165,6 +166,12 @@ export type StudioGenerationInput = {
   referenceVideos?: string[]
   /** Typed audio references (references mode); asset or https URLs. */
   referenceAudios?: string[]
+  /**
+   * How this run's images are used, when it differs from the drafted mode.
+   * A storyboard scene seeds its clip's first frame from the previous scene,
+   * which stays a frame even while the draft sits in references mode.
+   */
+  referenceMode?: VideoReferenceMode
   /**
    * Audio jobs: the sub-tool and route resolved from the model's catalog
    * metadata at submit (`native` = ElevenLabs passthrough). Audio inputs of

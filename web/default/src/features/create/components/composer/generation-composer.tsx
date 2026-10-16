@@ -151,6 +151,7 @@ export function GenerationComposer(props: GenerationComposerProps) {
       <GenerationParamChips
         modality={modality}
         hasImage={draft.capabilityMode !== 'text'}
+        hasReferenceVideo={draft.referenceCounts.videos > 0}
       />
       {draft.videoIssue || draft.audioIssue || draft.imageIssue ? (
         <span className='text-warning shrink-0 text-xs' aria-live='polite'>
