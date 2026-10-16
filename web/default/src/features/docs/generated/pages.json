@@ -88,6 +88,50 @@
       ],
       "body": "## HTTP status categories\n\n| Status             | Meaning                  | Action                                               |\n| ------------------ | ------------------------ | ---------------------------------------------------- |\n| 400, 422           | Invalid input            | Fix the request; do not retry unchanged              |\n| 401, 403           | Auth or permission       | Verify key and model access                          |\n| 429                | Rate limit               | Honor `Retry-After` when present; reduce concurrency |\n| 500, 502, 503, 504 | Transient server/gateway | Retry only if the operation is safe to repeat        |\n\n## Safe retry policy\n\nRetry only idempotent requests or operations protected by an idempotency mechanism. Never automatically retry authentication, permission, or validation failures.\n\nUse capped exponential backoff with random jitter, honor `Retry-After`, and set a small attempt limit. Cancel retries when the caller deadline or `AbortSignal` expires.\n\n## Rate limits\n\nWhen you receive **429**:\n\n1. Back off according to `Retry-After` or your client policy.\n2. Lower parallel in-flight requests.\n3. Check [Usage logs](/docs/console/usage-logs) for hot keys or loops.\n\n## Next\n\n- [Streaming](/docs/api/streaming)\n- [Authentication](/docs/api/auth)\n"
     },
+    "api/files": {
+      "path": "api/files",
+      "locale": "en",
+      "title": "Files and media references",
+      "summary": "Upload your own images, videos, and audio once, then reference them by file id in any generation request.",
+      "section": "api",
+      "order": 50,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "why-upload-instead-of-inlining",
+          "text": "Why upload instead of inlining",
+          "level": 2
+        },
+        {
+          "id": "upload-a-file",
+          "text": "Upload a file",
+          "level": 2
+        },
+        {
+          "id": "use-a-file-in-a-request",
+          "text": "Use a file in a request",
+          "level": 2
+        },
+        {
+          "id": "retrieve-list-download-delete",
+          "text": "Retrieve, list, download, delete",
+          "level": 2
+        },
+        {
+          "id": "storage-and-lifetime",
+          "text": "Storage and lifetime",
+          "level": 2
+        }
+      ],
+      "body": "## Why upload instead of inlining\n\nGeneration requests accept media either as a public HTTPS URL or as a `file-<id>` handle from this API. Sending bytes **inside** the JSON body (base64 `data:` URLs) is what makes a request cross the upstream body limit: video providers reject a create-task body larger than 64 MB with `413`, and a reseller may report that as a generic gateway error. Upload once, then pass the handle.\n\nHandles are owner-scoped: only the API key's user can read, download, or delete them.\n\n## Upload a file\n\n```bash\ncurl https://you-box.com/v1/files \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -F purpose=vision \\\n  -F file=@first-frame.png\n```\n\n```json\n{\n  \"id\": \"file-1234\",\n  \"object\": \"file\",\n  \"bytes\": 204800,\n  \"created_at\": 1792163930,\n  \"filename\": \"first-frame.png\",\n  \"purpose\": \"vision\"\n}\n```\n\n`multipart/form-data` with a `file` field is required. `purpose` is accepted for OpenAI compatibility; the returned purpose is derived from the sniffed content type (`vision` for images, `video`, `audio`, `user_data` for documents). The declared MIME type is only a hint — the content is sniffed, and an unsupported type is rejected with `400`.\n\nSize caps per kind:\n\n| Kind | Cap |\n|------|-----|\n| image | 10 MB |\n| video | 200 MB |\n| audio | 20 MB |\n| document | 20 MB |\n\n## Use a file in a request\n\nPass the handle anywhere a media URL is accepted — the relay swaps in a short-lived URL the provider can fetch:\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"slow push-in on @Image1, keep the subject identical\",\n    \"duration\": 5,\n    \"size\": \"1280x720\",\n    \"first_frame\": \"file-1234\"\n  }'\n```\n\nSupported on video task requests (`/v1/videos`, `/v1/videos/text2video`, `/v1/videos/image2video`, `/v1/videos/{id}/remix`) for `image`/`images`, `first_frame`, `last_frame`, `input_reference`, `reference_images`, `reference_videos`, `reference_audios`, and on image requests (`/v1/images/generations`, `/v1/images/edits`) for `image`, `images`, and `mask`. A handle that does not exist, or that belongs to another account, fails with `400` before any quota is reserved.\n\n## Retrieve, list, download, delete\n\n```bash\ncurl https://you-box.com/v1/files/file-1234          -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl \"https://you-box.com/v1/files?limit=50\"         -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl https://you-box.com/v1/files/file-1234/content  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o media.bin\ncurl -X DELETE https://you-box.com/v1/files/file-1234 -H \"Authorization: Bearer $BOXAI_API_KEY\"\n```\n\nDeleting a file removes both the record and the stored object; the response is `{\"id\": \"file-1234\", \"object\": \"file\", \"deleted\": true}`.\n\n## Storage and lifetime\n\nFiles live in BoxAI's object storage for as long as the account keeps them, not for 24 hours: the handle stays valid, and the relay mints a fresh provider URL on every request. References are handed to providers as signed links, so uploads never make your bucket or files public.\n"
+    },
     "api/overview": {
       "path": "api/overview",
       "locale": "en",
@@ -160,6 +204,50 @@
         }
       ],
       "body": "## Server-sent events\n\nFor OpenAI-compatible HTTP endpoints, request streaming in the payload and read each SSE data frame as it arrives. A data frame containing `[DONE]` ends the stream.\n\nDo not assume every protocol uses the same event shape. OpenAI-compatible, Claude, and Gemini profiles expose protocol-specific chunks and finish events. See the matching protocol page in the sidebar.\n\n## Cancellation and cleanup\n\nUse `AbortController` to cancel fetch when the user leaves, stops generation, or a deadline expires. Stop parsing, release the reader, and treat a deliberate abort differently from a network failure.\n\n```typescript\nconst controller = new AbortController()\nconst response = await fetch(url, { ...options, signal: controller.signal })\n// Later: controller.abort()\n```\n\n## Next\n\n- [Errors, retries, and rate limits](/docs/api/errors)\n- [API overview](/docs/api/overview)\n"
+    },
+    "api/video-generation": {
+      "path": "api/video-generation",
+      "locale": "en",
+      "title": "Video generation (Seedance)",
+      "summary": "Submit, poll, and download Seedance video tasks, including reference images, videos, audio, and first/last frames.",
+      "section": "api",
+      "order": 60,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "models",
+          "text": "Models",
+          "level": 2
+        },
+        {
+          "id": "submit-a-task",
+          "text": "Submit a task",
+          "level": 2
+        },
+        {
+          "id": "parameters",
+          "text": "Parameters",
+          "level": 3
+        },
+        {
+          "id": "poll-and-download",
+          "text": "Poll and download",
+          "level": 2
+        },
+        {
+          "id": "errors",
+          "text": "Errors",
+          "level": 2
+        }
+      ],
+      "body": "## Models\n\n| Model ID | Duration | Resolution | Reference images / videos / audio |\n|----------|----------|------------|-----------------------------------|\n| `dreamina-seedance-2-5` | 4–30 s | 720p, 1080p | 30 / 10 / 10 |\n| `seedance-2-0` | 4–15 s | 720p, 1080p | 9 / 3 / 3 |\n| `seedance-2-0-fast` | 4–15 s | 720p | 9 / 3 / 3 |\n| `seedance-2-0-mini` | 4–15 s | 720p | 9 / 3 / 3 |\n\nAudio may be referenced on its own for Seedance 2.5; on the 2.0 family an audio reference needs an image or video reference alongside it.\n\n## Submit a task\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"a red apple on a wooden table, slow push-in, warm light\",\n    \"duration\": 5,\n    \"size\": \"1280x720\"\n  }'\n```\n\n```json\n{\n  \"id\": \"task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u\",\n  \"object\": \"video\",\n  \"model\": \"dreamina-seedance-2-5\",\n  \"status\": \"queued\",\n  \"progress\": 0,\n  \"created_at\": 1792163473\n}\n```\n\n`HTTP 200` means the task was accepted, not that the video exists yet. Keep the `id`.\n\n### Parameters\n\n| Field | Type | Notes |\n|-------|------|-------|\n| `model` | string | One of the model IDs above |\n| `prompt` | string | Required. Describe scene, motion, camera, and light |\n| `duration` / `seconds` | integer | Seconds of output; ranges above |\n| `size` | string | `1280x720`, `720x1280`, `1920x1080`, or a ratio via `metadata.ratio` |\n| `metadata.ratio` | string | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9` |\n| `metadata.resolution` | string | `720p` or `1080p`; defaults to the tier your `size` implies |\n| `metadata.generate_audio` | boolean | Native synchronized audio (on by default) |\n| `metadata.seed` | integer | Reproducible generation |\n| `metadata.watermark` | boolean | Provider watermark |\n| `image` / `images` | string \\| array | Image-to-video: the first frame (up to 9 images on 2.0, 30 on 2.5) |\n| `first_frame` / `last_frame` | string | Frame-guided generation; both require `metadata.ratio: adaptive` on Seedance 2.5 |\n| `reference_images` | array | Reference images, addressed as `@Image1`, `@Image2`, … |\n| `reference_videos` | array | Reference videos, addressed as `@Video1`, … |\n| `reference_audios` | array | Reference audio, addressed as `@Audio1`, … |\n\nMedia may be a public HTTPS URL or a `file-<id>` handle from [Files and media references](/docs/api/files). Reference media and first/last frames are mutually exclusive. Do not inline base64 media: a create-task body over 64 MB is rejected with `413` before the provider is called.\n\n## Poll and download\n\n```bash\ncurl https://you-box.com/v1/videos/task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\"\n\ncurl -L https://you-box.com/v1/videos/task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u/content \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o clip.mp4\n```\n\nPoll every 5–15 seconds. A 5-second 720p clip typically takes 3–7 minutes; the status moves `queued` → `in_progress` → `completed`, and a failed task reports `error.message`. Always download the finished file and check its actual duration and resolution. Poll the same `id` after a timeout — never resubmit a task you already own.\n\n## Errors\n\n| Status | Meaning | What to do |\n|--------|---------|------------|\n| `400` | Invalid parameter, unsupported combination, or unknown `file-<id>` | Fix the request; nothing was charged |\n| `401` / `403` | Missing or unusable key, banned account, insufficient quota | Check the key and balance |\n| `413` | Request body too large | Send media as URLs or file handles, not base64 |\n| `429` | Rate limited | Wait and retry with backoff |\n| `502` | The upstream provider refused the submission | Retry with backoff; the request is replayed automatically before it fails |\n\nBilling is per generated video token and settles when the task finishes; a failed task is refunded. See [Errors, retries, and rate limits](/docs/api/errors) for the gateway-wide contract.\n"
     },
     "clients/codex-desktop": {
       "path": "clients/codex-desktop",
@@ -1416,6 +1504,50 @@
       ],
       "body": "## Nhóm mã HTTP\n\n| Status             | Ý nghĩa            | Hành động                                        |\n| ------------------ | ------------------ | ------------------------------------------------ |\n| 400, 422           | Input không hợp lệ | Sửa request; không retry nguyên trạng            |\n| 401, 403           | Auth hoặc quyền    | Kiểm tra key và quyền model                      |\n| 429                | Rate limit         | Tôn trọng `Retry-After` nếu có; giảm concurrency |\n| 500, 502, 503, 504 | Lỗi tạm thời       | Chỉ retry nếu thao tác an toàn khi lặp lại       |\n\n## Chính sách retry an toàn\n\nChỉ retry request idempotent hoặc có cơ chế idempotency. Không tự động retry lỗi xác thực, quyền hoặc validation.\n\nDùng exponential backoff có giới hạn kèm jitter, tôn trọng `Retry-After`, và giới hạn số lần thử. Hủy retry khi hết deadline hoặc `AbortSignal`.\n\n## Rate limit\n\nKhi nhận **429**:\n\n1. Back off theo `Retry-After` hoặc chính sách client.\n2. Giảm số request song song.\n3. Kiểm tra [Nhật ký sử dụng](/docs/console/usage-logs) để tìm key nóng hoặc vòng lặp.\n\n## Tiếp theo\n\n- [Streaming](/docs/api/streaming)\n- [Xác thực](/docs/api/auth)\n"
     },
+    "api/files": {
+      "path": "api/files",
+      "locale": "vi",
+      "title": "Tệp và tham chiếu media",
+      "summary": "Tải ảnh, video và audio của bạn lên một lần, rồi tham chiếu bằng file id trong mọi yêu cầu tạo nội dung.",
+      "section": "api",
+      "order": 50,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "vi-sao-nen-tai-len-thay-vi-nhung-truc-tiep",
+          "text": "Vì sao nên tải lên thay vì nhúng trực tiếp",
+          "level": 2
+        },
+        {
+          "id": "tai-tep-len",
+          "text": "Tải tệp lên",
+          "level": 2
+        },
+        {
+          "id": "dung-tep-trong-yeu-cau",
+          "text": "Dùng tệp trong yêu cầu",
+          "level": 2
+        },
+        {
+          "id": "truy-van-liet-ke-tai-ve-xoa",
+          "text": "Truy vấn, liệt kê, tải về, xoá",
+          "level": 2
+        },
+        {
+          "id": "luu-tru-va-thoi-han",
+          "text": "Lưu trữ và thời hạn",
+          "level": 2
+        }
+      ],
+      "body": "## Vì sao nên tải lên thay vì nhúng trực tiếp\n\nYêu cầu tạo nội dung nhận media dưới dạng URL HTTPS công khai hoặc handle `file-<id>` của API này. Gửi bytes **bên trong** JSON (URL `data:` base64) chính là nguyên nhân làm request vượt giới hạn body của upstream: nhà cung cấp video từ chối body lớn hơn 64 MB bằng lỗi `413`, và bên bán lại có thể báo thành lỗi gateway chung. Hãy tải lên một lần, rồi truyền handle.\n\nHandle thuộc sở hữu của tài khoản: chỉ user của API key mới đọc, tải hoặc xoá được.\n\n## Tải tệp lên\n\n```bash\ncurl https://you-box.com/v1/files \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -F purpose=vision \\\n  -F file=@first-frame.png\n```\n\n```json\n{\n  \"id\": \"file-1234\",\n  \"object\": \"file\",\n  \"bytes\": 204800,\n  \"created_at\": 1792163930,\n  \"filename\": \"first-frame.png\",\n  \"purpose\": \"vision\"\n}\n```\n\nBắt buộc dùng `multipart/form-data` với field `file`. `purpose` được nhận để tương thích OpenAI; purpose trả về suy ra từ kiểu nội dung đã nhận diện (`vision` cho ảnh, `video`, `audio`, `user_data` cho tài liệu). MIME khai báo chỉ là gợi ý — nội dung được nhận diện thực tế, kiểu không hỗ trợ sẽ bị trả `400`.\n\nGiới hạn dung lượng theo loại:\n\n| Loại | Giới hạn |\n|------|----------|\n| ảnh | 10 MB |\n| video | 200 MB |\n| audio | 20 MB |\n| tài liệu | 20 MB |\n\n## Dùng tệp trong yêu cầu\n\nTruyền handle ở bất kỳ chỗ nào nhận URL media — gateway sẽ tự thay bằng URL ngắn hạn mà nhà cung cấp đọc được:\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"đẩy máy chậm vào @Image1, giữ nguyên chủ thể\",\n    \"duration\": 5,\n    \"size\": \"1280x720\",\n    \"first_frame\": \"file-1234\"\n  }'\n```\n\nHỗ trợ trên yêu cầu video (`/v1/videos`, `/v1/videos/text2video`, `/v1/videos/image2video`, `/v1/videos/{id}/remix`) cho `image`/`images`, `first_frame`, `last_frame`, `input_reference`, `reference_images`, `reference_videos`, `reference_audios`, và trên yêu cầu ảnh (`/v1/images/generations`, `/v1/images/edits`) cho `image`, `images`, `mask`. Handle không tồn tại hoặc thuộc tài khoản khác sẽ trả `400` trước khi trừ quota.\n\n## Truy vấn, liệt kê, tải về, xoá\n\n```bash\ncurl https://you-box.com/v1/files/file-1234          -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl \"https://you-box.com/v1/files?limit=50\"         -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl https://you-box.com/v1/files/file-1234/content  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o media.bin\ncurl -X DELETE https://you-box.com/v1/files/file-1234 -H \"Authorization: Bearer $BOXAI_API_KEY\"\n```\n\nXoá tệp sẽ xoá cả bản ghi và object đã lưu; phản hồi là `{\"id\": \"file-1234\", \"object\": \"file\", \"deleted\": true}`.\n\n## Lưu trữ và thời hạn\n\nTệp nằm trong object storage của BoxAI chừng nào tài khoản còn giữ, không phải 24 giờ: handle luôn hợp lệ, và gateway tạo URL mới cho nhà cung cấp ở mỗi yêu cầu. Tham chiếu được gửi dưới dạng liên kết có chữ ký, nên tệp của bạn không bị công khai.\n"
+    },
     "api/overview": {
       "path": "api/overview",
       "locale": "vi",
@@ -1488,6 +1620,50 @@
         }
       ],
       "body": "## Server-sent events\n\nVới endpoint HTTP OpenAI-compatible, bật streaming trong payload và đọc từng khung SSE khi tới. Khung data chứa `[DONE]` kết thúc stream.\n\nĐừng giả định mọi protocol dùng cùng hình dạng sự kiện. OpenAI-compatible, Claude và Gemini có chunk và sự kiện kết thúc riêng. Xem trang protocol tương ứng trong sidebar.\n\n## Hủy và dọn dẹp\n\nDùng `AbortController` để hủy fetch khi người dùng rời trang, dừng sinh, hoặc hết hạn. Ngừng parse, nhả reader, và phân biệt abort chủ động với lỗi mạng.\n\n```typescript\nconst controller = new AbortController()\nconst response = await fetch(url, { ...options, signal: controller.signal })\n// Later: controller.abort()\n```\n\n## Tiếp theo\n\n- [Lỗi, retry và rate limit](/docs/api/errors)\n- [Tổng quan API](/docs/api/overview)\n"
+    },
+    "api/video-generation": {
+      "path": "api/video-generation",
+      "locale": "vi",
+      "title": "Tạo video (Seedance)",
+      "summary": "Gửi, theo dõi và tải tác vụ video Seedance, gồm ảnh/video/audio tham chiếu và khung đầu–cuối.",
+      "section": "api",
+      "order": 60,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "model",
+          "text": "Model",
+          "level": 2
+        },
+        {
+          "id": "gui-tac-vu",
+          "text": "Gửi tác vụ",
+          "level": 2
+        },
+        {
+          "id": "tham-so",
+          "text": "Tham số",
+          "level": 3
+        },
+        {
+          "id": "theo-doi-va-tai-ve",
+          "text": "Theo dõi và tải về",
+          "level": 2
+        },
+        {
+          "id": "loi",
+          "text": "Lỗi",
+          "level": 2
+        }
+      ],
+      "body": "## Model\n\n| Model ID | Thời lượng | Độ phân giải | Ảnh / video / audio tham chiếu |\n|----------|------------|--------------|-------------------------------|\n| `dreamina-seedance-2-5` | 4–30 s | 720p, 1080p | 30 / 10 / 10 |\n| `seedance-2-0` | 4–15 s | 720p, 1080p | 9 / 3 / 3 |\n| `seedance-2-0-fast` | 4–15 s | 720p | 9 / 3 / 3 |\n| `seedance-2-0-mini` | 4–15 s | 720p | 9 / 3 / 3 |\n\nVới Seedance 2.5, audio có thể được tham chiếu độc lập; với dòng 2.0, audio tham chiếu cần đi kèm ảnh hoặc video.\n\n## Gửi tác vụ\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"một quả táo đỏ trên bàn gỗ, đẩy máy chậm, ánh sáng ấm\",\n    \"duration\": 5,\n    \"size\": \"1280x720\"\n  }'\n```\n\n```json\n{\n  \"id\": \"task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u\",\n  \"object\": \"video\",\n  \"model\": \"dreamina-seedance-2-5\",\n  \"status\": \"queued\",\n  \"progress\": 0,\n  \"created_at\": 1792163473\n}\n```\n\n`HTTP 200` nghĩa là tác vụ đã được nhận, chưa có video. Hãy giữ lại `id`.\n\n### Tham số\n\n| Field | Kiểu | Ghi chú |\n|-------|------|---------|\n| `model` | string | Một trong các model ID ở trên |\n| `prompt` | string | Bắt buộc. Mô tả bối cảnh, chuyển động, góc máy, ánh sáng |\n| `duration` / `seconds` | integer | Số giây đầu ra; theo khoảng của từng model |\n| `size` | string | `1280x720`, `720x1280`, `1920x1080`, hoặc dùng `metadata.ratio` |\n| `metadata.ratio` | string | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9` |\n| `metadata.resolution` | string | `720p` hoặc `1080p`; mặc định theo `size` |\n| `metadata.generate_audio` | boolean | Âm thanh đồng bộ gốc (mặc định bật) |\n| `metadata.seed` | integer | Tạo lại kết quả ổn định |\n| `metadata.watermark` | boolean | Watermark của nhà cung cấp |\n| `image` / `images` | string \\| array | Ảnh thành video: khung đầu (tối đa 9 ảnh với 2.0, 30 với 2.5) |\n| `first_frame` / `last_frame` | string | Sinh theo khung; với Seedance 2.5 phải dùng `metadata.ratio: adaptive` |\n| `reference_images` | array | Ảnh tham chiếu, gọi bằng `@Image1`, `@Image2`, … |\n| `reference_videos` | array | Video tham chiếu, gọi bằng `@Video1`, … |\n| `reference_audios` | array | Audio tham chiếu, gọi bằng `@Audio1`, … |\n\nMedia có thể là URL HTTPS công khai hoặc handle `file-<id>` từ [Tệp và tham chiếu media](/docs/api/files). Media tham chiếu và khung đầu/cuối loại trừ nhau. Không nhúng base64: body vượt 64 MB sẽ bị trả `413` trước khi gọi nhà cung cấp.\n\n## Theo dõi và tải về\n\n```bash\ncurl https://you-box.com/v1/videos/task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\"\n\ncurl -L https://you-box.com/v1/videos/task_yOhzcO8t7r1SKaJDnLyjPCWt9CKtNm2u/content \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o clip.mp4\n```\n\nNên hỏi trạng thái mỗi 5–15 giây. Clip 720p dài 5 giây thường mất 3–7 phút; trạng thái đi từ `queued` → `in_progress` → `completed`, tác vụ lỗi trả `error.message`. Luôn tải tệp hoàn thành về và kiểm tra lại thời lượng, độ phân giải thực tế. Sau khi timeout, hãy hỏi lại đúng `id` đó — không gửi lại tác vụ đã có.\n\n## Lỗi\n\n| Mã | Ý nghĩa | Cách xử lý |\n|----|---------|------------|\n| `400` | Tham số sai, tổ hợp không hỗ trợ, hoặc `file-<id>` không tồn tại | Sửa yêu cầu; chưa bị trừ phí |\n| `401` / `403` | Thiếu key, tài khoản bị khoá, hoặc hết quota | Kiểm tra key và số dư |\n| `413` | Body quá lớn | Gửi media dạng URL hoặc file handle, không base64 |\n| `429` | Bị giới hạn tần suất | Chờ và thử lại với backoff |\n| `502` | Nhà cung cấp từ chối nhận tác vụ | Thử lại với backoff; gateway đã tự thử lại trước khi trả lỗi |\n\nTính phí theo token video đã tạo và quyết toán khi tác vụ xong; tác vụ lỗi được hoàn tiền. Xem thêm [Lỗi, thử lại và giới hạn tần suất](/docs/api/errors).\n"
     },
     "clients/codex-desktop": {
       "path": "clients/codex-desktop",
