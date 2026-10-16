@@ -164,7 +164,40 @@ curl -fsS -H "Authorization: Bearer $ROLLDEK_ACCESS_TOKEN" -H "New-Api-User: $RO
 
 ---
 
-## 3. Cloudflare full-control (小 QQ) — `.env.cloudflare`
+## 3. Origin AI relay (upstream for OpenAI-native models)
+
+OriginGame's AI gateway is an upstream for models BoxAI does not reach through its other
+channels. BoxAI channel **43 `origin-openai-native`** points at it:
+
+| | |
+|--|--|
+| Base | `https://api.origingame.dev` (`OG_AI_GATEWAY`) |
+| Key | `OG_PLATFORM_DEVELOPMENT_KEY` (also the Origin MCP credential) |
+| Model | `gpt-live-transcribe` (realtime transcription, `ModelRatio` 6.12) |
+| Origin side | provider **8 `openai-embeddings`** (type OpenAI) is the OpenAI-native channel behind it |
+
+Live transcription is a WebSocket relay, not a REST call:
+
+```text
+wss://you-box.com/v1/realtime?intent=transcription&model=gpt-live-transcribe
+Authorization: Bearer <BoxAI key>        # or Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<key>
+```
+
+Origin requires exactly `intent=transcription&model=gpt-live-transcribe`, PCM16/24kHz mono, one
+manual-commit turn at a time, at most 60 seconds of audio per turn; it settles each turn on the
+upstream `usage.duration`. BoxAI bills the same audio as tokens (1666.67 tokens per minute,
+ratio 6.12 ≈ $0.0204/min against Origin's $0.017/min).
+
+`gpt-realtime-2.1` (duplex voice realtime) is catalogued on Origin (catalog id 145) and listed on
+provider 8, but Origin's relay only implements the transcription intent
+(`ai-gateway/internal/relay/transcription_live.go` hardcodes it, and there is no
+`/v1/realtime/sessions` route), so BoxAI cannot serve it yet. BoxAI's own realtime relay already
+speaks the OpenAI Realtime protocol, so once Origin adds a duplex realtime route the model only
+needs to be added to channel 43.
+
+---
+
+## 4. Cloudflare full-control (小 QQ) — `.env.cloudflare`
 
 Production edge for BoxAI (`you-box.com`) runs under:
 

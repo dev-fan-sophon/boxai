@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T16:00:44.231Z",
+  "generatedAt": "2026-10-16T16:37:58.056Z",
   "version": 1,
   "pages": [
     {
@@ -546,6 +546,47 @@
         {
           "id": "errors",
           "text": "Errors",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/live-transcription",
+      "href": "/docs/api/live-transcription",
+      "locale": "en",
+      "title": "Live transcription",
+      "summary": "Stream PCM audio over a WebSocket and receive incremental transcripts from gpt-live-transcribe.",
+      "section": "api",
+      "order": 70,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "headings": [
+        {
+          "id": "session",
+          "text": "Session",
+          "level": 2
+        },
+        {
+          "id": "audio-and-turns",
+          "text": "Audio and turns",
+          "level": 2
+        },
+        {
+          "id": "transcript-events",
+          "text": "Transcript events",
+          "level": 2
+        },
+        {
+          "id": "billing",
+          "text": "Billing",
+          "level": 2
+        },
+        {
+          "id": "notes",
+          "text": "Notes",
           "level": 2
         }
       ],

@@ -132,6 +132,50 @@
       ],
       "body": "## Why upload instead of inlining\n\nGeneration requests accept media either as a public HTTPS URL or as a `file-<id>` handle from this API. Sending bytes **inside** the JSON body (base64 `data:` URLs) is what makes a request cross the upstream body limit: video providers reject a create-task body larger than 64 MB with `413`, and a reseller may report that as a generic gateway error. Upload once, then pass the handle.\n\nHandles are owner-scoped: only the API key's user can read, download, or delete them.\n\n## Upload a file\n\n```bash\ncurl https://you-box.com/v1/files \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -F purpose=vision \\\n  -F file=@first-frame.png\n```\n\n```json\n{\n  \"id\": \"file-1234\",\n  \"object\": \"file\",\n  \"bytes\": 204800,\n  \"created_at\": 1792163930,\n  \"filename\": \"first-frame.png\",\n  \"purpose\": \"vision\"\n}\n```\n\n`multipart/form-data` with a `file` field is required. `purpose` is accepted for OpenAI compatibility; the returned purpose is derived from the sniffed content type (`vision` for images, `video`, `audio`, `user_data` for documents). The declared MIME type is only a hint — the content is sniffed, and an unsupported type is rejected with `400`.\n\nSize caps per kind:\n\n| Kind     | Cap    |\n| -------- | ------ |\n| image    | 10 MB  |\n| video    | 200 MB |\n| audio    | 20 MB  |\n| document | 20 MB  |\n\n## Use a file in a request\n\nPass the handle anywhere a media URL is accepted — the relay swaps in a short-lived URL the provider can fetch:\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"slow push-in on @Image1, keep the subject identical\",\n    \"duration\": 5,\n    \"size\": \"1280x720\",\n    \"first_frame\": \"file-1234\"\n  }'\n```\n\nSupported on video task requests (`/v1/videos`, `/v1/videos/text2video`, `/v1/videos/image2video`, `/v1/videos/{id}/remix`) for `image`/`images`, `first_frame`, `last_frame`, `input_reference`, `reference_images`, `reference_videos`, `reference_audios`, and on image requests (`/v1/images/generations`, `/v1/images/edits`) for `image`, `images`, and `mask`. A handle that does not exist, or that belongs to another account, fails with `400` before any quota is reserved.\n\n## Retrieve, list, download, delete\n\n```bash\ncurl https://you-box.com/v1/files/file-1234          -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl \"https://you-box.com/v1/files?limit=50\"         -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl https://you-box.com/v1/files/file-1234/content  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o media.bin\ncurl -X DELETE https://you-box.com/v1/files/file-1234 -H \"Authorization: Bearer $BOXAI_API_KEY\"\n```\n\nDeleting a file removes both the record and the stored object; the response is `{\"id\": \"file-1234\", \"object\": \"file\", \"deleted\": true}`.\n\n## Storage and lifetime\n\nFiles live in BoxAI's object storage for as long as the account keeps them, not for 24 hours: the handle stays valid, and the relay mints a fresh provider URL on every request. References are handed to providers as signed links, so uploads never make your bucket or files public.\n"
     },
+    "api/live-transcription": {
+      "path": "api/live-transcription",
+      "locale": "en",
+      "title": "Live transcription",
+      "summary": "Stream PCM audio over a WebSocket and receive incremental transcripts from gpt-live-transcribe.",
+      "section": "api",
+      "order": 70,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "session",
+          "text": "Session",
+          "level": 2
+        },
+        {
+          "id": "audio-and-turns",
+          "text": "Audio and turns",
+          "level": 2
+        },
+        {
+          "id": "transcript-events",
+          "text": "Transcript events",
+          "level": 2
+        },
+        {
+          "id": "billing",
+          "text": "Billing",
+          "level": 2
+        },
+        {
+          "id": "notes",
+          "text": "Notes",
+          "level": 2
+        }
+      ],
+      "body": "## Session\n\nLive transcription is a WebSocket session, not a REST call:\n\n```text\nwss://you-box.com/v1/realtime?intent=transcription&model=gpt-live-transcribe\nAuthorization: Bearer <BOXAI_API_KEY>\n```\n\nClients that prefer the OpenAI convention can send the key as a subprotocol instead:\n`Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<BOXAI_API_KEY>`.\n\nThe gateway answers with `session.created`, then `session.updated` for every accepted configuration:\n\n```json\n{\n  \"type\": \"session.created\",\n  \"session\": {\n    \"type\": \"transcription\",\n    \"audio\": {\n      \"input\": {\n        \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 },\n        \"transcription\": { \"model\": \"gpt-live-transcribe\" },\n        \"turn_detection\": null\n      }\n    }\n  }\n}\n```\n\n## Audio and turns\n\nAudio is **PCM16 mono at 24 kHz**, base64-encoded, appended in chunks. Turns are committed manually — there is no server-side voice detection:\n\n| Event                       | Meaning                                                                                                                          |\n| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |\n| `session.update`            | Optional, once, before audio: `transcription.prompt`, `keywords`, `languages`, `delay` (`minimal`/`low`/`medium`/`high`/`xhigh`) |\n| `input_audio_buffer.append` | `audio` — base64 PCM16 chunk of the current turn                                                                                 |\n| `input_audio_buffer.commit` | Ends the turn and starts transcription                                                                                           |\n\nA turn may hold at most **60 seconds** of audio and only one turn is in flight: commit, read the result, then append the next turn. Append, commit, and the transcript all refer to one item.\n\n## Transcript events\n\n```json\n{ \"type\": \"input_audio_buffer.committed\", \"item_id\": \"item_abc\" }\n{ \"type\": \"conversation.item.input_audio_transcription.delta\", \"item_id\": \"item_abc\", \"content_index\": 0, \"delta\": \"hel\" }\n{ \"type\": \"conversation.item.input_audio_transcription.completed\", \"item_id\": \"item_abc\", \"content_index\": 0, \"transcript\": \"hello\", \"usage\": { \"type\": \"duration\", \"seconds\": 2.4 } }\n```\n\nOnly these events plus `session.created`/`session.updated` are forwarded. Anything else — an unknown event, a second commit, audio beyond the turn limit — closes the session with a policy-violation status instead of being silently ignored.\n\n## Billing\n\nAudio is billed per second of committed input at the model's token ratio, settled when the upstream reports `usage.duration` for the turn. A session that fails before settlement reserves nothing extra; see [Errors, retries, and rate limits](/docs/api/errors) for the gateway-wide contract.\n\n## Notes\n\n- Keep the socket open across turns: connect once, then commit turn after turn.\n- Send `input_audio_buffer.commit` only after at least ~0.1 s of audio; empty turns are rejected.\n- For file-based transcription use `POST /v1/audio/transcriptions` with `gpt-transcribe`.\n"
+    },
     "api/overview": {
       "path": "api/overview",
       "locale": "en",
@@ -1547,6 +1591,50 @@
         }
       ],
       "body": "## Vì sao nên tải lên thay vì nhúng trực tiếp\n\nYêu cầu tạo nội dung nhận media dưới dạng URL HTTPS công khai hoặc handle `file-<id>` của API này. Gửi bytes **bên trong** JSON (URL `data:` base64) chính là nguyên nhân làm request vượt giới hạn body của upstream: nhà cung cấp video từ chối body lớn hơn 64 MB bằng lỗi `413`, và bên bán lại có thể báo thành lỗi gateway chung. Hãy tải lên một lần, rồi truyền handle.\n\nHandle thuộc sở hữu của tài khoản: chỉ user của API key mới đọc, tải hoặc xoá được.\n\n## Tải tệp lên\n\n```bash\ncurl https://you-box.com/v1/files \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -F purpose=vision \\\n  -F file=@first-frame.png\n```\n\n```json\n{\n  \"id\": \"file-1234\",\n  \"object\": \"file\",\n  \"bytes\": 204800,\n  \"created_at\": 1792163930,\n  \"filename\": \"first-frame.png\",\n  \"purpose\": \"vision\"\n}\n```\n\nBắt buộc dùng `multipart/form-data` với field `file`. `purpose` được nhận để tương thích OpenAI; purpose trả về suy ra từ kiểu nội dung đã nhận diện (`vision` cho ảnh, `video`, `audio`, `user_data` cho tài liệu). MIME khai báo chỉ là gợi ý — nội dung được nhận diện thực tế, kiểu không hỗ trợ sẽ bị trả `400`.\n\nGiới hạn dung lượng theo loại:\n\n| Loại     | Giới hạn |\n| -------- | -------- |\n| ảnh      | 10 MB    |\n| video    | 200 MB   |\n| audio    | 20 MB    |\n| tài liệu | 20 MB    |\n\n## Dùng tệp trong yêu cầu\n\nTruyền handle ở bất kỳ chỗ nào nhận URL media — gateway sẽ tự thay bằng URL ngắn hạn mà nhà cung cấp đọc được:\n\n```bash\ncurl https://you-box.com/v1/videos \\\n  -H \"Authorization: Bearer $BOXAI_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"dreamina-seedance-2-5\",\n    \"prompt\": \"đẩy máy chậm vào @Image1, giữ nguyên chủ thể\",\n    \"duration\": 5,\n    \"size\": \"1280x720\",\n    \"first_frame\": \"file-1234\"\n  }'\n```\n\nHỗ trợ trên yêu cầu video (`/v1/videos`, `/v1/videos/text2video`, `/v1/videos/image2video`, `/v1/videos/{id}/remix`) cho `image`/`images`, `first_frame`, `last_frame`, `input_reference`, `reference_images`, `reference_videos`, `reference_audios`, và trên yêu cầu ảnh (`/v1/images/generations`, `/v1/images/edits`) cho `image`, `images`, `mask`. Handle không tồn tại hoặc thuộc tài khoản khác sẽ trả `400` trước khi trừ quota.\n\n## Truy vấn, liệt kê, tải về, xoá\n\n```bash\ncurl https://you-box.com/v1/files/file-1234          -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl \"https://you-box.com/v1/files?limit=50\"         -H \"Authorization: Bearer $BOXAI_API_KEY\"\ncurl https://you-box.com/v1/files/file-1234/content  -H \"Authorization: Bearer $BOXAI_API_KEY\" -o media.bin\ncurl -X DELETE https://you-box.com/v1/files/file-1234 -H \"Authorization: Bearer $BOXAI_API_KEY\"\n```\n\nXoá tệp sẽ xoá cả bản ghi và object đã lưu; phản hồi là `{\"id\": \"file-1234\", \"object\": \"file\", \"deleted\": true}`.\n\n## Lưu trữ và thời hạn\n\nTệp nằm trong object storage của BoxAI chừng nào tài khoản còn giữ, không phải 24 giờ: handle luôn hợp lệ, và gateway tạo URL mới cho nhà cung cấp ở mỗi yêu cầu. Tham chiếu được gửi dưới dạng liên kết có chữ ký, nên tệp của bạn không bị công khai.\n"
+    },
+    "api/live-transcription": {
+      "path": "api/live-transcription",
+      "locale": "vi",
+      "title": "Phiên âm trực tiếp",
+      "summary": "Truyền audio PCM qua WebSocket và nhận bản phiên âm tăng dần từ gpt-live-transcribe.",
+      "section": "api",
+      "order": 70,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "status": "published",
+      "ogImage": "",
+      "noindex": false,
+      "checklist": [],
+      "headings": [
+        {
+          "id": "phien",
+          "text": "Phiên",
+          "level": 2
+        },
+        {
+          "id": "audio-va-luot",
+          "text": "Audio và lượt",
+          "level": 2
+        },
+        {
+          "id": "event-phien-am",
+          "text": "Event phiên âm",
+          "level": 2
+        },
+        {
+          "id": "tinh-phi",
+          "text": "Tính phí",
+          "level": 2
+        },
+        {
+          "id": "luu-y",
+          "text": "Lưu ý",
+          "level": 2
+        }
+      ],
+      "body": "## Phiên\n\nPhiên âm trực tiếp là một phiên WebSocket, không phải REST:\n\n```text\nwss://you-box.com/v1/realtime?intent=transcription&model=gpt-live-transcribe\nAuthorization: Bearer <BOXAI_API_KEY>\n```\n\nClient theo chuẩn OpenAI có thể gửi key qua subprotocol:\n`Sec-WebSocket-Protocol: realtime, openai-insecure-api-key.<BOXAI_API_KEY>`.\n\nGateway trả `session.created`, sau đó `session.updated` cho mỗi cấu hình được chấp nhận:\n\n```json\n{\n  \"type\": \"session.created\",\n  \"session\": {\n    \"type\": \"transcription\",\n    \"audio\": {\n      \"input\": {\n        \"format\": { \"type\": \"audio/pcm\", \"rate\": 24000 },\n        \"transcription\": { \"model\": \"gpt-live-transcribe\" },\n        \"turn_detection\": null\n      }\n    }\n  }\n}\n```\n\n## Audio và lượt\n\nAudio là **PCM16 mono 24 kHz**, mã hoá base64, gửi theo từng khối. Lượt được commit thủ công — không có phát hiện giọng nói phía server:\n\n| Event                       | Ý nghĩa                                                                                                                                    |\n| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |\n| `session.update`            | Tuỳ chọn, một lần, trước khi gửi audio: `transcription.prompt`, `keywords`, `languages`, `delay` (`minimal`/`low`/`medium`/`high`/`xhigh`) |\n| `input_audio_buffer.append` | `audio` — khối PCM16 base64 của lượt hiện tại                                                                                              |\n| `input_audio_buffer.commit` | Kết thúc lượt và bắt đầu phiên âm                                                                                                          |\n\nMỗi lượt tối đa **60 giây** audio và chỉ một lượt được xử lý tại một thời điểm: commit, đọc kết quả, rồi gửi lượt tiếp theo. Append, commit và bản phiên âm cùng trỏ tới một item.\n\n## Event phiên âm\n\n```json\n{ \"type\": \"input_audio_buffer.committed\", \"item_id\": \"item_abc\" }\n{ \"type\": \"conversation.item.input_audio_transcription.delta\", \"item_id\": \"item_abc\", \"content_index\": 0, \"delta\": \"hel\" }\n{ \"type\": \"conversation.item.input_audio_transcription.completed\", \"item_id\": \"item_abc\", \"content_index\": 0, \"transcript\": \"hello\", \"usage\": { \"type\": \"duration\", \"seconds\": 2.4 } }\n```\n\nChỉ các event này cùng `session.created`/`session.updated` được chuyển tiếp. Mọi thứ khác — event không xác định, commit lần hai, audio vượt giới hạn lượt — sẽ đóng phiên với trạng thái vi phạm chính sách thay vì bị bỏ qua âm thầm.\n\n## Tính phí\n\nAudio được tính theo giây đầu vào đã commit theo tỷ lệ token của model, quyết toán khi upstream trả `usage.duration` cho lượt đó. Phiên lỗi trước khi quyết toán không giữ thêm phí; xem [Lỗi, thử lại và giới hạn tần suất](/docs/api/errors).\n\n## Lưu ý\n\n- Giữ socket mở qua nhiều lượt: kết nối một lần rồi commit liên tiếp.\n- Chỉ gửi `input_audio_buffer.commit` sau khi đã có ít nhất ~0,1 giây audio; lượt rỗng bị từ chối.\n- Với phiên âm từ tệp, dùng `POST /v1/audio/transcriptions` với `gpt-transcribe`.\n"
     },
     "api/overview": {
       "path": "api/overview",
