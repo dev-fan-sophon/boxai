@@ -113,15 +113,20 @@ type RelayInfo struct {
 	OutputAudioFormat      string
 	RealtimeTools          []dto.RealTimeTool
 	IsFirstRequest         bool
-	AudioUsage             bool
-	ReasoningEffort        string
-	UserSetting            dto.UserSetting
-	UserEmail              string
-	UserQuota              int
-	RelayFormat            types.RelayFormat
-	SendResponseCount      int
-	ReceivedResponseCount  int
-	FinalPreConsumedQuota  int // 最终预消耗的配额
+	// Realtime audio is billed per chunk, and each chunk alone rarely covers a whole
+	// token. The remainders keep the fraction between chunks so a stream split into
+	// many small chunks bills the same total as one large chunk.
+	InputAudioTokenRemainder  float64
+	OutputAudioTokenRemainder float64
+	AudioUsage                bool
+	ReasoningEffort           string
+	UserSetting               dto.UserSetting
+	UserEmail                 string
+	UserQuota                 int
+	RelayFormat               types.RelayFormat
+	SendResponseCount         int
+	ReceivedResponseCount     int
+	FinalPreConsumedQuota     int // 最终预消耗的配额
 	// ForcePreConsume 为 true 时禁用 BillingSession 的信任额度旁路，
 	// 强制预扣全额。用于异步任务（视频/音乐生成等），因为请求返回后任务仍在运行，
 	// 必须在提交前锁定全额。
@@ -372,6 +377,17 @@ func GenRelayInfoWs(c *gin.Context, ws *websocket.Conn) *RelayInfo {
 	info.InputAudioFormat = "pcm16"
 	info.OutputAudioFormat = "pcm16"
 	info.IsFirstRequest = true
+	// A transcription session takes its model from the session configuration and the
+	// Realtime API rejects the query parameter ("You must not provide a model parameter
+	// for transcription sessions"). Here the parameter only routes and bills the
+	// request, so the upstream connection is opened without it.
+	if c.Query("intent") == "transcription" {
+		query := c.Request.URL.Query()
+		query.Del("model")
+		upstreamURL := *c.Request.URL
+		upstreamURL.RawQuery = query.Encode()
+		info.RequestURLPath = upstreamURL.String()
+	}
 	return info
 }
 

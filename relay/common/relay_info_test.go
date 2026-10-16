@@ -117,6 +117,36 @@ func TestGenRelayInfoCapturesRequestReasoningEffort(t *testing.T) {
 	}
 }
 
+func TestGenRelayInfoWsDropsModelQueryForTranscriptionSessions(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "transcription session keeps the intent without the model",
+			path:     "/v1/realtime?intent=transcription&model=gpt-live-transcribe",
+			expected: "/v1/realtime?intent=transcription",
+		},
+		{
+			name:     "duplex session forwards the model",
+			path:     "/v1/realtime?model=gpt-realtime-2.1",
+			expected: "/v1/realtime?model=gpt-realtime-2.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			ctx.Request = httptest.NewRequest("GET", tt.path, nil)
+
+			info := GenRelayInfoWs(ctx, nil)
+
+			assert.Equal(t, tt.expected, info.RequestURLPath)
+		})
+	}
+}
+
 func TestInitChannelMetaRestoresRequestReasoningEffortForRetry(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	ctx.Request = httptest.NewRequest("POST", "/v1/responses", nil)
