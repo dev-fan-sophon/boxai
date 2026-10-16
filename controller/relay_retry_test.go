@@ -129,15 +129,25 @@ func TestRelayHTTPFailureDoesNotReplayExhaustedChannels(t *testing.T) {
 	}
 }
 
-func TestTaskSubmissionOnlyRetriesExplicitRateLimitRejection(t *testing.T) {
+func TestTaskSubmissionRetriesUpstreamRejectionsOnly(t *testing.T) {
 	for _, status := range []int{307, 400, 401, 408, 413, 429, 500, 502, 503, 504} {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest("POST", "/v1/videos", nil)
 		fault := &dto.TaskError{StatusCode: status, Message: "private upstream detail"}
-		assert.Equal(t, status == 429, shouldRetryTaskRelay(c, 7, fault, 3), "HTTP %d", status)
+		// 429 is an explicit rate-limit rejection; 502/503 are gateway error
+		// responses the upstream answered itself. 500 (transport failure) and
+		// 504 may have been accepted upstream, so they stay single-attempt.
+		wantRetry := status == http.StatusTooManyRequests || status == http.StatusBadGateway || status == http.StatusServiceUnavailable
+		assert.Equal(t, wantRetry, shouldRetryTaskRelay(c, 7, fault, 3), "HTTP %d", status)
 		fault.LocalError = true
 		assert.False(t, shouldRetryTaskRelay(c, 7, fault, 3))
 	}
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/videos", nil)
+	assert.False(t, shouldRetryTaskRelay(c, 7, &dto.TaskError{StatusCode: http.StatusBadGateway}, 0), "exhausted attempts")
+	c.Set("specific_channel_id", 36)
+	assert.False(t, shouldRetryTaskRelay(c, 7, &dto.TaskError{StatusCode: http.StatusBadGateway}, 3), "a pinned channel never fails over")
 }
 
 func TestTaskErrorResponseIsSanitizedAndPreservesRetryAfter(t *testing.T) {

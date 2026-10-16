@@ -23,7 +23,13 @@ type RetryParam struct {
 	// Rejected channels are skipped like attempted ones, so selection moves to
 	// the remaining channels of the same group before changing groups.
 	ChannelFilter func(*model.Channel) bool
-	resetNextTry  bool
+	// AllowReplay permits one extra selection pass over channels this request
+	// already sent to, used only when no untried channel can serve the model.
+	// Set it after a rejection the upstream itself answered (see
+	// controller.shouldRetryTaskRelay): an ambiguous failure must never replay,
+	// because the upstream may have accepted the work already.
+	AllowReplay  bool
+	resetNextTry bool
 }
 
 func (p *RetryParam) GetRetry() int {
@@ -199,16 +205,37 @@ const maxFilteredChannelSkips = 256
 
 // getFilteredRandomSatisfiedChannel selects from group while skipping channels
 // rejected by param.ChannelFilter. It returns the exclusions it accumulated so
-// an auto-group scan keeps skipping them in later groups.
+// an auto-group scan keeps skipping them in later groups. Untried channels win;
+// when every candidate was already attempted, param.AllowReplay adds one pass
+// over those channels, which is what lets a rejected task submission replay.
 func getFilteredRandomSatisfiedChannel(param *RetryParam, group string, retry int, excludedChannelIds []int) (*model.Channel, []int, error) {
-	for range maxFilteredChannelSkips {
-		channel, err := model.GetRandomSatisfiedChannel(group, param.ModelName, retry, param.RequestPath, excludedChannelIds...)
-		if err != nil || channel == nil || param.ChannelFilter == nil || param.ChannelFilter(channel) {
-			return channel, excludedChannelIds, err
+	exclusions := excludedChannelIds
+	for pass := range 2 {
+		skips := exclusions
+		if pass == 1 {
+			if !param.AllowReplay || len(excludedChannelIds) == 0 {
+				break
+			}
+			// Replay pass: channels this request already sent to may be picked
+			// again, but the channel filter still applies to them.
+			skips = nil
 		}
-		excludedChannelIds = append(slices.Clone(excludedChannelIds), channel.Id)
+		for range maxFilteredChannelSkips {
+			channel, err := model.GetRandomSatisfiedChannel(group, param.ModelName, retry, param.RequestPath, skips...)
+			if err != nil {
+				return nil, exclusions, err
+			}
+			if channel == nil {
+				break
+			}
+			if param.ChannelFilter == nil || param.ChannelFilter(channel) {
+				return channel, exclusions, nil
+			}
+			skips = append(slices.Clone(skips), channel.Id)
+			exclusions = append(slices.Clone(exclusions), channel.Id)
+		}
 	}
-	return nil, excludedChannelIds, nil
+	return nil, exclusions, nil
 }
 
 // attemptedChannelIds returns the channel IDs this request has already been sent to.

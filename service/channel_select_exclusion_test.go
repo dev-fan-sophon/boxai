@@ -136,6 +136,61 @@ func TestCacheGetRandomSatisfiedChannelSingleChannelExhausts(t *testing.T) {
 	assert.Nil(t, retried, "the only channel was already attempted")
 }
 
+func TestCacheGetRandomSatisfiedChannelReplaysRejectedSubmission(t *testing.T) {
+	db := setupChannelSelectAutoGroupsTest(t)
+	common.RetryTimes = 3
+	const modelName = "exclusion-replay-model"
+	createExclusionChannel(t, db, 4501, []string{"default"}, modelName, 0)
+	createExclusionChannel(t, db, 4502, []string{"default"}, modelName, 0)
+	model.InitChannelCache()
+
+	ctx := newExclusionRetryContext("default")
+	param := &RetryParam{Ctx: ctx, TokenGroup: "default", ModelName: modelName, RequestPath: "/v1/videos", Retry: common.GetPointer(0)}
+
+	first, _, err := CacheGetRandomSatisfiedChannel(param)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+	recordAttempt(ctx, first)
+
+	// An untried channel still wins while one can serve the model.
+	param.IncreaseRetry()
+	param.AllowReplay = true
+	second, _, err := CacheGetRandomSatisfiedChannel(param)
+	require.NoError(t, err)
+	require.NotNil(t, second)
+	assert.NotEqual(t, first.Id, second.Id, "replay must not preempt failover to an untried channel")
+	recordAttempt(ctx, second)
+
+	// Every candidate was attempted: the rejection may be replayed.
+	param.IncreaseRetry()
+	third, _, err := CacheGetRandomSatisfiedChannel(param)
+	require.NoError(t, err)
+	require.NotNil(t, third, "a rejected submission may replay an attempted channel")
+	assert.Contains(t, []int{4501, 4502}, third.Id)
+}
+
+func TestCacheGetRandomSatisfiedChannelReplaysSingleAttemptedChannel(t *testing.T) {
+	db := setupChannelSelectAutoGroupsTest(t)
+	common.RetryTimes = 3
+	const modelName = "exclusion-replay-single-model"
+	createExclusionChannel(t, db, 4601, []string{"default"}, modelName, 0)
+	model.InitChannelCache()
+
+	ctx := newExclusionRetryContext("default")
+	param := &RetryParam{Ctx: ctx, TokenGroup: "default", ModelName: modelName, RequestPath: "/v1/videos", Retry: common.GetPointer(0), AllowReplay: true}
+
+	first, _, err := CacheGetRandomSatisfiedChannel(param)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+	recordAttempt(ctx, first)
+
+	param.IncreaseRetry()
+	retried, _, err := CacheGetRandomSatisfiedChannel(param)
+	require.NoError(t, err)
+	require.NotNil(t, retried, "the only channel must stay selectable for a replay")
+	assert.Equal(t, 4601, retried.Id)
+}
+
 func TestCacheGetRandomSatisfiedChannelAutoGroupStaysWithoutCrossGroupRetry(t *testing.T) {
 	db := setupChannelSelectAutoGroupsTest(t)
 	common.RetryTimes = 3

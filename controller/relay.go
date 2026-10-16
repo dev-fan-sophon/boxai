@@ -642,6 +642,10 @@ func RelayTask(c *gin.Context) {
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-attempt) {
 			break
 		}
+		// The upstream answered this submission with a rejection, so it did not
+		// create a task: the next attempt may replay this channel when no
+		// untried channel can serve the model.
+		retryParam.AllowReplay = true
 	}
 
 	useChannel := c.GetStringSlice("use_channel")
@@ -720,8 +724,15 @@ func shouldRetryTaskRelay(c *gin.Context, channelId int, taskErr *dto.TaskError,
 	if _, ok := c.Get("specific_channel_id"); ok {
 		return false
 	}
-	// Submission is not idempotent. A 5xx/timeout can happen after acceptance;
-	// replaying it could create and charge a second task. Only an explicit
-	// rate-limit rejection permits failover to an untried channel.
-	return taskErr.StatusCode == http.StatusTooManyRequests
+	// Submission is not idempotent. A transport failure or a timeout can happen
+	// after acceptance; replaying one could create and charge a second task.
+	// Only rejections the upstream itself answered may be replayed: an explicit
+	// rate limit, or a gateway error response (502/503) that means the upstream
+	// refused the submission before it created a task. A 500 (transport
+	// failure, including our own timeout) and a 504 stay single-attempt.
+	switch taskErr.StatusCode {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable:
+		return true
+	}
+	return false
 }
