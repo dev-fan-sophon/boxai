@@ -45,6 +45,11 @@ var (
 	xaiImageQualities    = []string{"auto", "low", "medium"}
 
 	geminiImageAspectRatios = []string{"1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"}
+	// Nano Banana 2 and 2.1 additionally accept ultra-wide strips; pro does not.
+	geminiWideImageAspectRatios = []string{"4:1", "1:4", "8:1", "1:8"}
+	// Nano Banana 2 and 2.1 expose the thinking level as their quality tier
+	// (rolldek docs: minimal / medium / high, upstream default medium).
+	geminiThinkingLevels = []string{"minimal", "medium", "high"}
 
 	gptImageClassicSizes = []string{"auto", "1024x1024", "1536x1024", "1024x1536"}
 	gptImage2Sizes       = []string{"auto", "1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048", "3840x2160", "2160x3840"}
@@ -99,6 +104,27 @@ func geminiImageResolutions(model string) []string {
 		return []string{"1K", "2K", "4K"}
 	}
 	// Gemini 2.x image models have no imageSize control.
+	return []string{}
+}
+
+// geminiImageAspectRatiosFor adds the ultra-wide strips Nano Banana 2 and 2.1
+// accept; the pro tier keeps the ten standard ratios.
+func geminiImageAspectRatiosFor(model string) []string {
+	bare := BareImageModel(model)
+	ratios := append([]string{}, geminiImageAspectRatios...)
+	if strings.Contains(bare, "nano-banana") || strings.HasPrefix(bare, "gemini-3.1-flash-image") {
+		ratios = append(ratios, geminiWideImageAspectRatios...)
+	}
+	return ratios
+}
+
+// geminiImageQualities exposes the thinking level of the Nano Banana 2 and 2.1
+// tiers as the model's quality control.
+func geminiImageQualities(model string) []string {
+	bare := BareImageModel(model)
+	if strings.Contains(bare, "nano-banana") || strings.HasPrefix(bare, "gemini-3.1-flash-image") {
+		return append([]string{}, geminiThinkingLevels...)
+	}
 	return []string{}
 }
 
@@ -158,9 +184,14 @@ func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 		}
 	case ImageFamilyGemini:
 		resolutions := geminiImageResolutions(model)
+		qualities := geminiImageQualities(model)
 		defaults := dto.ImageModelDefaults{AspectRatio: "1:1"}
 		if len(resolutions) > 0 {
 			defaults.Resolution = resolutions[0]
+		}
+		if len(qualities) > 0 {
+			// The upstream default thinking level is medium.
+			defaults.Quality = "medium"
 		}
 		return &dto.ImageModelCapabilities{
 			Family:             ImageFamilyGemini,
@@ -168,9 +199,9 @@ func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 			MaxReferenceImages: GeminiImageMaxReferenceImages,
 			SizeMode:           "aspect",
 			Sizes:              []string{},
-			AspectRatios:       append([]string{}, geminiImageAspectRatios...),
+			AspectRatios:       geminiImageAspectRatiosFor(model),
 			Resolutions:        resolutions,
-			Qualities:          []string{},
+			Qualities:          qualities,
 			MaxN:               GeminiImageMaxN,
 			Backgrounds:        []string{},
 			OutputFormats:      []string{},
@@ -307,6 +338,15 @@ func ValidateImageRequestOptions(request *dto.ImageRequest, referenceCount int, 
 			return fmt.Errorf("resolution must be one of %s for %s", strings.Join(capabilities.Resolutions, ", "), request.Model)
 		}
 		request.Resolution = resolution
+	}
+	// Aspect-mode tiers carry their own quality scale: xAI levels and the
+	// Nano Banana thinking level (minimal / medium / high).
+	if request.Quality != "" && len(capabilities.Qualities) > 0 {
+		quality, ok := canonicalOption(request.Quality, capabilities.Qualities)
+		if !ok {
+			return fmt.Errorf("quality must be one of %s for %s", strings.Join(capabilities.Qualities, ", "), request.Model)
+		}
+		request.Quality = quality
 	}
 	return nil
 }

@@ -34,13 +34,15 @@ export const GPT_IMAGE_SIZES = [
 export const GPT_IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high'] as const
 
 /**
- * Every quality a stored setting may keep. Higher tiers (GPT Image 2.5) are
- * only offered and sent when the model's capabilities list them.
+ * Every quality a stored setting may keep. Higher tiers (GPT Image 2.5) and
+ * the Nano Banana thinking levels are only offered and sent when the model's
+ * capabilities list them.
  */
 export const IMAGE_QUALITY_VALUES = [
   ...GPT_IMAGE_QUALITIES,
   'xhigh',
   'max',
+  'minimal',
 ] as const
 
 /** Images per prompt. The studio fans these out as one request per image. */
@@ -329,6 +331,8 @@ function familyRequestFields(
 /** i18n key for a quality value; other capability values show as sent. */
 export function imageQualityLabelKey(quality: string): string {
   switch (quality) {
+    case 'minimal':
+      return 'Minimal'
     case 'low':
       return 'Low'
     case 'medium':

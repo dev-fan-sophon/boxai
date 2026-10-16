@@ -64,18 +64,26 @@ func TestGeminiNanoBananaImageRequestKeeps4K(t *testing.T) {
 	info := nativeImageInfo(relayconstant.RelayModeImagesGenerations, "gemini-nano-banana-2.1")
 	adaptor := &Adaptor{}
 
-	converted, err := adaptor.ConvertImageRequest(c, info, dto.ImageRequest{Model: "gemini-nano-banana-2.1", Prompt: "apple", AspectRatio: "1:1", Resolution: "4K"})
+	converted, err := adaptor.ConvertImageRequest(c, info, dto.ImageRequest{Model: "gemini-nano-banana-2.1", Prompt: "apple", AspectRatio: "1:1", Resolution: "4K", Quality: "high"})
 	require.NoError(t, err)
 	body, err := common.Marshal(converted)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
 		"contents":[{"role":"user","parts":[{"text":"apple"}]}],
-		"generationConfig":{"responseModalities":["TEXT","IMAGE"],"imageConfig":{"aspectRatio":"1:1","imageSize":"4K"}}
+		"generationConfig":{"responseModalities":["TEXT","IMAGE"],"imageConfig":{"aspectRatio":"1:1","imageSize":"4K"},"thinkingConfig":{"thinkingLevel":"high"}}
 	}`, string(body))
 
 	url, err := adaptor.GetRequestURL(info)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(url, "/v1beta/models/gemini-nano-banana-2.1:generateContent"), url)
+
+	// The pro tier has no thinking level, so the field stays absent.
+	proInfo := nativeImageInfo(relayconstant.RelayModeImagesGenerations, "gemini-3-pro-image")
+	converted, err = adaptor.ConvertImageRequest(c, proInfo, dto.ImageRequest{Model: "gemini-3-pro-image", Prompt: "apple", Quality: "high"})
+	require.NoError(t, err)
+	body, err = common.Marshal(converted)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "thinkingConfig")
 }
 
 func TestGeminiImageGenerateContentHandler(t *testing.T) {

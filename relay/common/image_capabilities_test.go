@@ -49,6 +49,16 @@ func TestDefaultImageCapabilitiesProfiles(t *testing.T) {
 	assert.Nil(t, DefaultImageCapabilities("dall-e-3"))
 	assert.Contains(t, DefaultImageCapabilities("gpt-image-2").Sizes, "3840x2160")
 	assert.NotContains(t, DefaultImageCapabilities("gpt-image-1").Sizes, "3840x2160")
+
+	// Nano Banana 2 and 2.1 add ultra-wide strips and a thinking level; the
+	// pro tier keeps the ten standard ratios and no quality control.
+	banana21 := DefaultImageCapabilities("gemini-nano-banana-2.1")
+	assert.Equal(t, []string{"minimal", "medium", "high"}, banana21.Qualities)
+	assert.Equal(t, "medium", banana21.Defaults.Quality)
+	assert.Subset(t, banana21.AspectRatios, []string{"4:1", "1:4", "8:1", "1:8"})
+	assert.Subset(t, DefaultImageCapabilities("gemini-3.1-flash-image").AspectRatios, []string{"8:1", "1:8"})
+	assert.Empty(t, DefaultImageCapabilities("gemini-3-pro-image").Qualities)
+	assert.NotContains(t, DefaultImageCapabilities("gemini-3-pro-image").AspectRatios, "8:1")
 }
 
 func TestValidateImageRequestOptions(t *testing.T) {
@@ -77,6 +87,8 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		{name: "gemini one image per call", request: dto.ImageRequest{Model: "gemini-3.1-flash-image", N: common.GetPointer(uint(2))}, wantErr: "between 1 and 1"},
 		{name: "gemini lite has only 1K", request: dto.ImageRequest{Model: "gemini-3.1-flash-lite-image", Resolution: "2K"}, wantErr: "resolution must be one of 1K"},
 		{name: "gemini 2.5 has no resolution", request: dto.ImageRequest{Model: "gemini-2.5-flash-image", Resolution: "1K"}, wantErr: "resolution is not supported"},
+		{name: "nano banana rejects an unknown thinking level", request: dto.ImageRequest{Model: "gemini-nano-banana-2.1", Quality: "max"}, wantErr: "quality must be one of minimal, medium, high"},
+		{name: "nano banana pro has no thinking level", request: dto.ImageRequest{Model: "gemini-3-pro-image", Quality: "high"}},
 		{name: "gpt rejects aspect ratio", request: dto.ImageRequest{Model: "gpt-image-2", AspectRatio: "1:1"}, wantErr: "uses size"},
 		{name: "gpt-image-2 accepts 4K landscape", request: dto.ImageRequest{Model: "gpt-image-2", Size: "3840x2160"}},
 		{name: "gpt-image-2 rejects non multiple of 16", request: dto.ImageRequest{Model: "gpt-image-2", Size: "1000x1000"}, wantErr: "size must be auto"},
@@ -110,6 +122,12 @@ func TestValidateImageRequestOptions(t *testing.T) {
 			assert.Equal(t, tt.wantResolution, request.Resolution)
 		})
 	}
+
+	thinking := dto.ImageRequest{Model: "gemini-nano-banana-2.1", AspectRatio: "8:1", Resolution: "4k", Quality: "High"}
+	require.NoError(t, ValidateImageRequestOptions(&thinking, 0, false))
+	assert.Equal(t, "8:1", thinking.AspectRatio)
+	assert.Equal(t, "4K", thinking.Resolution)
+	assert.Equal(t, "high", thinking.Quality, "the thinking level is canonicalized")
 }
 
 func TestGeminiImageOutputTokens(t *testing.T) {

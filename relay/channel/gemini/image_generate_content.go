@@ -83,6 +83,10 @@ func convertImageRequestToGenerateContent(c *gin.Context, info *relaycommon.Rela
 		}
 		geminiRequest.GenerationConfig.ImageConfig = raw
 	}
+	// Nano Banana 2 and 2.1 take their quality tier as a thinking level.
+	if capabilities := relaycommon.DefaultImageCapabilities(info.UpstreamModelName); capabilities != nil && request.Quality != "" && common.StringsContains(capabilities.Qualities, request.Quality) {
+		geminiRequest.GenerationConfig.ThinkingConfig = &dto.GeminiThinkingConfig{ThinkingLevel: request.Quality}
+	}
 	return geminiRequest, nil
 }
 
