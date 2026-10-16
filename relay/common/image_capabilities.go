@@ -13,9 +13,10 @@ import (
 // Image model families with a modeled request contract. Unknown models keep
 // the historical pass-through behavior.
 const (
-	ImageFamilyGPT    = "gpt-image"
-	ImageFamilyXAI    = "xai"
-	ImageFamilyGemini = "gemini"
+	ImageFamilyGPT      = "gpt-image"
+	ImageFamilyXAI      = "xai"
+	ImageFamilyGemini   = "gemini"
+	ImageFamilySeedream = "seedream"
 )
 
 const (
@@ -27,11 +28,17 @@ const (
 	// GeminiImageMaxReferenceImages: Gemini image models accept up to 14
 	// reference images (ai.google.dev/gemini-api/docs/image-generation).
 	GeminiImageMaxReferenceImages = 14
+	// SeedreamImageMaxReferenceImages: Seedream 5.0 accepts 1–10 reference
+	// images, four or fewer recommended (rolldek docs seedream.md).
+	SeedreamImageMaxReferenceImages = 10
 	// GPTImageMaxN and XAIImageMaxN are the provider `n` ranges (1–10).
 	GPTImageMaxN = 10
 	XAIImageMaxN = 10
 	// Gemini returns one image per generateContent call.
 	GeminiImageMaxN = 1
+	// SeedreamImageMaxN: Seedream 5.0 generates 1–4 images per call and is
+	// billed per image.
+	SeedreamImageMaxN = 4
 
 	gptImageMaxEdge      = 3840
 	gptImageMinPixels    = 655_360
@@ -57,6 +64,11 @@ var (
 	gptImageBackgrounds  = []string{"auto", "opaque", "transparent"}
 	gptImageFormats      = []string{"png", "jpeg", "webp"}
 	gptImageModeration   = []string{"auto", "low"}
+
+	// Seedream 5.0 takes the aspect ratio in `size` and the tier in
+	// `resolution` (rolldek docs seedream.md).
+	seedreamImageAspectRatios = []string{"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "3:1", "1:3", "21:9", "9:21"}
+	seedreamImageResolutions  = []string{"1k", "2k"}
 )
 
 // BareImageModel lowercases a model id and strips a vendor prefix such as
@@ -80,6 +92,8 @@ func ImageModelFamily(model string) string {
 	case strings.HasPrefix(bare, "gemini-") && strings.Contains(bare, "-image"),
 		strings.Contains(bare, "nano-banana"):
 		return ImageFamilyGemini
+	case strings.HasPrefix(bare, "seedream-5"):
+		return ImageFamilySeedream
 	}
 	return ""
 }
@@ -208,6 +222,23 @@ func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 			Moderation:         []string{},
 			Defaults:           defaults,
 		}
+	case ImageFamilySeedream:
+		return &dto.ImageModelCapabilities{
+			Family:             ImageFamilySeedream,
+			Modes:              []string{"generate", "edit"},
+			MaxReferenceImages: SeedreamImageMaxReferenceImages,
+			SizeMode:           "aspect",
+			Sizes:              []string{},
+			AspectRatios:       append([]string{}, seedreamImageAspectRatios...),
+			Resolutions:        append([]string{}, seedreamImageResolutions...),
+			Qualities:          []string{},
+			MaxN:               SeedreamImageMaxN,
+			SupportsMask:       false,
+			Backgrounds:        []string{},
+			OutputFormats:      []string{},
+			Moderation:         []string{},
+			Defaults:           dto.ImageModelDefaults{AspectRatio: "auto", Resolution: "1k"},
+		}
 	}
 	return nil
 }
@@ -328,6 +359,15 @@ func ValidateImageRequestOptions(request *dto.ImageRequest, referenceCount int, 
 			return fmt.Errorf("aspect_ratio must be one of %s for %s", strings.Join(capabilities.AspectRatios, ", "), request.Model)
 		}
 		request.AspectRatio = ratio
+	}
+	// Seedream carries the aspect ratio in `size` upstream, so clients may send
+	// either spelling; anything that is not a ratio is a mistake worth a 400.
+	if capabilities.Family == ImageFamilySeedream && request.Size != "" {
+		size, ok := canonicalOption(request.Size, capabilities.AspectRatios)
+		if !ok {
+			return fmt.Errorf("size must be one of %s for %s", strings.Join(capabilities.AspectRatios, ", "), request.Model)
+		}
+		request.Size = size
 	}
 	if request.Resolution != "" {
 		resolution, ok := canonicalOption(request.Resolution, capabilities.Resolutions)

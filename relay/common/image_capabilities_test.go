@@ -33,6 +33,7 @@ func TestDefaultImageCapabilitiesProfiles(t *testing.T) {
 		{model: "gemini-2.5-flash-image", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{}},
 		{model: "gemini-nano-banana-2.1", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K", "2K", "4K"}},
 		{model: "nano-banana-pro", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K", "2K", "4K"}},
+		{model: "seedream-5.0", family: ImageFamilySeedream, sizeMode: "aspect", maxReferences: 10, maxN: 4, resolutions: []string{"1k", "2k"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
@@ -59,6 +60,17 @@ func TestDefaultImageCapabilitiesProfiles(t *testing.T) {
 	assert.Subset(t, DefaultImageCapabilities("gemini-3.1-flash-image").AspectRatios, []string{"8:1", "1:8"})
 	assert.Empty(t, DefaultImageCapabilities("gemini-3-pro-image").Qualities)
 	assert.NotContains(t, DefaultImageCapabilities("gemini-3-pro-image").AspectRatios, "8:1")
+
+	// Seedream 5.0 takes the aspect ratio in `size` upstream, offers the wide
+	// strips, has no quality control and is billed per generated image.
+	seedream := DefaultImageCapabilities("seedream-5.0")
+	require.NotNil(t, seedream)
+	assert.Subset(t, seedream.AspectRatios, []string{"auto", "21:9", "9:21", "3:1", "1:3"})
+	assert.Empty(t, seedream.Qualities)
+	assert.False(t, seedream.SupportsMask)
+	assert.Equal(t, "auto", seedream.Defaults.AspectRatio)
+	assert.Equal(t, "1k", seedream.Defaults.Resolution)
+	assert.Nil(t, DefaultImageCapabilities("seedream-4"))
 }
 
 func TestValidateImageRequestOptions(t *testing.T) {
@@ -75,6 +87,7 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		wantErr        string
 		wantAspect     string
 		wantResolution string
+		wantSize       string
 	}{
 		{name: "xai canonicalizes options", request: dto.ImageRequest{Model: "grok-imagine-image-2.0", AspectRatio: "16:9", Resolution: "2K"}, references: 5, wantAspect: "16:9", wantResolution: "2k"},
 		{name: "xai rejects sixth reference", request: dto.ImageRequest{Model: "grok-imagine-image-2.0"}, references: 6, wantErr: "at most 5 reference images"},
@@ -90,7 +103,7 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		{name: "nano banana rejects an unknown thinking level", request: dto.ImageRequest{Model: "gemini-nano-banana-2.1", Quality: "max"}, wantErr: "quality must be one of minimal, medium, high"},
 		{name: "nano banana pro has no thinking level", request: dto.ImageRequest{Model: "gemini-3-pro-image", Quality: "high"}},
 		{name: "gpt rejects aspect ratio", request: dto.ImageRequest{Model: "gpt-image-2", AspectRatio: "1:1"}, wantErr: "uses size"},
-		{name: "gpt-image-2 accepts 4K landscape", request: dto.ImageRequest{Model: "gpt-image-2", Size: "3840x2160"}},
+		{name: "gpt-image-2 accepts 4K landscape", request: dto.ImageRequest{Model: "gpt-image-2", Size: "3840x2160"}, wantSize: "3840x2160"},
 		{name: "gpt-image-2 rejects non multiple of 16", request: dto.ImageRequest{Model: "gpt-image-2", Size: "1000x1000"}, wantErr: "size must be auto"},
 		{name: "gpt-image-2 rejects ratio beyond 3:1", request: dto.ImageRequest{Model: "gpt-image-2", Size: "3840x1024"}, wantErr: "size must be auto"},
 		{name: "gpt-image-2 rejects oversize edge", request: dto.ImageRequest{Model: "gpt-image-2", Size: "4096x2048"}, wantErr: "size must be auto"},
@@ -98,8 +111,8 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		{name: "gpt rejects unknown background", request: dto.ImageRequest{Model: "gpt-image-2", Background: jsonString("glass")}, wantErr: "background must be one of"},
 		{name: "gpt bounds references", request: dto.ImageRequest{Model: "gpt-image-2"}, references: 17, wantErr: "at most 16 reference images"},
 		{name: "gpt accepts mask", request: dto.ImageRequest{Model: "gpt-image-2"}, references: 1, mask: true},
-		{name: "image25 accepts documented non-GPT2 size and max quality", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Size: "1280x720", Quality: "max"}, references: 16, mask: true},
-		{name: "image25 accepts asymmetric 4K preset", request: dto.ImageRequest{Model: "openai/gpt-image-2.5-sunburst", Size: "2352x3520", Quality: "xhigh"}},
+		{name: "image25 accepts documented non-GPT2 size and max quality", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Size: "1280x720", Quality: "max"}, references: 16, mask: true, wantSize: "1280x720"},
+		{name: "image25 accepts asymmetric 4K preset", request: dto.ImageRequest{Model: "openai/gpt-image-2.5-sunburst", Size: "2352x3520", Quality: "xhigh"}, wantSize: "2352x3520"},
 		{name: "image25 rejects GPT2 preset", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Size: "1536x1024"}, wantErr: "size must be one of"},
 		{name: "image25 rejects auto size", request: dto.ImageRequest{Model: "gpt-image-2.5-sunburst", Size: "auto"}, wantErr: "size must be one of"},
 		{name: "image25 rejects unknown quality", request: dto.ImageRequest{Model: "gpt-image-2.5-flare", Quality: "standard"}, wantErr: "quality must be one of"},
@@ -107,6 +120,14 @@ func TestValidateImageRequestOptions(t *testing.T) {
 		{name: "image25 rejects streaming", request: dto.ImageRequest{Model: "gpt-image-2.5-sunburst", Stream: common.GetPointer(true)}, wantErr: "stream is not supported"},
 		{name: "image25 rejects excess references", request: dto.ImageRequest{Model: "gpt-image-2.5-flare"}, references: 17, wantErr: "at most 16"},
 		{name: "unmodeled model passes through", request: dto.ImageRequest{Model: "seedream-4", AspectRatio: "anything"}, references: 40, wantAspect: "anything"},
+		{name: "seedream canonicalizes ratio and resolution", request: dto.ImageRequest{Model: "seedream-5.0", AspectRatio: "21:9", Resolution: "2K"}, references: 10, wantAspect: "21:9", wantResolution: "2k"},
+		{name: "seedream accepts the upstream size spelling", request: dto.ImageRequest{Model: "seedream-5.0", Size: "16:9"}, wantSize: "16:9"},
+		{name: "seedream rejects a pixel size", request: dto.ImageRequest{Model: "seedream-5.0", Size: "1024x1024"}, wantErr: "size must be one of"},
+		{name: "seedream rejects an unknown aspect", request: dto.ImageRequest{Model: "seedream-5.0", AspectRatio: "7:3"}, wantErr: "aspect_ratio must be one of"},
+		{name: "seedream rejects an unknown resolution", request: dto.ImageRequest{Model: "seedream-5.0", Resolution: "4k"}, wantErr: "resolution must be one of 1k, 2k"},
+		{name: "seedream bounds n", request: dto.ImageRequest{Model: "seedream-5.0", N: common.GetPointer(uint(5))}, wantErr: "between 1 and 4"},
+		{name: "seedream bounds references", request: dto.ImageRequest{Model: "seedream-5.0"}, references: 11, wantErr: "at most 10 reference images"},
+		{name: "seedream rejects mask", request: dto.ImageRequest{Model: "seedream-5.0"}, references: 1, mask: true, wantErr: "mask is not supported"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -120,6 +141,7 @@ func TestValidateImageRequestOptions(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantAspect, request.AspectRatio)
 			assert.Equal(t, tt.wantResolution, request.Resolution)
+			assert.Equal(t, tt.wantSize, request.Size)
 		})
 	}
 

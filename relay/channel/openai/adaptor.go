@@ -455,6 +455,16 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 	case relaycommon.ImageFamilyGemini:
 		return convertGeminiImageToChat(c, info, request)
 	}
+	if relaycommon.ImageModelFamily(request.Model) == relaycommon.ImageFamilySeedream {
+		// Rolldek's Seedream takes the aspect ratio in `size`, while the
+		// gateway contract spells it aspect_ratio.
+		request.Model = info.UpstreamModelName
+		if request.AspectRatio != "" {
+			request.Size = request.AspectRatio
+		}
+		request.AspectRatio = ""
+		return request, nil
+	}
 	if relaycommon.IsGPTImage25Model(request.Model) {
 		// Keep n=1 on the original request for reservation/settlement, but
 		// the native supplier rejects n (even 1) and response_format.
