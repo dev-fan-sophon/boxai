@@ -2,7 +2,7 @@
 
 `GET /api/playground/video-capabilities?model=<public model>&group=<group>` is the authenticated, fail-closed contract used by video clients.
 
-The response intersects every enabled channel that routing can select for the user's requested group. Unknown channel/model pairs remove the affected mode rather than guessing. Model mappings are resolved before built-in profiles are selected. Explicit per-channel profiles live in `ChannelSettings.video_capabilities` and are validated when channel settings are saved.
+The response intersects every enabled channel at the highest priority tier that routing selects first for the user's requested group. Lower-priority channels only serve as fallbacks, so their narrower contract does not narrow what clients advertise; the same rule governs `GET /api/playground/image-capabilities`. Unknown channel/model pairs remove the affected mode rather than guessing. Model mappings are resolved before built-in profiles are selected. Explicit per-channel profiles live in `ChannelSettings.video_capabilities` and are validated when channel settings are saved.
 
 Modes are `text`, `frames` (first/optional last frame), and `references` (a set of reference images). All list properties are JSON arrays, including empty `imageOnlyResolutions`. `imageOnlyResolutions` is a restriction and is therefore unioned across candidates; ordinary choices are intersected. Duration choices are filtered to the intersected range.
 

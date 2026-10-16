@@ -19,7 +19,7 @@ func ResolveImageCapabilities(groups []string, publicModel string) (*dto.ImageMo
 		if err != nil {
 			return nil, err
 		}
-		candidates = append(candidates, channels...)
+		candidates = append(candidates, model.PrimaryChannels(channels)...)
 	}
 
 	var result *dto.ImageModelCapabilities

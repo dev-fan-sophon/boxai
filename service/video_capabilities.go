@@ -21,7 +21,7 @@ func ResolveVideoCapabilities(groups []string, publicModel string) (map[string]d
 		if err != nil {
 			return nil, err
 		}
-		candidates = append(candidates, channels...)
+		candidates = append(candidates, model.PrimaryChannels(channels)...)
 	}
 	if len(candidates) == 0 {
 		return map[string]dto.VideoModelCapabilities{}, nil

@@ -8,6 +8,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/glebarez/sqlite"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -29,7 +30,8 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 	gemini := &model.Channel{Id: 4, Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Key: "k"}
 	fixedSize := &model.Channel{Id: 5, Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Key: "k"}
 	fixedSize.SetSetting(dto.ChannelSettings{ImageIgnoresSizeOptions: true})
-	require.NoError(t, db.Create([]*model.Channel{codex, native, grok, gemini, fixedSize}).Error)
+	primary := &model.Channel{Id: 6, Type: constant.ChannelTypeGemini, Status: common.ChannelStatusEnabled, Key: "k", Priority: lo.ToPtr(int64(10))}
+	require.NoError(t, db.Create([]*model.Channel{codex, native, grok, gemini, fixedSize, primary}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "gpt-image-2", ChannelId: 1, Enabled: true},
 		{Group: "default", Model: "gpt-image-2", ChannelId: 2, Enabled: true},
@@ -39,6 +41,8 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 		{Group: "default", Model: "gemini-alias", ChannelId: 4, Enabled: true},
 		{Group: "default", Model: "dall-e-3", ChannelId: 2, Enabled: true},
 		{Group: "default", Model: "gemini-3-pro-image", ChannelId: 5, Enabled: true},
+		{Group: "default", Model: "gemini-3.1-flash-image", ChannelId: 5, Enabled: true},
+		{Group: "default", Model: "gemini-3.1-flash-image", ChannelId: 6, Enabled: true},
 	}).Error)
 
 	gpt, err := ResolveImageCapabilities([]string{"default"}, "gpt-image-2")
@@ -70,6 +74,15 @@ func TestResolveImageCapabilitiesFromRoutingCandidates(t *testing.T) {
 	assert.Empty(t, fixed.AspectRatios)
 	assert.Empty(t, fixed.Resolutions)
 	assert.Empty(t, fixed.Defaults.AspectRatio)
+
+	// The highest priority channel defines the contract: a lower-priority
+	// fixed-size fallback must not strip the primary's 4K.
+	preferred, err := ResolveImageCapabilities([]string{"default"}, "gemini-3.1-flash-image")
+	require.NoError(t, err)
+	require.NotNil(t, preferred)
+	assert.Equal(t, []string{"1K", "2K", "4K"}, preferred.Resolutions)
+	assert.Contains(t, preferred.AspectRatios, "1:1")
+	assert.Equal(t, "1K", preferred.Defaults.Resolution)
 
 	// Channel 4 serves the alias unmapped (an unmodeled id), so the merged
 	// contract fails closed.

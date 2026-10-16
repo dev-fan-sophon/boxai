@@ -51,13 +51,35 @@ func GetGroupEnabledModels(group string) []string {
 func GetEnabledChannelsForGroupModel(group, modelName string) ([]Channel, error) {
 	var channels []Channel
 	err := DB.Model(&Channel{}).
-		Select("channels.id, channels.type, channels.status, channels.model_mapping, channels.setting").
+		Select("channels.id, channels.type, channels.status, channels.priority, channels.model_mapping, channels.setting").
 		Joins("JOIN abilities ON abilities.channel_id = channels.id").
 		Where(clause.Eq{Column: clause.Column{Table: "abilities", Name: "group"}, Value: group}).
 		Where("abilities.model = ? AND abilities.enabled = ? AND channels.status = ?", modelName, true, common.ChannelStatusEnabled).
-		Group("channels.id, channels.type, channels.status, channels.model_mapping, channels.setting").
+		Group("channels.id, channels.type, channels.status, channels.priority, channels.model_mapping, channels.setting").
 		Order("channels.id ASC").Find(&channels).Error
 	return channels, err
+}
+
+// PrimaryChannels keeps the channels routing tries first for one group/model:
+// the highest priority tier. Lower-priority channels only serve as fallbacks,
+// so their narrower contract must not narrow what the studio advertises.
+func PrimaryChannels(channels []Channel) []Channel {
+	if len(channels) < 2 {
+		return channels
+	}
+	maxPriority := channels[0].GetPriority()
+	for _, channel := range channels[1:] {
+		if channel.GetPriority() > maxPriority {
+			maxPriority = channel.GetPriority()
+		}
+	}
+	primary := make([]Channel, 0, len(channels))
+	for _, channel := range channels {
+		if channel.GetPriority() == maxPriority {
+			primary = append(primary, channel)
+		}
+	}
+	return primary
 }
 
 func GetEnabledModels() []string {
