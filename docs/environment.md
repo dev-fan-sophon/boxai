@@ -126,12 +126,12 @@ Offline mirror of the same Sub2API secrets: `~/.config/boxai/admin.env` (keep in
 
 ### RollDek (reseller upstream)
 
-new-api fork used as an upstream reseller for Seedance video and Gemini image models.
+new-api fork used as an upstream reseller for Seedance video and the image models (Gemini, GPT Image, Seedream).
 
 | | |
 |--|--|
 | Base | `https://rolldek.com` |
-| Docs | `https://www.rolldek.com/docs/#/doubao-seedance`, `#/banana` (nano banana 2 & pro), `#/banana-2-1` |
+| Docs | `https://www.rolldek.com/docs/#/doubao-seedance`, `#/banana` (nano banana 2 & pro), `#/banana-2-1`, `#/seedream` (Seedream 5.0), `#/img25` |
 | Account | uid **2996** (`xiaomao`), role **common user** — channel endpoints return `insufficient privileges`; use the public pricing API plus the account's own token/log endpoints |
 | Management auth | `Authorization: Bearer $ROLLDEK_ACCESS_TOKEN` **and** header `New-Api-User: $ROLLDEK_USER_ID` (both required; without the id it is `Unauthorized, New-Api-User header not provided`) |
 | Quota unit | `quota_per_unit = 500000` per **CNY**, not USD. RollDek prints those amounts with a `$` sign, which is misleading: read every RollDek figure as CNY (`usd_exchange_rate 7.3` is the display conversion). BoxAI's own quota stays USD. |
@@ -148,8 +148,13 @@ Groups in use (a key binds to one group; create/reveal keys with `POST /api/toke
 | `seedance官渠 720&1080p` | `doubao-seedance-2-*`, `doubao-seedance-2-5-260628` | 36 `rolldek-seedance-official` |
 | `香蕉` | `gemini-nano-banana-2.1`, `gemini-3.1-flash-image` (also `-preview` variants, `gemini-3-pro-image`) | 42 `rolldek-banana` (primary, Gemini-native) with `gemini2api` (28) as backup |
 | `gpt-image 原生` | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | 40 `rolldek-image25-native` |
+| `seedream` | `seedream-5.0` | 45 `rolldek-seedream` |
 
 Nano-banana billing is **per image call, flat across 1K/2K/4K**: RollDek charges 35000 quota = **¥0.07** per image for both `gemini-nano-banana-2.1` and `gemini-3.1-flash-image` (`香蕉` group ratio 1). BoxAI retails them at `$0.084` (`ModelPrice`), verified against `/api/log/self` on the RollDek account.
+
+Seedream 5.0 is billed **per call at ¥0.15** (`model_price 0.15`, group ratio 1) — RollDek charges one unit per delivered image and the model returns one image per call in practice. BoxAI retails it at `$0.18` (`ModelPrice`) on channel 45, and bills per **delivered** image, so a batch that comes back short settles down to what arrived.
+
+Seedream request contract (RolDek docs `seedream.md`): the **aspect ratio travels in `size`** (`auto`, `1:1` … `21:9`, `9:21`), the tier in `resolution` (`1k`/`2k`), `n` is 1–4, and references are `image` (one) or `images` (1–10). BoxAI models this as the `seedream` image family (`relay/common/image_capabilities.go`), so clients may send either `aspect_ratio` or the upstream `size` spelling; the relay moves it into `size` before the upstream call and rejects pixel sizes, `n > 4` and more than 10 references with a 400.
 
 Seedance video is token-billed, so read both sides in the same unit: RollDek's `doubao-seedance-2-5-260628` is `model_ratio 35` × group `0.7` = 24.5 quota per token = **¥49 per 1M video tokens** (Volcengine list is ¥70), i.e. ≈$6.71 per 1M tokens; BoxAI's `dreamina-seedance-2-5` ratio `4.4323` retails at **$8.86 per 1M tokens**, about +32%. A settled RollDek task of 620699 tokens cost ¥30.41 (≈$4.17) against $3.29 of BoxAI revenue, which matches that margin.
 

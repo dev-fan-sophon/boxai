@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T17:02:34.087Z",
+  "generatedAt": "2026-10-16T17:23:51.703Z",
   "version": 1,
   "pages": [
     {
@@ -618,6 +618,42 @@
         {
           "id": "conversation-state",
           "text": "Conversation state",
+          "level": 2
+        },
+        {
+          "id": "billing",
+          "text": "Billing",
+          "level": 2
+        },
+        {
+          "id": "notes",
+          "text": "Notes",
+          "level": 2
+        }
+      ],
+      "has_vi": true
+    },
+    {
+      "path": "api/image-generation",
+      "href": "/docs/api/image-generation",
+      "locale": "en",
+      "title": "Image generation",
+      "summary": "Generate and edit images with GPT Image, Grok Imagine, Seedream and Gemini image models.",
+      "section": "api",
+      "order": 74,
+      "audience": [
+        "developer"
+      ],
+      "updated": "2026-10-16",
+      "headings": [
+        {
+          "id": "request",
+          "text": "Request",
+          "level": 2
+        },
+        {
+          "id": "per-model-options",
+          "text": "Per-model options",
           "level": 2
         },
         {
