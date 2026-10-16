@@ -49,7 +49,7 @@ export function ImageSettings() {
       {!allowed && (
         <p className='border-destructive/30 bg-destructive/5 text-destructive text-2xs rounded-lg border px-2.5 py-2 text-pretty'>
           {t(
-            'Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.'
+            'Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.'
           )}
         </p>
       )}

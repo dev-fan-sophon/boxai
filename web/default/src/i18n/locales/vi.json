@@ -3402,7 +3402,7 @@
     "Image generation": "Tạo hình ảnh",
     "Image Generation": "Tạo hình ảnh",
     "Image generation accepts a prompt and returns generated image data or URLs.": "Việc tạo hình ảnh chấp nhận prompt và trả về dữ liệu hình ảnh hoặc URL được tạo.",
-    "Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.": "Tạo ảnh hỗ trợ các mô hình GPT Image, Grok Imagine và Gemini Image. Hãy chọn một mô hình rồi thử lại.",
+    "Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.": "Tạo ảnh hỗ trợ các mô hình GPT Image, Grok Imagine, Seedream và Gemini Image. Hãy chọn một mô hình rồi thử lại.",
     "Image In": "Ảnh vào",
     "Image input": "Đầu vào hình ảnh",
     "Image input price": "Giá đầu vào hình ảnh",

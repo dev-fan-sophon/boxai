@@ -7,7 +7,8 @@ import {
 
 /**
  * Playground image generation uses one OpenAI Images API request shape for
- * every allowed model (GPT Image, Grok Imagine and Gemini image models):
+ * every allowed model (GPT Image, Grok Imagine, Seedream and Gemini image
+ * models):
  *
  *   { model, prompt, n, group, image?, images?, mask?, …family options }
  *
@@ -146,6 +147,11 @@ export function isGeminiImageModel(model: string): boolean {
   )
 }
 
+/** Rolldek's Seedream image tier (seedream-5.0 and later). */
+export function isSeedreamImageModel(model: string): boolean {
+  return bareModelId(model).startsWith('seedream-')
+}
+
 /**
  * Models allowed on the playground image path. All of them are invoked with
  * the same OpenAI Images request shape; the gateway adapts it per provider.
@@ -156,13 +162,14 @@ export function isPlaygroundImageModel(model: string): boolean {
   return (
     isGptImage2Id(bare) ||
     isGrokImagineImageId(bare) ||
-    isGeminiImageModel(bare)
+    isGeminiImageModel(bare) ||
+    isSeedreamImageModel(bare)
   )
 }
 
 /** Shown when a non-image model is selected on the image path. */
 export const UNSUPPORTED_IMAGE_MODEL_MESSAGE =
-  'Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.'
+  'Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.'
 
 const PIXEL_SIZE_PATTERN = /^\d{3,4}x\d{3,4}$/
 

@@ -3402,7 +3402,7 @@
     "Image generation": "图片生成",
     "Image Generation": "图片生成",
     "Image generation accepts a prompt and returns generated image data or URLs.": "图像生成接受提示并返回生成的图像数据或 URL。",
-    "Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.": "图像生成支持 GPT Image、Grok Imagine 和 Gemini 图像模型，请选择其中之一后重试。",
+    "Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.": "图像生成支持 GPT Image、Grok Imagine、Seedream 和 Gemini 图像模型，请选择其中之一后重试。",
     "Image In": "图像输入",
     "Image input": "图片输入",
     "Image input price": "图像输入价格",

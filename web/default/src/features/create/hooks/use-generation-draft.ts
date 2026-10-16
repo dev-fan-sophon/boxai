@@ -263,7 +263,7 @@ export function useGenerationDraft(input: {
   let imageIssue: string | null = null
   if (isImage && model && !isPlaygroundImageModel(model)) {
     imageIssue = t(
-      'Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.'
+      'Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.'
     )
   } else if (isImage && input.references.length > maxFiles) {
     imageIssue = t('Remove extra reference images before generating.')

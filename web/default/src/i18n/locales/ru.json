@@ -3402,7 +3402,7 @@
     "Image generation": "Генерация изображений",
     "Image Generation": "Генерация изображений",
     "Image generation accepts a prompt and returns generated image data or URLs.": "Генерация изображений принимает запрос и возвращает сгенерированные данные изображения или URL-адреса.",
-    "Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.": "Генерация изображений поддерживает модели GPT Image, Grok Imagine и Gemini Image. Выберите одну из них и повторите попытку.",
+    "Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.": "Генерация изображений поддерживает модели GPT Image, Grok Imagine, Seedream и Gemini Image. Выберите одну из них и повторите попытку.",
     "Image In": "Вход изображения",
     "Image input": "Ввод изображения",
     "Image input price": "Цена входного изображения",

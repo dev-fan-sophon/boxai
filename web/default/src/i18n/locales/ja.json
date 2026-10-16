@@ -3402,7 +3402,7 @@
     "Image generation": "画像生成",
     "Image Generation": "画像生成",
     "Image generation accepts a prompt and returns generated image data or URLs.": "画像生成はプロンプトを受け入れ、生成された画像データまたは URL を返します。",
-    "Image generation supports GPT Image, Grok Imagine and Gemini image models. Select one and try again.": "画像生成は GPT Image、Grok Imagine、Gemini の画像モデルに対応しています。いずれかを選択してもう一度お試しください。",
+    "Image generation supports GPT Image, Grok Imagine, Seedream and Gemini image models. Select one and try again.": "画像生成は GPT Image、Grok Imagine、Seedream、Gemini の画像モデルに対応しています。いずれかを選択してもう一度お試しください。",
     "Image In": "画像入力",
     "Image input": "画像入力",
     "Image input price": "画像入力価格",
