@@ -151,6 +151,8 @@ Groups in use (a key binds to one group; create/reveal keys with `POST /api/toke
 
 Nano-banana billing is **per image call, flat across 1K/2K/4K**: RollDek charges 35000 quota = **$0.07** per image for both `gemini-nano-banana-2.1` and `gemini-3.1-flash-image` (`香蕉` group ratio 1). BoxAI retails them at **$0.084** (+20%, `ModelPrice`), verified against `/api/log/self` on the RollDek account.
 
+Both models accept `resolution` 1K/2K/4K, the ten standard aspect ratios plus the ultra-wide strips (`4:1`, `1:4`, `8:1`, `1:8`), and a `thinkingLevel` of `minimal`/`medium`/`high`. BoxAI exposes the thinking level as the model's **quality** control and the relay sends it as `generationConfig.thinkingConfig.thinkingLevel`.
+
 Quick check (never print the token):
 
 ```bash
