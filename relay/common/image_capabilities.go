@@ -73,7 +73,7 @@ func ImageModelFamily(model string) string {
 	case strings.HasPrefix(bare, "grok-imagine-image"), strings.HasPrefix(bare, "grok-2-image"):
 		return ImageFamilyXAI
 	case strings.HasPrefix(bare, "gemini-") && strings.Contains(bare, "-image"),
-		strings.HasPrefix(bare, "nano-banana"):
+		strings.Contains(bare, "nano-banana"):
 		return ImageFamilyGemini
 	}
 	return ""
@@ -95,7 +95,7 @@ func geminiImageResolutions(model string) []string {
 	switch {
 	case strings.Contains(bare, "flash-lite-image"):
 		return []string{"1K"}
-	case strings.HasPrefix(bare, "gemini-3"), strings.HasPrefix(bare, "nano-banana-pro"):
+	case strings.HasPrefix(bare, "gemini-3"), strings.Contains(bare, "nano-banana"):
 		return []string{"1K", "2K", "4K"}
 	}
 	// Gemini 2.x image models have no imageSize control.

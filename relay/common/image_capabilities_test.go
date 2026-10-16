@@ -31,6 +31,8 @@ func TestDefaultImageCapabilitiesProfiles(t *testing.T) {
 		{model: "gemini-3.1-flash-image", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K", "2K", "4K"}},
 		{model: "gemini-3.1-flash-lite-image", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K"}},
 		{model: "gemini-2.5-flash-image", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{}},
+		{model: "gemini-nano-banana-2.1", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K", "2K", "4K"}},
+		{model: "nano-banana-pro", family: ImageFamilyGemini, sizeMode: "aspect", maxReferences: 14, maxN: 1, resolutions: []string{"1K", "2K", "4K"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {

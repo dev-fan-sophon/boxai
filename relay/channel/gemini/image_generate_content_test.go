@@ -56,6 +56,28 @@ func TestGeminiImageRequestBecomesGenerateContent(t *testing.T) {
 	assert.True(t, strings.HasSuffix(url, "/models/gemini-3.1-flash-image:generateContent"), url)
 }
 
+func TestGeminiNanoBananaImageRequestKeeps4K(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+	c.Request.Header.Set("Content-Type", "application/json")
+	info := nativeImageInfo(relayconstant.RelayModeImagesGenerations, "gemini-nano-banana-2.1")
+	adaptor := &Adaptor{}
+
+	converted, err := adaptor.ConvertImageRequest(c, info, dto.ImageRequest{Model: "gemini-nano-banana-2.1", Prompt: "apple", AspectRatio: "1:1", Resolution: "4K"})
+	require.NoError(t, err)
+	body, err := common.Marshal(converted)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"contents":[{"role":"user","parts":[{"text":"apple"}]}],
+		"generationConfig":{"responseModalities":["TEXT","IMAGE"],"imageConfig":{"aspectRatio":"1:1","imageSize":"4K"}}
+	}`, string(body))
+
+	url, err := adaptor.GetRequestURL(info)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(url, "/v1beta/models/gemini-nano-banana-2.1:generateContent"), url)
+}
+
 func TestGeminiImageGenerateContentHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()

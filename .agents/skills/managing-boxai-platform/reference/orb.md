@@ -16,6 +16,7 @@ Local equivalents (gitignored on developer machines):
 |----------------|------------|
 | `BOXAI_*` | `.env.boxai-admin` (from `.env.boxai-admin.example`) |
 | `SUB2API_*` | `.env.boxai-admin` (same file; Sub2API on BWG) |
+| `ROLLDEK_*` | `.env.boxai-admin` (same file; reseller upstream, see § RollDek in `docs/environment.md`) |
 | `CLOUDFLARE_*` | `.env.cloudflare` (from `.env.cloudflare.example`; also `~/.config/boxai/cf-xiaoqq-full.env`) |
 
 ### 2a. BoxAI management API + SSH
@@ -88,6 +89,23 @@ CLOUDFLARE_API_TOKEN=<xiaoqq-full-control user API token>
 ```
 
 Token name in the dashboard: `xiaoqq-full-control` (full account permission groups on 小 QQ + full zone groups on `you-box.com`). Local source of truth for the secret value: `~/.config/boxai/cf-xiaoqq-full.env` or repo `.env.cloudflare` (never commit).
+
+### 2d. RollDek (reseller upstream)
+
+Seedance video and nano-banana images are resold through RollDek. Its management API needs **both** headers (`Authorization: Bearer $ROLLDEK_ACCESS_TOKEN` and `New-Api-User: $ROLLDEK_USER_ID`).
+
+```text
+ROLLDEK_BASE_URL=https://rolldek.com
+ROLLDEK_USER_ID=2996
+```
+
+Secret:
+
+```text
+ROLLDEK_ACCESS_TOKEN=…
+```
+
+Full map (groups, per-image cost, BoxAI channels): [`docs/environment.md`](../../../../docs/environment.md) § RollDek.
 
 ## 3. Server-side SSH account
 

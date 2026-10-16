@@ -138,7 +138,8 @@ function isGrokImagineImageId(bare: string): boolean {
 export function isGeminiImageModel(model: string): boolean {
   const bare = bareModelId(model)
   return (
-    (bare.startsWith('gemini-') && bare.includes('-image')) ||
+    (bare.startsWith('gemini-') &&
+      (bare.includes('-image') || bare.includes('nano-banana'))) ||
     bare.startsWith('nano-banana')
   )
 }

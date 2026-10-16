@@ -124,6 +124,42 @@ Offline mirror of the same Sub2API secrets: `~/.config/boxai/admin.env` (keep in
 
 ---
 
+### RollDek (reseller upstream)
+
+new-api fork used as an upstream reseller for Seedance video and Gemini image models.
+
+| | |
+|--|--|
+| Base | `https://rolldek.com` |
+| Docs | `https://www.rolldek.com/docs/#/doubao-seedance`, `#/banana` (nano banana 2 & pro), `#/banana-2-1` |
+| Account | uid **2996** (`xiaomao`), role **common user** — channel endpoints return `insufficient privileges`; use the public pricing API plus the account's own token/log endpoints |
+| Management auth | `Authorization: Bearer $ROLLDEK_ACCESS_TOKEN` **and** header `New-Api-User: $ROLLDEK_USER_ID` (both required; without the id it is `Unauthorized, New-Api-User header not provided`) |
+| Quota unit | `quota_per_unit = 500000` per USD (`usd_rate 7.3` for display) |
+
+```text
+ROLLDEK_ACCESS_TOKEN=…            # secret; management (access) token, not a relay sk-* key
+ROLLDEK_USER_ID=2996              # non-secret; header New-Api-User
+```
+
+Groups in use (a key binds to one group; create/reveal keys with `POST /api/token/` and `POST /api/token/:id/key`):
+
+| RollDek group | Models | BoxAI channel |
+|---------------|--------|---------------|
+| `seedance官渠 720&1080p` | `doubao-seedance-2-*`, `doubao-seedance-2-5-260628` | 36 `rolldek-seedance-official` |
+| `香蕉` | `gemini-nano-banana-2.1`, `gemini-3.1-flash-image` (also `-preview` variants, `gemini-3-pro-image`) | 42 `rolldek-banana` (primary, Gemini-native) with `gemini2api` (28) as backup |
+| `gpt-image 原生` | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | 40 `rolldek-image25-native` |
+
+Nano-banana billing is **per image call, flat across 1K/2K/4K**: RollDek charges 35000 quota = **$0.07** per image for both `gemini-nano-banana-2.1` and `gemini-3.1-flash-image` (`香蕉` group ratio 1). BoxAI retails them at **$0.084** (+20%, `ModelPrice`), verified against `/api/log/self` on the RollDek account.
+
+Quick check (never print the token):
+
+```bash
+curl -fsS -H "Authorization: Bearer $ROLLDEK_ACCESS_TOKEN" -H "New-Api-User: $ROLLDEK_USER_ID" \
+  https://rolldek.com/api/user/self | head -c 120
+```
+
+---
+
 ## 3. Cloudflare full-control (小 QQ) — `.env.cloudflare`
 
 Production edge for BoxAI (`you-box.com`) runs under:
