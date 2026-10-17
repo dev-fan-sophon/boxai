@@ -40,6 +40,14 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	}
 	other := make(map[string]interface{})
 	other["is_task"] = true
+	if info.TaskRelayInfo != nil {
+		other["task_id"] = info.PublicTaskID
+	}
+	// Usage-billed tasks settle the difference when they finish; the flag lets
+	// clients label this row as a pre-charge and link it to the settlement.
+	if !info.PriceData.UsePrice && !common.StringsContains(constant.TaskPricePatches, info.OriginModelName) {
+		other["task_precharge"] = true
+	}
 	other["request_path"] = c.Request.URL.Path
 	other["model_price"] = info.PriceData.ModelPrice
 	if info.PriceData.ModelRatio > 0 {
@@ -341,13 +349,12 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 	if !applied {
 		return true
 	}
-	other := taskBillingOther(task)
-	other["task_id"] = task.TaskID
+	other := taskSettlementOther(task, TaskSettlement{Reason: TaskSettlementTaskFailed}, quota, 0)
 	other["reason"] = reason
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   model.LogTypeRefund,
-		Content:   "",
+		Content:   fmt.Sprintf("task failed: refunded pre-charge %d", quota),
 		ChannelId: task.ChannelId,
 		ModelName: taskModelName(task),
 		Quota:     -operation.Delta,
@@ -438,11 +445,50 @@ func SettleMidjourneyQuota(ctx context.Context, task *model.Midjourney) bool {
 	return true
 }
 
+// Settlement reason codes published in a task billing log's
+// other.settlement.reason, so clients render the outcome in their locale
+// instead of a server-side sentence.
+const (
+	TaskSettlementTokenUsage    = "token_settle"
+	TaskSettlementAdaptorAdjust = "adaptor_adjust"
+	TaskSettlementTaskFailed    = "task_failed"
+)
+
+// TaskSettlement explains why a task's final charge differs from its
+// pre-charge. Detail carries the pricing formula and is admin-only.
+type TaskSettlement struct {
+	Reason      string
+	UsageTokens int
+	Detail      string
+}
+
+// taskSettlementOther builds the log Other of a settlement or refund: the
+// public other.settlement summary links the row to its task and pre-charge,
+// while the pricing formula stays under admin_info.
+func taskSettlementOther(task *model.Task, settlement TaskSettlement, preConsumedQuota, actualQuota int) map[string]interface{} {
+	other := taskBillingOther(task)
+	other["task_id"] = task.TaskID
+	summary := map[string]interface{}{
+		"reason":             settlement.Reason,
+		"pre_consumed_quota": preConsumedQuota,
+		"actual_quota":       actualQuota,
+		"delta":              actualQuota - preConsumedQuota,
+	}
+	if settlement.UsageTokens > 0 {
+		summary["usage_tokens"] = settlement.UsageTokens
+	}
+	other["settlement"] = summary
+	if settlement.Detail != "" {
+		other["admin_info"] = map[string]interface{}{"settlement_detail": settlement.Detail}
+	}
+	return other
+}
+
 // RecalculateTaskQuota 通用的异步差额结算。
 // actualQuota 是任务完成后的实际应扣额度，与预扣额度 (task.Quota) 做差额结算。
-// reason 用于日志记录（例如 "token重算" 或 "adaptor调整"）。
+// settlement 说明差额来源，写入日志 other.settlement（公式仅写入 admin_info）。
 // clamps 可选：若计算 actualQuota 时发生额度饱和，将其记入日志 admin_info（仅管理员可见）。
-func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int, reason string, clamps ...*common.QuotaClamp) {
+func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int, settlement TaskSettlement, clamps ...*common.QuotaClamp) {
 	if actualQuota <= 0 {
 		return
 	}
@@ -462,8 +508,8 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	// Failures are logged (bounded) and scheduled by settleTaskBillingOperation.
 	if quotaDelta == 0 {
 		if _, err := settleTaskBillingOperation(ctx, task, actualQuota); err == nil {
-			logger.LogInfo(ctx, fmt.Sprintf("任务 %s 预扣费准确（%s，%s）",
-				task.TaskID, logger.LogQuota(actualQuota), reason))
+			logger.LogInfo(ctx, fmt.Sprintf("任务 %s 预扣费准确（%s，%s %s）",
+				task.TaskID, logger.LogQuota(actualQuota), settlement.Reason, settlement.Detail))
 		}
 		return
 	}
@@ -477,7 +523,7 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		logger.LogQuota(quotaDelta),
 		logger.LogQuota(actualQuota),
 		logger.LogQuota(preConsumedQuota),
-		reason,
+		settlement.Reason+" "+settlement.Detail,
 	))
 
 	var logType int
@@ -489,17 +535,14 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		logType = model.LogTypeRefund
 		logQuota = -quotaDelta
 	}
-	other := taskBillingOther(task)
-	other["task_id"] = task.TaskID
-	other["pre_consumed_quota"] = preConsumedQuota
-	other["actual_quota"] = actualQuota
+	other := taskSettlementOther(task, settlement, preConsumedQuota, actualQuota)
 	for _, clamp := range clamps {
 		attachQuotaSaturationToOther(other, clamp)
 	}
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   logType,
-		Content:   reason,
+		Content:   fmt.Sprintf("task settlement: pre-charged %d, actual %d", preConsumedQuota, actualQuota),
 		ChannelId: task.ChannelId,
 		ModelName: taskModelName(task),
 		Quota:     logQuota,
@@ -563,7 +606,10 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier（饱和转换，防止溢出成负数）
 	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
 
-	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
-	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
+	RecalculateTaskQuota(ctx, task, actualQuota, TaskSettlement{
+		Reason:      TaskSettlementTokenUsage,
+		UsageTokens: totalTokens,
+		Detail:      fmt.Sprintf("tokens=%d, modelRatio=%.4f, groupRatio=%.4f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier),
+	}, clamp)
 	return actualQuota > 0
 }

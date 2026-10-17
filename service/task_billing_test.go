@@ -579,7 +579,7 @@ func TestNegativeTaskQuotaCannotMutateFunding(t *testing.T) {
 	require.NoError(t, model.DB.Create(task).Error)
 
 	assert.False(t, RefundTaskQuota(context.Background(), task, "invalid negative quota"))
-	RecalculateTaskQuota(context.Background(), task, 1000, "invalid negative pre-consume")
+	RecalculateTaskQuota(context.Background(), task, 1000, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "invalid negative pre-consume"})
 
 	assert.Equal(t, 5000, getUserQuota(t, userID))
 	assert.Equal(t, negativeQuota, getTaskQuota(t, task.ID))
@@ -747,7 +747,7 @@ func TestRecalculate_PositiveDelta(t *testing.T) {
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
 
-	RecalculateTaskQuota(ctx, task, actualQuota, "adaptor adjustment")
+	RecalculateTaskQuota(ctx, task, actualQuota, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "adaptor adjustment"})
 
 	// User quota should decrease by the delta (1000 additional charge)
 	assert.Equal(t, initQuota-(actualQuota-preConsumed), getUserQuota(t, userID))
@@ -780,7 +780,7 @@ func TestRecalculate_NegativeDelta(t *testing.T) {
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
 
-	RecalculateTaskQuota(ctx, task, actualQuota, "adaptor adjustment")
+	RecalculateTaskQuota(ctx, task, actualQuota, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "adaptor adjustment"})
 
 	// User quota should increase by abs(delta) = 2000 (refund overpayment)
 	assert.Equal(t, initQuota+(preConsumed-actualQuota), getUserQuota(t, userID))
@@ -798,6 +798,74 @@ func TestRecalculate_NegativeDelta(t *testing.T) {
 	assert.Equal(t, preConsumed-actualQuota, log.Quota)
 }
 
+// Settlement and failure-refund logs publish a structured summary tied to
+// the task, so users see pre-charge, final charge and refund in their own
+// locale; the pricing formula is visible to admins only.
+func TestTaskSettlementLogsPublishSummary(t *testing.T) {
+	const userID, tokenID, channelID = 15, 15, 15
+	for _, tt := range []struct {
+		name     string
+		run      func(task *model.Task)
+		logType  int
+		quota    int
+		summary  map[string]interface{}
+		adminHas string
+	}{
+		{
+			name: "token usage refund",
+			// 1000 tokens × 2.5 × 1.2 = 3000 actual against a 5000 pre-charge.
+			run: func(task *model.Task) {
+				task.PrivateData.BillingContext = &model.TaskBillingContext{ModelRatio: 2.5, GroupRatio: 1.2, OriginModelName: "test-model"}
+				require.True(t, RecalculateTaskQuotaByTokens(context.Background(), task, 1000))
+			},
+			logType:  model.LogTypeRefund,
+			quota:    2000,
+			summary:  map[string]interface{}{"reason": TaskSettlementTokenUsage, "pre_consumed_quota": 5000.0, "actual_quota": 3000.0, "delta": -2000.0, "usage_tokens": 1000.0},
+			adminHas: "modelRatio=2.5000",
+		},
+		{
+			name: "failure refund",
+			run: func(task *model.Task) {
+				require.True(t, RefundTaskQuota(context.Background(), task, "upstream failed"))
+			},
+			logType: model.LogTypeRefund,
+			quota:   5000,
+			summary: map[string]interface{}{"reason": TaskSettlementTaskFailed, "pre_consumed_quota": 5000.0, "actual_quota": 0.0, "delta": -5000.0},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, userID, 10000)
+			seedToken(t, tokenID, userID, "sk-settle-log", 5000)
+			seedChannel(t, channelID)
+			task := makeTask(userID, channelID, 5000, tokenID, BillingSourceWallet, 0)
+			require.NoError(t, model.DB.Create(task).Error)
+
+			tt.run(task)
+
+			raw := getLastLog(t)
+			require.NotNil(t, raw)
+			assert.Equal(t, tt.logType, raw.Type)
+			assert.Equal(t, tt.quota, raw.Quota)
+			assert.NotContains(t, raw.Content, "Ratio")
+			rawOther, err := common.StrToMap(raw.Other)
+			require.NoError(t, err)
+			if tt.adminHas != "" {
+				assert.Contains(t, rawOther["admin_info"].(map[string]interface{})["settlement_detail"], tt.adminHas)
+			}
+
+			logs, _, err := model.GetUserLogs(userID, model.LogTypeRefund, 0, 0, "", "", 0, 10, "", "", "")
+			require.NoError(t, err)
+			require.Len(t, logs, 1)
+			other, err := common.StrToMap(logs[0].Other)
+			require.NoError(t, err)
+			assert.Equal(t, task.TaskID, other["task_id"])
+			assert.Equal(t, tt.summary, other["settlement"])
+			assert.NotContains(t, other, "admin_info")
+		})
+	}
+}
+
 func TestRecalculate_ZeroDelta(t *testing.T) {
 	truncate(t)
 	ctx := context.Background()
@@ -809,7 +877,7 @@ func TestRecalculate_ZeroDelta(t *testing.T) {
 
 	task := makeTask(userID, 0, preConsumed, 0, BillingSourceWallet, 0)
 
-	RecalculateTaskQuota(ctx, task, preConsumed, "exact match")
+	RecalculateTaskQuota(ctx, task, preConsumed, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "exact match"})
 
 	// No change to user quota
 	assert.Equal(t, initQuota, getUserQuota(t, userID))
@@ -829,7 +897,7 @@ func TestRecalculate_ActualQuotaZero(t *testing.T) {
 
 	task := makeTask(userID, 0, 5000, 0, BillingSourceWallet, 0)
 
-	RecalculateTaskQuota(ctx, task, 0, "zero actual")
+	RecalculateTaskQuota(ctx, task, 0, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "zero actual"})
 
 	// No change (early return)
 	assert.Equal(t, initQuota, getUserQuota(t, userID))
@@ -853,7 +921,7 @@ func TestRecalculate_Subscription_NegativeDelta(t *testing.T) {
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceSubscription, subID)
 
-	RecalculateTaskQuota(ctx, task, actualQuota, "subscription over-charge")
+	RecalculateTaskQuota(ctx, task, actualQuota, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "subscription over-charge"})
 
 	// Subscription used should decrease by delta (refund 3000)
 	assert.Equal(t, subUsed-int64(preConsumed-actualQuota), getSubscriptionUsed(t, subID))
@@ -915,7 +983,7 @@ func simulatePollBilling(ctx context.Context, task *model.Task, newStatus model.
 	}
 
 	if shouldSettle && actualQuota > 0 {
-		RecalculateTaskQuota(ctx, task, actualQuota, "test settle")
+		RecalculateTaskQuota(ctx, task, actualQuota, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "test settle"})
 	}
 	if shouldRefund {
 		RefundTaskQuota(ctx, task, task.FailReason)
@@ -1283,7 +1351,7 @@ func TestTaskUsageAdjustmentsAreNetAndIdempotent(t *testing.T) {
 					if target == 0 {
 						require.True(t, RefundTaskQuota(context.Background(), attempt, "usage refund"))
 					} else {
-						RecalculateTaskQuota(context.Background(), attempt, target, "usage settlement")
+						RecalculateTaskQuota(context.Background(), attempt, target, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "usage settlement"})
 					}
 				}
 				var user model.User
@@ -1337,7 +1405,7 @@ func TestTaskUsageAdjustmentFailureAndRecovery(t *testing.T) {
 				if target == 0 {
 					assert.False(t, RefundTaskQuota(context.Background(), task, "failed write"))
 				} else {
-					RecalculateTaskQuota(context.Background(), task, target, "failed write")
+					RecalculateTaskQuota(context.Background(), task, target, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "failed write"})
 				}
 				// Channel failure rolls back funding and user usage. Task projection
 				// failure happens after the journal and usage transaction commits.
@@ -1357,7 +1425,7 @@ func TestTaskUsageAdjustmentFailureAndRecovery(t *testing.T) {
 					if target == 0 {
 						require.True(t, RefundTaskQuota(context.Background(), task, "retry"))
 					} else {
-						RecalculateTaskQuota(context.Background(), task, target, "retry")
+						RecalculateTaskQuota(context.Background(), task, target, TaskSettlement{Reason: TaskSettlementAdaptorAdjust, Detail: "retry"})
 					}
 				}
 				require.NoError(t, model.DB.First(&user, 971).Error)
