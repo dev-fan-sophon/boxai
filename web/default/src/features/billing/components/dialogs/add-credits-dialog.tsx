@@ -39,6 +39,12 @@ import {
   getMinTopupAmount,
   isBankQRPayment,
 } from '../../lib'
+import { getPromotion } from '../../promotions/api'
+import {
+  bestPromotionTier,
+  eligiblePromotionTiers,
+  nextPromotionTier,
+} from '../../promotions/tiers'
 import type {
   BankQRPaymentData,
   BankQRQuote,
@@ -48,12 +54,6 @@ import type {
   TopupInfo,
   WaffoPayMethod,
 } from '../../types'
-import { getPromotion } from '../../promotions/api'
-import {
-  bestPromotionTier,
-  eligiblePromotionTiers,
-  nextPromotionTier,
-} from '../../promotions/tiers'
 import { CreemProductsSection } from '../creem-products-section'
 import { CreemPurchaseSummary } from '../creem-purchase-summary'
 import { DiscountSummary } from '../discount-summary'

@@ -216,9 +216,19 @@ function PromotionTiersEditor(props: { form: UseFormReturn<Promotion> }) {
   })
   const preview = bestPromotionTier(values, previewAmount)
   const columns = [
-    { key: 'min_amount', label: t('Top-up from (VND)'), min: 0, max: undefined },
+    {
+      key: 'min_amount',
+      label: t('Top-up from (VND)'),
+      min: 0,
+      max: undefined,
+    },
     { key: 'percent_off', label: t('Discount percent'), min: 1, max: 100 },
-    { key: 'max_discount', label: t('Cap (VND, 0 = none)'), min: 0, max: undefined },
+    {
+      key: 'max_discount',
+      label: t('Cap (VND, 0 = none)'),
+      min: 0,
+      max: undefined,
+    },
   ] as const
   return (
     <section className='space-y-3' aria-label={t('Discount tiers')}>

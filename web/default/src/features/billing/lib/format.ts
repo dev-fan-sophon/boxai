@@ -40,5 +40,3 @@ export function formatCurrency(amount: number | string): string {
     maximumFractionDigits: Math.abs(numeric) >= 1 ? 2 : 4,
   }).format(numeric)
 }
-
-

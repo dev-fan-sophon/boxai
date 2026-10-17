@@ -3,10 +3,7 @@ import i18next from 'i18next'
 
 import { getTopupInfo } from '../api'
 import { BILLING_QUERY_KEYS } from '../constants'
-import {
-  generatePresetAmounts,
-  getMinTopupAmount,
-} from '../lib'
+import { generatePresetAmounts, getMinTopupAmount } from '../lib'
 import type {
   TopupInfo,
   PresetAmount,

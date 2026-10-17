@@ -144,7 +144,6 @@ export function generatePresetAmounts(minAmount: number): PresetAmount[] {
   }))
 }
 
-
 /** Convert a USD credit preset into the whole-dong amount the user pays. */
 export function usdCreditToVndAmount(
   amountUsd: number,

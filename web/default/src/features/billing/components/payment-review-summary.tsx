@@ -93,7 +93,6 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
               </span>
             )}
           </div>
-
         </>
       )}
       <div className='border-t pt-4'>

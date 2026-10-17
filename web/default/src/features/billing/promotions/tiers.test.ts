@@ -56,8 +56,14 @@ describe('promotion tiers', () => {
       remaining_uses: -1,
     } as Promotion
     expect(eligiblePromotionTiers(promotion, 10)).toBe(ladder)
-    expect(eligiblePromotionTiers({ ...promotion, remaining_uses: 0 }, 10)).toEqual([])
-    expect(eligiblePromotionTiers({ ...promotion, budget_exhausted: true }, 10)).toEqual([])
-    expect(eligiblePromotionTiers({ ...promotion, ends_at: 10 }, 10)).toEqual([])
+    expect(
+      eligiblePromotionTiers({ ...promotion, remaining_uses: 0 }, 10)
+    ).toEqual([])
+    expect(
+      eligiblePromotionTiers({ ...promotion, budget_exhausted: true }, 10)
+    ).toEqual([])
+    expect(eligiblePromotionTiers({ ...promotion, ends_at: 10 }, 10)).toEqual(
+      []
+    )
   })
 })
