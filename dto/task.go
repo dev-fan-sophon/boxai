@@ -30,19 +30,23 @@ func (t *TaskResponse[T]) IsSuccess() bool {
 }
 
 type TaskDto struct {
-	ID         int64  `json:"id"`
-	CreatedAt  int64  `json:"created_at"`
-	UpdatedAt  int64  `json:"updated_at"`
-	TaskID     string `json:"task_id"`
-	Platform   string `json:"platform"`
-	UserId     int    `json:"user_id"`
-	Group      string `json:"group"`
-	ChannelId  int    `json:"channel_id"`
-	Quota      int    `json:"quota"`
-	Action     string `json:"action"`
-	Status     string `json:"status"`
-	FailReason string `json:"fail_reason"`
-	ResultURL  string `json:"result_url,omitempty"` // 任务结果 URL（视频地址等）
+	ID        int64  `json:"id"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+	TaskID    string `json:"task_id"`
+	Platform  string `json:"platform"`
+	UserId    int    `json:"user_id"`
+	Group     string `json:"group"`
+	ChannelId int    `json:"channel_id"`
+	Quota     int    `json:"quota"`
+	// PreConsumedQuota is the submission charge (0 for tasks predating it);
+	// Quota is the final charge once BillingSettled is true.
+	PreConsumedQuota int    `json:"pre_consumed_quota"`
+	BillingSettled   bool   `json:"billing_settled"`
+	Action           string `json:"action"`
+	Status           string `json:"status"`
+	FailReason       string `json:"fail_reason"`
+	ResultURL        string `json:"result_url,omitempty"` // 任务结果 URL（视频地址等）
 	// LastFrameURL is the final frame image Ark returns when a Seedance task
 	// was submitted with return_last_frame.
 	LastFrameURL string          `json:"last_frame_url,omitempty"`

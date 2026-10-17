@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -58,6 +60,41 @@ func GetUserTask(c *gin.Context) {
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(tasksToDto(items, false))
 	common.ApiSuccess(c, pageInfo)
+}
+
+// maxTaskBillingIDs bounds one billing lookup; the studio feed asks for the
+// video tiles it renders, far fewer than this.
+const maxTaskBillingIDs = 100
+
+// GetUserTaskBilling returns pre-charge, final charge and settlement state of
+// the caller's tasks listed in task_ids (comma separated).
+func GetUserTaskBilling(c *gin.Context) {
+	taskIDs := make([]string, 0)
+	for _, id := range strings.Split(c.Query("task_ids"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			taskIDs = append(taskIDs, id)
+		}
+	}
+	if len(taskIDs) == 0 || len(taskIDs) > maxTaskBillingIDs {
+		common.ApiErrorMsg(c, fmt.Sprintf("task_ids must list 1 to %d task ids", maxTaskBillingIDs))
+		return
+	}
+	views, err := model.GetUserTaskBilling(c.GetInt("id"), taskIDs)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, views)
+}
+
+// GetUserHeldTaskQuota reports the quota the caller's unsettled tasks hold.
+func GetUserHeldTaskQuota(c *gin.Context) {
+	held, err := model.GetUserUnsettledTaskQuota(c.GetInt("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, held)
 }
 
 func tasksToDto(tasks []*model.Task, fillUser bool) []*dto.TaskDto {

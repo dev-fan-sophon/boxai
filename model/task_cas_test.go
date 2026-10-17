@@ -356,3 +356,29 @@ func TestVideoPublicStatusLifecycle(t *testing.T) {
 		assert.Equal(t, tc.public, tc.internal.ToVideoStatus(), tc.internal)
 	}
 }
+
+// Held quota counts only the caller's unsettled charges: running tasks and
+// finished ones awaiting settlement, never settled or refunded tasks.
+func TestUserTaskBillingAndHeldQuota(t *testing.T) {
+	truncateTables(t)
+	for _, task := range []*Task{
+		{TaskID: "running", UserId: 7, Status: TaskStatusInProgress, Quota: 300, PreConsumedQuota: 300},
+		{TaskID: "awaiting-settle", UserId: 7, Status: TaskStatusSuccess, Quota: 200, PreConsumedQuota: 200},
+		{TaskID: "settled", UserId: 7, Status: TaskStatusSuccess, Quota: 120, PreConsumedQuota: 200, BillingSettled: true},
+		{TaskID: "refunded", UserId: 7, Status: TaskStatusFailure, Quota: 0, PreConsumedQuota: 500, BillingSettled: true},
+		{TaskID: "other-user", UserId: 8, Status: TaskStatusInProgress, Quota: 900, PreConsumedQuota: 900},
+	} {
+		require.NoError(t, DB.Create(task).Error)
+	}
+
+	held, err := GetUserUnsettledTaskQuota(7)
+	require.NoError(t, err)
+	assert.Equal(t, UnsettledTaskQuota{Quota: 500, Count: 2}, held)
+
+	views, err := GetUserTaskBilling(7, []string{"settled", "refunded", "other-user"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []TaskBillingView{
+		{TaskID: "settled", Status: TaskStatusSuccess, Quota: 120, PreConsumedQuota: 200, BillingSettled: true},
+		{TaskID: "refunded", Status: TaskStatusFailure, Quota: 0, PreConsumedQuota: 500, BillingSettled: true},
+	}, views)
+}

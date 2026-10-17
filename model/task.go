@@ -78,6 +78,7 @@ type Task struct {
 	BillingNextAt      int64      `json:"-" gorm:"index;not null;default:0"`
 	BillingAttempts    int        `json:"-" gorm:"not null;default:0"`
 	BillingRetryReason string     `json:"-" gorm:"type:varchar(40);not null;default:''"`
+	PreConsumedQuota   int        `json:"-" gorm:"not null;default:0"` // submission charge; Quota becomes the settled charge (0 on older rows)
 	Properties         Properties `json:"properties" gorm:"type:json"`
 	Username           string     `json:"username,omitempty" gorm:"-"`
 	// 禁止返回给用户，内部可能包含key等隐私信息
@@ -305,6 +306,38 @@ func InitTask(platform constant.TaskPlatform, relayInfo *commonRelay.RelayInfo) 
 		PrivateData: privateData,
 	}
 	return t
+}
+
+// TaskBillingView is the public billing state of one task.
+type TaskBillingView struct {
+	TaskID           string     `json:"task_id"`
+	Status           TaskStatus `json:"status"`
+	Quota            int        `json:"quota"`
+	PreConsumedQuota int        `json:"pre_consumed_quota"`
+	BillingSettled   bool       `json:"billing_settled"`
+}
+
+// GetUserTaskBilling returns the billing state of the user's tasks among
+// taskIDs; ids of other users' tasks are silently skipped.
+func GetUserTaskBilling(userId int, taskIDs []string) ([]TaskBillingView, error) {
+	views := make([]TaskBillingView, 0, len(taskIDs))
+	err := DB.Model(&Task{}).Select("task_id, status, quota, pre_consumed_quota, billing_settled").
+		Where("user_id = ? AND task_id IN ?", userId, taskIDs).Scan(&views).Error
+	return views, err
+}
+
+// UnsettledTaskQuota totals the quota a user's tasks still hold: running
+// tasks plus finished ones whose settlement or refund is pending.
+type UnsettledTaskQuota struct {
+	Quota int64 `json:"quota"`
+	Count int64 `json:"count"`
+}
+
+func GetUserUnsettledTaskQuota(userId int) (UnsettledTaskQuota, error) {
+	var held UnsettledTaskQuota
+	err := DB.Model(&Task{}).Select("COALESCE(SUM(quota), 0) AS quota, COUNT(*) AS count").
+		Where("user_id = ? AND billing_settled = ? AND quota > 0", userId, false).Scan(&held).Error
+	return held, err
 }
 
 func TaskGetAllUserTask(userId int, startIdx int, num int, queryParams SyncTaskQueryParams) []*Task {
