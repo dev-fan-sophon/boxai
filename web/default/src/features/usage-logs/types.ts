@@ -125,6 +125,8 @@ export interface LogOtherData {
       clamped: number
     }
     diagnostic_error?: DiagnosticError
+    /** Pricing formula of a task settlement (admin only). */
+    settlement_detail?: string
   }
   // Language-independent operation descriptor (audit/login logs).
   // Frontend renders localized content from action + params via i18n templates.
@@ -210,10 +212,20 @@ export interface LogOtherData {
   fee_quota?: number
   // Reject / intercept reason (admin)
   reject_reason?: string
-  // Task-related fields (for refund logs, type=6)
+  // Task-related fields (submit, settlement and refund logs)
   is_task?: boolean
   task_id?: string
   reason?: string
+  /** Submit log of a usage-billed task; the difference settles later. */
+  task_precharge?: boolean
+  settlement?: {
+    reason: 'token_settle' | 'adaptor_adjust' | 'task_failed' | string
+    pre_consumed_quota: number
+    actual_quota: number
+    /** actual − pre-charge; negative is a refund. */
+    delta: number
+    usage_tokens?: number
+  }
   // Subscription billing fields
   subscription_plan_id?: string
   subscription_plan_title?: string
@@ -283,9 +295,29 @@ export interface TaskLog {
   /** Final frame image of a finished Seedance video (Ark return_last_frame). */
   last_frame_url?: string
   status: string // NOT_START, SUBMITTED, IN_PROGRESS, SUCCESS, FAILURE, QUEUED, UNKNOWN
+  /** Pre-charge while unsettled, final charge once billing_settled. */
+  quota?: number
+  /** Submission charge; 0 on tasks created before it was stored. */
+  pre_consumed_quota?: number
+  billing_settled?: boolean
   other?: string
   created_at?: number
   updated_at?: number
+}
+
+/** Billing state of one task (GET /api/task/self/billing). */
+export interface TaskBillingView {
+  task_id: string
+  status: string
+  quota: number
+  pre_consumed_quota: number
+  billing_settled: boolean
+}
+
+/** Quota still reserved by the user's unsettled tasks. */
+export interface HeldTaskQuota {
+  quota: number
+  count: number
 }
 
 // ============================================================================

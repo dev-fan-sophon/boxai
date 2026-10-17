@@ -8,6 +8,8 @@ import type {
   GetLogStatsResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
+  HeldTaskQuota,
+  TaskBillingView,
   UserInfo,
 } from './types'
 
@@ -92,3 +94,17 @@ export const getAllTaskLogs = (params: GetTaskLogsParams) =>
 
 export const getUserTaskLogs = (params: GetTaskLogsParams) =>
   fetchLogs('/api/task', params, false)
+
+export async function getUserTaskBilling(
+  taskIds: string[]
+): Promise<TaskBillingView[]> {
+  const res = await api.get('/api/task/self/billing', {
+    params: { task_ids: taskIds.join(',') },
+  })
+  return res.data?.success ? (res.data.data ?? []) : []
+}
+
+export async function getHeldTaskQuota(): Promise<HeldTaskQuota | null> {
+  const res = await api.get('/api/task/self/held')
+  return res.data?.success ? res.data.data : null
+}

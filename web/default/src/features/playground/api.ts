@@ -478,6 +478,11 @@ export type PlaygroundEstimateInput = {
   size?: string
   duration?: number
   has_reference?: boolean
+  /** Video output tier and shape; size cannot express an adaptive ratio. */
+  resolution?: string
+  aspect_ratio?: string
+  /** Reference videos add input frames to token-billed video usage. */
+  has_video_reference?: boolean
   max_tokens?: number
   /** Rough prompt token hint for token-mode estimates */
   prompt_tokens?: number

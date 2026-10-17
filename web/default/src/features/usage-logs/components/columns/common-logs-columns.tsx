@@ -33,6 +33,7 @@ import {
   isViolationFeeLog,
   renderAuditContent,
 } from '../../lib/format'
+import { describeTaskSettlement } from '../../lib/task-charge'
 import {
   isDisplayableLogType,
   isTimingLogType,
@@ -111,11 +112,29 @@ function buildTypeDetailSegments(
     return text ? [{ text }] : []
   }
 
+  if (other?.settlement) {
+    const summary = describeTaskSettlement(other.settlement, t)
+    return [{ text: summary.title }, { text: summary.detail, muted: true }]
+  }
+
   if (log.type === 6) {
     return [{ text: t('Async task refund') }]
   }
 
   if (log.type !== 2) return []
+
+  if (other?.task_precharge) {
+    // The pricing segments still follow; the charge itself is provisional.
+    return [
+      { text: t('Task pre-charge') },
+      { text: t('Settles when the task finishes'), muted: true },
+      ...buildTypeDetailSegments(
+        log,
+        { ...other, task_precharge: undefined },
+        t
+      ),
+    ]
+  }
 
   const isViolation = isViolationFeeLog(other)
   if (isViolation) {

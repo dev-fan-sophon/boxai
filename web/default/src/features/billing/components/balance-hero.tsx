@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
@@ -9,6 +10,7 @@ import { IconBadge } from '@/components/ui/icon-badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnimatedQuota } from '@/features/dashboard/components/ui/animated-quota'
+import { getHeldTaskQuota } from '@/features/usage-logs/api'
 import { formatNumber, formatQuota } from '@/lib/format'
 
 import type { ActiveSubscriptionSummary } from '../lib/subscription-summary'
@@ -149,6 +151,15 @@ function SubscriptionPanel(props: BalanceHeroProps) {
  */
 export function BalanceHero(props: BalanceHeroProps) {
   const { t } = useTranslation()
+  // Async tasks (video) reserve a pre-charge until they settle; showing the
+  // held amount explains a balance that dropped more than the final charge.
+  const heldQuery = useQuery({
+    queryKey: ['billing', 'held-task-quota'],
+    queryFn: getHeldTaskQuota,
+    refetchInterval: (query) =>
+      (query.state.data?.quota ?? 0) > 0 ? 15000 : false,
+  })
+  const held = heldQuery.data
 
   let balanceContent
   if (props.loading) {
@@ -186,6 +197,21 @@ export function BalanceHero(props: BalanceHeroProps) {
               {formatNumber(props.user?.request_count ?? 0)}
             </dd>
           </div>
+          {held && held.quota > 0 && (
+            <div
+              className='flex min-w-0 flex-col gap-0.5'
+              title={t(
+                'Running tasks hold a pre-charge. When each task finishes, any amount above its actual usage returns to your balance.'
+              )}
+            >
+              <dt className='text-muted-foreground text-xs'>
+                {t('Held by running tasks ({{count}})', { count: held.count })}
+              </dt>
+              <dd className='text-sm font-medium tabular-nums'>
+                {formatQuota(held.quota)}
+              </dd>
+            </div>
+          )}
         </dl>
       </>
     )

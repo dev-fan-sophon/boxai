@@ -45,9 +45,11 @@ import {
   toggleStudioSelectionGroup,
   type StudioSelection,
 } from '@/features/playground/lib/studio/studio-selection'
+import type { TaskCharge } from '@/features/usage-logs/lib/task-charge'
 import { cn } from '@/lib/utils'
 import { usePlaygroundStore } from '@/stores/playground-store'
 
+import { useTaskCharges } from '../../hooks/use-task-billing'
 import { parseTranscript } from '../../lib/transcript'
 import { StudioSelectionBar } from './studio-selection-bar'
 import {
@@ -158,6 +160,13 @@ export function StudioFeed(props: StudioFeedProps) {
     ),
   ]
   const tasks = useQueries({ queries: taskIds.map(videoTaskQueryOptions) })
+  const taskCharges = useTaskCharges(
+    props.modality === 'video'
+      ? props.batches.flatMap((batch) =>
+          batch.runs.flatMap((run) => (run.taskId ? [run.taskId] : []))
+        )
+      : []
+  )
   const successfulTasks = new Set(
     taskIds.filter((_, index) => tasks[index].data?.status === 'SUCCESS')
   )
@@ -364,6 +373,7 @@ export function StudioFeed(props: StudioFeedProps) {
           density={density}
           downloading={downloading}
           successfulTasks={successfulTasks}
+          taskCharges={taskCharges}
           selectMode={selectMode}
           selectedIds={selection.ids}
           onSelect={canSelect ? clickSelect : undefined}
@@ -482,6 +492,7 @@ function BatchCard(props: {
   density: StudioFeedDensity
   downloading: string
   successfulTasks: ReadonlySet<string>
+  taskCharges: ReadonlyMap<string, TaskCharge>
   selectMode: boolean
   selectedIds: ReadonlySet<number>
   /** Select-mode click; `range` extends from the last clicked result. */
@@ -618,6 +629,7 @@ function BatchCard(props: {
           run={run}
           ratio={ratio}
           caption={showCaption ? run.prompt : undefined}
+          charge={run.taskId ? props.taskCharges.get(run.taskId) : undefined}
           downloading={props.downloading === filename}
           onDownload={(src) => void props.onDownload(src, filename, 'video')}
           onContinueFromFrame={props.onContinueFromFrame}

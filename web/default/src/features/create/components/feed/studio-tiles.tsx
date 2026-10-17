@@ -23,6 +23,10 @@ import { useVideoTaskResult } from '@/features/playground/hooks/use-video-task-r
 import { retryGeneratedImage } from '@/features/playground/lib/download-generated-media'
 import type { StudioRunSummary } from '@/features/playground/lib/session/session-types'
 import type { PendingStudioRun } from '@/features/playground/lib/studio/studio-feed'
+import {
+  formatTaskCharge,
+  type TaskCharge,
+} from '@/features/usage-logs/lib/task-charge'
 import { getFundingError } from '@/lib/funding-error'
 import { cn } from '@/lib/utils'
 
@@ -396,6 +400,8 @@ export function VideoResultTile(props: {
   run: StudioRunSummary
   ratio: number
   caption?: string
+  /** Pre-charge while rendering, final charge and refund once settled. */
+  charge?: TaskCharge
   downloading: boolean
   onDownload: (src: string) => void
   /** Starts a new draft whose first frame is this video's last frame. */
@@ -403,6 +409,7 @@ export function VideoResultTile(props: {
 }) {
   const { t } = useTranslation()
   const video = useVideoRunSource(props.run)
+  const chargeLabel = props.charge ? formatTaskCharge(props.charge, t) : ''
   const [natural, setNatural] = useState<number | null>(null)
   const [readingFrame, setReadingFrame] = useState(false)
 
@@ -435,9 +442,16 @@ export function VideoResultTile(props: {
         role='alert'
       >
         <AlertCircle className='text-destructive mt-0.5 size-4 shrink-0' />
-        <p className='text-destructive line-clamp-4 text-xs text-pretty'>
-          {video.failReason || t('Video generation failed.')}
-        </p>
+        <div className='min-w-0 space-y-1'>
+          <p className='text-destructive line-clamp-4 text-xs text-pretty'>
+            {video.failReason || t('Video generation failed.')}
+          </p>
+          {chargeLabel && (
+            <p className='text-muted-foreground text-2xs tabular-nums'>
+              {chargeLabel}
+            </p>
+          )}
+        </div>
       </div>
     )
   }
@@ -462,6 +476,11 @@ export function VideoResultTile(props: {
               ? t('Rendering video…')
               : `${Math.round(percent)}%`}
           </span>
+          {chargeLabel && (
+            <span className='text-muted-foreground text-2xs tabular-nums'>
+              {chargeLabel}
+            </span>
+          )}
         </div>
         <div className='bg-background/40 absolute inset-x-0 bottom-0 h-0.5 overflow-hidden'>
           {percent == null ? (
@@ -505,6 +524,11 @@ export function VideoResultTile(props: {
           </figcaption>
         ) : (
           <span className='flex-1' />
+        )}
+        {chargeLabel && (
+          <span className='text-muted-foreground text-2xs shrink-0 tabular-nums'>
+            {chargeLabel}
+          </span>
         )}
         {props.onContinueFromFrame ? (
           <Button

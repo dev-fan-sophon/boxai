@@ -10,6 +10,9 @@ export type CostEstimateParams = {
   size?: string
   duration?: number
   has_reference?: boolean
+  resolution?: string
+  aspect_ratio?: string
+  has_video_reference?: boolean
   max_tokens?: number
 }
 
@@ -51,6 +54,9 @@ export function useCostEstimate(input: {
         size: debounced?.size,
         duration: debounced?.duration,
         has_reference: debounced?.has_reference,
+        resolution: debounced?.resolution,
+        aspect_ratio: debounced?.aspect_ratio,
+        has_video_reference: debounced?.has_video_reference,
         max_tokens: debounced?.max_tokens,
         // Rough display estimate; backend also defaults when omitted
         prompt_tokens: debounced?.modality === 'chat' ? 500 : undefined,

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
@@ -48,6 +49,7 @@ import {
   isTimingLogType,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
+import { useLogsViewScope } from '../usage-logs-provider'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
 // to its i18n label key for display in the audit details.
@@ -81,6 +83,25 @@ function DetailRow(props: {
         {props.value}
       </span>
     </div>
+  )
+}
+
+/** Task id that opens the task log filtered to it, in the same view scope. */
+function TaskLogLink(props: { taskId: string }) {
+  const { t } = useTranslation()
+  const { isAdminView } = useLogsViewScope()
+  return (
+    <span className='flex min-w-0 flex-wrap items-center gap-x-2'>
+      <span className='break-all'>{props.taskId}</span>
+      <Link
+        to={isAdminView ? '/admin/usage-logs/$section' : '/usage-logs/$section'}
+        params={{ section: 'task' }}
+        search={{ filter: props.taskId }}
+        className='text-primary font-sans hover:underline'
+      >
+        {t('View task')}
+      </Link>
+    </span>
   )
 }
 
@@ -861,17 +882,76 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </DetailSection>
         )}
 
-        {/* Refund details (type=6) */}
-        {isRefund && other && (other.task_id || other.reason) && (
-          <DetailSection label={t('Refund Details')}>
-            {other.task_id && (
-              <DetailRow label={t('Task ID')} value={other.task_id} mono />
-            )}
-            {other.reason && (
-              <DetailRow label={t('Reason')} value={other.reason} />
-            )}
-          </DetailSection>
-        )}
+        {/* Async task billing: pre-charge, settlement and refunds */}
+        {other &&
+          (other.settlement || other.task_precharge || isRefund) &&
+          (other.task_id || other.reason || other.settlement) && (
+            <DetailSection
+              label={
+                isRefund || other.settlement
+                  ? t('Task Settlement')
+                  : t('Task Pre-charge')
+              }
+            >
+              {other.task_id && (
+                <DetailRow
+                  label={t('Task ID')}
+                  value={<TaskLogLink taskId={other.task_id} />}
+                  mono
+                />
+              )}
+              {other.task_precharge && (
+                <DetailRow
+                  label={t('Note')}
+                  value={t(
+                    'This is a pre-charge. When the task finishes, the difference to the actual usage is refunded or charged as a separate record.'
+                  )}
+                  muted
+                />
+              )}
+              {other.settlement && (
+                <>
+                  <DetailRow
+                    label={t('Pre-charged')}
+                    value={formatLogQuota(other.settlement.pre_consumed_quota)}
+                    mono
+                  />
+                  <DetailRow
+                    label={t('Actual charge')}
+                    value={formatLogQuota(other.settlement.actual_quota)}
+                    mono
+                  />
+                  <DetailRow
+                    label={
+                      other.settlement.delta > 0
+                        ? t('Extra charge')
+                        : t('Refunded')
+                    }
+                    value={formatLogQuota(Math.abs(other.settlement.delta))}
+                    mono
+                  />
+                  {other.settlement.usage_tokens != null && (
+                    <DetailRow
+                      label={t('Usage tokens')}
+                      value={other.settlement.usage_tokens.toLocaleString()}
+                      mono
+                    />
+                  )}
+                </>
+              )}
+              {other.reason && (
+                <DetailRow label={t('Reason')} value={other.reason} />
+              )}
+              {props.isAdmin && adminInfo?.settlement_detail && (
+                <DetailRow
+                  label={t('Pricing')}
+                  value={adminInfo.settlement_detail}
+                  mono
+                  muted
+                />
+              )}
+            </DetailSection>
+          )}
 
         {/* Top-up audit info (type=1, admin only) */}
         {showTopupAuditSection && (

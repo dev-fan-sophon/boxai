@@ -7,11 +7,12 @@ import { Music } from '@/components/icons'
 import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
-import { formatTimestampToDate } from '@/lib/format'
+import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { TASK_ACTIONS, TASK_STATUS } from '../../constants'
 import { taskActionMapper, taskStatusMapper } from '../../lib/mappers'
+import { describeTaskCharge } from '../../lib/task-charge'
 import type { TaskLog } from '../../types'
 import {
   AudioPreviewDialog,
@@ -191,6 +192,42 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
             copyable={false}
             className='-ml-1.5'
           />
+        )
+      },
+    },
+    {
+      id: 'cost',
+      header: t('Cost'),
+      cell: ({ row }) => {
+        const charge = describeTaskCharge(row.original)
+        if (charge.kind === 'none') {
+          return <span className='text-muted-foreground text-xs'>-</span>
+        }
+        if (charge.kind === 'pending') {
+          return (
+            <div className='flex flex-col gap-0.5 text-xs'>
+              <span className='font-mono tabular-nums'>
+                {formatLogQuota(charge.preCharged)}
+              </span>
+              <span className='text-muted-foreground text-2xs'>
+                {t('Pre-charge')}
+              </span>
+            </div>
+          )
+        }
+        return (
+          <div className='flex flex-col gap-0.5 text-xs'>
+            <span className='font-mono tabular-nums'>
+              {formatLogQuota(charge.charged)}
+            </span>
+            {charge.refunded > 0 && (
+              <span className='text-success text-2xs'>
+                {t('Refunded {{amount}}', {
+                  amount: formatLogQuota(charge.refunded),
+                })}
+              </span>
+            )}
+          </div>
         )
       },
     },

@@ -35,7 +35,11 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
     params: props.estimateParams,
   })
 
-  const hint = mergeEstimate(catalogHint, estimateQuery.data)
+  const hint = mergeEstimate(
+    catalogHint,
+    estimateQuery.data,
+    props.estimateParams?.modality
+  )
 
   const batchTotal =
     (props.jobCount ?? 1) > 1 && hint.kind === 'per_request' && hint.amountLabel
@@ -63,7 +67,8 @@ export function PriceHintBadge(props: PriceHintBadgeProps) {
 
 function mergeEstimate(
   catalog: PriceHint,
-  estimate: PlaygroundEstimateResult | null | undefined
+  estimate: PlaygroundEstimateResult | null | undefined,
+  modality: string | undefined
 ): PriceHint {
   if (!estimate) return catalog
   const amountLabel = formatEstimateAmount(estimate)
@@ -72,6 +77,21 @@ function mergeEstimate(
       kind: 'per_request',
       labelKey: 'per run',
       amountLabel,
+      groupRatio: estimate.group_ratio,
+    }
+  }
+  // Token-billed video quotes its expected usage for the whole batch (what
+  // the run pre-charges); show it as an approximate price, not a token rate.
+  if (
+    modality === 'video' &&
+    estimate.kind === 'token' &&
+    amountLabel &&
+    estimate.quota != null
+  ) {
+    return {
+      kind: 'per_request',
+      labelKey: 'per run',
+      amountLabel: `≈${amountLabel}`,
       groupRatio: estimate.group_ratio,
     }
   }

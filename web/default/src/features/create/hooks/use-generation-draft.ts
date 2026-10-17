@@ -39,6 +39,9 @@ export type GenerationEstimateParams = {
   size?: string
   duration?: number
   has_reference: boolean
+  resolution?: string
+  aspect_ratio?: string
+  has_video_reference?: boolean
 }
 
 /**
@@ -306,6 +309,9 @@ export function useGenerationDraft(input: {
       : (imageOptions?.size ?? settings.imageSize),
     duration: isVideo ? videoOptions?.duration : undefined,
     has_reference: hasImage,
+    resolution: isVideo ? (videoOptions?.resolution ?? '720p') : undefined,
+    aspect_ratio: isVideo ? videoOptions?.aspectRatio : undefined,
+    has_video_reference: isVideo && referenceVideoCount > 0,
   }
 
   return {
