@@ -356,7 +356,7 @@ func TestOfficialSeedanceBillingMatchesPayload(t *testing.T) {
 			}
 		}
 	}
-	ratio, ok := GetVideoInputRatio("doubao-seedance-2-0-fast-260128", "4k", true)
+	ratio, ok := relaycommon.SeedanceVideoInputRatio("doubao-seedance-2-0-fast-260128", "4k", true)
 	require.True(t, ok)
 	assert.Equal(t, 22.0/37.0, ratio)
 }
@@ -439,7 +439,7 @@ func TestTypedReferenceMediaMapsToArkRolesAndVideoPricing(t *testing.T) {
 			}
 			ratios := a.EstimateBilling(c, info)
 			if tt.videoTier {
-				expected, ok := GetVideoInputRatio(upstream, "", true)
+				expected, ok := relaycommon.SeedanceVideoInputRatio(upstream, "", true)
 				require.True(t, ok)
 				assert.Equal(t, expected, ratios["video_input"])
 			} else {
@@ -467,4 +467,32 @@ func TestParseLastFrameIntoOpenAIVideo(t *testing.T) {
 	metadata, ok := video["metadata"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "https://v/last.png", metadata["last_frame_url"])
+}
+
+// Pre-consume reserves the tokens Ark will report. Expected values follow
+// Ark's w×h × (24×s+1) / 1024; the first two equal usage production billed
+// for the same shape (488025 for 1080p 9:16 10 s, 245025 for 1080p 5 s).
+func TestEstimateUsageTokensFollowsEffectivePayload(t *testing.T) {
+	upstream := "doubao-seedance-2-5-260628"
+	for _, tt := range []struct {
+		name string
+		req  relaycommon.TaskSubmitReq
+		want int
+	}{
+		{"metadata tier and ratio override size", relaycommon.TaskSubmitReq{Size: "1280x720", Duration: 10, Metadata: map[string]any{"resolution": "1080p", "ratio": "9:16"}}, 488025},
+		{"omitted duration uses Ark default", relaycommon.TaskSubmitReq{Size: "1920x1080"}, 245025},
+		{"frames round up to whole seconds", relaycommon.TaskSubmitReq{Size: "1920x1080", Metadata: map[string]any{"frames": 121}}, 2073600 * 145 / 1024},
+		{"reference video adds the assumed input frames", relaycommon.TaskSubmitReq{Size: "720x1280", Duration: 4, ReferenceVideos: []string{"https://m/v.mp4"}}, 921600 * (97 + 361) / 1024},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := tt.req
+			req.Model, req.Prompt = "dreamina-seedance-2-5", "dance"
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Set("task_request", req)
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{IsModelMapped: true, UpstreamModelName: upstream}}
+			tokens, ok := (&TaskAdaptor{}).EstimateUsageTokens(c, info)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, tokens)
+		})
+	}
 }

@@ -19,8 +19,12 @@ type PlaygroundEstimateRequest struct {
 	Size         string  `json:"size"`
 	Duration     float64 `json:"duration"`
 	HasReference bool    `json:"has_reference"`
-	MaxTokens    int     `json:"max_tokens"`
-	PromptTokens int     `json:"prompt_tokens"` // optional hint
+	// Video output tier and shape; size alone cannot express adaptive ratio.
+	Resolution        string `json:"resolution"`
+	AspectRatio       string `json:"aspect_ratio"`
+	HasVideoReference bool   `json:"has_video_reference"`
+	MaxTokens         int    `json:"max_tokens"`
+	PromptTokens      int    `json:"prompt_tokens"` // optional hint
 }
 
 // PlaygroundEstimateResult is a structured, non-invented price estimate.
@@ -77,11 +81,31 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 	price, usePrice := ratio_setting.GetModelPrice(modelName, false)
 	if !usePrice && relaycommon.IsSeedanceModel(modelName) {
 		if ratio, ok := configuredModelRatio(modelName); ok {
-			// Native Seedance settles on actual video tokens. This endpoint
-			// has neither the selected channel nor a video-token estimate;
-			// do not present a compiled per-second price as a billable quote.
+			// Native Seedance settles on actual video tokens. Quote the same
+			// usage estimate relay pre-consume reserves, so the studio price,
+			// the pre-charge and the final charge line up.
+			resolution := relaycommon.ResolveSeedanceResolution(req.Resolution, req.Size)
+			aspect := strings.TrimSpace(req.AspectRatio)
+			if aspect == "" {
+				_, aspect = relaycommon.SeedanceOutputFromSize(req.Size)
+			}
+			seconds := int(math.Ceil(duration))
+			if seconds <= 0 {
+				seconds = relaycommon.SeedanceOmittedDurationSeconds
+			}
+			tokens := relaycommon.EstimateSeedanceVideoTokens(resolution, aspect, seconds, req.HasVideoReference)
+			multiplier := 1.0
+			if tierRatio, ok := relaycommon.SeedanceVideoInputRatio(relaycommon.SeedancePriceModel(modelName), resolution, req.HasVideoReference); ok {
+				multiplier = tierRatio
+			}
+			quotaVal := common.QuotaFromFloat(float64(tokens) * ratio * groupRatio * multiplier * relaycommon.TaskUsagePreChargeMargin * float64(n))
+			amount := float64(quotaVal) / common.QuotaPerUnit
+			result.Kind = "token"
 			result.ModelRatio = &ratio
-			result.Message = "video price depends on actual usage and selected channel"
+			result.Quota = &quotaVal
+			result.Amount = &amount
+			result.AmountLabel = formatAmountLabel(amount)
+			result.Message = "estimated video tokens; final charge settles on actual usage"
 			return result
 		}
 	}

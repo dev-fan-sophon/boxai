@@ -87,3 +87,10 @@ type OpenAIVideoConverter interface {
 type MappedTaskRequestValidator interface {
 	ValidateMappedRequest(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError
 }
+
+// TaskUsageEstimator predicts the usage tokens a token-billed task will
+// report at completion. Pre-consume then reserves the likely charge instead
+// of a flat placeholder, keeping the completion refund small.
+type TaskUsageEstimator interface {
+	EstimateUsageTokens(c *gin.Context, info *relaycommon.RelayInfo) (int, bool)
+}

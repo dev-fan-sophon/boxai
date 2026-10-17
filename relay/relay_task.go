@@ -222,6 +222,17 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		}
 	}
 
+	// 5.5 按 token 结算的任务：用预计用量替换"模型倍率/2"的固定预扣额，
+	//     与完成后 RecalculateTaskQuotaByTokens 使用相同的倍率，差额只剩估算误差。
+	if estimator, ok := adaptor.(channel.TaskUsageEstimator); ok && !info.PriceData.UsePrice && !info.PriceData.FreeModel {
+		if tokens, ok := estimator.EstimateUsageTokens(c, info); ok && tokens > 0 {
+			quota, clamp := common.QuotaFromFloatChecked(float64(tokens) * info.PriceData.ModelRatio *
+				info.PriceData.GroupRatioInfo.GroupRatio * relaycommon.TaskUsagePreChargeMargin)
+			info.PriceData.Quota = quota
+			noteTaskQuotaClamp(info, clamp)
+		}
+	}
+
 	// 6. 将 OtherRatios 应用到基础额度（饱和转换，防止溢出成负数）
 	if !common.StringsContains(constant.TaskPricePatches, modelName) {
 		quotaWithRatios := info.PriceData.ApplyOtherRatiosToFloat(float64(info.PriceData.Quota))

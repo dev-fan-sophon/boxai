@@ -130,7 +130,9 @@ func TestEstimatePlaygroundCost_GrokImagineVideoUsesDurationAndResolution(t *tes
 	assert.InDelta(t, 0.003*5*1.75, *result.Amount, 1e-9)
 }
 
-func TestEstimatePlaygroundCost_TokenSeedanceDoesNotQuotePerSecondDefault(t *testing.T) {
+// Token-billed Seedance quotes Ark's video-token usage (the amount relay
+// pre-consume reserves), never the compiled per-second default price.
+func TestEstimatePlaygroundCost_TokenSeedanceQuotesVideoTokens(t *testing.T) {
 	savedPrices := ratio_setting.ModelPrice2JSONString()
 	savedRatios := ratio_setting.ModelRatio2JSONString()
 	t.Cleanup(func() {
@@ -138,20 +140,29 @@ func TestEstimatePlaygroundCost_TokenSeedanceDoesNotQuotePerSecondDefault(t *tes
 		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
 	})
 	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{}`))
-	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"doubao-seedance-2-0-mini-260615":1.456323}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"doubao-seedance-2-0-mini-260615":1.456323,"dreamina-seedance-2-5":4.432287}`))
 
-	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{
-		Modality: "video",
-		Model:    "doubao-seedance-2-0-mini-260615",
-		Duration: 30,
-		Size:     "1920x1080",
-	})
-	assert.Equal(t, "unknown", result.Kind)
-	assert.Nil(t, result.Amount)
-	assert.Nil(t, result.Quota)
-	require.NotNil(t, result.ModelRatio)
-	assert.Equal(t, 1.456323, *result.ModelRatio)
-	assert.Contains(t, result.Message, "actual usage")
+	for _, tt := range []struct {
+		name   string
+		req    PlaygroundEstimateRequest
+		tokens float64
+		ratio  float64
+		tier   float64
+	}{
+		// 1920×1080 × (24×30+1) / 1024; production billed exactly 1460025.
+		{"1080p text", PlaygroundEstimateRequest{Modality: "video", Model: "doubao-seedance-2-0-mini-260615", Duration: 30, Size: "1920x1080"}, 1460025, 1.456323, 1},
+		// 720×1280 × (97 output + 361 assumed reference frames) / 1024, at
+		// the 2.5 video-input price 42/70.
+		{"720p video reference", PlaygroundEstimateRequest{Modality: "video", Model: "dreamina-seedance-2-5", Duration: 4, Resolution: "720p", AspectRatio: "9:16", HasVideoReference: true}, 412200, 4.432287, 42.0 / 70.0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			result := EstimatePlaygroundCost(tt.req)
+			assert.Equal(t, "token", result.Kind)
+			require.NotNil(t, result.Quota)
+			expected := common.QuotaFromFloat(tt.tokens * tt.ratio * result.GroupRatio * tt.tier * 1.05)
+			assert.Equal(t, expected, *result.Quota)
+		})
+	}
 }
 
 func TestEstimatePlaygroundCost_GeminiImageIncludesPerImageOutput(t *testing.T) {

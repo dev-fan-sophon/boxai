@@ -171,11 +171,44 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 		}
 	}
 	// 价格表以上游官方模型名为键；渠道映射后 OriginModelName 是对外别名，会查不到。
-	ratio, ok := GetVideoInputRatio(payload.Model, payload.Resolution, hasVideo)
+	ratio, ok := relaycommon.SeedanceVideoInputRatio(payload.Model, payload.Resolution, hasVideo)
 	if !ok || ratio == 1.0 {
 		return nil
 	}
 	return map[string]float64{"video_input": ratio}
+}
+
+// EstimateUsageTokens predicts the video tokens Ark will report for a
+// Seedance submission from the effective upstream payload (metadata
+// overrides included), so pre-consume reserves the likely charge.
+func (a *TaskAdaptor) EstimateUsageTokens(c *gin.Context, info *relaycommon.RelayInfo) (int, bool) {
+	if !relaycommon.IsSeedanceModel(info.UpstreamModelName) {
+		return 0, false
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return 0, false
+	}
+	req.Model = info.UpstreamModelName
+	payload, err := a.convertToRequestPayload(&req)
+	if err != nil {
+		return 0, false
+	}
+	seconds := relaycommon.SeedanceOmittedDurationSeconds
+	switch {
+	case payload.Duration != nil:
+		seconds = int(*payload.Duration)
+	case payload.Frames != nil:
+		seconds = (int(*payload.Frames) + relaycommon.SeedanceFramesPerSecond - 1) / relaycommon.SeedanceFramesPerSecond
+	}
+	hasVideo := false
+	for _, item := range payload.Content {
+		if item.Type == "video_url" || item.VideoURL != nil {
+			hasVideo = true
+			break
+		}
+	}
+	return relaycommon.EstimateSeedanceVideoTokens(payload.Resolution, payload.Ratio, seconds, hasVideo), true
 }
 
 // BuildRequestBody converts request into Doubao specific format.
