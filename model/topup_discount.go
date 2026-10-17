@@ -14,18 +14,55 @@ import (
 // transactions. Taking a write lock before any reads works on SQLite as well as
 // MySQL/Postgres and avoids snapshot write-skew across different users/coupons.
 type TopUpPromotion struct {
-	ID             int    `json:"id" gorm:"primaryKey"`
-	Enabled        bool   `json:"enabled"`
-	StartsAt       int64  `json:"starts_at"`
-	EndsAt         int64  `json:"ends_at"`
-	MinAmount      int64  `json:"min_amount"`
-	PercentOff     int64  `json:"percent_off"`
-	MaxDiscount    int64  `json:"max_discount"`
-	PerUserLimit   int64  `json:"per_user_limit"`
-	TotalBudget    int64  `json:"total_budget"`
-	BannerEnabled  bool   `json:"banner_enabled"`
-	BannerPosition string `json:"banner_position" gorm:"type:varchar(16)"`
-	BannerText     string `json:"banner_text" gorm:"type:text"`
+	ID       int   `json:"id" gorm:"primaryKey"`
+	Enabled  bool  `json:"enabled"`
+	StartsAt int64 `json:"starts_at"`
+	EndsAt   int64 `json:"ends_at"`
+	// MinAmount/PercentOff/MaxDiscount mirror the lowest tier. They predate
+	// tiers and remain the migration source for rows saved before tiers_json.
+	MinAmount      int64                `json:"min_amount"`
+	PercentOff     int64                `json:"percent_off"`
+	MaxDiscount    int64                `json:"max_discount"`
+	Tiers          []TopUpPromotionTier `json:"tiers" gorm:"-"`
+	TiersJSON      string               `json:"-" gorm:"column:tiers_json;type:text"`
+	PerUserLimit   int64                `json:"per_user_limit"`
+	TotalBudget    int64                `json:"total_budget"`
+	BannerEnabled  bool                 `json:"banner_enabled"`
+	BannerPosition string               `json:"banner_position" gorm:"type:varchar(16)"`
+	BannerText     string               `json:"banner_text" gorm:"type:text"`
+}
+
+// TopUpPromotionTier is one rung of the activity ladder: a top-up whose face
+// amount reaches MinAmount earns PercentOff of the whole face amount, capped
+// by MaxDiscount when it is positive.
+type TopUpPromotionTier struct {
+	MinAmount   int64 `json:"min_amount"`
+	PercentOff  int64 `json:"percent_off"`
+	MaxDiscount int64 `json:"max_discount"`
+}
+
+const MaxTopUpPromotionTiers = 10
+
+func (p *TopUpPromotion) AfterFind(*gorm.DB) error {
+	p.Tiers = nil
+	if p.TiersJSON != "" {
+		if err := common.UnmarshalJsonStr(p.TiersJSON, &p.Tiers); err != nil {
+			return err
+		}
+	}
+	if len(p.Tiers) == 0 {
+		p.Tiers = []TopUpPromotionTier{{MinAmount: p.MinAmount, PercentOff: p.PercentOff, MaxDiscount: p.MaxDiscount}}
+	}
+	return nil
+}
+
+// TopUpPromotionView adds the caller's remaining eligibility so the top-up
+// page never advertises a tier the quote will refuse.
+type TopUpPromotionView struct {
+	TopUpPromotion
+	// RemainingUses is -1 when the activity has no per-user limit.
+	RemainingUses   int64 `json:"remaining_uses"`
+	BudgetExhausted bool  `json:"budget_exhausted"`
 }
 
 type TopUpCoupon struct {
@@ -50,6 +87,8 @@ type TopUpDiscountSnapshot struct {
 	PaidAmount       int64   `json:"paid_amount"`
 	FaceAmount       int64   `json:"face_amount"`
 	ActivityDiscount int64   `json:"activity_discount"`
+	ActivityPercent  int64   `json:"activity_percent"`
+	ActivityTierMin  int64   `json:"activity_tier_min"`
 	CouponDiscount   int64   `json:"coupon_discount"`
 	CouponCode       string  `json:"coupon_code" gorm:"type:varchar(64)"`
 	CouponID         int     `json:"-" gorm:"index"`
@@ -81,17 +120,66 @@ func GetTopUpPromotion() (TopUpPromotion, error) {
 	p := defaultTopUpPromotion()
 	err := DB.First(&p, 1).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return defaultTopUpPromotion(), nil
+		p = defaultTopUpPromotion()
+		return p, p.AfterFind(nil)
 	}
 	return p, err
+}
+
+func GetTopUpPromotionForUser(userID int) (TopUpPromotionView, error) {
+	p, err := GetTopUpPromotion()
+	view := TopUpPromotionView{TopUpPromotion: p, RemainingUses: -1}
+	if err != nil {
+		return view, err
+	}
+	now := common.GetTimestamp()
+	if p.PerUserLimit > 0 {
+		var count int64
+		if err := heldTopUpDiscounts(DB, now).Where("activity_discount > 0 AND user_id = ?", userID).Count(&count).Error; err != nil {
+			return view, err
+		}
+		view.RemainingUses = max(p.PerUserLimit-count, 0)
+	}
+	if p.TotalBudget > 0 {
+		var used int64
+		if err := heldTopUpDiscounts(DB, now).Select("COALESCE(SUM(activity_discount), 0)").Scan(&used).Error; err != nil {
+			return view, err
+		}
+		view.BudgetExhausted = used >= p.TotalBudget
+	}
+	return view, nil
 }
 
 func validTopUpDiscountWindow(start, end, minimum, cap int64) bool {
 	return start >= 0 && end >= 0 && (end == 0 || end > start) && minimum >= 0 && minimum < MaxTopUpFaceVND && cap >= 0 && cap < MaxTopUpFaceVND
 }
 
+// Tiers must ascend strictly by threshold and never lower the percentage, so
+// "top up more, save more" holds for every pair of adjacent rungs.
+func validTopUpPromotionTiers(tiers []TopUpPromotionTier) bool {
+	if len(tiers) == 0 || len(tiers) > MaxTopUpPromotionTiers {
+		return false
+	}
+	for i, tier := range tiers {
+		if !validTopUpDiscountWindow(0, 0, tier.MinAmount, tier.MaxDiscount) || tier.PercentOff < 1 || tier.PercentOff > 100 {
+			return false
+		}
+		if i > 0 && (tier.MinAmount <= tiers[i-1].MinAmount || tier.PercentOff < tiers[i-1].PercentOff) {
+			return false
+		}
+	}
+	return true
+}
+
 func SaveTopUpPromotion(p *TopUpPromotion) error {
-	if p == nil || !validTopUpDiscountWindow(p.StartsAt, p.EndsAt, p.MinAmount, p.MaxDiscount) || p.PercentOff < 1 || p.PercentOff > 100 || p.PerUserLimit < 0 || p.PerUserLimit > 1_000_000_000 || p.TotalBudget < 0 || p.TotalBudget > 1_000_000_000_000_000 || len(p.BannerText) > 4000 {
+	if p == nil {
+		return ErrTopUpDiscountInvalid
+	}
+	// Clients that predate tiers send only the single-tier fields.
+	if len(p.Tiers) == 0 {
+		p.Tiers = []TopUpPromotionTier{{MinAmount: p.MinAmount, PercentOff: p.PercentOff, MaxDiscount: p.MaxDiscount}}
+	}
+	if !validTopUpPromotionTiers(p.Tiers) || !validTopUpDiscountWindow(p.StartsAt, p.EndsAt, 0, 0) || p.PerUserLimit < 0 || p.PerUserLimit > 1_000_000_000 || p.TotalBudget < 0 || p.TotalBudget > 1_000_000_000_000_000 || len(p.BannerText) > 4000 {
 		return ErrTopUpDiscountInvalid
 	}
 	if p.BannerPosition == "" {
@@ -101,6 +189,12 @@ func SaveTopUpPromotion(p *TopUpPromotion) error {
 		return ErrTopUpDiscountInvalid
 	}
 	p.ID = 1
+	p.MinAmount, p.PercentOff, p.MaxDiscount = p.Tiers[0].MinAmount, p.Tiers[0].PercentOff, p.Tiers[0].MaxDiscount
+	tiers, err := common.Marshal(p.Tiers)
+	if err != nil {
+		return err
+	}
+	p.TiersJSON = string(tiers)
 	return DB.Transaction(func(tx *gorm.DB) error {
 		if err := lockTopUpDiscounts(tx); err != nil {
 			return err
@@ -186,8 +280,19 @@ func quoteTopUpDiscountTx(tx *gorm.DB, userID int, face int64, code string, now 
 	if err := tx.First(&p, 1).Error; err != nil {
 		return s, err
 	}
-	if topUpDiscountActive(p.Enabled, p.StartsAt, p.EndsAt, now) && face >= p.MinAmount {
-		discount := topUpDiscountAmount(face, p.PercentOff, p.MaxDiscount, true)
+	// With per-tier caps a higher rung can yield less than a lower one, so
+	// the best eligible rung wins; ties go to the higher threshold.
+	var tier TopUpPromotionTier
+	var discount int64
+	for _, candidate := range p.Tiers {
+		if face < candidate.MinAmount {
+			continue
+		}
+		if amount := topUpDiscountAmount(face, candidate.PercentOff, candidate.MaxDiscount, true); amount >= discount {
+			tier, discount = candidate, amount
+		}
+	}
+	if topUpDiscountActive(p.Enabled, p.StartsAt, p.EndsAt, now) && discount > 0 {
 		var count, used int64
 		if err := heldTopUpDiscounts(tx, now).Where("activity_discount > 0 AND user_id = ?", userID).Count(&count).Error; err != nil {
 			return s, err
@@ -196,7 +301,7 @@ func quoteTopUpDiscountTx(tx *gorm.DB, userID int, face int64, code string, now 
 			return s, err
 		}
 		if (p.PerUserLimit == 0 || count < p.PerUserLimit) && (p.TotalBudget == 0 || discount <= p.TotalBudget-used) {
-			s.ActivityDiscount = discount
+			s.ActivityDiscount, s.ActivityPercent, s.ActivityTierMin = discount, tier.PercentOff, tier.MinAmount
 		}
 	}
 	code = strings.ToUpper(strings.TrimSpace(code))
@@ -231,7 +336,7 @@ func quoteTopUpDiscountTx(tx *gorm.DB, userID int, face int64, code string, now 
 		discount := topUpDiscountAmount(base, c.DiscountValue, c.MaxDiscount, c.DiscountType == "percent")
 		if c.Stackable || discount > s.ActivityDiscount {
 			if !c.Stackable {
-				s.ActivityDiscount = 0
+				s.ActivityDiscount, s.ActivityPercent, s.ActivityTierMin = 0, 0, 0
 			}
 			if discount > 0 {
 				s.CouponDiscount, s.CouponID, s.CouponCode = discount, c.ID, c.Code

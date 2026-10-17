@@ -51,6 +51,15 @@ func GetTopUpPromotion(c *gin.Context) {
 	common.ApiSuccess(c, p)
 }
 
+func GetSelfTopUpPromotion(c *gin.Context) {
+	p, err := model.GetTopUpPromotionForUser(c.GetInt("id"))
+	if err != nil {
+		topUpDiscountError(c, err)
+		return
+	}
+	common.ApiSuccess(c, p)
+}
+
 func UpdateTopUpPromotion(c *gin.Context) {
 	var p model.TopUpPromotion
 	if c.ShouldBindJSON(&p) != nil {

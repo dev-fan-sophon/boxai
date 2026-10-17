@@ -222,6 +222,8 @@ func attachTopUpDiscountSnapshot(data gin.H, snapshot model.TopUpDiscountSnapsho
 	data["paid_amount"] = snapshot.PaidAmount
 	data["face_amount"] = snapshot.FaceAmount
 	data["activity_discount"] = snapshot.ActivityDiscount
+	data["activity_percent"] = snapshot.ActivityPercent
+	data["activity_tier_min"] = snapshot.ActivityTierMin
 	data["coupon_discount"] = snapshot.CouponDiscount
 	data["coupon_code"] = snapshot.CouponCode
 	data["credit_usd"] = snapshot.CreditUSD

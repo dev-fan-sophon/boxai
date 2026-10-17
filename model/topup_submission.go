@@ -268,7 +268,7 @@ func ListTopUpReviews(status, keyword string, limit, offset int) ([]TopUpReview,
 		return nil, 0, err
 	}
 	var items []TopUpReview
-	err := q.Select("s.*, u.username, t.paid_amount, t.face_amount, t.activity_discount, t.coupon_discount, t.coupon_code, t.credit_usd, t.expires_at, t.submission_status, COALESCE(t.amount, 0) amount, COALESCE(t.money, o.money, 0) money, CASE WHEN s.order_type = 'subscription' THEN COALESCE(p.currency, 'USD') ELSE 'VND' END currency, COALESCE(o.plan_id, 0) plan_id, COALESCE(p.title, '') plan_title, COALESCE(o.provider_payload, '') provider_payload").Order("s.id desc").Limit(limit).Offset(offset).Scan(&items).Error
+	err := q.Select("s.*, u.username, t.paid_amount, t.face_amount, t.activity_discount, t.activity_percent, t.activity_tier_min, t.coupon_discount, t.coupon_code, t.credit_usd, t.expires_at, t.submission_status, COALESCE(t.amount, 0) amount, COALESCE(t.money, o.money, 0) money, CASE WHEN s.order_type = 'subscription' THEN COALESCE(p.currency, 'USD') ELSE 'VND' END currency, COALESCE(o.plan_id, 0) plan_id, COALESCE(p.title, '') plan_title, COALESCE(o.provider_payload, '') provider_payload").Order("s.id desc").Limit(limit).Offset(offset).Scan(&items).Error
 	if err != nil {
 		return nil, 0, err
 	}

@@ -106,6 +106,7 @@ func RequestBankQRAmount(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"amount":      discount.PaidAmount,
 		"face_amount": discount.FaceAmount, "activity_discount": discount.ActivityDiscount,
+		"activity_percent": discount.ActivityPercent, "activity_tier_min": discount.ActivityTierMin,
 		"coupon_discount": discount.CouponDiscount, "coupon_code": discount.CouponCode, "expires_at": discount.ExpiresAt,
 		"currency":   quote.FaceCurrency,
 		"credit_usd": model.USDCents(quote.CreditCents).InexactFloat64(),
@@ -180,6 +181,7 @@ func RequestBankQRPay(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": order.PaidAmount, "currency": quote.FaceCurrency,
 		"face_amount": order.FaceAmount, "activity_discount": order.ActivityDiscount, "coupon_discount": order.CouponDiscount,
+		"activity_percent": order.ActivityPercent, "activity_tier_min": order.ActivityTierMin,
 		"coupon_code": order.CouponCode, "credit_usd": order.CreditUSD, "expires_at": order.ExpiresAt,
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
 		"account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName),

@@ -18,18 +18,15 @@ func TestBankQRAmount(t *testing.T) {
 	setting := operation_setting.GetBankQRSetting()
 	originalSetting := setting
 	originalRate := operation_setting.USDExchangeRate
-	originalDiscounts := operation_setting.GetPaymentSetting().AmountDiscount
 	t.Cleanup(func() {
 		operation_setting.SetBankQRSetting(originalSetting)
 		operation_setting.USDExchangeRate = originalRate
-		operation_setting.GetPaymentSetting().AmountDiscount = originalDiscounts
 		require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1}`))
 	})
 
 	setting.MinTopUp = 50000
 	operation_setting.SetBankQRSetting(setting)
 	operation_setting.USDExchangeRate = 26000
-	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{}
 	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1.2}`))
 	assert.Equal(t, int64(50000), bankQRMinVND())
 

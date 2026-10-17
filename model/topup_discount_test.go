@@ -254,3 +254,90 @@ func TestTopUpDiscountConfigurationBounds(t *testing.T) {
 	c.Code = "BAD SPACE"
 	assert.ErrorIs(t, SaveTopUpCoupon(&c, true), ErrTopUpDiscountInvalid)
 }
+
+func TestTopUpPromotionTiers(t *testing.T) {
+	setupTopUpDiscountTestDB(t)
+	p := defaultTopUpPromotion()
+	p.Enabled = true
+	p.Tiers = []TopUpPromotionTier{{MinAmount: 100000, PercentOff: 10}, {MinAmount: 300000, PercentOff: 15}, {MinAmount: 500000, PercentOff: 20}, {MinAmount: 1000000, PercentOff: 25}}
+	require.NoError(t, SaveTopUpPromotion(&p))
+	for _, tc := range []struct{ face, discount, percent, tier int64 }{
+		{99999, 0, 0, 0}, {100000, 10000, 10, 100000}, {299999, 29999, 10, 100000}, {300000, 45000, 15, 300000},
+		{499999, 74999, 15, 300000}, {500000, 100000, 20, 500000}, {999999, 199999, 20, 500000}, {1000000, 250000, 25, 1000000}, {2000000, 500000, 25, 1000000},
+	} {
+		s, err := QuoteTopUpDiscount(1, tc.face, "")
+		require.NoError(t, err)
+		assert.Equal(t, tc.discount, s.ActivityDiscount, tc.face)
+		assert.Equal(t, tc.percent, s.ActivityPercent, tc.face)
+		assert.Equal(t, tc.tier, s.ActivityTierMin, tc.face)
+		assert.Equal(t, tc.face-tc.discount, s.PaidAmount, tc.face)
+	}
+	// The reserved order keeps the rung it was priced with after the ladder changes.
+	order := discountTestOrder(1, "TIER")
+	order.FaceAmountMinor = 500000
+	require.NoError(t, CreateDiscountedBankQRTopUp(order, "", 10))
+	p.Tiers = []TopUpPromotionTier{{MinAmount: 100000, PercentOff: 5}}
+	require.NoError(t, SaveTopUpPromotion(&p))
+	var saved TopUp
+	require.NoError(t, DB.First(&saved, order.Id).Error)
+	assert.EqualValues(t, 100000, saved.ActivityDiscount)
+	assert.EqualValues(t, 20, saved.ActivityPercent)
+	assert.EqualValues(t, 400000, saved.Money)
+
+	// A capped higher rung must not undercut a lower rung the amount also reaches.
+	p.Tiers = []TopUpPromotionTier{{MinAmount: 100000, PercentOff: 30, MaxDiscount: 100000}, {MinAmount: 300000, PercentOff: 30, MaxDiscount: 50000}}
+	require.NoError(t, SaveTopUpPromotion(&p))
+	s, err := QuoteTopUpDiscount(1, 300000, "")
+	require.NoError(t, err)
+	assert.EqualValues(t, 90000, s.ActivityDiscount)
+	assert.EqualValues(t, 100000, s.ActivityTierMin)
+}
+
+func TestTopUpPromotionTierValidationAndLegacyRows(t *testing.T) {
+	setupTopUpDiscountTestDB(t)
+	tooMany := make([]TopUpPromotionTier, MaxTopUpPromotionTiers+1)
+	for i := range tooMany {
+		tooMany[i] = TopUpPromotionTier{MinAmount: int64(i+1) * 10000, PercentOff: 10}
+	}
+	for _, tiers := range [][]TopUpPromotionTier{
+		{{MinAmount: 300000, PercentOff: 15}, {MinAmount: 100000, PercentOff: 20}},
+		{{MinAmount: 100000, PercentOff: 10}, {MinAmount: 100000, PercentOff: 15}},
+		{{MinAmount: 100000, PercentOff: 20}, {MinAmount: 300000, PercentOff: 15}},
+		{{MinAmount: 100000, PercentOff: 0}},
+		{{MinAmount: MaxTopUpFaceVND, PercentOff: 10}},
+		tooMany,
+	} {
+		p := defaultTopUpPromotion()
+		p.Tiers = tiers
+		assert.ErrorIs(t, SaveTopUpPromotion(&p), ErrTopUpDiscountInvalid)
+	}
+	// Rows written before tiers existed keep pricing from the single-tier columns.
+	require.NoError(t, DB.Model(&TopUpPromotion{}).Where("id = ?", 1).Updates(map[string]any{"tiers_json": "", "min_amount": 200000, "percent_off": 12, "max_discount": 0}).Error)
+	p, err := GetTopUpPromotion()
+	require.NoError(t, err)
+	assert.Equal(t, []TopUpPromotionTier{{MinAmount: 200000, PercentOff: 12}}, p.Tiers)
+	s, err := QuoteTopUpDiscount(1, 250000, "")
+	require.NoError(t, err)
+	assert.EqualValues(t, 30000, s.ActivityDiscount)
+}
+
+func TestTopUpPromotionViewRemainingUses(t *testing.T) {
+	setupTopUpDiscountTestDB(t)
+	p := defaultTopUpPromotion()
+	p.Enabled = true
+	p.PerUserLimit = 1
+	p.TotalBudget = 30000
+	require.NoError(t, SaveTopUpPromotion(&p))
+	view, err := GetTopUpPromotionForUser(1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, view.RemainingUses)
+	assert.False(t, view.BudgetExhausted)
+	require.NoError(t, CreateDiscountedBankQRTopUp(discountTestOrder(1, "USED"), "", 10))
+	view, err = GetTopUpPromotionForUser(1)
+	require.NoError(t, err)
+	assert.Zero(t, view.RemainingUses)
+	assert.True(t, view.BudgetExhausted)
+	view, err = GetTopUpPromotionForUser(2)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, view.RemainingUses)
+}
