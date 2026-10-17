@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,7 +35,6 @@ import { cn } from '@/lib/utils'
 
 import {
   formatCurrency,
-  getDiscountLabel,
   getPaymentIcon,
   getMinTopupAmount,
   isBankQRPayment,
@@ -48,6 +48,12 @@ import type {
   TopupInfo,
   WaffoPayMethod,
 } from '../../types'
+import { getPromotion } from '../../promotions/api'
+import {
+  bestPromotionTier,
+  eligiblePromotionTiers,
+  nextPromotionTier,
+} from '../../promotions/tiers'
 import { CreemProductsSection } from '../creem-products-section'
 import { CreemPurchaseSummary } from '../creem-purchase-summary'
 import { DiscountSummary } from '../discount-summary'
@@ -108,7 +114,6 @@ interface AddCreditsDialogProps {
   /** Review step: creates the order with the provider (unchanged API calls). */
   onConfirmPayment: () => void
   processing: boolean
-  discountRate: number
   selectedCreemProduct: CreemProduct | null
   onConfirmCreem: () => void
   creemProcessing: boolean
@@ -202,6 +207,24 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [couponDraft, setCouponDraft] = useState(props.couponCode)
   const isBankQR = props.selectedPaymentMethod?.type === 'bank_qr'
+  // Shares the banner's cache entry, so opening the dialog adds no request.
+  const promotionQuery = useQuery({
+    queryKey: ['topup-promotion'],
+    queryFn: () => getPromotion(),
+    staleTime: 30000,
+  })
+  // The activity only prices Bank QR orders; badges follow that rail.
+  const promotionTiers =
+    isBankQR ||
+    (!props.selectedPaymentMethod && props.topupInfo?.enable_bank_qr_topup)
+      ? eligiblePromotionTiers(promotionQuery.data, Date.now() / 1000)
+      : []
+  const nextTier = nextPromotionTier(promotionTiers, props.topupAmount)
+  const vnd = new Intl.NumberFormat(toIntlLocale(i18n.language), {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  })
   const customAmountFocusedRef = useRef(false)
 
   useEffect(() => {
@@ -401,10 +424,10 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
               {props.presetAmounts.length > 0 && (
                 <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
                   {props.presetAmounts.map((preset) => {
-                    const discount =
-                      preset.discount ||
-                      props.topupInfo?.discount?.[preset.value] ||
-                      1.0
+                    const tierPercent = bestPromotionTier(
+                      promotionTiers,
+                      preset.value
+                    )?.tier.percent_off
                     const selected = props.selectedPreset === preset.value
                     const creditLabel = formatPresetCredit(preset.value)
                     const usdLabel = formatPresetUsd(preset.value)
@@ -434,14 +457,14 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                               {usdLabel}
                             </span>
                           ) : null}
-                          {discount < 1.0 && (
+                          {tierPercent ? (
                             <Badge
                               variant='success'
                               className='text-3xs h-4 px-1.5'
                             >
-                              {getDiscountLabel(discount)}
+                              {t('−{{percent}}%', { percent: tierPercent })}
                             </Badge>
-                          )}
+                          ) : null}
                         </span>
                         {selected && (
                           <CheckCircle2
@@ -454,6 +477,14 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     )
                   })}
                 </div>
+              )}
+              {nextTier && (
+                <p className='text-success text-sm' aria-live='polite'>
+                  {t('Top up {{missing}} more to save {{percent}}%.', {
+                    missing: vnd.format(nextTier.missing),
+                    percent: nextTier.tier.percent_off,
+                  })}
+                </p>
               )}
               <div className='space-y-2'>
                 <div className='flex items-center justify-between gap-2'>
@@ -735,7 +766,6 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
           paymentAmount={props.paymentAmount}
           paymentMethod={props.selectedPaymentMethod}
           calculating={props.calculating}
-          discountRate={props.discountRate}
         />
       ),
       footer: (

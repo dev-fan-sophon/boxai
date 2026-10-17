@@ -44,6 +44,10 @@ export type WaffoPancakePaymentResponse = ApiResponse<
 export interface TopUpDiscountSnapshot {
   face_amount?: number
   activity_discount?: number
+  /** Percentage of the promotion tier applied to this order. */
+  activity_percent?: number
+  /** Face-amount threshold of the promotion tier applied to this order. */
+  activity_tier_min?: number
   coupon_discount?: number
   coupon_code?: string
   credit_usd?: number
@@ -178,8 +182,6 @@ export interface TopupInfo {
   stripe_min_topup: number
   /** Preset amount options */
   amount_options: number[]
-  /** Discount rates by amount */
-  discount: Record<number, number>
   /** Optional topup link for purchasing codes */
   topup_link?: string
   /** Whether Creem topup is enabled */
@@ -204,14 +206,10 @@ export interface TopupInfo {
   payment_compliance_terms_version?: string
 }
 
-/**
- * Preset amount option with optional discount
- */
+/** Preset top-up amount option. */
 export interface PresetAmount {
   /** Preset amount value */
   value: number
-  /** Optional discount rate (0-1) */
-  discount?: number
 }
 
 /**

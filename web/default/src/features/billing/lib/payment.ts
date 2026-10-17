@@ -144,22 +144,6 @@ export function generatePresetAmounts(minAmount: number): PresetAmount[] {
   }))
 }
 
-/**
- * Merge custom preset amounts with discounts
- */
-export function mergePresetAmounts(
-  amountOptions: number[],
-  discounts: Record<number, number>
-): PresetAmount[] {
-  if (!amountOptions || amountOptions.length === 0) {
-    return []
-  }
-
-  return amountOptions.map((amount) => ({
-    value: amount,
-    discount: discounts[amount] || 1.0,
-  }))
-}
 
 /** Convert a USD credit preset into the whole-dong amount the user pays. */
 export function usdCreditToVndAmount(

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { getPromotion } from './api'
+import { eligiblePromotionTiers } from './tiers'
 
 export function PromotionBanner(props: {
   position: 'console_top' | 'billing'
@@ -15,14 +16,32 @@ export function PromotionBanner(props: {
     staleTime: 30000,
   })
   const promotion = query.data
-  const now = Date.now() / 1000
-  if (
-    !promotion?.enabled ||
-    !promotion.banner_enabled ||
-    promotion.starts_at > now ||
-    (promotion.ends_at > 0 && promotion.ends_at <= now)
-  ) {
+  const tiers = eligiblePromotionTiers(promotion, Date.now() / 1000)
+  if (!promotion?.banner_enabled || tiers.length === 0) {
     return null
+  }
+  const first = tiers[0]
+  const top = tiers.at(-1) ?? first
+  let text = promotion.banner_text
+  if (!text && tiers.length > 1) {
+    text = t('Top up from {{minimum}} VND and save up to {{percent}}%.', {
+      minimum: first.min_amount.toLocaleString(),
+      percent: top.percent_off,
+    })
+  } else if (!text && first.max_discount === 0) {
+    text = t('Top up from {{minimum}} VND and save {{percent}}%.', {
+      minimum: first.min_amount.toLocaleString(),
+      percent: first.percent_off,
+    })
+  } else if (!text) {
+    text = t(
+      'Top up from {{minimum}} VND and save {{percent}}% (up to {{cap}} VND).',
+      {
+        minimum: first.min_amount.toLocaleString(),
+        percent: first.percent_off,
+        cap: first.max_discount.toLocaleString(),
+      }
+    )
   }
   const position = promotion.banner_position || 'console_top'
   if (position !== 'both' && position !== props.position) return null
@@ -31,20 +50,7 @@ export function PromotionBanner(props: {
       to='/billing'
       className='bg-primary/10 text-primary block shrink-0 rounded-md px-4 py-2 text-center text-sm font-medium hover:underline'
     >
-      {promotion.banner_text ||
-        (promotion.max_discount === 0
-          ? t('Top up from {{minimum}} VND and save {{percent}}%.', {
-              minimum: promotion.min_amount.toLocaleString(),
-              percent: promotion.percent_off,
-            })
-          : t(
-              'Top up from {{minimum}} VND and save {{percent}}% (up to {{cap}} VND).',
-              {
-                minimum: promotion.min_amount.toLocaleString(),
-                percent: promotion.percent_off,
-                cap: promotion.max_discount.toLocaleString(),
-              }
-            ))}
+      {text}
     </Link>
   )
 }

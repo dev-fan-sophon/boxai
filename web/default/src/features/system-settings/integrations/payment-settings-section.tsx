@@ -33,7 +33,6 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
-import { AmountDiscountVisualEditor } from './amount-discount-visual-editor'
 import { AmountOptionsVisualEditor } from './amount-options-visual-editor'
 import { CreemProductsVisualEditor } from './creem-products-visual-editor'
 import { PaymentMethodsVisualEditor } from './payment-methods-visual-editor'
@@ -96,19 +95,6 @@ const paymentSchema = z.object({
   }),
   AmountOptions: z.string().superRefine((value, ctx) => {
     const error = getJsonError(value, (parsed) => Array.isArray(parsed))
-    if (error) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: error,
-      })
-    }
-  }),
-  AmountDiscount: z.string().superRefine((value, ctx) => {
-    const error = getJsonError(
-      value,
-      (parsed) =>
-        !!parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-    )
     if (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -245,8 +231,6 @@ export function PaymentSettingsSection({
   const [payMethodsVisualMode, setPayMethodsVisualMode] = React.useState(true)
   const [amountOptionsVisualMode, setAmountOptionsVisualMode] =
     React.useState(true)
-  const [amountDiscountVisualMode, setAmountDiscountVisualMode] =
-    React.useState(true)
   const [creemProductsVisualMode, setCreemProductsVisualMode] =
     React.useState(true)
   const [waffoPayMethods, setWaffoPayMethods] = React.useState<PayMethod[]>(
@@ -283,7 +267,6 @@ export function PaymentSettingsSection({
       ...initialFormValues,
       PayMethods: formatJsonForEditor(initialFormValues.PayMethods),
       AmountOptions: formatJsonForEditor(initialFormValues.AmountOptions),
-      AmountDiscount: formatJsonForEditor(initialFormValues.AmountDiscount),
       CreemProducts: formatJsonForEditor(initialFormValues.CreemProducts),
     },
   })
@@ -340,7 +323,6 @@ export function PaymentSettingsSection({
       ...parsedDefaults,
       PayMethods: formatJsonForEditor(parsedDefaults.PayMethods),
       AmountOptions: formatJsonForEditor(parsedDefaults.AmountOptions),
-      AmountDiscount: formatJsonForEditor(parsedDefaults.AmountDiscount),
       CreemProducts: formatJsonForEditor(parsedDefaults.CreemProducts),
     })
   }, [defaultsSignature, form])
@@ -355,7 +337,6 @@ export function PaymentSettingsSection({
       CustomCallbackAddress: removeTrailingSlash(values.CustomCallbackAddress),
       PayMethods: values.PayMethods.trim(),
       AmountOptions: values.AmountOptions.trim(),
-      AmountDiscount: values.AmountDiscount.trim(),
       StripeApiSecret: values.StripeApiSecret.trim(),
       StripeWebhookSecret: values.StripeWebhookSecret.trim(),
       StripePriceId: values.StripePriceId.trim(),
@@ -408,7 +389,6 @@ export function PaymentSettingsSection({
       ),
       PayMethods: initialRef.current.PayMethods.trim(),
       AmountOptions: initialRef.current.AmountOptions.trim(),
-      AmountDiscount: initialRef.current.AmountDiscount.trim(),
       StripeApiSecret: initialRef.current.StripeApiSecret.trim(),
       StripeWebhookSecret: initialRef.current.StripeWebhookSecret.trim(),
       StripePriceId: initialRef.current.StripePriceId.trim(),
@@ -498,16 +478,6 @@ export function PaymentSettingsSection({
       updates.push({
         key: 'payment_setting.amount_options',
         value: sanitized.AmountOptions,
-      })
-    }
-
-    if (
-      normalizeJsonForComparison(sanitized.AmountDiscount) !==
-      normalizeJsonForComparison(initial.AmountDiscount)
-    ) {
-      updates.push({
-        key: 'payment_setting.amount_discount',
-        value: sanitized.AmountDiscount,
       })
     }
 
@@ -935,62 +905,6 @@ export function PaymentSettingsSection({
                         </FormControl>
                         <FormDescription>
                           {t('Preset recharge amounts (JSON array)')}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name='AmountDiscount'
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className='mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                          <FormLabel>{t('Amount discount')}</FormLabel>
-                          <Button
-                            type='button'
-                            variant='outline'
-                            size='sm'
-                            onClick={() =>
-                              setAmountDiscountVisualMode(
-                                !amountDiscountVisualMode
-                              )
-                            }
-                            className='w-full sm:w-auto'
-                          >
-                            {amountDiscountVisualMode ? (
-                              <>
-                                <Code2 className='mr-2 h-3 w-3' />
-                                {t('JSON Editor')}
-                              </>
-                            ) : (
-                              <>
-                                <Eye className='mr-2 h-3 w-3' />
-                                {t('Visual Editor')}
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        <FormControl>
-                          {amountDiscountVisualMode ? (
-                            <AmountDiscountVisualEditor
-                              value={field.value}
-                              onChange={field.onChange}
-                            />
-                          ) : (
-                            <Textarea
-                              rows={4}
-                              placeholder='{"100":0.95,"200":0.9}'
-                              {...field}
-                              onChange={(event) =>
-                                field.onChange(event.target.value)
-                              }
-                            />
-                          )}
-                        </FormControl>
-                        <FormDescription>
-                          {t('Discount map by recharge amount (JSON object)')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

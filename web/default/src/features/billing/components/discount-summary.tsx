@@ -27,7 +27,13 @@ export function DiscountSummary(props: {
         </div>
       )}
       <div className='flex justify-between gap-3'>
-        <dt>{t('Activity discount')}</dt>
+        <dt>
+          {snapshot.activity_percent
+            ? t('Activity discount ({{percent}}%)', {
+                percent: snapshot.activity_percent,
+              })
+            : t('Activity discount')}
+        </dt>
         <dd>−{money.format(snapshot.activity_discount || 0)}</dd>
       </div>
       <div className='flex justify-between gap-3'>

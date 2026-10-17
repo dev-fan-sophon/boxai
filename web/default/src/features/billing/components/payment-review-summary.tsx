@@ -9,7 +9,6 @@ import {
   isNonUsdCurrencyDisplay,
 } from '@/lib/currency'
 
-import { DEFAULT_DISCOUNT_RATE } from '../constants'
 import { formatCurrency, getPaymentIcon, isBankQRPayment } from '../lib'
 import type { PaymentMethod, BankQRQuote } from '../types'
 import { DiscountSummary } from './discount-summary'
@@ -20,7 +19,6 @@ interface PaymentReviewSummaryProps {
   paymentAmount: number
   paymentMethod: PaymentMethod | undefined
   calculating: boolean
-  discountRate?: number
 }
 
 /**
@@ -32,7 +30,6 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
   const paymentMethod = props.paymentMethod
   const topupAmount = props.topupAmount
   const paymentAmount = props.paymentAmount
-  const discountRate = props.discountRate ?? DEFAULT_DISCOUNT_RATE
   const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false
   const { meta } = getCurrencyDisplay()
   const creditedUsd =
@@ -45,9 +42,6 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
           maximumFractionDigits: 0,
         }).format(amount)
       : formatCurrency(amount)
-  const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0
-  const originalAmount = hasDiscount ? paymentAmount / discountRate : 0
-  const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0
 
   return (
     <div className='space-y-3 sm:space-y-4'>
@@ -94,29 +88,12 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
             {props.calculating ? (
               <Skeleton className='h-6 w-24' />
             ) : (
-              <div className='flex items-baseline gap-2'>
-                <span className='text-2xl font-semibold'>
-                  {formatPaymentAmount(paymentAmount)}
-                </span>
-                {hasDiscount && (
-                  <span className='text-muted-foreground text-sm line-through'>
-                    {formatPaymentAmount(originalAmount)}
-                  </span>
-                )}
-              </div>
+              <span className='text-2xl font-semibold'>
+                {formatPaymentAmount(paymentAmount)}
+              </span>
             )}
           </div>
 
-          {hasDiscount && !props.calculating && (
-            <div className='bg-muted/50 rounded-lg p-3'>
-              <div className='flex items-center justify-between text-sm'>
-                <span className='text-muted-foreground'>{t('You save')}</span>
-                <span className='text-success font-semibold'>
-                  {formatPaymentAmount(discountAmount)}
-                </span>
-              </div>
-            </div>
-          )}
         </>
       )}
       <div className='border-t pt-4'>

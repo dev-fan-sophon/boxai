@@ -5,7 +5,6 @@ import { getTopupInfo } from '../api'
 import { BILLING_QUERY_KEYS } from '../constants'
 import {
   generatePresetAmounts,
-  mergePresetAmounts,
   getMinTopupAmount,
 } from '../lib'
 import type {
@@ -115,44 +114,6 @@ function parseAmountOptions(data: unknown): number[] {
     .filter((item) => Number.isFinite(item) && item > 0)
 }
 
-function parseDiscountMap(data: unknown): Record<number, number> {
-  if (!data) {
-    return {}
-  }
-
-  let parsedData = data
-
-  if (typeof data === 'string') {
-    try {
-      parsedData = JSON.parse(data)
-    } catch {
-      return {}
-    }
-  }
-
-  if (
-    !parsedData ||
-    typeof parsedData !== 'object' ||
-    Array.isArray(parsedData)
-  ) {
-    return {}
-  }
-
-  return Object.entries(parsedData).reduce<Record<number, number>>(
-    (result, [key, value]) => {
-      const numericKey = Number(key)
-      const numericValue = Number(value)
-
-      if (Number.isFinite(numericKey) && Number.isFinite(numericValue)) {
-        result[numericKey] = numericValue
-      }
-
-      return result
-    },
-    {}
-  )
-}
-
 export interface TopupInfoQueryData {
   topupInfo: TopupInfo
   presetAmounts: PresetAmount[]
@@ -174,14 +135,13 @@ async function fetchTopupInfo(): Promise<TopupInfoQueryData> {
       response.data.bank_qr_min_topup || 0
     ),
     amount_options: parseAmountOptions(response.data.amount_options),
-    discount: parseDiscountMap(response.data.discount),
     creem_products: parseCreemProducts(response.data.creem_products),
     waffo_pay_methods: parseWaffoPayMethods(response.data.waffo_pay_methods),
   }
 
   const presetAmounts =
     topupInfo.amount_options.length > 0
-      ? mergePresetAmounts(topupInfo.amount_options, topupInfo.discount || {})
+      ? topupInfo.amount_options.map((value) => ({ value }))
       : generatePresetAmounts(getMinTopupAmount(topupInfo))
 
   return { topupInfo, presetAmounts }

@@ -1,20 +1,34 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { useFieldArray, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { Plus, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { TitledCard } from '@/components/ui/titled-card'
+import { toIntlLocale } from '@/i18n/languages'
 import { api } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { getPromotion, type Promotion } from './api'
 import { topUpRequestOptions, topUpErrorMessage } from './errors'
+import { bestPromotionTier } from './tiers'
+
+const MAX_TIERS = 10
+// Mirrors model.MaxTopUpFaceVND: thresholds and caps stay below the order limit.
+const MAX_FACE_VND = 500_000_000
+
+const tierSchema = z.object({
+  min_amount: z.number().int().min(0).lt(MAX_FACE_VND),
+  percent_off: z.number().int().min(1).max(100),
+  max_discount: z.number().int().min(0).lt(MAX_FACE_VND),
+})
 
 const schema = z
   .object({
@@ -22,9 +36,30 @@ const schema = z
     enabled: z.boolean(),
     starts_at: z.number().int().min(0),
     ends_at: z.number().int().min(0),
-    min_amount: z.number().int().min(0),
-    percent_off: z.number().int().min(1).max(100),
-    max_discount: z.number().int().min(0),
+    tiers: z
+      .array(tierSchema)
+      .min(1)
+      .max(MAX_TIERS)
+      .superRefine((tiers, ctx) => {
+        tiers.forEach((tier, index) => {
+          const previous = tiers[index - 1]
+          if (!previous) return
+          if (tier.min_amount <= previous.min_amount) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [index, 'min_amount'],
+              message: 'Thresholds must increase',
+            })
+          }
+          if (tier.percent_off < previous.percent_off) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [index, 'percent_off'],
+              message: 'Percent cannot decrease',
+            })
+          }
+        })
+      }),
     per_user_limit: z.number().int().min(0),
     total_budget: z.number().int().min(0),
     banner_enabled: z.boolean(),
@@ -47,7 +82,7 @@ export function PromotionSettings() {
       <TitledCard
         title={t('Top-up promotion')}
         description={t(
-          'Bank QR balance top-ups only. Zero limits mean unlimited; blank dates have no boundary.'
+          'Bank QR balance top-ups only. Each top-up gets the best tier its face amount reaches. Zero limits or caps mean unlimited; blank dates have no boundary.'
         )}
       >
         {query.isPending && <p>{t('Loading...')}</p>}
@@ -93,9 +128,6 @@ function PromotionForm(props: { promotion: Promotion }) {
     },
   })
   const fields = [
-    { key: 'min_amount', label: t('Minimum face amount (VND)') },
-    { key: 'percent_off', label: t('Discount percent') },
-    { key: 'max_discount', label: t('Maximum discount (VND)') },
     { key: 'per_user_limit', label: t('Uses per user') },
     { key: 'total_budget', label: t('Total discount budget (VND)') },
   ] as const
@@ -113,14 +145,14 @@ function PromotionForm(props: { promotion: Promotion }) {
           }
         />
       </label>
+      <PromotionTiersEditor form={form} />
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
         {fields.map((field) => (
           <label key={field.key} className='space-y-1.5 text-sm font-medium'>
             {field.label}
             <Input
               type='number'
-              min={field.key === 'percent_off' ? 1 : 0}
-              max={field.key === 'percent_off' ? 100 : undefined}
+              min={0}
               step={1}
               {...form.register(field.key, { valueAsNumber: true })}
             />
@@ -168,6 +200,119 @@ function PromotionForm(props: { promotion: Promotion }) {
         {t('Save promotion')}
       </Button>
     </form>
+  )
+}
+
+function PromotionTiersEditor(props: { form: UseFormReturn<Promotion> }) {
+  const { t, i18n } = useTranslation()
+  const [previewAmount, setPreviewAmount] = useState(500000)
+  const tiers = useFieldArray({ control: props.form.control, name: 'tiers' })
+  const values = props.form.watch('tiers') ?? []
+  const errors = props.form.formState.errors.tiers
+  const money = new Intl.NumberFormat(toIntlLocale(i18n.language), {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  })
+  const preview = bestPromotionTier(values, previewAmount)
+  const columns = [
+    { key: 'min_amount', label: t('Top-up from (VND)'), min: 0, max: undefined },
+    { key: 'percent_off', label: t('Discount percent'), min: 1, max: 100 },
+    { key: 'max_discount', label: t('Cap (VND, 0 = none)'), min: 0, max: undefined },
+  ] as const
+  return (
+    <section className='space-y-3' aria-label={t('Discount tiers')}>
+      <div className='flex items-center justify-between gap-3'>
+        <h3 className='text-sm font-semibold'>{t('Discount tiers')}</h3>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          disabled={tiers.fields.length >= MAX_TIERS}
+          onClick={() => {
+            const last = values.at(-1)
+            tiers.append({
+              min_amount: last ? last.min_amount * 2 || 100000 : 100000,
+              percent_off: last?.percent_off ?? 10,
+              max_discount: 0,
+            })
+          }}
+        >
+          <Plus className='mr-1 size-4' aria-hidden='true' />
+          {t('Add tier')}
+        </Button>
+      </div>
+      <div className='space-y-2'>
+        {tiers.fields.map((field, index) => (
+          <div
+            key={field.id}
+            className='bg-card grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto]'
+          >
+            {columns.map((column) => (
+              <label
+                key={column.key}
+                className='space-y-1.5 text-sm font-medium'
+              >
+                {column.label}
+                <Input
+                  type='number'
+                  min={column.min}
+                  max={column.max}
+                  step={1}
+                  aria-invalid={Boolean(errors?.[index]?.[column.key])}
+                  {...props.form.register(`tiers.${index}.${column.key}`, {
+                    valueAsNumber: true,
+                  })}
+                />
+              </label>
+            ))}
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label={t('Remove tier')}
+              disabled={tiers.fields.length <= 1}
+              onClick={() => tiers.remove(index)}
+            >
+              <Trash2 className='size-4' aria-hidden='true' />
+            </Button>
+          </div>
+        ))}
+      </div>
+      {errors && (
+        <p role='alert' className='text-destructive text-sm'>
+          {t(
+            'Tier thresholds must increase and percentages cannot decrease (1–100%).'
+          )}
+        </p>
+      )}
+      <div className='bg-muted/40 flex flex-wrap items-center gap-3 rounded-lg p-3 text-sm'>
+        <label className='flex items-center gap-2 font-medium'>
+          {t('Preview top-up (VND)')}
+          <Input
+            type='number'
+            min={0}
+            step={10000}
+            className='w-40'
+            value={previewAmount}
+            onChange={(event) =>
+              setPreviewAmount(Math.max(0, Number(event.target.value) || 0))
+            }
+          />
+        </label>
+        <span className='tabular-nums'>
+          {preview
+            ? t('{{percent}}% off: pay {{paid}} (save {{saved}})', {
+                percent: preview.tier.percent_off,
+                paid: money.format(previewAmount - preview.discount),
+                saved: money.format(preview.discount),
+              })
+            : t('No tier applies: pay {{paid}}', {
+                paid: money.format(previewAmount),
+              })}
+        </span>
+      </div>
+    </section>
   )
 }
 
