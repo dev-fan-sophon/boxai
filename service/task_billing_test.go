@@ -847,7 +847,7 @@ func TestTaskSettlementLogsPublishSummary(t *testing.T) {
 			require.NotNil(t, raw)
 			assert.Equal(t, tt.logType, raw.Type)
 			assert.Equal(t, tt.quota, raw.Quota)
-			assert.NotContains(t, raw.Content, "Ratio")
+			assert.Empty(t, raw.Content, "clients render other.settlement in their locale")
 			rawOther, err := common.StrToMap(raw.Other)
 			require.NoError(t, err)
 			if tt.adminHas != "" {

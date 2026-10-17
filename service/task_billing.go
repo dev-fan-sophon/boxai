@@ -354,7 +354,7 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   model.LogTypeRefund,
-		Content:   fmt.Sprintf("task failed: refunded pre-charge %d", quota),
+		Content:   "",
 		ChannelId: task.ChannelId,
 		ModelName: taskModelName(task),
 		Quota:     -operation.Delta,
@@ -542,7 +542,7 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   logType,
-		Content:   fmt.Sprintf("task settlement: pre-charged %d, actual %d", preConsumedQuota, actualQuota),
+		Content:   "",
 		ChannelId: task.ChannelId,
 		ModelName: taskModelName(task),
 		Quota:     logQuota,
