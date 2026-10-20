@@ -24,58 +24,26 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import type { ApiResponse } from '../types'
 
-// SePay's published bank identifiers: https://vietqr.app/banks.json
-// Keep this local so payment configuration does not depend on a third-party fetch.
-const banks = [
-  { bin: '970415', name: 'VietinBank' },
-  { bin: '970436', name: 'Vietcombank' },
-  { bin: '970422', name: 'MBBank' },
-  { bin: '970416', name: 'ACB' },
-  { bin: '970432', name: 'VPBank' },
-  { bin: '970423', name: 'TPBank' },
-  { bin: '970426', name: 'MSB' },
-  { bin: '970449', name: 'LienVietPostBank' },
-  { bin: '970454', name: 'VietCapitalBank' },
-  { bin: '970418', name: 'BIDV' },
-  { bin: '970403', name: 'Sacombank' },
-  { bin: '970441', name: 'VIB' },
-  { bin: '970437', name: 'HDBank' },
-  { bin: '970440', name: 'SeABank' },
-  { bin: '970424', name: 'ShinhanBank' },
-  { bin: '970405', name: 'Agribank' },
-  { bin: '970407', name: 'Techcombank' },
-  { bin: '970409', name: 'BacABank' },
-  { bin: '970425', name: 'ABBANK' },
-  { bin: '970431', name: 'Eximbank' },
-  { bin: '970439', name: 'PublicBank' },
-  { bin: '970448', name: 'OCB' },
-  { bin: '970452', name: 'KienLongBank' },
-].sort((a, b) => a.name.localeCompare(b.name))
-
 const schema = z
   .object({
     enabled: z.boolean(),
-    bank_name: z.string(),
-    bank_bin: z.string(),
-    bank_gateway: z.string(),
-    account_number: z.string(),
-    account_name: z.string(),
-    sub_account: z.string(),
-    min_topup: z.number().int().min(10000).max(499999999),
-    transfer_prefix: z.string(),
+    api_token: z.string().max(4096),
+    bank_account_id: z.string(),
     webhook_secret: z.string(),
-    clear_webhook_secret: z.boolean(),
   })
-  .refine(
-    (v) =>
-      !v.enabled ||
-      (!v.clear_webhook_secret &&
-        !!v.bank_bin &&
-        !!v.account_number &&
-        !!v.account_name)
-  )
+  .refine((v) => !v.enabled || !!v.bank_account_id)
 type Values = z.infer<typeof schema>
-type Settings = Omit<Values, 'webhook_secret' | 'clear_webhook_secret'> & {
+type BankAccount = {
+  id: string
+  bank_short_name: string
+  account_number: string
+  account_holder_name: string
+}
+type Settings = Omit<Values, 'api_token' | 'webhook_secret'> & {
+  api_token_configured: boolean
+  bank_name: string
+  account_number: string
+  account_name: string
   webhook_secret_configured: boolean
   webhook_url: string
 }
@@ -118,18 +86,23 @@ function SePaySettingsContent() {
     values: settings.data
       ? {
           enabled: settings.data.enabled,
-          bank_name: settings.data.bank_name,
-          bank_bin: settings.data.bank_bin,
-          bank_gateway: settings.data.bank_gateway,
-          account_number: settings.data.account_number,
-          account_name: settings.data.account_name,
-          sub_account: settings.data.sub_account,
-          min_topup: settings.data.min_topup,
-          transfer_prefix: settings.data.transfer_prefix,
+          bank_account_id: settings.data.bank_account_id,
+          api_token: '',
           webhook_secret: '',
-          clear_webhook_secret: false,
         }
       : undefined,
+  })
+  const accounts = useMutation({
+    mutationFn: async () => {
+      const res = await api.post<ApiResponse<BankAccount[]>>(
+        '/api/sepay/accounts',
+        {
+          api_token: form.getValues('api_token'),
+        }
+      )
+      if (!res.data.success || !res.data.data) throw new Error(res.data.message)
+      return res.data.data
+    },
   })
   const save = useMutation({
     mutationFn: async (values: Values) => {
@@ -137,23 +110,22 @@ function SePaySettingsContent() {
       if (!res.data.success) throw new Error(res.data.message)
     },
     onSuccess: async () => {
+      form.setValue('api_token', '')
       form.setValue('webhook_secret', '')
-      form.setValue('clear_webhook_secret', false)
       toast.success(t('Settings saved successfully'))
       await client.invalidateQueries({ queryKey: ['sepay', 'settings'] })
     },
   })
-  const labels = {
-    account_number: t('Account number'),
-    account_name: t('Account holder'),
-  }
-  const advancedLabels = {
-    bank_name: t('Bank'),
-    bank_bin: t('Bank BIN'),
-    bank_gateway: t('Bank gateway'),
-    sub_account: t('Sub-account'),
-    transfer_prefix: t('Transfer prefix'),
-  }
+  const selected = accounts.data?.find(
+    (account) => account.id === form.watch('bank_account_id')
+  )
+  const savedLabel = [
+    settings.data?.bank_name,
+    settings.data?.account_number,
+    settings.data?.account_name,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const reasons: Record<string, string> = {
     settled: t('Payment successful'),
     unmatched: t('Order not found'),
@@ -199,46 +171,92 @@ function SePaySettingsContent() {
             />
             <Label htmlFor='sepay-enabled'>{t('Enable SePay')}</Label>
           </div>
-          <div className='grid gap-4 sm:grid-cols-2'>
-            <div className='space-y-2 sm:col-span-2'>
-              <Label htmlFor='sepay-bank'>{t('Bank')}</Label>
-              <Select
-                value={form.watch('bank_bin') || null}
-                onValueChange={(bin) => {
-                  const bank = banks.find((item) => item.bin === bin)
-                  if (!bank) return
-                  form.setValue('bank_bin', bank.bin)
-                  form.setValue('bank_name', bank.name)
-                  form.setValue('bank_gateway', bank.name)
-                }}
-              >
-                <SelectTrigger id='sepay-bank' className='w-full'>
-                  <SelectValue placeholder={t('Select')}>
-                    {banks.find((bank) => bank.bin === form.watch('bank_bin'))
-                      ?.name ||
-                      form.watch('bank_name') ||
-                      t('Select')}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {banks.map((bank) => (
-                    <SelectItem key={bank.bin} value={bank.bin}>
-                      {bank.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {Object.entries(labels).map(([key, label]) => (
-              <div key={key} className='space-y-2'>
-                <Label htmlFor={`sepay-${key}`}>{label}</Label>
-                <Input
-                  id={`sepay-${key}`}
-                  {...form.register(key as keyof typeof labels)}
-                />
-              </div>
-            ))}
+          <div className='space-y-2'>
+            <Label htmlFor='sepay-api-token'>SePay {t('API token')}</Label>
+            <Input
+              id='sepay-api-token'
+              type='password'
+              autoComplete='new-password'
+              disabled={accounts.isPending || save.isPending}
+              {...form.register('api_token', {
+                onChange: () => {
+                  accounts.reset()
+                  form.setValue('bank_account_id', '')
+                },
+              })}
+            />
+            <p className='text-muted-foreground text-sm'>
+              {settings.data.api_token_configured
+                ? t('API token configured')
+                : t('API token not configured')}
+              {' · '}
+              {t(
+                'The API token loads linked bank accounts. It is not the HMAC webhook secret. Leave blank to keep the saved token.'
+              )}
+            </p>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={
+                accounts.isPending ||
+                save.isPending ||
+                (!form.watch('api_token') &&
+                  !settings.data.api_token_configured)
+              }
+              onClick={() => accounts.mutate()}
+            >
+              {accounts.isPending ? t('Loading...') : t('Load linked accounts')}
+            </Button>
+            {accounts.isError && (
+              <p role='alert'>
+                {t(
+                  'Unable to load accounts. Check the SePay API token and permissions.'
+                )}
+              </p>
+            )}
+            {accounts.isSuccess && accounts.data.length === 0 && (
+              <p role='status'>
+                {t('No supported active bank accounts found in SePay.')}
+              </p>
+            )}
           </div>
+          <div className='space-y-2'>
+            <Label htmlFor='sepay-bank'>{t('Receiving account')}</Label>
+            <Select
+              disabled={
+                !accounts.data?.length || accounts.isPending || save.isPending
+              }
+              value={form.watch('bank_account_id') || null}
+              onValueChange={(id) => {
+                if (id) form.setValue('bank_account_id', id)
+              }}
+            >
+              <SelectTrigger id='sepay-bank' className='w-full'>
+                <SelectValue placeholder={t('Select')}>
+                  {selected
+                    ? `${selected.bank_short_name} · ${selected.account_number} · ${selected.account_holder_name}`
+                    : (form.watch('bank_account_id') ===
+                        settings.data.bank_account_id &&
+                        savedLabel) ||
+                      form.watch('bank_account_id') ||
+                      t('Select')}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.data?.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.bank_short_name} · {account.account_number} ·{' '}
+                    {account.account_holder_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              'Choose a linked bank account. Virtual accounts (VA/TKP) are not supported here. Bank details are read from SePay, never entered manually.'
+            )}
+          </p>
           <p className='text-sm'>
             {settings.data.webhook_secret_configured
               ? t('Webhook secret configured')
@@ -268,41 +286,6 @@ function SePaySettingsContent() {
             />
             <CopyButton value={settings.data.webhook_url} />
           </div>
-          <details className='space-y-4'>
-            <summary className='cursor-pointer text-sm font-medium'>
-              {t('Advanced Settings')}
-            </summary>
-            <div className='grid gap-4 sm:grid-cols-2'>
-              {Object.entries(advancedLabels).map(([key, label]) => (
-                <div key={key} className='space-y-2'>
-                  <Label htmlFor={`sepay-${key}`}>{label}</Label>
-                  <Input
-                    id={`sepay-${key}`}
-                    {...form.register(key as keyof typeof advancedLabels)}
-                  />
-                </div>
-              ))}
-              <div className='space-y-2'>
-                <Label htmlFor='sepay-min'>{t('Minimum top-up')} (VND)</Label>
-                <Input
-                  id='sepay-min'
-                  type='number'
-                  min={10000}
-                  max={499999999}
-                  step={1}
-                  {...form.register('min_topup', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-            <label className='flex items-center gap-2 text-sm'>
-              <input
-                type='checkbox'
-                disabled={form.watch('enabled')}
-                {...form.register('clear_webhook_secret')}
-              />
-              {t('Clear stored secret on save (disable SePay first)')}
-            </label>
-          </details>
           {(save.isError || Object.keys(form.formState.errors).length > 0) && (
             <p role='alert'>
               {t(
@@ -310,7 +293,7 @@ function SePaySettingsContent() {
               )}
             </p>
           )}
-          <Button type='submit' disabled={save.isPending}>
+          <Button type='submit' disabled={save.isPending || accounts.isPending}>
             {t('Save')}
           </Button>
         </form>

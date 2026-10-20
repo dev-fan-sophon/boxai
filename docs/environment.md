@@ -416,8 +416,7 @@ Configure SePay as a root administrator in **Pricing Center → Payment Gateway 
 (`/pricing-center/payments`).
 The dedicated `GET/PUT /api/sepay/settings` persists an atomic database option;
 no environment variables or restart are needed. The UI never reads back a stored
-secret: a blank replacement preserves it, and clearing requires explicit selection
-while disabled. Settings changes apply immediately on the serving process and
+API token or webhook secret: blank replacements preserve them. Settings changes apply immediately on the serving process and
 on other nodes through normal option synchronization.
 
 The old `SEPAY_WEBHOOK_SECRET`, `SEPAY_BANK_GATEWAY` and `SEPAY_SUB_ACCOUNT`
@@ -430,17 +429,28 @@ Setup, after explicit production deployment/configuration approval:
 
 1. Link the receiving bank in [SePay](https://docs.sepay.vn/them-tai-khoan-ngan-hang.html).
    Prefer a direct bank API connection for prompt confirmation.
-2. Select the bank, then enter the receiving account, account holder and HMAC
-   webhook secret. The selector fills the bank name, BIN and gateway using
-   SePay's published bank catalog. Advanced Settings retains manual bank overrides,
-   sub-account, minimum VND amount (10,000–499,999,999), transfer prefix and secret
-   removal. Existing advanced values are preserved when saving the basic form.
-   The bank gateway must match the SePay payload value (e.g. `MBBank`), not
-   the six-digit VietQR bank BIN. Payment compliance must
+2. Enter the **SePay API Token** and click **Load linked accounts**, then explicitly
+   select the receiving account. The root-only `POST /api/sepay/accounts` calls
+   `GET https://userapi.sepay.vn/v2/bank-accounts` server-side with Bearer auth,
+   follows pagination, and accepts active `true` or `1`. Loading does not save
+   credentials or select an account. Saving resolves the selected UUID again with
+   SePay; client-supplied bank/BIN/account/holder overrides are ignored.
+   Only active accounts with a supplied BIN, bank short name, holder and a
+   VietQR-compatible numeric account number (1–19 digits) appear. Missing BINs
+   are not inferred from a local catalog. API failures prevent activation, but
+   disabling an unchanged configuration works without contacting SePay.
+   The API token is **not** the HMAC webhook secret; enter the latter separately.
+   Payment compliance must
    be confirmed, currency display VND, and the VND/USD exchange rate valid.
-3. Leave sub-account blank for a normal bank account. A virtual account
-   integration must be verified against the actual `accountNumber`/`subAccount`
-   payload and generated QR destination before enabling it for customers.
+3. This selector supports linked **bank accounts**, not VA/TKP. The official
+   [VA API](https://developer.sepay.vn/en/sepay-api/v2/tai-khoan-ao/danh-sach)
+   returns separate `va`, `official`, `static`, and parent `bank_account_id` fields.
+   Official VA numbers and memo-based TKP identifiers are not interchangeable
+   with the parent bank account number. No virtual destination is silently chosen
+   or manually overridden. New selected bank accounts use an empty sub-account;
+   existing order snapshots and their exact webhook destination checks are unchanged.
+   New installations use a 10,000 VND minimum and `SEPAY` transfer prefix;
+   existing stored minimum/prefix values are preserved without extra UI fields.
 4. In SePay **Live**, create an incoming-transfer webhook for that bank account:
    URL `https://you-box.com/api/sepay/webhook`, JSON body, authentication
    **HMAC-SHA256**, secret equal to the dashboard-configured secret. API Key and unauthenticated
