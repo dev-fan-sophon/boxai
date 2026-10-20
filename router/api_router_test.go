@@ -111,6 +111,9 @@ func TestTopUpDiscountConfigurationRequiresRoot(t *testing.T) {
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("local-test-session-key"))))
 	SetApiRouter(engine)
 	for _, request := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/sepay/settings", ""},
+		{http.MethodPut, "/api/sepay/settings", `{"enabled":true}`},
+		{http.MethodGet, "/api/sepay/events", ""},
 		{http.MethodGet, "/api/topup/promotion", ""},
 		{http.MethodPut, "/api/topup/promotion", `{"enabled":true,"percent_off":30,"min_amount":100000,"max_discount":100000}`},
 		{http.MethodGet, "/api/topup/coupons", ""},

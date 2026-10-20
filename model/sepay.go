@@ -176,13 +176,18 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 			snapshot, userID, event.TradeNo = o.SePaySnapshot, o.UserId, o.TradeNo
 			status, provider, method, orderType = o.Status, o.PaymentProvider, o.PaymentMethod, TopUpSubmissionOrderSubscription
 			expired = o.CreateTime <= common.GetTimestamp()-BankQRPendingOrderWindowSeconds
-			var p BankQRSubscriptionOrderPayload
+			// Legacy Bank QR uses the same version-one plan snapshot schema.
+			var p SePaySubscriptionPayload
 			invalidSnapshot = common.UnmarshalJsonStr(o.ProviderPayload, &p) != nil || p.Version != 1 || p.Currency != "VND" || p.Plan.Id != o.PlanId
+			if provider == PaymentProviderSePay {
+				invalidSnapshot = invalidSnapshot || p.Plan.Currency != "USD" || p.Plan.PriceAmount != o.Money
+			}
 			amount = p.Amount
 		}
 		if provider == PaymentProviderSePay {
 			var invoice SePayInvoice
-			invalidSnapshot = invalidSnapshot || common.UnmarshalJsonStr(snapshot.SePayInvoice, &invoice) != nil || invoice.TradeNo != event.TradeNo || invoice.Amount != amount || invoice.Currency != "VND" || invoice.AccountNumber != snapshot.SePayAccount
+			invoiceErr := common.UnmarshalJsonStr(snapshot.SePayInvoice, &invoice)
+			invalidSnapshot = invalidSnapshot || invoiceErr != nil || invoice.TradeNo != event.TradeNo || invoice.Amount != amount || invoice.Currency != "VND" || invoice.AccountNumber != snapshot.SePayAccount
 			expired = invoice.ExpiresAt <= common.GetTimestamp()
 			if len(topups) == 1 {
 				invalidSnapshot = invalidSnapshot || topups[0].FaceAmountMinor != amount || topups[0].FaceCurrency != "VND" || topups[0].AmountUnit != TopUpAmountUnitUSDCent

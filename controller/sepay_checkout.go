@@ -46,7 +46,7 @@ func RequestSePayAmount(c *gin.Context) {
 		return
 	}
 	var req AmountRequest
-	if c.ShouldBindJSON(&req) != nil {
+	if c.ShouldBindJSON(&req) != nil || req.Amount.Exponent() < -32 || req.Amount.Exponent() > 18 {
 		c.AbortWithStatus(400)
 		return
 	}
@@ -85,7 +85,7 @@ func requestSePayCheckout(c *gin.Context, subscription bool) {
 		planID = req.PlanID
 	} else {
 		var req AmountRequest
-		if c.ShouldBindJSON(&req) != nil {
+		if c.ShouldBindJSON(&req) != nil || req.Amount.Exponent() < -32 || req.Amount.Exponent() > 18 {
 			c.AbortWithStatus(400)
 			return
 		}
@@ -129,12 +129,12 @@ func GetSePayEvents(c *gin.Context) {
 		c.AbortWithStatus(400)
 		return
 	}
-	var items []struct {
+	items := []struct {
 		ID         int64  `json:"id"`
 		TradeNo    string `json:"trade_no"`
 		Reason     string `json:"reason"`
 		ReceivedAt int64  `json:"received_at"`
-	}
+	}{}
 	var total int64
 	if model.DB.Model(&model.SePayEvent{}).Count(&total).Error != nil || model.DB.Model(&model.SePayEvent{}).Select("id", "trade_no", "reason", "received_at").Order("received_at DESC, id DESC").Offset((page-1)*size).Limit(size).Scan(&items).Error != nil {
 		c.AbortWithStatus(500)

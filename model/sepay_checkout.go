@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"math"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -40,6 +41,9 @@ type SePaySubscriptionPayload struct {
 
 func CreateSePayCheckout(userID int, tradeNo string, amount int64, planID int, s operation_setting.SePaySetting) (SePayInvoice, error) {
 	var invoice SePayInvoice
+	if !s.Enabled || operation_setting.ValidateSePaySetting(s) != nil {
+		return invoice, errors.New("SePay is unavailable")
+	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var user User
 		if err := lockForUpdate(tx).First(&user, userID).Error; err != nil {
@@ -63,7 +67,7 @@ func CreateSePayCheckout(userID int, tradeNo string, amount int64, planID int, s
 			if err = tx.First(&plan, planID).Error; err != nil {
 				return err
 			}
-			if !plan.Enabled || !strings.EqualFold(plan.Currency, "USD") || plan.PriceAmount < 0.01 || plan.PriceAmount > 100000 {
+			if !plan.Enabled || plan.Currency != "USD" || math.IsNaN(plan.PriceAmount) || plan.PriceAmount < 0.01 || plan.PriceAmount > 100000 {
 				return errors.New("invalid SePay subscription plan")
 			}
 			rate, rateErr := currentCreditFXRate()
@@ -196,6 +200,9 @@ func fulfillSePayOrderTx(tx *gorm.DB, topups []TopUp, orders []SubscriptionOrder
 		return 0, "", err
 	}
 	if err := upsertSubscriptionTopUpTx(tx, &o); err != nil {
+		return 0, "", err
+	}
+	if err := tx.Model(&TopUp{}).Where("trade_no = ?", o.TradeNo).Updates(map[string]any{"payment_provider": PaymentProviderSePay, "face_currency": "VND", "face_amount_minor": payload.Amount, "money": payload.Amount}).Error; err != nil {
 		return 0, "", err
 	}
 	o.Status, o.CompleteTime = common.TopUpStatusSuccess, common.GetTimestamp()

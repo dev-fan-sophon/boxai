@@ -42,11 +42,12 @@ func SePayWebhook(c *gin.Context) {
 		return
 	}
 	var transfer model.SePayTransfer
-	if common.Unmarshal(body, &transfer) != nil || transfer.ID <= 0 {
+	if common.Unmarshal(body, &transfer) != nil || transfer.ID <= 0 || transfer.Gateway == "" || transfer.AccountNumber == "" || transfer.TransferAmount == "" || (transfer.TransferType != "in" && transfer.TransferType != "out") {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	if err := model.ProcessSePayTransfer(transfer); err != nil {
+		common.SysError("SePay settlement failed for transaction " + strconv.FormatInt(transfer.ID, 10))
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
