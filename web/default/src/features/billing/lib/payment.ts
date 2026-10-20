@@ -89,6 +89,8 @@ export function getDefaultPaymentType(topupInfo: TopupInfo | null): string {
     return PAYMENT_TYPES.STRIPE
   }
 
+  if (topupInfo.enable_sepay_topup) return 'sepay'
+
   if (topupInfo.enable_bank_qr_topup) {
     return PAYMENT_TYPES.BANK_QR
   }
@@ -118,6 +120,10 @@ export function getMinTopupAmount(topupInfo: TopupInfo | null): number {
 
   if (topupInfo.enable_stripe_topup) {
     return topupInfo.stripe_min_topup
+  }
+
+  if (topupInfo.enable_sepay_topup) {
+    return topupInfo.sepay_min_topup || DEFAULT_MIN_TOPUP
   }
 
   if (topupInfo.enable_bank_qr_topup) {

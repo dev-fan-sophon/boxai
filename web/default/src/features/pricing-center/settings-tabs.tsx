@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ReviewNotificationSettings } from '@/features/billing/promotions/review-notification-settings'
+import { SePaySettings } from '@/features/billing/sepay/sepay-settings'
 import { defaultBillingSettings } from '@/features/system-settings/billing/settings-defaults'
 import { PricingSection } from '@/features/system-settings/general/pricing-section'
 import {
@@ -92,6 +93,7 @@ export function PricingSettingsTab(props: {
 
   return (
     <div className='space-y-6'>
+      <SePaySettings />
       <ReviewNotificationSettings
         value={
           data?.data?.find(

@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { BankQRPaymentDialog } from '@/features/billing/components/dialogs/bank-qr-payment-dialog'
+import { SePayDialog } from '@/features/billing/sepay/sepay-dialog'
+import { useCreateSePay } from '@/features/billing/sepay/use-sepay'
 import type { BankQRPaymentData } from '@/features/billing/types'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatCurrencyFromUSD } from '@/lib/currency'
@@ -50,6 +52,7 @@ interface Props {
   enableWaffoPancake?: boolean
   enableOnlineTopUp?: boolean
   enableBankQR?: boolean
+  enableSePay?: boolean
   epayMethods?: PaymentMethod[]
   purchaseLimit?: number
   purchaseCount?: number
@@ -66,6 +69,8 @@ export function SubscriptionPurchaseDialog(props: Props) {
     null
   )
   const [bankQROpen, setBankQROpen] = useState(false)
+  const [sepayTradeNo, setSepayTradeNo] = useState<string | null>(null)
+  const sepay = useCreateSePay()
 
   useEffect(() => {
     if (props.open && props.epayMethods && props.epayMethods.length > 0) {
@@ -85,8 +90,9 @@ export function SubscriptionPurchaseDialog(props: Props) {
   const hasEpay =
     props.enableOnlineTopUp && (props.epayMethods || []).length > 0
   const hasBankQR = props.enableBankQR && plan.currency === 'USD'
+  const hasSePay = props.enableSePay && plan.currency === 'USD'
   const hasAnyPayment =
-    hasStripe || hasCreem || hasWaffoPancake || hasEpay || hasBankQR
+    hasStripe || hasCreem || hasWaffoPancake || hasEpay || hasBankQR || hasSePay
   const selectedEpayMethodLabel =
     (props.epayMethods || []).find((m) => m.type === selectedEpayMethod)
       ?.name ||
@@ -416,6 +422,28 @@ export function SubscriptionPurchaseDialog(props: Props) {
                   )}
                 </div>
               )}
+              {hasSePay && (
+                <Button
+                  variant='outline'
+                  disabled={paying || sepay.isPending || limitReached}
+                  onClick={async () => {
+                    setPaying(true)
+                    try {
+                      const invoice = await sepay.mutateAsync({
+                        plan_id: plan.id,
+                      })
+                      props.onOpenChange(false)
+                      setSepayTradeNo(invoice.trade_no)
+                    } catch {
+                      toast.error(t('Payment request failed'))
+                    } finally {
+                      setPaying(false)
+                    }
+                  }}
+                >
+                  SePay
+                </Button>
+              )}
               {hasBankQR && (
                 <Button
                   variant='outline'
@@ -467,6 +495,10 @@ export function SubscriptionPurchaseDialog(props: Props) {
         open={bankQROpen}
         onOpenChange={setBankQROpen}
         payment={bankQRPayment}
+      />
+      <SePayDialog
+        tradeNo={sepayTradeNo}
+        onClose={() => setSepayTradeNo(null)}
       />
     </>
   )

@@ -66,6 +66,7 @@ func sePayHTTPFixture(t *testing.T) *gin.Engine {
 	r.POST("/invoice/:trade_no/cancel", SePayInvoice)
 	r.POST("/api/sepay/webhook", SePayWebhook)
 	r.GET("/events", GetSePayEvents)
+	r.GET("/subscription/self", GetSubscriptionSelf)
 	r.POST("/bank/pay", RequestBankQRPay)
 	r.POST("/bank/subscription/pay", SubscriptionRequestBankQRPay)
 	return r
@@ -91,6 +92,33 @@ func sePayHTTP(t *testing.T, r *gin.Engine, method, path, body string, status in
 }
 
 const sePaySettingsJSON = `{"enabled":true,"bank_name":"MB","bank_bin":"970422","bank_gateway":"MBBank","account_number":"123456789","account_name":"BOXAI","sub_account":"","min_topup":10000,"transfer_prefix":"se-pay","webhook_secret":"fixture-secret"}`
+
+func TestSePayPendingSubscriptionsAreIndependentAndOwnerScoped(t *testing.T) {
+	r := sePayHTTPFixture(t)
+	sePayHTTP(t, r, "PUT", "/settings", sePaySettingsJSON, 200)
+	plan := model.SubscriptionPlan{Title: "Pro", PriceAmount: 4, Currency: "USD", DurationUnit: "month", DurationValue: 1, Enabled: true}
+	require.NoError(t, model.DB.Create(&plan).Error)
+	invoice := sePayHTTP(t, r, "POST", "/subscription/pay", fmt.Sprintf(`{"plan_id":%d}`, plan.Id), 200)
+	for _, order := range []model.SubscriptionOrder{
+		{UserId: 1, PlanId: plan.Id, TradeNo: "MANUAL", PaymentProvider: model.PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp()},
+		{UserId: 2, PlanId: plan.Id, TradeNo: "OTHER", PaymentProvider: model.PaymentProviderSePay, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp()},
+		{UserId: 1, PlanId: plan.Id, TradeNo: "OLD", PaymentProvider: model.PaymentProviderSePay, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp() - model.SePayOrderLifetime},
+	} {
+		require.NoError(t, model.DB.Create(&order).Error)
+	}
+	data := sePayHTTP(t, r, "GET", "/subscription/self", "", 200)
+	sepay, ok := data["pending_sepay_orders"].([]any)
+	require.True(t, ok)
+	require.Len(t, sepay, 1)
+	assert.Equal(t, invoice["trade_no"], sepay[0].(map[string]any)["trade_no"])
+	manual, ok := data["pending_bank_qr_orders"].([]any)
+	require.True(t, ok)
+	require.Len(t, manual, 1)
+	assert.Equal(t, "MANUAL", manual[0].(map[string]any)["trade_no"])
+	sePayHTTP(t, r, "POST", "/invoice/"+invoice["trade_no"].(string)+"/cancel", "", 200)
+	data = sePayHTTP(t, r, "GET", "/subscription/self", "", 200)
+	assert.Empty(t, data["pending_sepay_orders"])
+}
 
 func TestSePaySettingsHTTPContract(t *testing.T) {
 	r := sePayHTTPFixture(t)

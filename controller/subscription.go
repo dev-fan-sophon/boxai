@@ -71,9 +71,14 @@ func GetSubscriptionSelf(c *gin.Context) {
 	if err != nil {
 		activeSubscriptions = []model.SubscriptionSummary{}
 	}
-	pendingBankQROrders, err := model.GetPendingBankQRSubscriptionOrders(userId)
+	pendingBankQROrders, err := model.GetPendingSubscriptionPayments(userId, model.PaymentProviderBankQR)
 	if err != nil {
-		pendingBankQROrders = []model.PendingBankQRSubscriptionOrder{}
+		pendingBankQROrders = []model.PendingSubscriptionPayment{}
+	}
+	pendingSePayOrders, err := model.GetPendingSubscriptionPayments(userId, model.PaymentProviderSePay)
+	if err != nil {
+		common.ApiError(c, err)
+		return
 	}
 
 	common.ApiSuccess(c, gin.H{
@@ -82,6 +87,7 @@ func GetSubscriptionSelf(c *gin.Context) {
 		"subscriptions":          activeSubscriptions, // all active subscriptions
 		"all_subscriptions":      allSubscriptions,    // all subscriptions including expired
 		"pending_bank_qr_orders": pendingBankQROrders,
+		"pending_sepay_orders":   pendingSePayOrders,
 	})
 }
 

@@ -37,6 +37,7 @@ import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import type { SubscriptionCenterData } from '../hooks/use-subscription-center'
+import { SePayDialog } from '../sepay/sepay-dialog'
 import type { PaymentMethod, TopupInfo } from '../types'
 import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
 
@@ -56,7 +57,7 @@ interface SubscriptionPlansCardProps {
 
 function getEpayMethods(payMethods: PaymentMethod[] = []): PaymentMethod[] {
   return payMethods.filter(
-    (m) => m?.type && m.type !== 'stripe' && m.type !== 'creem'
+    (m) => m?.type && !['stripe', 'creem', 'bank_qr', 'sepay'].includes(m.type)
   )
 }
 
@@ -66,7 +67,16 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const plans = props.data.plans
   const activeSubscriptions = props.data.activeSubscriptions
   const allSubscriptions = props.data.allSubscriptions
-  const pendingBankQROrders = props.data.pendingBankQROrders
+  const pendingPayments = [
+    ...props.data.pendingBankQROrders.map((order) => ({
+      ...order,
+      provider: 'bank_qr',
+    })),
+    ...props.data.pendingSePayOrders.map((order) => ({
+      ...order,
+      provider: 'sepay',
+    })),
+  ]
   const savedOverageLimit = props.data.overageLimitUsd
   const overageEnabled = props.data.overageEnabled
   const loading = props.loading
@@ -77,6 +87,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
   const onAvailabilityChange = props.onAvailabilityChange
   const [proofTradeNo, setProofTradeNo] = useState<string | null>(null)
+  const [sepayTradeNo, setSepayTradeNo] = useState<string | null>(null)
 
   const enableStripe = !!props.topupInfo?.enable_stripe_topup
   const enableCreem = !!props.topupInfo?.enable_creem_topup
@@ -166,7 +177,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
     props.isError ||
     plans.length > 0 ||
     hasAny ||
-    pendingBankQROrders.length > 0
+    pendingPayments.length > 0
 
   // Mirrors the backend overage attribution rule: the active subscription that
   // ends first carries the per-period overage counter.
@@ -255,7 +266,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
     )
   }
 
-  if (plans.length === 0 && !hasAny && pendingBankQROrders.length === 0) {
+  if (plans.length === 0 && !hasAny && pendingPayments.length === 0) {
     return null
   }
 
@@ -269,12 +280,10 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
         disableHoverEffect
         contentClassName='space-y-4 sm:space-y-5'
       >
-        {pendingBankQROrders.length > 0 && (
+        {pendingPayments.length > 0 && (
           <div className='border-warning/40 bg-warning/10 space-y-2 rounded-xl border p-3 sm:p-4'>
-            <p className='text-sm font-medium'>
-              {t('Pending Bank QR payments')}
-            </p>
-            {pendingBankQROrders.map((order) => (
+            <p className='text-sm font-medium'>{t('Pending payments')}</p>
+            {pendingPayments.map((order) => (
               <div
                 key={order.trade_no}
                 className='bg-background/70 flex flex-col gap-2 rounded-md border p-2.5 sm:flex-row sm:items-center sm:justify-between'
@@ -290,9 +299,15 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
                 <Button
                   size='sm'
                   variant='outline'
-                  onClick={() => setProofTradeNo(order.trade_no)}
+                  onClick={() => {
+                    if (order.provider === 'sepay') {
+                      setSepayTradeNo(order.trade_no)
+                    } else setProofTradeNo(order.trade_no)
+                  }}
                 >
-                  {t('Submit payment proof')}
+                  {order.provider === 'sepay'
+                    ? t('View payment')
+                    : t('Submit payment proof')}
                 </Button>
               </div>
             ))}
@@ -684,6 +699,7 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
         enableWaffoPancake={enableWaffoPancake}
         enableOnlineTopUp={enableOnlineTopUp}
         enableBankQR={!!props.topupInfo?.enable_bank_qr_topup}
+        enableSePay={!!props.topupInfo?.enable_sepay_topup}
         epayMethods={epayMethods}
         userQuota={props.userQuota}
         onPurchaseSuccess={props.onPurchaseSuccess}
@@ -697,6 +713,10 @@ export function SubscriptionPlansCard(props: SubscriptionPlansCardProps) {
             ? planPurchaseCountMap.get(selectedPlan.plan.id)
             : undefined
         }
+      />
+      <SePayDialog
+        tradeNo={sepayTradeNo}
+        onClose={() => setSepayTradeNo(null)}
       />
       <TopUpProofDialog
         open={proofTradeNo !== null}

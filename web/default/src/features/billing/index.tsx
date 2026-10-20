@@ -36,6 +36,8 @@ import {
   summarizeActiveSubscriptions,
 } from './lib'
 import { PromotionBanner } from './promotions/promotion-banner'
+import { SePayDialog } from './sepay/sepay-dialog'
+import { useCreateSePay } from './sepay/use-sepay'
 import type {
   BankQRPaymentData,
   UserWalletData,
@@ -61,6 +63,8 @@ export function Billing(props: BillingProps) {
   const queryClient = useQueryClient()
   const [topupAmount, setTopupAmount] = useState(0)
   const [couponCode, setCouponCode] = useState('')
+  const [sepayTradeNo, setSepayTradeNo] = useState<string | null>(null)
+  const sepay = useCreateSePay()
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>()
@@ -90,6 +94,7 @@ export function Billing(props: BillingProps) {
   const {
     amount: paymentAmount,
     quote,
+    sepayCreditUsd,
     calculating,
     processing,
     calculatePaymentAmount,
@@ -202,8 +207,13 @@ export function Billing(props: BillingProps) {
 
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
     setSelectedPaymentMethod(method)
+    const amount =
+      method.type === 'sepay'
+        ? Math.max(topupAmount, method.min_topup || 0)
+        : topupAmount
+    setTopupAmount(amount)
     await calculatePaymentAmount(
-      requestAmountForPayment(topupAmount),
+      requestAmountForPayment(amount),
       method.type,
       couponCode
     )
@@ -215,7 +225,11 @@ export function Billing(props: BillingProps) {
     setPaymentLoading(selectedPaymentMethod.type)
     try {
       const methodMin = selectedPaymentMethod.min_topup || 0
-      if (topupAmount < Math.max(getMinTopupAmount(topupInfo), methodMin)) {
+      const minimum =
+        selectedPaymentMethod.type === 'sepay'
+          ? methodMin || topupInfo?.sepay_min_topup || 1
+          : Math.max(getMinTopupAmount(topupInfo), methodMin)
+      if (topupAmount < minimum) {
         return
       }
       const calculatedAmount = await calculatePaymentAmount(
@@ -232,6 +246,19 @@ export function Billing(props: BillingProps) {
 
   const handlePaymentConfirm = async () => {
     if (!selectedPaymentMethod) return
+
+    if (selectedPaymentMethod.type === 'sepay') {
+      try {
+        const invoice = await sepay.mutateAsync({
+          amount: requestAmountForPayment(topupAmount),
+        })
+        setAddCreditsOpen(false)
+        setSepayTradeNo(invoice.trade_no)
+      } catch {
+        toast.error(t('Payment request failed'))
+      }
+      return
+    }
 
     if (isBankQRPayment(selectedPaymentMethod.type)) {
       const bankPayment = await processBankQRPayment(
@@ -389,6 +416,7 @@ export function Billing(props: BillingProps) {
         onTopupAmountChange={handleTopupAmountChange}
         paymentAmount={paymentAmount}
         quote={quote}
+        sepayCreditUsd={sepayCreditUsd}
         couponCode={couponCode}
         onCouponCodeChange={(code) => {
           setCouponCode(code)
@@ -408,7 +436,9 @@ export function Billing(props: BillingProps) {
         waffoPayMethods={topupInfo?.waffo_pay_methods}
         onWaffoMethodSelect={handleWaffoMethodSelect}
         onConfirmPayment={handlePaymentConfirm}
-        processing={processing || pancakeProcessing || bankQRProcessing}
+        processing={
+          processing || pancakeProcessing || bankQRProcessing || sepay.isPending
+        }
         selectedCreemProduct={selectedCreemProduct}
         onConfirmCreem={handleCreemConfirm}
         creemProcessing={creemProcessing}
@@ -416,6 +446,10 @@ export function Billing(props: BillingProps) {
         onBankQROrderChanged={invalidateHistory}
       />
 
+      <SePayDialog
+        tradeNo={sepayTradeNo}
+        onClose={() => setSepayTradeNo(null)}
+      />
       <RedeemCodeDialog
         open={redeemDialogOpen}
         onOpenChange={setRedeemDialogOpen}

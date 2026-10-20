@@ -17,6 +17,7 @@ import {
   isWaffoPancakePayment,
   submitPaymentForm,
 } from '../lib'
+import { quoteSePay } from '../sepay/api'
 import type { BankQRQuote } from '../types'
 
 // ============================================================================
@@ -26,6 +27,7 @@ import type { BankQRQuote } from '../types'
 export function usePayment() {
   const [amount, setAmount] = useState<number>(0)
   const [quote, setQuote] = useState<BankQRQuote | null>(null)
+  const [sepayCreditUsd, setSepayCreditUsd] = useState<number>()
   const [calculating, setCalculating] = useState(false)
   const [processing, setProcessing] = useState(false)
   const calculationIdRef = useRef(0)
@@ -35,6 +37,7 @@ export function usePayment() {
     async (topupAmount: number, paymentType: string, couponCode = '') => {
       const calculationId = ++calculationIdRef.current
       setQuote(null)
+      setSepayCreditUsd(undefined)
       setAmount(0)
       try {
         setCalculating(true)
@@ -42,6 +45,14 @@ export function usePayment() {
         const isStripe = isStripePayment(paymentType)
         const isBankQR = isBankQRPayment(paymentType)
         const isPancake = isWaffoPancakePayment(paymentType)
+        if (paymentType === 'sepay') {
+          const response = await quoteSePay(Math.round(topupAmount))
+          if (calculationId !== calculationIdRef.current) return null
+          if (!response.success || !response.data) return null
+          setAmount(response.data.amount)
+          setSepayCreditUsd(response.data.credit_usd)
+          return response.data.amount
+        }
         if (isBankQR) {
           const vndAmount = Math.round(topupAmount)
           const response = await calculateBankQRAmount({
@@ -144,6 +155,7 @@ export function usePayment() {
   return {
     amount,
     quote,
+    sepayCreditUsd,
     calculating,
     processing,
     calculatePaymentAmount,

@@ -7,7 +7,7 @@ import {
   getSelfSubscriptionFull,
 } from '@/features/subscriptions/api'
 import type {
-  PendingBankQRSubscriptionOrder,
+  PendingSubscriptionPayment,
   PlanRecord,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
@@ -18,7 +18,8 @@ export interface SubscriptionCenterData {
   plans: PlanRecord[]
   activeSubscriptions: UserSubscriptionRecord[]
   allSubscriptions: UserSubscriptionRecord[]
-  pendingBankQROrders: PendingBankQRSubscriptionOrder[]
+  pendingBankQROrders: PendingSubscriptionPayment[]
+  pendingSePayOrders: PendingSubscriptionPayment[]
   overageEnabled: boolean
   overageLimitUsd: number
 }
@@ -31,6 +32,7 @@ const EMPTY_SELF: SelfSubscriptionState = {
   activeSubscriptions: [],
   allSubscriptions: [],
   pendingBankQROrders: [],
+  pendingSePayOrders: [],
   overageEnabled: false,
   overageLimitUsd: 0,
 }
@@ -69,6 +71,7 @@ export function useSubscriptionCenter() {
         activeSubscriptions: res.data.subscriptions || [],
         allSubscriptions: res.data.all_subscriptions || [],
         pendingBankQROrders: res.data.pending_bank_qr_orders || [],
+        pendingSePayOrders: res.data.pending_sepay_orders || [],
         overageEnabled: !!res.data.overage_enabled,
         overageLimitUsd: Number(res.data.overage_limit_usd || 0),
       }

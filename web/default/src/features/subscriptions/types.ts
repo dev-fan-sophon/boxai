@@ -131,10 +131,11 @@ export interface SelfSubscriptionData {
   overage_limit_usd: number
   subscriptions: UserSubscriptionRecord[]
   all_subscriptions: UserSubscriptionRecord[]
-  pending_bank_qr_orders: PendingBankQRSubscriptionOrder[]
+  pending_bank_qr_orders: PendingSubscriptionPayment[]
+  pending_sepay_orders: PendingSubscriptionPayment[]
 }
 
-export interface PendingBankQRSubscriptionOrder {
+export interface PendingSubscriptionPayment {
   trade_no: string
   plan_id: number
   plan_title: string

@@ -175,6 +175,8 @@ export interface TopupInfo {
   enable_online_topup: boolean
   /** Whether Stripe topup is enabled */
   enable_stripe_topup: boolean
+  enable_sepay_topup?: boolean
+  sepay_min_topup?: number
   /** Whether manually confirmed VietQR bank transfer is enabled */
   enable_bank_qr_topup?: boolean
   /** Minimum VND face amount for bank QR */

@@ -101,6 +101,7 @@ interface AddCreditsDialogProps {
   onTopupAmountChange: (amount: number) => void
   paymentAmount: number
   quote: BankQRQuote | null
+  sepayCreditUsd?: number
   couponCode: string
   onCouponCodeChange: (code: string) => void
   calculating: boolean
@@ -213,6 +214,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [couponDraft, setCouponDraft] = useState(props.couponCode)
   const isBankQR = props.selectedPaymentMethod?.type === 'bank_qr'
+  const isSePay = props.selectedPaymentMethod?.type === 'sepay'
   // Shares the banner's cache entry, so opening the dialog adds no request.
   const promotionQuery = useQuery({
     queryKey: ['topup-promotion'],
@@ -257,6 +259,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
   const hasConfigurableTopup =
     props.topupInfo?.enable_online_topup ||
     props.topupInfo?.enable_stripe_topup ||
+    props.topupInfo?.enable_sepay_topup ||
     props.topupInfo?.enable_bank_qr_topup ||
     enableWaffo ||
     props.topupInfo?.enable_waffo_pancake_topup
@@ -275,15 +278,20 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     (a, b) => Number(isBankQRPayment(b.type)) - Number(isBankQRPayment(a.type))
   )
 
-  const effectiveMin = Math.max(
-    getMinTopupAmount(props.topupInfo),
-    props.selectedPaymentMethod?.min_topup || 0
-  )
+  const effectiveMin = isSePay
+    ? props.selectedPaymentMethod?.min_topup ||
+      props.topupInfo?.sepay_min_topup ||
+      1
+    : Math.max(
+        getMinTopupAmount(props.topupInfo),
+        props.selectedPaymentMethod?.min_topup || 0
+      )
   // Bank QR settles in VND regardless of the site display currency.
   const formatAmountDue = (amount: number) => {
     if (
       props.selectedPaymentMethod &&
-      isBankQRPayment(props.selectedPaymentMethod.type)
+      (isBankQRPayment(props.selectedPaymentMethod.type) ||
+        props.selectedPaymentMethod.type === 'sepay')
     ) {
       return new Intl.NumberFormat(toIntlLocale(i18n.language), {
         style: 'currency',
@@ -303,12 +311,19 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
     (!isBankQR || (couponDraft === props.couponCode && !!props.quote)) &&
     !props.paymentLoading
 
+  let minimumLabel = formatPresetUsd(effectiveMin)
+  if (showUsdUnit) {
+    minimumLabel = `${formatPresetCredit(effectiveMin)} · ${formatPresetUsd(effectiveMin)}`
+  }
+  if (isSePay) minimumLabel = vnd.format(effectiveMin)
+
   let formattedTopupQuota = '—'
   if (props.topupAmount) {
     formattedTopupQuota = formatPresetUsd(props.topupAmount)
     if (showUsdUnit) {
       formattedTopupQuota = `${formatPresetCredit(props.topupAmount)} · ${formatPresetUsd(props.topupAmount)}`
     }
+    if (isSePay) formattedTopupQuota = vnd.format(props.topupAmount)
   }
 
   const configureFooter = hasConfigurableTopup ? (
@@ -427,7 +442,27 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
           <>
             <section className='space-y-3'>
               <StepHeader step='01' title={t('Select top-up amount')} />
-              {props.presetAmounts.length > 0 && (
+              {isSePay && (
+                <div className='space-y-2'>
+                  <Label htmlFor='sepay-amount'>{t('Amount')} (VND)</Label>
+                  <InputGroup>
+                    <InputGroupInput
+                      id='sepay-amount'
+                      type='number'
+                      min={effectiveMin}
+                      step={1}
+                      value={props.topupAmount || ''}
+                      onChange={(e) =>
+                        props.onTopupAmountChange(
+                          Math.max(0, Math.round(Number(e.target.value)))
+                        )
+                      }
+                    />
+                    <InputGroupAddon align='inline-end'>VND</InputGroupAddon>
+                  </InputGroup>
+                </div>
+              )}
+              {!isSePay && props.presetAmounts.length > 0 && (
                 <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
                   {props.presetAmounts.map((preset) => {
                     const tierPercent = bestPromotionTier(
@@ -492,78 +527,80 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                   })}
                 </p>
               )}
-              <div className='space-y-2'>
-                <div className='flex items-center justify-between gap-2'>
-                  <Label htmlFor='topup-amount'>{t('Custom amount')}</Label>
-                  {showUsdUnit ? (
-                    <SegmentedControl
-                      size='sm'
-                      aria-label={t('Amount unit')}
-                      value={customUnit}
-                      onValueChange={handleCustomUnitChange}
-                      options={[
-                        { value: 'local', label: currencyLabel },
-                        { value: 'usd', label: 'USD' },
-                      ]}
+              {!isSePay && (
+                <div className='space-y-2'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <Label htmlFor='topup-amount'>{t('Custom amount')}</Label>
+                    {showUsdUnit ? (
+                      <SegmentedControl
+                        size='sm'
+                        aria-label={t('Amount unit')}
+                        value={customUnit}
+                        onValueChange={handleCustomUnitChange}
+                        options={[
+                          { value: 'local', label: currencyLabel },
+                          { value: 'usd', label: 'USD' },
+                        ]}
+                      />
+                    ) : null}
+                  </div>
+                  <InputGroup className='h-10'>
+                    <InputGroupInput
+                      id='topup-amount'
+                      type='number'
+                      inputMode='decimal'
+                      value={localAmount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      onFocus={() => {
+                        customAmountFocusedRef.current = true
+                      }}
+                      onBlur={() => {
+                        customAmountFocusedRef.current = false
+                        setLocalAmount(
+                          formatCustomDraft(
+                            props.topupAmount,
+                            showUsdUnit ? customUnit : 'usd'
+                          )
+                        )
+                      }}
+                      min={
+                        showUsdUnit && customUnit === 'local'
+                          ? (convertUsdToLocalAmount(effectiveMin) ??
+                            effectiveMin)
+                          : effectiveMin
+                      }
+                      placeholder={t('Minimum {{amount}}', {
+                        amount:
+                          showUsdUnit && customUnit === 'local'
+                            ? formatCurrencyFromUSD(
+                                effectiveMin,
+                                LOCAL_AMOUNT_FORMAT
+                              )
+                            : formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT),
+                      })}
+                      className='h-10 text-base'
                     />
+                    <InputGroupAddon align='inline-end'>
+                      <InputGroupText>
+                        {showUsdUnit && customUnit === 'local'
+                          ? currencyLabel
+                          : 'USD'}
+                      </InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  {showUsdUnit && props.topupAmount > 0 ? (
+                    <p className='text-muted-foreground text-xs tabular-nums'>
+                      {customUnit === 'local'
+                        ? t('≈ {{amount}}', {
+                            amount: formatPresetUsd(props.topupAmount),
+                          })
+                        : t('≈ {{amount}}', {
+                            amount: formatPresetCredit(props.topupAmount),
+                          })}
+                    </p>
                   ) : null}
                 </div>
-                <InputGroup className='h-10'>
-                  <InputGroupInput
-                    id='topup-amount'
-                    type='number'
-                    inputMode='decimal'
-                    value={localAmount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    onFocus={() => {
-                      customAmountFocusedRef.current = true
-                    }}
-                    onBlur={() => {
-                      customAmountFocusedRef.current = false
-                      setLocalAmount(
-                        formatCustomDraft(
-                          props.topupAmount,
-                          showUsdUnit ? customUnit : 'usd'
-                        )
-                      )
-                    }}
-                    min={
-                      showUsdUnit && customUnit === 'local'
-                        ? (convertUsdToLocalAmount(effectiveMin) ??
-                          effectiveMin)
-                        : effectiveMin
-                    }
-                    placeholder={t('Minimum {{amount}}', {
-                      amount:
-                        showUsdUnit && customUnit === 'local'
-                          ? formatCurrencyFromUSD(
-                              effectiveMin,
-                              LOCAL_AMOUNT_FORMAT
-                            )
-                          : formatUSDAmount(effectiveMin, USD_AMOUNT_FORMAT),
-                    })}
-                    className='h-10 text-base'
-                  />
-                  <InputGroupAddon align='inline-end'>
-                    <InputGroupText>
-                      {showUsdUnit && customUnit === 'local'
-                        ? currencyLabel
-                        : 'USD'}
-                    </InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
-                {showUsdUnit && props.topupAmount > 0 ? (
-                  <p className='text-muted-foreground text-xs tabular-nums'>
-                    {customUnit === 'local'
-                      ? t('≈ {{amount}}', {
-                          amount: formatPresetUsd(props.topupAmount),
-                        })
-                      : t('≈ {{amount}}', {
-                          amount: formatPresetCredit(props.topupAmount),
-                        })}
-                  </p>
-                ) : null}
-              </div>
+              )}
             </section>
 
             <section className='space-y-3'>
@@ -574,6 +611,13 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     const selected =
                       props.selectedPaymentMethod?.type === method.type
                     const isLocalRail = isBankQRPayment(method.type)
+                    let methodMinimum = formatPresetUsd(method.min_topup || 0)
+                    if (showUsdUnit) {
+                      methodMinimum = `${formatPresetCredit(method.min_topup || 0)} (${formatPresetUsd(method.min_topup || 0)})`
+                    }
+                    if (method.type === 'sepay') {
+                      methodMinimum = vnd.format(method.min_topup || 0)
+                    }
                     return (
                       <button
                         key={method.type}
@@ -618,9 +662,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                           {method.min_topup ? (
                             <span className='text-muted-foreground text-2xs'>
                               {t('Minimum top-up {{amount}}', {
-                                amount: showUsdUnit
-                                  ? `${formatPresetCredit(method.min_topup)} (${formatPresetUsd(method.min_topup)})`
-                                  : formatPresetUsd(method.min_topup),
+                                amount: methodMinimum,
                               })}
                             </span>
                           ) : null}
@@ -705,9 +747,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
                     {t('Minimum top-up')}
                   </span>
                   <span className='text-right tabular-nums'>
-                    {showUsdUnit
-                      ? `${formatPresetCredit(effectiveMin)} · ${formatPresetUsd(effectiveMin)}`
-                      : formatPresetUsd(effectiveMin)}
+                    {minimumLabel}
                   </span>
                 </div>
               </div>
@@ -768,6 +808,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
       body: (
         <PaymentReviewSummary
           quote={props.quote}
+          sepayCreditUsd={props.sepayCreditUsd}
           topupAmount={props.topupAmount}
           paymentAmount={props.paymentAmount}
           paymentMethod={props.selectedPaymentMethod}

@@ -252,7 +252,7 @@ type BankQRSubscriptionOrderPayload struct {
 	Plan     SubscriptionPlan `json:"plan"`
 }
 
-type PendingBankQRSubscriptionOrder struct {
+type PendingSubscriptionPayment struct {
 	TradeNo    string  `json:"trade_no"`
 	PlanId     int     `json:"plan_id"`
 	PlanTitle  string  `json:"plan_title"`
@@ -260,13 +260,16 @@ type PendingBankQRSubscriptionOrder struct {
 	CreateTime int64   `json:"create_time"`
 }
 
-func GetPendingBankQRSubscriptionOrders(userId int) ([]PendingBankQRSubscriptionOrder, error) {
-	var orders []PendingBankQRSubscriptionOrder
-	err := DB.Table("subscription_orders o").
+func GetPendingSubscriptionPayments(userId int, provider string) ([]PendingSubscriptionPayment, error) {
+	orders := []PendingSubscriptionPayment{}
+	query := DB.Table("subscription_orders o").
 		Select("o.trade_no, o.plan_id, COALESCE(p.title, '') plan_title, o.money, o.create_time").
 		Joins("LEFT JOIN subscription_plans p ON p.id = o.plan_id").
-		Where("o.user_id = ? AND o.payment_provider = ? AND o.status = ?", userId, PaymentProviderBankQR, common.TopUpStatusPending).
-		Order("o.id DESC").Limit(10).Scan(&orders).Error
+		Where("o.user_id = ? AND o.payment_provider = ? AND o.status = ?", userId, provider, common.TopUpStatusPending)
+	if provider == PaymentProviderSePay {
+		query = query.Where("o.create_time > ?", common.GetTimestamp()-SePayOrderLifetime)
+	}
+	err := query.Order("o.id DESC").Limit(10).Scan(&orders).Error
 	return orders, err
 }
 

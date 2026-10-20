@@ -38,7 +38,8 @@ function parseJsonArray(data: unknown): unknown[] {
 function parsePaymentMethods(
   data: unknown,
   stripeMinTopup: number,
-  bankQRMinTopup: number
+  bankQRMinTopup: number,
+  sepayMinTopup: number
 ): PaymentMethod[] {
   return parseJsonArray(data)
     .filter(
@@ -54,6 +55,8 @@ function parsePaymentMethods(
         minTopup = stripeMinTopup
       } else if (minTopup <= 0 && type === 'bank_qr') {
         minTopup = bankQRMinTopup
+      } else if (minTopup <= 0 && type === 'sepay') {
+        minTopup = sepayMinTopup
       }
 
       return {
@@ -129,7 +132,8 @@ async function fetchTopupInfo(): Promise<TopupInfoQueryData> {
     pay_methods: parsePaymentMethods(
       response.data.pay_methods,
       response.data.stripe_min_topup,
-      response.data.bank_qr_min_topup || 0
+      response.data.bank_qr_min_topup || 0,
+      response.data.sepay_min_topup || 0
     ),
     amount_options: parseAmountOptions(response.data.amount_options),
     creem_products: parseCreemProducts(response.data.creem_products),

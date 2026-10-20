@@ -15,6 +15,7 @@ import { DiscountSummary } from './discount-summary'
 
 interface PaymentReviewSummaryProps {
   quote?: BankQRQuote | null
+  sepayCreditUsd?: number
   topupAmount: number
   paymentAmount: number
   paymentMethod: PaymentMethod | undefined
@@ -31,11 +32,12 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
   const topupAmount = props.topupAmount
   const paymentAmount = props.paymentAmount
   const isBankQR = paymentMethod ? isBankQRPayment(paymentMethod.type) : false
+  const isSePay = paymentMethod?.type === 'sepay'
   const { meta } = getCurrencyDisplay()
   const creditedUsd =
     meta.kind === 'currency' ? topupAmount / meta.exchangeRate : topupAmount
   const formatPaymentAmount = (amount: number) =>
-    isBankQR
+    isBankQR || isSePay
       ? new Intl.NumberFormat(toIntlLocale(i18n.language), {
           style: 'currency',
           currency: 'VND',
@@ -54,30 +56,42 @@ export function PaymentReviewSummary(props: PaymentReviewSummaryProps) {
               {t('Topup Amount')}
             </span>
             <span className='text-right text-lg font-semibold'>
-              {isNonUsdCurrencyDisplay() ? (
-                <span className='flex flex-col items-end leading-tight'>
-                  <span>
-                    {formatLocalCurrencyAmount(topupAmount, {
-                      digitsLarge: 0,
-                      digitsSmall: 0,
-                      abbreviate: false,
-                    })}
-                  </span>
-                  <span className='text-muted-foreground text-xs font-medium tabular-nums'>
-                    {formatUSDAmount(creditedUsd, {
-                      digitsLarge: 2,
-                      digitsSmall: 2,
-                      abbreviate: false,
-                    })}
-                  </span>
+              {isSePay && (
+                <span>
+                  {props.sepayCreditUsd === undefined
+                    ? '—'
+                    : formatUSDAmount(props.sepayCreditUsd, {
+                        digitsLarge: 2,
+                        digitsSmall: 2,
+                        abbreviate: false,
+                      })}
                 </span>
-              ) : (
-                formatUSDAmount(topupAmount, {
-                  digitsLarge: 2,
-                  digitsSmall: 2,
-                  abbreviate: false,
-                })
               )}
+              {!isSePay &&
+                (isNonUsdCurrencyDisplay() ? (
+                  <span className='flex flex-col items-end leading-tight'>
+                    <span>
+                      {formatLocalCurrencyAmount(topupAmount, {
+                        digitsLarge: 0,
+                        digitsSmall: 0,
+                        abbreviate: false,
+                      })}
+                    </span>
+                    <span className='text-muted-foreground text-xs font-medium tabular-nums'>
+                      {formatUSDAmount(creditedUsd, {
+                        digitsLarge: 2,
+                        digitsSmall: 2,
+                        abbreviate: false,
+                      })}
+                    </span>
+                  </span>
+                ) : (
+                  formatUSDAmount(topupAmount, {
+                    digitsLarge: 2,
+                    digitsSmall: 2,
+                    abbreviate: false,
+                  })
+                ))}
             </span>
           </div>
 

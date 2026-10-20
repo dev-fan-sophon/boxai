@@ -80,6 +80,8 @@ export function getPaymentIcon(
   }
 
   switch (paymentType) {
+    case 'sepay':
+      return <Landmark className={className} />
     case PAYMENT_TYPES.ALIPAY:
       return (
         <SiAlipay

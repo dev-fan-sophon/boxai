@@ -47,6 +47,7 @@ import {
 import { CancelTopUpButton } from '../promotions/cancel-topup-button'
 import { OrderExpiry } from '../promotions/order-expiry'
 import { useOrderExpired } from '../promotions/use-order-expired'
+import { SePayDialog } from '../sepay/sepay-dialog'
 import type { TopupRecord } from '../types'
 import { TopUpProofDialog } from './dialogs/top-up-proof-dialog'
 import { DiscountSummary } from './discount-summary'
@@ -61,6 +62,7 @@ interface TransactionRowProps {
   onCopy: (value: string) => void
   onComplete: (tradeNo: string) => void
   onSubmitProof: (tradeNo: string) => void
+  onOpenSePay: (tradeNo: string) => void
   onRefresh: () => void
 }
 
@@ -71,6 +73,8 @@ function TransactionRow(props: TransactionRowProps) {
   const statusConfig = getStatusConfig(record.status)
   const isBankQR =
     record.payment_method === 'bank_qr' || record.payment_provider === 'bank_qr'
+  const isSePay =
+    record.payment_method === 'sepay' || record.payment_provider === 'sepay'
 
   return (
     <div className='bg-card ring-border rounded-xl p-4 ring-1'>
@@ -163,18 +167,29 @@ function TransactionRow(props: TransactionRowProps) {
           )}
         </div>
       )}
-      {props.isAdmin && record.status === 'pending' && !isBankQR && (
-        <div className='mt-4 flex justify-end'>
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => props.onComplete(record.trade_no)}
-            disabled={props.completing}
-          >
-            {t('Complete Order')}
-          </Button>
-        </div>
+      {isSePay && !props.isAdmin && (
+        <Button
+          variant='outline'
+          onClick={() => props.onOpenSePay(record.trade_no)}
+        >
+          {t('View payment')}
+        </Button>
       )}
+      {props.isAdmin &&
+        record.status === 'pending' &&
+        !isBankQR &&
+        !isSePay && (
+          <div className='mt-4 flex justify-end'>
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => props.onComplete(record.trade_no)}
+              disabled={props.completing}
+            >
+              {t('Complete Order')}
+            </Button>
+          </div>
+        )}
       {!props.isAdmin &&
         record.status === 'pending' &&
         isBankQR &&
@@ -224,6 +239,7 @@ export function TransactionsSection() {
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
   const [proofTradeNo, setProofTradeNo] = useState<string | null>(null)
+  const [sepayTradeNo, setSepayTradeNo] = useState<string | null>(null)
   const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -284,6 +300,7 @@ export function TransactionsSection() {
             onCopy={copyToClipboard}
             onComplete={setConfirmTradeNo}
             onSubmitProof={setProofTradeNo}
+            onOpenSePay={setSepayTradeNo}
             onRefresh={() => void refresh()}
           />
         ))}
@@ -405,6 +422,10 @@ export function TransactionsSection() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <SePayDialog
+        tradeNo={sepayTradeNo}
+        onClose={() => setSepayTradeNo(null)}
+      />
       <TopUpProofDialog
         open={proofTradeNo !== null}
         onOpenChange={(open) => !open && setProofTradeNo(null)}
