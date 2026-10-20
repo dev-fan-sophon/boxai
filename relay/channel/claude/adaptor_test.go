@@ -1,14 +1,42 @@
 package claude
 
 import (
+	"net/http/httptest"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSonnet5OmitsDeprecatedTemperature(t *testing.T) {
+	for _, model := range []string{"claude-sonnet-5", "claude-sonnet-4-6"} {
+		for _, native := range []bool{true, false} {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			info := &relaycommon.RelayInfo{OriginModelName: model, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: model}}
+			var converted any
+			var err error
+			if native {
+				converted, err = (&Adaptor{}).ConvertClaudeRequest(c, info, &dto.ClaudeRequest{Model: model, Temperature: common.GetPointer(0.0)})
+			} else {
+				converted, err = (&Adaptor{}).ConvertOpenAIRequest(c, info, &dto.GeneralOpenAIRequest{Model: model, Temperature: common.GetPointer(0.0)})
+			}
+			require.NoError(t, err)
+			encoded, err := common.Marshal(converted)
+			require.NoError(t, err)
+			var upstream map[string]any
+			require.NoError(t, common.Unmarshal(encoded, &upstream))
+			if model == "claude-sonnet-5" {
+				assert.NotContains(t, upstream, "temperature")
+			} else {
+				assert.Equal(t, 0.0, upstream["temperature"], "preserve explicit zero on models that support sampling")
+			}
+		}
+	}
+}
 
 func convertNativeClaudeRequestForTest(t *testing.T, body string) map[string]any {
 	t.Helper()

@@ -26,6 +26,11 @@ func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dt
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
+	// Sonnet 5 rejects temperature, including the default supplied by clients.
+	// Do not change sampling on older models that still support this parameter.
+	if request.Model == "claude-sonnet-5" {
+		request.Temperature = nil
+	}
 	return request, nil
 }
 
@@ -100,7 +105,7 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	return result.Value, nil
+	return a.ConvertClaudeRequest(c, info, result.Value.(*dto.ClaudeRequest))
 }
 
 func (a *Adaptor) ConvertRerankRequest(c *gin.Context, relayMode int, request dto.RerankRequest) (any, error) {
