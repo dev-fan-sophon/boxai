@@ -404,6 +404,74 @@ Agents must:
 - Use SSH only for named host/infra changes
 - Never dump the full production `.env` into chat or Amp secrets
 
+### SePay automatic VietQR confirmation
+
+SePay confirms the existing **Bank QR** checkout for balance top-ups and
+subscription purchases. It does not replace Waffo or require a second checkout.
+Without a webhook secret, Bank QR keeps its existing manual-proof workflow.
+
+| Variable | Purpose |
+|----------|---------|
+| `SEPAY_WEBHOOK_SECRET` | Secret shared with the SePay **HMAC-SHA256** webhook. Keep it server-side; never send it to the browser or paste it into chat. |
+| `SEPAY_BANK_GATEWAY` | Exact `gateway` value from the linked bank's SePay payload, e.g. `MBBank`. Required when the secret is set. This is not the six-digit VietQR bank BIN. |
+| `SEPAY_SUB_ACCOUNT` | Exact `subAccount` expected in notifications; omit for a normal account without a virtual subaccount. |
+
+Setup, after explicit production deployment/configuration approval:
+
+1. Link the receiving bank in [SePay](https://docs.sepay.vn/them-tai-khoan-ngan-hang.html).
+   Prefer a direct bank API connection for prompt confirmation.
+2. Configure BoxAI's existing Bank QR settings: bank name/BIN, receiving account,
+   account holder, minimum amount and transfer prefix. Payment compliance must
+   be confirmed, currency display VND, and the VND/USD exchange rate valid.
+3. Set the named environment variables on the application server. Keep the
+   receiving account consistent with the Bank QR settings. A virtual account
+   integration must be verified against the actual `accountNumber`/`subAccount`
+   payload and generated QR destination before enabling it for customers.
+4. In SePay **Live**, create an incoming-transfer webhook for that bank account:
+   URL `https://you-box.com/api/sepay/webhook`, JSON body, authentication
+   **HMAC-SHA256**, secret equal to `SEPAY_WEBHOOK_SECRET`. API Key and unauthenticated
+   webhooks are intentionally not accepted. Keep server clocks synchronized.
+5. Deploy backend and frontend together, with a database backup before the
+   normal application migration. New columns preserve each order's confirmation
+   mode and destination; `se_pay_events` stores transaction IDs and outcomes.
+6. Create a new checkout and transfer a small supported amount with the exact
+   displayed content. Verify SePay delivery history, successful order status,
+   the credited balance/subscription, and the user's confirmation screen.
+   Re-deliver the same webhook and verify no second credit.
+
+**Test isolation:** use a disposable/staging BoxAI database, a different webhook
+secret and a staging URL for SePay Test mode. Never point simulated payments at
+production or reuse the production secret; the webhook payload itself does not
+provide a trusted test/live distinction.
+
+The webhook validates its raw-body signature and a ±5-minute signing timestamp,
+then matches an unambiguous complete order reference, snapshotted destination
+and exact whole-VND payable amount (after discounts). It credits the order's
+stored USD/plan snapshot, not a new exchange-rate quote. Transaction-ID recording
+and settlement are atomic. Retries cannot credit twice, including when a manual
+review races the webhook. Only newly created SePay-enabled orders auto-settle;
+historical manual orders remain manual.
+
+Authenticated mismatches, unmatched references and expired/cancelled orders are
+acknowledged with HTTP 200 and retained in `se_pay_events` with `reason`,
+`trade_no`, `payload` and `received_at` for reconciliation. A 200 therefore means
+**delivery accepted**, not necessarily credited. Compare this ledger with SePay's
+bank transaction history and BoxAI orders. Re-delivering an already recorded
+transaction will not rematch it. Review unresolved transfers manually using
+verified bank evidence; do not edit the ledger to force a retry or reuse a bank
+transfer for another order. Late payments cannot automatically consume an
+expired coupon reservation; cancelled/expired orders may require a manual
+refund or a separately authorized account adjustment.
+
+Invalid signatures return 401, invalid JSON/IDs 400, oversized bodies 413, and
+database/settlement failures 500 so SePay can retry. Removing the secret stops
+webhook processing as well as automatic mode for new orders. To pause sales
+without losing notifications for existing orders, disable Bank QR checkout but
+keep the webhook secret configured until outstanding orders are reconciled.
+
+Protocol references: [webhook integration](https://developer.sepay.vn/vi/sepay-webhooks/tich-hop-webhook),
+[HMAC authentication](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc).
+
 ### On-disk SPA (`WEB_DIST_DIR`)
 
 Set on the **systemd unit** (`deploy/boxai.service`), not required in `.env`:
