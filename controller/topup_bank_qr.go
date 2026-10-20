@@ -115,6 +115,11 @@ func RequestBankQRAmount(c *gin.Context) {
 
 func RequestBankQRPay(c *gin.Context) {
 	bankSetting := operation_setting.GetBankQRSetting()
+	snapshot, configErr := sePayCheckoutSnapshot(bankSetting.AccountNumber)
+	if configErr != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": configErr.Error()})
+		return
+	}
 	if !isPaymentComplianceConfirmed() || !operation_setting.IsBankQRSettingConfigured(bankSetting) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
@@ -161,7 +166,8 @@ func RequestBankQRPay(c *gin.Context) {
 	}
 
 	order := &model.TopUp{
-		UserId: userID, TradeNo: tradeNo,
+		SePaySnapshot: snapshot,
+		UserId:        userID, TradeNo: tradeNo,
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
@@ -180,7 +186,8 @@ func RequestBankQRPay(c *gin.Context) {
 	}
 	common.ApiSuccess(c, gin.H{
 		"trade_no": tradeNo, "transfer_content": tradeNo, "amount": order.PaidAmount, "currency": quote.FaceCurrency,
-		"face_amount": order.FaceAmount, "activity_discount": order.ActivityDiscount, "coupon_discount": order.CouponDiscount,
+		"automatic_confirmation": order.AutomaticConfirmation,
+		"face_amount":            order.FaceAmount, "activity_discount": order.ActivityDiscount, "coupon_discount": order.CouponDiscount,
 		"activity_percent": order.ActivityPercent, "activity_tier_min": order.ActivityTierMin,
 		"coupon_code": order.CouponCode, "credit_usd": order.CreditUSD, "expires_at": order.ExpiresAt,
 		"payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN,
@@ -197,6 +204,11 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 		return
 	}
 	bankSetting := operation_setting.GetBankQRSetting()
+	snapshot, configErr := sePayCheckoutSnapshot(bankSetting.AccountNumber)
+	if configErr != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": configErr.Error()})
+		return
+	}
 	if !operation_setting.IsBankQRSettingConfigured(bankSetting) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRDisabled))
 		return
@@ -266,11 +278,12 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 		return
 	}
 	order := &model.SubscriptionOrder{UserId: userID, PlanId: plan.Id, Money: plan.PriceAmount, TradeNo: tradeNo, PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(), ProviderPayload: string(providerPayload)}
+	order.SePaySnapshot = snapshot
 	if err := model.CreatePendingBankQRSubscriptionOrder(order, maxPendingBankQROrders); err != nil {
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return
 	}
-	common.ApiSuccess(c, gin.H{"trade_no": tradeNo, "transfer_content": tradeNo, "amount": amount.IntPart(), "currency": "VND", "payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN, "account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName)})
+	common.ApiSuccess(c, gin.H{"automatic_confirmation": order.AutomaticConfirmation, "trade_no": tradeNo, "transfer_content": tradeNo, "amount": amount.IntPart(), "currency": "VND", "payload": payload, "bank_name": strings.TrimSpace(bankSetting.BankName), "bank_bin": bankSetting.BankBIN, "account_number": bankSetting.AccountNumber, "account_name": strings.TrimSpace(bankSetting.AccountName)})
 }
 
 func UpdateBankQRSetting(c *gin.Context) {

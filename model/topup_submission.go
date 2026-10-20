@@ -289,10 +289,25 @@ func ListTopUpReviews(status, keyword string, limit, offset int) ([]TopUpReview,
 }
 
 func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopUpSubmission, error) {
-	var result TopUpSubmission
+	var result *TopUpSubmission
 	var creditedQuota int
 	var upgradeGroup string
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		var err error
+		result, creditedQuota, upgradeGroup, err = reviewTopUpSubmissionTx(tx, id, reviewer, approve, reason)
+		return err
+	})
+	if err == nil {
+		refreshBankQRSettlementCache(result.UserId, creditedQuota, upgradeGroup)
+	}
+	return result, err
+}
+
+func reviewTopUpSubmissionTx(tx *gorm.DB, id, reviewer int, approve bool, reason string) (*TopUpSubmission, int, string, error) {
+	var result TopUpSubmission
+	var creditedQuota int
+	var upgradeGroup string
+	err := func() error {
 		if err := lockTopUpDiscounts(tx); err != nil {
 			return err
 		}
@@ -339,7 +354,7 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 			if err != nil {
 				return err
 			}
-			if int64(user.Quota)+int64(quota) > int64(common.MaxQuota) {
+			if quota <= 0 || quota > common.MaxQuota || user.Quota > common.MaxQuota-quota {
 				return ErrTopUpCreditExceedsMaximum
 			}
 			if err := tx.Model(&User{}).Where("id = ?", order.UserId).Update("quota", gorm.Expr("quota + ?", quota)).Error; err != nil {
@@ -377,17 +392,20 @@ func ReviewTopUpSubmission(id, reviewer int, approve bool, reason string) (*TopU
 		}
 		result.Status, result.ReviewedAt, result.ReviewedBy, result.ReviewNote = TopUpSubmissionApproved, now, reviewer, reason
 		return tx.Save(&result).Error
-	})
-	if err == nil && creditedQuota > 0 {
-		if cacheErr := InvalidateUserCache(result.UserId); cacheErr != nil {
+	}()
+	return &result, creditedQuota, upgradeGroup, err
+}
+
+func refreshBankQRSettlementCache(userID, creditedQuota int, upgradeGroup string) {
+	if creditedQuota > 0 {
+		if cacheErr := InvalidateUserCache(userID); cacheErr != nil {
 			common.SysLog("failed to invalidate user quota cache after Bank QR approval: " + cacheErr.Error())
 		}
 	}
-	if err == nil && upgradeGroup != "" {
-		if cacheErr := UpdateUserGroupCache(result.UserId, upgradeGroup); cacheErr != nil {
+	if upgradeGroup != "" {
+		if cacheErr := UpdateUserGroupCache(userID, upgradeGroup); cacheErr != nil {
 			common.SysLog("failed to update user group cache after Bank QR approval: " + cacheErr.Error())
-			_ = InvalidateUserCache(result.UserId)
+			_ = InvalidateUserCache(userID)
 		}
 	}
-	return &result, err
 }
