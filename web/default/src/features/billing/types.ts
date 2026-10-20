@@ -61,6 +61,7 @@ export interface BankQRQuote extends TopUpDiscountSnapshot {
 }
 
 export interface BankQRPaymentData extends BankQRQuote {
+  automatic_confirmation?: boolean
   trade_no: string
   transfer_content: string
   amount: number
@@ -73,6 +74,10 @@ export interface BankQRPaymentData extends BankQRQuote {
 }
 export type BankQRAmountResponse = ApiResponse<BankQRQuote>
 export type BankQRPaymentResponse = ApiResponse<BankQRPaymentData>
+export interface BankQRPaymentStatus {
+  status: 'pending' | 'success' | 'cancelled' | 'expired'
+  automatic_confirmation: boolean
+}
 export type TopUpSubmissionStatus = 'submitted' | 'approved' | 'rejected'
 export interface TopUpSubmission {
   id: number

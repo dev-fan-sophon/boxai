@@ -33,6 +33,7 @@ import {
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import { useBankQRStatus } from '../../hooks/use-bank-qr-status'
 import {
   formatCurrency,
   getPaymentIcon,
@@ -198,6 +199,11 @@ function parseCustomDraft(value: string, unit: CustomAmountUnit): number {
  */
 export function AddCreditsDialog(props: AddCreditsDialogProps) {
   const { t, i18n } = useTranslation()
+  const confirmation = useBankQRStatus(
+    props.bankQRPayment?.trade_no,
+    props.open && props.step === 'bank-qr',
+    props.bankQRPayment?.automatic_confirmation
+  )
   const showUsdUnit = isNonUsdCurrencyDisplay()
   const currencyLabel = getCurrencyLabel()
   const [customUnit, setCustomUnit] = useState<CustomAmountUnit>('local')
@@ -810,13 +816,21 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
   } else if (props.step === 'bank-qr' && props.bankQRPayment) {
     view = {
       title: t('Pay by bank transfer'),
-      description: t(
-        'Scan the VietQR code or copy the bank details to complete your transfer.'
+      description: confirmation.terminal
+        ? ''
+        : t(
+            'Scan the VietQR code or copy the bank details to complete your transfer.'
+          ),
+      body: (
+        <BankQRPaymentDetails
+          payment={props.bankQRPayment}
+          confirmation={confirmation}
+        />
       ),
-      body: <BankQRPaymentDetails payment={props.bankQRPayment} />,
       footer: (
         <BankQRPaymentActions
           payment={props.bankQRPayment}
+          confirmation={confirmation}
           onClose={() => props.onOpenChange(false)}
           onCancelled={props.onBankQROrderChanged}
           onPaid={() => props.onStepChange('proof')}
@@ -831,7 +845,7 @@ export function AddCreditsDialog(props: AddCreditsDialogProps) {
       ),
       body: (
         <TopUpProofForm
-          active
+          active={props.open}
           tradeNo={props.bankQRPayment.trade_no}
           expiresAt={props.bankQRPayment.expires_at}
           onSubmitted={props.onBankQROrderChanged}

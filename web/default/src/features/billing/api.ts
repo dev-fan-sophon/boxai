@@ -24,6 +24,7 @@ import type {
   WaffoPancakePaymentResponse,
   BankQRAmountResponse,
   BankQRPaymentResponse,
+  BankQRPaymentStatus,
   TopUpSubmission,
   TopUpReviewsData,
 } from './types'
@@ -134,6 +135,20 @@ export async function requestBankQRPayment(
     ...res.data,
     message: res.data.success ? res.data.message : topUpErrorMessage(res.data),
   }
+}
+
+export async function getBankQRPaymentStatus(
+  tradeNo: string,
+  signal?: AbortSignal
+): Promise<BankQRPaymentStatus> {
+  const res = await api.get<ApiResponse<BankQRPaymentStatus>>(
+    `/api/user/bank-qr/${encodeURIComponent(tradeNo)}/status`,
+    { ...topUpRequestOptions, signal }
+  )
+  if (!res.data.success || !res.data.data) {
+    throw new Error(res.data.message || 'Payment status unavailable')
+  }
+  return res.data.data
 }
 
 export async function submitTopUpProof(

@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 import { getTopUpSubmissions, submitTopUpProof } from '../../api'
+import { useBankQRStatus } from '../../hooks/use-bank-qr-status'
 import { OrderExpiry } from '../../promotions/order-expiry'
 import { useOrderExpired } from '../../promotions/use-order-expired'
 import type { TopUpSubmission } from '../../types'
+import { BankQRStatusMessage } from '../bank-qr-status'
 
 const MAX_PROOF_SIZE = 10 * 1024 * 1024
 const PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -64,6 +66,9 @@ interface TopUpProofFormProps {
  */
 export function TopUpProofForm(props: TopUpProofFormProps) {
   const { t } = useTranslation()
+  // History and subscription pending orders reopen with only a trade number.
+  // Always discover the persisted confirmation mode instead of assuming manual.
+  const confirmation = useBankQRStatus(props.tradeNo, props.active)
   const expired = useOrderExpired(props.expiresAt)
   const [transactionNo, setTransactionNo] = useState('')
   const [note, setNote] = useState('')
@@ -109,7 +114,7 @@ export function TopUpProofForm(props: TopUpProofFormProps) {
       setError(t('Enter a transaction number or upload a proof image'))
       return
     }
-    if (!props.tradeNo || expired) return
+    if (!props.tradeNo || expired || confirmation.terminal) return
     if (
       latestSubmission?.status === 'submitted' ||
       latestSubmission?.status === 'approved'
@@ -140,8 +145,18 @@ export function TopUpProofForm(props: TopUpProofFormProps) {
     }
   }
 
+  if (confirmation.terminal) {
+    return (
+      <div className='space-y-4'>
+        <BankQRStatusMessage confirmation={confirmation} />
+        <Button onClick={props.onClose}>{t('Close')}</Button>
+      </div>
+    )
+  }
+
   return (
     <form className='space-y-4' onSubmit={handleSubmit}>
+      <BankQRStatusMessage confirmation={confirmation} />
       <OrderExpiry expiresAt={props.expiresAt} />
       {latestSubmission ? (
         <div className='bg-muted rounded-md p-3 text-sm'>
