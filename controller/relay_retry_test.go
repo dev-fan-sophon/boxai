@@ -3,11 +3,13 @@ package controller
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -82,10 +84,17 @@ func TestRelayHTTPFailureDoesNotReplayExhaustedChannels(t *testing.T) {
 		require.NoError(t, sqlDB.Close())
 	})
 	service.InitHttpClient()
-	for _, tc := range []struct{ status, calls int }{{400, 1}, {503, 2}, {429, 2}} {
+	for _, tc := range []struct{ status, calls int }{{400, 1}, {503, 2}, {429, 2}, {499, 1}} {
+		ctx, cancel := context.WithCancel(context.Background())
 		var calls atomic.Int32
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			calls.Add(1)
+			if tc.status == 499 {
+				_, _ = io.Copy(io.Discard, r.Body)
+				cancel()
+				<-r.Context().Done()
+				return
+			}
 			w.Header().Set("X-CPA-Trace-Id", "cpa-http-fixture")
 			w.Header().Set("Retry-After", "45")
 			w.WriteHeader(tc.status)
@@ -105,7 +114,7 @@ func TestRelayHTTPFailureDoesNotReplayExhaustedChannels(t *testing.T) {
 		model.InitChannelCache()
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"retry-fixture","messages":[{"role":"user","content":"hello"}]}`))
+		c.Request = httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"retry-fixture","messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Set(common.RequestIdKey, "relay-http-fixture")
 		common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
@@ -114,9 +123,13 @@ func TestRelayHTTPFailureDoesNotReplayExhaustedChannels(t *testing.T) {
 		Relay(c, types.RelayFormatOpenAI)
 		common.CleanupBodyStorage(c)
 		server.Close()
+		cancel()
 		assert.Equal(t, int32(tc.calls), calls.Load(), "HTTP %d: %s", tc.status, w.Body.String())
 		assert.NotContains(t, w.Body.String(), "private provider")
-		if tc.status == 400 {
+		if tc.status == 499 {
+			assert.Contains(t, w.Body.String(), "request_cancelled")
+		}
+		if tc.status == 400 || tc.status == 499 {
 			assert.Empty(t, w.Header().Get("Retry-After"), "invalid requests must not encourage client retries")
 		} else {
 			assert.Equal(t, "45", w.Header().Get("Retry-After"))
@@ -278,6 +291,7 @@ func TestRelayAttemptLogsProduceOneFinalError(t *testing.T) {
 	c.Set(common.RequestIdKey, "gateway-request")
 	c.Set(common.UpstreamRequestIdKey, "cpa-attempt-1")
 	c.Set("use_channel", []string{"7"})
+	c.Set("image_request_metadata", map[string]any{"requested_count": 2})
 	fault := types.NewOpenAIError(errors.New("private supplier details"), types.ErrorCodeBadResponseStatusCode, 503)
 	service.NormalizeRelayServiceFault(fault)
 	channel := types.NewChannelError(7, 1, "fixture", false, "", false)
@@ -296,10 +310,66 @@ func TestRelayAttemptLogsProduceOneFinalError(t *testing.T) {
 	assert.NotContains(t, logs[0].Content, "private")
 	var other struct {
 		AdminInfo struct {
-			Attempts []map[string]any `json:"attempts"`
+			Attempts      []map[string]any `json:"attempts"`
+			ImageMetadata map[string]any   `json:"image_request_metadata"`
 		} `json:"admin_info"`
 	}
 	require.NoError(t, common.UnmarshalJsonStr(logs[0].Other, &other))
 	require.Len(t, other.AdminInfo.Attempts, 1)
 	assert.Equal(t, float64(503), other.AdminInfo.Attempts[0]["status_code"])
+	assert.Equal(t, float64(2), other.AdminInfo.ImageMetadata["requested_count"])
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cancel(errors.New("secret cancellation reason"))
+	fault = service.ClassifyRelayRequestCancellation(ctx, types.NewError(errors.New("https://secret.example/?key=private"), types.ErrorCodeDoRequestFailed), time.Now())
+	processChannelError(c, *channel, fault)
+	require.NoError(t, db.Order("id").Find(&logs).Error)
+	require.Len(t, logs, 2)
+	assert.Contains(t, logs[1].Other, "request_cancelled")
+	assert.Contains(t, logs[1].Other, "incoming_context_cancelled")
+	assert.Contains(t, logs[1].Other, "elapsed_ms")
+	assert.NotContains(t, logs[1].Other, "secret")
+	assert.NotContains(t, logs[1].Content, "secret")
+}
+
+func TestRelayCancellationRequiresIncomingContextEvidence(t *testing.T) {
+	oldDisable := common.AutomaticDisableChannelEnabled
+	common.AutomaticDisableChannelEnabled = true
+	t.Cleanup(func() { common.AutomaticDisableChannelEnabled = oldDisable })
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	expired, cancelDeadline := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancelDeadline()
+	for _, tc := range []struct {
+		name   string
+		ctx    context.Context
+		code   types.ErrorCode
+		want   types.ErrorCode
+		status int
+	}{
+		{"upstream text only", context.Background(), types.ErrorCodeDoRequestFailed, types.ErrorCodeDoRequestFailed, 500},
+		{"cancelled transport", cancelled, types.ErrorCodeDoRequestFailed, types.ErrorCodeRequestCancelled, 499},
+		{"incoming deadline", expired, types.ErrorCodeReadResponseBodyFailed, types.ErrorCodeRequestTimeout, 408},
+		{"real upstream response after cancel", cancelled, types.ErrorCodeBadResponseStatusCode, types.ErrorCodeBadResponseStatusCode, 500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := types.NewError(errors.New("context canceled"), tc.code)
+			fault := service.ClassifyRelayRequestCancellation(tc.ctx, original, time.Now().Add(-time.Second))
+			require.NotNil(t, fault)
+			assert.Equal(t, tc.want, fault.GetErrorCode())
+			assert.Equal(t, tc.status, fault.StatusCode)
+			if tc.want == tc.code {
+				assert.Same(t, original, fault)
+				return
+			}
+			service.NormalizeRelayServiceFault(fault)
+			assert.Equal(t, tc.want, fault.ToOpenAIError().Code)
+			assert.Equal(t, string(tc.want), fault.ToClaudeError().Type)
+			assert.False(t, service.ShouldDisableChannel(fault))
+			assert.True(t, types.IsRecordErrorLog(fault))
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/chat/completions", nil)
+			assert.False(t, shouldRetry(c, fault, 3))
+		})
+	}
 }

@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
@@ -161,6 +163,47 @@ func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) 
 		}
 		newApiErr.StatusCode = intCode
 	}
+}
+
+// ClassifyRelayRequestCancellation requires evidence from the incoming request,
+// never just an upstream message. Explicit upstream rejections remain failures.
+func ClassifyRelayRequestCancellation(ctx context.Context, err *types.NewAPIError, started time.Time) *types.NewAPIError {
+	if err == nil || ctx == nil || ctx.Err() == nil || IsRelayRequestCancellation(err) {
+		return err
+	}
+	switch err.GetErrorCode() {
+	case types.ErrorCodeDoRequestFailed, types.ErrorCodeReadRequestBodyFailed, types.ErrorCodeReadResponseBodyFailed:
+	default:
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+	}
+	code, status, message := types.ErrorCodeRequestCancelled, 499, "The request was cancelled."
+	cause := "incoming_context_cancelled"
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		code, status, message = types.ErrorCodeRequestTimeout, http.StatusRequestTimeout, "The request deadline was exceeded."
+		cause = "incoming_context_deadline_exceeded"
+	}
+	fault := types.NewErrorWithStatusCode(ctx.Err(), code, status, types.ErrOptionWithSkipRetry())
+	fault.SetPublicFault(code, message, status)
+	// Do not serialize context.Cause or the transport message: either can contain
+	// credentials, prompts or a complete upstream URL.
+	details := map[string]any{"cause": cause, "original_error_code": err.GetErrorCode(), "original_status_code": err.OriginalStatusCode()}
+	if !started.IsZero() {
+		details["elapsed_ms"] = max(int64(0), time.Since(started).Milliseconds())
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		details["deadline_exceeded"] = !time.Now().Before(deadline)
+		if !started.IsZero() {
+			details["deadline_budget_ms"] = max(int64(0), deadline.Sub(started).Milliseconds())
+		}
+	}
+	fault.SetDiagnostic(details)
+	return fault
+}
+
+func IsRelayRequestCancellation(err *types.NewAPIError) bool {
+	return err != nil && (err.GetErrorCode() == types.ErrorCodeRequestCancelled || err.GetErrorCode() == types.ErrorCodeRequestTimeout) && types.IsSkipRetryError(err)
 }
 
 // NormalizeRelayServiceFault replaces non-local relay failures with stable

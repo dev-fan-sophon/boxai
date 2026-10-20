@@ -272,6 +272,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		newAPIError = service.ClassifyRelayRequestCancellation(c.Request.Context(), newAPIError, common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime))
 		relayInfo.LastError = newAPIError
 		service.NormalizeRelayServiceFault(newAPIError)
 
@@ -289,11 +290,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		logger.LogInfo(c, retryLogStr)
 	}
 	if newAPIError != nil {
+		newAPIError = service.ClassifyRelayRequestCancellation(c.Request.Context(), newAPIError, common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime))
 		c.Set("relay_retry_attempt", false)
 		processChannelError(c, *types.NewChannelError(c.GetInt("channel_id"), c.GetInt("channel_type"), c.GetString("channel_name"), common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey), common.GetContextKeyString(c, constant.ContextKeyChannelKey), c.GetBool("auto_ban")), newAPIError)
-		gopool.Go(func() {
-			perfmetrics.RecordRelaySample(relayInfo, false, 0)
-		})
+		if !service.IsRelayRequestCancellation(newAPIError) {
+			gopool.Go(func() {
+				perfmetrics.RecordRelaySample(relayInfo, false, 0)
+			})
+		}
 	}
 }
 
@@ -408,7 +412,11 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
-	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
+	if service.IsRelayRequestCancellation(err) {
+		logger.LogInfo(c, fmt.Sprintf("relay request ended (channel #%d, code: %s)", channelError.ChannelId, err.PublicCode()))
+	} else {
+		logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
+	}
 	if c.GetBool("relay_retry_attempt") {
 		attempts, _ := c.Get("relay_attempt_errors")
 		records, _ := attempts.([]map[string]any)
@@ -447,6 +455,11 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
 		adminInfo := make(map[string]interface{})
+		if metadata, exists := c.Get("image_request_metadata"); exists {
+			if details, ok := metadata.(map[string]any); ok {
+				adminInfo["image_request_metadata"] = details
+			}
+		}
 		if diagnostic := err.Diagnostic(); diagnostic != nil {
 			diagnostic["attempted_channel_ids"] = c.GetStringSlice("use_channel")
 			adminInfo["diagnostic_error"] = diagnostic
