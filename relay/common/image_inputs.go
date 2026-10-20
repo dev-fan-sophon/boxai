@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -14,7 +18,51 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/gin-gonic/gin"
+	_ "golang.org/x/image/webp"
 )
+
+// ImageRequestMetadata inspects local headers only. Never fetch reference URLs
+// for diagnostics or retain prompts, URLs, filenames or inline image content.
+func ImageRequestMetadata(c *gin.Context, request dto.ImageRequest) map[string]any {
+	metadata := map[string]any{"request_bytes": c.Request.ContentLength}
+	if deadline, ok := c.Request.Context().Deadline(); ok {
+		metadata["deadline_unix_ms"] = deadline.UnixMilli()
+	}
+	references := make([]map[string]any, 0)
+	if strings.Contains(c.GetHeader("Content-Type"), "multipart/form-data") {
+		for _, header := range MultipartImageHeaders(c.Request.MultipartForm) {
+			entry := map[string]any{"source": "multipart", "bytes": header.Size}
+			if file, err := header.Open(); err == nil {
+				config, format, err := image.DecodeConfig(io.LimitReader(file, 1<<20))
+				_ = file.Close()
+				if err == nil {
+					entry["width"], entry["height"], entry["format"] = config.Width, config.Height, format
+				}
+			}
+			references = append(references, entry)
+		}
+		metadata["has_mask"] = c.Request.MultipartForm != nil && len(c.Request.MultipartForm.File["mask"]) > 0
+	} else {
+		urls, err := JSONImageReferences(request)
+		metadata["references_parsed"] = err == nil
+		for _, reference := range urls {
+			entry := map[string]any{"source": "url"}
+			if header, encoded, ok := strings.Cut(reference, ","); ok && strings.HasPrefix(header, "data:") && strings.HasSuffix(header, ";base64") {
+				entry["source"] = "inline"
+				entry["bytes"] = len(encoded)*3/4 - (len(encoded) - len(strings.TrimRight(encoded, "=")))
+				reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(encoded))
+				if config, format, err := image.DecodeConfig(io.LimitReader(reader, 1<<20)); err == nil {
+					entry["width"], entry["height"], entry["format"] = config.Width, config.Height, format
+				}
+			}
+			references = append(references, entry)
+		}
+		metadata["has_mask"] = len(request.Mask) > 0 && string(request.Mask) != "null"
+	}
+	metadata["reference_count"] = len(references)
+	metadata["references"] = references
+	return metadata
+}
 
 // ImageEditInputs returns the reference images (data URLs or http(s) URLs)
 // and the optional mask of an image edit request, whether it arrived as

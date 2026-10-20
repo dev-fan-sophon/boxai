@@ -43,6 +43,12 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 		*field = resolved
 	}
 
+	metadata := relaycommon.ImageRequestMetadata(c, *request)
+	c.Set("image_request_metadata", metadata)
+	if encoded, err := common.Marshal(metadata); err == nil {
+		logger.LogInfo(c, "image request metadata: "+string(encoded))
+	}
+
 	err = helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
@@ -89,7 +95,7 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 				}
 			}
 
-			logger.LogDebug(c, "image request body: %s", jsonData)
+			metadata["upstream_request_bytes"] = len(jsonData)
 			body, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
