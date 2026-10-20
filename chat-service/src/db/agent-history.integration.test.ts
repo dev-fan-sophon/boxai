@@ -637,6 +637,39 @@ integrationTest('agent history PostgreSQL transactions', () => {
     expect(replacementFinish).not.toBeNull()
   })
 
+  test('keeps a local deadline failure distinct from an explicit empty stop', async () => {
+    if (!sql) return
+    const conversationId = await createConversation()
+    const deadlineMessage = 'Chat service generation time limit reached. The request was canceled locally.'
+    for (const ending of ['timeout', 'stop'] as const) {
+      const started = await history.startAgentRun({
+        conversationId,
+        userId: 7,
+        trigger: 'submit-message',
+        incoming: { content: 'slow request', clientKey: crypto.randomUUID() },
+        requestKey: crypto.randomUUID(),
+        model: 'test-model',
+      })
+      if (ending === 'timeout') {
+        await history.failAgentRun(started.runId, 7, deadlineMessage)
+      } else {
+        await history.requestAgentRunStop(started.runId, 7, conversationId)
+        await history.stopAgentRun(started.runId, 7, conversationId)
+      }
+      const rows = await sql<{ status: string; error_message: string }[]>`
+        SELECT status, error_message FROM playground_agent_runs WHERE id = ${started.runId}
+      `
+      expect([...rows]).toEqual([{
+        status: ending === 'timeout' ? 'failed' : 'stopped',
+        error_message: ending === 'timeout' ? deadlineMessage : '',
+      }])
+      const conversations = await sql<{ active_run_id: string }[]>`
+        SELECT active_run_id FROM playground_conversations WHERE id = ${conversationId}
+      `
+      expect(conversations[0]?.active_run_id).toBe('')
+    }
+  })
+
   test('persists a partial stopped answer and makes later stop idempotent', async () => {
     if (!sql) return
     const conversationId = await createConversation()

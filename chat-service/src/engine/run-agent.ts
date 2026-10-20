@@ -73,8 +73,8 @@ export async function runAgent(input: AgentRunInput) {
     // Tools can legitimately take minutes, but a lost upstream request must
     // eventually terminate the AI SDK stream and release the durable run.
     timeout: {
-      totalMs: 10 * 60_000,
-      stepMs: 3 * 60_000,
+      totalMs: 20 * 60_000,
+      stepMs: 10 * 60_000,
       toolMs: 7 * 60_000,
     },
     stopWhen: stepCountIs(input.maxSteps ?? 8),
@@ -84,6 +84,24 @@ export async function runAgent(input: AgentRunInput) {
         })
       : undefined,
     abortSignal: input.abortSignal,
+    // SDK deadlines emit abort, not error. Only explicit cancellation should
+    // look like a user stop; keep the SDK's transport abort for billing while
+    // exposing a local deadline as an error to both persistence and the UI.
+    experimental_transform: () =>
+      new TransformStream({
+        transform(chunk, controller) {
+          if (chunk.type === 'abort' && !input.abortSignal?.aborted) {
+            controller.enqueue({
+              type: 'error',
+              error: new Error(
+                'Chat service generation time limit reached. The request was canceled locally; this does not mean the model provider failed. Please try again.'
+              ),
+            })
+            return
+          }
+          controller.enqueue(chunk)
+        },
+      }),
     onError: ({ error }) => input.onError?.(error),
     onToolExecutionEnd: (event) => {
       if (event.toolOutput.type !== 'tool-error') return

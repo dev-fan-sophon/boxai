@@ -262,6 +262,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
   }
 
   let result
+  let generationError: string | undefined
   const agentSetupStartedAt = performance.now()
   try {
     const toolPolicy = buildTools(
@@ -286,6 +287,7 @@ chatRoute.post('/', sessionAuth, async (c) => {
       reasoning: parsed.data.reasoning,
       abortSignal: generationController.signal,
       onError: (error) => {
+        generationError = truncateUtf8(errorMessage(error), 500) || 'generation failed'
         console.error(`agent generation failed (run ${started.runId}):`, error)
       },
     })
@@ -304,6 +306,10 @@ chatRoute.post('/', sessionAuth, async (c) => {
       truncateUtf8(errorMessage(error), 500) || 'generation failed',
     onEnd: async ({ responseMessage, isAborted }) => {
       try {
+        if (generationError && !isAborted) {
+          await failAgentRun(started.runId, user.id, generationError)
+          return
+        }
         const text = truncateUtf8(messageText(responseMessage), 60_000)
         const parts = responseMessage.parts ?? []
         const contentJson = persistedAssistantParts(parts)
