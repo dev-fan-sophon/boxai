@@ -33,6 +33,10 @@ func GetTopUpInfo(c *gin.Context) {
 	}
 
 	enableBankQR := isBankQRTopUpEnabled()
+	enableSePay := isSePayTopUpEnabled()
+	if enableSePay {
+		payMethods = append(payMethods, map[string]string{"name": "SePay", "type": model.PaymentMethodSePay, "min_topup": strconv.FormatInt(operation_setting.GetSePaySetting().MinTopUp, 10)})
+	}
 	if enableBankQR {
 		payMethods = append(payMethods, map[string]string{
 			"name": "Bank QR", "type": model.PaymentMethodBankQR,
@@ -106,6 +110,8 @@ func GetTopUpInfo(c *gin.Context) {
 	}
 
 	data := gin.H{
+		"enable_sepay_topup":               enableSePay,
+		"sepay_min_topup":                  operation_setting.GetSePaySetting().MinTopUp,
 		"enable_online_topup":              isEpayTopUpEnabled(),
 		"enable_bank_qr_topup":             enableBankQR,
 		"bank_qr_min_topup":                bankQRMinVND(),

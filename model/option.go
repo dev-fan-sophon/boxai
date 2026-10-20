@@ -216,6 +216,7 @@ func InitOptionMap() {
 }
 
 func loadOptionsFromDatabase() {
+	loadSePaySetting()
 	_ = operation_setting.WithBankQRSettingsUpdate(func() error {
 		options, _ := AllOption()
 		for _, option := range options {
@@ -238,6 +239,9 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if strings.HasPrefix(key, operation_setting.SePayOptionKey) {
+		return fmt.Errorf("SePay settings require the dedicated endpoint")
+	}
 	if key == operation_setting.RegistrationRiskOptionKey {
 		_, err := operation_setting.ParseRegistrationRiskPolicy(value)
 		return err
@@ -349,6 +353,9 @@ func UpdateOptionsBulk(values map[string]string) error {
 }
 
 func updateOptionMap(key string, value string) (err error) {
+	if strings.HasPrefix(key, operation_setting.SePayOptionKey) {
+		return nil
+	}
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
 	if key == operation_setting.RegistrationRiskOptionKey {

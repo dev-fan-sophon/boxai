@@ -133,6 +133,9 @@ func GetOptions(c *gin.Context) {
 	optionValues := make(map[string]string)
 	common.OptionMapRWMutex.Lock()
 	for k, v := range common.OptionMap {
+		if strings.HasPrefix(k, operation_setting.SePayOptionKey) {
+			continue
+		}
 		if k == model.ModelPricingRevisionKey {
 			continue
 		}
@@ -213,7 +216,7 @@ func UpdateOption(c *gin.Context) {
 		common.ApiErrorMsg(c, "model pricing revision is managed internally")
 		return
 	}
-	if strings.HasPrefix(option.Key, "bank_qr_setting.") {
+	if strings.HasPrefix(option.Key, "bank_qr_setting.") || strings.HasPrefix(option.Key, operation_setting.SePayOptionKey) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgOptionBankQRDedicatedEndpoint))
 		return
 	}

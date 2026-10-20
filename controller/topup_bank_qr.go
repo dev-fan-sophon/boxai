@@ -115,11 +115,6 @@ func RequestBankQRAmount(c *gin.Context) {
 
 func RequestBankQRPay(c *gin.Context) {
 	bankSetting := operation_setting.GetBankQRSetting()
-	snapshot, configErr := sePayCheckoutSnapshot(bankSetting.AccountNumber)
-	if configErr != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": configErr.Error()})
-		return
-	}
 	if !isPaymentComplianceConfirmed() || !operation_setting.IsBankQRSettingConfigured(bankSetting) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRTopUpDisabled))
 		return
@@ -166,8 +161,7 @@ func RequestBankQRPay(c *gin.Context) {
 	}
 
 	order := &model.TopUp{
-		SePaySnapshot: snapshot,
-		UserId:        userID, TradeNo: tradeNo,
+		UserId: userID, TradeNo: tradeNo,
 		PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR,
 		CreateTime: common.GetTimestamp(), Status: common.TopUpStatusPending,
 	}
@@ -204,11 +198,6 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 		return
 	}
 	bankSetting := operation_setting.GetBankQRSetting()
-	snapshot, configErr := sePayCheckoutSnapshot(bankSetting.AccountNumber)
-	if configErr != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": configErr.Error()})
-		return
-	}
 	if !operation_setting.IsBankQRSettingConfigured(bankSetting) {
 		common.ApiErrorMsg(c, i18n.T(c, i18n.MsgPaymentBankQRDisabled))
 		return
@@ -278,7 +267,6 @@ func SubscriptionRequestBankQRPay(c *gin.Context) {
 		return
 	}
 	order := &model.SubscriptionOrder{UserId: userID, PlanId: plan.Id, Money: plan.PriceAmount, TradeNo: tradeNo, PaymentMethod: model.PaymentMethodBankQR, PaymentProvider: model.PaymentProviderBankQR, Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(), ProviderPayload: string(providerPayload)}
-	order.SePaySnapshot = snapshot
 	if err := model.CreatePendingBankQRSubscriptionOrder(order, maxPendingBankQROrders); err != nil {
 		common.ApiErrorMsg(c, topUpPaymentError(c, err))
 		return

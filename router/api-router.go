@@ -99,6 +99,9 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/stripe/webhook", anonymousRequestBodyLimit, controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", anonymousRequestBodyLimit, controller.CreemWebhook)
 		apiRouter.POST("/sepay/webhook", anonymousRequestBodyLimit, controller.SePayWebhook)
+		apiRouter.GET("/sepay/settings", middleware.RootAuth(), controller.GetSePaySettings)
+		apiRouter.PUT("/sepay/settings", middleware.RootAuth(), controller.UpdateSePaySettings)
+		apiRouter.GET("/sepay/events", middleware.RootAuth(), controller.GetSePayEvents)
 		apiRouter.POST("/waffo/webhook", anonymousRequestBodyLimit, controller.WaffoWebhook)
 		// :env separates test vs prod URLs so the operator can register each
 		// in Pancake's matching webhook slot; handler enforces env match.
@@ -210,6 +213,10 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), controller.RequestEpay)
 				selfRoute.POST("/amount", controller.RequestAmount)
 				selfRoute.POST("/bank-qr/amount", controller.RequestBankQRAmount)
+				selfRoute.POST("/sepay/amount", middleware.CriticalRateLimit(), controller.RequestSePayAmount)
+				selfRoute.POST("/sepay/pay", middleware.CriticalRateLimit(), controller.RequestSePayPay)
+				selfRoute.GET("/sepay/:trade_no", controller.SePayInvoice)
+				selfRoute.POST("/sepay/:trade_no/cancel", middleware.CriticalRateLimit(), controller.SePayInvoice)
 				selfRoute.POST("/bank-qr/pay", middleware.CriticalRateLimit(), controller.RequestBankQRPay)
 				selfRoute.GET("/bank-qr/:trade_no/status", controller.BankQRPaymentStatus)
 				selfRoute.GET("/topup/submissions/:id/proof", controller.GetUserTopUpProof)
@@ -283,6 +290,7 @@ func SetApiRouter(router *gin.Engine) {
 			subscriptionRoute.POST("/self/renewal", middleware.CriticalRateLimit(), controller.SubscriptionUpdateRenewal)
 			subscriptionRoute.POST("/balance/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestBalancePay)
 			subscriptionRoute.POST("/bank-qr/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestBankQRPay)
+			subscriptionRoute.POST("/sepay/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestSePayPay)
 			subscriptionRoute.POST("/epay/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestEpay)
 			subscriptionRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestStripePay)
 			subscriptionRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestCreemPay)

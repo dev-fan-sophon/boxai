@@ -9,10 +9,12 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // SePaySnapshot is immutable checkout destination data, not live configuration.
 type SePaySnapshot struct {
+	SePayInvoice          string `json:"-" gorm:"type:text"`
 	AutomaticConfirmation bool   `json:"automatic_confirmation"`
 	SePayGateway          string `json:"-" gorm:"type:varchar(128)"`
 	SePayAccount          string `json:"-" gorm:"type:varchar(128)"`
@@ -40,6 +42,11 @@ type SePayEvent struct {
 	Reason     string `gorm:"type:varchar(64)"`
 	Payload    string `gorm:"type:text"`
 	ReceivedAt int64
+}
+
+// Serializes provider event deduplication across processes and SQLite writers.
+type SePaySettlementLock struct {
+	ID int `gorm:"primaryKey;autoIncrement:false"`
 }
 
 type BankQROrderStatus struct {
@@ -90,7 +97,10 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 	var userID, quota int
 	var group string
 	err = DB.Transaction(func(tx *gorm.DB) error {
-		if err := lockTopUpDiscounts(tx); err != nil {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&SePaySettlementLock{ID: 1}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&SePaySettlementLock{}).Where("id = ?", 1).UpdateColumn("id", 1).Error; err != nil {
 			return err
 		}
 		var existing SePayEvent
@@ -107,7 +117,7 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 			return tx.Create(&event).Error
 		}
 		paid, amountErr := decimal.NewFromString(string(transfer.TransferAmount))
-		if amountErr != nil || len(transfer.TransferAmount) > 32 || paid.Exponent() < -10 || paid.Exponent() > 10 || !paid.IsPositive() || !paid.Equal(paid.Truncate(0)) {
+		if amountErr != nil || len(transfer.TransferAmount) > 32 || paid.Exponent() < -10 || paid.Exponent() > 10 || !paid.IsPositive() || paid.GreaterThanOrEqual(decimal.NewFromInt(MaxTopUpFaceVND)) || !paid.Equal(paid.Truncate(0)) {
 			event.Reason = "invalid_amount"
 			return tx.Create(&event).Error
 		}
@@ -125,10 +135,24 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 		var topups []TopUp
 		var orders []SubscriptionOrder
 		if len(tokens) > 0 {
-			if err := lockForUpdate(tx).Where("trade_no IN ? AND payment_provider = ?", tokens, PaymentProviderBankQR).Find(&topups).Error; err != nil {
+			// Legacy orders still use the manual-review lock ordering. Independent
+			// SePay orders never read discount configuration or reserve coupons.
+			var legacyTopups, legacyOrders int64
+			if err := tx.Model(&TopUp{}).Where("trade_no IN ? AND payment_provider = ?", tokens, PaymentProviderBankQR).Count(&legacyTopups).Error; err != nil {
 				return err
 			}
-			if err := lockForUpdate(tx).Where("trade_no IN ? AND payment_provider = ?", tokens, PaymentProviderBankQR).Find(&orders).Error; err != nil {
+			if err := tx.Model(&SubscriptionOrder{}).Where("trade_no IN ? AND payment_provider = ?", tokens, PaymentProviderBankQR).Count(&legacyOrders).Error; err != nil {
+				return err
+			}
+			if legacyTopups+legacyOrders > 0 {
+				if err := lockTopUpDiscounts(tx); err != nil {
+					return err
+				}
+			}
+			if err := lockForUpdate(tx).Where("trade_no IN ? AND (payment_provider = ? OR (payment_provider = ? AND se_pay_invoice <> ?))", tokens, PaymentProviderBankQR, PaymentProviderSePay, "").Find(&topups).Error; err != nil {
+				return err
+			}
+			if err := lockForUpdate(tx).Where("trade_no IN ? AND payment_provider IN ?", tokens, []string{PaymentProviderBankQR, PaymentProviderSePay}).Find(&orders).Error; err != nil {
 				return err
 			}
 		}
@@ -156,6 +180,14 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 			invalidSnapshot = common.UnmarshalJsonStr(o.ProviderPayload, &p) != nil || p.Version != 1 || p.Currency != "VND" || p.Plan.Id != o.PlanId
 			amount = p.Amount
 		}
+		if provider == PaymentProviderSePay {
+			var invoice SePayInvoice
+			invalidSnapshot = invalidSnapshot || common.UnmarshalJsonStr(snapshot.SePayInvoice, &invoice) != nil || invoice.TradeNo != event.TradeNo || invoice.Amount != amount || invoice.Currency != "VND" || invoice.AccountNumber != snapshot.SePayAccount
+			expired = invoice.ExpiresAt <= common.GetTimestamp()
+			if len(topups) == 1 {
+				invalidSnapshot = invalidSnapshot || topups[0].FaceAmountMinor != amount || topups[0].FaceCurrency != "VND" || topups[0].AmountUnit != TopUpAmountUnitUSDCent
+			}
+		}
 		subAccount := ""
 		if transfer.SubAccount != nil {
 			subAccount = *transfer.SubAccount
@@ -169,7 +201,7 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 		switch {
 		case !exactReference:
 			event.Reason = "unmatched"
-		case !snapshot.AutomaticConfirmation || snapshot.SePayGateway == "" || snapshot.SePayAccount == "" || provider != PaymentProviderBankQR || method != PaymentMethodBankQR:
+		case !snapshot.AutomaticConfirmation || snapshot.SePayGateway == "" || snapshot.SePayAccount == "" || !((provider == PaymentProviderBankQR && method == PaymentMethodBankQR) || (provider == PaymentProviderSePay && method == PaymentMethodSePay)):
 			event.Reason = "manual_order"
 		case status != common.TopUpStatusPending:
 			event.Reason = "order_" + status
@@ -182,6 +214,14 @@ func ProcessSePayTransfer(transfer SePayTransfer) error {
 		case amount <= 0 || !paid.Equal(decimal.NewFromInt(amount)):
 			event.Reason = "amount_mismatch"
 		default:
+			if provider == PaymentProviderSePay {
+				quota, group, err = fulfillSePayOrderTx(tx, topups, orders)
+				if err != nil {
+					return err
+				}
+				event.Reason = "settled"
+				return tx.Create(&event).Error
+			}
 			// Reuse manual settlement's quota guard, plan snapshot and audit row.
 			var submission TopUpSubmission
 			err := tx.Where("trade_no = ? AND status = ?", event.TradeNo, TopUpSubmissionSubmitted).First(&submission).Error

@@ -534,7 +534,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		if topUp.Status != common.TopUpStatusPending {
 			return errors.New("订单状态不是待支付，无法补单")
 		}
-		if topUp.PaymentProvider == PaymentProviderBankQR {
+		if topUp.PaymentProvider == PaymentProviderBankQR || topUp.PaymentProvider == PaymentProviderSePay {
 			return ErrBankQRProofReviewRequired
 		}
 

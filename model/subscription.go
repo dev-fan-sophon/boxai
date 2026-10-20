@@ -712,6 +712,9 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		if expectedPaymentProvider != "" && order.PaymentProvider != expectedPaymentProvider {
 			return ErrPaymentMethodMismatch
 		}
+		if order.PaymentProvider == PaymentProviderSePay {
+			return ErrPaymentMethodMismatch
+		}
 		if order.Status == common.TopUpStatusSuccess {
 			return nil
 		}

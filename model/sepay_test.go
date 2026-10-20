@@ -11,7 +11,7 @@ import (
 func sePayFixture(t *testing.T) (TopUp, SePayTransfer) {
 	t.Helper()
 	setupTopUpSubmissionTestDB(t)
-	require.NoError(t, DB.AutoMigrate(&SePayEvent{}))
+	require.NoError(t, DB.AutoMigrate(&SePayEvent{}, &SePaySettlementLock{}))
 	require.NoError(t, DB.Create(&User{Id: 1, Username: "sepay", AffCode: "sepay"}).Error)
 	order := TopUp{UserId: 1, TradeNo: "BOX123456789ABC", Amount: 1000, AmountUnit: TopUpAmountUnitUSDCent, PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending,
 		SePaySnapshot:         SePaySnapshot{AutomaticConfirmation: true, SePayGateway: "MBBank", SePayAccount: "12345"},

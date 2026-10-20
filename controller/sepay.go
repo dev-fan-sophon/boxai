@@ -7,30 +7,19 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func sePayCheckoutSnapshot(account string) (model.SePaySnapshot, error) {
-	if os.Getenv("SEPAY_WEBHOOK_SECRET") == "" {
-		return model.SePaySnapshot{}, nil
-	}
-	gateway := strings.TrimSpace(os.Getenv("SEPAY_BANK_GATEWAY"))
-	if gateway == "" {
-		return model.SePaySnapshot{}, errors.New("SePay bank gateway is not configured")
-	}
-	return model.SePaySnapshot{AutomaticConfirmation: true, SePayGateway: gateway, SePayAccount: account, SePaySubAccount: strings.TrimSpace(os.Getenv("SEPAY_SUB_ACCOUNT"))}, nil
-}
-
 func SePayWebhook(c *gin.Context) {
-	secret := os.Getenv("SEPAY_WEBHOOK_SECRET")
+	secret := operation_setting.GetSePaySetting().WebhookSecret
 	ts := c.GetHeader("X-SePay-Timestamp")
 	timestamp, err := strconv.ParseInt(ts, 10, 64)
 	now := time.Now().Unix()

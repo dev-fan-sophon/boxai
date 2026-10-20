@@ -13,6 +13,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,9 @@ func signedSePayRequest(body, timestamp, secret string) *http.Request {
 }
 
 func TestSePayWebhookAuthentication(t *testing.T) {
-	t.Setenv("SEPAY_WEBHOOK_SECRET", "test-secret")
+	old := operation_setting.GetSePaySetting()
+	t.Cleanup(func() { operation_setting.SetSePaySetting(old) })
+	operation_setting.SetSePaySetting(operation_setting.SePaySetting{WebhookSecret: "test-secret"})
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 	for _, tc := range []struct {
 		name, body, timestamp, secret string
@@ -55,11 +58,13 @@ func TestSePayWebhookAuthentication(t *testing.T) {
 }
 
 func TestSePaySignedSettlementAndStatusOwnership(t *testing.T) {
-	t.Setenv("SEPAY_WEBHOOK_SECRET", "test-secret")
+	old := operation_setting.GetSePaySetting()
+	t.Cleanup(func() { operation_setting.SetSePaySetting(old) })
+	operation_setting.SetSePaySetting(operation_setting.SePaySetting{WebhookSecret: "test-secret"})
 	oldDB, oldQuota := model.DB, common.QuotaPerUnit
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.SubscriptionOrder{}, &model.TopUpPromotion{}, &model.TopUpSubmission{}, &model.SePayEvent{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.SubscriptionOrder{}, &model.TopUpPromotion{}, &model.TopUpSubmission{}, &model.SePayEvent{}, &model.SePaySettlementLock{}))
 	model.DB, common.QuotaPerUnit = db, 100
 	t.Cleanup(func() { model.DB, common.QuotaPerUnit = oldDB, oldQuota })
 	require.NoError(t, db.Create(&model.User{Id: 1, Username: "sepay", AffCode: "sepay"}).Error)
@@ -107,11 +112,14 @@ func TestSePaySignedSettlementAndStatusOwnership(t *testing.T) {
 }
 
 func TestSePayCheckoutRejectsIncompleteConfiguration(t *testing.T) {
+	old := operation_setting.GetSePaySetting()
+	t.Cleanup(func() { operation_setting.SetSePaySetting(old) })
+	operation_setting.SetSePaySetting(operation_setting.SePaySetting{MinTopUp: 10000, TransferPrefix: "SEPAY"})
 	t.Setenv("SEPAY_WEBHOOK_SECRET", "test-secret")
 	t.Setenv("SEPAY_BANK_GATEWAY", "")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"amount":100000}`))
-	RequestBankQRPay(c)
-	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	RequestSePayPay(c)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
