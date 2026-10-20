@@ -430,9 +430,12 @@ Setup, after explicit production deployment/configuration approval:
 
 1. Link the receiving bank in [SePay](https://docs.sepay.vn/them-tai-khoan-ngan-hang.html).
    Prefer a direct bank API connection for prompt confirmation.
-2. Configure SePay's own bank name/BIN, bank gateway, receiving account, account
-   holder, minimum VND amount (10,000–499,999,999), transfer prefix and webhook
-   secret. The bank gateway is the exact SePay payload value (e.g. `MBBank`), not
+2. Select the bank, then enter the receiving account, account holder and HMAC
+   webhook secret. The selector fills the bank name, BIN and gateway using
+   SePay's published bank catalog. Advanced Settings retains manual bank overrides,
+   sub-account, minimum VND amount (10,000–499,999,999), transfer prefix and secret
+   removal. Existing advanced values are preserved when saving the basic form.
+   The bank gateway must match the SePay payload value (e.g. `MBBank`), not
    the six-digit VietQR bank BIN. Payment compliance must
    be confirmed, currency display VND, and the VND/USD exchange rate valid.
 3. Leave sub-account blank for a normal bank account. A virtual account

@@ -10,12 +10,47 @@ import { CopyButton } from '@/components/copy-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { TitledCard } from '@/components/ui/titled-card'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { ApiResponse } from '../types'
+
+// SePay's published bank identifiers: https://vietqr.app/banks.json
+// Keep this local so payment configuration does not depend on a third-party fetch.
+const banks = [
+  { bin: '970415', name: 'VietinBank' },
+  { bin: '970436', name: 'Vietcombank' },
+  { bin: '970422', name: 'MBBank' },
+  { bin: '970416', name: 'ACB' },
+  { bin: '970432', name: 'VPBank' },
+  { bin: '970423', name: 'TPBank' },
+  { bin: '970426', name: 'MSB' },
+  { bin: '970449', name: 'LienVietPostBank' },
+  { bin: '970454', name: 'VietCapitalBank' },
+  { bin: '970418', name: 'BIDV' },
+  { bin: '970403', name: 'Sacombank' },
+  { bin: '970441', name: 'VIB' },
+  { bin: '970437', name: 'HDBank' },
+  { bin: '970440', name: 'SeABank' },
+  { bin: '970424', name: 'ShinhanBank' },
+  { bin: '970405', name: 'Agribank' },
+  { bin: '970407', name: 'Techcombank' },
+  { bin: '970409', name: 'BacABank' },
+  { bin: '970425', name: 'ABBANK' },
+  { bin: '970431', name: 'Eximbank' },
+  { bin: '970439', name: 'PublicBank' },
+  { bin: '970448', name: 'OCB' },
+  { bin: '970452', name: 'KienLongBank' },
+].sort((a, b) => a.name.localeCompare(b.name))
 
 const schema = z
   .object({
@@ -109,11 +144,13 @@ function SePaySettingsContent() {
     },
   })
   const labels = {
+    account_number: t('Account number'),
+    account_name: t('Account holder'),
+  }
+  const advancedLabels = {
     bank_name: t('Bank'),
     bank_bin: t('Bank BIN'),
     bank_gateway: t('Bank gateway'),
-    account_number: t('Account number'),
-    account_name: t('Account holder'),
     sub_account: t('Sub-account'),
     transfer_prefix: t('Transfer prefix'),
   }
@@ -163,6 +200,35 @@ function SePaySettingsContent() {
             <Label htmlFor='sepay-enabled'>{t('Enable SePay')}</Label>
           </div>
           <div className='grid gap-4 sm:grid-cols-2'>
+            <div className='space-y-2 sm:col-span-2'>
+              <Label htmlFor='sepay-bank'>{t('Bank')}</Label>
+              <Select
+                value={form.watch('bank_bin') || null}
+                onValueChange={(bin) => {
+                  const bank = banks.find((item) => item.bin === bin)
+                  if (!bank) return
+                  form.setValue('bank_bin', bank.bin)
+                  form.setValue('bank_name', bank.name)
+                  form.setValue('bank_gateway', bank.name)
+                }}
+              >
+                <SelectTrigger id='sepay-bank' className='w-full'>
+                  <SelectValue placeholder={t('Select')}>
+                    {banks.find((bank) => bank.bin === form.watch('bank_bin'))
+                      ?.name ||
+                      form.watch('bank_name') ||
+                      t('Select')}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {banks.map((bank) => (
+                    <SelectItem key={bank.bin} value={bank.bin}>
+                      {bank.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {Object.entries(labels).map(([key, label]) => (
               <div key={key} className='space-y-2'>
                 <Label htmlFor={`sepay-${key}`}>{label}</Label>
@@ -172,17 +238,6 @@ function SePaySettingsContent() {
                 />
               </div>
             ))}
-            <div className='space-y-2'>
-              <Label htmlFor='sepay-min'>{t('Minimum top-up')} (VND)</Label>
-              <Input
-                id='sepay-min'
-                type='number'
-                min={10000}
-                max={499999999}
-                step={1}
-                {...form.register('min_topup', { valueAsNumber: true })}
-              />
-            </div>
           </div>
           <p className='text-sm'>
             {settings.data.webhook_secret_configured
@@ -191,7 +246,7 @@ function SePaySettingsContent() {
           </p>
           <div className='space-y-2'>
             <Label htmlFor='sepay-secret'>
-              {t('Replace webhook secret (optional)')}
+              {t('Webhook secret')} (HMAC-SHA256)
             </Label>
             <Input
               id='sepay-secret'
@@ -200,14 +255,6 @@ function SePaySettingsContent() {
               {...form.register('webhook_secret')}
             />
           </div>
-          <label className='flex items-center gap-2 text-sm'>
-            <input
-              type='checkbox'
-              disabled={form.watch('enabled')}
-              {...form.register('clear_webhook_secret')}
-            />
-            {t('Clear stored secret on save (disable SePay first)')}
-          </label>
           <p className='text-muted-foreground text-sm'>
             {t(
               'Configure SePay to POST JSON to this callback using HMAC SHA256 and the same secret. An empty replacement keeps the existing secret.'
@@ -221,6 +268,41 @@ function SePaySettingsContent() {
             />
             <CopyButton value={settings.data.webhook_url} />
           </div>
+          <details className='space-y-4'>
+            <summary className='cursor-pointer text-sm font-medium'>
+              {t('Advanced Settings')}
+            </summary>
+            <div className='grid gap-4 sm:grid-cols-2'>
+              {Object.entries(advancedLabels).map(([key, label]) => (
+                <div key={key} className='space-y-2'>
+                  <Label htmlFor={`sepay-${key}`}>{label}</Label>
+                  <Input
+                    id={`sepay-${key}`}
+                    {...form.register(key as keyof typeof advancedLabels)}
+                  />
+                </div>
+              ))}
+              <div className='space-y-2'>
+                <Label htmlFor='sepay-min'>{t('Minimum top-up')} (VND)</Label>
+                <Input
+                  id='sepay-min'
+                  type='number'
+                  min={10000}
+                  max={499999999}
+                  step={1}
+                  {...form.register('min_topup', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+            <label className='flex items-center gap-2 text-sm'>
+              <input
+                type='checkbox'
+                disabled={form.watch('enabled')}
+                {...form.register('clear_webhook_secret')}
+              />
+              {t('Clear stored secret on save (disable SePay first)')}
+            </label>
+          </details>
           {(save.isError || Object.keys(form.formState.errors).length > 0) && (
             <p role='alert'>
               {t(
