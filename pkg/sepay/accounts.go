@@ -32,6 +32,14 @@ func (a BankAccount) SupportsCheckout() bool {
 	if (active != "true" && active != "1") || a.ID == "" || a.BankShortName == "" || len(a.BankShortName) > 128 || strings.TrimSpace(a.AccountHolder) == "" || len(a.AccountHolder) > 128 {
 		return false
 	}
+	// SePay locks parent-account webhooks for these banks: they require VA.
+	// https://developer.sepay.vn/vi/sepay-webhooks/tai-khoan-ngan-hang
+	// Match BINs from SePay's linked https://vietqr.app/banks.json catalog,
+	// not display-name casing or aliases. This integration does not support VA.
+	switch a.BankBIN {
+	case "970418", "970426", "970452", "970448": // BIDV, MSB, KienLongBank, OCB
+		return false
+	}
 	_, err := vietqr.Payload(a.BankBIN, a.AccountNumber, 10000, "SEPAYTEST")
 	return err == nil
 }

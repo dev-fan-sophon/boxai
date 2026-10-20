@@ -188,6 +188,55 @@ func TestSePaySettingsHTTPContract(t *testing.T) {
 	assert.NotContains(t, w.Body.String(), "sepay_setting")
 }
 
+func TestSePayRequiredVAParentsCannotBeListedOrSaved(t *testing.T) {
+	r := sePayHTTPFixture(t)
+	// Names and BINs from the bank catalog linked by SePay's official API docs.
+	banks := []struct{ id, name, bin string }{
+		{"bidv", "BIDV", "970418"},
+		{"msb", "MSB", "970426"},
+		{"kienlong", "KienLongBank", "970452"},
+		{"ocb", "OCB", "970448"},
+		{"acb", "ACB", "970416"},
+		{"mb", "MBBank", "970422"},
+	}
+	accounts := make([]map[string]any, 0, len(banks))
+	for _, bank := range banks {
+		accounts = append(accounts, map[string]any{"id": bank.id, "bank_short_name": bank.name, "bank_bin": bank.bin, "account_number": "0123456789", "account_holder_name": "FIXTURE HOLDER", "active": true})
+	}
+	body, err := common.Marshal(map[string]any{"status": "success", "data": accounts, "meta": map[string]any{"pagination": map[string]any{"current_page": 1, "last_page": 1, "has_more": false}}})
+	require.NoError(t, err)
+	http.DefaultTransport = sePayHTTPTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body)))}, nil
+	})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("POST", "/accounts", strings.NewReader(`{"api_token":"fixture-api-token"}`)))
+	require.Equal(t, 200, w.Code)
+	var listed struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &listed))
+	ids := []string{}
+	for _, account := range listed.Data {
+		ids = append(ids, account.ID)
+	}
+	assert.Equal(t, []string{"acb", "mb"}, ids)
+	// ACB and MB support parent-account receiving; do not exclude them just
+	// because official VAs are also available at these banks.
+	for _, id := range []string{"acb", "mb"} {
+		sePayHTTP(t, r, "PUT", "/settings", strings.ReplaceAll(sePaySettingsJSON, "linked-one", id), 200)
+	}
+	before := operation_setting.GetSePaySetting()
+	for _, bank := range banks[:4] {
+		t.Run(bank.name, func(t *testing.T) {
+			sePayHTTP(t, r, "PUT", "/settings", strings.ReplaceAll(sePaySettingsJSON, "linked-one", bank.id), 400)
+			assert.Equal(t, before, operation_setting.GetSePaySetting())
+			assert.Equal(t, "mb", sePayHTTP(t, r, "GET", "/settings", "", 200)["bank_account_id"])
+		})
+	}
+}
+
 func TestIndependentSePayHTTPOrderLifecycle(t *testing.T) {
 	for _, subscription := range []bool{false, true} {
 		t.Run(fmt.Sprint("subscription=", subscription), func(t *testing.T) {

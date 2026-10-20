@@ -436,7 +436,16 @@ Setup, after explicit production deployment/configuration approval:
    credentials or select an account. Saving resolves the selected UUID again with
    SePay; client-supplied bank/BIN/account/holder overrides are ignored.
    Only active accounts with a supplied BIN, bank short name, holder and a
-   VietQR-compatible numeric account number (1–19 digits) appear. Missing BINs
+   VietQR-compatible numeric account number (1–19 digits) appear. Parent accounts
+   for BIDV (970418), MSB (970426), KienLongBank (970452), and OCB (970448) are
+   excluded from both the selector and save revalidation: SePay's official
+   [webhook bank guide](https://developer.sepay.vn/vi/sepay-webhooks/tai-khoan-ngan-hang)
+   locks parent-account selection for these VA-required banks. Its linking steps
+   mention personal OCB accounts, but its webhook table and selection rules give
+   no corporate exception; BoxAI fails closed for OCB rather than assuming one.
+   BIN identifiers come from the [catalog linked by SePay](https://vietqr.app/banks.json).
+   ACB and MBBank parent accounts remain supported; offering optional VAs does
+   not make VA mandatory. Missing BINs
    are not inferred from a local catalog. API failures prevent activation, but
    disabling an unchanged configuration works without contacting SePay.
    The API token is **not** the HMAC webhook secret; enter the latter separately.
