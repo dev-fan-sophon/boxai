@@ -113,6 +113,7 @@ func TestTopUpDiscountConfigurationRequiresRoot(t *testing.T) {
 	for _, request := range []struct{ method, path, body string }{
 		{http.MethodGet, "/api/sepay/settings", ""},
 		{http.MethodPut, "/api/sepay/settings", `{"enabled":true}`},
+		{http.MethodPost, "/api/sepay/accounts", `{}`},
 		{http.MethodGet, "/api/sepay/events", ""},
 		{http.MethodGet, "/api/topup/promotion", ""},
 		{http.MethodPut, "/api/topup/promotion", `{"enabled":true,"percent_off":30,"min_amount":100000,"max_discount":100000}`},

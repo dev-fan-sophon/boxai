@@ -10,6 +10,8 @@ const SePayOptionKey = "sepay_setting"
 
 type SePaySetting struct {
 	Enabled        bool   `json:"enabled"`
+	APIToken       string `json:"api_token"`
+	BankAccountID  string `json:"bank_account_id"`
 	BankName       string `json:"bank_name"`
 	BankBIN        string `json:"bank_bin"`
 	BankGateway    string `json:"bank_gateway"`
@@ -28,6 +30,7 @@ func GetSePaySetting() SePaySetting  { return *sePaySnapshot.Load() }
 func SetSePaySetting(s SePaySetting) { sePaySnapshot.Store(&s) }
 
 func NormalizeSePaySetting(s *SePaySetting) {
+	s.APIToken = strings.TrimSpace(s.APIToken)
 	s.BankName = strings.TrimSpace(s.BankName)
 	s.BankBIN = strings.TrimSpace(s.BankBIN)
 	s.BankGateway = strings.TrimSpace(s.BankGateway)
@@ -47,7 +50,7 @@ func NormalizeSePaySetting(s *SePaySetting) {
 }
 
 func ValidateSePaySetting(s SePaySetting) error {
-	if s.MinTopUp < 10000 || s.MinTopUp >= 500000000 || s.TransferPrefix == "" || len(s.TransferPrefix) > 10 || len(s.WebhookSecret) > 4096 {
+	if s.MinTopUp < 10000 || s.MinTopUp >= 500000000 || s.TransferPrefix == "" || len(s.TransferPrefix) > 10 || len(s.WebhookSecret) > 4096 || len(s.APIToken) > 4096 || strings.ContainsAny(s.APIToken, "\r\n") || len(s.BankAccountID) > 128 {
 		return errors.New("invalid SePay settings")
 	}
 	if s.Enabled && (s.BankName == "" || len(s.BankName) > 128 || len(s.BankBIN) != 6 || !onlyDigits(s.BankBIN) || s.AccountNumber == "" || len(s.AccountNumber) > 19 || !onlyDigits(s.AccountNumber) || s.AccountName == "" || len(s.AccountName) > 128 || s.BankGateway == "" || len(s.BankGateway) > 128 || len(s.SubAccount) > 128 || strings.TrimSpace(s.WebhookSecret) == "") {

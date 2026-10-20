@@ -101,6 +101,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/sepay/webhook", anonymousRequestBodyLimit, controller.SePayWebhook)
 		apiRouter.GET("/sepay/settings", middleware.RootAuth(), controller.GetSePaySettings)
 		apiRouter.PUT("/sepay/settings", middleware.RootAuth(), controller.UpdateSePaySettings)
+		apiRouter.POST("/sepay/accounts", middleware.RootAuth(), middleware.CriticalRateLimit(), controller.ListSePayAccounts)
 		apiRouter.GET("/sepay/events", middleware.RootAuth(), controller.GetSePayEvents)
 		apiRouter.POST("/waffo/webhook", anonymousRequestBodyLimit, controller.WaffoWebhook)
 		// :env separates test vs prod URLs so the operator can register each

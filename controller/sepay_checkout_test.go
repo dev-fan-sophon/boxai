@@ -2,6 +2,8 @@ package controller
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
@@ -22,8 +24,20 @@ import (
 	"gorm.io/gorm"
 )
 
+type sePayHTTPTransport func(*http.Request) (*http.Response, error)
+
+func (f sePayHTTPTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
 func sePayHTTPFixture(t *testing.T) *gin.Engine {
 	t.Helper()
+	oldTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+	http.DefaultTransport = sePayHTTPTransport(func(r *http.Request) (*http.Response, error) {
+		if r.Header.Get("Authorization") != "Bearer fixture-api-token" {
+			return &http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"status":"success","data":[{"id":"linked-one","bank_short_name":"MBBank","bank_bin":"970422","account_number":"123456789","account_holder_name":"BOXAI","active":true},{"id":"linked-two","bank_short_name":"ACB","bank_bin":"970416","account_number":"987654321","account_holder_name":"SECOND HOLDER","active":1},{"id":"inactive","bank_short_name":"ACB","bank_bin":"970416","account_number":"88888","account_holder_name":"INACTIVE","active":0}],"meta":{"pagination":{"current_page":1,"last_page":1,"has_more":false}}}`))}, nil
+	})
 	require.NoError(t, i18n.Init())
 	oldDB, oldRate, oldQuota := model.DB, operation_setting.USDExchangeRate, common.QuotaPerUnit
 	oldConfig, oldBank := operation_setting.GetSePaySetting(), operation_setting.GetBankQRSetting()
@@ -57,6 +71,7 @@ func sePayHTTPFixture(t *testing.T) *gin.Engine {
 	})
 	r.GET("/settings", GetSePaySettings)
 	r.PUT("/settings", UpdateSePaySettings)
+	r.POST("/accounts", ListSePayAccounts)
 	r.GET("/info", GetTopUpInfo)
 	r.GET("/options", GetOptions)
 	r.POST("/amount", RequestSePayAmount)
@@ -91,7 +106,7 @@ func sePayHTTP(t *testing.T, r *gin.Engine, method, path, body string, status in
 	return response.Data
 }
 
-const sePaySettingsJSON = `{"enabled":true,"bank_name":"MB","bank_bin":"970422","bank_gateway":"MBBank","account_number":"123456789","account_name":"BOXAI","sub_account":"","min_topup":10000,"transfer_prefix":"se-pay","webhook_secret":"fixture-secret"}`
+const sePaySettingsJSON = `{"enabled":true,"api_token":"fixture-api-token","bank_account_id":"linked-one","webhook_secret":"fixture-secret"}`
 
 func TestSePayPendingSubscriptionsAreIndependentAndOwnerScoped(t *testing.T) {
 	r := sePayHTTPFixture(t)
@@ -124,12 +139,31 @@ func TestSePaySettingsHTTPContract(t *testing.T) {
 	r := sePayHTTPFixture(t)
 	initial := sePayHTTP(t, r, "GET", "/settings", "", 200)
 	assert.Equal(t, false, initial["enabled"])
-	assert.EqualValues(t, 10000, initial["min_topup"])
+	assert.Equal(t, false, initial["api_token_configured"])
 	data := sePayHTTP(t, r, "PUT", "/settings", sePaySettingsJSON, 200)
 	assert.NotContains(t, data, "webhook_secret")
+	assert.NotContains(t, data, "api_token")
+	assert.Equal(t, true, data["api_token_configured"])
 	assert.Equal(t, true, data["webhook_secret_configured"])
-	assert.Equal(t, "SEPAY", data["transfer_prefix"])
+	assert.Equal(t, "123456789", data["account_number"])
+	assert.Equal(t, "MBBank", data["bank_name"])
 	assert.Equal(t, "https://you-box.com/api/sepay/webhook", data["webhook_url"])
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("POST", "/accounts", strings.NewReader(`{}`)))
+	require.Equal(t, 200, w.Code)
+	var accounts struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &accounts))
+	require.Len(t, accounts.Data, 2)
+	assert.Equal(t, "linked-two", accounts.Data[1].ID)
+	assert.NotContains(t, w.Body.String(), "fixture-api-token")
+	assert.NotContains(t, w.Body.String(), "fixture-secret")
+	// Manual fields are ignored even when sent by an old or malicious client.
+	injected := strings.TrimSuffix(sePaySettingsJSON, "}") + `,"account_number":"99999","bank_bin":"bad","sub_account":"VA123"}`
+	assert.Equal(t, "123456789", sePayHTTP(t, r, "PUT", "/settings", injected, 200)["account_number"])
 	withoutSecret := strings.ReplaceAll(sePaySettingsJSON, `,"webhook_secret":"fixture-secret"`, "")
 	sePayHTTP(t, r, "PUT", "/settings", withoutSecret, 200)
 	assert.Equal(t, "fixture-secret", operation_setting.GetSePaySetting().WebhookSecret)
@@ -142,14 +176,15 @@ func TestSePaySettingsHTTPContract(t *testing.T) {
 	sePayHTTP(t, r, "PUT", "/settings", strings.ReplaceAll(clear, `"enabled":true`, `"enabled":false`), 200)
 	assert.Empty(t, operation_setting.GetSePaySetting().WebhookSecret)
 	sePayHTTP(t, r, "PUT", "/settings", withoutSecret, 400)
-	for _, bad := range []string{strings.ReplaceAll(sePaySettingsJSON, "970422", "bad"), strings.ReplaceAll(sePaySettingsJSON, "10000", "0"), strings.ReplaceAll(sePaySettingsJSON, "MBBank", "")} {
+	for _, bad := range []string{strings.ReplaceAll(sePaySettingsJSON, "linked-one", "unknown"), strings.ReplaceAll(sePaySettingsJSON, "linked-one", "inactive"), strings.ReplaceAll(sePaySettingsJSON, "fixture-api-token", "invalid")} {
 		sePayHTTP(t, r, "PUT", "/settings", bad, 400)
 	}
 	require.Error(t, model.UpdateOption("sepay_setting.webhook_secret", "bypass"))
 	require.Error(t, model.UpdateOptionsBulk(map[string]string{"sepay_setting": sePaySettingsJSON}))
-	w := httptest.NewRecorder()
+	w = httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest("GET", "/options", nil))
 	assert.NotContains(t, w.Body.String(), "fixture-secret")
+	assert.NotContains(t, w.Body.String(), "fixture-api-token")
 	assert.NotContains(t, w.Body.String(), "sepay_setting")
 }
 
@@ -187,7 +222,7 @@ func TestIndependentSePayHTTPOrderLifecycle(t *testing.T) {
 			assert.Equal(t, 404, w.Code)
 			sePayHTTP(t, r, "GET", "/invoice/MISSING", "", 404)
 			// Changing and disabling checkout must not change or disable the invoice/webhook.
-			changed := strings.ReplaceAll(strings.ReplaceAll(sePaySettingsJSON, "123456789", "987654321"), `"enabled":true`, `"enabled":false`)
+			changed := strings.ReplaceAll(strings.ReplaceAll(sePaySettingsJSON, "linked-one", "linked-two"), `"enabled":true`, `"enabled":false`)
 			sePayHTTP(t, r, "PUT", "/settings", changed, 200)
 			operation_setting.USDExchangeRate = 50000
 			if subscription {

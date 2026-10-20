@@ -8,6 +8,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
+	"github.com/dev-fan-sophon/boxai/pkg/sepay"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/dev-fan-sophon/boxai/setting/system_setting"
 	"github.com/gin-gonic/gin"
@@ -16,15 +17,45 @@ import (
 
 func GetSePaySettings(c *gin.Context) {
 	s := operation_setting.GetSePaySetting()
-	common.ApiSuccess(c, gin.H{"enabled": s.Enabled, "bank_name": s.BankName, "bank_bin": s.BankBIN, "bank_gateway": s.BankGateway, "account_number": s.AccountNumber, "account_name": s.AccountName, "sub_account": s.SubAccount, "min_topup": s.MinTopUp, "transfer_prefix": s.TransferPrefix, "webhook_secret_configured": s.WebhookSecret != "", "webhook_url": strings.TrimRight(system_setting.ServerAddress, "/") + "/api/sepay/webhook"})
+	common.ApiSuccess(c, gin.H{"enabled": s.Enabled, "bank_account_id": s.BankAccountID, "bank_name": s.BankName, "account_number": s.AccountNumber, "account_name": s.AccountName, "api_token_configured": s.APIToken != "", "webhook_secret_configured": s.WebhookSecret != "", "webhook_url": strings.TrimRight(system_setting.ServerAddress, "/") + "/api/sepay/webhook"})
+}
+
+// POST keeps replacement tokens out of query strings and access logs. Loading
+// accounts never saves a token or changes the selected receiving account.
+func ListSePayAccounts(c *gin.Context) {
+	var req struct {
+		APIToken string `json:"api_token"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	if req.APIToken == "" {
+		req.APIToken = operation_setting.GetSePaySetting().APIToken
+	}
+	accounts, err := sepay.ListBankAccounts(c.Request.Context(), req.APIToken)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"success": false, "message": "Unable to load SePay accounts; check API token and permissions"})
+		return
+	}
+	supported := make([]sepay.BankAccount, 0, len(accounts))
+	for _, account := range accounts {
+		if account.SupportsCheckout() {
+			supported = append(supported, account)
+		}
+	}
+	common.ApiSuccess(c, supported)
 }
 
 func UpdateSePaySettings(c *gin.Context) {
 	var req struct {
-		operation_setting.SePaySetting
-		ClearWebhookSecret bool `json:"clear_webhook_secret"`
+		Enabled            bool   `json:"enabled"`
+		APIToken           string `json:"api_token"`
+		BankAccountID      string `json:"bank_account_id"`
+		WebhookSecret      string `json:"webhook_secret"`
+		ClearWebhookSecret bool   `json:"clear_webhook_secret"`
 	}
-	if c.ShouldBindJSON(&req) != nil || model.SaveSePaySetting(req.SePaySetting, req.ClearWebhookSecret) != nil {
+	if c.ShouldBindJSON(&req) != nil || model.SaveSePaySetting(operation_setting.SePaySetting{Enabled: req.Enabled, APIToken: req.APIToken, BankAccountID: req.BankAccountID, WebhookSecret: req.WebhookSecret}, req.ClearWebhookSecret) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Unable to save SePay settings; check configuration"})
 		return
 	}

@@ -1,9 +1,12 @@
 package model
 
 import (
+	"context"
+	"errors"
 	"sync"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/pkg/sepay"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -33,6 +36,44 @@ func SaveSePaySetting(s operation_setting.SePaySetting, clearSecret bool) error 
 		}
 		if clearSecret {
 			s.WebhookSecret = ""
+		}
+		if s.APIToken == "" {
+			s.APIToken = previous.APIToken
+		}
+		operation_setting.NormalizeSePaySetting(&s)
+		// Only the selected SePay UUID is writable; bank details always come
+		// from SePay, never from a client-supplied destination or old snapshot.
+		s.BankName, s.BankBIN, s.BankGateway = "", "", ""
+		s.AccountNumber, s.AccountName, s.SubAccount = "", "", ""
+		s.MinTopUp, s.TransferPrefix = previous.MinTopUp, previous.TransferPrefix
+		if s.MinTopUp == 0 {
+			s.MinTopUp = 10000
+		}
+		if s.TransferPrefix == "" {
+			s.TransferPrefix = "SEPAY"
+		}
+		if !s.Enabled && s.BankAccountID == previous.BankAccountID && s.APIToken == previous.APIToken {
+			// Pausing checkout must work even while SePay is unavailable.
+			s.BankName, s.BankBIN, s.BankGateway = previous.BankName, previous.BankBIN, previous.BankGateway
+			s.AccountNumber, s.AccountName, s.SubAccount = previous.AccountNumber, previous.AccountName, previous.SubAccount
+		} else if s.BankAccountID != "" {
+			accounts, err := sepay.ListBankAccounts(context.Background(), s.APIToken)
+			if err != nil {
+				return err
+			}
+			for _, account := range accounts {
+				if account.ID == s.BankAccountID && account.SupportsCheckout() {
+					s.BankName, s.BankGateway, s.BankBIN = account.BankShortName, account.BankShortName, account.BankBIN
+					s.AccountNumber, s.AccountName = account.AccountNumber, account.AccountHolder
+					break
+				}
+			}
+			if s.AccountNumber == "" {
+				return errors.New("select an active supported SePay bank account")
+			}
+		}
+		if s.Enabled && (s.BankAccountID == "" || s.APIToken == "") {
+			return errors.New("SePay API token and linked account are required")
 		}
 		operation_setting.NormalizeSePaySetting(&s)
 		if err := operation_setting.ValidateSePaySetting(s); err != nil {
