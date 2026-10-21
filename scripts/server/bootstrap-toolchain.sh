@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Install Go + Bun on the production host (idempotent).
+# Install Go + Node + Bun on the production host (idempotent).
 set -euo pipefail
 
 GO_VERSION="${GO_VERSION:-1.26.10}"
+NODE_VERSION="${NODE_VERSION:-24.22.1}"
 ARCH="$(uname -m)"
 case "$ARCH" in
-  x86_64|amd64) GO_ARCH=amd64; BUN_ARCH=x64 ;;
-  aarch64|arm64) GO_ARCH=arm64; BUN_ARCH=aarch64 ;;
+  x86_64|amd64) GO_ARCH=amd64; NODE_ARCH=x64; BUN_ARCH=x64 ;;
+  aarch64|arm64) GO_ARCH=arm64; NODE_ARCH=arm64; BUN_ARCH=aarch64 ;;
   *) echo "unsupported arch: $ARCH" >&2; exit 1 ;;
 esac
 
@@ -30,6 +31,30 @@ install_go() {
   ln -sfn /usr/local/go/bin/go /usr/local/bin/go
   ln -sfn /usr/local/go/bin/gofmt /usr/local/bin/gofmt
   go version
+}
+
+install_node() {
+  if need_cmd node && [[ "$(node --version)" == "v${NODE_VERSION}" ]]; then
+    echo "node ${NODE_VERSION} already installed"
+    return 0
+  fi
+  echo "installing node ${NODE_VERSION} (${NODE_ARCH})..."
+  local archive="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.gz"
+  local tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${archive}" -o "$tmp/$archive"
+  local checksum
+  checksum="$(curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" |
+    awk -v filename="$archive" '$2 == filename {print $1}')"
+  [[ ${#checksum} -eq 64 ]]
+  printf '%s  %s\n' "$checksum" "$tmp/$archive" | sha256sum --check --status
+  local destination="/usr/local/node-v${NODE_VERSION}"
+  mkdir -p "$destination"
+  tar -C "$destination" --strip-components=1 -xzf "$tmp/$archive"
+  rm -rf "$tmp"
+  ln -sfn "$destination/bin/node" /usr/local/bin/node
+  hash -r
+  node --version
 }
 
 install_unzip() {
@@ -80,6 +105,7 @@ install_poppler() {
 
 export PATH="/usr/local/go/bin:${HOME}/.bun/bin:/usr/local/bin:${PATH}"
 install_go
+install_node
 install_bun
 install_poppler
 echo "toolchain ready"
