@@ -147,8 +147,10 @@ Groups in use (a key binds to one group; create/reveal keys with `POST /api/toke
 |---------------|--------|---------------|
 | `seedance官渠 720&1080p` | `doubao-seedance-2-*`, `doubao-seedance-2-5-260628` | 36 `rolldek-seedance-official` |
 | `香蕉` | `gemini-nano-banana-2.1`, `gemini-3.1-flash-image` (also `-preview` variants, `gemini-3-pro-image`) | 42 `rolldek-banana` (primary, Gemini-native) with `gemini2api` (28) as backup |
-| `gpt-image 原生` | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | 40 `rolldek-image25-native` |
+| `image2.5官渠` | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | 40 `rolldek-image25-native` (historical channel name) |
 | `seedream` | `seedream-5.0` | 45 `rolldek-seedream` |
+
+GPT Image uses Rolldek token **4762** (`BoxAI-Image25-production`), switched from `gpt-image 原生` to `image2.5官渠` on 2026-10-21 (UTC+8). The credential is unchanged. Live 1024×1024 generation tests succeeded for both models with `auto`, `low`, and `medium`; `high`, `xhigh`, and `max` returned 429 `get_channel_failed` (no channel for that quality tier), despite being advertised. Treat this as observed upstream availability, not a permanent model capability limit; do not silently rewrite requested quality. The official group's ratio is **1.5**, versus 1 for the old native group; successful single-image tests charged **¥0.15** each. Do not substitute the `1k&超分` group for native high-resolution output.
 
 Nano-banana billing is **per image call, flat across 1K/2K/4K**: RollDek charges 35000 quota = **¥0.07** per image for both `gemini-nano-banana-2.1` and `gemini-3.1-flash-image` (`香蕉` group ratio 1). BoxAI retails them at `$0.084` (`ModelPrice`), verified against `/api/log/self` on the RollDek account.
 
