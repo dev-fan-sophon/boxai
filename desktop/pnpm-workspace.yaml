@@ -22,6 +22,7 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-codemode@0.99.1'
   - '@earendil-works/pi-mcp@0.99.1'
   - '@earendil-works/pi-tui@0.99.1'
+  - electron@43.8.3
 # Advisory fixes for transitives whose parents still resolve the vulnerable
 # version. Drop each one once its parent ships a release that resolves the
 # patched version on its own.
