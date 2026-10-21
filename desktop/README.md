@@ -12,7 +12,7 @@ format do not apply. BoxAI Connect is a separate, unchanged product.
 
 ## Develop
 
-Run from `desktop/`. Use Node >= 22.19, the pnpm version pinned by
+Run from `desktop/`. Use Node 24.22.1 or a newer 24.x patch/minor, the pnpm version pinned by
 `package.json`, and a Rust toolchain compatible with `Cargo.toml`.
 Packaged users do not need development toolchains. Native builds need their
 platform's compiler and SDK; cross-compilation is not native release validation.

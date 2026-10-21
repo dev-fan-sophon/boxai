@@ -2,7 +2,7 @@
 # Local API: host `go run` against docker-compose.dev.yml (Postgres/Redis only).
 # Production: make deploy (native binary + systemd). See deploy/README.md.
 
-FROM golang:1.26.1-alpine AS builder
+FROM golang:1.26.10-alpine AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0
 ARG TARGETOS

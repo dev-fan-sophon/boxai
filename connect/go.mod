@@ -1,6 +1,6 @@
 module github.com/yetone/magpie
 
-go 1.26.3
+go 1.26.10
 
 require (
 	github.com/charmbracelet/bubbles v0.21.1

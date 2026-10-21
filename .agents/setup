@@ -34,8 +34,8 @@ fi
 setup_tmp=$(mktemp -d)
 trap 'rm -rf "$setup_tmp"' EXIT
 
-if ! command -v go >/dev/null; then
-  go_version=1.25.12
+go_version=1.26.10
+if ! command -v go >/dev/null || [[ "$(GOTOOLCHAIN=local go env GOVERSION)" != "go${go_version}" ]]; then
   case "$(uname -m)" in
     x86_64) go_arch=amd64 ;;
     aarch64|arm64) go_arch=arm64 ;;
@@ -68,14 +68,14 @@ gofmt --help >/dev/null
 
 node_supported=false
 if command -v node >/dev/null && node -e '
-  const [major, minor] = process.versions.node.split(".").map(Number)
-  process.exit((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22 ? 0 : 1)
+  const [major, minor, patch] = process.versions.node.split(".").map(Number)
+  process.exit(major === 24 && (minor > 22 || (minor === 22 && patch >= 1)) ? 0 : 1)
 '; then
   node_supported=true
 fi
 
 if [[ "$node_supported" != true ]]; then
-  node_version=22.17.0
+  node_version=24.22.1
   case "$(uname -m)" in
     x86_64) node_arch=x64 ;;
     aarch64|arm64) node_arch=arm64 ;;
