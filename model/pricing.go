@@ -423,9 +423,6 @@ func updatePricing() {
 			pricing.Tags = meta.Tags
 			pricing.VendorID = meta.VendorID
 			pricing.DisplayName = meta.DisplayName
-			if meta.OfficialDiscount != nil {
-				pricing.OfficialDiscount = *meta.OfficialDiscount
-			}
 			pricing.ContextLength = meta.ContextLength
 			pricing.MaxInputTokens = meta.MaxInputTokens
 			pricing.MaxOutputTokens = meta.MaxOutputTokens
@@ -482,20 +479,15 @@ func updatePricing() {
 			pricing.CompletionRatio = ratio_setting.GetCompletionRatio(model)
 			pricing.QuotaType = 0
 		}
-		// Auto-compute marketplace discount vs official ratio preset when the
-		// admin has not set an explicit official_discount on model metadata.
-		// Manual metadata still wins so curated badges are never overwritten.
-		if pricing.OfficialDiscount <= 0 {
-			if auto := computeAutoOfficialDiscount(
-				pricing.QuotaType,
-				pricing.ModelRatio,
-				pricing.ModelPrice,
-				model,
-				officialSnapshot,
-			); auto > 0 {
-				pricing.OfficialDiscount = auto
-			}
-		}
+		// Marketplace badges follow actual prices, never legacy manual metadata.
+		// Without an official baseline, omit the badge rather than claim savings.
+		pricing.OfficialDiscount = computeAutoOfficialDiscount(
+			pricing.QuotaType,
+			pricing.ModelRatio,
+			pricing.ModelPrice,
+			model,
+			officialSnapshot,
+		)
 		if cacheRatio, ok := ratio_setting.GetCacheRatio(model); ok {
 			pricing.CacheRatio = &cacheRatio
 		}
