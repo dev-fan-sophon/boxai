@@ -15,8 +15,8 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
 
-// Official baseline for marketplace discount badges: models.dev public pricing.
-// Same source as the upstream-sync preset "models.dev 价格预设".
+// Official baseline for marketplace and admin pricing: first-party list prices
+// from models.dev, never reseller quotes or subscription-plan prices.
 // models.dev costs are USD per 1M tokens; converted with the local ratio formula:
 //
 //	model_ratio = input_usd_per_1M * USD / 1000   (= input / 2 when USD=500)
@@ -35,14 +35,20 @@ type officialRatioSnapshot struct {
 }
 
 type OfficialModelPricingReference struct {
-	ModelName       string   `json:"model_name"`
-	Provider        string   `json:"provider"`
-	InputPrice      float64  `json:"input_price"`
-	OutputPrice     *float64 `json:"output_price,omitempty"`
-	CacheReadPrice  *float64 `json:"cache_read_price,omitempty"`
-	ModelRatio      float64  `json:"model_ratio"`
-	CompletionRatio *float64 `json:"completion_ratio,omitempty"`
-	CacheRatio      *float64 `json:"cache_ratio,omitempty"`
+	Currency               string              `json:"currency"`
+	SourceURL              string              `json:"source_url"`
+	VerifiedAt             string              `json:"verified_at,omitempty"`
+	Notes                  string              `json:"notes,omitempty"`
+	QuickDiscountSupported bool                `json:"quick_discount_supported"`
+	Rates                  []OfficialPriceRate `json:"rates"`
+	ModelName              string              `json:"model_name"`
+	Provider               string              `json:"provider"`
+	InputPrice             float64             `json:"input_price,omitempty"`
+	OutputPrice            *float64            `json:"output_price,omitempty"`
+	CacheReadPrice         *float64            `json:"cache_read_price,omitempty"`
+	ModelRatio             float64             `json:"model_ratio,omitempty"`
+	CompletionRatio        *float64            `json:"completion_ratio,omitempty"`
+	CacheRatio             *float64            `json:"cache_ratio,omitempty"`
 }
 
 var (
@@ -115,23 +121,40 @@ type modelsDevProvider struct {
 }
 
 type modelsDevModel struct {
-	Cost modelsDevCost `json:"cost"`
+	Cost       modelsDevCost `json:"cost"`
+	Modalities struct {
+		Output []string `json:"output"`
+	} `json:"modalities"`
 }
 
 type modelsDevCost struct {
-	Input           *float64      `json:"input"`
-	Output          *float64      `json:"output"`
-	CacheRead       *float64      `json:"cache_read"`
-	Tiers           []interface{} `json:"tiers"`
-	ContextOver200K interface{}   `json:"context_over_200k"`
+	Input           *float64        `json:"input"`
+	Output          *float64        `json:"output"`
+	CacheRead       *float64        `json:"cache_read"`
+	CacheWrite      *float64        `json:"cache_write"`
+	InputAudio      *float64        `json:"input_audio"`
+	OutputAudio     *float64        `json:"output_audio"`
+	Tiers           []modelsDevTier `json:"tiers"`
+	ContextOver200K *modelsDevCost  `json:"context_over_200k"`
+}
+
+type modelsDevTier struct {
+	modelsDevCost
+	Tier struct {
+		Type string `json:"type"`
+		Size int    `json:"size"`
+	} `json:"tier"`
 }
 
 type modelsDevCandidate struct {
-	provider  string
-	input     float64 // USD per 1M tokens
-	output    *float64
-	cacheRead *float64
-	tiered    bool
+	provider         string
+	input            float64 // USD per 1M tokens
+	output           *float64
+	cacheRead        *float64
+	tiered           bool
+	multimodal       bool
+	cost             modelsDevCost
+	outputModalities []string
 }
 
 func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
@@ -149,11 +172,13 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 	}
 	sort.Strings(providers)
 
-	// model id → official-provider baseline when available; otherwise cheapest non-zero.
-	// Prefer first-party vendors so marketplace "official price" badges match list rates
-	// rather than the lowest reseller quote on models.dev.
+	// Sorted providers prefer international official endpoints (moonshotai before
+	// moonshotai-cn, zai before zhipuai). Keep regional namespaced quotes separate.
 	selected := make(map[string]modelsDevCandidate)
 	for _, provider := range providers {
+		if !isFirstPartyModelsDevProvider(provider) {
+			continue
+		}
 		providerData := upstream[provider]
 		if len(providerData.Models) == 0 {
 			continue
@@ -165,7 +190,13 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 		sort.Strings(modelNames)
 
 		for _, modelName := range modelNames {
-			cost := providerData.Models[modelName].Cost
+			// Vertex also hosts partner models; only Google's own Gemini prices
+			// are first-party list prices for this source.
+			if provider == "google-vertex" && !strings.HasPrefix(modelName, "gemini-") {
+				continue
+			}
+			model := providerData.Models[modelName]
+			cost := model.Cost
 			if cost.Input == nil {
 				continue
 			}
@@ -192,16 +223,26 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 				value := *cost.CacheRead
 				cacheRead = &value
 			}
-			next := modelsDevCandidate{
-				provider:  provider,
-				input:     input,
-				output:    output,
-				cacheRead: cacheRead,
-				tiered:    len(cost.Tiers) > 0 || cost.ContextOver200K != nil,
+			multimodal := cost.InputAudio != nil && *cost.InputAudio != input || cost.OutputAudio != nil
+			for _, modality := range model.Modalities.Output {
+				if modality != "text" {
+					multimodal = true
+				}
 			}
-			current, exists := selected[modelName]
-			if !exists || shouldPreferModelsDevCandidate(current, next) {
-				selected[modelName] = next
+			next := modelsDevCandidate{
+				provider:         provider,
+				input:            input,
+				output:           output,
+				cacheRead:        cacheRead,
+				tiered:           len(cost.Tiers) > 0 || cost.ContextOver200K != nil,
+				multimodal:       multimodal,
+				cost:             cost,
+				outputModalities: model.Modalities.Output,
+			}
+			name := strings.ToLower(modelName)
+			selected[provider+"/"+name] = next
+			if _, exists := selected[name]; !exists {
+				selected[name] = next
 			}
 		}
 	}
@@ -218,17 +259,21 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 		if ratio <= 0 || math.IsNaN(ratio) || math.IsInf(ratio, 0) {
 			continue
 		}
-		modelRatio[modelName] = ratio
-		if !isFirstPartyModelsDevProvider(candidate.provider) || candidate.tiered {
-			continue
+		_, documented := documentedOfficialPricingReferences[modelName]
+		if !candidate.tiered && !candidate.multimodal && !documented {
+			modelRatio[modelName] = ratio
 		}
 		reference := OfficialModelPricingReference{
-			ModelName:      modelName,
-			Provider:       candidate.provider,
-			InputPrice:     candidate.input,
-			OutputPrice:    candidate.output,
-			CacheReadPrice: candidate.cacheRead,
-			ModelRatio:     ratio,
+			Currency:               "USD",
+			SourceURL:              officialProviderPricingURL(candidate.provider),
+			QuickDiscountSupported: !candidate.tiered && !candidate.multimodal,
+			Rates:                  officialTokenPriceRates(candidate.cost, candidate.outputModalities),
+			ModelName:              modelName,
+			Provider:               candidate.provider,
+			InputPrice:             candidate.input,
+			OutputPrice:            candidate.output,
+			CacheReadPrice:         candidate.cacheRead,
+			ModelRatio:             ratio,
 		}
 		if candidate.output != nil {
 			completionRatio := *candidate.output / candidate.input
@@ -241,7 +286,7 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 		references[modelName] = reference
 	}
 
-	if len(modelRatio) == 0 {
+	if len(references) == 0 {
 		return nil, fmt.Errorf("no convertible models.dev ratios")
 	}
 
@@ -255,6 +300,10 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 }
 
 func GetOfficialModelPricingReference(modelName string) (*OfficialModelPricingReference, bool) {
+	if reference, ok := documentedOfficialPricingReferences[officialPricingModelName(modelName)]; ok {
+		reference.ModelName = modelName
+		return &reference, true
+	}
 	snapshot := getOfficialRatioSnapshot()
 	if snapshot == nil || time.Since(snapshot.fetchedAt) > officialRatioCacheTTL {
 		return nil, false
@@ -263,9 +312,10 @@ func GetOfficialModelPricingReference(modelName string) (*OfficialModelPricingRe
 }
 
 func lookupOfficialModelPricingReference(snapshot *officialRatioSnapshot, modelName string) (*OfficialModelPricingReference, bool) {
-	reference, ok := snapshot.references[modelName]
-	if !ok && strings.Count(modelName, "/") == 1 {
-		provider, leaf, _ := strings.Cut(modelName, "/")
+	name := officialPricingModelName(modelName)
+	reference, ok := snapshot.references[name]
+	if !ok && strings.Count(name, "/") == 1 {
+		provider, leaf, _ := strings.Cut(name, "/")
 		reference, ok = snapshot.references[leaf]
 		ok = ok && provider == reference.Provider
 	}
@@ -281,11 +331,15 @@ var firstPartyModelsDevProviders = map[string]struct{}{
 	"openai":        {},
 	"anthropic":     {},
 	"google":        {},
+	"google-vertex": {},
 	"xai":           {},
 	"deepseek":      {},
 	"zhipuai":       {},
+	"zai":           {},
 	"moonshotai":    {},
 	"moonshotai-cn": {},
+	"xiaomi":        {},
+	"meta":          {},
 }
 
 func isFirstPartyModelsDevProvider(provider string) bool {
@@ -293,57 +347,18 @@ func isFirstPartyModelsDevProvider(provider string) bool {
 	return ok
 }
 
-func shouldPreferModelsDevCandidate(current, next modelsDevCandidate) bool {
-	// Prefer first-party vendor list prices over reseller quotes.
-	curOfficial := isFirstPartyModelsDevProvider(current.provider)
-	nextOfficial := isFirstPartyModelsDevProvider(next.provider)
-	if curOfficial != nextOfficial {
-		return nextOfficial
+// Official product aliases are independent of channel routing. DeepSeek's docs
+// identify deepseek-flash as V4.1 Flash: https://api-docs.deepseek.com/ .
+func officialPricingModelName(modelName string) string {
+	name := strings.ToLower(strings.TrimSpace(modelName))
+	switch name {
+	case "deepseek-v4.1-flash", "deepseek-v4.1-flash-1017":
+		return "deepseek-flash"
+	case "deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4.1-flash-1017":
+		return "deepseek/deepseek-flash"
+	default:
+		return name
 	}
-	if curOfficial && nextOfficial {
-		// Both official: stable provider name, then higher list price as baseline.
-		if current.provider != next.provider {
-			return next.provider < current.provider
-		}
-		if !nearlyEqualFloat(next.input, current.input) {
-			return next.input > current.input
-		}
-		return false
-	}
-	// Reseller-only: cheapest non-zero input; stable provider name tie-break.
-	if !nearlyEqualFloat(next.input, current.input) {
-		return next.input < current.input
-	}
-	return next.provider < current.provider
-}
-
-func nearlyEqualFloat(a, b float64) bool {
-	const eps = 1e-9
-	if a > b {
-		return a-b < eps
-	}
-	return b-a < eps
-}
-
-func lookupOfficialValue(values map[string]float64, modelName string) (float64, bool) {
-	if len(values) == 0 || modelName == "" {
-		return 0, false
-	}
-	if v, ok := values[modelName]; ok {
-		return v, true
-	}
-	// Prefer the bare leaf name (e.g. "moonshotai/Kimi-K3" → "Kimi-K3").
-	if i := strings.LastIndex(modelName, "/"); i >= 0 && i+1 < len(modelName) {
-		if v, ok := values[modelName[i+1:]]; ok {
-			return v, true
-		}
-	}
-	if i := strings.LastIndex(modelName, "."); i >= 0 && i+1 < len(modelName) {
-		if v, ok := values[modelName[i+1:]]; ok {
-			return v, true
-		}
-	}
-	return 0, false
 }
 
 // computeAutoOfficialDiscount returns the marketplace discount percent of site
@@ -366,10 +381,10 @@ func computeAutoOfficialDiscount(
 		// Fixed-price models: compare USD/request when we have an official price baseline.
 		// models.dev rarely provides this; then no auto badge.
 		site = siteModelPrice
-		baseline, ok = lookupOfficialValue(official.modelPrice, modelName)
+		baseline, ok = official.modelPrice[officialPricingModelName(modelName)]
 	} else {
 		site = siteModelRatio
-		baseline, ok = lookupOfficialValue(official.modelRatio, modelName)
+		baseline, ok = official.modelRatio[officialPricingModelName(modelName)]
 	}
 	if !ok || baseline <= 0 || site <= 0 || site >= baseline {
 		return 0

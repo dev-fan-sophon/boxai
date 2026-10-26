@@ -28,12 +28,28 @@ export type PricingModelRecord = {
 export type OfficialModelPricingReference = {
   model_name: string
   provider: string
-  input_price: number
+  currency?: string
+  source_url?: string
+  verified_at?: string
+  notes?: string
+  quick_discount_supported?: boolean
+  rates?: OfficialPriceRate[]
+  input_price?: number
   output_price?: number
   cache_read_price?: number
-  model_ratio: number
+  model_ratio?: number
   completion_ratio?: number
   cache_ratio?: number
+}
+
+export type OfficialPriceRate = {
+  category: string
+  unit: string
+  price: number
+  variant?: string
+  condition?: string
+  context_min_exclusive?: number
+  context_max_inclusive?: number
 }
 
 export type PricingStatusFilter = 'all' | 'configured' | 'unconfigured'
@@ -138,6 +154,8 @@ export function applyOfficialPricePercent(
   percent: number
 ): ModelPricing | null {
   if (
+    reference.quick_discount_supported === false ||
+    reference.model_ratio === undefined ||
     (current.mode !== 'per-token' && current.mode !== 'unset') ||
     !Number.isFinite(percent) ||
     percent < 1 ||
@@ -167,6 +185,8 @@ export function inferOfficialPricePercent(
   reference: OfficialModelPricingReference
 ): number {
   if (
+    reference.quick_discount_supported === false ||
+    reference.model_ratio === undefined ||
     current.mode !== 'per-token' ||
     current.model_ratio === undefined ||
     reference.model_ratio <= 0

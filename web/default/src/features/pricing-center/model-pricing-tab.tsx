@@ -48,6 +48,7 @@ import {
   type PricingModelRecord,
   type PricingStatusFilter,
 } from './model-pricing-domain'
+import { OfficialPriceReference } from './official-price-reference'
 
 export function ModelPricingTab(props: { initialModelFilter?: string }) {
   const { t } = useTranslation()
@@ -419,9 +420,11 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
               </div>
             )}
 
-            <div className='px-4 pt-3'>
+            <div
+              key={selectedModel.model_name}
+              className='max-h-[45%] shrink-0 overflow-y-auto px-4 pt-3'
+            >
               <QuickDiscountPanel
-                key={selectedModel.model_name}
                 pricing={selectedModel.pricing}
                 reference={referenceQuery.data ?? null}
                 isLoading={referenceQuery.isLoading}
@@ -547,13 +550,18 @@ function QuickDiscountPanel(props: {
     numericPercent >= 1 &&
     numericPercent <= 100
   const multiplier = valid ? numericPercent / 100 : 0
+  const referenceOnly = props.reference?.quick_discount_supported === false
   const modeSupported =
     props.pricing.mode === 'unset' || props.pricing.mode === 'per-token'
   const formatPrice = (price: number) =>
     `$${Number.parseFloat((price * multiplier).toFixed(12))}`
 
   let referenceDescription = t('Official reference unavailable for this model.')
-  if (!modeSupported) {
+  if (referenceOnly) {
+    referenceDescription = t(
+      'Reference only. Units and tiers cannot be applied as a flat token discount.'
+    )
+  } else if (!modeSupported) {
     referenceDescription = t(
       'Quick discount is only available for token pricing.'
     )
@@ -571,14 +579,16 @@ function QuickDiscountPanel(props: {
         <div className='space-y-1'>
           <div className='flex items-center gap-2 text-sm font-medium'>
             <BadgePercent className='size-4' aria-hidden='true' />
-            {t('Quick discount')}
+            {referenceOnly
+              ? t('Official price reference')
+              : t('Quick discount')}
           </div>
           <p className='text-muted-foreground text-xs'>
             {referenceDescription}
           </p>
         </div>
 
-        {props.reference && (
+        {props.reference && !referenceOnly && (
           <div className='flex flex-wrap items-end gap-2'>
             <label className='grid gap-1 text-xs font-medium'>
               {t('Price as % of official')}
@@ -606,31 +616,39 @@ function QuickDiscountPanel(props: {
         )}
       </div>
 
-      {props.reference && valid && (
-        <div className='mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t pt-2 text-xs'>
-          <span>
-            <span className='text-muted-foreground'>{t('Input')}: </span>
-            <span className='font-medium tabular-nums'>
-              {formatPrice(props.reference.input_price)} / 1M
-            </span>
-          </span>
-          {props.reference.output_price !== undefined && (
+      {props.reference &&
+        !referenceOnly &&
+        valid &&
+        props.reference.input_price !== undefined && (
+          <div className='mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t pt-2 text-xs'>
             <span>
-              <span className='text-muted-foreground'>{t('Output')}: </span>
+              <span className='text-muted-foreground'>{t('Input')}: </span>
               <span className='font-medium tabular-nums'>
-                {formatPrice(props.reference.output_price)} / 1M
+                {formatPrice(props.reference.input_price)} / 1M
               </span>
             </span>
-          )}
-          {props.reference.cache_read_price !== undefined && (
-            <span>
-              <span className='text-muted-foreground'>{t('Cache read')}: </span>
-              <span className='font-medium tabular-nums'>
-                {formatPrice(props.reference.cache_read_price)} / 1M
+            {props.reference.output_price !== undefined && (
+              <span>
+                <span className='text-muted-foreground'>{t('Output')}: </span>
+                <span className='font-medium tabular-nums'>
+                  {formatPrice(props.reference.output_price)} / 1M
+                </span>
               </span>
-            </span>
-          )}
-        </div>
+            )}
+            {props.reference.cache_read_price !== undefined && (
+              <span>
+                <span className='text-muted-foreground'>
+                  {t('Cache read')}:{' '}
+                </span>
+                <span className='font-medium tabular-nums'>
+                  {formatPrice(props.reference.cache_read_price)} / 1M
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+      {props.reference && referenceOnly && (
+        <OfficialPriceReference reference={props.reference} />
       )}
     </div>
   )

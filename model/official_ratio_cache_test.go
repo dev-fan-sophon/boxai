@@ -9,25 +9,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
 
-func TestLookupOfficialValuePrefersExactThenLeaf(t *testing.T) {
-	values := map[string]float64{
-		"gpt-5.6":        2.5,
-		"Kimi-K3":        1.35,
-		"provider/other": 9,
-	}
-
-	v, ok := lookupOfficialValue(values, "gpt-5.6")
-	require.True(t, ok)
-	assert.Equal(t, 2.5, v)
-
-	v, ok = lookupOfficialValue(values, "moonshotai/Kimi-K3")
-	require.True(t, ok)
-	assert.Equal(t, 1.35, v)
-
-	_, ok = lookupOfficialValue(values, "missing-model")
-	assert.False(t, ok)
-}
-
 func TestComputeAutoOfficialDiscountRatio(t *testing.T) {
 	official := &officialRatioSnapshot{
 		modelRatio: map[string]float64{
@@ -120,8 +101,12 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	assert.InDelta(t, 0.014, *flashReference.CacheReadPrice, 1e-9)
 	require.NotNil(t, flashReference.CacheRatio)
 	assert.InDelta(t, 0.1, *flashReference.CacheRatio, 1e-9)
-	assert.NotContains(t, snap.references, "deepseek-tiered")
+	assert.Contains(t, snap.references, "deepseek-tiered")
+	assert.False(t, snap.references["deepseek-tiered"].QuickDiscountSupported)
 	assert.NotContains(t, snap.references, "reseller-only")
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "reseller-only", snap))
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "other/gpt-5.6-sol", snap))
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "other.gpt-5.6-sol", snap))
 
 	// duplicate gpt-5.6-sol → prefer first-party openai ($5), not cheaper reseller ($4)
 	wantSol := 5.0 * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
@@ -152,4 +137,156 @@ func TestParseModelsDevSnapshotRejectsEmpty(t *testing.T) {
 
 	_, err = parseModelsDevSnapshot([]byte(`{"p":{"models":{}}}`))
 	require.Error(t, err)
+	_, err = parseModelsDevSnapshot([]byte(`{"reseller":{"models":{"only-model":{"cost":{"input":10,"output":20}}}}}`))
+	require.Error(t, err)
+}
+
+func TestOfficialPricingAliasesAndFirstPartySources(t *testing.T) {
+	snapshot, err := parseModelsDevSnapshot([]byte(`{
+		"deepseek":{"models":{"deepseek-flash":{"cost":{"input":0.15,"output":0.6,"cache_read":0.003}}}},
+		"xiaomi":{"models":{"mimo-v2.6-pro":{"cost":{"input":1,"output":4}}}},
+		"meta":{"models":{"muse-spark-1.3-contributor":{"cost":{"input":1.5,"output":4.5}}}},
+		"zai":{"models":{"glm-5.3":{"cost":{"input":1.4,"output":4.4}}}},
+		"zhipuai":{"models":{"glm-5.3":{"cost":{"input":1.19,"output":4.18}}}},
+		"moonshotai":{"models":{"Kimi-K3":{"cost":{"input":3,"output":15}}}},
+		"reseller":{"models":{
+			"deepseek-v4.1-flash":{"cost":{"input":0.01,"output":0.02}},
+			"mimo-v2.6-pro":{"cost":{"input":0.5,"output":1}},
+			"muse-spark-1.3-contributor":{"cost":{"input":0.3,"output":0.9}}
+		}}
+	}`))
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, provider string
+		input          float64
+	}{
+		{"deepseek-v4.1-flash", "deepseek", 0.15},
+		{"deepseek/deepseek-v4.1-flash-1017", "deepseek", 0.15},
+		{"DeepSeek-V4.1-Flash", "deepseek", 0.15},
+		{"mimo-v2.6-pro", "xiaomi", 1},
+		{"muse-spark-1.3-contributor", "meta", 1.5},
+		{"glm-5.3", "zai", 1.4},
+		{"zhipuai/glm-5.3", "zhipuai", 1.19},
+		{"moonshotai/Kimi-K3", "moonshotai", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reference, ok := lookupOfficialModelPricingReference(snapshot, tc.name)
+			require.True(t, ok)
+			assert.Equal(t, tc.provider, reference.Provider)
+			assert.Equal(t, tc.name, reference.ModelName)
+			assert.Equal(t, tc.input, reference.InputPrice)
+			assert.InDelta(t, tc.input/2, reference.ModelRatio, 1e-9)
+			assert.Equal(t, 80.0, computeAutoOfficialDiscount(0, tc.input/10, 0, tc.name, snapshot))
+		})
+	}
+	for _, name := range []string{"reseller/deepseek-v4.1-flash", "custom.glm-5.3", "deepseek-v4.1-flash-unknown"} {
+		_, ok := lookupOfficialModelPricingReference(snapshot, name)
+		assert.False(t, ok, name)
+		assert.Zero(t, computeAutoOfficialDiscount(0, 0.001, 0, name, snapshot), name)
+	}
+}
+
+func TestOfficialReferencesDoNotFlattenMediaPricesOrUseHostedPartnerPrices(t *testing.T) {
+	snapshot, err := parseModelsDevSnapshot([]byte(`{
+		"google-vertex":{"models":{
+			"gemini-text":{"cost":{"input":1,"output":2,"input_audio":1},"modalities":{"output":["text"]}},
+			"gemini-image":{"cost":{"input":0.5,"output":60},"modalities":{"output":["text","image"]}},
+			"partner-only":{"cost":{"input":10,"output":20}}
+		}},
+		"openai":{"models":{
+			"realtime":{"cost":{"input":4,"output":24,"input_audio":32,"output_audio":64},"modalities":{"output":["text","audio"]}}
+		}}
+	}`))
+	require.NoError(t, err)
+	ref, ok := lookupOfficialModelPricingReference(snapshot, "gemini-text")
+	require.True(t, ok)
+	assert.Equal(t, "google-vertex", ref.Provider)
+	assert.Equal(t, 2.0, *ref.OutputPrice)
+	for _, name := range []string{"gemini-image", "realtime"} {
+		reference, ok := lookupOfficialModelPricingReference(snapshot, name)
+		require.True(t, ok, name)
+		assert.False(t, reference.QuickDiscountSupported, name)
+		assert.NotEmpty(t, reference.Rates, name)
+		assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, name, snapshot))
+	}
+	_, ok = lookupOfficialModelPricingReference(snapshot, "partner-only")
+	assert.False(t, ok)
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "partner-only", snapshot))
+}
+
+func TestOfficialContextTiersKeepBoundariesAndMissingRates(t *testing.T) {
+	snapshot, err := parseModelsDevSnapshot([]byte(`{"openai":{"models":{
+		"tier-model":{"cost":{"input":2,"output":10,"cache_read":0.2,
+			"tiers":[
+				{"input":8,"output":30,"tier":{"type":"context","size":500000}},
+				{"input":4,"output":15,"cache_read":0,"tier":{"type":"context","size":272000}}
+			],"context_over_200k":{"input":99,"output":99}}},
+		"legacy-model":{"cost":{"input":1,"output":3,"context_over_200k":{"input":2,"output":6}}}
+	}}}`))
+	require.NoError(t, err)
+	reference, ok := lookupOfficialModelPricingReference(snapshot, "tier-model")
+	require.True(t, ok)
+	assert.False(t, reference.QuickDiscountSupported)
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "tier-model", snapshot))
+	require.Len(t, reference.Rates, 8, "do not duplicate the legacy tier or invent absent cache prices")
+	assert.Equal(t, 2.0, reference.Rates[0].Price)
+	assert.Nil(t, reference.Rates[0].ContextMinExclusive)
+	require.NotNil(t, reference.Rates[0].ContextMaxInclusive)
+	assert.Equal(t, 272000, *reference.Rates[0].ContextMaxInclusive)
+	assert.Equal(t, 4.0, reference.Rates[3].Price)
+	assert.Equal(t, 272000, *reference.Rates[3].ContextMinExclusive)
+	assert.Equal(t, 500000, *reference.Rates[3].ContextMaxInclusive)
+	assert.Zero(t, reference.Rates[5].Price, "explicit free cache rate remains a numeric zero")
+	assert.Equal(t, 8.0, reference.Rates[6].Price)
+	assert.Equal(t, 500000, *reference.Rates[6].ContextMinExclusive)
+	assert.Nil(t, reference.Rates[6].ContextMaxInclusive)
+	legacy, ok := lookupOfficialModelPricingReference(snapshot, "legacy-model")
+	require.True(t, ok)
+	require.Len(t, legacy.Rates, 4)
+	assert.Equal(t, 200000, *legacy.Rates[2].ContextMinExclusive)
+}
+
+func TestDocumentedOfficialReferencesPreserveMediaUnitsAndVariants(t *testing.T) {
+	// A source without modality metadata must not turn a documented media rate
+	// into a text-token discount badge.
+	snapshot, err := parseModelsDevSnapshot([]byte(`{"openai":{"models":{
+		"gpt-live-transcribe":{"cost":{"input":10,"output":20}}
+	}}}`))
+	require.NoError(t, err)
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "gpt-live-transcribe", snapshot))
+	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "openai/gpt-live-transcribe", snapshot))
+	for _, tc := range []struct {
+		name, category, unit string
+		price                float64
+	}{
+		{"eleven_v3", "speech", "thousand_characters", 0.08},
+		{"scribe_v2", "transcription", "hour", 0.22},
+		{"gpt-live-transcribe", "transcription", "minute", 0.017},
+		{"grok-imagine-video-1.5", "video_output", "second", 0.08},
+		{"dreamina-seedance-2-5", "video_output", "million_video_tokens", 10.7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reference, ok := GetOfficialModelPricingReference(tc.name)
+			require.True(t, ok)
+			assert.False(t, reference.QuickDiscountSupported)
+			assert.Zero(t, reference.ModelRatio)
+			assert.Equal(t, "USD", reference.Currency)
+			assert.NotEmpty(t, reference.SourceURL)
+			assert.NotEmpty(t, reference.VerifiedAt)
+			require.NotEmpty(t, reference.Rates)
+			assert.Equal(t, tc.category, reference.Rates[0].Category)
+			assert.Equal(t, tc.unit, reference.Rates[0].Unit)
+			assert.Equal(t, tc.price, reference.Rates[0].Price)
+		})
+	}
+	image, ok := GetOfficialModelPricingReference("gemini-3.1-flash-image")
+	require.True(t, ok)
+	assert.Contains(t, image.Rates, OfficialPriceRate{Category: "text_output", Unit: "million_tokens", Price: 3})
+	assert.Contains(t, image.Rates, OfficialPriceRate{Category: "image_output", Unit: "million_tokens", Price: 60})
+	seedream, ok := GetOfficialModelPricingReference("seedream-5.0")
+	require.True(t, ok)
+	require.Len(t, seedream.Rates, 10)
+	assert.Zero(t, seedream.Rates[0].Price)
+	assert.NotEqual(t, seedream.Rates[0].Variant, seedream.Rates[6].Variant)
+	assert.NotEqual(t, seedream.Rates[6].Variant, seedream.Rates[8].Variant)
 }

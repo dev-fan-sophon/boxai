@@ -174,6 +174,30 @@ describe('official price discount', () => {
   it('rejects incompatible modes and unsafe percentages', () => {
     expect(
       applyOfficialPricePercent(
+        { mode: 'unset' },
+        {
+          ...officialReference,
+          quick_discount_supported: false,
+          rates: [{ category: 'video_output', unit: 'second', price: 0.14 }],
+        },
+        50
+      )
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent(
+        { mode: 'unset' },
+        {
+          model_name: 'audio',
+          provider: 'elevenlabs',
+          rates: [
+            { category: 'speech', unit: 'thousand_characters', price: 0.08 },
+          ],
+        },
+        50
+      )
+    ).toBeNull()
+    expect(
+      applyOfficialPricePercent(
         { mode: 'per-request', model_price: 0.01 },
         officialReference,
         50

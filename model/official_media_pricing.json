@@ -1,0 +1,214 @@
+[
+  {
+    "models": ["gpt-image-2.5-flare", "gpt-image-2.5-flare-2026-09-08"],
+    "provider": "openai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-image-2.5-flare",
+    "notes": "Standard processing. Text output is not billed because this model outputs images, not text. Image output costs $15 per million tokens with Batch processing.",
+    "rates": [
+      {"category":"text_input","unit":"million_tokens","price":5},
+      {"category":"cache_read","unit":"million_tokens","price":1.25},
+      {"category":"image_input","unit":"million_tokens","price":8},
+      {"category":"image_cache_read","unit":"million_tokens","price":2},
+      {"category":"image_output","unit":"million_tokens","price":30}
+    ]
+  },
+  {
+    "models": ["gpt-image-2.5-sunburst", "gpt-image-2.5-sunburst-2026-09-08"],
+    "provider": "openai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst",
+    "notes": "Standard processing. Text output is not billed because this model outputs images, not text. Image output costs $15 per million tokens with Batch processing.",
+    "rates": [
+      {"category":"text_input","unit":"million_tokens","price":5},
+      {"category":"cache_read","unit":"million_tokens","price":1.25},
+      {"category":"image_input","unit":"million_tokens","price":8},
+      {"category":"image_cache_read","unit":"million_tokens","price":2},
+      {"category":"image_output","unit":"million_tokens","price":30}
+    ]
+  },
+  {
+    "models": ["gemini-nano-banana-2.1"],
+    "provider": "google", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing#gemini-nano-banana-2.1",
+    "notes": "Standard paid tier. Input: text/image/video. Text output includes thinking. Grounding is billed separately. Image rates are per output token, not a fixed request price.",
+    "rates": [
+      {"category":"text_input","unit":"million_tokens","price":1.5},
+      {"category":"image_input","unit":"million_tokens","price":1.5},
+      {"category":"video_input","unit":"million_tokens","price":1.5},
+      {"category":"text_output","unit":"million_tokens","price":7.5},
+      {"category":"image_output","unit":"million_tokens","price":30}
+    ]
+  },
+  {
+    "models": ["gemini-3.1-flash-image"],
+    "provider": "google", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing#gemini-3.1-flash-image",
+    "notes": "Standard paid tier. Text output includes thinking. Grounding is billed separately. Image rates are per output token, not a fixed request price.",
+    "rates": [
+      {"category":"text_input","unit":"million_tokens","price":0.5},
+      {"category":"image_input","unit":"million_tokens","price":0.5},
+      {"category":"text_output","unit":"million_tokens","price":3},
+      {"category":"image_output","unit":"million_tokens","price":60}
+    ]
+  },
+  {
+    "models": ["gpt-realtime-2.1"],
+    "provider": "openai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://developers.openai.com/api/docs/models/gpt-realtime-2.1",
+    "rates": [
+      {"category":"text_input","unit":"million_tokens","price":4},
+      {"category":"cache_read","unit":"million_tokens","price":0.4},
+      {"category":"text_output","unit":"million_tokens","price":24},
+      {"category":"audio_input","unit":"million_tokens","price":32},
+      {"category":"audio_cache_read","unit":"million_tokens","price":0.4},
+      {"category":"audio_output","unit":"million_tokens","price":64},
+      {"category":"image_input","unit":"million_tokens","price":5},
+      {"category":"image_cache_read","unit":"million_tokens","price":0.5}
+    ]
+  },
+  {
+    "models": ["gpt-live-transcribe"],
+    "provider": "openai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://developers.openai.com/api/docs/pricing",
+    "rates": [{"category":"transcription","unit":"minute","price":0.017}]
+  },
+  {
+    "models": ["eleven_v3"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Pay-as-you-go API product rate. Prices exclude all taxes, levies and duties.",
+    "rates": [{"category":"speech","unit":"thousand_characters","price":0.08}]
+  },
+  {
+    "models": ["scribe_v2"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Scribe v2 pay-as-you-go. Not the separately priced Realtime product.",
+    "rates": [{"category":"transcription","unit":"hour","price":0.22}]
+  },
+  {
+    "models": ["elevenlabs-forced-alignment"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/docs/overview/capabilities/forced-alignment",
+    "notes": "Forced Alignment is billed at the same rate as Speech-to-Text. Pay-as-you-go Scribe rate: https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "rates": [{"category":"alignment","unit":"hour","price":0.22}]
+  },
+  {
+    "models": ["eleven_multilingual_sts_v2"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Voice Changer pay-as-you-go product rate.",
+    "rates": [{"category":"voice_conversion","unit":"minute","price":0.12}]
+  },
+  {
+    "models": ["elevenlabs-audio-isolation"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Voice Isolator pay-as-you-go product rate.",
+    "rates": [{"category":"audio_isolation","unit":"minute","price":0.12}]
+  },
+  {
+    "models": ["eleven_text_to_sound_v2"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Sound Effects pay-as-you-go product reference, not a version-specific quote.",
+    "rates": [{"category":"sound_effects","unit":"minute","price":0.12}]
+  },
+  {
+    "models": ["music_v2"],
+    "provider": "elevenlabs", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://elevenlabs.io/pricing/api?price.calculator=payg",
+    "notes": "Music pay-as-you-go product reference, not a version-specific quote. Commercial use licensing on Starter+ plans.",
+    "rates": [{"category":"music","unit":"minute","price":0.15}]
+  },
+  {
+    "models": ["grok-imagine-video-1.5", "grok-imagine-video-1.5-preview", "grok-imagine-video-1.5-2026-05-30"],
+    "provider": "xai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.x.ai/developers/models/grok-imagine-video-1.5",
+    "notes": "Charged per generated second plus input-image charges. Batch uses standard rates. Preset voices are free. A video-input rate for version 1.5 is not specified in the published table; do not assume it is free.",
+    "rates": [
+      {"category":"video_output","unit":"second","price":0.08,"condition":"480p"},
+      {"category":"video_output","unit":"second","price":0.14,"condition":"720p"},
+      {"category":"video_output","unit":"second","price":0.25,"condition":"1080p"},
+      {"category":"image_input","unit":"image","price":0.01}
+    ]
+  },
+  {
+    "models": ["grok-imagine-image-2.0"],
+    "provider": "xai", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.x.ai/developers/models/grok-imagine-image-2.0",
+    "notes": "Input and output images are billed separately. Batch uses standard rates.",
+    "rates": [
+      {"category":"image_input","unit":"image","price":0.01},
+      {"category":"image_output","unit":"image","price":0.04,"condition":"1K / Low"},
+      {"category":"image_output","unit":"image","price":0.05,"condition":"1.5K / Low"},
+      {"category":"image_output","unit":"image","price":0.06,"condition":"2K / Low"},
+      {"category":"image_output","unit":"image","price":0.06,"condition":"1K / Medium"},
+      {"category":"image_output","unit":"image","price":0.07,"condition":"1.5K / Medium"},
+      {"category":"image_output","unit":"image","price":0.08,"condition":"2K / Medium"}
+    ]
+  },
+  {
+    "models": ["dreamina-seedance-2-5", "dreamina-seedance-2-5-260628"],
+    "provider": "bytedance", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.byteplus.com/docs/modelark/model-pricing",
+    "notes": "Online inference; successful generations only. Billed by usage.completion_tokens, not output seconds. Video input has minimum billable tokens depending on resolution, aspect ratio and duration; consult the official table. Draft mode uses normal 480p rates. 4K and offline inference are unsupported.",
+    "rates": [
+      {"category":"video_output","unit":"million_video_tokens","price":10.7,"condition":"480p / 720p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":11.7,"condition":"1080p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":6.4,"condition":"480p / 720p; with video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":7,"condition":"1080p; with video input"}
+    ]
+  },
+  {
+    "models": ["seedance-2-0", "dreamina-seedance-2-0-260128"],
+    "provider": "bytedance", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.byteplus.com/docs/modelark/model-pricing",
+    "notes": "Online inference; successful generations only. Billed by usage.completion_tokens, not output seconds. Video input has minimum billable tokens depending on resolution, aspect ratio and duration; consult the official table. Offline inference is unsupported.",
+    "rates": [
+      {"category":"video_output","unit":"million_video_tokens","price":7,"condition":"480p / 720p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":7.7,"condition":"1080p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":4,"condition":"4K; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":4.3,"condition":"480p / 720p; with video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":4.7,"condition":"1080p; with video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":2.4,"condition":"4K; with video input"}
+    ]
+  },
+  {
+    "models": ["seedance-2-0-fast", "dreamina-seedance-2-0-fast-260128"],
+    "provider": "bytedance", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.byteplus.com/docs/modelark/model-pricing",
+    "notes": "Online inference; successful generations only. Billed by usage.completion_tokens. Video input has minimum billable tokens; consult official documentation. 1080p, 4K and offline inference are unsupported.",
+    "rates": [
+      {"category":"video_output","unit":"million_video_tokens","price":5.6,"condition":"480p / 720p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":3.3,"condition":"480p / 720p; with video input"}
+    ]
+  },
+  {
+    "models": ["seedance-2-0-mini", "dreamina-seedance-2-0-mini-260615"],
+    "provider": "bytedance", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.byteplus.com/docs/modelark/model-pricing",
+    "notes": "Online inference; successful generations only. Billed by usage.completion_tokens. Video input has minimum billable tokens; consult official documentation. 1080p, 4K and offline inference are unsupported.",
+    "rates": [
+      {"category":"video_output","unit":"million_video_tokens","price":3.5,"condition":"480p / 720p; without video input"},
+      {"category":"video_output","unit":"million_video_tokens","price":2.1,"condition":"480p / 720p; with video input"}
+    ]
+  },
+  {
+    "models": ["seedream-5.0"],
+    "provider": "bytedance", "currency": "USD", "verified_at": "2026-10-26",
+    "source_url": "https://docs.byteplus.com/docs/modelark/model-pricing",
+    "notes": "Family reference only: seedream-5.0 does not identify Pro, Flash or Lite. No default variant is selected. Only successfully output images are billed. Pro layer decomposition bills each layer at its actual pixel tier; input-image pricing varies by generation scenario.",
+    "rates": [
+      {"category":"image_input","unit":"image","price":0,"variant":"dola-seedream-5-0-pro-260628","condition":"First input image"},
+      {"category":"image_input","unit":"image","price":0.003,"variant":"dola-seedream-5-0-pro-260628","condition":"Each input image from the second onward"},
+      {"category":"image_output","unit":"image","price":0.045,"variant":"dola-seedream-5-0-pro-260628","condition":"Single-image generation; ≤ 2.61M pixels"},
+      {"category":"image_output","unit":"image","price":0.09,"variant":"dola-seedream-5-0-pro-260628","condition":"Single-image generation; > 2.61M pixels"},
+      {"category":"image_output","unit":"image","price":0.0225,"variant":"dola-seedream-5-0-pro-260628","condition":"Layer decomposition; ≤ 2.61M pixels per layer"},
+      {"category":"image_output","unit":"image","price":0.045,"variant":"dola-seedream-5-0-pro-260628","condition":"Layer decomposition; > 2.61M pixels per layer"},
+      {"category":"image_input","unit":"image","price":0,"variant":"dola-seedream-5-0-flash-260915"},
+      {"category":"image_output","unit":"image","price":0.018,"variant":"dola-seedream-5-0-flash-260915"},
+      {"category":"image_input","unit":"image","price":0,"variant":"seedream-5-0-lite-260128"},
+      {"category":"image_output","unit":"image","price":0.035,"variant":"seedream-5-0-lite-260128"}
+    ]
+  }
+]
