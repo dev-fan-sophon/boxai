@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -529,7 +528,7 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 		}
 	}
 	assert.Equal(t, "Documented Model", pricing.DisplayName)
-	assert.Zero(t, pricing.OfficialDiscount)
+	assert.Equal(t, 88.88, pricing.OfficialDiscount)
 	assert.Equal(t, 128000, pricing.ContextLength)
 	assert.Equal(t, 8192, pricing.MaxOutputTokens)
 	assert.Equal(t, []string{"text", "image"}, pricing.InputModalities)
@@ -541,45 +540,42 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	assert.Equal(t, "effort", pricing.ReasoningOptions[0].Type)
 }
 
-func TestPricingDiscountUsesActualPriceInsteadOfManualMetadata(t *testing.T) {
+func TestPricingDiscountUsesAdminValueRegardlessOfPrice(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 	originalRatios := ratio_setting.ModelRatio2JSONString()
-	officialRatioMu.Lock()
-	originalSnapshot := officialRatioCache
-	officialRatioCache = &officialRatioSnapshot{
-		modelRatio: map[string]float64{"discount-model": 0.33},
-		fetchedAt:  time.Now(),
-	}
-	officialRatioMu.Unlock()
 	t.Cleanup(func() {
 		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(originalRatios))
-		officialRatioMu.Lock()
-		officialRatioCache = originalSnapshot
-		officialRatioMu.Unlock()
 		InvalidatePricingCache()
 	})
 	insertPricingEndpointChannel(t, 221, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
 	insertPricingEndpointAbility(t, 221, "discount-model")
-	manualDiscount := 55.0
+	manualDiscount := 80.0
 	require.NoError(t, DB.Create(&Model{ModelName: "discount-model", Status: 1, NameRule: NameRuleExact, OfficialDiscount: &manualDiscount}).Error)
 	for _, tc := range []struct {
 		name     string
 		ratio    float64
 		expected float64
 	}{
-		{"two tenths of official price", 0.066, 80},
-		{"updated price", 0.165, 50},
-		{"equal to official price", 0.33, 0},
-		{"above official price", 0.66, 0},
+		{"exact admin value, not 79.8", 0.06666, 80},
+		{"updated price", 0.165, 80},
+		{"changed badge", 0.165, 65.25},
+		{"zero hides badge", 0.066, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, DB.Model(&Model{}).Where("model_name = ?", "discount-model").Update("official_discount", tc.expected).Error)
 			require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(fmt.Sprintf(`{"discount-model":%g}`, tc.ratio)))
 			InvalidatePricingCache()
 			prices := GetPricing()
 			require.Len(t, prices, 1)
 			assert.Equal(t, tc.expected, prices[0].OfficialDiscount)
+			assert.Equal(t, tc.ratio, prices[0].ModelRatio)
 		})
 	}
+	require.NoError(t, DB.Model(&Model{}).Where("model_name = ?", "discount-model").Update("official_discount", nil).Error)
+	InvalidatePricingCache()
+	prices := GetPricing()
+	require.Len(t, prices, 1)
+	assert.Zero(t, prices[0].OfficialDiscount, "unset metadata must not generate an automatic badge")
 }
 
 func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing.T) {

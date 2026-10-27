@@ -9,53 +9,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
 
-func TestComputeAutoOfficialDiscountRatio(t *testing.T) {
-	official := &officialRatioSnapshot{
-		modelRatio: map[string]float64{
-			"gpt-5.6-sol": 2.5,
-			"same-price":  1.0,
-			"cheaper-off": 0.5,
-		},
-		modelPrice: map[string]float64{},
-	}
-
-	// 1.25 site vs 2.5 official → 50%
-	assert.Equal(t, 50.0, computeAutoOfficialDiscount(0, 1.25, 0, "gpt-5.6-sol", official))
-
-	// Equal or higher site price → no discount badge
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(0, 2.5, 0, "gpt-5.6-sol", official))
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(0, 1.0, 0, "same-price", official))
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(0, 1.0, 0, "cheaper-off", official))
-
-	// Missing official baseline
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(0, 1.0, 0, "unknown", official))
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(0, 1.0, 0, "gpt-5.6-sol", nil))
-}
-
-func TestComputeAutoOfficialDiscountPrice(t *testing.T) {
-	official := &officialRatioSnapshot{
-		modelRatio: map[string]float64{},
-		modelPrice: map[string]float64{
-			"dall-e-3": 0.04,
-		},
-	}
-
-	// site 0.02 vs official 0.04 → 50%
-	assert.Equal(t, 50.0, computeAutoOfficialDiscount(1, 0, 0.02, "dall-e-3", official))
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(1, 0, 0.04, "dall-e-3", official))
-	assert.Equal(t, 0.0, computeAutoOfficialDiscount(1, 0, 0.02, "missing", official))
-}
-
-func TestComputeAutoOfficialDiscountRounding(t *testing.T) {
-	official := &officialRatioSnapshot{
-		modelRatio: map[string]float64{
-			"deepseek-v4-pro": 0.7765,
-		},
-	}
-	// 0.174 / 0.7765 ≈ 77.591… → 77.59
-	assert.Equal(t, 77.59, computeAutoOfficialDiscount(0, 0.174, 0, "deepseek-v4-pro", official))
-}
-
 func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	// input $0.14/1M → ratio = 0.14 * 500 / 1000 = 0.07
 	body := []byte(`{
@@ -84,12 +37,12 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	require.NotNil(t, snap)
 
 	// free model skipped
-	_, ok := snap.modelRatio["free-model"]
+	_, ok := snap.references["free-model"]
 	assert.False(t, ok)
 
 	// deepseek: 0.14 * USD / 1000
 	wantFlash := 0.14 * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
-	assert.InDelta(t, wantFlash, snap.modelRatio["deepseek-v4-flash"], 1e-9)
+	assert.InDelta(t, wantFlash, snap.references["deepseek-v4-flash"].ModelRatio, 1e-9)
 	flashReference := snap.references["deepseek-v4-flash"]
 	assert.Equal(t, "deepseek", flashReference.Provider)
 	assert.InDelta(t, 0.14, flashReference.InputPrice, 1e-9)
@@ -104,16 +57,10 @@ func TestParseModelsDevSnapshotConvertsUSDPer1M(t *testing.T) {
 	assert.Contains(t, snap.references, "deepseek-tiered")
 	assert.False(t, snap.references["deepseek-tiered"].QuickDiscountSupported)
 	assert.NotContains(t, snap.references, "reseller-only")
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "reseller-only", snap))
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "other/gpt-5.6-sol", snap))
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "other.gpt-5.6-sol", snap))
 
 	// duplicate gpt-5.6-sol → prefer first-party openai ($5), not cheaper reseller ($4)
 	wantSol := 5.0 * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
-	assert.InDelta(t, wantSol, snap.modelRatio["gpt-5.6-sol"], 1e-9)
-
-	// no fixed prices from models.dev
-	assert.Empty(t, snap.modelPrice)
+	assert.InDelta(t, wantSol, snap.references["gpt-5.6-sol"].ModelRatio, 1e-9)
 }
 
 func TestLookupOfficialModelPricingReferenceAllowsOnlyMatchingProviderAlias(t *testing.T) {
@@ -176,13 +123,11 @@ func TestOfficialPricingAliasesAndFirstPartySources(t *testing.T) {
 			assert.Equal(t, tc.name, reference.ModelName)
 			assert.Equal(t, tc.input, reference.InputPrice)
 			assert.InDelta(t, tc.input/2, reference.ModelRatio, 1e-9)
-			assert.Equal(t, 80.0, computeAutoOfficialDiscount(0, tc.input/10, 0, tc.name, snapshot))
 		})
 	}
 	for _, name := range []string{"reseller/deepseek-v4.1-flash", "custom.glm-5.3", "deepseek-v4.1-flash-unknown"} {
 		_, ok := lookupOfficialModelPricingReference(snapshot, name)
 		assert.False(t, ok, name)
-		assert.Zero(t, computeAutoOfficialDiscount(0, 0.001, 0, name, snapshot), name)
 	}
 }
 
@@ -207,11 +152,9 @@ func TestOfficialReferencesDoNotFlattenMediaPricesOrUseHostedPartnerPrices(t *te
 		require.True(t, ok, name)
 		assert.False(t, reference.QuickDiscountSupported, name)
 		assert.NotEmpty(t, reference.Rates, name)
-		assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, name, snapshot))
 	}
 	_, ok = lookupOfficialModelPricingReference(snapshot, "partner-only")
 	assert.False(t, ok)
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "partner-only", snapshot))
 }
 
 func TestOfficialContextTiersKeepBoundariesAndMissingRates(t *testing.T) {
@@ -227,7 +170,6 @@ func TestOfficialContextTiersKeepBoundariesAndMissingRates(t *testing.T) {
 	reference, ok := lookupOfficialModelPricingReference(snapshot, "tier-model")
 	require.True(t, ok)
 	assert.False(t, reference.QuickDiscountSupported)
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "tier-model", snapshot))
 	require.Len(t, reference.Rates, 8, "do not duplicate the legacy tier or invent absent cache prices")
 	assert.Equal(t, 2.0, reference.Rates[0].Price)
 	assert.Nil(t, reference.Rates[0].ContextMinExclusive)
@@ -247,14 +189,6 @@ func TestOfficialContextTiersKeepBoundariesAndMissingRates(t *testing.T) {
 }
 
 func TestDocumentedOfficialReferencesPreserveMediaUnitsAndVariants(t *testing.T) {
-	// A source without modality metadata must not turn a documented media rate
-	// into a text-token discount badge.
-	snapshot, err := parseModelsDevSnapshot([]byte(`{"openai":{"models":{
-		"gpt-live-transcribe":{"cost":{"input":10,"output":20}}
-	}}}`))
-	require.NoError(t, err)
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "gpt-live-transcribe", snapshot))
-	assert.Zero(t, computeAutoOfficialDiscount(0, 0.1, 0, "openai/gpt-live-transcribe", snapshot))
 	for _, tc := range []struct {
 		name, category, unit string
 		price                float64

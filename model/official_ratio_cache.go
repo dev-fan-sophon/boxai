@@ -15,7 +15,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 )
 
-// Official baseline for marketplace and admin pricing: first-party list prices
+// Official references for admin pricing: first-party list prices
 // from models.dev, never reseller quotes or subscription-plan prices.
 // models.dev costs are USD per 1M tokens; converted with the local ratio formula:
 //
@@ -28,8 +28,6 @@ const modelsDevInputCostRatioBase = 1000.0
 const officialRatioCacheTTL = 6 * time.Hour
 
 type officialRatioSnapshot struct {
-	modelRatio map[string]float64
-	modelPrice map[string]float64
 	references map[string]OfficialModelPricingReference
 	fetchedAt  time.Time
 }
@@ -251,17 +249,12 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 		return nil, fmt.Errorf("no valid models.dev pricing entries found")
 	}
 
-	modelRatio := make(map[string]float64, len(selected))
 	references := make(map[string]OfficialModelPricingReference, len(selected))
 	for modelName, candidate := range selected {
 		// model_ratio = input_usd_per_1M * USD / 1000
 		ratio := candidate.input * float64(ratio_setting.USD) / modelsDevInputCostRatioBase
 		if ratio <= 0 || math.IsNaN(ratio) || math.IsInf(ratio, 0) {
 			continue
-		}
-		_, documented := documentedOfficialPricingReferences[modelName]
-		if !candidate.tiered && !candidate.multimodal && !documented {
-			modelRatio[modelName] = ratio
 		}
 		reference := OfficialModelPricingReference{
 			Currency:               "USD",
@@ -291,9 +284,6 @@ func parseModelsDevSnapshot(body []byte) (*officialRatioSnapshot, error) {
 	}
 
 	return &officialRatioSnapshot{
-		modelRatio: modelRatio,
-		// models.dev is token-cost oriented; fixed $/request baselines are not provided.
-		modelPrice: map[string]float64{},
 		references: references,
 		fetchedAt:  time.Now(),
 	}, nil
@@ -359,44 +349,4 @@ func officialPricingModelName(modelName string) string {
 	default:
 		return name
 	}
-}
-
-// computeAutoOfficialDiscount returns the marketplace discount percent of site
-// price/ratio vs the official baseline. Returns 0 when no discount applies
-// or the official baseline is missing.
-func computeAutoOfficialDiscount(
-	quotaType int,
-	siteModelRatio float64,
-	siteModelPrice float64,
-	modelName string,
-	official *officialRatioSnapshot,
-) float64 {
-	if official == nil {
-		return 0
-	}
-
-	var site, baseline float64
-	var ok bool
-	if quotaType == 1 {
-		// Fixed-price models: compare USD/request when we have an official price baseline.
-		// models.dev rarely provides this; then no auto badge.
-		site = siteModelPrice
-		baseline, ok = official.modelPrice[officialPricingModelName(modelName)]
-	} else {
-		site = siteModelRatio
-		baseline, ok = official.modelRatio[officialPricingModelName(modelName)]
-	}
-	if !ok || baseline <= 0 || site <= 0 || site >= baseline {
-		return 0
-	}
-
-	percent := (1 - site/baseline) * 100
-	if percent < 1 {
-		return 0
-	}
-	if percent > 99.99 {
-		percent = 99.99
-	}
-	// Two decimal places to match admin metadata validation / badge display.
-	return math.Round(percent*100) / 100
 }

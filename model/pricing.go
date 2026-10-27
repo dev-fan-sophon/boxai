@@ -218,8 +218,6 @@ func updatePricing() {
 		common.SysLog(fmt.Sprintf("GetAllEnableAbilityWithChannels error: %v", err))
 		return
 	}
-	// Snapshot official ratio/price baseline once per rebuild for auto discount badges.
-	officialSnapshot := getOfficialRatioSnapshot()
 	// 预加载模型元数据与供应商一次，避免循环查询
 	var allMeta []Model
 	_ = DB.Find(&allMeta).Error
@@ -479,15 +477,13 @@ func updatePricing() {
 			pricing.CompletionRatio = ratio_setting.GetCompletionRatio(model)
 			pricing.QuotaType = 0
 		}
-		// Marketplace badges follow actual prices, never legacy manual metadata.
-		// Without an official baseline, omit the badge rather than claim savings.
-		pricing.OfficialDiscount = computeAutoOfficialDiscount(
-			pricing.QuotaType,
-			pricing.ModelRatio,
-			pricing.ModelPrice,
-			model,
-			officialSnapshot,
-		)
+		// The marketplace badge is administrator-controlled display metadata,
+		// independent of billing prices and official price references.
+		if meta, ok := metaMap[model]; ok {
+			if meta.OfficialDiscount != nil && *meta.OfficialDiscount > 0 && *meta.OfficialDiscount < 100 {
+				pricing.OfficialDiscount = *meta.OfficialDiscount
+			}
+		}
 		if cacheRatio, ok := ratio_setting.GetCacheRatio(model); ok {
 			pricing.CacheRatio = &cacheRatio
 		}
