@@ -164,9 +164,6 @@ func UpdateModelMeta(c *gin.Context) {
 }
 
 func normalizeModelMetadata(m *model.Model) error {
-	if m.OfficialDiscount != nil && (*m.OfficialDiscount < 0 || *m.OfficialDiscount >= 100) {
-		return fmt.Errorf("official_discount must be greater than or equal to 0 and less than 100")
-	}
 	var err error
 	if m.Integrations, err = model.NormalizeModelIntegrations(m.Integrations); err != nil {
 		return err

@@ -160,7 +160,8 @@ export function applyOfficialPricePercent(
     (current.mode !== 'per-token' && current.mode !== 'unset') ||
     !Number.isFinite(percent) ||
     percent < 1 ||
-    percent > 100
+    percent > 100 ||
+    Math.abs(percent * 100 - Math.round(percent * 100)) > 1e-6
   ) {
     return null
   }
@@ -180,27 +181,6 @@ export function applyOfficialPricePercent(
     next.cache_ratio = reference.cache_ratio
   }
   return next
-}
-
-export function inferOfficialPricePercent(
-  current: ModelPricing,
-  reference: OfficialModelPricingReference
-): number {
-  if (current.official_price_percent !== undefined) {
-    return current.official_price_percent
-  }
-  if (
-    reference.quick_discount_supported === false ||
-    reference.model_ratio === undefined ||
-    current.mode !== 'per-token' ||
-    current.model_ratio === undefined ||
-    reference.model_ratio <= 0
-  ) {
-    return 100
-  }
-  const percent = (current.model_ratio / reference.model_ratio) * 100
-  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) return 100
-  return percent
 }
 
 export function filterPricingModels(

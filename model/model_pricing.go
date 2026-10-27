@@ -203,9 +203,6 @@ func GetModelPricingRows() (int64, []ModelPricingRow, error) {
 		} else if pricing.ModelRatio != nil {
 			pricing.Mode = "per-token"
 		}
-		if pricing.Mode != "per-token" {
-			pricing.OfficialPricePercent = nil
-		}
 		configured := pricing.Mode != "unset"
 		rows = append(rows, ModelPricingRow{ModelName: name, HasChannel: true, Configured: configured,
 			CompletionRatioLocked: completionInfo.Locked, Pricing: pricing})
@@ -254,8 +251,8 @@ func ValidateModelPricingUpdates(updates []ModelPricingUpdate) error {
 		seen[name] = struct{}{}
 		p := update.Pricing
 		if percent := p.OfficialPricePercent; percent != nil {
-			if p.Mode != "per-token" || math.IsNaN(*percent) || math.IsInf(*percent, 0) || *percent < 1 || *percent > 100 {
-				return errors.New("official_price_percent requires token pricing and a value between 1 and 100")
+			if math.IsNaN(*percent) || math.IsInf(*percent, 0) || *percent < 1 || *percent > 100 || math.Abs(*percent*100-math.Round(*percent*100)) > 1e-6 {
+				return errors.New("official_price_percent must be between 1 and 100 with at most two decimal places")
 			}
 		}
 		if p.Mode != "per-token" && p.Mode != "per-request" && p.Mode != "tiered_expr" && p.Mode != "unset" {
@@ -353,11 +350,9 @@ func ReplaceModelPricing(expectedRevision int64, updates []ModelPricingUpdate) (
 		for _, update := range updates {
 			name, p := strings.TrimSpace(update.ModelName), update.Pricing
 			// Persist the administrator's percentage, never reconstruct it from prices.
-			// Omission preserves it; leaving token pricing suppresses any legacy badge.
+			// Display settings are independent of billing mode. Unsetting clears them.
 			if p.OfficialPricePercent != nil {
 				floatMaps["OfficialPricePercent"][name] = *p.OfficialPricePercent
-			} else if p.Mode != "per-token" {
-				floatMaps["OfficialPricePercent"][name] = 100
 			}
 			completionLocked := ratio_setting.GetCompletionRatioInfo(name).Locked
 			replaceFloat := func(key string, value *float64) {
@@ -369,9 +364,6 @@ func ReplaceModelPricing(expectedRevision int64, updates []ModelPricingUpdate) (
 			}
 			if p.Mode == "unset" {
 				for key := range floatMaps {
-					if key == "OfficialPricePercent" {
-						continue
-					}
 					if key == "CompletionRatio" && completionLocked {
 						continue
 					}

@@ -176,7 +176,6 @@ const extendedModelFormSchema = z.object({
   vendor_id: z.number().optional(),
   endpoints: z.string(),
   display_name: z.string(),
-  official_discount: z.number().min(0).lt(100).optional(),
   context_length: z
     .number()
     .int()
@@ -265,7 +264,6 @@ export function ModelMutateDrawer({
       vendor_id: undefined,
       endpoints: '',
       display_name: '',
-      official_discount: undefined,
       context_length: undefined,
       max_output_tokens: undefined,
       knowledge_cutoff: '',
@@ -296,7 +294,6 @@ export function ModelMutateDrawer({
         vendor_id: model.vendor_id,
         endpoints: model.endpoints || '',
         display_name: model.display_name || '',
-        official_discount: model.official_discount || undefined,
         context_length: model.context_length,
         max_output_tokens: model.max_output_tokens,
         knowledge_cutoff: model.knowledge_cutoff || '',
@@ -327,7 +324,6 @@ export function ModelMutateDrawer({
         vendor_id: undefined,
         endpoints: '',
         display_name: '',
-        official_discount: undefined,
         context_length: undefined,
         max_output_tokens: undefined,
         knowledge_cutoff: '',
@@ -353,7 +349,6 @@ export function ModelMutateDrawer({
         const submitData = {
           ...values,
           id: isEditing ? currentModelId : undefined,
-          official_discount: values.official_discount ?? 0,
           tags: Array.isArray(values.tags) ? values.tags.join(',') : '',
           status: values.status ? 1 : 0,
           sync_official: values.sync_official ? 1 : 0,
@@ -583,37 +578,6 @@ export function ModelMutateDrawer({
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='official_discount'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Official price discount (%)')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={99.99}
-                        step={0.01}
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === ''
-                              ? undefined
-                              : event.target.valueAsNumber
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'Optional marketplace badge compared with the official price. This does not change billing.'
-                      )}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

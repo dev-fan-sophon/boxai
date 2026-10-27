@@ -3,6 +3,7 @@ package controller
 import (
 	"testing"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/stretchr/testify/assert"
@@ -76,15 +77,11 @@ func TestNormalizeModelMetadataRejectsUnsupportedEndpointShapes(t *testing.T) {
 	}
 }
 
-func TestNormalizeModelMetadataValidatesOfficialDiscount(t *testing.T) {
-	for _, discount := range []float64{-0.01, 100} {
-		metadata := model.Model{OfficialDiscount: &discount}
-		assert.Error(t, normalizeModelMetadata(&metadata))
-	}
-
-	discount := 88.88
-	metadata := model.Model{OfficialDiscount: &discount}
+func TestModelMetadataIgnoresRetiredDiscountInput(t *testing.T) {
+	var metadata model.Model
+	require.NoError(t, common.UnmarshalJsonStr(`{"model_name":"glm-5.3","official_discount":55}`, &metadata))
 	require.NoError(t, normalizeModelMetadata(&metadata))
+	assert.Nil(t, metadata.OfficialDiscount)
 }
 
 func TestNormalizeModelMetadataCanonicalizesReasoningEfforts(t *testing.T) {

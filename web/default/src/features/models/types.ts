@@ -30,7 +30,6 @@ export interface Model {
   vendor_id?: number
   endpoints?: string
   display_name?: string
-  official_discount?: number
   context_length?: number
   max_input_tokens?: number
   max_output_tokens?: number

@@ -5,7 +5,6 @@ import {
   editorToPricing,
   filterPricingModels,
   mergeReferenceResolution,
-  inferOfficialPricePercent,
   pricingRecordToEditor,
   resolveSelectedModelName,
   stripLockedCompletionRatio,
@@ -221,25 +220,21 @@ describe('official price discount', () => {
     ).toMatchObject({ model_ratio: 2.5 })
   })
 
-  it('keeps the entered percentage exact, with inference only for legacy prices', () => {
+  it('persists only the entered percentage and rejects unsupported precision', () => {
     expect(
-      inferOfficialPricePercent(
+      applyOfficialPricePercent(
         { mode: 'per-token', model_ratio: 0.505, official_price_percent: 20 },
-        officialReference
+        officialReference,
+        34.75
       )
-    ).toBe(20)
+    ).toMatchObject({ official_price_percent: 34.75 })
     expect(
-      inferOfficialPricePercent(
+      applyOfficialPricePercent(
         { mode: 'per-token', model_ratio: 2 },
-        officialReference
+        officialReference,
+        15.936
       )
-    ).toBe(80)
-    expect(
-      inferOfficialPricePercent(
-        { mode: 'per-request', model_price: 0.01 },
-        officialReference
-      )
-    ).toBe(100)
+    ).toBeNull()
   })
 })
 

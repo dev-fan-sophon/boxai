@@ -146,7 +146,7 @@ func TestModelPricingValidationAndCompletionLock(t *testing.T) {
 		{ModelName: "percent-low", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(0.99)}},
 		{ModelName: "percent-high", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(100.01)}},
 		{ModelName: "percent-nan", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(math.NaN())}},
-		{ModelName: "percent-mode", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(1), OfficialPricePercent: floatPointer(20)}},
+		{ModelName: "percent-precision", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(1), OfficialPricePercent: floatPointer(15.936)}},
 		{ModelName: "bad-expr", Pricing: ModelPricing{Mode: "tiered_expr", BillingExpr: stringPointer("not valid +")}},
 		{ModelName: "missing", Pricing: ModelPricing{Mode: "per-request"}},
 	}

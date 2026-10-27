@@ -31,7 +31,7 @@ type Model struct {
 	Endpoints          string         `json:"endpoints,omitempty" gorm:"type:text"`
 	Integrations       string         `json:"integrations,omitempty" gorm:"type:text"`
 	DisplayName        string         `json:"display_name,omitempty" gorm:"type:varchar(255)"`
-	OfficialDiscount   *float64       `json:"official_discount,omitempty"`
+	OfficialDiscount   *float64       `json:"-"` // Retired column; discounts are managed only in Pricing Center.
 	ContextLength      int            `json:"context_length,omitempty"`
 	MaxInputTokens     int            `json:"max_input_tokens,omitempty"`
 	MaxOutputTokens    int            `json:"max_output_tokens,omitempty"`
@@ -98,9 +98,6 @@ func IsModelNameDuplicated(id int, name string) (bool, error) {
 func (mi *Model) Update() error {
 	mi.UpdatedTime = common.GetTimestamp()
 	fields := []string{"model_name", "description", "icon", "tags", "vendor_id", "endpoints", "integrations", "display_name", "context_length", "max_input_tokens", "max_output_tokens", "knowledge_cutoff", "release_date", "last_updated", "parameter_count", "input_modalities", "output_modalities", "capabilities", "supported_reasoning", "reasoning_efforts", "reasoning_options", "temperature", "attachment", "open_weights", "interleaved", "usage_notes", "status", "sync_official", "name_rule", "updated_time"}
-	if mi.OfficialDiscount != nil {
-		fields = append(fields, "official_discount")
-	}
 	// 使用 Select 强制更新所有字段，包括零值
 	return DB.Model(&Model{}).Where("id = ?", mi.Id).
 		Select(fields).

@@ -9,7 +9,6 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
-	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -528,7 +527,7 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 		}
 	}
 	assert.Equal(t, "Documented Model", pricing.DisplayName)
-	assert.Equal(t, 88.88, pricing.OfficialDiscount)
+	assert.Zero(t, pricing.OfficialDiscount, "retired metadata cannot create a badge")
 	assert.Equal(t, 128000, pricing.ContextLength)
 	assert.Equal(t, 8192, pricing.MaxOutputTokens)
 	assert.Equal(t, []string{"text", "image"}, pricing.InputModalities)
@@ -538,44 +537,6 @@ func TestPricingParsesRichModelMetadata(t *testing.T) {
 	assert.Equal(t, 272000, pricing.MaxInputTokens)
 	require.Len(t, pricing.ReasoningOptions, 1)
 	assert.Equal(t, "effort", pricing.ReasoningOptions[0].Type)
-}
-
-func TestPricingDiscountUsesAdminValueRegardlessOfPrice(t *testing.T) {
-	resetPricingEndpointTestTables(t)
-	originalRatios := ratio_setting.ModelRatio2JSONString()
-	t.Cleanup(func() {
-		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(originalRatios))
-		InvalidatePricingCache()
-	})
-	insertPricingEndpointChannel(t, 221, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
-	insertPricingEndpointAbility(t, 221, "discount-model")
-	manualDiscount := 80.0
-	require.NoError(t, DB.Create(&Model{ModelName: "discount-model", Status: 1, NameRule: NameRuleExact, OfficialDiscount: &manualDiscount}).Error)
-	for _, tc := range []struct {
-		name     string
-		ratio    float64
-		expected float64
-	}{
-		{"exact admin value, not 79.8", 0.06666, 80},
-		{"updated price", 0.165, 80},
-		{"changed badge", 0.165, 65.25},
-		{"zero hides badge", 0.066, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			require.NoError(t, DB.Model(&Model{}).Where("model_name = ?", "discount-model").Update("official_discount", tc.expected).Error)
-			require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(fmt.Sprintf(`{"discount-model":%g}`, tc.ratio)))
-			InvalidatePricingCache()
-			prices := GetPricing()
-			require.Len(t, prices, 1)
-			assert.Equal(t, tc.expected, prices[0].OfficialDiscount)
-			assert.Equal(t, tc.ratio, prices[0].ModelRatio)
-		})
-	}
-	require.NoError(t, DB.Model(&Model{}).Where("model_name = ?", "discount-model").Update("official_discount", nil).Error)
-	InvalidatePricingCache()
-	prices := GetPricing()
-	require.Len(t, prices, 1)
-	assert.Zero(t, prices[0].OfficialDiscount, "unset metadata must not generate an automatic badge")
 }
 
 func TestPricingCenterPercentageOverridesLegacyBadge(t *testing.T) {
@@ -589,6 +550,7 @@ func TestPricingCenterPercentageOverridesLegacyBadge(t *testing.T) {
 		percent *float64
 		want    float64
 	}{
+		{nil, 0}, // Historical metadata must not be a fallback.
 		{floatPointer(20), 80},
 		{nil, 80}, // A subsequent ordinary save must preserve the applied discount.
 		{floatPointer(34.75), 65.25},
@@ -606,8 +568,12 @@ func TestPricingCenterPercentageOverridesLegacyBadge(t *testing.T) {
 		_, rows, err := GetModelPricingRows()
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
-		require.NotNil(t, rows[0].Pricing.OfficialPricePercent)
-		assert.Equal(t, 100-tc.want, *rows[0].Pricing.OfficialPricePercent)
+		if revision == 1 {
+			assert.Nil(t, rows[0].Pricing.OfficialPricePercent)
+		} else {
+			require.NotNil(t, rows[0].Pricing.OfficialPricePercent)
+			assert.Equal(t, 100-tc.want, *rows[0].Pricing.OfficialPricePercent)
+		}
 	}
 	_, err := ReplaceModelPricing(0, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{
 		Mode: "per-token", ModelRatio: floatPointer(9), OfficialPricePercent: floatPointer(10),
@@ -627,18 +593,24 @@ func TestPricingCenterPercentageOverridesLegacyBadge(t *testing.T) {
 	prices = GetPricing()
 	require.Len(t, prices, 1)
 	assert.Equal(t, float64(99), prices[0].OfficialDiscount)
-	_, err = ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(0.1)}}})
+	revision, err = ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(0.1), OfficialPricePercent: floatPointer(45)}}})
 	require.NoError(t, err)
 	prices = GetPricing()
 	require.Len(t, prices, 1)
-	assert.Zero(t, prices[0].OfficialDiscount)
+	assert.Equal(t, float64(55), prices[0].OfficialDiscount)
 	_, rows, err := GetModelPricingRows()
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].Pricing.OfficialPricePercent)
+	assert.Equal(t, float64(45), *rows[0].Pricing.OfficialPricePercent)
+	_, err = ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{Mode: "unset"}}})
+	require.NoError(t, err)
+	_, rows, err = GetModelPricingRows()
+	require.NoError(t, err)
 	assert.Nil(t, rows[0].Pricing.OfficialPricePercent)
 }
 
-func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing.T) {
+func TestModelMetadataCannotEditRetiredDiscount(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 	officialDiscount := 88.88
 	stored := Model{ModelName: "discounted-model", OfficialDiscount: &officialDiscount, Status: 1}
@@ -653,7 +625,7 @@ func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing
 	require.NoError(t, (&Model{Id: stored.Id, ModelName: stored.ModelName, OfficialDiscount: &cleared, Status: 1}).Update())
 	require.NoError(t, DB.First(&stored, stored.Id).Error)
 	require.NotNil(t, stored.OfficialDiscount)
-	assert.Zero(t, *stored.OfficialDiscount)
+	assert.Equal(t, 88.88, *stored.OfficialDiscount)
 }
 
 func TestInitChannelCacheInvalidatesPricingCache(t *testing.T) {

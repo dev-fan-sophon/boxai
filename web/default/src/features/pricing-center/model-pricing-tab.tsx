@@ -37,7 +37,6 @@ import {
   applyOfficialPricePercent,
   editorToPricing,
   filterPricingModels,
-  inferOfficialPricePercent,
   mergeReferenceResolution,
   pricingRecordToEditor,
   recordsToLegacyMaps,
@@ -97,6 +96,18 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
     () => models.find((model) => model.model_name === selectedName) ?? null,
     [models, selectedName]
   )
+
+  const [percent, setPercent] = useState('100')
+  useEffect(() => {
+    setPercent(String(selectedModel?.pricing.official_price_percent ?? 100))
+  }, [selectedModel])
+  const numericPercent = Number(percent)
+  const validPercent =
+    percent.trim() !== '' &&
+    Number.isFinite(numericPercent) &&
+    numericPercent >= 1 &&
+    numericPercent <= 100 &&
+    Math.abs(numericPercent * 100 - Math.round(numericPercent * 100)) <= 1e-6
 
   const referenceQuery = useQuery({
     queryKey: [...pricingCenterQueryKey, 'official-reference', selectedName],
@@ -183,17 +194,17 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
   }
 
   const handleSave = async () => {
-    if (!selectedModel || !editorRef.current) return
+    if (!selectedModel || !editorRef.current || !validPercent) return
     const data = await editorRef.current.commitDraft()
     if (!data) return
     preferredNameRef.current = selectedModel.model_name
     try {
       await save.mutateAsync({
         name: selectedModel.model_name,
-        pricing: preparePricing(
-          selectedModel.model_name,
-          editorToPricing(data)
-        ),
+        pricing: preparePricing(selectedModel.model_name, {
+          ...editorToPricing(data),
+          official_price_percent: numericPercent,
+        }),
       })
     } catch {
       // Error toast is handled in mutation onError.
@@ -426,6 +437,9 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
             >
               <QuickDiscountPanel
                 pricing={selectedModel.pricing}
+                percent={percent}
+                validPercent={validPercent}
+                onPercentChange={setPercent}
                 reference={referenceQuery.data ?? null}
                 isLoading={referenceQuery.isLoading}
                 isSaving={isBusy}
@@ -525,30 +539,17 @@ export function ModelPricingTab(props: { initialModelFilter?: string }) {
 
 function QuickDiscountPanel(props: {
   pricing: ModelPricing
+  percent: string
+  validPercent: boolean
+  onPercentChange: (value: string) => void
   reference: OfficialModelPricingReference | null
   isLoading: boolean
   isSaving: boolean
   onApply: (percent: number) => Promise<void>
 }) {
   const { t } = useTranslation()
-  const initialPercent = props.reference
-    ? inferOfficialPricePercent(props.pricing, props.reference)
-    : 100
-  const [percent, setPercent] = useState(String(initialPercent))
-
-  useEffect(() => {
-    if (!props.reference) return
-    setPercent(
-      String(inferOfficialPricePercent(props.pricing, props.reference))
-    )
-  }, [props.pricing, props.reference])
-
-  const numericPercent = Number(percent)
-  const valid =
-    percent.trim() !== '' &&
-    Number.isFinite(numericPercent) &&
-    numericPercent >= 1 &&
-    numericPercent <= 100
+  const numericPercent = Number(props.percent)
+  const valid = props.validPercent
   const multiplier = valid ? numericPercent / 100 : 0
   const referenceOnly = props.reference?.quick_discount_supported === false
   const modeSupported =
@@ -571,40 +572,37 @@ function QuickDiscountPanel(props: {
     })
   }
 
-  if (props.isLoading) return <Skeleton className='h-28 w-full' />
-
   return (
     <div className='bg-muted/20 rounded-lg border p-3'>
       <div className='flex flex-wrap items-start justify-between gap-3'>
         <div className='space-y-1'>
           <div className='flex items-center gap-2 text-sm font-medium'>
             <BadgePercent className='size-4' aria-hidden='true' />
-            {referenceOnly
-              ? t('Official price reference')
-              : t('Quick discount')}
+            {t('Marketplace discount')}
           </div>
           <p className='text-muted-foreground text-xs'>
             {referenceDescription}
           </p>
         </div>
 
-        {props.reference && !referenceOnly && (
-          <div className='flex flex-wrap items-end gap-2'>
-            <label className='grid gap-1 text-xs font-medium'>
-              {t('Price as % of official')}
-              <div className='relative w-28'>
-                <Input
-                  inputMode='decimal'
-                  value={percent}
-                  aria-invalid={!valid}
-                  className='pe-7 tabular-nums'
-                  onChange={(event) => setPercent(event.target.value)}
-                />
-                <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs'>
-                  %
-                </span>
-              </div>
-            </label>
+        <div className='flex flex-wrap items-end gap-2'>
+          <label className='grid gap-1 text-xs font-medium'>
+            {t('Price as % of official')}
+            <div className='relative w-28'>
+              <Input
+                inputMode='decimal'
+                value={props.percent}
+                aria-invalid={!valid}
+                className='pe-7 tabular-nums'
+                disabled={props.isSaving}
+                onChange={(event) => props.onPercentChange(event.target.value)}
+              />
+              <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs'>
+                %
+              </span>
+            </div>
+          </label>
+          {props.reference && !referenceOnly && (
             <Button
               size='sm'
               disabled={!modeSupported || !valid || props.isSaving}
@@ -612,9 +610,21 @@ function QuickDiscountPanel(props: {
             >
               {t('Apply discount')}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      <p className='text-muted-foreground mt-2 text-xs'>
+        {t(
+          'Save model pricing saves this badge. Apply discount also updates token prices. 100% hides the badge.'
+        )}
+      </p>
+      {!valid && (
+        <p className='text-destructive mt-2 text-xs' role='alert'>
+          {t('Enter 1–100 with at most two decimal places.')}
+        </p>
+      )}
+      {props.isLoading && <Skeleton className='mt-2 h-4 w-full' />}
 
       {props.reference &&
         !referenceOnly &&

@@ -486,15 +486,11 @@ func updatePricing() {
 			pricing.CompletionRatio = ratio_setting.GetCompletionRatio(model)
 			pricing.QuotaType = 0
 		}
-		// Pricing Center's saved percentage takes precedence over legacy badges.
+		// Pricing Center is the sole source of marketplace discounts.
 		// 20% of official price means 80% off; no price-ratio calculation is used.
 		if percent, ok := officialPricePercents[model]; ok {
 			if percent >= 1 && percent < 100 {
 				pricing.OfficialDiscount = 100 - percent
-			}
-		} else if meta, ok := metaMap[model]; ok {
-			if meta.OfficialDiscount != nil && *meta.OfficialDiscount > 0 && *meta.OfficialDiscount < 100 {
-				pricing.OfficialDiscount = *meta.OfficialDiscount
 			}
 		}
 		if cacheRatio, ok := ratio_setting.GetCacheRatio(model); ok {
