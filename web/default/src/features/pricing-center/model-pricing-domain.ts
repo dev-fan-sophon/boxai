@@ -6,6 +6,7 @@ import type { ModelRatioData } from '@/features/system-settings/models/model-pri
 
 export type ModelPricing = {
   mode: 'per-token' | 'per-request' | 'tiered_expr' | 'unset'
+  official_price_percent?: number
   model_price?: number
   model_ratio?: number
   completion_ratio?: number
@@ -167,6 +168,7 @@ export function applyOfficialPricePercent(
   const next: ModelPricing = {
     ...current,
     mode: 'per-token',
+    official_price_percent: percent,
     model_ratio: reference.model_ratio * (percent / 100),
   }
   delete next.model_price
@@ -184,6 +186,9 @@ export function inferOfficialPricePercent(
   current: ModelPricing,
   reference: OfficialModelPricingReference
 ): number {
+  if (current.official_price_percent !== undefined) {
+    return current.official_price_percent
+  }
   if (
     reference.quick_discount_supported === false ||
     reference.model_ratio === undefined ||

@@ -143,6 +143,10 @@ func TestModelPricingValidationAndCompletionLock(t *testing.T) {
 	tests := []ModelPricingUpdate{
 		{ModelName: "negative", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(-1)}},
 		{ModelName: "nan", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(math.NaN())}},
+		{ModelName: "percent-low", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(0.99)}},
+		{ModelName: "percent-high", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(100.01)}},
+		{ModelName: "percent-nan", Pricing: ModelPricing{Mode: "per-token", ModelRatio: floatPointer(1), OfficialPricePercent: floatPointer(math.NaN())}},
+		{ModelName: "percent-mode", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(1), OfficialPricePercent: floatPointer(20)}},
 		{ModelName: "bad-expr", Pricing: ModelPricing{Mode: "tiered_expr", BillingExpr: stringPointer("not valid +")}},
 		{ModelName: "missing", Pricing: ModelPricing{Mode: "per-request"}},
 	}

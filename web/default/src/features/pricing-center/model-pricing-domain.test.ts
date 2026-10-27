@@ -164,6 +164,7 @@ describe('official price discount', () => {
       )
     ).toEqual({
       mode: 'per-token',
+      official_price_percent: 80,
       model_ratio: 2,
       completion_ratio: 4,
       cache_ratio: 0.2,
@@ -220,7 +221,13 @@ describe('official price discount', () => {
     ).toMatchObject({ model_ratio: 2.5 })
   })
 
-  it('infers an existing discount from the saved model ratio', () => {
+  it('keeps the entered percentage exact, with inference only for legacy prices', () => {
+    expect(
+      inferOfficialPricePercent(
+        { mode: 'per-token', model_ratio: 0.505, official_price_percent: 20 },
+        officialReference
+      )
+    ).toBe(20)
     expect(
       inferOfficialPricePercent(
         { mode: 'per-token', model_ratio: 2 },

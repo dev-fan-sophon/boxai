@@ -18,11 +18,13 @@ const ModelPricingRevisionKey = "ModelPricingRevision"
 
 var pricingOptionKeys = []string{
 	"ModelPrice", "ModelRatio", "CompletionRatio", "CacheRatio", "CreateCacheRatio",
+	"OfficialPricePercent",
 	"ImageRatio", "AudioRatio", "AudioCompletionRatio", "billing_setting.billing_mode", "billing_setting.billing_expr",
 }
 
 type ModelPricing struct {
 	Mode                 string   `json:"mode"`
+	OfficialPricePercent *float64 `json:"official_price_percent,omitempty"`
 	ModelPrice           *float64 `json:"model_price,omitempty"`
 	ModelRatio           *float64 `json:"model_ratio,omitempty"`
 	CompletionRatio      *float64 `json:"completion_ratio,omitempty"`
@@ -78,7 +80,14 @@ func GetEnabledPricingModels() ([]string, error) {
 }
 
 func currentPricingValues() map[string]string {
+	common.OptionMapRWMutex.RLock()
+	percent := common.OptionMap["OfficialPricePercent"]
+	common.OptionMapRWMutex.RUnlock()
+	if percent == "" {
+		percent = "{}"
+	}
 	return map[string]string{
+		"OfficialPricePercent":         percent,
 		"ModelPrice":                   ratio_setting.ModelPrice2JSONString(),
 		"ModelRatio":                   ratio_setting.ModelRatio2JSONString(),
 		"CompletionRatio":              ratio_setting.CompletionRatio2JSONString(),
@@ -194,6 +203,9 @@ func GetModelPricingRows() (int64, []ModelPricingRow, error) {
 		} else if pricing.ModelRatio != nil {
 			pricing.Mode = "per-token"
 		}
+		if pricing.Mode != "per-token" {
+			pricing.OfficialPricePercent = nil
+		}
 		configured := pricing.Mode != "unset"
 		rows = append(rows, ModelPricingRow{ModelName: name, HasChannel: true, Configured: configured,
 			CompletionRatioLocked: completionInfo.Locked, Pricing: pricing})
@@ -215,6 +227,7 @@ func ptrFrom(values map[string]float64, name string) *float64 {
 }
 
 func setFloatPointers(p *ModelPricing, name string, maps map[string]map[string]float64) {
+	p.OfficialPricePercent = ptrFrom(maps["OfficialPricePercent"], name)
 	p.ModelPrice = ptrFrom(maps["ModelPrice"], name)
 	p.ModelRatio = ptrFrom(maps["ModelRatio"], name)
 	p.CompletionRatio = ptrFrom(maps["CompletionRatio"], name)
@@ -240,6 +253,11 @@ func ValidateModelPricingUpdates(updates []ModelPricingUpdate) error {
 		}
 		seen[name] = struct{}{}
 		p := update.Pricing
+		if percent := p.OfficialPricePercent; percent != nil {
+			if p.Mode != "per-token" || math.IsNaN(*percent) || math.IsInf(*percent, 0) || *percent < 1 || *percent > 100 {
+				return errors.New("official_price_percent requires token pricing and a value between 1 and 100")
+			}
+		}
 		if p.Mode != "per-token" && p.Mode != "per-request" && p.Mode != "tiered_expr" && p.Mode != "unset" {
 			return fmt.Errorf("invalid pricing mode %q", p.Mode)
 		}
@@ -334,6 +352,13 @@ func ReplaceModelPricing(expectedRevision int64, updates []ModelPricingUpdate) (
 		}
 		for _, update := range updates {
 			name, p := strings.TrimSpace(update.ModelName), update.Pricing
+			// Persist the administrator's percentage, never reconstruct it from prices.
+			// Omission preserves it; leaving token pricing suppresses any legacy badge.
+			if p.OfficialPricePercent != nil {
+				floatMaps["OfficialPricePercent"][name] = *p.OfficialPricePercent
+			} else if p.Mode != "per-token" {
+				floatMaps["OfficialPricePercent"][name] = 100
+			}
 			completionLocked := ratio_setting.GetCompletionRatioInfo(name).Locked
 			replaceFloat := func(key string, value *float64) {
 				if value == nil {
@@ -344,6 +369,9 @@ func ReplaceModelPricing(expectedRevision int64, updates []ModelPricingUpdate) (
 			}
 			if p.Mode == "unset" {
 				for key := range floatMaps {
+					if key == "OfficialPricePercent" {
+						continue
+					}
 					if key == "CompletionRatio" && completionLocked {
 						continue
 					}

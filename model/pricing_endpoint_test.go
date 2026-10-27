@@ -578,6 +578,66 @@ func TestPricingDiscountUsesAdminValueRegardlessOfPrice(t *testing.T) {
 	assert.Zero(t, prices[0].OfficialDiscount, "unset metadata must not generate an automatic badge")
 }
 
+func TestPricingCenterPercentageOverridesLegacyBadge(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+	setupModelPricingTest(t)
+	insertPricingEndpointChannel(t, 222, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointAbility(t, 222, "discount-model")
+	require.NoError(t, DB.Create(&Model{ModelName: "discount-model", Status: 1, OfficialDiscount: floatPointer(55)}).Error)
+	var revision int64
+	for _, tc := range []struct {
+		percent *float64
+		want    float64
+	}{
+		{floatPointer(20), 80},
+		{nil, 80}, // A subsequent ordinary save must preserve the applied discount.
+		{floatPointer(34.75), 65.25},
+		{floatPointer(100), 0}, // Must not fall back to the stale 55% badge.
+	} {
+		next, err := ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{
+			Mode: "per-token", ModelRatio: floatPointer(0.06666), OfficialPricePercent: tc.percent,
+		}}})
+		require.NoError(t, err)
+		revision = next
+		prices := GetPricing()
+		require.Len(t, prices, 1)
+		assert.Equal(t, tc.want, prices[0].OfficialDiscount)
+		assert.Equal(t, 0.06666, prices[0].ModelRatio)
+		_, rows, err := GetModelPricingRows()
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].Pricing.OfficialPricePercent)
+		assert.Equal(t, 100-tc.want, *rows[0].Pricing.OfficialPricePercent)
+	}
+	_, err := ReplaceModelPricing(0, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{
+		Mode: "per-token", ModelRatio: floatPointer(9), OfficialPricePercent: floatPointer(10),
+	}}})
+	require.Error(t, err)
+	InvalidatePricingCache()
+	prices := GetPricing()
+	require.Len(t, prices, 1)
+	assert.Zero(t, prices[0].OfficialDiscount)
+	assert.Equal(t, 0.06666, prices[0].ModelRatio, "revision conflict must preserve both price and badge")
+	// Pricing works without a separate model-metadata record, too.
+	require.NoError(t, DB.Where("model_name = ?", "discount-model").Delete(&Model{}).Error)
+	revision, err = ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{
+		Mode: "per-token", ModelRatio: floatPointer(0.06666), OfficialPricePercent: floatPointer(1),
+	}}})
+	require.NoError(t, err)
+	prices = GetPricing()
+	require.Len(t, prices, 1)
+	assert.Equal(t, float64(99), prices[0].OfficialDiscount)
+	_, err = ReplaceModelPricing(revision, []ModelPricingUpdate{{ModelName: "discount-model", Pricing: ModelPricing{Mode: "per-request", ModelPrice: floatPointer(0.1)}}})
+	require.NoError(t, err)
+	prices = GetPricing()
+	require.Len(t, prices, 1)
+	assert.Zero(t, prices[0].OfficialDiscount)
+	_, rows, err := GetModelPricingRows()
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].Pricing.OfficialPricePercent)
+}
+
 func TestModelUpdatePreservesOmittedOfficialDiscountAndAllowsClearing(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 	officialDiscount := 88.88

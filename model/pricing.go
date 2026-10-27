@@ -212,6 +212,15 @@ func appendPricingEndpoint(endpoints []string, endpoint string) []string {
 }
 
 func updatePricing() {
+	common.OptionMapRWMutex.RLock()
+	percentJSON := common.OptionMap["OfficialPricePercent"]
+	common.OptionMapRWMutex.RUnlock()
+	officialPricePercents := map[string]float64{}
+	if percentJSON != "" {
+		if err := common.UnmarshalJsonStr(percentJSON, &officialPricePercents); err != nil {
+			common.SysError(fmt.Sprintf("invalid OfficialPricePercent: %v", err))
+		}
+	}
 	//modelRatios := common.GetModelRatios()
 	enableAbilities, err := GetAllEnableAbilityWithChannels()
 	if err != nil {
@@ -477,9 +486,13 @@ func updatePricing() {
 			pricing.CompletionRatio = ratio_setting.GetCompletionRatio(model)
 			pricing.QuotaType = 0
 		}
-		// The marketplace badge is administrator-controlled display metadata,
-		// independent of billing prices and official price references.
-		if meta, ok := metaMap[model]; ok {
+		// Pricing Center's saved percentage takes precedence over legacy badges.
+		// 20% of official price means 80% off; no price-ratio calculation is used.
+		if percent, ok := officialPricePercents[model]; ok {
+			if percent >= 1 && percent < 100 {
+				pricing.OfficialDiscount = 100 - percent
+			}
+		} else if meta, ok := metaMap[model]; ok {
 			if meta.OfficialDiscount != nil && *meta.OfficialDiscount > 0 && *meta.OfficialDiscount < 100 {
 				pricing.OfficialDiscount = *meta.OfficialDiscount
 			}
