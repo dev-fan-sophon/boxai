@@ -1,9 +1,9 @@
 package gui
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -94,35 +94,72 @@ func backupRoutes(mux *http.ServeMux, w Windows) {
 		writeJSON(rw, davsync.Status())
 	})
 	mux.HandleFunc("POST /api/davsync/{action}", func(rw http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-		defer cancel()
+		// no time limit: a large backup on a slow line takes minutes (#657),
+		// and davsync ends a request that stops moving
+		ctx := r.Context()
 		var err error
+		var brought []string
 		switch r.PathValue("action") {
 		case "save": // and sync at once, so a wrong address or password shows now
 			var c davsync.Config
 			if err = json.NewDecoder(r.Body).Decode(&c); err == nil {
-				if err = davsync.Configure(c); err == nil {
-					davsync.Now(ctx) // how it went is in the status
-				}
+				err = davsync.Configure(c)
 			}
+			if err != nil { // said in the form, what was typed in it kept
+				fail(rw, err)
+				return
+			}
+			err = busy(davsync.SyncNow(ctx)) // how it went is in the status
 		case "now":
-			davsync.Now(ctx)
+			err = busy(davsync.SyncNow(ctx))
 		case "off":
 			err = davsync.Off()
 		case "dismiss":
-			davsync.Dismiss()
+			err = davsync.Dismiss()
+		case "auto": // how often it syncs by itself, or never (#847)
+			var in struct{ Minutes int }
+			if err = json.NewDecoder(r.Body).Decode(&in); err == nil {
+				err = davsync.SetAuto(in.Minutes)
+			}
+		case "restore": // the server's setup over this computer's, which is kept
+			brought, err = davsync.Restore(ctx)
+		case "undo":
+			_, err = davsync.Undo()
+		case "upload": // this computer's setup over a server file that isn't a backup, kept first
+			err = davsync.Upload(ctx)
 		case "reveal":
 			err = w.OpenFolder(filepath.Join(settings.Dir(), "sync"))
 		default:
 			http.NotFound(rw, r)
 			return
 		}
-		if err != nil {
+		v := davsync.Status()
+		switch {
+		case errors.Is(err, davsync.ErrBusy):
+			// nothing ran to put it in the status: it is said there all the same
+			v.Error = err.Error()
+		case err != nil:
 			fail(rw, err)
 			return
 		}
-		writeJSON(rw, davsync.Status())
+		if r.PathValue("action") == "restore" { // and what it brought in: nothing when it was the same
+			writeJSON(rw, struct {
+				davsync.View
+				Brought []string `json:"brought"`
+			}{v, brought})
+			return
+		}
+		writeJSON(rw, v)
 	})
+}
+
+// busy is what of a sync's failure the status doesn't hold: that it waited
+// its time out for another magpie's. The rest is in the status.
+func busy(err error) error {
+	if errors.Is(err, davsync.ErrBusy) {
+		return err
+	}
+	return nil
 }
 
 // downloads is where an export is saved: the Downloads folder, or home

@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/yetone/magpie/internal/catalog"
 	"github.com/yetone/magpie/internal/provider"
+	"github.com/yetone/magpie/internal/testenv"
 )
 
 // twoProviders: "plan" (the one agents pick) falls back to "spare".
@@ -164,11 +167,147 @@ func TestSeveralKeysOnTakeOverFromEachOther(t *testing.T) {
 	}
 }
 
+// #1235: two SenseNova keys, whose plan doesn't have deepseek-v4.1-flash.
+// An agent kept asking for it, every try refused with SenseNova's 403 "model
+// is not available in the current token plan", and each refusal rested the
+// whole key, longer each time, till both keys sat out for every model. Only
+// the model rests: the keys serve deepseek-v4-flash first in their order,
+// and no key's rest grows.
+func TestModelNotInPlanRestsTheModelNotTheKey(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	restingUntil.Lock()
+	restingUntil.m, restingUntil.note = map[string]time.Time{}, map[string]Rest{}
+	restingUntil.Unlock()
+	routed.Lock()
+	routed.failures = map[string]int{}
+	routed.Unlock()
+	var seen []string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Model string `json:"model"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		key := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		seen = append(seen, key+":"+req.Model)
+		w.Header().Set("Content-Type", "application/json")
+		if req.Model == "deepseek-v4.1-flash" {
+			w.WriteHeader(403)
+			io.WriteString(w, `{"error": {"code": 7,"message": "model is not available in the current token plan"}}`)
+			return
+		}
+		io.WriteString(w, `{"id":"from-`+key+`","choices":[]}`)
+	}))
+	defer up.Close()
+	p := provider.Provider{ID: "sensenova", Name: "sensenova", Chat: up.URL + "/v1",
+		Models: []string{"deepseek-v4-flash", "deepseek-v4.1-flash"},
+		Key:    "k-one", KeyName: "One", Keys: []provider.KeyAccount{{Name: "Two", Key: "k-two"}}}
+	if err := provider.Save(p); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := provider.Find("sensenova")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	send := func(model string) (int, string) {
+		rec := httptest.NewRecorder()
+		body := `{"model":"sensenova/` + model + `","messages":[{"role":"user","content":"hi"}]}`
+		s.Handler().ServeHTTP(rec, httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(body)))
+		return rec.Code, rec.Body.String()
+	}
+	for range 4 {
+		if code, body := send("deepseek-v4.1-flash"); code != 403 || !strings.Contains(body, "not available in the current token plan") {
+			t.Fatalf("v4.1: %d %s", code, body)
+		}
+	}
+	for _, k := range saved.KeyList() {
+		if r, ok := RestOf(saved.RestKey(k)); ok {
+			t.Errorf("key %s rests for a model its plan lacks: %+v", k.Name, r)
+		}
+	}
+	// the model itself rests on each key, as the failure it is
+	for _, k := range saved.KeyList() {
+		r, ok := RestOf(saved.RestKey(k) + "/deepseek-v4.1-flash")
+		if !ok {
+			t.Errorf("key %s: deepseek-v4.1-flash doesn't rest", k.Name)
+		} else if r.Why != failOther || r.Status != 403 {
+			t.Errorf("key %s: rest %+v", k.Name, r)
+		}
+	}
+	seen = nil
+	if code, body := send("deepseek-v4-flash"); code != 200 || !strings.Contains(body, "from-k-one") {
+		t.Fatalf("v4: %d %s", code, body)
+	}
+	if strings.Join(seen, ",") != "k-one:deepseek-v4-flash" {
+		t.Fatalf("v4 tried %v; want the first key, straight", seen)
+	}
+}
+
+// The same words said escaped as \uXXXX (a relay whose encoder escapes
+// what isn't ASCII, #1669) are read by the other deciders too: what
+// rests the model alone, and what another provider may answer.
+func TestEscapedWordsReadByTheOtherDeciders(t *testing.T) {
+	unserved := []byte(`{"error":{"code":7,"message":"\u8be5\u6a21\u578b\u4e0d\u652f\u6301\u5f53\u524d\u4ee4\u724c\u8ba1\u5212"}}`)
+	if !modelRefused(403, unserved) {
+		t.Errorf("escaped 模型不支持: modelRefused false; the key would rest for its model")
+	}
+	if !modelRefused(403, []byte(`{"error":{"message":"该模型不支持当前令牌计划"}}`)) {
+		t.Errorf("the same refusal unescaped: modelRefused false")
+	}
+	quota := []byte(`{"error":{"message":"\u989d\u5ea6\u5df2\u7528\u5b8c\uff0c\u8bf7\u660e\u5929\u518d\u8bd5","type":"invalid_request_error"}}`)
+	if !retryable(400, quota) {
+		t.Errorf("escaped 额度已用完: retryable false; the next decision model isn't asked")
+	}
+	if !retryable(400, []byte(`{"error":{"message":"额度已用完，请明天再试","type":"invalid_request_error"}}`)) {
+		t.Errorf("the same refusal unescaped: retryable false")
+	}
+}
+
+// The rest of the deciders whose words are Chinese read them escaped as
+// well: a conversation too long, a retired model or a shape refusal that
+// also says the quota is spent, and a size inferred only when nothing
+// else is said. Each case beside the same words unescaped.
+func TestEscapedWordsReadByEveryDecider(t *testing.T) {
+	for _, esc := range []bool{true, false} {
+		say := func(s string) []byte {
+			if !esc {
+				return []byte(`{"error":{"message":"` + s + `"}}`)
+			}
+			q, _ := json.Marshal(s)
+			// as Python's json.dumps writes it
+			var b strings.Builder
+			for _, r := range string(q) {
+				if r > 127 {
+					fmt.Fprintf(&b, `\u%04x`, r)
+				} else {
+					b.WriteRune(r)
+				}
+			}
+			return []byte(`{"error":{"message":` + b.String() + `}}`)
+		}
+		if !overflowed(400, say("上下文长度超过限制")) {
+			t.Errorf("escaped %v: 上下文长度超过限制 not overflowed", esc)
+		}
+		if modelRetired(410, say("Model m1 has been deprecated, 额度已用完")) {
+			t.Errorf("escaped %v: a retirement that says the quota is spent rests the model alone", esc)
+		}
+		if shapeRefused(400, say("Unknown parameter: 'x'. 额度已用完")) {
+			t.Errorf("escaped %v: a shape refusal that says the quota is spent rests nobody", esc)
+		}
+		p := provider.Provider{ID: "fake", Name: "Fake", Contexts: map[string]int{"m": 100}}
+		if said, ok := tooLongUnsaid(p, "m", 1000, 400, say("该模型不支持当前令牌计划")); ok {
+			t.Errorf("escaped %v: a model the plan doesn't serve told as too long: %s", esc, said)
+		}
+	}
+}
+
 // Two ChatGPT accounts ticked: the one Codex is signed in to is out of
 // quota, so the request goes to the saved one, signed with its own tokens.
 func TestSubscriptionAccountsTakeOver(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
 	restingUntil.Lock()
@@ -222,6 +361,93 @@ func TestSubscriptionAccountsTakeOver(t *testing.T) {
 	post(t, "/v1/responses", `{"model":"codex/gpt-5.5","input":"ping"}`)
 	if strings.Join(tried, ",") != "acct-2" {
 		t.Fatalf("second request tried %v", tried)
+	}
+}
+
+// Two Claude Max accounts ticked (#177): the one Claude Code is signed in to
+// is out of quota, and the request goes to the saved spare, streamed or not.
+// With magpie wired into Claude Code, `claude auth status` tells of magpie's
+// token and no email: the account is still named from ~/.claude.json, so it
+// is the saved me@example.com, not a "Claude Max" served beside it.
+func TestClaudeAccountsTakeOver(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a shell script stands in for Claude Code")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+	far := time.Now().Add(24 * time.Hour).UnixMilli()
+	oauth := func(tok string) map[string]any {
+		return map[string]any{"claudeAiOauth": map[string]any{"accessToken": tok, "refreshToken": "r-" + tok, "expiresAt": far, "subscriptionType": "max"}}
+	}
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o755)
+	os.WriteFile(filepath.Join(home, ".claude", ".credentials.json"), mustJSON(oauth("tok-primary")), 0o600)
+	os.WriteFile(filepath.Join(home, ".claude.json"), mustJSON(map[string]any{
+		"oauthAccount": map[string]any{"emailAddress": "me@example.com", "accountUuid": "u-me"}}), 0o600)
+	os.MkdirAll(filepath.Dir(provider.Path()), 0o755)
+	os.WriteFile(filepath.Join(filepath.Dir(provider.Path()), "logins.json"), mustJSON([]map[string]any{
+		{"agent": "claude", "user": "me@example.com", "plan": "max", "on": true, "seen": time.Now(), "auth": oauth("tok-me")},
+		{"agent": "claude", "user": "spare@example.com", "plan": "max", "on": true, "seen": time.Now(), "auth": oauth("tok-spare")},
+	}), 0o600)
+	dir := t.TempDir()
+	log := filepath.Join(dir, "log")
+	// out of quota, the CLI says so in a result and waits on its next input
+	script := `#!/bin/sh
+if [ "$1" = auth ]; then echo '{"loggedIn":true,"authMethod":"oauth_token","apiProvider":"firstParty"}'; exit 0; fi
+TOK=; [ -n "$CLAUDE_CONFIG_DIR" ] && TOK=$(sed -n 's/.*"accessToken": *"\([^"]*\)".*/\1/p' "$CLAUDE_CONFIG_DIR/.credentials.json")
+echo "${TOK:-own}" >> ` + log + `
+while read -r line; do
+  if [ -z "$TOK" ] || [ "$TOK" = tok-me ]; then
+    echo '{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","rateLimitType":"five_hour","resetsAt":1790700000}}'
+    echo '{"type":"assistant","message":{"id":"x","model":"<synthetic>","role":"assistant","content":[{"type":"text","text":"You'"'"'ve hit your limit · resets 3am"}]},"error":"rate_limit"}'
+    echo '{"type":"result","subtype":"success","is_error":true,"result":"You'"'"'ve hit your limit · resets 3am"}'
+  else
+    echo '{"type":"stream_event","event":{"type":"message_start","message":{"id":"m","model":"claude-sonnet-5","usage":{"input_tokens":1}}}}'
+    echo '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"pong"}}}'
+    echo '{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":1}}}'
+    echo '{"type":"stream_event","event":{"type":"message_stop"}}'
+    echo '{"type":"result","subtype":"success","is_error":false,"result":"pong"}'
+  fi
+done
+`
+	testenv.Program(t, filepath.Join(dir, "claude"), script)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	provider.ForgetAccounts()
+	t.Cleanup(provider.ForgetAccounts)
+
+	for _, stream := range []string{"true", "false"} {
+		restingUntil.Lock()
+		restingUntil.m = map[string]time.Time{}
+		restingUntil.Unlock()
+		os.Remove(log)
+		done := make(chan struct{})
+		var code int
+		var body string
+		go func() {
+			defer close(done)
+			code, body = post(t, "/v1/messages", `{"model":"claude/claude-sonnet-5","max_tokens":50,"stream":`+stream+`,"messages":[{"role":"user","content":"ping"}]}`)
+		}()
+		select {
+		case <-done:
+		case <-time.After(20 * time.Second):
+			t.Fatalf("stream=%s: no answer", stream)
+		}
+		b, _ := os.ReadFile(log)
+		if code != 200 || !strings.Contains(body, "pong") {
+			t.Fatalf("stream=%s: status %d: %s (runs %q)", stream, code, body, b)
+		}
+		// the signed-in account once, then the spare: never it again under
+		// its saved name
+		if runs := strings.Fields(string(b)); strings.Join(runs, ",") != "own,tok-spare" && strings.Join(runs, ",") != "tok-spare" {
+			t.Fatalf("stream=%s: runs %v", stream, runs)
+		}
+	}
+	for _, p := range provider.All() {
+		if p.Account != nil && p.Account.Agent == "claude" && p.Account.User != "me@example.com" {
+			t.Fatalf("Claude Code's own account named %q", p.Account.User)
+		}
 	}
 }
 

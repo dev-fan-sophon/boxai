@@ -37,7 +37,7 @@ def manifests(stage, version, commit, notes, published_at):
                             size=size, sha256=digest.hexdigest())
     website = dict(version=version, published_at=published_at, notes=notes, downloads=[
         dict(platform="macos", arch="arm64", kind="dmg", signed=True,
-             minimum_os="11.0", filename=dmg, **assets[dmg]),
+             minimum_os="12.0", filename=dmg, **assets[dmg]),
         dict(platform="windows", arch="x86_64", kind="exe", signed=False,
              minimum_os="10", filename=installer, **assets[installer]),
     ])

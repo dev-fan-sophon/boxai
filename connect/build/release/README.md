@@ -1,6 +1,8 @@
 # Connect native release
 
-Product version: `VERSION` (1.1.1). Magpie source version: upstream v0.1.185.
+Product version: `VERSION` (1.2.0). Magpie source version: upstream v0.1.2194
+(`df31059d6ead3a069440690ab0e5d18f4b2d14da`). macOS 12 or later is required
+by the Go toolchain and upstream deployment target.
 These scripts wrap the upstream Makefile. They do not add an app updater,
 custom GUI, Desktop release, migration, or catalog publication.
 
@@ -15,7 +17,7 @@ From the repository root on macOS, source signing credentials privately and run:
 ```sh
 export APPLE_SIGNING_IDENTITY='Developer ID Application: fan Z (9UUWCMKMDH)'
 # APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID must also be exported.
-bash connect/build/release/macos.sh 1.1.1 /absolute/stage/1.1.1
+bash connect/build/release/macos.sh 1.2.0 /absolute/stage/1.2.0
 ```
 
 The macOS script signs, notarizes and staples both app and DMG and checks
@@ -27,7 +29,7 @@ On Windows, put the Go toolchain required by `connect/go.mod`, GNU make,
 Git Bash and NSIS on PATH, then use Git Bash:
 
 ```sh
-bash connect/build/release/windows.sh 1.1.1 /c/absolute/stage/1.1.1
+bash connect/build/release/windows.sh 1.2.0 /c/absolute/stage/1.2.0
 ```
 
 The script calls `make release-windows`, including upstream resources and GUI
@@ -50,8 +52,8 @@ static package checks.
 Combine both platform outputs without changing their bytes:
 
 ```text
-BoxAI-Connect-1.1.1-macos-arm64.dmg
-BoxAI-Connect-1.1.1-windows-x64-setup.exe
+BoxAI-Connect-1.2.0-macos-arm64.dmg
+BoxAI-Connect-1.2.0-windows-x64-setup.exe
 magpie-darwin-arm64.zip
 magpie-windows-amd64.exe
 macos-source.txt
@@ -61,9 +63,9 @@ windows-source.txt
 After acceptance, generate manifests with Python 3.9+:
 
 ```sh
-python3 connect/build/release/manifests.py /absolute/stage/1.1.1 \
-  --commit FULL_ACCEPTED_COMMIT --published-at 2026-09-27T00:00:00Z \
-  --notes 'BoxAI Connect 1.1.1, based on Magpie v0.1.185.'
+python3 connect/build/release/manifests.py /absolute/stage/1.2.0 \
+  --commit FULL_ACCEPTED_COMMIT --published-at 2026-10-30T00:00:00Z \
+  --notes 'BoxAI Connect 1.2.0, based on Magpie v0.1.2194.'
 ```
 
 Use the actual UTC publication time. The generator validates matching build
@@ -78,11 +80,17 @@ Use account `4379d21a3d3eadc0e37d63abff091f31`, bucket `boxai-desktop`, prefix
 `connect/`, public base `https://dl.you-box.com/connect`. Reuse ignored
 `.env.cloudflare` credentials (`R2_DESKTOP_ACCESS_KEY_ID`,
 `R2_DESKTOP_SECRET_ACCESS_KEY`, `R2_ENDPOINT`) without printing them.
+When those credentials are absent, the canonical account's full-control
+`BOXAI_CLOUDFLARE_API_TOKEN` can supply S3 credentials in memory: verify it at
+`/accounts/4379d21a3d3eadc0e37d63abff091f31/tokens/verify`, use its returned
+token ID as the access key ID and SHA-256 of the token value as the secret key
+([Cloudflare's documented derivation](https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token)).
+Verify a read of this bucket first. Never print or persist the derived secret.
 
 1. Read live `releases.json` and refuse a version that is not newer. Read the
    new `magpie-latest.json` if present as well. Save their exact bytes and ETags
    before publication. Save legacy `latest.json` and `native-latest.json` hashes.
-2. Upload each of the four artifacts under `connect/1.1.1/`, using conditional
+2. Upload each of the four artifacts under `connect/1.2.0/`, using conditional
    `PutObject` with `If-None-Match: *`. An existing object is a conflict, not
    permission to overwrite. If resuming a partial upload, first compare the
    complete downloaded existing bytes against the local size and SHA-256.
@@ -102,7 +110,7 @@ AWS CLI v2 supports the conditional operations (use a current version):
 
 ```sh
 aws s3api put-object --endpoint-url "$R2_ENDPOINT" --bucket boxai-desktop \
-  --key "connect/1.1.1/$NAME" --body "$STAGE/$NAME" \
+  --key "connect/1.2.0/$NAME" --body "$STAGE/$NAME" \
   --if-none-match '*' --cache-control 'public, max-age=31536000, immutable'
 ```
 
@@ -121,14 +129,22 @@ installer filenames. Never change `connect/latest.json` (Tauri 0.1.4) or
 
 ## Tooling checks
 
+Release acceptance covers the BoxAI adaptations, not the complete upstream UI
+suite: website authentication and API gates, official-provider enforcement,
+plugin restrictions, authoritative billing, English/Vietnamese UI and the
+release artifacts. Run the BoxAI shell checks in Chromium and WebKit and the
+Vietnamese coverage checks. Upstream-only provider, masking and other locale
+tests are not a BoxAI release gate. This scope was explicitly requested by the
+owner for the 1.2.0 upgrade.
+
 ```sh
 bash -n connect/build/release/macos.sh && bash -n connect/build/release/windows.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s connect/build/release -p 'test_*.py'
 ```
 
-Signing preflight on the macOS builder found Developer ID team `9UUWCMKMDH`
-and successfully authenticated to Apple's notarization history. The Windows
-host `win-cf` is reachable; `win-lan` timed out. NSIS and Git Bash are installed;
-Go/make are not currently on its SSH PATH. No code-signing certificates were
-returned from CurrentUser or LocalMachine certificate stores. This is a
-preflight observation, not native release acceptance.
+Signing preflight on `macrunner` on 2026-10-30 found Developer ID team
+`9UUWCMKMDH` and authenticated to Apple's notarization history. `studio-win`
+has isolated Go 1.26.10 and GNU Make 4.4.1, Git Bash and NSIS 3.12. No
+code-signing certificates were returned from its CurrentUser or LocalMachine
+certificate stores. These are preflight observations, not native release
+acceptance; every release still needs the exact source and artifact checks.

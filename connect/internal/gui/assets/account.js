@@ -2,7 +2,7 @@
 // Reloading after revocation also discards private state inside upstream closures.
 const boxai = (() => {
   const nativeFetch = window.fetch.bind(window);
-  let authenticated = false, pending = false, busy = false, started = false, ready = false;
+  let authenticated = !window.bootPrefs?.boxaiOnly, pending = false, busy = false, started = false, ready = false;
   let retryAction = "session";
   let epoch = 0, requestID = 0, timer, verificationError = "";
   let accountData = null, usageRequest = 0, accountRequest = 0;
@@ -11,6 +11,7 @@ const boxai = (() => {
   const sessionPaths = new Set(["/api/boxai/session", "/api/boxai/login", "/api/boxai/cancel", "/api/boxai/logout", "/api/boxai/verify"]);
 
   window.fetch = async (input, options = {}) => {
+    if (!window.bootPrefs?.boxaiOnly) return nativeFetch(input, options);
     const url = new URL(typeof input === "string" ? input : input.url, location.href);
     if (url.origin !== location.origin || !url.pathname.startsWith("/api/")) return nativeFetch(input, options);
     const session = sessionPaths.has(url.pathname);
@@ -40,6 +41,12 @@ const boxai = (() => {
         if (generation !== epoch) throw new Error(t("Session changed. Please try again."));
         return data;
       };
+      const text = response.text.bind(response);
+      response.text = async () => {
+        const data = await text();
+        if (generation !== epoch) throw new Error(t("Session changed. Please try again."));
+        return data;
+      };
       if (!session && response.status === 503) throw new Error(t("Account verification is temporarily unavailable. Please retry."));
       return response;
     } finally {
@@ -65,7 +72,6 @@ const boxai = (() => {
     state = { agents: [], profiles: [], catalog: "", settings: {} };
     providers = prefs = usage = quotas = accountData = null;
     editing = draft = importing = importingApps = null;
-    expandedCalls.clear();
   }
 
   function reloadClean() {
@@ -101,31 +107,25 @@ const boxai = (() => {
     }
     authenticated = true;
     pending = false;
-    $("#loginGate").hidden = true;
-    document.body.classList.remove("boxai-locked");
     if (!started) {
       started = true;
       const generation = epoch;
       await load();
       if (!authenticated || generation !== epoch) return;
-      // These original modules start their own polls; never execute them at the gate.
-      for (const source of ["routing.js", "library.js"]) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = source;
-          script.onload = resolve;
-          script.onerror = () => reject(new Error(t("Could not load the app. Please retry.")));
-          document.body.append(script);
-        });
-        if (!authenticated || generation !== epoch) return;
-      }
-      ready = true;
+      // Upstream pages now register with the kernel, and mount only after login.
+      magpie.start();
+      navHides();
       const requested = params.get("import") ? "account" : params.get("view");
-      show(mode === "window" && ["providers", "gateway", "routing", "usage", "library", "settings", "account"].includes(requested) ? requested : "agents");
+      await show(mode === "window" && ["providers", "gateway", "routing", "usage", "library", "sessions", "plugins", "settings", "account"].includes(requested) ? requested : "agents");
+      if (!authenticated || generation !== epoch) return;
+      ready = true;
       // The provider editor used to fetch models when saving a key. Website
       // login now supplies that key, so populate the original Agent pickers.
       api("provider/models", { id: "boxai" }).then(() => load()).catch((error) => status(error.message, "err"));
     }
+    // Keep navigation gated until startup can no longer overwrite a user's tab.
+    $("#loginGate").hidden = true;
+    document.body.classList.remove("boxai-locked");
   }
 
   async function sessionRequest(action = "session") {

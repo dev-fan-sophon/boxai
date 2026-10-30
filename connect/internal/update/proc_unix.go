@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+
+	"github.com/yetone/magpie/internal/proc"
 )
 
 // alive reports whether pid is still running. A relaunched magpie is that
@@ -26,3 +28,14 @@ func detach(cmd *exec.Cmd) {
 	}
 	cmd.SysProcAttr.Setsid = true
 }
+
+// Reexec runs exe in this process's place with args and env: the same
+// process, in the same terminal or under the same service manager, now
+// running the new version (magpie web's restart to update).
+func Reexec(exe string, args, env []string) error {
+	proc.EndProbes() // the new version doesn't know them, nor waits on them
+	return syscall.Exec(exe, append([]string{exe}, args...), env)
+}
+
+// trialStart: nothing here refuses a build that downloaded whole.
+func trialStart(string) error { return nil }

@@ -6,10 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yetone/magpie/internal/boxai"
 )
 
 func TestLanguagePersistenceAndLegacyFallback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	boxai.Enable()
+	t.Cleanup(func() { boxai.SetEnabled(false) })
 	for _, lang := range []string{"en", "vi", "system"} {
 		require.NoError(t, Save(Settings{Lang: lang}))
 		assert.Equal(t, lang, Load().Lang)

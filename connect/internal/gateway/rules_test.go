@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -307,14 +308,14 @@ func TestRuleUnreadyMember(t *testing.T) {
 	}
 }
 
-// A rule for images lets a group with a text-only member take them, and
-// sends them where they are seen; without one, a text-only member keeps
-// images out of the group.
+// A rule for images sends them where they are seen; without one, they go
+// to a member that sees too, past a text-only one first in line (#756).
 func TestRuleImages(t *testing.T) {
 	img := `{"model":"group/r","messages":[{"role":"user","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aGVsbG8="}}]}]}`
 	s, _, b := ruled(t)
-	if code, _ := postAs(t, s, "x", img); code != 400 || b.n() != 0 {
-		t.Fatalf("no rules: %d, b %d", code, b.n())
+	noVision(t)
+	if code, out := postAs(t, s, "x", img); code != 200 || !strings.Contains(out, "from kb") || b.n() != 1 {
+		t.Fatalf("no rules: %d %s, b %d", code, out, b.n())
 	}
 	s, a, b := ruled(t, provider.Rule{Use: "b/big", Images: true})
 	code, out := postAs(t, s, "x", img)
@@ -328,7 +329,7 @@ func TestRuleImages(t *testing.T) {
 		t.Fatalf("a %d b %d", a.n(), b.n())
 	}
 	for _, e := range provider.Catalog() {
-		if e.ID == "group/r" && (!e.Images || e.Context != 64000) {
+		if e.ID == "group/r" && (!e.Images || e.Context != 1000000) {
 			t.Fatalf("catalog: %+v", e)
 		}
 	}
@@ -440,7 +441,8 @@ func TestRuleFirstAndOfMember(t *testing.T) {
 		pl.order = append(pl.order, Weighed{ID: c.rest, Model: c.model})
 	}
 	pl.order[3].Rest = &Rest{}
-	got, gp, ok := ruleFirst([]provider.Member{{Provider: b, Model: "m"}}, cs, pl)
+	got, gp, lead := ruleFirst([]provider.Member{{Provider: b, Model: "m"}}, cs, pl, 1, nil)
+	ok := lead == 0
 	var ids []string
 	for i, c := range got {
 		ids = append(ids, c.rest+"/"+c.model)
@@ -451,7 +453,16 @@ func TestRuleFirstAndOfMember(t *testing.T) {
 	if !ok || strings.Join(ids, " ") != "ab/m ab@me/m a/m ab#k2/x ab#k2/m" {
 		t.Fatalf("%v %v", ok, ids)
 	}
-	if _, _, ok := ruleFirst([]provider.Member{{Provider: provider.Provider{ID: "c"}, Model: "m"}}, cs, pl); ok {
+	// a later rule's member follows the first's, before everyone else (#112)
+	got, _, lead = ruleFirst([]provider.Member{{Provider: provider.Provider{ID: "c"}, Model: "m"}, {Provider: a, Model: "m"}, {Provider: b, Model: "m"}}, cs, pl, 1, nil)
+	ids = nil
+	for _, c := range got {
+		ids = append(ids, c.rest+"/"+c.model)
+	}
+	if lead != 1 || strings.Join(ids, " ") != "a/m ab/m ab@me/m ab#k2/x ab#k2/m" {
+		t.Fatalf("%d %v", lead, ids)
+	}
+	if _, _, lead := ruleFirst([]provider.Member{{Provider: provider.Provider{ID: "c"}, Model: "m"}}, cs, pl, 1, nil); lead >= 0 {
 		t.Fatal("no candidates of c")
 	}
 	// "a" is not "ab"'s
@@ -506,10 +517,72 @@ func TestRuleTurnOutgrowsUnlistedMember(t *testing.T) {
 	}
 }
 
-// An unlisted text-only member still keeps images out of its group.
+// A window the user gave a member is the one a turn outgrows: the 95% is
+// taken of the number the user set, not of the catalogue's. A turn that
+// fitted nothing over the catalogue's window stays on the member once the
+// user has raised it — the price of overstating a window, which is why the
+// CLI has to say which number it is reporting.
+func TestRuleTurnOutgrowsAnOverriddenWindow(t *testing.T) {
+	s, _, _ := ruled(t, provider.Rule{Use: "b/big", Tokens: 50000})
+	p, err := provider.Find("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SetContext(*p, "small", 128000); err != nil {
+		t.Fatal(err)
+	}
+	if _, out := postAs(t, s, "sess", chat("hi", nil, 0, "")); !strings.Contains(out, "from ka") {
+		t.Fatal(out)
+	}
+	// a 100k turn is over the 60.8k the catalogue's own 64k window moves a
+	// turn at, and under the 121.6k the 128k the user set does: it stays
+	body := strings.Replace(chat("hi", nil, 1, ""), `"file.txt"`, quote(long(100000)), 1)
+	if _, out := postAs(t, s, "sess", body); !strings.Contains(out, "from ka") || !lastRoute(s).Rule.Held {
+		t.Fatalf("a 100k turn moved on a 128k window: %s %+v", out, lastRoute(s).Rule)
+	}
+	// and at 95% of the window the user did set, to b
+	body = strings.Replace(chat("hi", nil, 2, ""), `"file.txt"`, quote(long(130000)), 1)
+	_, out := postAs(t, s, "sess", body)
+	if r := lastRoute(s); !strings.Contains(out, "from kb") || !r.Rule.Grown {
+		t.Fatalf("a 130k turn stayed on a 128k window: %s %+v", out, r.Rule)
+	}
+}
+
+// A turn moves a little over 95% of its model's window, not only once the
+// whole window is used: 122k is past the 121.6k that 95% of the 128k a
+// user set is, and under the 128k itself. A turn that only moved at the
+// window's own end would carry a sixth of a window past it first.
+func TestRuleTurnOutgrowsNinetyFivePercentOfAnOverriddenWindow(t *testing.T) {
+	s, _, _ := ruled(t, provider.Rule{Use: "b/big", Tokens: 50000})
+	p, err := provider.Find("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SetContext(*p, "small", 128000); err != nil {
+		t.Fatal(err)
+	}
+	if _, out := postAs(t, s, "sess", chat("hi", nil, 0, "")); !strings.Contains(out, "from ka") {
+		t.Fatal(out)
+	}
+	// a 121k turn is under the 121.6k 95% of the window the user did set
+	// is: it stays
+	body := strings.Replace(chat("hi", nil, 1, ""), `"file.txt"`, quote(long(121000)), 1)
+	if _, out := postAs(t, s, "sess", body); !strings.Contains(out, "from ka") || !lastRoute(s).Rule.Held {
+		t.Fatalf("a 121k turn moved on a 128k window: %s %+v", out, lastRoute(s).Rule)
+	}
+	// and at 122k, over the 95% though under the window: to b
+	body = strings.Replace(chat("hi", nil, 2, ""), `"file.txt"`, quote(long(122000)), 1)
+	_, out := postAs(t, s, "sess", body)
+	if r := lastRoute(s); !strings.Contains(out, "from kb") || !r.Rule.Grown {
+		t.Fatalf("a 122k turn stayed on a 128k window: %s %+v", out, r.Rule)
+	}
+}
+
+// An unlisted text-only member is passed over for an image as well.
 func TestRuleImagesUnlistedMember(t *testing.T) {
 	img := `{"model":"group/r","messages":[{"role":"user","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aGVsbG8="}}]}]}`
 	s, a, b := ruled(t)
+	noVision(t)
 	p, err := provider.Find("a")
 	if err != nil {
 		t.Fatal(err)
@@ -518,7 +591,7 @@ func TestRuleImagesUnlistedMember(t *testing.T) {
 	if err := provider.Save(*p); err != nil {
 		t.Fatal(err)
 	}
-	if code, out := postAs(t, s, "x", img); code != 400 || a.n() != 0 || b.n() != 0 {
+	if code, out := postAs(t, s, "x", img); code != 200 || a.n() != 0 || b.n() != 1 {
 		t.Fatalf("%d %s, a %d b %d", code, out, a.n(), b.n())
 	}
 }
@@ -527,6 +600,7 @@ func TestRuleImagesUnlistedMember(t *testing.T) {
 // attached when the vision provider fails.
 func TestImageRuleDoesNotLeakImageToTextOnlyFallback(t *testing.T) {
 	s, a, b := ruled(t, provider.Rule{Use: "b/big", Images: true})
+	noVision(t)
 	b.mu.Lock()
 	b.fail = 503
 	b.mu.Unlock()
@@ -537,6 +611,20 @@ func TestImageRuleDoesNotLeakImageToTextOnlyFallback(t *testing.T) {
 	}
 	if a.n() != 0 {
 		t.Fatalf("image was sent to text-only fallback %d times", a.n())
+	}
+}
+
+// With the vision member down, nothing is left to describe the image: the
+// text-only fallback isn't sent it, or a turn without it.
+func TestImageRuleFallbackCantHaveTheImageDescribedByTheFailedMember(t *testing.T) {
+	s, a, b := ruled(t, provider.Rule{Use: "b/big", Images: true})
+	b.mu.Lock()
+	b.fail = 503
+	b.mu.Unlock()
+	img := `{"model":"group/r","messages":[{"role":"user","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aGVsbG8="}}]}]}`
+	code, out := postAs(t, s, "image-fallback", img)
+	if code != 502 || !strings.Contains(out, "couldn't describe the image") || a.n() != 0 {
+		t.Fatalf("%d %s, a %d", code, out, a.n())
 	}
 }
 
@@ -603,5 +691,48 @@ func TestRuleTurnHoldsItsModelOnASharedAccount(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "small,big,big,big" {
 		t.Fatalf("asked %v", got)
+	}
+}
+
+// #112: two rules for images, the first's member out of quota. The
+// request fails over to the second rule's member, not to the group's
+// text-only first; and once the first rests, the second's goes first.
+func TestRuleFailsOverToTheNextRule(t *testing.T) {
+	_, a, b := ruled(t)
+	noVision(t)
+	c := &ruleUp{key: "kc"}
+	srv := httptest.NewServer(c)
+	t.Cleanup(srv.Close)
+	yes := true
+	if err := provider.Save(provider.Provider{ID: "c", Name: "C", Key: "kc", Models: []string{"flash"}, Chat: srv.URL + "/v1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.SaveLive("c", srv.URL+"/v1", []catalog.Model{{ID: "flash", Context: 128000, Images: true, ImageInput: &yes}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SaveGroup(provider.Group{ID: "r", Name: "R", Members: []string{"a/small", "b/big", "c/flash"}, Routing: provider.Ordered,
+		Rules: []provider.Rule{{Use: "b/big", Images: true}, {Use: "c/flash", Images: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	b.mu.Lock()
+	b.fail = 429
+	b.mu.Unlock()
+	// the image is an earlier message's, as in a turn's tool rounds: the
+	// text-only member could take the request, the image left out
+	img := `{"model":"group/r","messages":[{"role":"user","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aGVsbG8="}}]},` +
+		`{"role":"assistant","content":"a cat"},{"role":"user","content":"and its name?"}]}`
+	code, out := postAs(t, s, "one", img)
+	r := lastRoute(s)
+	if code != 200 || !strings.Contains(out, "from kc") || r.Rule.N != 1 || !slices.Equal(r.Rule.Then, []string{"c/flash"}) {
+		t.Fatalf("%d %s %+v", code, out, r.Rule)
+	}
+	code, out = postAs(t, s, "two", strings.Replace(img, "look", "again", 1))
+	r = lastRoute(s)
+	if code != 200 || !strings.Contains(out, "from kc") || !r.Rule.Unready || r.Rule.Instead != "c/flash" {
+		t.Fatalf("resting: %d %s %+v", code, out, r.Rule)
+	}
+	if a.n() != 0 || b.n() != 1 || c.n() != 2 {
+		t.Fatalf("a %d b %d c %d", a.n(), b.n(), c.n())
 	}
 }

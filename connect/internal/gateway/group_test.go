@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/provider"
+	"github.com/yetone/magpie/internal/routes"
 )
 
 // keyed is a vendor that says which key each request came with, and
@@ -34,7 +35,9 @@ func (k *keyed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func fresh(t *testing.T) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir()) // no agent signed in
+	home := t.TempDir() // no agent signed in
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows finds the home there
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	restingUntil.Lock()
@@ -43,12 +46,44 @@ func fresh(t *testing.T) {
 	sticks.Lock()
 	sticks.m = map[string]stick{}
 	sticks.Unlock()
+	refusedSeals.Lock()
+	refusedSeals.m = map[string]sealsRefused{}
+	refusedSeals.Unlock()
 	turnRules.Lock()
 	turnRules.m = map[string]turnRule{}
 	turnRules.Unlock()
 	classified.Lock()
 	classified.m, classified.failed = map[string]classifiedAs{}, map[string]classifyFailure{}
 	classified.Unlock()
+	levelled.Lock()
+	levelled.m = map[string]levelling{}
+	levelled.Unlock()
+	provider.ForgetCopilotForTest()
+	provider.ForgetRemoteCardsForTest()
+	provider.ForgetKeptCardsForTest()
+	remoteRefreshes.Lock()
+	remoteRefreshes.at = map[string]time.Time{}
+	remoteRefreshes.Unlock()
+	resetAuthThrottle()
+	forgetRouting()
+}
+
+// forgetRouting clears what routing keeps for the gateway's life — each
+// provider's turn, each candidate's failures and tokens, each weighted
+// round — so a test run again (-count) starts where it did the first time
+// rather than a turn on, or with a failure already counted.
+func forgetRouting() {
+	routed.Lock()
+	routed.used, routed.failures, routed.slow = map[string]tokenUse{}, map[string]int{}, map[string]slowRun{}
+	routed.Unlock()
+	routes.Forget()
+}
+
+// setHome makes dir the home, where Windows (USERPROFILE) finds it too.
+func setHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
 }
 
 func serveOn(t *testing.T, id, key string, models []string, v http.Handler, keys ...string) {
@@ -75,6 +110,121 @@ func postAs(t *testing.T, s *Server, session, body string) (int, string) {
 	return rec.Code, rec.Body.String()
 }
 
+// openRouterFreeLimit answers one free model with an OpenRouter limit and its
+// sibling successfully.
+type openRouterFreeLimit struct {
+	tried []string
+	body  string
+}
+
+func (f *openRouterFreeLimit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	model := modelOf(body)
+	f.tried = append(f.tried, model)
+	w.Header().Set("Content-Type", "application/json")
+	if model == "x/a:free" {
+		w.WriteHeader(http.StatusTooManyRequests)
+		io.WriteString(w, f.body)
+		return
+	}
+	io.WriteString(w, `{"id":"ok","choices":[{"message":{"role":"assistant","content":"from b"}}]}`)
+}
+
+// A shared upstream pool limit on one OpenRouter free model rests it alone:
+// the next group request starts with its sibling, even after that sibling's
+// successful answer cleared the provider-level rest.
+func TestOpenRouterSharedPoolRateLimitRestsOneModel(t *testing.T) {
+	fresh(t)
+	f := &openRouterFreeLimit{body: `{"error":{"message":"Provider returned error","code":429,"metadata":{"limit_source":"upstream_provider_shared_pool"}}}`}
+	up := httptest.NewServer(f)
+	t.Cleanup(up.Close)
+	if err := provider.Save(provider.Provider{
+		ID: "orf", Name: "OpenRouter Free", Preset: "openrouter", Key: "k",
+		Models: []string{"x/a:free", "x/b:free"}, Chat: up.URL + "/v1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SaveGroup(provider.Group{
+		Name: "Free", Members: []string{"orf/x/a:free", "orf/x/b:free"}, Routing: provider.Ordered,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	body := `{"model":"group/free","messages":[{"role":"user","content":"hi"}]}`
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(body)))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "from b") {
+		t.Fatalf("group reply: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("X-Magpie-OpenRouter-Limit-Source") != "" {
+		t.Fatal("internal OpenRouter routing detail reached the client")
+	}
+	if first := s.trace.routes[len(s.trace.routes)-1].Tries[0]; first.Rest == nil || first.Rest.Key != "orf/x/a:free" {
+		t.Fatalf("shared-pool rest key: %+v", first)
+	}
+	if code, reply := postAs(t, s, "", body); code != http.StatusOK || !strings.Contains(reply, "from b") {
+		t.Fatalf("second group reply: %d %s", code, reply)
+	}
+	if got := strings.Join(f.tried, " "); got != "x/a:free x/b:free x/b:free" {
+		t.Fatalf("models tried %q, want a b b", got)
+	}
+	if !s.Unrest("orf/x/a:free") || s.resting("orf/x/a:free") {
+		t.Fatal("model rest was not lifted by its key")
+	}
+}
+
+// The routing hint is internal even when this is the only candidate, so the
+// gateway passes the upstream error through to the client.
+func TestOpenRouterSharedPoolDirectReplyHidesRoutingHeader(t *testing.T) {
+	fresh(t)
+	f := &openRouterFreeLimit{body: `{"error":{"message":"Provider returned error","code":429,"metadata":{"limit_source":"upstream_provider_shared_pool"}}}`}
+	up := httptest.NewServer(f)
+	t.Cleanup(up.Close)
+	if err := provider.Save(provider.Provider{
+		ID: "orf", Name: "OpenRouter Free", Preset: "openrouter", Key: "k",
+		Models: []string{"x/a:free"}, Chat: up.URL + "/v1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"orf/x/a:free","messages":[{"role":"user","content":"hi"}]}`)))
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("direct reply: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Magpie-OpenRouter-Limit-Source"); got != "" {
+		t.Fatalf("internal routing header leaked: %q", got)
+	}
+}
+
+// OpenRouter's free-models-per-min limit is account-wide. It must retain the
+// provider rest key, rather than suggesting that another free model is ready.
+func TestOpenRouterFreeAccountRateLimitKeepsProviderRest(t *testing.T) {
+	fresh(t)
+	f := &openRouterFreeLimit{body: `{"error":{"message":"Rate limit exceeded: free-models-per-min"}}`}
+	up := httptest.NewServer(f)
+	t.Cleanup(up.Close)
+	if err := provider.Save(provider.Provider{
+		ID: "orf", Name: "OpenRouter Free", Preset: "openrouter", Key: "k",
+		Models: []string{"x/a:free", "x/b:free"}, Chat: up.URL + "/v1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SaveGroup(provider.Group{
+		Name: "Free", Members: []string{"orf/x/a:free", "orf/x/b:free"}, Routing: provider.Ordered,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	if code, body := postAs(t, s, "", `{"model":"group/free","messages":[{"role":"user","content":"hi"}]}`); code != http.StatusOK || !strings.Contains(body, "from b") {
+		t.Fatalf("group reply: %d %s", code, body)
+	}
+	first := s.trace.routes[len(s.trace.routes)-1].Tries[0]
+	if first.Fail != failRate || first.Rest == nil || first.Rest.Key != "orf" {
+		t.Fatalf("account rate limit rest: %+v", first)
+	}
+}
+
 // A model two providers serve is a group magpie finds; a group the user
 // makes routes over its members in the order it names them, the next one
 // taking a request the one before can't.
@@ -90,7 +240,7 @@ func TestRoutingGroups(t *testing.T) {
 			ids = append(ids, e.ID)
 		}
 	}
-	if got := strings.Join(ids, " "); got != "group/auto-m a/m a/only-a b/vendor/m" {
+	if got := strings.Join(ids, " "); got != "auto/m a/m a/only-a b/vendor/m" {
 		t.Fatalf("catalog: %s", got)
 	}
 	if err := provider.SaveGroup(provider.Group{Name: "Mine", Members: []string{"b/vendor/m", "a/only-a"}, Routing: provider.Ordered}); err != nil {
@@ -173,9 +323,7 @@ func TestAffinity(t *testing.T) {
 		serveOn(t, "aff", "k1", []string{"m"}, v, "k2")
 		provider.SetRouting("aff", c.routing)
 		provider.SetAffinity("aff", c.affinity)
-		routed.Lock()
-		delete(routed.turn, "aff")
-		routed.Unlock()
+		routes.Forget("aff")
 		s := New()
 		postAs(t, s, "s1", first)
 		postAs(t, s, "s1", c.body)
@@ -260,5 +408,108 @@ func TestKeyPoolsByProtocol(t *testing.T) {
 	code, body := postAs(t, s, "", `{"model":"mix/m","messages":[{"role":"user","content":"hi"}]}`)
 	if code != 200 || !strings.Contains(body, "from k2") {
 		t.Fatalf("aside key: %d %s, tried %v", code, body, v.tried)
+	}
+}
+
+// A Gemini client without a recognized session header keeps its provider key
+// across turns even when the request's contents, model and instructions grow.
+func TestGeminiFallbackSessionAffinity(t *testing.T) {
+	fresh(t)
+	v := &geminiKeyed{}
+	serveOn(t, "aff", "k1", []string{"m"}, v, "k2")
+	provider.SetAffinity("aff", provider.AffinitySession)
+	s := New()
+	for _, body := range []string{
+		`{"contents":[{"role":"user","parts":[{"text":"fix the bug"}]}]}`,
+		`{"systemInstruction":{"parts":[{"text":"help"}]},"contents":[{"role":"user","parts":[{"text":"fix the bug"}]},{"role":"model","parts":[{"text":"done"}]},{"role":"user","parts":[{"text":"thanks"}]}]}`,
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/v1beta/models/aff/m:generateContent", strings.NewReader(body))
+		s.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("Gemini request: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	if len(v.tried) != 2 || v.tried[0] != v.tried[1] {
+		t.Fatalf("Gemini turns changed key: %v", v.tried)
+	}
+	r := s.trace.routes[len(s.trace.routes)-1]
+	if r.Affinity == nil || !r.Affinity.Kept || r.Affinity.Why != "session" {
+		t.Fatalf("Gemini turn did not keep session affinity: %+v", r.Affinity)
+	}
+}
+
+// Gemini is translated to a streamed Chat response by the gateway.
+type geminiKeyed struct{ tried []string }
+
+func (k *geminiKeyed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	io.Copy(io.Discard, r.Body)
+	key := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	k.tried = append(k.tried, key)
+	w.Header().Set("Content-Type", "text/event-stream")
+	io.WriteString(w, sse(
+		`data: {"id":"x","choices":[{"delta":{"content":"from `+key+`"}}]}`,
+		`data: {"id":"x","choices":[{"delta":{},"finish_reason":"stop"}]}`,
+		`data: {"id":"x","choices":[],"usage":{"prompt_tokens":3000,"completion_tokens":5,"prompt_tokens_details":{"cached_tokens":2500}}}`,
+		`data: [DONE]`,
+	))
+}
+
+// A group in turn keeping each session where it began: a second session
+// goes to the model the first isn't on, however many requests the first
+// sent before it (#946); one resting is still passed over.
+func TestRotateSpreadsSessions(t *testing.T) {
+	pair := func() (*keyed, *keyed, *Server) {
+		fresh(t)
+		a, b := &keyed{}, &keyed{}
+		serveOn(t, "ga", "ka", []string{"m1"}, a)
+		serveOn(t, "gb", "kb", []string{"m2"}, b)
+		if err := provider.SaveGroup(provider.Group{Name: "Pair", Members: []string{"ga/m1", "gb/m2"}, Routing: provider.Rotate, Affinity: provider.AffinitySession}); err != nil {
+			t.Fatal(err)
+		}
+		routes.Forget(provider.GroupPrefix + "pair")
+		return a, b, New()
+	}
+	// which of the two the request went to
+	went := func(a, b *keyed, post func()) string {
+		na, nb := len(a.tried), len(b.tried)
+		post()
+		switch {
+		case len(a.tried) > na && len(b.tried) == nb:
+			return "m1"
+		case len(b.tried) > nb && len(a.tried) == na:
+			return "m2"
+		}
+		t.Fatalf("tried %v and %v", a.tried, b.tried)
+		return ""
+	}
+	for n := 1; n <= 4; n++ {
+		a, b, s := pair()
+		msgs := `{"role":"user","content":"hi"}`
+		var first string
+		for i := range n {
+			if i > 0 {
+				msgs += `,{"role":"assistant","content":"yo"},{"role":"user","content":"more"}`
+			}
+			first = went(a, b, func() { postAs(t, s, "s1", `{"model":"group/pair","messages":[`+msgs+`]}`) })
+		}
+		second := went(a, b, func() { postAs(t, s, "s2", `{"model":"group/pair","messages":[{"role":"user","content":"other"}]}`) })
+		if first == second {
+			t.Errorf("after %d requests of s1 on %s, s2 went there too", n, first)
+		}
+		if r := s.trace.routes[len(s.trace.routes)-1]; r.Affinity == nil || r.Affinity.Why != "first" {
+			t.Errorf("s2's affinity: %+v", r.Affinity)
+		}
+	}
+
+	// the one fewest are on is resting: routing's order stands
+	a, b, s := pair()
+	first := went(a, b, func() { postAs(t, s, "s1", `{"model":"group/pair","messages":[{"role":"user","content":"hi"}]}`) })
+	other := map[string]string{"m1": "gb", "m2": "ga"}[first]
+	restingUntil.Lock()
+	restingUntil.m[other] = time.Now().Add(time.Minute)
+	restingUntil.Unlock()
+	if got := went(a, b, func() { postAs(t, s, "s2", `{"model":"group/pair","messages":[{"role":"user","content":"other"}]}`) }); got != first {
+		t.Fatalf("s2 went to %s, where %s rests", got, other)
 	}
 }

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	foreign := Provider{ID: "old-relay", Name: "Old relay", Chat: "https://example.invalid/v1", Key: "old-test-key"}
 	require.NoError(t, store(file{Providers: []Provider{foreign}}))
 	UseBoxAI()
-	t.Cleanup(func() { boxAIOnly.Store(false) })
+	t.Cleanup(func() { boxai.SetEnabled(false) })
 
 	require.Len(t, Presets(), 1)
 	assert.Equal(t, "boxai", Presets()[0].ID)
@@ -71,7 +72,11 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	saved.Routing = Rotate
 	require.NoError(t, Save(*saved))
 	assert.Equal(t, Rotate, All()[0].Routing)
-	assert.Equal(t, foreign, Stored()[0], "adding BoxAI must preserve old records")
+	assert.Equal(t, foreign, load().Providers[0], "adding BoxAI must preserve old records")
+	exported, err := Stored()
+	require.NoError(t, err)
+	require.Len(t, exported, 1)
+	assert.Empty(t, exported[0].Key, "backup must never carry the website credential")
 	entries := Catalog()
 	require.Len(t, entries, 2)
 	assert.Equal(t, "boxai/model-a", entries[0].ID)
@@ -94,6 +99,12 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 		"anthropic endpoint": func(p *Provider) { p.Anthropic = "https://example.invalid" },
 		"model endpoint":     func(p *Provider) { p.ModelsURL = "https://example.invalid/models" },
 		"balance endpoint":   func(p *Provider) { p.BalanceURL = "https://example.invalid/balance" },
+		"gemini endpoint":    func(p *Provider) { p.Gemini = "https://example.invalid" },
+		"remote gateway":     func(p *Provider) { p.Preset = RemoteMagpiePreset },
+		"vertex":             func(p *Provider) { p.Vertex = &Vertex{} },
+		"auth header":        func(p *Provider) { p.AuthHeader = "x-secret" },
+		"proxy":              func(p *Provider) { p.Proxy = "https://example.invalid" },
+		"insecure TLS":       func(p *Provider) { p.InsecureTLS = true },
 	} {
 		t.Run(name, func(t *testing.T) {
 			bad := *saved
@@ -114,12 +125,15 @@ func TestBoxAIProviderConfiguration(t *testing.T) {
 	after, err := os.ReadFile(Path())
 	require.NoError(t, err)
 	assert.Equal(t, before, after, "rejected operations must not change configuration")
+	require.NoError(t, Mirror(exported, nil))
+	assert.Equal(t, foreign, load().Providers[0], "sync must preserve inactive third-party records")
+	require.Error(t, Delete(foreign.ID))
 }
 
 func TestBoxAIModelsDoNotRequireProviderEditorSelection(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	UseBoxAI()
-	t.Cleanup(func() { boxAIOnly.Store(false) })
+	t.Cleanup(func() { boxai.SetEnabled(false) })
 	models := make([]catalog.Model, 25)
 	for i := range models {
 		models[i] = catalog.Model{ID: fmt.Sprintf("model-%02d", i)}
@@ -136,7 +150,7 @@ func TestBoxAIModelsDoNotRequireProviderEditorSelection(t *testing.T) {
 func TestBoxAIExposedConversationalCatalog(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	UseBoxAI()
-	t.Cleanup(func() { boxAIOnly.Store(false) })
+	t.Cleanup(func() { boxai.SetEnabled(false) })
 	no, yes := false, true
 	require.NoError(t, catalog.SaveLive("boxai", "https://you-box.com/v1", []catalog.Model{
 		{ID: "vision-chat", Images: true, Conversational: &yes},
@@ -152,4 +166,52 @@ func TestBoxAIExposedConversationalCatalog(t *testing.T) {
 	models = p.Exposed()
 	require.Len(t, models, 2)
 	assert.Equal(t, "text-chat", models[1].ID)
+}
+
+func TestBoxAIRuntimeStripsAlternateTransports(t *testing.T) {
+	p := sanitizedBoxAI(Provider{
+		ID: "boxai", Preset: RemoteMagpiePreset, Gemini: "https://other.invalid",
+		Vertex: &Vertex{}, AuthHeader: "x-secret", Proxy: "https://other.invalid",
+		AccountProxies: map[string]string{"key": "https://other.invalid"},
+		Headers:        map[string]string{"Authorization": "old"}, InsecureTLS: true,
+		AccessKeyID: "old", SecretAccessKey: "old", BalanceToken: "old",
+		Models: []string{"chat"},
+	}, "session")
+	assert.Equal(t, "boxai", p.Preset)
+	assert.Empty(t, p.Gemini)
+	assert.Nil(t, p.Vertex)
+	assert.Empty(t, p.AuthHeader)
+	assert.Empty(t, p.Proxy)
+	assert.Empty(t, p.AccountProxies)
+	assert.Empty(t, p.Headers)
+	assert.False(t, p.InsecureTLS)
+	assert.Empty(t, p.AccessKeyID)
+	assert.Empty(t, p.SecretAccessKey)
+	assert.Empty(t, p.BalanceToken)
+	assert.Equal(t, "session", p.Key)
+	assert.Equal(t, []string{"chat"}, p.Models)
+}
+
+func TestBoxAITransportRefusesForeignOrigins(t *testing.T) {
+	UseBoxAI()
+	t.Cleanup(func() { boxai.SetEnabled(false) })
+	calls := 0
+	client := &http.Client{Transport: boxAITransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		assert.Equal(t, "you-box.com", r.URL.Host)
+		return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {"https://other.you-box.com/stolen"}}, Body: io.NopCloser(http.NoBody), Request: r}, nil
+	})}
+	p := Provider{ID: "boxai"}
+	for _, url := range []string{"https://other.invalid/v1", "http://you-box.com/v1", "https://you-box.com:444/v1"} {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		require.NoError(t, err)
+		_, err = p.Do(client, req)
+		require.Error(t, err)
+	}
+	assert.Zero(t, calls)
+	req, err := http.NewRequest(http.MethodGet, "https://you-box.com/v1/models", nil)
+	require.NoError(t, err)
+	_, err = p.Do(client, req)
+	require.Error(t, err)
+	assert.Equal(t, 1, calls, "the redirect must not receive a request")
 }

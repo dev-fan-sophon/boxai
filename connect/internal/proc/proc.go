@@ -17,11 +17,13 @@ package proc
 import (
 	"context"
 	"os/exec"
+	"time"
 )
 
 // Command is exec.Command, with no window of its own on Windows.
 func Command(name string, args ...string) *exec.Cmd {
 	cmd := exec.Command(name, args...)
+	batch(cmd)
 	hide(cmd)
 	return cmd
 }
@@ -30,6 +32,16 @@ func Command(name string, args ...string) *exec.Cmd {
 // Windows.
 func CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
+	// the context ending kills the command, but not what it started: a CLI
+	// that is a script running node leaves node holding the output, and
+	// Output waited for it however long it took (#123) — its pipes are
+	// closed a moment after instead
+	cmd.WaitDelay = waitDelay
+	// on Windows what it started is killed with it (#2341)
+	cancelTree(cmd)
+	batch(cmd)
 	hide(cmd)
 	return cmd
 }
+
+var waitDelay = 2 * time.Second

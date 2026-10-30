@@ -30,15 +30,18 @@ func TestBoxAIAPIGate(t *testing.T) {
 		return
 	}
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	wasEnabled := boxai.Enabled()
+	t.Cleanup(func() { boxai.SetEnabled(wasEnabled) })
 	provider.UseBoxAI()
 	choices := []agent.Option{
 		{Value: "native-model"},
 		{Value: "magpie/boxai/claude[1m]", Ref: "boxai/claude"},
+		{Value: "group/work", Ref: "group/work"},
 		{Value: "other/gpt", Ref: "other/gpt"},
 	}
 	opts, restricted := fieldOptions(agent.Field{Key: "model", Label: "model", Options: func(map[string]string) []agent.Option { return choices }}, nil)
 	assert.True(t, restricted)
-	assert.Equal(t, choices[1:2], opts, "filter by Ref, preserving adapter spelling and context suffix")
+	assert.Equal(t, choices[1:3], opts, "preserve BoxAI model spelling, context suffix and routing groups")
 	opts, restricted = fieldOptions(agent.Field{Key: "effort", Label: "effort", Options: func(map[string]string) []agent.Option { return choices }}, nil)
 	assert.False(t, restricted)
 	assert.Equal(t, choices, opts)
@@ -57,6 +60,7 @@ func TestBoxAIAPIGate(t *testing.T) {
 		{"GET", "/api/state", "", 401},
 		{"GET", "/api/usage?period=7d", "", 401},
 		{"GET", "/api/boxai/account", "", 401},
+		{"GET", "/_magpie/plugin/stale-token/index.html", "", 401},
 		{"POST", "/api/set", boxai.UIToken, 401},
 		{"POST", "/api/window/quit", boxai.UIToken, 401},
 		{"POST", "/api/boxai/cancel", "", 403},
@@ -72,6 +76,15 @@ func TestBoxAIAPIGate(t *testing.T) {
 		}
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(provider.Path()), "auth.json"), []byte(`{"session":"sk-ui-test-session"}`), 0600))
+	for _, path := range []string{"/api/masking/summary", "/api/privacy-model", "/api/settings/redact-rules", "/api/plugin-signin", "/api/signin"} {
+		for _, method := range []string{"GET", "POST"} {
+			r := httptest.NewRequest(method, "http://localhost"+path, strings.NewReader(`{}`))
+			r.Header.Set("X-BoxAI-UI-Token", boxai.UIToken)
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			assert.Equal(t, http.StatusNotFound, w.Code, method+" "+path)
+		}
+	}
 	transport := http.DefaultTransport
 	http.DefaultTransport = accountTransport(func(r *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/api/usage/account", r.URL.Path)

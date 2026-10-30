@@ -34,6 +34,7 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(website["downloads"][0]["url"],
                          "https://dl.you-box.com/connect/1.1.0/BoxAI-Connect-1.1.0-macos-arm64.dmg")
         self.assertTrue(website["downloads"][0]["signed"])
+        self.assertEqual(website["downloads"][0]["minimum_os"], "12.0")
         self.assertFalse(website["downloads"][1]["signed"])
 
     def test_mixed_source_rejected(self):

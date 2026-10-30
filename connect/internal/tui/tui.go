@@ -1,7 +1,7 @@
 // Package tui is magpie in the terminal: one row per agent, arrow keys to pick
 // a field, enter to change it; and pages for providers and usage beside it
-// (pages.go), routing groups (routing.go) and the library (library.go), 1–5
-// to go between them.
+// (pages.go), routing groups (routing.go), sessions (sessions.go) and the
+// library (library.go), 1–6 to go between them.
 package tui
 
 import (
@@ -22,6 +22,7 @@ import (
 	"github.com/yetone/magpie/internal/library"
 	"github.com/yetone/magpie/internal/profile"
 	"github.com/yetone/magpie/internal/provider"
+	"github.com/yetone/magpie/internal/sessions"
 	"github.com/yetone/magpie/internal/settings"
 	"github.com/yetone/magpie/internal/usage"
 )
@@ -71,6 +72,9 @@ type picker struct {
 	crumbs []string
 	input  textinput.Model
 	items  []agent.Option
+	// relist, on a picker of models, lists them again when an account's
+	// list or the models.dev catalog arrives while it is open
+	relist func() []agent.Option
 	match  []int
 	cursor int
 	custom bool
@@ -79,7 +83,10 @@ type picker struct {
 	// toggle, when set, is what enter does instead of onPick: it changes
 	// the item and the list stays open, with its items anew.
 	toggle func(string) (items []agent.Option, done string, ok bool)
-	empty  string
+	// refetch, on a provider's models, asks its vendor for the list again
+	// (ctrl+r): a free model list changes often (#2113)
+	refetch func() tea.Cmd
+	empty   string
 }
 
 type model struct {
@@ -96,24 +103,39 @@ type model struct {
 	w, h    int
 	syncing bool
 
+	// failover: what an agent going through magpie for account failover
+	// alone, not connected, says of it (agent.FailoverSaid, #1385)
+	failover []string
+
 	page      page
 	back      mode // where esc goes from a picker or a line to type
 	ask       ask
 	confirm   string // what a second d removes
 	provs     []provider.Provider
+	provsErr  error // providers.json can't be read: said, not "none yet"
 	prow      int
 	bal       map[string]string
 	asked     bool // balances were asked for
 	groups    []provider.Group
+	provOff   map[string]bool // providers switched off, read with the groups
 	grow      int
 	shown     int    // groups from here on were removed: listed last, to bring back
 	gid       string // the group open
 	gsel      int    // its member or rule picked: the members, then the rules
 	period    usage.Period
 	sum       usage.Summary
+	direct    usage.Summary                // the agents' own calls, read from their session files
 	quotas    []provider.SubscriptionQuota // nil while the vendors are asked
 	qasked    bool                         // quotas were asked for
 	qleft     bool                         // windows read as what is left, not what is used
+	sstats    sessions.Stats               // the sessions' usage in the range picked
+	srange    int                          // in sessRanges
+	smodel    string                       // the model the sessions are narrowed to, "" for all
+	sfolder   string                       // the folder, "" for all
+	scost     bool                         // the chart shows cost, not tokens
+	slist     []sessions.Session           // the latest sessions, the most recently active first
+	ssel      int                          // the session picked among those shown
+	sstat     bool                         // the page shows the range's stats, not its sessions
 	lib       []libRow
 	lrow      int
 	libView   *library.View
@@ -128,28 +150,57 @@ type flashMsg struct {
 
 type syncedMsg struct{ err error }
 
-// Run starts magpie in the terminal.
-func Run() error {
+// Run starts magpie in the terminal. ready is called once the model is
+// made: making it asks agents' CLIs (claude auth status, up to seconds),
+// and a signal then is the caller's to handle, as bubbletea starts
+// listening only as the program runs.
+func Run(ready func()) error {
 	m := newModel()
+	if ready != nil {
+		ready()
+	}
 	if len(m.agents) == 0 {
 		return fmt.Errorf("no supported agents found on this machine")
 	}
+	ctx, stop := context.WithCancel(context.Background())
+	wait := serveGateway(ctx)
 	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	served := gw.here.Load()
+	stop()
+	wait()
+	if served {
+		fmt.Fprintln(os.Stderr, keepGateway(connected(m.agents)))
+	}
 	return err
 }
 
 func newModel() model {
 	// in the order the app lists them, those hidden there last
-	shown, hidden := settings.Arrange(settings.Load(), agent.Detected(), func(a *agent.Agent) string { return a.ID })
-	m := model{agents: append(shown, hidden...), hidden: len(shown), period: usage.Week}
+	// an app magpie has no fields in (Cindy, which takes it by a link) has
+	// nothing to pick here, nor one whose CLI is gone, its folder left
+	// behind (#2177): nothing would read what is picked
+	var set []*agent.Agent
+	for _, a := range agent.Detected() {
+		if len(a.Fields) > 0 && !a.CLIMissing() {
+			set = append(set, a)
+		}
+	}
+	s := settings.Load()
+	shown, hidden := settings.Arrange(s, set, func(a *agent.Agent) string { return a.ID })
+	m := model{agents: append(shown, hidden...), hidden: len(shown), period: usage.Week, srange: 1, qleft: s.QuotaLeft}
+	// no model catalog yet: Init syncs it. Set here, as Init's receiver is
+	// a copy the program never sees.
+	m.syncing = catalog.Source() == ""
 	m.reload()
 	return m
 }
 
 func (m *model) reload() {
 	m.values = make([]map[string]string, len(m.agents))
+	m.failover = make([]string, len(m.agents))
 	for i, a := range m.agents {
 		m.values[i] = a.Values()
+		m.failover[i] = a.FailoverSaid()
 	}
 	switch m.page {
 	case pageProviders:
@@ -163,7 +214,9 @@ func (m *model) reload() {
 			m.gsel = clamp(m.gsel, len(g.Members)+len(g.Rules))
 		}
 	case pageUsage:
-		m.sum = usage.Summarize(m.period)
+		m.sum, m.direct = usage.Summaries(m.period)
+	case pageSessions:
+		m.reloadSessions()
 	case pageLibrary:
 		m.reloadLibrary()
 	}
@@ -185,11 +238,44 @@ func (m *model) goTo(p page) tea.Cmd {
 }
 
 func (m model) Init() tea.Cmd {
-	if catalog.Source() == "" {
-		m.syncing = true
-		return syncCmd
+	// a signed-in account's list exists only at its vendor: asked for at
+	// start, as the app does, or Cursor offered its fallback Auto alone
+	// until m on the Providers page asked for it (#1789)
+	if m.syncing {
+		return tea.Batch(syncCmd, fetchModelsCmd)
 	}
-	return nil
+	return fetchModelsCmd
+}
+
+// modelsMsg says FetchNew is done; missing, that an account is left
+// without its list.
+type modelsMsg struct{ missing bool }
+
+func fetchModelsCmd() tea.Msg {
+	return modelsMsg{missing: provider.FetchNew(20 * time.Second)}
+}
+
+// modelsRetry is how long the terminal waits to ask again for a list it
+// couldn't get (the network not up yet at start, a vendor slow to answer),
+// while it stays open: the app asks again each time its page is read.
+var modelsRetry = time.Minute
+
+// modelsChanged shows the models as they are now: the page, and a picker
+// of models open meanwhile, its filter and the model on its cursor kept.
+func (m *model) modelsChanged() {
+	m.reload()
+	if m.mode != modePick || m.pk.relist == nil {
+		return
+	}
+	on, _ := m.pk.choice()
+	m.pk.items = m.pk.relist()
+	m.pk.refilter()
+	for i, j := range m.pk.match {
+		if m.pk.items[j].Value == on {
+			m.pk.cursor = i
+			break
+		}
+	}
 }
 
 func syncCmd() tea.Msg {
@@ -207,7 +293,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case flashMsg:
 		m.flash, m.flashOK = msg.text, msg.ok
-		m.reload()
+		// and a picker of models open shows what was done to them (a list
+		// fetched again from it)
+		m.modelsChanged()
 		return m, nil
 	case balanceMsg:
 		m.bal = msg
@@ -217,6 +305,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case quotaMsg:
 		m.quotas = msg
+		return m, nil
+	case checkinMsg:
+		m.flash, m.flashOK = msg.text, msg.ok
+		// the accounts' lines say today's check-in now, with nothing asked
+		if m.quotas != nil {
+			m.quotas = provider.WithCheckins(m.quotas)
+		}
+		return m, nil
+	case sessFilterMsg:
+		m.ssel = 0
+		if msg.folder {
+			m.sfolder = msg.value
+		} else {
+			m.smodel = msg.value
+		}
 		return m, nil
 	case askMsg:
 		m.openAsk(msg.a)
@@ -241,8 +344,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, saveInstructions(msg.text)
+	case modelsMsg:
+		m.modelsChanged()
+		if msg.missing {
+			return m, tea.Tick(modelsRetry, func(time.Time) tea.Msg { return fetchModelsCmd() })
+		}
+		return m, nil
 	case syncedMsg:
 		m.syncing = false
+		m.modelsChanged()
 		if msg.err != nil {
 			m.flash, m.flashOK = "catalog sync failed: "+msg.err.Error(), false
 		} else {
@@ -260,7 +370,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.goTo(p)
 			}
 			switch m.page {
-			case pageProviders, pageGroups, pageUsage, pageLibrary:
+			case pageProviders, pageGroups, pageUsage, pageSessions, pageLibrary:
 				if s := msg.String(); s == "q" || s == "esc" {
 					return m, tea.Quit
 				}
@@ -283,6 +393,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.updateGroups(msg)
 			case pageUsage:
 				return m.updateUsage(msg)
+			case pageSessions:
+				m.flash = ""
+				return m.updateSessions(msg)
 			case pageLibrary:
 				m.flash = ""
 				return m.updateLibrary(msg)
@@ -302,12 +415,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// pageKey is the page a key goes to: 1–5, or ] and [ for the next and
+// pageKey is the page a key goes to: 1–6, or ] and [ for the next and
 // the one before.
 func (m model) pageKey(k string) (page, bool) {
 	n := page(len(pageNames))
 	switch k {
-	case "1", "2", "3", "4", "5":
+	case "1", "2", "3", "4", "5", "6":
 		return page(k[0] - '1'), true
 	case "]":
 		return (m.page + 1) % n, true
@@ -356,7 +469,7 @@ func (m *model) openFieldPicker() {
 	a := m.agents[m.row]
 	f := a.Fields[m.col]
 	cur := m.values[m.row][f.Key]
-	items := f.Options(m.values[m.row])
+	items := a.Picks(f, m.values[m.row])
 	items = withCurrent(items, cur)
 	set := f.Set
 	label := a.Name + " · " + f.Label
@@ -364,6 +477,7 @@ func (m *model) openFieldPicker() {
 		crumbs: []string{a.Name, f.Label},
 		input:  newInput("type to filter, or enter a custom value"),
 		items:  items,
+		relist: func() []agent.Option { return withCurrent(a.Picks(f, a.Values()), f.Get()) },
 		custom: true,
 		empty:  "no models known yet, type one",
 		onPick: func(v string) tea.Cmd {
@@ -387,8 +501,13 @@ func (m *model) openProfiles() {
 		return
 	}
 	var items []agent.Option
+	detected := agent.Detected()
 	for _, n := range profile.Names(ps) {
-		items = append(items, agent.Option{Value: n, Note: profile.LongSummary(ps[n])})
+		note := profile.LongSummary(ps[n])
+		if profile.InUse(ps[n], detected, nil) {
+			note = strings.TrimSuffix("in use · "+note, " · ")
+		}
+		items = append(items, agent.Option{Value: n, Note: note})
 	}
 	m.pk = picker{
 		crumbs: []string{"profiles"},
@@ -440,6 +559,12 @@ func (m model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "up", "ctrl+p":
 		if len(m.pk.match) > 0 {
 			m.pk.cursor = (m.pk.cursor + len(m.pk.match) - 1) % len(m.pk.match)
+		}
+		return m, nil
+	case "ctrl+r":
+		if m.pk.refetch != nil {
+			m.flash, m.flashOK = "asking for the models again…", true
+			return m, m.pk.refetch()
 		}
 		return m, nil
 	case "ctrl+d":
@@ -633,25 +758,34 @@ func (m model) View() string {
 		switch m.page {
 		case pageProviders:
 			body = m.viewProviders()
-			footer = hints("↑↓", "provider", "↵", "models", "e", "key", "a", "add", "f", "family", "u", "list/groups only", "t", "test", "b", "balances", "d", "remove", "1–5", "pages")
+			footer = hints("↑↓", "provider", "↵", "models", "e", "key", "w", "address", "a", "add", "f", "family", "u", "list/groups only", "o", "on/off", "m", "fetch models", "t", "test", "b", "balances", "d", "remove", "1–6", "pages")
 		case pageGroups:
 			body = m.viewGroups()
-			footer = hints("↑↓", "group", "↵", "open", "n", "new", "o", "routing", "d", "remove", "u", "bring back", "1–5", "pages", "q", "quit")
+			footer = hints("↑↓", "group", "↵", "open", "n", "new", "o", "routing", "d", "remove", "u", "bring back", "1–6", "pages", "q", "quit")
 		case pageLibrary:
 			body = m.viewLibrary()
-			footer = hints("↑↓", "item", "↵", "agents", "a", "add", "e", "edit", "u", "update skill", "i", "bring in", "d", "remove", "s", "sync", "r", "reload", "1–5", "pages", "q", "quit")
+			footer = hints("↑↓", "item", "↵", "agents", "a", "add", "e", "edit", "u", "update skill", "i", "bring in", "d", "remove", "s", "sync", "r", "reload", "1–6", "pages", "q", "quit")
+		case pageSessions:
+			body = m.viewSessions()
+			if m.sstat {
+				footer = hints("←→", "range", "M", "model", "f", "folder", "x", "clear", "c", "tokens / cost", "s", "sessions", "r", "reload", "1–6", "pages", "q", "quit")
+			} else {
+				footer = hints("↑↓", "session", "↵", "resume", "←→", "range", "M", "model", "f", "folder", "x", "clear", "s", "stats", "r", "reload", "1–6", "pages", "q", "quit")
+			}
 		case pageUsage:
 			body = m.viewUsage()
-			footer = hints("←→", "period", "t w m A", "today · 7 days · 30 days · all", "u", "used / left", "r", "reload", "1–5", "pages", "q", "quit")
+			footer = hints("←→", "period", "t w m A", "today · 7 days · 30 days · all", "u", "used / left", "c", "daily check-in", "r", "reload", "1–6", "pages", "q", "quit")
 		default:
 			body = m.viewList()
-			footer = hints("↑↓", "agent", "←→", "field", "↵", "change", "s", "save profile", "p", "profiles", "1–5", "pages", "q", "quit")
+			footer = hints("↑↓", "agent", "←→", "field", "↵", "change", "s", "save profile", "p", "profiles", "1–6", "pages", "q", "quit")
 		}
 	case modePick, modeProfiles:
 		body = m.viewPicker()
 		switch {
 		case m.mode == modeProfiles:
 			footer = hints("↑↓", "move", "↵", "apply", "ctrl+d", "delete", "esc", "back")
+		case m.pk.refetch != nil:
+			footer = hints("↑↓", "move", "↵", "on / off", "ctrl+r", "fetch models again", "esc", "back")
 		case m.pk.toggle != nil:
 			footer = hints("↑↓", "move", "↵", "on / off", "esc", "back")
 		default:
@@ -664,7 +798,7 @@ func (m model) View() string {
 		body = m.viewGroup()
 		// two lines: there is more to do to a group than one holds
 		footer = hints("↑↓", "model / rule", "J K", "move", "a", "add model", "n", "new rule", "↵", "edit rule", "d", "take out", "esc", "back") + "\n" +
-			pad + hints("c", "classifier", "o", "routing", "s", "stays", "x", "context", "f", "family", "R", "rename")
+			pad + hints("E", "effort", "F", "fast", "c", "classifier", "o", "routing", "s", "stays", "x", "context", "l", "levels", "f", "family", "R", "rename")
 	case modeName:
 		body = m.viewName()
 		footer = hints("↵", "save", "esc", "cancel")
@@ -678,6 +812,8 @@ func (m model) View() string {
 		status = sBad.Render("✗ ") + sText.Render(m.flash)
 	case m.syncing:
 		status = sMuted.Render("… syncing model catalog")
+	default:
+		status = gatewayStatus()
 	}
 
 	lines := strings.Count(body, "\n") + 1
@@ -717,7 +853,17 @@ func (m model) viewList() string {
 	var b strings.Builder
 	b.WriteString(m.header())
 	b.WriteString("\n\n")
-	for i, a := range m.agents {
+	// the rows around the one picked, as many as fit — a machine with more
+	// agents than the terminal has rows would otherwise scroll the highlight
+	// off and freeze the page, as the library page did (#2220)
+	visible := max(3, m.h-7)
+	start := 0
+	if m.row >= visible {
+		start = m.row - visible + 1
+	}
+	end := min(len(m.agents), start+visible)
+	for i := start; i < end; i++ {
+		a := m.agents[i]
 		sel := i == m.row
 		marker := "  "
 		name := sName.Render(padRight(a.Name, nameW))
@@ -747,6 +893,9 @@ func (m model) viewList() string {
 				line += sMuted.Render(" " + f.Label)
 			}
 			line += cell + " "
+		}
+		if i < len(m.failover) && m.failover[i] != "" {
+			line += sMuted.Render(" · " + m.failover[i])
 		}
 		if sel {
 			p := tilde(a.Path)

@@ -10,10 +10,20 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const Origin = "https://you-box.com"
+
+var enabled atomic.Bool
+
+// Enable selects Connect's product policy before any configuration is read.
+func Enable() { SetEnabled(true) }
+
+// SetEnabled permits isolated tests to restore the product policy.
+func SetEnabled(on bool) { enabled.Store(on) }
+func Enabled() bool      { return enabled.Load() }
 
 var ErrLoginRequired = errors.New("BoxAI sign-in required")
 var ErrVaultUnavailable = errors.New("local auth.json credential storage unavailable")

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yetone/magpie/internal/settings"
+	"github.com/yetone/magpie/internal/appdir"
 )
 
 // fileVault keeps the session and pending
@@ -41,7 +41,7 @@ func (v fileVault) Delete(ctx context.Context, key string) error {
 // prevents partial JSON after a crash, independently of agent configuration.
 func (v fileVault) access(ctx context.Context, change func(map[string]string)) (map[string]string, error) {
 	if v.path == "" {
-		v.path = filepath.Join(settings.Dir(), "auth.json")
+		v.path = filepath.Join(appdir.Config(), "auth.json")
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

@@ -14,6 +14,7 @@ import (
 func TestRenameLegacy(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
 	write := func(rel, body string) {
@@ -38,7 +39,7 @@ func TestRenameLegacy(t *testing.T) {
   "theme": "dark"
 }
 `)
-	write(".codex/config.toml", "model_reasoning_effort = \"high\"\nmodel = \"deepseek/deepseek-flash\"\nmodel_provider = \"dial\"\nmodel_catalog_json = \""+filepath.Join(home, ".codex", "dial-models.json")+"\"\n\n[projects.\"/x\"]\ntrust_level = \"trusted\"\n\n[model_providers.dial]\nname = \"dial\"\nbase_url = \"http://127.0.0.1:3425/v1\"\nwire_api = \"responses\"\nexperimental_bearer_token = \"dial\"\n")
+	write(".codex/config.toml", "model_reasoning_effort = \"high\"\nmodel = \"deepseek/deepseek-flash\"\nmodel_provider = \"dial\"\nmodel_catalog_json = '"+filepath.Join(home, ".codex", "dial-models.json")+"'\n\n[projects.\"/x\"]\ntrust_level = \"trusted\"\n\n[model_providers.dial]\nname = \"dial\"\nbase_url = \"http://127.0.0.1:3425/v1\"\nwire_api = \"responses\"\nexperimental_bearer_token = \"dial\"\n")
 	write(".codex/dial-models.json", "{}")
 	write(".pi/agent/settings.json", `{"defaultProvider": "dial", "defaultModel": "deepseek/deepseek-flash", "theme": "dark"}`)
 	write(".pi/agent/models.json", `{"providers": {"dial": {"api": "openai-completions", "apiKey": "dial", "baseUrl": "http://127.0.0.1:3425/v1", "models": []}}}`)
@@ -95,5 +96,66 @@ func TestRenameLegacy(t *testing.T) {
 		if read(rel) != b {
 			t.Fatalf("%s changed on the second run", rel)
 		}
+	}
+}
+
+// An agent set to one of Cursor's ids at an effort, from before magpie
+// offered the family as one model, is set to that model, at that effort
+// where its own is unset; an id magpie offers no model for is left.
+func TestMoveCursorEfforts(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+	if err := provider.Save(provider.Provider{ID: "curs", Name: "Curs", Chat: "https://curs.example/v1", Key: "k", Models: []string{"grok-4.7"}}); err != nil {
+		t.Fatal(err)
+	}
+	// Pi is offered the levels its entry gives the model (#597): a model
+	// with none would be offered off alone, and low not moved
+	if err := provider.SetModelEfforts("curs/grok-4.7", []string{"low", "high"}); err != nil {
+		t.Fatal(err)
+	}
+	base := func(id string) (string, string, bool) {
+		if id == "grok-4.7-low" || id == "gone-low" {
+			return strings.TrimSuffix(id, "-low"), "low", true
+		}
+		return "", "", false
+	}
+	pi := filepath.Join(home, ".pi", "agent", "settings.json")
+	write := func(body string) {
+		if err := os.MkdirAll(filepath.Dir(pi), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(pi, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(`{"defaultProvider": "magpie", "defaultModel": "curs/grok-4.7-low", "theme": "dark"}`)
+	setUpInMagpie("pi")
+	moveEfforts("curs", base)
+	for k, want := range map[string]string{"defaultProvider": "magpie", "defaultModel": "curs/grok-4.7", "defaultThinkingLevel": "low", "theme": "dark"} {
+		if v, _ := edit.GetJSON(pi, k); v != want {
+			t.Errorf("%s = %q, want %q", k, v, want)
+		}
+	}
+	// an effort of its own stays; a model the picker doesn't offer stays
+	write(`{"defaultProvider": "magpie", "defaultModel": "curs/grok-4.7-low", "defaultThinkingLevel": "high"}`)
+	moveEfforts("curs", base)
+	if v, _ := edit.GetJSON(pi, "defaultThinkingLevel"); v != "high" {
+		t.Errorf("thinking level %q", v)
+	}
+	write(`{"defaultProvider": "magpie", "defaultModel": "curs/gone-low"}`)
+	moveEfforts("curs", base)
+	if v, _ := edit.GetJSON(pi, "defaultModel"); v != "curs/gone-low" {
+		t.Errorf("model %q", v)
+	}
+	// a provider named magpie the user wrote by hand is theirs: left as it is
+	stash(map[string]string{"pi.connect.was": ""})
+	mine := `{"defaultProvider": "magpie", "defaultModel": "curs/grok-4.7-low"}`
+	write(mine)
+	moveEfforts("curs", base)
+	if b, _ := os.ReadFile(pi); string(b) != mine {
+		t.Errorf("hand-wired Pi moved:\n%s", b)
 	}
 }

@@ -14,11 +14,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/yetone/magpie/internal/gateway"
 )
 
 // Development build (`make dev`): the UI is read from internal/gui/assets on
@@ -120,24 +123,58 @@ func devListen(h http.Handler) {
 	if addr == "" {
 		return
 	}
-	go func() {
-		log.Println("dev ui:", "http://"+addr+"/?theme=dark")
-		if err := http.ListenAndServe(addr, h); err != nil {
-			log.Println("dev ui:", err)
-		}
-	}()
+	ln, err := gateway.Listen(addr)
+	if err != nil {
+		log.Println("dev ui:", err)
+		return
+	}
+	log.Println("dev ui:", "http://"+addr+"/?theme=dark")
+	devUI = &http.Server{Handler: h}
+	go devUI.Serve(ln)
 }
+
+// devUI is the page served on MAGPIE_DEV_UI, nil when it isn't.
+var devUI *http.Server
 
 // devRole is this process's half of `make dev`: "backend", "shell", or ""
 // for the whole app in one process.
 func devRole() string { return os.Getenv("MAGPIE_DEV_ROLE") }
 
 // devBackend serves the page and the API on MAGPIE_DEV_BACKEND for the shell.
+//
+// A restart is a handover (build/dev.sh): the new backend listens on the
+// same addresses beside this one, then this one is sent handoverSignal and
+// stops taking requests, finishes those in flight — an agent's stream
+// through the gateway as long as it takes — and exits, so a Go change no
+// longer cuts off the agents using the dev gateway.
 func devBackend(handler func(Windows) http.Handler) error {
+	gateway.Handover = handoverSignal != nil
 	addr := os.Getenv("MAGPIE_DEV_BACKEND")
 	h := handler(remoteWindows(os.Getenv("MAGPIE_DEV_CONTROL")))
+	ln, err := gateway.Listen(addr)
+	if err != nil {
+		return err
+	}
 	log.Println("dev backend:", "http://"+addr)
-	return http.ListenAndServe(addr, h)
+	srv := &http.Server{Handler: h}
+	if handoverSignal == nil {
+		return srv.Serve(ln)
+	}
+	go srv.Serve(ln)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, handoverSignal)
+	<-sig
+	log.Println("dev backend: handed over · finishing what's in flight")
+	// the page's long polls end within 20s; what the gateway streams, when it ends
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	go srv.Shutdown(ctx)
+	if devUI != nil {
+		go devUI.Shutdown(ctx)
+	}
+	stopServing()
+	srv.Shutdown(ctx)
+	return nil
 }
 
 // remoteWindows are the shell's windows, seen from the backend.
@@ -160,12 +197,31 @@ func (c remoteWindows) post(op string, form url.Values) string {
 func (c remoteWindows) HidePanel()           { c.do("hide", "") }
 func (c remoteWindows) ShowMain(view string) { c.do("main", view) }
 func (c remoteWindows) Quit()                { c.do("quit", "") }
-func (c remoteWindows) OpenURL(u string)     { c.do("open", u) }
+func (c remoteWindows) OpenURL(u string) error {
+	if s := c.post("open", url.Values{"arg": {u}}); s != "ok" && s != "" {
+		return fmt.Errorf("%s", s)
+	}
+	return nil
+}
 func (c remoteWindows) OpenFolder(path string) error {
 	if s := c.post("reveal", url.Values{"arg": {path}}); s != "ok" {
 		return fmt.Errorf("%s", s)
 	}
 	return nil
+}
+
+// ChooseFolder's answer is the folder after "ok:", or what went wrong.
+func (c remoteWindows) ChooseFolder(title string) (string, error) {
+	res, err := backendClient.PostForm("http://"+string(c)+"/choose", url.Values{"arg": {title}})
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 64<<10))
+	if dir, ok := strings.CutPrefix(string(b), "ok:"); ok {
+		return dir, nil
+	}
+	return "", fmt.Errorf("%s", b)
 }
 func (c remoteWindows) Copy(text string) bool {
 	return c.post("copy", url.Values{"arg": {text}}) == "ok"
@@ -178,6 +234,16 @@ func (c remoteWindows) FitPanel(height int, g Glide) {
 func (c remoteWindows) TintPanel(rgba [4]uint8, ms int) bool {
 	q := url.Values{"c": {fmt.Sprintf("%d,%d,%d,%d", rgba[0], rgba[1], rgba[2], rgba[3])}, "ms": {strconv.Itoa(ms)}}
 	return c.post("tint", url.Values{"arg": {q.Encode()}}) == "ok"
+}
+func (c remoteWindows) TintTitleBar(rgba [4]uint8, dark bool) bool {
+	q := url.Values{"c": {fmt.Sprintf("%d,%d,%d,%d", rgba[0], rgba[1], rgba[2], rgba[3])}}
+	if dark {
+		q.Set("dark", "1")
+	}
+	return c.post("titlebar", url.Values{"arg": {q.Encode()}}) == "ok"
+}
+func (c remoteWindows) SetTextSize(percent int) {
+	c.post("textsize", url.Values{"arg": {strconv.Itoa(percent)}})
 }
 
 // backendClient waits out a backend's restart: a request made while the old
@@ -218,13 +284,26 @@ func devShell(h *host) http.Handler {
 		case "quit":
 			h.Quit()
 		case "open":
-			h.OpenURL(arg)
+			if err := h.OpenURL(arg); err != nil {
+				rw.Write([]byte(err.Error()))
+				return
+			}
+			rw.Write([]byte("ok"))
+			return
 		case "reveal":
 			if err := h.OpenFolder(arg); err != nil {
 				rw.Write([]byte(err.Error()))
 				return
 			}
 			rw.Write([]byte("ok"))
+			return
+		case "choose":
+			dir, err := h.ChooseFolder(arg)
+			if err != nil {
+				rw.Write([]byte(err.Error()))
+				return
+			}
+			rw.Write([]byte("ok:" + dir))
 			return
 		case "copy":
 			if h.Copy(arg) {
@@ -236,9 +315,19 @@ func devShell(h *host) http.Handler {
 			if n, g, ok := parseFit(q); ok {
 				h.FitPanel(n, g)
 			}
+		case "textsize":
+			if n, err := strconv.Atoi(arg); err == nil {
+				h.SetTextSize(n)
+			}
 		case "tint":
 			q, _ := url.ParseQuery(arg)
 			if c, ms, ok := parseTint(q); ok && h.TintPanel(c, ms) {
+				rw.Write([]byte("ok"))
+				return
+			}
+		case "titlebar":
+			q, _ := url.ParseQuery(arg)
+			if c, _, ok := parseTint(q); ok && h.TintTitleBar(c, q.Get("dark") == "1") {
 				rw.Write([]byte("ok"))
 				return
 			}
@@ -252,8 +341,15 @@ func devShell(h *host) http.Handler {
 	}()
 	p := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: os.Getenv("MAGPIE_DEV_BACKEND")})
 	p.Transport = backendClient.Transport
-	// a restart cuts off whatever was in flight; the page asks again
+	// A restart cuts off whatever was in flight. A read is asked again, of
+	// the backend that comes up (the dial waits for it), so the page never
+	// sees the cut; a write may have landed, so it fails as it is.
 	p.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
+		n, _ := r.Context().Value(retryKey{}).(int)
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) && n < 3 && r.Context().Err() == nil {
+			p.ServeHTTP(rw, r.WithContext(context.WithValue(r.Context(), retryKey{}, n+1)))
+			return
+		}
 		rw.WriteHeader(http.StatusBadGateway)
 	}
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -281,3 +377,7 @@ func stash(link string) string {
 	b, _ := io.ReadAll(res.Body)
 	return strings.TrimSpace(string(b))
 }
+
+// retryKey counts how often a read cut off by a backend restart was asked
+// again.
+type retryKey struct{}
