@@ -8,10 +8,9 @@ use std::time::Duration;
 /// The reported symptom: a stop took the runner shell but left the command
 /// it launched — and that command's own child — running (#1805).
 ///
-/// The production chain is exercised end to end: the host binary starts in
-/// hidden runner mode, reads its config frame, then starts the shell. A test
-/// that spawns the shell directly would not cover the ordering the race
-/// depends on.
+/// The unit-test runner spawns the shell directly, but uses the production
+/// supervisor and Job ownership to stop it and all its descendants. The hidden
+/// runner's configuration-frame handshake is not exercised by this fixture.
 #[cfg(windows)]
 #[tokio::test]
 async fn stop_terminates_the_command_the_runner_launched() {
@@ -89,11 +88,11 @@ async fn stop_terminates_the_command_the_runner_launched() {
     }
 
     assert!(
-        wait_for_exit(nested_pid),
+        wait_for_exit(nested_pid).await,
         "the command's own child must not survive stopping the task (#1805)"
     );
     assert!(
-        wait_for_exit(command_pid),
+        wait_for_exit(command_pid).await,
         "the launched command must not survive stopping the task (#1805)"
     );
 
@@ -130,12 +129,14 @@ fn process_running(pid: u32) -> bool {
 }
 
 #[cfg(windows)]
-fn wait_for_exit(pid: u32) -> bool {
+async fn wait_for_exit(pid: u32) -> bool {
     for _ in 0..120 {
         if !process_running(pid) {
             return true;
         }
-        std::thread::sleep(Duration::from_millis(50));
+        // stop_task signals the supervisor; it must be able to run while this
+        // current-thread Tokio test waits for that supervisor to kill the job.
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
     false
 }

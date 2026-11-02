@@ -223,14 +223,16 @@ impl ProcessTimes {
         })
     }
 
-    /// Current wall clock in the same FILETIME units as process creation times.
+    /// Precise wall clock in the same FILETIME units as process creation times.
+    /// The coarse clock can lag a just-created process by a scheduler tick,
+    /// incorrectly treating that live descendant as a recycled PID.
     fn now() -> Self {
         let mut now = FILETIME {
             dwLowDateTime: 0,
             dwHighDateTime: 0,
         };
         unsafe {
-            windows_sys::Win32::System::SystemInformation::GetSystemTimeAsFileTime(&mut now);
+            windows_sys::Win32::System::SystemInformation::GetSystemTimePreciseAsFileTime(&mut now);
         }
         Self {
             created: (u64::from(now.dwHighDateTime) << 32) | u64::from(now.dwLowDateTime),

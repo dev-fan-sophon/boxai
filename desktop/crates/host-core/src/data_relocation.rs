@@ -249,7 +249,10 @@ fn rewrite_capability_state(path: &Path, roots: &Roots) -> Result<()> {
                 .as_deref()
                 .and_then(|path| roots.remap(path))
             {
-                identity.project_path = Some(project);
+                // CapabilityState looks up serialized keys using normalized
+                // project paths, not the platform's native separator spelling.
+                identity.project_path =
+                    Some(crate::agent_capabilities::normalize_project_path(&project));
                 changed = true;
                 serde_json::to_string(&identity)?
             } else {

@@ -50,6 +50,24 @@ content must pass the decoder before another write. Local data formats and
 migrations are unchanged. Native installer acceptance remains separate from
 source and unit-test validation, and does not authorize publication.
 
+## Windows compatibility fixes
+
+Relocation preserves normalized capability identity keys, so disabled project
+capabilities stay disabled and colliding identities are rejected before the
+state file is replaced. Skill scans use the same project spelling as their
+ownership records, including when callers pass Windows verbatim paths. Remote
+workspace permissions interpret the protocol's POSIX paths independently of
+the local operating system; outside paths still require approval.
+
+Native test fixtures compare paths by components where separator spelling is
+not part of the contract. Worktree fixtures set LF behavior only in their own
+temporary repositories. The background-task test yields while waiting for the
+supervisor to stop the process tree; it no longer blocks the single-threaded
+Tokio runtime. The process-snapshot watermark uses precise UTC time: the coarse
+Windows clock can lag process creation times and incorrectly exclude a live
+descendant as a recycled PID. Job termination order and PID-reuse checks remain
+unchanged; no timestamp tolerance or delayed assertion is introduced.
+
 The previous OpenWorker-based BoxAI Desktop was removed in the original v0.16.0
 import. Its source remains available in git history before that import.
 

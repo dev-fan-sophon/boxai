@@ -27,6 +27,9 @@ pub fn init_repo(path: &Path) -> PathBuf {
     git_cmd(path, &["config", "user.name", "PI Test"]);
     git_cmd(path, &["config", "user.email", "pi-test@example.invalid"]);
     git_cmd(path, &["config", "commit.gpgsign", "false"]);
+    // Fixtures assert exact LF bytes after checkout/merge. Set this only on
+    // their disposable repositories, not the developer's Git configuration.
+    git_cmd(path, &["config", "core.autocrlf", "false"]);
     std::fs::write(path.join("README.md"), "init\n").unwrap();
     git_cmd(path, &["add", "README.md"]);
     git_cmd(path, &["commit", "-q", "-m", "init"]);

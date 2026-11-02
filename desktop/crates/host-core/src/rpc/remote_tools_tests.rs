@@ -129,6 +129,41 @@ async fn unregistered_remote_identity_is_rejected_before_session_or_workspace_mu
     assert!(state.lock().await.db.list_projects().unwrap().is_empty());
 }
 #[tokio::test]
+async fn remote_read_permissions_use_posix_containment_on_every_desktop_platform() {
+    let (_dir, state, tx, _rx) = fixture();
+    let (_path, id) = create(&state, &tx).await;
+    for (path, external) in [
+        ("README.md", false),
+        ("/srv/work/docs/../README.md", false),
+        ("./docs//a.md", false),
+        (r"..\literal-posix-name", false),
+        ("../private.txt", true),
+        ("docs/../../private.txt", true),
+        ("/srv/work-other/file", true),
+        ("/srv/work/../private.txt", true),
+        ("/etc/passwd", true),
+    ] {
+        let result = handle_request(
+            state.clone(),
+            "permissions.evaluate",
+            json!({"sessionId":id,"toolName":"Read","args":{"path":path}}),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result["externalPathPermission"], external, "{path}");
+        assert_eq!(
+            result["decision"],
+            if external {
+                Value::Null
+            } else {
+                json!("allow-once")
+            },
+            "{path}"
+        );
+    }
+}
+#[tokio::test]
 async fn remote_read_dispatch_is_local_approval_then_relay_never_local_runner() {
     let (_dir, state, tx, mut rx) = fixture();
     let (_path, id) = create(&state, &tx).await;

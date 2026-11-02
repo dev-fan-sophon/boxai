@@ -96,19 +96,13 @@ fn global_capabilities_install_and_enumerate_only_the_selected_profile() {
     // Import is a read-only copy, even with an identical name in the source.
     let installed = host.call("skills.import", json!({"path": foreign_skill.parent().unwrap(), "skill":{"name":"shared","level":"global","mode":"copy"}}));
     assert_eq!(
-        installed["skill"]["path"],
-        profile
-            .join("agent/skills/shared/SKILL.md")
-            .to_string_lossy()
-            .as_ref()
+        Path::new(installed["skill"]["path"].as_str().unwrap()),
+        profile.join("agent/skills/shared/SKILL.md")
     );
     let installed_server = host.call("mcp.upsert", json!({"server":{"id":"shared","label":"BoxAI server","transport":"http","url":"https://you-box.com/mcp","level":"global"}}));
     assert_eq!(
-        installed_server["server"]["path"],
-        profile
-            .join("agent/servers/shared.json")
-            .to_string_lossy()
-            .as_ref()
+        Path::new(installed_server["server"]["path"].as_str().unwrap()),
+        profile.join("agent/servers/shared.json")
     );
     assert_eq!(
         host.call("skills.list", json!({"level":"global"}))["skills"]

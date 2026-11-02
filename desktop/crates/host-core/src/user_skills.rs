@@ -892,7 +892,9 @@ impl UserSkillRegistry {
         project_path: Option<&str>,
     ) -> Result<Vec<UserSkillRecord>> {
         let selected = project_path.map(normalize_project_path);
-        self.scan_level(level, project_path, selected.as_deref())
+        // Keep document paths and their recorded project owner in the same
+        // spelling, including when the caller supplies a Windows verbatim path.
+        self.scan_level(level, selected.as_deref(), selected.as_deref())
     }
 
     /// Return the effective user skill catalog. A project document shadows a

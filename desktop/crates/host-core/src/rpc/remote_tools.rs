@@ -69,20 +69,33 @@ pub(super) fn requires_external_permission(
     tool_name: &str,
     args: &Value,
 ) -> bool {
-    matches!(tool_name, "Read" | "Glob" | "Grep" | "Write" | "Edit")
-        && args
-            .get("path")
-            .and_then(Value::as_str)
-            .is_some_and(|path| {
-                root.is_some_and(|root| {
-                    let candidate = if Path::new(path).is_absolute() {
-                        PathBuf::from(path)
-                    } else {
-                        Path::new(root).join(path)
-                    };
-                    !workspace::lexically_inside(Path::new(root), &candidate.to_string_lossy())
-                })
-            })
+    if !matches!(tool_name, "Read" | "Glob" | "Grep" | "Write" | "Edit") {
+        return false;
+    }
+    let (Some(root), Some(path)) = (root, args.get("path").and_then(Value::as_str)) else {
+        return false;
+    };
+    // RemoteWorkspace bindings use POSIX paths even when the approving desktop
+    // runs on Windows. Never apply the local platform's drive/root rules.
+    let candidate = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        format!("{root}/{path}")
+    };
+    let [root, candidate] = [root, candidate.as_str()].map(|path| {
+        let mut components = Vec::new();
+        for component in path.split('/') {
+            match component {
+                "" | "." => {}
+                ".." => {
+                    components.pop();
+                }
+                _ => components.push(component),
+            }
+        }
+        components
+    });
+    !candidate.starts_with(&root)
 }
 
 fn failure(
