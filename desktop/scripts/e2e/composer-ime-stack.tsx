@@ -19,16 +19,26 @@ import { useComposerCompletions } from "../../apps/desktop/src/features/chat/com
 import { ComposerInput } from "../../apps/desktop/src/features/chat/composer/ComposerInput";
 import { ComposerAutocomplete } from "../../apps/desktop/src/components/ComposerAutocomplete";
 import { api } from "../../apps/desktop/src/lib/api";
-import { setEditorCaret } from "../../apps/desktop/src/features/chat/composer/editor";
+import { editorSelectionRange, setEditorCaret } from "../../apps/desktop/src/features/chat/composer/editor";
 
 declare global {
   var composerImeStackProbe: () => Promise<unknown>;
+  var composerImeSetDraft: (text: string) => void;
+  var composerImeState: () => {
+    value: string;
+    dom: string;
+    caret: number;
+    composing: boolean;
+    open: boolean;
+  };
 }
 
 api.composerCommands = async () => ({
   commands: [
     { name: "review", title: "review", kind: "skill" },
     { name: "rewrite", title: "rewrite", kind: "skill" },
+    { name: "mcp:docs", title: "Documentation", kind: "mcp", mcpServerId: "docs" },
+    { name: "mcp:docs:search", title: "Documentation", kind: "mcp", mcpServerId: "docs", mcpToolName: "mcp_docs_search" },
   ],
 });
 
@@ -53,7 +63,7 @@ function Fixture() {
     composerPrefill: null,
     clearComposerPrefill: noop,
     t,
-    invalidatePromptEnhancement: noop,
+    invalidateComposerTransforms: noop,
     inputBlocked: false,
   });
   const completions = useComposerCompletions({
@@ -61,14 +71,18 @@ function Fixture() {
     cursor: draft.cursor,
     composing: draft.composing,
     enabled: true,
-    referenceSessionId: null,
+    referenceSessionId: "s1",
     fileReferencesRef: draft.fileReferencesRef,
-    applyEditorDraft: noop,
+    applyEditorDraft: draft.applyEditorDraft,
     handleInput: draft.handleInput,
-    invalidatePromptEnhancement: noop,
+    invalidateComposerTransforms: noop,
   });
   draftValue = draft.value;
   draftComposing = draft.composing;
+  globalThis.composerImeSetDraft = (text) => {
+    draft.setComposing(false);
+    draft.applyEditorDraft(text, [], text.length);
+  };
   acState = {
     open: completions.ac.open,
     hasItems: completions.ac.hasItems,
@@ -91,7 +105,7 @@ function Fixture() {
         onSubmit={noop}
         onInsertNewline={noop}
         onHistoryNavigate={() => false}
-        onInput={(source, caret) => completions.handleInput(source, caret)}
+        onInput={(source, caret, composing) => completions.handleInput(source, caret, composing)}
         onCompositionStart={() => draft.setComposing(true)}
         onCompositionEnd={() => draft.setComposing(false)}
         onSettledInput={() => draft.setComposing(false)}
@@ -118,6 +132,14 @@ const settle = async () => {
 };
 
 const editor = () => document.querySelector<HTMLElement>(".composer-input")!;
+
+globalThis.composerImeState = () => ({
+  value: draftValue,
+  dom: editor().textContent ?? "",
+  caret: editorSelectionRange(editor()).start,
+  composing: draftComposing,
+  open: acState.open,
+});
 
 /**
  * Replace the editor text and fire the events an IME fires.
@@ -193,8 +215,32 @@ globalThis.composerImeStackProbe = async () => {
   await type("/", { composing: false });
   const recovered = snap("typed / after dropped compositionend");
 
+  // MCP completion uses the real editor, menu, and acceptance wiring (#1377).
+  await type("/Documentation");
+  const mcpMenu = document.querySelector('[role="listbox"]');
+  const mcpVisible = mcpMenu?.textContent?.includes("/mcp:docs") === true;
+  editor().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await settle();
+  const mcpKeyboard = draftValue === "/mcp:docs ";
+  await type("/mcp:");
+  const row = document.querySelector<HTMLElement>('[role="option"]');
+  row?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  await settle();
+  const mcpMouse = draftValue === "/mcp:docs ";
+  await type("/mcp:docs:sea");
+  const toolVisible = document.querySelector('[role="listbox"]')?.textContent?.includes("/mcp:docs:search") === true;
+  editor().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await settle();
+  const toolKeyboard = draftValue === "/mcp:docs:search ";
+  await type("/mcp:docs:sea");
+  document.querySelector<HTMLElement>('[role="option"]')?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  await settle();
+  const toolMouse = draftValue === "/mcp:docs:search ";
+  snap("MCP tool accepted");
+
   return {
-    ok: normal === true && normalQuery === true && recovered === true,
+    ok: normal === true && normalQuery === true && recovered === true && mcpVisible && mcpKeyboard && mcpMouse && toolVisible && toolKeyboard && toolMouse,
+    mcpVisible, mcpKeyboard, mcpMouse, toolVisible, toolKeyboard, toolMouse,
     normal,
     normalQuery,
     recovered,

@@ -1,4 +1,11 @@
-import { type CSSProperties, lazy, type ReactNode, Suspense, useEffect } from "react";
+import {
+  type CSSProperties,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
 import { PluginRendererHost } from "../../plugins/renderer-host/PluginRendererHost";
@@ -7,6 +14,7 @@ import {
   IconPanel,
   IconPanelOpen,
 } from "../../components/icons";
+import { LifecycleConfirmationDialog } from "../../components/LifecycleConfirmationDialog";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { SearchDialog } from "../../components/SearchDialog";
 import { Sidebar } from "../../components/Sidebar";
@@ -96,8 +104,9 @@ function AuthenticatedAppShell() {
     startupRetrying,
     sidebarToggleShortcut,
     workPanelToggleTooltip,
-    workPanelWidth,
+    requestedWorkPanelWidth,
   } = useAppShellRuntime();
+  const [toastAnchor, setToastAnchor] = useState<HTMLElement | null>(null);
   useCopyTex();
 
   useEffect(() => {
@@ -117,7 +126,7 @@ function AuthenticatedAppShell() {
     containerWidth: shellWidth,
     sidebarWidth,
     sidebarCollapsed,
-    requestedPanelWidth: workPanelWidth,
+    requestedPanelWidth: requestedWorkPanelWidth,
     maximized: workPanelMaximized,
   }).panelWidth;
 
@@ -192,7 +201,7 @@ function AuthenticatedAppShell() {
             )}
 
             {!workPanelMaximized && (
-              <section className="main-pane">
+              <section ref={setToastAnchor} className="main-pane">
                 {page === "chat" ? (
                   <ConversationTopbar
                     sidebarCollapsed={sidebarCollapsed}
@@ -348,7 +357,7 @@ function AuthenticatedAppShell() {
           </Suspense>
         ) : null}
         <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
-        <ToastHost />
+        <ToastHost anchorElement={page === "settings" ? null : toastAnchor} />
         <LiveVoiceStatusHost />
         <PluginRendererHost />
         <ExtensionPromptHost />
@@ -381,6 +390,7 @@ function AuthenticatedAppShell() {
         <WindowControls />
       ) : null}
       <ProjectCreateDialog />
+      <LifecycleConfirmationDialog />
       {splash}
       {startupRecovery}
     </div>

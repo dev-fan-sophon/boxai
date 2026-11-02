@@ -92,7 +92,6 @@ export async function transcriptMinimapJumpProbe() {
     pendingPlans: api.pendingPlans,
     listQueuedPrompts: api.listQueuedPrompts,
     composerCommands: api.composerCommands,
-    summarizeSessionTitle: api.summarizeSessionTitle,
   };
   const messages = transcriptMessages();
   const errors: unknown[] = [];
@@ -124,9 +123,6 @@ export async function transcriptMinimapJumpProbe() {
     api.pendingPlans = async () => ({ plans: [], state: "inactive" });
     api.listQueuedPrompts = async () => ({ entries: [] });
     api.composerCommands = async () => ({ commands: [] });
-    api.summarizeSessionTitle = async () => {
-      throw new Error("unexpected auto-title provider request in fixture");
-    };
     useAppStore.setState({
       sessions: [sessionSummary()],
       providers: [],
@@ -211,7 +207,18 @@ export async function transcriptMinimapJumpProbe() {
     );
     // The jump lands first; follow mode answers it on the following frames.
     // Settle that exchange before asserting, or a re-bottom passes as success.
-    for (let index = 0; index < 30; index++) await frame();
+    // Smooth scrolling finishes on its own schedule and a hidden Electron
+    // window drops frames, so wait for a stable offset instead of a fixed
+    // frame count.
+    let settledTop = Number.NaN;
+    let stableFrames = 0;
+    for (let index = 0; index < 400 && stableFrames < 3; index++) {
+      await frame();
+      const top = scroller.scrollTop;
+      stableFrames = Math.abs(top - settledTop) < 0.5 ? stableFrames + 1 : 0;
+      settledTop = top;
+    }
+    for (let index = 0; index < 3; index++) await frame();
     assert(
       distanceFromBottom() > 100,
       `the jump was undone by follow: ${JSON.stringify(readout())}`,

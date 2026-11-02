@@ -96,11 +96,19 @@ test("an unknown alias and a template still travel as prompt text", async () => 
   await withCommandSource(
     async () => ({
       commands: [
-        { name: "review", kind: "skill", title: "Review", id: "skill.review" },
+        { name: "skill:review", kind: "skill", title: "Review", skillId: "review" },
         { name: "plan", kind: "template", title: "Plan" },
       ],
     }),
     async () => {
+      const skill = await resolveComposerCommand("skill:review");
+      assert.equal(skill.status, "resolved");
+      assert.equal(skill.command.skillId, "review");
+      assert.equal(resolveSlashDispatch(parseSlashSubmission("/skill:review inspect"), skill).action, "prompt");
+
+      const legacy = await resolveComposerCommand("review");
+      assert.equal(legacy.status, "unknown");
+
       const unknown = await resolveComposerCommand("not-a-command");
       assert.equal(unknown.status, "unknown");
       assert.equal(
@@ -197,4 +205,18 @@ test("the shipped locales carry the refusal copy", async () => {
   ]);
   assert.match(en, /slashCommandSourceUnavailable:\s*"[^"]+"/);
   assert.match(zhCN, /slashCommandSourceUnavailable:\s*"[^"]+"/);
+});
+
+test("a remote session's menu leaves out the local-only visualize skill", async () => {
+  const { commandsForSession } = await load("../src/lib/composer-command-source.ts");
+  const commands = [
+    { name: "compact", kind: "builtin", title: "/compact" },
+    { name: "skill:pi-desktop/visualize", kind: "skill", title: "Visualize", skillId: "pi-desktop/visualize" },
+    { name: "skill:mine", kind: "skill", title: "Mine", skillId: "mine" },
+  ];
+  assert.deepEqual(commandsForSession(commands, { remote: false }), commands);
+  assert.deepEqual(
+    commandsForSession(commands, { remote: true }).map((command) => command.name),
+    ["compact", "skill:mine"],
+  );
 });

@@ -50,6 +50,13 @@ export const ja: EnglishCatalog = {
       failedHint: "既存のデータは安全です。現在の場所を使い続け、設定から再試行してください。", unavailableHint: "データフォルダーにアクセスできません。起動前にドライブを再接続してください。空のデータの作成や別の場所への切り替えは行いません。",
     },
   },
+  extensions: {
+    ...en.extensions,
+    mcp: {
+      ...en.extensions.mcp,
+      authDcrUnavailable: "このMCPサーバーは動的クライアント登録（DCR）に対応していません。サーバー管理者にクライアントIDを確認するか、DCRに対応したサーバーを使用してください。",
+    },
+  },
   liveVoice: {
     ...en.liveVoice, prepareCall: "音声通話を準備", details: "通話の詳細", workOptions: "作業セッションに接続", allowWork: "作業の依頼を許可", noWorkSession: "ローカルの作業セッションを選ぶか作成してください。",
     playbackBlocked: "音声が一時停止中です", playbackFailed: "音声を再開できませんでした。再試行してください。", mediaReleaseUnconfirmed: "マイクの解放を確認できません。次の通話の前にアプリを再起動してください。",

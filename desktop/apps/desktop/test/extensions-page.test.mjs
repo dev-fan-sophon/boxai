@@ -26,8 +26,8 @@ const settingsComponents = new Map(
     .map((name) => [name, readFileSync(join(settingsDir, name), "utf8")]),
 );
 const pageSrc = readPluginsSourceSync();
-const marketSettingsSrc = readFileSync(
-  join(here, "../src/components/plugins/MarketplaceSourceSettings.tsx"),
+const marketPanelSrc = readFileSync(
+  join(here, "../src/features/plugins/MarketplacePanel.tsx"),
   "utf8",
 );
 const settingsPageSrc = readSettingsSourceSync();
@@ -112,13 +112,11 @@ test("the extensions page uses tabs instead of the removed capability overview",
   assert.match(pageSrc, /className="plugins-segment"/);
 });
 
-test("marketplace source settings omit redundant explanatory copy", () => {
-  assert.match(marketSettingsSrc, /marketProviderTitle/);
-  assert.doesNotMatch(
-    marketSettingsSrc,
-    /marketProviderDesc|marketProviderMirrorHint|marketActiveSource|plugins-market-settings-active/,
-  );
-  assert.match(marketSettingsSrc, /marketCustomUrlDesc/);
+test("marketplace keeps refresh, install actions and BoxAI custom source switching", () => {
+  const source = `${pageSrc}\n${marketPanelSrc}`;
+  assert.match(source, /<MarketplaceSourceSettings/);
+  assert.match(marketPanelSrc, /refreshMarket\(query, \{ refreshRemote: true \}\)/);
+  assert.match(marketPanelSrc, /queueInstall/);
 });
 
 test("installed plugin rows keep secondary detail behind a disclosure", () => {
@@ -128,7 +126,10 @@ test("installed plugin rows keep secondary detail behind a disclosure", () => {
 });
 
 test("extension row actions stay visible and labelled", () => {
-  assert.match(pageSrc, /<TooltipButton[\s\S]*?tooltip=\{t\("plugins\.openPanel"\)\}/);
+  // The card's one call to action is a visible, labelled button; the icon
+  // actions stay visible at rest and carry tooltips and accessible names.
+  assert.match(pageSrc, /t\("plugins\.openPanel"\)/);
+  assert.match(pageSrc, /<TooltipButton[\s\S]*?tooltip=\{t\("plugins\.openSettings"\)\}/);
   assert.match(pageSrc, /<TooltipButton[\s\S]*?tooltip=\{t\("plugins\.rowActions", \{ name: plugin\.name \}\)\}/);
   assert.match(styles, /\.ui-tooltip\s*\{[\s\S]*?position:\s*fixed;/);
   const actionBlock = styles.match(/\.ext-row-actions\s*\{[^}]*\}/)?.[0] ?? "";
@@ -183,6 +184,8 @@ test("MCP management reuses the modal and validates its locked id and transport 
   assert.match(page, /sameLevel/);
   assert.match(sheet, /disabled=\{!!editing\}/);
   assert.match(sheet, /mcpDraftError/);
+  assert.match(sheet, /draft\.timeoutSeconds/);
+  assert.match(sheet, /errorTimeoutRange/);
   assert.match(sheet, /command\.includes\("\.\."\)/);
   assert.match(sheet, /isNonLoopbackHttpMcpUrl/);
   assert.match(sheet, /role="dialog" aria-modal/);

@@ -9,8 +9,10 @@ import type { StorageProgress } from "@pi-desktop/shared";
 import { resolveHostBinary } from "../host-process";
 import { clearCaches, migrateFiles, removeBackups } from "./files";
 import { readStoragePreferences, STORAGE_PREFERENCE_FILE, writeStoragePreferences, type StoragePreferences } from "./preferences";
+import { recoverMissingDefaultStorage, sameStorageRoots } from "./startup-recovery";
 
 export type StorageBootstrap = { file: string; anchor: string; managed: boolean; preferences: StoragePreferences };
+class StorageRecoveryCancelled extends Error {}
 let current: StorageBootstrap | null = null;
 export function getStorageBootstrap(): StorageBootstrap {
   if (!current) throw new Error("Storage bootstrap is not initialized.");
@@ -26,13 +28,30 @@ export async function prepareStorage(defaultData: string, overridden: boolean): 
   const defaults = { data: defaultData, browser: anchor };
   let preferences: StoragePreferences;
   try {
+    const hasPersistedPreferences = existsSync(file);
     preferences = overridden ? { version: 1, roots: defaults, backups: [] }
       : readStoragePreferences(file, defaults);
-    if (!overridden && preferences.roots.data !== defaults.data
-      && (!existsSync(preferences.roots.data) || !existsSync(preferences.roots.browser))) {
-      throw new Error("The selected storage directory is unavailable. Reconnect its drive before starting BoxAI Desktop.");
+    const missingData = !overridden && !existsSync(preferences.roots.data);
+    const missingBrowser = !overridden && !existsSync(preferences.roots.browser);
+    if (missingData || missingBrowser) {
+      const isDefaultStorage = sameStorageRoots(preferences.roots, defaults);
+      const isFirstLaunch = !hasPersistedPreferences && !preferences.pending;
+      const canRecoverMissingDefault = missingData && hasPersistedPreferences && !preferences.pending;
+      const canResumeEmptyInstallMigration = missingData && !missingBrowser && preferences.pending?.kind === "migrate";
+      if (!isDefaultStorage || !(isFirstLaunch || canRecoverMissingDefault || canResumeEmptyInstallMigration)) {
+        throw new Error("The selected storage directory is unavailable. Reconnect its drive before starting BoxAI Desktop.");
+      }
+      if (canRecoverMissingDefault) {
+        const recovered = await recoverMissingDefaultStorage(file, defaults, preferences);
+        if (!recovered) throw new StorageRecoveryCancelled();
+        preferences = recovered;
+      }
     }
   } catch (error) {
+    if (error instanceof StorageRecoveryCancelled) {
+      app.exit(0);
+      return new Promise<StorageBootstrap>(() => {});
+    }
     await app.whenReady();
     const copy = catalogs[resolveLocale(app.getLocale())].settings.storage;
     await dialog.showMessageBox({ type: "error", title: copy.failedTitle,
@@ -48,7 +67,11 @@ export async function prepareStorage(defaultData: string, overridden: boolean): 
     return current;
   }
   const job = preferences.pending;
-  // Never open a persistent session against a source being copied/cleaned.
+  // Chromium initializes the default session when the first window is created.
+  // That must not land in the profile this job is about to copy or clean.
+  const maintenanceSession = join(app.getPath("temp"), `pi-desktop-storage-${job.id}`);
+  mkdirSync(maintenanceSession, { recursive: true });
+  app.setPath("sessionData", maintenanceSession);
   await app.whenReady();
   const copy = catalogs[resolveLocale(job.language)].settings.storage;
   const window = new BrowserWindow({ width: 560, height: 330, resizable: false, closable: false,

@@ -6,6 +6,7 @@ import type { ImageApi, ImageModel } from "@earendil-works/pi-ai";
 import type { VendorOAuth } from "../oauth";
 import {
   imageGenerationPrompts,
+  imageModelOfferedByProvider,
   parseImageGenerationBinding,
   type AppSettings,
   type ProviderPublic,
@@ -49,7 +50,7 @@ export function createImageGenerationTool(options: {
       provider?.vendorKey !== "boxai" ||
       !provider?.enabled ||
       !provider.baseUrl ||
-      !provider.models.some((model) => model.id === binding.modelId)
+      !imageModelOfferedByProvider(provider, binding.modelId)
     ) {
       return failure(
         "IMAGE_MODEL_UNAVAILABLE",

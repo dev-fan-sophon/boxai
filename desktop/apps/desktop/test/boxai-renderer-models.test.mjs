@@ -97,6 +97,7 @@ test("login and cold bootstrap expose BoxAI models with a usable default; refres
   const html = renderToStaticMarkup(createElement(ComposerModelList, {
     t: key => key, query: "", setQuery() {}, modelSearchRef: { current: null }, modelListRef: { current: null },
     modelGroups: [{ provider, providerDisplayName: "BoxAI", models }], modelHighlight: -1,
+    recentEntries: [], hasOtherModels: false, otherModelsExpanded: true, setOtherModelsExpanded() {},
     setModelHighlight() {}, selectModel() {}, selectedProviderId: state.settings.defaultProviderId,
     selectedModelId: state.settings.defaultModelId,
   }));

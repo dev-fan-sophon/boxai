@@ -61,23 +61,12 @@ export type ComposerFileReference = {
   sessionId: string;
   path: string;
   name: string;
-  kind: "image" | "file";
+  kind: "image" | "file" | "session";
   mimeType?: string;
   token?: string;
   plugin?: ComposerPluginPart;
 };
 
-export type ComposerMenuView = "root" | "model";
-
-export type PromptEnhancementError = {
-  message: string;
-  code: string;
-};
-
-export function nextMode(mode: Mode): Mode {
-  const index = MODE_CYCLE.indexOf(mode);
-  return MODE_CYCLE[(index + 1) % MODE_CYCLE.length] ?? "agent";
-}
 
 export function isThinkingLevel(value: unknown): value is SessionThinkingLevel {
   return isSessionThinkingLevel(value);

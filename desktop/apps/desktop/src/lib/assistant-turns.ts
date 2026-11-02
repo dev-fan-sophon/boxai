@@ -4,8 +4,13 @@ import type {
   MessageUsage,
   UiMessage,
 } from "@pi-desktop/shared";
-import { addUsage, hostedSearchRounds } from "@pi-desktop/shared";
-import { isDelegationStartTool } from "./tool-display";
+import {
+  addUsage,
+  hostedSearchRounds,
+  withoutReasoningReplayPlaceholder,
+} from "@pi-desktop/shared";
+import { getToolAction, isDelegationStartTool } from "./tool-display";
+import { messageContentFacts } from "./transcript-summary";
 
 export type AssistantActivityItem =
   | { kind: "thinking"; message: UiMessage }
@@ -64,13 +69,16 @@ export type TranscriptEntry =
 
 export function messageThinking(message: UiMessage): string {
   if (typeof message.thinking !== "string") return "";
-  return message.thinking.trim() ? message.thinking : "";
+  // An echoed replay placeholder is not the model's reasoning (#1945).
+  const thinking = withoutReasoningReplayPlaceholder(message.thinking);
+  return thinking.trim() ? thinking : "";
 }
 
 function isVisibleMessage(message: UiMessage): boolean {
+  if (message.role === "system" && message.modelSystem) return false;
   return !(
     message.role === "assistant" &&
-    !(message.content || "").trim() &&
+    !messageContentFacts(message).hasContent &&
     !messageThinking(message) &&
     !message.hostedSearch &&
     !message.error
@@ -81,6 +89,19 @@ function isVisibleMessage(message: UiMessage): boolean {
  * tools, and lifecycle rows (TaskWait/TaskList/TaskStop) do not (D319). */
 function isDelegationStartActivity(item: AssistantActivityItem): boolean {
   return item.kind === "tool" && isDelegationStartTool(item.message.toolName);
+}
+
+/**
+ * A `Bash` call or a run alias is a run row (ADR
+ * turn-process-and-thinking-display). With commands expanded it renders as its
+ * own row inside the turn's process disclosure; with commands folded it stays in
+ * the activity group it ran among. Adjacent calls are still built as separate
+ * activity parts, so entry topology does not depend on the preference.
+ */
+export function isStandaloneRunActivity(
+  item: AssistantActivityItem,
+): item is Extract<AssistantActivityItem, { kind: "tool" }> {
+  return item.kind === "tool" && getToolAction(item.message.toolName) === "run";
 }
 
 /** Delegate rows grouped by the `Task` call that produced them, chains merged. */
@@ -107,7 +128,7 @@ function collectSubagentRuns(
     // showing: the text is the only place its narration and report exist.
     const thinking = messageThinking(message);
     if (thinking) run.items.push({ kind: "thinking", message });
-    if ((message.content || "").trim() || message.error) {
+    if (messageContentFacts(message).hasContent || message.error) {
       run.items.push({ kind: "answer", message });
     }
   }
@@ -231,11 +252,20 @@ export function buildTranscriptEntries(
   const pushActivity = (item: AssistantActivityItem) => {
     const current = ensureTurn(item.message);
     const last = current.parts[current.parts.length - 1];
+    const standalone = isStandaloneRunActivity(item);
+    const lastStandalone =
+      last?.kind === "activity" &&
+      last.items.length === 1 &&
+      isStandaloneRunActivity(last.items[0]);
     // A delegation card is only the Task fan-out. Mixing the parent's later
     // Read/Grep/thinking into that group painted them as subagent work (D319).
+    // A standalone run row never merges with a neighbour, so adjacent Bash
+    // calls each keep their own row.
     if (
       last?.kind === "activity" &&
       last.items.length > 0 &&
+      !standalone &&
+      !lastStandalone &&
       isDelegationStartActivity(last.items[0]) === isDelegationStartActivity(item)
     ) {
       last.items.push(item);
@@ -269,9 +299,10 @@ export function buildTranscriptEntries(
     for (const round of hostedSearchRounds(message.hostedSearch)) {
       pushActivity({ kind: "hostedSearch", message, round });
     }
-    if ((message.content || "").trim() || !thinking || message.error) {
+    const hasContent = messageContentFacts(message).hasContent;
+    if (hasContent || !thinking || message.error) {
       current.parts.push({ kind: "message", message });
-      if (!current.anchorId && (message.content || "").trim()) {
+      if (!current.anchorId && hasContent) {
         current.anchorId = message.id;
       }
     }

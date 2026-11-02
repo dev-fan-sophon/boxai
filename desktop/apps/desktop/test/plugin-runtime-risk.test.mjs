@@ -39,11 +39,13 @@ test("plugin runtime exposes gated high-risk host APIs", () => {
     "fs.write",
     "fs.delete",
     "fs.openDefault",
+    "fs.openInBrowser",
     "fs.reveal",
     "net.fetch",
     "agent.complete",
     "desktop.control",
     "session.read",
+    "session.autoTitle",
     "models.list",
     "shell.openExternal",
     "clipboard.read",
@@ -97,6 +99,7 @@ test("the plugins page shows the file scope behind a file permission", () => {
   // so the row has to carry it or the user is approving a blank cheque.
   assert.match(pageSrc, /"fs\.write": "high"/);
   assert.match(pageSrc, /"fs\.read": "medium"/);
+  assert.match(pageSrc, /"background\.service": "medium"/);
   assert.match(pageSrc, /function FsScopeChips\(/);
   assert.match(pageSrc, /t\("plugins\.fsAsksEachTime"\)/);
   assert.match(pageSrc, /t\("plugins\.legacyFsDowngraded"\)/);
@@ -110,6 +113,8 @@ test("the plugins page shows the file scope behind a file permission", () => {
     assert.equal(typeof catalog.plugins.permissionHelp["fs.delete"], "string");
     assert.equal(typeof catalog.plugins.permissions["agent.complete"], "string");
     assert.equal(typeof catalog.plugins.permissionHelp["session.read"], "string");
+    assert.equal(typeof catalog.plugins.permissions["session.autoTitle"], "string");
+    assert.equal(typeof catalog.plugins.permissionHelp["session.autoTitle"], "string");
     assert.equal(typeof catalog.plugins.permissions["models.list"], "string");
     assert.equal(typeof catalog.plugins.permissions["ui.microphone"], "string");
     assert.equal(typeof catalog.plugins.permissionHelp["ui.microphone"], "string");
@@ -166,7 +171,7 @@ test("shared protocol declares marketplace and package install IPC", () => {
 
 test("plugins page can refresh the official marketplace repository", () => {
   assert.match(pageSrc, /marketRefresh|refreshMarket|refreshRemote/);
-  assert.match(pageSrc, /pi-desktop-plugins|marketSource/);
+  assert.match(pageSrc, /<MarketplaceSourceSettings/);
 });
 
 
@@ -182,8 +187,8 @@ test("marketplace detail pane renders readme changelog and versions", () => {
 test("marketplace blocks install for a version with no published package", () => {
   assert.match(pageSrc, /function versionInstallable\(/);
   assert.match(pageSrc, /const packagePending = item\.installable === false/);
-  assert.match(pageSrc, /disabled=\{busyId === item\.id \|\| packagePending\}/);
-  assert.match(pageSrc, /disabled=\{busyId === detail\.id \|\| detailPackagePending\}/);
+  assert.match(pageSrc, /disabled=\{isPluginBusy\(item\.id\) \|\| packagePending\}/);
+  assert.match(pageSrc, /disabled=\{isPluginBusy\(detail\.id\) \|\| detailPackagePending\}/);
   assert.match(pageSrc, /t\("plugins\.packagePending"\)/);
   assert.match(pageSrc, /t\("plugins\.packagePendingHint", \{/);
 

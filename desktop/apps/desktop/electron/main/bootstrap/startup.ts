@@ -1,5 +1,6 @@
 import { app, BrowserWindow, crashReporter, Menu, safeStorage } from "electron";
 import { createScheduledRunner } from "../runtime/scheduled-runner";
+import { onConfirmedQuit } from "./confirmed-quit";
 import {
   APP_NAME,
   APP_VERSION,
@@ -11,6 +12,7 @@ import {
   type NativeMenuAction,
 } from "@pi-desktop/shared";
 import { installApplicationMenu } from "../application-menu";
+import { installGenUiProtocol } from "../gen-ui-protocol";
 import { installPluginAssetProtocol } from "../plugin-asset-protocol";
 import { installPluginRendererProtocol } from "../plugin-renderer-protocol";
 import { registerPluginSchemes } from "../plugin-schemes";
@@ -97,8 +99,12 @@ export type StartupDependencies = {
     theme?: unknown;
     keybindings?: unknown;
     developerMode?: unknown;
+    fontScale?: unknown;
   } | null) => void;
   applyDeveloperMode: (settings?: { developerMode?: unknown } | null) => void;
+  applyMacosWindowTranslucency: (
+    settings?: { macosWindowTranslucency?: unknown } | null,
+  ) => void;
   applyPreventScreenSleep: (settings?: { preventScreenSleep?: unknown } | null) => void;
   applyKeepAwakeWhileRunning: (settings?: { keepAwakeWhileRunning?: unknown } | null) => void;
   applyPluginLauncherShortcut: (keybindings?: KeybindingOverrides) => void;
@@ -159,6 +165,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       planUiProbe,
       applyApplicationMenuSettings,
       applyDeveloperMode,
+      applyMacosWindowTranslucency,
       applyPreventScreenSleep,
       applyKeepAwakeWhileRunning,
       applyPluginLauncherShortcut,
@@ -194,6 +201,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
     installPluginRendererProtocol((pluginId, generation, requestPath) =>
       plugins.resolveRendererSource(pluginId, generation, requestPath),
     );
+    installGenUiProtocol({ getHost });
     // Load the close-behavior preference before the first window exists: the
     // close handler reads `closeBehavior` synchronously, and a window created
     // while it still held the "ask" default would prompt a user who already
@@ -241,6 +249,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       },
       router: state.backendRouter,
       emit: sendToRenderer,
+      getLocalHost: getHost,
       clientInfo: { name: APP_NAME, version: APP_VERSION },
       log: (level, message, data) =>
         logger.app("runtime", level, message, { data: formatRemoteLogData(data) }),
@@ -252,6 +261,8 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       if (opened > 0) {
         logger.app("runtime", "info", "remote hosts connected", { data: String(opened) });
       }
+    }).catch((error: unknown) => {
+      logger.app("runtime", "warn", "remote host boot failed", { data: String(error) });
     });
     state.agentHostBridge = createAgentHostBridge({
       invoke: invokeIpc,
@@ -297,7 +308,14 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       report: (error) => logger.app("runtime", "warn", "scheduled task dispatch failed", { data: String(error) }),
     });
     scheduledRunner.start();
-    app.once("before-quit", () => scheduledRunner.stop());
+    logger.app("runtime", "info", "scheduled runner started");
+    // Stop only on a committed quit: a cancelled quit confirmation keeps the
+    // app running, and a runner stopped from `before-quit` would stay silent
+    // until restart (issue #2048).
+    onConfirmedQuit(() => {
+      scheduledRunner.stop();
+      logger.app("runtime", "info", "scheduled runner stopped", { data: "app-quit" });
+    });
     if (!bootError && state.agentHostBridge) {
       // Restore the persisted turn queue now that host-core answers. Restored
       // entries stay held until a controller attaches (D375).
@@ -315,11 +333,14 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
           theme?: unknown;
           keybindings?: unknown;
           developerMode?: unknown;
+          fontScale?: unknown;
+          macosWindowTranslucency?: unknown;
           preventScreenSleep?: unknown;
           keepAwakeWhileRunning?: unknown;
         } | null;
         applyApplicationMenuSettings(stored);
         applyDeveloperMode(stored);
+        applyMacosWindowTranslucency(stored);
         applyPreventScreenSleep(stored);
         applyKeepAwakeWhileRunning(stored);
         await applyNetworkProxyFromAppSettings(stored);

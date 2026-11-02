@@ -49,7 +49,7 @@ test("renderer cannot configure keys, endpoints, third-party accounts or secret 
   const handlers = new Map();
   registerProviderIpc({ registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
     vendorOAuth: { status: async () => ({ connected: false }) }, listRuntimeProviders: async () => [] });
-  for (const channel of [IPC.invoke.providersCreate, IPC.invoke.providersUpdate, IPC.invoke.providersSetSecret, IPC.invoke.secretsSet]) {
+  for (const channel of [IPC.invoke.providersCreate, IPC.invoke.providersUpdate, IPC.invoke.providersSetSecret, IPC.invoke.secretsSet, IPC.invoke.jevTest]) {
     await assert.rejects(handlers.get(channel)({ baseUrl: "https://evil.test", apiKey: "foreign" }), /managed by BoxAI/);
   }
   assert.deepEqual(await handlers.get(IPC.invoke.providersList)(), { providers: [] });

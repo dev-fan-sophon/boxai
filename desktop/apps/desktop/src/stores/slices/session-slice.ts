@@ -34,10 +34,11 @@ import {
   sessionIsPinned,
   type SessionMeta,
 } from "../../lib/sidebar-preferences";
-import { enqueueAsk } from "../../lib/pending-asks";
-import { enqueuePermission } from "../../lib/pending-permissions";
 import { api } from "../../lib/api";
+import { dropAskDraft } from "../../lib/pending-asks";
+import { isRemoteSession, safeSessionSummary, sessionAllows } from "../../lib/remote-session-safety";
 import { createRefreshCoordinator } from "../../lib/refresh-coordinator";
+import { openRemoteProjectSession, remoteProjectForSession } from "../../lib/remote-project-session";
 import {
   applyOptimisticSessionConfiguration,
 } from "../../lib/session-thinking";
@@ -94,6 +95,55 @@ export type SessionSliceDependencies = StoreAccess & {
   }) => Promise<string | null>;
 };
 
+function reconcilePendingQueue<T extends { requestId: string }>(
+  current: T[],
+  initialRequestIds: ReadonlySet<string>,
+  restored: T[],
+): T[] {
+  const restoredById = new Map(
+    restored.map((entry) => [entry.requestId, entry] as const),
+  );
+  const currentRequestIds = new Set<string>();
+  const next = current.flatMap((entry) => {
+    currentRequestIds.add(entry.requestId);
+    if (
+      initialRequestIds.has(entry.requestId) &&
+      !restoredById.has(entry.requestId)
+    ) {
+      return [];
+    }
+    return [restoredById.get(entry.requestId) ?? entry];
+  });
+  const appendedRequestIds = new Set<string>();
+  for (const entry of restored) {
+    if (
+      currentRequestIds.has(entry.requestId) ||
+      initialRequestIds.has(entry.requestId) ||
+      appendedRequestIds.has(entry.requestId)
+    ) {
+      continue;
+    }
+    next.push(entry);
+    appendedRequestIds.add(entry.requestId);
+  }
+  return next;
+}
+
+function replacePendingQueue<T>(
+  queues: Record<string, T[]>,
+  sessionId: string,
+  queue: T[],
+): Record<string, T[]> {
+  if (queue.length === 0) {
+    if (!queues[sessionId]) return queues;
+    const next = { ...queues };
+    delete next[sessionId];
+    return next;
+  }
+  if (queues[sessionId] === queue) return queues;
+  return { ...queues, [sessionId]: queue };
+}
+
 export function createSessionSlice({
   get,
   set,
@@ -119,9 +169,18 @@ export function createSessionSlice({
   | "configureActiveSession"
   | "abortSession"
 > {
+  const pendingInteractiveRestoreGenerations = new Map<string, number>();
+
   const refreshSessionList = createRefreshCoordinator(async () => {
     const result = await api.listSessions();
-    set({ sessions: decorateSessions(result.sessions, get().sessionMeta) });
+    set((state) => {
+      const next = result.sessions.map(safeSessionSummary);
+      const active = state.sessions.find((session) => session.id === state.activeSessionId);
+      // A disconnected host may temporarily disappear from inventory; keep the
+      // active identity fail-closed until an authoritative detail/list replaces it.
+      if (active && isRemoteSession(active) && !next.some((session) => session.id === active.id)) next.push(safeSessionSummary(active));
+      return { sessions: decorateSessions(next, state.sessionMeta) };
+    });
     return result;
   });
 
@@ -214,15 +273,14 @@ export function createSessionSlice({
     },
 
     /**
-     * Rebuild a session's decision cards from the Host-owned read.
+     * Reconcile a session's decision cards with the Host-owned read.
      *
      * `pendingAsks` / `pendingPermissions` live in renderer memory only, so a
-     * renderer reload forgets both. Main still holds the open questions and
-     * gated tool requests, and this merges that read back in. It is a merge,
-     * never a replace: an entry the live event stream already delivered (or
-     * delivered while this read was in flight) stays exactly once, and nothing
-     * is ever cleared from here — an empty or failed read must not wipe cards
-     * the user can still answer.
+     * renderer reload forgets both. A successful read is authoritative for
+     * requests that existed when the read started: answered or completed cards
+     * are removed, while requests delivered during the read are preserved.
+     * Failed reads remain non-destructive, and an older overlapping read cannot
+     * overwrite a newer result.
      *
      * Only this desktop's own sessions have that read. `native-pi:` sessions
      * are read-mostly imports and remote sessions are driven over RACP-WS, so
@@ -235,6 +293,20 @@ export function createSessionSlice({
       );
       if (!session) return;
       if (session.source === "pi-native" || session.source === "remote") return;
+
+      const generation =
+        (pendingInteractiveRestoreGenerations.get(sessionId) ?? 0) + 1;
+      pendingInteractiveRestoreGenerations.set(sessionId, generation);
+      const beforeRead = get();
+      const initialAskIds = new Set(
+        (beforeRead.pendingAsks[sessionId] ?? []).map((ask) => ask.requestId),
+      );
+      const initialPermissionIds = new Set(
+        (beforeRead.pendingPermissions[sessionId] ?? []).map(
+          (permission) => permission.requestId,
+        ),
+      );
+
       let pending: PendingInteractiveRequests;
       try {
         pending = await api.pendingInteractive(sessionId);
@@ -243,21 +315,55 @@ export function createSessionSlice({
         // exactly as the live stream left them.
         return;
       }
-      if (pending.asks.length === 0 && pending.permissions.length === 0) return;
+      if (
+        pendingInteractiveRestoreGenerations.get(sessionId) !== generation
+      ) {
+        return;
+      }
+
       set((state) => {
-        let pendingAsks = state.pendingAsks;
-        for (const ask of pending.asks) pendingAsks = enqueueAsk(pendingAsks, ask);
-        let pendingPermissions = state.pendingPermissions;
-        for (const permission of pending.permissions) {
-          pendingPermissions = enqueuePermission(pendingPermissions, permission);
+        if (!state.sessions.some((candidate) => candidate.id === sessionId)) {
+          return {};
+        }
+        const pendingAsks = reconcilePendingQueue(
+          state.pendingAsks[sessionId] ?? [],
+          initialAskIds,
+          pending.asks,
+        );
+        const pendingPermissions = reconcilePendingQueue(
+          state.pendingPermissions[sessionId] ?? [],
+          initialPermissionIds,
+          pending.permissions,
+        );
+        const nextPendingAsks = replacePendingQueue(
+          state.pendingAsks,
+          sessionId,
+          pendingAsks,
+        );
+        const nextPendingPermissions = replacePendingQueue(
+          state.pendingPermissions,
+          sessionId,
+          pendingPermissions,
+        );
+        const keptAskIds = new Set(pendingAsks.map((ask) => ask.requestId));
+        let askDrafts = state.askDrafts;
+        for (const ask of state.pendingAsks[sessionId] ?? []) {
+          if (!keptAskIds.has(ask.requestId)) {
+            askDrafts = dropAskDraft(askDrafts, ask.requestId);
+          }
         }
         if (
-          pendingAsks === state.pendingAsks &&
-          pendingPermissions === state.pendingPermissions
+          nextPendingAsks === state.pendingAsks &&
+          nextPendingPermissions === state.pendingPermissions &&
+          askDrafts === state.askDrafts
         ) {
           return {};
         }
-        return { pendingAsks, pendingPermissions };
+        return {
+          pendingAsks: nextPendingAsks,
+          pendingPermissions: nextPendingPermissions,
+          askDrafts,
+        };
       });
     },
 
@@ -334,7 +440,9 @@ export function createSessionSlice({
         });
       };
 
-      const alignWorkspace = async (projectPath?: string | null) => {
+      const alignWorkspace = async (session?: SessionSummary | null) => {
+        if (isRemoteSession(session)) return runtime.navigationIntentIsCurrent(intent);
+        const projectPath = session?.projectPath;
         if (projectPath) {
           if (
             !sessionMatchesProject(
@@ -382,7 +490,7 @@ export function createSessionSlice({
         if (summary) {
           if (
             !(await runtime.queueWorkspaceAlignment(() =>
-              alignWorkspace(summary.projectPath),
+              alignWorkspace(summary),
             ))
           ) {
             return;
@@ -392,7 +500,7 @@ export function createSessionSlice({
           if (!runtime.navigationIntentIsCurrent(intent)) return;
           if (
             !(await runtime.queueWorkspaceAlignment(() =>
-              alignWorkspace(detail?.session?.projectPath),
+              alignWorkspace(detail?.session),
             ))
           ) {
             return;
@@ -464,6 +572,12 @@ export function createSessionSlice({
             : detail.session.messages ?? []
           : liveMessages ?? [];
         if (detail.session) {
+          if (isRemoteSession(detail.session)) {
+          const { messages: _messages, ...summary } = detail.session;
+          set((state) => ({ sessions: decorateSessions([
+            safeSessionSummary(summary), ...state.sessions.filter((session) => session.id !== id),
+          ], state.sessionMeta) }));
+          }
           runtime.cacheSessionTranscript(id, selectedMessages, historyWindow);
         }
         commitSelection(selectedMessages, false, historyWindow);
@@ -481,6 +595,7 @@ export function createSessionSlice({
         const selected = get().sessions.find((session) => session.id === id);
         if (
           selected &&
+          sessionAllows(selected, "canConfigureModel") &&
           sessionNeedsModelPin(selected) &&
           get().pendingPlans[id]?.status !== "pending"
         ) {
@@ -489,6 +604,7 @@ export function createSessionSlice({
             messages: selectedMessages,
             settings: get().settings,
             providers: get().providers,
+            recentModels: get().recentModels,
           });
           if (pin.providerId && pin.modelId) {
             set((state) => ({
@@ -506,10 +622,20 @@ export function createSessionSlice({
                 thinkingLevel: selected.thinkingLevel,
               });
             } else {
-              void api.configureSession(id, {
+              // The active-session branch reports a refused write through its
+              // flush; a background session must not drop the pin silently,
+              // because the row keeps the optimistic value while the host
+              // reverts to the previous model on the next launch.
+              const pinWrite = api.configureSession(id, {
                 mode: selected.mode,
                 providerId: pin.providerId,
                 modelId: pin.modelId,
+              });
+              void pinWrite.catch((error) => {
+                get().showToast(
+                  error instanceof Error ? error.message : String(error),
+                  { variant: "error" },
+                );
               });
             }
           }
@@ -528,11 +654,21 @@ export function createSessionSlice({
     },
 
     newSession: async (options) => {
+      const activeSession = get().sessions.find((session) => session.id === get().activeSessionId);
+      const remoteProject = options?.remoteProject ?? (
+        options && "projectPath" in options ? undefined
+          : remoteProjectForSession(activeSession)
+      );
+      if (remoteProject) return openRemoteProjectSession({ get, set, runtime }, remoteProject);
+      if (!(options && "projectPath" in options) && isRemoteSession(activeSession ?? (
+        get().activeSessionId?.startsWith("remote:") ? { id: get().activeSessionId! } : undefined
+      ))) throw new Error(i18n.t("remote:REMOTE_PROJECT_REQUIRED"));
       const requestedProjectPath =
         options && "projectPath" in options
           ? options.projectPath ?? null
           : get().workspace?.path ?? null;
-      const scopeKey = runtime.newSessionScopeKey(requestedProjectPath);
+      const isolated = options?.isolated === true;
+      const scopeKey = `${runtime.newSessionScopeKey(requestedProjectPath)}${isolated ? "\u0000isolated" : ""}`;
       const pending = runtime.pendingNewSessionRequests.get(scopeKey);
       if (pending) {
         await pending;
@@ -567,6 +703,7 @@ export function createSessionSlice({
         if (
           latest &&
           sessionIsReusableEmpty(latest, {
+            isolated,
             running: get().runningSessions[latest.id] === true,
             liveMessageCount: runtime.liveMessageCountForSession(latest.id, get()),
             submitted: runtime.submittedComposerDrafts.has(latest.id),
@@ -581,6 +718,7 @@ export function createSessionSlice({
           intent,
           projectPath: requestedProjectPath,
           draftConfiguration: null,
+          ...(isolated ? { isolated: true } : {}),
         });
       })();
       runtime.pendingNewSessionRequests.set(scopeKey, request);
@@ -599,6 +737,7 @@ export function createSessionSlice({
       if (!id || state.runningSessions[id]) return;
       const source = state.sessions.find((session) => session.id === id);
       if (!source) throw new Error(i18n.t("errors.sessionNotFound"));
+      if (!sessionAllows(source, "canEditMessages")) return;
 
       if (source.projectPath) {
         if (
@@ -638,6 +777,7 @@ export function createSessionSlice({
       const message = state.messages.find((candidate) => candidate.id === messageId);
       const source = state.sessions.find((session) => session.id === sessionId);
       if (!message || message.role !== "assistant" || !source) return;
+      if (!sessionAllows(source, "canEditMessages")) return;
 
       try {
         const sourceTitle = source.title.trim() || i18n.t("chat.untitledTask");
@@ -670,10 +810,12 @@ export function createSessionSlice({
             modelId: config.modelId ?? state.draftConfiguration?.modelId,
             permissionMode:
               config.permissionMode ?? state.draftConfiguration?.permissionMode,
+            fastMode: config.fastMode ?? state.draftConfiguration?.fastMode,
           },
         }));
         return;
       }
+      if (!sessionAllows(get().sessions.find((session) => session.id === sessionId), "canConfigureModel")) return;
       if (get().pendingPlans[sessionId]?.status === "pending") return;
       if (
         get().runningSessions[sessionId] ||

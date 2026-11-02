@@ -56,6 +56,7 @@ test("update IPC channels are declared and whitelisted for the preload bridge", 
     "updatesDownload",
     "updatesInstall",
     "updatesOpenReleases",
+    "updatesDismiss",
     "updatesState",
   ]) {
     assert.match(protocolSource, new RegExp(`${channel}:`), channel);
@@ -78,6 +79,7 @@ test("main process registers update handlers and the auto-check lifecycle", () =
     "IPC.invoke.updatesDownload",
     "IPC.invoke.updatesInstall",
     "IPC.invoke.updatesOpenReleases",
+    "IPC.invoke.updatesDismiss",
   ]) {
     assert.ok(mainSource.includes(channel), channel);
   }
@@ -171,6 +173,8 @@ test("renderer exposes the updates API, banner and settings row", () => {
   assert.match(apiSource, /updatesGetState:/);
   assert.match(apiSource, /updatesCheck:/);
   assert.match(apiSource, /updatesInstall:/);
+  assert.match(bannerSource, /update\.dismissed === true/);
+  assert.match(bannerSource, /api\.updatesDismiss\(\)/);
   assert.match(apiSource, /onUpdateState:/);
   assert.match(bannerSource, /updates\.restart/);
   assert.match(bannerSource, /updates\.viewRelease/);
@@ -200,7 +204,7 @@ test("renderer exposes the updates API, banner and settings row", () => {
   assert.match(releaseNotesDialogSource, /event\.key === "Escape"/);
   assert.match(
     appSource,
-    /<section className="main-pane">[\s\S]*?<UpdateBanner \/>/,
+    /<section[^>]*className="main-pane"[\s\S]*?<UpdateBanner \/>/,
     "chat update notice is anchored inside the main pane",
   );
   assert.match(

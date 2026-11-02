@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { isChatRefOutsideRoots, parseChatRef, resolveChatFileRef } = await import(
-  "../electron/main/chat-ref-resolve.ts"
+  "../../../packages/host-runtime/src/chat-ref-resolve.ts"
 );
 
 /**
@@ -37,8 +37,8 @@ const resolve = (ref, options) => resolveChatFileRef(ref, roots(options));
  * but names only `openimage.js` in its reply, so the click resolved to a
  * workspace-root path that does not exist and the panel opened blank. The
  * contract under test is the product priority — the open project answers
- * first, the session scratch store second — plus the "best" rule inside one
- * root: longest matching tail, then shallowest path.
+ * first, the session scratch store second — plus safe matching inside one
+ * root: an exact path or unique complete suffix only.
  */
 
 function tempTree(name, files) {
@@ -150,7 +150,7 @@ test("an exact relative link within its root remains resolvable", async () => {
 
 test("a stale fuzzy index skips escaped and missing candidates in priority order", async () => {
   const workspace = tempTree("stale-index", ["a/page.md", "b/page.md", "c/page.md"]);
-  assert.equal((await resolve("page.md", { workspace }))?.relativePath, "a/page.md");
+  assert.equal(await resolve("page.md", { workspace }), null);
   renameSync(join(workspace, "a"), join(workspace, "old-a"));
   renameSync(join(workspace, "b"), join(workspace, "old-b"));
   const outside = tempTree("stale-outside", ["page.md"]);
@@ -172,17 +172,48 @@ test("a dangling relative link, including a middle directory, does not fall back
   assert.equal(await resolve("linked/page.md", { scratch }), null);
 });
 
-test("a longer matching tail beats a bare leaf name", async () => {
+test("a unique complete path suffix resolves", async () => {
   const workspace = tempTree("ws", ["deep/openimage.js", "src/dir/openimage.js"]);
   const match = await resolve("dir/openimage.js", { workspace });
   assert.equal(match?.matchedBy, "path-suffix");
   assert.equal(match?.relativePath, "src/dir/openimage.js");
 });
 
-test("the shallowest candidate wins when the tail length ties", async () => {
+test("an exact root-level path wins even when shorthand matches are ambiguous", async () => {
   const workspace = tempTree("ws", ["a/b/openimage.js", "openimage.js"]);
   const match = await resolve("openimage.js", { workspace });
+  assert.equal(match?.matchedBy, "exact-relative");
   assert.equal(match?.relativePath, "openimage.js");
+});
+
+test("ambiguous basename and directory suffix references do not guess", async () => {
+  const workspace = tempTree("ambiguous", [
+    "crates/host-core/src/main.rs",
+    "crates/agent/src/main.rs",
+    "src/deep/file.ts",
+    "other/deep/file.ts",
+  ]);
+  assert.equal(await resolve("main.rs", { workspace }), null);
+  assert.equal(await resolve("deep/file.ts", { workspace }), null);
+});
+
+test("a partial path never degrades to a matching basename", async () => {
+  const workspace = tempTree("partial-path", ["crates/host-core/src/main.rs"]);
+  assert.equal(await resolve("acp-server/src/main.rs", { workspace }), null);
+});
+
+test("an ambiguous project match does not fall through to a different root", async () => {
+  const workspace = tempTree("ambiguous-priority", ["a/page.md", "b/page.md"]);
+  const scratch = tempTree("unique-scratch", ["page.md"]);
+  assert.equal(await resolve("page.md", { workspace, scratch }), null);
+});
+
+test("line suffixes are stripped before host-side file resolution", async () => {
+  const workspace = tempTree("line-ref", ["src/main.rs"]);
+  for (const reference of ["src/main.rs:42-44", "src/main.rs#L42", "src/main.rs#L42-L44"]) {
+    const match = await resolve(reference, { workspace });
+    assert.equal(match?.relativePath, "src/main.rs", reference);
+  }
 });
 
 test("the project answers before the session scratch store", async () => {
@@ -373,4 +404,50 @@ test("a project folder never loses to the scratch store", async () => {
   });
   assert.equal(match?.root, "workspace");
   assert.equal(match?.projectRoot?.path, sibling);
+});
+
+/**
+ * A generated image belongs to the session that made it, but the chat that
+ * shows it belongs to whatever session the user is reading. The read guards
+ * (`fsRead`, `fsOpen`, the image reader) already accept the whole scratch
+ * store, so completion must not report a restriction for a file the app can
+ * open — while a shorthand still never crosses into another session's files.
+ */
+test("an absolute path in the wider store opens though another session wrote it", async () => {
+  const store = tempTree("scratch-store", []);
+  const other = join(store, "session-b");
+  mkdirSync(other, { recursive: true });
+  const image = join(other, "generated-1.png");
+  writeFileSync(image, "png\n");
+  const scratch = join(store, "session-a");
+  mkdirSync(scratch, { recursive: true });
+  const containment = [{ kind: "scratch", path: store }];
+
+  assert.equal(await isChatRefOutsideRoots(image, roots({ scratch, containment })), false);
+  const match = await resolve(image, { scratch, containment });
+  assert.equal(match?.root, "scratch");
+  assert.equal(match?.matchedBy, "exact-absolute");
+  assert.equal(match?.absolutePath, image);
+  assert.notEqual(match?.sessionScratch, true, "a readable foreign artifact is not executable session scratch");
+  const own = join(scratch, "animation.html");
+  writeFileSync(own, "<h1>Own artifact</h1>");
+  assert.equal((await resolve(own, { scratch, containment }))?.sessionScratch, true);
+  assert.equal((await resolve("animation.html", { scratch, containment }))?.sessionScratch, true);
+});
+
+test("a shorthand still searches the session's own store and not the wider one", async () => {
+  const store = tempTree("scratch-store-shorthand", ["session-b/generated-1.png"]);
+  const scratch = join(store, "session-a");
+  mkdirSync(scratch, { recursive: true });
+  const containment = [{ kind: "scratch", path: store }];
+  assert.equal(await resolve("generated-1.png", { scratch, containment }), null);
+});
+
+test("an absolute path outside every root is still reported as restricted", async () => {
+  const store = tempTree("scratch-store-outside", []);
+  const outside = tempTree("outside-store", ["generated-1.png"]);
+  const image = join(outside, "generated-1.png");
+  const options = roots({ scratch: null, containment: [{ kind: "scratch", path: store }] });
+  assert.equal(await isChatRefOutsideRoots(image, options), true);
+  assert.equal(await resolveChatFileRef(image, options), null);
 });

@@ -56,7 +56,8 @@ export function registerProviderIpc({ registrar, vendorOAuth, listRuntimeProvide
   handle(IPC.invoke.providersTest, async () => { await vendorOAuth.client.session(); return { ok: true, network: "ok" }; });
   for (const channel of [IPC.invoke.providersCreate, IPC.invoke.providersUpdate, IPC.invoke.providersSetSecret,
     IPC.invoke.providersDelete, IPC.invoke.providersReorder, IPC.invoke.providersRefreshModelCatalog,
-    IPC.invoke.providersOauthRespond, IPC.invoke.secretsSet, IPC.invoke.secretsDelete, IPC.invoke.secretsHas]) {
+    IPC.invoke.providersOauthRespond, IPC.invoke.secretsSet, IPC.invoke.secretsDelete, IPC.invoke.secretsHas,
+    IPC.invoke.jevTest]) {
     handle(channel, async () => { throw new Error("Model accounts are managed by BoxAI"); });
   }
 }

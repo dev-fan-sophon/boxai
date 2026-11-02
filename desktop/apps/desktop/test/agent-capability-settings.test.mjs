@@ -39,6 +39,14 @@ test("agent settings have three independent destinations and extensions have two
   assert.doesNotMatch(pluginsPage, /plugins-(?:tab|panel)-(?:mcp|skills|subagents)/);
 });
 
+test("bundled skill activation validates the catalog and writes host-owned state", () => {
+  assert.match(skillImport, /handle\(IPC\.invoke\.skillBuiltinList,[\s\S]*?disabledBuiltinSkills\(\)/);
+  assert.match(skillImport, /handle\([\s\S]*?IPC\.invoke\.skillBuiltinSetEnabled,[\s\S]*?typeof payload\.enabled !== "boolean"/);
+  assert.match(skillImport, /builtinSkillCatalog\(\)\.some\(\(skill\) => skill\.id === payload\.id\)/);
+  assert.match(skillImport, /host\.call\("skills\.setBuiltinEnabled"/);
+  assert.match(skillImport, /sendToRenderer\(IPC\.event\.pluginChanged, \{ reason: "skill" \}\)/);
+});
+
 test("skills and MCP filter one list by level instead of stacking two sections", () => {
   for (const source of [skills, mcp]) {
     assert.match(source, /useAgentProjects\(\)/);
@@ -78,14 +86,19 @@ test("one search field covers the page and every row carries its level", () => {
   assert.match(styles, /\.agent-capability-badge\.is-level\s*\{/);
 });
 
-test("skills keep the MCP-shaped toolbar and scope import actions in group headers", () => {
+test("skills keep file imports in group headers and expose the external scan in-page", () => {
   const toolbar = skills.slice(skills.indexOf("<CapabilityToolbar"), skills.indexOf("<CapabilityPanel"));
   assert.match(toolbar, /actions=\{[\s\S]*?CapabilityButton variant="primary"/);
   assert.match(toolbar, /settings\.newSkill/);
+  assert.match(toolbar, /ImportToggleButton/);
+  assert.match(toolbar, /settings\.importSkillFromTools/);
   assert.doesNotMatch(toolbar, /extensions\.skills\.add/);
-  assert.doesNotMatch(toolbar, /importSkill|IconDownload|settings\.importSkill/);
   assert.match(skills, /action=\{importButton\("global"\)\}/);
   assert.match(skills, /action=\{selectedProjectPath \? importButton\("project"\) : undefined\}/);
+  assert.match(skills, /<AgentSkillImportPanel/);
+  assert.match(skills, /level=\{targetLevel\}/);
+  assert.match(mcp, /<AgentMcpImportPanel/);
+  assert.match(mcp, /settings\.importMcpFromTools/);
   assert.match(layout, /action\?: ReactNode/);
 });
 
@@ -244,6 +257,39 @@ test("toggling a capability flips locally and reverts only if the host refuses",
     assert.doesNotMatch(toggle.slice(0, toggle.indexOf("catch")), /await load\(\)/);
     assert.match(toggle, /catch[\s\S]*?enabled: (?:skill|server|subagent)\.enabled/);
   }
+});
+
+test("a global row's toggle records the global default, never a per-project override", () => {
+  // The selected project legitimately scopes the project-list calls, but the
+  // switch and the global list must speak the global default's scope: the old
+  // helper attached the project everywhere, so toggling stored an override
+  // while the switch read as global (#1957). The pages delegate every query
+  // to the scope module, which attaches the path to project rows only.
+  for (const source of [skills, mcp]) {
+    assert.match(
+      source,
+      /const levelQuery = \(level: AgentCapabilityLevel\) =>\s*\n\s*capabilityQuery\(level, selectedProjectPath\)/,
+    );
+  }
+  // The global list reads the global default: same scope the switch writes,
+  // so the row and the switch can never disagree.
+  assert.match(mcp, /api\.listMcpServers\(\{ level: "global" \}\)/);
+  assert.match(skills, /api\.listUserSkills\(\{ level: "global" \}\)/);
+  // The scope rule itself: the path rides only on project-level rows.
+  const scope = read("../src/lib/capability-scope.ts");
+  assert.match(scope, /level === "project" && selectedProjectPath/);
+  // Stored overrides keep runtime precedence, so they are surfaced and
+  // resettable rather than hidden: the project-scoped global query runs beside
+  // the scope-free one, the difference gets a badge, and the row menu offers
+  // the reset (writing the default under the project's scope drops the key).
+  for (const source of [skills, mcp]) {
+    assert.match(source, /deriveProjectOverrides\(/);
+    assert.match(source, /level: "global", projectPath: selectedProjectPath/);
+    assert.match(source, /is-override/);
+    assert.match(source, /resetProjectOverride/);
+  }
+  // Subagents are global-only: no project scope exists to mix in.
+  assert.doesNotMatch(subagents, /projectPath/);
 });
 
 test("each capability page can create, edit, and delete without leaving settings", () => {
@@ -456,4 +502,9 @@ test("MCP OAuth subscribe is owned by a ref cleaned up on unmount", () => {
   assert.match(mcp, /pendingOAuthRef\.current\?\.unsubscribe\(\)/);
   assert.match(mcp, /api\.onMcpOAuth\(/);
   assert.match(mcpIpc, /oauth\.start\(server\.id, server\.url, server\)/);
+});
+
+test("MCP OAuth error events use localized recovery copy when available", () => {
+  assert.match(mcp, /mcpOAuthErrorTranslationKey\(event\.errorCode\)/);
+  assert.match(mcp, /\(errorKey && t\(errorKey\)\) \|\| event\.message/);
 });

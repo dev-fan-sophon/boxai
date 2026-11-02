@@ -34,8 +34,8 @@
     "transcribe-cpp": "0.2.2"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.99.1",
-    "@earendil-works/pi-mcp": "0.99.1",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-mcp": "1.4.0",
     "@pi-desktop/agent-host": "workspace:*",
     "@pi-desktop/agent-runtime": "workspace:*",
     "@pi-desktop/host-runtime": "workspace:*",
@@ -51,7 +51,7 @@
     "@types/ws": "^8.18.1",
     "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react": "^4.6.0",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.17",
     "electron": "^43.8.3",
     "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
@@ -144,8 +144,16 @@
         "to": "skills"
       },
       {
+        "from": "resources/gen-ui",
+        "to": "gen-ui"
+      },
+      {
         "from": "resources/plugins",
         "to": "plugins"
+      },
+      {
+        "from": "resources/models.dev",
+        "to": "models.dev"
       }
     ],
     "mac": {
@@ -222,6 +230,10 @@
       ],
       "icon": "build/icon.ico",
       "extraResources": [
+        {
+          "from": "resources/app-update.yml",
+          "to": "app-update.yml"
+        },
         {
           "from": "../../target/release/pi-desktop-host-core.exe",
           "to": "bin/pi-desktop-host-core.exe"

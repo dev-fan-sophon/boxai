@@ -1,6 +1,7 @@
 import { transcriptLongHistoryProbe as runLongHistoryProbe } from "./transcript-long-history";
 import { transcriptEditProbe } from "./transcript-edit";
 import { turnProcessProbe } from "./turn-process";
+import { transcriptAutoCollapseProbe } from "./transcript-auto-collapse";
 import { transcriptStatusProbe } from "./transcript-status";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -8,12 +9,26 @@ import { useState } from "react";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
-import type { AgentActivity, UiMessage } from "@pi-desktop/shared";
+import type {
+  AgentActivity,
+  AgentEventEnvelope,
+  UiMessage,
+} from "@pi-desktop/shared";
+import {
+  ContextMenu,
+  useContextMenu,
+} from "../../apps/desktop/src/components/ContextMenu";
 import { Markdown } from "../../apps/desktop/src/components/Markdown";
 import { AssistantTurn } from "../../apps/desktop/src/features/chat/transcript/AssistantTurn";
 import { ChatTranscript } from "../../apps/desktop/src/features/chat/transcript/ChatTranscript";
 import { buildTranscriptEntries } from "../../apps/desktop/src/lib/assistant-turns";
+import { assistantErrorMessage } from "../../apps/desktop/src/stores/helpers/store-helpers";
+import type { AppState } from "../../apps/desktop/src/stores/app-state";
+import { createSessionRuntime } from "../../apps/desktop/src/stores/runtime/session-runtime";
+import { createEventsSlice } from "../../apps/desktop/src/stores/slices/events-slice";
+import type { StoreSet } from "../../apps/desktop/src/stores/slices/types";
 import { useSmoothText } from "../../apps/desktop/src/hooks/useSmoothText";
+import { MAX_SMOOTH_TEXT_CODE_UNITS } from "../../apps/desktop/src/lib/render-content-limits";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
 declare global {
@@ -22,6 +37,8 @@ declare global {
   var transcriptRuntimeSlotProbe: () => Promise<unknown>;
   var smoothTextThrottleProbe: () => Promise<unknown>;
   var transcriptLongHistoryProbe: typeof runLongHistoryProbe;
+  var resetContextOverflowRecoveryProbe: () => Promise<void>;
+  var contextOverflowRecoveryProbe: (events: AgentEventEnvelope[]) => Promise<unknown>;
 }
 
 globalThis.transcriptLongHistoryProbe = runLongHistoryProbe;
@@ -48,7 +65,7 @@ async function markdownLinkInteractionProbe(
     useAppStore.setState({
       activeSessionId: "markdown-link-probe",
       page: "chat",
-      settings: { ...initialState.settings, linkOpenTarget: "workpanel" },
+      settings: { ...initialState.settings, linkOpenTarget: "workpanel", transcriptDisplayMode: "command-first" },
       openUrlInWorkPanel: (url) => openedUrls.push(url),
     });
     flushSync(() =>
@@ -118,6 +135,142 @@ async function markdownLinkInteractionProbe(
   }
 }
 
+async function contextMenuSubmenuInteractionProbe() {
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;top:24px;left:24px";
+  document.body.append(host);
+  const root = createRoot(host);
+  const selections: string[] = [];
+  const items = [
+    {
+      id: "open-with",
+      label: "Open with",
+      submenu: [
+        {
+          id: "file-manager",
+          label: "File Manager",
+          onSelect: () => selections.push("file-manager"),
+        },
+        {
+          id: "built-in-browser",
+          label: "Built-in browser",
+          onSelect: () => selections.push("built-in-browser"),
+        },
+        {
+          id: "default-browser",
+          label: "Default browser",
+          onSelect: () => selections.push("default-browser"),
+        },
+      ],
+    },
+  ];
+
+  function Fixture() {
+    const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+    return (
+      <>
+        <button
+          type="button"
+          data-testid="html-file-reference"
+          onContextMenu={(event) => openContextMenu(event, { items })}
+        >
+          page.html
+        </button>
+        <ContextMenu state={contextMenu} onClose={closeContextMenu} />
+      </>
+    );
+  }
+
+  const nextFrame = () =>
+    new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const openMenu = async () => {
+    const target = host.querySelector<HTMLButtonElement>(
+      "[data-testid=html-file-reference]",
+    );
+    assert(target, "HTML reference fixture did not render");
+    flushSync(() =>
+      target.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+          clientX: 80,
+          clientY: 80,
+        }),
+      ),
+    );
+    await nextFrame();
+    const menuTrigger = document.body.querySelector<HTMLButtonElement>(
+      '[data-context-menu-item="open-with"]',
+    );
+    assert(menuTrigger, "HTML reference menu did not render Open with");
+    return menuTrigger;
+  };
+
+  try {
+    flushSync(() => root.render(<Fixture />));
+    const trigger = await openMenu();
+    assert(
+      document.body.querySelector('[data-context-menu-item="open-with"]'),
+      "HTML reference menu did not render Open with",
+    );
+    flushSync(() => trigger.click());
+    assert(
+      document.body.querySelector('[data-context-menu-item="file-manager"]'),
+      "clicking Open with did not reveal its second-level actions",
+    );
+    flushSync(() => trigger.click());
+    assert(
+      document.body.querySelector('[data-context-menu-item="file-manager"]'),
+      "clicking an already-open Open with row closed its submenu",
+    );
+    flushSync(() =>
+      document.body
+        .querySelector<HTMLButtonElement>('[data-context-menu-item="built-in-browser"]')
+        ?.click(),
+    );
+    assert(
+      selections.length === 1 && selections[0] === "built-in-browser",
+      `selecting a submenu destination returned ${selections.join(", ") || "nothing"}`,
+    );
+    assert(
+      !document.body.querySelector('[data-context-menu-item="open-with"]'),
+      "choosing a destination did not close the context menu",
+    );
+
+    const keyboardTrigger = await openMenu();
+    keyboardTrigger.focus();
+    flushSync(() =>
+      keyboardTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      ),
+    );
+    await nextFrame();
+    const firstSubmenuItem = document.body.querySelector<HTMLButtonElement>(
+      '[data-context-menu-item="file-manager"]',
+    );
+    assert(
+      firstSubmenuItem && document.activeElement === firstSubmenuItem,
+      "ArrowRight did not open and focus the submenu",
+    );
+    flushSync(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    );
+    assert(
+      !document.body.querySelector('[data-context-menu-item="file-manager"]') &&
+        document.body.querySelector('[data-context-menu-item="open-with"]') &&
+        document.activeElement === keyboardTrigger,
+      "Escape did not return focus to Open with while keeping the root menu open",
+    );
+    return { ok: true, selections, keyboardEscapeReturnedFocus: true };
+  } finally {
+    flushSync(() => root.unmount());
+    host.remove();
+  }
+}
+
 const createdAt = "2026-09-13T00:00:00.000Z";
 const message = (
   id: string,
@@ -125,6 +278,135 @@ const message = (
   content: string,
   extra: Partial<UiMessage> = {},
 ): UiMessage => ({ id, role, content, createdAt, ...extra });
+
+let recoveryState: AppState | undefined;
+let recoveryRoot: ReturnType<typeof createRoot> | undefined;
+let recoveryHost: HTMLDivElement | undefined;
+let recoveryI18n: ReturnType<typeof createInstance> | undefined;
+let recoveryInitialAssistantId: string | undefined;
+
+globalThis.resetContextOverflowRecoveryProbe = async () => {
+  const sessionId = "context-overflow-fixture";
+  const initialStore = useAppStore.getState();
+  const user = message("user-1", "user", "hello", {
+    status: "complete",
+  });
+  recoveryState = {
+    ...initialStore,
+    activeSessionId: sessionId,
+    messages: [user],
+    retainedTranscripts: {
+      ...initialStore.retainedTranscripts,
+      [sessionId]: [user],
+    },
+    runningSessions: {},
+    sessionOutcomes: {},
+    latestTurnResults: {},
+    pendingPermissions: [],
+    pendingAsks: [],
+    isRunning: false,
+  };
+  const get = () => {
+    assert(recoveryState, "overflow fixture state was not initialized");
+    return recoveryState;
+  };
+  const set: StoreSet = (update) => {
+    const previous = get();
+    const patch = typeof update === "function" ? update(previous) : update;
+    recoveryState = { ...previous, ...patch };
+    sessionRuntime.syncTranscriptProjection(recoveryState, previous);
+  };
+  const sessionRuntime = createSessionRuntime({ get, set });
+  sessionRuntime.cacheSessionTranscript(sessionId, [user]);
+  const withoutRecordKey = <T,>(record: Record<string, T>, key: string) => {
+    const next = { ...record };
+    delete next[key];
+    return next;
+  };
+  Object.assign(
+    recoveryState,
+    createEventsSlice({
+      get,
+      set,
+      runtime: sessionRuntime,
+      withoutRecordKey,
+      sessionModeForPlanningState: () => "agent",
+      openPlanArtifact: () => undefined,
+      notifyInteractivePrompt: () => undefined,
+      flushPendingSessionConfiguration: async () => undefined,
+      assistantErrorMessage: (error) =>
+        assistantErrorMessage({
+          code: error.code,
+          message: error.message,
+          retriable: error.retriable === true,
+        }),
+      withCompactionMark: (marks, mark) => [...(marks ?? []), mark],
+    }),
+  );
+  recoveryInitialAssistantId = undefined;
+  recoveryI18n = createInstance();
+  await recoveryI18n.init({
+    lng: "en",
+    resources: { en: { translation: en } },
+    interpolation: { escapeValue: false },
+  });
+  recoveryHost = document.createElement("div");
+  document.body.append(recoveryHost);
+  recoveryRoot = createRoot(recoveryHost);
+  useAppStore.setState({
+    activeSessionId: sessionId,
+    dismissedAssistantErrorMessages: {},
+    settings: {
+      ...initialStore.settings,
+      defaultMode: "agent",
+      theme: "dark",
+      enterToSend: true,
+      onboardingDismissed: false,
+      smoothStreaming: false,
+      transcriptDisplayMode: "command-first",
+    },
+  });
+};
+
+globalThis.contextOverflowRecoveryProbe = async (events) => {
+  assert(recoveryState, "overflow fixture state was not initialized");
+  assert(recoveryRoot && recoveryHost && recoveryI18n, "overflow fixture DOM is missing");
+  for (const event of events) recoveryState.handleAgentEvent(event);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const state = recoveryState;
+  const assistantMessages = state.messages.filter((item) => item.role === "assistant");
+  const assistant = assistantMessages.at(-1);
+  const entry = buildTranscriptEntries(state.messages).entries.find(
+    (item) => item.kind === "assistant-turn",
+  );
+  assert(entry?.kind === "assistant-turn", "recovered assistant turn is missing");
+  flushSync(() =>
+    recoveryRoot.render(
+      <I18nextProvider i18n={recoveryI18n}>
+        <AssistantTurn entry={entry} isActive={state.isRunning} />
+      </I18nextProvider>,
+    ),
+  );
+  const visibleErrorCards = recoveryHost.querySelectorAll(".message-error").length;
+  const recovering =
+    state.isRunning && assistant?.status === "streaming" && !assistant.error &&
+    visibleErrorCards === 0 && recoveryHost.textContent?.includes("partial response");
+  const complete =
+    !state.isRunning && assistant?.status === "complete" &&
+    visibleErrorCards === 0 && recoveryHost.textContent?.includes("recovered response");
+  if (!recoveryInitialAssistantId && recovering) recoveryInitialAssistantId = assistant?.id;
+  const phase = recovering ? "recovering" : complete ? "complete" : "invalid";
+  return {
+    ok: phase !== "invalid",
+    phase,
+    assistantId: assistant?.id,
+    initialAssistantId: recoveryInitialAssistantId,
+    assistantStatus: assistant?.status,
+    assistantCount: assistantMessages.length,
+    visibleErrorCards,
+    visibleText: recoveryHost.textContent,
+  };
+};
 
 /** Real React DOM + production transcript components; no component/hook mocks. */
 globalThis.transcriptRenderProbe = async () => {
@@ -144,6 +426,7 @@ globalThis.transcriptRenderProbe = async () => {
       enterToSend: true,
       onboardingDismissed: false,
       smoothStreaming: false,
+      transcriptDisplayMode: "command-first",
     },
   });
   const container = document.createElement("div");
@@ -173,15 +456,18 @@ globalThis.transcriptRenderProbe = async () => {
   };
   try {
     const groups = 100;
+    // The render-count regression needs ordinary activity groups. A Bash row is
+    // standalone and bypasses ActivityGroup, so this fixture uses Read rows; the
+    // standalone Bash row is exercised separately below.
     let messages = [message("user", "user", "Inspect the workspace")];
     for (let index = 0; index < groups; index++) {
       messages.push(
         message(`tool-${index}`, "tool", "done", {
-          toolName: "Bash",
+          toolName: "Read",
           toolCallId: `call-${index}`,
           toolStatus: "success",
-          toolArgs: { command: `printf step-${index}` },
-          toolResult: { details: { stdout: "done", exitCode: 0 } },
+          toolArgs: { path: `file-${index}.ts` },
+          toolResult: `contents of file-${index}.ts`,
         }),
       );
       messages.push(
@@ -215,7 +501,7 @@ globalThis.transcriptRenderProbe = async () => {
     messages = [...messages];
     messages[1] = {
       ...messages[1],
-      toolArgs: { command: "printf changed-command" },
+      toolArgs: { path: "changed-file.ts" },
     };
     render(messages);
     assert(
@@ -223,8 +509,43 @@ globalThis.transcriptRenderProbe = async () => {
       "changed tool group did not render exactly once",
     );
     assert(
-      container.textContent?.includes("changed-command"),
+      container.textContent?.includes("changed-file.ts"),
       "changed tool row not visible",
+    );
+
+    // A standalone Bash row is not an activity group: it updates through its own
+    // rendered command, as a row of the turn's single process disclosure.
+    const bashMessages = (command: string): UiMessage[] => [
+      message("bash-user", "user", "Run"),
+      message("bash-row", "tool", "", {
+        toolName: "Bash",
+        toolCallId: "bash-call",
+        toolStatus: "success",
+        toolArgs: { command },
+        toolResult: { details: { stdout: "ok", exitCode: 0 } },
+      }),
+    ];
+    render(bashMessages("printf before"));
+    const bashRow = container.querySelector<HTMLElement>('[data-message-id="bash-row"]');
+    assert(bashRow, "the standalone Bash row did not render");
+    assert(
+      bashRow.closest(".turn-process") !== null &&
+        bashRow.closest(".turn-process") ===
+          container.querySelector(".turn-process") &&
+        bashRow.closest(".process-activity-group") === null,
+      "the Bash row must render inside the turn's one process, outside every group",
+    );
+    assert(container.textContent?.includes("printf before"), "the Bash command did not render");
+    globalThis.__activityGroupRenders = [];
+    render(bashMessages("printf after"));
+    assert(
+      container.textContent?.includes("printf after") &&
+        !container.textContent?.includes("printf before"),
+      "the Bash row did not update its rendered command",
+    );
+    assert(
+      globalThis.__activityGroupRenders.length === 0,
+      "a standalone Bash row must not render an activity group",
     );
 
     // Keep Task's own message stable: a later lifecycle result must still
@@ -330,17 +651,22 @@ globalThis.transcriptRenderProbe = async () => {
 
     const statusLifecycle = await transcriptStatusProbe();
     const markdownLinks = await markdownLinkInteractionProbe(i18n);
+    const contextMenuSubmenu = await contextMenuSubmenuInteractionProbe();
+    const turnProcess = await turnProcessProbe();
+    const autoCollapse = await transcriptAutoCollapseProbe();
     return {
-      ok: statusLifecycle.ok && markdownLinks.ok,
+      ok: statusLifecycle.ok && markdownLinks.ok && contextMenuSubmenu.ok && turnProcess.ok,
       statusLifecycle,
       markdownLinks,
+      contextMenuSubmenu,
       groups,
       textUpdates: 20,
       textUpdateRenders,
       changedToolRenders: 1,
       taskLifecycleUpdated: true,
       taskTimingUpdated: true,
-      turnProcess: await turnProcessProbe(),
+      turnProcess,
+      autoCollapse,
       messageEditing: await transcriptEditProbe(),
       textUpdateDurationMs,
     };
@@ -724,10 +1050,18 @@ globalThis.smoothTextThrottleProbe = async () => {
     );
     flushFrame(start + 361 * frameInterval);
     assert(callbacks.size === 0, "smooth text kept scheduling frames after catching up");
+
+    const largeSource = "large-stream-".repeat(Math.ceil((MAX_SMOOTH_TEXT_CODE_UNITS + 1) / 13));
+    flushSync(() => updateSource(largeSource));
+    await yieldToEffects();
+    assert(host.textContent === largeSource, "large streaming text was not shown in full immediately");
+    assert(callbacks.size === 0, "large streaming text still scheduled per-frame reveal work");
     return {
       ok: true,
       commits: commits.length,
       minimumGapMs,
+      largeSourceLength: largeSource.length,
+      largeSourceShownImmediately: host.textContent === largeSource,
       idleFramesAfterCatchUp: callbacks.size,
     };
   } finally {

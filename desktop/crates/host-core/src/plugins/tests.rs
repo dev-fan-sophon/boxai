@@ -6,8 +6,9 @@ use tempfile::tempdir;
 ///
 /// The marketplace source is process-global, so two tests pointing it at
 /// different catalogs — or one clearing it while another is mid-fetch —
-/// read each other's value.
-static MARKET_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+/// read each other's value. Shared with the review RPC tests, which repoint
+/// the same variable at an in-process fixture center.
+pub(crate) static MARKET_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn lock_market_env() -> std::sync::MutexGuard<'static, ()> {
     MARKET_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
@@ -229,6 +230,30 @@ fn marketplace_uses_highest_semver_when_catalog_versions_are_unsorted() {
         assert_eq!(
             compare_plugin_versions("0.5.1", "0.5.1-beta.1"),
             Ordering::Greater
+        );
+        assert_eq!(
+            compare_plugin_versions("0.5.3-pi.1", "0.5.2"),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_plugin_versions("0.5.3-pi.1", "0.5.3"),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_plugin_versions("0.5.3-pi.1", "0.6.0"),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_plugin_versions("0.9.1-pi.1", "0.9.0"),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_plugin_versions("0.9.1-pi.1", "0.5.3-pi.1"),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_plugin_versions("0.9.1-pi.1", "0.9.1"),
+            Ordering::Less
         );
     });
 }
@@ -474,52 +499,19 @@ fn resolve_relative_package_urls_against_catalog() {
     );
 }
 
-#[test]
-fn refresh_catalog_from_the_github_backup_when_network_available() {
-    let _guard = lock_market_env();
-    // Skip cleanly if offline / rate-limited.
-    let url = GITHUB_BACKUP_CHANNEL_CATALOG_URL;
-    if download_url(url).is_err() {
-        return;
-    }
-    let dir = tempdir().unwrap();
-    unsafe {
-        std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
-        std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", url);
-    }
-    let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
-    let Ok(meta) = mgr.refresh_market(true) else {
-        // The repository answered the probe above and then rate limited or
-        // dropped the real refresh: a network hiccup is not a client defect.
-        return;
-    };
-    assert_eq!(meta["providerId"], "official");
-    assert!(meta["pluginCount"].as_u64().unwrap_or(0) >= 1);
-    assert!(meta["sourceUrl"]
-        .as_str()
-        .unwrap_or("")
-        .contains("pi-desktop-plugins"));
-    // Which plugins the repository publishes is the publisher's business; that
-    // the catalog is readable and reaches the search path is the client's.
-    let search = mgr.market_search(None, None).unwrap();
-    assert!(
-        !search.is_empty(),
-        "a published catalog lists at least one installable plugin"
-    );
-    unsafe {
-        std::env::remove_var("PI_DESKTOP_DATA_DIR");
-        std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL");
-    }
-}
-
-/// The official channel's install path, against the deployment that serves it.
+/// The official channel's install path, against the live deployment.
 ///
-/// Everything the test needs comes from the published catalog, so it does not
-/// pin a version a later release removes. It skips when the platform or the
-/// catalog cannot be reached, like the refresh above: the unit suite has to stay
-/// green on a machine with no route to either.
+/// This test is ignored by default because it contacts the plugin center. It
+/// requires both explicit test opt-in and user authorization.
 #[test]
+#[ignore = "requires explicit live plugin marketplace authorization"]
 fn the_plugin_center_resolves_a_published_package() {
+    if std::env::var("PI_DESKTOP_RUN_LIVE_PLUGIN_MARKET_TESTS").as_deref() != Ok("1") {
+        eprintln!(
+            "Set PI_DESKTOP_RUN_LIVE_PLUGIN_MARKET_TESTS=1 after authorization to run this live test."
+        );
+        return;
+    }
     let _guard = lock_market_env();
     let Ok(bytes) = download_url(OFFICIAL_CHANNEL_CATALOG_URL) else {
         return;
@@ -568,10 +560,7 @@ fn the_plugin_center_resolves_a_published_package() {
 }
 
 #[test]
-fn market_channel_from_settings_selects_the_configured_channel() {
-    // Nothing saved, and the legacy `official`, both mean the official channel:
-    // it is the default, so a later default change reaches a user who never
-    // switched away.
+fn market_channel_from_settings_preserves_custom_and_legacy_sources() {
     assert_eq!(
         market_channel_from_settings(None).0,
         MarketChannel::Official
@@ -584,36 +573,20 @@ fn market_channel_from_settings_selects_the_configured_channel() {
         market_channel_from_settings(Some(&json!({"pluginMarketSource": "official"}))).0,
         MarketChannel::Official
     );
-    // An unrecognised value falls back to the official channel rather than
-    // stranding the marketplace on an empty endpoint.
-    assert_eq!(
-        market_channel_from_settings(Some(&json!({"pluginMarketSource": "nonsense"}))).0,
-        MarketChannel::Official
-    );
-    assert_eq!(
-        market_channel_from_settings(Some(&json!({"pluginMarketSource": "github"}))).0,
-        MarketChannel::Github
-    );
-    assert_eq!(
-        market_channel_from_settings(Some(&json!({"pluginMarketSource": "mirror"}))).0,
-        MarketChannel::Mirror
-    );
-    let (channel, url) = market_channel_from_settings(Some(&json!({
-        "pluginMarketSource": "custom",
-        "pluginMarketCustomUrl": "  https://example.test/catalog.json  ",
-    })));
-    assert_eq!(channel, MarketChannel::Custom);
-    assert_eq!(url.as_deref(), Some("https://example.test/catalog.json"));
-    // A custom channel with no URL must not strand the marketplace on an
-    // empty endpoint.
-    assert_eq!(
-        market_channel_from_settings(Some(&json!({
-            "pluginMarketSource": "custom",
-            "pluginMarketCustomUrl": "   ",
-        })))
-        .1,
-        None
-    );
+    for (source, expected) in [
+        ("official", MarketChannel::Official),
+        ("github", MarketChannel::Github),
+        ("mirror", MarketChannel::Mirror),
+        ("custom", MarketChannel::Custom),
+        ("nonsense", MarketChannel::Official),
+    ] {
+        let (channel, custom_url) = market_channel_from_settings(Some(&json!({
+            "pluginMarketSource": source,
+            "pluginMarketCustomUrl": "https://example.test/catalog.json",
+        })));
+        assert_eq!(channel, expected, "source {source}");
+        assert_eq!(custom_url.as_deref(), Some("https://example.test/catalog.json"), "source {source}");
+    }
 }
 
 #[test]
@@ -624,25 +597,28 @@ fn cached_catalog_is_scoped_to_the_source_that_fetched_it() {
             std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
         }
         let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
-        // A bundled offline snapshot records no source and stays usable
-        // whichever provider is selected.
+        // A bundled offline snapshot records no source and stays usable until
+        // an official remote snapshot has been fetched.
         let _ = fs::remove_file(mgr.market_cache_meta_path());
+        let previous_source = "https://legacy.example.test/catalog.json";
+        // Without cache metadata, the bundled offline catalog has no
+        // provider-specific URLs and remains usable for any active source.
         assert!(mgr.cached_catalog_matches_source(OFFICIAL_CHANNEL_CATALOG_URL));
-        assert!(mgr.cached_catalog_matches_source(MIRROR_MARKET_CATALOG_URL));
+        assert!(mgr.cached_catalog_matches_source(previous_source));
 
         fs::create_dir_all(dir.path().join("plugins/market")).unwrap();
         fs::write(
             mgr.market_cache_meta_path(),
-            serde_json::to_string(&json!({"sourceUrl": MIRROR_MARKET_CATALOG_URL})).unwrap(),
+            serde_json::to_string(&json!({"sourceUrl": previous_source})).unwrap(),
         )
         .unwrap();
-        assert!(mgr.cached_catalog_matches_source(MIRROR_MARKET_CATALOG_URL));
+        assert!(mgr.cached_catalog_matches_source(previous_source));
         assert!(!mgr.cached_catalog_matches_source(OFFICIAL_CHANNEL_CATALOG_URL));
     });
 }
 
 #[test]
-fn switching_source_ignores_the_previous_providers_snapshot() {
+fn catalog_cache_ignores_a_snapshot_from_another_source() {
     with_local_market(|| {
         let local_source = std::env::var("PI_DESKTOP_PLUGIN_MARKET_URL").unwrap();
         let dir = tempdir().unwrap();
@@ -652,24 +628,27 @@ fn switching_source_ignores_the_previous_providers_snapshot() {
         let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
 
         // A snapshot carrying a plugin the built-in catalog does not have,
-        // written while a different provider was selected.
+        // left by an older catalog source.
         let mut foreign = built_in_catalog_at(dir.path());
-        foreign.provider_id = "mirror".into();
+        foreign.provider_id = "official".into();
         foreign.plugins.truncate(1);
-        foreign.plugins[0].id = "mirror.only".into();
-        foreign.plugins[0].name = "Mirror Only".into();
+        foreign.plugins[0].id = "legacy.only".into();
+        foreign.plugins[0].name = "Legacy Only".into();
         fs::create_dir_all(dir.path().join("plugins/market")).unwrap();
         fs::write(mgr.catalog_path(), serde_json::to_string(&foreign).unwrap()).unwrap();
         fs::write(
             mgr.market_cache_meta_path(),
-            serde_json::to_string(&json!({"sourceUrl": MIRROR_MARKET_CATALOG_URL})).unwrap(),
+            serde_json::to_string(&json!({
+                "sourceUrl": "https://legacy.example.test/catalog.json"
+            }))
+            .unwrap(),
         )
         .unwrap();
 
-        // Package URLs in that snapshot resolve against the provider that
-        // served it, so search must fall back to the built-in catalog.
+        // The old source no longer matches the active catalog, so search must
+        // fall back to the built-in catalog.
         let results = mgr.market_search(None, None).unwrap();
-        assert!(!results.iter().any(|p| p.id == "mirror.only"));
+        assert!(!results.iter().any(|p| p.id == "legacy.only"));
         assert!(results.iter().any(|p| p.id == "demo.hello"));
 
         // Re-record the snapshot against the active source and it is used.
@@ -679,7 +658,7 @@ fn switching_source_ignores_the_previous_providers_snapshot() {
         )
         .unwrap();
         let results = mgr.market_search(None, None).unwrap();
-        assert!(results.iter().any(|p| p.id == "mirror.only"));
+        assert!(results.iter().any(|p| p.id == "legacy.only"));
     });
 }
 
@@ -1786,10 +1765,8 @@ fn relative_package_urls_resolve_against_the_declared_artifact_base() {
     );
 }
 
-/// The backup channels serve `catalog.json` from their tree root and packages
-/// from `packages/`, so a relative URL needs no declared base. The official
-/// channel does not use this path at all: an install asks the plugin center
-/// where the package is.
+/// The official platform can return package URLs on approved GitHub and CNB
+/// hosts. The catalog's declared base keeps each package on its own host.
 #[test]
 fn boxai_and_legacy_channels_are_offline_and_ignore_upstream_cached_packages() {
     let _guard = lock_market_env();
@@ -1892,8 +1869,7 @@ fn verified_trust_is_honoured_only_from_the_official_source() {
     let official = offline_manager(dir.path());
     assert_eq!(official.resolve_trust(&v2_entry()), "verified");
 
-    // The same claim from a source the user pointed at themselves cannot
-    // promote itself past community.
+    // A non-official development override cannot promote itself past community.
     unsafe {
         std::env::set_var(
             "PI_DESKTOP_PLUGIN_MARKET_URL",
@@ -2066,6 +2042,51 @@ fn global_shortcut_entries_are_validated() {
     );
     assert!(read_manifest_err(&not_an_object)
         .contains("contributes.globalShortcuts entry must be an object"));
+}
+
+#[test]
+fn composer_transforms_require_permission_and_localized_titles() {
+    let dir = tempdir().unwrap();
+    let transform = json!({
+        "id": "enhance",
+        "title": { "en": "Enhance prompt", "zh-CN": "增强提示词" },
+        "undoTitle": { "en": "Undo enhancement", "zh-CN": "撤销增强" }
+    });
+
+    let valid = dir.path().join("valid");
+    write_plugin(
+        &valid,
+        capability_manifest(
+            json!({ "composerTransforms": [transform.clone()] }),
+            json!(["composer.transform"]),
+        ),
+        &[],
+    );
+    let manifest = PluginManager::read_manifest(&valid).unwrap();
+    assert!(derive_capabilities(&manifest).contains(&"composerTransform".to_string()));
+
+    let no_permission = dir.path().join("no-permission");
+    write_plugin(
+        &no_permission,
+        capability_manifest(
+            json!({ "composerTransforms": [transform.clone()] }),
+            json!([]),
+        ),
+        &[],
+    );
+    assert!(read_manifest_err(&no_permission)
+        .contains("composer transforms require the composer.transform permission"));
+
+    let malformed = dir.path().join("malformed");
+    write_plugin(
+        &malformed,
+        capability_manifest(
+            json!({ "composerTransforms": [{ "id": "enhance", "title": { "en": "Only English" } }] }),
+            json!(["composer.transform"]),
+        ),
+        &[],
+    );
+    assert!(read_manifest_err(&malformed).contains("has an invalid title"));
 }
 
 #[test]

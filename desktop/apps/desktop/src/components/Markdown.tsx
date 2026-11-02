@@ -1,8 +1,10 @@
+import { useChatSessionCapability } from "../hooks/use-chat-session-capability";
 import {
   createContext,
   Fragment,
   isValidElement,
   memo,
+  Profiler,
   useCallback,
   useContext,
   useEffect,
@@ -25,6 +27,14 @@ import {
   emptyMarkdownBlockCache,
   markdownRemarkPlugins,
 } from "../lib/markdown-blocks";
+import {
+  MAX_STREAMING_MARKDOWN_TAIL_CODE_UNITS,
+  MAX_SYNC_MARKDOWN_CODE_UNITS,
+} from "../lib/render-content-limits";
+import {
+  beginRenderDiagnostic,
+  recordRenderDiagnostic,
+} from "../lib/render-diagnostics";
 import { useTranslation } from "react-i18next";
 import type { ThemedToken } from "shiki";
 import "katex/dist/katex.min.css";
@@ -66,6 +76,7 @@ import {
   type ChatFileMenuTarget,
 } from "../hooks/use-chat-file-menu";
 import {
+  handleMarkdownFileLinkClick,
   remarkChatFileLinks,
   resolvePreviewTarget,
   safeDecodeUri,
@@ -509,7 +520,8 @@ function InlineCode({
   children,
   ...rest
 }: ComponentProps<"code"> & { node?: unknown }) {
-  const root = useAppStore((s) => s.workspace?.path);
+  const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
+  const root = useAppStore((s) => localToolsAllowed ? s.workspace?.path : undefined);
   const baseDir = useContext(MarkdownBaseDirContext);
   const openFileRef = useOpenChatFileRef();
   const openFileMenu = useContext(MarkdownFileMenuContext);
@@ -520,7 +532,7 @@ function InlineCode({
       : null;
   const fileTitle = usePreviewTitle("file");
   const urlTitle = usePreviewTitle("url");
-  if (!target) {
+  if (!target || !localToolsAllowed) {
     return (
       <code className={className} {...rest}>
         {children}
@@ -532,11 +544,20 @@ function InlineCode({
       type="button"
       className="chat-code-link"
       title={target.kind === "file" ? fileTitle : urlTitle}
-      onClick={() =>
-        target.kind === "file"
-          ? openFileRef(text ?? target.path, baseDir)
-          : openHttpUrl(target.url)
-      }
+      onClick={() => {
+        if (!localToolsAllowed) return;
+        if (target.kind === "file") {
+          openFileRef(target.path, baseDir, undefined, {
+            line: target.line, column: target.column,
+          });
+          return;
+        }
+        if (target.kind === "session") {
+          void useAppStore.getState().selectSession(target.sessionId).catch(() => undefined);
+          return;
+        }
+        openHttpUrl(target.url);
+      }}
       onContextMenu={
         target.kind === "file" && openFileMenu
           ? (event) =>
@@ -558,7 +579,8 @@ function Anchor({
   ...rest
 }: ComponentProps<"a"> & { node?: unknown }) {
   const { t } = useTranslation();
-  const root = useAppStore((s) => s.workspace?.path);
+  const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
+  const root = useAppStore((s) => localToolsAllowed ? s.workspace?.path : undefined);
   const baseDir = useContext(MarkdownBaseDirContext);
   const openFileRef = useOpenChatFileRef();
   const openFileMenu = useContext(MarkdownFileMenuContext);
@@ -596,6 +618,7 @@ function Anchor({
   const onContextMenu = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!href) return;
     if (!/^https?:\/\//i.test(href)) {
+      if (!localToolsAllowed) return;
       /*
         A file link names the same reference a chip does, so it offers the same
         action on the file's folder. `./` and `../` resolve against the markdown
@@ -617,7 +640,8 @@ function Anchor({
             defaultValue: "Open in default browser",
           }),
           icon: <IconExternal size={14} />,
-          onSelect: () => void api.browserOpenExternal(target),
+          disabled: !localToolsAllowed,
+          onSelect: () => { if (localToolsAllowed) void api.browserOpenExternal(target); },
         },
         {
           id: "open-workpanel",
@@ -625,7 +649,8 @@ function Anchor({
             defaultValue: "Open in work panel",
           }),
           icon: <IconGlobe size={14} />,
-          onSelect: () => openUrl(target),
+          disabled: !localToolsAllowed,
+          onSelect: () => { if (localToolsAllowed) openUrl(target); },
         },
         {
           id: "copy-address",
@@ -644,6 +669,7 @@ function Anchor({
   // to _blank, which main routes to shell.openExternal.
 
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!localToolsAllowed) { e.preventDefault(); return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (!href) return;
     if (/^https?:\/\//i.test(href)) {
@@ -651,19 +677,13 @@ function Anchor({
       openHttpUrl(href);
       return;
     }
-    const decoded = safeDecodeUri(href);
-    const target = resolvePreviewTarget(decoded, root, baseDir);
-    const ref = target?.kind === "file" ? target.path : toWorkspaceRel(decoded, root, baseDir);
-    if (ref) {
-      e.preventDefault();
-      openFileRef(ref, baseDir);
-    }
+    handleMarkdownFileLinkClick(e, href, root, baseDir, openFileRef);
   };
   return (
     <>
       <a
         {...rest}
-        href={href}
+        href={localToolsAllowed ? href : undefined}
         onClick={onClick}
         onContextMenu={onContextMenu}
         target="_blank"
@@ -688,7 +708,8 @@ function MarkdownImage({
   alt,
   ...rest
 }: ComponentProps<"img"> & SourcePositionProps & { node?: unknown }) {
-  const root = useAppStore((s) => s.workspace?.path);
+  const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
+  const root = useAppStore((s) => localToolsAllowed ? s.workspace?.path : undefined);
   const baseDir = useContext(MarkdownBaseDirContext);
   const openFileRef = useOpenChatFileRef();
   const openFileMenu = useContext(MarkdownFileMenuContext);
@@ -712,7 +733,7 @@ function MarkdownImage({
     may want, so a local image carries the same menu its chip fallback does.
   */
   const onLocalContextMenu =
-    localRef && openFileMenu
+    localToolsAllowed && localRef && openFileMenu
       ? (event: React.MouseEvent<HTMLElement>) =>
           openFileMenu(event, { path: localRef, baseDir })
       : undefined;
@@ -724,7 +745,7 @@ function MarkdownImage({
         alt={alt ?? ""}
         className="chat-image-remote"
         title={urlTitle}
-        onClick={() => openHttpUrl(source)}
+        onClick={localToolsAllowed ? () => openHttpUrl(source) : undefined}
       />
     );
   }
@@ -854,12 +875,16 @@ const rehypePlugins = [rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeKatex]
  * Splitting and its streaming reuse live in `markdown-blocks`, which owns the
  * rules a slice has to satisfy before it can be parsed on its own.
  */
-function useBlocks(source: string): string[] {
+function useBlocks(source: string, maxTailCodeUnits: number): string[] {
   const cacheRef = useRef(emptyMarkdownBlockCache);
   return useMemo(() => {
-    cacheRef.current = advanceMarkdownBlocks(cacheRef.current, source);
+    cacheRef.current = advanceMarkdownBlocks(
+      cacheRef.current,
+      source,
+      maxTailCodeUnits,
+    );
     return cacheRef.current.blocks;
-  }, [source]);
+  }, [source, maxTailCodeUnits]);
 }
 
 const Block = memo(function MarkdownBlock({
@@ -901,15 +926,29 @@ const Block = memo(function MarkdownBlock({
     [sourceOffset],
   );
   return (
-    <MarkdownBlockContext.Provider value={context}>
-      <ReactMarkdown
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={positionedRehypePlugins}
-        components={markdownComponents}
-      >
-        {raw}
-      </ReactMarkdown>
-    </MarkdownBlockContext.Provider>
+    <Profiler
+      id="transcript-markdown-block"
+      onRender={(_id, phase, actualDuration, baseDuration, startTime, commitTime) => {
+        recordRenderDiagnostic("markdown-react-render", {
+          sourceLength: raw.length,
+          durationMs: actualDuration,
+          baseDurationMs: baseDuration,
+          startTime,
+          commitTime,
+          renderPhase: phase,
+        });
+      }}
+    >
+      <MarkdownBlockContext.Provider value={context}>
+        <ReactMarkdown
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={positionedRehypePlugins}
+          components={markdownComponents}
+        >
+          {raw}
+        </ReactMarkdown>
+      </MarkdownBlockContext.Provider>
+    </Profiler>
   );
 });
 
@@ -917,9 +956,12 @@ export const Markdown = memo(function Markdown({
   source,
   renderDiagrams = true,
   baseDir,
+  streaming = false,
 }: {
   source: string;
   renderDiagrams?: boolean;
+  /** True only while an assistant message is still receiving text. */
+  streaming?: boolean;
   /** Workspace-relative directory of the source file, for `./` / `../` links. */
   baseDir?: string;
 }) {
@@ -941,22 +983,64 @@ export const Markdown = memo(function Markdown({
     (event, target) => openFileMenu(event, { items: fileMenuItems(target) }),
     [fileMenuItems, openFileMenu],
   );
+  const { t } = useTranslation();
+  const fullSourceTooLarge = source.length > MAX_SYNC_MARKDOWN_CODE_UNITS;
+  const markdownTailLimit = streaming
+    ? MAX_STREAMING_MARKDOWN_TAIL_CODE_UNITS
+    : MAX_SYNC_MARKDOWN_CODE_UNITS;
   // Keep normalization length-preserving so source anchors and the bracket
   // display plugin still address the original text. Block splitting uses the
   // same math grammar as rendering, including unclosed streaming math blocks.
   const normalizedSource = useMemo(
-    () => normalizeLatexMathDelimiters(source),
-    [source],
+    () => {
+      const finishDiagnostic = beginRenderDiagnostic("markdown-normalize", {
+        sourceLength: source.length,
+      });
+      if (fullSourceTooLarge) {
+        finishDiagnostic({ reason: "source-limit" });
+        return "";
+      }
+      const normalized = normalizeLatexMathDelimiters(source);
+      finishDiagnostic();
+      return normalized;
+    },
+    [fullSourceTooLarge, source],
   );
-  const blocks = useBlocks(normalizedSource);
+  const blocks = useBlocks(
+    fullSourceTooLarge ? "" : normalizedSource,
+    markdownTailLimit,
+  );
   let sourceOffset = 0;
   return (
     <MarkdownFileMenuContext.Provider value={openMarkdownFileMenu}>
       <MarkdownBaseDirContext.Provider value={baseDir ?? ""}>
-        {blocks.map((raw, i) => {
+        {fullSourceTooLarge ? (
+          <div
+            className="markdown-plain-fallback"
+            data-source-start={0}
+            data-source-end={source.length}
+          >
+            <div role="status">{t("chat.markdownPlainTextFallback")}</div>
+            <pre>{source}</pre>
+          </div>
+        ) : blocks.map((raw, i) => {
           const start = sourceOffset;
           sourceOffset = start + raw.length;
           const originalRaw = source.slice(start, start + raw.length);
+          const tailTooLarge = streaming && raw.length > markdownTailLimit;
+          if (tailTooLarge) {
+            return (
+              <div
+                className="markdown-plain-fallback"
+                key={i}
+                data-source-start={start}
+                data-source-end={start + raw.length}
+              >
+                <div role="status">{t("chat.markdownPlainTextFallback")}</div>
+                <pre>{originalRaw}</pre>
+              </div>
+            );
+          }
           return (
             <Block
               key={i}

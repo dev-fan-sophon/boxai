@@ -75,6 +75,16 @@ test("Live Voice preparation and call recovery copy is localized in every shippe
   assert.match(english["liveVoice.enableDetail"], /switch sessions by voice/);
 });
 
+test("MCP OAuth no-DCR recovery guidance is localized in every shipped catalog", () => {
+  const key = "extensions.mcp.authDcrUnavailable";
+  for (const [id, catalog] of Object.entries(catalogs)) {
+    const value = flattenCatalog(catalog)[key];
+    assert.equal(typeof value, "string", `${id} ${key}`);
+    assert.notEqual(value.trim(), "", `${id} ${key}`);
+    if (id !== "en") assert.notEqual(value, english[key], `${id} ${key} must not fall back to English`);
+  }
+});
+
 test("canonical thinking levels are not translated catalog entries", () => {
   const levels = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
   const effortKeys = [
@@ -133,7 +143,6 @@ test("settings rail labels stay concise and parallel across locales", () => {
     "skills",
     "mcp",
     "subagents",
-    "import",
     "projects",
     "info",
   ].map((key) => `settings.nav.${key}`);
@@ -149,7 +158,6 @@ test("settings rail labels stay concise and parallel across locales", () => {
       "Skills",
       "MCP",
       "Subagents",
-      "Import",
       "Projects",
       "Info",
     ],
@@ -165,11 +173,14 @@ test("settings rail labels stay concise and parallel across locales", () => {
       "技能",
       "MCP",
       "子智能体",
-      "导入",
       "项目",
       "信息",
     ],
   );
+  assert.equal(english["settings.nav.import"], undefined);
+  assert.equal(chinese["settings.nav.import"], undefined);
+  assert.equal(english["settings.import"], undefined);
+  assert.equal(chinese["settings.import"], undefined);
   assert.equal(english["settings.groupPreferences"], "Preferences");
   assert.equal(chinese["settings.groupPreferences"], "偏好");
   assert.equal(english["settings.groupSystem"], "System");

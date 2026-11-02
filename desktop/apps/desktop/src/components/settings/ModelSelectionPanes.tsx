@@ -16,6 +16,7 @@ import {
   bindingForCustomModel,
   bindingForCustomModelInfo,
   bindingFromModelInfo,
+  fastModeBillingOn,
   formatTokenCount,
   modelMatchesFilter,
   nativeWebSearchSupportedOn,
@@ -36,6 +37,7 @@ import {
 import { api } from "../../lib/api";
 import { Button, Field, HelpIcon, Input, Tooltip, TooltipButton, cx } from "../ui";
 import { IconClose, IconGripVertical, IconHelp, IconPlus, IconRefresh, IconSearch } from "../icons";
+import { ReasoningEffortSelect } from "./ReasoningEffortSelect";
 import { SettingsMenuSelect } from "./SettingsMenuSelect";
 import { filterChosenModels, hidesAddedBinding } from "./model-chosen-filter";
 import {
@@ -69,6 +71,24 @@ export type ModelSelection = {
   bindingsToPersist: ModelBinding[];
   setModels: (update: (current: ModelBinding[]) => ModelBinding[]) => void;
 };
+
+type ModelTokenLimit = "contextWindow" | "maxTokens";
+
+function publishedModelLimit(
+  info: ModelInfo | undefined,
+  field: ModelTokenLimit,
+): number | undefined {
+  if (!info) return undefined;
+  const published = field === "contextWindow" ? info.limit?.context : info.limit?.output;
+  if (published !== undefined) return published;
+  // models.dev rows keep the raw record in `limit`; other discovered rows may
+  // carry only the runtime's generic safety budget, which is not a published
+  // model limit and should not look like one in Settings.
+  if (info.catalogSource === "models.dev" || info.source === "discovered") {
+    return undefined;
+  }
+  return field === "contextWindow" ? info.contextWindow : info.maxTokens;
+}
 
 /**
  * Row merging and published-level metadata for one binding list.
@@ -247,9 +267,10 @@ export function ModelSelectionPanes({
   const visibleRows = useMemo(() => {
     // The service pane follows a live answer. Configured-only rows remain in
     // the chosen pane, including hand-typed IDs absent from discovery.
+    const listedRows = rows.filter((row) => row.info?.discoveryState !== "unlisted");
     const availableRows = discovery.source === "remote"
-      ? rows.filter((row) => row.info && row.info.source !== "user")
-      : rows;
+      ? listedRows.filter((row) => row.info && row.info.source !== "user")
+      : listedRows;
     const needle = modelQuery.trim().toLowerCase();
     if (!needle) return availableRows;
     return availableRows.filter(
@@ -289,6 +310,14 @@ export function ModelSelectionPanes({
   // Use the same published endpoint routing as the runtime. A disabled control
   // means this connection is not integrated, not that the vendor cannot search.
   const nativeWebSearchWireCapable = nativeWebSearchSupportedOn(apiStyle, lookupContext?.baseUrl);
+  // Fast mode rides the Responses `service_tier` field; the hint names what
+  // the priority tier costs on this wire (ADR 0334).
+  const fastModeBilling = fastModeBillingOn(apiStyle);
+  const fastModeHint = fastModeBilling === "subscription"
+    ? "settings.fastModeAllowedSubscriptionHint"
+    : fastModeBilling === "usage"
+      ? "settings.fastModeAllowedUsageHint"
+      : "settings.fastModeAllowedUnsupported";
 
   /**
    * The chosen list narrows with the discovered list's rule plus the binding's
@@ -470,7 +499,8 @@ export function ModelSelectionPanes({
                 ) : null}
               </span>
               <span className="provider-models-row-limits">
-                {formatTokenCount(row.contextWindow)} · {formatTokenCount(row.maxTokens)}
+                {formatTokenCount(publishedModelLimit(row.info, "contextWindow"))} ·{" "}
+                {formatTokenCount(publishedModelLimit(row.info, "maxTokens"))}
               </span>
             </label>
           </li>
@@ -593,12 +623,21 @@ export function ModelSelectionPanes({
               const publishedImages = info ? modelMatchesFilter(info, "vision") : false;
               // The row's published window, so the hint below the field can say
               // the number still follows it.
-              const publishedContextWindow = info
-                ? (info.contextWindow ?? info.limit?.context)
-                : undefined;
+              const publishedContextWindow = publishedModelLimit(info, "contextWindow");
+              const publishedMaxTokens = publishedModelLimit(info, "maxTokens");
               const followsCatalog =
                 binding.contextWindowSource !== "user" &&
                 publishedContextWindow !== undefined;
+              const displayedContextWindow =
+                binding.contextWindowSource === "catalog" &&
+                publishedContextWindow === undefined
+                  ? undefined
+                  : binding.contextWindow;
+              const displayedMaxTokens =
+                binding.maxTokensSource === "catalog" &&
+                publishedMaxTokens === undefined
+                  ? undefined
+                  : binding.maxTokens;
               const publishedDocuments = info ? modelMatchesFilter(info, "pdf") : false;
               const expanded = expandedModelId === binding.id;
               const imageModelSelected = imageModelIds?.some((modelId) =>
@@ -634,8 +673,8 @@ export function ModelSelectionPanes({
                       <span className="provider-chosen-row-alias">{binding.alias.trim()}</span>
                     ) : null}
                     <span className="provider-chosen-row-limits">
-                      {formatTokenCount(binding.contextWindow)} ·{" "}
-                      {formatTokenCount(binding.maxTokens)}
+                      {formatTokenCount(displayedContextWindow)} ·{" "}
+                      {formatTokenCount(displayedMaxTokens)}
                     </span>
                     <button
                       type="button"
@@ -907,6 +946,12 @@ export function ModelSelectionPanes({
                         })}
                       </div>
                     </div>
+                    {(!apiStyle || apiStyle === "chat_completions" || apiStyle === "opencode_go") ? (
+                      <ReasoningEffortSelect
+                        value={binding.supportsReasoningEffort}
+                        onChange={(supportsReasoningEffort) => updateBinding(binding.id, { supportsReasoningEffort })}
+                      />
+                    ) : null}
                     <div className="provider-chosen-capabilities">
                       <span className="provider-chosen-thinking-label">
                         {t("settings.modelCapabilities")}
@@ -1000,6 +1045,28 @@ export function ModelSelectionPanes({
                                 ? "settings.nativeWebSearchHint"
                                 : "settings.nativeWebSearchUnsupported",
                             )}
+                          >
+                            <IconHelp size={13} />
+                          </Tooltip>
+                        </span>
+                        <span className="provider-chosen-delegation">
+                          <label className="provider-chosen-capability">
+                            <input
+                              type="checkbox"
+                              checked={binding.fastModeAllowed === true}
+                              disabled={!fastModeBilling}
+                              onChange={(event) =>
+                                updateBinding(binding.id, {
+                                  fastModeAllowed: event.target.checked || undefined,
+                                })
+                              }
+                            />
+                            <span>{t("settings.fastModeAllowed")}</span>
+                          </label>
+                          <Tooltip
+                            className="provider-chosen-delegation-help"
+                            label={t(fastModeHint)}
+                            ariaLabel={t(fastModeHint)}
                           >
                             <IconHelp size={13} />
                           </Tooltip>
