@@ -33,17 +33,22 @@ the former WebDAV transport. Existing local profiles remain in place. Configure
 an S3-compatible destination explicitly; do not treat WebDAV credentials as S3
 credentials. Keep a local backup before upgrading or moving configuration data.
 
-## Validation caveat for this baseline
+## BoxAI transcript-integrity fix
 
-Two unchanged upstream Rust integrity tests fail on the Linux orb:
-`same_size_rewrite_restoring_mtime_cannot_reuse_a_verified_generation` and
-`invalid_encoded_revision_blocks_stored_and_live_revision_appends`.
-`transcripts/binary_integrity.rs` caches file identity, size, mtime and ctime;
-consecutive same-size writes can share those timestamps on this filesystem,
-allowing an externally corrupted transcript to reuse a cached proof. The failing
-assertions remain intact. This is an unresolved upstream integrity issue, not a
-passing check or a verified installer release. Windows/macOS native release
-validation is still required before distributing this baseline.
+The imported timestamp-only integrity cache failed two upstream regression
+tests on Linux: same-size transcript rewrites and corrupt stored/live revision
+appends could reuse a proof when filesystem timestamps collided. BoxAI now
+checks a streaming SHA-256 digest before reusing decoded-record validation.
+Owned appends extend that digest from verified bytes and the bytes just written,
+never from an unvalidated reread of the file. The original assertions remain
+intact, with a deterministic metadata-collision regression for middle-of-file
+corruption, unchanged history on refusal and recovery after repair.
+
+This deliberately trades constant-time metadata checks for a linear read using
+a bounded buffer. Unchanged history is not JSON/binary-decoded again; changed
+content must pass the decoder before another write. Local data formats and
+migrations are unchanged. Native installer acceptance remains separate from
+source and unit-test validation, and does not authorize publication.
 
 The previous OpenWorker-based BoxAI Desktop was removed in the original v0.16.0
 import. Its source remains available in git history before that import.

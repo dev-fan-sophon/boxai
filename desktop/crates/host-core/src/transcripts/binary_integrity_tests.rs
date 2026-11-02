@@ -114,6 +114,52 @@ fn same_size_rewrite_restoring_mtime_cannot_reuse_a_verified_generation() {
 }
 
 #[test]
+fn middle_record_corruption_blocks_tail_updates_without_modifying_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut padding = image_record();
+    padding.id = "first".into();
+    padding.blocks = json!([{"type": "text", "text": "x".repeat(128 * 1024)}]);
+    append_message(dir.path(), "s", "old", &padding).unwrap();
+    append_message(dir.path(), "s", "old", &image_record()).unwrap();
+    padding.id = "last".into();
+    append_message(dir.path(), "s", "old", &padding).unwrap();
+    let path = transcript_path(dir.path(), "s").unwrap();
+    let metadata = fs::metadata(&path).unwrap();
+    let original = fs::read_to_string(&path).unwrap();
+    // Unchanged head and tail must not let a sampled fingerprint miss the edit.
+    let corrupt = original.replacen("\"image\":0", "\"image\":9", 1);
+    assert_ne!(original, corrupt);
+    fs::write(&path, &corrupt).unwrap();
+    File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_times(std::fs::FileTimes::new().set_modified(metadata.modified().unwrap()))
+        .unwrap();
+    binary_integrity::simulate_unchanged_metadata(&path);
+    padding.meta = Some(json!({"settled": true}));
+    let error = update_message(dir.path(), "s", &padding).unwrap_err();
+    assert!(binary_storage::is_error(&error), "{error:#}");
+    assert_eq!(fs::read_to_string(&path).unwrap(), corrupt);
+
+    // A failed check cannot bless the corrupt bytes for a later append either.
+    let error = append_message(dir.path(), "s", "old", &padding).unwrap_err();
+    assert!(binary_storage::is_error(&error), "{error:#}");
+    assert_eq!(fs::read_to_string(&path).unwrap(), corrupt);
+
+    // A legitimate outside edit is validated, not rejected just for changing.
+    let repaired = original.replace("\"image-row\"", "\"image-new\"");
+    assert_ne!(original, repaired);
+    assert_eq!(original.len(), repaired.len());
+    fs::write(&path, repaired).unwrap();
+    assert!(update_message(dir.path(), "s", &padding).unwrap());
+    let messages = read_transcript(dir.path(), "s").unwrap();
+    assert_eq!(messages.len(), 3);
+    assert_eq!(messages[1].id, "image-new");
+    assert_eq!(messages[2].meta, padding.meta);
+}
+
+#[test]
 fn invalid_encoded_revision_blocks_stored_and_live_revision_appends() {
     for live in [false, true] {
         let dir = tempfile::tempdir().unwrap();

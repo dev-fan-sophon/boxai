@@ -929,7 +929,7 @@ fn append_line(path: &Path, header: Option<String>, line: String) -> Result<()> 
     file.flush()?;
     file.sync_data()
         .with_context(|| format!("flush {}", path.display()))?;
-    binary_integrity::appended(path, file)?;
+    binary_integrity::appended(path, file, before.len(), buf.as_bytes())?;
     layout::note_append(path, &before, before_stamp.as_deref());
     Ok(())
 }
@@ -1420,10 +1420,9 @@ pub fn update_message(data_dir: &Path, session_id: &str, record: &MessageRecord)
 /// empty, ends without a record, or its last line is longer than the window this
 /// reads — the caller then has to read the whole file.
 ///
-/// Reading the last line instead of the whole transcript is what keeps an update
-/// on a long session O(1): the transcript of a session that has been running for
-/// months holds hundreds of MB, and every updated message used to be answered by
-/// copying all of it.
+/// Reading only the last line bounds the lookup and avoids copying the whole
+/// transcript for a tail update. Integrity verification still hashes the full
+/// file before writing; metadata alone cannot prove the prefix is unchanged.
 fn read_last_line(path: &Path) -> Result<Option<String>> {
     const WINDOW: u64 = 64 * 1024;
     let mut file = match File::open(path) {

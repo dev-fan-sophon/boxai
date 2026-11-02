@@ -2,11 +2,17 @@
 //! their disk sidecars never prove storage integrity. The Host state lock owns
 //! file writes; this mutex only protects the process-local proof registry.
 use super::*;
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard, OnceLock},
     time::SystemTime,
 };
+
+struct Proof {
+    generation: Generation,
+    content: Sha256,
+}
 
 #[derive(Clone, PartialEq, Eq)]
 struct Generation {
@@ -72,8 +78,8 @@ pub(super) fn change_time(file: &File) -> Result<i64> {
     Ok(info.ChangeTime)
 }
 
-fn proofs() -> MutexGuard<'static, HashMap<PathBuf, Generation>> {
-    static PROOFS: OnceLock<Mutex<HashMap<PathBuf, Generation>>> = OnceLock::new();
+fn proofs() -> MutexGuard<'static, HashMap<PathBuf, Proof>> {
+    static PROOFS: OnceLock<Mutex<HashMap<PathBuf, Proof>>> = OnceLock::new();
     PROOFS
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock()
@@ -87,7 +93,8 @@ pub(super) fn invalidate(path: &Path) {
 /// The prefix was verified by prepare and the new line came from tagged().
 /// Close the synced writer before reading its final metadata: Windows may
 /// publish the last-write timestamp only when the write handle closes.
-pub(super) fn appended(path: &Path, file: File) -> Result<()> {
+pub(super) fn appended(path: &Path, file: File, before_len: u64, bytes: &[u8]) -> Result<()> {
+    let prior = proofs().remove(path);
     let metadata = file.metadata()?;
     if !metadata.is_file() {
         return Ok(());
@@ -96,36 +103,78 @@ pub(super) fn appended(path: &Path, file: File) -> Result<()> {
     drop(file);
     let generation = Generation::from_file(&File::open(path)?)?;
     anyhow::ensure!(
-        identity == generation.identity && metadata.len() == generation.length,
+        identity == generation.identity
+            && metadata.len() == generation.length
+            && before_len.checked_add(bytes.len() as u64) == Some(generation.length),
         "transcript changed after append: {}",
         path.display()
     );
     if generation.can_cache() {
-        proofs().insert(path.to_path_buf(), generation);
+        // Extend only the bytes we validated and wrote ourselves. Rehashing the
+        // file here would silently certify an outside edit made during append.
+        let mut content = match prior {
+            Some(proof)
+                if proof.generation.identity == identity
+                    && proof.generation.length == before_len =>
+            {
+                proof.content
+            }
+            _ if before_len == 0 => Sha256::new(),
+            _ => return Ok(()), // A conversion/rewrite needs a new decoder scan.
+        };
+        content.update(bytes);
+        proofs().insert(
+            path.to_path_buf(),
+            Proof {
+                generation,
+                content,
+            },
+        );
     }
     Ok(())
 }
 
 /// A first mutation after restart or an outside rewrite checks every existing
-/// line. Ordinary mutations reuse only a proof for this exact file generation.
+/// line. Metadata is only a hint: coarse clocks can hide same-size rewrites.
+/// Cache hits hash all bytes with bounded memory, but avoid JSON/binary decoding.
 pub(super) fn verify(path: &Path, reader: &mut BufReader<File>) -> Result<()> {
     let generation = Generation::from_file(reader.get_ref())?;
     generation.ensure_current(reader.get_ref(), path)?;
-    let cached = proofs().get(path).cloned();
-    if generation.can_cache() && cached.as_ref() == Some(&generation) {
-        return Ok(());
+    // A failed read or validation must not leave a reusable proof behind.
+    let cached = proofs().remove(path);
+    if let Some(proof) = cached.filter(|proof| proof.generation == generation) {
+        reader.seek(SeekFrom::Start(0))?;
+        let mut content = Sha256::new();
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let read = reader.read(&mut buffer)?;
+            if read == 0 {
+                break;
+            }
+            content.update(&buffer[..read]);
+        }
+        generation.ensure_current(reader.get_ref(), path)?;
+        if content.finalize() == proof.content.clone().finalize() {
+            proofs().insert(path.to_path_buf(), proof);
+            return Ok(());
+        }
     }
-    invalidate(path);
     reader.seek(SeekFrom::Start(0))?;
     #[cfg(test)]
     SCANS.with(|scans| *scans.borrow_mut().entry(path.to_path_buf()).or_default() += 1);
     let mut raw = Vec::new();
     let mut line = String::new();
+    let mut content = Sha256::new();
     loop {
-        let (read, _) = read_line_tolerant(reader, &mut raw, &mut line)?;
+        let (read, invalid_utf8) = read_line_tolerant(reader, &mut raw, &mut line)?;
         if read == 0 {
             break;
         }
+        content.update(if invalid_utf8 {
+            raw.as_slice()
+        } else {
+            line.as_bytes()
+        });
         if let Err(error) = binary_storage::validate_line(line.trim()) {
             if binary_storage::is_error(&error) {
                 return Err(error).with_context(|| format!("validate storage {}", path.display()));
@@ -135,14 +184,20 @@ pub(super) fn verify(path: &Path, reader: &mut BufReader<File>) -> Result<()> {
     }
     generation.ensure_current(reader.get_ref(), path)?;
     if generation.can_cache() {
-        proofs().insert(path.to_path_buf(), generation);
+        proofs().insert(
+            path.to_path_buf(),
+            Proof {
+                generation,
+                content,
+            },
+        );
     }
     Ok(())
 }
 
 #[cfg(test)]
 thread_local! {
-    // Count real full scans so the O(1) owned-append contract is reproducible
+    // Count decoder scans so reuse of validated records is reproducible
     // without wall-clock thresholds or depending on another test's activity.
     static SCANS: std::cell::RefCell<HashMap<PathBuf, usize>> = Default::default();
 }
@@ -150,4 +205,12 @@ thread_local! {
 #[cfg(test)]
 pub(super) fn scan_count(path: &Path) -> usize {
     SCANS.with(|scans| scans.borrow().get(path).copied().unwrap_or_default())
+}
+
+#[cfg(test)]
+pub(super) fn simulate_unchanged_metadata(path: &Path) {
+    // Model a filesystem timestamp collision deterministically even on APFS or
+    // NTFS. Leave the expected content untouched: this is not a revalidation.
+    let generation = Generation::from_file(&File::open(path).unwrap()).unwrap();
+    proofs().get_mut(path).unwrap().generation = generation;
 }
