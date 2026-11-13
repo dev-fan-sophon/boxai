@@ -29,6 +29,21 @@ const capabilities: VideoModelCapabilities = {
 }
 
 describe('server video capability resolution', () => {
+  it('keeps fixed Wan durations exhaustive and resets an unsupported restored duration', () => {
+    const fixed: VideoModelCapabilities = {
+      ...capabilities,
+      family: 'wan',
+      durations: [15, 30],
+      discreteDurations: true,
+      durationRange: { min: 15, max: 30 },
+      defaults: { aspectRatio: '16:9', resolution: '720p', duration: 15 },
+      aspectRatios: ['16:9', '9:16'],
+    }
+    expect(videoDurationOptions(fixed)).toEqual([15, 30])
+    expect(resolveVideoOptions(fixed, { seconds: 29 }).duration).toBe(15)
+    expect(resolveVideoOptions(fixed, { seconds: 30 }).duration).toBe(30)
+  })
+
   it('clamps restored settings and does not restore a fixed size for adaptive', () => {
     const options = resolveVideoOptions(capabilities, {
       aspectRatio: '16:9',

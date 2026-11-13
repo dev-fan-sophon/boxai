@@ -13,6 +13,42 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestWanVideoProfilesAndDurationIntersection(t *testing.T) {
+	channel := &model.Channel{Type: constant.ChannelTypeSora}
+	fixed := profilesForChannel(channel, "wan3.0-video-prime-720p")
+	require.Len(t, fixed, 1)
+	a := fixed["text"]
+	assert.Equal(t, "wan", a.Family)
+	assert.Equal(t, []string{"720p"}, a.Resolutions)
+	assert.True(t, a.DiscreteDurations)
+	assert.Equal(t, []int{15, 30}, a.Durations)
+	assert.Zero(t, a.MaxReferenceImages)
+	b := profilesForChannel(channel, "wan-3.0-video")["text"]
+	b.DurationRange.Min, b.DurationRange.Max = 16, 30
+	b.Durations = []int{20}
+	for _, pair := range [][2]dto.VideoModelCapabilities{{a, b}, {b, a}} {
+		got, ok := intersectVideoProfile(pair[0], pair[1])
+		require.True(t, ok)
+		assert.True(t, got.DiscreteDurations)
+		assert.Equal(t, []int{30}, got.Durations)
+		assert.Equal(t, 30, got.Defaults.Duration)
+	}
+	b.DurationRange.Max = 29
+	_, ok := intersectVideoProfile(a, b)
+	assert.False(t, ok)
+	b = a
+	b.Durations = []int{30}
+	got, ok := intersectVideoProfile(a, b)
+	require.True(t, ok)
+	assert.Equal(t, []int{30}, got.Durations)
+	assert.Equal(t, 30, got.Defaults.Duration)
+	nsfw := profilesForChannel(channel, "wan3.0-video-nsfw")["text"]
+	assert.Equal(t, []string{"480p", "720p", "1080p"}, nsfw.Resolutions)
+	assert.Equal(t, []string{"16:9"}, nsfw.AspectRatios)
+	assert.Equal(t, 2, nsfw.DurationRange.Min)
+	assert.False(t, nsfw.DiscreteDurations)
+}
+
 func TestMappedVideoModelChainsAndCycles(t *testing.T) {
 	mapped, err := mappedVideoModel(`{"public":"alias","alias":"seedance-2-5"}`, "public")
 	require.NoError(t, err)

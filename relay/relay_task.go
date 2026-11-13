@@ -417,7 +417,7 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	if seconds == 0 && req.Seconds != "" {
 		seconds, _ = strconv.Atoi(req.Seconds)
 	}
-	if seconds < profile.DurationRange.Min || seconds > profile.DurationRange.Max {
+	if seconds < profile.DurationRange.Min || seconds > profile.DurationRange.Max || (profile.DiscreteDurations && !slices.Contains(profile.Durations, seconds)) {
 		return unsupported("duration is unavailable")
 	}
 	resolution, ratio := "", ""
@@ -431,7 +431,7 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 		}
 		// xAI reads only the audio switch from metadata; every other option
 		// would be silently ignored by a size-based transport.
-		if !profile.UsesVolcengineMetadata && !(key == "generate_audio" && profile.SupportsAudioToggle) {
+		if !profile.UsesVolcengineMetadata && !(key == "generate_audio" && profile.SupportsAudioToggle) && !(profile.Family == "wan" && (key == "resolution" || key == "ratio")) {
 			return unsupported(fmt.Sprintf("metadata field %q is unavailable for this video transport", key))
 		}
 		switch key {

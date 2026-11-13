@@ -353,7 +353,9 @@ export function useGenerationDraft(input: {
     outputsPerPrompt: count,
     promptCount,
     estimateParams,
-    showMediaSlot: input.modality === 'image' || isVideo,
+    showMediaSlot:
+      input.modality === 'image' ||
+      (isVideo && (Boolean(uploadProfile) || input.references.length > 0)),
     audio,
     audioIssue,
     charLimit,

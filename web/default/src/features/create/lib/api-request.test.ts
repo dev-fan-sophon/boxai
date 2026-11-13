@@ -35,6 +35,46 @@ const videoOptions = {
 }
 
 describe('video API snippet', () => {
+  it('mirrors Wan tier and portrait parameters without unsupported metadata', () => {
+    const request = buildApiRequest({
+      modality: 'video',
+      model: 'wan3.0-video-prime-1080p',
+      prompt: 'paper boat',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      draft: {
+        videoOptions: {
+          ...videoOptions,
+          aspectRatio: '9:16',
+          resolution: '1080p',
+          duration: 15,
+        },
+        videoCapabilities: {
+          ...seedance,
+          family: 'wan',
+          usesVolcengineMetadata: false,
+          supportsAudioToggle: false,
+        },
+        capabilityMode: 'text',
+        estimateParams: {
+          modality: 'video',
+          n: 1,
+          size: '1080x1920',
+          duration: 15,
+          has_reference: false,
+        },
+        referenceCounts: { images: 0, videos: 0, audios: 0 },
+      },
+    })
+    expect(request.body).toEqual({
+      model: 'wan3.0-video-prime-1080p',
+      prompt: 'paper boat',
+      duration: 15,
+      seconds: '15',
+      size: '1080P',
+      aspect_ratio: '9:16',
+    })
+  })
+
   it('mirrors typed references and metadata options with placeholder media', () => {
     const request = buildApiRequest({
       modality: 'video',

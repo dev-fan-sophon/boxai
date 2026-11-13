@@ -32,6 +32,51 @@ beforeEach(() => {
 })
 
 describe('server-authoritative video submission', () => {
+  it('submits Wan portrait using explicit tier and ratio rather than pixel dimensions', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          text: {
+            ...adaptive,
+            family: 'wan',
+            aspectRatios: ['16:9', '9:16'],
+            resolutions: ['720p'],
+            durations: [15, 30],
+            discreteDurations: true,
+            durationRange: { min: 15, max: 30 },
+            defaults: { aspectRatio: '16:9', resolution: '720p', duration: 15 },
+            maxReferenceImages: 0,
+            supportsLastFrame: false,
+            usesVolcengineMetadata: false,
+          },
+        },
+      },
+    })
+    await submitVideo({
+      model: 'wan3.0-video-prime-720p',
+      group: 'default',
+      prompt: 'A paper boat',
+      settings: DEFAULT_STUDIO_SETTINGS,
+      aspectRatio: '9:16',
+      resolution: '720p',
+      duration: 30,
+    })
+    expect(api.post).toHaveBeenCalledWith(
+      '/pg/video/generations',
+      {
+        model: 'wan3.0-video-prime-720p',
+        group: 'default',
+        prompt: 'A paper boat',
+        duration: 30,
+        seconds: '30',
+        size: '720P',
+        aspect_ratio: '9:16',
+      },
+      { skipErrorHandler: true }
+    )
+  })
+
   it('submits Grok 1.5 text-to-video at 1080p without image fields', async () => {
     vi.mocked(api.get).mockResolvedValue({
       data: {

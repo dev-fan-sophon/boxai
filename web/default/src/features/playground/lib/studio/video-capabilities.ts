@@ -20,7 +20,13 @@ export type VideoResolution = '480p' | '720p' | '1080p'
 export type VideoReferenceMode = 'frames' | 'references'
 
 export type VideoModelCapabilities = {
-  family: 'seedance-2' | 'seedance-2-fast' | 'seedance-2.5' | 'xai' | 'generic'
+  family:
+    | 'seedance-2'
+    | 'seedance-2-fast'
+    | 'seedance-2.5'
+    | 'xai'
+    | 'wan'
+    | 'generic'
   aspectRatios: VideoAspectRatio[]
   resolutions: VideoResolution[]
   resolutionAspectRatios?: Partial<Record<VideoResolution, VideoAspectRatio[]>>
@@ -28,6 +34,8 @@ export type VideoModelCapabilities = {
   imageOnlyResolutions: VideoResolution[]
   durations: number[]
   durationRange: { min: number; max: number }
+  /** When true, durations is exhaustive rather than a list of presets. */
+  discreteDurations?: boolean
   defaults: {
     aspectRatio: VideoAspectRatio
     resolution: VideoResolution
@@ -61,7 +69,9 @@ export function videoDurationOptions(
   capabilities: VideoModelCapabilities
 ): number[] {
   const { min, max } = capabilities.durationRange
-  if (max - min > 30) return capabilities.durations
+  if (capabilities.discreteDurations || max - min > 30) {
+    return capabilities.durations
+  }
   return Array.from({ length: max - min + 1 }, (_, index) => min + index)
 }
 
@@ -240,12 +250,18 @@ export function resolveVideoOptions(
   }
 
   const parsedDuration = Math.round(Number(selection.seconds))
-  const duration = Number.isFinite(parsedDuration)
+  let duration = Number.isFinite(parsedDuration)
     ? Math.min(
         capabilities.durationRange.max,
         Math.max(capabilities.durationRange.min, parsedDuration)
       )
     : capabilities.defaults.duration
+  if (
+    capabilities.discreteDurations &&
+    !capabilities.durations.includes(duration)
+  ) {
+    duration = capabilities.defaults.duration
+  }
 
   const referenceMode: VideoReferenceMode =
     context.mode === 'references' ||

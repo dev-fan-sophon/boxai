@@ -100,14 +100,25 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 		}
 		return validateRemixRequest(c)
 	}
+	if isWanModel(info.OriginModelName) {
+		return a.validateWanRequest(c, info, info.OriginModelName)
+	}
 	return relaycommon.ValidateMultipartDirect(c, info)
 }
 
-// ValidateMappedRequest rejects Seedance requests that the passthrough
-// gateway would refuse (too many reference images, frames mixed with
-// references) before quota is reserved. The upstream model name is only known
-// after channel model mapping, hence the separate hook.
+// ValidateMappedRequest normalizes Wan options and rejects Seedance references
+// that the passthrough cannot transport before quota is reserved. The upstream
+// model name is only known after channel mapping, hence the separate hook.
 func (a *TaskAdaptor) ValidateMappedRequest(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	if isWanModel(info.UpstreamModelName) {
+		if info.Action == constant.TaskActionRemix {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("Wan remix is not supported"), "unsupported_action", http.StatusBadRequest)
+		}
+		if _, validated := c.Get("wan_request"); validated && info.UpstreamModelName == info.OriginModelName {
+			return nil
+		}
+		return a.validateWanRequest(c, info, info.UpstreamModelName)
+	}
 	if info.Action == constant.TaskActionRemix || !isSeedanceModel(info.UpstreamModelName) {
 		return nil
 	}
@@ -149,6 +160,13 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
+		return nil
+	}
+
+	if isWanModel(info.UpstreamModelName) {
+		if value, ok := c.Get("wan_request"); ok {
+			return value.(*wanRequest).Ratios
+		}
 		return nil
 	}
 
@@ -214,6 +232,14 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
+	if isWanModel(info.UpstreamModelName) {
+		value, ok := c.Get("wan_request")
+		if !ok {
+			return nil, fmt.Errorf("Wan request has not been validated")
+		}
+		body, err := common.Marshal(value.(*wanRequest).Body)
+		return bytes.NewReader(body), err
+	}
 	if isVolcengineGateway(a.baseURL) && info.Action != constant.TaskActionRemix {
 		return a.buildVolcengineGatewayBody(c, info)
 	}

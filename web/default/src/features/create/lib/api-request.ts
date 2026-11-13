@@ -230,7 +230,11 @@ function buildVideoApiBody(input: {
     prompt,
     duration,
   }
-  if (input.draft.estimateParams.size) {
+  if (capabilities?.family === 'wan' && options) {
+    body.seconds = String(duration)
+    body.size = options.resolution.toUpperCase()
+    body.aspect_ratio = options.aspectRatio
+  } else if (input.draft.estimateParams.size) {
     body.size = input.draft.estimateParams.size
   }
   const metadata: Record<string, unknown> = {}

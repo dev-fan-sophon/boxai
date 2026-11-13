@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -94,6 +95,11 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 		}
 		return configured
 	}
+	if channel.Type == constant.ChannelTypeSora {
+		if profiles := wanVideoProfiles(mappedModel); profiles != nil {
+			return profiles
+		}
+	}
 	if (channel.Type == constant.ChannelTypeSora || channel.Type == constant.ChannelTypeDoubaoVideo) && isModeledSeedanceModel(mappedModel) {
 		return seedanceVideoProfiles(mappedModel)
 	}
@@ -102,6 +108,38 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 		return nil
 	}
 	return xaiVideoProfiles(mappedModel)
+}
+
+// wanVideoProfiles exposes text generation only; reference modes have not been
+// verified end to end. Fixed-resolution IDs accept exactly 15 or 30 seconds.
+func wanVideoProfiles(name string) map[string]dto.VideoModelCapabilities {
+	p := dto.VideoModelCapabilities{
+		Family: "wan", AspectRatios: []string{"16:9", "9:16", "1:1"},
+		Resolutions: []string{"720p", "1080p"}, ImageOnlyResolutions: []string{},
+		Durations: []int{4, 5, 10, 15, 20, 30}, DurationRange: dto.VideoDurationRange{Min: 4, Max: 30},
+		Defaults: dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 4},
+	}
+	switch name {
+	case "wan-3.0-video", "wan-3.0-video-prime":
+	case "wan3.0-video-1080p", "wan3.0-video-prime-1080p", "wan3.0-video-prime-720p":
+		resolution := "1080p"
+		if name == "wan3.0-video-prime-720p" {
+			resolution = "720p"
+		}
+		p.Resolutions, p.Defaults.Resolution = []string{resolution}, resolution
+		p.Durations, p.DiscreteDurations = []int{15, 30}, true
+		p.DurationRange, p.Defaults.Duration = dto.VideoDurationRange{Min: 15, Max: 30}, 15
+	case "wan3.0-video-nsfw":
+		// Live portrait requests produced landscape output; do not advertise
+		// a ratio this upstream currently accepts but silently ignores.
+		p.AspectRatios = []string{"16:9"}
+		p.Resolutions = []string{"480p", "720p", "1080p"}
+		p.Durations, p.DurationRange.Min = []int{2, 5, 10, 15, 20, 30}, 2
+		p.Defaults.Resolution, p.Defaults.Duration = "480p", 2
+	default:
+		return nil
+	}
+	return map[string]dto.VideoModelCapabilities{"text": p}
 }
 
 // seedanceVideoProfiles describes Seedance 2.x on the Ark contents API.
@@ -221,7 +259,15 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 	a.Resolutions, a.AspectRatios = resolutions, intersectStrings(a.AspectRatios, ratios)
 	a.ResolutionAspectRatios = pairs
 	a.ImageOnlyResolutions = intersectStrings(unionStrings(a.ImageOnlyResolutions, b.ImageOnlyResolutions), a.Resolutions)
-	a.Durations = intersectInts(a.Durations, b.Durations)
+	switch {
+	case a.DiscreteDurations && !b.DiscreteDurations:
+		// A continuous candidate permits every discrete value in its range.
+	case b.DiscreteDurations && !a.DiscreteDurations:
+		a.Durations = b.Durations
+	default:
+		a.Durations = intersectInts(a.Durations, b.Durations)
+	}
+	a.DiscreteDurations = a.DiscreteDurations || b.DiscreteDurations
 	a.DurationRange.Min = max(a.DurationRange.Min, b.DurationRange.Min)
 	a.DurationRange.Max = min(a.DurationRange.Max, b.DurationRange.Max)
 	a.Durations = filterDurationRange(a.Durations, a.DurationRange)
@@ -238,6 +284,9 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 		return dto.VideoModelCapabilities{}, false
 	}
 	if len(a.Durations) == 0 {
+		if a.DiscreteDurations {
+			return dto.VideoModelCapabilities{}, false
+		}
 		a.Durations = []int{a.DurationRange.Min}
 	}
 	if !stringIn(a.Defaults.AspectRatio, a.AspectRatios) {
@@ -251,6 +300,9 @@ func intersectVideoProfile(a, b dto.VideoModelCapabilities) (dto.VideoModelCapab
 	}
 	if a.Defaults.Duration < a.DurationRange.Min || a.Defaults.Duration > a.DurationRange.Max {
 		a.Defaults.Duration = a.DurationRange.Min
+	}
+	if a.DiscreteDurations && !slices.Contains(a.Durations, a.Defaults.Duration) {
+		a.Defaults.Duration = a.Durations[0]
 	}
 	return a, true
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -48,8 +49,10 @@ type VideoModelCapabilities struct {
 	ImageOnlyResolutions   []string            `json:"imageOnlyResolutions"`
 	Durations              []int               `json:"durations"`
 	DurationRange          VideoDurationRange  `json:"durationRange"`
-	Defaults               VideoDefaults       `json:"defaults"`
-	MaxReferenceImages     int                 `json:"maxReferenceImages"`
+	// DiscreteDurations makes Durations exhaustive rather than suggested presets.
+	DiscreteDurations  bool          `json:"discreteDurations,omitempty"`
+	Defaults           VideoDefaults `json:"defaults"`
+	MaxReferenceImages int           `json:"maxReferenceImages"`
 	// MaxReferenceVideos / MaxReferenceAudios bound typed reference media
 	// (reference_videos / reference_audios) in references mode.
 	MaxReferenceVideos int `json:"maxReferenceVideos"`
@@ -143,6 +146,9 @@ func (s *ChannelSettings) ValidateVideoCapabilities() error {
 			}
 			if !containsString(p.AspectRatios, p.Defaults.AspectRatio) || !containsString(p.Resolutions, p.Defaults.Resolution) || p.Defaults.Duration < p.DurationRange.Min || p.Defaults.Duration > p.DurationRange.Max {
 				return fmt.Errorf("invalid video capability defaults for %s/%s", model, mode)
+			}
+			if p.DiscreteDurations && !slices.Contains(p.Durations, p.Defaults.Duration) {
+				return fmt.Errorf("invalid discrete video duration default for %s/%s", model, mode)
 			}
 			for _, limit := range []int{p.MaxReferenceVideos, p.MaxReferenceAudios} {
 				if limit < 0 || limit > MaxVideoReferenceMediaPerKind || (mode != "references" && limit != 0) {

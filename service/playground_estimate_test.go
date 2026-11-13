@@ -9,6 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEstimatePlaygroundCost_WanResolutionTiers(t *testing.T) {
+	original := ratio_setting.ModelPrice2JSONString()
+	t.Cleanup(func() { require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(original)) })
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"wan3.0-video-nsfw":0.1,"wan-3.0-video":0.32,"wan-3.0-video-prime":0.38}`))
+	for _, test := range []struct {
+		model, resolution, size string
+		want                    float64
+	}{
+		{"wan3.0-video-nsfw", "480p", "", 0.2},
+		{"wan3.0-video-nsfw", "720p", "", 0.4},
+		{"wan3.0-video-nsfw", "1080p", "", 0.8},
+		{"wan-3.0-video", "1080p", "", 0.84},
+		{"wan-3.0-video-prime", "", "1080x1920", 0.94},
+	} {
+		result := EstimatePlaygroundCost(PlaygroundEstimateRequest{Modality: "video", Model: test.model, Resolution: test.resolution, Size: test.size, Duration: 2, N: 1, Group: "default"})
+		require.NotNil(t, result.Amount)
+		assert.InDelta(t, test.want*result.GroupRatio, *result.Amount, 0.000001)
+	}
+}
+
 func TestEstimatePlaygroundCost_RequiresModel(t *testing.T) {
 	result := EstimatePlaygroundCost(PlaygroundEstimateRequest{Modality: "image"})
 	assert.Equal(t, "unknown", result.Kind)

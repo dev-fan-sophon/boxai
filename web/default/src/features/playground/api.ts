@@ -307,7 +307,14 @@ export async function buildVideoRequestBody(
     duration,
     seconds: String(duration),
   }
-  if (size) body.size = size
+  if (capabilities.family === 'wan') {
+    body.size = (
+      input.resolution ?? capabilities.defaults.resolution
+    ).toUpperCase()
+    body.aspect_ratio = input.aspectRatio ?? capabilities.defaults.aspectRatio
+  } else if (size) {
+    body.size = size
+  }
   const metadata: Record<string, unknown> = {}
   if (capabilities.supportsAudioToggle && input.generateAudio !== undefined) {
     metadata.generate_audio = input.generateAudio

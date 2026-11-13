@@ -127,6 +127,11 @@ func EstimatePlaygroundCost(req PlaygroundEstimateRequest) PlaygroundEstimateRes
 				}
 			}
 			amount *= seconds
+			resolution := req.Resolution
+			if resolution == "" {
+				resolution, _ = relaycommon.GrokImagineDimensionsFromSize(req.Size)
+			}
+			amount *= relaycommon.WanResolutionRatio(modelName, resolution)
 			if relaycommon.IsSeedanceModel(modelName) {
 				resolution := relaycommon.ResolveSeedanceResolution("", req.Size)
 				amount *= relaycommon.SeedanceResolutionRatio(resolution)

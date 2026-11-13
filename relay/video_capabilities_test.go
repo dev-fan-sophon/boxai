@@ -18,6 +18,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWanStudioCapabilities(t *testing.T) {
+	for _, seconds := range []int{15, 16, 29, 30} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("POST", "/pg/video/generations", nil)
+		info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeSora, UpstreamModelName: "wan3.0-video-prime-720p"}}
+		common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{})
+		c.Set("task_request", relaycommon.TaskSubmitReq{Duration: seconds, Seconds: strconv.Itoa(seconds), Metadata: map[string]interface{}{"resolution": "720p", "ratio": "9:16"}})
+		err := validatePlaygroundVideoCapability(c, info)
+		if seconds == 15 || seconds == 30 {
+			assert.Nil(t, err)
+		} else {
+			require.NotNil(t, err)
+			assert.Equal(t, 400, err.StatusCode)
+		}
+	}
+}
+
 func TestVideoCapabilityChecksSelectedChannelBeforeBilling(t *testing.T) {
 	for _, test := range []struct{ name, metadata, extra string }{
 		{"fixed frame ratio", `"ratio":"9:16"`, ``},
