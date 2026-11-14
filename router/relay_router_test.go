@@ -222,3 +222,21 @@ func setupRelayRouterTestDB(t *testing.T) {
 		}
 	})
 }
+
+func TestGeminiCountTokensIsRejectedBeforeAuthAndRelay(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetRelayRouter(engine)
+
+	for _, path := range []string{
+		"/v1beta/models/gemini-2.0-flash:countTokens",
+		"/v1/models/gemini-2.0-flash:countTokens",
+	} {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"contents":[]}`))
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusNotFound, recorder.Code, path)
+		assert.Contains(t, recorder.Body.String(), "Invalid URL (POST "+path+")", path)
+	}
+}
