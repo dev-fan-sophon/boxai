@@ -125,6 +125,10 @@ func TestResponsesRequestToChatCompletionsRequestMultimodalInput(t *testing.T) {
 	assert.Equal(t, "look", parts[0].Text)
 	assert.Equal(t, dto.ContentTypeImageURL, parts[1].Type)
 	assert.Equal(t, "https://example.test/a.png", parts[1].GetImageMedia().Url)
+	// Chat Completions defines image_url as an object; strict upstreams reject a bare string.
+	wire, err := common.Marshal(got.Messages[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(wire), `"image_url":{"url":"https://example.test/a.png"}`)
 	assert.Equal(t, dto.ContentTypeFile, parts[2].Type)
 	assert.Equal(t, "file_1", parts[2].GetFile().FileId)
 	assert.Equal(t, dto.ContentTypeInputAudio, parts[3].Type)
