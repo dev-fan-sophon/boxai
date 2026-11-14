@@ -332,42 +332,43 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		}
 
 	}
-	isOModel := dto.IsOpenAIReasoningOModel(info.UpstreamModelName)
-	isGPT5Model := dto.IsOpenAIGPT5Model(info.UpstreamModelName)
-	if isOModel || isGPT5Model {
+	// Reasoning effort suffixes apply to the OpenAI reasoning families
+	// (o-series, GPT-5, GPT-6 Astra), recognized on the base model name.
+	effort, baseModel := reasoning.ParseOpenAIReasoningEffortFromModelSuffix(info.UpstreamModelName)
+	familyModel := info.UpstreamModelName
+	if effort != "" {
+		familyModel = baseModel
+	}
+	if dto.GetOpenAIChatCapabilities(familyModel, "").UseMaxCompletionTokens {
+		if effort != "" {
+			request.ReasoningEffort = effort
+			info.UpstreamModelName = baseModel
+			request.Model = baseModel
+		}
+		info.SetReasoningEffort(request.ReasoningEffort)
+	}
+
+	// Model-specific Chat Completions rules use the mapped model and the
+	// resolved reasoning effort.
+	capabilities := dto.GetOpenAIChatCapabilities(info.UpstreamModelName, request.ReasoningEffort)
+	if capabilities.UseMaxCompletionTokens {
 		if lo.FromPtrOr(request.MaxCompletionTokens, uint(0)) == 0 && lo.FromPtrOr(request.MaxTokens, uint(0)) != 0 {
 			request.MaxCompletionTokens = request.MaxTokens
 			request.MaxTokens = nil
 		}
-
-		if isOModel {
-			request.Temperature = nil
-		}
-
-		// gpt-5系列模型适配 归零不再支持的参数
-		if isGPT5Model {
-			request.Temperature = nil
-			request.TopP = nil
-			request.LogProbs = nil
-		}
-
-		// 转换模型推理力度后缀
-		effort, originModel := reasoning.ParseOpenAIReasoningEffortFromModelSuffix(info.UpstreamModelName)
-		if effort != "" {
-			request.ReasoningEffort = effort
-			info.UpstreamModelName = originModel
-			request.Model = originModel
-		}
-
-		info.SetReasoningEffort(request.ReasoningEffort)
-
-		// o系列模型developer适配（o1-mini除外）
-		if !strings.HasPrefix(info.UpstreamModelName, "o1-mini") && !strings.HasPrefix(info.UpstreamModelName, "o1-preview") {
-			//修改第一个Message的内容，将system改为developer
-			if len(request.Messages) > 0 && request.Messages[0].Role == "system" {
-				request.Messages[0].Role = "developer"
-			}
-		}
+	}
+	if !capabilities.SupportsTemperature {
+		request.Temperature = nil
+	}
+	if !capabilities.SupportsTopP {
+		request.TopP = nil
+	}
+	if !capabilities.SupportsLogProbs {
+		request.LogProbs = nil
+		request.TopLogProbs = nil
+	}
+	if capabilities.UseDeveloperRole && len(request.Messages) > 0 && request.Messages[0].Role == "system" {
+		request.Messages[0].Role = "developer"
 	}
 
 	return request, nil
