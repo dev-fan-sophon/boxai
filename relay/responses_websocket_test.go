@@ -1,13 +1,19 @@
 package relay
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/types"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,6 +103,119 @@ func TestResponsesWSErrorEndsRequestCorrelatesControlErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			terminal, ambiguous, controlError := responsesWSErrorEndsRequest(tc.event, "", "resp_active", tc.control)
 			assert.Equal(t, []bool{tc.wantTerminal, tc.wantAmbiguous, tc.wantCtrl}, []bool{terminal, ambiguous, controlError})
+		})
+	}
+}
+
+func newTestWebSocketPair(t *testing.T) (*websocket.Conn, *websocket.Conn, func()) {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	serverConnCh := make(chan *websocket.Conn, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade websocket: %v", err)
+			return
+		}
+		serverConnCh <- conn
+	}))
+	dialed, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	if err != nil {
+		server.Close()
+		t.Fatalf("dial websocket: %v", err)
+	}
+	accepted := <-serverConnCh
+	cleanup := func() {
+		_ = dialed.Close()
+		_ = accepted.Close()
+		server.Close()
+	}
+	return dialed, accepted, cleanup
+}
+
+// readResponsesWSClose reads until the peer's close frame. A dropped socket
+// would read as a synthetic 1006, so a received code proves a frame was sent.
+func readResponsesWSClose(t *testing.T, conn *websocket.Conn) *websocket.CloseError {
+	t.Helper()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
+	_, _, err := conn.ReadMessage()
+	var closeErr *websocket.CloseError
+	require.ErrorAs(t, err, &closeErr)
+	return closeErr
+}
+
+func TestResponsesWSShutdownSendsCloseFramesWithoutWaitingForWriters(t *testing.T) {
+	server, client, cleanupClient := newTestWebSocketPair(t)
+	defer cleanupClient()
+	target, peer, cleanupTarget := newTestWebSocketPair(t)
+	defer cleanupTarget()
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &responsesWSSession{ctx: ctx, cancel: cancel, client: server, target: target}
+	// Blocked network writers own these locks. Shutdown must not wait for
+	// them: its close frames are bounded control writes, and closing the
+	// sockets is what interrupts those writers.
+	s.clientWriteMu.Lock()
+	defer s.clientWriteMu.Unlock()
+	s.targetWriteMu.Lock()
+	defer s.targetWriteMu.Unlock()
+	done := make(chan struct{})
+	go func() { s.shutdown(websocket.CloseInternalServerErr, "upstream connection closed"); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shutdown waited for a network writer")
+	}
+	for _, conn := range []*websocket.Conn{client, peer} {
+		closeErr := readResponsesWSClose(t, conn)
+		assert.Equal(t, websocket.CloseInternalServerErr, closeErr.Code)
+		assert.Equal(t, "upstream connection closed", closeErr.Text)
+	}
+	assert.Nil(t, s.getTarget())
+
+	// Only the first shutdown decides the close code.
+	s.shutdown(websocket.CloseNormalClosure, "")
+
+	// An upstream dial that completes after shutdown is closed with a frame too.
+	late, latePeer, cleanupLate := newTestWebSocketPair(t)
+	defer cleanupLate()
+	assert.False(t, s.setTarget(late))
+	assert.Equal(t, websocket.CloseNormalClosure, readResponsesWSClose(t, latePeer).Code)
+}
+
+// An idle upstream that closes normally ends the client session with its own
+// code; any other end of the upstream socket is reported as 1011.
+func TestResponsesWSIdleUpstreamCloseEndsClientSession(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		upstream func(*testing.T, *websocket.Conn)
+		want     int
+	}{
+		{name: "normal closure", upstream: func(t *testing.T, conn *websocket.Conn) {
+			require.NoError(t, conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "bye"), time.Now().Add(time.Second)))
+		}, want: websocket.CloseNormalClosure},
+		{name: "going away", upstream: func(t *testing.T, conn *websocket.Conn) {
+			require.NoError(t, conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, "restart"), time.Now().Add(time.Second)))
+		}, want: websocket.CloseGoingAway},
+		{name: "dropped", upstream: func(t *testing.T, conn *websocket.Conn) {
+			require.NoError(t, conn.UnderlyingConn().Close())
+		}, want: websocket.CloseInternalServerErr},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server, client, cleanupClient := newTestWebSocketPair(t)
+			defer cleanupClient()
+			target, peer, cleanupTarget := newTestWebSocketPair(t)
+			defer cleanupTarget()
+			ctx, cancel := context.WithCancel(context.Background())
+			s := &responsesWSSession{ctx: ctx, cancel: cancel, client: server}
+			require.True(t, s.setTarget(target))
+			s.startTargetReader(target)
+
+			tc.upstream(t, peer)
+			closeErr := readResponsesWSClose(t, client)
+			assert.Equal(t, tc.want, closeErr.Code)
+			assert.Equal(t, "upstream connection closed", closeErr.Text)
+			s.workers.Wait()
+			assert.Error(t, ctx.Err())
 		})
 	}
 }
