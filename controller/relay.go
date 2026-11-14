@@ -113,17 +113,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				c.Header("Retry-After", strconv.Itoa(retryAfter))
 			}
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
+			upstreamURLs := service.UpstreamAddresses(c)
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
-				helper.WssError(c, ws, newAPIError.ToOpenAIError())
+				helper.WssError(c, ws, newAPIError.ToOpenAIError(upstreamURLs...))
 			case types.RelayFormatClaude:
 				c.JSON(newAPIError.StatusCode, gin.H{
 					"type":  "error",
-					"error": newAPIError.ToClaudeError(),
+					"error": newAPIError.ToClaudeError(upstreamURLs...),
 				})
 			default:
 				c.JSON(newAPIError.StatusCode, gin.H{
-					"error": newAPIError.ToOpenAIError(),
+					"error": newAPIError.ToOpenAIError(upstreamURLs...),
 				})
 			}
 		}
@@ -480,7 +481,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 			startTime = time.Now()
 		}
 		useTimeSeconds := int(time.Since(startTime).Seconds())
-		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
+		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(service.UpstreamAddresses(c)...), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
 	}
 
 }
@@ -732,7 +733,7 @@ func respondTaskError(c *gin.Context, taskErr *dto.TaskError) {
 	if !taskErr.LocalError {
 		fault := types.NewOpenAIError(errors.New(taskErr.Message), types.ErrorCode(taskErr.Code), taskErr.StatusCode)
 		service.NormalizeRelayServiceFault(fault)
-		response.Code, response.Message, response.StatusCode = string(fault.PublicCode()), fault.PublicMessage(), fault.StatusCode
+		response.Code, response.Message, response.StatusCode = string(fault.PublicCode()), fault.PublicMessage(service.UpstreamAddresses(c)...), fault.StatusCode
 		response.Data = nil
 	}
 	if retryAfter := c.GetInt(relaychannel.UpstreamRetryAfterKey); retryAfter > 0 && response.StatusCode == http.StatusTooManyRequests {

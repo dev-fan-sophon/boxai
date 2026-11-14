@@ -211,6 +211,7 @@ func ResponsesWebSocketHelper(c *gin.Context, client *websocket.Conn, runner Res
 func (s *responsesWSSession) runRequest(state *responsesWSCallState, message []byte, envelope responsesWSCreateEvent, streamID string, requestID string) {
 	create, parseErr := normalizeResponsesWSCreateEvent(message, envelope, streamID)
 	var apiErr *types.NewAPIError
+	var upstreamURLs []string
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			common.SysError(fmt.Sprintf("responses websocket request panic: %v", recovered))
@@ -224,7 +225,7 @@ func (s *responsesWSSession) runRequest(state *responsesWSCallState, message []b
 		// as a normal closure; shutdown itself takes neither lock.
 		outgoing := state.terminal
 		if apiErr != nil {
-			if body, err := buildResponsesWSErrorPayload(envelope.EventID, streamID, apiErr); err == nil {
+			if body, err := buildResponsesWSErrorPayload(envelope.EventID, streamID, apiErr, upstreamURLs...); err == nil {
 				outgoing = &responsesWSMessage{kind: websocket.TextMessage, body: body}
 			}
 		}
@@ -254,7 +255,9 @@ func (s *responsesWSSession) runRequest(state *responsesWSCallState, message []b
 		}
 		c.Request.Body = io.NopCloser(bytes.NewReader(create.Body))
 		c.Request.ContentLength = int64(len(create.Body))
-		return s.runCall(c, state, create)
+		callErr := s.runCall(c, state, create)
+		upstreamURLs = service.UpstreamAddresses(c)
+		return callErr
 	})
 	if apiErr != nil && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden) {
 		state.closeCode = websocket.ClosePolicyViolation
@@ -435,6 +438,7 @@ func (s *responsesWSSession) lockConnection(c *gin.Context, channel *model.Chann
 		constant.ContextKeyChannelParamOverride, constant.ContextKeyChannelHeaderOverride, constant.ContextKeyChannelOrganization,
 		constant.ContextKeyChannelAutoBan, constant.ContextKeyChannelModelMapping, constant.ContextKeyChannelStatusCodeMapping,
 		constant.ContextKeyChannelIsMultiKey, constant.ContextKeyChannelMultiKeyIndex, constant.ContextKeyChannelKey, constant.ContextKeyChannelBaseUrl,
+		constant.ContextKeyUpstreamRequestOrigin,
 	} {
 		if value, ok := c.Get(string(key)); ok {
 			s.lockedContext[key] = value
@@ -512,7 +516,7 @@ func (s *responsesWSSession) relayResponse(c *gin.Context, state *responsesWSCal
 				if accepted {
 					accumulator.Observe(&event.ResponsesStreamResponse)
 					fault := s.rejectedRequestError(c, info, rejection)
-					incoming.body, _ = buildResponsesWSErrorPayload(rejection.EventID, create.StreamID, fault)
+					incoming.body, _ = buildResponsesWSErrorPayload(rejection.EventID, create.StreamID, fault, service.UpstreamAddresses(c)...)
 					s.lastResponseID = responseID
 					state.terminal = &incoming
 					if ambiguous {
@@ -1001,7 +1005,7 @@ func buildResponsesWSCreateEvent(jsonData []byte, generate json.RawMessage, stre
 	return common.Marshal(event)
 }
 
-func buildResponsesWSErrorPayload(eventID, streamID string, apiErr *types.NewAPIError) ([]byte, error) {
+func buildResponsesWSErrorPayload(eventID, streamID string, apiErr *types.NewAPIError, upstreamURLs ...string) ([]byte, error) {
 	if apiErr == nil {
 		return nil, errors.New("api error is nil")
 	}
@@ -1009,7 +1013,7 @@ func buildResponsesWSErrorPayload(eventID, streamID string, apiErr *types.NewAPI
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
-	openaiErr := apiErr.ToOpenAIError()
+	openaiErr := apiErr.ToOpenAIError(upstreamURLs...)
 	return common.Marshal(&responsesWSErrorEvent{
 		Type:     "error",
 		Status:   status,
