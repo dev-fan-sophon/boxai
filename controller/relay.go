@@ -114,6 +114,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			}
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
 			upstreamURLs := service.UpstreamAddresses(c)
+			if relayFormat != types.RelayFormatOpenAIRealtime && helper.StreamResponseCommitted(c) &&
+				strings.HasPrefix(c.Writer.Header().Get("Content-Type"), "text/event-stream") {
+				writeRelayStreamError(c, relayFormat, newAPIError, upstreamURLs)
+				return
+			}
+			if relayFormat != types.RelayFormatOpenAIRealtime {
+				// A stream that failed before any byte was sent still answers with JSON.
+				c.Header("Content-Type", "application/json; charset=utf-8")
+			}
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError(upstreamURLs...))
@@ -146,6 +155,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
+	}
+
+	// Claude clients time out a stream that stays silent; keep it alive while
+	// media is fetched, billing is prepared and channels are retried.
+	generalSettings := operation_setting.GetGeneralSetting()
+	if relayFormat == types.RelayFormatClaude && relayInfo.IsStream && generalSettings.PingIntervalEnabled {
+		stopKeepAlive := helper.StartStreamKeepAlive(c, time.Duration(generalSettings.PingIntervalSeconds)*time.Second)
+		defer stopKeepAlive()
 	}
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
@@ -373,6 +390,18 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		return nil, newAPIError
 	}
 	return channel, nil
+}
+
+// writeRelayStreamError reports the final error on the stream a keepalive
+// already committed, since its status line can no longer change.
+func writeRelayStreamError(c *gin.Context, format types.RelayFormat, apiError *types.NewAPIError, upstreamURLs []string) {
+	helper.ExtendWriteDeadline(c)
+	if format == types.RelayFormatClaude {
+		_ = helper.ClaudeData(c, dto.ClaudeResponse{Type: "error", Error: apiError.ToClaudeError(upstreamURLs...)})
+		return
+	}
+	_ = helper.ObjectData(c, gin.H{"error": apiError.ToOpenAIError(upstreamURLs...)})
+	helper.Done(c)
 }
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
