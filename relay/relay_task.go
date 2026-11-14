@@ -21,6 +21,7 @@ import (
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/relay/helper"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -241,12 +242,10 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		noteTaskQuotaClamp(info, clamp)
 	}
 
-	// 7. 预扣费（仅首次 — 重试时 info.Billing 已存在，跳过）
-	if info.Billing == nil && !info.PriceData.FreeModel {
-		info.ForcePreConsume = true
-		if apiErr := service.PreConsumeBilling(c, info.PriceData.Quota, info); apiErr != nil {
-			return nil, service.TaskErrorFromAPIError(apiErr)
-		}
+	// 7. 预扣费：首次尝试创建计费会话；重试时会话已存在，换到更贵的渠道要在
+	//    发起上游请求前补足预扣，余额不足就不发请求。
+	if taskErr := reserveTaskAttemptBilling(c, info); taskErr != nil {
+		return nil, taskErr
 	}
 
 	// 8. 构建请求体
@@ -601,6 +600,37 @@ func recalcQuotaFromRatios(info *relaycommon.RelayInfo, ratios map[string]float6
 // noteTaskQuotaClamp records the first quota saturation event onto the task's
 // RelayInfo so LogTaskConsumption can surface it on the submit log's
 // admin_info. First non-nil clamp wins.
+// reserveTaskAttemptBilling holds this attempt's price before the upstream
+// sees the request. The first attempt creates the billing session. A retry may
+// land on a channel that prices the task higher; its reservation is raised
+// first, with the same balance check as the first pre-consume, so a channel
+// the balance cannot cover is never called. A cheaper retry keeps the existing
+// reservation and settlement refunds the difference.
+func reserveTaskAttemptBilling(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskError {
+	if info.Billing == nil {
+		if info.PriceData.FreeModel {
+			return nil
+		}
+		info.ForcePreConsume = true
+		if apiErr := service.PreConsumeBilling(c, info.PriceData.Quota, info); apiErr != nil {
+			return service.TaskErrorFromAPIError(apiErr)
+		}
+		return nil
+	}
+	if info.QuotaClamp != nil {
+		return service.TaskErrorFromAPIError(types.NewErrorWithStatusCode(
+			info.QuotaClamp, types.ErrorCodeModelPriceError, http.StatusBadRequest, types.ErrOptionWithSkipRetry()))
+	}
+	if err := info.Billing.Reserve(info.PriceData.Quota); err != nil {
+		var apiErr *types.NewAPIError
+		if !errors.As(err, &apiErr) {
+			apiErr = types.NewErrorWithStatusCode(err, types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry())
+		}
+		return service.TaskErrorFromAPIError(apiErr)
+	}
+	return nil
+}
+
 func noteTaskQuotaClamp(info *relaycommon.RelayInfo, clamp *common.QuotaClamp) {
 	if clamp == nil || info == nil {
 		return

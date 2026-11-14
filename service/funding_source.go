@@ -65,7 +65,8 @@ func (w *WalletFunding) PreConsume(amount int) error {
 	if !reserved {
 		return ErrInsufficientWalletQuota
 	}
-	w.consumed = amount
+	// Accumulate so a refund returns every reservation this source holds.
+	w.consumed += amount
 	w.trackOverage(amount)
 	return nil
 }
