@@ -7,7 +7,24 @@ import (
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"gorm.io/gorm"
 )
+
+// cacheMAC signs every cached field. The raw key is replaced by the cache key
+// binding so a signed hash cannot be copied to another token's key.
+func (token Token) cacheMAC() (string, error) {
+	cacheKey := getTokenCacheKey(token.Key)
+	token.Key = ""
+	token.CacheMAC = ""
+	if token.AllowIps != nil && *token.AllowIps == "" {
+		token.AllowIps = nil
+	}
+	return authCacheMAC(cacheKey, struct {
+		Token          Token
+		AutoGroups     string
+		CacheExpiresAt int64
+	}{token, token.AutoGroups, token.CacheExpiresAt})
+}
 
 func getTokenCacheKey(key string) string {
 	return fmt.Sprintf("token:%s", common.GenerateHMAC(key))
@@ -50,6 +67,12 @@ func cacheInitToken(token Token) (int, error) {
 	if token.AllowIps != nil {
 		allowIps = *token.AllowIps
 	}
+	token.DeletedAt = gorm.DeletedAt{}
+	token.CacheExpiresAt = time.Now().Add(time.Duration(tokenCacheTTLSeconds()) * time.Second).UnixMilli()
+	mac, err := token.cacheMAC()
+	if err != nil {
+		return 0, err
+	}
 	const script = `
 if redis.call('EXISTS', KEYS[2]) == 1 then
   return 0
@@ -58,12 +81,14 @@ if redis.call('EXISTS', KEYS[1]) == 1 then
 	if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[1]) then
 		redis.call('DEL', KEYS[1])
 	else
+		redis.call('HDEL', KEYS[1], 'DeletedAt')
 		redis.call('HSET', KEYS[1],
 		  'UserId', ARGV[2], 'Status', ARGV[3], 'Name', ARGV[4],
 		  'CreatedTime', ARGV[5], 'AccessedTime', ARGV[6], 'ExpiredTime', ARGV[7],
 		  'UnlimitedQuota', ARGV[8], 'ModelLimitsEnabled', ARGV[9], 'ModelLimits', ARGV[10],
 		  'AllowIps', ARGV[11], 'Group', ARGV[12], 'CrossGroupRetry', ARGV[13],
-		  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16])
+		  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16],
+		  'CacheExpiresAt', ARGV[18], 'CacheMAC', ARGV[19])
 		redis.call('EXPIRE', KEYS[1], ARGV[17])
 		return 2
 	end
@@ -73,7 +98,8 @@ redis.call('HSET', KEYS[1],
   'CreatedTime', ARGV[5], 'AccessedTime', ARGV[6], 'ExpiredTime', ARGV[7],
   'UnlimitedQuota', ARGV[8], 'ModelLimitsEnabled', ARGV[9], 'ModelLimits', ARGV[10],
   'AllowIps', ARGV[11], 'Group', ARGV[12], 'CrossGroupRetry', ARGV[13],
-  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16])
+  'AutoGroups', ARGV[14], 'RemainQuota', ARGV[15], 'UsedQuota', ARGV[16],
+  'CacheExpiresAt', ARGV[18], 'CacheMAC', ARGV[19])
 redis.call('EXPIRE', KEYS[1], ARGV[17])
 return 1`
 	return common.RDB.Eval(context.Background(), script, []string{
@@ -84,7 +110,7 @@ return 1`
 		strconv.FormatBool(token.UnlimitedQuota), strconv.FormatBool(token.ModelLimitsEnabled),
 		token.ModelLimits, allowIps, token.Group, strconv.FormatBool(token.CrossGroupRetry),
 		token.AutoGroups, token.RemainQuota, token.UsedQuota,
-		tokenCacheTTLSeconds(),
+		tokenCacheTTLSeconds(), token.CacheExpiresAt, mac,
 	).Int()
 }
 
@@ -100,5 +126,9 @@ func cacheGetTokenByKey(key string) (*Token, error) {
 		return nil, fmt.Errorf("token cache is incomplete")
 	}
 	token.Key = key
+	mac, err := token.cacheMAC()
+	if err != nil || !validAuthCacheMAC(mac, token.CacheMAC, token.CacheExpiresAt) {
+		return nil, fmt.Errorf("token cache integrity check failed")
+	}
 	return &token, nil
 }

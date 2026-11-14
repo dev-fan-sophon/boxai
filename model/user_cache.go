@@ -22,6 +22,20 @@ type UserBase struct {
 	Status   int    `json:"status"`
 	Username string `json:"username"`
 	Setting  string `json:"setting"`
+
+	CacheExpiresAt int64  `json:"-"`
+	CacheMAC       string `json:"-"`
+}
+
+// cacheMAC signs every cached field together with the user cache key so a
+// hash edited or copied inside Redis cannot change who the user is, what
+// they may do, or how much quota they have.
+func (user UserBase) cacheMAC() (string, error) {
+	user.CacheMAC = ""
+	return authCacheMAC(getUserCacheKey(user.Id), struct {
+		User           UserBase
+		CacheExpiresAt int64
+	}{user, user.CacheExpiresAt})
 }
 
 func (user *UserBase) WriteContext(c *gin.Context) {
@@ -90,6 +104,11 @@ func populateUserCache(user User) error {
 		return nil
 	}
 	base := user.ToBaseUser()
+	base.CacheExpiresAt = time.Now().Add(time.Duration(userCacheTTLSeconds()) * time.Second).UnixMilli()
+	mac, err := base.cacheMAC()
+	if err != nil {
+		return err
+	}
 	const script = `
 if redis.call('EXISTS', KEYS[2]) == 1 then
   return 0
@@ -100,19 +119,21 @@ if redis.call('EXISTS', KEYS[1]) == 1 then
 	else
 		redis.call('HSET', KEYS[1],
 		  'Group', ARGV[2], 'Email', ARGV[3], 'Quota', ARGV[4], 'Status', ARGV[5],
-		  'Username', ARGV[6], 'Setting', ARGV[7])
+		  'Username', ARGV[6], 'Setting', ARGV[7], 'CacheExpiresAt', ARGV[9], 'CacheMAC', ARGV[10])
 		redis.call('EXPIRE', KEYS[1], ARGV[8])
 		return 2
 	end
 end
 redis.call('HSET', KEYS[1],
   'Id', ARGV[1], 'Group', ARGV[2], 'Email', ARGV[3], 'Quota', ARGV[4],
-  'Status', ARGV[5], 'Username', ARGV[6], 'Setting', ARGV[7])
+  'Status', ARGV[5], 'Username', ARGV[6], 'Setting', ARGV[7],
+  'CacheExpiresAt', ARGV[9], 'CacheMAC', ARGV[10])
 redis.call('EXPIRE', KEYS[1], ARGV[8])
 return 1`
 	return common.RDB.Eval(context.Background(), script, []string{
 		getUserCacheKey(user.Id), getUserCacheFenceKey(user.Id),
-	}, base.Id, base.Group, base.Email, base.Quota, base.Status, base.Username, base.Setting, userCacheTTLSeconds()).Err()
+	}, base.Id, base.Group, base.Email, base.Quota, base.Status, base.Username, base.Setting,
+		userCacheTTLSeconds(), base.CacheExpiresAt, mac).Err()
 }
 
 // updateUserCache refreshes non-quota user cache fields.
@@ -170,6 +191,10 @@ func cacheGetUserBase(userId int) (*UserBase, error) {
 	}
 	if userCache.Id != userId {
 		return nil, fmt.Errorf("user cache is incomplete")
+	}
+	mac, err := userCache.cacheMAC()
+	if err != nil || !validAuthCacheMAC(mac, userCache.CacheMAC, userCache.CacheExpiresAt) {
+		return nil, fmt.Errorf("user cache integrity check failed")
 	}
 	return &userCache, nil
 }
@@ -244,17 +269,51 @@ func updateUserSettingCache(userId int, setting string) error {
 	return updateUserCacheField(userId, "Setting", setting)
 }
 
+// updateUserCacheField changes one field of a verified hash and re-signs it.
+// The compare-and-set on CacheMAC drops the write when the hash changed or was
+// repopulated in between; a missing or unverifiable hash is left for the next
+// GetUserCache call to repair from the database.
 func updateUserCacheField(userId int, field string, value string) error {
 	if !common.RedisEnabled || common.RDB == nil {
 		return nil
+	}
+	current, err := cacheGetUserBase(userId)
+	if err != nil {
+		return nil
+	}
+	previousMAC := current.CacheMAC
+	switch field {
+	case "Group":
+		current.Group = value
+	case "Email":
+		current.Email = value
+	case "Username":
+		current.Username = value
+	case "Setting":
+		current.Setting = value
+	case "Status":
+		status, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid user cache status %q: %w", value, err)
+		}
+		current.Status = status
+	default:
+		return fmt.Errorf("unsupported user cache field %s", field)
+	}
+	mac, err := current.cacheMAC()
+	if err != nil {
+		return err
 	}
 	const script = `
 if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[1]) then
   return 0
 end
-redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
+if (redis.call('HGET', KEYS[1], 'CacheMAC') or '') ~= ARGV[4] then
+  return 0
+end
+redis.call('HSET', KEYS[1], ARGV[2], ARGV[3], 'CacheMAC', ARGV[5])
 return 1`
-	return common.RDB.Eval(context.Background(), script, []string{getUserCacheKey(userId)}, userId, field, value).Err()
+	return common.RDB.Eval(context.Background(), script, []string{getUserCacheKey(userId)}, userId, field, value, previousMAC, mac).Err()
 }
 
 // GetUserLanguage returns the user's language preference from cache
