@@ -87,3 +87,45 @@ func TestBillingUsageJSONUsesProtocolNamedFields(t *testing.T) {
 	assert.Nil(t, clone.ClaudeUsage.BillingUsage)
 	assert.Nil(t, clone.GeminiUsageMetadata.BillingUsage)
 }
+
+func TestInputTokenDetailsCacheCreationInputTokens(t *testing.T) {
+	cases := []struct {
+		name  string
+		raw   string
+		total int
+	}{
+		{name: "scalar only", raw: `{"cached_tokens":1200,"cache_creation_input_tokens":300}`, total: 300},
+		{name: "scalar larger than cache write", raw: `{"cache_write_tokens":250,"cache_creation_input_tokens":400}`, total: 400},
+		{name: "cache write larger than scalar", raw: `{"cache_write_tokens":250,"cache_creation_input_tokens":100}`, total: 250},
+		{name: "scalar larger than cached creation", raw: `{"cached_creation_tokens":300,"cache_creation_input_tokens":400}`, total: 400},
+		{name: "negative scalar ignored beside cache write", raw: `{"cache_write_tokens":80,"cache_creation_input_tokens":-1}`, total: 80},
+		{name: "only negative scalar", raw: `{"cache_creation_input_tokens":-5}`, total: 0},
+		{name: "undocumented creation object ignored", raw: `{"cached_tokens":1200,"cache_creation":{"ephemeral_5m_input_tokens":300}}`, total: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var details InputTokenDetails
+			require.NoError(t, common.Unmarshal([]byte(tc.raw), &details))
+			assert.Equal(t, tc.total, details.CacheCreationTokensTotal())
+		})
+	}
+
+	var withCreation Usage
+	require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":1510,"completion_tokens":20,"total_tokens":1530,"prompt_tokens_details":{"cached_tokens":1200,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":300}}}`), &withCreation))
+	assert.Equal(t, 300, withCreation.PromptTokensDetails.CacheCreationInputTokens)
+	assert.Equal(t, 300, withCreation.PromptTokensDetails.CacheCreationTokensTotal())
+	assert.Zero(t, withCreation.PromptTokensDetails.CachedCreationTokens)
+	assert.Zero(t, withCreation.PromptTokensDetails.CacheWriteTokens)
+	assert.Zero(t, withCreation.ClaudeCacheCreation5mTokens)
+	assert.Zero(t, withCreation.ClaudeCacheCreation1hTokens)
+
+	encoded, err := common.Marshal(withCreation)
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), `"cache_creation_input_tokens":300`)
+
+	var withoutCreation Usage
+	require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":1510,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":1200}}`), &withoutCreation))
+	encoded, err = common.Marshal(withoutCreation)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "cache_creation_input_tokens")
+}
