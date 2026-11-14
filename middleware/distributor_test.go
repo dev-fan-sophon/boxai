@@ -2,11 +2,16 @@ package middleware
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
+	appI18n "github.com/dev-fan-sophon/boxai/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,4 +105,54 @@ func TestElevenLabsNativeRoutesRejectNonAllowlistedEndpoint(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, request)
 	assert.False(t, shouldSelectChannel)
+}
+
+func TestDistributeReportsRequestBodyFailureCause(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	require.NoError(t, appI18n.Init())
+	previous := constant.MaxRequestBodyMB
+	constant.MaxRequestBodyMB = 1
+	t.Cleanup(func() { constant.MaxRequestBodyMB = previous })
+
+	router := gin.New()
+	router.POST("/v1/chat/completions", Distribute(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	for _, tc := range []struct {
+		name    string
+		body    io.Reader
+		status  int
+		message string
+	}{
+		{
+			name:    "oversized body",
+			body:    strings.NewReader(`{"model":"gpt-x","input":"` + strings.Repeat("a", 1<<20) + `"}`),
+			status:  http.StatusRequestEntityTooLarge,
+			message: "Invalid request: request body exceeds 1 MB: request body too large",
+		},
+		{
+			name:    "body cut off mid-upload",
+			body:    io.MultiReader(strings.NewReader(`{"model":"gpt-x","input":"`), iotest.ErrReader(io.ErrUnexpectedEOF)),
+			status:  http.StatusBadRequest,
+			message: "Invalid request: unexpected EOF",
+		},
+		{
+			name:    "invalid JSON is prefixed once",
+			body:    strings.NewReader(`{"model":"gpt-x",`),
+			status:  http.StatusBadRequest,
+			message: "Invalid request: invalid JSON request body",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", tc.body)
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			assert.Equal(t, tc.status, recorder.Code)
+			assert.Contains(t, recorder.Body.String(), `"message":"`+tc.message)
+			assert.NotContains(t, recorder.Body.String(), "Invalid request: Invalid request")
+		})
+	}
 }
