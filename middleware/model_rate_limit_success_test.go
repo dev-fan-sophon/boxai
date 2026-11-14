@@ -21,13 +21,13 @@ func TestModelSuccessQuotaOutcomes(t *testing.T) {
 				oldMemory, oldRedis := modelSuccessLimiter, common.RDB
 				modelSuccessLimiter = limiter.NewSuccessMemory()
 				t.Cleanup(func() { modelSuccessLimiter, common.RDB = oldMemory, oldRedis })
-				handler := memoryRateLimitHandler(60, 0, 1)
+				handler := memoryRateLimitHandler("0", 60, 0, 1)
 				if backend == "redis" {
 					server := miniredis.RunT(t)
 					client := redis.NewClient(&redis.Options{Addr: server.Addr()})
 					t.Cleanup(func() { require.NoError(t, client.Close()) })
 					common.RDB = client
-					handler = redisRateLimitHandler(60, 0, 1)
+					handler = redisRateLimitHandler("0", 60, 0, 1)
 				}
 				router := gin.New()
 				router.Use(gin.Recovery(), handler)
