@@ -8,8 +8,9 @@ import (
 // to record soft errors, signal fatal stops, or mark normal completion.
 // StreamScannerHandler checks IsStopped() after each callback invocation.
 type StreamResult struct {
-	status  *relaycommon.StreamStatus
-	stopped bool
+	status    *relaycommon.StreamStatus
+	stopped   bool
+	delivered bool
 }
 
 func newStreamResult(status *relaycommon.StreamStatus) *StreamResult {
@@ -39,6 +40,14 @@ func (r *StreamResult) Stop(err error) {
 func (r *StreamResult) Done() {
 	r.status.SetEndReason(relaycommon.StreamEndReasonDone, nil)
 	r.stopped = true
+}
+
+// DoneDelivered is Done for a protocol completion the handler has already
+// written to the client successfully. A client cancellation that raced with
+// that write is then reported as a normal end.
+func (r *StreamResult) DoneDelivered() {
+	r.Done()
+	r.delivered = true
 }
 
 // IsStopped returns whether Stop() or Done() was called during this chunk.
