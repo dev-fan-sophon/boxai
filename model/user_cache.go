@@ -49,8 +49,10 @@ func getUserCacheKey(userId int) string {
 	return fmt.Sprintf("user:%d", userId)
 }
 
+// The fence uses the cache key as its hash tag so populateUserCache's script
+// reads both keys from one slot on sharded Redis.
 func getUserCacheFenceKey(userId int) string {
-	return fmt.Sprintf("user:fence:%d", userId)
+	return fmt.Sprintf("user:fence:{%s}", getUserCacheKey(userId))
 }
 
 func userCacheTTLSeconds() int {
