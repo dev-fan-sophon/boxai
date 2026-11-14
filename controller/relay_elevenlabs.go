@@ -25,7 +25,7 @@ func RelayElevenLabs(c *gin.Context) {
 		}
 		logger.LogError(c, fmt.Sprintf("ElevenLabs relay error: %s", common.LocalLogPreview(newAPIError.Error())))
 		newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestID))
-		c.JSON(newAPIError.StatusCode, gin.H{"error": newAPIError.ToOpenAIError()})
+		c.JSON(newAPIError.StatusCode, gin.H{"error": newAPIError.ToOpenAIError(service.UpstreamAddresses(c)...)})
 	}()
 
 	upstreamPath := elevenlabs.UpstreamPathFromProxyPath(c.Request.URL.Path)

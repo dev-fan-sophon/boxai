@@ -137,8 +137,16 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			sr.Error(err)
 			return
 		}
-		sendResponsesStreamData(c, streamResponse, data)
 		accumulator.Observe(&streamResponse)
+		if err := helper.ResponseChunkData(c, streamResponse, data); err != nil {
+			sr.Stop(err)
+			return
+		}
+		// Stop once the completed response reached the client instead of
+		// waiting for the upstream to close, which a client may beat.
+		if isCompletedResponsesEvent(&streamResponse) {
+			sr.DoneDelivered()
+		}
 	})
 	return accumulator.Finish(c), nil
 }

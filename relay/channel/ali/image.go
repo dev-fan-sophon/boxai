@@ -217,7 +217,12 @@ func updateTask(info *relaycommon.RelayInfo, taskID string) (*AliResponse, error
 
 	req.Header.Set("Authorization", "Bearer "+info.ApiKey)
 
-	client := &http.Client{}
+	// Poll through the shared relay client so the channel proxy and the
+	// RELAY_RESPONSE_HEADER_TIMEOUT bound apply to every upstream wait.
+	client, err := service.GetHttpClientWithProxySettings(info.ChannelSetting.Proxy, info.ChannelSetting)
+	if err != nil {
+		return &aliResponse, err, nil
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		common.SysLog("updateTask client.Do err: " + err.Error())

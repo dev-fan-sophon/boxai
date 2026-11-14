@@ -187,11 +187,11 @@ func (e *NewAPIError) OriginalStatusCode() int {
 	return e.StatusCode
 }
 
-func (e *NewAPIError) PublicMessage() string {
+func (e *NewAPIError) PublicMessage(upstreamURLs ...string) string {
 	if e != nil && e.publicMessage != "" {
 		return e.publicMessage
 	}
-	return e.MaskSensitiveError()
+	return e.MaskSensitiveError(upstreamURLs...)
 }
 
 func (e *NewAPIError) PublicCode() ErrorCode {
@@ -225,7 +225,9 @@ func (e *NewAPIError) ErrorWithStatusCode() string {
 	return fmt.Sprintf("status_code=%d, %s", e.StatusCode, msg)
 }
 
-func (e *NewAPIError) MaskSensitiveError() string {
+// MaskSensitiveError masks the upstream addresses of the channel that produced
+// the error in the error text; see common.MaskSensitiveInfo.
+func (e *NewAPIError) MaskSensitiveError(upstreamURLs ...string) string {
 	if e == nil {
 		return ""
 	}
@@ -236,17 +238,17 @@ func (e *NewAPIError) MaskSensitiveError() string {
 	if e.errorCode == ErrorCodeCountTokenFailed {
 		return errStr
 	}
-	return common.MaskSensitiveInfo(errStr)
+	return common.MaskSensitiveInfo(errStr, upstreamURLs...)
 }
 
-func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
+func (e *NewAPIError) MaskSensitiveErrorWithStatusCode(upstreamURLs ...string) string {
 	if e == nil {
 		return ""
 	}
 	if e.publicMessage != "" {
 		return fmt.Sprintf("status_code=%d, %s", e.StatusCode, e.publicMessage)
 	}
-	msg := e.MaskSensitiveError()
+	msg := e.MaskSensitiveError(upstreamURLs...)
 	if e.StatusCode == 0 {
 		return msg
 	}
@@ -260,7 +262,9 @@ func (e *NewAPIError) SetMessage(message string) {
 	e.Err = errors.New(message)
 }
 
-func (e *NewAPIError) ToOpenAIError() OpenAIError {
+// ToOpenAIError masks the upstream addresses in the message; pass those of the
+// channel that produced the error, or none when no channel did.
+func (e *NewAPIError) ToOpenAIError(upstreamURLs ...string) OpenAIError {
 	var result OpenAIError
 	switch e.errorType {
 	case ErrorTypeOpenAIError:
@@ -291,7 +295,7 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 		result.Param = ""
 		result.Metadata = nil
 	} else if e.errorCode != ErrorCodeCountTokenFailed {
-		result.Message = common.MaskSensitiveInfo(result.Message)
+		result.Message = common.MaskSensitiveInfo(result.Message, upstreamURLs...)
 	}
 	if result.Message == "" {
 		result.Message = string(e.errorType)
@@ -299,7 +303,8 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 	return result
 }
 
-func (e *NewAPIError) ToClaudeError() ClaudeError {
+// ToClaudeError masks the upstream addresses like ToOpenAIError.
+func (e *NewAPIError) ToClaudeError(upstreamURLs ...string) ClaudeError {
 	var result ClaudeError
 	switch e.errorType {
 	case ErrorTypeOpenAIError:
@@ -323,7 +328,7 @@ func (e *NewAPIError) ToClaudeError() ClaudeError {
 		result.Message = e.publicMessage
 		result.Type = string(e.publicCode)
 	} else if e.errorCode != ErrorCodeCountTokenFailed {
-		result.Message = common.MaskSensitiveInfo(result.Message)
+		result.Message = common.MaskSensitiveInfo(result.Message, upstreamURLs...)
 	}
 	if result.Message == "" {
 		result.Message = string(e.errorType)

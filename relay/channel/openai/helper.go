@@ -236,9 +236,20 @@ func HandleFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, lastStream
 	}
 }
 
-func sendResponsesStreamData(c *gin.Context, streamResponse dto.ResponsesStreamResponse, data string) {
-	if data == "" {
-		return
+// isCompletedResponsesEvent reports a terminal event of a response that
+// completed without an upstream error.
+func isCompletedResponsesEvent(event *dto.ResponsesStreamResponse) bool {
+	if event.Type != "response.completed" && event.Type != "response.done" {
+		return false
 	}
-	_ = helper.ResponseChunkData(c, streamResponse, data)
+	if event.Response == nil || event.Response.GetOpenAIError() != nil {
+		return false
+	}
+	var status string
+	if len(event.Response.Status) > 0 {
+		if err := common.Unmarshal(event.Response.Status, &status); err != nil {
+			return false
+		}
+	}
+	return status == "" || status == "completed"
 }

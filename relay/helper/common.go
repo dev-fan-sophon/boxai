@@ -1,9 +1,12 @@
 package helper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
@@ -13,6 +16,167 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+// streamKeepAliveWriter pings a stream before the relay writes to it, and
+// hands the connection over to the relay on its first write.
+type streamKeepAliveWriter struct {
+	gin.ResponseWriter
+	mutex       sync.Mutex
+	cancel      context.CancelFunc
+	done        chan struct{}
+	pingContext *gin.Context
+	// relayWrote reports relay output; keepalive pings are not output, so a
+	// request that only pinged can still be retried on another channel.
+	relayWrote bool
+}
+
+func (writer *streamKeepAliveWriter) stop() {
+	writer.cancel()
+	<-writer.done
+}
+
+func (writer *streamKeepAliveWriter) handOver() {
+	writer.stop()
+	writer.mutex.Lock()
+	writer.relayWrote = true
+	writer.mutex.Unlock()
+}
+
+func (writer *streamKeepAliveWriter) Unwrap() http.ResponseWriter {
+	return writer.ResponseWriter
+}
+
+// Header ends the keepalive: a ping may commit the header map at any time,
+// so a handler that edits headers owns the response from then on.
+func (writer *streamKeepAliveWriter) Header() http.Header {
+	writer.stop()
+	return writer.ResponseWriter.Header()
+}
+
+func (writer *streamKeepAliveWriter) Write(data []byte) (int, error) {
+	writer.handOver()
+	return writer.ResponseWriter.Write(data)
+}
+
+func (writer *streamKeepAliveWriter) WriteString(data string) (int, error) {
+	writer.handOver()
+	return writer.ResponseWriter.WriteString(data)
+}
+
+func (writer *streamKeepAliveWriter) WriteHeader(status int) {
+	writer.stop()
+	writer.ResponseWriter.WriteHeader(status)
+}
+
+func (writer *streamKeepAliveWriter) WriteHeaderNow() {
+	writer.handOver()
+	writer.ResponseWriter.WriteHeaderNow()
+}
+
+func (writer *streamKeepAliveWriter) Flush() {
+	writer.handOver()
+	writer.ResponseWriter.Flush()
+}
+
+func (writer *streamKeepAliveWriter) Status() int {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	return writer.ResponseWriter.Status()
+}
+
+func (writer *streamKeepAliveWriter) Size() int {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	return writer.ResponseWriter.Size()
+}
+
+func (writer *streamKeepAliveWriter) Written() bool {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	return writer.relayWrote
+}
+
+// committed reports whether a ping or the relay already sent the headers.
+func (writer *streamKeepAliveWriter) committed() bool {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	return writer.ResponseWriter.Written()
+}
+
+func (writer *streamKeepAliveWriter) ping() error {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	return PingData(writer.pingContext)
+}
+
+// StartStreamKeepAlive pings a streaming response every interval while the
+// request is prepared and retried; the first relay write hands the stream to
+// its handler. A nested call reuses a running keepalive, and its cleanup does
+// not end the outer one early.
+func StartStreamKeepAlive(c *gin.Context, interval time.Duration) func() {
+	if previous, ok := c.Writer.(*streamKeepAliveWriter); ok {
+		select {
+		case <-previous.done:
+			c.Writer = previous.ResponseWriter
+		default:
+			return func() {}
+		}
+	}
+	if requestContextDone(c) {
+		return func() {}
+	}
+	if interval <= 0 {
+		interval = DefaultPingInterval
+	}
+	SetEventStreamHeaders(c)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 120*time.Minute)
+	pingContext := c.Copy()
+	// Pings use the original writer; only relay writes trigger the handover.
+	pingContext.Writer = c.Writer
+	writer := &streamKeepAliveWriter{ResponseWriter: c.Writer, cancel: cancel, done: make(chan struct{}), pingContext: pingContext}
+	c.Writer = writer
+	go writer.keepAlive(ctx, interval)
+	return writer.stop
+}
+
+// StopStreamKeepAlive ends a running keepalive before its handler changes the
+// response headers; the handler owns every later write.
+func StopStreamKeepAlive(c *gin.Context) {
+	if writer, ok := c.Writer.(*streamKeepAliveWriter); ok {
+		writer.stop()
+	}
+}
+
+// StreamResponseCommitted reports whether the response headers were sent,
+// including by a keepalive ping that the relay has not written after.
+func StreamResponseCommitted(c *gin.Context) bool {
+	if writer, ok := c.Writer.(*streamKeepAliveWriter); ok {
+		return writer.committed()
+	}
+	return c.Writer.Written()
+}
+
+func (writer *streamKeepAliveWriter) keepAlive(ctx context.Context, interval time.Duration) {
+	defer close(writer.done)
+	defer writer.cancel()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			logger.LogDebug(writer.pingContext, "SSE ping goroutine panic recovered: %v", recovered)
+		}
+	}()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if ctx.Err() != nil || writer.ping() != nil {
+				return
+			}
+		}
+	}
+}
 
 func FlushWriter(c *gin.Context) (err error) {
 	defer func() {
@@ -35,6 +199,20 @@ func FlushWriter(c *gin.Context) (err error) {
 	}
 
 	flusher.Flush()
+	// Gin's http.Flusher wrapper discards the underlying FlushError result.
+	// Flush wrappers first so their buffers are preserved, then surface any
+	// stored write error from an error-aware writer underneath them.
+	var writer http.ResponseWriter = c.Writer
+	for {
+		if flusher, ok := writer.(interface{ FlushError() error }); ok {
+			return flusher.FlushError()
+		}
+		unwrapper, ok := writer.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			break
+		}
+		writer = unwrapper.Unwrap()
+	}
 	return nil
 }
 
@@ -56,6 +234,8 @@ func SetEventStreamHeaders(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Transfer-Encoding", "chunked")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	// Every later write to this stream shares one write deadline budget.
+	c.Writer = &streamResponseWriter{ResponseWriter: c.Writer}
 }
 
 func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
@@ -89,8 +269,14 @@ func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data st
 		return fmt.Errorf("request context done: %w", c.Request.Context().Err())
 	}
 
-	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("data: %s", data)})
+	event := common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)}
+	if err := event.Render(c.Writer); err != nil {
+		return err
+	}
+	event.Data = fmt.Sprintf("data: %s", data)
+	if err := event.Render(c.Writer); err != nil {
+		return err
+	}
 	return FlushWriter(c)
 }
 

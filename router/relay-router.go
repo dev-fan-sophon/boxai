@@ -1,6 +1,7 @@
 package router
 
 import (
+	"strings"
 	"time"
 
 	"github.com/dev-fan-sophon/boxai/constant"
@@ -102,6 +103,7 @@ func SetRelayRouter(router *gin.Engine) {
 		playgroundRouter.Any("/elevenlabs/*path", middleware.Distribute(), controller.PlaygroundElevenLabs)
 	}
 	relayV1Router := router.Group("/v1")
+	relayV1Router.Use(rejectGeminiCountTokens)
 	relayV1Router.Use(middleware.RouteTag("relay"))
 	relayV1Router.Use(middleware.SystemPerformanceCheck())
 	relayV1Router.Use(middleware.TokenAuth())
@@ -258,6 +260,7 @@ func SetRelayRouter(router *gin.Engine) {
 	}
 
 	relayGeminiRouter := router.Group("/v1beta")
+	relayGeminiRouter.Use(rejectGeminiCountTokens)
 	relayGeminiRouter.Use(middleware.RouteTag("relay"))
 	relayGeminiRouter.Use(middleware.SystemPerformanceCheck())
 	relayGeminiRouter.Use(middleware.TokenAuth())
@@ -268,6 +271,16 @@ func SetRelayRouter(router *gin.Engine) {
 		relayGeminiRouter.POST("/models/*path", middleware.ResponseKeepalive(relayKeepaliveIdle, relayKeepaliveInterval), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
+	}
+}
+
+// rejectGeminiCountTokens answers Gemini :countTokens like an unregistered
+// route before auth and channel selection. It is not implemented, and the
+// /models/*path relay would otherwise bill and relay it as generateContent.
+func rejectGeminiCountTokens(c *gin.Context) {
+	if strings.HasSuffix(c.Request.URL.Path, ":countTokens") {
+		controller.RelayNotFound(c)
+		c.Abort()
 	}
 }
 
