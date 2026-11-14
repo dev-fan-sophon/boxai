@@ -62,6 +62,7 @@ var (
 	ErrTopUpNotFound             = errors.New("topup not found")
 	ErrTopUpStatusInvalid        = errors.New("topup status invalid")
 	ErrBankQRProofReviewRequired = errors.New("Bank QR orders require payment-proof review")
+	ErrInvalidTopUpQuota         = errors.New("invalid top-up quota")
 )
 
 func BankQRQuota(amount int64) (int, error) {
@@ -189,18 +190,66 @@ func UpdatePendingTopUpStatus(tradeNo string, expectedPaymentProvider string, ta
 	})
 }
 
-func lockTopUpCreditUser(tx *gorm.DB, userId int, quota int) (*User, error) {
-	if quota <= 0 {
-		return nil, errors.New("无效的充值额度")
+func topUpMaxCurrentQuota(creditedQuota int) (int, error) {
+	if creditedQuota <= 0 || creditedQuota >= common.MaxQuota {
+		return 0, ErrInvalidTopUpQuota
+	}
+	// MaxQuota is the saturation sentinel, so the highest storable wallet
+	// balance after a credit is MaxQuota-1.
+	return common.MaxQuota - 1 - creditedQuota, nil
+}
+
+// ValidateTopUpQuotaCapacity performs the user-facing pre-payment check. The
+// settlement path repeats the same invariant with an atomic conditional
+// update, because the wallet balance can change after checkout creation.
+func ValidateTopUpQuotaCapacity(userId int, creditedQuota int) error {
+	maxCurrentQuota, err := topUpMaxCurrentQuota(creditedQuota)
+	if err != nil {
+		return err
 	}
 	var user User
-	if err := lockForUpdate(tx).Select("id", "quota", "email").First(&user, userId).Error; err != nil {
-		return nil, err
+	if err := DB.Select("quota").Where("id = ?", userId).First(&user).Error; err != nil {
+		return err
 	}
-	if user.Quota > common.MaxQuota-quota {
-		return nil, errors.New("充值后用户额度超出可存储范围")
+	if user.Quota > maxCurrentQuota {
+		return ErrTopUpCreditExceedsMaximum
 	}
-	return &user, nil
+	return nil
+}
+
+// creditTopUpQuota atomically enforces the int32 wallet ceiling while adding
+// quota. Keeping the predicate and increment in one UPDATE prevents concurrent
+// callbacks or spends from racing a separate read/check, on every database.
+func creditTopUpQuota(tx *gorm.DB, userId int, creditedQuota int, updates map[string]interface{}) error {
+	maxCurrentQuota, err := topUpMaxCurrentQuota(creditedQuota)
+	if err != nil {
+		return err
+	}
+
+	updateFields := make(map[string]interface{}, len(updates)+1)
+	for key, value := range updates {
+		updateFields[key] = value
+	}
+	updateFields["quota"] = gorm.Expr("quota + ?", creditedQuota)
+
+	result := tx.Model(&User{}).
+		Where("id = ? AND quota <= ?", userId, maxCurrentQuota).
+		Updates(updateFields)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 1 {
+		return nil
+	}
+
+	var count int64
+	if err := tx.Model(&User{}).Where("id = ?", userId).Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return ErrTopUpCreditExceedsMaximum
 }
 
 // RechargeEpay atomically completes an Epay order and credits its user. The
@@ -237,12 +286,7 @@ func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) (
 		var quotaErr error
 		quotaToAdd, quotaErr = TopUpQuota(topUp)
 		if quotaErr != nil || quotaToAdd <= 0 {
-			return errors.New("无效的充值额度")
-		}
-
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quotaToAdd)
-		if err != nil {
-			return err
+			return ErrInvalidTopUpQuota
 		}
 
 		if actualPaymentMethod != "" {
@@ -253,7 +297,7 @@ func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) (
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
-		return tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", user.Quota+quotaToAdd).Error
+		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
 	})
 	if err != nil {
 		if !errors.Is(err, ErrTopUpNotFound) && !errors.Is(err, ErrPaymentMethodMismatch) && !errors.Is(err, ErrTopUpStatusInvalid) {
@@ -306,11 +350,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 
 		quota, err = TopUpQuota(topUp)
 		if err != nil || quota <= 0 {
-			return errors.New("无效的充值额度")
-		}
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quota)
-		if err != nil {
-			return err
+			return ErrInvalidTopUpQuota
 		}
 
 		topUp.CompleteTime = common.GetTimestamp()
@@ -319,10 +359,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 			return err
 		}
 
-		if err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{
+		if err = creditTopUpQuota(tx, topUp.UserId, quota, map[string]interface{}{
 			"stripe_customer": customerId,
-			"quota":           user.Quota + quota,
-		}).Error; err != nil {
+		}); err != nil {
 			return err
 		}
 		completed = true
@@ -541,11 +580,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		var quotaErr error
 		quotaToAdd, quotaErr = TopUpQuota(topUp)
 		if quotaErr != nil || quotaToAdd <= 0 {
-			return errors.New("无效的充值额度")
-		}
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quotaToAdd)
-		if err != nil {
-			return err
+			return ErrInvalidTopUpQuota
 		}
 
 		// 标记完成
@@ -556,7 +591,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		}
 
 		// 增加用户额度（立即写库，保持一致性）
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", user.Quota+quotaToAdd).Error; err != nil {
+		if err := creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil); err != nil {
 			return err
 		}
 
@@ -614,10 +649,10 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 
 		quota, err = TopUpQuota(topUp)
 		if err != nil || quota <= 0 {
-			return errors.New("无效的充值额度")
+			return ErrInvalidTopUpQuota
 		}
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quota)
-		if err != nil {
+		var user User
+		if err = tx.Select("id", "email").First(&user, topUp.UserId).Error; err != nil {
 			return err
 		}
 
@@ -627,17 +662,14 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			return err
 		}
 
-		// 构建更新字段，优先使用邮箱，如果邮箱为空则使用用户名
-		updateFields := map[string]interface{}{
-			"quota": user.Quota + quota,
-		}
+		updateFields := map[string]interface{}{}
 
 		// 如果有客户邮箱，尝试更新用户邮箱（仅当用户邮箱为空时）
 		if customerEmail != "" && user.Email == "" {
 			updateFields["email"] = customerEmail
 		}
 
-		if err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(updateFields).Error; err != nil {
+		if err = creditTopUpQuota(tx, topUp.UserId, quota, updateFields); err != nil {
 			return err
 		}
 		completed = true
@@ -693,11 +725,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 
 		quotaToAdd, err = TopUpQuota(topUp)
 		if err != nil || quotaToAdd <= 0 {
-			return errors.New("无效的充值额度")
-		}
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quotaToAdd)
-		if err != nil {
-			return err
+			return ErrInvalidTopUpQuota
 		}
 
 		topUp.CompleteTime = common.GetTimestamp()
@@ -706,11 +734,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", user.Quota+quotaToAdd).Error; err != nil {
-			return err
-		}
-
-		return nil
+		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
 	})
 
 	if err != nil {
@@ -761,11 +785,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 
 		quotaToAdd, err = TopUpQuota(topUp)
 		if err != nil || quotaToAdd <= 0 {
-			return errors.New("无效的充值额度")
-		}
-		user, err := lockTopUpCreditUser(tx, topUp.UserId, quotaToAdd)
-		if err != nil {
-			return err
+			return ErrInvalidTopUpQuota
 		}
 
 		topUp.CompleteTime = common.GetTimestamp()
@@ -774,11 +794,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", user.Quota+quotaToAdd).Error; err != nil {
-			return err
-		}
-
-		return nil
+		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
 	})
 
 	if err != nil {

@@ -97,3 +97,14 @@ func ParseWholeVND(amount decimal.Decimal) (int64, error) {
 	}
 	return amount.IntPart(), nil
 }
+
+// ValidateTopUpQuoteCapacity rejects a quote before payment when its credit
+// could not be settled into the user's wallet without exceeding the int32
+// quota domain. Settlement enforces the same ceiling atomically.
+func ValidateTopUpQuoteCapacity(userId int, quote TopUpQuote) error {
+	quota, err := TopUpQuota(&TopUp{Amount: quote.CreditCents, AmountUnit: TopUpAmountUnitUSDCent})
+	if err != nil {
+		return errors.Join(ErrTopUpQuoteNotCreditable, err)
+	}
+	return ValidateTopUpQuotaCapacity(userId, quota)
+}

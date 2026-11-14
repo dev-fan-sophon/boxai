@@ -3,10 +3,13 @@ package channel
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	"github.com/dev-fan-sophon/boxai/service"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -178,4 +181,63 @@ func TestProcessHeaderOverride_PassHeadersTemplateSetsRuntimeHeaders(t *testing.
 	require.Equal(t, "Codex CLI", upstreamReq.Header.Get("Originator"))
 	require.Equal(t, "sess-123", upstreamReq.Header.Get("Session_id"))
 	require.Empty(t, upstreamReq.Header.Get("X-Codex-Beta-Features"))
+}
+
+// adaptorHeaderTaskAdaptor sets the provider's default credential header, as
+// Go task adaptors do in BuildRequestHeader.
+type adaptorHeaderTaskAdaptor struct {
+	TaskAdaptor
+	baseURL string
+}
+
+func (a *adaptorHeaderTaskAdaptor) BuildRequestURL(*relaycommon.RelayInfo) (string, error) {
+	return a.baseURL, nil
+}
+
+func (a *adaptorHeaderTaskAdaptor) BuildRequestHeader(_ *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
+	req.Header.Set("Authorization", "Bearer "+info.ApiKey)
+	return nil
+}
+
+func TestDoTaskApiRequestAppliesChannelHeaderOverride(t *testing.T) {
+	service.InitHttpClient()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "provider-key", r.Header.Get("X-API-Key"), "{api_key} resolves to the submitting credential")
+		assert.Equal(t, "Token override", r.Header.Get("Authorization"), "channel overrides win over adaptor headers")
+		assert.Equal(t, "trace-1", r.Header.Get("X-Upstream-Trace"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/video/generations", strings.NewReader("{}"))
+	c.Request.Header.Set("X-Trace-Id", "trace-1")
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
+		ApiKey: "provider-key",
+		HeadersOverride: map[string]any{
+			"X-API-Key":        "{api_key}",
+			"Authorization":    "Token override",
+			"X-Upstream-Trace": "{client_header:X-Trace-Id}",
+		},
+	}}
+
+	resp, err := DoTaskApiRequest(&adaptorHeaderTaskAdaptor{baseURL: server.URL}, c, info, strings.NewReader("{}"))
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestProcessHeaderOverrideWithoutClientRequestKeepsStaticValues(t *testing.T) {
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
+		ApiKey: "polling-key",
+		HeadersOverride: map[string]any{
+			"*":                "",
+			"X-API-Key":        "{api_key}",
+			"X-Static":         "static",
+			"X-Upstream-Trace": "{client_header:X-Trace-Id}",
+		},
+	}}
+
+	headers, err := processHeaderOverride(info, nil)
+	require.NoError(t, err, "background requests have no client headers to copy")
+	require.Equal(t, map[string]string{"x-api-key": "polling-key", "x-static": "static"}, headers)
 }

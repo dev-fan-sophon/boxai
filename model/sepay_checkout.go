@@ -99,6 +99,15 @@ func CreateSePayCheckout(userID int, tradeNo string, amount int64, planID int, s
 			if err != nil {
 				return err
 			}
+			creditedQuota, creditErr := TopUpQuota(&TopUp{Amount: quote.CreditCents, AmountUnit: TopUpAmountUnitUSDCent})
+			if creditErr != nil {
+				return errors.Join(ErrTopUpQuoteNotCreditable, creditErr)
+			}
+			if maxCurrentQuota, capErr := topUpMaxCurrentQuota(creditedQuota); capErr != nil {
+				return capErr
+			} else if user.Quota > maxCurrentQuota {
+				return ErrTopUpCreditExceedsMaximum
+			}
 		}
 		qr, err := vietqr.Payload(s.BankBIN, s.AccountNumber, amount, tradeNo)
 		if err != nil {
@@ -182,10 +191,7 @@ func fulfillSePayOrderTx(tx *gorm.DB, topups []TopUp, orders []SubscriptionOrder
 		if err != nil {
 			return 0, "", err
 		}
-		if quota <= 0 || quota > common.MaxQuota || user.Quota > common.MaxQuota-quota {
-			return 0, "", ErrTopUpCreditExceedsMaximum
-		}
-		if err = tx.Model(&user).Update("quota", gorm.Expr("quota + ?", quota)).Error; err != nil {
+		if err = creditTopUpQuota(tx, user.Id, quota, nil); err != nil {
 			return 0, "", err
 		}
 		o.Status, o.CompleteTime = common.TopUpStatusSuccess, common.GetTimestamp()

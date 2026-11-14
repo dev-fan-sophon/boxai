@@ -174,3 +174,47 @@ func TestBillingDatabaseFailureIsNotUserFunding(t *testing.T) {
 		})
 	}
 }
+
+// A task retry that lands on a pricier channel raises its durable reservation
+// before submission. The raise is balance-checked like the first pre-consume,
+// and a later refund returns every reserved unit.
+func TestTaskRetryReservationIsBalanceCheckedAndFullyRefunded(t *testing.T) {
+	truncate(t)
+	seedUser(t, 7421, 100)
+	seedToken(t, 7422, 7421, "task-retry-reservation", 1000)
+	info := &relaycommon.RelayInfo{UserId: 7421, TokenId: 7422, TokenKey: "task-retry-reservation", RequestId: t.Name(), ForcePreConsume: true}
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	session, fault := NewBillingSession(ctx, info, 10)
+	require.Nil(t, fault)
+	require.NotNil(t, session)
+
+	walletAndToken := func() (int, int) {
+		var user model.User
+		var token model.Token
+		require.NoError(t, model.DB.First(&user, 7421).Error)
+		require.NoError(t, model.DB.First(&token, 7422).Error)
+		return user.Quota, token.RemainQuota
+	}
+
+	err := session.Reserve(200)
+	require.Error(t, err)
+	var apiErr *types.NewAPIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.PublicCode())
+	assert.Equal(t, 10, session.GetPreConsumedQuota())
+	wallet, token := walletAndToken()
+	assert.Equal(t, 90, wallet, "an unaffordable retry must not debit the wallet")
+	assert.Equal(t, 990, token)
+
+	require.NoError(t, session.Reserve(60))
+	assert.Equal(t, 60, session.GetPreConsumedQuota())
+	assert.Equal(t, 60, info.FinalPreConsumedQuota)
+	wallet, token = walletAndToken()
+	assert.Equal(t, 40, wallet)
+	assert.Equal(t, 940, token)
+
+	session.Refund(ctx)
+	wallet, token = walletAndToken()
+	assert.Equal(t, 100, wallet, "refund returns the first reservation and the retry top-up")
+	assert.Equal(t, 1000, token)
+}

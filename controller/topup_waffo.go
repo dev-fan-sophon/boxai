@@ -102,6 +102,9 @@ func RequestWaffoAmount(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatInt(quote.FaceAmountMinor, 10)})
 }
@@ -121,6 +124,9 @@ func RequestWaffoPay(c *gin.Context) {
 	quote, err := quoteTopUpVND(req.Amount)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
+		return
+	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
 		return
 	}
 

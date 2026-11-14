@@ -219,6 +219,9 @@ func topUpRechargeCases() []struct {
 			return RechargeWaffo(tradeNo, "127.0.0.1")
 		}},
 		{name: "Waffo Pancake", provider: PaymentProviderWaffoPancake, expectedQuota: 20, recharge: RechargeWaffoPancake},
+		{name: "Manual completion", provider: PaymentProviderEpay, expectedQuota: 20, recharge: func(tradeNo string) error {
+			return ManualCompleteTopUp(tradeNo, "127.0.0.1")
+		}},
 	}
 }
 
@@ -417,4 +420,56 @@ func TestRechargeEpayRejectsQuotaOverflowBeforeCompletingOrder(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, common.MaxQuota-5, getUserQuotaForPaymentGuardTest(t, 520))
 	assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, "epay-overflow"))
+}
+
+func TestRechargeEpayEnforcesFinalWalletQuotaLimit(t *testing.T) {
+	testCases := []struct {
+		name         string
+		currentQuota int
+		wantErr      error
+		wantQuota    int
+		wantStatus   string
+	}{
+		{
+			name:         "allows exact highest representable wallet balance",
+			currentQuota: common.MaxQuota - 1 - 1_000_000,
+			wantQuota:    common.MaxQuota - 1,
+			wantStatus:   common.TopUpStatusSuccess,
+		},
+		{
+			name:         "rejects balance at the int32 saturation sentinel",
+			currentQuota: common.MaxQuota - 1_000_000,
+			wantErr:      ErrTopUpCreditExceedsMaximum,
+			wantQuota:    common.MaxQuota - 1_000_000,
+			wantStatus:   common.TopUpStatusPending,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			truncateTables(t)
+			useEpayQuotaUnit(t, 500_000)
+			insertUserForPaymentGuardTest(t, 530, tc.currentQuota)
+			insertEpayTopUpForPaymentGuardTest(t, "epay-wallet-limit", 530, common.TopUpStatusPending)
+
+			_, err := RechargeEpay("epay-wallet-limit", "alipay", "127.0.0.1")
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.wantQuota, getUserQuotaForPaymentGuardTest(t, 530))
+			assert.Equal(t, tc.wantStatus, getTopUpStatusForPaymentGuardTest(t, "epay-wallet-limit"))
+		})
+	}
+}
+
+func TestValidateTopUpQuotaCapacity(t *testing.T) {
+	truncateTables(t)
+	insertUserForPaymentGuardTest(t, 540, common.MaxQuota-1-1_000)
+
+	require.NoError(t, ValidateTopUpQuotaCapacity(540, 1_000))
+	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, 1_001), ErrTopUpCreditExceedsMaximum)
+	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, 0), ErrInvalidTopUpQuota)
+	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, common.MaxQuota), ErrInvalidTopUpQuota)
 }

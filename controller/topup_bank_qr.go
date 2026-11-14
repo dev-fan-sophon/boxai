@@ -135,6 +135,10 @@ func RequestBankQRPay(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND())})
 		return
 	}
+	if err := model.ValidateTopUpQuoteCapacity(userID, quote); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": bankQRAmountError(c, err, bankQRMinVND())})
+		return
+	}
 
 	prefix := operation_setting.NormalizeBankQRTransferPrefix(bankSetting.TransferPrefix)
 	var tradeNo string
