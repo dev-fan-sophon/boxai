@@ -179,14 +179,6 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 				urlContext = true
 				continue
 			}
-			if tool.Function.Parameters != nil {
-				if params, ok := tool.Function.Parameters.(map[string]interface{}); ok {
-					if props, hasProps := params["properties"].(map[string]interface{}); hasProps && len(props) == 0 {
-						tool.Function.Parameters = nil
-					}
-				}
-			}
-			tool.Function.Parameters = sharedgemini.CleanFunctionParameters(tool.Function.Parameters)
 			functions = append(functions, tool.Function)
 		}
 		geminiTools := geminiRequest.GetTools()
@@ -207,7 +199,7 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 		}
 		if len(functions) > 0 {
 			geminiTools = append(geminiTools, dto.GeminiChatTool{
-				FunctionDeclarations: functions,
+				FunctionDeclarations: sharedgemini.FunctionDeclarations(functions, sharedgemini.SupportsJSONSchema(info, upstreamModelName)),
 			})
 		}
 		geminiRequest.SetTools(geminiTools)
@@ -221,11 +213,8 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 		geminiRequest.GenerationConfig.ResponseMimeType = "application/json"
 
 		if len(textRequest.ResponseFormat.JsonSchema) > 0 {
-			var jsonSchema dto.FormatJsonSchema
-			if err := common.Unmarshal(textRequest.ResponseFormat.JsonSchema, &jsonSchema); err == nil {
-				cleanedSchema := sharedgemini.RemoveAdditionalProperties(jsonSchema.Schema, 0)
-				geminiRequest.GenerationConfig.ResponseSchema = cleanedSchema
-			}
+			sharedgemini.ApplyResponseSchema(&geminiRequest.GenerationConfig, textRequest.ResponseFormat.JsonSchema,
+				sharedgemini.SupportsJSONSchema(info, upstreamModelName))
 		}
 	}
 

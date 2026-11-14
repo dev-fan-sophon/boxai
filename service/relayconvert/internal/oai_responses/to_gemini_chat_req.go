@@ -58,7 +58,8 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	if model_setting.IsGeminiModelSupportImagine(upstreamModelName) {
 		geminiRequest.GenerationConfig.ResponseModalities = []string{"TEXT", "IMAGE"}
 	}
-	if err := applyResponsesTextToGemini(req.Text, geminiRequest); err != nil {
+	jsonSchema := sharedgemini.SupportsJSONSchema(info, upstreamModelName)
+	if err := applyResponsesTextToGemini(req.Text, geminiRequest, jsonSchema); err != nil {
 		return nil, err
 	}
 	sharedgemini.ApplyThinkingConfig(geminiRequest, info, dto.GeneralOpenAIRequest{
@@ -80,18 +81,9 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	if err != nil {
 		return nil, err
 	}
-	for i := range functions {
-		if params, ok := functions[i].Parameters.(map[string]interface{}); ok {
-			if props, hasProps := params["properties"].(map[string]interface{}); hasProps && len(props) == 0 {
-				functions[i].Parameters = nil
-				continue
-			}
-		}
-		functions[i].Parameters = sharedgemini.CleanFunctionParameters(functions[i].Parameters)
-	}
 	if len(functions) > 0 {
 		geminiRequest.SetTools([]dto.GeminiChatTool{
-			{FunctionDeclarations: functions},
+			{FunctionDeclarations: sharedgemini.FunctionDeclarations(functions, jsonSchema)},
 		})
 	}
 
@@ -167,7 +159,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	return geminiRequest, nil
 }
 
-func applyResponsesTextToGemini(raw []byte, geminiRequest *dto.GeminiChatRequest) error {
+func applyResponsesTextToGemini(raw []byte, geminiRequest *dto.GeminiChatRequest, jsonSchema bool) error {
 	responseFormat, err := RequestTextToChatResponseFormat(raw)
 	if err != nil {
 		return err
@@ -181,11 +173,7 @@ func applyResponsesTextToGemini(raw []byte, geminiRequest *dto.GeminiChatRequest
 		return nil
 	}
 
-	var jsonSchema dto.FormatJsonSchema
-	if err := common.Unmarshal(responseFormat.JsonSchema, &jsonSchema); err != nil {
-		return nil
-	}
-	geminiRequest.GenerationConfig.ResponseSchema = sharedgemini.RemoveAdditionalProperties(jsonSchema.Schema, 0)
+	sharedgemini.ApplyResponseSchema(&geminiRequest.GenerationConfig, responseFormat.JsonSchema, jsonSchema)
 	return nil
 }
 
