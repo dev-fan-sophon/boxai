@@ -666,11 +666,32 @@ func (r *GeminiBatchEmbeddingRequest) SetModelName(modelName string) {
 }
 
 type GeminiEmbeddingResponse struct {
-	Embedding ContentEmbedding `json:"embedding"`
+	Embedding     ContentEmbedding              `json:"embedding"`
+	UsageMetadata *GeminiEmbeddingUsageMetadata `json:"usageMetadata,omitempty"`
 }
 
 type GeminiBatchEmbeddingResponse struct {
-	Embeddings []*ContentEmbedding `json:"embeddings"`
+	Embeddings    []*ContentEmbedding           `json:"embeddings"`
+	UsageMetadata *GeminiEmbeddingUsageMetadata `json:"usageMetadata,omitempty"`
+}
+
+type GeminiEmbeddingUsageMetadata struct {
+	PromptTokenCount   int                         `json:"promptTokenCount"`
+	PromptTokenDetails []GeminiPromptTokensDetails `json:"promptTokenDetails,omitempty"`
+}
+
+// GeminiUsageMetadata converts the embedding usage into the generation usage
+// shape used by settlement. Non-positive counts are treated as missing so the
+// caller falls back to the local estimate.
+func (m *GeminiEmbeddingUsageMetadata) GeminiUsageMetadata() *GeminiUsageMetadata {
+	if m == nil || m.PromptTokenCount <= 0 {
+		return nil
+	}
+	return &GeminiUsageMetadata{
+		PromptTokenCount:    m.PromptTokenCount,
+		TotalTokenCount:     m.PromptTokenCount,
+		PromptTokensDetails: m.PromptTokenDetails,
+	}
 }
 
 type ContentEmbedding struct {
