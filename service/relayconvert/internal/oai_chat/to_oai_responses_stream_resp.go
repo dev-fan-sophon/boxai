@@ -39,6 +39,10 @@ type ChatToResponsesStreamState struct {
 	outputOrder       []chatToResponsesOutputRef
 	text              strings.Builder
 	reasoning         strings.Builder
+	// usageText collects every text, reasoning, and tool argument delta sent
+	// to the client. It is the missing-usage estimate and tells whether any
+	// output reached the client.
+	usageText strings.Builder
 }
 
 type chatToResponsesStreamTool struct {
@@ -142,7 +146,7 @@ func (s *ChatToResponsesStreamState) UsageText() string {
 	if s == nil {
 		return ""
 	}
-	return s.text.String()
+	return s.usageText.String()
 }
 
 func (s *ChatToResponsesStreamState) appendTextDelta(delta string) []ChatToResponsesStreamEvent {
@@ -163,6 +167,7 @@ func (s *ChatToResponsesStreamState) appendTextDelta(delta string) []ChatToRespo
 		}))
 	}
 	s.text.WriteString(delta)
+	s.usageText.WriteString(delta)
 	events = append(events, responsesStreamEvent(responsesEventOutputTextDelta, dto.ResponsesStreamResponse{
 		Type:         responsesEventOutputTextDelta,
 		OutputIndex:  intPtr(s.textOutputIndex),
@@ -190,6 +195,7 @@ func (s *ChatToResponsesStreamState) appendReasoningDelta(delta string) []ChatTo
 		}))
 	}
 	s.reasoning.WriteString(delta)
+	s.usageText.WriteString(delta)
 	events = append(events, responsesStreamEvent(responsesEventReasoningSummaryDelta, dto.ResponsesStreamResponse{
 		Type:         responsesEventReasoningSummaryDelta,
 		OutputIndex:  intPtr(s.reasoningIndex),
@@ -232,6 +238,8 @@ func (s *ChatToResponsesStreamState) appendToolCallDelta(toolCall dto.ToolCallRe
 		events = append(events, s.announceTool(tool))
 		delta = tool.Arguments.String()
 	}
+	// Announced calls reach the client; custom tool input at completion.
+	s.usageText.WriteString(delta)
 	// Custom tool input is unwrapped from the complete arguments at the end.
 	if !tool.Custom && delta != "" {
 		events = append(events, responsesStreamEvent(responsesEventFunctionArgsDelta, dto.ResponsesStreamResponse{
@@ -253,12 +261,14 @@ func (s *ChatToResponsesStreamState) announceTool(tool *chatToResponsesStreamToo
 	}
 	tool.OutputIndex = s.nextIndex("tool", tool.ChatIndex)
 	tool.Custom = customtool.IsCustom(s.CustomTools, tool.Name)
+	namespace, name := customtool.ToolName(s.CustomTools, tool.Name)
 	item := &dto.ResponsesOutput{
 		Type:      responsesOutputTypeFunctionCall,
 		ID:        tool.ID,
 		Status:    "in_progress",
 		CallId:    tool.ID,
-		Name:      tool.Name,
+		Name:      name,
+		Namespace: namespace,
 		Arguments: []byte(`""`),
 	}
 	if tool.Custom {
@@ -320,6 +330,7 @@ func (s *ChatToResponsesStreamState) doneDeltaEvents() []ChatToResponsesStreamEv
 				continue
 			}
 			events = append(events, s.announceTool(tool))
+			s.usageText.WriteString(tool.Arguments.String())
 			if !tool.Custom && tool.Arguments.Len() > 0 {
 				events = append(events, responsesStreamEvent(responsesEventFunctionArgsDelta, dto.ResponsesStreamResponse{
 					Type:        responsesEventFunctionArgsDelta,
@@ -474,14 +485,16 @@ func (s *ChatToResponsesStreamState) reasoningOutput(status string) *dto.Respons
 }
 
 func (s *ChatToResponsesStreamState) toolOutput(tool *chatToResponsesStreamTool, status string) *dto.ResponsesOutput {
+	namespace, name := customtool.ToolName(s.CustomTools, tool.Name)
 	if tool.Custom {
 		return &dto.ResponsesOutput{
-			Type:   responsesOutputTypeCustomToolCall,
-			ID:     tool.ID,
-			Status: status,
-			CallId: tool.ID,
-			Name:   tool.Name,
-			Input:  chatArgumentsRawMessage(customtool.InputFromArguments(tool.Arguments.String())),
+			Type:      responsesOutputTypeCustomToolCall,
+			ID:        tool.ID,
+			Status:    status,
+			CallId:    tool.ID,
+			Name:      name,
+			Namespace: namespace,
+			Input:     chatArgumentsRawMessage(customtool.InputFromArguments(tool.Arguments.String())),
 		}
 	}
 	return &dto.ResponsesOutput{
@@ -489,7 +502,8 @@ func (s *ChatToResponsesStreamState) toolOutput(tool *chatToResponsesStreamTool,
 		ID:        tool.ID,
 		Status:    status,
 		CallId:    tool.ID,
-		Name:      tool.Name,
+		Name:      name,
+		Namespace: namespace,
 		Arguments: chatArgumentsRawMessage(tool.Arguments.String()),
 	}
 }

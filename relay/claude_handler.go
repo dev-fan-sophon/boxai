@@ -57,8 +57,15 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			strings.HasPrefix(request.Model, "claude-opus-4-7") ||
 			strings.HasPrefix(request.Model, "claude-opus-4-8")) {
 		request.Model = baseModel
+		// The effort suffix replaces the client's thinking config, but
+		// block_binding is a conversation control, not a reasoning setting.
+		var blockBinding json.RawMessage
+		if request.Thinking != nil {
+			blockBinding = request.Thinking.BlockBinding
+		}
 		request.Thinking = &dto.Thinking{
-			Type: "adaptive",
+			Type:         "adaptive",
+			BlockBinding: blockBinding,
 		}
 		request.OutputConfig = json.RawMessage(fmt.Sprintf(`{"effort":"%s"}`, effortLevel))
 		if strings.HasPrefix(request.Model, "claude-opus-4-7") ||

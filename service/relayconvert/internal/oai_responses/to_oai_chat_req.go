@@ -86,7 +86,11 @@ func ResponsesRequestToChatCompletionsRequest(req *dto.OpenAIResponsesRequest) (
 	if req.ServiceTier != "" {
 		out.ServiceTier, _ = common.Marshal(req.ServiceTier)
 	}
-	if len(req.ParallelToolCalls) > 0 && common.GetJsonType(req.ParallelToolCalls) == "boolean" {
+	if len(tools) == 0 {
+		// Upstreams reject tool_choice and parallel_tool_calls in a request
+		// without tools.
+		out.ToolChoice = nil
+	} else if len(req.ParallelToolCalls) > 0 && common.GetJsonType(req.ParallelToolCalls) == "boolean" {
 		var parallelToolCalls bool
 		if err := common.Unmarshal(req.ParallelToolCalls, &parallelToolCalls); err == nil {
 			out.ParallelTooCalls = &parallelToolCalls
@@ -457,6 +461,12 @@ func RequestTextToChatResponseFormat(raw json.RawMessage) (*dto.ResponseFormat, 
 
 func responsesImagePartToChatImageURL(part map[string]any) any {
 	if imageURL, ok := part["image_url"]; ok {
+		// Chat Completions takes the URL inside an object. detail is left out:
+		// Chat upstreams that validate it with older OpenAI SDKs reject newer
+		// values such as "original".
+		if url, ok := imageURL.(string); ok {
+			return map[string]any{"url": url}
+		}
 		return imageURL
 	}
 	imageURL := map[string]any{}

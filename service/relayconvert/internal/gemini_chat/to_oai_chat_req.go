@@ -10,6 +10,7 @@ import (
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service/relayconvert/internal/jsonutil"
 	relaymeta "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/meta"
+	sharedgemini "github.com/dev-fan-sophon/boxai/service/relayconvert/internal/shared/gemini"
 )
 
 // GeminiGenerateContentRequestToOpenAIChat converts a native Gemini
@@ -232,9 +233,12 @@ func GeminiGenerateContentRequestToOpenAIChat(geminiRequest *dto.GeminiChatReque
 			return nil, fmt.Errorf("invalid gemini functionDeclarations: %w", err)
 		}
 		for _, function := range functionDeclarations {
-			parameters := function.Parameters
-			if parameters == nil {
-				parameters = function.ParametersJsonSchema
+			// parameters is Gemini's OpenAPI schema subset (uppercase types,
+			// nullable, propertyOrdering); parametersJsonSchema is already JSON
+			// Schema.
+			parameters := function.ParametersJsonSchema
+			if function.Parameters != nil {
+				parameters, _ = sharedgemini.OpenAPISchemaToJSONSchema(function.Parameters)
 			}
 			tools = append(tools, dto.ToolCallRequest{
 				Type: "function",

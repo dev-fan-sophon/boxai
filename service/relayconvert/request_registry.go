@@ -238,15 +238,25 @@ func executeRequestSpec(c *gin.Context, info *relaycommon.RelayInfo, from types.
 
 func executeRequestSteps(c *gin.Context, info *relaycommon.RelayInfo, from types.RelayFormat, target types.RelayFormat, request any, converter string, quality RequestConverterQuality, specs []RequestConverterSpec) (*RequestResult, error) {
 	var customToolNames map[string]struct{}
+	var toolNamespaces map[string]string
 	if from == types.RelayFormatOpenAIResponses {
 		// Every conversion replaces the record, so a retry on another channel
 		// never restores custom tool calls from a previous attempt.
 		info.SetResponsesCustomToolNames(nil)
+		info.SetResponsesToolNamespaces(nil)
 		responsesRequest, err := oairesponses.OpenAIResponsesRequestFromAny(request)
 		if err != nil {
 			return nil, err
 		}
-		_, customTools, err := customtool.SelectRaw(responsesRequest.Tools)
+		flattened, namespaces, err := customtool.FlattenNamespaces(responsesRequest)
+		if err != nil {
+			return nil, err
+		}
+		if flattened != responsesRequest {
+			request = flattened
+		}
+		toolNamespaces = namespaces
+		_, customTools, err := customtool.SelectRaw(flattened.Tools)
 		if err != nil {
 			return nil, err
 		}
@@ -272,6 +282,7 @@ func executeRequestSteps(c *gin.Context, info *relaycommon.RelayInfo, from types
 
 	if from == types.RelayFormatOpenAIResponses {
 		info.SetResponsesCustomToolNames(customToolNames)
+		info.SetResponsesToolNamespaces(toolNamespaces)
 	}
 
 	converters := make([]string, 0, len(steps))

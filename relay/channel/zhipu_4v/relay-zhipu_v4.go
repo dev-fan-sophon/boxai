@@ -51,6 +51,9 @@ func requestOpenAI2Zhipu(request dto.GeneralOpenAIRequest) *dto.GeneralOpenAIReq
 		Tools:       request.Tools,
 		ToolChoice:  request.ToolChoice,
 		THINKING:    request.THINKING,
+		// GLM accepts reasoning_effort; dropping it silently changed the
+		// client's reasoning level.
+		ReasoningEffort: request.ReasoningEffort,
 	}
 	if request.MaxTokens != nil || request.MaxCompletionTokens != nil {
 		maxTokens := request.GetMaxTokens()

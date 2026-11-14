@@ -31,6 +31,7 @@ func TestResponsesRequestToChatCompletionsRequestInstructionsAndScalarInput(t *t
 		Store:                mustRawMessage(t, false),
 		Metadata:             mustRawMessage(t, map[string]any{"trace": "abc"}),
 		ParallelToolCalls:    mustRawMessage(t, parallelToolCalls),
+		Tools:                mustRawMessage(t, []map[string]any{{"type": "function", "name": "lookup"}}),
 		PromptCacheKey:       mustRawMessage(t, "cache-key"),
 		PromptCacheRetention: mustRawMessage(t, "24h"),
 		Reasoning:            &dto.Reasoning{Effort: "medium"},
@@ -125,6 +126,10 @@ func TestResponsesRequestToChatCompletionsRequestMultimodalInput(t *testing.T) {
 	assert.Equal(t, "look", parts[0].Text)
 	assert.Equal(t, dto.ContentTypeImageURL, parts[1].Type)
 	assert.Equal(t, "https://example.test/a.png", parts[1].GetImageMedia().Url)
+	// Chat Completions defines image_url as an object; strict upstreams reject a bare string.
+	wire, err := common.Marshal(got.Messages[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(wire), `"image_url":{"url":"https://example.test/a.png"}`)
 	assert.Equal(t, dto.ContentTypeFile, parts[2].Type)
 	assert.Equal(t, "file_1", parts[2].GetFile().FileId)
 	assert.Equal(t, dto.ContentTypeInputAudio, parts[3].Type)
@@ -313,4 +318,18 @@ func mustRawMessage(t *testing.T, value any) []byte {
 	raw, err := common.Marshal(value)
 	require.NoError(t, err)
 	return raw
+}
+
+func TestResponsesRequestToChatCompletionsRequestOmitsToolControlsWithoutTools(t *testing.T) {
+	got, err := ResponsesRequestToChatCompletionsRequest(&dto.OpenAIResponsesRequest{
+		Model:             "gpt-test",
+		Input:             mustRawMessage(t, "hello"),
+		ToolChoice:        mustRawMessage(t, "required"),
+		ParallelToolCalls: mustRawMessage(t, false),
+	})
+	require.NoError(t, err)
+
+	assert.Empty(t, got.Tools)
+	assert.Nil(t, got.ToolChoice)
+	assert.Nil(t, got.ParallelTooCalls)
 }

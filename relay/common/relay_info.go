@@ -201,6 +201,10 @@ type RelayInfo struct {
 	// Response conversion restores calls to these functions as custom_tool_call
 	// items. It is reset for every attempt so retries never inherit it.
 	responsesCustomToolNames map[string]struct{}
+	// responsesToolNamespaces maps an upstream function name to the Responses
+	// tool namespace the current attempt's request conversion flattened it
+	// from. It is reset for every attempt like responsesCustomToolNames.
+	responsesToolNamespaces map[string]string
 
 	ThinkingContentInfo
 	TokenCountMeta
@@ -257,6 +261,7 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 
 	info.ChannelMeta = channelMeta
 	info.SetResponsesCustomToolNames(nil)
+	info.SetResponsesToolNamespaces(nil)
 	info.normalizeOpenCodeSession(c)
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelMeta.ChannelSetting.PassThroughBodyEnabled {
 		info.SetReasoningEffort("")
@@ -747,6 +752,25 @@ func (info *RelayInfo) SetResponsesCustomToolNames(names map[string]struct{}) {
 		return
 	}
 	info.responsesCustomToolNames = names
+}
+
+// SetResponsesToolNamespaces records the upstream function names flattened
+// from Responses tool namespaces by the current request conversion; nil
+// clears the record.
+func (info *RelayInfo) SetResponsesToolNamespaces(namespaces map[string]string) {
+	if info == nil {
+		return
+	}
+	info.responsesToolNamespaces = namespaces
+}
+
+// ResponsesToolNamespace returns the Responses tool namespace an upstream
+// function name was flattened from, or "" when it was not.
+func (info *RelayInfo) ResponsesToolNamespace(name string) string {
+	if info == nil {
+		return ""
+	}
+	return info.responsesToolNamespaces[name]
 }
 
 // IsResponsesCustomTool reports whether an upstream function call named name

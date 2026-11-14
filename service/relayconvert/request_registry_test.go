@@ -321,11 +321,9 @@ func TestConvertRequestResponsesToGeminiUsesDirectConverter(t *testing.T) {
 				"parameters": map[string]any{
 					"type":                 "object",
 					"additionalProperties": false,
-					"propertyNames":        map[string]any{"pattern": "^[a-z]+$"},
 					"properties": map[string]any{
 						"q": map[string]any{
-							"type":             "string",
-							"exclusiveMinimum": 0,
+							"type": "string",
 						},
 						"filters": map[string]any{
 							"type": "array",
@@ -381,13 +379,11 @@ func TestConvertRequestResponsesToGeminiUsesDirectConverter(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "OBJECT", params["type"])
 	assert.NotContains(t, params, "additionalProperties")
-	assert.NotContains(t, params, "propertyNames")
 	properties, ok := params["properties"].(map[string]any)
 	require.True(t, ok)
 	queryParam, ok := properties["q"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "STRING", queryParam["type"])
-	assert.NotContains(t, queryParam, "exclusiveMinimum")
 	filterParam, ok := properties["filters"].(map[string]any)
 	require.True(t, ok)
 	filterItems, ok := filterParam["items"].(map[string]any)

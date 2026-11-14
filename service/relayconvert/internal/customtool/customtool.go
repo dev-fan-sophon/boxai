@@ -188,10 +188,12 @@ func decode(tool map[string]any) (Tool, bool) {
 }
 
 // Recognizer reports whether an upstream function name carries a Responses
-// custom tool. *relaycommon.RelayInfo implements it with the record written by
-// the current attempt's request conversion.
+// custom tool, and which Responses tool namespace it was flattened from.
+// *relaycommon.RelayInfo implements it with the record written by the current
+// attempt's request conversion.
 type Recognizer interface {
 	IsResponsesCustomTool(name string) bool
+	ResponsesToolNamespace(name string) string
 }
 
 // IsCustom is a nil-safe Recognizer lookup.

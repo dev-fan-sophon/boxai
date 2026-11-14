@@ -115,7 +115,9 @@ func OpenAIChatRequestToClaudeMessages(c *gin.Context, textRequest dto.GeneralOp
 		claudeRequest.Stream = common.GetPointer(true)
 	}
 
-	if textRequest.ToolChoice != nil || textRequest.ParallelTooCalls != nil {
+	// Upstreams reject tool_choice and parallel_tool_calls in a request
+	// without tools.
+	if len(claudeTools) > 0 && (textRequest.ToolChoice != nil || textRequest.ParallelTooCalls != nil) {
 		claudeToolChoice := sharedclaude.MapOpenAIToolChoice(textRequest.ToolChoice, textRequest.ParallelTooCalls)
 		if claudeToolChoice != nil {
 			claudeRequest.ToolChoice = claudeToolChoice
@@ -348,24 +350,19 @@ func OpenAIChatRequestToClaudeMessages(c *gin.Context, textRequest dto.GeneralOp
 					if source == nil {
 						continue
 					}
+					// Claude content blocks carry images, PDF documents, and text
+					// documents; audio, video, and other media are omitted
+					// instead of reaching Claude in a shape it rejects.
+					if mediaMessage.Type == dto.ContentTypeInputAudio || mediaMessage.Type == dto.ContentTypeVideoUrl {
+						continue
+					}
 					base64Data, mimeType, err := relaymedia.ResolveBase64Data(c, source, "formatting image for Claude")
 					if err != nil {
 						return nil, fmt.Errorf("get file data failed: %s", err.Error())
 					}
-					claudeMediaMessage := dto.ClaudeMediaMessage{
-						Source: &dto.ClaudeMessageSource{
-							Type: "base64",
-						},
+					if block, reason := sharedclaude.MediaBlock(base64Data, mimeType, mediaMessage.Type == dto.ContentTypeImageURL); reason == "" {
+						claudeMediaMessages = append(claudeMediaMessages, block)
 					}
-					if strings.HasPrefix(mimeType, "application/pdf") {
-						claudeMediaMessage.Type = "document"
-					} else {
-						claudeMediaMessage.Type = "image"
-					}
-
-					claudeMediaMessage.Source.MediaType = mimeType
-					claudeMediaMessage.Source.Data = base64Data
-					claudeMediaMessages = append(claudeMediaMessages, claudeMediaMessage)
 					continue
 				}
 			}
@@ -386,6 +383,10 @@ func OpenAIChatRequestToClaudeMessages(c *gin.Context, textRequest dto.GeneralOp
 					})
 				}
 			}
+			if len(claudeMediaMessages) == 0 {
+				// Every part was omitted; Claude rejects an empty content array.
+				claudeMediaMessages = append(claudeMediaMessages, dto.ClaudeMediaMessage{Type: "text", Text: common.GetPointer("...")})
+			}
 			claudeMessage.Content = claudeMediaMessages
 		}
 		claudeMessages = append(claudeMessages, claudeMessage)
@@ -397,5 +398,6 @@ func OpenAIChatRequestToClaudeMessages(c *gin.Context, textRequest dto.GeneralOp
 
 	claudeRequest.Prompt = ""
 	claudeRequest.Messages = claudeMessages
+	sharedclaude.RelaxForcedToolChoiceForThinking(&claudeRequest)
 	return &claudeRequest, nil
 }
