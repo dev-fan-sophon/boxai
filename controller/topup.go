@@ -195,6 +195,9 @@ func RequestEpay(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
+		return
+	}
 
 	id := c.GetInt("id")
 	payMoney := float64(quote.FaceAmountMinor)
@@ -394,6 +397,9 @@ func RequestAmount(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatInt(quote.FaceAmountMinor, 10)})
 }
 
@@ -472,4 +478,15 @@ func AdminCompleteTopUp(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, nil)
+}
+
+// rejectUncreditableTopUpQuote refuses to start a payment whose credit could
+// not be settled into the user's wallet. Settlement repeats the check
+// atomically because the wallet balance can change after checkout creation.
+func rejectUncreditableTopUpQuote(c *gin.Context, userId int, quote model.TopUpQuote) bool {
+	if err := model.ValidateTopUpQuoteCapacity(userId, quote); err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": topUpPaymentError(c, err)})
+		return true
+	}
+	return false
 }

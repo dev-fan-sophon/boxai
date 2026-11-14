@@ -48,6 +48,9 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND())})
 		return
 	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatInt(quote.FaceAmountMinor, 10)})
 }
 
@@ -59,6 +62,9 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	quote, err := quoteTopUpVND(req.Amount)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("充值数量不能小于 %d", getMinTopupVND()), "data": 10})
+		return
+	}
+	if rejectUncreditableTopUpQuote(c, c.GetInt("id"), quote) {
 		return
 	}
 

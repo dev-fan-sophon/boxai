@@ -354,10 +354,7 @@ func reviewTopUpSubmissionTx(tx *gorm.DB, id, reviewer int, approve bool, reason
 			if err != nil {
 				return err
 			}
-			if quota <= 0 || quota > common.MaxQuota || user.Quota > common.MaxQuota-quota {
-				return ErrTopUpCreditExceedsMaximum
-			}
-			if err := tx.Model(&User{}).Where("id = ?", order.UserId).Update("quota", gorm.Expr("quota + ?", quota)).Error; err != nil {
+			if err := creditTopUpQuota(tx, order.UserId, quota, nil); err != nil {
 				return err
 			}
 			creditedQuota = quota

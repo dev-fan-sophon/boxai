@@ -47,6 +47,8 @@ func topUpPaymentError(c *gin.Context, err error) string {
 		key = i18n.MsgTopupOrderNotExists
 	case errors.Is(err, model.ErrTopUpCreditExceedsMaximum):
 		key = i18n.MsgTopupCreditExceedsMaximum
+	case errors.Is(err, model.ErrTopUpQuoteNotCreditable), errors.Is(err, model.ErrInvalidTopUpQuota):
+		key = i18n.MsgPaymentTopUpNotCreditable
 	case errors.Is(err, model.ErrBankQRSubscriptionSnapshotInvalid):
 		key = i18n.MsgTopupSubscriptionSnapshotInvalid
 	case errors.Is(err, model.ErrSubscriptionPurchaseLimit):
