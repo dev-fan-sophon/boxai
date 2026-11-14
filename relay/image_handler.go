@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -20,6 +21,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
@@ -59,6 +61,12 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 		return types.NewError(fmt.Errorf("invalid api type: %d", info.ApiType), types.ErrorCodeInvalidApiType, types.ErrOptionWithSkipRetry())
 	}
 	adaptor.Init(info)
+	isAli := info.ChannelType == constant.ChannelTypeAli
+	imageCount, err := request.ImageCount(isAli)
+	if err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	promptExtend := request.PromptExtendEnabled()
 
 	var requestBody io.Reader
 
@@ -95,6 +103,13 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 				}
 			}
 
+			// This is a different trust boundary from ingress: channel overrides
+			// can change the quantity actually submitted, so bill what is sent.
+			imageCount, promptExtend, err = outboundImageQuantity(jsonData, imageCount, promptExtend, isAli)
+			if err != nil {
+				return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+
 			metadata["upstream_request_bytes"] = len(jsonData)
 			body, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 			if err != nil {
@@ -104,6 +119,10 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 			jsonData = nil
 			requestBody = body
 		}
+	}
+
+	if billingErr := service.PrepareImageBillingForRequest(c, info, imageCount, promptExtend); billingErr != nil {
+		return billingErr
 	}
 
 	statusCodeMappingStr := c.GetString("status_code_mapping")
@@ -173,4 +192,38 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 
 	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), logContent)
 	return nil
+}
+
+// outboundImageQuantity re-reads the billable quantity from the converted
+// upstream body after channel parameter overrides. Numeric n /
+// parameters.n fields must be integers within dto.MaxImageN; fields of other
+// types are provider-specific and keep the validated ingress quantity.
+func outboundImageQuantity(body []byte, count int, promptExtend bool, useProviderParameters bool) (int, bool, error) {
+	quantityRequest := dto.ImageRequest{N: common.GetPointer(uint(count))}
+	for _, field := range []struct {
+		path     string
+		provider bool
+	}{{path: "n"}, {path: "parameters.n", provider: true}} {
+		value := gjson.GetBytes(body, field.path)
+		if value.Type != gjson.Number {
+			continue
+		}
+		n, err := strconv.ParseUint(value.Raw, 10, 64)
+		if err != nil || n > dto.MaxImageN {
+			return 0, false, fmt.Errorf("%s must be an integer between 1 and %d", field.path, dto.MaxImageN)
+		}
+		if field.provider {
+			quantityRequest.BillingParameters = &dto.ImageBillingParameters{N: common.GetPointer(uint(n))}
+		} else {
+			quantityRequest.N = common.GetPointer(uint(n))
+		}
+	}
+	if extend := gjson.GetBytes(body, "parameters.prompt_extend"); extend.IsBool() {
+		promptExtend = extend.Bool()
+	}
+	count, err := quantityRequest.ImageCount(useProviderParameters)
+	if err != nil {
+		return 0, false, err
+	}
+	return count, promptExtend, nil
 }
