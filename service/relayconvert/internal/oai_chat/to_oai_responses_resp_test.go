@@ -138,3 +138,23 @@ func mustResponsesEventsFromChatChunk(t *testing.T, state *ChatToResponsesStream
 	require.NoError(t, err)
 	return events
 }
+
+// UsageText is the missing-usage estimate and tells whether output reached the
+// client, so it covers every delta sent: text, reasoning, and tool arguments.
+func TestChatCompletionsStreamToResponsesUsageTextCoversDeliveredOutput(t *testing.T) {
+	state := NewChatToResponsesStreamState("resp_1", "gpt-test")
+	index := 0
+	for _, chunk := range []*dto.ChatCompletionsStreamResponse{
+		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ReasoningContent: lo.ToPtr("think ")}}}},
+		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: lo.ToPtr("answer ")}}}},
+		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{
+			{Index: &index, ID: "call_1", Type: "function", Function: dto.FunctionResponse{Name: "lookup", Arguments: `{"q":`}},
+		}}}}},
+		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{
+			{Index: &index, Function: dto.FunctionResponse{Arguments: `"x"}`}},
+		}}}}},
+	} {
+		mustResponsesEventsFromChatChunk(t, state, chunk)
+	}
+	assert.Equal(t, `think answer {"q":"x"}`, state.UsageText())
+}

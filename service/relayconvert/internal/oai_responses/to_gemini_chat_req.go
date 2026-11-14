@@ -91,7 +91,7 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 	if err != nil {
 		return nil, err
 	}
-	if toolChoice != nil {
+	if toolChoice != nil && len(functions) > 0 {
 		geminiRequest.ToolConfig = sharedgemini.OpenAIToolChoiceToConfig(toolChoice)
 	}
 

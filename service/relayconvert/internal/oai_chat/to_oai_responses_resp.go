@@ -189,23 +189,29 @@ func chatToolCallToResponsesOutput(toolCall dto.ToolCallRequest, responseID stri
 		callID = fmt.Sprintf("%s_call_%d", responseID, index)
 	}
 	if toolCall.Type == "" || toolCall.Type == "function" {
-		name := strings.TrimSpace(toolCall.Function.Name)
-		if customtool.IsCustom(customTools, name) {
+		upstreamName := strings.TrimSpace(toolCall.Function.Name)
+		namespace, name := customtool.ToolName(customTools, upstreamName)
+		if customtool.IsCustom(customTools, upstreamName) {
 			return dto.ResponsesOutput{
-				Type:   responsesOutputTypeCustomToolCall,
-				ID:     callID,
-				Status: status,
-				CallId: callID,
-				Name:   name,
-				Input:  chatArgumentsRawMessage(customtool.InputFromArguments(toolCall.Function.Arguments)),
+				Type:      responsesOutputTypeCustomToolCall,
+				ID:        callID,
+				Status:    status,
+				CallId:    callID,
+				Name:      name,
+				Namespace: namespace,
+				Input:     chatArgumentsRawMessage(customtool.InputFromArguments(toolCall.Function.Arguments)),
 			}, nil
+		}
+		if namespace == "" {
+			name = toolCall.Function.Name
 		}
 		return dto.ResponsesOutput{
 			Type:      responsesOutputTypeFunctionCall,
 			ID:        callID,
 			Status:    status,
 			CallId:    callID,
-			Name:      toolCall.Function.Name,
+			Name:      name,
+			Namespace: namespace,
 			Arguments: chatArgumentsRawMessage(toolCall.Function.Arguments),
 		}, nil
 	}

@@ -160,12 +160,32 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 					}
 					mediaMessages = append(mediaMessages, message)
 				case "image":
-					imageData := fmt.Sprintf("data:%s;base64,%s", mediaMsg.Source.MediaType, mediaMsg.Source.Data)
-					mediaMessage := dto.MediaContent{
-						Type:     "image_url",
-						ImageUrl: &dto.MessageImageUrl{Url: imageData},
+					// Images without a Chat equivalent (Files API references)
+					// are omitted instead of sent as a broken data URL.
+					if url := claudeImageSourceURL(mediaMsg.Source); url != "" {
+						mediaMessages = append(mediaMessages, dto.MediaContent{
+							Type:     "image_url",
+							ImageUrl: &dto.MessageImageUrl{Url: url},
+						})
 					}
-					mediaMessages = append(mediaMessages, mediaMessage)
+				case "document":
+					// Chat carries base64 PDF and plain-text documents; other
+					// document sources have no Chat part and are omitted.
+					if mediaMsg.Source == nil {
+						continue
+					}
+					switch {
+					case mediaMsg.Source.Type == "text":
+						mediaMessages = append(mediaMessages, dto.MediaContent{Type: dto.ContentTypeText, Text: common.Interface2String(mediaMsg.Source.Data)})
+					case mediaMsg.Source.Type == "base64" && mediaMsg.Source.MediaType == "application/pdf":
+						mediaMessages = append(mediaMessages, dto.MediaContent{
+							Type: dto.ContentTypeFile,
+							File: &dto.MessageFile{
+								FileName: "document.pdf",
+								FileData: "data:application/pdf;base64," + common.Interface2String(mediaMsg.Source.Data),
+							},
+						})
+					}
 				case "tool_use":
 					toolCall := dto.ToolCallRequest{
 						ID:   mediaMsg.Id,
@@ -215,6 +235,23 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 
 	openAIRequest.Messages = toolresult.PromoteChat(openAIMessages)
 	return &openAIRequest, nil
+}
+
+// claudeImageSourceURL is the Chat image_url for a Claude image source: a data
+// URL for base64 data or the URL of a url source. Other sources, such as Files
+// API references, have no Chat equivalent and yield "".
+func claudeImageSourceURL(source *dto.ClaudeMessageSource) string {
+	if source == nil || source.Type == "file" {
+		return ""
+	}
+	if source.Url != "" {
+		return source.Url
+	}
+	data := common.Interface2String(source.Data)
+	if data == "" {
+		return ""
+	}
+	return fmt.Sprintf("data:%s;base64,%s", source.MediaType, data)
 }
 
 func requestToJSONString(v interface{}) string {

@@ -44,3 +44,22 @@ func MapOpenAIToolChoice(toolChoice any, parallelToolCalls *bool) *dto.ClaudeToo
 
 	return claudeToolChoice
 }
+
+// RelaxForcedToolChoiceForThinking sends a forced tool choice (any or a named
+// tool) as auto when manual extended thinking is enabled: Claude rejects that
+// combination, so the model may answer without calling a tool instead of the
+// request failing. Only requests converted from another protocol use it; a
+// native Claude request keeps what the client sent.
+func RelaxForcedToolChoiceForThinking(request *dto.ClaudeRequest) {
+	if request == nil || request.ToolChoice == nil || request.Thinking == nil || request.Thinking.Type != "enabled" {
+		return
+	}
+	choice, ok := request.ToolChoice.(*dto.ClaudeToolChoice)
+	if !ok || (choice.Type != "any" && choice.Type != "tool") {
+		return
+	}
+	relaxed := *choice
+	relaxed.Type = "auto"
+	relaxed.Name = ""
+	request.ToolChoice = &relaxed
+}

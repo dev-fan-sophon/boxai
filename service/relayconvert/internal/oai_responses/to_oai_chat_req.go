@@ -86,7 +86,11 @@ func ResponsesRequestToChatCompletionsRequest(req *dto.OpenAIResponsesRequest) (
 	if req.ServiceTier != "" {
 		out.ServiceTier, _ = common.Marshal(req.ServiceTier)
 	}
-	if len(req.ParallelToolCalls) > 0 && common.GetJsonType(req.ParallelToolCalls) == "boolean" {
+	if len(tools) == 0 {
+		// Upstreams reject tool_choice and parallel_tool_calls in a request
+		// without tools.
+		out.ToolChoice = nil
+	} else if len(req.ParallelToolCalls) > 0 && common.GetJsonType(req.ParallelToolCalls) == "boolean" {
 		var parallelToolCalls bool
 		if err := common.Unmarshal(req.ParallelToolCalls, &parallelToolCalls); err == nil {
 			out.ParallelTooCalls = &parallelToolCalls

@@ -204,7 +204,7 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 		}
 		geminiRequest.SetTools(geminiTools)
 
-		if textRequest.ToolChoice != nil {
+		if textRequest.ToolChoice != nil && len(functions) > 0 {
 			geminiRequest.ToolConfig = sharedgemini.OpenAIToolChoiceToConfig(textRequest.ToolChoice)
 		}
 	}

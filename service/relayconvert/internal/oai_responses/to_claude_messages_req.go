@@ -60,10 +60,11 @@ func OpenAIResponsesRequestToClaudeMessages(c *gin.Context, req *dto.OpenAIRespo
 	if err != nil {
 		return nil, err
 	}
-	if toolChoice != nil || RawJSONPresent(req.ParallelToolCalls) {
+	if len(functions) > 0 && (toolChoice != nil || RawJSONPresent(req.ParallelToolCalls)) {
 		claudeRequest.ToolChoice = sharedclaude.MapOpenAIToolChoice(toolChoice, ParallelToolCalls(req.ParallelToolCalls))
 	}
 	applyResponsesReasoningToClaude(req, claudeRequest)
+	sharedclaude.RelaxForcedToolChoiceForThinking(claudeRequest)
 
 	systemMessages := make([]dto.ClaudeMediaMessage, 0)
 	if RawJSONPresent(req.Instructions) {
@@ -226,23 +227,19 @@ func responsesInputContentToClaudeMediaMessages(c *gin.Context, content any) ([]
 			if source == nil {
 				continue
 			}
+			// Claude content blocks carry images, PDF documents, and text
+			// documents; audio, video, and other media are omitted instead of
+			// reaching Claude in a shape it rejects.
+			if partType != "input_image" && partType != "input_file" {
+				continue
+			}
 			base64Data, mimeType, err := relaymedia.ResolveBase64Data(c, source, "formatting Responses input for Claude")
 			if err != nil {
 				return nil, fmt.Errorf("get file data failed: %s", err.Error())
 			}
-			claudePart := dto.ClaudeMediaMessage{
-				Source: &dto.ClaudeMessageSource{
-					Type:      "base64",
-					MediaType: mimeType,
-					Data:      base64Data,
-				},
+			if block, reason := sharedclaude.MediaBlock(base64Data, mimeType, partType == "input_image"); reason == "" {
+				parts = append(parts, block)
 			}
-			if strings.HasPrefix(mimeType, "application/pdf") {
-				claudePart.Type = "document"
-			} else {
-				claudePart.Type = "image"
-			}
-			parts = append(parts, claudePart)
 		}
 	}
 	return parts, nil

@@ -364,8 +364,12 @@ func (m *MediaContent) GetFile() *MessageFile {
 			return m.File.(*MessageFile)
 		}
 		if itemMap, ok := m.File.(map[string]any); ok {
+			fileName := common.Interface2String(itemMap["filename"])
+			if fileName == "" {
+				fileName = common.Interface2String(itemMap["file_name"])
+			}
 			out := &MessageFile{
-				FileName: common.Interface2String(itemMap["file_name"]),
+				FileName: fileName,
 				FileData: common.Interface2String(itemMap["file_data"]),
 				FileId:   common.Interface2String(itemMap["file_id"]),
 			}
@@ -425,9 +429,11 @@ func (m *MediaContent) ToFileSource() types.FileSource {
 }
 
 type MessageImageUrl struct {
-	Url      string `json:"url"`
-	Detail   string `json:"detail,omitempty"`
-	MimeType string
+	Url    string `json:"url"`
+	Detail string `json:"detail,omitempty"`
+	// MimeType is in-memory metadata for converters and token counting; it is
+	// not part of the Chat image_url object.
+	MimeType string `json:"-"`
 }
 
 func (m *MessageImageUrl) IsRemoteImage() bool {
