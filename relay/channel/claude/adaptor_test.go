@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -84,4 +85,45 @@ func TestConvertClaudeRequestPreservesSafeguards(t *testing.T) {
 	withoutSafeguards := convertNativeClaudeRequestForTest(t,
 		`{"model":"claude-opus-5-5","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`)
 	assert.NotContains(t, withoutSafeguards, "safeguards")
+}
+
+func TestClaudeThinkingKeepsBlockBindingAndUnknownFields(t *testing.T) {
+	body := `{"model":"claude-opus-5-5","max_tokens":1024,"thinking":{"type":"adaptive","display":"summarized","block_binding":{"prefix_mismatch_behavior":"drop_block"},"future_field":{"a":1}},"messages":[{"role":"user","content":"hi"}]}`
+	var request dto.ClaudeRequest
+	require.NoError(t, common.UnmarshalJsonStr(body, &request))
+	copied, err := common.DeepCopy(&request)
+	require.NoError(t, err)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{OriginModelName: "claude-opus-5-5", ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-opus-5-5"}}
+	out, err := (&Adaptor{}).ConvertClaudeRequest(c, info, copied)
+	require.NoError(t, err)
+	encoded, err := common.Marshal(out)
+	require.NoError(t, err)
+	var upstream struct {
+		Thinking any `json:"thinking"`
+	}
+	require.NoError(t, common.Unmarshal(encoded, &upstream))
+	assert.Equal(t, map[string]any{
+		"type":          "adaptive",
+		"display":       "summarized",
+		"block_binding": map[string]any{"prefix_mismatch_behavior": "drop_block"},
+		"future_field":  map[string]any{"a": 1.0},
+	}, upstream.Thinking)
+}
+
+func TestSetupRequestHeaderForwardsEveryAnthropicBetaValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Request.Header.Add("anthropic-beta", "fast-mode-2026-02-01")
+	c.Request.Header.Add("anthropic-beta", "thinking-binding-controls-2026-08-01")
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "claude-opus-5-5",
+		ChannelMeta:     &relaycommon.ChannelMeta{ApiKey: "sk-test"},
+	}
+
+	header := http.Header{}
+	require.NoError(t, (&Adaptor{}).SetupRequestHeader(c, &header, info))
+	assert.Equal(t, []string{"fast-mode-2026-02-01,thinking-binding-controls-2026-08-01"}, header.Values("anthropic-beta"))
 }
