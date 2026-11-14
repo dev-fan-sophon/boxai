@@ -395,7 +395,6 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 // writeRelayStreamError reports the final error on the stream a keepalive
 // already committed, since its status line can no longer change.
 func writeRelayStreamError(c *gin.Context, format types.RelayFormat, apiError *types.NewAPIError, upstreamURLs []string) {
-	helper.ExtendWriteDeadline(c)
 	if format == types.RelayFormatClaude {
 		_ = helper.ClaudeData(c, dto.ClaudeResponse{Type: "error", Error: apiError.ToClaudeError(upstreamURLs...)})
 		return

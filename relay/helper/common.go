@@ -106,7 +106,6 @@ func (writer *streamKeepAliveWriter) committed() bool {
 func (writer *streamKeepAliveWriter) ping() error {
 	writer.mutex.Lock()
 	defer writer.mutex.Unlock()
-	ExtendWriteDeadline(writer.pingContext)
 	return PingData(writer.pingContext)
 }
 
@@ -235,6 +234,8 @@ func SetEventStreamHeaders(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Transfer-Encoding", "chunked")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	// Every later write to this stream shares one write deadline budget.
+	c.Writer = &streamResponseWriter{ResponseWriter: c.Writer}
 }
 
 func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
