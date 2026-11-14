@@ -45,6 +45,7 @@ func TestMain(m *testing.M) {
 
 	if err := db.AutoMigrate(
 		&model.Task{},
+		&model.Midjourney{},
 		&model.BillingOperation{},
 		&model.User{},
 		&model.Token{},
@@ -69,6 +70,7 @@ func truncate(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
 		model.DB.Exec("DELETE FROM tasks")
+		model.DB.Exec("DELETE FROM midjourneys")
 		model.DB.Exec("DELETE FROM billing_operations")
 		model.DB.Exec("DELETE FROM users")
 		model.DB.Exec("DELETE FROM tokens")
@@ -1458,4 +1460,46 @@ func TestTaskSettlementRetryClaimIsExclusive(t *testing.T) {
 	claimed, err = stale.ClaimBillingRetry(now+15, now+30)
 	require.NoError(t, err)
 	assert.True(t, claimed, "an expired lease is reclaimable after a crash")
+}
+
+func TestRefundMidjourneyQuotaReversesUsageOnce(t *testing.T) {
+	truncate(t)
+
+	const userID, channelID, initialQuota, taskQuota = 21, 22, 5000, 1300
+	seedUser(t, userID, initialQuota-taskQuota)
+	seedChannel(t, channelID)
+	// Submission charged the wallet and recorded usage plus one request.
+	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", userID).
+		Updates(map[string]any{"used_quota": 2000, "request_count": 4}).Error)
+	require.NoError(t, model.DB.Model(&model.Channel{}).Where("id = ?", channelID).Update("used_quota", 3000).Error)
+	operationKey := "midjourney-refund-usage"
+	_, applied, err := model.ApplyBillingOperation(model.BillingOperationInput{
+		IdempotencyKey: initialOperationKey(operationKey), Kind: model.BillingOperationInitial,
+		UserID: userID, BillingSource: BillingSourceWallet,
+		Delta: 0, ChargedQuota: taskQuota, ReferenceKey: initialOperationKey(operationKey),
+	})
+	require.NoError(t, err)
+	require.True(t, applied)
+
+	task := &model.Midjourney{
+		UserId: userID, ChannelId: channelID, MjId: "mj-refund-usage", Action: "IMAGINE",
+		Status: "FAILURE", Quota: taskQuota, BillingSource: BillingSourceWallet,
+		BillingOperationKey: operationKey,
+	}
+	require.NoError(t, model.DB.Create(task).Error)
+
+	require.True(t, RefundMidjourneyQuota(context.Background(), task))
+	require.True(t, RefundMidjourneyQuota(context.Background(), task))
+
+	var user model.User
+	var channel model.Channel
+	require.NoError(t, model.DB.First(&user, userID).Error)
+	require.NoError(t, model.DB.First(&channel, channelID).Error)
+	assert.Equal(t, initialQuota, user.Quota)
+	assert.Equal(t, 2000-taskQuota, user.UsedQuota)
+	assert.Equal(t, 4, user.RequestCount, "a refund must not change the request count")
+	assert.EqualValues(t, 3000-taskQuota, channel.UsedQuota)
+	var stored model.Midjourney
+	require.NoError(t, model.DB.First(&stored, task.Id).Error)
+	assert.Zero(t, stored.Quota)
 }

@@ -299,7 +299,9 @@ func RefundMidjourneyQuota(ctx context.Context, task *model.Midjourney) bool {
 		UserID: initial.UserID, TokenID: initial.TokenID, SubscriptionID: initial.SubscriptionID,
 		SubscriptionUsageGeneration: initial.SubscriptionUsageGeneration,
 		BillingSource:               initial.BillingSource, ChargedQuota: 0, ReferenceKey: initial.IdempotencyKey,
-		SetChargeToTarget: true,
+		// Submission recorded the charge in user/channel used_quota; a refund
+		// must reverse it or quota+used_quota inflates with every failure.
+		SetChargeToTarget: true, AdjustTaskUsage: true, ChannelID: task.ChannelId,
 	})
 	if err != nil {
 		return false
