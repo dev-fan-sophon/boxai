@@ -199,6 +199,8 @@ func TestGetOpenAIChatCapabilities(t *testing.T) {
 		{name: "gpt 5.2 with reasoning drops sampling", model: "gpt-5.2", effort: "high", want: restricted},
 		{name: "gpt 5.2 pro drops sampling", model: "gpt-5.2-pro", want: restricted},
 		{name: "gpt 6 astra drops sampling", model: "gpt-6-astra", effort: "none", want: restricted},
+		{name: "gpt 6 sol without reasoning keeps sampling", model: "gpt-6-sol", want: sampling},
+		{name: "gpt 6 luna with reasoning drops sampling", model: "gpt-6-luna-2026-09-30", effort: "high", want: restricted},
 		{name: "unknown model keeps everything", model: "gpt-4.1", want: OpenAIChatCapabilities{SupportsTemperature: true, SupportsTopP: true, SupportsLogProbs: true}},
 	}
 	for _, tt := range tests {

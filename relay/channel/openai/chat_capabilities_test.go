@@ -28,6 +28,8 @@ func TestConvertOpenAIRequestAppliesModelChatCapabilities(t *testing.T) {
 		{name: "gpt 6 astra effort suffix", model: "gpt-6-astra-high", wantModel: "gpt-6-astra", wantEffort: "high", wantRole: "developer"},
 		{name: "gpt 5.2 without reasoning keeps sampling", model: "gpt-5.2", wantModel: "gpt-5.2", wantSampling: true, wantRole: "developer"},
 		{name: "gpt 5.2 with reasoning drops sampling", model: "gpt-5.2", effort: "medium", wantModel: "gpt-5.2", wantEffort: "medium", wantRole: "developer"},
+		{name: "gpt 6 sol uses max_completion_tokens", model: "gpt-6-sol", wantModel: "gpt-6-sol", wantSampling: true, wantRole: "developer"},
+		{name: "gpt 6 luna effort suffix drops sampling", model: "gpt-6-luna-high", wantModel: "gpt-6-luna", wantEffort: "high", wantRole: "developer"},
 		{name: "unknown model keeps parameters", model: "gpt-4.1", wantModel: "gpt-4.1", wantSampling: true, wantMaxTokens: true, wantRole: "system"},
 	}
 	for _, tt := range tests {
