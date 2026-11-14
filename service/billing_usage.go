@@ -136,6 +136,9 @@ func usageFromOpenAIBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 		if usage.PromptTokensDetails.AudioTokens == 0 && inputDetails.AudioTokens > 0 {
 			usage.PromptTokensDetails.AudioTokens = inputDetails.AudioTokens
 		}
+		if usage.PromptTokensDetails.CacheCreationInputTokens == 0 && inputDetails.CacheCreationInputTokens > 0 {
+			usage.PromptTokensDetails.CacheCreationInputTokens = inputDetails.CacheCreationInputTokens
+		}
 	}
 	if usage.PromptTokensDetails.CachedTokens == 0 && usage.PromptCacheHitTokens > 0 {
 		usage.PromptTokensDetails.CachedTokens = usage.PromptCacheHitTokens
@@ -148,12 +151,16 @@ func usageFromOpenAIBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 
 func usageFromClaudeBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 	claudeUsage := billingUsage.ClaudeUsage
-	cacheCreation5m := claudeUsage.GetCacheCreation5mTokens()
-	if cacheCreation5m == 0 {
+	// Flat legacy fields are a fallback only when this snapshot never carried
+	// a CacheCreation sub-object. Presence (non-nil), not zero vs non-zero,
+	// is the discriminator: a sub-object that zeros 1h must not revive a
+	// stale flat 1h count and overcharge the cache write.
+	var cacheCreation5m, cacheCreation1h int
+	if claudeUsage.CacheCreation != nil {
+		cacheCreation5m = claudeUsage.GetCacheCreation5mTokens()
+		cacheCreation1h = claudeUsage.GetCacheCreation1hTokens()
+	} else {
 		cacheCreation5m = claudeUsage.ClaudeCacheCreation5mTokens
-	}
-	cacheCreation1h := claudeUsage.GetCacheCreation1hTokens()
-	if cacheCreation1h == 0 {
 		cacheCreation1h = claudeUsage.ClaudeCacheCreation1hTokens
 	}
 
@@ -195,7 +202,7 @@ func usageFromGeminiBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 		addGeminiInputTokenDetail(&usage.PromptTokensDetails, detail)
 	}
 	for _, detail := range metadata.CandidatesTokensDetails {
-		switch detail.Modality {
+		switch normalizeGeminiModality(detail.Modality) {
 		case "IMAGE":
 			usage.CompletionTokenDetails.ImageTokens += detail.TokenCount
 		case "AUDIO":
@@ -208,7 +215,9 @@ func usageFromGeminiBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 	if usage.TotalTokens == 0 {
 		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	} else if usage.CompletionTokens <= 0 {
-		usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
+		// A total below the prompt count must never derive negative output
+		// tokens, which would lower the charge.
+		usage.CompletionTokens = max(usage.TotalTokens-usage.PromptTokens, 0)
 	}
 	if usage.PromptTokens > 0 && usage.PromptTokensDetails.TextTokens == 0 && usage.PromptTokensDetails.AudioTokens == 0 {
 		usage.PromptTokensDetails.TextTokens = usage.PromptTokens
@@ -216,8 +225,14 @@ func usageFromGeminiBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 	return usage
 }
 
+// normalizeGeminiModality makes case and whitespace variants of a modality
+// key ("audio", " AUDIO ") price the same as the canonical upper-case value.
+func normalizeGeminiModality(modality string) string {
+	return strings.ToUpper(strings.TrimSpace(modality))
+}
+
 func addGeminiInputTokenDetail(details *dto.InputTokenDetails, detail dto.GeminiPromptTokensDetails) {
-	switch detail.Modality {
+	switch normalizeGeminiModality(detail.Modality) {
 	case "AUDIO":
 		details.AudioTokens += detail.TokenCount
 	case "IMAGE":
