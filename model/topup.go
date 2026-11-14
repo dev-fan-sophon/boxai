@@ -121,7 +121,7 @@ func TopUpQuota(topUp *TopUp) (int, error) {
 		return 0, errors.New("unknown top-up amount unit")
 	}
 
-	quota, err := common.QuotaFromDecimalStrict(quotaDecimal)
+	quota, err := common.WalletQuotaFromDecimalStrict(quotaDecimal)
 	if err != nil || quota <= 0 {
 		if err != nil {
 			return 0, err
@@ -191,12 +191,12 @@ func UpdatePendingTopUpStatus(tradeNo string, expectedPaymentProvider string, ta
 }
 
 func topUpMaxCurrentQuota(creditedQuota int) (int, error) {
-	if creditedQuota <= 0 || creditedQuota >= common.MaxQuota {
+	if creditedQuota <= 0 || creditedQuota >= common.MaxWalletQuota {
 		return 0, ErrInvalidTopUpQuota
 	}
-	// MaxQuota is the saturation sentinel, so the highest storable wallet
-	// balance after a credit is MaxQuota-1.
-	return common.MaxQuota - 1 - creditedQuota, nil
+	// MaxWalletQuota is the highest wallet balance clients can represent
+	// exactly, so a credit may not push the balance past it.
+	return common.MaxWalletQuota - creditedQuota, nil
 }
 
 // ValidateTopUpQuotaCapacity performs the user-facing pre-payment check. The
@@ -217,7 +217,7 @@ func ValidateTopUpQuotaCapacity(userId int, creditedQuota int) error {
 	return nil
 }
 
-// creditTopUpQuota atomically enforces the int32 wallet ceiling while adding
+// creditTopUpQuota atomically enforces the wallet ceiling while adding
 // quota. Keeping the predicate and increment in one UPDATE prevents concurrent
 // callbacks or spends from racing a separate read/check, on every database.
 func creditTopUpQuota(tx *gorm.DB, userId int, creditedQuota int, updates map[string]interface{}) error {

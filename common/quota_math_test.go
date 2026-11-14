@@ -137,3 +137,37 @@ func TestQuotaFromDecimalStrictReturnsTypedClampError(t *testing.T) {
 	assert.Equal(t, QuotaClampOverflow, clamp.Kind)
 	assert.Equal(t, MaxQuota, clamp.Clamped)
 }
+
+// Wallet balances live in the 64-bit domain: a top-up or redemption above the
+// single-request int32 bound must convert exactly, while values clients cannot
+// represent exactly are rejected instead of saturated.
+func TestWalletQuotaFromDecimalStrict(t *testing.T) {
+	quota, err := WalletQuotaFromDecimalStrict(decimal.NewFromInt(int64(MaxQuota) + 1))
+	require.NoError(t, err)
+	assert.Equal(t, MaxQuota+1, quota)
+
+	quota, err = WalletQuotaFromDecimalStrict(decimal.NewFromInt(MaxWalletQuota - 1))
+	require.NoError(t, err)
+	assert.Equal(t, MaxWalletQuota-1, quota)
+
+	for _, value := range []decimal.Decimal{
+		decimal.NewFromInt(MaxWalletQuota),
+		decimal.NewFromInt(-MaxWalletQuota),
+		decimal.NewFromInt(2000).Mul(decimal.NewFromFloat(1.8446744073686647e19)),
+	} {
+		quota, err = WalletQuotaFromDecimalStrict(value)
+		assert.Zero(t, quota, value.String())
+		var clamp *QuotaClamp
+		require.ErrorAs(t, err, &clamp, value.String())
+		assert.Equal(t, "WalletQuotaFromDecimal", clamp.Op)
+	}
+}
+
+func TestValidateWalletQuota(t *testing.T) {
+	for _, quota := range []int{0, MaxQuota + 1, MaxWalletQuota, -MaxWalletQuota} {
+		assert.NoError(t, ValidateWalletQuota(quota), quota)
+	}
+	for _, quota := range []int{MaxWalletQuota + 1, -MaxWalletQuota - 1} {
+		assert.Error(t, ValidateWalletQuota(quota), quota)
+	}
+}

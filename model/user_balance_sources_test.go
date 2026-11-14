@@ -103,7 +103,7 @@ func TestAdminAdjustmentAtomicHistoryAndBounds(t *testing.T) {
 	for _, input := range []struct {
 		mode  string
 		value int
-	}{{"add", common.MaxQuota}, {"subtract", -1}, {"invalid", 12}} {
+	}{{"add", common.MaxWalletQuota}, {"subtract", -1}, {"invalid", 12}} {
 		_, err = AdjustUserQuota(7, 1, input.mode, input.value)
 		require.Error(t, err)
 	}

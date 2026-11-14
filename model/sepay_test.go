@@ -84,7 +84,7 @@ func TestSePayReconciliationAndImmutableTransactionID(t *testing.T) {
 
 func TestSePayQuotaCeilingRollsBackEventAndSettlement(t *testing.T) {
 	order, transfer := sePayFixture(t)
-	require.NoError(t, DB.Model(&User{}).Where("id = ?", 1).Update("quota", common.MaxQuota-999).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", 1).Update("quota", common.MaxWalletQuota-999).Error)
 	require.ErrorIs(t, ProcessSePayTransfer(transfer), ErrTopUpCreditExceedsMaximum)
 	var count int64
 	require.NoError(t, DB.Model(&SePayEvent{}).Count(&count).Error)

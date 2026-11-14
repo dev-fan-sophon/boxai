@@ -257,6 +257,9 @@ func migrateDB() error {
 	if err := migrateTokenModelLimitsToText(); err != nil {
 		return err
 	}
+	if err := migrateWalletQuotaColumnsToBigint(); err != nil {
+		return err
+	}
 
 	err := DB.AutoMigrate(
 		&Channel{},

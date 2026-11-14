@@ -384,7 +384,7 @@ func TestSePayPendingLimitAndOverflowRollback(t *testing.T) {
 		sePayHTTP(t, r, "POST", "/pay", `{"amount":100000}`, 200)
 	}
 	sePayHTTP(t, r, "POST", "/pay", `{"amount":100000}`, 400)
-	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", 1).Update("quota", common.MaxQuota-399).Error)
+	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", 1).Update("quota", common.MaxWalletQuota-399).Error)
 	transfer := model.SePayTransfer{ID: 5, Gateway: "MBBank", AccountNumber: "123456789", TransferType: "in", TransferAmount: "100000", Content: trade}
 	require.ErrorIs(t, model.ProcessSePayTransfer(transfer), model.ErrTopUpCreditExceedsMaximum)
 	var events int64

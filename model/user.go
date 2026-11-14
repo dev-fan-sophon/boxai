@@ -96,16 +96,16 @@ type User struct {
 	TelegramId       string                     `json:"telegram_id" gorm:"column:telegram_id;index"`
 	VerificationCode string                     `json:"verification_code" gorm:"-:all"`                         // this field is only for Email verification, don't save it to database!
 	AccessToken      *string                    `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
-	Quota            int                        `json:"quota" gorm:"type:int;default:0"`
-	UsedQuota        int                        `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
-	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"`               // request number
+	Quota            int                        `json:"quota" gorm:"default:0"`
+	UsedQuota        int                        `json:"used_quota" gorm:"default:0;column:used_quota"` // used quota
+	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"`      // request number
 	Group            string                     `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode          string                     `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount         int                        `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
-	AffQuota         int                        `json:"aff_quota" gorm:"type:int;default:0;column:aff_quota"`           // 邀请剩余额度
-	AffHistoryQuota  int                        `json:"aff_history_quota" gorm:"type:int;default:0;column:aff_history"` // 邀请历史额度
-	RewardQuota      int                        `json:"reward_quota" gorm:"type:int;default:0;column:reward_quota"`     // Rewards 待兑换额度
-	RewardHistory    int                        `json:"reward_history" gorm:"type:int;default:0;column:reward_history"` // Rewards 累计获得额度
+	AffQuota         int                        `json:"aff_quota" gorm:"default:0;column:aff_quota"`           // 邀请剩余额度
+	AffHistoryQuota  int                        `json:"aff_history_quota" gorm:"default:0;column:aff_history"` // 邀请历史额度
+	RewardQuota      int                        `json:"reward_quota" gorm:"default:0;column:reward_quota"`     // Rewards 待兑换额度
+	RewardHistory    int                        `json:"reward_history" gorm:"default:0;column:reward_history"` // Rewards 累计获得额度
 	InviterId        int                        `json:"inviter_id" gorm:"type:int;column:inviter_id;index"`
 	DeletedAt        gorm.DeletedAt             `gorm:"index"`
 	LinuxDOId        string                     `json:"linux_do_id" gorm:"column:linux_do_id;index"`
@@ -560,7 +560,7 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	if quotaPerUnit <= 0 || math.IsNaN(quotaPerUnit) || math.IsInf(quotaPerUnit, 0) {
 		return errors.New("邀请额度转移配置无效！")
 	}
-	if quota <= 0 || quota > common.MaxQuota {
+	if quota <= 0 || quota > common.MaxWalletQuota {
 		return errors.New("无效的邀请额度！")
 	}
 	if float64(quota) < quotaPerUnit {
@@ -568,7 +568,7 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	}
 
 	result := DB.Model(&User{}).
-		Where("id = ? AND aff_quota >= ? AND quota <= ?", user.Id, quota, common.MaxQuota-quota).
+		Where("id = ? AND aff_quota >= ? AND quota <= ?", user.Id, quota, common.MaxWalletQuota-quota).
 		Updates(map[string]interface{}{
 			"aff_quota": gorm.Expr("aff_quota - ?", quota),
 			"quota":     gorm.Expr("quota + ?", quota),
@@ -1243,12 +1243,38 @@ func IncreaseUserQuota(id int, quota int, _ bool) (err error) {
 	return nil
 }
 
-func increaseUserQuota(id int, quota int) (err error) {
-	err = DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
-	if err != nil {
+// ErrWalletQuotaLimitExceeded reports a credit that would push a wallet past
+// common.MaxWalletQuota.
+var ErrWalletQuotaLimitExceeded = errors.New("wallet quota limit exceeded")
+
+func increaseUserQuota(id int, quota int) error {
+	// Batched billing flushes net spend through here as a negative delta; a
+	// debit cannot overflow the ceiling, so only credits are bounded.
+	if quota <= 0 {
+		return DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
+	}
+	if quota > common.MaxWalletQuota {
+		return ErrWalletQuotaLimitExceeded
+	}
+	result := DB.Model(&User{}).
+		Where("id = ? AND quota <= ?", id, common.MaxWalletQuota-quota).
+		Update("quota", gorm.Expr("quota + ?", quota))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 1 {
+		return nil
+	}
+	// No row matched: a missing or deleted user stays a no-op, as it always
+	// was; an existing user means the credit would pass the wallet ceiling.
+	var count int64
+	if err := DB.Model(&User{}).Where("id = ?", id).Count(&count).Error; err != nil {
 		return err
 	}
-	return err
+	if count == 0 {
+		return nil
+	}
+	return ErrWalletQuotaLimitExceeded
 }
 
 func DecreaseUserQuota(id int, quota int, _ bool) (err error) {

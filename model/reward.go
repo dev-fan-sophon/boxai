@@ -153,7 +153,7 @@ func (campaign *RewardCampaign) Normalize() error {
 	if utf8.RuneCountInString(campaign.Description) > RewardDescMaxLen {
 		return fmt.Errorf("description is too long")
 	}
-	if campaign.Quota <= 0 || campaign.Quota > common.MaxQuota {
+	if campaign.Quota <= 0 || campaign.Quota > common.MaxWalletQuota {
 		return ErrRewardInvalidQuota
 	}
 	if campaign.MaxClaims < 0 {
@@ -427,7 +427,7 @@ func ClaimRewardCampaign(userId int, slug string, clientIP string, userAgent str
 		if campaign.EndsAt > 0 && now >= campaign.EndsAt {
 			return ErrRewardCampaignEnded
 		}
-		if campaign.Quota <= 0 || campaign.Quota > common.MaxQuota {
+		if campaign.Quota <= 0 || campaign.Quota > common.MaxWalletQuota {
 			return ErrRewardInvalidQuota
 		}
 
@@ -474,11 +474,11 @@ func ClaimRewardCampaign(userId int, slug string, clientIP string, userAgent str
 		}
 
 		nextReward := user.RewardQuota + campaign.Quota
-		if nextReward < user.RewardQuota || nextReward > common.MaxQuota {
+		if nextReward < user.RewardQuota || nextReward > common.MaxWalletQuota {
 			return ErrRewardQuotaOverflow
 		}
 		nextHistory := user.RewardHistory + campaign.Quota
-		if nextHistory < user.RewardHistory || nextHistory > common.MaxQuota {
+		if nextHistory < user.RewardHistory || nextHistory > common.MaxWalletQuota {
 			return ErrRewardQuotaOverflow
 		}
 
@@ -498,7 +498,7 @@ func ClaimRewardCampaign(userId int, slug string, clientIP string, userAgent str
 		}
 
 		result := tx.Model(&User{}).
-			Where("id = ? AND reward_quota <= ?", userId, common.MaxQuota-campaign.Quota).
+			Where("id = ? AND reward_quota <= ?", userId, common.MaxWalletQuota-campaign.Quota).
 			Updates(map[string]interface{}{
 				"reward_quota":   gorm.Expr("reward_quota + ?", campaign.Quota),
 				"reward_history": gorm.Expr("reward_history + ?", campaign.Quota),
@@ -539,7 +539,7 @@ func RedeemRewardQuota(userId int, quota int) error {
 		return errors.New("invalid user id")
 	}
 	minQuota := effectiveMinRedeemQuota()
-	if quota < minQuota || quota > common.MaxQuota {
+	if quota < minQuota || quota > common.MaxWalletQuota {
 		return ErrRewardBelowMinimum
 	}
 
@@ -551,12 +551,12 @@ func RedeemRewardQuota(userId int, quota int) error {
 		if user.RewardQuota < quota {
 			return ErrRewardInsufficient
 		}
-		if user.Quota > common.MaxQuota-quota {
+		if user.Quota > common.MaxWalletQuota-quota {
 			return ErrRewardQuotaOverflow
 		}
 
 		result := tx.Model(&User{}).
-			Where("id = ? AND reward_quota >= ? AND quota <= ?", userId, quota, common.MaxQuota-quota).
+			Where("id = ? AND reward_quota >= ? AND quota <= ?", userId, quota, common.MaxWalletQuota-quota).
 			Updates(map[string]interface{}{
 				"reward_quota": gorm.Expr("reward_quota - ?", quota),
 				"quota":        gorm.Expr("quota + ?", quota),
@@ -593,7 +593,7 @@ func AdjustRewardQuota(userId int, delta int, note string) error {
 	if userId <= 0 || delta == 0 {
 		return ErrRewardInvalidQuota
 	}
-	if delta > common.MaxQuota || delta < -common.MaxQuota {
+	if delta > common.MaxWalletQuota || delta < -common.MaxWalletQuota {
 		return ErrRewardInvalidQuota
 	}
 
@@ -606,14 +606,14 @@ func AdjustRewardQuota(userId int, delta int, note string) error {
 		if next < 0 {
 			return ErrRewardInsufficient
 		}
-		if next > common.MaxQuota {
+		if next > common.MaxWalletQuota {
 			return ErrRewardQuotaOverflow
 		}
 		updates := map[string]interface{}{
 			"reward_quota": gorm.Expr("reward_quota + ?", delta),
 		}
 		if delta > 0 {
-			if user.RewardHistory > common.MaxQuota-delta {
+			if user.RewardHistory > common.MaxWalletQuota-delta {
 				return ErrRewardQuotaOverflow
 			}
 			updates["reward_history"] = gorm.Expr("reward_history + ?", delta)

@@ -69,8 +69,9 @@ func TestRequestAmountRejectsTopUpThatWouldOverflowWallet(t *testing.T) {
 		walletQuota int
 		wantBody    string
 	}{
-		{name: "fits exactly below the saturation sentinel", walletQuota: common.MaxQuota - 1 - 20_000_000, wantBody: `{"message":"success","data":"1000000"}`},
-		{name: "would reach the saturation sentinel", walletQuota: common.MaxQuota - 20_000_000},
+		{name: "credits a wallet past the int32 range", walletQuota: common.MaxQuota, wantBody: `{"message":"success","data":"1000000"}`},
+		{name: "fits exactly at the wallet ceiling", walletQuota: common.MaxWalletQuota - 20_000_000, wantBody: `{"message":"success","data":"1000000"}`},
+		{name: "would pass the wallet ceiling", walletQuota: common.MaxWalletQuota - 19_999_999},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -99,8 +100,8 @@ func TestRequestCreemPayRejectsUncreditableProductBeforeCheckout(t *testing.T) {
 		walletQuota int
 		wantMessage string
 	}{
-		{name: "product credit is not representable", quota: int64(common.MaxQuota), wantMessage: i18n.MsgPaymentTopUpNotCreditable},
-		{name: "wallet cannot hold product credit", quota: 1_000, walletQuota: common.MaxQuota - 1_000, wantMessage: i18n.MsgTopupCreditExceedsMaximum},
+		{name: "product credit is not representable", quota: int64(common.MaxWalletQuota), wantMessage: i18n.MsgPaymentTopUpNotCreditable},
+		{name: "wallet cannot hold product credit", quota: 1_000, walletQuota: common.MaxWalletQuota - 999, wantMessage: i18n.MsgTopupCreditExceedsMaximum},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -179,3 +179,49 @@ func TestRedeemConcurrentSingleSuccess(t *testing.T) {
 	require.NoError(t, DB.First(&user, "id = ?", userId).Error)
 	assert.Equal(t, 300, user.Quota, "quota must be credited exactly once")
 }
+
+// A redemption may credit a wallet past the int32 range, but never past the
+// wallet ceiling: an overflowing redeem rolls back and leaves the code usable.
+func TestRedeemEnforcesWalletCeiling(t *testing.T) {
+	userId, key := setupRedeemFixture(t, 1_000)
+
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", userId).Update("quota", common.MaxQuota).Error)
+	_, err := Redeem(key, userId)
+	require.NoError(t, err)
+	var user User
+	require.NoError(t, DB.First(&user, "id = ?", userId).Error)
+	assert.Equal(t, common.MaxQuota+1_000, user.Quota)
+
+	require.NoError(t, DB.Model(&Redemption{}).Where(commonKeyCol+" = ?", key).Updates(map[string]interface{}{
+		"status": common.RedemptionCodeStatusEnabled, "used_user_id": 0,
+	}).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", userId).Update("quota", common.MaxWalletQuota-999).Error)
+	_, err = Redeem(key, userId)
+	require.Error(t, err)
+	require.NoError(t, DB.First(&user, "id = ?", userId).Error)
+	assert.Equal(t, common.MaxWalletQuota-999, user.Quota)
+	var redemption Redemption
+	require.NoError(t, DB.First(&redemption, "name = ?", "redeem-test").Error)
+	assert.Equal(t, common.RedemptionCodeStatusEnabled, redemption.Status)
+}
+
+func TestIncreaseUserQuotaEnforcesWalletCeiling(t *testing.T) {
+	truncateTables(t)
+	user := createQuotaReserveUser(t, common.MaxQuota)
+
+	require.NoError(t, IncreaseUserQuota(user.Id, 10, false))
+	var stored User
+	require.NoError(t, DB.First(&stored, user.Id).Error)
+	assert.Equal(t, common.MaxQuota+10, stored.Quota)
+
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", user.Id).Update("quota", common.MaxWalletQuota-5).Error)
+	assert.ErrorIs(t, IncreaseUserQuota(user.Id, 6, false), ErrWalletQuotaLimitExceeded)
+	require.NoError(t, DB.First(&stored, user.Id).Error)
+	assert.Equal(t, common.MaxWalletQuota-5, stored.Quota)
+	assert.NoError(t, IncreaseUserQuota(user.Id+1_000_000, 1, false), "a missing user stays a no-op")
+
+	// Batched billing flushes net spend as a negative delta through the same path.
+	require.NoError(t, increaseUserQuota(user.Id, -100))
+	require.NoError(t, DB.First(&stored, user.Id).Error)
+	assert.Equal(t, common.MaxWalletQuota-105, stored.Quota)
+}

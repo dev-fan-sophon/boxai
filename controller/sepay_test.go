@@ -73,7 +73,7 @@ func TestSePaySignedSettlementAndStatusOwnership(t *testing.T) {
 		TopUpDiscountSnapshot: model.TopUpDiscountSnapshot{PaidAmount: 90000, FaceAmount: 100000, ExpiresAt: common.GetTimestamp() + 3600}}
 	require.NoError(t, db.Create(&order).Error)
 	body := `{"id":123,"gateway":"MBBank","accountNumber":"12345","subAccount":null,"transferType":"in","transferAmount":90000.0,"code":null,"content":"BOXABC123","transactionDate":"2026-10-20 12:00:00"}`
-	require.NoError(t, db.Model(&model.User{}).Where("id = ?", 1).Update("quota", common.MaxQuota).Error)
+	require.NoError(t, db.Model(&model.User{}).Where("id = ?", 1).Update("quota", common.MaxWalletQuota).Error)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = signedSePayRequest(body, strconv.FormatInt(time.Now().Unix(), 10), "test-secret")

@@ -183,7 +183,7 @@ func TestTransferAffQuotaToQuotaRejectsQuotaOverflow(t *testing.T) {
 		Password: "password",
 		Status:   common.UserStatusEnabled,
 		AffCode:  "affiliate-transfer-overflow",
-		Quota:    common.MaxQuota - 50,
+		Quota:    common.MaxWalletQuota - 50,
 		AffQuota: 100,
 	}
 	require.NoError(t, DB.Create(&user).Error)
@@ -192,7 +192,7 @@ func TestTransferAffQuotaToQuotaRejectsQuotaOverflow(t *testing.T) {
 
 	var got User
 	require.NoError(t, DB.First(&got, user.Id).Error)
-	assert.Equal(t, common.MaxQuota-50, got.Quota)
+	assert.Equal(t, common.MaxWalletQuota-50, got.Quota)
 	assert.Equal(t, 100, got.AffQuota)
 }
 

@@ -80,7 +80,7 @@ func TestTopUpSubmissionSubscriptionApprovalIsIdempotent(t *testing.T) {
 
 func TestTopUpSubmissionApprovalRejectsCumulativeQuotaOverflow(t *testing.T) {
 	setupTopUpSubmissionTestDB(t)
-	require.NoError(t, DB.Create(&User{Id: 1, Username: "owner", AffCode: "owner-aff", Quota: common.MaxQuota - 999}).Error)
+	require.NoError(t, DB.Create(&User{Id: 1, Username: "owner", AffCode: "owner-aff", Quota: common.MaxWalletQuota - 999}).Error)
 	require.NoError(t, DB.Create(&TopUp{UserId: 1, TradeNo: "OVERFLOW", Amount: 10, PaymentMethod: PaymentMethodBankQR, PaymentProvider: PaymentProviderBankQR, Status: common.TopUpStatusPending}).Error)
 	submission := &TopUpSubmission{UserId: 1, TradeNo: "OVERFLOW", BankTransactionNo: "overflow-bank"}
 	require.NoError(t, CreateTopUpSubmission(submission))
@@ -90,7 +90,7 @@ func TestTopUpSubmissionApprovalRejectsCumulativeQuotaOverflow(t *testing.T) {
 
 	var user User
 	require.NoError(t, DB.First(&user, 1).Error)
-	assert.Equal(t, common.MaxQuota-999, user.Quota)
+	assert.Equal(t, common.MaxWalletQuota-999, user.Quota)
 	var order TopUp
 	require.NoError(t, DB.Where("trade_no = ?", "OVERFLOW").First(&order).Error)
 	assert.Equal(t, common.TopUpStatusPending, order.Status)

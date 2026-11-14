@@ -8,13 +8,27 @@ import (
 )
 
 // Quota conversions are centralized here so every billing path shares one
-// saturation + logging policy. Quota columns (user/token/log) are 32-bit
-// integers in the database, so an oversized product must clamp to the int32
-// range instead of wrapping around and turning a charge into a credit.
+// saturation + logging policy. A single request's charge stays bounded to the
+// int32 range, so summing many requests can never approach 64-bit wraparound
+// and an oversized product clamps instead of turning a charge into a credit.
+// Wallet balances (users.quota and the other user wallet columns, token
+// limits, top-ups, redemptions) are 64-bit in the database and bounded by
+// MaxWalletQuota, the largest integer JavaScript clients represent exactly.
 const (
-	MaxQuota = math.MaxInt32
-	MinQuota = math.MinInt32
+	MaxQuota       = math.MaxInt32
+	MinQuota       = math.MinInt32
+	MaxWalletQuota = 1<<53 - 1
 )
+
+// ValidateWalletQuota enforces the bound shared by wallet mutations. Negative
+// balances stay valid because billing can temporarily overdraw a wallet, so
+// callers that accept a credit must also check that it is positive.
+func ValidateWalletQuota(quota int) error {
+	if quota > MaxWalletQuota || quota < -MaxWalletQuota {
+		return fmt.Errorf("wallet quota %d is outside ±%d", quota, MaxWalletQuota)
+	}
+	return nil
+}
 
 // QuotaClampKind identifies why a quota conversion had to be saturated.
 type QuotaClampKind string
@@ -70,14 +84,20 @@ func (c *QuotaClamp) AuditMap() map[string]interface{} {
 // record the event (e.g. on the consume log); the returned pointer is nil for
 // in-range values.
 func saturateQuota(value float64, op string) (int, *QuotaClamp) {
+	return saturateQuotaBounded(value, op, MaxQuota, MinQuota)
+}
+
+// saturateQuotaBounded clamps at the inclusive bounds: a value equal to a
+// bound is treated as saturated, so callers can use the bound as a sentinel.
+func saturateQuotaBounded(value float64, op string, maxQuota int, minQuota int) (int, *QuotaClamp) {
 	var clamp *QuotaClamp
 	switch {
 	case math.IsNaN(value):
 		clamp = &QuotaClamp{Op: op, Kind: QuotaClampNaN, Original: value, Clamped: 0}
-	case value >= MaxQuota:
-		clamp = &QuotaClamp{Op: op, Kind: QuotaClampOverflow, Original: value, Clamped: MaxQuota}
-	case value <= MinQuota:
-		clamp = &QuotaClamp{Op: op, Kind: QuotaClampUnderflow, Original: value, Clamped: MinQuota}
+	case value >= float64(maxQuota):
+		clamp = &QuotaClamp{Op: op, Kind: QuotaClampOverflow, Original: value, Clamped: maxQuota}
+	case value <= float64(minQuota):
+		clamp = &QuotaClamp{Op: op, Kind: QuotaClampUnderflow, Original: value, Clamped: minQuota}
 	default:
 		return int(value), nil
 	}
@@ -147,8 +167,16 @@ func QuotaFromDecimalChecked(d decimal.Decimal) (int, *QuotaClamp) {
 	return saturateQuota(f, "QuotaFromDecimal")
 }
 
-// QuotaFromDecimalStrict converts an in-range decimal quota and rejects a
-// value that would otherwise be saturated at the database's int32 boundary.
+// QuotaFromDecimalStrict converts an in-range single-request decimal quota and
+// rejects a value that would otherwise be saturated at the int32 boundary.
 func QuotaFromDecimalStrict(d decimal.Decimal) (int, error) {
 	return strictQuota(QuotaFromDecimalChecked(d))
+}
+
+// WalletQuotaFromDecimalStrict converts a top-up, redemption or other wallet
+// amount, rejecting values outside ±MaxWalletQuota. Every integer in that range
+// is exactly representable as float64, so the conversion is lossless.
+func WalletQuotaFromDecimalStrict(d decimal.Decimal) (int, error) {
+	f, _ := d.Round(0).Float64()
+	return strictQuota(saturateQuotaBounded(f, "WalletQuotaFromDecimal", MaxWalletQuota, -MaxWalletQuota))
 }

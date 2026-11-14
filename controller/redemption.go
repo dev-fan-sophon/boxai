@@ -85,6 +85,9 @@ func AddRedemption(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgRedemptionCountMax)
 		return
 	}
+	if !validRedemptionQuota(c, redemption.Quota) {
+		return
+	}
 	if valid, msg := validateExpiredTime(c, redemption.ExpiredTime); !valid {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 		return
@@ -157,6 +160,9 @@ func UpdateRedemption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 			return
 		}
+		if !validRedemptionQuota(c, redemption.Quota) {
+			return
+		}
 		// If you add more fields, please also update redemption.Update()
 		cleanRedemption.Name = redemption.Name
 		cleanRedemption.Quota = redemption.Quota
@@ -197,4 +203,18 @@ func validateExpiredTime(c *gin.Context, expired int64) (bool, string) {
 		return false, i18n.T(c, i18n.MsgRedemptionExpireTimeInvalid)
 	}
 	return true, ""
+}
+
+// validRedemptionQuota rejects a code that would debit the redeemer or credit
+// more than a wallet can hold, and writes the error response when it does.
+func validRedemptionQuota(c *gin.Context, quota int) bool {
+	if quota <= 0 {
+		common.ApiErrorI18n(c, i18n.MsgQuotaNegative)
+		return false
+	}
+	if common.ValidateWalletQuota(quota) != nil {
+		common.ApiErrorI18n(c, i18n.MsgQuotaExceedMax)
+		return false
+	}
+	return true
 }

@@ -23,7 +23,7 @@ type UserQuotaAdjustment struct {
 }
 
 func AdjustUserQuota(userID, operatorID int, mode string, value int) (*UserQuotaAdjustment, error) {
-	if userID <= 0 || operatorID <= 0 || value > common.MaxQuota || value < -common.MaxQuota {
+	if userID <= 0 || operatorID <= 0 || value > common.MaxWalletQuota || value < -common.MaxWalletQuota {
 		return nil, errors.New("invalid quota adjustment")
 	}
 	if mode != "override" && (value <= 0 || (mode != "add" && mode != "subtract")) {
@@ -42,7 +42,7 @@ func AdjustUserQuota(userID, operatorID int, mode string, value int) (*UserQuota
 		case "subtract":
 			after = int64(user.Quota) - int64(value)
 		}
-		if after > int64(common.MaxQuota) || after < -int64(common.MaxQuota) {
+		if after > common.MaxWalletQuota || after < -common.MaxWalletQuota {
 			return errors.New("adjusted quota exceeds storage range")
 		}
 		entry.BalanceBefore = user.Quota

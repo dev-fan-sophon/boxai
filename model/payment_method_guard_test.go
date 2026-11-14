@@ -269,11 +269,11 @@ func TestTopUpRechargeCallbacksRejectQuotaOverflow(t *testing.T) {
 			useEpayQuotaUnit(t, 10)
 			userID := 620 + i
 			tradeNo := "recharge-overflow-" + test.provider
-			insertUserForPaymentGuardTest(t, userID, common.MaxQuota-1)
+			insertUserForPaymentGuardTest(t, userID, common.MaxWalletQuota)
 			insertTopUpForPaymentGuardTest(t, tradeNo, userID, test.provider)
 
 			require.Error(t, test.recharge(tradeNo))
-			assert.Equal(t, common.MaxQuota-1, getUserQuotaForPaymentGuardTest(t, userID))
+			assert.Equal(t, common.MaxWalletQuota, getUserQuotaForPaymentGuardTest(t, userID))
 			assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, tradeNo))
 		})
 	}
@@ -413,12 +413,12 @@ func TestRechargeEpayRollsBackOrderWhenCreditFails(t *testing.T) {
 func TestRechargeEpayRejectsQuotaOverflowBeforeCompletingOrder(t *testing.T) {
 	truncateTables(t)
 	useEpayQuotaUnit(t, 5)
-	insertUserForPaymentGuardTest(t, 520, common.MaxQuota-5)
+	insertUserForPaymentGuardTest(t, 520, common.MaxWalletQuota-5)
 	insertEpayTopUpForPaymentGuardTest(t, "epay-overflow", 520, common.TopUpStatusPending)
 
 	_, err := RechargeEpay("epay-overflow", "alipay", "127.0.0.1")
 	require.Error(t, err)
-	assert.Equal(t, common.MaxQuota-5, getUserQuotaForPaymentGuardTest(t, 520))
+	assert.Equal(t, common.MaxWalletQuota-5, getUserQuotaForPaymentGuardTest(t, 520))
 	assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, "epay-overflow"))
 }
 
@@ -431,16 +431,22 @@ func TestRechargeEpayEnforcesFinalWalletQuotaLimit(t *testing.T) {
 		wantStatus   string
 	}{
 		{
-			name:         "allows exact highest representable wallet balance",
-			currentQuota: common.MaxQuota - 1 - 1_000_000,
-			wantQuota:    common.MaxQuota - 1,
+			name:         "credits a wallet past the int32 range",
+			currentQuota: common.MaxQuota,
+			wantQuota:    common.MaxQuota + 1_000_000,
 			wantStatus:   common.TopUpStatusSuccess,
 		},
 		{
-			name:         "rejects balance at the int32 saturation sentinel",
-			currentQuota: common.MaxQuota - 1_000_000,
+			name:         "allows exact highest representable wallet balance",
+			currentQuota: common.MaxWalletQuota - 1_000_000,
+			wantQuota:    common.MaxWalletQuota,
+			wantStatus:   common.TopUpStatusSuccess,
+		},
+		{
+			name:         "rejects a credit past the wallet ceiling",
+			currentQuota: common.MaxWalletQuota - 999_999,
 			wantErr:      ErrTopUpCreditExceedsMaximum,
-			wantQuota:    common.MaxQuota - 1_000_000,
+			wantQuota:    common.MaxWalletQuota - 999_999,
 			wantStatus:   common.TopUpStatusPending,
 		},
 	}
@@ -466,10 +472,10 @@ func TestRechargeEpayEnforcesFinalWalletQuotaLimit(t *testing.T) {
 
 func TestValidateTopUpQuotaCapacity(t *testing.T) {
 	truncateTables(t)
-	insertUserForPaymentGuardTest(t, 540, common.MaxQuota-1-1_000)
+	insertUserForPaymentGuardTest(t, 540, common.MaxWalletQuota-1_000)
 
 	require.NoError(t, ValidateTopUpQuotaCapacity(540, 1_000))
 	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, 1_001), ErrTopUpCreditExceedsMaximum)
 	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, 0), ErrInvalidTopUpQuota)
-	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, common.MaxQuota), ErrInvalidTopUpQuota)
+	assert.ErrorIs(t, ValidateTopUpQuotaCapacity(540, common.MaxWalletQuota), ErrInvalidTopUpQuota)
 }

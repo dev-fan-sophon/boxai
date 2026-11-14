@@ -18,7 +18,7 @@ func TestBankQRQuotaRejectsInvalidOrOversizedConfiguration(t *testing.T) {
 		_, err := BankQRQuota(1)
 		assert.Error(t, err)
 	}
-	common.QuotaPerUnit = float64(common.MaxQuota)
+	common.QuotaPerUnit = float64(common.MaxWalletQuota)
 	_, err := BankQRQuota(2)
 	assert.Error(t, err)
 }
