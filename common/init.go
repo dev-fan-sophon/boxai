@@ -153,6 +153,17 @@ func InitEnv() {
 	initConstantEnv()
 }
 
+// positiveEnvOrDefault reads a duration-like setting that must be positive.
+// Zero or negative values fall back to the default instead of disabling expiry.
+func positiveEnvOrDefault(name string, fallback int) int {
+	value := GetEnvOrDefault(name, fallback)
+	if value <= 0 {
+		SysError(fmt.Sprintf("%s must be positive, using default value: %d", name, fallback))
+		return fallback
+	}
+	return value
+}
+
 func initConstantEnv() {
 	constant.StreamingTimeout = GetEnvOrDefault("STREAMING_TIMEOUT", 300)
 	constant.DifyDebug = GetEnvOrDefaultBool("DIFY_DEBUG", true)
@@ -169,7 +180,7 @@ func initConstantEnv() {
 	constant.UpdateTask = GetEnvOrDefaultBool("UPDATE_TASK", true)
 	constant.AzureDefaultAPIVersion = GetEnvOrDefaultString("AZURE_DEFAULT_API_VERSION", "2025-04-01-preview")
 	constant.NotifyLimitCount = GetEnvOrDefault("NOTIFY_LIMIT_COUNT", 2)
-	constant.NotificationLimitDurationMinute = GetEnvOrDefault("NOTIFICATION_LIMIT_DURATION_MINUTE", 10)
+	constant.NotificationLimitDurationMinute = positiveEnvOrDefault("NOTIFICATION_LIMIT_DURATION_MINUTE", 10)
 	// GenerateDefaultToken 是否生成初始令牌，默认关闭。
 	constant.GenerateDefaultToken = GetEnvOrDefaultBool("GENERATE_DEFAULT_TOKEN", false)
 	// 是否启用错误日志
