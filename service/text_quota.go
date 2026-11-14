@@ -78,6 +78,18 @@ type textQuotaSummary struct {
 	ToolCallSurchargeQuota   decimal.Decimal
 }
 
+// hasBillableUsage reports whether this request should incur any charge.
+// Claude reports cache tokens separately from ordinary input and output.
+// A request can carry zero ordinary tokens yet still be billable via cache or
+// a tool-call surcharge (e.g. /v1/alpha/search returns no usage but bills one
+// web_search call), so token count alone is not sufficient to decide.
+func (s *textQuotaSummary) hasBillableUsage() bool {
+	return s.TotalTokens > 0 ||
+		(s.IsClaudeUsageSemantic && (s.CacheTokens > 0 || s.CacheCreationTokens > 0 ||
+			s.CacheCreationTokens5m > 0 || s.CacheCreationTokens1h > 0)) ||
+		!s.ToolCallSurchargeQuota.IsZero()
+}
+
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
 	if summary.CacheCreationTokens5m > 0 || summary.CacheCreationTokens1h > 0 {
 		splitCacheWriteTokens := summary.CacheCreationTokens5m + summary.CacheCreationTokens1h
@@ -426,7 +438,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 			logger.LogWarn(ctx, "negative text quota rejected")
 			quotaCalculateDecimal = decimal.Zero
 			negativeQuotaRejected = true
-		} else if !ratio.IsZero() && !summary.ToolCallSurchargeQuota.IsPositive() && quotaCalculateDecimal.IsZero() && summary.TotalTokens > 0 {
+		} else if !ratio.IsZero() && !summary.ToolCallSurchargeQuota.IsPositive() && quotaCalculateDecimal.IsZero() && summary.hasBillableUsage() {
 			quotaCalculateDecimal = decimal.NewFromInt(1)
 		}
 		quota, clamp := common.QuotaFromDecimalChecked(quotaCalculateDecimal)
@@ -447,9 +459,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		noteQuotaClamp(relayInfo, clamp)
 	}
 
-	if summary.TotalTokens == 0 && summary.ToolCallSurchargeQuota.IsZero() {
+	if !summary.hasBillableUsage() {
 		summary.Quota = 0
-	} else if !negativeQuotaRejected && !ratio.IsZero() && summary.Quota == 0 && summary.TotalTokens > 0 {
+	} else if !negativeQuotaRejected && !ratio.IsZero() && summary.Quota == 0 {
 		summary.Quota = 1
 	}
 
@@ -520,7 +532,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		extraContent = append(extraContent, fmt.Sprintf("Image Generation Call 花费 %s", decimal.NewFromFloat(summary.ImageGenerationCallPrice).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
 
-	if summary.TotalTokens == 0 && summary.ToolCallSurchargeQuota.IsZero() {
+	if !summary.hasBillableUsage() {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
 	} else {

@@ -180,6 +180,10 @@ type RelayInfo struct {
 	// retries refresh its group-dependent fields before an upstream attempt.
 	TieredBillingSnapshot *billingexpr.BillingSnapshot
 	BillingRequestInput   *billingexpr.RequestInput
+	// ImageQuotaBeforeGroup is the frozen per-call image estimate before group
+	// and request ratios, so each upstream attempt can re-reserve the
+	// effective outbound image quantity without re-running pricing.
+	ImageQuotaBeforeGroup float64
 
 	Request dto.Request
 

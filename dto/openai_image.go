@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -14,6 +15,13 @@ import (
 // MaxImageN caps the image generation count. Without this bound a huge or
 // wrapped-negative n overflows quota calculation into a negative charge.
 const MaxImageN = 128
+
+// ImageBillingParameters contains only the provider scalars parsed by request
+// validation. Keep this separate from the complete provider request payload.
+type ImageBillingParameters struct {
+	N            *uint `json:"n,omitempty"`
+	PromptExtend *bool `json:"prompt_extend,omitempty"`
+}
 
 type ImageRequest struct {
 	Model   string `json:"model"`
@@ -47,6 +55,36 @@ type ImageRequest struct {
 	Image            json.RawMessage `json:"image,omitempty"`
 	// 用匿名参数接收额外参数
 	Extra map[string]json.RawMessage `json:"-"`
+	// BillingParameters holds the validated provider quantity scalars from
+	// Extra["parameters"] (or the multipart parameters field).
+	BillingParameters *ImageBillingParameters `json:"-"`
+}
+
+// ImageCount resolves the validated request quantity. Top-level zero retains
+// its legacy default of one; an explicit provider count must be positive.
+func (i *ImageRequest) ImageCount(useProviderParameters bool) (int, error) {
+	n := uint(1)
+	if i.N != nil && *i.N != 0 {
+		n = *i.N
+	}
+	if n > MaxImageN {
+		return 0, fmt.Errorf("n must be an integer between 1 and %d", MaxImageN)
+	}
+	if parameters := i.BillingParameters; parameters != nil && parameters.N != nil {
+		if *parameters.N > MaxImageN || useProviderParameters && *parameters.N == 0 {
+			return 0, fmt.Errorf("parameters.n must be an integer between 1 and %d", MaxImageN)
+		}
+		if useProviderParameters {
+			n = *parameters.N
+		}
+	}
+	return int(n), nil
+}
+
+// PromptExtendEnabled reports whether the validated provider parameters ask
+// for prompt extension (billed as a surcharge on Ali z-image models).
+func (i *ImageRequest) PromptExtendEnabled() bool {
+	return i.BillingParameters != nil && i.BillingParameters.PromptExtend != nil && *i.BillingParameters.PromptExtend
 }
 
 func (i *ImageRequest) UnmarshalJSON(data []byte) error {

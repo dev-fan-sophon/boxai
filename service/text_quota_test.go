@@ -14,6 +14,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -276,6 +277,92 @@ func TestCalculateTextQuotaSummaryUsesOpenAIBillingUsageBeforeTopLevelUsage(t *t
 	require.Equal(t, 9, summary.CompletionTokens)
 	require.Equal(t, 89, summary.TotalTokens)
 	require.Equal(t, 98, summary.Quota)
+}
+
+func TestCalculateTextQuotaSummaryUsesOpenAIResponsesInputTokenDetails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "gpt-4o",
+		PriceData: types.PriceData{
+			ModelRatio:      1,
+			CompletionRatio: 2,
+			CacheRatio:      0.25,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	responsesUsage := &dto.Usage{
+		InputTokens:  100,
+		OutputTokens: 10,
+		TotalTokens:  110,
+		InputTokensDetails: &dto.InputTokenDetails{
+			CachedTokens: 40,
+		},
+	}
+	convertedUsage := &dto.Usage{
+		PromptTokens:     100,
+		CompletionTokens: 10,
+		TotalTokens:      110,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 40,
+		},
+		BillingUsage: dto.NewOpenAIResponsesBillingUsage(responsesUsage),
+	}
+
+	effectiveUsage := effectiveBillingUsage(convertedUsage)
+	require.Equal(t, 40, effectiveUsage.PromptTokensDetails.CachedTokens)
+	require.Zero(t, convertedUsage.BillingUsage.OpenAIUsage.PromptTokensDetails.CachedTokens)
+
+	summary := calculateTextQuotaSummary(ctx, relayInfo, effectiveUsage)
+	require.Equal(t, 40, summary.CacheTokens)
+	// 60 uncached input + 40*0.25 cached input + 10*2 output = 90.
+	require.Equal(t, 90, summary.Quota)
+}
+
+func TestUsageFromOpenAIBillingUsageNormalizesCacheDetailsWithoutOverwritingCanonicalValues(t *testing.T) {
+	responsesUsage := &dto.Usage{
+		InputTokens:          100,
+		OutputTokens:         10,
+		PromptCacheHitTokens: 55,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 8,
+			TextTokens:   12,
+		},
+		InputTokensDetails: &dto.InputTokenDetails{
+			CachedTokens:         40,
+			CachedCreationTokens: 5,
+			CacheWriteTokens:     6,
+			TextTokens:           60,
+			ImageTokens:          7,
+			AudioTokens:          9,
+		},
+	}
+
+	billingUsage := dto.NewOpenAIResponsesBillingUsage(responsesUsage)
+	usage := effectiveBillingUsage(&dto.Usage{BillingUsage: billingUsage})
+
+	require.Equal(t, 8, usage.PromptTokensDetails.CachedTokens)
+	require.Equal(t, 5, usage.PromptTokensDetails.CachedCreationTokens)
+	require.Equal(t, 6, usage.PromptTokensDetails.CacheWriteTokens)
+	require.Equal(t, 12, usage.PromptTokensDetails.TextTokens)
+	require.Equal(t, 7, usage.PromptTokensDetails.ImageTokens)
+	require.Equal(t, 9, usage.PromptTokensDetails.AudioTokens)
+	require.Zero(t, billingUsage.OpenAIUsage.PromptTokensDetails.CachedCreationTokens)
+}
+
+func TestUsageFromOpenAIBillingUsageFallsBackToPromptCacheHitTokens(t *testing.T) {
+	usage := effectiveBillingUsage(&dto.Usage{
+		BillingUsage: dto.NewOpenAIChatBillingUsage(&dto.Usage{
+			PromptTokens:         100,
+			CompletionTokens:     10,
+			PromptCacheHitTokens: 35,
+		}),
+	})
+
+	require.Equal(t, 35, usage.PromptTokensDetails.CachedTokens)
 }
 
 func TestUsageBillingPathForLog(t *testing.T) {
@@ -739,4 +826,90 @@ func TestCalculateTextQuotaSummaryFixedPriceAppliesImageCountOnceAndAllowsOverri
 	relayInfo.PriceData.AddOtherRatio("n", 2)
 	summary = calculateTextQuotaSummary(ctx, relayInfo, usage)
 	require.Equal(t, 120000, summary.Quota)
+}
+
+func TestClaudeCacheOnlyUsageRemainsBillable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tc := range []struct {
+		name      string
+		usage     dto.ClaudeUsage
+		wantQuota int
+	}{
+		{name: "one-hour cache write", usage: dto.ClaudeUsage{CacheCreationInputTokens: 20000, CacheCreation: &dto.ClaudeCacheCreationUsage{Ephemeral1hInputTokens: 20000}}, wantQuota: 100000},
+		{name: "five-minute cache write", usage: dto.ClaudeUsage{CacheCreationInputTokens: 100, CacheCreation: &dto.ClaudeCacheCreationUsage{Ephemeral5mInputTokens: 100}}, wantQuota: 313},
+		{name: "cache read", usage: dto.ClaudeUsage{CacheReadInputTokens: 100}, wantQuota: 25},
+		{name: "no usage", usage: dto.ClaudeUsage{}, wantQuota: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			info := &relaycommon.RelayInfo{
+				RelayFormat:     types.RelayFormatClaude,
+				OriginModelName: "claude-opus-4-8",
+				PriceData: types.PriceData{
+					ModelRatio: 2.5, CompletionRatio: 5, CacheRatio: 0.1,
+					CacheCreationRatio: 1.25, CacheCreation5mRatio: 1.25, CacheCreation1hRatio: 2,
+					GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 1},
+				},
+			}
+			usage := &dto.Usage{UsageSemantic: dto.BillingUsageSemanticAnthropic, BillingUsage: dto.NewClaudeMessagesBillingUsage(&tc.usage)}
+			summary := calculateTextQuotaSummary(ctx, info, effectiveBillingUsage(usage))
+			assert.Zero(t, summary.PromptTokens)
+			assert.Zero(t, summary.CompletionTokens)
+			assert.Equal(t, tc.wantQuota, summary.Quota)
+			assert.Equal(t, tc.wantQuota > 0, summary.hasBillableUsage())
+		})
+	}
+}
+func TestCalculateTextQuotaSummaryBillsCacheCreationInputTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "cache-creation-input",
+		PriceData: types.PriceData{
+			ModelRatio:         1,
+			CompletionRatio:    1,
+			CacheRatio:         0.1,
+			CacheCreationRatio: 1.25,
+			GroupRatioInfo:     types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	t.Run("creation tokens billed at creation ratio", func(t *testing.T) {
+		var usage dto.Usage
+		require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":1510,"completion_tokens":20,"total_tokens":1530,"prompt_tokens_details":{"cached_tokens":1200,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":300}}}`), &usage))
+		summary := calculateTextQuotaSummary(ctx, relayInfo, &usage)
+
+		assert.Equal(t, 1510, summary.PromptTokens)
+		assert.Equal(t, 1200, summary.CacheTokens)
+		assert.Equal(t, 300, summary.CacheCreationTokens)
+		assert.Zero(t, summary.CacheCreationTokens5m)
+		assert.Zero(t, summary.CacheCreationTokens1h)
+		// (1510-1200-300) + 1200*0.1 + 300*1.25 + 20 = 525
+		assert.Equal(t, 525, summary.Quota)
+	})
+
+	t.Run("missing creation field stays in prompt price", func(t *testing.T) {
+		var usage dto.Usage
+		require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":1510,"completion_tokens":20,"total_tokens":1530,"prompt_tokens_details":{"cached_tokens":1200}}`), &usage))
+		summary := calculateTextQuotaSummary(ctx, relayInfo, &usage)
+
+		assert.Zero(t, summary.CacheCreationTokens)
+		// (1510-1200) + 1200*0.1 + 20 = 450
+		assert.Equal(t, 450, summary.Quota)
+	})
+
+	t.Run("cache write and creation scalar take the larger count", func(t *testing.T) {
+		var usage dto.Usage
+		require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":1510,"completion_tokens":20,"total_tokens":1530,"prompt_tokens_details":{"cached_tokens":1200,"cache_write_tokens":100,"cache_creation_input_tokens":300}}`), &usage))
+		summary := calculateTextQuotaSummary(ctx, relayInfo, &usage)
+
+		assert.Equal(t, 300, summary.CacheCreationTokens)
+		assert.Zero(t, summary.CacheCreationTokens5m)
+		assert.Zero(t, summary.CacheCreationTokens1h)
+		assert.Equal(t, 525, summary.Quota)
+	})
 }

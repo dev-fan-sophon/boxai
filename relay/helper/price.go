@@ -6,6 +6,7 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
+	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/pkg/billingexpr"
@@ -123,9 +124,15 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 			return types.PriceData{}, err
 		}
 		preConsumedQuota = quota
+		if _, image := info.Request.(*dto.ImageRequest); image {
+			info.ImageQuotaBeforeGroup = float64(preConsumedTokens) * modelRatio
+		}
 	} else {
 		if meta.ImagePriceRatio != 0 {
 			modelPrice = modelPrice * meta.ImagePriceRatio
+		}
+		if _, image := info.Request.(*dto.ImageRequest); image {
+			info.ImageQuotaBeforeGroup = modelPrice * common.QuotaPerUnit
 		}
 	}
 
@@ -168,6 +175,39 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		for name, ratio := range meta.BillingRatios {
 			priceData.AddOtherRatio(name, ratio)
 		}
+	}
+	if request, image := info.Request.(*dto.ImageRequest); image {
+		// Reserve the validated provider quantity: Ali reads parameters.n
+		// (and bills prompt_extend on z-image) in both price modes, so the
+		// pre-consume must match what settlement will charge.
+		isAli := common.GetContextKeyInt(c, constant.ContextKeyChannelType) == constant.ChannelTypeAli
+		count, err := request.ImageCount(isAli)
+		if err != nil {
+			return types.PriceData{}, err
+		}
+		if usePrice || isAli {
+			priceData.AddOtherRatio("n", float64(count))
+		}
+		if isAli && request.PromptExtendEnabled() {
+			// Resolve only routing identity; do not initialize ChannelMeta on
+			// the real request, which also distinguishes the first attempt.
+			mapped := &relaycommon.RelayInfo{OriginModelName: info.OriginModelName, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: info.OriginModelName}}
+			if err := ModelMappedHelper(c, mapped, nil); err != nil {
+				return types.PriceData{}, err
+			}
+			if strings.Contains(mapped.UpstreamModelName, "z-image") {
+				priceData.AddOtherRatio("prompt_extend", common.ZImagePromptExtendMultiplier)
+			}
+		}
+		if !usePrice && isAli && preConsumedQuota > 0 {
+			quota, err := common.QuotaFromFloatStrict(priceData.ApplyOtherRatiosToFloat(info.ImageQuotaBeforeGroup * groupRatioInfo.GroupRatio))
+			if err != nil {
+				return types.PriceData{}, err
+			}
+			priceData.QuotaToPreConsume = quota
+		}
+	}
+	if usePrice {
 		quotaToPreConsume := priceData.ApplyOtherRatiosToFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
 		quota, err := common.QuotaFromFloatStrict(quotaToPreConsume)
 		if err != nil {

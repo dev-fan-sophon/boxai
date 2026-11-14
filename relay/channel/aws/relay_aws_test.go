@@ -329,7 +329,11 @@ func TestAwsStreamHandlerStopsAfterRequestCancellation(t *testing.T) {
 		assert.Equal(t, 100, got.usage.PromptTokens)
 		require.NotNil(t, got.usage.BillingUsage)
 		require.NotNil(t, got.usage.BillingUsage.ClaudeUsage)
-		assert.Equal(t, 1, got.usage.BillingUsage.ClaudeUsage.OutputTokens)
+		// The stream broke before message_delta, so settlement bills the
+		// larger of the reported (1) and the locally estimated output.
+		assert.Equal(t, got.usage.CompletionTokens, got.usage.BillingUsage.ClaudeUsage.OutputTokens)
+		assert.Greater(t, got.usage.BillingUsage.ClaudeUsage.OutputTokens, 1)
+		assert.True(t, got.usage.BillingUsage.Estimated)
 		assert.Equal(t, responseBeforeCancel, writer.Body.String())
 	case <-time.After(5 * time.Second):
 		t.Fatal("stream handler did not stop after request cancellation")

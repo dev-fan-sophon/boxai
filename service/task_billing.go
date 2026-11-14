@@ -78,7 +78,9 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 
 // taskBillingOther 从 task 的 BillingContext 构建日志 Other 字段。
 func taskBillingOther(task *model.Task) map[string]interface{} {
-	other := make(map[string]interface{})
+	// The log list picks the task pricing renderer by is_task; without it a
+	// settlement/refund row is mistaken for an ordinary relay tiered log.
+	other := map[string]interface{}{"is_task": true}
 	if bc := task.PrivateData.BillingContext; bc != nil {
 		other["model_price"] = bc.ModelPrice
 		if bc.ModelRatio > 0 {

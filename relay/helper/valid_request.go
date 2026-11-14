@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	"github.com/dev-fan-sophon/boxai/constant"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/logger"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
@@ -220,6 +221,9 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 			imageRequest.Background = multipartJSONString(formData.Get("background"))
 			imageRequest.OutputFormat = multipartJSONString(formData.Get("output_format"))
 			imageRequest.Moderation = multipartJSONString(formData.Get("moderation"))
+			if parameters := formData.Get("parameters"); parameters != "" {
+				imageRequest.Extra = map[string]json.RawMessage{"parameters": json.RawMessage(parameters)}
+			}
 			if streamValue := strings.TrimSpace(formData.Get("stream")); streamValue != "" {
 				stream, err := strconv.ParseBool(streamValue)
 				if err != nil {
@@ -314,6 +318,19 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 		}
 	}
 
+	// Provider parameters can override the top-level count. Validate before
+	// pricing so malformed multipliers return a client error, not a pricing
+	// failure after reservation has started.
+	if raw, exists := imageRequest.Extra["parameters"]; exists {
+		parameters := &dto.ImageBillingParameters{}
+		if err := common.Unmarshal(raw, parameters); err != nil {
+			return nil, fmt.Errorf("invalid image parameters: %w", err)
+		}
+		imageRequest.BillingParameters = parameters
+	}
+	if _, err := imageRequest.ImageCount(common.GetContextKeyInt(c, constant.ContextKeyChannelType) == constant.ChannelTypeAli); err != nil {
+		return nil, err
+	}
 	return imageRequest, nil
 }
 

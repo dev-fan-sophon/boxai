@@ -347,6 +347,7 @@ func TestTaskBillingOtherFiltersHistoricalOtherRatios(t *testing.T) {
 
 	other := taskBillingOther(task)
 
+	assert.Equal(t, true, other["is_task"])
 	assert.Equal(t, 2.0, other["seconds"])
 	assert.Equal(t, 1.0, other["identity"])
 	assert.NotContains(t, other, "zero")
