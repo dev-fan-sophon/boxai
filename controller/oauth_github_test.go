@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/model"
 	"github.com/dev-fan-sophon/boxai/oauth"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -107,6 +110,75 @@ func TestGitHubLegacyMigration(t *testing.T) {
 			}
 			if tc.legacy != "" || tc.email == " " {
 				assert.Zero(t, calls)
+			}
+		})
+	}
+}
+
+type legacyGitHubBindProvider struct {
+	oauth.GitHubProvider
+	providerUserID, legacyID string
+}
+
+func (p *legacyGitHubBindProvider) IsEnabled() bool { return true }
+
+func (p *legacyGitHubBindProvider) ExchangeToken(context.Context, string, *gin.Context) (*oauth.OAuthToken, error) {
+	return &oauth.OAuthToken{AccessToken: "provider-token"}, nil
+}
+
+func (p *legacyGitHubBindProvider) GetUserInfo(context.Context, *oauth.OAuthToken) (*oauth.OAuthUser, error) {
+	return &oauth.OAuthUser{ProviderUserID: p.providerUserID, Extra: map[string]any{"legacy_id": p.legacyID}}, nil
+}
+
+func TestOAuthBindIgnoresLegacyGitHubUsernames(t *testing.T) {
+	for _, tc := range []struct {
+		name, ownGitHubID, otherGitHubID string
+		expectBound                      bool
+	}{
+		{name: "another account's legacy username does not block binding", otherGitHubID: "octocat-legacy", expectBound: true},
+		{name: "own legacy username is replaced", ownGitHubID: "octocat-legacy", otherGitHubID: "unrelated-legacy", expectBound: true},
+		{name: "numeric ID held by another account is rejected", otherGitHubID: "900001"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+			require.NoError(t, err)
+			oldDB := model.DB
+			model.DB = db
+			t.Cleanup(func() {
+				model.DB = oldDB
+				sqlDB, _ := db.DB()
+				_ = sqlDB.Close()
+			})
+			require.NoError(t, db.AutoMigrate(&model.User{}))
+			user := model.User{Username: "binder", AffCode: "binder", Status: common.UserStatusEnabled, GitHubId: tc.ownGitHubID}
+			require.NoError(t, db.Create(&user).Error)
+			other := model.User{Username: "other-github", AffCode: "other", Status: common.UserStatusEnabled, GitHubId: tc.otherGitHubID}
+			require.NoError(t, db.Create(&other).Error)
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(sessions.Sessions("session", cookie.NewStore([]byte("legacy-bind-test"))))
+			router.GET("/bind", func(c *gin.Context) {
+				session := sessions.Default(c)
+				session.Set("id", user.Id)
+				handleOAuthBind(c, &legacyGitHubBindProvider{providerUserID: "900001", legacyID: "octocat-legacy"})
+			})
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/bind?code=provider-code", nil))
+			var result struct {
+				Success bool `json:"success"`
+			}
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &result))
+			assert.Equal(t, tc.expectBound, result.Success, recorder.Body.String())
+
+			var bound, untouched model.User
+			require.NoError(t, db.First(&bound, user.Id).Error)
+			require.NoError(t, db.First(&untouched, other.Id).Error)
+			assert.Equal(t, tc.otherGitHubID, untouched.GitHubId)
+			if tc.expectBound {
+				assert.Equal(t, "900001", bound.GitHubId)
+			} else {
+				assert.Equal(t, tc.ownGitHubID, bound.GitHubId)
 			}
 		})
 	}

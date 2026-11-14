@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -62,6 +63,18 @@ func (rl *RedisLimiter) Allow(ctx context.Context, key string, opts ...Option) (
 		config.Capacity,
 	).Int()
 
+	if err != nil && strings.HasPrefix(err.Error(), "NOSCRIPT ") {
+		// SCRIPT FLUSH or a Redis restart drops the preloaded script. EVAL
+		// runs it and caches it again so later EVALSHA calls succeed.
+		result, err = rl.client.Eval(
+			ctx,
+			rateLimitScript,
+			[]string{key},
+			config.Requested,
+			config.Rate,
+			config.Capacity,
+		).Int()
+	}
 	if err != nil {
 		return false, fmt.Errorf("rate limit failed: %w", err)
 	}

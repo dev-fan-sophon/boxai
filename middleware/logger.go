@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dev-fan-sophon/boxai/common"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,6 +28,19 @@ func SetUpLogger(server *gin.Engine) {
 		if tag == "" {
 			tag = "web"
 		}
+		// Redact the log value only; handlers still see the original query.
+		path := param.Path
+		if strings.HasPrefix(path, "/api/oauth/") || strings.HasPrefix(path, "/oauth/") {
+			// OAuth callbacks carry one-time codes and state in the query string.
+			path, _, _ = strings.Cut(path, "?")
+		} else if param.Request.URL.RawQuery != "" {
+			query := param.Request.URL.Query().Encode()
+			path = param.Request.URL.EscapedPath() + relaycommon.SanitizeURLForLog("?"+query)
+		} else {
+			// param.Path keeps the query the request arrived with, including a
+			// credential a handler took out of it.
+			path = param.Request.URL.Path
+		}
 		return fmt.Sprintf("[GIN] %s | %s | %s | %3d | %13v | %15s | %7s %s\n",
 			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 			tag,
@@ -34,7 +49,7 @@ func SetUpLogger(server *gin.Engine) {
 			param.Latency,
 			param.ClientIP,
 			param.Method,
-			param.Path,
+			path,
 		)
 	}))
 }
