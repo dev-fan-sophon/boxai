@@ -217,3 +217,73 @@ func TestNormalizeCacheCreationSplit(t *testing.T) {
 func ptr[T any](value T) *T {
 	return &value
 }
+
+func TestStreamResponseOpenAI2ClaudeKeepsTextSharingChunkWithReasoning(t *testing.T) {
+	type event struct {
+		Type  string
+		Index int
+		Block string
+		Text  string
+	}
+	summarize := func(responses []*dto.ClaudeResponse) []event {
+		events := make([]event, 0, len(responses))
+		for _, response := range responses {
+			e := event{Type: response.Type, Index: response.GetIndex()}
+			if response.ContentBlock != nil {
+				e.Block = response.ContentBlock.Type
+			}
+			if response.Delta != nil {
+				if response.Delta.Thinking != nil {
+					e.Text = *response.Delta.Thinking
+				}
+				if response.Delta.Text != nil {
+					e.Text = *response.Delta.Text
+				}
+			}
+			events = append(events, e)
+		}
+		return events
+	}
+	mixedChunk := &dto.ChatCompletionsStreamResponse{
+		Id:    "chatcmpl_1",
+		Model: "gpt-test",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{{
+			Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
+				ReasoningContent: ptr("done thinking"),
+				Content:          ptr("Answer"),
+			},
+		}},
+	}
+
+	t.Run("first chunk", func(t *testing.T) {
+		info := &relaycommon.RelayInfo{ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}}
+		info.SendResponseCount = 1
+		events := summarize(StreamResponseOpenAI2Claude(mixedChunk, info))
+		assert.Equal(t, []event{
+			{Type: "message_start"},
+			{Type: "content_block_start", Index: 0, Block: "thinking"},
+			{Type: "content_block_delta", Index: 0, Text: "done thinking"},
+			{Type: "content_block_stop", Index: 0},
+			{Type: "content_block_start", Index: 1, Block: "text"},
+			{Type: "content_block_delta", Index: 1, Text: "Answer"},
+		}, events)
+	})
+
+	t.Run("later chunk", func(t *testing.T) {
+		info := &relaycommon.RelayInfo{ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}}
+		info.SendResponseCount = 1
+		StreamResponseOpenAI2Claude(&dto.ChatCompletionsStreamResponse{
+			Id:      "chatcmpl_1",
+			Model:   "gpt-test",
+			Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ReasoningContent: ptr("think")}}},
+		}, info)
+		info.SendResponseCount = 2
+		events := summarize(StreamResponseOpenAI2Claude(mixedChunk, info))
+		assert.Equal(t, []event{
+			{Type: "content_block_delta", Index: 0, Text: "done thinking"},
+			{Type: "content_block_stop", Index: 0},
+			{Type: "content_block_start", Index: 1, Block: "text"},
+			{Type: "content_block_delta", Index: 1, Text: "Answer"},
+		}, events)
+	})
+}
