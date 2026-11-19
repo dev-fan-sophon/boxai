@@ -786,6 +786,13 @@ func QueuePlaygroundVideoOutputReconciliation(taskID string, userID int, videoUR
 
 var videoOutputCapacity = make(chan struct{}, 1)
 
+// maxVideoOutputAttempts bounds retries for one task's output. With the
+// 30s-doubling backoff the last attempt runs about four hours after the first;
+// a result still unreachable by then has expired or never existed, and
+// retrying forever would keep dead links in the oldest-due slot that each pass
+// reserves.
+const maxVideoOutputAttempts = 10
+
 // RunVideoOutputReconciliation handles at most eight tasks in five minutes,
 // with two concurrent downloads per process. Cross-process claims expire after
 // the transfer deadline plus one minute. A fixed rollout cutoff avoids downloading the historical corpus
@@ -810,7 +817,7 @@ func RunVideoOutputReconciliation(ctx context.Context) error {
 		QueuePlaygroundVideoOutputReconciliation(run.TaskId, run.UserId, "")
 	}
 	var tasks []*model.Task
-	query := model.DB.WithContext(ctx).Where("status = ? AND output_asset_id = 0 AND output_next_at <= ?", model.TaskStatusSuccess, time.Now().Unix()).
+	query := model.DB.WithContext(ctx).Where("status = ? AND output_asset_id = 0 AND output_next_at <= ? AND output_attempts < ?", model.TaskStatusSuccess, time.Now().Unix(), maxVideoOutputAttempts).
 		Where("finish_time >= ? OR created_at >= ?", int64(1790380800), int64(1790380800)). // 2026-09-26 UTC rollout.
 		Where("platform NOT IN ?", []constant.TaskPlatform{constant.TaskPlatformSuno, constant.TaskPlatformMidjourney})
 	// Reserve one slot for the oldest due item, and the rest for fresh

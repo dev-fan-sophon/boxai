@@ -281,12 +281,18 @@ back the binary does not require dropping the additive columns; do not drop them
   until authenticated polling confirms a terminal state. Investigate tasks older
   than `TASK_TIMEOUT_MINUTES` rather than assuming a refund occurred. Unverified callbacks
   only request polling; they cannot update results or settle billing.
-- Automatic generated-video archiving is disabled. No new `video_output` jobs
-  are scheduled; queued jobs from older releases drain without downloading.
-  Seedance responses return upstream result URLs immediately. The owner-scoped
-  `/v1/videos/:id/content` endpoint remains an on-demand streaming proxy, and
-  previously archived outputs remain readable. Upstream URL expiry now determines
-  new output availability; a BoxAI proxy URL does not extend the upstream lifetime.
+- Successful API and Playground videos (created/completed from 2026-09-26 UTC)
+  are archived to owner-scoped storage (R2 in production) by the background
+  `video_output` system task, every 15 seconds, at most eight tasks per pass and
+  two downloads at a time. Each pass reserves the first slot for the oldest due
+  work and the rest for fresh completions. Failed transfers back off from 30
+  seconds, doubling, for at most 10 attempts (about four hours); results that are
+  still unreachable then have expired upstream and are left as they are.
+  Archiving never changes task status, billing or the generation path. Once a
+  task has an archived copy, its result URL becomes `/v1/videos/:id/content`,
+  which streams the stored copy (`?redirect=1` hands out a signed URL). Without
+  one the endpoint still proxies the upstream URL and reports an expired upstream
+  result as 410 Gone.
 - Reference-video uploads allow 200 MiB; image/audio/document limits are
   unchanged. Use signed R2 PUT for large files rather than relying on CDN
   multipart-body limits. Multipart video storage streams instead of buffering

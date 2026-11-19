@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -93,25 +94,39 @@ func TestRedirectPresignedVideoFallsBackWithoutPresign(t *testing.T) {
 	assert.Equal(t, http.StatusOK, recorder.Code)
 }
 
-func TestDisabledVideoArchiveDrainsOldJobsWithoutStoringResults(t *testing.T) {
+func TestVideoArchiveJobStoresSuccessfulVideoOutput(t *testing.T) {
 	db := setupVideoProxyTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.SystemTask{}, &model.SystemTaskLock{}, &model.PlaygroundRun{}, &model.PlaygroundAsset{}))
-	job := &model.SystemTask{TaskID: "old-archive-job", Type: model.SystemTaskTypeVideoOutput, Status: model.SystemTaskStatusRunning, LockedBy: "runner"}
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", t.TempDir())
+	storage.Reset()
+	t.Cleanup(storage.Reset)
+	job := &model.SystemTask{TaskID: "archive-job", Type: model.SystemTaskTypeVideoOutput, Status: model.SystemTaskStatusRunning, LockedBy: "runner"}
 	require.NoError(t, db.Create(job).Error)
 	require.NoError(t, db.Create(&model.SystemTaskLock{Type: job.Type, TaskID: job.TaskID, LockedBy: "runner", LockedUntil: time.Now().Add(time.Minute).Unix()}).Error)
-	video := &model.Task{TaskID: "unarchived-video", UserId: 42, Status: model.TaskStatusSuccess, Platform: "48", FinishTime: time.Now().Unix()}
-	video.PrivateData.ResultURL = "https://upstream.example/result.mp4"
+	mp4 := []byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}
+	video := &model.Task{TaskID: "fresh-video", UserId: 42, Status: model.TaskStatusSuccess, Platform: "2", FinishTime: time.Now().Unix()}
+	video.PrivateData.ResultURL = "data:video/mp4;base64," + base64.StdEncoding.EncodeToString(mp4)
 	require.NoError(t, db.Create(video).Error)
+
 	handler := videoOutputHandler{}
-	assert.False(t, handler.Enabled())
+	assert.True(t, handler.Enabled())
 	handler.Run(context.Background(), job, "runner")
+
 	require.NoError(t, db.First(job, job.ID).Error)
 	assert.Equal(t, model.SystemTaskStatusSucceeded, job.Status)
 	require.NoError(t, db.First(video, video.ID).Error)
-	assert.Zero(t, video.OutputAssetID)
-	assert.Zero(t, video.OutputAttempts)
-	assert.Equal(t, "https://upstream.example/result.mp4", video.GetResultURL())
-	var count int64
-	require.NoError(t, db.Model(&model.PlaygroundAsset{}).Count(&count).Error)
-	assert.Zero(t, count)
+	require.NotZero(t, video.OutputAssetID)
+	assert.Equal(t, "/v1/videos/fresh-video/content", video.GetResultURL())
+
+	// The content endpoint now serves the stored copy, independent of the upstream URL.
+	router := gin.New()
+	router.GET("/v1/videos/:task_id/content", func(c *gin.Context) {
+		c.Set("id", 42)
+		VideoProxy(c)
+	})
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/videos/fresh-video/content", nil))
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, mp4, recorder.Body.Bytes())
 }

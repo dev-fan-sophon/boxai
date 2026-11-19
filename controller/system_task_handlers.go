@@ -217,11 +217,20 @@ func (billingReconcileHandler) Run(ctx context.Context, task *model.SystemTask, 
 type videoOutputHandler struct{}
 
 func (videoOutputHandler) Type() string            { return model.SystemTaskTypeVideoOutput }
-func (videoOutputHandler) Enabled() bool           { return false }
+func (videoOutputHandler) Enabled() bool           { return true }
 func (videoOutputHandler) Interval() time.Duration { return 15 * time.Second }
 func (videoOutputHandler) NewPayload() any         { return nil }
+
+// Run copies successful generated videos into owner-scoped storage (R2 in
+// production) in the background, so results outlive the upstream retention
+// window without adding work to the generation or polling path.
 func (videoOutputHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
-	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, nil, nil)
+	err := service.RunVideoOutputReconciliation(ctx)
+	status := model.SystemTaskStatusSucceeded
+	if err != nil {
+		status = model.SystemTaskStatusFailed
+	}
+	finishSystemTaskHandler(task, runnerID, status, nil, err)
 }
 
 type uploadCleanupHandler struct{}

@@ -143,3 +143,29 @@ func TestVideoOutputLostClaimCleansOrphan(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, files)
 }
+
+func TestVideoOutputStopsRetryingAfterMaxAttempts(t *testing.T) {
+	truncate(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.PlaygroundRun{}, &model.PlaygroundAsset{}))
+	t.Setenv("STORAGE_BACKEND", "local")
+	t.Setenv("PLAYGROUND_ASSETS_DIR", t.TempDir())
+	storage.Reset()
+	t.Cleanup(func() { storage.Reset(); model.DB.Exec("DELETE FROM playground_assets") })
+	ref := "data:video/mp4;base64," + base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'})
+	exhausted := &model.Task{TaskID: "exhausted-output", UserId: 77, Platform: "2", Status: model.TaskStatusSuccess,
+		FinishTime: time.Now().Unix(), OutputAttempts: maxVideoOutputAttempts, OutputNextAt: time.Now().Unix() - 1,
+		PrivateData: model.TaskPrivateData{ResultURL: ref}}
+	require.NoError(t, model.DB.Create(exhausted).Error)
+	lastTry := &model.Task{TaskID: "last-try-output", UserId: 77, Platform: "2", Status: model.TaskStatusSuccess,
+		FinishTime: time.Now().Unix(), OutputAttempts: maxVideoOutputAttempts - 1, OutputNextAt: time.Now().Unix() - 1,
+		PrivateData: model.TaskPrivateData{ResultURL: ref}}
+	require.NoError(t, model.DB.Create(lastTry).Error)
+
+	require.NoError(t, RunVideoOutputReconciliation(context.Background()))
+
+	require.NoError(t, model.DB.First(exhausted, exhausted.ID).Error)
+	assert.Zero(t, exhausted.OutputAssetID)
+	assert.Equal(t, maxVideoOutputAttempts, exhausted.OutputAttempts, "an exhausted task is not claimed again")
+	require.NoError(t, model.DB.First(lastTry, lastTry.ID).Error)
+	assert.NotZero(t, lastTry.OutputAssetID, "the final allowed attempt still runs")
+}
