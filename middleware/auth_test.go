@@ -301,3 +301,37 @@ func TestTokenAuthRejectsKeysOfDeletedUser(t *testing.T) {
 	}
 }
 
+// Read-only key queries (usage, logs) must honour the key's IP allow-list
+// exactly like relay requests do.
+func TestTokenAuthReadOnlyEnforcesTokenIPAllowList(t *testing.T) {
+	db := setupTokenAuthTestDB(t)
+	user := model.User{Username: "ip-limited-owner", Password: "password123", Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, db.Create(&user).Error)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/v1/models", TokenAuth(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	router.GET("/api/usage/token", TokenAuthReadOnly(), func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	for i, tc := range []struct {
+		allowIps   string
+		wantStatus int
+	}{
+		{"10.0.0.0/8", http.StatusForbidden},
+		{"192.0.2.1", http.StatusOK}, // httptest's default RemoteAddr
+	} {
+		allowIps := tc.allowIps
+		key := fmt.Sprintf("iplimitedkey%d", i)
+		require.NoError(t, db.Create(&model.Token{
+			UserId: user.Id, Key: key, Name: "ip key", Status: common.TokenStatusEnabled,
+			ExpiredTime: -1, UnlimitedQuota: true, AllowIps: &allowIps,
+		}).Error)
+		for _, path := range []string{"/v1/models", "/api/usage/token"} {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.Header.Set("Authorization", "Bearer sk-"+key)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tc.wantStatus, w.Code, "%s allow=%s", path, allowIps)
+		}
+	}
+}
