@@ -400,3 +400,34 @@ func TestDoubaoVideoProxyAuthenticatedContent(t *testing.T) {
 		})
 	}
 }
+
+func TestVideoProxyReportsExpiredUpstreamResultAsGone(t *testing.T) {
+	for _, upstreamStatus := range []int{http.StatusNotFound, http.StatusGone, http.StatusInternalServerError} {
+		t.Run(http.StatusText(upstreamStatus), func(t *testing.T) {
+			db := setupVideoProxyTestDB(t)
+			service.InitHttpClient()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(upstreamStatus)
+			}))
+			t.Cleanup(upstream.Close)
+			resultURL := upstream.URL + "/v1/videos/upstream-id/content"
+			require.NoError(t, db.Create(&model.Channel{Id: 8, Type: constant.ChannelTypeDoubaoVideo, Key: "fallback-key", BaseURL: &upstream.URL}).Error)
+			require.NoError(t, db.Create(&model.Task{
+				TaskID: "task_expired", UserId: 42, ChannelId: 8, Status: model.TaskStatusSuccess,
+				PrivateData: model.TaskPrivateData{Key: "selected-key", UpstreamTaskID: "upstream-id", ResultURL: resultURL},
+			}).Error)
+			router := gin.New()
+			router.GET("/v1/videos/:task_id/content", func(c *gin.Context) {
+				c.Set("id", 42)
+				VideoProxy(c)
+			})
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/videos/task_expired/content", nil))
+			if upstreamStatus == http.StatusInternalServerError {
+				assert.Equal(t, http.StatusBadGateway, recorder.Code)
+			} else {
+				assert.Equal(t, http.StatusGone, recorder.Code, "upstream %d", upstreamStatus)
+			}
+		})
+	}
+}

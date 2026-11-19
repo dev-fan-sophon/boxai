@@ -306,6 +306,13 @@ func VideoProxy(c *gin.Context) {
 			}
 		}
 	}
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+		// Vendors delete generated results after their retention window. That
+		// is a permanent client-visible state, not a gateway failure.
+		logger.LogWarn(c.Request.Context(), fmt.Sprintf("Upstream video result gone (status %d) for task %s from host %s", resp.StatusCode, taskID, req.URL.Hostname()))
+		videoProxyError(c, http.StatusGone, "invalid_request_error", "Video result has expired upstream and is no longer available")
+		return
+	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Upstream returned status %d for video task %s from host %s", resp.StatusCode, taskID, req.URL.Hostname()))
 		videoProxyError(c, http.StatusBadGateway, "server_error",
