@@ -13,15 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSonnet5OmitsDeprecatedTemperature(t *testing.T) {
-	for _, model := range []string{"claude-sonnet-5", "claude-sonnet-4-6"} {
+func TestClaudeOmitsSamplingOnModelsThatRejectIt(t *testing.T) {
+	rejects := map[string]bool{
+		"claude-sonnet-5": true, "claude-sonnet-5-5": true, "claude-opus-5": true, "claude-opus-5-5": true,
+		"claude-opus-4-8": true, "claude-opus-4-7": true,
+		"claude-sonnet-4-6": false, "claude-opus-4-6": false, "claude-haiku-4-5": false,
+	}
+	for model, reject := range rejects {
 		for _, native := range []bool{true, false} {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			info := &relaycommon.RelayInfo{OriginModelName: model, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: model}}
 			var converted any
 			var err error
 			if native {
-				converted, err = (&Adaptor{}).ConvertClaudeRequest(c, info, &dto.ClaudeRequest{Model: model, Temperature: common.GetPointer(0.0)})
+				converted, err = (&Adaptor{}).ConvertClaudeRequest(c, info, &dto.ClaudeRequest{Model: model, Temperature: common.GetPointer(0.0), TopP: common.GetPointer(0.9)})
 			} else {
 				converted, err = (&Adaptor{}).ConvertOpenAIRequest(c, info, &dto.GeneralOpenAIRequest{Model: model, Temperature: common.GetPointer(0.0)})
 			}
@@ -30,8 +35,9 @@ func TestSonnet5OmitsDeprecatedTemperature(t *testing.T) {
 			require.NoError(t, err)
 			var upstream map[string]any
 			require.NoError(t, common.Unmarshal(encoded, &upstream))
-			if model == "claude-sonnet-5" {
-				assert.NotContains(t, upstream, "temperature")
+			if reject {
+				assert.NotContains(t, upstream, "temperature", model)
+				assert.NotContains(t, upstream, "top_p", model)
 			} else {
 				assert.Equal(t, 0.0, upstream["temperature"], "preserve explicit zero on models that support sampling")
 			}

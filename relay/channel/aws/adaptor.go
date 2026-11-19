@@ -39,6 +39,7 @@ func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dt
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
+	claude.OmitUnsupportedSampling(request)
 	for i, message := range request.Messages {
 		updated := false
 		if !message.IsStringContent() {

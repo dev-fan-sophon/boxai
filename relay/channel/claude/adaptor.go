@@ -27,12 +27,27 @@ func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dt
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
-	// Sonnet 5 rejects temperature, including the default supplied by clients.
-	// Do not change sampling on older models that still support this parameter.
-	if request.Model == "claude-sonnet-5" {
-		request.Temperature = nil
-	}
+	OmitUnsupportedSampling(request)
 	return request, nil
+}
+
+// OmitUnsupportedSampling drops temperature, top_p and top_k for Claude models
+// that reject custom sampling (Opus 4.7 and later, and the Sonnet, Opus, Fable
+// and Mythos 5 families). Those models answer any value, including one a
+// client sends by default, with a 400. Older models keep explicit values.
+func OmitUnsupportedSampling(request *dto.ClaudeRequest) {
+	model := strings.ToLower(request.Model)
+	if i := strings.Index(model, "claude-"); i >= 0 {
+		model = model[i:]
+	}
+	for _, prefix := range []string{"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-mythos"} {
+		if strings.HasPrefix(model, prefix) {
+			request.Temperature = nil
+			request.TopP = nil
+			request.TopK = nil
+			return
+		}
+	}
 }
 
 func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.AudioRequest) (io.Reader, error) {
