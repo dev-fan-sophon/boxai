@@ -526,7 +526,15 @@ func reasoningEffortFromRequest(request any) (string, bool) {
 		if req == nil || req.GenerationConfig.ThinkingConfig == nil || req.GenerationConfig.ThinkingConfig.ThinkingLevel == "" {
 			return "", false
 		}
-		return strings.TrimSpace(req.GenerationConfig.ThinkingConfig.ThinkingLevel), true
+		// Gemini accepts thinkingLevel case-insensitively (the API enum is
+		// uppercase); record known levels canonically so logs match other
+		// protocols. Unknown values stay as sent.
+		level := strings.TrimSpace(req.GenerationConfig.ThinkingConfig.ThinkingLevel)
+		switch canonical := strings.ToLower(level); canonical {
+		case "none", "minimal", "low", "medium", "high", "xhigh", "max":
+			return canonical, true
+		}
+		return level, true
 	case dto.GeminiChatRequest:
 		return reasoningEffortFromRequest(&req)
 	default:

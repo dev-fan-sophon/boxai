@@ -114,3 +114,22 @@ func TestConvertOpenAIResponsesRequestAcceptsNilRelayInfo(t *testing.T) {
 	require.NotNil(t, request.Reasoning)
 	assert.Equal(t, "none", request.Reasoning.Effort)
 }
+
+func TestConvertOpenAIRequestMapsDeveloperRoleToSystem(t *testing.T) {
+	request := &dto.GeneralOpenAIRequest{
+		Model: "deepseek-chat",
+		Messages: []dto.Message{
+			{Role: "developer", Content: "rules"},
+			{Role: "system", Content: "more rules"},
+			{Role: "user", Content: "hi"},
+		},
+	}
+	out, err := (&Adaptor{}).ConvertOpenAIRequest(nil, nil, request)
+	require.NoError(t, err)
+	got := out.(*dto.GeneralOpenAIRequest)
+	roles := make([]string, 0, len(got.Messages))
+	for _, message := range got.Messages {
+		roles = append(roles, message.Role)
+	}
+	assert.Equal(t, []string{"system", "system", "user"}, roles)
+}

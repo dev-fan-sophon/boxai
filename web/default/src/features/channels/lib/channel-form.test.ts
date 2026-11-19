@@ -5,10 +5,13 @@ import {
   MODEL_FETCHABLE_TYPES,
   SEEDANCE_GATEWAY_DEFAULT_MODELS,
 } from '../constants'
+import { channelSchema } from '../types'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   channelFormSchema,
+  transformChannelToFormDefaults,
   transformFormDataToCreatePayload,
+  transformFormDataToUpdatePayload,
 } from './channel-form'
 import { getChannelTypeConfig } from './channel-type-config'
 
@@ -132,4 +135,38 @@ describe('Responses WebSocket channel setting', () => {
       responses_websocket_enabled: false,
     })
   })
+
+  it.each([1, 3, 57])(
+    'channel type %s keeps the setting through create, update and reload',
+    (type) => {
+      for (const enabled of [undefined, false, true]) {
+        const channel = channelSchema.parse({
+          id: 1,
+          name: 'Responses',
+          key: '',
+          type,
+          status: 1,
+          created_time: 0,
+          test_time: 0,
+          response_time: 0,
+          balance_updated_time: 0,
+          setting: JSON.stringify({ responses_websocket_enabled: enabled }),
+        })
+        const values = transformChannelToFormDefaults(channel)
+        const settings = [
+          transformFormDataToCreatePayload(values).channel.setting,
+          transformFormDataToUpdatePayload(values, channel.id).setting,
+        ]
+        for (const setting of settings) {
+          expect(JSON.parse(setting || '{}').responses_websocket_enabled).toBe(
+            enabled === true
+          )
+          expect(
+            transformChannelToFormDefaults({ ...channel, setting })
+              .responses_websocket_enabled
+          ).toBe(enabled === true)
+        }
+      }
+    }
+  )
 })

@@ -1,4 +1,8 @@
 import { api } from './api'
+import {
+  getOAuthSessionStorage,
+  markOAuthBindPopup,
+} from './oauth-callback-mode'
 
 // ============================================================================
 // OAuth URL Builders
@@ -122,14 +126,26 @@ export async function getOAuthState(): Promise<string | null> {
 }
 
 /**
+ * Open the provider in a popup marked as an account bind flow. The popup is
+ * stamped while it is still same-origin (about:blank) so the /oauth/:provider
+ * callback can tell it apart from a login tab that merely has a foreign
+ * window.opener (for example one opened from a Zalo or mail link).
+ */
+function openOAuthBindPopup(provider: string, state: string, url: string) {
+  const popup = window.open('', '_blank')
+  if (!popup) return
+  markOAuthBindPopup(getOAuthSessionStorage(popup), provider, state)
+  popup.location.replace(url)
+}
+
+/**
  * Handle GitHub OAuth binding/login
  */
 export async function handleGitHubOAuth(clientId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildGitHubOAuthUrl(clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('github', state, buildGitHubOAuthUrl(clientId, state))
 }
 
 /**
@@ -139,8 +155,7 @@ export async function handleDiscordOAuth(clientId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildDiscordOAuthUrl(clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('discord', state, buildDiscordOAuthUrl(clientId, state))
 }
 
 /**
@@ -150,8 +165,7 @@ export async function handleGoogleOAuth(clientId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildGoogleOAuthUrl(clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('google', state, buildGoogleOAuthUrl(clientId, state))
 }
 
 /**
@@ -161,8 +175,7 @@ export async function handleFacebookOAuth(clientId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildFacebookOAuthUrl(clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('facebook', state, buildFacebookOAuthUrl(clientId, state))
 }
 
 /**
@@ -172,8 +185,7 @@ export async function handleZaloOAuth(appId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildZaloOAuthUrl(appId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('zalo', state, buildZaloOAuthUrl(appId, state))
 }
 
 /**
@@ -186,8 +198,7 @@ export async function handleOIDCOAuth(
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildOIDCOAuthUrl(authUrl, clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('oidc', state, buildOIDCOAuthUrl(authUrl, clientId, state))
 }
 
 /**
@@ -197,6 +208,5 @@ export async function handleLinuxDOOAuth(clientId: string): Promise<void> {
   const state = await getOAuthState()
   if (!state) return
 
-  const url = buildLinuxDOOAuthUrl(clientId, state)
-  window.open(url, '_blank')
+  openOAuthBindPopup('linuxdo', state, buildLinuxDOOAuthUrl(clientId, state))
 }

@@ -157,8 +157,10 @@ interrupted output and authoritative terminal usage (explicit zeros included).
 
 The channel editor's **Responses WebSocket** switch maps to
 `setting.responses_websocket_enabled` and defaults to false. Enable only after
-testing the upstream's native protocol. Supported types are OpenAI, Codex,
-Sub2API, New API, Codex Proxy and converter-free Advanced Custom Responses routes.
+testing the upstream's native protocol. Supported types are OpenAI, Azure OpenAI,
+Codex, Sub2API, New API, Codex Proxy and converter-free Advanced Custom Responses
+routes. Azure dials the same `/openai/v1/responses` (or `/openai/responses` on
+`cognitiveservices.azure.com`) URL and `api-key` header as HTTP Responses.
 Deployment does not automatically enable existing channels or change CPA types.
 
 One generation may run per connection. The first accepted request pins the

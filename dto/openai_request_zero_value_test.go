@@ -201,6 +201,11 @@ func TestGetOpenAIChatCapabilities(t *testing.T) {
 		{name: "gpt 6 astra drops sampling", model: "gpt-6-astra", effort: "none", want: restricted},
 		{name: "gpt 6 sol without reasoning keeps sampling", model: "gpt-6-sol", want: sampling},
 		{name: "gpt 6 luna with reasoning drops sampling", model: "gpt-6-luna-2026-09-30", effort: "high", want: restricted},
+		{name: "gpt 6.1 sol drops sampling", model: "gpt-6.1-sol", effort: "none", want: restricted},
+		{name: "gpt 6.1 terra default drops sampling", model: "gpt-6.1-terra", want: restricted},
+		{name: "gpt 6.1 terra explicit none keeps sampling", model: "gpt-6.1-terra", effort: "none", want: sampling},
+		{name: "gpt 6.2 astra drops sampling", model: "gpt-6.2-astra", want: restricted},
+		{name: "gpt 6.2 sol snapshot drops sampling", model: "gpt-6.2-sol-2026-11-01", effort: "none", want: restricted},
 		{name: "unknown model keeps everything", model: "gpt-4.1", want: OpenAIChatCapabilities{SupportsTemperature: true, SupportsTopP: true, SupportsLogProbs: true}},
 	}
 	for _, tt := range tests {
@@ -208,4 +213,17 @@ func TestGetOpenAIChatCapabilities(t *testing.T) {
 			assert.Equal(t, tt.want, GetOpenAIChatCapabilities(tt.model, tt.effort))
 		})
 	}
+}
+
+// gpt-image-2.6 request fields are known fields; they must not fall into Extra
+// and be dropped on re-marshal.
+func TestImageRequestPreservesGPTImage26Fields(t *testing.T) {
+	raw := []byte(`{"model":"gpt-image-2.6-flare","prompt":"p","complexity":"low","markup":{"image_url":"https://x/o.png"},"svg":{"model":"m"},"frame_count":2,"frame_duration_ms":0}`)
+
+	var req ImageRequest
+	require.NoError(t, common.Unmarshal(raw, &req))
+
+	encoded, err := common.Marshal(req)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(raw), string(encoded))
 }

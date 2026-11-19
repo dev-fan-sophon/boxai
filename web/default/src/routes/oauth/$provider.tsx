@@ -6,13 +6,17 @@ import {
 } from '@tanstack/react-router'
 import type { AxiosRequestConfig } from 'axios'
 import i18next from 'i18next'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 import { OAuthCallbackScreen } from '@/features/auth/components/oauth-callback-screen'
 import { OAUTH_BIND_STORAGE_KEY } from '@/features/auth/constants'
 import { api, getSelf } from '@/lib/api'
 import { normalizeReturnTarget } from '@/lib/normalize-return-target'
+import {
+  getOAuthSessionStorage,
+  resolveOAuthCallbackMode,
+} from '@/lib/oauth-callback-mode'
 import { useAuthStore, type AuthUser } from '@/stores/auth-store'
 
 type OAuthRequestConfig = AxiosRequestConfig & {
@@ -29,16 +33,15 @@ function OAuthCallback() {
     state?: string
     redirect?: string
   }
-  const [mode, setMode] = useState<'login' | 'bind'>(() => {
-    if (typeof window === 'undefined') return 'login'
-    return window.opener ? 'bind' : 'login'
-  })
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMode(window.opener ? 'bind' : 'login')
-  }, [])
+  // A live window.opener alone is not a bind: tabs opened from external links
+  // (Zalo, mail, other sites) keep one, so require the popup's bind stamp.
+  const mode: 'login' | 'bind' =
+    typeof window === 'undefined'
+      ? 'login'
+      : resolveOAuthCallbackMode(provider, search.state ?? '', {
+          opener: window.opener,
+          storage: getOAuthSessionStorage(window),
+        })
 
   useEffect(() => {
     ;(async () => {
@@ -64,13 +67,7 @@ function OAuthCallback() {
         safeNavigate('/sign-in')
         return
       }
-      const isBindingFlow =
-        typeof window !== 'undefined' ? Boolean(window.opener) : mode === 'bind'
-      if (isBindingFlow && mode !== 'bind') {
-        setMode('bind')
-      } else if (!isBindingFlow && mode !== 'login') {
-        setMode('login')
-      }
+      const isBindingFlow = mode === 'bind'
       const notifyBindingResult = (status: 'success' | 'error') => {
         if (typeof window === 'undefined') return
         try {

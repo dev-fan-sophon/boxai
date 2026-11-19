@@ -1,6 +1,7 @@
 package relayconvert
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/dev-fan-sophon/boxai/common"
@@ -752,4 +753,57 @@ func mustRawMessage(t *testing.T, value any) []byte {
 	raw, err := common.Marshal(value)
 	require.NoError(t, err)
 	return raw
+}
+
+func TestConvertRequestOpenAIChatToGeminiImageConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		fields string
+		want   string
+	}{
+		{name: "omitted"},
+		{name: "top level 4K", fields: `,"imageConfig":{"imageSize":"4K"}`, want: `{"imageSize":"4K"}`},
+		{name: "top level aspect ratio", fields: `,"imageConfig":{"imageSize":"4K","aspectRatio":"16:9"}`, want: `{"imageSize":"4K","aspectRatio":"16:9"}`},
+		{name: "google extra body", fields: `,"extra_body":{"google":{"image_config":{"image_size":"4K","aspect_ratio":"16:9"}}}`, want: `{"imageSize":"4K","aspectRatio":"16:9"}`},
+		{name: "google extra body takes precedence", fields: `,"imageConfig":{"imageSize":"1K"},"extra_body":{"google":{"image_config":{"image_size":"4K"}}}`, want: `{"imageSize":"4K"}`},
+		{name: "empty google image config keeps top level config", fields: `,"imageConfig":{"imageSize":"4K"},"extra_body":{"google":{"image_config":{}}}`, want: `{"imageSize":"4K"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := `{"model":"gemini-3.1-flash-image-preview","temperature":0.7,"messages":[{"role":"user","content":"Remove the distant car"}]` + tt.fields + `}`
+			var request dto.GeneralOpenAIRequest
+			require.NoError(t, common.UnmarshalJsonStr(raw, &request))
+			// Relay copies the request through a marshal round trip first.
+			body, err := common.Marshal(request)
+			require.NoError(t, err)
+			var copiedRequest dto.GeneralOpenAIRequest
+			require.NoError(t, common.Unmarshal(body, &copiedRequest))
+
+			info := &relaycommon.RelayInfo{
+				RelayFormat:            types.RelayFormatOpenAI,
+				RequestConversionChain: []types.RelayFormat{types.RelayFormatOpenAI},
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelType:       constant.ChannelTypeGemini,
+					UpstreamModelName: "gemini-3.1-flash-image-preview",
+				},
+			}
+			result, err := ConvertRequest(nil, info, types.RelayFormatGemini, &copiedRequest)
+			require.NoError(t, err)
+			body, err = common.Marshal(result.Value)
+			require.NoError(t, err)
+			var upstream map[string]json.RawMessage
+			require.NoError(t, common.Unmarshal(body, &upstream))
+			var generationConfig map[string]json.RawMessage
+			require.NoError(t, common.Unmarshal(upstream["generationConfig"], &generationConfig))
+
+			assert.NotContains(t, upstream, "imageConfig")
+			if tt.want == "" {
+				assert.NotContains(t, generationConfig, "imageConfig")
+				return
+			}
+			require.Contains(t, generationConfig, "imageConfig")
+			assert.JSONEq(t, tt.want, string(generationConfig["imageConfig"]))
+		})
+	}
 }
