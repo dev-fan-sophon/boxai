@@ -3,6 +3,7 @@ package oaichat
 import (
 	"testing"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
@@ -170,6 +171,12 @@ func TestChatCompletionsStreamToResponsesEmitsReasoningSummaryPartLifecycle(t *t
 		responsesEventCompleted,
 	}, types)
 
+	// The Responses schema requires summary on every reasoning item, including
+	// the one announced before any summary text exists.
+	itemAdded, err := common.Marshal(events[1].Payload)
+	require.NoError(t, err)
+	assert.Contains(t, string(itemAdded), `"summary":[]`)
+
 	partAdded := events[2].Payload
 	assert.Equal(t, "resp_1_reasoning_0", partAdded.ItemID)
 	assert.Equal(t, 0, lo.FromPtr(partAdded.OutputIndex))
@@ -255,12 +262,12 @@ func TestChatCompletionsStreamToResponsesReopensItemsAfterMidStreamFinishReason(
 		responsesOutputTypeReasoning, responsesOutputTypeMessage,
 	}, []string{output[0].Type, output[1].Type, output[2].Type, output[3].Type, output[4].Type})
 	assert.Equal(t, "resp_1_reasoning_0", output[0].ID)
-	assert.Equal(t, "round 1", output[0].Content[0].Text)
+	assert.Equal(t, "round 1", output[0].Summary[0].Text)
 	assert.Equal(t, "resp_1_msg_0", output[1].ID)
 	assert.Equal(t, "calling", output[1].Content[0].Text)
 	assert.Equal(t, "call_1", output[2].CallId)
 	assert.Equal(t, "resp_1_reasoning_1", output[3].ID)
-	assert.Equal(t, "round 2", output[3].Content[0].Text)
+	assert.Equal(t, "round 2", output[3].Summary[0].Text)
 	assert.Equal(t, "resp_1_msg_1", output[4].ID)
 	assert.Equal(t, "final", output[4].Content[0].Text)
 	for _, item := range output {
