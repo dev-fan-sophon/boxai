@@ -905,7 +905,7 @@ func persistVideoTaskOutput(ctx context.Context, task *model.Task, preferredURL 
 		}
 	}
 	if err != nil {
-		common.SysError(fmt.Sprintf("video output persistence failed for task %s (attempt %d)", task.TaskID, task.OutputAttempts+1))
+		common.SysError(fmt.Sprintf("video output persistence failed for task %s (attempt %d): %s", task.TaskID, task.OutputAttempts+1, common.MaskSensitiveInfo(err.Error())))
 		return
 	}
 	if asset == nil {
