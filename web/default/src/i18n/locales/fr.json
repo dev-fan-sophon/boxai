@@ -6440,6 +6440,7 @@
     "Standing reports and briefs run on a schedule without you": "Rapports récurrents et notes de synthèse tournent selon un calendrier, sans vous",
     "Standing work runs on a schedule and lands in the app with a full transcript.": "Le travail récurrent s’exécute selon un planning et revient dans l’application avec sa transcription complète.",
     "Start": "Début",
+    "Start ≤ end: within the day; start > end: across midnight": "Début ≤ fin : plage dans la journée ; début > fin : plage après minuit",
     "Start a conversation to see messages here": "Démarrez une conversation pour voir les messages ici",
     "Start a new chat?": "Commencer une nouvelle discussion ?",
     "Start a playground chat": "Démarrer une conversation dans le playground",

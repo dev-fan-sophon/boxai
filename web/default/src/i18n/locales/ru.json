@@ -6440,6 +6440,7 @@
     "Standing reports and briefs run on a schedule without you": "Регулярные отчёты и сводки выходят по расписанию без вашего участия",
     "Standing work runs on a schedule and lands in the app with a full transcript.": "Регулярная работа выполняется по расписанию и возвращается в приложение с полной расшифровкой.",
     "Start": "Начало",
+    "Start ≤ end: within the day; start > end: across midnight": "Начало ≤ конца — в пределах дня, начало > конца — через полночь",
     "Start a conversation to see messages here": "Начните разговор, чтобы увидеть сообщения здесь",
     "Start a new chat?": "Начать новый чат?",
     "Start a playground chat": "Начните чат в Playground",

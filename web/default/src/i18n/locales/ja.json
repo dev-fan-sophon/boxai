@@ -6440,6 +6440,7 @@
     "Standing reports and briefs run on a schedule without you": "定例レポートやブリーフはスケジュールどおり自動で走ります",
     "Standing work runs on a schedule and lands in the app with a full transcript.": "定例業務はスケジュールで実行され、全文の記録付きでアプリに戻ってきます。",
     "Start": "開始",
+    "Start ≤ end: within the day; start > end: across midnight": "開始 ≤ 終了は日内範囲、開始 > 終了は日をまたぐ範囲",
     "Start a conversation to see messages here": "会話を開始すると、ここにメッセージが表示されます",
     "Start a new chat?": "新しいチャットを開始しますか？",
     "Start a playground chat": "Playground でチャットを開始",
