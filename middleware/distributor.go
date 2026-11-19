@@ -18,7 +18,9 @@ import (
 	"github.com/dev-fan-sophon/boxai/relay/channel/elevenlabs"
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/setting/model_setting"
 	"github.com/dev-fan-sophon/boxai/setting/ratio_setting"
+	"github.com/dev-fan-sophon/boxai/setting/reasoning"
 	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
@@ -429,6 +431,20 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		modelRequest.Group = req.Group
 		if modelRequest.Group != "" {
 			common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
+		}
+	}
+
+	// Explicit @key:value modifiers (model@effort:high) select reasoning
+	// intent only. Routing, token model limits, group checks and pricing all
+	// use the base model name; the relay applies the intent to the request.
+	if !model_setting.ShouldPreserveThinkingSuffix(modelRequest.Model) {
+		base, modifiers, err := reasoning.ParseModelModifiers(modelRequest.Model)
+		if err != nil {
+			return nil, false, err
+		}
+		if !modifiers.IsEmpty() {
+			modelRequest.Model = base
+			common.SetContextKey(c, constant.ContextKeyModelModifiers, modifiers)
 		}
 	}
 

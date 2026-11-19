@@ -7,7 +7,10 @@ const (
 	ContextKeyPromptTokens    ContextKey = "prompt_tokens"
 	ContextKeyEstimatedTokens ContextKey = "estimated_tokens"
 
-	ContextKeyOriginalModel    ContextKey = "original_model"
+	ContextKeyOriginalModel ContextKey = "original_model"
+	// ContextKeyModelModifiers holds the reasoning.ModelModifiers parsed from
+	// an explicit model@key:value request model name.
+	ContextKeyModelModifiers   ContextKey = "model_modifiers"
 	ContextKeyRequestStartTime ContextKey = "request_start_time"
 
 	/* token related keys */

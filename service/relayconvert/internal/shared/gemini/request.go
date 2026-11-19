@@ -116,7 +116,7 @@ func ApplyThinkingConfig(geminiRequest *dto.GeminiChatRequest, info *relaycommon
 		parts := strings.SplitN(modelName, "-thinking-", 2)
 		if len(parts) == 2 && parts[1] != "" {
 			if budgetTokens, err := strconv.Atoi(parts[1]); err == nil {
-				clampedBudget := clampThinkingBudget(modelName, budgetTokens)
+				clampedBudget := ClampThinkingBudget(modelName, budgetTokens)
 				geminiRequest.GenerationConfig.ThinkingConfig = &dto.GeminiThinkingConfig{
 					ThinkingBudget:  common.GetPointer(clampedBudget),
 					IncludeThoughts: true,
@@ -146,10 +146,10 @@ func ApplyThinkingConfig(geminiRequest *dto.GeminiChatRequest, info *relaycommon
 			}
 			if geminiRequest.GenerationConfig.MaxOutputTokens != nil && *geminiRequest.GenerationConfig.MaxOutputTokens > 0 {
 				budgetTokens := model_setting.GetGeminiSettings().ThinkingAdapterBudgetTokensPercentage * float64(*geminiRequest.GenerationConfig.MaxOutputTokens)
-				clampedBudget := clampThinkingBudget(modelName, int(budgetTokens))
+				clampedBudget := ClampThinkingBudget(modelName, int(budgetTokens))
 				geminiRequest.GenerationConfig.ThinkingConfig.ThinkingBudget = common.GetPointer(clampedBudget)
 			} else if len(oaiRequest) > 0 {
-				geminiRequest.GenerationConfig.ThinkingConfig.ThinkingBudget = common.GetPointer(clampThinkingBudgetByEffort(modelName, oaiRequest[0].ReasoningEffort))
+				geminiRequest.GenerationConfig.ThinkingConfig.ThinkingBudget = common.GetPointer(ClampThinkingBudgetByEffort(modelName, oaiRequest[0].ReasoningEffort))
 			}
 		}
 	} else if strings.HasSuffix(modelName, "-nothinking") {
@@ -227,7 +227,7 @@ func is25FlashLiteModel(modelName string) bool {
 	return strings.HasPrefix(modelName, "gemini-2.5-flash-lite")
 }
 
-func clampThinkingBudget(modelName string, budget int) int {
+func ClampThinkingBudget(modelName string, budget int) int {
 	isNew25Pro := isNew25ProModel(modelName)
 	is25FlashLite := is25FlashLiteModel(modelName)
 
@@ -256,7 +256,7 @@ func clampThinkingBudget(modelName string, budget int) int {
 	return budget
 }
 
-func clampThinkingBudgetByEffort(modelName string, effort string) int {
+func ClampThinkingBudgetByEffort(modelName string, effort string) int {
 	isNew25Pro := isNew25ProModel(modelName)
 	is25FlashLite := is25FlashLiteModel(modelName)
 
@@ -279,5 +279,5 @@ func clampThinkingBudgetByEffort(modelName string, effort string) int {
 	case "minimal":
 		maxBudget = maxBudget * 5 / 100
 	}
-	return clampThinkingBudget(modelName, maxBudget)
+	return ClampThinkingBudget(modelName, maxBudget)
 }
