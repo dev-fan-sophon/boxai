@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -199,6 +200,65 @@ func TestDoAwsClientRequest_ForwardsThinkingBlockBindingAndBetaList(t *testing.T
 	require.NoError(t, common.Unmarshal(awsReq.Body, &payload))
 	assert.Equal(t, []string{"fast-mode-2026-02-01", "thinking-binding-controls-2026-08-01"}, payload.AnthropicBeta)
 	assert.JSONEq(t, `{"type":"adaptive","display":"summarized","block_binding":{"prefix_mismatch_behavior":"drop_block"}}`, string(payload.Thinking))
+}
+
+func TestDoAwsClientRequest_PreservesSafeguards(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name       string
+		safeguards string
+	}{
+		{name: "omitted"},
+		{name: "empty array", safeguards: `[]`},
+		{name: "dangerous tool use", safeguards: `[{"type":"dangerous_tool_use","classifier_context":{"v":1,"permission_mode":"auto"}}]`},
+		// Invalid values are forwarded so AWS rejects them instead of the feature being silently disabled.
+		{name: "invalid object", safeguards: `{"enabled":true}`},
+	}
+	for _, tt := range tests {
+		for _, stream := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/stream=%v", tt.name, stream), func(t *testing.T) {
+				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+				ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+				info := &relaycommon.RelayInfo{
+					OriginModelName: "claude-sonnet-5",
+					IsStream:        stream,
+					ChannelMeta: &relaycommon.ChannelMeta{
+						ApiKey:            "access-key|secret-key|us-east-1",
+						UpstreamModelName: "claude-sonnet-5",
+					},
+				}
+				body := `{"max_tokens":128,"messages":[{"role":"user","content":"hello"}]`
+				if tt.safeguards != "" {
+					body += `,"safeguards":` + tt.safeguards
+				}
+				body += `}`
+				adaptor := &Adaptor{}
+
+				_, err := doAwsClientRequest(ctx, info, adaptor, bytes.NewBufferString(body))
+				require.NoError(t, err)
+
+				var outbound []byte
+				if stream {
+					awsReq, ok := adaptor.AwsReq.(*bedrockruntime.InvokeModelWithResponseStreamInput)
+					require.True(t, ok)
+					outbound = awsReq.Body
+				} else {
+					awsReq, ok := adaptor.AwsReq.(*bedrockruntime.InvokeModelInput)
+					require.True(t, ok)
+					outbound = awsReq.Body
+				}
+				var payload map[string]json.RawMessage
+				require.NoError(t, common.Unmarshal(outbound, &payload))
+				got, exists := payload["safeguards"]
+				if tt.safeguards == "" {
+					assert.False(t, exists)
+					return
+				}
+				require.True(t, exists)
+				assert.JSONEq(t, tt.safeguards, string(got))
+			})
+		}
+	}
 }
 
 func TestNewAwsInvokeContextInheritsParent(t *testing.T) {
