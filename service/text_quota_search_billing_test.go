@@ -7,6 +7,7 @@ import (
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
+	"github.com/dev-fan-sophon/boxai/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -92,4 +93,25 @@ func TestClaudeServerToolUseReplacesCountedSearchItems(t *testing.T) {
 	require.Len(t, summary.ToolSurchargeItems, 1)
 	assert.Equal(t, dto.BuildInToolWebSearch, summary.ToolSurchargeItems[0].Name)
 	assert.Equal(t, 3, summary.ToolSurchargeItems[0].Count)
+}
+
+// /v1/tools/search and /v1/tools/fetch report no tokens; a successful call
+// still settles at the routing model's per-request price.
+func TestDeepSeekToolsCallBillsFixedPriceWithoutTokens(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(nil)
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "deepseek-search",
+		RelayFormat:     types.RelayFormatDeepSeekTools,
+		PriceData: types.PriceData{
+			UsePrice:       true,
+			ModelPrice:     0.002,
+			GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 1},
+		},
+	}
+	summary := calculateTextQuotaSummary(ctx, info, &dto.Usage{})
+	assert.Equal(t, common.QuotaRound(0.002*common.QuotaPerUnit), summary.Quota)
+
+	info.RelayFormat = types.RelayFormatOpenAI
+	summary = calculateTextQuotaSummary(ctx, info, &dto.Usage{})
+	assert.Zero(t, summary.Quota, "other zero-usage responses stay free")
 }

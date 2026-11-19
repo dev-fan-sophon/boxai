@@ -688,6 +688,9 @@ func GenRelayInfo(c *gin.Context, relayFormat types.RelayFormat, request dto.Req
 			return GenRelayInfoAlphaSearch(c, request), nil
 		}
 		return nil, errors.New("request is not an AlphaSearchRequest")
+	case types.RelayFormatDeepSeekTools:
+		info = genBaseRelayInfo(c, request)
+		info.RelayFormat = types.RelayFormatDeepSeekTools
 	case types.RelayFormatTask:
 		info = genBaseRelayInfo(c, nil)
 		info.TaskRelayInfo = &TaskRelayInfo{}

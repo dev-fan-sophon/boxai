@@ -76,6 +76,9 @@ type textQuotaSummary struct {
 	ImageGenerationCallCount int
 	ToolSurchargeItems       []ToolSurchargeItem
 	ToolCallSurchargeQuota   decimal.Decimal
+	// FixedPriceBilling marks a per-request priced call that reports no
+	// tokens, such as the DeepSeek Search and Fetch APIs.
+	FixedPriceBilling bool
 }
 
 // hasBillableUsage reports whether this request should incur any charge.
@@ -84,7 +87,7 @@ type textQuotaSummary struct {
 // a tool-call surcharge (e.g. /v1/alpha/search returns no usage but bills one
 // web_search call), so token count alone is not sufficient to decide.
 func (s *textQuotaSummary) hasBillableUsage() bool {
-	return s.TotalTokens > 0 ||
+	return s.FixedPriceBilling || s.TotalTokens > 0 ||
 		(s.IsClaudeUsageSemantic && (s.CacheTokens > 0 || s.CacheCreationTokens > 0 ||
 			s.CacheCreationTokens5m > 0 || s.CacheCreationTokens1h > 0)) ||
 		!s.ToolCallSurchargeQuota.IsZero()
@@ -316,6 +319,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		UsageSemantic:        usageSemanticFromUsage(relayInfo, usage),
 	}
 	summary.IsClaudeUsageSemantic = summary.UsageSemantic == "anthropic"
+	summary.FixedPriceBilling = relayInfo.RelayFormat == types.RelayFormatDeepSeekTools && relayInfo.PriceData.UsePrice
 
 	if usage == nil {
 		usage = &dto.Usage{

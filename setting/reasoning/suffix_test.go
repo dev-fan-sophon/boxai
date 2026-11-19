@@ -61,3 +61,25 @@ func TestLegacyEffortSuffixesUnchanged(t *testing.T) {
 	_, _, ok = TrimEffortSuffix("gpt-5@effort:high")
 	assert.False(t, ok)
 }
+
+func TestParseDeepSeekV4ThinkingSuffix(t *testing.T) {
+	tests := []struct {
+		model, base, thinking, effort string
+		ok                            bool
+	}{
+		{"deepseek-v4-pro-none", "deepseek-v4-pro", "disabled", "", true},
+		{"deepseek-v4-pro-max", "deepseek-v4-pro", "enabled", "max", true},
+		{"deepseek-v4-flash-none", "deepseek-v4-flash", "disabled", "", true},
+		{"deepseek-v4-pro-low", "deepseek-v4-pro", "enabled", "low", true},
+		{"deepseek-flash-max", "deepseek-flash", "enabled", "max", true},
+		{"deepseek-chat", "deepseek-chat", "", "", false},
+		{"deepseek-r1-max", "deepseek-r1-max", "", "", false},
+	}
+	for _, tt := range tests {
+		base, thinking, effort, ok := ParseDeepSeekV4ThinkingSuffix(tt.model)
+		assert.Equal(t, tt.ok, ok, tt.model)
+		assert.Equal(t, tt.base, base, tt.model)
+		assert.Equal(t, tt.thinking, thinking, tt.model)
+		assert.Equal(t, tt.effort, effort, tt.model)
+	}
+}

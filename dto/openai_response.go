@@ -395,6 +395,8 @@ type ResponsesOutput struct {
 	Namespace     string                   `json:"namespace,omitempty"`
 	Arguments     json.RawMessage          `json:"arguments,omitempty"`
 	Input         json.RawMessage          `json:"input,omitempty"`
+	// Action is a web_search_call item's action (search, open_page, ...).
+	Action json.RawMessage `json:"action,omitempty"`
 }
 
 // MarshalJSON keeps custom_tool_call items within their Responses schema:

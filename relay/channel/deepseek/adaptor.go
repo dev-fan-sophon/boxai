@@ -54,6 +54,14 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
+	// DeepSeek runs Claude Code and Codex searches and page fetches
+	// server-side and bills them through its Search and Fetch APIs, whatever
+	// model name the client sent (upstream 6cf0d90b5).
+	info.WebSearchBillingKey = SearchToolPriceKey
+	info.WebFetchBillingKey = FetchToolPriceKey
+	if info.RelayMode == constant.RelayModeResponses {
+		info.VendorToolUsage = responsesToolUsage
+	}
 }
 
 func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
@@ -70,6 +78,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 			return fmt.Sprintf("%s/completions", fimBaseUrl), nil
 		case constant.RelayModeResponses:
 			return fmt.Sprintf("%s/responses", info.ChannelBaseUrl), nil
+		case constant.RelayModeToolsSearch:
+			return fmt.Sprintf("%s/v1/tools/search", info.ChannelBaseUrl), nil
+		case constant.RelayModeToolsFetch:
+			return fmt.Sprintf("%s/v1/tools/fetch", info.ChannelBaseUrl), nil
 		default:
 			return fmt.Sprintf("%s/v1/chat/completions", info.ChannelBaseUrl), nil
 		}
@@ -99,6 +111,10 @@ func applyDeepSeekV4OpenAIThinkingSuffix(info *relaycommon.RelayInfo, request *d
 		modelName = info.UpstreamModelName
 	}
 	baseModel, thinkingType, effort, ok := reasoning.ParseDeepSeekV4ThinkingSuffix(modelName)
+	if !ok && request.ReasoningEffort == "none" {
+		// @thinking:off / @effort:none reach DeepSeek as its thinking switch.
+		baseModel, thinkingType, ok = modelName, "disabled", true
+	}
 	if !ok {
 		return nil
 	}

@@ -102,3 +102,16 @@ func TestModelModifierPricesOnBaseModel(t *testing.T) {
 	assert.True(t, priceData.UsePrice)
 	assert.Equal(t, 0.5, priceData.ModelPrice)
 }
+
+func TestDeepSeekToolsRoutesUseEndpointModelName(t *testing.T) {
+	for path, want := range map[string]string{
+		"/v1/tools/search": constant.DeepSeekSearchModel,
+		"/v1/tools/fetch":  constant.DeepSeekFetchModel,
+	} {
+		ctx := modelRequestContext(t, path, `{"query":"hanoi weather","model":"deepseek-flash"}`)
+		request, shouldSelect, err := getModelRequest(ctx)
+		require.NoError(t, err)
+		assert.True(t, shouldSelect)
+		assert.Equal(t, want, request.Model, "a body model must not choose the billing model")
+	}
+}
