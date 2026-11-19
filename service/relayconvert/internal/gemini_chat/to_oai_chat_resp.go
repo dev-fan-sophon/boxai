@@ -105,24 +105,26 @@ func ResponseGeminiChat2OpenAI(id string, created int64, response *dto.GeminiCha
 				content.Grow(inlineGrow)
 			}
 			appended := 0
-			writeSep := func() {
-				if appended > 0 {
+			lastWasText := false
+			writeSep := func(text bool) {
+				if appended > 0 && !(text && lastWasText) {
 					content.WriteByte('\n')
 				}
 				appended++
+				lastWasText = text
 			}
 			var toolCalls []dto.ToolCallResponse
 			for _, part := range candidate.Content.Parts {
 				if part.InlineData != nil {
 					if strings.HasPrefix(part.InlineData.MimeType, "image") {
-						writeSep()
+						writeSep(false)
 						content.WriteString("![image](data:")
 						content.WriteString(part.InlineData.MimeType)
 						content.WriteString(";base64,")
 						content.WriteString(part.InlineData.Data)
 						content.WriteByte(')')
 					} else {
-						writeSep()
+						writeSep(false)
 						content.WriteString("[media](data:")
 						content.WriteString(part.InlineData.MimeType)
 						content.WriteString(";base64,")
@@ -138,19 +140,19 @@ func ResponseGeminiChat2OpenAI(id string, created int64, response *dto.GeminiCha
 					choice.Message.ReasoningContent = &part.Text
 				} else {
 					if part.ExecutableCode != nil {
-						writeSep()
+						writeSep(false)
 						content.WriteString("```")
 						content.WriteString(part.ExecutableCode.Language)
 						content.WriteByte('\n')
 						content.WriteString(part.ExecutableCode.Code)
 						content.WriteString("\n```")
 					} else if part.CodeExecutionResult != nil {
-						writeSep()
+						writeSep(false)
 						content.WriteString("```output\n")
 						content.WriteString(part.CodeExecutionResult.Output)
 						content.WriteString("\n```")
-					} else if part.Text != "\n" {
-						writeSep()
+					} else if part.Text != "" {
+						writeSep(true)
 						content.WriteString(part.Text)
 					}
 				}
@@ -205,11 +207,13 @@ func StreamResponseGeminiChat2OpenAI(geminiResponse *dto.GeminiChatResponse) (*d
 			content.Grow(inlineGrow)
 		}
 		appended := 0
-		writeSep := func() {
-			if appended > 0 {
+		lastWasText := false
+		writeSep := func(text bool) {
+			if appended > 0 && !(text && lastWasText) {
 				content.WriteByte('\n')
 			}
 			appended++
+			lastWasText = text
 		}
 		isTools := false
 		isThought := false
@@ -228,7 +232,7 @@ func StreamResponseGeminiChat2OpenAI(geminiResponse *dto.GeminiChatResponse) (*d
 		for _, part := range candidate.Content.Parts {
 			if part.InlineData != nil {
 				if strings.HasPrefix(part.InlineData.MimeType, "image") {
-					writeSep()
+					writeSep(false)
 					content.WriteString("![image](data:")
 					content.WriteString(part.InlineData.MimeType)
 					content.WriteString(";base64,")
@@ -243,23 +247,23 @@ func StreamResponseGeminiChat2OpenAI(geminiResponse *dto.GeminiChatResponse) (*d
 				}
 			} else if part.Thought {
 				isThought = true
-				writeSep()
+				writeSep(false)
 				content.WriteString(part.Text)
 			} else {
 				if part.ExecutableCode != nil {
-					writeSep()
+					writeSep(false)
 					content.WriteString("```")
 					content.WriteString(part.ExecutableCode.Language)
 					content.WriteByte('\n')
 					content.WriteString(part.ExecutableCode.Code)
 					content.WriteString("\n```\n")
 				} else if part.CodeExecutionResult != nil {
-					writeSep()
+					writeSep(false)
 					content.WriteString("```output\n")
 					content.WriteString(part.CodeExecutionResult.Output)
 					content.WriteString("\n```\n")
-				} else if part.Text != "\n" {
-					writeSep()
+				} else if part.Text != "" {
+					writeSep(true)
 					content.WriteString(part.Text)
 				}
 			}

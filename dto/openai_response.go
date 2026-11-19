@@ -408,20 +408,22 @@ type IncompleteDetails struct {
 }
 
 type ResponsesOutput struct {
-	Type          string                   `json:"type"`
-	ID            string                   `json:"id"`
-	Status        string                   `json:"status"`
-	Role          string                   `json:"role"`
-	Content       []ResponsesOutputContent `json:"content"`
-	Quality       string                   `json:"quality"`
-	Size          string                   `json:"size"`
-	Result        string                   `json:"result,omitempty"`
-	RevisedPrompt string                   `json:"revised_prompt,omitempty"`
-	CallId        string                   `json:"call_id,omitempty"`
-	Name          string                   `json:"name,omitempty"`
-	Namespace     string                   `json:"namespace,omitempty"`
-	Arguments     json.RawMessage          `json:"arguments,omitempty"`
-	Input         json.RawMessage          `json:"input,omitempty"`
+	Type    string                   `json:"type"`
+	ID      string                   `json:"id"`
+	Status  string                   `json:"status"`
+	Role    string                   `json:"role"`
+	Content []ResponsesOutputContent `json:"content"`
+	// Summary carries reasoning item summary parts.
+	Summary       []ResponsesReasoningSummaryPart `json:"summary,omitempty"`
+	Quality       string                          `json:"quality"`
+	Size          string                          `json:"size"`
+	Result        string                          `json:"result,omitempty"`
+	RevisedPrompt string                          `json:"revised_prompt,omitempty"`
+	CallId        string                          `json:"call_id,omitempty"`
+	Name          string                          `json:"name,omitempty"`
+	Namespace     string                          `json:"namespace,omitempty"`
+	Arguments     json.RawMessage                 `json:"arguments,omitempty"`
+	Input         json.RawMessage                 `json:"input,omitempty"`
 }
 
 // MarshalJSON keeps custom_tool_call items within their Responses schema:
@@ -444,6 +446,13 @@ func (r ResponsesOutput) MarshalJSON() ([]byte, error) {
 		}{Type: r.Type, ID: r.ID, Status: r.Status, CallID: r.CallId, Name: r.Name, Namespace: r.Namespace, Input: input})
 	}
 	type responsesOutputAlias ResponsesOutput
+	if r.Type == "reasoning" && len(r.Summary) == 0 {
+		// summary is required on a reasoning item, even before any summary text exists.
+		return common.Marshal(struct {
+			responsesOutputAlias
+			Summary []ResponsesReasoningSummaryPart `json:"summary"`
+		}{responsesOutputAlias(r), []ResponsesReasoningSummaryPart{}})
+	}
 	return common.Marshal(responsesOutputAlias(r))
 }
 

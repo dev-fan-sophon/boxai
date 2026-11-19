@@ -161,6 +161,12 @@ func OpenAIResponsesRequestToGeminiChat(c *gin.Context, req *dto.OpenAIResponses
 		}
 	}
 
+	geminiRequest.Contents = omitTrailingAssistantText(geminiRequest.Contents,
+		func(content dto.GeminiChatContent) bool { return content.Role == "user" },
+		func(content dto.GeminiChatContent) bool {
+			return content.Role == "model" && !slices.ContainsFunc(content.Parts, func(part dto.GeminiPart) bool { return part.FunctionCall != nil })
+		})
+
 	if len(systemTexts) > 0 {
 		geminiRequest.SystemInstructions = &dto.GeminiChatContent{
 			Parts: []dto.GeminiPart{{Text: strings.Join(systemTexts, "\n")}},
