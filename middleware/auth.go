@@ -336,9 +336,9 @@ func TokenOrUserAuth() func(c *gin.Context) {
 }
 
 // TokenAuthReadOnly 宽松版本的令牌认证中间件，用于只读查询接口。
-// 只验证令牌 key 是否存在，不检查令牌状态、过期时间和额度。
-// 即使令牌已过期、已耗尽或已禁用，也允许访问。
-// 仍然检查用户是否被封禁。
+// 只验证令牌 key 是否存在，不检查过期时间和额度。
+// 即使令牌已过期或已耗尽，也允许访问；已禁用的令牌会被拒绝。
+// 仍然检查令牌 IP 白名单和用户是否被封禁。
 func TokenAuthReadOnly() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		key := c.Request.Header.Get("Authorization")
@@ -386,7 +386,31 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 			return
 		}
 
+		if allowIps := token.GetIpLimits(); len(allowIps) > 0 {
+			ip := net.ParseIP(common.RealClientIP(c))
+			message := ""
+			if ip == nil {
+				message = "无法解析客户端 IP 地址"
+			} else if !common.IsIpInCIDRList(ip, allowIps) {
+				message = "您的 IP 不在令牌允许访问的列表中"
+			}
+			if message != "" {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "message": message})
+				c.Abort()
+				return
+			}
+		}
+
 		userCache, err := model.GetUserCache(token.UserId)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// A deleted account keeps its API keys; they must read as invalid.
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgTokenInvalid),
+			})
+			c.Abort()
+			return
+		}
 		if err != nil {
 			common.SysLog(fmt.Sprintf("TokenAuthReadOnly GetUserCache error for user %d: %v", token.UserId, err))
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -508,6 +532,11 @@ func TokenAuth() func(c *gin.Context) {
 		}
 
 		userCache, err := model.GetUserCache(token.UserId)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// A deleted account keeps its API keys; they must read as invalid.
+			abortWithOpenAiMessage(c, http.StatusUnauthorized, common.TranslateMessage(c, i18n.MsgTokenInvalid))
+			return
+		}
 		if err != nil {
 			common.SysLog(fmt.Sprintf("TokenAuth GetUserCache error for user %d: %v", token.UserId, err))
 			abortWithOpenAiMessage(c, http.StatusInternalServerError,

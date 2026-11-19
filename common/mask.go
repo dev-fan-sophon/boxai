@@ -123,10 +123,19 @@ func MaskSensitiveInfo(str string, upstreamURLs ...string) string {
 	}
 	// Mask URLs on an upstream host, and the query values of every other URL
 	str = maskURLPattern.ReplaceAllStringFunc(str, func(match string) string {
+		// Trailing punctuation belongs to the surrounding text and is kept
+		// outside the masked URL; a trailing ')' is trimmed only while it is
+		// unbalanced. Parentheses are counted once so trimming stays linear.
 		urlStr := match
+		openParens, closeParens := strings.Count(urlStr, "("), strings.Count(urlStr, ")")
 		for urlStr != "" {
 			last := urlStr[len(urlStr)-1]
-			if strings.IndexByte(".,;:!?'", last) < 0 && (last != ')' || strings.Count(urlStr, "(") >= strings.Count(urlStr, ")")) {
+			if last == ')' {
+				if openParens >= closeParens {
+					break
+				}
+				closeParens--
+			} else if strings.IndexByte(".,;:!?'", last) < 0 {
 				break
 			}
 			urlStr = urlStr[:len(urlStr)-1]
