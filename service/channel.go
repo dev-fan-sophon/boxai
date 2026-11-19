@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -56,6 +57,12 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	if types.IsChannelError(err) {
 		return true
 	}
+	// Errors BoxAI raised itself say nothing about the channel: the request
+	// may never have reached the upstream, and their message can echo client
+	// input that would otherwise match a disable keyword.
+	if isLocalRelayError(err) {
+		return false
+	}
 	if types.IsSkipRetryError(err) {
 		return false
 	}
@@ -66,6 +73,27 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	lowerMessage := strings.ToLower(err.Error())
 	search, _ := AcSearch(lowerMessage, operation_setting.AutomaticDisableKeywords, true)
 	return search
+}
+
+// isLocalRelayError reports whether a relay error was raised by BoxAI itself
+// (request parsing, conversion, validation, billing, local timeouts) rather
+// than carrying an upstream answer. Adaptors report upstream responses with
+// BoxAI error values too, so the response and transport codes are not local,
+// and a local error wrapping another relay error takes that error's origin.
+func isLocalRelayError(err *types.NewAPIError) bool {
+	if err.GetErrorType() != types.ErrorTypeNewAPIError || types.IsChannelError(err) {
+		return false
+	}
+	switch err.GetErrorCode() {
+	case types.ErrorCodeDoRequestFailed, types.ErrorCodeReadResponseBodyFailed, types.ErrorCodeBadResponseStatusCode,
+		types.ErrorCodeBadResponse, types.ErrorCodeBadResponseBody, types.ErrorCodeEmptyResponse, types.ErrorCodeAwsInvokeError:
+		return false
+	}
+	var inner *types.NewAPIError
+	if errors.As(err.Unwrap(), &inner) && inner != err {
+		return isLocalRelayError(inner)
+	}
+	return true
 }
 
 func ShouldEnableChannel(newAPIError *types.NewAPIError, status int) bool {
