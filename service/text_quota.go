@@ -168,26 +168,32 @@ func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.Rel
 			if tool == nil || tool.CallCount <= 0 {
 				continue
 			}
-			responseToolCounts[name] = tool.CallCount
+			// Vendor-reported counts are upstream-controlled; bound every count
+			// before it becomes a surcharge multiplier.
+			count := tool.CallCount
+			if count > relaycommon.MaxBillableToolCallCount {
+				common.SysError(fmt.Sprintf("billable tool count clamped: tool=%s count=%d", name, count))
+				count = relaycommon.MaxBillableToolCallCount
+			}
+			responseToolCounts[name] = count
 			if managedXAI {
 				switch name {
 				case dto.BuildInToolXAIWebSearch:
-					summary.XAIWebSearchCallCount = tool.CallCount
+					summary.XAIWebSearchCallCount = count
 					summary.XAIWebSearchPrice = operation_setting.GetToolPriceForModel("xai_web_search", summary.ModelName)
-					items = collectToolSurchargeItem(items, "xai_web_search", tool.CallCount, summary.XAIWebSearchPrice)
+					items = collectToolSurchargeItem(items, "xai_web_search", count, summary.XAIWebSearchPrice)
 					continue
 				case dto.BuildInToolXAIXSearch:
-					summary.XAIXSearchCallCount = tool.CallCount
+					summary.XAIXSearchCallCount = count
 					summary.XAIXSearchPrice = operation_setting.GetToolPriceForModel("xai_x_search", summary.ModelName)
-					items = collectToolSurchargeItem(items, "xai_x_search", tool.CallCount, summary.XAIXSearchPrice)
+					items = collectToolSurchargeItem(items, "xai_x_search", count, summary.XAIXSearchPrice)
 					continue
 				}
 			}
 
 			price := operation_setting.GetToolPriceForModel(name, summary.ModelName)
-			count := tool.CallCount
 			if name == dto.BuildInToolImageGeneration {
-				count = min(tool.CallCount, dto.MaxImageN)
+				count = min(count, dto.MaxImageN)
 				summary.ImageGenerationCallCount = count
 				summary.ImageGenerationCallPrice = operation_setting.GetGPTImage1PriceOnceCall(ctx.GetString("image_generation_call_quality"), ctx.GetString("image_generation_call_size"))
 				price = summary.ImageGenerationCallPrice * 1000
@@ -195,10 +201,10 @@ func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.Rel
 			items = collectToolSurchargeItem(items, name, count, price)
 			switch name {
 			case dto.BuildInToolWebSearchPreview, dto.BuildInToolWebSearch:
-				summary.WebSearchCallCount = tool.CallCount
+				summary.WebSearchCallCount = count
 				summary.WebSearchPrice = price
 			case dto.BuildInToolFileSearch:
-				summary.FileSearchCallCount = tool.CallCount
+				summary.FileSearchCallCount = count
 				summary.FileSearchPrice = price
 			}
 		}
@@ -216,15 +222,6 @@ func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.Rel
 		}
 	}
 
-	if responseToolCounts[dto.BuildInToolWebSearch] == 0 {
-		summary.ClaudeWebSearchCallCount = ctx.GetInt("claude_web_search_requests")
-		summary.ClaudeWebSearchPrice = operation_setting.GetToolPriceForModel(dto.BuildInToolWebSearch, summary.ModelName)
-		items = collectToolSurchargeItem(items, dto.BuildInToolWebSearch, summary.ClaudeWebSearchCallCount, summary.ClaudeWebSearchPrice)
-	}
-	if ctx.GetBool("gemini_google_search_call") && responseToolCounts[dto.BuildInToolGoogleSearch] == 0 {
-		price := operation_setting.GetToolPriceForModel(dto.BuildInToolGoogleSearch, summary.ModelName)
-		items = collectToolSurchargeItem(items, dto.BuildInToolGoogleSearch, 1, price)
-	}
 	if summary.ImageGenerationCallCount == 0 && ctx.GetBool("image_generation_call") {
 		summary.ImageGenerationCallCount = 1
 		summary.ImageGenerationCallPrice = operation_setting.GetGPTImage1PriceOnceCall(ctx.GetString("image_generation_call_quality"), ctx.GetString("image_generation_call_size"))

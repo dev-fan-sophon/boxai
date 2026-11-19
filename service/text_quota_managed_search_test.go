@@ -125,8 +125,6 @@ func TestInvalidToolSurchargeCannotCreateCredit(t *testing.T) {
 
 func TestGenericCompletedToolSurchargesAvoidLegacyDoubleBilling(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(nil)
-	ctx.Set("claude_web_search_requests", 3)
-	ctx.Set("gemini_google_search_call", true)
 	info := &relaycommon.RelayInfo{
 		OriginModelName: "tool-model",
 		PriceData: types.PriceData{

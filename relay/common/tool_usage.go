@@ -1,6 +1,7 @@
 package common
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -11,12 +12,29 @@ import (
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 )
 
+// GoogleSearchGroundedPromptTool bills Gemini 2.5-and-older Google Search
+// grounding, charged once per grounded prompt (upstream d10f11fff).
+const GoogleSearchGroundedPromptTool = "google_search_grounded_prompt"
+
+// MaxBillableToolCallCount bounds every tool count at settlement, whatever its
+// source, before it becomes a surcharge multiplier (upstream acb347a19).
+const MaxBillableToolCallCount = 10_000
+
+// reservedBillableToolNames are hosted-tool price keys. A client function or
+// tool_use with the same name is never counted under them.
 var reservedBillableToolNames = map[string]struct{}{
 	dto.BuildInToolWebSearchPreview: {},
 	dto.BuildInToolWebSearch:        {},
 	dto.BuildInToolFileSearch:       {},
 	dto.BuildInToolGoogleSearch:     {},
 	dto.BuildInToolImageGeneration:  {},
+	GoogleSearchGroundedPromptTool:  {},
+	"bing_web_search":               {},
+	"web_fetch":                     {},
+	"code_execution":                {},
+	"tool_search":                   {},
+	"deepseek_search":               {},
+	"deepseek_fetch":                {},
 }
 
 // CountBillableToolCall is the single entry point for completed tool-call counts.
@@ -34,7 +52,11 @@ func (info *RelayInfo) CountBillableToolCall(itemType string, functionName strin
 
 	switch itemType {
 	case dto.BuildInCallWebSearchCall:
-		info.incrementBillableToolCall(resolveWebSearchToolName(info.ResponsesUsageInfo.BuiltInTools))
+		name := resolveWebSearchToolName(info.ResponsesUsageInfo.BuiltInTools)
+		if info.ChannelMeta != nil && info.WebSearchBillingKey != "" {
+			name = info.WebSearchBillingKey
+		}
+		info.incrementBillableToolCall(name)
 	case dto.BuildInCallFileSearchCall:
 		info.incrementBillableToolCall(dto.BuildInToolFileSearch)
 	case dto.BuildInCallGoogleSearchCall:
@@ -50,6 +72,69 @@ func (info *RelayInfo) CountBillableToolCall(itemType string, functionName strin
 			return
 		}
 		info.incrementBillableToolCall(functionName)
+	}
+}
+
+// SetBillableToolCount records a vendor-reported count for one tool-price key,
+// replacing whatever per-item counting produced for the same key. Zero is a
+// valid value: a vendor billing field that reports zero suppresses the items
+// counted under that key. Negative counts are ignored; settlement caps every
+// count at MaxBillableToolCallCount.
+func (info *RelayInfo) SetBillableToolCount(name string, count int) {
+	if info == nil || name == "" {
+		return
+	}
+	if count < 0 {
+		basecommon.SysError(fmt.Sprintf("billable tool count ignored: tool=%s count=%d", name, count))
+		return
+	}
+	if info.ResponsesUsageInfo == nil {
+		info.ResponsesUsageInfo = &ResponsesUsageInfo{}
+	}
+	if info.ResponsesUsageInfo.BuiltInTools == nil {
+		info.ResponsesUsageInfo.BuiltInTools = make(map[string]*BuildInToolInfo)
+	}
+	if existing := info.ResponsesUsageInfo.BuiltInTools[name]; existing != nil {
+		existing.CallCount = count
+		return
+	}
+	info.ResponsesUsageInfo.BuiltInTools[name] = &BuildInToolInfo{ToolName: name, CallCount: count}
+}
+
+// ApplyVendorToolUsage writes the counts the channel's vendor reports for one
+// Responses body. Keys the vendor does not mention are kept.
+func (info *RelayInfo) ApplyVendorToolUsage(response *dto.OpenAIResponsesResponse) {
+	if info == nil || info.ChannelMeta == nil || info.VendorToolUsage == nil || response == nil {
+		return
+	}
+	for name, count := range info.VendorToolUsage(response) {
+		info.SetBillableToolCount(name, count)
+	}
+}
+
+// RecordClaudeServerToolUse bills the server tool requests Anthropic reports
+// in usage.server_tool_use. The report is cumulative, so it replaces earlier
+// counts. Searches and fetches use the channel's own price keys when its
+// adaptor sets them; web_fetch, code_execution and tool_search have no
+// built-in price and bill only once an operator prices them.
+func (info *RelayInfo) RecordClaudeServerToolUse(serverToolUse *dto.ClaudeServerToolUse) {
+	if info == nil || serverToolUse == nil {
+		return
+	}
+	searchKey, fetchKey := dto.BuildInToolWebSearch, "web_fetch"
+	if info.ChannelMeta != nil {
+		searchKey = cmp.Or(info.WebSearchBillingKey, searchKey)
+		fetchKey = cmp.Or(info.WebFetchBillingKey, fetchKey)
+	}
+	for name, count := range map[string]int{
+		searchKey:        serverToolUse.WebSearchRequests,
+		fetchKey:         serverToolUse.WebFetchRequests,
+		"code_execution": serverToolUse.CodeExecutionRequests,
+		"tool_search":    serverToolUse.ToolSearchRequests,
+	} {
+		if count > 0 {
+			info.SetBillableToolCount(name, count)
+		}
 	}
 }
 

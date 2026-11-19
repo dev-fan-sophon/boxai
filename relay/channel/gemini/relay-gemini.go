@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -76,18 +77,51 @@ func geminiResponseUsageText(response *dto.GeminiChatResponse) string {
 	return text.String()
 }
 
+const geminiGroundingQueryPrefix = "grounding_query:"
+
+// observeGeminiGrounding accumulates Google Search grounding across one
+// upstream response (every stream frame and candidate share seen). Gemini 3
+// bills each unique non-empty search query; Gemini 2.5 and older bill once per
+// grounded prompt. Both quantities are recorded and the tool price table
+// decides which one costs money for a model, so a response is never charged
+// under both (upstream d10f11fff). Google reports no billed count, so the
+// unique query set is the best available evidence.
+func observeGeminiGrounding(info *relaycommon.RelayInfo, metadata *dto.GeminiGroundingMetadata, seen map[string]struct{}) {
+	if info == nil || metadata == nil {
+		return
+	}
+	added := false
+	for _, query := range slices.Concat(metadata.WebSearchQueries, metadata.ImageSearchQueries) {
+		query = strings.TrimSpace(query)
+		if query == "" {
+			continue
+		}
+		key := geminiGroundingQueryPrefix + query
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		added = true
+	}
+	if !added {
+		return
+	}
+	queries := 0
+	for key := range seen {
+		if strings.HasPrefix(key, geminiGroundingQueryPrefix) {
+			queries++
+		}
+	}
+	info.SetBillableToolCount(dto.BuildInToolGoogleSearch, queries)
+	info.SetBillableToolCount(relaycommon.GoogleSearchGroundedPromptTool, 1)
+}
+
 func trackGeminiCompletedTools(c *gin.Context, info *relaycommon.RelayInfo, response *dto.GeminiChatResponse, seen map[string]struct{}) {
 	if c == nil || response == nil {
 		return
 	}
 	for candidateIndex, candidate := range response.Candidates {
-		if candidate.GroundingMetadata != nil && len(candidate.GroundingMetadata.WebSearchQueries) > 0 {
-			c.Set("gemini_google_search_call", true)
-			if _, exists := seen["google_search"]; !exists {
-				seen["google_search"] = struct{}{}
-				info.CountBillableToolCall(dto.BuildInCallGoogleSearchCall, "")
-			}
-		}
+		observeGeminiGrounding(info, candidate.GroundingMetadata, seen)
 		for partIndex, part := range candidate.Content.Parts {
 			if part.FunctionCall == nil || part.FunctionCall.FunctionName == "" {
 				continue

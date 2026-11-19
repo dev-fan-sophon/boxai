@@ -61,6 +61,14 @@ type ResponsesUsageInfo struct {
 }
 
 type ChannelMeta struct {
+	// Vendor billing hooks set by the channel adaptor's Init for one attempt.
+	// VendorToolUsage reads the tool counts a vendor bills from a Responses
+	// body; WebSearchBillingKey and WebFetchBillingKey override the hosted
+	// search/fetch tool-price keys for an upstream with its own price list.
+	VendorToolUsage     func(response *dto.OpenAIResponsesResponse) map[string]int
+	WebSearchBillingKey string
+	WebFetchBillingKey  string
+
 	ChannelType          int
 	ChannelId            int
 	ChannelIsMultiKey    bool
