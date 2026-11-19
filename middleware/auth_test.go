@@ -242,3 +242,62 @@ func TestUserSessionAuthRejectsMissingSession(t *testing.T) {
 	assert.False(t, handlerCalled)
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
+
+// setupTokenAuthTestDB opens an in-memory main database with users and tokens.
+func setupTokenAuthTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	previousDB, previousPath := model.DB, common.SQLitePath
+	previousMaster, previousRedis := common.IsMasterNode, common.RedisEnabled
+	previousMainType, previousLogType := common.MainDatabaseType(), common.LogDatabaseType()
+	t.Setenv("SQL_DSN", "local")
+	common.SQLitePath = ":memory:"
+	common.IsMasterNode = false
+	common.RedisEnabled = false
+	require.NoError(t, model.InitDB())
+	db := model.DB
+	t.Cleanup(func() {
+		model.DB, common.SQLitePath = previousDB, previousPath
+		common.IsMasterNode, common.RedisEnabled = previousMaster, previousRedis
+		common.SetDatabaseTypes(previousMainType, previousLogType)
+		sqlDB, err := db.DB()
+		require.NoError(t, err)
+		require.NoError(t, sqlDB.Close())
+	})
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Token{}))
+	return db
+}
+
+// Deleting an account soft-deletes the user but leaves its API keys in place;
+// those keys must be rejected as invalid, not reported as a database failure.
+func TestTokenAuthRejectsKeysOfDeletedUser(t *testing.T) {
+	db := setupTokenAuthTestDB(t)
+	user := model.User{Username: "deleted-key-owner", Password: "password123", Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, db.Create(&user).Error)
+	key := "deletedownerkey0123456789abcdefghijklmnopqrstuvwx"
+	require.NoError(t, db.Create(&model.Token{
+		UserId: user.Id, Key: key, Name: "owner key", Status: common.TokenStatusEnabled,
+		ExpiredTime: -1, UnlimitedQuota: true,
+	}).Error)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/v1/models", TokenAuth(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	router.GET("/api/usage/token", TokenAuthReadOnly(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	request := func(path string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer sk-"+key)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	paths := []string{"/v1/models", "/api/usage/token"}
+	for _, path := range paths {
+		assert.Equal(t, http.StatusOK, request(path).Code, path)
+	}
+	require.NoError(t, model.DeleteUserById(user.Id))
+	for _, path := range paths {
+		assert.Equal(t, http.StatusUnauthorized, request(path).Code, path)
+	}
+}
+
