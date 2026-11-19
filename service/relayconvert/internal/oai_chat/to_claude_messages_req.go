@@ -202,17 +202,19 @@ func OpenAIChatRequestToClaudeMessages(c *gin.Context, textRequest dto.GeneralOp
 		}
 	}
 
-	if textRequest.Stop != nil {
-		switch stop := textRequest.Stop.(type) {
-		case string:
-			claudeRequest.StopSequences = []string{stop}
-		case []interface{}:
-			stopSequences := make([]string, 0)
-			for _, item := range stop {
-				stopSequences = append(stopSequences, item.(string))
+	switch stop := textRequest.Stop.(type) {
+	case string:
+		claudeRequest.StopSequences = []string{stop}
+	case []string:
+		claudeRequest.StopSequences = stop
+	case []any:
+		stopSequences := make([]string, 0, len(stop))
+		for _, item := range stop {
+			if sequence, ok := item.(string); ok {
+				stopSequences = append(stopSequences, sequence)
 			}
-			claudeRequest.StopSequences = stopSequences
 		}
+		claudeRequest.StopSequences = stopSequences
 	}
 
 	formatMessages := make([]dto.Message, 0)
