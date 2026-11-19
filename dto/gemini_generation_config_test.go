@@ -87,3 +87,19 @@ func TestGeminiChatGenerationConfigPreservesExplicitZeroValuesSnakeCase(t *testi
 	assert.Equal(t, float64(0), generationConfig["seed"])
 	assert.Equal(t, false, generationConfig["responseLogprobs"])
 }
+
+// Argon request fields must survive native passthrough in camelCase, with
+// snake_case aliases normalized to the wire names.
+func TestGeminiChatRequestPreservesArgonFields(t *testing.T) {
+	want := `{"contents":[{"role":"user","parts":[{"text":"hi","mediaProcessing":{"mode":"fast"}}]}],"generationConfig":{"mediaProcessing":{"mode":"full"}},"continuationToken":"tok"}`
+	for _, raw := range []string{
+		want,
+		`{"contents":[{"role":"user","parts":[{"text":"hi","media_processing":{"mode":"fast"}}]}],"generationConfig":{"media_processing":{"mode":"full"}},"continuation_token":"tok"}`,
+	} {
+		var request GeminiChatRequest
+		require.NoError(t, common.UnmarshalJsonStr(raw, &request))
+		encoded, err := common.Marshal(request)
+		require.NoError(t, err)
+		assert.JSONEq(t, want, string(encoded))
+	}
+}
