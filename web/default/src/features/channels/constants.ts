@@ -388,7 +388,7 @@ export const MODEL_FETCHABLE_TYPES = new Set([
 
 // Native Responses channels that can carry the persistent Responses
 // WebSocket relay (OpenAI, Codex, Advanced Custom, Sub2API, New API, Codex Proxy).
-export const RESPONSES_WEBSOCKET_TYPES = new Set([1, 57, 58, 59, 60, 61])
+export const RESPONSES_WEBSOCKET_TYPES = new Set([1, 3, 57, 58, 59, 60, 61])
 
 export const TYPE_TO_KEY_PROMPT: Record<number, string> = {
   15: 'Format: APIKey|SecretKey',

@@ -1053,8 +1053,8 @@ func responsesWebSocketChannelSupports(channel *model.Channel, modelName string)
 		return false
 	}
 	switch channel.Type {
-	case constant.ChannelTypeOpenAI, constant.ChannelTypeCodex, constant.ChannelTypeSub2API,
-		constant.ChannelTypeNewAPI, constant.ChannelTypeCodexProxy:
+	case constant.ChannelTypeOpenAI, constant.ChannelTypeAzure, constant.ChannelTypeCodex,
+		constant.ChannelTypeSub2API, constant.ChannelTypeNewAPI, constant.ChannelTypeCodexProxy:
 		return true
 	case constant.ChannelTypeAdvancedCustom:
 		route, ok := channel.GetOtherSettings().AdvancedCustom.MatchPathForModel(ResponsesWSRequestPath, modelName)

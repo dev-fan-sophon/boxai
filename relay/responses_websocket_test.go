@@ -10,9 +10,14 @@ import (
 
 	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/constant"
+	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/model"
+	relaychannel "github.com/dev-fan-sophon/boxai/relay/channel"
+	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
+	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/types"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +40,8 @@ func TestResponsesWebSocketChannelSupportsOnlyOptedInNativeChannels(t *testing.T
 		{name: "sub2api", channelType: constant.ChannelTypeSub2API, setting: enabled, want: true},
 		{name: "new api", channelType: constant.ChannelTypeNewAPI, setting: enabled, want: true},
 		{name: "not opted in", channelType: constant.ChannelTypeOpenAI, setting: `{}`, want: false},
-		{name: "azure is not native", channelType: constant.ChannelTypeAzure, setting: enabled, want: false},
+		{name: "azure", channelType: constant.ChannelTypeAzure, setting: enabled, want: true},
+		{name: "azure not opted in", channelType: constant.ChannelTypeAzure, setting: `{}`, want: false},
 		{name: "claude is converted", channelType: constant.ChannelTypeAnthropic, setting: enabled, want: false},
 		{name: "advanced custom native route", channelType: constant.ChannelTypeAdvancedCustom, setting: enabled, otherSettings: nativeRoute, want: true},
 		{name: "advanced custom converter route", channelType: constant.ChannelTypeAdvancedCustom, setting: enabled, otherSettings: converterRoute, want: false},
@@ -44,6 +50,68 @@ func TestResponsesWebSocketChannelSupportsOnlyOptedInNativeChannels(t *testing.T
 		t.Run(tc.name, func(t *testing.T) {
 			channel := &model.Channel{Type: tc.channelType, Setting: common.GetPointer(tc.setting), OtherSettings: tc.otherSettings}
 			assert.Equal(t, tc.want, responsesWebSocketChannelSupports(channel, "gpt-5"))
+		})
+	}
+}
+
+func TestResponsesWSAzureDialUsesAzureResponsesURLAndAPIKey(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		host           string
+		responsesVer   string
+		channelAPIVer  string
+		wantPath       string
+		wantAPIVersion string
+	}{
+		{name: "openai v1 default preview", wantPath: "/openai/v1/responses", wantAPIVersion: "preview"},
+		{name: "channel responses version", responsesVer: "2025-04-01-preview", wantPath: "/openai/v1/responses", wantAPIVersion: "2025-04-01-preview"},
+		{name: "cognitiveservices uses channel api version", host: "cognitiveservices.azure.com", channelAPIVer: "2025-03-01-preview", wantPath: "/openai/responses", wantAPIVersion: "2025-03-01-preview"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handshake := make(chan *http.Request, 1)
+			upgrader := websocket.Upgrader{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				handshake <- r
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				_ = conn.Close()
+			}))
+			defer server.Close()
+
+			// The host check only inspects the base URL text, so a path segment
+			// is enough to select the cognitiveservices URL form.
+			baseURL := server.URL
+			if tc.host != "" {
+				baseURL += "/" + tc.host
+			}
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
+			info := &relaycommon.RelayInfo{
+				RelayMode:      relayconstant.RelayModeResponses,
+				RequestURLPath: "/v1/responses",
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelType:          constant.ChannelTypeAzure,
+					ChannelBaseUrl:       baseURL,
+					ApiType:              constant.APITypeOpenAI,
+					ApiVersion:           tc.channelAPIVer,
+					ApiKey:               "azure-key",
+					UpstreamModelName:    "gpt-test",
+					ChannelOtherSettings: dto.ChannelOtherSettings{AzureResponsesVersion: tc.responsesVer},
+				},
+			}
+			adaptor := GetAdaptor(info.ApiType)
+			adaptor.Init(info)
+			target, err := relaychannel.DoWssRequest(adaptor, c, info, nil)
+			require.NoError(t, err)
+			_ = target.Close()
+
+			r := <-handshake
+			assert.Equal(t, strings.TrimPrefix(baseURL, server.URL)+tc.wantPath, r.URL.Path)
+			assert.Equal(t, tc.wantAPIVersion, r.URL.Query().Get("api-version"))
+			assert.Equal(t, "azure-key", r.Header.Get("api-key"))
+			assert.Empty(t, r.Header.Get("Authorization"))
 		})
 	}
 }
