@@ -151,3 +151,32 @@ func TestAutoDisableKeepsManualDisable(t *testing.T) {
 		}
 	}
 }
+
+func TestBatchSetChannelTagRebuildsAbilitiesWithNewTag(t *testing.T) {
+	setupChannelStatusTest(t)
+
+	tagged := Channel{Name: "batch-tag-a", Key: "key-a", Status: common.ChannelStatusEnabled, Models: "test-model", Group: "default"}
+	untouched := Channel{Name: "batch-tag-b", Key: "key-b", Status: common.ChannelStatusEnabled, Models: "test-model", Group: "default"}
+	require.NoError(t, tagged.Insert())
+	require.NoError(t, untouched.Insert())
+
+	tag := "batch-tag"
+	require.NoError(t, BatchSetChannelTag([]int{tagged.Id}, &tag))
+
+	var abilities []Ability
+	require.NoError(t, DB.Where("channel_id IN ?", []int{tagged.Id, untouched.Id}).Find(&abilities).Error)
+	require.Len(t, abilities, 2)
+	for _, ability := range abilities {
+		if ability.ChannelId == tagged.Id {
+			require.NotNil(t, ability.Tag)
+			assert.Equal(t, tag, *ability.Tag)
+		} else {
+			assert.True(t, ability.Tag == nil || *ability.Tag == "")
+		}
+	}
+
+	require.NoError(t, BatchSetChannelTag([]int{tagged.Id}, nil))
+	require.NoError(t, DB.Where("channel_id = ?", tagged.Id).Find(&abilities).Error)
+	require.Len(t, abilities, 1)
+	assert.True(t, abilities[0].Tag == nil || *abilities[0].Tag == "")
+}
