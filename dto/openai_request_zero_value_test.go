@@ -214,3 +214,16 @@ func TestGetOpenAIChatCapabilities(t *testing.T) {
 		})
 	}
 }
+
+// gpt-image-2.6 request fields are known fields; they must not fall into Extra
+// and be dropped on re-marshal.
+func TestImageRequestPreservesGPTImage26Fields(t *testing.T) {
+	raw := []byte(`{"model":"gpt-image-2.6-flare","prompt":"p","complexity":"low","markup":{"image_url":"https://x/o.png"},"svg":{"model":"m"},"frame_count":2,"frame_duration_ms":0}`)
+
+	var req ImageRequest
+	require.NoError(t, common.Unmarshal(raw, &req))
+
+	encoded, err := common.Marshal(req)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(raw), string(encoded))
+}
