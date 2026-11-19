@@ -10,6 +10,23 @@ import (
 	"github.com/dev-fan-sophon/boxai/types"
 )
 
+// omitTrailingAssistantText drops the assistant turns without tool calls that
+// end the converted conversation after a user turn or tool result. In
+// Responses they are history and the model answers with a new item; Claude and
+// Gemini would continue them as a prefill, which newer models reject with a
+// 400. Codex leaves them at the end of input when it retries a stream that
+// failed after an assistant message completed.
+func omitTrailingAssistantText[T any](turns []T, isUser, isAssistantText func(T) bool) []T {
+	end := len(turns)
+	for end > 0 && isAssistantText(turns[end-1]) {
+		end--
+	}
+	if end == len(turns) || end == 0 || !isUser(turns[end-1]) {
+		return turns
+	}
+	return turns[:end]
+}
+
 func openAIResponsesRequestFromAny(request any) (*dto.OpenAIResponsesRequest, error) {
 	responsesRequest, ok := request.(*dto.OpenAIResponsesRequest)
 	if !ok {
