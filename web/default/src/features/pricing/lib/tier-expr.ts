@@ -1,8 +1,15 @@
 import { BILLING_CACHE_VAR_MAP } from './billing-expr'
 
 export const CACHE_MODE_TIMED = 'timed'
+export const CACHE_MODE_OPENAI_TTL = 'openai_ttl'
 export const CACHE_MODE_GENERIC = 'generic'
-export type CacheMode = typeof CACHE_MODE_TIMED | typeof CACHE_MODE_GENERIC
+export type CacheMode =
+  | typeof CACHE_MODE_TIMED
+  | typeof CACHE_MODE_OPENAI_TTL
+  | typeof CACHE_MODE_GENERIC
+
+/** An unpriced OpenAI 12h cache write costs this multiple of the `cc` price. */
+export const OPENAI_CACHE_CREATION_12H_MULTIPLIER = 2
 
 export type TierConditionInput = {
   var: 'p' | 'c' | 'len'
@@ -19,6 +26,7 @@ export type VisualTier = {
   cache_read_unit_cost?: number
   cache_create_unit_cost?: number
   cache_create_1h_unit_cost?: number
+  cache_create_12h_unit_cost?: number
   image_unit_cost?: number
   image_output_unit_cost?: number
   audio_input_unit_cost?: number
@@ -34,10 +42,11 @@ export function getTierCacheMode(
   tier: Partial<VisualTier> | null | undefined
 ): CacheMode {
   if (tier?.cache_mode === CACHE_MODE_TIMED) return CACHE_MODE_TIMED
+  if (tier?.cache_mode === CACHE_MODE_OPENAI_TTL) return CACHE_MODE_OPENAI_TTL
   if (tier?.cache_mode === CACHE_MODE_GENERIC) return CACHE_MODE_GENERIC
-  return Number(tier?.cache_create_1h_unit_cost) > 0
-    ? CACHE_MODE_TIMED
-    : CACHE_MODE_GENERIC
+  if (Number(tier?.cache_create_1h_unit_cost) > 0) return CACHE_MODE_TIMED
+  if (Number(tier?.cache_create_12h_unit_cost) > 0) return CACHE_MODE_OPENAI_TTL
+  return CACHE_MODE_GENERIC
 }
 
 export function normalizeVisualTier(
@@ -53,6 +62,7 @@ export function normalizeVisualTier(
     cache_read_unit_cost: Number(tier.cache_read_unit_cost) || 0,
     cache_create_unit_cost: Number(tier.cache_create_unit_cost) || 0,
     cache_create_1h_unit_cost: Number(tier.cache_create_1h_unit_cost) || 0,
+    cache_create_12h_unit_cost: Number(tier.cache_create_12h_unit_cost) || 0,
     image_unit_cost: Number(tier.image_unit_cost) || 0,
     image_output_unit_cost: Number(tier.image_output_unit_cost) || 0,
     audio_input_unit_cost: Number(tier.audio_input_unit_cost) || 0,
@@ -233,6 +243,7 @@ const ESTIMATOR_VARS = [
   { var: 'cr', stateKey: 'cacheReadTokens' },
   { var: 'cc', stateKey: 'cacheCreateTokens' },
   { var: 'cc1h', stateKey: 'cacheCreate1hTokens' },
+  { var: 'cc12h', stateKey: 'cacheCreate12hTokens' },
   { var: 'img', stateKey: 'imageTokens' },
   { var: 'img_o', stateKey: 'imageOutputTokens' },
   { var: 'ai', stateKey: 'audioInputTokens' },
@@ -268,8 +279,13 @@ export function evalExprLocally(
     const cacheReadTokens = extraTokenValues.cacheReadTokens || 0
     const cacheCreateTokens = extraTokenValues.cacheCreateTokens || 0
     const cacheCreate1hTokens = extraTokenValues.cacheCreate1hTokens || 0
+    const cacheCreate12hTokens = extraTokenValues.cacheCreate12hTokens || 0
     const len =
-      promptTokens + cacheReadTokens + cacheCreateTokens + cacheCreate1hTokens
+      promptTokens +
+      cacheReadTokens +
+      cacheCreateTokens +
+      cacheCreate1hTokens +
+      cacheCreate12hTokens
     const env: Record<string, unknown> = {
       p: promptTokens,
       c: completionTokens,
@@ -283,6 +299,13 @@ export function evalExprLocally(
     }
     for (const field of ESTIMATOR_VARS) {
       env[field.var] = extraTokenValues[field.stateKey] || 0
+    }
+    // Like backend token normalization, a 12h cache write without its own
+    // price joins cc at twice its count.
+    if (cacheCreate12hTokens > 0 && !/\bcc12h\b/.test(exprStr)) {
+      env.cc =
+        cacheCreateTokens +
+        cacheCreate12hTokens * OPENAI_CACHE_CREATION_12H_MULTIPLIER
     }
     const fn = new Function(
       ...Object.keys(env),

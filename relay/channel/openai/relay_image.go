@@ -225,6 +225,7 @@ func normalizeOpenAIUsage(info *relaycommon.RelayInfo, usage *dto.Usage, respons
 		usage.PromptTokensDetails.CachedTokens = usage.InputTokensDetails.CachedTokens
 		usage.PromptTokensDetails.CachedCreationTokens = usage.InputTokensDetails.CachedCreationTokens
 		usage.PromptTokensDetails.CacheWriteTokens = usage.InputTokensDetails.CacheWriteTokens
+		usage.PromptTokensDetails.CacheWriteTokensDetails = usage.InputTokensDetails.Clone().CacheWriteTokensDetails
 		usage.PromptTokensDetails.ImageTokens = usage.InputTokensDetails.ImageTokens
 		usage.PromptTokensDetails.TextTokens = usage.InputTokensDetails.TextTokens
 		usage.PromptTokensDetails.AudioTokens = usage.InputTokensDetails.AudioTokens

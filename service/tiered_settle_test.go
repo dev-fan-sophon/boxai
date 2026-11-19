@@ -1041,3 +1041,40 @@ func BenchmarkRatioBilling_Parallel(b *testing.B) {
 		}
 	})
 }
+
+// An OpenAI 12h cache write is priced by cc12h; without its own price it
+// costs twice the cc price, or twice the input price when cc is unpriced too.
+func TestBuildTieredTokenParams_OpenAI12hCacheWrites(t *testing.T) {
+	// The OpenAI prompt caching guide example: 12000 input tokens with 4000
+	// cache reads and 7000 writes, 3000 of them 30m and 4000 12h.
+	split := dto.Usage{PromptTokens: 12000, PromptTokensDetails: dto.InputTokenDetails{
+		CachedTokens: 4000, CacheWriteTokens: 7000,
+		CacheWriteTokensDetails: &dto.CacheWriteTokenDetails{TTL30mTokens: 3000, TTL12hTokens: 4000},
+	}}
+	unsplit := split
+	unsplit.PromptTokensDetails.CacheWriteTokensDetails = nil
+	for _, tc := range []struct {
+		name         string
+		usage        dto.Usage
+		expr         string
+		p, cc, cc12h float64
+		cost         float64
+	}{
+		{"30m and 12h priced", split, `tier("base", p * 10 + cr * 1 + cc * 12.5 + cc12h * 25)`, 1000, 3000, 4000, 151500},
+		{"12h joins cc at twice its count", split, `tier("base", p * 10 + cr * 1 + cc * 12.5)`, 1000, 11000, 0, 151500},
+		{"30m stays in p", split, `tier("base", p * 10 + cr * 1 + cc12h * 25)`, 4000, 0, 4000, 144000},
+		{"12h bills twice in p", split, `tier("base", p * 10 + cr * 1)`, 12000, 0, 0, 124000},
+		{"writes without a ttl split stay standard", unsplit, `tier("base", p * 10 + cr * 1 + cc * 12.5 + cc12h * 25)`, 1000, 7000, 0, 101500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			params := BuildTieredTokenParams(&tc.usage, false, billingexpr.UsedVars(tc.expr))
+			assert.Equal(t, tc.p, params.P)
+			assert.Equal(t, tc.cc, params.CC)
+			assert.Equal(t, tc.cc12h, params.CC12h)
+			assert.Equal(t, float64(tc.usage.PromptTokens), params.Len, "len keeps the unweighted counts")
+			cost, _, err := billingexpr.RunExpr(tc.expr, params)
+			require.NoError(t, err)
+			assert.Equal(t, tc.cost, cost)
+		})
+	}
+}

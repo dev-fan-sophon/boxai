@@ -518,6 +518,46 @@ func TestCalculateTextQuotaSummaryBillsOpenAICacheWriteTokens(t *testing.T) {
 	})
 }
 
+// OpenAI 12h cache writes bill at their own ratio (twice the write ratio),
+// not at the 30-minute/standard write ratio, and keep their count in the log.
+func TestCalculateTextQuotaSummaryBillsOpenAI12hCacheWritesAtTheirOwnRatio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	// The OpenAI prompt caching guide example at gpt-6-astra prices: $10 input,
+	// $1 cached, $12.50 30m write and $25 12h write per 1M tokens.
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAIResponses,
+		OriginModelName: "gpt-6-astra",
+		PriceData: types.PriceData{
+			ModelRatio:            5,
+			CompletionRatio:       5,
+			CacheRatio:            0.1,
+			CacheCreationRatio:    1.25,
+			CacheCreation12hRatio: 1.25 * types.OpenAICacheCreation12hMultiplier,
+			GroupRatioInfo:        types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+	split := &dto.Usage{PromptTokens: 12000, PromptTokensDetails: dto.InputTokenDetails{
+		CachedTokens: 4000, CacheWriteTokens: 7000,
+		CacheWriteTokensDetails: &dto.CacheWriteTokenDetails{TTL30mTokens: 3000, TTL12hTokens: 4000},
+	}}
+	standard := &dto.Usage{PromptTokens: 12000, PromptTokensDetails: dto.InputTokenDetails{
+		CachedTokens: 4000, CacheWriteTokens: 7000,
+	}}
+
+	withTTL := calculateTextQuotaSummary(ctx, relayInfo, split)
+	withoutTTL := calculateTextQuotaSummary(ctx, relayInfo, standard)
+
+	assert.Equal(t, 4000, withTTL.CacheCreationTokens12h)
+	assert.Equal(t, 7000, withTTL.CacheCreationTokens)
+	// (1000 + 4000*0.1 + 3000*1.25 + 4000*2.5) * 5 = 75750 ($0.1515).
+	assert.Equal(t, 75750, withTTL.Quota)
+	// (1000 + 4000*0.1 + 7000*1.25) * 5 = 50750: all writes at the 30m price.
+	assert.Zero(t, withoutTTL.CacheCreationTokens12h)
+	assert.Equal(t, 50750, withoutTTL.Quota)
+}
+
 func TestCalculateTextQuotaSummarySeparatesOpenRouterCacheReadFromPromptBilling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()

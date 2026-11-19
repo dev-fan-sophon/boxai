@@ -260,7 +260,9 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	if err != nil {
 		return nil, service.TaskErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
-	if resp != nil && resp.StatusCode != http.StatusOK {
+	// Any 2xx is a successful submission: task APIs commonly answer 201 Created
+	// or 202 Accepted, and DoResponse parses the body regardless of the code.
+	if resp != nil && resp.StatusCode/100 != 2 {
 		fault := service.RelayErrorHandler(c, resp, false)
 		return nil, &dto.TaskError{Code: string(fault.GetErrorCode()), Message: fault.Error(), StatusCode: fault.StatusCode, Error: fault}
 	}

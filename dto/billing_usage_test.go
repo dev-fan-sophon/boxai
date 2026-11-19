@@ -129,3 +129,18 @@ func TestInputTokenDetailsCacheCreationInputTokens(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(encoded), "cache_creation_input_tokens")
 }
+
+func TestCacheWriteTTLDetailsSurviveUsageSnapshots(t *testing.T) {
+	var original Usage
+	require.NoError(t, common.Unmarshal([]byte(`{"prompt_tokens":12000,"prompt_tokens_details":{"cached_tokens":4000,"cache_write_tokens":7000,"cache_write_tokens_details":{"ttl_30m_tokens":3000,"ttl_12h_tokens":4000}}}`), &original))
+	billing := NewOpenAIChatBillingUsage(&original)
+	require.NotNil(t, billing)
+	original.PromptTokensDetails.CacheWriteTokensDetails.TTL12hTokens = 99
+	assert.Equal(t, 7000, billing.OpenAIUsage.PromptTokensDetails.CacheCreationTokensTotal())
+	assert.Equal(t, 4000, billing.OpenAIUsage.PromptTokensDetails.CacheWrite12hTokens(), "snapshots must not share the split")
+
+	// Billing never takes more 12h writes than the reported write total, and
+	// a negative upstream count cannot lower the charge.
+	assert.Equal(t, 7000, InputTokenDetails{CacheWriteTokens: 7000, CacheWriteTokensDetails: &CacheWriteTokenDetails{TTL12hTokens: 9000}}.CacheWrite12hTokens())
+	assert.Zero(t, InputTokenDetails{CacheWriteTokens: 7000, CacheWriteTokensDetails: &CacheWriteTokenDetails{TTL12hTokens: -1}}.CacheWrite12hTokens())
+}
