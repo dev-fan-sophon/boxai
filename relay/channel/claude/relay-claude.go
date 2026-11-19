@@ -160,8 +160,9 @@ func countClaudeStreamBillableTools(c *gin.Context, info *relaycommon.RelayInfo,
 		}
 		info.CountBillableToolCall(dto.BuildInCallToolUse, response.ContentBlock.Name)
 	}
-	if response.Type == "message_delta" && response.Usage != nil && response.Usage.ServerToolUse != nil && response.Usage.ServerToolUse.WebSearchRequests > 0 {
-		c.Set("claude_web_search_requests", response.Usage.ServerToolUse.WebSearchRequests)
+	if response.Type == "message_delta" && response.Usage != nil {
+		// message_delta usage is cumulative, so the last report wins.
+		info.RecordClaudeServerToolUse(response.Usage.ServerToolUse)
 	}
 }
 
@@ -278,8 +279,8 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		responseData = data
 	}
 
-	if claudeResponse.Usage != nil && claudeResponse.Usage.ServerToolUse != nil && claudeResponse.Usage.ServerToolUse.WebSearchRequests > 0 {
-		c.Set("claude_web_search_requests", claudeResponse.Usage.ServerToolUse.WebSearchRequests)
+	if claudeResponse.Usage != nil {
+		info.RecordClaudeServerToolUse(claudeResponse.Usage.ServerToolUse)
 	}
 	for _, block := range claudeResponse.Content {
 		if block.Type == "tool_use" {

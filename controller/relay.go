@@ -24,6 +24,7 @@ import (
 	relayconstant "github.com/dev-fan-sophon/boxai/relay/constant"
 	"github.com/dev-fan-sophon/boxai/relay/helper"
 	"github.com/dev-fan-sophon/boxai/service"
+	"github.com/dev-fan-sophon/boxai/service/relayconvert"
 	"github.com/dev-fan-sophon/boxai/setting"
 	"github.com/dev-fan-sophon/boxai/setting/operation_setting"
 	"github.com/dev-fan-sophon/boxai/types"
@@ -55,6 +56,8 @@ func relayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIErro
 		err = relay.ResponsesHelper(c, info)
 	case relayconstant.RelayModeAlphaSearch:
 		err = relay.AlphaSearchHelper(c, info)
+	case relayconstant.RelayModeToolsSearch, relayconstant.RelayModeToolsFetch:
+		err = relay.DeepSeekToolsHelper(c, info)
 	default:
 		err = relay.TextHelper(c, info)
 	}
@@ -147,6 +150,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		} else {
 			newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithStatusCode(http.StatusBadRequest), types.ErrOptionWithSkipRetry())
 		}
+		return
+	}
+
+	if err := relayconvert.ApplyModelModifiers(c, request); err != nil {
+		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithStatusCode(http.StatusBadRequest), types.ErrOptionWithSkipRetry())
 		return
 	}
 

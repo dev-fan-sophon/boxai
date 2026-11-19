@@ -30,5 +30,33 @@ func TestTrackGeminiCompletedToolsDeduplicatesStreamSnapshots(t *testing.T) {
 
 	assert.Equal(t, 1, info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolGoogleSearch].CallCount)
 	assert.Equal(t, 2, info.ResponsesUsageInfo.BuiltInTools["paid_lookup"].CallCount)
-	assert.True(t, c.GetBool("gemini_google_search_call"))
+	assert.Equal(t, 1, info.ResponsesUsageInfo.BuiltInTools[relaycommon.GoogleSearchGroundedPromptTool].CallCount)
+}
+
+func TestGeminiGroundingCountsUniqueQueriesAcrossFrames(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{OriginModelName: "gemini-3-pro-preview"}
+	seen := make(map[string]struct{})
+	frame := func(web []string, image []string) *dto.GeminiChatResponse {
+		return &dto.GeminiChatResponse{Candidates: []dto.GeminiChatCandidate{{
+			GroundingMetadata: &dto.GeminiGroundingMetadata{WebSearchQueries: web, ImageSearchQueries: image},
+		}}}
+	}
+
+	trackGeminiCompletedTools(c, info, frame([]string{"weather hanoi", " ", ""}, nil), seen)
+	trackGeminiCompletedTools(c, info, frame([]string{"weather hanoi", "pho recipe"}, []string{"ha long bay"}), seen)
+
+	tools := info.ResponsesUsageInfo.BuiltInTools
+	assert.Equal(t, 3, tools[dto.BuildInToolGoogleSearch].CallCount)
+	assert.Equal(t, 1, tools[relaycommon.GoogleSearchGroundedPromptTool].CallCount)
+}
+
+func TestGeminiGroundingWithoutQueriesBillsNothing(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{OriginModelName: "gemini-2.5-flash"}
+	response := &dto.GeminiChatResponse{Candidates: []dto.GeminiChatCandidate{{
+		GroundingMetadata: &dto.GeminiGroundingMetadata{WebSearchQueries: []string{"  "}},
+	}}}
+	trackGeminiCompletedTools(c, info, response, make(map[string]struct{}))
+	assert.Nil(t, info.ResponsesUsageInfo)
 }

@@ -38,6 +38,14 @@ var defaultToolPrices = map[string]float64{
 	"google_search":      14.0, // Gemini Grounding with Google Search
 	"xai_web_search":     5.0,  // xAI managed Playground web search
 	"xai_x_search":       5.0,  // xAI managed Playground X search
+	// Azure Responses web search, billed as Bing transactions at $14 per 1,000
+	// from tool_usage.web_search.num_requests (upstream acb347a19).
+	"bing_web_search": 14.0,
+	// DeepSeek Search and Fetch APIs, $0.75 per 1,000 successful requests,
+	// for the searches and page fetches DeepSeek runs server-side on its
+	// Anthropic and Responses endpoints (upstream 6cf0d90b5).
+	"deepseek_search": 0.75,
+	"deepseek_fetch":  0.75,
 }
 
 var defaultToolPriceOverrides = map[string]float64{
@@ -45,6 +53,18 @@ var defaultToolPriceOverrides = map[string]float64{
 	"web_search_preview:gpt-4.1*":      25.0,
 	"web_search_preview:gpt-4o-mini*":  25.0,
 	"web_search_preview:gpt-4.1-mini*": 25.0,
+
+	// Google Search grounding (upstream d10f11fff): Gemini 3 bills each unique
+	// search query at the google_search default; Gemini 2.5 and older bill $35
+	// per 1,000 grounded prompts, so their query count is free and the
+	// grounded prompt carries the price. Only one of the two is ever priced
+	// for a model, so grounding is never charged twice.
+	"google_search:gemini-2.5*":                 0,
+	"google_search:gemini-2.0*":                 0,
+	"google_search:gemini-1.5*":                 0,
+	"google_search_grounded_prompt:gemini-2.5*": 35.0,
+	"google_search_grounded_prompt:gemini-2.0*": 35.0,
+	"google_search_grounded_prompt:gemini-1.5*": 35.0,
 }
 
 // ToolPriceSetting is managed by config.GlobalConfig.Register.

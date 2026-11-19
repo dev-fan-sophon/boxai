@@ -65,3 +65,32 @@ func TestIsBillableResponsesOutputRequiresTerminalSuccess(t *testing.T) {
 	assert.True(t, IsBillableResponsesOutput(&dto.ResponsesOutput{Status: "completed"}))
 	assert.True(t, IsBillableResponsesOutput(&dto.ResponsesOutput{}), "older providers may omit status on completed output items")
 }
+
+func TestSetBillableToolCountReplacesAndIgnoresNegative(t *testing.T) {
+	info := &RelayInfo{}
+	info.CountBillableToolCall(dto.BuildInCallWebSearchCall, "")
+	info.SetBillableToolCount(dto.BuildInToolWebSearchPreview, 4)
+	assert.Equal(t, 4, info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview].CallCount)
+
+	info.SetBillableToolCount(dto.BuildInToolWebSearchPreview, -7)
+	assert.Equal(t, 4, info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview].CallCount)
+
+	info.SetBillableToolCount(dto.BuildInToolWebSearchPreview, 0)
+	assert.Zero(t, info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview].CallCount, "a vendor zero suppresses counted items")
+}
+
+func TestRecordClaudeServerToolUseUsesChannelBillingKeys(t *testing.T) {
+	info := &RelayInfo{ChannelMeta: &ChannelMeta{WebSearchBillingKey: "deepseek_search", WebFetchBillingKey: "deepseek_fetch"}}
+	info.RecordClaudeServerToolUse(&dto.ClaudeServerToolUse{WebSearchRequests: 2, WebFetchRequests: 1})
+	assert.Equal(t, 2, info.ResponsesUsageInfo.BuiltInTools["deepseek_search"].CallCount)
+	assert.Equal(t, 1, info.ResponsesUsageInfo.BuiltInTools["deepseek_fetch"].CallCount)
+	assert.NotContains(t, info.ResponsesUsageInfo.BuiltInTools, dto.BuildInToolWebSearch)
+}
+
+func TestClientFunctionNamedLikeHostedSearchKeyIsNotBilled(t *testing.T) {
+	info := &RelayInfo{}
+	for _, name := range []string{GoogleSearchGroundedPromptTool, "bing_web_search", "deepseek_search", "web_fetch"} {
+		info.CountBillableToolCall(dto.BuildInCallFunctionCall, name)
+	}
+	assert.Empty(t, info.ResponsesUsageInfo.BuiltInTools)
+}

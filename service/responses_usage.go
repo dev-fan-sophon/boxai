@@ -94,6 +94,11 @@ func (a *ResponsesUsageAccumulator) Observe(event *dto.ResponsesStreamResponse) 
 			}
 			a.partialUsage.CompletionTokens = max(a.partialUsage.CompletionTokens, actual.OutputTokens)
 		}
+		if isTerminal {
+			// Vendor counts are cumulative on the terminal event and replace
+			// the web_search_call items counted from output_item.done.
+			a.info.ApplyVendorToolUsage(response)
+		}
 		if isTerminal && a.terminalOutputText == "" {
 			// Some upstreams carry the generated output only on the terminal
 			// event; keep it for the missing-usage estimate.

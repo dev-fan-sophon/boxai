@@ -515,7 +515,8 @@ type GeminiChatCandidate struct {
 }
 
 type GeminiGroundingMetadata struct {
-	WebSearchQueries []string `json:"webSearchQueries,omitempty"`
+	WebSearchQueries   []string `json:"webSearchQueries,omitempty"`
+	ImageSearchQueries []string `json:"imageSearchQueries,omitempty"`
 }
 
 type GeminiChatSafetyRating struct {

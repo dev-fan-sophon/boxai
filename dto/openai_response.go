@@ -360,6 +360,10 @@ type OpenAIResponsesResponse struct {
 
 type ResponsesToolUsage struct {
 	ImageGeneration *Usage `json:"image_gen,omitempty"`
+	// WebSearch is Azure's billed Bing request count
+	// ({"num_requests": n}); kept raw so a malformed vendor value never
+	// fails decoding of the whole response.
+	WebSearch json.RawMessage `json:"web_search,omitempty"`
 }
 
 // GetOpenAIError 从动态错误类型中提取OpenAIError结构
@@ -424,6 +428,8 @@ type ResponsesOutput struct {
 	Namespace     string                          `json:"namespace,omitempty"`
 	Arguments     json.RawMessage                 `json:"arguments,omitempty"`
 	Input         json.RawMessage                 `json:"input,omitempty"`
+	// Action is a web_search_call item's action (search, open_page, ...).
+	Action json.RawMessage `json:"action,omitempty"`
 }
 
 // MarshalJSON keeps custom_tool_call items within their Responses schema:
