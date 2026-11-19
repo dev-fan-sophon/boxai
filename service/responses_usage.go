@@ -81,6 +81,7 @@ func (a *ResponsesUsageAccumulator) Observe(event *dto.ResponsesStreamResponse) 
 			if actual.InputTokensDetails != nil {
 				a.usage.PromptTokensDetails.CachedTokens = actual.InputTokensDetails.CachedTokens
 				a.usage.PromptTokensDetails.CacheWriteTokens = actual.InputTokensDetails.CacheWriteTokens
+				a.usage.PromptTokensDetails.CacheWriteTokensDetails = actual.InputTokensDetails.Clone().CacheWriteTokensDetails
 			}
 		} else if actual != nil {
 			if actual.InputTokens > 0 {
@@ -88,6 +89,7 @@ func (a *ResponsesUsageAccumulator) Observe(event *dto.ResponsesStreamResponse) 
 				if actual.InputTokensDetails != nil {
 					a.partialUsage.PromptTokensDetails.CachedTokens = actual.InputTokensDetails.CachedTokens
 					a.partialUsage.PromptTokensDetails.CacheWriteTokens = actual.InputTokensDetails.CacheWriteTokens
+					a.partialUsage.PromptTokensDetails.CacheWriteTokensDetails = actual.InputTokensDetails.Clone().CacheWriteTokensDetails
 				}
 			}
 			a.partialUsage.CompletionTokens = max(a.partialUsage.CompletionTokens, actual.OutputTokens)
@@ -217,6 +219,7 @@ func (a *ResponsesUsageAccumulator) Finish(c *gin.Context) *dto.Usage {
 			a.usage.PromptTokens = a.partialUsage.PromptTokens
 			a.usage.PromptTokensDetails.CachedTokens = a.partialUsage.PromptTokensDetails.CachedTokens
 			a.usage.PromptTokensDetails.CacheWriteTokens = a.partialUsage.PromptTokensDetails.CacheWriteTokens
+			a.usage.PromptTokensDetails.CacheWriteTokensDetails = a.partialUsage.PromptTokensDetails.CacheWriteTokensDetails
 		} else {
 			a.usage.PromptTokens = a.info.GetEstimatePromptTokens()
 		}

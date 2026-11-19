@@ -66,6 +66,7 @@ import {
 } from '@/features/pricing/lib/billing-expr'
 import {
   CACHE_MODE_GENERIC,
+  CACHE_MODE_OPENAI_TTL,
   CACHE_MODE_TIMED,
   type CacheMode,
   type ExtraTokenValues,
@@ -571,6 +572,10 @@ function VisualTierCard({
       cache_mode: mode,
       cache_create_1h_unit_cost:
         mode === CACHE_MODE_TIMED ? (tier.cache_create_1h_unit_cost ?? 0) : 0,
+      cache_create_12h_unit_cost:
+        mode === CACHE_MODE_OPENAI_TTL
+          ? (tier.cache_create_12h_unit_cost ?? 0)
+          : 0,
     })
   }
 
@@ -712,12 +717,24 @@ function VisualTierCard({
                   >
                     {t('Time-sliced cache (Claude)')}
                   </TabsTrigger>
+                  <TabsTrigger
+                    value={CACHE_MODE_OPENAI_TTL}
+                    className='px-2 text-xs'
+                  >
+                    {t('Time-sliced cache (OpenAI)')}
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
             <div className='flex flex-wrap gap-x-4 gap-y-2'>
               {CACHE_PRICE_VARS.map((variable) => {
                 if (variable.key === 'cc1h' && cacheMode !== CACHE_MODE_TIMED) {
+                  return null
+                }
+                if (
+                  variable.key === 'cc12h' &&
+                  cacheMode !== CACHE_MODE_OPENAI_TTL
+                ) {
                   return null
                 }
                 return renderPriceVariable(variable)
@@ -883,8 +900,8 @@ function RawExprEditor({ exprString, onChange }: RawExprEditorProps) {
           <div>
             {t('Variables')}: <code>len</code>, <code>p</code>, <code>c</code>,{' '}
             <code>cr</code>, <code>cc</code>, <code>cc1h</code>,{' '}
-            <code>img</code>, <code>img_o</code>, <code>ai</code>,{' '}
-            <code>ao</code>
+            <code>cc12h</code>, <code>img</code>, <code>img_o</code>,{' '}
+            <code>ai</code>, <code>ao</code>
           </div>
           <div>
             {t('Functions')}: <code>tier(name, value)</code>, <code>max</code>,{' '}
@@ -1368,6 +1385,7 @@ function CostEstimator({ effectiveExpr }: EstimatorProps) {
     cacheReadTokens: 0,
     cacheCreateTokens: 0,
     cacheCreate1hTokens: 0,
+    cacheCreate12hTokens: 0,
     imageTokens: 0,
     imageOutputTokens: 0,
     audioInputTokens: 0,
@@ -1487,8 +1505,9 @@ Input side:
 - p — input token count (for pricing). Automatically excludes sub-categories priced separately (e.g., if cr is used, cache tokens are deducted from p)
 - len — total input context length (for condition checks). Not affected by auto-exclusion; always reflects the full input length. Use in tier conditions
 - cr — cache-hit (read) token count
-- cc — cache-create token count (5-min TTL)
+- cc — cache-create token count (Claude 5-min TTL, OpenAI 30-min TTL)
 - cc1h — cache-create token count (1-hour TTL, Claude-specific)
+- cc12h — cache-create token count (12-hour TTL, OpenAI-specific). If omitted, 12-hour writes cost twice the cc price
 - img — image input token count
 - ai — audio input token count
 
