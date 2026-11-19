@@ -158,7 +158,17 @@ func ApplyThinkingConfig(geminiRequest *dto.GeminiChatRequest, info *relaycommon
 				ThinkingBudget: common.GetPointer(0),
 			}
 		}
-	} else if _, level, ok := reasoning.TrimEffortSuffix(modelName); ok && level != "" {
+	} else if baseModel, level, ok := reasoning.TrimEffortSuffix(modelName); ok && level != "" {
+		// Gemini 4 models accept different level sets: both reject minimal,
+		// Argon accepts max but rejects xhigh, Hydrogen accepts both.
+		isArgon := strings.HasPrefix(baseModel, "gemini-4-argon")
+		if isArgon || strings.HasPrefix(baseModel, "gemini-4-hydrogen") {
+			if level == "minimal" {
+				level = "low"
+			} else if level == "xhigh" && isArgon {
+				level = "high"
+			}
+		}
 		geminiRequest.GenerationConfig.ThinkingConfig = &dto.GeminiThinkingConfig{
 			IncludeThoughts: true,
 			ThinkingLevel:   level,
