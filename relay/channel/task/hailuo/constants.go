@@ -5,6 +5,7 @@ const (
 )
 
 var ModelList = []string{
+	"MiniMax-H3",
 	"MiniMax-Hailuo-2.3",
 	"MiniMax-Hailuo-2.3-Fast",
 	"MiniMax-Hailuo-02",

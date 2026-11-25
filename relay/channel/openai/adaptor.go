@@ -457,6 +457,24 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
+	if relaycommon.ImageModelFamily(request.Model) == relaycommon.ImageFamilyArk {
+		if info.RelayMode != relayconstant.RelayModeImagesGenerations {
+			return nil, errors.New("native Ark image model only supports image generation")
+		}
+		references, err := relaycommon.JSONImageReferences(request)
+		if err != nil {
+			return nil, err
+		}
+		if err := relaycommon.ValidateImageRequestOptions(&request, len(references), len(request.Mask) > 0); err != nil {
+			return nil, err
+		}
+		// The verified native Ark contract returns one image, uses 1K for a
+		// square 1024px output and does not accept OpenAI batch/stream fields.
+		request.Size = "1K"
+		request.N = nil
+		request.Stream = nil
+		return request, nil
+	}
 	switch imageFamilyConversion(info) {
 	case relaycommon.ImageFamilyXAI:
 		request.Model = info.UpstreamModelName

@@ -182,6 +182,18 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
+	if relaycommon.ImageModelFamily(request.Model) == relaycommon.ImageFamilyQwen {
+		if info.RelayMode != constant.RelayModeImagesGenerations {
+			return nil, errors.New("Qwen image model only supports image generation")
+		}
+		references, err := relaycommon.JSONImageReferences(request)
+		if err != nil {
+			return nil, err
+		}
+		if err := relaycommon.ValidateImageRequestOptions(&request, len(references), len(request.Mask) > 0); err != nil {
+			return nil, err
+		}
+	}
 	if info.RelayMode == constant.RelayModeImagesGenerations {
 		if isSyncImageModel(info.OriginModelName) {
 			a.IsSyncImageModel = true
@@ -189,6 +201,9 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		aliRequest, err := oaiImage2AliImageRequest(info, request, a.IsSyncImageModel)
 		if err != nil {
 			return nil, fmt.Errorf("convert image request to async ali image request failed: %w", err)
+		}
+		if relaycommon.ImageModelFamily(request.Model) == relaycommon.ImageFamilyQwen {
+			aliRequest.Parameters.PromptExtend = common.GetPointer(false)
 		}
 		return aliRequest, nil
 	} else if info.RelayMode == constant.RelayModeImagesEdits {

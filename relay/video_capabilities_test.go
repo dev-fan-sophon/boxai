@@ -18,6 +18,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPPIOKlingStudioCapabilities(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		options string
+		valid   bool
+	}{
+		{"verified studio size", `"duration":5,"size":"1280x720"`, true},
+		{"verified metadata dimensions", `"duration":5,"metadata":{"resolution":"720p","ratio":"16:9"}`, true},
+		{"verified size and metadata", `"duration":5,"size":"1280x720","metadata":{"resolution":"720p","ratio":"16:9"}`, true},
+		{"no other duration", `"duration":10,"size":"1280x720"`, false},
+		{"no frames", `"duration":5,"first_frame":"https://media.test/frame.png"`, false},
+		{"no references", `"duration":5,"reference_images":["https://media.test/ref.png"]`, false},
+		{"no portrait", `"duration":5,"size":"720x1280"`, false},
+		{"no 1080p", `"duration":5,"size":"1920x1080"`, false},
+		{"no 4K", `"duration":5,"metadata":{"resolution":"4k","ratio":"16:9"}`, false},
+		{"no audio toggle", `"duration":5,"metadata":{"generate_audio":true}`, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/pg/video/generations", strings.NewReader(`{"prompt":"A toy sailboat",`+tt.options+`}`))
+			c.Request.Header.Set("Content-Type", "application/json")
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeKling, ChannelBaseUrl: "https://api.ppio.com/v3/kling", UpstreamModelName: "kling-3.0"}, TaskRelayInfo: &relaycommon.TaskRelayInfo{}}
+			common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{})
+			require.Nil(t, relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate))
+			err := validatePlaygroundVideoCapability(c, info)
+			if tt.valid {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				assert.Equal(t, 400, err.StatusCode)
+			}
+			assert.Nil(t, info.Billing)
+		})
+	}
+}
+
 func TestWanStudioCapabilities(t *testing.T) {
 	for _, seconds := range []int{15, 16, 29, 30} {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -68,7 +104,7 @@ func TestVideoCapabilityRechecksFalseAudioOnRetry(t *testing.T) {
 	c.Set("task_request", relaycommon.TaskSubmitReq{Duration: 5, Metadata: map[string]interface{}{"generate_audio": false}})
 	common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{})
 	require.Nil(t, validatePlaygroundVideoCapability(c, info))
-	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, dto.ChannelSettings{}, info.UpstreamModelName, "text")
+	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, dto.ChannelSettings{}, info.UpstreamModelName, "text", info.ChannelBaseUrl)
 	require.True(t, ok)
 	profile.SupportsAudioToggle = false
 	common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{info.UpstreamModelName: {"text": profile}}})

@@ -3,10 +3,12 @@ package kling
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -135,6 +137,9 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
+	if isPPIOKling(a.baseURL) {
+		return strings.TrimRight(a.baseURL, "/") + "/text-to-video/kling-3.0", nil
+	}
 	path := lo.Ternary(info.Action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 
 	if isNewAPIRelay(info.ApiKey) {
@@ -146,6 +151,11 @@ func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, erro
 
 // BuildRequestHeader sets required headers.
 func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
+	if isPPIOKling(a.baseURL) {
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+a.apiKey)
+		return nil
+	}
 	token, err := a.createJWTToken()
 	if err != nil {
 		return fmt.Errorf("failed to create JWT token: %w", err)
@@ -166,6 +176,14 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	}
 	req := v.(relaycommon.TaskSubmitReq)
 
+	if isPPIOKling(a.baseURL) {
+		body, err := buildPPIOKlingRequest(req, info.UpstreamModelName)
+		if err != nil {
+			return nil, err
+		}
+		data, err := common.Marshal(body)
+		return bytes.NewReader(data), err
+	}
 	body, err := a.convertToRequestPayload(&req, info)
 	if err != nil {
 		return nil, err
@@ -190,12 +208,28 @@ func (a *TaskAdaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, req
 
 // DoResponse handles upstream response, returns taskID etc.
 func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (taskID string, taskData []byte, taskErr *dto.TaskError) {
+	defer resp.Body.Close()
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		taskErr = service.TaskErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
 		return
 	}
 
+	if isPPIOKling(a.baseURL) {
+		var result struct {
+			Code    int      `json:"code"`
+			Message string   `json:"message"`
+			Data    ppioTask `json:"data"`
+		}
+		if err := common.Unmarshal(responseBody, &result); err != nil || result.Code != 0 || result.Data.ID == "" || resp.StatusCode/100 != 2 {
+			return "", nil, service.TaskErrorWrapper(fmt.Errorf("PPIO Kling submit failed: %s", result.Message), "invalid_kling_response", http.StatusBadGateway)
+		}
+		video := dto.NewOpenAIVideo()
+		video.ID, video.TaskID, video.Model = info.PublicTaskID, info.PublicTaskID, info.OriginModelName
+		video.CreatedAt, video.Seconds, video.Size = time.Now().Unix(), "5", "1280x720"
+		c.JSON(http.StatusOK, video)
+		return result.Data.ID, responseBody, nil
+	}
 	var kResp responsePayload
 	err = common.Unmarshal(responseBody, &kResp)
 	if err != nil {
@@ -230,19 +264,24 @@ func (a *TaskAdaptor) FetchTaskWithContext(ctx context.Context, baseUrl, key str
 		return nil, fmt.Errorf("invalid action")
 	}
 	path := lo.Ternary(action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
-	url := fmt.Sprintf("%s%s/%s", baseUrl, path, taskID)
+	requestURL := fmt.Sprintf("%s%s/%s", baseUrl, path, taskID)
 	if isNewAPIRelay(key) {
-		url = fmt.Sprintf("%s/kling%s/%s", baseUrl, path, taskID)
+		requestURL = fmt.Sprintf("%s/kling%s/%s", baseUrl, path, taskID)
+	}
+	if isPPIOKling(baseUrl) {
+		requestURL = strings.TrimRight(baseUrl, "/") + "/tasks?task_ids=" + url.QueryEscape(taskID)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := a.createJWTTokenWithKey(key)
-	if err != nil {
-		token = key
+	token := key
+	if !isPPIOKling(baseUrl) {
+		if jwtToken, err := a.createJWTTokenWithKey(key); err == nil {
+			token = jwtToken
+		}
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -340,6 +379,16 @@ func (a *TaskAdaptor) createJWTTokenWithKey(apiKey string) (string, error) {
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := common.Unmarshal(respBody, &envelope); err != nil {
+		return nil, err
+	}
+	if len(envelope.Data) > 0 && envelope.Data[0] == '[' {
+		result, _, err := parsePPIOKlingTask(respBody)
+		return result, err
+	}
 	taskInfo := &relaycommon.TaskInfo{}
 	resPayload := responsePayload{}
 	err := common.Unmarshal(respBody, &resPayload)
@@ -383,6 +432,34 @@ func isNewAPIRelay(apiKey string) bool {
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
+	if isPPIOKling(a.baseURL) || originTask.Properties.UpstreamModelName == "kling-3.0" {
+		video := originTask.ToOpenAIVideo()
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if err := common.Unmarshal(originTask.Data, &envelope); err != nil {
+			return nil, err
+		}
+		// Before polling, Data contains the submission object, not an array.
+		if len(envelope.Data) > 0 && envelope.Data[0] == '[' {
+			result, task, err := parsePPIOKlingTask(originTask.Data)
+			if err != nil {
+				return nil, err
+			}
+			video.Status = model.TaskStatus(result.Status).ToVideoStatus()
+			video.SetProgressStr(result.Progress)
+			if result.Status == model.TaskStatusFailure {
+				video.Error = &dto.OpenAIVideoError{Message: result.Reason}
+			}
+			if result.Url != "" && originTask.GetResultURL() == "" {
+				video.SetMetadata("url", result.Url)
+			}
+			if len(task.Outputs) > 0 {
+				video.Seconds = task.Outputs[0].Duration
+			}
+		}
+		return common.Marshal(video)
+	}
 	var klingResp responsePayload
 	if err := common.Unmarshal(originTask.Data, &klingResp); err != nil {
 		return nil, errors.Wrap(err, "unmarshal kling task data failed")

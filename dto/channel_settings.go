@@ -114,7 +114,7 @@ func (s *ChannelSettings) ValidateVideoCapabilities() error {
 				}
 			}
 			for _, resolution := range p.Resolutions {
-				if !containsString([]string{"480p", "720p", "1080p"}, resolution) {
+				if !containsString([]string{"480p", "720p", "768p", "1080p"}, resolution) {
 					return fmt.Errorf("invalid video resolution for %s/%s", model, mode)
 				}
 			}

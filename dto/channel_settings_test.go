@@ -495,6 +495,26 @@ func TestAdvancedCustomValidateAlphaSearchConverterPath(t *testing.T) {
 	require.ErrorContains(t, invalid.Validate(), "converter does not match incoming_path")
 }
 
+func TestValidateVideoCapabilities768p(t *testing.T) {
+	for _, resolution := range []string{"768p", "769p"} {
+		t.Run(resolution, func(t *testing.T) {
+			profile := VideoModelCapabilities{
+				Family: "generic", AspectRatios: []string{"16:9"}, Resolutions: []string{resolution},
+				ResolutionAspectRatios: map[string][]string{resolution: {"16:9"}},
+				Durations:              []int{4}, DurationRange: VideoDurationRange{Min: 4, Max: 4}, DiscreteDurations: true,
+				Defaults: VideoDefaults{AspectRatio: "16:9", Resolution: resolution, Duration: 4},
+			}
+			settings := ChannelSettings{VideoCapabilities: map[string]map[string]VideoModelCapabilities{"MiniMax-H3": {"text": profile}}}
+			err := settings.ValidateVideoCapabilities()
+			if resolution == "768p" {
+				require.NoError(t, err, "the verified H3 profile must be savable")
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateVideoCapabilitiesReferenceMediaAndMetadataOptions(t *testing.T) {
 	references := VideoModelCapabilities{Family: "custom", AspectRatios: []string{"16:9"}, Resolutions: []string{"720p"}, Durations: []int{5}, DurationRange: VideoDurationRange{Min: 4, Max: 15}, Defaults: VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}, UsesVolcengineMetadata: true, MaxReferenceImages: 9}
 	tests := []struct {

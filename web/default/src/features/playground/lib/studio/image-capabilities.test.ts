@@ -75,6 +75,44 @@ describe('parseImageCapabilities', () => {
     expect(parseImageCapabilities({ ...gpt, family: 'flux' })).toBeNull()
     expect(parseImageCapabilities({ ...gpt, sizeMode: 'other' })).toBeNull()
   })
+
+  it.each([
+    ['seedream-ark', 'doubao-seedream-5-0-flash-260915'],
+    ['qwen-image', 'qwen-image-2.1-turbo'],
+  ])('builds the restricted %s generate request', (family, model) => {
+    const capabilities = parseImageCapabilities({
+      ...gpt,
+      family,
+      modes: ['generate'],
+      maxReferenceImages: 0,
+      maxN: 1,
+      supportsMask: false,
+      sizes: ['1024x1024'],
+      qualities: [],
+      backgrounds: [],
+      outputFormats: [],
+      moderation: [],
+      defaults: { size: '1024x1024' },
+    })
+    expect(capabilities).not.toBeNull()
+    expect(capabilities?.maxReferenceImages).toBe(0)
+    expect(capabilities?.modes).toEqual(['generate'])
+    expect(
+      buildImageGenerationRequestBody({
+        model,
+        group: 'default',
+        prompt: 'a blue ceramic cup',
+        settings: { ...settings, imageCount: 4 },
+        capabilities,
+      })
+    ).toEqual({
+      model,
+      group: 'default',
+      prompt: 'a blue ceramic cup',
+      n: 1,
+      size: '1024x1024',
+    })
+  })
 })
 
 describe('resolveImageOptions', () => {

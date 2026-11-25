@@ -5,7 +5,13 @@
  * accepts and only sends fields the model family supports.
  */
 
-export type ImageModelFamily = 'gpt-image' | 'xai' | 'gemini' | 'seedream'
+export type ImageModelFamily =
+  | 'gpt-image'
+  | 'xai'
+  | 'gemini'
+  | 'seedream'
+  | 'seedream-ark'
+  | 'qwen-image'
 export type ImageSizeMode = 'pixels' | 'aspect'
 
 export type ImageModelCapabilities = {
@@ -52,7 +58,14 @@ export type ResolvedImageOptions = {
   outputFormat?: string
 }
 
-const FAMILIES = new Set<string>(['gpt-image', 'xai', 'gemini', 'seedream'])
+const FAMILIES = new Set<string>([
+  'gpt-image',
+  'xai',
+  'gemini',
+  'seedream',
+  'seedream-ark',
+  'qwen-image',
+])
 
 function stringList(value: unknown): string[] {
   if (!Array.isArray(value)) return []

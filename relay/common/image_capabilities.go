@@ -17,6 +17,8 @@ const (
 	ImageFamilyXAI      = "xai"
 	ImageFamilyGemini   = "gemini"
 	ImageFamilySeedream = "seedream"
+	ImageFamilyArk      = "seedream-ark"
+	ImageFamilyQwen     = "qwen-image"
 )
 
 const (
@@ -85,6 +87,10 @@ func BareImageModel(model string) string {
 func ImageModelFamily(model string) string {
 	bare := BareImageModel(model)
 	switch {
+	case bare == "doubao-seedream-5-0-flash-260915":
+		return ImageFamilyArk
+	case bare == "qwen-image-2.1-turbo":
+		return ImageFamilyQwen
 	case strings.HasPrefix(bare, "gpt-image-"):
 		return ImageFamilyGPT
 	case strings.HasPrefix(bare, "grok-imagine-image"), strings.HasPrefix(bare, "grok-2-image"):
@@ -146,6 +152,27 @@ func geminiImageQualities(model string) []string {
 // nil when the model is not a modeled image family.
 func DefaultImageCapabilities(model string) *dto.ImageModelCapabilities {
 	switch ImageModelFamily(model) {
+	case ImageFamilyArk, ImageFamilyQwen:
+		// Deliberately limited to the verified one-image text-to-image
+		// contract. Native Ark sizes are not Rolldek aspect-ratio sizes.
+		sizes := []string{"1024x1024"}
+		if ImageModelFamily(model) == ImageFamilyArk {
+			sizes = append(sizes, "1K")
+		}
+		return &dto.ImageModelCapabilities{
+			Family:        ImageModelFamily(model),
+			Modes:         []string{"generate"},
+			SizeMode:      "pixels",
+			Sizes:         sizes,
+			MaxN:          1,
+			AspectRatios:  []string{},
+			Resolutions:   []string{},
+			Qualities:     []string{},
+			Backgrounds:   []string{},
+			OutputFormats: []string{},
+			Moderation:    []string{},
+			Defaults:      dto.ImageModelDefaults{Size: "1024x1024"},
+		}
 	case ImageFamilyGPT:
 		sizes := gptImageClassicSizes
 		qualities := gptImageQualities
@@ -318,6 +345,27 @@ func ValidateImageRequestOptions(request *dto.ImageRequest, referenceCount int, 
 	}
 	if hasMask && !capabilities.SupportsMask {
 		return fmt.Errorf("mask is not supported for %s", request.Model)
+	}
+	if capabilities.Family == ImageFamilyArk || capabilities.Family == ImageFamilyQwen {
+		if request.Size == "" {
+			request.Size = capabilities.Defaults.Size
+		}
+		if !common.StringsContains(capabilities.Sizes, request.Size) {
+			return fmt.Errorf("size must be one of %s for %s", strings.Join(capabilities.Sizes, ", "), request.Model)
+		}
+		if request.AspectRatio != "" || request.Resolution != "" || request.Quality != "" ||
+			len(request.Background) > 0 || len(request.OutputFormat) > 0 || len(request.Moderation) > 0 {
+			return fmt.Errorf("only size is supported as an image option for %s", request.Model)
+		}
+		// Native provider envelopes can hide references, sizes and quantities
+		// from the standard Images validator. The initial contract accepts
+		// only flat OpenAI Images fields, converted by the channel adaptor.
+		for _, field := range []string{"input", "parameters", "layer_decomposition", "layer_decomposition_options"} {
+			if _, exists := request.Extra[field]; exists {
+				return fmt.Errorf("%s is not supported for %s; use standard image fields", field, request.Model)
+			}
+		}
+		return nil
 	}
 	if IsGPTImage25Model(request.Model) {
 		if request.Size != "" && !common.StringsContains(capabilities.Sizes, request.Size) {

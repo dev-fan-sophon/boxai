@@ -95,6 +95,28 @@ func profilesForChannel(channel *model.Channel, mappedModel string) map[string]d
 		}
 		return configured
 	}
+	if channel.Type == constant.ChannelTypeMiniMax && mappedModel == "MiniMax-H3" {
+		// Only this text-only tuple has been verified against PPIO H3 V2.
+		// Keep other H3 variants and reference modes unavailable until tested.
+		return map[string]dto.VideoModelCapabilities{"text": {
+			Family: "generic", AspectRatios: []string{"16:9"},
+			Resolutions: []string{"768p"}, ImageOnlyResolutions: []string{},
+			ResolutionAspectRatios: map[string][]string{"768p": {"16:9"}},
+			Durations:              []int{4}, DiscreteDurations: true,
+			DurationRange: dto.VideoDurationRange{Min: 4, Max: 4},
+			Defaults:      dto.VideoDefaults{AspectRatio: "16:9", Resolution: "768p", Duration: 4},
+		}}
+	}
+	if channel.Type == constant.ChannelTypeKling && mappedModel == "kling-3.0" && strings.HasSuffix(strings.TrimRight(channel.GetBaseURL(), "/"), "/v3/kling") {
+		return map[string]dto.VideoModelCapabilities{"text": {
+			Family: "generic", AspectRatios: []string{"16:9"},
+			Resolutions: []string{"720p"}, ImageOnlyResolutions: []string{},
+			ResolutionAspectRatios: map[string][]string{"720p": {"16:9"}},
+			Durations:              []int{5}, DiscreteDurations: true,
+			DurationRange: dto.VideoDurationRange{Min: 5, Max: 5},
+			Defaults:      dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5},
+		}}
+	}
 	if channel.Type == constant.ChannelTypeSora {
 		if profiles := wanVideoProfiles(mappedModel); profiles != nil {
 			return profiles
@@ -357,8 +379,8 @@ func intersectInts(a, b []int) []int {
 }
 
 // VideoProfileForSelectedChannel is used after mapping on every UI retry.
-func VideoProfileForSelectedChannel(channelType int, setting dto.ChannelSettings, mappedModel, mode string) (dto.VideoModelCapabilities, bool) {
-	ch := &model.Channel{Type: channelType}
+func VideoProfileForSelectedChannel(channelType int, setting dto.ChannelSettings, mappedModel, mode, baseURL string) (dto.VideoModelCapabilities, bool) {
+	ch := &model.Channel{Type: channelType, BaseURL: &baseURL}
 	ch.SetSetting(setting)
 	p, ok := profilesForChannel(ch, mappedModel)[mode]
 	if ok {

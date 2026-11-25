@@ -4,6 +4,7 @@ import { DEFAULT_STUDIO_SETTINGS } from '../storage/store-migration'
 import {
   applyResolvedVideoSettings,
   assignVideoReferences,
+  getVideoUploadProfile,
   resolveVideoOptions,
   videoResolutionsForRatio,
   videoDurationOptions,
@@ -29,6 +30,45 @@ const capabilities: VideoModelCapabilities = {
 }
 
 describe('server video capability resolution', () => {
+  it('keeps H3 at the server-verified 768p/4s landscape tuple without reference controls', () => {
+    const h3: VideoModelCapabilities = {
+      family: 'generic',
+      aspectRatios: ['16:9'],
+      resolutions: ['768p'],
+      resolutionAspectRatios: { '768p': ['16:9'] },
+      imageOnlyResolutions: [],
+      durations: [4],
+      discreteDurations: true,
+      durationRange: { min: 4, max: 4 },
+      defaults: { aspectRatio: '16:9', resolution: '768p', duration: 4 },
+      maxReferenceImages: 0,
+      supportsLastFrame: false,
+      requiresImage: false,
+      supportsAudioToggle: false,
+      usesVolcengineMetadata: false,
+    }
+    const settings = applyResolvedVideoSettings(
+      DEFAULT_STUDIO_SETTINGS,
+      h3,
+      { videoResolution: '720p', videoAspectRatio: '9:16', videoDuration: 15 },
+      { hasImage: false, mode: 'text' }
+    )
+    expect(settings).toMatchObject({
+      videoResolution: '768p',
+      videoAspectRatio: '16:9',
+      videoDuration: 4,
+      videoSize: '1344x768',
+    })
+    expect(videoOptionsFromSize(settings.videoSize)).toEqual({
+      aspectRatio: '16:9',
+      resolution: '768p',
+    })
+    expect(videoDurationOptions(h3)).toEqual([4])
+    expect(videoSizeForOptions('9:16', '768p')).toBeUndefined()
+    expect(getVideoUploadProfile({ text: h3 }, 'frames')).toBeUndefined()
+    expect(getVideoUploadProfile({ text: h3 }, 'references')).toBeUndefined()
+  })
+
   it('keeps fixed Wan durations exhaustive and resets an unsupported restored duration', () => {
     const fixed: VideoModelCapabilities = {
       ...capabilities,

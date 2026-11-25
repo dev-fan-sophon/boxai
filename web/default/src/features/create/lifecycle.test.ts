@@ -560,6 +560,73 @@ describe('image capability lifecycle', () => {
       dataUrl: `/media/ref-${index}`,
     }))
 
+  it.each([
+    ['doubao-seedream-5-0-flash-260915', 'seedream-ark'],
+    ['qwen-image-2.1-turbo', 'qwen-image'],
+  ])(
+    'offers only the verified text-to-image controls for %s',
+    async (model, family) => {
+      await page.route('**/api/playground/image-capabilities?*', (route) =>
+        route.fulfill({
+          json: {
+            success: true,
+            data: imageProfile({
+              family,
+              modes: ['generate'],
+              maxReferenceImages: 0,
+              maxN: 1,
+              sizeMode: 'pixels',
+              sizes: ['1024x1024'],
+              aspectRatios: [],
+              resolutions: [],
+              qualities: [],
+              defaults: { size: '1024x1024' },
+            }),
+          },
+        })
+      )
+      await render({ imageComposerModel: model, group: 'ppio-image' })
+      await page.getByRole('textbox').fill('A blue cup')
+      await expect
+        .poll(() =>
+          page
+            .getByRole('button', { name: 'Reference image', exact: true })
+            .count()
+        )
+        .toBe(0)
+      expect(
+        await page
+          .getByRole('button', { name: 'Image size', exact: true })
+          .count()
+      ).toBe(1)
+      expect(
+        await page
+          .getByRole('button', { name: 'Image quality', exact: true })
+          .count()
+      ).toBe(0)
+      expect(
+        await page.getByRole('button', { name: 'Generate' }).isEnabled()
+      ).toBe(true)
+      // Switching from an editing model must still leave old references removable.
+      await render({
+        imageComposerModel: model,
+        group: 'ppio-image',
+        references: references(1),
+      })
+      await page
+        .getByText('Remove extra reference images before generating.')
+        .waitFor()
+      expect(
+        await page.getByRole('button', { name: 'Generate' }).isDisabled()
+      ).toBe(true)
+      expect(
+        await page
+          .getByRole('button', { name: 'Reference image', exact: true })
+          .count()
+      ).toBe(1)
+    }
+  )
+
   it('shows Grok aspect and resolution controls with a 5-image counter', async () => {
     await page.route('**/api/playground/image-capabilities?*', (route) =>
       route.fulfill({ json: { success: true, data: imageProfile({}) } })

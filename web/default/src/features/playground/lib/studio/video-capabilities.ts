@@ -16,7 +16,7 @@ export type VideoAspectRatio =
   | '2:3'
   | '21:9'
   | 'adaptive'
-export type VideoResolution = '480p' | '720p' | '1080p'
+export type VideoResolution = '480p' | '720p' | '768p' | '1080p'
 export type VideoReferenceMode = 'frames' | 'references'
 
 export type VideoModelCapabilities = {
@@ -137,6 +137,10 @@ const SIZE_TABLE: Record<
     '3:2': '1080x720',
     '2:3': '720x1080',
     '21:9': '1680x720',
+  },
+  '768p': {
+    // H3's live-verified landscape output; other ratios are not enabled.
+    '16:9': '1344x768',
   },
   '1080p': {
     '16:9': '1920x1080',

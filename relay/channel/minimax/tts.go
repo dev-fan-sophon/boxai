@@ -2,13 +2,13 @@ package minimax
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	relaycommon "github.com/dev-fan-sophon/boxai/relay/common"
 	"github.com/dev-fan-sophon/boxai/service"
@@ -106,6 +106,14 @@ func getContentTypeByFormat(format string) string {
 }
 
 func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
+	defer resp.Body.Close()
+	if strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+		return nil, types.NewErrorWithStatusCode(
+			errors.New("MiniMax streaming speech response is not supported"),
+			types.ErrorCodeBadResponseBody,
+			http.StatusBadGateway,
+		)
+	}
 	body, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, types.NewErrorWithStatusCode(
@@ -114,11 +122,9 @@ func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.Re
 			http.StatusInternalServerError,
 		)
 	}
-	defer resp.Body.Close()
-
 	// Parse response
 	var minimaxResp MiniMaxTTSResponse
-	if unmarshalErr := json.Unmarshal(body, &minimaxResp); unmarshalErr != nil {
+	if unmarshalErr := common.Unmarshal(body, &minimaxResp); unmarshalErr != nil {
 		return nil, types.NewErrorWithStatusCode(
 			fmt.Errorf("failed to unmarshal minimax TTS response: %w", unmarshalErr),
 			types.ErrorCodeBadResponseBody,
@@ -144,6 +150,18 @@ func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.Re
 		)
 	}
 
+	if minimaxResp.ExtraInfo.UsageCharacters < 0 {
+		return nil, types.NewErrorWithStatusCode(
+			errors.New("negative MiniMax usage_characters"),
+			types.ErrorCodeBadResponseBody,
+			http.StatusBadGateway,
+		)
+	}
+	characters, clamp := common.QuotaFromFloatChecked(float64(minimaxResp.ExtraInfo.UsageCharacters))
+	if clamp != nil {
+		info.QuotaClamp = clamp
+	}
+
 	if strings.HasPrefix(minimaxResp.Data.Audio, "http") {
 		c.Redirect(http.StatusFound, minimaxResp.Data.Audio)
 	} else {
@@ -157,19 +175,17 @@ func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.Re
 			)
 		}
 
-		// Determine content type - default to mp3
-		contentType := "audio/mpeg"
-
-		c.Data(http.StatusOK, contentType, audioData)
+		c.Data(http.StatusOK, getContentTypeByFormat(c.GetString("response_format")), audioData)
 	}
 
-	usage = &dto.Usage{
-		PromptTokens:     info.GetEstimatePromptTokens(),
+	audioUsage := &dto.Usage{
+		PromptTokens:     characters,
 		CompletionTokens: 0,
-		TotalTokens:      int(minimaxResp.ExtraInfo.UsageCharacters),
+		TotalTokens:      characters,
 	}
+	audioUsage.PromptTokensDetails.TextTokens = characters
 
-	return usage, nil
+	return audioUsage, nil
 }
 
 func handleChatCompletionResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {

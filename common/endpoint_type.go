@@ -40,6 +40,10 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 	if channelType == constant.ChannelTypeElevenLabs {
 		return elevenLabsEndpointTypes(modelName)
 	}
+	if (channelType == constant.ChannelTypeMiniMax && modelName == "MiniMax-H3") ||
+		(channelType == constant.ChannelTypeKling && (modelName == "ppio-kling-3.0" || modelName == "kling-3.0")) {
+		return []constant.EndpointType{constant.EndpointTypeOpenAIVideo}
+	}
 	if channelType == constant.ChannelTypeCodexProxy {
 		normalized := strings.ToLower(strings.TrimSpace(modelName))
 		switch {

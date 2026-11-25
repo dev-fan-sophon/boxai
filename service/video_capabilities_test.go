@@ -13,6 +13,89 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestH3VerifiedVideoCapabilities(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		channelType int
+		model       string
+		available   bool
+	}{
+		{"native and PPIO use same type", constant.ChannelTypeMiniMax, "MiniMax-H3", true},
+		{"no speculative Max", constant.ChannelTypeMiniMax, "MiniMax-H3-Max", false},
+		{"no speculative Highspeed", constant.ChannelTypeMiniMax, "MiniMax-H3-Highspeed", false},
+		{"exact case", constant.ChannelTypeMiniMax, "minimax-h3", false},
+		{"no prefix matching", constant.ChannelTypeMiniMax, "MiniMax-H3-other", false},
+		{"no cross transport exposure", constant.ChannelTypeSora, "MiniMax-H3", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			profiles := profilesForChannel(&model.Channel{Type: tt.channelType}, tt.model)
+			if !tt.available {
+				assert.Empty(t, profiles)
+				return
+			}
+			require.Len(t, profiles, 1)
+			profile, ok := VideoProfileForSelectedChannel(tt.channelType, dto.ChannelSettings{}, tt.model, "text", "")
+			require.True(t, ok)
+			assert.Equal(t, []string{"768p"}, profile.Resolutions)
+			assert.Equal(t, []string{"16:9"}, profile.AspectRatios)
+			assert.Equal(t, dto.VideoDurationRange{Min: 4, Max: 4}, profile.DurationRange)
+			assert.Equal(t, []int{4}, profile.Durations)
+			assert.True(t, profile.DiscreteDurations)
+			assert.Equal(t, dto.VideoDefaults{AspectRatio: "16:9", Resolution: "768p", Duration: 4}, profile.Defaults)
+			assert.False(t, profile.SupportsAudioToggle)
+			assert.False(t, profile.SupportsLastFrame)
+			assert.Zero(t, profile.MaxReferenceImages)
+			assert.Zero(t, profile.MaxReferenceVideos)
+			assert.Zero(t, profile.MaxReferenceAudios)
+			for _, mode := range []string{"frames", "references"} {
+				_, ok = VideoProfileForSelectedChannel(tt.channelType, dto.ChannelSettings{}, tt.model, mode, "")
+				assert.False(t, ok)
+			}
+			settings := dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{tt.model: profiles}}
+			require.NoError(t, settings.ValidateVideoCapabilities())
+		})
+	}
+}
+
+func TestPPIOKlingVerifiedVideoCapabilities(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		channel   int
+		model     string
+		baseURL   string
+		available bool
+	}{
+		{"verified transport", constant.ChannelTypeKling, "kling-3.0", "https://api.ppio.com/v3/kling", true},
+		{"trailing slash", constant.ChannelTypeKling, "kling-3.0", "https://api.ppio.com/v3/kling/", true},
+		{"no other model", constant.ChannelTypeKling, "kling-v3", "https://api.ppio.com/v3/kling", false},
+		{"no other transport", constant.ChannelTypeSora, "kling-3.0", "https://api.ppio.com/v3/kling", false},
+		{"no legacy Kling transport", constant.ChannelTypeKling, "kling-3.0", "https://api.klingai.com", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			profiles := profilesForChannel(&model.Channel{Type: tt.channel, BaseURL: &tt.baseURL}, tt.model)
+			profile, ok := VideoProfileForSelectedChannel(tt.channel, dto.ChannelSettings{}, tt.model, "text", tt.baseURL)
+			assert.Equal(t, tt.available, ok)
+			if !tt.available {
+				assert.Empty(t, profiles)
+				return
+			}
+			require.Len(t, profiles, 1)
+			assert.Equal(t, "generic", profile.Family)
+			assert.Equal(t, []string{"720p"}, profile.Resolutions)
+			assert.Equal(t, []string{"16:9"}, profile.AspectRatios)
+			assert.Equal(t, []int{5}, profile.Durations)
+			assert.True(t, profile.DiscreteDurations)
+			assert.Equal(t, dto.VideoDurationRange{Min: 5, Max: 5}, profile.DurationRange)
+			assert.Equal(t, dto.VideoDefaults{AspectRatio: "16:9", Resolution: "720p", Duration: 5}, profile.Defaults)
+			assert.False(t, profile.SupportsAudioToggle)
+			assert.False(t, profile.SupportsLastFrame)
+			assert.Zero(t, profile.MaxReferenceImages)
+			settings := dto.ChannelSettings{VideoCapabilities: map[string]map[string]dto.VideoModelCapabilities{tt.model: profiles}}
+			require.NoError(t, settings.ValidateVideoCapabilities())
+		})
+	}
+}
+
 func TestWanVideoProfilesAndDurationIntersection(t *testing.T) {
 	channel := &model.Channel{Type: constant.ChannelTypeSora}
 	fixed := profilesForChannel(channel, "wan3.0-video-prime-720p")

@@ -379,7 +379,7 @@ func validateSeedanceResolution(c *gin.Context, info *relaycommon.RelayInfo) *dt
 	}
 	settingValue, _ := common.GetContextKey(c, constant.ContextKeyChannelSetting)
 	setting, _ := settingValue.(dto.ChannelSettings)
-	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, videoRequestMode(req))
+	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, videoRequestMode(req), info.ChannelBaseUrl)
 	if !ok || slices.Contains(profile.Resolutions, resolution) {
 		return nil
 	}
@@ -411,10 +411,12 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 	if !ok || !valid {
 		return unsupported("video capabilities unavailable for selected channel")
 	}
-	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, mode)
+	profile, ok := service.VideoProfileForSelectedChannel(info.ChannelType, setting, info.UpstreamModelName, mode, info.ChannelBaseUrl)
 	if !ok {
 		return unsupported(fmt.Sprintf("video mode %s is unavailable", mode))
 	}
+	isH3 := info.ChannelType == constant.ChannelTypeMiniMax && info.UpstreamModelName == "MiniMax-H3"
+	isPPIOKling := info.ChannelType == constant.ChannelTypeKling && info.UpstreamModelName == "kling-3.0" && strings.HasSuffix(strings.TrimRight(info.ChannelBaseUrl, "/"), "/v3/kling")
 	seconds := req.Duration
 	if seconds == 0 && req.Seconds != "" {
 		seconds, _ = strconv.Atoi(req.Seconds)
@@ -431,9 +433,8 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 		if !playgroundVolcengineMetadataKeys[key] {
 			return invalid(fmt.Sprintf("metadata field %q is unavailable", key))
 		}
-		// xAI reads only the audio switch from metadata; every other option
-		// would be silently ignored by a size-based transport.
-		if !profile.UsesVolcengineMetadata && !(key == "generate_audio" && profile.SupportsAudioToggle) && !(profile.Family == "wan" && (key == "resolution" || key == "ratio")) {
+		// Allow dimensions only on transports that actually consume them.
+		if !profile.UsesVolcengineMetadata && !(key == "generate_audio" && profile.SupportsAudioToggle) && !((profile.Family == "wan" || isH3 || isPPIOKling) && (key == "resolution" || key == "ratio")) {
 			return unsupported(fmt.Sprintf("metadata field %q is unavailable for this video transport", key))
 		}
 		switch key {
@@ -444,6 +445,9 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 			}
 			if key == "resolution" {
 				resolution = text
+				if isH3 {
+					resolution = strings.ToLower(text)
+				}
 			} else {
 				ratio = text
 			}
@@ -519,6 +523,12 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 		if profile.Family == "xai" {
 			sizeResolution, sizeRatio = relaycommon.GrokImagineDimensionsFromSize(req.Size)
 		}
+		if isH3 {
+			sizeResolution, sizeRatio = "", ""
+			if req.Size == "1344x768" || strings.EqualFold(req.Size, "768p") {
+				sizeResolution, sizeRatio = "768p", "16:9"
+			}
+		}
 		if sizeResolution == "" || (resolution != "" && resolution != sizeResolution) || (ratio != "" && ratio != "adaptive" && ratio != sizeRatio) {
 			return invalid("size conflicts with video options")
 		}
@@ -527,6 +537,14 @@ func validatePlaygroundVideoCapability(c *gin.Context, info *relaycommon.RelayIn
 		}
 		if ratio == "" {
 			ratio = sizeRatio
+		}
+	}
+	if isH3 || isPPIOKling {
+		if resolution == "" {
+			resolution = profile.Defaults.Resolution
+		}
+		if ratio == "" {
+			ratio = profile.Defaults.AspectRatio
 		}
 	}
 	if resolution != "" && !videoStringAllowed(resolution, profile.Resolutions) {

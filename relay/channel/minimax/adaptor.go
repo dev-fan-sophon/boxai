@@ -2,12 +2,13 @@ package minimax
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
+	"github.com/dev-fan-sophon/boxai/common"
 	"github.com/dev-fan-sophon/boxai/dto"
 	"github.com/dev-fan-sophon/boxai/relay/channel"
 	"github.com/dev-fan-sophon/boxai/relay/channel/claude"
@@ -39,40 +40,57 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 
 	voiceID := request.Voice
 	speed := lo.FromPtrOr(request.Speed, 0.0)
-	outputFormat := request.ResponseFormat
+	codec := strings.ToLower(strings.TrimSpace(request.ResponseFormat))
+	if codec == "" {
+		codec = "mp3"
+	}
 
 	minimaxRequest := MiniMaxTTSRequest{
-		Model: info.OriginModelName,
-		Text:  request.Input,
+		Text: request.Input,
 		VoiceSetting: VoiceSetting{
 			VoiceID: voiceID,
 			Speed:   speed,
 		},
 		AudioSetting: &AudioSetting{
-			Format: outputFormat,
+			Format: codec,
 		},
-		OutputFormat: outputFormat,
+		OutputFormat: "hex",
 	}
 
 	// 同步扩展字段的厂商自定义metadata
 	if len(request.Metadata) > 0 {
-		if err := json.Unmarshal(request.Metadata, &minimaxRequest); err != nil {
+		if err := common.Unmarshal(request.Metadata, &minimaxRequest); err != nil {
 			return nil, fmt.Errorf("error unmarshalling metadata to minimax request: %w", err)
 		}
 	}
 
-	jsonData, err := json.Marshal(minimaxRequest)
+	// Channel routing owns the model, even when native metadata is supplied.
+	minimaxRequest.Model = info.UpstreamModelName
+	if minimaxRequest.Model == "" {
+		minimaxRequest.Model = request.Model
+	}
+	if minimaxRequest.Stream || request.IsStream(c) || info.IsStream {
+		return nil, errors.New("MiniMax streaming speech is not supported")
+	}
+	if minimaxRequest.AudioSetting == nil {
+		minimaxRequest.AudioSetting = &AudioSetting{}
+	}
+	minimaxRequest.AudioSetting.Format = strings.ToLower(strings.TrimSpace(minimaxRequest.AudioSetting.Format))
+	if minimaxRequest.AudioSetting.Format == "" {
+		minimaxRequest.AudioSetting.Format = codec
+	}
+	if minimaxRequest.OutputFormat == "" {
+		minimaxRequest.OutputFormat = "hex"
+	}
+	if minimaxRequest.OutputFormat != "hex" && minimaxRequest.OutputFormat != "url" {
+		return nil, errors.New("MiniMax output_format must be hex or url")
+	}
+
+	jsonData, err := common.Marshal(minimaxRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling minimax request: %w", err)
 	}
-	if outputFormat != "hex" {
-		outputFormat = "url"
-	}
-
-	c.Set("response_format", outputFormat)
-
-	// Debug: log the request structure
-	// fmt.Printf("MiniMax TTS Request: %s\n", string(jsonData))
+	c.Set("response_format", minimaxRequest.AudioSetting.Format)
 
 	return bytes.NewReader(jsonData), nil
 }

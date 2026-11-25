@@ -163,7 +163,9 @@ export function isPlaygroundImageModel(model: string): boolean {
     isGptImage2Id(bare) ||
     isGrokImagineImageId(bare) ||
     isGeminiImageModel(bare) ||
-    isSeedreamImageModel(bare)
+    isSeedreamImageModel(bare) ||
+    bare === 'doubao-seedream-5-0-flash-260915' ||
+    bare === 'qwen-image-2.1-turbo'
   )
 }
 

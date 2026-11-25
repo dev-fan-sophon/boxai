@@ -39,6 +39,11 @@ func TestSharedPricingEndpointCapabilitiesMatchRelaySurfaces(t *testing.T) {
 		model       string
 		want        []constant.EndpointType
 	}{
+		{name: "native Seedream image", channelType: constant.ChannelTypeCustom, model: "doubao-seedream-5-0-flash-260915", want: []constant.EndpointType{constant.EndpointTypeImageGeneration}},
+		{name: "native Qwen image", channelType: constant.ChannelTypeAli, model: "qwen-image-2.1-turbo", want: []constant.EndpointType{constant.EndpointTypeImageGeneration}},
+		{name: "MiniMax speech", channelType: constant.ChannelTypeMiniMax, model: "speech-2.8-turbo", want: []constant.EndpointType{constant.EndpointTypeAudio}},
+		{name: "H3 video", channelType: constant.ChannelTypeMiniMax, model: "MiniMax-H3", want: []constant.EndpointType{constant.EndpointTypeOpenAIVideo}},
+		{name: "PPIO Kling video", channelType: constant.ChannelTypeKling, model: "ppio-kling-3.0", want: []constant.EndpointType{constant.EndpointTypeOpenAIVideo}},
 		{
 			name:        "OpenAI-compatible chat also supports Responses",
 			channelType: constant.ChannelTypeOpenAI,

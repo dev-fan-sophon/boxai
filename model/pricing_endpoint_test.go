@@ -261,6 +261,7 @@ func TestPricingCanonicalCatalogMetadataAndVendorFacets(t *testing.T) {
 	insertPricingEndpointChannel(t, 263, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
 
 	publicModels := []string{
+		"MiniMax-H3", "ppio-kling-3.0", "doubao-seedream-5-0-flash-260915", "qwen-image-2.1-turbo", "speech-2.8-turbo",
 		"MiniMax-M3", "claude-fable-5", "claude-haiku-4-5-20251001", "claude-opus-4-6",
 		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5", "claude-sonnet-4-6", "claude-sonnet-5",
 		"deepseek-v4-flash", "deepseek-v4-pro", "dreamina-seedance-2-5", "eleven_multilingual_sts_v2",

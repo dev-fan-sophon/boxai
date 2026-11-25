@@ -27,6 +27,8 @@ describe('isPlaygroundImageModel', () => {
     'gemini-3-pro-image',
     'gemini-3.1-flash-lite-image',
     'google/gemini-3.1-flash-image',
+    'doubao-seedream-5-0-flash-260915',
+    'qwen-image-2.1-turbo',
   ])('accepts %s', (model) => {
     expect(isPlaygroundImageModel(model)).toBe(true)
   })
@@ -43,6 +45,8 @@ describe('isPlaygroundImageModel', () => {
     'imagen-3',
     'grok-imagine-video',
     'gemini-2.5-flash',
+    'doubao-seedream-5-5-261028',
+    'qwen-image-3.0-pro',
     '',
   ])('rejects %s', (model) => {
     expect(isPlaygroundImageModel(model)).toBe(false)
