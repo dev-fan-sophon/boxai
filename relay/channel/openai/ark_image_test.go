@@ -46,8 +46,14 @@ func TestNativeArkImageRecordedContract(t *testing.T) {
 	require.NoError(t, err)
 	body, err := common.Marshal(converted)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"model":"doubao-seedream-5-0-flash-260915","prompt":"a blue ceramic cup","size":"1K","response_format":"url","watermark":false}`, string(body))
+	assert.JSONEq(t, `{"model":"doubao-seedream-5-0-flash-260915","prompt":"a blue ceramic cup","size":"1024x1024","response_format":"url","watermark":false}`, string(body))
 	assert.Equal(t, uint(1), *request.N, "reservation quantity is unchanged")
+	request.Size = "1K"
+	converted, err = adaptor.ConvertImageRequest(c, info, request)
+	require.NoError(t, err)
+	body, err = common.Marshal(converted)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"size":"1024x1024"`, "the 1K alias must not allow automatic aspect ratios")
 
 	// Recorded 2026-11-25 response; only the expiring signed URL is replaced.
 	const response = `{"model":"doubao-seedream-5-0-flash-260915","created":1795604858,"data":[{"url":"https://example.com/seedream.jpg","size":"1024x1024","output_format":"jpeg","background":"opaque"}],"usage":{"input_images":0,"generated_images":1,"output_tokens":4096,"total_tokens":4096}}`

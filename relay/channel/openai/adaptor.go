@@ -468,9 +468,9 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		if err := relaycommon.ValidateImageRequestOptions(&request, len(references), len(request.Mask) > 0); err != nil {
 			return nil, err
 		}
-		// The verified native Ark contract returns one image, uses 1K for a
-		// square 1024px output and does not accept OpenAI batch/stream fields.
-		request.Size = "1K"
+		// Ark's 1K tier chooses an aspect ratio automatically. Send explicit
+		// pixels to preserve the square size promised by our capabilities.
+		request.Size = "1024x1024"
 		request.N = nil
 		request.Stream = nil
 		return request, nil
